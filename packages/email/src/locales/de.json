@@ -126,15 +126,31 @@
         "preview": "{taskName} hat vor einem Tag angehalten und braucht dich.",
         "title": "Wartet weiterhin auf dich",
         "body": "{taskName} hat vor einem Tag angehalten, weil die Aufgabe dich braucht. Sie wartet immer noch.",
-        "button": "Aufgabe öffnen"
+        "button": "Aufgabe öffnen",
+        "projectLabel": "Projekt",
+        "reasons": {
+          "assigned": "{taskName} wurde dir vor einem Tag zugewiesen, und du hast die Aufgabe noch nicht geöffnet.",
+          "inputRequired": "{taskName} hat vor einem Tag angehalten, weil {coworkerName} deine Eingabe braucht. Die Aufgabe wartet weiterhin.",
+          "approvalRequired": "{taskName} hat vor einem Tag angehalten, weil {coworkerName} deine Freigabe braucht. Die Aufgabe wartet weiterhin.",
+          "authenticationRequired": "{taskName} hat vor einem Tag angehalten, weil {coworkerName} eine Anmeldung von dir braucht. Die Aufgabe wartet weiterhin.",
+          "outOfCredits": "{taskName} hat vor einem Tag angehalten, weil die Credits aufgebraucht sind. Die Aufgabe wartet weiterhin.",
+          "scheduleRemovedByOperator": "Der Zeitplan für {taskName} wurde vor einem Tag nach einer Prüfung entfernt, und du hast den Hinweis noch nicht geöffnet."
+        }
       },
       "job": {
         "subject": "Sokosumi - {jobName} wartet weiterhin auf dich",
         "preview": "{jobName} hat vor einem Tag angehalten und braucht dich.",
         "title": "Wartet weiterhin auf dich",
         "body": "{jobName} hat vor einem Tag angehalten, weil der Auftrag dich braucht. Er wartet immer noch.",
-        "button": "Auftrag öffnen"
-      }
+        "button": "Auftrag öffnen",
+        "agentLabel": "Agent",
+        "reasons": {
+          "inputRequired": "{jobName} hat vor einem Tag angehalten, weil {agentName} deine Eingabe braucht. Der Auftrag wartet weiterhin.",
+          "paymentFailed": "Die Zahlung für {jobName} ist vor einem Tag fehlgeschlagen, und du hast den Auftrag noch nicht geöffnet."
+        }
+      },
+      "fallbackCoworkerName": "Ein Coworker",
+      "fallbackAgentName": "Der Agent"
     }
   }
 }

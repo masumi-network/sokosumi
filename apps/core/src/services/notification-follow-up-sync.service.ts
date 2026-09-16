@@ -509,6 +509,10 @@ export async function sendFollowUps(
           recipientEmail: reader.email,
           recipientName: reader.name,
           referenceId: input.referenceId,
+          // The key of the row being reminded about, not the reminder's own.
+          // The reminder collapses a family to one key on purpose; the email
+          // says what that family's row actually asked for.
+          sourceMessageKey: source.messageKey,
         });
 
         if (email) {

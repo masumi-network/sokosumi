@@ -1,7 +1,9 @@
 import { NotificationKind } from "@sokosumi/database";
 import {
   CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
+  CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
+  CHAT_MENTION_MESSAGE_KEY,
   JOB_FOLLOW_UP_MESSAGE_KEY,
   TASK_FOLLOW_UP_MESSAGE_KEY,
 } from "@sokosumi/utils";
@@ -31,12 +33,36 @@ function input(
     kind: NotificationKind.CHAT,
     referenceId: "room-1",
     messageKey: CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
-    messageParams: { authorName: "Ada", roomName: "Design" },
+    sourceMessageKey: CHAT_MENTION_MESSAGE_KEY,
+    messageParams: {
+      authorName: "Ada",
+      messagePreview: "Can you check the pricing table before Friday?",
+      roomName: "Design",
+    },
     metadata: { messageId: "message-1" },
     recipientEmail: "reader@example.com",
     recipientName: "Grace",
     ...overrides,
   };
+}
+
+/**
+ * The rendered words, with the markup taken out.
+ *
+ * The zero-width run the preheader pads itself with goes too, and so does the
+ * space a stripped tag leaves in front of punctuation: `<span>Project</span>:`
+ * reads as `Project:` to anybody looking at the email.
+ */
+function textIn(html: string): string {
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&#x27;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/[\u200b-\u200f\u2060\ufeff]/g, "")
+    .replace(/\s+/g, " ")
+    .replace(/\s+([:.,])/g, "$1")
+    .trim();
 }
 
 /** What the reminder's button and pasted URL point at. */
@@ -164,6 +190,112 @@ describe("buildFollowUpEmail", () => {
 
     expect(linkIn(email?.html ?? "")).toBe(
       `${BASE}/chat/rooms/room%201%2F..%2Fadmin`,
+    );
+  });
+
+  /**
+   * The message itself, which is what tells a reader whether this needs them
+   * now. Core keeps the preview on the row and takes it back when the message
+   * is edited or deleted, so the email quotes what the app would show.
+   */
+  it("quotes the message a mention is about", async () => {
+    const email = await buildFollowUpEmail(input());
+
+    expect(textIn(email?.html ?? "")).toContain(
+      "Can you check the pricing table before Friday?",
+    );
+  });
+
+  it("quotes the message a direct message is about", async () => {
+    const email = await buildFollowUpEmail(
+      input({
+        messageKey: CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
+        sourceMessageKey: CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
+        messageParams: { authorName: "Ada", messagePreview: "Ping me back?" },
+      }),
+    );
+
+    expect(textIn(email?.html ?? "")).toContain("Ping me back?");
+  });
+
+  /** A deleted message leaves the row without a preview, and the email without a quote. */
+  it("says the rest when there is no message to quote", async () => {
+    const email = await buildFollowUpEmail(
+      input({ messageParams: { authorName: "Ada", roomName: "Design" } }),
+    );
+
+    const text = textIn(email?.html ?? "");
+
+    expect(text).toContain("Ada mentioned you in Design");
+    expect(text).not.toContain("pricing table");
+  });
+
+  /**
+   * A task stops for six different reasons. The reminder row collapses them to
+   * one key so that two of them in a day is one reminder; the email reads the
+   * source row, so it can still say which one.
+   */
+  it("says what the task stopped for, and where it lives", async () => {
+    const email = await buildFollowUpEmail(
+      input({
+        kind: NotificationKind.TASK,
+        referenceId: "task-1",
+        messageKey: TASK_FOLLOW_UP_MESSAGE_KEY,
+        sourceMessageKey: "Notifications.Task.approvalRequired",
+        messageParams: {
+          coworkerName: "Ada",
+          projectName: "Billing",
+          taskName: "Invoice run",
+        },
+        metadata: null,
+      }),
+    );
+
+    const text = textIn(email?.html ?? "");
+
+    expect(text).toContain(
+      "Invoice run stopped a day ago because Ada needs your approval",
+    );
+    expect(text).toContain("Project: Billing");
+  });
+
+  it("says what the job stopped for, and which agent it is", async () => {
+    const email = await buildFollowUpEmail(
+      input({
+        kind: NotificationKind.JOB,
+        referenceId: "job-1",
+        messageKey: JOB_FOLLOW_UP_MESSAGE_KEY,
+        sourceMessageKey: "Notifications.Job.paymentFailed",
+        messageParams: { agentName: "Reporter", jobName: "Nightly report" },
+        metadata: { agentId: "agent-1" },
+      }),
+    );
+
+    const text = textIn(email?.html ?? "");
+
+    expect(text).toContain("The payment for Nightly report failed a day ago");
+    expect(text).toContain("Agent: Reporter");
+  });
+
+  /**
+   * A key added to a family later has no sentence written for it. The email
+   * falls back to the family's own body rather than asking the catalog for a
+   * string nobody wrote, which would throw and cost the reader the email.
+   */
+  it("falls back to the family wording for a reason it has no sentence for", async () => {
+    const email = await buildFollowUpEmail(
+      input({
+        kind: NotificationKind.TASK,
+        referenceId: "task-1",
+        messageKey: TASK_FOLLOW_UP_MESSAGE_KEY,
+        sourceMessageKey: "Notifications.Task.somethingNobodyHasWordsFor",
+        messageParams: { taskName: "Invoice run" },
+        metadata: null,
+      }),
+    );
+
+    expect(textIn(email?.html ?? "")).toContain(
+      "Invoice run stopped a day ago because it needs you",
     );
   });
 

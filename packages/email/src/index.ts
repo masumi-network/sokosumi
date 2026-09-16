@@ -4,5 +4,7 @@ export type {
   ChatMentionFollowUpEmailProps,
   JobFailureNotificationEmailProps,
   JobFollowUpEmailProps,
+  JobFollowUpReason,
   TaskFollowUpEmailProps,
+  TaskFollowUpReason,
 } from "./types.js";

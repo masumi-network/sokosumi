@@ -127,4 +127,123 @@ describe("reminder emails", () => {
       "Sokosumi - Andreas sigue esperando tu respuesta",
     );
   });
+
+  /**
+   * The message itself (SOK-916).
+   *
+   * A reminder saying only that somebody is waiting makes the reader open the
+   * app to find out whether it can wait. The words they were sent answer that
+   * in the inbox.
+   */
+  it("quotes the message a mention is about", async () => {
+    const rendered = await renderChatMentionFollowUpEmail({
+      actionUrl: ROOM_URL,
+      authorName: "Andreas",
+      locale: "en",
+      messagePreview: "Can you approve the pricing change?",
+      recipientName: "Sandro",
+      roomName: "product",
+    });
+
+    expect(rendered.html).toContain("Can you approve the pricing change?");
+  });
+
+  it("quotes the message a direct message is about", async () => {
+    const rendered = await renderChatDirectMessageFollowUpEmail({
+      actionUrl: ROOM_URL,
+      authorName: "Andreas",
+      locale: "en",
+      messagePreview: "Are you free at four?",
+      recipientName: "Sandro",
+    });
+
+    expect(rendered.html).toContain("Are you free at four?");
+  });
+
+  /** A message that cleans to nothing is quoted as nothing, not as an empty box. */
+  it("quotes nothing when the preview is blank", async () => {
+    const rendered = await renderChatMentionFollowUpEmail({
+      actionUrl: ROOM_URL,
+      authorName: "Andreas",
+      locale: "en",
+      messagePreview: "   ",
+      recipientName: "Sandro",
+      roomName: "product",
+    });
+
+    expect(rendered.html).not.toContain("italic");
+  });
+
+  it("says what the task stopped for, and which project it is in", async () => {
+    const rendered = await renderTaskFollowUpEmail({
+      actionUrl: TASK_URL,
+      coworkerName: "Ada",
+      locale: "en",
+      projectName: "Billing",
+      reason: "inputRequired",
+      recipientName: "Sandro",
+      taskName: "Quarterly report",
+    });
+
+    expect(rendered.html).toContain(
+      "Quarterly report stopped a day ago because Ada needs your input",
+    );
+    expect(rendered.html).toContain("Project");
+    expect(rendered.html).toContain("Billing");
+  });
+
+  /** No reason given is the family's own body, which names no cause. */
+  it("keeps the plain wording when no reason is given", async () => {
+    const rendered = await renderTaskFollowUpEmail({
+      actionUrl: TASK_URL,
+      locale: "en",
+      recipientName: "Sandro",
+      taskName: "Quarterly report",
+    });
+
+    expect(rendered.html).toContain(
+      "Quarterly report stopped a day ago because it needs you",
+    );
+  });
+
+  it("says a coworker when the row does not name one", async () => {
+    const rendered = await renderTaskFollowUpEmail({
+      actionUrl: TASK_URL,
+      locale: "en",
+      reason: "approvalRequired",
+      recipientName: "Sandro",
+      taskName: "Quarterly report",
+    });
+
+    expect(rendered.html).toContain("A coworker needs your approval");
+  });
+
+  it("names the agent a job is waiting on", async () => {
+    const rendered = await renderJobFollowUpEmail({
+      actionUrl: TASK_URL,
+      agentName: "Reporter",
+      jobName: "Nightly report",
+      locale: "en",
+      reason: "inputRequired",
+      recipientName: "Sandro",
+    });
+
+    expect(rendered.html).toContain(
+      "Nightly report stopped a day ago because Reporter needs your input",
+    );
+    expect(rendered.html).toContain("Agent");
+  });
+
+  it("says the reason in German too", async () => {
+    const rendered = await renderTaskFollowUpEmail({
+      actionUrl: TASK_URL,
+      coworkerName: "Ada",
+      locale: "de",
+      reason: "outOfCredits",
+      recipientName: "Sandro",
+      taskName: "Quartalsbericht",
+    });
+
+    expect(rendered.html).toContain("weil die Credits aufgebraucht sind");
+  });
 });

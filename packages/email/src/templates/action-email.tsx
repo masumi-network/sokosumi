@@ -7,14 +7,36 @@ import type { RenderedEmail } from "../types.js";
 const DEFAULT_LINK_INSTRUCTIONS =
   "Or copy and paste this URL into your browser:";
 
+/** One named piece of context under the body, such as a project or an agent. */
+export interface ActionEmailFact {
+  label: string;
+  value: string;
+}
+
 export interface ActionEmailTemplateProps {
   actionLabel: string;
   actionUrl: string;
   body: string;
+  /**
+   * Named context under the body, drawn only when there is some.
+   *
+   * For the reader who is deciding whether this needs them now. A task's
+   * project and a job's agent answer "which one is this?" without opening it.
+   */
+  facts?: readonly ActionEmailFact[];
   footer: string;
   greeting: string;
   linkInstructions?: string;
   preview: string;
+  /**
+   * Something the email is quoting, such as the chat message it is about.
+   *
+   * Drawn as a quote rather than folded into the body, so a reader can tell
+   * Sokosumi's words from somebody else's. Absent when there is nothing to
+   * quote, which for a chat message means it was deleted or it cleaned to
+   * nothing.
+   */
+  quote?: string;
   title: string;
 }
 
@@ -22,10 +44,12 @@ export function ActionEmailTemplate({
   actionLabel,
   actionUrl,
   body,
+  facts,
   footer,
   greeting,
   linkInstructions = DEFAULT_LINK_INSTRUCTIONS,
   preview,
+  quote,
   title,
 }: ActionEmailTemplateProps) {
   return (
@@ -36,6 +60,27 @@ export function ActionEmailTemplate({
       <Text className="m-0 mb-[28px] text-[16px] leading-[28px] text-[#30263f]">
         {body}
       </Text>
+      {quote ? (
+        <Container className="mb-[28px] rounded-[12px] border-0 border-l-[3px] border-solid border-[#c9b6ff] bg-[#f8f5ff] px-[18px] py-[14px]">
+          <Text className="m-0 text-[15px] leading-[26px] text-[#30263f] italic">
+            {quote}
+          </Text>
+        </Container>
+      ) : null}
+      {facts && facts.length > 0 ? (
+        <Section className="mb-[28px]">
+          {facts.map((fact) => (
+            <Text
+              key={fact.label}
+              className="m-0 mb-[6px] text-[14px] leading-[22px] text-[#4d4260]"
+            >
+              <span className="font-semibold text-[#30263f]">{fact.label}</span>
+              {": "}
+              {fact.value}
+            </Text>
+          ))}
+        </Section>
+      ) : null}
       <Section className="mb-[28px] mt-0 text-left">
         <Button
           className="rounded-[12px] bg-[#6a36ff] px-[20px] py-[14px] text-[14px] font-semibold text-white no-underline"

@@ -1303,8 +1303,13 @@ describe("NotificationFollowUpSyncService", () => {
     });
   }
 
-  /** Every email this run handed over, across all its batches. */
-  function emailsSent(): { subject: string; tag: string; to: string }[] {
+  /** Every email this run handed over, with its body, across all its batches. */
+  function emailsSent(): {
+    html: string;
+    subject: string;
+    tag: string;
+    to: string;
+  }[] {
     return sendEmailsMock.mock.calls.flatMap((call) => call[0]);
   }
 
@@ -1343,6 +1348,30 @@ describe("NotificationFollowUpSyncService", () => {
     expect(written).toHaveLength(1);
     expect(result.emailed).toBe(1);
     expect(emailsSent()).toHaveLength(1);
+  });
+
+  /**
+   * The reminder is stored under one key per family, so the email has to read
+   * the source row to say what the task actually stopped for. Passing the
+   * reminder's own key instead leaves every task email saying "it needs you".
+   */
+  it("says in the email what the source row asked for", async () => {
+    wantsEmail();
+    seed([
+      row({
+        kind: NotificationKind.TASK,
+        referenceId: "task-1",
+        messageKey: "Notifications.Task.approvalRequired",
+        messageParams: { coworkerName: "Ada", taskName: "Invoice run" },
+        metadata: null,
+      }),
+    ]);
+
+    await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    const [email] = emailsSent();
+
+    expect(email.html).toContain("Ada needs your approval");
   });
 
   it("sends no email to a reader who switched that cell off", async () => {

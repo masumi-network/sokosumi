@@ -1,9 +1,11 @@
 import type { NotificationKind } from "@sokosumi/database";
 import {
+  type JobFollowUpReason,
   renderChatDirectMessageFollowUpEmail,
   renderChatMentionFollowUpEmail,
   renderJobFollowUpEmail,
   renderTaskFollowUpEmail,
+  type TaskFollowUpReason,
 } from "@sokosumi/email";
 import {
   CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
@@ -36,10 +38,52 @@ export interface FollowUpEmailInput {
   kind: NotificationKind;
   referenceId: string;
   messageKey: string;
+  /**
+   * The key of the notification this is a reminder about.
+   *
+   * The reminder itself is stored under one key per family, so that a task
+   * asking for input and then for approval on one day is one reminder rather
+   * than two. That is what the reader wants and it costs the reason, which
+   * this carries back: the email can say what the task stopped for while the
+   * row stays one row.
+   */
+  sourceMessageKey: string;
   messageParams: Record<string, unknown>;
   metadata?: Record<string, unknown> | null;
   recipientEmail: string;
   recipientName: null | string;
+}
+
+/**
+ * Why the task or job is waiting, or null when this key has no sentence.
+ *
+ * Read off the end of the message key, because every attention key Core writes
+ * ends in the word the catalogs use: `Notifications.Task.inputRequired` and
+ * `notifications.followUp.task.reasons.inputRequired`. A key added to a family
+ * later falls through to the family's own body rather than asking the catalog
+ * for a sentence nobody has written.
+ */
+const TASK_REASONS: readonly TaskFollowUpReason[] = [
+  "approvalRequired",
+  "assigned",
+  "authenticationRequired",
+  "inputRequired",
+  "outOfCredits",
+  "scheduleRemovedByOperator",
+];
+
+const JOB_REASONS: readonly JobFollowUpReason[] = [
+  "inputRequired",
+  "paymentFailed",
+];
+
+function reasonIn<T extends string>(
+  reasons: readonly T[],
+  sourceMessageKey: string,
+): null | T {
+  const tail = sourceMessageKey.slice(sourceMessageKey.lastIndexOf(".") + 1);
+
+  return reasons.find((reason): reason is T => reason === tail) ?? null;
 }
 
 /**
@@ -125,12 +169,15 @@ export async function buildFollowUpEmail(
       // swaps the same way at render time (`notification-message.ts`).
       const authorName = readString(input.messageParams, "authorName");
 
+      const messagePreview = readString(input.messageParams, "messagePreview");
+
       if (input.messageParams.isDirect === true) {
         return withRecipient(
           input,
           await renderChatDirectMessageFollowUpEmail({
             ...shared,
             authorName,
+            messagePreview,
           }),
         );
       }
@@ -140,6 +187,7 @@ export async function buildFollowUpEmail(
         await renderChatMentionFollowUpEmail({
           ...shared,
           authorName,
+          messagePreview,
           roomName: readString(input.messageParams, "roomName"),
         }),
       );
@@ -151,6 +199,7 @@ export async function buildFollowUpEmail(
         await renderChatDirectMessageFollowUpEmail({
           ...shared,
           authorName: readString(input.messageParams, "authorName"),
+          messagePreview: readString(input.messageParams, "messagePreview"),
         }),
       );
 
@@ -159,6 +208,9 @@ export async function buildFollowUpEmail(
         input,
         await renderTaskFollowUpEmail({
           ...shared,
+          coworkerName: readString(input.messageParams, "coworkerName"),
+          projectName: readString(input.messageParams, "projectName"),
+          reason: reasonIn(TASK_REASONS, input.sourceMessageKey),
           taskName: readString(input.messageParams, "taskName"),
         }),
       );
@@ -168,7 +220,9 @@ export async function buildFollowUpEmail(
         input,
         await renderJobFollowUpEmail({
           ...shared,
+          agentName: readString(input.messageParams, "agentName"),
           jobName: readString(input.messageParams, "jobName"),
+          reason: reasonIn(JOB_REASONS, input.sourceMessageKey),
         }),
       );
 

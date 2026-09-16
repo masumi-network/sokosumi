@@ -76,21 +76,59 @@ export interface NotificationFollowUpEmailProps extends LocalizedEmailProps {
   recipientName?: null | string;
 }
 
+/**
+ * The message itself, as the notification stored it.
+ *
+ * Core keeps a preview on the chat notification row and takes it back when the
+ * message is edited or deleted, so this is what the reader's Notification
+ * Center says too. Absent when there is nothing to show: a deleted message, or
+ * a body that cleans to nothing once an unnamed mention is taken out of it.
+ */
+interface QuotedChatMessage {
+  messagePreview?: null | string;
+}
+
 export interface ChatMentionFollowUpEmailProps
-  extends NotificationFollowUpEmailProps {
+  extends NotificationFollowUpEmailProps,
+    QuotedChatMessage {
   authorName?: null | string;
   roomName?: null | string;
 }
 
 export interface ChatDirectMessageFollowUpEmailProps
-  extends NotificationFollowUpEmailProps {
+  extends NotificationFollowUpEmailProps,
+    QuotedChatMessage {
   authorName?: null | string;
 }
 
+/**
+ * Why a task is waiting, in the words of the notification that said so.
+ *
+ * The same six keys Core calls task attention. A union rather than a string,
+ * because each one names a sentence in the catalogs and a key with no sentence
+ * must not be able to reach them.
+ */
+export type TaskFollowUpReason =
+  | "approvalRequired"
+  | "assigned"
+  | "authenticationRequired"
+  | "inputRequired"
+  | "outOfCredits"
+  | "scheduleRemovedByOperator";
+
+/** Why a job is waiting. The two keys Core calls job attention. */
+export type JobFollowUpReason = "inputRequired" | "paymentFailed";
+
 export interface TaskFollowUpEmailProps extends NotificationFollowUpEmailProps {
+  /** Whoever the task is waiting on the reader for. */
+  coworkerName?: null | string;
+  projectName?: null | string;
+  reason?: null | TaskFollowUpReason;
   taskName?: null | string;
 }
 
 export interface JobFollowUpEmailProps extends NotificationFollowUpEmailProps {
+  agentName?: null | string;
   jobName?: null | string;
+  reason?: null | JobFollowUpReason;
 }

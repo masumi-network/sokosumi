@@ -126,15 +126,31 @@
         "preview": "{taskName} se detuvo y te necesita desde hace un día.",
         "title": "Sigue esperándote",
         "body": "{taskName} se detuvo hace un día porque te necesita. Sigue esperando.",
-        "button": "Abrir la tarea"
+        "button": "Abrir la tarea",
+        "projectLabel": "Proyecto",
+        "reasons": {
+          "assigned": "{taskName} se te asignó hace un día y todavía no la has abierto.",
+          "inputRequired": "{taskName} se detuvo hace un día porque {coworkerName} necesita tu input. Sigue esperando.",
+          "approvalRequired": "{taskName} se detuvo hace un día porque {coworkerName} necesita tu aprobación. Sigue esperando.",
+          "authenticationRequired": "{taskName} se detuvo hace un día porque {coworkerName} necesita que inicies sesión en algún sitio. Sigue esperando.",
+          "outOfCredits": "{taskName} se detuvo hace un día porque se quedó sin créditos. Sigue esperando.",
+          "scheduleRemovedByOperator": "La programación de {taskName} se eliminó tras una revisión hace un día y todavía no has abierto el aviso."
+        }
       },
       "job": {
         "subject": "Sokosumi - {jobName} sigue esperándote",
         "preview": "{jobName} se detuvo y te necesita desde hace un día.",
         "title": "Sigue esperándote",
         "body": "{jobName} se detuvo hace un día porque te necesita. Sigue esperando.",
-        "button": "Abrir el trabajo"
-      }
+        "button": "Abrir el trabajo",
+        "agentLabel": "Agente",
+        "reasons": {
+          "inputRequired": "{jobName} se detuvo hace un día porque {agentName} necesita tu input. Sigue esperando.",
+          "paymentFailed": "El pago de {jobName} falló hace un día y todavía no lo has abierto."
+        }
+      },
+      "fallbackCoworkerName": "Un coworker",
+      "fallbackAgentName": "El agente"
     }
   }
 }

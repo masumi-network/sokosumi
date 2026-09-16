@@ -1,5 +1,8 @@
 import { createEmailTranslator } from "../i18n/translate.js";
-import { renderActionEmail } from "../templates/action-email.js";
+import {
+  type ActionEmailFact,
+  renderActionEmail,
+} from "../templates/action-email.js";
 import type {
   ChatDirectMessageFollowUpEmailProps,
   ChatMentionFollowUpEmailProps,
@@ -67,7 +70,22 @@ function nameOr(
 
 interface FollowUpEmailOptions {
   actionUrl: string;
+  facts?: readonly ActionEmailFact[];
   family: "directMessage" | "job" | "mention" | "task";
+  quote?: null | string;
+  /**
+   * Why the thing is waiting, named by the notification that started it.
+   *
+   * A task stops for six different reasons and a job for two, and "it needs
+   * you" says none of them. The reminder is stored under one message key per
+   * family so that a task asking twice in a day is still one reminder, so the
+   * reason comes from the source row rather than from the reminder.
+   *
+   * Absent when the source key is one this catalog has no sentence for, which
+   * leaves the family's own body. A union rather than a string, so a key with
+   * no sentence cannot reach the catalog and fail to resolve.
+   */
+  reason?: null | string;
   recipientName?: null | string;
   t: TranslateFn;
   values: Record<string, string>;
@@ -75,21 +93,29 @@ interface FollowUpEmailOptions {
 
 function renderFollowUpEmail({
   actionUrl,
+  facts,
   family,
+  quote,
+  reason,
   recipientName,
   t,
   values,
 }: FollowUpEmailOptions): Promise<RenderedEmail> {
   const scope = `${FOLLOW_UP_SCOPE}.${family}`;
+  const trimmedQuote = quote?.trim();
 
   return renderActionEmail({
     actionLabel: t(`${scope}.button`),
     actionUrl,
-    body: t(`${scope}.body`, values),
+    body: reason
+      ? t(`${scope}.reasons.${reason}`, values)
+      : t(`${scope}.body`, values),
+    facts,
     footer: t(`${FOLLOW_UP_SCOPE}.footer`),
     greeting: buildGreeting(t, recipientName),
     linkInstructions: t(`${FOLLOW_UP_SCOPE}.linkInstructions`),
     preview: t(`${scope}.preview`, values),
+    quote: trimmedQuote ? trimmedQuote : undefined,
     subject: t(`${scope}.subject`, values),
     title: t(`${scope}.title`),
   });
@@ -100,6 +126,7 @@ export function renderChatMentionFollowUpEmail({
   actionUrl,
   authorName,
   locale,
+  messagePreview,
   recipientName,
   roomName,
 }: ChatMentionFollowUpEmailProps): Promise<RenderedEmail> {
@@ -108,6 +135,7 @@ export function renderChatMentionFollowUpEmail({
   return renderFollowUpEmail({
     actionUrl,
     family: "mention",
+    quote: messagePreview,
     recipientName,
     t,
     values: {
@@ -128,6 +156,7 @@ export function renderChatDirectMessageFollowUpEmail({
   actionUrl,
   authorName,
   locale,
+  messagePreview,
   recipientName,
 }: ChatDirectMessageFollowUpEmailProps): Promise<RenderedEmail> {
   const { t } = createEmailTranslator(locale);
@@ -135,6 +164,7 @@ export function renderChatDirectMessageFollowUpEmail({
   return renderFollowUpEmail({
     actionUrl,
     family: "directMessage",
+    quote: messagePreview,
     recipientName,
     t,
     values: { authorName: nameOr(t, authorName, "fallbackAuthorName") },
@@ -144,35 +174,66 @@ export function renderChatDirectMessageFollowUpEmail({
 /** A task still waiting on the reader: input, approval, authentication, credits. */
 export function renderTaskFollowUpEmail({
   actionUrl,
+  coworkerName,
   locale,
+  projectName,
+  reason,
   recipientName,
   taskName,
 }: TaskFollowUpEmailProps): Promise<RenderedEmail> {
   const { t } = createEmailTranslator(locale);
+  const trimmedProjectName = projectName?.trim();
 
   return renderFollowUpEmail({
     actionUrl,
+    facts: trimmedProjectName
+      ? [
+          {
+            label: t(`${FOLLOW_UP_SCOPE}.task.projectLabel`),
+            value: trimmedProjectName,
+          },
+        ]
+      : undefined,
     family: "task",
+    reason,
     recipientName,
     t,
-    values: { taskName: nameOr(t, taskName, "fallbackTaskName") },
+    values: {
+      coworkerName: nameOr(t, coworkerName, "fallbackCoworkerName"),
+      taskName: nameOr(t, taskName, "fallbackTaskName"),
+    },
   });
 }
 
 /** A job still waiting on the reader: input, or a payment that failed. */
 export function renderJobFollowUpEmail({
   actionUrl,
+  agentName,
   jobName,
   locale,
+  reason,
   recipientName,
 }: JobFollowUpEmailProps): Promise<RenderedEmail> {
   const { t } = createEmailTranslator(locale);
+  const trimmedAgentName = agentName?.trim();
 
   return renderFollowUpEmail({
     actionUrl,
+    facts: trimmedAgentName
+      ? [
+          {
+            label: t(`${FOLLOW_UP_SCOPE}.job.agentLabel`),
+            value: trimmedAgentName,
+          },
+        ]
+      : undefined,
     family: "job",
+    reason,
     recipientName,
     t,
-    values: { jobName: nameOr(t, jobName, "fallbackJobName") },
+    values: {
+      agentName: nameOr(t, agentName, "fallbackAgentName"),
+      jobName: nameOr(t, jobName, "fallbackJobName"),
+    },
   });
 }
