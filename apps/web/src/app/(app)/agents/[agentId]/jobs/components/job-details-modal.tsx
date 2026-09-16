@@ -115,10 +115,10 @@ export function JobDetailsModal({
       <DialogContent className="w-svw max-w-3xl border-none bg-transparent p-0 focus:ring-0 focus:outline-none md:w-[80vw] [&>button]:hidden">
         <DialogTitle className="hidden" />
         <DialogDescription className="hidden" />
-        <ScrollArea className="max-h-svh md:max-h-[90svh]">
+        <ScrollArea className="max-h-dvh md:max-h-[90dvh]">
           <div
             data-testid="job-details-modal-surface"
-            className="bg-background min-h-svh w-svw rounded-none p-4 md:min-h-0 md:w-auto md:rounded-xl md:p-6"
+            className="bg-background min-h-dvh w-svw rounded-none p-4 md:min-h-0 md:w-auto md:rounded-xl md:p-6"
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           >

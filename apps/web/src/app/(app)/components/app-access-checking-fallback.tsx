@@ -13,7 +13,7 @@ export function AppAccessCheckingFallback() {
 
   return (
     <div
-      className="flex min-h-svh flex-1 items-center justify-center"
+      className="flex min-h-dvh flex-1 items-center justify-center"
       data-app-access-checking
       aria-busy="true"
       aria-live="polite"

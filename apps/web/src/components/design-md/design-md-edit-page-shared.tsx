@@ -21,7 +21,7 @@ export function DesignMdLoadError({
   title,
 }: DesignMdLoadErrorProps) {
   return (
-    <div className="mx-auto flex min-h-[50vh] max-w-lg flex-col items-center justify-center gap-4 px-4 text-center">
+    <div className="mx-auto flex min-h-[50dvh] max-w-lg flex-col items-center justify-center gap-4 px-4 text-center">
       <div className="space-y-2">
         <h1 className="font-semibold text-lg">{title}</h1>
         <p className="text-muted-foreground text-sm">{description}</p>
