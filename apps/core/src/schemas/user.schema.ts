@@ -154,7 +154,7 @@ export const notificationPreferenceSchema = z
     }),
     channel: z.enum(NOTIFICATION_CHANNELS).openapi({
       description:
-        "Where it is delivered: in the app, or as an OS banner (which also needs pushOptIn)",
+        "Where it is delivered: in the app, as an OS banner (which also needs pushOptIn), or by email (offered only on the categories that mail)",
       example: "OS_BANNER",
     }),
     enabled: z.boolean().openapi({

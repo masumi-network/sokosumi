@@ -4,6 +4,7 @@ import {
   NotificationKind,
   type Prisma,
 } from "@sokosumi/database";
+import { isFollowUpMessageKey } from "@sokosumi/utils";
 
 import type { NotificationDelivery } from "@/helpers/notification-delivery";
 import {
@@ -37,9 +38,11 @@ export interface CreateNotificationResult {
 /**
  * Where this notification goes: the app, the OS banner, both, or neither.
  *
- * Exported for the chat fan-out, which writes a room's row itself once the
- * reader already has an unread one, and has to ask the same question before it
- * publishes.
+ * Exported for the two callers that have to ask before they write. The chat
+ * fan-out writes a room's row itself once the reader already has an unread
+ * one, and asks the same question before it publishes. The follow-up sync asks
+ * so it can skip a silenced reader rather than store a row nobody sees, and
+ * hands the answer back through `deliveryOverride` below.
  *
  * Read once, before the row is written, because the in-app answer is stored on
  * the row itself. That costs one read per notification on the bulk job and task
@@ -66,7 +69,7 @@ export async function resolveDelivery(
     });
 
     if (!user) {
-      return { inApp: true, osBanner: false };
+      return { inApp: true, osBanner: false, email: false };
     }
 
     return resolveNotificationDelivery({
@@ -88,7 +91,7 @@ export async function resolveDelivery(
       },
     });
 
-    return { inApp: true, osBanner: false };
+    return { inApp: true, osBanner: false, email: false, fellBack: true };
   }
 }
 
@@ -147,11 +150,21 @@ async function chatRoomArrivals(
         referenceId: notification.referenceId,
         isRead: false,
       },
-      select: { id: true, messageParams: true, inApp: true, metadata: true },
+      select: {
+        id: true,
+        messageKey: true,
+        messageParams: true,
+        inApp: true,
+        metadata: true,
+      },
     });
 
     let count = 0;
     for (const row of waiting) {
+      // Reminders refer to existing messages, so they add no arrivals.
+      if (isFollowUpMessageKey(row.messageKey)) {
+        continue;
+      }
       if (!row.inApp) {
         // Read the same way as the count below it. Parsed here, a column
         // that will not read threw out of the loop into the catch, which
@@ -318,7 +331,9 @@ export async function publishClearedNotifications(
       // No banner: nothing arrived. This says one stopped waiting.
       await publishNotificationRow(
         notification,
-        { inApp: notification.inApp, osBanner: false },
+        // No email. This says an existing row again over realtime; the
+        // email, if there was one, went out when the row was written.
+        { inApp: notification.inApp, osBanner: false, email: false },
         false,
       );
     }
@@ -344,10 +359,21 @@ export async function publishClearedNotifications(
  *
  * This is an internal-only helper for Core services to emit notifications.
  * Not exposed as a public API in v1.
+ *
+ * `deliveryOverride` is for a caller that already asked. The follow-up sync
+ * reads the answer itself, to skip a reminder nobody would see before it
+ * writes one, and passing that answer here stores the row under the decision
+ * the caller acted on. Resolving a second time would let preferences change
+ * between the two reads and store a hidden row the caller counted as sent.
+ *
+ * Pass only an answer that came from `resolveDelivery`. It carries the push
+ * opt-in and the reader's per-category choices, and nothing here checks them
+ * again: a hand-built value would push to a reader who switched push off.
  */
 export async function createNotification(
   input: CreateNotificationInput,
   prismaClient: Prisma.TransactionClient | typeof prisma = prisma,
+  deliveryOverride?: NotificationDelivery,
 ): Promise<CreateNotificationResult> {
   const prisma = prismaClient;
   const uniqueKey = {
@@ -358,7 +384,7 @@ export async function createNotification(
     messageKey: input.messageKey,
   };
 
-  const delivery = await resolveDelivery(input);
+  const delivery = deliveryOverride ?? (await resolveDelivery(input));
   // Preserve the delivery decision for hidden chat rows. A silenced mention
   // remains stored for idempotency, but a room row can represent its message
   // too. Current preferences cannot tell whether that old mention arrived.

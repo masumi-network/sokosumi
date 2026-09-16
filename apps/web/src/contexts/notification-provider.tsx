@@ -97,6 +97,17 @@ export function useNotifications() {
   return context;
 }
 
+/**
+ * The notification context when there is one, or null when there is not.
+ *
+ * For components that only nudge the bell and must not take a page down with
+ * them when they render outside the provider. Anything that needs the context
+ * to do its job should use `useNotifications` and fail loudly instead.
+ */
+export function useOptionalNotifications(): NotificationContextValue | null {
+  return use(NotificationContext);
+}
+
 async function noopAsync(): Promise<void> {}
 
 function noopRemove(_id: string): void {}

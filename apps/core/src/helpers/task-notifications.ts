@@ -3,6 +3,12 @@ import { NotificationKind } from "@sokosumi/database";
 
 import prisma from "@/lib/db/prisma";
 
+import { TASK_ATTENTION_MESSAGE_KEYS } from "./notification-delivery.js";
+import {
+  markAttentionRead,
+  markSettledAttentionRead,
+  TASK_RUN_ATTENTION_MESSAGE_KEYS,
+} from "./notification-read.js";
 import { createNotification } from "./notifications.js";
 
 function taskNotificationPayload(task: {
@@ -38,6 +44,24 @@ function taskNotificationPayload(task: {
 }
 
 /**
+ * The readers a task's attention rows can belong to.
+ *
+ * The owner, plus the member it is assigned to when that is somebody else.
+ * The owner comes first and once, because the two are the same person on
+ * every task nobody delegated.
+ */
+function taskReaderIds(task: {
+  ownerId: string;
+  assigneeUserId: string | null;
+}): string[] {
+  if (!task.assigneeUserId || task.assigneeUserId === task.ownerId) {
+    return [task.ownerId];
+  }
+
+  return [task.ownerId, task.assigneeUserId];
+}
+
+/**
  * Task-status notification dispatch, extracted from the task-events route so
  * the x402 pay endpoint's OUT_OF_CREDITS pause notifies the owner through the
  * exact same path. Best-effort by design: a notification failure must never
@@ -47,6 +71,7 @@ export async function dispatchTaskNotification(
   task: {
     id: string;
     ownerId: string;
+    assigneeUserId: string | null;
     name: string | null;
     assignee: { name: string } | null;
     assigneeSokoBot: { name: string | null } | null;
@@ -60,6 +85,21 @@ export async function dispatchTaskNotification(
   try {
     let messageKey: string;
     switch (status) {
+      case "READY":
+      case "QUEUED":
+      case "RUNNING":
+      case "AWAITING_EXTERNAL":
+      case "CREDITS_TOPPED_UP":
+        for (const readerId of taskReaderIds(task)) {
+          await markAttentionRead(
+            readerId,
+            NotificationKind.TASK,
+            task.id,
+            TASK_RUN_ATTENTION_MESSAGE_KEYS,
+            "task-resumed-read",
+          );
+        }
+        return;
       case "INPUT_REQUIRED":
         messageKey = "Notifications.Task.inputRequired";
         break;
@@ -94,6 +134,24 @@ export async function dispatchTaskNotification(
           "Assistant",
       },
     });
+
+    // A task that has settled is no longer waiting on either reader, however
+    // it got there, so whatever it left unread stops being a question.
+    //
+    // Before the write because `createNotification` rethrows any write error
+    // that is not a unique violation, and clearing afterwards would be skipped
+    // on exactly the run that settled the task. The cost is the same failure's
+    // other half: the rows are read and the outcome notification is never
+    // written, so the reader is told nothing rather than told twice. That
+    // loses less, because the reminder would have been wrong either way.
+    for (const readerId of taskReaderIds(task)) {
+      await markSettledAttentionRead(
+        readerId,
+        NotificationKind.TASK,
+        task.id,
+        messageKey,
+      );
+    }
 
     await createNotification({
       userId: task.ownerId,
@@ -131,6 +189,7 @@ export async function notifyTaskStatusEvent(
       select: {
         id: true,
         ownerId: true,
+        assigneeUserId: true,
         name: true,
         projectId: true,
         workspaceId: true,
@@ -223,5 +282,63 @@ export async function notifyTaskHumanAssignee(
         notificationType: "task-assignee-notification",
       },
     });
+  }
+}
+
+/**
+ * Mark a member's `assigned` row read, because the task is no longer theirs.
+ *
+ * The row says "this task is yours", and a reassignment or an unassignment
+ * makes it false. That is not covered by the settled read at the dispatcher
+ * above, which reaches the assignee the task holds at the moment it settles,
+ * and by then that is somebody else. Left alone the member keeps an unread
+ * row for ever and the follow-up sync reminds them a day later about a task
+ * they do not have (SOK-916, the reasoning of user stories 14 and 15).
+ *
+ * That one key and no more, because the previous holder is sometimes the
+ * owner, and the owner's other attention rows are about a task that is still
+ * theirs and still waiting.
+ */
+export async function markTaskAssignedRead(
+  assigneeUserId: string,
+  taskId: string,
+): Promise<void> {
+  await markAttentionRead(
+    assigneeUserId,
+    NotificationKind.TASK,
+    taskId,
+    [TASK_ASSIGNED_MESSAGE_KEY],
+    "task-assigned-read",
+  );
+}
+
+/**
+ * Mark every outstanding attention row for an archived task read.
+ *
+ * Archiving is the fourth way a task stops waiting on somebody, after
+ * completing, failing and being canceled, and it is the one the dispatcher
+ * above never sees. Four of the seven archivable statuses are non-terminal
+ * (`DRAFT`, `QUEUED`, `READY`, `GRANT_PENDING`), so a row asking the owner to
+ * act can still be outstanding: the operator-removed-schedule row is written
+ * with no status condition at all. Nobody can open an archived task, so every
+ * such row is now about a question nobody is asking.
+ *
+ * Every attention key rather than the assigned one, and both readers, because
+ * archiving ends the task for all of them at once. That is what separates it
+ * from a reassignment, which ends one row for one person.
+ */
+export async function markTaskArchivedRead(task: {
+  id: string;
+  ownerId: string;
+  assigneeUserId: string | null;
+}): Promise<void> {
+  for (const readerId of taskReaderIds(task)) {
+    await markAttentionRead(
+      readerId,
+      NotificationKind.TASK,
+      task.id,
+      TASK_ATTENTION_MESSAGE_KEYS,
+      "task-archived-read",
+    );
   }
 }

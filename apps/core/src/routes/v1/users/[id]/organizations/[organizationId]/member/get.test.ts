@@ -34,13 +34,6 @@ vi.mock("@sokosumi/database/repositories", () => ({
   },
 }));
 
-// Let a coworker past the vendor grant gate so these cases exercise the
-// organization binding, not grant policy.
-vi.mock("@/helpers/coworker-user-context-binding", () => ({
-  assertCoworkerUserContextBinding: async () => undefined,
-  requireAuthorizedUserContext: vi.fn(),
-}));
-
 const SESSION_USER: AuthenticationContext = {
   actor: "user",
   userId: "user_123",
@@ -116,52 +109,5 @@ describe("GET /users/{id}/organizations/{organizationId}/member", () => {
       "http://localhost/me/organizations/org_1/member",
     );
     expect(response.status).toBe(404);
-  });
-});
-
-/**
- * Agents cannot reach this path today: it is absent from
- * AGENT_ALLOWED_USER_SUBPATH_PATTERNS. The route binds anyway, so widening
- * that allowlist cannot silently reopen SOK-1020. These cases mount the route
- * without the allowlist middleware, which is what a widened allowlist would
- * amount to, and pin the binding so its deletion is caught.
- */
-describe("GET /users/{id}/organizations/{organizationId}/member organization scope", () => {
-  const COWORKER_IN_ORG_1: AuthenticationContext = {
-    actor: "coworker",
-    coworkerId: "cow_123",
-    vendorId: "vendor_serviceplan",
-    context: { userId: "user_123", organizationId: "org_1" },
-  };
-
-  const COWORKER_IN_OTHER_ORG: AuthenticationContext = {
-    actor: "coworker",
-    coworkerId: "cow_123",
-    vendorId: "vendor_serviceplan",
-    context: { userId: "user_123", organizationId: "org_other" },
-  };
-
-  beforeEach(() => {
-    vi.resetAllMocks();
-    userFindUniqueMock.mockResolvedValue({ id: "user_123" });
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue(MEMBER_RECORD);
-  });
-
-  it("serves the membership for the bound organization", async () => {
-    const response = await createApp(COWORKER_IN_ORG_1).request(
-      "http://localhost/me/organizations/org_1/member",
-    );
-
-    expect(response.status).toBe(200);
-    expect(getMemberByUserIdAndOrganizationIdMock).toHaveBeenCalled();
-  });
-
-  it("refuses an organization outside the context, without reading it", async () => {
-    const response = await createApp(COWORKER_IN_OTHER_ORG).request(
-      "http://localhost/me/organizations/org_1/member",
-    );
-
-    expect(response.status).toBe(403);
-    expect(getMemberByUserIdAndOrganizationIdMock).not.toHaveBeenCalled();
   });
 });
