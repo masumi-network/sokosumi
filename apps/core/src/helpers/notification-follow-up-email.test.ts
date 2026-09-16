@@ -52,13 +52,16 @@ function input(
  * The zero-width run the preheader pads itself with goes too, and so does the
  * space a stripped tag leaves in front of punctuation: `<span>Project</span>:`
  * reads as `Project:` to anybody looking at the email.
+ *
+ * `&amp;` goes last. Taking it first turns `&amp;quot;` into `&quot;`, which
+ * the next line then turns into a quotation mark the message never carried.
  */
 function textIn(html: string): string {
   return html
     .replace(/<[^>]+>/g, " ")
     .replace(/&#x27;/g, "'")
-    .replace(/&amp;/g, "&")
     .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&")
     .replace(/[\u200b-\u200f\u2060\ufeff]/g, "")
     .replace(/\s+/g, " ")
     .replace(/\s+([:.,])/g, "$1")
