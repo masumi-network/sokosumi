@@ -38,19 +38,28 @@ struct ConversationSidebarView: View {
         workspaceMenu
         if workspaces.roomsLoading, workspaces.rooms.isEmpty {
           ProgressView("Loading rooms…")
-        } else if workspaces.rooms.isEmpty {
-          Text("No rooms yet.")
-            .foregroundStyle(.secondary)
         } else {
           // Channels section only for organization workspaces, mirroring web.
           if workspaces.selection?.workspace.organizationId != nil {
-            Section("Channels", isExpanded: sectionExpansion(.channels)) {
+            Section(isExpanded: sectionExpansion(.channels)) {
               if partitioned.channels.isEmpty {
                 Text("No channels yet.")
                   .foregroundStyle(.secondary)
               }
               ForEach(partitioned.channels, id: \.id) { room in
                 roomRow(room, icon: room.discoverability == ._private ? "lock" : "number")
+              }
+            } header: {
+              HStack {
+                Text("Channels")
+                Spacer()
+                Button("Browse channels", systemImage: "list.bullet") {
+                  browseChannels = .init(id: workspaces.compositionContext, hasOrganization: true)
+                }
+                .labelStyle(.iconOnly)
+                .buttonStyle(.borderless)
+                .disabled(workspaces.phase != .ready || workspaces.creatingChannel || workspaces.joiningChannel || workspaces.openingDirect != nil)
+                .help("Browse channels")
               }
             }
           }
@@ -87,13 +96,6 @@ struct ConversationSidebarView: View {
           }
           .disabled(workspaces.phase != .ready || workspaces.selection?.workspace.organizationId == nil || workspaces.creatingChannel || workspaces.joiningChannel || workspaces.openingDirect != nil)
           .help("Create channel")
-        }
-        ToolbarItem {
-          Button("Browse channels", systemImage: "list.bullet") {
-            browseChannels = .init(id: workspaces.compositionContext, hasOrganization: true)
-          }
-          .disabled(workspaces.phase != .ready || workspaces.selection?.workspace.organizationId == nil || workspaces.creatingChannel || workspaces.joiningChannel || workspaces.openingDirect != nil)
-          .help("Browse channels")
         }
         ToolbarItem {
           Button("Refresh conversations", systemImage: "arrow.clockwise") {
