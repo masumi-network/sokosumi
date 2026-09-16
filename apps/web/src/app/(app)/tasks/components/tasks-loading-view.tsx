@@ -103,7 +103,7 @@ export function TasksLoadingView({ viewMode, labels }: TasksLoadingViewProps) {
         className={cn(
           "flex min-h-0 flex-1 flex-col gap-4",
           resolvedViewMode === "board"
-            ? "max-h-[calc(100vh-150px)]"
+            ? "max-h-[calc(100dvh-150px)]"
             : "max-h-full",
         )}
       >

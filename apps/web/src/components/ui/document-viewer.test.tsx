@@ -53,7 +53,7 @@ describe("DocumentViewer", () => {
 
     const panel = screen.getByRole("dialog");
     expect(panel).not.toHaveClass("bg-black");
-    expect(panel).not.toHaveClass("h-screen");
+    expect(panel).not.toHaveClass("h-dvh");
   });
 
   it("shows the filename and a single action row with open, download, and close", () => {

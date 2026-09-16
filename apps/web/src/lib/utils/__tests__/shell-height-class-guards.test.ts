@@ -15,17 +15,22 @@ const ROOT = path.resolve(SRC, "..");
  * Header-offset shells must use rem (`4rem` / `6rem`), not fixed px.
  * Match Tailwind tight form, CSS-spaced calc, and Tailwind underscore-space form.
  *
- * Viewport-height shells must use `dvh`, never `svh`. In iOS home-screen web
- * apps WebKit reports `svh` off by the status-bar height in both status-bar
- * styles (874 vs an 812 layout viewport with the default style, 812 vs 874
- * with black-translucent), which made the document 62px taller than the
- * screen and let the whole room, composer included, scroll. `dvh` matched
- * the layout viewport in every mode measured (Safari, both standalone styles).
+ * Viewport heights must use `dvh`, never `svh` / `vh` / `lvh` / `h-screen`.
+ * In iOS home-screen web apps WebKit reports `svh` off by the status-bar
+ * height in both status-bar styles (874 vs an 812 layout viewport with the
+ * default style, 812 vs 874 with black-translucent) and `vh` / `lvh` as the
+ * full screen height (874) even when the layout viewport is 812. That made
+ * shells 62px taller than the screen and let the whole room, composer
+ * included, scroll. `dvh` matched the layout viewport in every mode measured
+ * (Safari, both standalone styles).
  */
 const FORBIDDEN_PATTERNS = [
   { label: "100dvh-64px", re: /100dvh[\s_]*-[\s_]*64px/ },
   { label: "100dvh-96px", re: /100dvh[\s_]*-[\s_]*96px/ },
   { label: "svh unit", re: /(\d|-)svh\b/ },
+  { label: "vh unit", re: /(\d|-)vh\b/ },
+  { label: "lvh unit", re: /(\d|-)lvh\b/ },
+  { label: "h-screen utility", re: /\b(?:min-|max-)?h-screen\b/ },
 ] as const;
 
 const EXTENSIONS = new Set([".ts", ".tsx", ".css"]);
@@ -91,6 +96,10 @@ describe("shell height class guards", () => {
       { rel: "svh-bare.tsx", text: 'className="min-h-svh max-h-svh"' },
       { rel: "svh-calc.tsx", text: 'className="h-[calc(100svh-4rem)]"' },
       { rel: "svh-percent.tsx", text: 'className="max-h-[90svh]"' },
+      { rel: "vh.tsx", text: 'className="max-h-[calc(100vh-150px)]"' },
+      { rel: "vh-style.tsx", text: 'style={{ minHeight: "100vh" }}' },
+      { rel: "lvh.tsx", text: 'className="h-lvh"' },
+      { rel: "screen.tsx", text: 'className="min-h-screen w-screen"' },
     ]);
 
     expect(hits).toEqual([
@@ -100,6 +109,10 @@ describe("shell height class guards", () => {
       "svh-bare.tsx: contains svh unit",
       "svh-calc.tsx: contains svh unit",
       "svh-percent.tsx: contains svh unit",
+      "vh.tsx: contains vh unit",
+      "vh-style.tsx: contains vh unit",
+      "lvh.tsx: contains lvh unit",
+      "screen.tsx: contains h-screen utility",
     ]);
   });
 
@@ -108,12 +121,13 @@ describe("shell height class guards", () => {
       findForbiddenHeaderOffsetHits([
         { rel: "a.tsx", text: "h-[calc(100dvh-4rem)]" },
         { rel: "b.tsx", text: "lg:h-[calc(100dvh-6rem)]" },
-        { rel: "c.tsx", text: "w-svw max-w-dvw" },
+        { rel: "c.tsx", text: "w-svw max-w-dvw w-screen max-w-screen-lg" },
+        { rel: "d.tsx", text: "h-dvh min-h-dvh max-h-[92dvh] 100dvh" },
       ]),
     ).toEqual([]);
   });
 
-  it("bans px header offsets and svh units in product shells", () => {
+  it("bans px header offsets and non-dvh viewport heights in product code", () => {
     const hits = findForbiddenHeaderOffsetHits(loadSrcTree());
     expect(hits, hits.join("\n")).toEqual([]);
   });
