@@ -4570,6 +4570,10 @@ export type WorkspaceCalendarItem = {
     taskAssigneeId: string | null;
     taskAssigneeUserId?: string | null;
     /**
+     * User who owns the Task and put it on the Calendar
+     */
+    taskOwnerId: string;
+    /**
      * Effective time at which the item appears in the Calendar
      */
     scheduledAt: Date;
