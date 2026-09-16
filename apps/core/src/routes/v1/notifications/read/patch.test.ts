@@ -257,6 +257,14 @@ describe("PATCH /notifications/read", () => {
     );
 
     it("publishes no clear, since a task or job row has no banner", async () => {
+      notificationUpdateManyAndReturnMock.mockResolvedValue([
+        {
+          id: "notif_1",
+          kind: NotificationKind.TASK,
+          messageKey: "Notifications.Task.inputRequired",
+        },
+      ]);
+
       const response = await patchRead(createApp(), {
         kind: NotificationKind.TASK,
         referenceId: "task_123",

@@ -193,6 +193,15 @@ describe("core.notifications.browser.client", () => {
         cache: "no-store",
       }),
     );
+
+    await notificationsBrowserClient.patchNotificationsRead({ ids: ["n1"] });
+    expect(patchMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "/notifications/read",
+        body: { ids: ["n1"] },
+        cache: "no-store",
+      }),
+    );
   });
 
   it("does not import createCoreClient, core.shared, or sdk.gen", async () => {
