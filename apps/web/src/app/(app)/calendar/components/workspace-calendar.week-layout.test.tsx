@@ -8,6 +8,11 @@ import type {
 } from "@/lib/clients/generated/core";
 
 const fullCalendarMock = vi.hoisted(() => vi.fn());
+const toastInfoMock = vi.hoisted(() => vi.fn());
+
+vi.mock("sonner", () => ({
+  toast: { info: toastInfoMock, error: vi.fn() },
+}));
 
 vi.mock("@fullcalendar/react", () => ({
   default: (props: FullCalendarProps) => {
@@ -206,5 +211,62 @@ describe("WorkspaceCalendar week layout", () => {
     expect(
       screen.getByRole("menuitem", { name: "event.openTask" }),
     ).toBeInTheDocument();
+  });
+
+  // FullCalendar ignores a drag on a card the caller cannot move, which
+  // used to leave the browser selecting text. The card is unselectable and
+  // a mouse drag on someone else's task explains who can reschedule it.
+  it("explains a mouse drag on a task the caller does not own", () => {
+    render(
+      <NuqsTestingAdapter searchParams="?timezone=UTC">
+        <WorkspaceCalendar
+          initialDate="2026-08-18"
+          items={[
+            {
+              ...WEEK_ITEM,
+              canEditSchedule: false,
+              canMutateOccurrence: false,
+            },
+          ]}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    const props = fullCalendarMock.mock.lastCall?.[0] as
+      | FullCalendarProps
+      | undefined;
+    render(
+      <>
+        {props?.eventContent?.({
+          event: {
+            id: WEEK_ITEM.id,
+            title: WEEK_ITEM.taskName,
+            start: WEEK_ITEM.scheduledAt,
+          },
+        })}
+      </>,
+    );
+
+    const card = screen.getByTestId("calendar-event");
+    expect(card).toHaveClass("select-none");
+
+    fireEvent.pointerDown(card, {
+      pointerType: "mouse",
+      clientX: 0,
+      clientY: 0,
+    });
+    fireEvent.pointerMove(card, {
+      pointerType: "mouse",
+      clientX: 3,
+      clientY: 0,
+    });
+    expect(toastInfoMock).not.toHaveBeenCalled();
+
+    fireEvent.pointerMove(card, {
+      pointerType: "mouse",
+      clientX: 20,
+      clientY: 0,
+    });
+    expect(toastInfoMock).toHaveBeenCalledWith("event.moveNotAllowed");
   });
 });

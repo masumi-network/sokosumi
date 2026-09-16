@@ -14,6 +14,7 @@ describe("mobile-app-chrome", () => {
       expect(isMainAppMobileChromePathname("/projects")).toBe(true);
       expect(isMainAppMobileChromePathname("/agents")).toBe(true);
       expect(isMainAppMobileChromePathname("/history")).toBe(true);
+      expect(isMainAppMobileChromePathname("/calendar")).toBe(true);
       expect(isMainAppMobileChromePathname("/personal-assistant")).toBe(true);
       expect(isMainAppMobileChromePathname("/admin")).toBe(true);
       expect(isMainAppMobileChromePathname("/notifications")).toBe(true);
@@ -33,8 +34,16 @@ describe("mobile-app-chrome", () => {
       expect(resolveMobileAppBackTarget("/history")).toBeNull();
     });
 
-    it("sends agents root back to home", () => {
+    it("sends agents, drive and calendar roots back to home", () => {
       expect(resolveMobileAppBackTarget("/agents")).toEqual({
+        href: "/",
+        labelKey: "back",
+      });
+      expect(resolveMobileAppBackTarget("/drive")).toEqual({
+        href: "/",
+        labelKey: "back",
+      });
+      expect(resolveMobileAppBackTarget("/calendar")).toEqual({
         href: "/",
         labelKey: "back",
       });
@@ -134,6 +143,7 @@ describe("mobile-app-chrome", () => {
       expect(shouldShowMobileBottomNav("/projects")).toBe(true);
       expect(shouldShowMobileBottomNav("/you")).toBe(true);
       expect(shouldShowMobileBottomNav("/history")).toBe(true);
+      expect(shouldShowMobileBottomNav("/calendar")).toBe(true);
       expect(shouldShowMobileBottomNav("/admin")).toBe(true);
       expect(shouldShowMobileBottomNav("/notifications")).toBe(true);
     });
