@@ -89,13 +89,14 @@ export interface SendFollowUpsResult {
    * Follow-ups this run actually wrote.
    *
    * Lower than `examined` without anything being wrong, and by more than one
-   * cause. Several rows about the same room, task or job share one reminder,
-   * so all but the first are refused as duplicates. A source row also stays
-   * unread after its follow-up, so while it remains in the window a later run
-   * reads it again and is refused the same way. Readers who silenced the
-   * category are skipped before the write. How much of the gap is any of
-   * those, against how much is failed writes, is not something this says: the
-   * failures are the ones in Sentry.
+   * cause. Several rows about the same room, task or job on one day share one
+   * reminder, so all but the first are refused as duplicates. A source row
+   * also stays unread after its follow-up, so while it remains in the window a
+   * later run reads it again and is refused the same way. Readers who silenced
+   * the category are skipped before the write, and so is a row whose message
+   * parameters will not read. How much of the gap is any of those, against how
+   * much is failed writes, is not something this says: the failures are the
+   * ones in Sentry.
    */
   sent: number;
   /**

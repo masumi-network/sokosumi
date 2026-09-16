@@ -88,9 +88,10 @@ export function followUpMessageKeyFor(sourceMessageKey: string): string | null {
  * the same key for the same row.
  *
  * The seam to know about: a room whose unread rows straddle midnight UTC gets
- * two reminders rather than one. The window a run examines is two hours wide,
- * so that is the only way one room's rows land in two days, and two is the
- * most it can ever be.
+ * two reminders for them rather than one. The window a run examines is two
+ * hours wide, so it crosses at most one midnight and one run can emit at most
+ * two reminders for one room. Across days the count is meant to grow: a room
+ * with unread rows arriving on five days is five reminders, one per day.
  *
  * The other consequence: the task attention keys all share one follow-up
  * message key, so a task that asked for input and then for approval on the

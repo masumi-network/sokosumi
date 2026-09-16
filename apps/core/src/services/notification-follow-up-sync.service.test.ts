@@ -706,7 +706,10 @@ describe("NotificationFollowUpSyncService", () => {
   it("skips a row whose words will not read and reminds from the next", async () => {
     seed([
       {
-        ...row({ id: "notification-1", createdAt: WAITING }),
+        // An id of its own, because `notification-row-json.ts` remembers which
+        // rows it has already named, per process and shared across this file.
+        // A second test damaging the same id would see silence.
+        ...row({ id: "notification-damaged-words", createdAt: WAITING }),
         messageParams: "{",
       },
       row({
@@ -730,10 +733,41 @@ describe("NotificationFollowUpSyncService", () => {
       expect.objectContaining({
         extra: expect.objectContaining({
           field: "messageParams",
-          rowId: "notification-1",
+          rowId: "notification-damaged-words",
         }),
       }),
     );
+  });
+
+  /**
+   * A room whose every row is damaged gets no reminder, and that is the trade.
+   *
+   * The alternative was a wordless reminder, which is what the old fallback
+   * produced. Skipping costs this room its reminder; the fallback cost it any
+   * chance of a correct one, and cost it for every later run too. Both rows
+   * are still reported, so the damage is findable rather than silent.
+   */
+  it("says nothing about a room whose every row has lost its words", async () => {
+    seed([
+      {
+        ...row({ id: "notification-damaged-a", createdAt: WAITING }),
+        messageParams: "{",
+      },
+      {
+        ...row({
+          id: "notification-damaged-b",
+          createdAt: new Date(WAITING.getTime() + 1),
+        }),
+        messageParams: "also not json",
+      },
+    ]);
+
+    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    expect(written).toEqual([]);
+    // Looked at and passed over, not left behind by a run that stopped.
+    expect(result).toEqual({ examined: 2, sent: 0, reachedEnd: true });
+    expect(captureExceptionMock).toHaveBeenCalledTimes(2);
   });
 
   /** One reminder, ever. The run may repeat; the reminder may not. */
