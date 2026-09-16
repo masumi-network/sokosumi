@@ -233,9 +233,11 @@ export function TaskAssigneePicker({
                 {memberOptions.map(renderOption)}
               </CommandGroup>
             ) : null}
-            <CommandGroup heading={labels.agentsGroupLabel}>
-              {agentOptions.map(renderOption)}
-            </CommandGroup>
+            {agentOptions.length > 0 ? (
+              <CommandGroup heading={labels.agentsGroupLabel}>
+                {agentOptions.map(renderOption)}
+              </CommandGroup>
+            ) : null}
           </CommandList>
         </Command>
       </PopoverContent>
