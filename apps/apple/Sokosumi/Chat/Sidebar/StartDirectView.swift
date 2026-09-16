@@ -43,8 +43,7 @@ struct StartDirectView: View {
                 .accessibilityLabel("Remove \(target.name)")
                 .help("Remove \(target.name)")
               }
-              .padding(.horizontal, 8)
-              .padding(.vertical, 5)
+                      .padding(.vertical, 5)
               .background(.quaternary, in: Capsule())
             }
           }
@@ -133,16 +132,19 @@ struct StartDirectView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
           ScrollViewReader { proxy in
-            ScrollView {
-              LazyVStack(spacing: 4) {
-                ForEach(picker.candidates) { target in
-                  DirectRecipientRow(target: target, disabledReason: picker.selection.disabledReason(for: target.id)) {
-                    picker.add(target)
-                    searchFocused = true
-                  }
+            List(picker.candidates) { target in
+              HStack {
+                DirectRecipientRow(target: target, disabledReason: picker.selection.disabledReason(for: target.id)) {
+                  picker.add(target)
+                  searchFocused = true
                 }
               }
+              .listRowSeparator(.hidden)
+              .listRowInsets(.horizontal, 0)
+              .listRowInsets(.vertical, 2)
             }
+            .listStyle(.plain)
+            .contentMargins(0, for: .scrollContent)
             .disabled(picker.creating)
             .onChange(of: picker.selection) { _, _ in
               if let first = picker.candidates.first {
@@ -186,7 +188,6 @@ private struct DirectRecipientRow: View {
         }
         Spacer(minLength: 0)
       }
-      .padding(.horizontal, 8)
       .padding(.vertical, 6)
       .contentShape(Rectangle())
       .background(hovering && disabledReason == nil ? Color.primary.opacity(0.07) : .clear, in: RoundedRectangle(cornerRadius: 6))
