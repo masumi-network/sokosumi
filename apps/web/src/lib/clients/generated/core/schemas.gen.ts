@@ -16300,6 +16300,17 @@ export const MarkNotificationsReadResponseSchema = {
 } as const;
 
 export const MarkNotificationsReadRequestSchema = {
+    anyOf: [
+        {
+            $ref: '#/components/schemas/MarkNotificationsReadByIdsRequest'
+        },
+        {
+            $ref: '#/components/schemas/MarkNotificationsReadByReferenceRequest'
+        }
+    ]
+} as const;
+
+export const MarkNotificationsReadByIdsRequestSchema = {
     type: 'object',
     properties: {
         ids: {
@@ -16317,25 +16328,11 @@ export const MarkNotificationsReadRequestSchema = {
     },
     required: [
         'ids'
-    ]
+    ],
+    additionalProperties: false
 } as const;
 
-export const MarkReadForReferenceResponseSchema = {
-    type: 'object',
-    properties: {
-        count: {
-            type: 'integer',
-            minimum: 0,
-            description: 'Number of notifications this call marked as read',
-            example: 2
-        }
-    },
-    required: [
-        'count'
-    ]
-} as const;
-
-export const MarkReadForReferenceRequestSchema = {
+export const MarkNotificationsReadByReferenceRequestSchema = {
     type: 'object',
     properties: {
         kind: {
@@ -16350,14 +16347,15 @@ export const MarkReadForReferenceRequestSchema = {
         referenceId: {
             type: 'string',
             minLength: 1,
-            description: 'The task or job the notifications point at. Required and non-empty, so this route can never read a kind in bulk.',
+            description: 'The task or job the notifications point at. Required and non-empty, so this can never read a kind in bulk.',
             example: 'cm123456789abcdefghij'
         }
     },
     required: [
         'kind',
         'referenceId'
-    ]
+    ],
+    additionalProperties: false
 } as const;
 
 export const GetInvitationResultSchema = {

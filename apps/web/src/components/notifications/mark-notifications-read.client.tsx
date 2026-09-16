@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 
 import { useOptionalNotifications } from "@/contexts/notification-provider";
 import { notificationsBrowserClient } from "@/lib/clients/core.notifications.browser.client";
-import type { MarkReadForReferenceRequest } from "@/lib/clients/generated/core/types.gen";
+import type { MarkNotificationsReadByReferenceRequest } from "@/lib/clients/generated/core/types.gen";
 
 interface MarkNotificationsReadProps {
   /**
@@ -14,7 +14,7 @@ interface MarkNotificationsReadProps {
    * added to or removed from the route cannot leave this page offering one the
    * route refuses.
    */
-  kind: MarkReadForReferenceRequest["kind"];
+  kind: MarkNotificationsReadByReferenceRequest["kind"];
   /** The task or job this page is showing. */
   referenceId: string;
 }
@@ -53,7 +53,7 @@ export function MarkNotificationsRead({
     void (async () => {
       try {
         const response =
-          await notificationsBrowserClient.patchNotificationsReadForReference({
+          await notificationsBrowserClient.patchNotificationsRead({
             kind,
             referenceId,
           });

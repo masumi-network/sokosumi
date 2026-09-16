@@ -68,7 +68,7 @@ private final class ScriptedTransport: ClientTransport {
     } else {
       bodies.append(Data())
     }
-    if pauseDirect, operationID == "post/chats/rooms" {
+    if pauseDirect, operationID == "post/chats/rooms" || operationID == "post/chats/rooms/{id}/members/me" {
       let next = responses.removeFirst()
       if !requestReleased {
         await withCheckedContinuation { pauseWaiter = $0 }
@@ -180,15 +180,15 @@ private func waitForOutboundIdle(_ state: WorkspaceState) async {
 }
 
 struct WorkspaceStateTests {
-  @Test(arguments: ["stay", "leave", "reset"])
-  func channelCreationRespectsNavigation(action: String) async throws {
+  @Test(arguments: ["stay", "leave", "reset"], [false, true])
+  func channelMembershipRespectsNavigation(action: String, joining: Bool) async throws {
     let target = "550e8400-e29b-41d4-a716-446655440009"
     let (state, auth, transport, _) = try ephemeralState([
       (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
       (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
-      (201, roomReadBody(id: target, unread: 0)),
+      (joining ? 200 : 201, roomReadBody(id: target, unread: 0)),
       (200, transcriptPageBody(messages: [], nextCursor: nil))
     ], visible: false)
     await state.reload(auth: auth)
@@ -198,12 +198,19 @@ struct WorkspaceStateTests {
     let roster = ChatRecipientRoster(targets: [])
     let context = state.compositionContext
     transport.pauseDirect = true
-    let request = Task { try await state.createChannel(draft, roster: roster, context: context, auth: auth) }
-    for _ in 0 ..< 1000 where !transport.operationIDs.contains("post/chats/rooms") {
+    let operation = joining ? "post/chats/rooms/{id}/members/me" : "post/chats/rooms"
+    func submit() async throws -> Bool {
+      if joining {
+        return try await state.joinChannel(roomId: target, context: context, auth: auth)
+      }
+      return try await state.createChannel(draft, roster: roster, context: context, auth: auth)
+    }
+    let request = Task { try await submit() }
+    for _ in 0 ..< 1000 where !transport.operationIDs.contains(operation) {
       await Task.yield()
     }
-    #expect(state.creatingChannel)
-    #expect(try await state.createChannel(draft, roster: roster, context: context, auth: auth) == false)
+    #expect(joining ? state.joiningChannel : state.creatingChannel)
+    #expect(try await submit() == false)
     if action == "reset" {
       state.reset()
     } else if action == "leave" {
@@ -216,10 +223,10 @@ struct WorkspaceStateTests {
       #expect(try await request.value)
     }
     await waitForTranscriptIdle(state)
-    #expect(!state.creatingChannel)
+    #expect(!state.creatingChannel && !state.joiningChannel)
     #expect(state.transcriptRoomId == (action == "stay" ? target : nil))
     #expect(state.rooms.contains { $0.id == target } == (action != "reset"))
-    #expect(transport.operationIDs.filter { $0 == "post/chats/rooms" }.count == 1)
+    #expect(transport.operationIDs.filter { $0 == operation }.count == 1)
   }
 
   @Test(arguments: ["stay", "leave", "reset"], [true, false]) func participantDirectRespectsNavigation(action: String, fromPicker: Bool) async throws {

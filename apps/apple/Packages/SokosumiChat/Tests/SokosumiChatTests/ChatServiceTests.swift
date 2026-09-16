@@ -80,6 +80,35 @@ private func makeClient(_ transport: ScriptedTransport) throws -> Client {
 }
 
 struct ChatServiceTests {
+  @Test func discoverableChannelsWalkPagesAndUseOrganizationSearch() async throws {
+    func channel(_ id: String) -> String {
+      "{\"id\":\"\(id)\",\"name\":\"Team\",\"slug\":\"team\",\"topic\":null,\"discoverability\":\"public\",\"memberCount\":3,\"createdByUserId\":\"me\",\"createdAt\":\"\(timestamp)\",\"updatedAt\":\"\(timestamp)\"}"
+    }
+    let transport = ScriptedTransport([
+      (200, roomsPageBody(rooms: [channel("one")], nextCursor: "next")),
+      (200, roomsPageBody(rooms: [channel("two")], nextCursor: nil))
+    ])
+    let result = try await ChatService().discoverableChannels(client: makeClient(transport), query: "  team  ", organizationSlug: "org")
+    #expect(result.map(\.id) == ["one", "two"])
+    #expect(transport.requests.allSatisfy { orgSlugHeader($0.request) == "org" })
+    #expect(transport.requests.allSatisfy { requestQuery($0.request).contains("q=team") && requestQuery($0.request).contains("limit=100") })
+    #expect(requestQuery(transport.requests[1].request).contains("cursor=next"))
+  }
+
+  @Test func joinChannelUsesSelfMembershipEndpointAndPreservesFailure() async throws {
+    let room = roomJSON(id: "channel", name: "Team", kind: "channel", unreadCount: 0, unreadMentionCount: 0)
+    let response = "{\"data\":\(room),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"req\"}}"
+    let error = "{\"error\":\"Not Found\",\"message\":\"Room not found\",\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"req\",\"path\":\"/chats/rooms/channel/members/me\",\"method\":\"POST\"}}"
+    let transport = ScriptedTransport([(200, response), (404, error)])
+    let client = try makeClient(transport)
+    #expect(try await ChatService().joinChannel(client: client, roomId: "channel", organizationSlug: "org").id == "channel")
+    #expect(transport.requests[0].request.path == "/chats/rooms/channel/members/me")
+    #expect(orgSlugHeader(transport.requests[0].request) == "org")
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 404, message: "Room not found")) {
+      try await ChatService().joinChannel(client: client, roomId: "channel", organizationSlug: "org")
+    }
+  }
+
   @Test func channelCreationUsesMixedParticipantsAndMapsSlugConflict() async throws {
     let room = roomJSON(id: "channel", name: "Team", kind: "channel", unreadCount: 0, unreadMentionCount: 0)
     let response = "{\"data\":\(room),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\"}}"

@@ -4899,27 +4899,22 @@ export type MarkNotificationsReadResponse = {
     count: number;
 };
 
-export type MarkNotificationsReadRequest = {
+export type MarkNotificationsReadRequest = MarkNotificationsReadByIdsRequest | MarkNotificationsReadByReferenceRequest;
+
+export type MarkNotificationsReadByIdsRequest = {
     /**
      * Notification IDs to mark as read
      */
     ids: Array<string>;
 };
 
-export type MarkReadForReferenceResponse = {
-    /**
-     * Number of notifications this call marked as read
-     */
-    count: number;
-};
-
-export type MarkReadForReferenceRequest = {
+export type MarkNotificationsReadByReferenceRequest = {
     /**
      * Kind of the notifications to mark read.
      */
     kind: 'TASK' | 'JOB';
     /**
-     * The task or job the notifications point at. Required and non-empty, so this route can never read a kind in bulk.
+     * The task or job the notifications point at. Required and non-empty, so this can never read a kind in bulk.
      */
     referenceId: string;
 };
@@ -33646,7 +33641,7 @@ export type PatchNotificationsReadAllResponse = PatchNotificationsReadAllRespons
 
 export type PatchNotificationsReadData = {
     /**
-     * Notification IDs to mark as read
+     * Notification IDs, or one task or job, to mark as read
      */
     body?: MarkNotificationsReadRequest;
     headers?: {
@@ -33725,85 +33720,6 @@ export type PatchNotificationsReadResponses = {
 };
 
 export type PatchNotificationsReadResponse = PatchNotificationsReadResponses[keyof PatchNotificationsReadResponses];
-
-export type PatchNotificationsReadForReferenceData = {
-    body?: MarkReadForReferenceRequest;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/notifications/read-for-reference';
-};
-
-export type PatchNotificationsReadForReferenceErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PatchNotificationsReadForReferenceError = PatchNotificationsReadForReferenceErrors[keyof PatchNotificationsReadForReferenceErrors];
-
-export type PatchNotificationsReadForReferenceResponses = {
-    /**
-     * Notifications marked as read
-     */
-    200: {
-        data: MarkReadForReferenceResponse;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PatchNotificationsReadForReferenceResponse = PatchNotificationsReadForReferenceResponses[keyof PatchNotificationsReadForReferenceResponses];
 
 export type GetInvitationsByIdData = {
     body?: never;

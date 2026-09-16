@@ -32,6 +32,7 @@ public final class WorkspaceState: ObservableObject {
   private var workspaceGeneration = 0
   @Published public private(set) var openingDirect: DirectRecipient?
   @Published public private(set) var creatingChannel = false
+  @Published public private(set) var joiningChannel = false
   @Published public private(set) var compositionContext = UUID()
   public var phase: Phase {
     workspaceSession.phase
@@ -254,6 +255,7 @@ public final class WorkspaceState: ObservableObject {
     compositionContext = UUID()
     openingDirect = nil
     creatingChannel = false
+    joiningChannel = false
     workspaceSession.reset()
     sidebar.reset()
     rooms = []
@@ -298,7 +300,7 @@ public final class WorkspaceState: ObservableObject {
   }
 
   public func createChannel(_ draft: ChannelDraft, roster: ChatRecipientRoster, context: UUID, auth: AuthState) async throws -> Bool {
-    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, !creatingChannel, openingDirect == nil else { return false }
+    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, !creatingChannel, !joiningChannel, openingDirect == nil else { return false }
     let sourceRoom = transcriptRoomId
     creatingChannel = true
     defer {
@@ -308,6 +310,29 @@ public final class WorkspaceState: ObservableObject {
     }
     let room = try await channelOperation(context: context, auth: auth) { client, _, slug in
       try await ChatService().createChannel(client: client, draft: draft, roster: roster, currentUserId: self.currentUserId, organizationSlug: slug)
+    }
+    acceptCreatedRoom(room, sourceRoom: sourceRoom, auth: auth)
+    return true
+  }
+
+  public func browseChannels(query: String, context: UUID, auth: AuthState) async throws -> [Components.Schemas.DiscoverableChatRoom] {
+    try await channelOperation(context: context, auth: auth) { client, _, slug in
+      try await ChatService().discoverableChannels(client: client, query: query, organizationSlug: slug)
+    }
+  }
+
+  public func joinChannel(roomId: String, context: UUID, auth: AuthState) async throws -> Bool {
+    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching,
+          !joiningChannel, !creatingChannel, openingDirect == nil else { return false }
+    let sourceRoom = transcriptRoomId
+    joiningChannel = true
+    defer {
+      if context == compositionContext {
+        joiningChannel = false
+      }
+    }
+    let room = try await channelOperation(context: context, auth: auth) { client, _, slug in
+      try await ChatService().joinChannel(client: client, roomId: roomId, organizationSlug: slug)
     }
     acceptCreatedRoom(room, sourceRoom: sourceRoom, auth: auth)
     return true
@@ -365,7 +390,7 @@ public final class WorkspaceState: ObservableObject {
 
   @discardableResult
   public func openDirect(_ recipients: DirectConversationSelection, context: UUID, auth: AuthState) async throws -> Bool {
-    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, openingDirect == nil, !creatingChannel,
+    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, openingDirect == nil, !creatingChannel, !joiningChannel,
           let first = recipients.recipients.first, let client = resolveClient(auth: auth) else { return false }
     let sourceRoom = transcriptRoomId
     openingDirect = first
@@ -978,6 +1003,7 @@ public final class WorkspaceState: ObservableObject {
     compositionContext = UUID()
     openingDirect = nil
     creatingChannel = false
+    joiningChannel = false
     let generation = workspaceGeneration
     rooms = []
     switchError = nil
@@ -1001,6 +1027,7 @@ public final class WorkspaceState: ObservableObject {
     compositionContext = UUID()
     openingDirect = nil
     creatingChannel = false
+    joiningChannel = false
     roomsRefreshTask?.cancel()
     roomsRefreshTask = nil
     roomsRefreshID = UUID()
