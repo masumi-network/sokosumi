@@ -478,7 +478,7 @@ function CalendarView({
 
   return (
     <div
-      className="workspace-calendar-theme overflow-x-auto rounded-xl border border-border bg-background"
+      className="workspace-calendar-theme -mx-6 overflow-x-auto rounded-none border-0 border-border bg-background md:mx-0 md:rounded-xl md:border"
       data-can-create={canCreate ? "true" : undefined}
       data-view={view}
       data-testid={`calendar-${view}`}
@@ -1314,40 +1314,21 @@ export function WorkspaceCalendar({
           {t("empty.title")}
         </div>
       ) : null}
-      <div className="hidden md:block">
-        <CalendarView
-          key={`desktop-${calendarRenderEpoch}`}
-          canCreate={canCreate}
-          date={date}
-          items={visibleItems}
-          onDateClick={handleDateClick}
-          onEventEdit={(taskId) => void handleEventEdit(taskId)}
-          onMoveOccurrence={handleMoveOccurrence}
-          onRestoreOccurrence={handleRestoreOccurrence}
-          onSkipOccurrence={(item) => void handleSkipOccurrence(item)}
-          onOpenTask={handleOpenTask}
-          sources={sources}
-          timeZone={timeZone}
-          view={view}
-        />
-      </div>
-      <div className="md:hidden">
-        <CalendarView
-          key={`mobile-${calendarRenderEpoch}`}
-          canCreate={canCreate}
-          date={date}
-          items={visibleItems}
-          onDateClick={handleDateClick}
-          onEventEdit={(taskId) => void handleEventEdit(taskId)}
-          onMoveOccurrence={handleMoveOccurrence}
-          onRestoreOccurrence={handleRestoreOccurrence}
-          onSkipOccurrence={(item) => void handleSkipOccurrence(item)}
-          onOpenTask={handleOpenTask}
-          sources={sources}
-          timeZone={timeZone}
-          view={view}
-        />
-      </div>
+      <CalendarView
+        key={calendarRenderEpoch}
+        canCreate={canCreate}
+        date={date}
+        items={visibleItems}
+        onDateClick={handleDateClick}
+        onEventEdit={(taskId) => void handleEventEdit(taskId)}
+        onMoveOccurrence={handleMoveOccurrence}
+        onRestoreOccurrence={handleRestoreOccurrence}
+        onSkipOccurrence={(item) => void handleSkipOccurrence(item)}
+        onOpenTask={handleOpenTask}
+        sources={sources}
+        timeZone={timeZone}
+        view={view}
+      />
       {eventLoadError ? (
         <p className="text-destructive text-sm" role="alert">
           {t("edit.loadError")}

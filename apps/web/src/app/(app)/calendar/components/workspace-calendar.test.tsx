@@ -158,7 +158,7 @@ describe("WorkspaceCalendar", () => {
 
     expect(
       await screen.findAllByRole("button", { name: /Prepare release notes/ }),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
   });
 
   it("never commits a stale/clickable item for a frame when a fresh server page arrives", () => {
@@ -236,22 +236,20 @@ describe("WorkspaceCalendar", () => {
     }
 
     const { rerender } = render(<ActivityHarness mode="visible" />);
-    const initialCalendar = screen.getAllByTestId("calendar-agenda")[0];
+    const initialCalendar = screen.getByTestId("calendar-agenda");
 
     // Let StrictMode's synchronous setup -> cleanup -> setup cycle settle
     // (its dangling microtask, if any) before asserting on initial mount.
     await Promise.resolve();
 
     expect(refreshMock).not.toHaveBeenCalled();
-    expect(screen.getAllByTestId("calendar-agenda")[0]).toBe(initialCalendar);
+    expect(screen.getByTestId("calendar-agenda")).toBe(initialCalendar);
 
     rerender(<ActivityHarness mode="hidden" />);
     rerender(<ActivityHarness mode="visible" />);
 
     await waitFor(() =>
-      expect(screen.getAllByTestId("calendar-agenda")[0]).not.toBe(
-        initialCalendar,
-      ),
+      expect(screen.getByTestId("calendar-agenda")).not.toBe(initialCalendar),
     );
     expect(refreshMock).not.toHaveBeenCalled();
   });
@@ -315,13 +313,17 @@ describe("WorkspaceCalendar", () => {
       </NuqsTestingAdapter>,
     );
 
-    expect(screen.getAllByTestId("calendar-week")[0]).toHaveClass(
+    expect(screen.getByTestId("calendar-week")).toHaveClass(
       "workspace-calendar-theme",
       "bg-background",
       "overflow-x-auto",
-      "rounded-xl",
-      "border",
+      "-mx-6",
+      "rounded-none",
+      "border-0",
       "border-border",
+      "md:mx-0",
+      "md:rounded-xl",
+      "md:border",
     );
   });
 
@@ -366,10 +368,10 @@ describe("WorkspaceCalendar", () => {
       </NuqsTestingAdapter>,
     );
 
-    expect(screen.getAllByTestId("calendar-agenda")).toHaveLength(2);
-    expect(screen.getAllByText("Release planning")).toHaveLength(2);
-    expect(screen.getAllByTestId("calendar-source-marker")).toHaveLength(2);
-    expect(screen.getAllByText("accuracy.inferred")).toHaveLength(2);
+    expect(screen.getByTestId("calendar-agenda")).toBeInTheDocument();
+    expect(screen.getByText("Release planning")).toBeInTheDocument();
+    expect(screen.getByTestId("calendar-source-marker")).toBeInTheDocument();
+    expect(screen.getByText("accuracy.inferred")).toBeInTheDocument();
     expect(screen.queryByText("accuracy.approximate")).not.toBeInTheDocument();
     expect(
       screen.getAllByRole("button", { name: /Prepare release notes/ })[0],
@@ -385,7 +387,7 @@ describe("WorkspaceCalendar", () => {
         </NuqsTestingAdapter>,
       );
 
-      expect(screen.getAllByLabelText("accuracy.inferred")).toHaveLength(2);
+      expect(screen.getByLabelText("accuracy.inferred")).toBeInTheDocument();
     },
   );
 
@@ -790,7 +792,7 @@ describe("WorkspaceCalendar", () => {
       );
 
       await waitFor(() =>
-        expect(screen.getAllByTestId("calendar-week")).toHaveLength(2),
+        expect(screen.getByTestId("calendar-week")).toBeInTheDocument(),
       );
     } finally {
       vi.unstubAllGlobals();
@@ -804,7 +806,7 @@ describe("WorkspaceCalendar", () => {
       </NuqsTestingAdapter>,
     );
 
-    expect(screen.getAllByTestId("calendar-week")).toHaveLength(2);
+    expect(screen.getByTestId("calendar-week")).toBeInTheDocument();
     expect(screen.queryByTestId("calendar-month")).not.toBeInTheDocument();
     expect(screen.getByTestId("calendar-views")).toHaveTextContent("view.week");
   });
@@ -816,7 +818,7 @@ describe("WorkspaceCalendar", () => {
       </NuqsTestingAdapter>,
     );
 
-    expect(screen.getAllByTestId("calendar-week")[0]).toHaveAttribute(
+    expect(screen.getByTestId("calendar-week")).toHaveAttribute(
       "data-view",
       "week",
     );
@@ -898,7 +900,7 @@ describe("WorkspaceCalendar", () => {
 
     expect(
       await screen.findAllByRole("button", { name: /Publish release notes/ }),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
     expect(getWorkspaceCalendarMock).toHaveBeenCalledWith({
       from: new Date("2026-08-01T00:00:00.000Z"),
       to: new Date("2026-09-01T00:00:00.000Z"),
