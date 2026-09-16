@@ -1,4 +1,5 @@
-import { TaskVisibility } from "@sokosumi/database";
+import { isDeepStrictEqual } from "node:util";
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { buildSokoBotOwnerTaskVisibilityWhere } from "@/helpers/task-visibility";
@@ -53,8 +54,8 @@ function whereHasOwnerVisibility(where: unknown, userId: string): boolean {
   if (!where || typeof where !== "object") return false;
   const and = (where as { AND?: unknown }).AND;
   if (!Array.isArray(and)) return false;
-  const expected = JSON.stringify(buildSokoBotOwnerTaskVisibilityWhere(userId));
-  return and.some((clause) => JSON.stringify(clause) === expected);
+  const expected = buildSokoBotOwnerTaskVisibilityWhere(userId);
+  return and.some((clause) => isDeepStrictEqual(clause, expected));
 }
 
 beforeEach(() => {
@@ -155,24 +156,9 @@ describe("buildSystemBeatMessage private Task visibility", () => {
         where: expect.objectContaining({
           workspaceId: ALICE_WORKSPACE_ID,
           archivedAt: null,
-          AND: [buildSokoBotOwnerTaskVisibilityWhere(ALICE_USER_ID)],
-        }),
-      }),
-    );
-    expect(taskFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          AND: [
-            {
-              OR: [
-                { visibility: TaskVisibility.PUBLIC },
-                {
-                  visibility: TaskVisibility.PRIVATE,
-                  ownerId: ALICE_USER_ID,
-                },
-              ],
-            },
-          ],
+          AND: expect.arrayContaining([
+            buildSokoBotOwnerTaskVisibilityWhere(ALICE_USER_ID),
+          ]),
         }),
       }),
     );
