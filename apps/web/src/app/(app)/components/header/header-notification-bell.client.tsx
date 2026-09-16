@@ -141,6 +141,16 @@ export function HeaderNotificationBell() {
       <PopoverContent
         className="w-96 max-w-(--radix-popover-content-available-width) p-0"
         align="end"
+        onOpenAutoFocus={(event) => {
+          // Focus the panel, not its first control. The popover would pick
+          // the first row, and a row with focus inside shows its read
+          // control, so every open singled out a row the reader had not
+          // touched. Tab still reaches the rows from here.
+          event.preventDefault();
+          if (event.currentTarget instanceof HTMLElement) {
+            event.currentTarget.focus();
+          }
+        }}
       >
         <NotificationPanelContent onClose={closeBell} />
       </PopoverContent>

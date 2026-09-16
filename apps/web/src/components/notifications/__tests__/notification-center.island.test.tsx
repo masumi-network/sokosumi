@@ -494,6 +494,28 @@ describe("Notification Center, both frames", () => {
     consoleError.mockRestore();
   });
 
+  it("opens the panel without putting focus in its first row", async () => {
+    getNotificationsMock.mockResolvedValue(
+      page([
+        row("first", { createdAt: new Date("2026-06-18T09:00:00.000Z") }),
+        row("second", { createdAt: new Date("2026-06-17T09:00:00.000Z") }),
+      ]),
+    );
+
+    await renderPanel();
+
+    // A row with focus inside shows its read control, so focusing the first
+    // row on open would single it out before the reader has touched it.
+    const panel = screen
+      .getByRole("button", { name: "markUnread: first" })
+      .closest("[data-slot='popover-content']");
+    expect(document.activeElement).toBe(panel);
+
+    // The rows stay one Tab away.
+    await userEvent.setup().tab();
+    expect(document.activeElement?.textContent).toContain("first");
+  });
+
   it("opens the notifications page instead of a panel on a phone", async () => {
     isMobileMock.mockReturnValue(true);
     render(
