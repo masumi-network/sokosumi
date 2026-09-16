@@ -68,6 +68,14 @@ _Avoid_: Paused turn, confirmation card (presentation), Eve approval
 A person who builds, runs, and maintains Coworkers. Distinct from an Agent developer and from a user who assigns Tasks.
 _Avoid_: Agent developer (when meaning this), calling a Coworker an Agent
 
+**Coworker runtime**:
+An external execution environment that runs a Coworker.
+_Avoid_: Agent, Agent runtime
+
+**Runtime adapter**:
+A bridge between Sokosumi and one Coworker runtime. It is distinct from a Developer CLI skill.
+_Avoid_: Agent plugin, Sokosumi plugin (when meaning this)
+
 **Agent developer**:
 A person who lists Agents on the Masumi registry for Hire. Distinct from a Coworker developer.
 _Avoid_: Coworker developer (when meaning this)
