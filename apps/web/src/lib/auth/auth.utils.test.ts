@@ -16,7 +16,6 @@ import {
   createAuthSessionGetter,
   getAbsoluteAuthRedirectUrl,
   getAbsoluteRedirectUrlForOrigin,
-  getAuthOAuthRedirect,
   normalizeAuthReturnUrl,
   waitForAuthSession,
 } from "@/lib/auth/auth.utils";
@@ -38,40 +37,6 @@ describe("buildSignedOAuthConsentQueryFromSearchParams", () => {
         new URLSearchParams("client_id=client_1"),
       ),
     ).toBeUndefined();
-  });
-});
-
-describe("getAuthOAuthRedirect", () => {
-  it("returns redirect metadata from top-level payload", () => {
-    expect(
-      getAuthOAuthRedirect({
-        redirect: true,
-        url: "/auth/oauth2/authorize?client_id=test",
-      }),
-    ).toEqual({
-      redirect: true,
-      redirectUrl: "/auth/oauth2/authorize?client_id=test",
-    });
-  });
-
-  it("returns redirect metadata from nested payload", () => {
-    expect(
-      getAuthOAuthRedirect({
-        data: {
-          redirect: true,
-          url: "/auth/oauth2/authorize?client_id=nested",
-        },
-      }),
-    ).toEqual({
-      redirect: true,
-      redirectUrl: "/auth/oauth2/authorize?client_id=nested",
-    });
-  });
-
-  it("returns non-redirect when redirect metadata is incomplete", () => {
-    expect(getAuthOAuthRedirect({ redirect: true })).toEqual({
-      redirect: false,
-    });
   });
 });
 

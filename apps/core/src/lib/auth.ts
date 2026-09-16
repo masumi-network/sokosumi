@@ -75,6 +75,7 @@ import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 import { webhookService } from "@/services/webhook.service";
 import { createAuthCaptchaPlugin } from "./auth-captcha.js";
 import { createAuthOrganizationPlugin } from "./auth-organization";
+import { anchorVerificationCallbackToWebApp } from "./verification-email-callback";
 
 const ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE =
   "ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE";
@@ -439,7 +440,10 @@ export const auth = betterAuth({
       const email = await renderVerificationEmail({
         locale: getEmailLocale(request),
         name: user.name,
-        verificationLink: url,
+        verificationLink: anchorVerificationCallbackToWebApp(
+          url,
+          webAppBaseUrl,
+        ),
       });
 
       waitUntil(
