@@ -81,7 +81,8 @@ struct ConversationActionsTests {
     return sidebar
   }
 
-  @Test func actionsUseExistingRoutesAndPreserveNewerAttention() async throws {
+  @Test(arguments: [nil, "acme"] as [String?])
+  func actionsUseExistingRoutesAndPreserveNewerAttention(organizationSlug: String?) async throws {
     let state = try await sidebar()
     let transport = TestTransport([
       (200, actionBody(pinned: true)), (200, actionBody()),
@@ -90,14 +91,14 @@ struct ConversationActionsTests {
     let client = try makeTestClient(transport)
     state.rooms[0].unreadCount = 9
     for action: ConversationSidebar.Action in [.pin, .unpin, .mute, .unmute] {
-      try await state.perform(action, roomId: testRoomId, client: client, organizationSlug: "acme")
+      try await state.perform(action, roomId: testRoomId, client: client, organizationSlug: organizationSlug)
       #expect(state.rooms[0].unreadCount == 9)
     }
     #expect(transport.requests.map(\.operationID) == [
       "post/chats/rooms/{id}/star", "delete/chats/rooms/{id}/star",
       "post/chats/rooms/{id}/mute", "delete/chats/rooms/{id}/mute"
     ])
-    #expect(transport.requests.allSatisfy { testOrgSlugHeader($0.request) == "acme" })
+    #expect(transport.requests.allSatisfy { testOrgSlugHeader($0.request) == organizationSlug })
     #expect(state.rooms[0].starredAt == nil)
     #expect(state.rooms[0].mutedAt == nil)
   }
@@ -242,6 +243,20 @@ struct ConversationActionsTests {
     await muteTransport.release()
     try await muteTask.value
     #expect(muted.partitioned.channels.map(\.id) == [peerRoomId, testRoomId])
+  }
+
+  @Test func actionSettlementDoesNotEndWorkspaceSwitchLoading() async throws {
+    let state = try await sidebar()
+    let transport = PausedSidebarTransport()
+    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let task = Task { try await state.perform(.pin, roomId: testRoomId, client: client, organizationSlug: nil) }
+    await transport.waitForRequest()
+    state.invalidateRefresh()
+    state.isLoading = true
+    await transport.release()
+    try await task.value
+    #expect(state.isLoading)
+    #expect(state.rooms[0].starredAt != nil)
   }
 
   @Test func removedRoomIsNotReinsertedWhenPinCompletes() async throws {

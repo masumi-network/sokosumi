@@ -162,21 +162,21 @@ struct ConversationSidebarView: View {
       isActive: room.id == workspaces.selectedRoomId
     )
     return Label {
-      VStack(alignment: .leading, spacing: 2) {
-        HStack(spacing: 6) {
+      HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 2) {
           Text(roomDisplayName(room, currentUserId: workspaces.currentUserId))
             .lineLimit(1)
             .fontWeight(attention.bold ? .bold : .regular)
             .foregroundStyle(room.mutedAt != nil && room.id != workspaces.selectedRoomId ? .secondary : .primary)
-          Spacer(minLength: 0)
-          roomStatus(room)
+          if room.myAccess == .guest, let organization = room.organizationName, !organization.isEmpty {
+            Text(organization)
+              .font(.caption)
+              .foregroundStyle(.secondary)
+              .lineLimit(1)
+          }
         }
-        if room.myAccess == .guest, let organization = room.organizationName, !organization.isEmpty {
-          Text(organization)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-        }
+        Spacer(minLength: 0)
+        roomStatus(room)
       }
     } icon: {
       RoomLeadingIcon(
@@ -218,11 +218,11 @@ struct ConversationSidebarView: View {
     }
     .disabled(!workspaces.sidebar.canPerform(.markUnread, roomId: room.id))
     Button(room.starredAt == nil ? "Pin" : "Unpin", systemImage: room.starredAt == nil ? "pin" : "pin.slash") {
-      Task { await workspaces.performSidebarAction(room.starredAt == nil ? .pin : .unpin, roomId: room.id, auth: auth) }
+      Task { @MainActor in await workspaces.performSidebarAction(room.starredAt == nil ? .pin : .unpin, roomId: room.id, auth: auth) }
     }
     .disabled(!workspaces.sidebar.canPerform(room.starredAt == nil ? .pin : .unpin, roomId: room.id))
     Button(room.mutedAt == nil ? "Mute" : "Unmute", systemImage: room.mutedAt == nil ? "bell.slash" : "bell") {
-      Task { await workspaces.performSidebarAction(room.mutedAt == nil ? .mute : .unmute, roomId: room.id, auth: auth) }
+      Task { @MainActor in await workspaces.performSidebarAction(room.mutedAt == nil ? .mute : .unmute, roomId: room.id, auth: auth) }
     }
     .disabled(!workspaces.sidebar.canPerform(room.mutedAt == nil ? .mute : .unmute, roomId: room.id))
   }

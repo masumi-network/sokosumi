@@ -39,6 +39,7 @@ public final class ConversationSidebar: ObservableObject {
   public let readAttention = RoomReadAttention()
   private let savedRoom: SavedRoomSelection
   private var generation = 0
+  private var refreshInFlight = false
 
   public init(savedRoom: SavedRoomSelection = SavedRoomSelection()) {
     self.savedRoom = savedRoom
@@ -78,6 +79,7 @@ public final class ConversationSidebar: ObservableObject {
   /// Pending pin/mute stay until a successful switch or an explicit rollback.
   public func invalidateRefresh() {
     invalidateListResponse()
+    isLoading = false
     errorMessage = nil
   }
 
@@ -117,9 +119,11 @@ public final class ConversationSidebar: ObservableObject {
     let attempt = generation
     let attentionRevision = readAttention.beginRefresh()
     isLoading = true
+    refreshInFlight = true
     errorMessage = nil
     defer {
       if generation == attempt {
+        refreshInFlight = false
         isLoading = false
       }
     }
@@ -210,7 +214,12 @@ public final class ConversationSidebar: ObservableObject {
 
   private func invalidateListResponse() {
     generation += 1
-    isLoading = false
+    // The coordinator also uses isLoading for workspace switches. An action
+    // may finish during a switch; only clear loading owned by a list refresh.
+    if refreshInFlight {
+      refreshInFlight = false
+      isLoading = false
+    }
   }
 
   private func patchDate(roomId: String, action: Action, date: Date?) {
