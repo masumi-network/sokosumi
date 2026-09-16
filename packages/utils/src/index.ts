@@ -86,10 +86,7 @@ export {
   CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
   CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
 } from "./chat-room-message-content.js";
-export {
-  CHAT_ROOM_MESSAGE_EVENT_TYPES,
-  type ChatRoomMessageEventType,
-} from "./chat-room-message-event-type.js";
+export type { ChatRoomMessageEventType } from "./chat-room-message-event-type.js";
 export {
   CHAT_ROOM_PINNED_MESSAGE_ACTIONS,
   CHAT_ROOM_PINNED_MESSAGE_EVENT_NAME,
@@ -190,7 +187,6 @@ export {
   getEmailLocale,
   LOCALE_COOKIE_NAME,
   parseLocalePreference,
-  resolveLocaleFromAcceptLanguage,
   resolveRequestLocale,
   SUPPORTED_LOCALES,
 } from "./locale.js";

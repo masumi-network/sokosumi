@@ -1391,6 +1391,14 @@ export class SokoBotRuntimeService {
   }
 
   private async readTask(authorized: AuthorizedSokoBotRuntime, taskId: string) {
+    const visiblePeerTask = {
+      workspaceId: authorized.turn.workspaceId,
+      archivedAt: null,
+      ...buildSokoBotAudienceTaskVisibilityWhere(
+        authorized.turn.userId,
+        authorized.askedByKind,
+      ),
+    };
     const task = await prisma.task.findFirst({
       where: {
         id: taskId,
@@ -1433,6 +1441,11 @@ export class SokoBotRuntimeService {
           },
         },
         linksFrom: {
+          where: {
+            toTask: {
+              is: visiblePeerTask,
+            },
+          },
           select: {
             type: true,
             note: true,
@@ -1440,6 +1453,11 @@ export class SokoBotRuntimeService {
           },
         },
         linksTo: {
+          where: {
+            fromTask: {
+              is: visiblePeerTask,
+            },
+          },
           select: {
             type: true,
             note: true,
