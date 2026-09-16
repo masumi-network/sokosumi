@@ -41,17 +41,33 @@ struct ConversationSidebarView: View {
         } else {
           // Channels section only for organization workspaces, mirroring web.
           if workspaces.selection?.workspace.organizationId != nil {
-            Section(isExpanded: sectionExpansion(.channels)) {
-              if partitioned.channels.isEmpty {
-                Text("No channels yet.")
-                  .foregroundStyle(.secondary)
-              }
-              ForEach(partitioned.channels, id: \.id) { room in
-                roomRow(room, icon: room.discoverability == ._private ? "lock" : "number")
+            Section {
+              if !workspaces.sidebar.collapsedSections.contains(.channels) {
+                if partitioned.channels.isEmpty {
+                  Text("No channels yet.")
+                    .foregroundStyle(.secondary)
+                }
+                ForEach(partitioned.channels, id: \.id) { room in
+                  roomRow(room, icon: room.discoverability == ._private ? "lock" : "number")
+                }
               }
             } header: {
               HStack {
-                Text("Channels")
+                Button {
+                  workspaces.sidebar.setExpanded(
+                    workspaces.sidebar.collapsedSections.contains(.channels), section: .channels
+                  )
+                } label: {
+                  HStack(spacing: 4) {
+                    Text("Channels")
+                    Image(systemName: workspaces.sidebar.collapsedSections.contains(.channels) ? "chevron.right" : "chevron.down")
+                      .font(.caption)
+                  }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Channels")
+                .accessibilityValue(workspaces.sidebar.collapsedSections.contains(.channels) ? "Collapsed" : "Expanded")
+                .help(workspaces.sidebar.collapsedSections.contains(.channels) ? "Expand channels" : "Collapse channels")
                 Spacer()
                 Button("Browse channels", systemImage: "list.bullet") {
                   browseChannels = .init(id: workspaces.compositionContext, hasOrganization: true)
