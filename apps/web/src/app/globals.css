@@ -6,6 +6,14 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  /* Tailwind's own default is 150ms. The hover steps in this stack travel a
+     whole ramp rung instead of an alpha nudge, roughly 6.5 OKLab dE against
+     the 3.2 the alpha steps measured, so at 150ms the same hover reads as a
+     snap. 310ms puts the rate back at 0.022 dE per ms, against the 0.021 the
+     old hovers ran at. Every transition utility that names no duration of its
+     own follows this. */
+  --default-transition-duration: 310ms;
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -434,7 +442,7 @@
   --ring-halo: hsla(270, 64%, 63%, 0.26);
   --primary-hover: hsla(270, 64.0%, 68.0%, 1);
   --secondary-hover: hsla(0, 0.0%, 86.1%, 1);
-  --destructive-hover: hsla(0, 72%, 40%, 1);
+  --destructive-hover: hsla(0, 74%, 39%, 1);
   --destructive-halo: hsla(0, 84.0%, 60.0%, 0.26);
   /* Category palette — Sokosumi ecosystem (kodosumi cool + masumi warm). See /DESIGN.md */
   --chart-1: #00a4fa; /* kodosumi · Sky Blue */
@@ -451,7 +459,10 @@
 
   /* Semantic */
   --semantic-destructive: hsla(0, 84%, 60%, 1);
-  --semantic-destructive-solid: hsla(0, 72.0%, 47.0%, 1);
+  /* The fill under a destructive label. Dialled against the near-white
+     --semantic-destructive-foreground: 5.40 on the label, 3.32 against the
+     page and 3.01 against the card, so the button's own edge still reads. */
+  --semantic-destructive-solid: hsla(0, 74.0%, 44.0%, 1);
   --semantic-destructive-tertiary: hsla(0, 50.9%, 26.4%, 1);
   --semantic-destructive-quaternary: hsla(0, 47.1%, 18.6%, 1);
   --semantic-destructive-quinary: hsla(0, 39.7%, 11.8%, 1);
