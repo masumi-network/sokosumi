@@ -9,6 +9,7 @@ public struct ChatReadCooldownMiddleware: ClientMiddleware {
   private static let reads: Set<String> = [
     "get/chats/rooms", "get/chats/rooms/{id}/messages", "get/chats/rooms/{id}/threads",
     "get/chats/rooms/{id}/threads/{parentMessageId}/messages",
+    "get/chats/rooms/{id}/threads/{parentMessageId}",
     "get/chats/rooms/{id}/messages/{messageId}", "get/chats/rooms/{id}/pinned-messages"
   ]
 
