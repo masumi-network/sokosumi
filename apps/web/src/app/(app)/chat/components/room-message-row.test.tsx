@@ -907,11 +907,14 @@ describe("ChatMessageRow", () => {
     expect(article.className).not.toContain("pr-64");
   });
 
-  it("keeps the hidden hover pill from taking the pointer over the row above", async () => {
+  it("gives the hover pill the pointer only while it shows", async () => {
     const user = userEvent.setup();
     renderRow();
     await user.hover(screen.getByRole("article"));
 
+    // The pill hangs over the row above, so a hidden one must not take that
+    // row's pointer. Hit testing across rows needs real CSS, so this locks
+    // the class combination; the behaviour itself was checked in a browser.
     const pillClasses = hoverPill()?.className.split(/\s+/);
     expect(pillClasses).toContain("[@media(hover:hover)]:pointer-events-none");
     expect(pillClasses).toContain(
