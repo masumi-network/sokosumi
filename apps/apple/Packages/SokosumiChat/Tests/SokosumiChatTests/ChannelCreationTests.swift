@@ -1,3 +1,4 @@
+import Foundation
 import SokosumiChat
 import Testing
 
@@ -62,6 +63,18 @@ struct ChannelCreationTests {
     }
     #expect(!model.canAdvance)
     #expect(model.availability != .free)
+  }
+
+  @Test func transportFailuresUseExistingNetworkMessages() async {
+    let model = ChannelCreation()
+    await model.load { throw URLError(.notConnectedToInternet) }
+    #expect(model.errorMessage == "No network connection. Check your connection and try again.")
+    await model.load { .init(recipients: roster, canCreateExternal: false) }
+    model.draft.setSlug("team")
+    await model.checkSlug { _ in true }
+    model.advance()
+    #expect(await model.create { _, _ in throw URLError(.timedOut) } == false)
+    #expect(model.errorMessage == "The request timed out. Please try again.")
   }
 
   @Test func creationFailurePreservesDraftAndConflictReturnsToDetails() async {

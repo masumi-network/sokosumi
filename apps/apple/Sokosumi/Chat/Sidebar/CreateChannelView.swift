@@ -76,13 +76,13 @@ struct CreateChannelView: View {
         return try await checkSlug(slug)
       }
     }
-    .onAppear { slugFocused = true }
   }
 
   private var details: some View {
     Form {
       TextField("Channel handle", text: Binding(get: { model.draft.slug }, set: { model.draft.setSlug($0) }))
         .focused($slugFocused)
+        .task { slugFocused = true }
         .autocorrectionDisabled()
       HStack {
         Text(slugStatus).font(.caption).foregroundStyle(.secondary)

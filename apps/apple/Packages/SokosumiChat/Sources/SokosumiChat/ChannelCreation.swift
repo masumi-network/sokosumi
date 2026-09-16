@@ -140,6 +140,6 @@ public final class ChannelCreation: ObservableObject {
     if case let ChatServiceError.unexpectedResponse(message) = error {
       return message
     }
-    return "Couldn’t complete the request. Try again."
+    return friendlyMessage(for: error)
   }
 }

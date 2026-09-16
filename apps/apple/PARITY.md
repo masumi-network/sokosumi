@@ -918,3 +918,5 @@ Verification: macOS build and the full app suite pass; Chat 423 tests and Worksp
 ![Channel details, dark](docs/screenshots/create-channel-details-dark.png)
 ![Channel participants, light](docs/screenshots/create-channel-participants-light.png)
 ![Channel participants, dark](docs/screenshots/create-channel-participants-dark.png)
+
+Review follow-up: focus now runs with the mounted handle field after loading, including returning from participants. Load/create transport failures use the existing network-specific messages. Chat 424 tests, four native sheet cases, and strict uncached lint/format pass. The native modal sheets remain mutually blocking; Form/List retain scrolling viewports. Large-type clipping was not reproduced by the existing fixtures and remains unverified rather than claimed fixed.
