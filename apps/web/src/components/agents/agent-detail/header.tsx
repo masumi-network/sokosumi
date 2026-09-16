@@ -54,7 +54,10 @@ function AgentDetailHeader({
   const iconBorderStyle =
     isClient && gradientBorder
       ? {
-          border: "0.2px solid transparent",
+          // Whole pixels. 0.2px is a fifth of a device pixel even on a 2x
+          // display, so the browser rounds it to nothing or to a hairline
+          // depending on position. 1px is what it was already trying to be.
+          border: "1px solid transparent",
           borderRadius: "0.5rem",
           backgroundImage: `linear-gradient(var(--card-background), var(--card-background)), ${gradientBorder}`,
           backgroundOrigin: "border-box",
