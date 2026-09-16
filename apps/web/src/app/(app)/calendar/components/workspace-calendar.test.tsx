@@ -375,8 +375,10 @@ describe("WorkspaceCalendar", () => {
     expect(screen.getByTestId("calendar-agenda")).toBeInTheDocument();
     expect(screen.getByText("Release planning")).toBeInTheDocument();
     expect(screen.getByTestId("calendar-source-marker")).toBeInTheDocument();
-    expect(screen.getByText("accuracy.inferred")).toBeInTheDocument();
-    expect(screen.queryByText("accuracy.approximate")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("accuracy.inferred")).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("accuracy.approximate"),
+    ).not.toBeInTheDocument();
     expect(
       screen.getAllByRole("button", { name: /Prepare release notes/ })[0],
     ).toBeInTheDocument();
