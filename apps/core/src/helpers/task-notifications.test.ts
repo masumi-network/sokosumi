@@ -34,7 +34,7 @@ import { TASK_ATTENTION_MESSAGE_KEYS } from "@/helpers/notification-delivery";
 
 import {
   dispatchTaskNotification,
-  markTaskHandedOverRead,
+  markTaskAssignedRead,
   notifyTaskHumanAssignee,
 } from "./task-notifications";
 
@@ -238,7 +238,7 @@ describe("notifyTaskHumanAssignee", () => {
   });
 });
 
-describe("markTaskHandedOverRead", () => {
+describe("markTaskAssignedRead", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     markNotificationsReadMock.mockResolvedValue({
@@ -253,7 +253,7 @@ describe("markTaskHandedOverRead", () => {
    * the task when it settles, which by then is somebody else.
    */
   it("marks the previous holder's assigned row read", async () => {
-    await markTaskHandedOverRead("user_2", "task_1");
+    await markTaskAssignedRead("user_2", "task_1");
 
     expect(markNotificationsReadMock).toHaveBeenCalledWith("user_2", {
       kind: "TASK",
@@ -267,7 +267,7 @@ describe("markTaskHandedOverRead", () => {
     markNotificationsReadMock.mockRejectedValue(new Error("write failed"));
 
     await expect(
-      markTaskHandedOverRead("user_2", "task_1"),
+      markTaskAssignedRead("user_2", "task_1"),
     ).resolves.toBeUndefined();
   });
 });

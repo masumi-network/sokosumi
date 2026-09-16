@@ -303,9 +303,9 @@ async function dispatchJobNotification(
     }
 
     // As for tasks: a job that has settled stops waiting on the reader, so
-    // what it left unread stops being a question. Before the write for the
-    // same reason, because `createNotification` does throw. One reader,
-    // because a job has one.
+    // what it left unread stops being a question. Before the write, and at
+    // the same cost, for the reasons given there. One reader, because a job
+    // has one.
     await markSettledAttentionRead(
       job.ownerId,
       NotificationKind.JOB,

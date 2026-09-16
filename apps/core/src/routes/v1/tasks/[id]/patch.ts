@@ -25,7 +25,7 @@ import {
   resolveAssigneeIdFromRequest,
 } from "@/helpers/task-assignee-alias";
 import {
-  markTaskHandedOverRead,
+  markTaskAssignedRead,
   notifyTaskHumanAssignee,
 } from "@/helpers/task-notifications";
 import { assertTaskScheduleInactive } from "@/helpers/task-schedule";
@@ -319,7 +319,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     if (result.previousAssigneeUserId !== result.task.assigneeUserId) {
       if (result.previousAssigneeUserId) {
-        await markTaskHandedOverRead(
+        await markTaskAssignedRead(
           result.previousAssigneeUserId,
           result.task.id,
         );

@@ -106,10 +106,14 @@ export async function dispatchTaskNotification(
     // reports rather than throws.
     //
     // Before the write rather than after it, because `createNotification`
-    // does throw: it rethrows anything that is not a unique violation, and a
-    // failed realtime publish is one of those. Clearing afterwards would be
-    // skipped on exactly the run that settled the task, and the reminder the
-    // stories rule out would go out anyway.
+    // does throw: it rethrows any write error that is not a unique violation.
+    // Clearing afterwards would be skipped on exactly the run that settled the
+    // task, and the reminder the stories rule out would go out anyway.
+    //
+    // The cost of this order is the other half of that failure: the rows are
+    // read and the outcome notification is never written, so the reader is
+    // told nothing rather than told twice. Both halves are rare and this one
+    // loses less, because the follow-up would have been wrong either way.
     //
     // Both readers, because a task the owner delegated left the assignee an
     // `assigned` row of their own, and that row is waiting on the assignee.
@@ -262,26 +266,27 @@ export async function notifyTaskHumanAssignee(
 }
 
 /**
- * Mark the `assigned` row read for the member the task has just left.
+ * Mark a member's `assigned` row read, because the task is no longer theirs.
  *
- * The row says "this task is yours", and it stops being true the moment the
- * task moves to somebody else or to nobody. Nothing else clears it: the
- * settled read at the dispatcher above reaches the assignee the task holds
- * when it settles, which by then is a different person. Left alone, the
- * previous holder keeps an unread row for ever and the follow-up sync
- * reminds them a day later about a task they no longer have (SOK-916, the
- * same reasoning as user stories 14 and 15).
+ * The row says "this task is yours". Two things make that false without the
+ * task settling: it moves to somebody else or to nobody, and it is archived.
+ * Neither is covered by the settled read at the dispatcher above, which
+ * reaches the assignee the task holds at the moment it settles.
  *
- * Best-effort, like every other notification write on this path: the
- * reassignment it follows has already committed and must not be undone by a
- * failure to tidy up after it.
+ * Left alone the member keeps an unread row for ever, and the follow-up sync
+ * reminds them a day later about a task they do not have or that nobody can
+ * open (SOK-916, the reasoning of user stories 14 and 15).
+ *
+ * Best-effort, like every other notification write on this path: the write it
+ * follows has already committed and must not be undone by a failure to tidy
+ * up after it.
  */
-export async function markTaskHandedOverRead(
-  previousAssigneeUserId: string,
+export async function markTaskAssignedRead(
+  assigneeUserId: string,
   taskId: string,
 ): Promise<void> {
   try {
-    await markNotificationsRead(previousAssigneeUserId, {
+    await markNotificationsRead(assigneeUserId, {
       kind: NotificationKind.TASK,
       referenceId: taskId,
       messageKey: TASK_ASSIGNED_MESSAGE_KEY,
@@ -290,8 +295,8 @@ export async function markTaskHandedOverRead(
     Sentry.captureException(error, {
       extra: {
         taskId,
-        userId: previousAssigneeUserId,
-        notificationType: "task-handed-over-read",
+        userId: assigneeUserId,
+        notificationType: "task-assigned-read",
       },
     });
   }

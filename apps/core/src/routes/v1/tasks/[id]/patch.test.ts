@@ -18,7 +18,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 
 const {
   mapTaskMock,
-  markTaskHandedOverReadMock,
+  markTaskAssignedReadMock,
   notifyTaskHumanAssigneeMock,
   prismaTransactionMock,
   projectFindFirstMock,
@@ -30,7 +30,7 @@ const {
   taskUpdateMock,
 } = vi.hoisted(() => ({
   mapTaskMock: vi.fn(),
-  markTaskHandedOverReadMock: vi.fn(),
+  markTaskAssignedReadMock: vi.fn(),
   notifyTaskHumanAssigneeMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
@@ -64,7 +64,7 @@ vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
 }));
 
 vi.mock("@/helpers/task-notifications", () => ({
-  markTaskHandedOverRead: markTaskHandedOverReadMock,
+  markTaskAssignedRead: markTaskAssignedReadMock,
   notifyTaskHumanAssignee: notifyTaskHumanAssigneeMock,
 }));
 
@@ -682,7 +682,7 @@ describe("PATCH /tasks/{id}", () => {
       });
 
       expect(response.status).toBe(200);
-      expect(markTaskHandedOverReadMock).toHaveBeenCalledWith(
+      expect(markTaskAssignedReadMock).toHaveBeenCalledWith(
         "user_assignee",
         "tsk_123",
       );
