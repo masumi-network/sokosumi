@@ -41,6 +41,9 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 vi.mock("@/clients/email.client", () => ({
+  // The real size, so a test can put more than one chunk in a page and see
+  // what the service does with a refusal in the middle of it.
+  RESEND_BATCH_MAX_SIZE: 100,
   sendEmails: sendEmailsMock,
 }));
 vi.mock("@/helpers/notifications", () => ({
@@ -1322,6 +1325,26 @@ describe("NotificationFollowUpSyncService", () => {
     expect(email.subject).toContain("Design");
   });
 
+  /**
+   * A reader who silenced the two cells beside email is not a reader who wants
+   * nothing. The row is written unseen, which is what makes the email the only
+   * one; the inbox is where the reminder arrives.
+   */
+  it("emails a reader who kept only the email cell", async () => {
+    resolveDeliveryMock.mockResolvedValue({
+      inApp: false,
+      osBanner: false,
+      email: true,
+    });
+    seed([row()]);
+
+    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    expect(written).toHaveLength(1);
+    expect(result.emailed).toBe(1);
+    expect(emailsSent()).toHaveLength(1);
+  });
+
   it("sends no email to a reader who switched that cell off", async () => {
     // The default delivery in this file says email off, which is the case.
     seed([row()]);
@@ -1371,12 +1394,36 @@ describe("NotificationFollowUpSyncService", () => {
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
     // The notification is already written and stays written. Nothing is
-    // counted as emailed, because nothing in a refused batch arrived.
+    // counted as emailed, because nothing in a refused chunk arrived.
     expect(written).toHaveLength(1);
     expect(result.sent).toBe(1);
     expect(result.emailed).toBe(0);
     expect(result.reachedEnd).toBe(true);
     expect(captureExceptionMock).toHaveBeenCalled();
+  });
+
+  /**
+   * Resend takes a hundred at a time, and `sendEmails` gives up on the first
+   * chunk it refuses. A page handed over whole would lose every email behind
+   * the refusal, and those readers would never be mailed: their reminders are
+   * already written, so the next run refuses them as duplicates.
+   */
+  it("carries on to the next chunk when one is refused", async () => {
+    wantsEmail();
+    sendEmailsMock.mockRejectedValueOnce(new Error("resend refused the chunk"));
+    seed(
+      Array.from({ length: 150 }, (_, index) =>
+        row({ id: `notification-${index}`, referenceId: `room-${index}` }),
+      ),
+    );
+
+    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    expect(written).toHaveLength(150);
+    // Both chunks were offered, and the fifty behind the refusal went out.
+    expect(sendEmailsMock).toHaveBeenCalledTimes(2);
+    expect(result.emailed).toBe(50);
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
   });
 
   it("writes the reminder even when the account has gone", async () => {

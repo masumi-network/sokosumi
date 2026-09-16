@@ -1,6 +1,10 @@
 import * as Sentry from "@sentry/node";
 import type { Prisma } from "@sokosumi/database";
-import { type SendEmailInput, sendEmails } from "@/clients/email.client";
+import {
+  RESEND_BATCH_MAX_SIZE,
+  type SendEmailInput,
+  sendEmails,
+} from "@/clients/email.client";
 import {
   FOLLOW_UP_SOURCE_MESSAGE_KEYS,
   followUpEventId,
@@ -105,7 +109,7 @@ export interface SendFollowUpsResult {
    *
    * Never higher than `sent`, because an email is built only for a follow-up
    * that was actually written. Lower when readers have switched the email cell
-   * off, and lower when a batch was refused: a refused batch is reported to
+   * off, and lower when a chunk was refused: a refused chunk is reported to
    * Sentry and counted nowhere, because nothing in it arrived.
    *
    * Handed over, not delivered. What Resend does with a batch afterwards is
@@ -269,13 +273,19 @@ function toFollowUpInput(
  * Hand a batch of reminder emails to Resend.
  *
  * Empties what it is given, so a caller can flush repeatedly through a run
- * without tracking what already went. Returns how many were accepted, which
- * is the whole batch or none of it: `sendEmails` throws on a refused chunk
- * and says nothing about which of its members were written.
+ * without tracking what already went. Returns how many Resend accepted.
  *
- * Never throws. The follow-up notifications these emails are about are
- * already written, and a refused send must not cost the run the rest of its
- * work or make it look like the reminders themselves failed.
+ * Chunked here rather than handed over whole, even though `sendEmails` chunks
+ * again inside. It throws on the first chunk Resend refuses and says nothing
+ * about the rest, so one refusal in the middle of a page would both lose the
+ * emails behind it and report the ones in front of it as unsent. The
+ * follow-up rows are already written, and the next run refuses them as
+ * duplicates, so those readers would never be mailed at all. Chunking here
+ * costs one refused chunk instead.
+ *
+ * Never throws. A refused chunk goes to Sentry and the run carries on: it
+ * must not cost the rest of the work or make it look like the reminders
+ * themselves failed.
  */
 async function flushFollowUpEmails(pending: SendEmailInput[]): Promise<number> {
   if (pending.length === 0) {
@@ -283,21 +293,26 @@ async function flushFollowUpEmails(pending: SendEmailInput[]): Promise<number> {
   }
 
   const batch = pending.splice(0, pending.length);
+  let accepted = 0;
 
-  try {
-    await sendEmails(batch);
+  for (let offset = 0; offset < batch.length; offset += RESEND_BATCH_MAX_SIZE) {
+    const chunk = batch.slice(offset, offset + RESEND_BATCH_MAX_SIZE);
 
-    return batch.length;
-  } catch (error) {
-    Sentry.captureException(error, {
-      extra: {
-        batchSize: batch.length,
-        notificationType: "notification-follow-up-email",
-      },
-    });
+    try {
+      await sendEmails(chunk);
 
-    return 0;
+      accepted += chunk.length;
+    } catch (error) {
+      Sentry.captureException(error, {
+        extra: {
+          batchSize: chunk.length,
+          notificationType: "notification-follow-up-email",
+        },
+      });
+    }
   }
+
+  return accepted;
 }
 
 /**
@@ -433,6 +448,8 @@ export async function sendFollowUps(
         // Asked before the write rather than left to the create path, which
         // stores a hidden row for readers who silenced the category. A hidden
         // reminder reaches nobody and would still be there to explain later.
+        // The one exception is a reader who kept the email: that row is what
+        // makes the email the only one, so it is worth storing unseen.
         const delivery = await resolveDelivery(input);
 
         // Asked again. The read above is itself an await, so it can be the
@@ -452,7 +469,10 @@ export async function sendFollowUps(
           continue;
         }
 
-        if (!delivery.inApp && !delivery.osBanner) {
+        // Nowhere to put it and nobody to mail it. Email counts here, or the
+        // reminder row's email cell would be a switch that controls nothing
+        // for a reader who turned the two cells beside it off (SOK-916).
+        if (!delivery.inApp && !delivery.osBanner && !delivery.email) {
           continue;
         }
 
@@ -517,10 +537,6 @@ export async function sendFollowUps(
 
     after = { createdAt: last.createdAt, id: last.id };
   }
-
-  // An inner `break` leaves the page's emails unsent, because the flush above
-  // sits after the row loop. This is the one that covers a truncated run.
-  emailed += await flushFollowUpEmails(pendingEmails);
 
   return { examined, sent, emailed, reachedEnd: !stopped };
 }
