@@ -1943,6 +1943,8 @@
         "statusReady": "Ready",
         "changeStatus": "Change status…",
         "noStatusMatches": "No status matches",
+        "changeCoworker": "Change coworker…",
+        "noCoworkerMatches": "No coworker matches",
         "untitledTask": "Untitled task",
         "saveError": "Failed to save task",
         "back": "Back",

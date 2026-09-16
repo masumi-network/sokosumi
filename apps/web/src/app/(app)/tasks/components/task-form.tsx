@@ -140,6 +140,8 @@ export interface TaskFormLabels {
   statusLabels?: Record<TaskStatus, string>;
   changeStatus: string;
   noStatusMatches: string;
+  changeCoworker?: string;
+  noCoworkerMatches?: string;
   back: string;
   uploadFile: string;
   uploadFileError?: string;
@@ -1251,8 +1253,9 @@ export function TaskForm({
                 labels={{
                   ariaLabel: labels.coworker,
                   unassigned: labels.unassigned ?? "Unassigned",
-                  searchPlaceholder: labels.changeStatus,
-                  noResults: labels.noStatusMatches,
+                  searchPlaceholder:
+                    labels.changeCoworker ?? "Change coworker…",
+                  noResults: labels.noCoworkerMatches ?? "No coworker matches",
                   agentsGroupLabel: labels.coworker,
                 }}
                 onSelect={handleCoworkerSelect}

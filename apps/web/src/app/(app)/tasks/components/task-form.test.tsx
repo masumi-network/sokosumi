@@ -307,6 +307,8 @@ const baseLabels = {
   statusReady: "Ready",
   changeStatus: "Change status…",
   noStatusMatches: "No status matches",
+  changeCoworker: "Change coworker…",
+  noCoworkerMatches: "No coworker matches",
   statusLabels: Object.fromEntries(
     TASK_STATUS_DISPLAY_ORDER.map((status) => [
       status,

@@ -107,6 +107,8 @@ export default async function TaskEditModalPage({
         statusDraft: tEdit("statusDraft"),
         changeStatus: tEdit("changeStatus"),
         noStatusMatches: tEdit("noStatusMatches"),
+        changeCoworker: tEdit("changeCoworker"),
+        noCoworkerMatches: tEdit("noCoworkerMatches"),
         statusReady: tEdit("statusReady"),
         statusQueued: tStatus("QUEUED"),
         untitledTask: tEdit("untitledTask"),

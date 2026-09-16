@@ -1943,6 +1943,8 @@
         "statusReady": "Listo",
         "changeStatus": "Cambiar estado…",
         "noStatusMatches": "Ningún estado coincide",
+        "changeCoworker": "Cambiar coworker…",
+        "noCoworkerMatches": "Ningún coworker coincide",
         "untitledTask": "Tarea sin título",
         "saveError": "No se pudo guardar la tarea",
         "back": "Atrás",

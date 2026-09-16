@@ -1943,6 +1943,8 @@
         "statusReady": "Bereit",
         "changeStatus": "Status ändern…",
         "noStatusMatches": "Kein Status passt",
+        "changeCoworker": "Coworker ändern…",
+        "noCoworkerMatches": "Kein Coworker passt",
         "untitledTask": "Unbenannte Aufgabe",
         "saveError": "Die Aufgabe konnte nicht gespeichert werden",
         "back": "Zurück",
