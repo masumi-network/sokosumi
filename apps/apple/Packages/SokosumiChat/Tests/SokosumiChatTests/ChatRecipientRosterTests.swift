@@ -43,7 +43,22 @@ private func memberFixture(id: String, name: String) -> String {
   """
 }
 
-struct DirectRecipientRosterTests {
+struct ChatRecipientRosterTests {
+  @Test(arguments: ["member", "admin", "owner"])
+  func channelRosterIncludesCreatorAndRole(role: String) async throws {
+    let member = #"{"id":"member-me","userId":"me","organizationId":"org","role":"\#(role)","seatAssignedAt":null,"createdAt":"\#(rosterTimestamp)"}"#
+    let transport = RosterTransport([
+      "get/coworkers": (200, rosterEnvelope("[]")),
+      "get/organizations/{id}/members": (200, rosterEnvelope("[\(memberFixture(id: "me", name: "Me"))]")),
+      "getMySokoBot": (503, "{}"),
+      "get/users/{id}/organizations/{organizationId}/member": (200, rosterEnvelope(member))
+    ])
+    let client = try Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport)
+    let roster = try await ChatService().channelRoster(client: client, organizationId: "org", organizationSlug: "team")
+    #expect(roster.recipients.targets.map(\.id) == [.human("me")])
+    #expect(roster.canCreateExternal == (role != "member"))
+  }
+
   @Test func rosterMatchesWebFilteringAndWorkspace() async throws {
     let transport = RosterTransport([
       "get/coworkers": (200, rosterEnvelope("[" + [
@@ -65,9 +80,8 @@ struct DirectRecipientRosterTests {
     let header = try #require(HTTPField.Name("X-Organization-Slug"))
     #expect(requests.filter { $0.path?.contains("/organizations/") != true }.allSatisfy { $0.headerFields[header] == "team" })
     #expect(requests.contains { $0.path?.contains("scope=available") == true && $0.path?.contains("capability=chat") == true })
-    let selection = DirectConversationSelection(hasOrganization: true)
-    #expect(roster.candidates(query: "  HELPER-SLUG ", selection: selection).map(\.id) == [.coworker("usable")])
-    #expect(roster.candidates(query: "@example.com", selection: selection).map(\.id) == [.human("peer")])
+    #expect(roster.sections(query: "  HELPER-SLUG ").flatMap(\.targets).map(\.id) == [.coworker("usable")])
+    #expect(roster.sections(query: "@example.com").flatMap(\.targets).map(\.id) == [.human("peer")])
   }
 
   @Test func partialMembersFailureKeepsAIAndPersonalSkipsMembers() async throws {
