@@ -347,7 +347,7 @@ describe("NotificationFollowUpSyncService", () => {
       userId: "reader-1",
       kind: NotificationKind.CHAT,
       referenceId: "room-1",
-      eventId: "follow-up:notification-1",
+      eventId: "follow-up:room-1",
       messageKey: CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
       messageParams: { authorName: "Ada", roomName: "Design" },
       metadata: { messageId: "message-1" },
@@ -570,7 +570,7 @@ describe("NotificationFollowUpSyncService", () => {
 
     expect(resolveDeliveryMock).toHaveBeenCalledTimes(1);
     expect(firstFollowUpInput()).toEqual(
-      expect.objectContaining({ eventId: "follow-up:notification-1" }),
+      expect.objectContaining({ eventId: "follow-up:room-1" }),
     );
     // The answer itself, not one that looks like it. Which client the write
     // goes through is left alone on purpose: the parameter has a default, so
@@ -707,13 +707,9 @@ describe("NotificationFollowUpSyncService", () => {
    * one row carrying a `count`. One row in and one row out proves nothing
    * about many messages, and the seeded row could not exist: `count` is
    * written only by `countOntoUnreadRow`, whose one caller passes the
-   * every-message-in-a-room key, and that key gets no follow-up. The mention
-   * and direct-message keys that do get one are written one row per message
-   * (`chat-notification-fanout.ts`, `eventId: params.messageId`).
+   * every-message-in-a-room key, and that key gets no follow-up.
    *
-   * So SOK-916 user story 26, one reminder per room rather than per message,
-   * is NOT satisfied for the keys this feature follows up, and no test here
-   * covers it. Saying so is the honest state; the old name hid it.
+   * The test below it now covers what this one used to claim.
    */
   it("copies the original's message parameters verbatim", async () => {
     seed([
@@ -730,6 +726,56 @@ describe("NotificationFollowUpSyncService", () => {
         messageParams: { authorName: "Ada", roomName: "Design" },
       }),
     );
+  });
+
+  /**
+   * SOK-916 user story 26: twenty unread messages in one room are one
+   * reminder, not twenty.
+   *
+   * The mention and direct-message keys this feature follows up are written
+   * one row per message (`chat-notification-fanout.ts`, `eventId:
+   * params.messageId`), so the room really does arrive here as several rows.
+   * What collapses them is the follow-up's event id being derived from the
+   * room rather than from the row, which makes the table's own uniqueness
+   * refuse the second write.
+   *
+   * Three rows and one reminder, so a per-row id fails this rather than
+   * passing it the way a single seeded row would.
+   */
+  it("reminds a reader once about a room, however many messages it holds", async () => {
+    seed([
+      row({ id: "notification-1", metadata: { messageId: "message-1" } }),
+      row({ id: "notification-2", metadata: { messageId: "message-2" } }),
+      row({ id: "notification-3", metadata: { messageId: "message-3" } }),
+    ]);
+
+    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    expect(written).toHaveLength(1);
+    // The oldest row still in the window wins, because the run goes oldest
+    // first and the two after it are refused as duplicates. All three were
+    // still examined.
+    expect(written[0]?.eventId).toBe("follow-up:room-1");
+    expect(result).toEqual({ examined: 3, sent: 1, reachedEnd: true });
+  });
+
+  /**
+   * The other half of story 26's boundary, and story 27: one reminder per
+   * room, but a reminder for each room.
+   */
+  it("reminds a reader about each room separately", async () => {
+    seed([
+      row({ id: "notification-1", referenceId: "room-1" }),
+      row({ id: "notification-2", referenceId: "room-2" }),
+    ]);
+
+    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    expect(written.map((followUp) => followUp.eventId)).toEqual([
+      "follow-up:room-1",
+      "follow-up:room-2",
+    ]);
+    expect(result).toEqual({ examined: 2, sent: 2, reachedEnd: true });
   });
 
   it("writes nothing when the reader turned reminders off", async () => {
@@ -755,17 +801,19 @@ describe("NotificationFollowUpSyncService", () => {
     // Distinct instants, so the run's order is settled by `createdAt` alone
     // and this stays a test about recovering from a failed write.
     seed([
-      row({ id: "notification-1", createdAt: WAITING }),
-      row({ id: "notification-2", createdAt: new Date(WAITING.getTime() + 1) }),
+      row({ id: "notification-1", referenceId: "room-1", createdAt: WAITING }),
+      row({
+        id: "notification-2",
+        referenceId: "room-2",
+        createdAt: new Date(WAITING.getTime() + 1),
+      }),
     ]);
     createNotificationMock.mockRejectedValueOnce(new Error("write failed"));
 
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
     expect(result).toEqual({ examined: 2, sent: 1, reachedEnd: true });
-    expect(written.map((one) => one.eventId)).toEqual([
-      "follow-up:notification-2",
-    ]);
+    expect(written.map((one) => one.eventId)).toEqual(["follow-up:room-2"]);
     // Survived is not enough. `reachedEnd` stays true through this, so the
     // report is the only place the lost reminder is named.
     expect(captureExceptionMock).toHaveBeenCalledWith(
@@ -786,17 +834,19 @@ describe("NotificationFollowUpSyncService", () => {
    */
   it("carries on after one reader's preferences fail to read", async () => {
     seed([
-      row({ id: "notification-1", createdAt: WAITING }),
-      row({ id: "notification-2", createdAt: new Date(WAITING.getTime() + 1) }),
+      row({ id: "notification-1", referenceId: "room-1", createdAt: WAITING }),
+      row({
+        id: "notification-2",
+        referenceId: "room-2",
+        createdAt: new Date(WAITING.getTime() + 1),
+      }),
     ]);
     resolveDeliveryMock.mockRejectedValueOnce(new Error("preferences failed"));
 
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
     expect(result).toEqual({ examined: 2, sent: 1, reachedEnd: true });
-    expect(written.map((one) => one.eventId)).toEqual([
-      "follow-up:notification-2",
-    ]);
+    expect(written.map((one) => one.eventId)).toEqual(["follow-up:room-2"]);
     // As with a failed write, the report is the only place this one is named.
     expect(captureExceptionMock).toHaveBeenCalledWith(
       expect.any(Error),
@@ -837,8 +887,12 @@ describe("NotificationFollowUpSyncService", () => {
    */
   it("carries on past a reader who silenced the category", async () => {
     seed([
-      row({ id: "notification-1", createdAt: WAITING }),
-      row({ id: "notification-2", createdAt: new Date(WAITING.getTime() + 1) }),
+      row({ id: "notification-1", referenceId: "room-1", createdAt: WAITING }),
+      row({
+        id: "notification-2",
+        referenceId: "room-2",
+        createdAt: new Date(WAITING.getTime() + 1),
+      }),
     ]);
     resolveDeliveryMock.mockResolvedValueOnce({
       inApp: false,
@@ -848,9 +902,7 @@ describe("NotificationFollowUpSyncService", () => {
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
     expect(result).toEqual({ examined: 2, sent: 1, reachedEnd: true });
-    expect(written.map((one) => one.eventId)).toEqual([
-      "follow-up:notification-2",
-    ]);
+    expect(written.map((one) => one.eventId)).toEqual(["follow-up:room-2"]);
   });
 
   /**
@@ -866,6 +918,10 @@ describe("NotificationFollowUpSyncService", () => {
     const waiting = Array.from({ length: waitingCount }, (_unused, index) =>
       row({
         id: `notification-${index}`,
+        // A room of its own per row. The reminder is keyed on the room, so a
+        // backlog all in one room is one reminder and would not exercise
+        // paging at all.
+        referenceId: `room-${index}`,
         createdAt: new Date(WAITING.getTime() + index),
       }),
     );
@@ -875,7 +931,7 @@ describe("NotificationFollowUpSyncService", () => {
 
     expect(result.sent).toBe(waitingCount);
     expect(written.map((one) => one.eventId)).toContain(
-      `follow-up:notification-${waitingCount - 1}`,
+      `follow-up:room-${waitingCount - 1}`,
     );
     expect(notificationFindManyMock).toHaveBeenCalledTimes(3);
     // The bound on the read itself, not only on what the run does with the
@@ -906,6 +962,9 @@ describe("NotificationFollowUpSyncService", () => {
           // Ids are compared as text, so they are padded to sort the way the
           // numbers do.
           id: `notification-${String(index).padStart(4, "0")}`,
+          // A room of its own per row, so the reminder keyed on the room does
+          // not collapse the backlog this test needs.
+          referenceId: `room-${String(index).padStart(4, "0")}`,
           // The last row of the first page and the first of the second share
           // an instant.
           createdAt:
@@ -920,7 +979,7 @@ describe("NotificationFollowUpSyncService", () => {
 
     expect(result.sent).toBe(NOTIFICATION_FOLLOW_UP_PAGE_SIZE + 1);
     expect(written.map((one) => one.eventId)).toContain(
-      `follow-up:notification-${String(NOTIFICATION_FOLLOW_UP_PAGE_SIZE).padStart(4, "0")}`,
+      `follow-up:room-${String(NOTIFICATION_FOLLOW_UP_PAGE_SIZE).padStart(4, "0")}`,
     );
   });
 
@@ -937,6 +996,8 @@ describe("NotificationFollowUpSyncService", () => {
       (_unused, index) =>
         row({
           id: `notification-${index}`,
+          // A room of its own per row, as above.
+          referenceId: `room-${index}`,
           createdAt: new Date(WAITING.getTime() + index),
         }),
     );
@@ -966,6 +1027,8 @@ describe("NotificationFollowUpSyncService", () => {
       (_unused, index) =>
         row({
           id: `notification-${index}`,
+          // A room of its own per row, as above.
+          referenceId: `room-${index}`,
           createdAt: new Date(WAITING.getTime() + index),
         }),
     );

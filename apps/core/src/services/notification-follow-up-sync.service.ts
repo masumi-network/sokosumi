@@ -88,12 +88,14 @@ export interface SendFollowUpsResult {
   /**
    * Follow-ups this run actually wrote.
    *
-   * Lower than `examined` without anything being wrong. A source row stays
+   * Lower than `examined` without anything being wrong, and by more than one
+   * cause. Several rows about the same room, task or job share one reminder,
+   * so all but the first are refused as duplicates. A source row also stays
    * unread after its follow-up, so while it remains in the window a later run
-   * reads it again and the write is refused as a duplicate. Readers who
-   * silenced the category are skipped before the write too. How much of the
-   * gap is either of those, against how much is failed writes, is not
-   * something this says: the failures are the ones in Sentry.
+   * reads it again and is refused the same way. Readers who silenced the
+   * category are skipped before the write. How much of the gap is any of
+   * those, against how much is failed writes, is not something this says: the
+   * failures are the ones in Sentry.
    */
   sent: number;
   /**
@@ -168,7 +170,7 @@ function toFollowUpInput(
     userId: source.userId,
     kind: source.kind,
     referenceId: source.referenceId,
-    eventId: followUpEventId(source.id),
+    eventId: followUpEventId(source.referenceId),
     messageKey,
     messageParams,
     metadata,
@@ -188,9 +190,11 @@ function toFollowUpInput(
  * reminding someone of what they switched off would be the feature working
  * against them.
  *
- * One follow-up, ever. The event id is derived from the original, so the
- * uniqueness the notification table already enforces is what stops the second,
- * and this needs no record of its own that a run happened.
+ * One follow-up per thing, ever. The event id is derived from what is being
+ * reminded about rather than from the row that triggered it, so the uniqueness
+ * the notification table already enforces is what stops the second, and this
+ * needs no record of its own that a run happened. Twenty unread mentions in
+ * one room are twenty rows and one reminder.
  *
  * A row whose write throws costs that one reminder and nothing else: the run
  * carries on through the rest. The preference read sits inside the same try,

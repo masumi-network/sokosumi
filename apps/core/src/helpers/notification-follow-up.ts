@@ -65,12 +65,26 @@ export function followUpMessageKeyFor(sourceMessageKey: string): string | null {
 }
 
 /**
- * The event id a notification's one follow-up takes.
+ * The event id a follow-up takes, which is what makes it the only one.
  *
- * Derived from the original rather than random, so the uniqueness the
- * notification table already enforces is what stops a second reminder. A re-run
- * writes nothing and needs no record of its own that it ran.
+ * Derived rather than random, so the uniqueness the notification table already
+ * enforces is what stops a second reminder. A re-run writes nothing and needs
+ * no record of its own that it ran.
+ *
+ * Derived from the thing being reminded about rather than from the row that
+ * triggered the reminder, which is what makes SOK-916 user story 26 true:
+ * twenty unread mentions in one room are twenty rows, and a per-row id would
+ * be twenty reminders. The table is unique on
+ * `(userId, kind, referenceId, eventId, messageKey)`, so with the reference in
+ * here the reader gets one reminder per room, per task or per job, whichever
+ * of its rows the run reaches first. The run goes oldest first, so that is the
+ * oldest one still in the window.
+ *
+ * The consequence to know about: two task attention notifications for the same
+ * task share a follow-up key, so they collapse into one reminder as well. A
+ * mention and a direct message in the same room do not, because their
+ * reminders are stored under different message keys.
  */
-export function followUpEventId(sourceNotificationId: string): string {
-  return `follow-up:${sourceNotificationId}`;
+export function followUpEventId(referenceId: string): string {
+  return `follow-up:${referenceId}`;
 }

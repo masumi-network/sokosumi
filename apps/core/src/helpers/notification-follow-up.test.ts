@@ -79,16 +79,12 @@ describe("followUpMessageKeyFor", () => {
 
 describe("followUpEventId", () => {
   /**
-   * The whole of the idempotency. Same original, same event id, and the
+   * The whole of the idempotency. Same reference, same event id, and the
    * notification table's own uniqueness refuses the second row.
    */
-  it("gives one notification one event id, every run", () => {
-    expect(followUpEventId("notification-1")).toBe("follow-up:notification-1");
-    expect(followUpEventId("notification-1")).toBe(
-      followUpEventId("notification-1"),
-    );
-    expect(followUpEventId("notification-2")).not.toBe(
-      followUpEventId("notification-1"),
-    );
+  it("gives one reference one event id, every run", () => {
+    expect(followUpEventId("room-1")).toBe("follow-up:room-1");
+    expect(followUpEventId("room-1")).toBe(followUpEventId("room-1"));
+    expect(followUpEventId("room-2")).not.toBe(followUpEventId("room-1"));
   });
 });
