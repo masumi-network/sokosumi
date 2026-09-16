@@ -75,13 +75,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
-  SEGMENTED_TABS_LIST_CLASS_NAME,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   clearTaskSchedule,
@@ -1290,16 +1284,9 @@ export function WorkspaceCalendar({
             }
           }}
         >
-          <TabsList
-            className={cn(SEGMENTED_TABS_LIST_CLASS_NAME, "md:w-auto")}
-            data-testid="calendar-views"
-          >
+          <TabsList className="w-full md:w-fit" data-testid="calendar-views">
             {CALENDAR_VIEWS.map((calendarView) => (
-              <TabsTrigger
-                key={calendarView}
-                className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
-                value={calendarView}
-              >
+              <TabsTrigger key={calendarView} value={calendarView}>
                 {t(`view.${calendarView}`)}
               </TabsTrigger>
             ))}
