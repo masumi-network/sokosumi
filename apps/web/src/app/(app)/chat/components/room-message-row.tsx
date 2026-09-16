@@ -424,14 +424,17 @@ function MessageUnfurlImage({
       src={imageUrl}
       alt={t("imageAlt", { title })}
       className={cn(
-        // `w-auto` so the width follows the capped height through the
-        // remembered natural size; a bare `width` attribute would keep the
-        // natural width and stretch the image flat.
-        "mt-2 w-auto max-w-full rounded-md",
-        // Until the first load the box is the cap itself: link previews are
-        // wide, so nearly all of them land there, and the row does not grow
-        // under a reader scrolling past it.
-        loaded ? "h-auto max-h-48" : "h-48",
+        // Fill the card's text column and crop what does not fit, so the image
+        // edge lines up with the title at any aspect ratio. The remembered
+        // natural size still supplies the ratio, so a wide preview keeps its
+        // own height and only a tall one is cropped.
+        "mt-2 w-full rounded-md object-cover",
+        // 200px is the smallest cap that leaves the standard 1.91:1 Open Graph
+        // card whole in this 378px column (378 / 1.91 = 198), and it matches the
+        // Apple budget. Until the first load the box is the cap itself: link
+        // previews are wide, so nearly all of them land there, and the row does
+        // not grow under a reader scrolling past it.
+        loaded ? "h-auto max-h-50" : "h-50",
       )}
       onError={onError}
       onLoad={(event) => {
@@ -464,12 +467,12 @@ function MessageUnfurlCard({
   }
 
   return (
-    <div className="group/unfurl relative mt-1.5 inline-block w-fit max-w-full">
+    <div className="group/unfurl relative mt-1.5 inline-block w-fit max-w-[min(100%,25rem)]">
       <a
         href={unfurl.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="border-border bg-muted/40 hover:bg-muted/60 focus-visible:ring-ring inline-block w-fit max-w-full overflow-hidden rounded-md border-l-2 border-l-primary/60 px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
+        className="border-border bg-muted/40 hover:bg-muted/60 focus-visible:ring-ring inline-block w-fit max-w-[min(100%,25rem)] overflow-hidden rounded-md border-l-2 border-l-primary/60 px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
         aria-label={t("openLink", { title: unfurl.title })}
         data-testid="room-message-unfurl"
       >

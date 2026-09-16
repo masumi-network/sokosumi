@@ -5,6 +5,8 @@ import SwiftUI
 struct MessageImageView: View {
   let url: URL
   let maxSize: CGSize
+  /// Fill the width budget and crop the overflow, so a card's image edge lines up with its text at any aspect ratio.
+  var fills = false
   var onFailure: ((URL) -> Void)?
 
   @Environment(\.displayScale) private var displayScale
@@ -29,12 +31,19 @@ struct MessageImageView: View {
     return Self.proportions.object(forKey: url as NSURL).map { CGFloat($0.doubleValue) }
   }
 
+  /// Anything taller than the budget lays out as the budget itself; `scaledToFill` then crops what does not fit.
+  private var layoutRatio: CGFloat? {
+    guard let ratio else { return nil }
+    guard fills, maxSize.width > 0, maxSize.height > 0 else { return ratio }
+    return max(ratio, maxSize.width / maxSize.height)
+  }
+
   var body: some View {
     Group {
       if let loaded, loaded.url == url, loaded.image == nil {
         Label("Preview unavailable", systemImage: "photo")
-      } else if let ratio {
-        Color.clear.aspectRatio(ratio, contentMode: .fit)
+      } else if let layoutRatio {
+        Color.clear.aspectRatio(layoutRatio, contentMode: .fit)
       } else {
         // The API has no dimensions. Reserve the image's height budget on its first load.
         Color.clear.frame(idealHeight: maxSize.height, maxHeight: maxSize.height)
@@ -43,13 +52,18 @@ struct MessageImageView: View {
     .overlay {
       if let loaded, loaded.url == url {
         if let image = loaded.image {
-          image.resizable().scaledToFit()
+          if fills {
+            image.resizable().scaledToFill().clipped()
+          } else {
+            image.resizable().scaledToFit()
+          }
         }
       } else {
         ProgressView()
       }
     }
-    .frame(maxWidth: maxSize.width, maxHeight: maxSize.height, alignment: .leading)
+    // Filling wants the whole width budget, so say so: `Color.clear` contributes no ideal width of its own.
+    .frame(idealWidth: fills ? maxSize.width : nil, maxWidth: maxSize.width, maxHeight: maxSize.height, alignment: .leading)
     .task(id: "\(url)-\(maxSize)-\(displayScale)") {
       let result = await loadImageThumbnail(
         urlString: url.absoluteString,
