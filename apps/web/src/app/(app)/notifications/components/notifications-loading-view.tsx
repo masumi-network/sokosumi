@@ -12,7 +12,7 @@ export function NotificationsSkeletonRows(): React.ReactElement {
       className="divide-border/50 divide-y"
     >
       {Array.from({ length: 5 }, (_, index) => (
-        <div key={index} className="flex flex-col gap-2 p-4">
+        <div key={index} className="flex flex-col gap-2 p-3">
           <Skeleton className="h-4 w-3/4" />
           <Skeleton className="h-3 w-1/4" />
         </div>
