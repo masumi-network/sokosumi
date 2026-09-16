@@ -80,6 +80,42 @@ private func makeClient(_ transport: ScriptedTransport) throws -> Client {
 }
 
 struct ChatServiceTests {
+  @Test func channelCreationUsesMixedParticipantsAndMapsSlugConflict() async throws {
+    let room = roomJSON(id: "channel", name: "Team", kind: "channel", unreadCount: 0, unreadMentionCount: 0)
+    let response = "{\"data\":\(room),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\"}}"
+    let conflict = "{\"error\":\"Conflict\",\"message\":\"Taken\",\"kind\":\"channel_slug_taken\",\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\",\"path\":\"/chats/rooms\",\"method\":\"POST\"}}"
+    let transport = ScriptedTransport([(201, response), (409, conflict)])
+    let client = try makeClient(transport)
+    var draft = ChannelDraft()
+    draft.setSlug("team-")
+    draft.setTopic(" topic ")
+    draft.addAllMembers = false
+    draft.visibility = .private
+    draft.recipients = [.human("peer"), .coworker("agent")]
+    let roster = ChatRecipientRoster(targets: [.init(id: .human("peer"), name: "Peer"), .init(id: .coworker("agent"), name: "Agent")])
+    let result = try await ChatService().createChannel(client: client, draft: draft, roster: roster, currentUserId: "me", organizationSlug: "team")
+    #expect(result.id == "channel")
+    let body = try #require(JSONSerialization.jsonObject(with: transport.bodies[0]) as? [String: Any])
+    #expect(body["memberUserIds"] as? [String] == ["me", "peer"])
+    #expect(body["coworkerIds"] as? [String] == ["agent"])
+    #expect(body["slug"] as? String == "team")
+    #expect(body["topic"] as? String == "topic")
+    #expect(body["discoverability"] as? String == "private")
+    #expect(try orgSlugHeader(#require(transport.requests.first).request) == "team")
+    await #expect(throws: ChannelCreationError.slugTaken) {
+      try await ChatService().createChannel(client: client, draft: draft, roster: roster, currentUserId: "me", organizationSlug: "team")
+    }
+  }
+
+  @Test func channelAvailabilityUsesOrganizationAndQuery() async throws {
+    let response = "{\"data\":{\"status\":\"free\"},\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\"}}"
+    let transport = ScriptedTransport([(200, response)])
+    #expect(try await ChatService().channelSlugIsAvailable(client: makeClient(transport), slug: "team-soko", organizationSlug: "team"))
+    let request = try #require(transport.requests.first).request
+    #expect(request.path?.contains("slug=team-soko") == true)
+    #expect(orgSlugHeader(request) == "team")
+  }
+
   @Test func participantDirectPreservesOrganizationAndPermissionFailure() async throws {
     let response = """
     {"error":"Forbidden","message":"No shared channel","meta":{"timestamp":"\(timestamp)","requestId":"request","path":"/v1/chats/rooms","method":"POST"}}

@@ -3,12 +3,12 @@ import Testing
 
 @MainActor
 struct DirectRecipientPickerTests {
-  private let person = DirectRecipientTarget(id: .human("person"), name: "Person", detail: "human@example.com")
-  private let coworker = DirectRecipientTarget(id: .coworker("coworker"), name: "AI")
+  private let person = ChatRecipientTarget(id: .human("person"), name: "Person", detail: "human@example.com")
+  private let coworker = ChatRecipientTarget(id: .coworker("coworker"), name: "AI")
 
   @Test func groupedRecipientsPutCoworkersFirstAndOmitEmptySections() async {
     let picker = DirectRecipientPicker(hasOrganization: true)
-    let assistant = DirectRecipientTarget(id: .sokoBot("bot"), name: "Personal assistant")
+    let assistant = ChatRecipientTarget(id: .sokoBot("bot"), name: "Personal assistant")
     await picker.load { .init(targets: [person, assistant, coworker]) }
     #expect(picker.sections.map(\.id) == [.coworkers, .people, .assistant])
     #expect(picker.candidates.map(\.id) == [coworker.id, person.id, assistant.id])
@@ -57,7 +57,7 @@ struct DirectRecipientPickerTests {
 
   @Test func latestRosterWinsAndCreateIsSingleFlight() async {
     let picker = DirectRecipientPicker(hasOrganization: false)
-    var resumeLoad: CheckedContinuation<DirectRecipientRoster, Never>?
+    var resumeLoad: CheckedContinuation<ChatRecipientRoster, Never>?
     let first = Task {
       await picker.load { await withCheckedContinuation { resumeLoad = $0 } }
     }
