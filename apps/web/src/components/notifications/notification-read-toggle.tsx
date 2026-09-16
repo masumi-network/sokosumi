@@ -1,6 +1,6 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { CheckCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
@@ -28,9 +28,9 @@ interface NotificationReadToggleProps {
  * a read they did not mean.
  *
  * One control, never two: a row is in one state, and the only move worth
- * offering is the one that changes it. A check marks a row read, because
- * reading is how a row is done. A dot marks it unread, the mark most apps use
- * for unread. The two shapes cannot be mistaken for each other at this size,
+ * offering is the one that changes it. A double check marks a row read, the
+ * read receipt of messaging apps. A dot marks it unread, the mark most apps
+ * use for unread. The two shapes cannot be mistaken for each other at this size,
  * which two envelopes could, and the tooltip says the same thing in words,
  * because an icon alone is a guess.
  */
@@ -75,7 +75,7 @@ export function NotificationReadToggle({
               className="size-2 rounded-full bg-current forced-colors:bg-[ButtonText]"
             />
           ) : (
-            <Check className="size-4" />
+            <CheckCheck className="size-4" />
           )}
         </Button>
       </TooltipTrigger>
