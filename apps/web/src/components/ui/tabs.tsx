@@ -63,4 +63,17 @@ function TabsContent({
   )
 }
 
-export { Tabs, TabsList, TabsTrigger, TabsContent }
+/** Segmented-control styling for a TabsList / TabsTrigger pair. */
+const SEGMENTED_TABS_LIST_CLASS_NAME =
+  "bg-muted/50 flex w-full items-center gap-1 self-start rounded-lg p-1"
+const SEGMENTED_TAB_TRIGGER_CLASS_NAME =
+  "text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
+
+export {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  SEGMENTED_TABS_LIST_CLASS_NAME,
+  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+}

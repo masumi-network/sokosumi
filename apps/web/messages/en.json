@@ -6247,8 +6247,6 @@
         "title": "No scheduled releases match these filters."
       },
       "pagination": {
-        "loadMore": "Load more events",
-        "loading": "Loading events...",
         "error": "Unable to load more events."
       },
       "error": {

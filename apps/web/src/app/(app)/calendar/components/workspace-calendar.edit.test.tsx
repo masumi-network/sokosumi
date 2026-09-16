@@ -491,7 +491,6 @@ describe("WorkspaceCalendar editing", () => {
   });
 
   it("shows a source filter only on the top-level Calendar and includes Projects in pagination", async () => {
-    const user = userEvent.setup();
     render(
       <NuqsTestingAdapter searchParams="?timezone=UTC&projectId=project-1">
         <WorkspaceCalendar
@@ -510,11 +509,10 @@ describe("WorkspaceCalendar editing", () => {
       "source",
     );
 
-    await user.click(
-      screen.getByRole("button", { name: "pagination.loadMore" }),
-    );
-    expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
-      expect.objectContaining({ projectId: "project-1" }),
+    await waitFor(() =>
+      expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+        expect.objectContaining({ projectId: "project-1" }),
+      ),
     );
 
     renderCalendar({
@@ -530,7 +528,6 @@ describe("WorkspaceCalendar editing", () => {
   });
 
   it("keeps the Project Calendar locked when a projectId is present in the URL", async () => {
-    const user = userEvent.setup();
     render(
       <NuqsTestingAdapter searchParams="?timezone=UTC&projectId=project-2">
         <WorkspaceCalendar
@@ -550,12 +547,11 @@ describe("WorkspaceCalendar editing", () => {
       "source",
     );
 
-    await user.click(
-      screen.getByRole("button", { name: "pagination.loadMore" }),
-    );
-    expect(getProjectCalendarMock).toHaveBeenCalledWith(
-      "project-1",
-      expect.not.objectContaining({ projectId: expect.anything() }),
+    await waitFor(() =>
+      expect(getProjectCalendarMock).toHaveBeenCalledWith(
+        "project-1",
+        expect.not.objectContaining({ projectId: expect.anything() }),
+      ),
     );
   });
 
