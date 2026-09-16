@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { parseOrganizationMetadata } from "@sokosumi/utils";
-import { contextOrganizationMemberFilter } from "@/helpers/context-organization-scope";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -24,7 +23,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "get",
     path: "/organizations",
     description:
-      "Get organizations for a user: path `me` for the session user, or a user id when the caller may access that user's data. Session user or coworker with matching authorized `X-Context-User-Id`. Coworker and Soko Bot callers only see the organization their context is bound to.",
+      "Get organizations for a user: path `me` for the session user, or a user id when the caller may access that user's data. Session user or coworker with matching authorized `X-Context-User-Id`.",
     tags: ["Users"],
     request: { params },
     responses: {
@@ -62,15 +61,10 @@ const route = withCoworkerContextHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
   app.openapi(route, async (c) => {
     c.req.valid("param");
-    const { resolvedUserId, userContext } = requireUserRouteContext(
-      c.var.userRouteContext,
-    );
+    const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 
     const members = await prisma.member.findMany({
-      where: {
-        userId: resolvedUserId,
-        ...contextOrganizationMemberFilter(userContext),
-      },
+      where: { userId: resolvedUserId },
       include: { organization: true },
     });
 

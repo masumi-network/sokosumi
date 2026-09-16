@@ -6,7 +6,10 @@ import { AutoContextSwitch } from "@/app/components/auto-context-switch";
 import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/task-attachment-upload-labels";
 import { TaskEditModal } from "@/app/tasks/components/task-edit-modal";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
-import { taskFormAssigneeId } from "@/app/tasks/utils/coworker-options";
+import {
+  taskFormAssigneeId,
+  withCurrentTaskAssigneeOption,
+} from "@/app/tasks/utils/coworker-options";
 import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options";
 import { isTaskEditPageAllowed } from "@/app/tasks/utils/task-edit-eligibility";
 import { readTaskScheduleSeriesPrecondition } from "@/app/tasks/utils/task-schedule-precondition";
@@ -80,9 +83,10 @@ export default async function EditTaskPage({
   );
   const agentNameById = buildAgentNameById(agents);
 
-  const [tEdit, tStatus, schedulePrecondition] = await Promise.all([
+  const [tEdit, tStatus, tTasks, schedulePrecondition] = await Promise.all([
     getTranslations("App.Tasks.EditTask"),
     getTranslations("App.Tasks.Filters.statusOptions"),
+    getTranslations("App.Tasks"),
     readTaskScheduleSeriesPrecondition(taskResult),
   ]);
 
@@ -105,8 +109,10 @@ export default async function EditTaskPage({
         projectCreate: tEdit("projectCreate"),
         projectCreateNamed: tEdit.raw("projectCreateNamed") as string,
         coworker: tEdit("coworker"),
-        coworkerDescription: tEdit("coworkerDescription"),
         unassigned: tEdit("unassigned"),
+        unavailableAssignee: tEdit("unavailableAssignee"),
+        changeCoworker: tEdit("changeCoworker"),
+        noCoworkerMatches: tEdit("noCoworkerMatches"),
         status: tEdit("status"),
         statusDescription: tEdit("statusDescription"),
         statusDraft: tEdit("statusDraft"),
@@ -134,7 +140,14 @@ export default async function EditTaskPage({
         cancel: tEdit("cancel"),
         ctrl: tEdit("ctrl"),
       }}
-      coworkerOptions={coworkerOptions}
+      coworkerOptions={withCurrentTaskAssigneeOption(
+        coworkerOptions,
+        taskResult.assignee,
+        {
+          fallbackName: tTasks("sokoBot"),
+          vendorName: tTasks("sokoBots"),
+        },
+      )}
       projectOptions={projectOptions}
       agentNameById={agentNameById}
       initialValues={{
