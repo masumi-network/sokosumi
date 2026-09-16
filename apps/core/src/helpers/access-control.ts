@@ -14,6 +14,7 @@ import type { EnvVariables } from "@/lib/hono";
 import {
   type AuthenticationContext,
   type CoworkerAuthenticationContext,
+  isCoworkerAuthContext,
   isSokoBotAuthContext,
   isUserAuthContext,
   requireCoworkerAuthContext,
@@ -692,6 +693,52 @@ export async function requireTaskCollaboration(
   }
 
   return await requireCoworkerTaskCollaboration(coworker, taskId, tx);
+}
+
+/**
+ * Schedule write access. Humans and Soko Bots follow
+ * {@link requireTaskCollaboration}. Coworkers may also act on a non-DRAFT task
+ * assigned to a same-vendor sibling, so one vendor can manage every schedule
+ * across its Coworkers. Schedules are the only mutation with this vendor-wide
+ * scope; status, jobs, and files stay assignee-only.
+ */
+export async function requireTaskScheduleWriteAccess(
+  authContext: AuthenticationContext,
+  taskId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Task> {
+  if (!isCoworkerAuthContext(authContext)) {
+    return await requireTaskCollaboration(authContext, taskId, tx);
+  }
+
+  await requireCoworkerCapability(authContext.coworkerId, "tasks", tx);
+  const found = await tx.task.findFirst({
+    where: {
+      id: taskId,
+      archivedAt: null,
+      ...(authContext.context
+        ? { ownerId: authContext.context.userId }
+        : { status: { not: TaskStatus.DRAFT } }),
+    },
+    include: { assignee: { select: { vendorId: true } } },
+  });
+  if (!found) {
+    throw notFound("Task not found");
+  }
+
+  const { assignee, ...task } = found;
+  const isAssignee = task.assigneeId === authContext.coworkerId;
+  const isVendorSibling =
+    assignee?.vendorId === authContext.vendorId &&
+    task.status !== TaskStatus.DRAFT;
+  if (!isAssignee && !isVendorSibling) {
+    throw forbidden(
+      "You can only act on tasks assigned to your coworker or its vendor siblings",
+    );
+  }
+
+  requireTaskNotParked(task);
+  return task;
 }
 
 export async function requireTaskCommentAccess(

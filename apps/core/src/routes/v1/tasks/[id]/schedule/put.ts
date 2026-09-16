@@ -7,7 +7,7 @@ import {
   parseTaskScheduleMetadata,
 } from "@sokosumi/utils";
 
-import { requireTaskCollaboration } from "@/helpers/access-control";
+import { requireTaskScheduleWriteAccess } from "@/helpers/access-control";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import { badRequest, conflict, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -77,7 +77,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     validateScheduleInput(schedule);
 
     const scheduledAt = new Date();
-    const existingTask = await requireTaskCollaboration(
+    const existingTask = await requireTaskScheduleWriteAccess(
       authContext,
       id,
       prisma,
@@ -95,7 +95,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           throw conflict("Task changed during schedule update");
         }
 
-        const currentTask = await requireTaskCollaboration(authContext, id, tx);
+        const currentTask = await requireTaskScheduleWriteAccess(
+          authContext,
+          id,
+          tx,
+        );
         if (
           currentTask.workspaceId !== existingTask.workspaceId ||
           currentTask.projectId !== existingTask.projectId
