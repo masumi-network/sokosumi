@@ -933,3 +933,5 @@ Verification: macOS build and full app tests pass; Chat 429, Workspace 84 (inclu
 Sidebar placement follow-up: Browse channels now sits beside the Channels section heading, matching web `organization-chat-list.client.tsx`. The native section remains available with no joined rooms; the duplicate toolbar action is removed. Existing sheet, join guards, and section collapse behavior are retained. Physical hover/keyboard and live sidebar rendering remain unverified.
 
 Channels header refinement: collapse chevron sits directly after the title; Browse occupies the trailing room-status column instead of sharing it with the native disclosure indicator. Keeps native List and the existing persisted collapse state.
+
+Alignment correction: macOS section headers ignore the row inset used by channel rows. Channels controls now occupy a non-selectable native List row with the same explicit insets as room rows; Browse and room status use 20-point centered slots. A standalone native List fixture reproduced the offset and visually verified the corrected icon centerline; live workspace interaction remains unverified. The fixture app exited after capture.

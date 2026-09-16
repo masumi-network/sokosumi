@@ -42,16 +42,6 @@ struct ConversationSidebarView: View {
           // Channels section only for organization workspaces, mirroring web.
           if workspaces.selection?.workspace.organizationId != nil {
             Section {
-              if !workspaces.sidebar.collapsedSections.contains(.channels) {
-                if partitioned.channels.isEmpty {
-                  Text("No channels yet.")
-                    .foregroundStyle(.secondary)
-                }
-                ForEach(partitioned.channels, id: \.id) { room in
-                  roomRow(room, icon: room.discoverability == ._private ? "lock" : "number")
-                }
-              }
-            } header: {
               HStack {
                 Button {
                   workspaces.sidebar.setExpanded(
@@ -74,8 +64,22 @@ struct ConversationSidebarView: View {
                 }
                 .labelStyle(.iconOnly)
                 .buttonStyle(.borderless)
+                .frame(width: 20)
                 .disabled(workspaces.phase != .ready || workspaces.creatingChannel || workspaces.joiningChannel || workspaces.openingDirect != nil)
                 .help("Browse channels")
+              }
+              .font(.subheadline.weight(.semibold))
+              .foregroundStyle(.secondary)
+              .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
+              .selectionDisabled()
+              if !workspaces.sidebar.collapsedSections.contains(.channels) {
+                if partitioned.channels.isEmpty {
+                  Text("No channels yet.")
+                    .foregroundStyle(.secondary)
+                }
+                ForEach(partitioned.channels, id: \.id) { room in
+                  roomRow(room, icon: room.discoverability == ._private ? "lock" : "number")
+                }
               }
             }
           }
@@ -253,6 +257,7 @@ struct ConversationSidebarView: View {
         }
         Spacer(minLength: 0)
         roomStatus(room)
+          .frame(width: 20)
       }
     } icon: {
       RoomLeadingIcon(
@@ -263,6 +268,7 @@ struct ConversationSidebarView: View {
       )
     }
     .labelStyle(RoomRowLabelStyle())
+    .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
     .tag(room.id)
     .badge(attention.badgeCount)
     .contextMenu { roomActions(room) }
