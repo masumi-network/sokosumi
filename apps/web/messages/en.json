@@ -1919,8 +1919,8 @@
         "goToTask": "Bring me to the task",
         "createAnother": "Create another task",
         "close": "Close",
-        "privateLabel": "Private task",
-        "privateDescription": "Only you, your Soko Bot, and the assigned coworker's vendor can see this task."
+        "privateLabel": "Private",
+        "privateDescription": "Hidden from other workspace members. Still visible to you, your Soko Bot, and the assigned coworker."
       },
       "EditTask": {
         "title": "Edit Task",
