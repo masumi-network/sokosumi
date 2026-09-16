@@ -11,7 +11,6 @@ export interface FetchAgentsResult {
 export interface FetchAgentInputSchemaResult {
   response: ApiResponse<unknown>;
   schema: Record<string, unknown>;
-  fields: unknown[];
 }
 
 export interface CreateAgentJobOptions {
@@ -36,37 +35,6 @@ export async function fetchAgents(
   };
 }
 
-export async function fetchAgentJobs(
-  client: CoreHttpClient,
-  agentId: string,
-  signal?: AbortSignal,
-): Promise<{ response: ApiResponse<unknown[]>; jobs: AgentJob[] }> {
-  const response = parseApiResponse<unknown[]>(
-    await client.get<unknown>(
-      `/v1/agents/${encodeURIComponent(agentId)}/jobs`,
-      signal,
-    ),
-  );
-  const data = Array.isArray(response.data) ? response.data : [];
-  const normalizedResponse: ApiResponse<unknown[]> = { ...response, data };
-  return {
-    response: normalizedResponse,
-    jobs: data.map(parseAgentJob),
-  };
-}
-
-function extractInputSchemaFields(schema: Record<string, unknown>): unknown[] {
-  if (Array.isArray(schema.input_data)) return schema.input_data;
-  if (!Array.isArray(schema.input_groups)) return [];
-  return schema.input_groups.flatMap((group) => {
-    if (!group || typeof group !== "object" || Array.isArray(group)) {
-      return [];
-    }
-    const inputData = (group as Record<string, unknown>).input_data;
-    return Array.isArray(inputData) ? inputData : [];
-  });
-}
-
 export async function fetchAgentInputSchema(
   client: CoreHttpClient,
   agentId: string,
@@ -88,7 +56,6 @@ export async function fetchAgentInputSchema(
   return {
     response,
     schema,
-    fields: extractInputSchemaFields(schema),
   };
 }
 
