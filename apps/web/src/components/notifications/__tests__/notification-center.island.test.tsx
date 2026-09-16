@@ -1,4 +1,11 @@
-import { act, cleanup, render, screen, within } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -805,7 +812,44 @@ describe("Notification Center view filter", () => {
   );
 
   it.each(FRAMES)(
-    "leaves a row it reads or puts back where it is until the view changes in the %s",
+    "keeps a read row under the pointer and drops it once the pointer leaves in the %s",
+    async (_, mount) => {
+      const unread = row("mine", { isRead: false, readAt: null });
+      getNotificationsMock.mockResolvedValue(page([unread]));
+      getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+      patchNotificationReadMock.mockResolvedValue({
+        data: { ...unread, isRead: true, readAt: new Date() },
+      });
+
+      await mount();
+      const user = userEvent.setup();
+
+      getNotificationsMock.mockResolvedValue(page([unread]));
+      await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
+      await settle();
+
+      // The click leaves the pointer on the row, so the row stays, with its
+      // way back on the same spot and nothing sliding under the cursor.
+      await user.click(screen.getByRole("button", { name: "markRead: mine" }));
+      await settle();
+      expect(screen.getByText("mine")).toBeTruthy();
+      expect(
+        screen.getByRole("button", { name: "markUnread: mine" }),
+      ).toBeTruthy();
+
+      // Moving off the row is what lets it go.
+      await user.unhover(screen.getByText("mine"));
+      await waitFor(() => {
+        expect(screen.queryByText("mine")).toBeNull();
+      });
+      expect(screen.getByText("emptyUnreadState")).toBeTruthy();
+      // Dropping a row that was already read does not touch the badge.
+      expect(getNotificationsUnreadCountMock).toHaveBeenCalled();
+    },
+  );
+
+  it.each(FRAMES)(
+    "keeps a row the reader puts back before leaving it in the %s",
     async (_, mount) => {
       const unread = row("mine", { isRead: false, readAt: null });
       getNotificationsMock.mockResolvedValue(page([unread]));
@@ -822,41 +866,55 @@ describe("Notification Center view filter", () => {
       await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
       await settle();
 
-      // Reading in the Unread view leaves the row where it is, with its way
-      // back on the same spot.
       await user.click(screen.getByRole("button", { name: "markRead: mine" }));
       await settle();
-      expect(screen.getByText("mine")).toBeTruthy();
-      expect(
-        screen.getByRole("button", { name: "markUnread: mine" }),
-      ).toBeTruthy();
-
-      // Putting it back to unread moves nothing either.
       await user.click(
         screen.getByRole("button", { name: "markUnread: mine" }),
       );
       await settle();
+
+      await user.unhover(screen.getByText("mine"));
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      });
       expect(screen.getByText("mine")).toBeTruthy();
       expect(
         screen.getByRole("button", { name: "markRead: mine" }),
       ).toBeTruthy();
-
-      // The next view change converges: the read row leaves the narrowed list.
-      await user.click(screen.getByRole("button", { name: "markRead: mine" }));
-      await settle();
-      getNotificationsMock.mockResolvedValue(page([unread]));
-      await user.click(screen.getByRole("tab", { name: "filterAll" }));
-      await settle();
-      expect(screen.getByText("mine")).toBeTruthy();
-      getNotificationsMock.mockResolvedValue(page([]));
-      await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
-      await settle();
-      expect(screen.queryByText("mine")).toBeNull();
     },
   );
 
+  it("drops a read row once a keyboard reader tabs off it", async () => {
+    const unread = row("mine", { isRead: false, readAt: null });
+    getNotificationsMock.mockResolvedValue(page([unread]));
+    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+    patchNotificationReadMock.mockResolvedValue({
+      data: { ...unread, isRead: true, readAt: new Date() },
+    });
+
+    await renderPage();
+    const user = userEvent.setup();
+
+    getNotificationsMock.mockResolvedValue(page([unread]));
+    await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
+    await settle();
+    await user.unhover(screen.getByRole("tab", { name: /^filterUnread/ }));
+
+    const toggle = screen.getByRole("button", { name: "markRead: mine" });
+    toggle.focus();
+    await user.keyboard("{Enter}");
+    await settle();
+    // Focus is still on the row's control, so the row waits.
+    expect(screen.getByText("mine")).toBeTruthy();
+
+    await user.tab();
+    await waitFor(() => {
+      expect(screen.queryByText("mine")).toBeNull();
+    });
+  });
+
   it.each(FRAMES)(
-    "marks all read in the Unread view and empties on refresh in the %s",
+    "marks all read in the Unread view and empties the list at once in the %s",
     async (_, mount) => {
       const first = row("first", { isRead: false, readAt: null });
       const second = row("second", { isRead: false, readAt: null });
@@ -871,36 +929,13 @@ describe("Notification Center view filter", () => {
       await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
       await settle();
 
+      // The pointer is on the header button, not on a row, so every row
+      // leaves and the narrowed list says so with its own message.
       await user.click(screen.getByRole("button", { name: "markAllRead" }));
-      await settle();
-
-      // Mark all read paints the rows read and leaves them where they are.
-      expect(screen.getByText("first")).toBeTruthy();
-      expect(screen.getByText("second")).toBeTruthy();
-
-      // The next refresh empties the narrowed list with its own message.
-      getNotificationsMock.mockResolvedValue(page([]));
-      getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 0 } });
-      await act(async () => {
-        deliverRealtime({
-          ...first,
-          isRead: false,
-          readAt: null,
-          createdAt: first.createdAt.toISOString(),
-          inApp: true,
-          osBanner: false,
-          created: false,
-        } as NotificationEventData);
-        await Promise.resolve();
+      await waitFor(() => {
+        expect(screen.queryByText("first")).toBeNull();
+        expect(screen.queryByText("second")).toBeNull();
       });
-      await settle();
-
-      expect(getNotificationsMock).toHaveBeenLastCalledWith({
-        limit: 20,
-        isRead: "false",
-      });
-      expect(screen.queryByText("first")).toBeNull();
-      expect(screen.queryByText("second")).toBeNull();
       expect(screen.getByText("emptyUnreadState")).toBeTruthy();
       expect(screen.queryByText("emptyState")).toBeNull();
     },

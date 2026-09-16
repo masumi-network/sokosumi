@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
@@ -14,6 +14,7 @@ import { useAccountNotice } from "@/contexts/account-notice-provider";
 import { useNotifications } from "@/contexts/notification-provider";
 import { useSession } from "@/lib/auth/auth.client";
 import type { NotificationItem } from "@/lib/clients/generated/core";
+import { cn } from "@/lib/utils";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
 import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";
 import { useNotificationTimeFormatter } from "@/lib/utils/notification-time";
@@ -134,17 +135,22 @@ export function NotificationCenterList({
     <>
       <div className="divide-border divide-y">
         {notifications.map((notification) => (
-          <NotificationCenterRow
+          <LeavingRow
             key={notification.id}
-            notification={notification}
-            isPending={pendingNotificationId === notification.id}
-            message={formatMessage(
-              notification.messageKey,
-              notification.messageParams ?? {},
-            )}
-            timeLabel={formatTime(notification.createdAt)}
-            onClick={handleNotificationClick}
-          />
+            notificationId={notification.id}
+            isLeaving={view === "unread" && notification.isRead}
+          >
+            <NotificationCenterRow
+              notification={notification}
+              isPending={pendingNotificationId === notification.id}
+              message={formatMessage(
+                notification.messageKey,
+                notification.messageParams ?? {},
+              )}
+              timeLabel={formatTime(notification.createdAt)}
+              onClick={handleNotificationClick}
+            />
+          </LeavingRow>
         ))}
       </div>
       {/* Nothing older left means nothing here: the end of the list reads as
@@ -157,5 +163,65 @@ export function NotificationCenterList({
         />
       ) : null}
     </>
+  );
+}
+
+/** How long the collapse takes, matched to the transition below. */
+const LEAVE_DURATION_MS = 200;
+
+interface LeavingRowProps {
+  notificationId: string;
+  /** Whether the row no longer belongs to the view it is drawn in. */
+  isLeaving: boolean;
+  children: ReactNode;
+}
+
+/**
+ * A row that leaves the Unread view once it has been read, but not while
+ * the reader is still on it.
+ *
+ * Reading a row in the Unread view makes it a row that view should not
+ * show. Dropping it at once would slide the next row under the pointer that
+ * just clicked its control, and take the way back with it. So the row waits
+ * for the pointer and focus to leave, then folds up and goes. A row marked
+ * read from elsewhere, by Mark all read in the header, has nothing on it and
+ * goes right away. Putting the row back to unread before leaving it cancels
+ * the departure, because the row is no longer leaving.
+ */
+function LeavingRow({ notificationId, isLeaving, children }: LeavingRowProps) {
+  const { removeNotification } = useNotifications();
+  const [isPointerInside, setIsPointerInside] = useState(false);
+  const [isFocusInside, setIsFocusInside] = useState(false);
+  const isCollapsed = isLeaving && !isPointerInside && !isFocusInside;
+
+  // The removal waits for the fold to finish. A row put back to unread mid
+  // fold is no longer collapsed, and the cleanup drops the pending removal.
+  useEffect(() => {
+    if (!isCollapsed) return;
+    const timer = window.setTimeout(() => {
+      removeNotification(notificationId);
+    }, LEAVE_DURATION_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [isCollapsed, notificationId, removeNotification]);
+
+  return (
+    <div
+      data-slot="notification-row"
+      className={cn(
+        "grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none",
+        isCollapsed ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr]",
+      )}
+      onPointerEnter={() => setIsPointerInside(true)}
+      onPointerLeave={() => setIsPointerInside(false)}
+      onFocus={() => setIsFocusInside(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          setIsFocusInside(false);
+        }
+      }}
+    >
+      <div className="min-h-0 overflow-hidden">{children}</div>
+    </div>
   );
 }
