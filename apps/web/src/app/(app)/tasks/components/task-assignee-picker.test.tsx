@@ -126,11 +126,22 @@ describe("TaskAssigneePicker", () => {
     expect(onSelect).toHaveBeenCalledWith("coworker-2");
   });
 
-  it("shows the unassigned trigger when no assignee is selected", () => {
+  it("shows the unassigned label when no assignee is selected", () => {
     renderPicker({ value: "" });
 
-    expect(
-      screen.getByRole("combobox", { name: "Coworker" }),
-    ).toHaveTextContent("Unassigned");
+    expect(screen.getByText("Unassigned")).toBeInTheDocument();
+    expect(screen.queryByAltText("Serviceplan")).not.toBeInTheDocument();
+  });
+
+  it("shows the vendor mark beside a compact dropdown trigger", () => {
+    renderPicker({ value: "coworker-2" });
+
+    expect(screen.getByText("Elena")).toBeInTheDocument();
+    expect(screen.getAllByAltText("Serviceplan").length).toBeGreaterThan(0);
+
+    const trigger = screen.getByRole("combobox", { name: "Coworker" });
+    expect(trigger).not.toHaveTextContent("Elena");
+    expect(trigger.className).toMatch(/\bsize-8\b/);
+    expect(trigger.className).not.toMatch(/\bw-full\b/);
   });
 });
