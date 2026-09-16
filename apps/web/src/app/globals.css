@@ -482,10 +482,10 @@
   --card: hsla(300, 0%, 4%, 1);
   --card-foreground: hsla(0, 0%, 98%, 1);
   --card-background: hsla(0, 0%, 9%, 1);
-  /* Dark runs the other way. --muted-foreground is 50% and already sits at
-     4.510:1 on the resting 9%, so every lighter fill fails: --accent at 15%
-     measures 3.793:1. The hover goes darker instead, towards the page, which
-     both separates it from the card and lifts the text to 4.810:1. */
+  /* The hover moves towards the page to separate the row from its card.
+     The earlier 50% text value required this darker fill for contrast.
+     Muted text now uses 72% so it also remains readable on lighter control
+     surfaces. Keep the existing darker hover direction on cards. */
   --card-background-hover: hsla(0, 0%, 6%, 1);
   /* See the light block. The scrims do not change: they sit over media. */
   --overlay: hsla(0, 0%, 4%, 0.5);
