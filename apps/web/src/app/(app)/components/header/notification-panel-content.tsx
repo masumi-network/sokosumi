@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { AccountNoticeRow } from "@/app/components/account-notice-row";
 import { NotificationBrowserPermissionPrimer } from "@/app/components/notification-browser-permission-primer";
 import { NotificationCenterList } from "@/components/notifications/notification-center-list";
+import { NotificationCenterViewFilter } from "@/components/notifications/notification-center-view-filter";
 import { useMarkAllRead } from "@/components/notifications/use-mark-all-read";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -42,18 +43,21 @@ export function NotificationPanelContent({
           row changed, and move the whole list with it. */}
       <div className="flex min-h-9 items-center justify-between gap-2 py-1.5 pr-1 pl-3">
         <p className="text-sm font-medium">{t("title")}</p>
-        {unreadCount > 0 ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground hover:text-foreground h-auto px-2 py-1 text-xs font-normal"
-            onClick={handleMarkAllRead}
-            disabled={isMarkingAllRead}
-          >
-            {isMarkingAllRead ? t("loading") : t("markAllRead")}
-          </Button>
-        ) : null}
+        <div className="flex items-center gap-1.5">
+          <NotificationCenterViewFilter />
+          {unreadCount > 0 ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-foreground h-auto px-2 py-1 text-xs font-normal"
+              onClick={handleMarkAllRead}
+              disabled={isMarkingAllRead}
+            >
+              {isMarkingAllRead ? t("loading") : t("markAllRead")}
+            </Button>
+          ) : null}
+        </div>
       </div>
       <Separator />
       <NotificationBrowserPermissionPrimer

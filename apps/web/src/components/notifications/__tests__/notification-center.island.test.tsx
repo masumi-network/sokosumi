@@ -602,8 +602,12 @@ describe("Notification Center, both frames", () => {
       .closest("[data-slot='popover-content']");
     expect(document.activeElement).toBe(panel);
 
-    // The rows stay one Tab away.
-    await userEvent.setup().tab();
+    // The header's own controls come first in tab order; the rows stay right
+    // behind them.
+    const user = userEvent.setup();
+    await user.tab();
+    expect(document.activeElement?.textContent).toContain("filterAll");
+    await user.tab();
     expect(document.activeElement?.textContent).toContain("first");
   });
 
@@ -663,5 +667,448 @@ describe("Notification Center, both frames", () => {
     const bell = screen.getByRole("link", { name: "notifications" });
     expect(bell.getAttribute("href")).toBe("/notifications");
     expect(screen.queryByRole("button", { name: "notifications" })).toBeNull();
+  });
+});
+
+describe("Notification Center view filter", () => {
+  it("keeps the choice the panel made when the page shows the same list", async () => {
+    const waiting = row("waiting", { isRead: false, readAt: null });
+    const handled = row("handled", { isRead: true });
+    getNotificationsMock.mockResolvedValue(page([waiting, handled]));
+    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+
+    render(
+      <NotificationProvider userId="user-1">
+        <HeaderNotificationBell />
+        <NotificationsPageContent />
+      </NotificationProvider>,
+    );
+    await settle();
+    const user = userEvent.setup();
+    await user.click(
+      screen.getByRole("button", { name: /^notifications$|unreadBadge/ }),
+    );
+    await settle();
+
+    const panel = document.querySelector("[data-slot='popover-content']");
+    expect(panel).not.toBeNull();
+    const callsBefore = getNotificationsMock.mock.calls.length;
+
+    getNotificationsMock.mockResolvedValue(page([waiting]));
+    await user.click(
+      within(panel as HTMLElement).getByRole("radio", { name: "filterUnread" }),
+    );
+    await settle();
+
+    // One shared list: the switch refetches once, and both frames narrow.
+    expect(getNotificationsMock.mock.calls.length).toBe(callsBefore + 1);
+    expect(getNotificationsMock).toHaveBeenLastCalledWith({
+      limit: 20,
+      isRead: "false",
+    });
+    expect(screen.getAllByText("waiting")).toHaveLength(2);
+    expect(screen.queryByText("handled")).toBeNull();
+    for (const option of screen.getAllByRole("radio", {
+      name: "filterUnread",
+    })) {
+      expect(option.getAttribute("aria-checked")).toBe("true");
+    }
+  });
+
+  it.each(FRAMES)(
+    "switches between all and unread in the %s",
+    async (_, mount) => {
+      const waiting = row("waiting", {
+        isRead: false,
+        readAt: null,
+        createdAt: new Date("2026-06-18T09:00:00.000Z"),
+      });
+      const handled = row("handled", {
+        isRead: true,
+        createdAt: new Date("2026-06-17T09:00:00.000Z"),
+      });
+      getNotificationsMock.mockResolvedValue(page([waiting, handled]));
+      getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+
+      await mount();
+      const user = userEvent.setup();
+
+      // The default view is all notifications.
+      expect(
+        screen
+          .getByRole("radio", { name: "filterAll" })
+          .getAttribute("aria-checked"),
+      ).toBe("true");
+      expect(screen.getByText("waiting")).toBeTruthy();
+      expect(screen.getByText("handled")).toBeTruthy();
+
+      getNotificationsMock.mockResolvedValue(page([waiting]));
+      await user.click(screen.getByRole("radio", { name: "filterUnread" }));
+      await settle();
+
+      expect(getNotificationsMock).toHaveBeenLastCalledWith({
+        limit: 20,
+        isRead: "false",
+      });
+      expect(screen.getByText("waiting")).toBeTruthy();
+      expect(screen.queryByText("handled")).toBeNull();
+
+      getNotificationsMock.mockResolvedValue(page([waiting, handled]));
+      await user.click(screen.getByRole("radio", { name: "filterAll" }));
+      await settle();
+
+      expect(getNotificationsMock).toHaveBeenLastCalledWith({ limit: 20 });
+      expect(screen.getByText("waiting")).toBeTruthy();
+      expect(screen.getByText("handled")).toBeTruthy();
+    },
+  );
+
+  it.each(FRAMES)(
+    "loads older unread rows with the unread query in the %s",
+    async (_, mount) => {
+      const first = row("first", {
+        isRead: false,
+        readAt: null,
+        createdAt: new Date("2026-06-18T09:00:00.000Z"),
+      });
+      getNotificationsMock.mockResolvedValue(page([first], "first"));
+      getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 2 } });
+
+      await mount();
+      const user = userEvent.setup();
+
+      getNotificationsMock.mockResolvedValue(page([first], "first"));
+      await user.click(screen.getByRole("radio", { name: "filterUnread" }));
+      await settle();
+
+      getNotificationsMock.mockResolvedValue(
+        page([
+          row("older", {
+            isRead: false,
+            readAt: null,
+            createdAt: new Date("2026-06-16T09:00:00.000Z"),
+          }),
+        ]),
+      );
+      await act(async () => {
+        intersect(screen.getByTestId("notification-older-boundary"));
+        await Promise.resolve();
+      });
+
+      expect(getNotificationsMock).toHaveBeenLastCalledWith({
+        limit: 20,
+        cursor: "first",
+        isRead: "false",
+      });
+      expect(screen.getByText("older")).toBeTruthy();
+    },
+  );
+
+  it.each(FRAMES)(
+    "leaves a row it reads or puts back where it is until the view changes in the %s",
+    async (_, mount) => {
+      const unread = row("mine", { isRead: false, readAt: null });
+      getNotificationsMock.mockResolvedValue(page([unread]));
+      getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+      patchNotificationReadMock.mockResolvedValue({
+        data: { ...unread, isRead: true, readAt: new Date() },
+      });
+      patchNotificationUnreadMock.mockResolvedValue({ data: unread });
+
+      await mount();
+      const user = userEvent.setup();
+
+      getNotificationsMock.mockResolvedValue(page([unread]));
+      await user.click(screen.getByRole("radio", { name: "filterUnread" }));
+      await settle();
+
+      // Reading in the Unread view leaves the row where it is, with its way
+      // back on the same spot.
+      await user.click(screen.getByRole("button", { name: "markRead: mine" }));
+      await settle();
+      expect(screen.getByText("mine")).toBeTruthy();
+      expect(
+        screen.getByRole("button", { name: "markUnread: mine" }),
+      ).toBeTruthy();
+
+      // Putting it back to unread moves nothing either.
+      await user.click(
+        screen.getByRole("button", { name: "markUnread: mine" }),
+      );
+      await settle();
+      expect(screen.getByText("mine")).toBeTruthy();
+      expect(
+        screen.getByRole("button", { name: "markRead: mine" }),
+      ).toBeTruthy();
+
+      // The next view change converges: the read row leaves the narrowed list.
+      await user.click(screen.getByRole("button", { name: "markRead: mine" }));
+      await settle();
+      getNotificationsMock.mockResolvedValue(page([unread]));
+      await user.click(screen.getByRole("radio", { name: "filterAll" }));
+      await settle();
+      expect(screen.getByText("mine")).toBeTruthy();
+      getNotificationsMock.mockResolvedValue(page([]));
+      await user.click(screen.getByRole("radio", { name: "filterUnread" }));
+      await settle();
+      expect(screen.queryByText("mine")).toBeNull();
+    },
+  );
+
+  it.each(FRAMES)(
+    "marks all read in the Unread view and empties on refresh in the %s",
+    async (_, mount) => {
+      const first = row("first", { isRead: false, readAt: null });
+      const second = row("second", { isRead: false, readAt: null });
+      getNotificationsMock.mockResolvedValue(page([first, second]));
+      getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 2 } });
+      patchNotificationsReadAllMock.mockResolvedValue({ data: { count: 2 } });
+
+      await mount();
+      const user = userEvent.setup();
+
+      getNotificationsMock.mockResolvedValue(page([first, second]));
+      await user.click(screen.getByRole("radio", { name: "filterUnread" }));
+      await settle();
+
+      await user.click(screen.getByRole("button", { name: "markAllRead" }));
+      await settle();
+
+      // Mark all read paints the rows read and leaves them where they are.
+      expect(screen.getByText("first")).toBeTruthy();
+      expect(screen.getByText("second")).toBeTruthy();
+
+      // The next refresh empties the narrowed list with its own message.
+      getNotificationsMock.mockResolvedValue(page([]));
+      getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 0 } });
+      await act(async () => {
+        deliverRealtime({
+          ...first,
+          isRead: false,
+          readAt: null,
+          createdAt: first.createdAt.toISOString(),
+          inApp: true,
+          osBanner: false,
+          created: false,
+        } as NotificationEventData);
+        await Promise.resolve();
+      });
+      await settle();
+
+      expect(getNotificationsMock).toHaveBeenLastCalledWith({
+        limit: 20,
+        isRead: "false",
+      });
+      expect(screen.queryByText("first")).toBeNull();
+      expect(screen.queryByText("second")).toBeNull();
+      expect(screen.getByText("emptyUnreadState")).toBeTruthy();
+      expect(screen.queryByText("emptyState")).toBeNull();
+    },
+  );
+
+  it.each(FRAMES)(
+    "puts a notification that arrives in the Unread view at the top in the %s",
+    async (_, mount) => {
+      const waiting = row("waiting", {
+        isRead: false,
+        readAt: null,
+        createdAt: new Date("2026-06-18T09:00:00.000Z"),
+      });
+      getNotificationsMock.mockResolvedValue(page([waiting]));
+      getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+
+      await mount();
+
+      getNotificationsMock.mockResolvedValue(page([waiting]));
+      await userEvent
+        .setup()
+        .click(screen.getByRole("radio", { name: "filterUnread" }));
+      await settle();
+
+      await act(async () => {
+        deliverRealtime({
+          ...row("arrived", {
+            isRead: false,
+            readAt: null,
+            createdAt: new Date("2026-06-18T10:00:00.000Z"),
+          }),
+          readAt: null,
+          createdAt: "2026-06-18T10:00:00.000Z",
+          inApp: true,
+          osBanner: false,
+          created: true,
+        } as NotificationEventData);
+      });
+
+      const messages = screen
+        .getAllByText(/^arrived$|^waiting$/)
+        .map((element) => element.textContent);
+      expect(messages).toEqual(["arrived", "waiting"]);
+    },
+  );
+
+  it.each(FRAMES)(
+    "tells an empty Unread view from an empty All view in the %s",
+    async (_, mount) => {
+      getNotificationsMock.mockResolvedValue(
+        page([row("mine", { isRead: true })]),
+      );
+
+      await mount();
+      const user = userEvent.setup();
+
+      getNotificationsMock.mockResolvedValue(page([]));
+      await user.click(screen.getByRole("radio", { name: "filterUnread" }));
+      await settle();
+      expect(screen.getByText("emptyUnreadState")).toBeTruthy();
+      expect(screen.queryByText("emptyState")).toBeNull();
+
+      getNotificationsMock.mockResolvedValue(page([]));
+      await user.click(screen.getByRole("radio", { name: "filterAll" }));
+      await settle();
+      expect(screen.getByText("emptyState")).toBeTruthy();
+      expect(screen.queryByText("emptyUnreadState")).toBeNull();
+    },
+  );
+
+  it("leaves both empty states out under an account notice", async () => {
+    accountNoticeMock.mockReturnValue({ notice: { tone: "warning" } });
+    getNotificationsMock.mockResolvedValue(
+      page([row("mine", { isRead: false, readAt: null })]),
+    );
+    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+
+    await renderPage();
+
+    getNotificationsMock.mockResolvedValue(page([]));
+    await userEvent
+      .setup()
+      .click(screen.getByRole("radio", { name: "filterUnread" }));
+    await settle();
+
+    expect(screen.getByText("account notice")).toBeTruthy();
+    expect(screen.queryByText("emptyUnreadState")).toBeNull();
+    expect(screen.queryByText("emptyState")).toBeNull();
+    // ...and the way back stays on screen.
+    expect(screen.getByRole("radio", { name: "filterAll" })).toBeTruthy();
+  });
+
+  it.each(FRAMES)(
+    "offers a retry that keeps the unread query in the %s",
+    async (_, mount) => {
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      getNotificationsMock.mockResolvedValue(
+        page([row("mine", { isRead: true })]),
+      );
+
+      await mount();
+      const user = userEvent.setup();
+
+      getNotificationsMock.mockRejectedValue(new Error("offline"));
+      await user.click(screen.getByRole("radio", { name: "filterUnread" }));
+      await settle();
+
+      expect(screen.getByText("fetchError")).toBeTruthy();
+
+      const waiting = row("waiting", { isRead: false, readAt: null });
+      getNotificationsMock.mockResolvedValue(page([waiting]));
+      await user.click(screen.getByRole("button", { name: "retry" }));
+      await settle();
+
+      expect(getNotificationsMock).toHaveBeenLastCalledWith({
+        limit: 20,
+        isRead: "false",
+      });
+      expect(screen.getByText("waiting")).toBeTruthy();
+      consoleError.mockRestore();
+    },
+  );
+
+  it("counts the whole feed on the bell whatever the view", async () => {
+    const waiting = row("waiting", { isRead: false, readAt: null });
+    const handled = row("handled", { isRead: true });
+    getNotificationsMock.mockResolvedValue(page([waiting, handled]));
+    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 5 } });
+
+    await renderPanel();
+    const user = userEvent.setup();
+    const badge = () =>
+      screen.getByTestId("notification-unread-badge").textContent;
+    expect(badge()).toBe("5");
+
+    getNotificationsMock.mockResolvedValue(page([waiting]));
+    await user.click(screen.getByRole("radio", { name: "filterUnread" }));
+    await settle();
+    expect(badge()).toBe("5");
+
+    getNotificationsMock.mockResolvedValue(page([waiting, handled]));
+    await user.click(screen.getByRole("radio", { name: "filterAll" }));
+    await settle();
+    expect(badge()).toBe("5");
+  });
+
+  it("switches views from the keyboard", async () => {
+    getNotificationsMock.mockResolvedValue(
+      page([row("mine", { isRead: true })]),
+    );
+
+    await renderPage();
+    const user = userEvent.setup();
+
+    expect(
+      screen.getByRole("radiogroup", { name: "filterLabel" }),
+    ).toBeTruthy();
+    const all = screen.getByRole("radio", { name: "filterAll" });
+    for (let step = 0; step < 5 && document.activeElement !== all; step++) {
+      await user.tab();
+    }
+    expect(document.activeElement).toBe(all);
+
+    const waiting = row("waiting", { isRead: false, readAt: null });
+    getNotificationsMock.mockResolvedValue(page([waiting]));
+    await user.keyboard("{ArrowRight}");
+    expect(document.activeElement).toBe(
+      screen.getByRole("radio", { name: "filterUnread" }),
+    );
+    await user.keyboard("{Enter}");
+    await settle();
+
+    expect(getNotificationsMock).toHaveBeenLastCalledWith({
+      limit: 20,
+      isRead: "false",
+    });
+    expect(screen.getByText("waiting")).toBeTruthy();
+    expect(
+      screen
+        .getByRole("radio", { name: "filterUnread" })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
+  });
+
+  it("shows the loading rows while the narrowed page is fetched", async () => {
+    getNotificationsMock.mockResolvedValue(
+      page([row("mine", { isRead: true })]),
+    );
+
+    await renderPage();
+
+    const narrowed = Promise.withResolvers<unknown>();
+    getNotificationsMock.mockReturnValueOnce(narrowed.promise);
+    await userEvent
+      .setup()
+      .click(screen.getByRole("radio", { name: "filterUnread" }));
+
+    expect(screen.getByTestId("notifications-loading-list")).toBeTruthy();
+    expect(screen.queryByText("mine")).toBeNull();
+
+    await act(async () => {
+      narrowed.resolve(page([row("waiting", { isRead: false, readAt: null })]));
+      await Promise.resolve();
+    });
+    await settle();
+
+    expect(screen.getByText("waiting")).toBeTruthy();
   });
 });

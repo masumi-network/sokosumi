@@ -50,6 +50,7 @@ export function NotificationCenterList({
   const { notice } = useAccountNotice();
   const {
     notifications,
+    view,
     markRead,
     isLoading,
     hasFetchError,
@@ -117,10 +118,11 @@ export function NotificationCenterList({
       return null;
     }
 
+    // An empty narrowed list is good news, not a broken list.
     return (
       <div className="flex flex-col items-center justify-center p-8">
         <p className="text-muted-foreground text-center text-sm">
-          {t("emptyState")}
+          {view === "unread" ? t("emptyUnreadState") : t("emptyState")}
         </p>
       </div>
     );
