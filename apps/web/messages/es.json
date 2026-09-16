@@ -1919,7 +1919,7 @@
         "goToTask": "Ir a la tarea",
         "createAnother": "Crear otra tarea",
         "close": "Cerrar",
-        "privateLabel": "Tarea privada",
+        "privateLabel": "Privada",
         "privateDescription": "Solo tú, tu Soko Bot y el vendor del coworker asignado pueden ver esta tarea."
       },
       "EditTask": {

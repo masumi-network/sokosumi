@@ -1919,7 +1919,7 @@
         "goToTask": "Bring me to the task",
         "createAnother": "Create another task",
         "close": "Close",
-        "privateLabel": "Private task",
+        "privateLabel": "Private",
         "privateDescription": "Only you, your Soko Bot, and the assigned coworker's vendor can see this task."
       },
       "EditTask": {
