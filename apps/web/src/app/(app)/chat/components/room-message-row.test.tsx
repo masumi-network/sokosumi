@@ -2122,10 +2122,16 @@ describe("ChatMessageRow", () => {
     expect(card).toHaveAttribute("target", "_blank");
     expect(card).toHaveAttribute("rel", "noopener noreferrer");
     // Hug content (thumbnail / text); do not stretch muted background full row.
-    // The cap matches the Apple card so the title stops where the image does
-    // instead of running the full width of the message.
-    expect(card).toHaveClass("inline-block", "w-fit", "max-w-100");
-    expect(card).not.toHaveClass("w-full", "max-w-full");
+    // Cap at 25rem to match the Apple card, and at 100% so a phone/thread
+    // column narrower than 400px does not clip the card.
+    expect(card).toHaveClass(
+      "inline-block",
+      "w-fit",
+      "max-w-[min(100%,25rem)]",
+    );
+    expect(card).not.toHaveClass("w-full");
+    expect(card).not.toHaveClass("max-w-full");
+    expect(card).not.toHaveClass("max-w-100");
     expect(card).toHaveTextContent("Example");
     expect(card).toHaveTextContent("Example Article");
     expect(card).toHaveTextContent("A short summary of the page.");
