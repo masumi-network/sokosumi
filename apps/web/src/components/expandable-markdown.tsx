@@ -115,7 +115,7 @@ export function ExpandableMarkdown({
               <Button
                 type="button"
                 variant="outline"
-                className="bg-background/80 hover:bg-background pointer-events-auto h-7 rounded-full px-3 text-xs font-semibold backdrop-blur"
+                className="bg-surface-glass hover:bg-background pointer-events-auto h-7 rounded-full px-3 text-xs font-semibold backdrop-blur"
               >
                 {expandLabel}
               </Button>

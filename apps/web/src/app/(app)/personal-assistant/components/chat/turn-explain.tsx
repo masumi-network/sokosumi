@@ -166,10 +166,10 @@ function Raw({ label, value }: { label: string; value: unknown }) {
           className={cn("size-3 transition-transform", open && "rotate-90")}
         />
         {label}
-        <span className="text-muted-foreground/60 tabular-nums">· {size}</span>
+        <span className="text-muted-foreground tabular-nums">· {size}</span>
       </button>
       {open ? (
-        <pre className="bg-muted/40 text-foreground mt-1 max-h-96 overflow-auto rounded-md p-2 font-mono text-[0.6875rem] leading-snug whitespace-pre-wrap break-words">
+        <pre className="bg-card-background text-foreground mt-1 max-h-96 overflow-auto rounded-md p-2 font-mono text-[0.6875rem] leading-snug whitespace-pre-wrap break-words">
           {text}
         </pre>
       ) : null}
@@ -204,7 +204,7 @@ function Explanation({ turn }: { turn: ChatTurnDetail }) {
   const ctx = turn.contextSummary;
 
   return (
-    <div className="border-border/60 mt-2 divide-y rounded-lg border">
+    <div className="border-border mt-2 divide-y rounded-lg border">
       <div className="px-4 py-2">
         <Row label={t("classified")}>
           <span className="font-medium">
@@ -276,7 +276,7 @@ function Explanation({ turn }: { turn: ChatTurnDetail }) {
         {chain.length === 0 ? (
           <p className="text-muted-foreground pb-2 text-sm">{t("noChain")}</p>
         ) : (
-          <ol className="divide-border/40 divide-y">
+          <ol className="divide-border divide-y">
             {chain.map((item) => {
               if (item.kind === "said") {
                 return (
@@ -418,12 +418,12 @@ export function TurnExplain({
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
-        className="text-muted-foreground hover:text-foreground focus-visible:ring-primary/40 inline-flex items-center gap-1 rounded text-xs font-medium transition-colors outline-none focus-visible:ring-2"
+        className="text-muted-foreground hover:text-foreground focus-visible:inset-ring-1 focus-visible:inset-ring-ring focus-visible:ring-ring-halo inline-flex items-center gap-1 rounded text-xs font-medium transition-colors outline-none focus-visible:ring-2"
       >
         <ListTree aria-hidden className="size-3" />
         {open ? t("hide") : t("toggle")}
         {!open && stepCount > 0 ? (
-          <span className="text-muted-foreground/70 tabular-nums">
+          <span className="text-muted-foreground tabular-nums">
             · {stepCount}
           </span>
         ) : null}

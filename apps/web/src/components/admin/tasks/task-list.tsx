@@ -122,7 +122,7 @@ export function TaskList({ initialPage }: TaskListProps) {
           aria-busy={isPending}
         >
           <Table>
-            <TableHeader className="bg-muted/50">
+            <TableHeader className="bg-card-background">
               <TableRow>
                 <TableHead className="pl-4">{t("task")}</TableHead>
                 <TableHead>{t("user")}</TableHead>

@@ -305,8 +305,8 @@
         "started": "Gestartet",
         "completed": "Abgeschlossen",
         "failed": "Fehlgeschlagen",
-        "paymentPending": "In Beauftragung",
-        "paymentFailed": "Beauftragung fehlgeschlagen",
+        "paymentPending": "Zahlung ausstehend",
+        "paymentFailed": "Zahlung fehlgeschlagen",
         "processing": "In Bearbeitung",
         "agentConnectionFailed": "Agent-Verbindung fehlgeschlagen",
         "paymentNodeConnectionFailed": "Knoten-Verbindung fehlgeschlagen",
@@ -6208,10 +6208,12 @@
         "skipOccurrence": "Vorkommen überspringen",
         "restoreOccurrence": "Vorkommen wiederherstellen",
         "mutationError": "Dieses Vorkommen konnte nicht geändert werden. Bitte versuche es erneut.",
-        "openTask": "Task öffnen"
+        "openTask": "Task öffnen",
+        "moveNotAllowed": "Nur der Besitzer der Aufgabe kann sie neu planen."
       },
       "create": {
-        "title": "Task planen"
+        "title": "Task planen",
+        "fab": "Task planen"
       },
       "edit": {
         "title": "Zeitplan bearbeiten",
@@ -6265,6 +6267,10 @@
         "title": "Kalender konnte nicht geladen werden",
         "description": "Bitte versuche es gleich noch einmal.",
         "retry": "Erneut versuchen"
+      },
+      "agenda": {
+        "backToTop": "Nach oben",
+        "today": "Heute"
       }
     },
     "You": {

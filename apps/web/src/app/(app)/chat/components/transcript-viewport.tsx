@@ -23,6 +23,7 @@ import { ClampedOverflowProvider } from "@/app/chat/hooks/use-clamped-overflow";
 import { highlightListMessage } from "@/app/chat/utils/room-message-highlight";
 import type { RoomTranscriptRenderRow } from "@/app/chat/utils/room-transcript-ranges";
 import {
+  estimateTranscriptRowHeight,
   findTranscriptRowIndex,
   STICK_TO_BOTTOM_NEAR_PX,
   transcriptRowKey,
@@ -36,12 +37,9 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
  * shifts everything under it. Mounted while the reader is still reading,
  * that shift is put back before paint; mounted while they scroll toward it,
  * it shows. Below the viewport only the live edge needs a buffer.
- * 30 / 8 is the old 2400 / 600 px at DEFAULT_ROW_HEIGHT_PX.
+ * 30 / 8 is the old 2400 / 600 px at 80px.
  */
 const OVERSCAN_ROWS = { above: 30, below: 8 };
-
-/** Height assumed for a row until it is measured: a short text row. */
-const DEFAULT_ROW_HEIGHT_PX = 80;
 
 /**
  * Finish a virtualizer scroll the browser clamped because a row grew
@@ -237,7 +235,7 @@ export function TranscriptViewport({
   const virtualizer = useVirtualizer<HTMLElement, HTMLDivElement>({
     count: rows.length,
     getScrollElement: () => scroller,
-    estimateSize: () => DEFAULT_ROW_HEIGHT_PX,
+    estimateSize: (index) => estimateTranscriptRowHeight(rows[index]),
     getItemKey: (index) => {
       const row = rows[index];
       return row ? transcriptRowKey(row) : index;
@@ -505,7 +503,7 @@ export function TranscriptViewport({
             type="button"
             variant="outline"
             size="sm"
-            className="text-primary border-primary/30 bg-background hover:bg-primary/5 hover:text-primary dark:bg-background dark:border-primary/30 dark:hover:bg-primary/10 pointer-events-auto absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full shadow-md"
+            className="text-primary border-primary-tertiary bg-background hover:bg-primary-quaternary hover:text-foreground dark:bg-background dark:hover:bg-primary-quaternary pointer-events-auto absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full shadow-md"
             onClick={() => {
               setHeld(false);
               virtualizer.scrollToEnd();

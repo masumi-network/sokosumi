@@ -6208,10 +6208,12 @@
         "skipOccurrence": "Omitir repetición",
         "restoreOccurrence": "Restaurar repetición",
         "mutationError": "No se pudo cambiar esta repetición. Inténtalo de nuevo.",
-        "openTask": "Abrir tarea"
+        "openTask": "Abrir tarea",
+        "moveNotAllowed": "Solo el propietario de la tarea puede reprogramarla."
       },
       "create": {
-        "title": "Programar una tarea"
+        "title": "Programar una tarea",
+        "fab": "Programar una tarea"
       },
       "edit": {
         "title": "Editar programación",
@@ -6265,6 +6267,10 @@
         "title": "No se pudo cargar el calendario",
         "description": "Vuelve a intentarlo en un momento.",
         "retry": "Intentar de nuevo"
+      },
+      "agenda": {
+        "backToTop": "Volver arriba",
+        "today": "Hoy"
       }
     },
     "You": {

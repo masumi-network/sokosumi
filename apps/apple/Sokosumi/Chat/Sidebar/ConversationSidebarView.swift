@@ -9,6 +9,14 @@ struct ConversationSidebarView: View {
   @EnvironmentObject private var workspaces: WorkspaceState
   @Environment(\.openSettings) private var openSettings
 
+  @State private var startDirect: CompositionPresentation?
+  @State private var createChannel: CompositionPresentation?
+
+  private struct CompositionPresentation: Identifiable {
+    let id: UUID
+    let hasOrganization: Bool
+  }
+
   var body: some View {
     let partitioned = workspaces.sidebar.partitioned
     VStack(spacing: 0) {
@@ -66,6 +74,20 @@ struct ConversationSidebarView: View {
       .listStyle(.sidebar)
       .toolbar {
         ToolbarItem {
+          Button("New chat", systemImage: "square.and.pencil") {
+            startDirect = .init(id: workspaces.compositionContext, hasOrganization: workspaces.selection?.workspace.organizationId != nil)
+          }
+          .disabled(workspaces.phase != .ready || workspaces.roomsLoading || workspaces.openingDirect != nil || workspaces.creatingChannel)
+          .help("New chat")
+        }
+        ToolbarItem {
+          Button("Create channel", systemImage: "number") {
+            createChannel = .init(id: workspaces.compositionContext, hasOrganization: true)
+          }
+          .disabled(workspaces.phase != .ready || workspaces.selection?.workspace.organizationId == nil || workspaces.creatingChannel || workspaces.openingDirect != nil)
+          .help("Create channel")
+        }
+        ToolbarItem {
           Button("Refresh conversations", systemImage: "arrow.clockwise") {
             Task { await workspaces.refreshRooms(auth: auth) }
           }
@@ -94,6 +116,26 @@ struct ConversationSidebarView: View {
       }
       Divider()
       meSection
+    }
+    .sheet(item: $startDirect) { presentation in
+      StartDirectView(hasOrganization: presentation.hasOrganization, load: {
+        try await workspaces.loadDirectRecipients(context: presentation.id, auth: auth)
+      }, open: {
+        try await workspaces.openDirect($0, context: presentation.id, auth: auth)
+      })
+    }
+    .sheet(item: $createChannel) { presentation in
+      CreateChannelView(currentUserId: workspaces.currentUserId, organizationName: workspaces.selection?.title ?? "", load: {
+        try await workspaces.loadChannelRoster(context: presentation.id, auth: auth)
+      }, checkSlug: {
+        try await workspaces.checkChannelSlug($0, context: presentation.id, auth: auth)
+      }, create: {
+        try await workspaces.createChannel($0, roster: $1, context: presentation.id, auth: auth)
+      })
+    }
+    .onChange(of: workspaces.compositionContext) { _, _ in
+      startDirect = nil
+      createChannel = nil
     }
     .navigationSplitViewColumnWidth(min: 220, ideal: 260)
     .alert("Couldn’t update conversation", isPresented: Binding(

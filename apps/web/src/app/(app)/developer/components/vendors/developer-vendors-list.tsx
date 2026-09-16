@@ -37,7 +37,7 @@ export async function DeveloperVendorsList({
                 {logoUrl ? (
                   <AvatarImage src={logoUrl} alt={vendor.name} />
                 ) : null}
-                <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                <AvatarFallback className="bg-primary-solid text-primary-solid-foreground text-sm">
                   {vendor.name.charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>

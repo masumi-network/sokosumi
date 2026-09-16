@@ -31,8 +31,31 @@ public enum DirectRecipient: Hashable, Sendable {
 
 public extension ChatService {
   /// Core creates the Direct or returns the existing room. Eligibility remains server-owned.
-  func openDirect(client: Client, recipient: DirectRecipient, organizationSlug: String?) async throws -> Components.Schemas.ChatRoom {
-    let response = try await client.postChatsRooms(.init(headers: .init(xOrganizationSlug: organizationSlug), body: .json(.case2(recipient.requestBody))))
+  func openDirect(client: Client, selection: DirectConversationSelection, organizationSlug: String?) async throws -> Components.Schemas.ChatRoom {
+    guard let first = selection.recipients.first else {
+      throw ChatServiceError.unexpectedResponse("Choose a direct message target.")
+    }
+    var body = first.requestBody
+    if case .human = first {
+      guard selection.recipients.count == 1 || organizationSlug != nil else {
+        throw ChatServiceError.unexpectedResponse("Select an organization to start a group Direct.")
+      }
+      body.memberUserIds = selection.recipients.compactMap {
+        if case let .human(id) = $0 {
+          return id
+        }
+        return nil
+      }
+    }
+    return try await createRoom(client: client, body: .case2(body), organizationSlug: organizationSlug)
+  }
+
+  internal func createRoom(
+    client: Client,
+    body: Components.Schemas.CreateChatRoomRequest,
+    organizationSlug: String?
+  ) async throws -> Components.Schemas.ChatRoom {
+    let response = try await client.postChatsRooms(.init(headers: .init(xOrganizationSlug: organizationSlug), body: .json(body)))
     switch response {
     case let .ok(value): return try value.body.json.data
     case let .created(value): return try value.body.json.data
@@ -40,7 +63,12 @@ public extension ChatService {
     case let .unauthorized(value): throw try ChatServiceError.unauthorized(value.body.json.message)
     case let .forbidden(value): throw try ChatServiceError.unprocessable(statusCode: 403, message: value.body.json.message)
     case let .notFound(value): throw try ChatServiceError.unprocessable(statusCode: 404, message: value.body.json.message)
-    case let .conflict(value): throw try ChatServiceError.unprocessable(statusCode: 409, message: value.body.json.message)
+    case let .conflict(value):
+      let error = try value.body.json
+      if case .case1 = body, error.kind == "channel_slug_taken" {
+        throw ChannelCreationError.slugTaken
+      }
+      throw ChatServiceError.unprocessable(statusCode: 409, message: error.message)
     case let .internalServerError(value): throw try ChatServiceError.unprocessable(statusCode: 500, message: value.body.json.message)
     case let .undocumented(statusCode, payload): throw await unprocessableError(statusCode: statusCode, payload: payload)
     }

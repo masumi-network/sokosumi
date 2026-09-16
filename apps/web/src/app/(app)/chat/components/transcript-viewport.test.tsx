@@ -101,6 +101,36 @@ function rows(count: number): RoomTranscriptRenderRow[] {
   }));
 }
 
+function rowsWithImageUnfurls(count: number): RoomTranscriptRenderRow[] {
+  return rows(count).map((row) => {
+    if (row.kind !== "message") {
+      return row;
+    }
+    return {
+      ...row,
+      message: {
+        ...row.message,
+        unfurls: [
+          {
+            url: "https://example.com/a",
+            title: "Preview",
+            description: "A page",
+            imageUrl: "https://blob.example/preview.png",
+            siteName: "example.com",
+          },
+        ],
+      },
+    };
+  });
+}
+
+function listHeight(container: HTMLElement): number {
+  const list = container.querySelector<HTMLElement>(
+    `[${CHAT_MESSAGE_LIST_ATTRIBUTE}] > div`,
+  );
+  return Number.parseFloat(list?.style.height ?? "0") || 0;
+}
+
 function boundary(cursorMessageId: string): RoomTranscriptRenderRow {
   return { kind: "boundary", cursorMessageId, isGap: false };
 }
@@ -266,6 +296,27 @@ describe("TranscriptViewport", () => {
     // scroll the virtualizer makes to open on the newest row.
     expect(ids.length).toBeGreaterThan(0);
     expect(ids.length).toBeLessThan(100);
+  });
+
+  it("sizes unmounted history with image unfurls taller than short text", async () => {
+    const text = render(
+      <Harness
+        rows={rows(80)}
+        handle={createRef<TranscriptViewportHandle>()}
+      />,
+    );
+    await settle(text.container);
+    const textHeight = listHeight(text.container);
+    text.unmount();
+
+    const withUnfurls = render(
+      <Harness
+        rows={rowsWithImageUnfurls(80)}
+        handle={createRef<TranscriptViewportHandle>()}
+      />,
+    );
+    await settle(withUnfurls.container);
+    expect(listHeight(withUnfurls.container)).toBeGreaterThan(textHeight);
   });
 
   it("lands on a message the room holds and marks its row", async () => {

@@ -97,6 +97,12 @@ export {
   type ChatRoomQuoteAttachment,
 } from "./chat-room-quote-snippet.js";
 export {
+  buildChatRoomUnfurlSnapshotPathname,
+  CHAT_ROOM_UNFURL_SNAPSHOT_MAX_SIZE_BYTES,
+  isChatRoomUnfurlSnapshotAllowedContentType,
+  isOwnedChatRoomUnfurlSnapshotUrl,
+} from "./chat-room-unfurl-snapshot.js";
+export {
   CHAT_ROOM_COLLECTIONS,
   CHAT_ROOMS_CHANGED_EVENT_NAME,
   type ChatRoomCollection,

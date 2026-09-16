@@ -74,7 +74,7 @@ function FoldRow({
   return (
     <Collapsible open={open} onOpenChange={onOpenChange}>
       <div className="flex flex-col gap-2 px-4 py-3 @xl:flex-row @xl:items-center @xl:gap-4">
-        <CollapsibleTrigger className="group focus-visible:ring-ring/50 -m-1 flex w-full min-w-0 items-center gap-2 rounded-md p-1 text-left outline-none focus-visible:ring-[3px] @xl:flex-1">
+        <CollapsibleTrigger className="group focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring -m-1 flex w-full min-w-0 items-center gap-2 rounded-md p-1 text-left outline-none focus-visible:ring-[3px] @xl:flex-1">
           {/* Turned on the same 200ms ease-out the fold opens on, so the
               mark and the box it belongs to stop together. Under reduced
               motion it has no transition at all and simply points the other
@@ -112,7 +112,7 @@ function FoldRow({
             it is the grid that arrives. `animation-duration-200` rather than
             `duration-200`, which would also set a transition duration this
             element never asked for. */}
-        <div className="bg-muted/20 motion-safe:group-data-[state=closed]/fold:animate-out motion-safe:group-data-[state=closed]/fold:fade-out motion-safe:group-data-[state=open]/fold:animate-in motion-safe:group-data-[state=open]/fold:fade-in animation-duration-200 border-t px-4 pb-1 ease-out">
+        <div className="bg-card-background motion-safe:group-data-[state=closed]/fold:animate-out motion-safe:group-data-[state=closed]/fold:fade-out motion-safe:group-data-[state=open]/fold:animate-in motion-safe:group-data-[state=open]/fold:fade-in animation-duration-200 border-t px-4 pb-1 ease-out">
           {children}
         </div>
       </CollapsibleContent>

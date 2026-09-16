@@ -110,7 +110,7 @@ export function BrowseChannelsDialog({
           <List className="size-5 md:size-3.5" aria-hidden />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100svh-2rem)] overflow-hidden shadow-none sm:max-w-lg">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-hidden shadow-none sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{t("title")}</DialogTitle>
           <DialogDescription>{t("description")}</DialogDescription>
@@ -125,7 +125,7 @@ export function BrowseChannelsDialog({
             aria-label={t("searchPlaceholder")}
           />
         </div>
-        <ScrollArea className="h-[min(24rem,50svh)]">
+        <ScrollArea className="h-[min(24rem,50dvh)]">
           {isLoading ? (
             <div className="text-muted-foreground flex items-center justify-center gap-2 px-4 py-12 text-sm">
               <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -142,7 +142,7 @@ export function BrowseChannelsDialog({
                 return (
                   <li
                     key={room.id}
-                    className="hover:bg-muted/50 flex items-start gap-3 rounded-md px-3 py-2.5"
+                    className="hover:bg-card-background flex items-start gap-3 rounded-md px-3 py-2.5"
                   >
                     <ChannelDiscoverabilityIcon
                       discoverability={room.discoverability}

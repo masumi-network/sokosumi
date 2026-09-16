@@ -70,8 +70,6 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
       (a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
-  const latestStatusEventId =
-    visibleEvents.find((event) => event.status)?.id ?? null;
   const publicDescription = task.description
     ? removeTaskContextAttachmentLinks(task.description)
     : "";
@@ -106,7 +104,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
           <span className="truncate text-sm">{task.assignee?.name ?? "—"}</span>
         </div>
       </div>
-      <div className="border-border/50 border-t pt-4">
+      <div className="border-border border-t pt-4">
         <div className="flex items-center justify-between gap-4">
           <span className="text-muted-foreground text-sm">
             {tTaskDetail("created")}
@@ -297,8 +295,6 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                     isCommentEvent && event.status === TaskStatus.COMPLETED;
                   const isStatusOnlyEvent =
                     !isCommentEvent && Boolean(event.status);
-                  const isLatestStatusEvent =
-                    Boolean(event.status) && event.id === latestStatusEventId;
 
                   return (
                     <div
@@ -306,7 +302,8 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                       data-testid={`activity-row-${event.id}`}
                       className={cn(
                         "rounded-lg pr-3 pl-3",
-                        isCommentEvent && "bg-muted/20 border-border/50 border",
+                        isCommentEvent &&
+                          "bg-card-background border-border border",
                         shouldHighlightDoneBorder &&
                           getTaskStatusBorderColorClass(TaskStatus.COMPLETED),
                       )}
@@ -347,13 +344,13 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                               <span className="text-sm font-medium">
                                 {actorName}
                               </span>
-                              <span className="text-muted-foreground/60 inline-flex items-center gap-1 text-xs">
+                              <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
                                 <span>{action}</span>
                                 {!event.status ? (
                                   <>
                                     <span>{originFromLabel}</span>
                                     <ChannelIcon
-                                      className="text-muted-foreground/50 size-3.5 shrink-0"
+                                      className="text-muted-foreground size-3.5 shrink-0"
                                       role="img"
                                       aria-label={originFromLabel}
                                       data-testid={`origin-icon-${event.id}`}
@@ -366,14 +363,11 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                                   <TaskStatusBadge
                                     status={event.status}
                                     label={statusLabels[event.status]}
-                                    showDot={
-                                      isLatestStatusEvent && !isStatusOnlyEvent
-                                    }
                                   />
-                                  <span className="text-muted-foreground/60 inline-flex items-center gap-1 text-xs">
+                                  <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
                                     <span>{originFromLabel}</span>
                                     <ChannelIcon
-                                      className="text-muted-foreground/50 size-3.5 shrink-0"
+                                      className="text-muted-foreground size-3.5 shrink-0"
                                       role="img"
                                       aria-label={originFromLabel}
                                       data-testid={`origin-icon-${event.id}`}
@@ -382,14 +376,14 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                                 </>
                               ) : null}
                             </div>
-                            <span className="text-muted-foreground/40 text-xs whitespace-nowrap">
+                            <span className="text-muted-foreground text-xs whitespace-nowrap">
                               {formatTimeAgo(event.createdAt, locale)}
                             </span>
                           </div>
                           {formattedComment ? (
                             <ExpandableMarkdown
                               content={formattedComment}
-                              className="prose-sm text-foreground/70 text-sm"
+                              className="prose-sm text-foreground text-sm"
                               expandLabel={tTaskDetail("expand")}
                               collapseLabel={tTaskDetail("collapse")}
                               fadeClassName="to-transparent"
@@ -416,7 +410,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                             </div>
                           ) : null}
                           {shouldShowSecondaryChargeLine ? (
-                            <div className="text-muted-foreground/60 text-xs">
+                            <div className="text-muted-foreground text-xs">
                               {chargedLabel}
                             </div>
                           ) : null}
