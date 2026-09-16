@@ -5,7 +5,7 @@ import SokosumiWorkspace
 import SwiftUI
 
 #if os(macOS)
-  /// One native inspector shared by room search, pins and threads.
+  /// One native inspector shared by room search, pins, threads and members.
   struct RoomToolsModifier: ViewModifier {
     let roomId: String
     let jump: (String) async throws -> MessageNavigationResult
@@ -15,6 +15,7 @@ import SwiftUI
     @State private var showsSearch = false
     @State private var showsPins = false
     @State private var showsThreads = false
+    @State private var showsMembers = false
     @State private var query = ""
     @State private var selectedId: String?
     @State private var jumpingId: String?
@@ -39,21 +40,8 @@ import SwiftUI
       content
         .toolbar { roomToolbar }
         .inspector(isPresented: inspectorPresented) {
-          Group {
-            if showsThreads {
-              RoomThreadOverviewView(overview: workspaces.threadOverview, open: {
-                workspaces.openThread($0, auth: auth)
-              }, older: { updateThreads(.older) }, markAllRead: { updateThreads(.markAllRead) },
-              retry: { updateThreads(.load) }, close: { showsThreads = false })
-            } else if showsSearch {
-              RoomSearchResultsView(search: search, query: query, selectedId: $selectedId,
-                                    jumpingId: jumpingId, jumpError: jumpError,
-                                    select: select, retry: { retry += 1 }, close: closeSearch)
-            } else if let room, showsPins {
-              PinnedMessagesView(pins: workspaces.pins, room: room, jump: jump, close: { showsPins = false })
-            }
-          }
-          .inspectorColumnWidth(min: 280, ideal: 340, max: 420)
+          inspectorContent
+            .inspectorColumnWidth(min: 280, ideal: 340, max: 420)
         }
         .task(id: scope + [String(showsThreads), workspaces.thread.parent?.id ?? ""]) {
           guard showsThreads, workspaces.thread.parent == nil else { return }
@@ -80,10 +68,29 @@ import SwiftUI
           closeSearch()
           showsPins = false
           showsThreads = false
+          showsMembers = false
           query = ""
           jumpingId = nil
           jumpError = nil
         }
+    }
+
+    @ViewBuilder
+    private var inspectorContent: some View {
+      if let room, showsMembers {
+        RoomDetailsView(room: room, close: { showsMembers = false })
+      } else if showsThreads {
+        RoomThreadOverviewView(overview: workspaces.threadOverview, open: {
+          workspaces.openThread($0, auth: auth)
+        }, older: { updateThreads(.older) }, markAllRead: { updateThreads(.markAllRead) },
+        retry: { updateThreads(.load) }, close: { showsThreads = false })
+      } else if showsSearch {
+        RoomSearchResultsView(search: search, query: query, selectedId: $selectedId,
+                              jumpingId: jumpingId, jumpError: jumpError,
+                              select: select, retry: { retry += 1 }, close: closeSearch)
+      } else if let room, showsPins {
+        PinnedMessagesView(pins: workspaces.pins, room: room, jump: jump, close: { showsPins = false })
+      }
     }
 
     private var inspectorPresented: Binding<Bool> {
@@ -91,6 +98,7 @@ import SwiftUI
         get: {
           roomToolsInspectorPresented(
             showsPins: showsPins,
+            showsMembers: showsMembers,
             showsSearch: showsSearch,
             showsThreads: showsThreads,
             threadParentId: workspaces.thread.parent?.id
@@ -99,6 +107,7 @@ import SwiftUI
         set: {
           if !$0 {
             showsPins = false
+            showsMembers = false
             if roomToolsClearsThreadsOnInspectorDismiss(threadParentId: workspaces.thread.parent?.id) {
               showsThreads = false
             }
@@ -116,6 +125,7 @@ import SwiftUI
             if showsSearch {
               closeSearch()
             } else {
+              showsMembers = false
               showsSearch = true
               showsPins = false
               showsThreads = false
@@ -131,6 +141,7 @@ import SwiftUI
       }
       ToolbarItem {
         Button {
+          showsMembers = false
           showsThreads.toggle()
           showsPins = false
           closeSearch()
@@ -151,9 +162,22 @@ import SwiftUI
         .accessibilityLabel(roomThreadsAccessibilityLabel(unreadCount: workspaces.threadOverview.unreadCount))
         .accessibilityValue(showsThreads && workspaces.thread.parent == nil ? "Expanded" : "Collapsed")
       }
+      if let room, RoomRoster.isAvailable(in: room) {
+        ToolbarItem {
+          Button("Members", systemImage: "person.2") {
+            showsMembers.toggle()
+            showsPins = false
+            showsThreads = false
+            closeSearch()
+          }
+          .help("Members")
+          .accessibilityValue(showsMembers ? "Expanded" : "Collapsed")
+        }
+      }
       if room?.kind == .channel {
         ToolbarItem {
           Button("Pinned messages", systemImage: "pin") {
+            showsMembers = false
             showsPins.toggle()
             showsThreads = false
             closeSearch()
@@ -233,11 +257,12 @@ import SwiftUI
 
   func roomToolsInspectorPresented(
     showsPins: Bool,
+    showsMembers: Bool = false,
     showsSearch: Bool,
     showsThreads: Bool,
     threadParentId: String?
   ) -> Bool {
-    (showsPins || showsSearch || showsThreads) && threadParentId == nil
+    (showsPins || showsMembers || showsSearch || showsThreads) && threadParentId == nil
   }
 
   func roomToolsClearsThreadsOnInspectorDismiss(threadParentId: String?) -> Bool {
