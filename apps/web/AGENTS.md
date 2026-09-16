@@ -338,7 +338,8 @@ Env vars that must be set per environment (web): `STRIPE_SECRET_KEY`, `STRIPE_CR
 
 - Use semantic tokens from `globals.css`. No raw Tailwind palette colors, no hex/rgb/hsl
   literals, no opacity modifiers on color utilities. Use the alpha-baked ramp step
-  (`-tertiary` / `-quaternary` / `-quinary`) and add a token when none fits. Guard:
+  (`-tertiary` / `-quaternary` / `-quinary`) and add a token when none fits, in both theme
+  blocks and in the `@theme inline` bridge. Guard:
   `src/lib/utils/__tests__/color-tokens.test.ts`. See `.cursor/rules/color-tokens.mdc`.
 - Ensure dark/light mode compatibility
 - Use `size-*` utilities instead of `h-* w-*`
