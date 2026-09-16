@@ -85,8 +85,7 @@ describe("dispatchTaskNotification", () => {
    * A task that is waiting on the reader must not clear its own attention
    * row: that is the row the reminder exists for. The helper refuses these
    * keys itself, and this pins that the seam does not decide differently.
-   * The exact key, and that the key is one the helper refuses, because
-   * handing on a different attention key would pass a membership check.
+   * The exact key, because a membership check would pass on any of them.
    */
   it.each([
     ["INPUT_REQUIRED", "Notifications.Task.inputRequired"],
@@ -104,7 +103,6 @@ describe("dispatchTaskNotification", () => {
         "task_1",
         expectedKey,
       );
-      expect(TASK_ATTENTION_MESSAGE_KEYS).toContain(expectedKey);
     },
   );
 

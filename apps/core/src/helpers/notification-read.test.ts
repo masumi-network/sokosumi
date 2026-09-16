@@ -130,9 +130,39 @@ describe("markSettledAttentionRead", () => {
           kind: NotificationKind.TASK,
           referenceId: "task_123",
           isRead: false,
-          messageKey: { in: TASK_ATTENTION_MESSAGE_KEYS },
+          messageKey: {
+            in: TASK_ATTENTION_MESSAGE_KEYS.filter(
+              (attentionKey) =>
+                attentionKey !== "Notifications.Task.scheduleRemovedByOperator",
+            ),
+          },
         }),
       }),
+    );
+  });
+
+  /**
+   * The operator-removed schedule is the one attention row a run does not
+   * end. It says the operator took the schedule away and the owner has to put
+   * it back, which a run completing, failing or being canceled answers not at
+   * all. The schedule is still gone afterwards.
+   */
+  it.each([
+    "Notifications.Task.completed",
+    "Notifications.Task.failed",
+    "Notifications.Task.canceled",
+  ])("leaves the removed schedule outstanding after %s", async (key) => {
+    await markSettledAttentionRead(
+      "user_123",
+      NotificationKind.TASK,
+      "task_123",
+      key,
+    );
+
+    const [call] = notificationUpdateManyAndReturnMock.mock.calls;
+
+    expect(call?.[0].where.messageKey.in).not.toContain(
+      "Notifications.Task.scheduleRemovedByOperator",
     );
   });
 

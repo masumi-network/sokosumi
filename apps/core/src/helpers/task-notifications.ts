@@ -43,6 +43,24 @@ function taskNotificationPayload(task: {
 }
 
 /**
+ * The readers a task's attention rows can belong to.
+ *
+ * The owner, plus the member it is assigned to when that is somebody else.
+ * The owner comes first and once, because the two are the same person on
+ * every task nobody delegated.
+ */
+function taskReaderIds(task: {
+  ownerId: string;
+  assigneeUserId: string | null;
+}): string[] {
+  if (!task.assigneeUserId || task.assigneeUserId === task.ownerId) {
+    return [task.ownerId];
+  }
+
+  return [task.ownerId, task.assigneeUserId];
+}
+
+/**
  * Task-status notification dispatch, extracted from the task-events route so
  * the x402 pay endpoint's OUT_OF_CREDITS pause notifies the owner through the
  * exact same path. Best-effort by design: a notification failure must never
@@ -118,14 +136,7 @@ export async function dispatchTaskNotification(
     //
     // Both readers, because a task the owner delegated left the assignee an
     // `assigned` row of their own, and that row is waiting on the assignee.
-    // The owner is written first and once: the two are the same person on
-    // every task nobody delegated.
-    const settledReaderIds = [task.ownerId];
-    if (task.assigneeUserId && task.assigneeUserId !== task.ownerId) {
-      settledReaderIds.push(task.assigneeUserId);
-    }
-
-    for (const readerId of settledReaderIds) {
+    for (const readerId of taskReaderIds(task)) {
       await markSettledAttentionRead(
         readerId,
         NotificationKind.TASK,
@@ -323,11 +334,11 @@ export async function markTaskAssignedRead(
  *
  * Archiving is the fourth way a task stops waiting on somebody, after
  * completing, failing and being canceled, and it is the one the dispatcher
- * above never sees. A task can be archived from `DRAFT`, `QUEUED`, `READY`
- * and `GRANT_PENDING`, so a row asking the owner to act can still be
- * outstanding: the operator-removed-schedule row is written with no status
- * condition at all. Nobody can open an archived task, so every such row is
- * now about a question nobody is asking.
+ * above never sees. Four of the seven archivable statuses are non-terminal
+ * (`DRAFT`, `QUEUED`, `READY`, `GRANT_PENDING`), so a row asking the owner to
+ * act can still be outstanding: the operator-removed-schedule row is written
+ * with no status condition at all. Nobody can open an archived task, so every
+ * such row is now about a question nobody is asking.
  *
  * Every attention key rather than the assigned one, and both readers, because
  * archiving ends the task for all of them at once. That is what separates it
@@ -338,12 +349,7 @@ export async function markTaskArchivedRead(task: {
   ownerId: string;
   assigneeUserId: string | null;
 }): Promise<void> {
-  const readerIds = [task.ownerId];
-  if (task.assigneeUserId && task.assigneeUserId !== task.ownerId) {
-    readerIds.push(task.assigneeUserId);
-  }
-
-  for (const readerId of readerIds) {
+  for (const readerId of taskReaderIds(task)) {
     await markTaskAttentionRead(
       readerId,
       task.id,
