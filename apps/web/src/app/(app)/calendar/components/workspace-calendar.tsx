@@ -216,13 +216,21 @@ function getAgendaScroller(root: HTMLElement | null): HTMLElement | null {
   return root?.closest<HTMLElement>("[data-app-main]") ?? null;
 }
 
-/** FullCalendar's list day header for today in the calendar zone, if shown. */
+/**
+ * FullCalendar's list day header for today in the calendar zone, or the
+ * first later day: the list only renders headers for days that have events.
+ */
 function findTodayHeader(
   root: HTMLElement | null,
   timeZone: string,
 ): HTMLElement | null {
   const todayKey = Temporal.Now.plainDateISO(timeZone).toString();
-  return root?.querySelector<HTMLElement>(`[data-date="${todayKey}"]`) ?? null;
+  const headers = root?.querySelectorAll<HTMLElement>("[data-date]") ?? [];
+  return (
+    Array.from(headers).find(
+      (header) => (header.dataset.date ?? "") >= todayKey,
+    ) ?? null
+  );
 }
 
 function getProjectIdFromSource(
@@ -427,7 +435,7 @@ function CalendarEvent({
         // who can move it once the mouse has clearly started dragging.
         onPointerDown={(event) => {
           dragAttemptOrigin.current =
-            event.pointerType === "mouse" && !item.canEditSchedule
+            event.pointerType !== "touch" && !item.canEditSchedule
               ? { x: event.clientX, y: event.clientY }
               : null;
         }}

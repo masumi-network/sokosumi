@@ -10,6 +10,7 @@ import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { Activity, StrictMode } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
+import { Temporal } from "temporal-polyfill";
 import { describe, expect, it, vi } from "vitest";
 import type {
   WorkspaceCalendarItem,
@@ -845,6 +846,41 @@ describe("WorkspaceCalendar", () => {
       expect(scrollIntoView.mock.instances[0]).toHaveAttribute(
         "data-date",
         today,
+      );
+    } finally {
+      Element.prototype.scrollIntoView = originalScrollIntoView;
+    }
+  });
+
+  it("scrolls the agenda to the next day header when today has no events", async () => {
+    const scrollIntoView = vi.fn();
+    const originalScrollIntoView = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const today = Temporal.Now.plainDateISO("UTC");
+    const tomorrow = today.add({ days: 1 }).toString();
+
+    try {
+      render(
+        <NuqsTestingAdapter
+          searchParams={`?view=agenda&date=${today.toString()}&timezone=UTC`}
+        >
+          <WorkspaceCalendar
+            initialDate={today.toString()}
+            items={[
+              {
+                ...ITEMS[0],
+                scheduledAt: new Date(`${tomorrow}T09:00:00.000Z`),
+                originalScheduledAt: new Date(`${tomorrow}T09:00:00.000Z`),
+              },
+            ]}
+          />
+        </NuqsTestingAdapter>,
+      );
+
+      await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
+      expect(scrollIntoView.mock.instances[0]).toHaveAttribute(
+        "data-date",
+        tomorrow,
       );
     } finally {
       Element.prototype.scrollIntoView = originalScrollIntoView;
