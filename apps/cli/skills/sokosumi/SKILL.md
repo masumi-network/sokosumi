@@ -64,7 +64,6 @@ Use `--metadata-json` or `--metadata-file` for coworker metadata. Use repeated `
 ## Endpoint map
 
 - `GET /v1/users/me`
-- `GET /v1/categories`
 - `GET /v1/agents`
 - `GET /v1/agents/:agentId/input-schema`
 - `POST /v1/agents/:agentId/jobs`

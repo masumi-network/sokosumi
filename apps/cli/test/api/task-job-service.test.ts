@@ -12,7 +12,6 @@ import {
   submitJobInput,
 } from "../../src/api/services/job-service.js";
 import {
-  addJobToTask,
   createTask,
   createTaskEvent,
   fetchTask,
@@ -65,10 +64,6 @@ test("task services encode IDs and serialize all list filters", async () => {
     skip: 2,
   });
   await fetchTaskJobs(api, "task/1");
-  await addJobToTask(api, "task/1", {
-    agentId: "agent-1",
-    inputSchema: { type: "object" },
-  });
   await fetchTaskEvents(api, "task/1");
   await createTaskEvent(api, "task/1", { comment: " Done " });
   assert.deepEqual(
@@ -81,27 +76,18 @@ test("task services encode IDs and serialize all list filters", async () => {
         path: "/v1/tasks?q=review&scope=workspace&coworkerId=cow%2F1&cursor=next&take=10&skip=2&status=READY&status=DONE",
       },
       { method: "GET", path: "/v1/tasks/task%2F1/jobs" },
-      { method: "POST", path: "/v1/tasks/task%2F1/jobs" },
       { method: "GET", path: "/v1/tasks/task%2F1/events" },
       { method: "POST", path: "/v1/tasks/task%2F1/events" },
     ],
   );
   assert.deepEqual(calls[0]?.body, { name: "Task" });
-  assert.deepEqual(calls[6]?.body, { comment: "Done" });
+  assert.deepEqual(calls[5]?.body, { comment: "Done" });
 });
 
 test("task and job services validate IDs and required payload fields", async () => {
   const calls: Call[] = [];
   const api = client(calls);
   await assert.rejects(() => fetchTask(api, ""), /taskId is required/);
-  await assert.rejects(
-    () => addJobToTask(api, "task", {}),
-    /agentId is required/,
-  );
-  await assert.rejects(
-    () => addJobToTask(api, "task", { agentId: "a" }),
-    /inputSchema is required/,
-  );
   await assert.rejects(() => createTaskEvent(api, ""), /taskId is required/);
   await assert.rejects(() => fetchJob(api, ""), /jobId is required/);
   await assert.rejects(
