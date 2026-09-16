@@ -12917,7 +12917,8 @@ export const NotificationPreferenceSchema = {
             type: 'string',
             enum: [
                 'IN_APP',
-                'OS_BANNER'
+                'OS_BANNER',
+                'EMAIL'
             ],
             description: 'Where it is delivered: in the app, or as an OS banner (which also needs pushOptIn)',
             example: 'OS_BANNER'

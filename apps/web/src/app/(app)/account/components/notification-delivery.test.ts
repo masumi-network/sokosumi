@@ -27,7 +27,7 @@ const MENTION: KindSpec = {
   category: "CHAT_MENTION",
   labelKey: "kindChatMention",
   hintKey: "kindChatMentionHint",
-  email: false,
+  email: "NONE",
 };
 
 /** The group as the page holds it: these pin the table the reader presses. */

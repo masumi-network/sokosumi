@@ -327,13 +327,17 @@ export function NotificationKinds({
   const t = useTranslations("App.Account.Notifications");
   const choices = useNotificationDelivery();
 
-  // Email is the one control here that the matrix does not carry, and Core
-  // keeps mailing whatever the matrix says. A read that failed leaves no rows
-  // at all, and a matrix that comes back without the job kinds leaves rows
-  // that all mail nothing. Either way the switch stands on a row of its own
-  // rather than disappearing with them.
+  // The account switch, which the matrix does not carry, and Core keeps
+  // mailing whatever the matrix says. A read that failed leaves no rows at
+  // all, and a matrix that comes back without the job kinds leaves rows that
+  // all mail nothing. Either way the switch stands on a row of its own rather
+  // than disappearing with them.
+  //
+  // `ACCOUNT` rather than any email cell: the reminder row draws one too, and
+  // that one writes the matrix. A row that writes the matrix does not stand in
+  // for the switch, so counting it here would drop the switch off the card.
   const mailedByARow = choices.groups.some((group) =>
-    group.kinds.some((kind) => kind.spec.email),
+    group.kinds.some((kind) => kind.spec.email === "ACCOUNT"),
   );
 
   // The two account switches are server props, and the matrix is a read that

@@ -20,9 +20,11 @@ interface ChannelSpec {
  * means the kind does not arrive. The one pairing the row does not offer is a
  * push with no entry behind it: see `withChannel`.
  *
- * Email is drawn beside these and is not one of them: it is one switch for the
- * whole account rather than a cell per kind, and it does not exist for every
- * kind. See `KindSpec.email`.
+ * Email is drawn beside these and is not one of them, because the two rows
+ * that offer it write different things. The job rows write one switch for the
+ * whole account. The reminder row writes a cell of this matrix like any other,
+ * on the `EMAIL` channel. Neither belongs in a column every row draws, because
+ * most rows have no email behind them at all. See `KindSpec.email`.
  *
  * A channel Core adds later needs a cell here. Without one it is drawn
  * nowhere, and `cellsFor` still writes it `enabled: false` on every press from
@@ -33,10 +35,39 @@ export const CHANNEL_SPECS: readonly ChannelSpec[] = [
   { id: "OS_BANNER", labelKey: "channelPush", hintKey: "channelPushHint" },
 ];
 
-/** The channels this page writes, in the order the row draws them. */
-const STORED_CHANNELS: readonly StoredChannel[] = CHANNEL_SPECS.map(
-  (spec) => spec.id,
-);
+/**
+ * The email cell, for the one row that writes it into the matrix (SOK-916).
+ *
+ * The same shape as the specs above, because the cell is the same thing: a
+ * channel of this category, written by the same press. It sits apart from them
+ * only so that the rows with no email behind them do not draw it.
+ */
+export const EMAIL_CHANNEL_SPEC: ChannelSpec = {
+  id: "EMAIL",
+  labelKey: "channelEmail",
+  hintKey: "channelEmailHint",
+};
+
+/**
+ * The channels this page writes.
+ *
+ * Every channel the matrix stores, not only the two the grid draws icons for.
+ * `EMAIL` is here and absent from `CHANNEL_SPECS` on purpose: one row writes
+ * it, so it gets no column, but every write from this page sends a category's
+ * whole set of channels and a channel missing from this list would be written
+ * `enabled: false` by any press on the row. Listing it is what stops a press
+ * on In app silently switching a reader's reminder emails off.
+ *
+ * The cost: a press on a row that mails nothing stores an `EMAIL` cell of its
+ * own, set off. Core reads no email cell for those categories, so the row does
+ * nothing. The alternative is a per-category write set, which is a second
+ * place to hold the same fact in step.
+ */
+const STORED_CHANNELS: readonly StoredChannel[] = [
+  "IN_APP",
+  "OS_BANNER",
+  "EMAIL",
+];
 
 /**
  * Why this browser cannot show a push, when it cannot.
@@ -60,20 +91,33 @@ export const PUSH_BLOCK_HINT_KEY: Record<PushBlock, string> = {
   unsubscribed: "pushUnsubscribedHint",
 };
 
+/**
+ * Where a row's email answer is kept: the account, this matrix, or nowhere.
+ *
+ * Three rather than a boolean, because the two rows that offer email write to
+ * different places and a cell has to know which before it can be pressed.
+ */
+export type EmailControl = "ACCOUNT" | "CHANNEL" | "NONE";
+
 export interface KindSpec {
   category: NotificationCategory;
   labelKey: string;
   /** What happens, in the reader's terms, under the name. */
   hintKey: string;
   /**
-   * Whether Sokosumi ever sends this kind by email.
+   * What this row's email cell writes, if anything.
    *
-   * Only job status is mailed, and one account-wide switch gates it, so the
-   * job kinds hold the same answer and move together. Nothing else has an
-   * email behind it yet, and a row says so rather than offering a control that
-   * would reach nothing.
+   * `ACCOUNT` is the job rows. Job status is mailed under one account-wide
+   * switch, so those three hold one value and move together.
+   *
+   * `CHANNEL` is the reminder row (SOK-916). Its email is a cell of the same
+   * matrix as In app and Push, on the `EMAIL` channel, so it is the reader's
+   * answer for that row alone and nothing else moves with it.
+   *
+   * `NONE` is every other row. Nothing mails them, and the row says so rather
+   * than offering a control that would reach nothing.
    */
-  email: boolean;
+  email: EmailControl;
 }
 
 /**
@@ -174,19 +218,19 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         category: "JOB_ATTENTION",
         labelKey: "kindJobAttention",
         hintKey: "kindJobAttentionHint",
-        email: true,
+        email: "ACCOUNT",
       },
       {
         category: "JOB_COMPLETED",
         labelKey: "kindJobCompleted",
         hintKey: "kindJobCompletedHint",
-        email: true,
+        email: "ACCOUNT",
       },
       {
         category: "JOB_UPDATE",
         labelKey: "kindJobUpdate",
         hintKey: "kindJobUpdateHint",
-        email: true,
+        email: "ACCOUNT",
       },
     ],
     // A job is work the reader started and is waiting on, so the loudest thing
@@ -240,19 +284,19 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         category: "TASK_ATTENTION",
         labelKey: "kindTaskAttention",
         hintKey: "kindTaskAttentionHint",
-        email: false,
+        email: "NONE",
       },
       {
         category: "TASK_COMPLETED",
         labelKey: "kindTaskCompleted",
         hintKey: "kindTaskCompletedHint",
-        email: false,
+        email: "NONE",
       },
       {
         category: "TASK_UPDATE",
         labelKey: "kindTaskUpdate",
         hintKey: "kindTaskUpdateHint",
-        email: false,
+        email: "NONE",
       },
     ],
     // The same four as Jobs, and deliberately: a task is work of the same
@@ -306,19 +350,19 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         category: "CHAT_ROOM_MESSAGE",
         labelKey: "kindChatRoomMessage",
         hintKey: "kindChatRoomMessageHint",
-        email: false,
+        email: "NONE",
       },
       {
         category: "CHAT_MENTION",
         labelKey: "kindChatMention",
         hintKey: "kindChatMentionHint",
-        email: false,
+        email: "NONE",
       },
       {
         category: "CHAT_DIRECT_MESSAGE",
         labelKey: "kindChatDirectMessage",
         hintKey: "kindChatDirectMessageHint",
-        email: false,
+        email: "NONE",
       },
     ],
     // Chat is read where it is written, so these turn on the app rather than
@@ -373,7 +417,7 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         category: "SYSTEM",
         labelKey: "kindSystem",
         hintKey: "kindSystemHint",
-        email: false,
+        email: "NONE",
       },
     ],
     // A group of one is drawn as a plain row with its own cells. A rail over
@@ -388,7 +432,7 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         category: "FOLLOW_UP",
         labelKey: "kindFollowUp",
         hintKey: "kindFollowUpHint",
-        email: false,
+        email: "CHANNEL",
       },
     ],
     // One row for reminders of every kind, and last, because it is about the

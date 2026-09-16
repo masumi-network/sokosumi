@@ -8,11 +8,12 @@ import {
   Smartphone,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useEffect, useId, useState } from "react";
+import { type ReactNode, useEffect, useId, useMemo, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import {
   CHANNEL_SPECS,
+  EMAIL_CHANNEL_SPEC,
   PUSH_BLOCK_HINT_KEY,
   type PushBlock,
   type StoredChannel,
@@ -84,6 +85,10 @@ export const CELL_TRACK = "flex w-12 shrink-0 justify-center @xl:w-18";
 export const CHANNEL_ICON: Record<StoredChannel, LucideIcon> = {
   IN_APP: Bell,
   OS_BANNER: Smartphone,
+  // Drawn in the email column rather than beside the other two, because only
+  // the reminder row stores this channel. `CHANNEL_SPECS` is what decides the
+  // columns, and `EMAIL` is deliberately absent from it.
+  EMAIL: Mail,
 };
 
 /** An account switch, as a row needs it. */
@@ -260,6 +265,21 @@ function KindCells({
   const label = t(kind.spec.labelKey);
   const pushHintId = useId();
 
+  // The cells this row draws, which is the columns plus the reminder row's own
+  // email cell (SOK-916). One list rather than a cell drawn beside the loop,
+  // so the press, the state and the sentence the row speaks all read the same
+  // set. Last in the list, which is where the email column sits on every other
+  // row.
+  // Held rather than rebuilt, because the sentence below reads it: a new array
+  // every render is a dependency that changed every render.
+  const cellSpecs = useMemo(
+    () =>
+      kind.spec.email === "CHANNEL"
+        ? [...CHANNEL_SPECS, EMAIL_CHANNEL_SPEC]
+        : CHANNEL_SPECS,
+    [kind.spec.email],
+  );
+
   // What this browser can do with a push, when it cannot do the usual thing.
   // The cell writes the account rather than the browser, so it keeps working:
   // it is the reader's only way to silence or wake the devices that can push.
@@ -305,9 +325,9 @@ function KindCells({
         return;
       }
 
-      const on = CHANNEL_SPECS.filter((spec) => channels.includes(spec.id)).map(
-        (spec) => t(spec.labelKey),
-      );
+      const on = cellSpecs
+        .filter((spec) => channels.includes(spec.id))
+        .map((spec) => t(spec.labelKey));
 
       setAwaiting(false);
       setArrival({
@@ -323,7 +343,41 @@ function KindCells({
     if (arrival && !sameChannels(arrival.channels, channels)) {
       setArrival(null);
     }
-  }, [arrival, awaiting, saving, channels, label, t]);
+  }, [arrival, awaiting, saving, cellSpecs, channels, label, t]);
+
+  /**
+   * The email column on this row, which is one of three different things.
+   *
+   * `ACCOUNT` writes the account switch that the job rows share. `NONE` has
+   * nothing behind it and says so. `CHANNEL` is already drawn, by the loop
+   * over `cellSpecs`, because that one is a cell of the matrix like the two
+   * beside it and is written by the same path (SOK-916).
+   */
+  function emailCell() {
+    if (kind.spec.email === "CHANNEL") {
+      return null;
+    }
+
+    if (kind.spec.email === "ACCOUNT") {
+      return (
+        <EmailCell
+          name={t("channelCellLabel", {
+            channel: t("channelEmail"),
+            kind: label,
+          })}
+          email={email}
+        />
+      );
+    }
+
+    return (
+      <DeadCell
+        icon={MailClock}
+        label={t("channelEmailSoonLabel", { kind: label })}
+        hint={t("channelEmailSoonHint")}
+      />
+    );
+  }
 
   return (
     <div
@@ -331,7 +385,7 @@ function KindCells({
       aria-label={t("deliveryAriaLabel", { kind: label })}
       className="flex shrink-0 items-center justify-end gap-2"
     >
-      {CHANNEL_SPECS.map((spec) => {
+      {cellSpecs.map((spec) => {
         const pressed = channels.includes(spec.id);
         const Icon = CHANNEL_ICON[spec.id];
         const blocked = spec.id === "OS_BANNER" && pushHint !== null;
@@ -377,21 +431,7 @@ function KindCells({
           {pushHint}
         </span>
       ) : null}
-      {kind.spec.email ? (
-        <EmailCell
-          name={t("channelCellLabel", {
-            channel: t("channelEmail"),
-            kind: label,
-          })}
-          email={email}
-        />
-      ) : (
-        <DeadCell
-          icon={MailClock}
-          label={t("channelEmailSoonLabel", { kind: label })}
-          hint={t("channelEmailSoonHint")}
-        />
-      )}
+      {emailCell()}
       <span role="status" aria-live="polite" className="sr-only">
         {arrival?.text ?? ""}
       </span>

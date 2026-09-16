@@ -3826,7 +3826,7 @@ export type NotificationPreference = {
     /**
      * Where it is delivered: in the app, or as an OS banner (which also needs pushOptIn)
      */
-    channel: 'IN_APP' | 'OS_BANNER';
+    channel: 'IN_APP' | 'OS_BANNER' | 'EMAIL';
     /**
      * Whether the reader wants this category on this channel
      */
