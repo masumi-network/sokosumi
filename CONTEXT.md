@@ -357,16 +357,20 @@ A human @-reference to a user on a room message (main transcript or Thread). Dis
 _Avoid_: Mention status, ping (unless UI copy), treating a coworker thinking-state as this
 
 **Participant**:
-A user of a Thread who authored the parent, has a remaining reply in that Thread, or is the target of a remaining user mention on the parent or a remaining reply. Distinct from Look. A user mention makes them a Participant immediately. Mute does not block it. Live on remaining messages: delete the last own reply or the only mention and it drops, unless another path still holds.
+A user of a Thread who authored the parent, has a remaining reply in that Thread, or is the target of a remaining user mention on the parent or a remaining reply. Distinct from Look. A user mention makes them a Participant immediately. Neither room mute nor a Muted thread blocks it. Live on remaining messages: delete the last own reply or the only mention and it drops, unless another path still holds.
 _Avoid_: Follower, subscriber, treating Look (opened it) as participation
 
 **Room unread**:
-The count of unseen messages that page the user in this room: non-self top-level messages after Room last-read, plus non-self replies in Threads where the user is a Participant (including coworker replies). Replies from before the user joined the room do not count. Drives sidebar **bold**, and an optional numeric affordance a reader opts in to (`showRoomUnreadCount`, off by default, [ADR-0027](docs/adr/0027-room-unread-count-is-a-reader-opt-in.md)). Not the mention badge.
+The count of unseen messages that page the user in this room: non-self top-level messages after Room last-read, plus non-self replies in Threads where the user is a Participant (including coworker replies), less replies in a Muted thread that do not mention them. Replies from before the user joined the room do not count. Drives sidebar **bold**, and an optional numeric affordance a reader opts in to (`showRoomUnreadCount`, off by default, [ADR-0027](docs/adr/0027-room-unread-count-is-a-reader-opt-in.md)). Not the mention badge.
 _Avoid_: Attention, attentionReplyCount, counting lurker thread replies, a separate Threads badge, using the mention badge as the message unread count
 
 **Unread thread**:
-A Thread the user is a Participant of, with at least one non-self reply they have not cleared. Never-looked still counts if they are a Participant. Sorts the thread list; not a sidebar number.
+A Thread the user is a Participant of, with at least one non-self reply they have not cleared. Never-looked still counts if they are a Participant. A Muted thread does not count, unless a remaining reply mentions them. Sorts the thread list; not a sidebar number.
 _Avoid_: Unread (when meaning the room), never-replied, treating Look-without-Participant as unread, attention threads
+
+**Muted thread**:
+A Thread one reader silenced. It stops counting toward Room unread and stops writing CHAT notifications for them, while they stay a Participant ([ADR-0030](docs/adr/0030-thread-mute-overrides-participant.md)). A user mention on a reply still breaks through. Unmute also Looks the Thread, so the silenced stretch does not arrive at once. Per reader and per Thread; not the room mute.
+_Avoid_: Unfollow, unsubscribe, leave thread, room mute, treating it as dropping out of Participant
 
 **Mark all threads**:
 A per-room action that Looks every unread Thread the user Participates in. Does not mark the main transcript read. Does not Look lurker Threads.

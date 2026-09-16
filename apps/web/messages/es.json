@@ -5385,7 +5385,10 @@
         "loading": "Loading replies",
         "empty": "No replies yet",
         "replyPlaceholder": "Reply in thread",
-        "replyCount": "{count, plural, one {# reply} other {# replies}}"
+        "replyCount": "{count, plural, one {# reply} other {# replies}}",
+        "mute": "Silenciar hilo",
+        "unmute": "Reactivar el hilo",
+        "muted": "Silenciado"
       },
       "loadOlder": "Cargar mensajes anteriores",
       "loadingOlder": "Cargando mensajes anteriores…",

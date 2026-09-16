@@ -40,6 +40,7 @@ import {
   type RoomSessionSendRequest,
   type RoomSessionSendResult,
 } from "./room-session-composer";
+import { ThreadMuteButton } from "./thread-mute-button";
 
 function buildThreadTranscriptRows(
   parentMessage: ChatRoomMessage,
@@ -121,6 +122,7 @@ export function ThreadPanel({
   showMentionShortcut = true,
   allowAttachments = true,
   roomId,
+  onMuteChanged,
   holdOffBottom = false,
   composerDisabledMessage,
   viewportRef: viewportRefFromParent,
@@ -173,6 +175,8 @@ export function ThreadPanel({
   showMentionShortcut?: boolean;
   allowAttachments?: boolean;
   roomId: string;
+  /** Runs after the reader mutes or unmutes this thread. */
+  onMuteChanged?: () => void;
   holdOffBottom?: boolean;
   composerDisabledMessage?: string;
   viewportRef?: RefObject<TranscriptViewportHandle | null>;
@@ -318,32 +322,40 @@ export function ThreadPanel({
               })}
             </p>
           </div>
-          {onBack ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-8 rounded-full"
-              aria-label={t("Thread.back")}
-              title={t("Thread.back")}
-              onClick={onBack}
-              data-testid="thread-panel-back"
-            >
-              <ChevronLeft className="size-4" aria-hidden />
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-8 rounded-full"
-              aria-label={t("Thread.close")}
-              title={t("Thread.close")}
-              onClick={onClose}
-            >
-              <X className="size-4" aria-hidden />
-            </Button>
-          )}
+          <div className="flex shrink-0 items-center gap-1">
+            <ThreadMuteButton
+              roomId={roomId}
+              parentMessageId={parentMessage.id}
+              replyCount={replies.length}
+              onChanged={onMuteChanged}
+            />
+            {onBack ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8 rounded-full"
+                aria-label={t("Thread.back")}
+                title={t("Thread.back")}
+                onClick={onBack}
+                data-testid="thread-panel-back"
+              >
+                <ChevronLeft className="size-4" aria-hidden />
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8 rounded-full"
+                aria-label={t("Thread.close")}
+                title={t("Thread.close")}
+                onClick={onClose}
+              >
+                <X className="size-4" aria-hidden />
+              </Button>
+            )}
+          </div>
         </header>
         <div ref={setScroller} className={CHAT_MESSAGE_LIST_SCROLLER_CLASS}>
           <div

@@ -47,6 +47,8 @@ export interface ChatRoomMessageCreatedEffectsParams {
   memberUserIds?: readonly string[];
   /** The members this message named, who were sent a mention of their own. */
   mentionedUserIds?: readonly string[];
+  /** The Thread this message replies in, so muted readers are left out. */
+  parentMessageId?: string | null;
 }
 
 /**
@@ -210,6 +212,7 @@ async function emitChatRoomMessageNotifications(
     roomName: params.roomName,
     organizationId: params.organizationId,
     messageId: params.messageId,
+    parentMessageId: params.parentMessageId,
     content: params.content,
     authorUserId: params.authorUserId,
     authorName: params.authorName,

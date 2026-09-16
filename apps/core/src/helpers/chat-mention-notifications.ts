@@ -65,5 +65,8 @@ async function emit(params: EmitChatMentionNotificationsParams): Promise<void> {
     recipientUserIds: params.mentionedUserIds,
     messageKey: CHAT_MENTION_MESSAGE_KEY,
     notificationType: "chat-mention-notification",
+    // No parentMessageId on purpose: being named breaks through a muted
+    // Thread. Room mute still silences this, as it silences everything else
+    // in that room.
   });
 }

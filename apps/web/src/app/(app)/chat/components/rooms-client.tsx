@@ -2803,6 +2803,12 @@ export function RoomsClient({
             threadParentMessage ? (
               <ThreadPanel
                 parentMessage={threadParentMessage}
+                onMuteChanged={() => {
+                  // Mute moves both numbers a Look moves: this room's unread
+                  // thread count, and the room's own attention chrome.
+                  bumpThreadUnread();
+                  void syncRoomAttentionAfterThreadLook(selectedRoom.id);
+                }}
                 viewportRef={threadViewportRef}
                 holdOffBottom={searchHoldOffBottom}
                 replies={displayThreadMessages}
@@ -2885,6 +2891,7 @@ export function RoomsClient({
                     t("UnreadThreads.unreadReplies", { count }),
                   replies: (count) => t("Thread.replyCount", { count }),
                   close: t("UnreadThreads.close"),
+                  muted: t("Thread.muted"),
                 }}
               />
             ) : pinnedOpen && selectedRoom.kind === "channel" ? (

@@ -9947,7 +9947,7 @@ export const ChatRoomThreadSchema = {
         unreadReplyCount: {
             type: 'integer',
             minimum: 0,
-            description: 'Non-deleted replies from others after the dual-baseline look, only when the viewer is a Participant (parent author, remaining reply, or remaining user mention). Zero for lurkers, including never-looked lurkers.',
+            description: 'Non-deleted replies from others after the dual-baseline look, only when the viewer is a Participant (parent author, remaining reply, or remaining user mention) and has not muted this thread. Replies that name the viewer count even in a muted thread. Zero for lurkers, including never-looked lurkers.',
             example: 2
         },
         lastUnreadReplyAt: {
@@ -9963,6 +9963,15 @@ export const ChatRoomThreadSchema = {
             type: 'boolean',
             description: 'True when the viewer has a ChatRoomThreadReadState row for this parent. Never-looked threads are false even when replyCount > 0.',
             example: true
+        },
+        mutedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-07-02T12:00:00.000Z',
+            description: 'When the viewer muted this thread, or null when they have not. A muted thread stops counting toward room unread and stops writing CHAT notifications for them; replies that name them still do. Mute does not change whether they Participate.'
         }
     },
     required: [
@@ -9971,7 +9980,8 @@ export const ChatRoomThreadSchema = {
         'lastReplyAt',
         'unreadReplyCount',
         'lastUnreadReplyAt',
-        'hasLooked'
+        'hasLooked',
+        'mutedAt'
     ]
 } as const;
 
