@@ -4,6 +4,7 @@ import {
   fetchAgents,
 } from "../../api/services/agent-service.js";
 import {
+  applyListFilters,
   type CommandContext,
   type CommandOptions,
   option,
@@ -21,42 +22,8 @@ export interface AgentsCommandOptions extends CommandContext {
   options?: CommandOptions;
 }
 
-function matchesSearch(
-  value: string | null | undefined,
-  search: string,
-): boolean {
-  return String(value || "")
-    .toLocaleLowerCase()
-    .includes(search);
-}
-
 function formatAgentStatus(status: string | null): string {
   return status || "unknown";
-}
-
-export function filterAgents<
-  T extends {
-    id: string | null;
-    name: string | null;
-    description: string | null;
-    tags: readonly { name: string | null }[];
-  },
->(
-  agents: readonly T[],
-  { search = "", limit }: { search?: string; limit?: number } = {},
-): T[] {
-  const normalizedSearch = search.trim().toLocaleLowerCase();
-  const filtered = normalizedSearch
-    ? agents.filter((agent) =>
-        [
-          agent.id,
-          agent.name,
-          agent.description,
-          ...agent.tags.map((tag) => tag.name),
-        ].some((value) => matchesSearch(value, normalizedSearch)),
-      )
-    : [...agents];
-  return limit === undefined ? filtered : filtered.slice(0, limit);
 }
 
 export function printAgentList(
@@ -93,9 +60,15 @@ export async function runAgentsCommand({
   const command = subcommand || "list";
   if (command === "list") {
     const { agents } = await fetchAgents(client, signal);
-    const filtered = filterAgents(agents, {
-      search: optionString(options, "search"),
+    const filtered = applyListFilters(agents, {
+      search: option(options, "search"),
       limit: parsePositiveInteger(option(options, "limit"), "--limit"),
+      fields: (agent) => [
+        agent.id,
+        agent.name,
+        agent.description,
+        ...agent.tags.map((tag) => tag.name),
+      ],
     });
     if (json) {
       writeJson(stdout, { agents: filtered });
