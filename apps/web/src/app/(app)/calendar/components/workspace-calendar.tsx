@@ -22,9 +22,9 @@ import {
   startOfWeek,
 } from "date-fns";
 import {
+  ArrowDown,
   ArrowUp,
   Building2,
-  CalendarDays,
   ChevronLeft,
   ChevronRight,
   CircleDashed,
@@ -647,103 +647,114 @@ function CalendarView({
   }
 
   return (
-    <div
-      className="workspace-calendar-theme -mx-6 overflow-x-auto rounded-none border-0 border-border bg-background md:mx-0 md:rounded-xl md:border"
-      data-can-create={canCreate ? "true" : undefined}
-      data-view={view}
-      data-testid={`calendar-${view}`}
-      ref={rootRef}
-    >
-      <FullCalendar
-        borderless
-        dayCellClass={
-          canCreate && view !== "agenda"
-            ? "hover:bg-primary-quaternary motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out"
-            : undefined
-        }
-        key={`${dateKey}-${timeZone}-${view}`}
-        plugins={[classicTheme, dayGridPlugin, interactionPlugin, listPlugin]}
-        initialDate={dateKey}
-        initialView={pluginView}
-        events={items.map((item) => ({
-          id: item.id,
-          title: item.taskName,
-          start: (pendingMoves[item.id] ?? item.scheduledAt).toISOString(),
-          // Per-event: a released or unowned row is visible but not draggable.
-          startEditable: isMovableCalendarItem(item),
-          durationEditable: false,
-        }))}
-        timeZone={timeZone}
-        headerToolbar={false}
-        height="auto"
-        // Timed events default to "list-item" (dot + time + title); the card
-        // already carries the time, so the dot was the only leftover. Block
-        // mode paints the theme's event blue behind the card; the card is
-        // the only fill wanted.
-        eventDisplay="block"
-        eventColor="transparent"
-        // The list view keeps its list-item dot slot even with a transparent
-        // color, and the theme sets the class per view, so a top-level
-        // override loses; an empty view-level class drops the element and
-        // the 12px gap after it.
-        views={{ list: { listItemEventBeforeClass: "" } }}
-        editable={false}
-        eventDurationEditable={false}
-        eventAllow={(_span, movingEvent) => {
-          const item = movingEvent
-            ? items.find(({ id }) => id === movingEvent.id)
-            : undefined;
-          return Boolean(item && isMovableCalendarItem(item));
-        }}
-        eventDrop={(info) => void handleEventDrop(info)}
-        eventContent={(eventInfo) => {
-          const item = items.find(({ id }) => id === eventInfo.event.id);
-          if (!item) {
-            return eventInfo.event.title;
+    <>
+      <div
+        className="workspace-calendar-theme -mx-6 overflow-x-auto rounded-none border-0 border-border bg-background md:mx-0 md:rounded-xl md:border"
+        data-can-create={canCreate ? "true" : undefined}
+        data-view={view}
+        data-testid={`calendar-${view}`}
+        ref={rootRef}
+      >
+        <FullCalendar
+          borderless
+          dayCellClass={
+            canCreate && view !== "agenda"
+              ? "hover:bg-primary-quaternary motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out"
+              : undefined
           }
-          const start = eventInfo.event.start;
-          return (
-            <CalendarEvent
-              item={item}
-              people={findCalendarPeople(item, coworkers)}
-              onEditSchedule={onEventEdit}
-              onMoveOccurrence={onMoveOccurrence}
-              onRestoreOccurrence={onRestoreOccurrence}
-              onSkipOccurrence={onSkipOccurrence}
-              onOpenTask={onOpenTask}
-              source={sources.find(
-                ({ sourceId }) => sourceId === item.sourceId,
-              )}
-              // FullCalendar's own timeText is en-US shorthand ("8a") in every
-              // locale; format the instant in the calendar zone ourselves.
-              timeText={
-                start ? formatDate(start, "time", { timeZone }) : undefined
-              }
-            />
-          );
-        }}
-        dateClick={(dateInfo) => onDateClick(dateInfo.date)}
-      />
+          key={`${dateKey}-${timeZone}-${view}`}
+          plugins={[classicTheme, dayGridPlugin, interactionPlugin, listPlugin]}
+          initialDate={dateKey}
+          initialView={pluginView}
+          events={items.map((item) => ({
+            id: item.id,
+            title: item.taskName,
+            start: (pendingMoves[item.id] ?? item.scheduledAt).toISOString(),
+            // Per-event: a released or unowned row is visible but not draggable.
+            startEditable: isMovableCalendarItem(item),
+            durationEditable: false,
+          }))}
+          timeZone={timeZone}
+          headerToolbar={false}
+          height="auto"
+          // Timed events default to "list-item" (dot + time + title); the card
+          // already carries the time, so the dot was the only leftover. Block
+          // mode paints the theme's event blue behind the card; the card is
+          // the only fill wanted.
+          eventDisplay="block"
+          eventColor="transparent"
+          // The list view keeps its list-item dot slot even with a transparent
+          // color, and the theme sets the class per view, so a top-level
+          // override loses; an empty view-level class drops the element and
+          // the 12px gap after it.
+          views={{ list: { listItemEventBeforeClass: "" } }}
+          editable={false}
+          eventDurationEditable={false}
+          eventAllow={(_span, movingEvent) => {
+            const item = movingEvent
+              ? items.find(({ id }) => id === movingEvent.id)
+              : undefined;
+            return Boolean(item && isMovableCalendarItem(item));
+          }}
+          eventDrop={(info) => void handleEventDrop(info)}
+          eventContent={(eventInfo) => {
+            const item = items.find(({ id }) => id === eventInfo.event.id);
+            if (!item) {
+              return eventInfo.event.title;
+            }
+            const start = eventInfo.event.start;
+            return (
+              <CalendarEvent
+                item={item}
+                people={findCalendarPeople(item, coworkers)}
+                onEditSchedule={onEventEdit}
+                onMoveOccurrence={onMoveOccurrence}
+                onRestoreOccurrence={onRestoreOccurrence}
+                onSkipOccurrence={onSkipOccurrence}
+                onOpenTask={onOpenTask}
+                source={sources.find(
+                  ({ sourceId }) => sourceId === item.sourceId,
+                )}
+                // FullCalendar's own timeText is en-US shorthand ("8a") in every
+                // locale; format the instant in the calendar zone ourselves.
+                timeText={
+                  start ? formatDate(start, "time", { timeZone }) : undefined
+                }
+              />
+            );
+          }}
+          dateClick={(dateInfo) => onDateClick(dateInfo.date)}
+        />
+      </div>
+      {/*
+        Sticky, not fixed, so it centers on the agenda's own width instead of
+        the viewport, and it lives outside the wrapper because that wrapper
+        is a scroll container which would pin the sticky box to itself.
+      */}
       {view === "agenda" &&
       (agendaScroll.isScrolled || agendaScroll.hasToday) ? (
-        <Button
+        <div
           className={cn(
-            "fixed left-4 z-40 rounded-full shadow-lg md:bottom-6 md:left-6",
+            "pointer-events-none sticky z-40 flex h-0 items-end justify-center md:bottom-6",
             mobileCreateFabBottom(isApple),
           )}
-          size="sm"
-          variant="outline"
-          onClick={handleAgendaJump}
         >
-          {agendaScroll.isScrolled ? (
-            <ArrowUp aria-hidden />
-          ) : (
-            <CalendarDays aria-hidden />
-          )}
-          {t(agendaScroll.isScrolled ? "agenda.backToTop" : "agenda.today")}
-        </Button>
+          <Button
+            className="pointer-events-auto rounded-full shadow-lg"
+            size="sm"
+            variant="outline"
+            onClick={handleAgendaJump}
+          >
+            {agendaScroll.isScrolled ? (
+              <ArrowUp aria-hidden />
+            ) : (
+              <ArrowDown aria-hidden />
+            )}
+            {t(agendaScroll.isScrolled ? "agenda.backToTop" : "agenda.today")}
+          </Button>
+        </div>
       ) : null}
-    </div>
+    </>
   );
 }
 
