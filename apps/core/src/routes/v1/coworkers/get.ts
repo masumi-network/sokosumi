@@ -12,7 +12,10 @@ import {
 import { ok } from "@/helpers/response";
 import { buildAccessibleCoworkersWhere } from "@/helpers/vendor-membership";
 import prisma from "@/lib/db/prisma";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withOrganizationSlugHeaderParameter,
+} from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { coworkerSchema } from "@/schemas/coworker.schema";
@@ -70,7 +73,7 @@ const route = createRoute({
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
-  app.openapi(route, async (c) => {
+  app.openapi(withOrganizationSlugHeaderParameter(route), async (c) => {
     const { scope, capability } = c.req.valid("query");
     const { authContext } = c.var;
 

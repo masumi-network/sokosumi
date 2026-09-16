@@ -339,7 +339,10 @@ export const sokoBotActivitySchema = z
   .openapi("SokoBotActivity");
 
 export const sokoBotStateSchema = z
-  .object({ sokoBot: z.union([sokoBotSchema, z.null()]) })
+  .object({
+    // Keep nullability local without a standalone null schema in generated clients.
+    sokoBot: z.object(sokoBotSchema.shape).nullable(),
+  })
   .openapi("SokoBotState");
 
 export const createSokoBotRequestSchema = z

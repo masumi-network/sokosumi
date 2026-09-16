@@ -1,8 +1,11 @@
+import { OpenAPIHono } from "@hono/zod-openapi";
 import { describe, expect, it } from "vitest";
 
 import {
   adminSokoBotActionRequestSchema,
   adminSokoBotVersionMigrationRequestSchema,
+  sokoBotSchema,
+  sokoBotStateSchema,
 } from "./soko-bot.schema";
 
 describe("adminSokoBotActionRequestSchema", () => {
@@ -90,4 +93,50 @@ describe("adminSokoBotVersionMigrationRequestSchema", () => {
       }),
     ).toThrow();
   });
+});
+
+describe("sokoBotStateSchema", () => {
+  it("requires the nullable bot field", () => {
+    expect(sokoBotStateSchema.parse({ sokoBot: null })).toEqual({
+      sokoBot: null,
+    });
+    expect(sokoBotStateSchema.safeParse({}).success).toBe(false);
+    expect(sokoBotStateSchema.safeParse({ sokoBot: "invalid" }).success).toBe(
+      false,
+    );
+  });
+
+  it.each([true, false])(
+    "keeps nullability local regardless of registration order (%s)",
+    (stateFirst) => {
+      const app = new OpenAPIHono();
+      const schemas = stateFirst
+        ? [sokoBotStateSchema, sokoBotSchema]
+        : [sokoBotSchema, sokoBotStateSchema];
+      for (const schema of schemas) {
+        app.openAPIRegistry.register(
+          schema === sokoBotStateSchema ? "SokoBotState" : "SokoBot",
+          schema,
+        );
+      }
+      const doc = app.getOpenAPI31Document({
+        openapi: "3.1.0",
+        info: { title: "Test", version: "1.0.0" },
+      });
+      expect(doc.components?.schemas?.SokoBot).toMatchObject({
+        type: "object",
+      });
+      // A standalone null branch in anyOf makes Swift codegen omit this field.
+      expect(doc.components?.schemas?.SokoBotState).toMatchObject({
+        required: ["sokoBot"],
+        properties: {
+          sokoBot: {
+            type: ["object", "null"],
+            properties: { id: { type: "string", format: "uuid" } },
+          },
+        },
+      });
+      expect(sokoBotSchema.safeParse(null).success).toBe(false);
+    },
+  );
 });

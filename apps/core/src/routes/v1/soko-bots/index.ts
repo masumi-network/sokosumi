@@ -24,7 +24,10 @@ import {
 } from "@/helpers/pagination";
 import { created, ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
-import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  OpenAPIHonoWithAuth,
+  withOrganizationSlugHeaderParameter,
+} from "@/lib/hono";
 import {
   hasAdminRole,
   isSokoBotAuthContext,
@@ -246,7 +249,7 @@ const getMeRoute = createRoute({
   },
 });
 
-app.openapi(getMeRoute, async (c) => {
+app.openapi(withOrganizationSlugHeaderParameter(getMeRoute), async (c) => {
   const authContext = c.var.authContext;
   const auth = isSokoBotAuthContext(authContext)
     ? authContext
