@@ -15,6 +15,11 @@ const TASK_CONTEXT_ATTACHMENT_LABELS: ReadonlySet<string> = new Set([
   PROJECT_CONTEXT_MD_ATTACHMENT_LABEL,
 ]);
 
+/** True when a markdown link label is owned by the Context section UI. */
+export function isTaskContextAttachmentLabel(label: string): boolean {
+  return TASK_CONTEXT_ATTACHMENT_LABELS.has(label);
+}
+
 export interface TaskContextSelectionSnapshot {
   brandEnabled: boolean;
   brandSource: "project" | "default" | "custom";

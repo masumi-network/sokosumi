@@ -300,6 +300,7 @@ export {
   formatTaskAttachmentMarkdown,
 } from "./task-attachments.js";
 export {
+  isTaskContextAttachmentLabel,
   type ParseTaskContextFromDescriptionOptions,
   PROJECT_BRIEFING_ATTACHMENT_LABEL,
   PROJECT_CONTEXT_MD_ATTACHMENT_LABEL,
