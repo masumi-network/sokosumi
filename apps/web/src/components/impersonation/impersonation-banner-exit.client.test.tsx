@@ -11,11 +11,10 @@ vi.mock("sonner", () => ({
   },
 }));
 
-const stopImpersonationActionMock = vi.fn();
+const stopImpersonationMock = vi.fn();
 
-vi.mock("@/lib/actions/admin-impersonation/action", () => ({
-  stopImpersonationAction: (...args: unknown[]) =>
-    stopImpersonationActionMock(...args),
+vi.mock("@/lib/api/admin-impersonation", () => ({
+  stopImpersonation: (...args: unknown[]) => stopImpersonationMock(...args),
 }));
 
 const reloadMock = vi.fn();
@@ -35,7 +34,7 @@ describe("ImpersonationBannerExit", () => {
   }
 
   it("stops the impersonation and reloads on exit", async () => {
-    stopImpersonationActionMock.mockResolvedValue({
+    stopImpersonationMock.mockResolvedValue({
       ok: true,
       value: { id: "user_admin", name: "A", email: "a@example.com" },
     });
@@ -44,13 +43,13 @@ describe("ImpersonationBannerExit", () => {
 
     await user.click(screen.getByRole("button", { name: "Exit" }));
 
-    expect(stopImpersonationActionMock).toHaveBeenCalledWith({});
+    expect(stopImpersonationMock).toHaveBeenCalledWith();
     expect(reloadMock).toHaveBeenCalled();
   });
 
   it("toasts Core errors without reloading", async () => {
     const { toast } = await import("sonner");
-    stopImpersonationActionMock.mockResolvedValue({
+    stopImpersonationMock.mockResolvedValue({
       ok: false,
       error: { code: "BAD_INPUT", message: "Not currently impersonating" },
     });

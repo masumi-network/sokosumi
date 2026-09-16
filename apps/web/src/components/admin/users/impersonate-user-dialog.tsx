@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { startImpersonationAction } from "@/lib/actions/admin-impersonation/action";
+import { startImpersonation } from "@/lib/api/admin-impersonation";
 
 interface ImpersonateUserDialogProps {
   userId: string;
@@ -53,7 +53,7 @@ export function ImpersonateUserDialog({
     }
     setIsSubmitting(true);
     try {
-      const result = await startImpersonationAction({
+      const result = await startImpersonation({
         userId,
         reason: trimmedReason,
       });

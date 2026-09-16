@@ -34,10 +34,6 @@ vi.mock("@/lib/actions/admin-users/action", () => ({
   listAdminUsersAction: vi.fn(),
 }));
 
-vi.mock("@/lib/actions/admin-impersonation/action", () => ({
-  startImpersonationAction: vi.fn(),
-}));
-
 function createUser(
   overrides: Partial<AdminUserOverviewItem> = {},
 ): AdminUserOverviewItem {

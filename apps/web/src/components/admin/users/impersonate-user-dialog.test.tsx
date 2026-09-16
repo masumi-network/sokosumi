@@ -20,11 +20,10 @@ vi.mock("sonner", () => ({
   },
 }));
 
-const startImpersonationActionMock = vi.fn();
+const startImpersonationMock = vi.fn();
 
-vi.mock("@/lib/actions/admin-impersonation/action", () => ({
-  startImpersonationAction: (...args: unknown[]) =>
-    startImpersonationActionMock(...args),
+vi.mock("@/lib/api/admin-impersonation", () => ({
+  startImpersonation: (...args: unknown[]) => startImpersonationMock(...args),
 }));
 
 const assignMock = vi.fn();
@@ -33,7 +32,7 @@ describe("ImpersonateUserDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal("location", { assign: assignMock });
-    startImpersonationActionMock.mockResolvedValue({
+    startImpersonationMock.mockResolvedValue({
       ok: true,
       value: { id: "user-1", name: "Ada Lovelace", email: "ada@example.com" },
     });
@@ -93,7 +92,7 @@ describe("ImpersonateUserDialog", () => {
     );
     await user.click(await screen.findByRole("button", { name: "start" }));
 
-    expect(startImpersonationActionMock).toHaveBeenCalledWith({
+    expect(startImpersonationMock).toHaveBeenCalledWith({
       userId: "user-1",
       reason: "SOK-1080: reproduce",
     });
@@ -102,7 +101,7 @@ describe("ImpersonateUserDialog", () => {
 
   it("toasts Core errors and stays open without navigating", async () => {
     const { toast } = await import("sonner");
-    startImpersonationActionMock.mockResolvedValue({
+    startImpersonationMock.mockResolvedValue({
       ok: false,
       error: {
         code: "FORBIDDEN",

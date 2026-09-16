@@ -4,7 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { stopImpersonationAction } from "@/lib/actions/admin-impersonation/action";
+import { stopImpersonation } from "@/lib/api/admin-impersonation";
 import { cn } from "@/lib/utils";
 
 interface ImpersonationBannerExitProps {
@@ -24,7 +24,7 @@ export function ImpersonationBannerExit({
   async function handleExit() {
     setIsExiting(true);
     try {
-      const result = await stopImpersonationAction({});
+      const result = await stopImpersonation();
       if (!result.ok) {
         toast.error(result.error.message ?? errorMessage);
         return;
