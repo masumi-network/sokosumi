@@ -1,0 +1,244 @@
+import { createEmailTranslator } from "../i18n/translate.js";
+import {
+  type ActionEmailFact,
+  renderActionEmail,
+} from "../templates/action-email.js";
+import type {
+  ChatDirectMessageFollowUpEmailProps,
+  ChatMentionFollowUpEmailProps,
+  JobFollowUpEmailProps,
+  RenderedEmail,
+  TaskFollowUpEmailProps,
+} from "../types.js";
+
+/**
+ * The reminder emails (SOK-916).
+ *
+ * One per family rather than one for all four. A mention, a direct message, a
+ * task that stopped for you and a job that stopped for you are four different
+ * things to the reader, and a single "you have an unread notification" would
+ * say less than the notification it is reminding them about.
+ *
+ * Each is the same shape underneath: the existing action email, which every
+ * other transactional email in this package already uses. The families differ
+ * in their words and their button, not in their layout, so none of them brings
+ * a template of its own.
+ *
+ * The words live in the three locale catalogs under `notifications.followUp`.
+ * The caller chooses the locale, as with every renderer here. Today Core has
+ * nothing better to pass than English, because `User` carries no locale, which
+ * is a gap named in the spec rather than one this file can close.
+ */
+
+const FOLLOW_UP_SCOPE = "notifications.followUp";
+
+type TranslateFn = ReturnType<typeof createEmailTranslator>["t"];
+
+/**
+ * The reader's name, or a greeting that does without one.
+ *
+ * Two catalog entries rather than one with an empty name, because "Hi ," is
+ * worse in every language than "Hi".
+ */
+function buildGreeting(t: TranslateFn, name: null | string | undefined) {
+  const trimmedName = name?.trim();
+
+  if (!trimmedName) {
+    return t(`${FOLLOW_UP_SCOPE}.greetingWithoutName`);
+  }
+
+  return t(`${FOLLOW_UP_SCOPE}.greeting`, { name: trimmedName });
+}
+
+/**
+ * A name the email can use, or a translated stand-in.
+ *
+ * The parameters come from the notification that is being reminded about, and
+ * a row can legitimately be missing one. A subject line reading "is still
+ * waiting for you" with a hole in it would be worse than one that says
+ * "Your task", so the hole is filled rather than left.
+ */
+function nameOr(
+  t: TranslateFn,
+  value: null | string | undefined,
+  fallbackKey: string,
+): string {
+  const trimmedValue = value?.trim();
+
+  return trimmedValue ? trimmedValue : t(`${FOLLOW_UP_SCOPE}.${fallbackKey}`);
+}
+
+interface FollowUpEmailOptions {
+  actionUrl: string;
+  facts?: readonly ActionEmailFact[];
+  family: "directMessage" | "job" | "mention" | "task";
+  quote?: null | string;
+  /**
+   * Why the thing is waiting, named by the notification that started it.
+   *
+   * A task stops for six different reasons and a job for two, and "it needs
+   * you" says none of them. The reminder is stored under one message key per
+   * family so that a task asking twice in a day is still one reminder, so the
+   * reason comes from the source row rather than from the reminder.
+   *
+   * Absent when the source key is one this catalog has no sentence for, which
+   * leaves the family's own body. A union rather than a string, so a key with
+   * no sentence cannot reach the catalog and fail to resolve.
+   */
+  reason?: null | string;
+  recipientName?: null | string;
+  t: TranslateFn;
+  values: Record<string, string>;
+}
+
+function renderFollowUpEmail({
+  actionUrl,
+  facts,
+  family,
+  quote,
+  reason,
+  recipientName,
+  t,
+  values,
+}: FollowUpEmailOptions): Promise<RenderedEmail> {
+  const scope = `${FOLLOW_UP_SCOPE}.${family}`;
+  const trimmedQuote = quote?.trim();
+  const body = reason
+    ? t(`${scope}.reasons.${reason}`, values)
+    : t(`${scope}.body`, values);
+
+  return renderActionEmail({
+    actionLabel: t(`${scope}.button`),
+    actionUrl,
+    body,
+    facts,
+    footer: t(`${FOLLOW_UP_SCOPE}.footer`),
+    greeting: buildGreeting(t, recipientName),
+    linkInstructions: t(`${FOLLOW_UP_SCOPE}.linkInstructions`),
+    // The preheader is the family's own line only when the body is too. A
+    // reason sentence says the task was assigned, or that a payment failed,
+    // and the family preheader says the opposite ("stopped and asked for
+    // you"), so the two lines would contradict each other inside one email.
+    preview: reason ? body : t(`${scope}.preview`, values),
+    quote: trimmedQuote ? trimmedQuote : undefined,
+    subject: t(`${scope}.subject`, values),
+    title: t(`${scope}.title`),
+  });
+}
+
+/** A mention in a named room that the reader never opened. */
+export function renderChatMentionFollowUpEmail({
+  actionUrl,
+  authorName,
+  locale,
+  messagePreview,
+  recipientName,
+  roomName,
+}: ChatMentionFollowUpEmailProps): Promise<RenderedEmail> {
+  const { t } = createEmailTranslator(locale);
+
+  return renderFollowUpEmail({
+    actionUrl,
+    family: "mention",
+    quote: messagePreview,
+    recipientName,
+    t,
+    values: {
+      authorName: nameOr(t, authorName, "fallbackAuthorName"),
+      roomName: nameOr(t, roomName, "fallbackRoomName"),
+    },
+  });
+}
+
+/**
+ * A direct message the reader never opened.
+ *
+ * No room name, deliberately. A room of two is named after the other person,
+ * who here is the author, so naming it would name them twice. The in-app
+ * reminder makes the same choice.
+ */
+export function renderChatDirectMessageFollowUpEmail({
+  actionUrl,
+  authorName,
+  locale,
+  messagePreview,
+  recipientName,
+}: ChatDirectMessageFollowUpEmailProps): Promise<RenderedEmail> {
+  const { t } = createEmailTranslator(locale);
+
+  return renderFollowUpEmail({
+    actionUrl,
+    family: "directMessage",
+    quote: messagePreview,
+    recipientName,
+    t,
+    values: { authorName: nameOr(t, authorName, "fallbackAuthorName") },
+  });
+}
+
+/** A task still waiting on the reader: input, approval, authentication, credits. */
+export function renderTaskFollowUpEmail({
+  actionUrl,
+  coworkerName,
+  locale,
+  projectName,
+  reason,
+  recipientName,
+  taskName,
+}: TaskFollowUpEmailProps): Promise<RenderedEmail> {
+  const { t } = createEmailTranslator(locale);
+  const trimmedProjectName = projectName?.trim();
+
+  return renderFollowUpEmail({
+    actionUrl,
+    facts: trimmedProjectName
+      ? [
+          {
+            label: t(`${FOLLOW_UP_SCOPE}.task.projectLabel`),
+            value: trimmedProjectName,
+          },
+        ]
+      : undefined,
+    family: "task",
+    reason,
+    recipientName,
+    t,
+    values: {
+      coworkerName: nameOr(t, coworkerName, "fallbackCoworkerName"),
+      taskName: nameOr(t, taskName, "fallbackTaskName"),
+    },
+  });
+}
+
+/** A job still waiting on the reader: input, or a payment that failed. */
+export function renderJobFollowUpEmail({
+  actionUrl,
+  agentName,
+  jobName,
+  locale,
+  reason,
+  recipientName,
+}: JobFollowUpEmailProps): Promise<RenderedEmail> {
+  const { t } = createEmailTranslator(locale);
+  const trimmedAgentName = agentName?.trim();
+
+  return renderFollowUpEmail({
+    actionUrl,
+    facts: trimmedAgentName
+      ? [
+          {
+            label: t(`${FOLLOW_UP_SCOPE}.job.agentLabel`),
+            value: trimmedAgentName,
+          },
+        ]
+      : undefined,
+    family: "job",
+    reason,
+    recipientName,
+    t,
+    values: {
+      agentName: nameOr(t, agentName, "fallbackAgentName"),
+      jobName: nameOr(t, jobName, "fallbackJobName"),
+    },
+  });
+}

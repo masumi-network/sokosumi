@@ -3822,11 +3822,11 @@ export type NotificationPreference = {
     /**
      * What the notification is about
      */
-    category: 'JOB_ATTENTION' | 'JOB_COMPLETED' | 'JOB_UPDATE' | 'TASK_ATTENTION' | 'TASK_COMPLETED' | 'TASK_UPDATE' | 'CHAT_ROOM_MESSAGE' | 'CHAT_MENTION' | 'CHAT_DIRECT_MESSAGE' | 'SYSTEM';
+    category: 'JOB_ATTENTION' | 'JOB_COMPLETED' | 'JOB_UPDATE' | 'TASK_ATTENTION' | 'TASK_COMPLETED' | 'TASK_UPDATE' | 'CHAT_ROOM_MESSAGE' | 'CHAT_MENTION' | 'CHAT_DIRECT_MESSAGE' | 'SYSTEM' | 'FOLLOW_UP';
     /**
-     * Where it is delivered: in the app, or as an OS banner (which also needs pushOptIn)
+     * Where it is delivered: in the app, as an OS banner (which also needs pushOptIn), or by email (offered only on the categories that mail)
      */
-    channel: 'IN_APP' | 'OS_BANNER';
+    channel: 'IN_APP' | 'OS_BANNER' | 'EMAIL';
     /**
      * Whether the reader wants this category on this channel
      */
@@ -4900,6 +4900,24 @@ export type MarkNotificationsReadRequest = {
      * Notification IDs to mark as read
      */
     ids: Array<string>;
+};
+
+export type MarkReadForReferenceResponse = {
+    /**
+     * Number of notifications this call marked as read
+     */
+    count: number;
+};
+
+export type MarkReadForReferenceRequest = {
+    /**
+     * Kind of the notifications to mark read.
+     */
+    kind: 'TASK' | 'JOB';
+    /**
+     * The task or job the notifications point at. Required and non-empty, so this route can never read a kind in bulk.
+     */
+    referenceId: string;
 };
 
 export type GetInvitationResult = {
@@ -33699,6 +33717,85 @@ export type PatchNotificationsReadResponses = {
 };
 
 export type PatchNotificationsReadResponse = PatchNotificationsReadResponses[keyof PatchNotificationsReadResponses];
+
+export type PatchNotificationsReadForReferenceData = {
+    body?: MarkReadForReferenceRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/notifications/read-for-reference';
+};
+
+export type PatchNotificationsReadForReferenceErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchNotificationsReadForReferenceError = PatchNotificationsReadForReferenceErrors[keyof PatchNotificationsReadForReferenceErrors];
+
+export type PatchNotificationsReadForReferenceResponses = {
+    /**
+     * Notifications marked as read
+     */
+    200: {
+        data: MarkReadForReferenceResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchNotificationsReadForReferenceResponse = PatchNotificationsReadForReferenceResponses[keyof PatchNotificationsReadForReferenceResponses];
 
 export type GetInvitationsByIdData = {
     body?: never;

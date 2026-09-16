@@ -4150,7 +4150,7 @@
         "channelPush": "Push",
         "channelPushHint": "Auf deinem Gerät, auch wenn Sokosumi geschlossen ist.",
         "channelEmail": "E-Mail",
-        "channelEmailHint": "Ein Schalter hinter jeder Job-E-Mail: eine E-Mail, wenn ein Job abgeschlossen ist, geklärt wurde oder auf deine Eingabe wartet.",
+        "channelEmailHint": "Wohin Sokosumi dir E-Mails schickt. Erinnerungen haben eine eigene Zelle. Alle Job-E-Mails teilen sich einen Schalter: eine E-Mail, wenn ein Job abgeschlossen ist, geklärt wurde oder auf deine Eingabe wartet.",
         "channelsKindLabel": "Benachrichtigung",
         "channelsLegendLabel": "Was die Spalten bedeuten",
         "channelEmailFallbackHint": "Eine E-Mail, wenn ein Job abgeschlossen ist, geklärt wurde oder auf deine Eingabe wartet.",
@@ -4162,7 +4162,9 @@
         "channelEmailSoonLabel": "E-Mail, noch nicht für {kind}",
         "channelEmailSoonHint": "Sokosumi sendet für diese Benachrichtigung noch keine E-Mail.",
         "deliveryAriaLabel": "Zustellung für {kind}",
-        "newsDeliveryAriaLabel": "Zustellung für Marketing-E-Mails"
+        "newsDeliveryAriaLabel": "Zustellung für Marketing-E-Mails",
+        "kindFollowUp": "Erinnerungen",
+        "kindFollowUpHint": "Eine Erinnerung einen Tag später, wenn du etwas nicht geöffnet hast, das auf dich wartet."
       },
       "ChatDisplay": {
         "title": "Chat-Anzeige",
@@ -6444,7 +6446,8 @@
         "paymentFailed": "Zahlung für {jobName} fehlgeschlagen",
         "inputRequired": "{agentName} benötigt deinen Input für {jobName}",
         "refundResolved": "{jobName} wurde erstattet",
-        "disputeResolved": "Einspruch für {jobName} gelöst"
+        "disputeResolved": "Einspruch für {jobName} gelöst",
+        "followUp": "{jobName} wartet weiterhin auf dich"
       },
       "Task": {
         "inputRequired": "{coworkerName} benötigt deinen Input für {taskName}",
@@ -6456,7 +6459,8 @@
         "canceled": "{taskName} wurde abgebrochen",
         "scheduleRepaired": "Der Zeitplan für {taskName} wurde repariert",
         "scheduleRemovedByOperator": "Der Zeitplan für {taskName} wurde nach der Prüfung entfernt",
-        "assigned": "Dir wurde {taskName} zugewiesen"
+        "assigned": "Dir wurde {taskName} zugewiesen",
+        "followUp": "{taskName} wartet weiterhin auf dich"
       },
       "Chat": {
         "mentioned": "{authorName} hat dich in {roomName} erwähnt",
@@ -6469,7 +6473,10 @@
         "roomMessagesGroup": "{count} Nachrichten in der Gruppe {roomName}",
         "roomMessageTitle": "{authorName} im Kanal {roomName}",
         "roomMessageGroupTitle": "{authorName} in der Gruppe {roomName}",
-        "mentionAll": "Alle"
+        "mentionAll": "Alle",
+        "mentionedFollowUp": "{authorName} wartet weiterhin auf dich in {roomName}",
+        "mentionedDirectFollowUp": "{authorName} wartet weiterhin auf deine Antwort",
+        "directMessageFollowUp": "{authorName} wartet weiterhin auf deine Antwort"
       }
     }
   },

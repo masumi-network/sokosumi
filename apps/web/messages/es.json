@@ -4150,7 +4150,7 @@
         "channelPush": "Push",
         "channelPushHint": "En tu dispositivo, aunque Sokosumi esté cerrado.",
         "channelEmail": "Email",
-        "channelEmailHint": "Un interruptor detrás de cada email de trabajos: un email cuando un trabajo se completa, se resuelve o espera tu input.",
+        "channelEmailHint": "Dónde Sokosumi te envía emails. Los recordatorios tienen su propia celda. Todos los emails de trabajos comparten un interruptor: un email cuando un trabajo se completa, se resuelve o espera tu input.",
         "channelsKindLabel": "Notificación",
         "channelsLegendLabel": "Qué significan las columnas",
         "channelEmailFallbackHint": "Un email cuando un trabajo se completa, se resuelve o espera tu input.",
@@ -4162,7 +4162,9 @@
         "channelEmailSoonLabel": "Email, todavía no se envía para {kind}",
         "channelEmailSoonHint": "Sokosumi todavía no envía email para esta notificación.",
         "deliveryAriaLabel": "Entrega para {kind}",
-        "newsDeliveryAriaLabel": "Entrega para los emails de marketing"
+        "newsDeliveryAriaLabel": "Entrega para los emails de marketing",
+        "kindFollowUp": "Recordatorios",
+        "kindFollowUpHint": "Un recordatorio un día después si no has abierto algo que te está esperando."
       },
       "ChatDisplay": {
         "title": "Visualización del chat",
@@ -6444,7 +6446,8 @@
         "paymentFailed": "Error de pago para {jobName}",
         "inputRequired": "{agentName} necesita tu input para {jobName}",
         "refundResolved": "{jobName} fue reembolsado",
-        "disputeResolved": "Disputa resuelta para {jobName}"
+        "disputeResolved": "Disputa resuelta para {jobName}",
+        "followUp": "{jobName} sigue esperándote"
       },
       "Task": {
         "inputRequired": "{coworkerName} necesita tu input para {taskName}",
@@ -6456,7 +6459,8 @@
         "canceled": "{taskName} fue cancelado",
         "scheduleRepaired": "Se reparó la programación de {taskName}",
         "scheduleRemovedByOperator": "Se eliminó la programación de {taskName} después de revisarla",
-        "assigned": "Se te asignó {taskName}"
+        "assigned": "Se te asignó {taskName}",
+        "followUp": "{taskName} sigue esperándote"
       },
       "Chat": {
         "mentioned": "{authorName} te mencionó en {roomName}",
@@ -6469,7 +6473,10 @@
         "roomMessagesGroup": "{count} mensajes en el grupo {roomName}",
         "roomMessageTitle": "{authorName} en el canal {roomName}",
         "roomMessageGroupTitle": "{authorName} en el grupo {roomName}",
-        "mentionAll": "Todos"
+        "mentionAll": "Todos",
+        "mentionedFollowUp": "{authorName} sigue esperándote en {roomName}",
+        "mentionedDirectFollowUp": "{authorName} sigue esperando tu respuesta",
+        "directMessageFollowUp": "{authorName} sigue esperando tu respuesta"
       }
     }
   },

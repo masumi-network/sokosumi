@@ -14,6 +14,7 @@ const findExistingOrganizationInvoiceSubscriptionBucketMock = vi.fn();
 const createTransactionMock = vi.fn();
 const findOutOfCreditsTasksMock = vi.fn();
 const updateTaskMock = vi.fn();
+const updateNotificationsMock = vi.fn();
 const resolveOrganizationBillingPlanMock = vi.fn();
 
 const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) =>
@@ -23,6 +24,9 @@ const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) =>
     },
     transaction: {
       create: (...args: unknown[]) => createTransactionMock(...args),
+    },
+    notification: {
+      updateMany: (...args: unknown[]) => updateNotificationsMock(...args),
     },
     task: {
       findMany: (...args: unknown[]) => findOutOfCreditsTasksMock(...args),
@@ -1478,6 +1482,18 @@ describe("handleInvoicePaidEvent", () => {
         id: true,
       },
     });
+    expect(updateNotificationsMock).toHaveBeenCalledTimes(2);
+    for (const taskId of ["task-1", "task-2"]) {
+      expect(updateNotificationsMock).toHaveBeenCalledWith({
+        where: {
+          kind: "TASK",
+          referenceId: taskId,
+          messageKey: "Notifications.Task.outOfCredits",
+          isRead: false,
+        },
+        data: { isRead: true, readAt: expect.any(Date) },
+      });
+    }
     expect(updateTaskMock).toHaveBeenCalledTimes(2);
     expect(updateTaskMock).toHaveBeenNthCalledWith(1, {
       where: {
@@ -1541,5 +1557,11 @@ describe("handleInvoicePaidEvent", () => {
 
     expect(createTransactionMock).toHaveBeenCalledTimes(1);
     expect(updateTaskMock).toHaveBeenCalledTimes(2);
+    expect(updateNotificationsMock).toHaveBeenCalledOnce();
+    expect(updateNotificationsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ referenceId: "task-2" }),
+      }),
+    );
   });
 });

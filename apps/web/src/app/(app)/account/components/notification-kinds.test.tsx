@@ -111,6 +111,11 @@ const MATRIX = [
   { category: "CHAT_DIRECT_MESSAGE", channel: "OS_BANNER", enabled: true },
   { category: "SYSTEM", channel: "IN_APP", enabled: true },
   { category: "SYSTEM", channel: "OS_BANNER", enabled: false },
+  // The one category Core stores an email cell for, so the one row here that
+  // carries three cells rather than two (SOK-916).
+  { category: "FOLLOW_UP", channel: "IN_APP", enabled: true },
+  { category: "FOLLOW_UP", channel: "OS_BANNER", enabled: false },
+  { category: "FOLLOW_UP", channel: "EMAIL", enabled: true },
 ];
 
 /** The stored matrix as the fake Core holds it, so a write can be read back. */
@@ -2682,6 +2687,69 @@ describe("NotificationKinds", () => {
     // Proving the query above can find it at all.
     await user.click(emailCell("kindJobAttention"));
     expect(setJobEmails).toHaveBeenCalledWith(false);
+  });
+
+  /**
+   * The reminder row's email is a cell of the matrix, not the account switch.
+   * Core mails a reminder when this cell says so, the same way it raises an
+   * entry when the cell beside it does (SOK-916).
+   */
+  it("writes the reminder emails into the matrix", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    expect(emailCell("kindFollowUp")).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(emailCell("kindFollowUp"));
+
+    expect(written("FOLLOW_UP", "EMAIL")).toBe(false);
+    // And nothing of the account's, which is the job rows' control.
+    expect(setJobEmails).not.toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(emailCell("kindFollowUp")).toHaveAttribute(
+        "aria-pressed",
+        "false",
+      );
+    });
+  });
+
+  /**
+   * Every press on a row sends the whole row. A press on In app that left the
+   * email cell out of the write would switch a reader's reminder emails off
+   * without saying so.
+   */
+  it("keeps the reminder emails through a press on another cell", async () => {
+    renderKinds();
+
+    await toggle("kindFollowUp", "channelInApp");
+
+    expect(written("FOLLOW_UP", "IN_APP")).toBe(false);
+    expect(written("FOLLOW_UP", "EMAIL")).toBe(true);
+  });
+
+  /**
+   * The row speaks what it now says, email included. Read after a press that
+   * turns email on, so a sentence built from the columns alone fails here
+   * rather than passing on the cells it does name.
+   */
+  it("reads the reminder row out with its email cell in it", async () => {
+    const user = userEvent.setup();
+    renderKinds(
+      MATRIX.map((cell) =>
+        cell.category === "FOLLOW_UP" && cell.channel === "EMAIL"
+          ? { ...cell, enabled: false }
+          : cell,
+      ),
+    );
+
+    await user.click(emailCell("kindFollowUp"));
+
+    await waitFor(() => {
+      expect(spoken(stops("kindFollowUp"))).toBe(
+        "channelsAnnounce kindFollowUp channelInApp, channelEmail",
+      );
+    });
   });
 
   /**

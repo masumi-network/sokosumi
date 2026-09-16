@@ -8,6 +8,8 @@ import { SokosumiJobStatus } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { JOB_ATTENTION_MESSAGE_KEYS } from "@/helpers/notification-delivery";
+
 import { PURCHASE_DIFF_SYNC_METADATA_KEY } from "./job-purchase-diff.service";
 import { jobSyncService } from "./job-sync.service";
 
@@ -189,10 +191,19 @@ vi.mock("@/helpers/notifications", () => ({
   createNotification: createNotificationMock,
 }));
 
+const { notificationUpdateManyAndReturnMock } = vi.hoisted(() => ({
+  notificationUpdateManyAndReturnMock: vi.fn(),
+}));
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     job: {
       findMany: prismaJobFindManyMock,
+    },
+    // A settled job marks its own attention rows read, so the notification
+    // dispatch writes here as well as through `createNotification` (SOK-916).
+    notification: {
+      updateManyAndReturn: notificationUpdateManyAndReturnMock,
     },
     jobPurchase: {
       findMany: jobPurchaseFindManyMock,
@@ -469,6 +480,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       notification: { id: "notif_1" },
       created: true,
     });
+    notificationUpdateManyAndReturnMock.mockResolvedValue([]);
     updateJobPurchaseByJobIdMock.mockResolvedValue(undefined);
     global.fetch = requestFetchMock as unknown as typeof fetch;
     requestFetchMock.mockResolvedValue(new Response(null, { status: 200 }));
@@ -1744,6 +1756,26 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         workspaceId: "11111111-1111-7111-8111-111111111111",
       },
     });
+    // SOK-916 story 16. A job that finished while the reader was away has
+    // stopped waiting on them, so whatever it left unread stops being a
+    // question and the follow-up sync has nothing to remind them about.
+    expect(notificationUpdateManyAndReturnMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userId: "user_1",
+          kind: NotificationKind.JOB,
+          referenceId: "job_1",
+          isRead: false,
+          messageKey: { in: [...JOB_ATTENTION_MESSAGE_KEYS] },
+        }),
+      }),
+    );
+    // And before the outcome write, not after it. `createNotification`
+    // rethrows any write error that is not a unique violation, so clearing
+    // afterwards would be skipped on the one run that settled the job.
+    expect(
+      notificationUpdateManyAndReturnMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(createNotificationMock.mock.invocationCallOrder[0]);
   });
 
   it("still notifies an owner who turned the account-wide emails off", async () => {

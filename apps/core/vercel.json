@@ -48,6 +48,10 @@
       "schedule": "0 3 * * *"
     },
     {
+      "path": "/sync/notification-follow-ups",
+      "schedule": "15 * * * *"
+    },
+    {
       "path": "/sync/jobs",
       "schedule": "* * * * *"
     },
