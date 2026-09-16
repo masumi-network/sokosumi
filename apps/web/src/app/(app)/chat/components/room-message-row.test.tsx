@@ -2122,8 +2122,16 @@ describe("ChatMessageRow", () => {
     expect(card).toHaveAttribute("target", "_blank");
     expect(card).toHaveAttribute("rel", "noopener noreferrer");
     // Hug content (thumbnail / text); do not stretch muted background full row.
-    expect(card).toHaveClass("inline-block", "w-fit", "max-w-full");
+    // Cap at 25rem to match the Apple card, and at 100% so a phone/thread
+    // column narrower than 400px does not clip the card.
+    expect(card).toHaveClass(
+      "inline-block",
+      "w-fit",
+      "max-w-[min(100%,25rem)]",
+    );
     expect(card).not.toHaveClass("w-full");
+    expect(card).not.toHaveClass("max-w-full");
+    expect(card).not.toHaveClass("max-w-100");
     expect(card).toHaveTextContent("Example");
     expect(card).toHaveTextContent("Example Article");
     expect(card).toHaveTextContent("A short summary of the page.");
@@ -2132,21 +2140,21 @@ describe("ChatMessageRow", () => {
       "src",
       "https://cdn.example.com/og.png",
     );
-    // Keep intrinsic aspect ratio (do not force w-full + max-h + object-cover).
-    // Until the image loads its box is the cap itself, so a row scrolled
-    // into a virtualized list does not grow under the reader; afterwards it
-    // takes its own size, capped.
-    expect(unfurlImage).toHaveClass("h-48", "w-auto", "max-w-full");
+    // Fill the text column so the image edge lines up with the title. Until
+    // the image loads its box is the cap itself, so a row scrolled into a
+    // virtualized list does not grow under the reader.
+    expect(unfurlImage).toHaveClass("h-50", "w-full", "object-cover");
     fireEvent.load(unfurlImage);
-    // `w-auto` beats the remembered `width` attribute, so the capped height
-    // shrinks the width with it instead of squashing the image flat.
+    // The remembered `width`/`height` attributes supply the ratio, so a wide
+    // preview keeps its own height under the cap and only a tall one is
+    // cropped by `object-cover`.
     expect(unfurlImage).toHaveClass(
       "h-auto",
-      "max-h-48",
-      "w-auto",
-      "max-w-full",
+      "max-h-50",
+      "w-full",
+      "object-cover",
     );
-    expect(unfurlImage).not.toHaveClass("w-full", "object-cover");
+    expect(unfurlImage).not.toHaveClass("w-auto", "max-w-full");
     // Markdown body still present (links stay clickable in body).
     expect(screen.getByTestId("room-message-body")).toHaveTextContent(
       "Check https://example.com/article",
