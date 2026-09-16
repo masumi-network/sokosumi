@@ -110,6 +110,11 @@ describe("markSettledAttentionRead", () => {
    * SOK-916 user stories 14 and 15. A task nobody was waiting on any more left
    * its attention row unread, and the follow-up sync would have reminded the
    * reader a day later to answer a question that had stopped being asked.
+   *
+   * Every attention key except the operator-removed schedule. That row asks
+   * the owner to put a schedule back, which a run completing, failing or
+   * being canceled answers not at all, and the schedule is still gone
+   * afterwards.
    */
   it.each([
     "Notifications.Task.completed",
@@ -138,31 +143,6 @@ describe("markSettledAttentionRead", () => {
           },
         }),
       }),
-    );
-  });
-
-  /**
-   * The operator-removed schedule is the one attention row a run does not
-   * end. It says the operator took the schedule away and the owner has to put
-   * it back, which a run completing, failing or being canceled answers not at
-   * all. The schedule is still gone afterwards.
-   */
-  it.each([
-    "Notifications.Task.completed",
-    "Notifications.Task.failed",
-    "Notifications.Task.canceled",
-  ])("leaves the removed schedule outstanding after %s", async (key) => {
-    await markSettledAttentionRead(
-      "user_123",
-      NotificationKind.TASK,
-      "task_123",
-      key,
-    );
-
-    const [call] = notificationUpdateManyAndReturnMock.mock.calls;
-
-    expect(call?.[0].where.messageKey.in).not.toContain(
-      "Notifications.Task.scheduleRemovedByOperator",
     );
   });
 

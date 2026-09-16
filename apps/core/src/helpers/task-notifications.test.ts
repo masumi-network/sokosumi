@@ -2,20 +2,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   createNotificationMock,
-  markNotificationsReadMock,
+  markAttentionReadMock,
   markSettledAttentionReadMock,
   prismaTaskFindUniqueMock,
   prismaUserFindUniqueMock,
 } = vi.hoisted(() => ({
   createNotificationMock: vi.fn(),
-  markNotificationsReadMock: vi.fn(),
+  markAttentionReadMock: vi.fn(),
   markSettledAttentionReadMock: vi.fn(),
   prismaTaskFindUniqueMock: vi.fn(),
   prismaUserFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("./notification-read.js", () => ({
-  markNotificationsRead: markNotificationsReadMock,
+  markAttentionRead: markAttentionReadMock,
   markSettledAttentionRead: markSettledAttentionReadMock,
 }));
 
@@ -241,10 +241,7 @@ describe("notifyTaskHumanAssignee", () => {
 describe("markTaskAssignedRead", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    markNotificationsReadMock.mockResolvedValue({
-      count: 1,
-      clearedRoomIds: [],
-    });
+    markAttentionReadMock.mockResolvedValue(1);
   });
 
   /**
@@ -255,30 +252,20 @@ describe("markTaskAssignedRead", () => {
   it("marks the previous holder's assigned row read", async () => {
     await markTaskAssignedRead("user_2", "task_1");
 
-    expect(markNotificationsReadMock).toHaveBeenCalledWith("user_2", {
-      kind: "TASK",
-      referenceId: "task_1",
-      messageKey: { in: ["Notifications.Task.assigned"] },
-    });
-  });
-
-  /** Best-effort: the reassignment it follows has already committed. */
-  it("reports a failure rather than throwing it at the caller", async () => {
-    markNotificationsReadMock.mockRejectedValue(new Error("write failed"));
-
-    await expect(
-      markTaskAssignedRead("user_2", "task_1"),
-    ).resolves.toBeUndefined();
+    expect(markAttentionReadMock).toHaveBeenCalledWith(
+      "user_2",
+      "TASK",
+      "task_1",
+      ["Notifications.Task.assigned"],
+      "task-assigned-read",
+    );
   });
 });
 
 describe("markTaskArchivedRead", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    markNotificationsReadMock.mockResolvedValue({
-      count: 1,
-      clearedRoomIds: [],
-    });
+    markAttentionReadMock.mockResolvedValue(1);
   });
 
   const ARCHIVED_TASK = {
@@ -298,11 +285,13 @@ describe("markTaskArchivedRead", () => {
     await markTaskArchivedRead(ARCHIVED_TASK);
 
     for (const readerId of ["user_1", "user_2"]) {
-      expect(markNotificationsReadMock).toHaveBeenCalledWith(readerId, {
-        kind: "TASK",
-        referenceId: "task_1",
-        messageKey: { in: [...TASK_ATTENTION_MESSAGE_KEYS] },
-      });
+      expect(markAttentionReadMock).toHaveBeenCalledWith(
+        readerId,
+        "TASK",
+        "task_1",
+        TASK_ATTENTION_MESSAGE_KEYS,
+        "task-archived-read",
+      );
     }
   });
 
@@ -310,13 +299,6 @@ describe("markTaskArchivedRead", () => {
   it("writes once when the owner holds the task", async () => {
     await markTaskArchivedRead({ ...ARCHIVED_TASK, assigneeUserId: "user_1" });
 
-    expect(markNotificationsReadMock).toHaveBeenCalledTimes(1);
-  });
-
-  /** Best-effort: the archive it follows has already committed. */
-  it("reports a failure rather than throwing it at the caller", async () => {
-    markNotificationsReadMock.mockRejectedValue(new Error("write failed"));
-
-    await expect(markTaskArchivedRead(ARCHIVED_TASK)).resolves.toBeUndefined();
+    expect(markAttentionReadMock).toHaveBeenCalledTimes(1);
   });
 });

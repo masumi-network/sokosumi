@@ -127,22 +127,46 @@ export async function markSettledAttentionRead(
     return 0;
   }
 
+  return markAttentionRead(
+    userId,
+    kind,
+    referenceId,
+    attentionKeys,
+    "settled-attention-read",
+  );
+}
+
+/**
+ * Mark a reader's outstanding attention rows for one record read.
+ *
+ * The write every caller above shares, and the one place that decides what a
+ * failure costs. Which keys stop waiting is the caller's question, because it
+ * is a different question for a settled run, a reassignment and an archive.
+ *
+ * Best-effort, and reports rather than throws. Every caller is notification
+ * work scheduled after its transaction has committed, so a failure here must
+ * not cost the reader the write it sits next to, and must not undo the change
+ * it is tidying up after. Returns the rows cleared, or zero when the write
+ * failed. `notificationType` is what tells the two apart in Sentry.
+ */
+export async function markAttentionRead(
+  userId: string,
+  kind: NotificationKind,
+  referenceId: string,
+  messageKeys: readonly string[],
+  notificationType: string,
+): Promise<number> {
   try {
     const { count } = await markNotificationsRead(userId, {
       kind,
       referenceId,
-      messageKey: { in: [...attentionKeys] },
+      messageKey: { in: [...messageKeys] },
     });
 
     return count;
   } catch (error) {
     Sentry.captureException(error, {
-      extra: {
-        userId,
-        referenceId,
-        settledByMessageKey,
-        notificationType: "settled-attention-read",
-      },
+      extra: { userId, referenceId, notificationType },
     });
 
     return 0;

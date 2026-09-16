@@ -1,11 +1,11 @@
 import * as Sentry from "@sentry/node";
 import { NotificationKind } from "@sokosumi/database";
 
-import { TASK_ATTENTION_MESSAGE_KEYS } from "@/helpers/notification-delivery";
 import prisma from "@/lib/db/prisma";
 
+import { TASK_ATTENTION_MESSAGE_KEYS } from "./notification-delivery.js";
 import {
-  markNotificationsRead,
+  markAttentionRead,
   markSettledAttentionRead,
 } from "./notification-read.js";
 import { createNotification } from "./notifications.js";
@@ -119,23 +119,15 @@ export async function dispatchTaskNotification(
       },
     });
 
-    // A task that has settled is no longer waiting on the reader, however it
-    // got there. Whatever it left unread stops being a question, so it stops
-    // being unread. Does nothing for the keys that are not terminal, and
-    // reports rather than throws.
+    // A task that has settled is no longer waiting on either reader, however
+    // it got there, so whatever it left unread stops being a question.
     //
-    // Before the write rather than after it, because `createNotification`
-    // does throw: it rethrows any write error that is not a unique violation.
-    // Clearing afterwards would be skipped on exactly the run that settled the
-    // task, and the reminder the stories rule out would go out anyway.
-    //
-    // The cost of this order is the other half of that failure: the rows are
-    // read and the outcome notification is never written, so the reader is
-    // told nothing rather than told twice. Both halves are rare and this one
-    // loses less, because the follow-up would have been wrong either way.
-    //
-    // Both readers, because a task the owner delegated left the assignee an
-    // `assigned` row of their own, and that row is waiting on the assignee.
+    // Before the write because `createNotification` rethrows any write error
+    // that is not a unique violation, and clearing afterwards would be skipped
+    // on exactly the run that settled the task. The cost is the same failure's
+    // other half: the rows are read and the outcome notification is never
+    // written, so the reader is told nothing rather than told twice. That
+    // loses less, because the reminder would have been wrong either way.
     for (const readerId of taskReaderIds(task)) {
       await markSettledAttentionRead(
         readerId,
@@ -278,32 +270,6 @@ export async function notifyTaskHumanAssignee(
 }
 
 /**
- * Mark a reader's outstanding attention rows for one task read.
- *
- * Best-effort, like every other notification write on this path: the write it
- * follows has already committed and must not be undone by a failure to tidy
- * up after it.
- */
-async function markTaskAttentionRead(
-  userId: string,
-  taskId: string,
-  messageKeys: readonly string[],
-  notificationType: string,
-): Promise<void> {
-  try {
-    await markNotificationsRead(userId, {
-      kind: NotificationKind.TASK,
-      referenceId: taskId,
-      messageKey: { in: [...messageKeys] },
-    });
-  } catch (error) {
-    Sentry.captureException(error, {
-      extra: { taskId, userId, notificationType },
-    });
-  }
-}
-
-/**
  * Mark a member's `assigned` row read, because the task is no longer theirs.
  *
  * The row says "this task is yours", and a reassignment or an unassignment
@@ -321,8 +287,9 @@ export async function markTaskAssignedRead(
   assigneeUserId: string,
   taskId: string,
 ): Promise<void> {
-  await markTaskAttentionRead(
+  await markAttentionRead(
     assigneeUserId,
+    NotificationKind.TASK,
     taskId,
     [TASK_ASSIGNED_MESSAGE_KEY],
     "task-assigned-read",
@@ -350,8 +317,9 @@ export async function markTaskArchivedRead(task: {
   assigneeUserId: string | null;
 }): Promise<void> {
   for (const readerId of taskReaderIds(task)) {
-    await markTaskAttentionRead(
+    await markAttentionRead(
       readerId,
+      NotificationKind.TASK,
       task.id,
       TASK_ATTENTION_MESSAGE_KEYS,
       "task-archived-read",
