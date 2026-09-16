@@ -5,6 +5,7 @@ const getTaskByIdMock = vi.fn();
 const listCoworkersMock = vi.fn();
 const listProjectsMock = vi.fn();
 const getAvailableAgentsWithCreditsPriceMock = vi.fn();
+const resolveEffectiveDesignMdMock = vi.fn();
 const getSessionMock = vi.fn();
 const getMyMembersWithOrganizationsMock = vi.fn();
 const getOrganizationMembersMock = vi.fn(async () => []);
@@ -91,6 +92,13 @@ vi.mock("@/lib/services/project.service", () => ({
   projectService: {
     listProjects: (...args: unknown[]) => listProjectsMock(...args),
     getProjectById: vi.fn(),
+  },
+}));
+
+vi.mock("@/lib/services/design-md.service", () => ({
+  designMdService: {
+    resolveEffectiveDesignMd: (...args: unknown[]) =>
+      resolveEffectiveDesignMdMock(...args),
   },
 }));
 
@@ -197,6 +205,7 @@ describe("EditTaskPage", () => {
       session: {
         activeOrganizationId: "org-current",
       },
+      user: { id: "user_1" },
     });
     listCoworkersMock.mockResolvedValue([{ id: "cow_123", name: "Coworker" }]);
     listProjectsMock.mockResolvedValue({
@@ -206,6 +215,11 @@ describe("EditTaskPage", () => {
     getAvailableAgentsWithCreditsPriceMock.mockResolvedValue([
       { id: "agent_123", name: "Agent" },
     ]);
+    resolveEffectiveDesignMdMock.mockResolvedValue({
+      label: "DESIGN.md",
+      url: "https://blob.example/design.md",
+      owner: { type: "organization", name: "Acme", logo: null },
+    });
 
     const { default: EditTaskPage } = await import("./page");
 
@@ -221,6 +235,7 @@ describe("EditTaskPage", () => {
     expect(listCoworkersMock).toHaveBeenCalledWith("tasks");
     expect(listProjectsMock).toHaveBeenCalledWith({ limit: 100 });
     expect(getAvailableAgentsWithCreditsPriceMock).toHaveBeenCalled();
+    expect(resolveEffectiveDesignMdMock).toHaveBeenCalled();
     expect(taskEditModalMock).toHaveBeenCalledWith(
       expect.objectContaining({
         taskId: "task_1",
@@ -232,6 +247,11 @@ describe("EditTaskPage", () => {
         projectOptions: [{ id: "project_1", name: "Project" }],
         agentNameById: {
           agent_123: "Agent",
+        },
+        initialDesignMdAttachment: {
+          label: "DESIGN.md",
+          url: "https://blob.example/design.md",
+          owner: { type: "organization", name: "Acme", logo: null },
         },
         initialValues: {
           name: "Task",
@@ -267,6 +287,7 @@ describe("EditTaskPage", () => {
       session: {
         activeOrganizationId: "org-current",
       },
+      user: { id: "user_1" },
     });
     listCoworkersMock.mockResolvedValue([{ id: "cow_123", name: "Coworker" }]);
     listProjectsMock.mockResolvedValue({
@@ -274,6 +295,7 @@ describe("EditTaskPage", () => {
       pagination: { nextCursor: null },
     });
     getAvailableAgentsWithCreditsPriceMock.mockResolvedValue([]);
+    resolveEffectiveDesignMdMock.mockResolvedValue(null);
 
     const { default: EditTaskPage } = await import("./page");
 

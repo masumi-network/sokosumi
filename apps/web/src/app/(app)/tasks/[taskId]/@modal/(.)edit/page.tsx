@@ -73,7 +73,7 @@ export default async function TaskEditModalPage({
       listTaskAssigneeOptions(targetOrganizationId),
       agentService.getAvailableAgentsWithCreditsPrice(),
       projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
-      session?.user.id
+      session?.user?.id
         ? designMdService.resolveEffectiveDesignMd()
         : Promise.resolve(null),
     ]);
