@@ -1920,7 +1920,7 @@
         "createAnother": "Weiteren Task erstellen",
         "close": "Schließen",
         "privateLabel": "Privat",
-        "privateDescription": "Nur du, dein Soko Bot und der Vendor des zugewiesenen Coworkers können diesen Task sehen."
+        "privateDescription": "Nur du, dein Soko Bot und der zugewiesene Coworker können diesen Task sehen."
       },
       "EditTask": {
         "title": "Task bearbeiten",
