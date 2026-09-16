@@ -3,7 +3,7 @@ import Testing
 
 @MainActor
 struct DirectRecipientPickerTests {
-  private let person = DirectRecipientTarget(id: .human("person"), name: "Person")
+  private let person = DirectRecipientTarget(id: .human("person"), name: "Person", detail: "human@example.com")
   private let coworker = DirectRecipientTarget(id: .coworker("coworker"), name: "AI")
 
   @Test func groupedRecipientsPutCoworkersFirstAndOmitEmptySections() async {
@@ -14,6 +14,9 @@ struct DirectRecipientPickerTests {
     #expect(picker.candidates.map(\.id) == [coworker.id, person.id, assistant.id])
     picker.query = "Person"
     #expect(picker.sections.map(\.id) == [.people, .assistant])
+    picker.query = "human@example.com"
+    #expect(picker.sections.map(\.id) == [.people])
+    #expect(picker.sections.first?.targets == [person])
     picker.query = "no match"
     #expect(picker.sections.isEmpty)
     picker.query = ""

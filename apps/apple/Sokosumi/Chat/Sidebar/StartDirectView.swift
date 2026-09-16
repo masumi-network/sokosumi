@@ -143,7 +143,7 @@ struct StartDirectView: View {
           ScrollViewReader { proxy in
             List {
               ForEach(picker.sections) { section in
-                Section(sectionTitle(section.id)) {
+                Section {
                   ForEach(section.targets) { target in
                     HStack {
                       DirectRecipientRow(target: target, disabledReason: picker.selection.disabledReason(for: target.id)) {
@@ -154,6 +154,8 @@ struct StartDirectView: View {
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets(top: 2, leading: 0, bottom: 2, trailing: 0))
                   }
+                } header: {
+                  Text(sectionTitle(section.id)).id(section.id)
                 }
               }
             }
@@ -161,12 +163,12 @@ struct StartDirectView: View {
             .contentMargins(0, for: .scrollContent)
             .disabled(picker.creating)
             .onChange(of: picker.selection) { _, _ in
-              if let first = picker.candidates.first {
+              if let first = picker.sections.first {
                 proxy.scrollTo(first.id, anchor: .top)
               }
             }
             .onChange(of: picker.query) { _, _ in
-              if let first = picker.candidates.first {
+              if let first = picker.sections.first {
                 proxy.scrollTo(first.id, anchor: .top)
               }
             }
