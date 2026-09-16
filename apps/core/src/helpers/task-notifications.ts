@@ -3,7 +3,10 @@ import { NotificationKind } from "@sokosumi/database";
 
 import prisma from "@/lib/db/prisma";
 
-import { markSettledAttentionRead } from "./notification-read.js";
+import {
+  markNotificationsRead,
+  markSettledAttentionRead,
+} from "./notification-read.js";
 import { createNotification } from "./notifications.js";
 
 function taskNotificationPayload(task: {
@@ -97,21 +100,16 @@ export async function dispatchTaskNotification(
       },
     });
 
-    await createNotification({
-      userId: task.ownerId,
-      kind: NotificationKind.TASK,
-      referenceId: task.id,
-      eventId,
-      messageKey,
-      messageParams,
-      metadata,
-    });
-
     // A task that has settled is no longer waiting on the reader, however it
     // got there. Whatever it left unread stops being a question, so it stops
     // being unread. Does nothing for the keys that are not terminal, and
-    // reports rather than throws. Safe after `createNotification`, which never
-    // throws and whose refused duplicate still leaves the rows to clear.
+    // reports rather than throws.
+    //
+    // Before the write rather than after it, because `createNotification`
+    // does throw: it rethrows anything that is not a unique violation, and a
+    // failed realtime publish is one of those. Clearing afterwards would be
+    // skipped on exactly the run that settled the task, and the reminder the
+    // stories rule out would go out anyway.
     //
     // Both readers, because a task the owner delegated left the assignee an
     // `assigned` row of their own, and that row is waiting on the assignee.
@@ -130,6 +128,16 @@ export async function dispatchTaskNotification(
         messageKey,
       );
     }
+
+    await createNotification({
+      userId: task.ownerId,
+      kind: NotificationKind.TASK,
+      referenceId: task.id,
+      eventId,
+      messageKey,
+      messageParams,
+      metadata,
+    });
   } catch (error) {
     Sentry.captureException(error, {
       extra: {
@@ -248,6 +256,42 @@ export async function notifyTaskHumanAssignee(
         taskId,
         userId: assigneeUserId,
         notificationType: "task-assignee-notification",
+      },
+    });
+  }
+}
+
+/**
+ * Mark the `assigned` row read for the member the task has just left.
+ *
+ * The row says "this task is yours", and it stops being true the moment the
+ * task moves to somebody else or to nobody. Nothing else clears it: the
+ * settled read at the dispatcher above reaches the assignee the task holds
+ * when it settles, which by then is a different person. Left alone, the
+ * previous holder keeps an unread row for ever and the follow-up sync
+ * reminds them a day later about a task they no longer have (SOK-916, the
+ * same reasoning as user stories 14 and 15).
+ *
+ * Best-effort, like every other notification write on this path: the
+ * reassignment it follows has already committed and must not be undone by a
+ * failure to tidy up after it.
+ */
+export async function markTaskHandedOverRead(
+  previousAssigneeUserId: string,
+  taskId: string,
+): Promise<void> {
+  try {
+    await markNotificationsRead(previousAssigneeUserId, {
+      kind: NotificationKind.TASK,
+      referenceId: taskId,
+      messageKey: TASK_ASSIGNED_MESSAGE_KEY,
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      extra: {
+        taskId,
+        userId: previousAssigneeUserId,
+        notificationType: "task-handed-over-read",
       },
     });
   }

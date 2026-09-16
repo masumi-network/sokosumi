@@ -302,6 +302,17 @@ async function dispatchJobNotification(
         return;
     }
 
+    // As for tasks: a job that has settled stops waiting on the reader, so
+    // what it left unread stops being a question. Before the write for the
+    // same reason, because `createNotification` does throw. One reader,
+    // because a job has one.
+    await markSettledAttentionRead(
+      job.ownerId,
+      NotificationKind.JOB,
+      job.id,
+      messageKey,
+    );
+
     await createNotification({
       userId: job.ownerId,
       kind: NotificationKind.JOB,
@@ -317,17 +328,6 @@ async function dispatchJobNotification(
         workspaceId: job.workspaceId,
       },
     });
-
-    // As for tasks: a job that has settled stops waiting on the reader, so
-    // what it left unread stops being a question. Safe after
-    // `createNotification`, which never throws and whose refused duplicate
-    // still leaves the rows to clear. One reader, because a job has one.
-    await markSettledAttentionRead(
-      job.ownerId,
-      NotificationKind.JOB,
-      job.id,
-      messageKey,
-    );
   } catch (error) {
     Sentry.captureException(error, {
       extra: {

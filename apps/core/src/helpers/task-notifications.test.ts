@@ -2,17 +2,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   createNotificationMock,
+  markNotificationsReadMock,
   markSettledAttentionReadMock,
   prismaTaskFindUniqueMock,
   prismaUserFindUniqueMock,
 } = vi.hoisted(() => ({
   createNotificationMock: vi.fn(),
+  markNotificationsReadMock: vi.fn(),
   markSettledAttentionReadMock: vi.fn(),
   prismaTaskFindUniqueMock: vi.fn(),
   prismaUserFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("./notification-read.js", () => ({
+  markNotificationsRead: markNotificationsReadMock,
   markSettledAttentionRead: markSettledAttentionReadMock,
 }));
 
@@ -31,6 +34,7 @@ import { TASK_ATTENTION_MESSAGE_KEYS } from "@/helpers/notification-delivery";
 
 import {
   dispatchTaskNotification,
+  markTaskHandedOverRead,
   notifyTaskHumanAssignee,
 } from "./task-notifications";
 
@@ -80,16 +84,25 @@ describe("dispatchTaskNotification", () => {
    * A task that is waiting on the reader must not clear its own attention
    * row: that is the row the reminder exists for. The helper refuses these
    * keys itself, and this pins that the seam does not decide differently.
+   * The exact key, and that the key is one the helper refuses, because
+   * handing on a different attention key would pass a membership check.
    */
-  it.each(["INPUT_REQUIRED", "APPROVAL_REQUIRED", "OUT_OF_CREDITS"])(
+  it.each([
+    ["INPUT_REQUIRED", "Notifications.Task.inputRequired"],
+    ["APPROVAL_REQUIRED", "Notifications.Task.approvalRequired"],
+    ["OUT_OF_CREDITS", "Notifications.Task.outOfCredits"],
+  ])(
     "still hands a %s task's key on, for the helper to refuse",
-    async (status) => {
+    async (status, expectedKey) => {
       await dispatchTaskNotification(SETTLED_TASK, "event_1", status);
 
-      const [, , , messageKey] =
-        markSettledAttentionReadMock.mock.calls[0] ?? [];
-
-      expect(TASK_ATTENTION_MESSAGE_KEYS).toContain(messageKey);
+      expect(markSettledAttentionReadMock).toHaveBeenCalledWith(
+        "user_1",
+        "TASK",
+        "task_1",
+        expectedKey,
+      );
+      expect(TASK_ATTENTION_MESSAGE_KEYS).toContain(expectedKey);
     },
   );
 
@@ -126,6 +139,25 @@ describe("dispatchTaskNotification", () => {
     );
 
     expect(markSettledAttentionReadMock).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * `createNotification` rethrows anything that is not a unique violation,
+   * and a failed realtime publish is one of those. If the clearing ran after
+   * it, the one run that settled the task would skip it and the reminder
+   * would go out. So the clearing goes first, and this pins that.
+   */
+  it("clears the settled rows even when the outcome write fails", async () => {
+    createNotificationMock.mockRejectedValue(new Error("publish failed"));
+
+    await dispatchTaskNotification(SETTLED_TASK, "event_1", "COMPLETED");
+
+    expect(markSettledAttentionReadMock).toHaveBeenCalledWith(
+      "user_1",
+      "TASK",
+      "task_1",
+      "Notifications.Task.completed",
+    );
   });
 
   it("names the assigned soko bot in task notifications", async () => {
@@ -203,5 +235,39 @@ describe("notifyTaskHumanAssignee", () => {
     await notifyTaskHumanAssignee("tsk_123", "user_assignee");
 
     expect(createNotificationMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("markTaskHandedOverRead", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    markNotificationsReadMock.mockResolvedValue({
+      count: 1,
+      clearedRoomIds: [],
+    });
+  });
+
+  /**
+   * The row says the task is yours, and it stops being true when the task
+   * moves on. Nothing else clears it: the settled read reaches whoever holds
+   * the task when it settles, which by then is somebody else.
+   */
+  it("marks the previous holder's assigned row read", async () => {
+    await markTaskHandedOverRead("user_2", "task_1");
+
+    expect(markNotificationsReadMock).toHaveBeenCalledWith("user_2", {
+      kind: "TASK",
+      referenceId: "task_1",
+      messageKey: "Notifications.Task.assigned",
+    });
+  });
+
+  /** Best-effort: the reassignment it follows has already committed. */
+  it("reports a failure rather than throwing it at the caller", async () => {
+    markNotificationsReadMock.mockRejectedValue(new Error("write failed"));
+
+    await expect(
+      markTaskHandedOverRead("user_2", "task_1"),
+    ).resolves.toBeUndefined();
   });
 });
