@@ -5387,7 +5387,10 @@
         "loading": "Loading replies",
         "empty": "No replies yet",
         "replyPlaceholder": "Reply in thread",
-        "replyCount": "{count, plural, one {# reply} other {# replies}}"
+        "replyCount": "{count, plural, one {# reply} other {# replies}}",
+        "mute": "Thread stummschalten",
+        "unmute": "Stummschaltung aufheben",
+        "muted": "Stummgeschaltet"
       },
       "loadOlder": "Ältere Nachrichten laden",
       "loadingOlder": "Ältere Nachrichten werden geladen…",

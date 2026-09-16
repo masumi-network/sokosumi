@@ -666,6 +666,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
         content: "you were assigned a task",
         authorUserId: null,
         authorName: "Hannah",
+        parentMessageId: null,
         recipientUserIds: [ALICE_ID],
       });
       // Scheduled for every room. The emitter leaves a direct room of two to
@@ -753,6 +754,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
         content: "hello channel",
         authorUserId: null,
         authorName: "Hannah",
+        parentMessageId: null,
       });
       expect(waitUntilMock).toHaveBeenCalledTimes(2);
     });
@@ -1340,6 +1342,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
         content: "hey, are you free?",
         authorUserId: USER_ID,
         authorName: "Patrick",
+        parentMessageId: null,
         recipientUserIds: [ALICE_ID],
       });
     });

@@ -40,6 +40,7 @@ const labels = {
     count === 1 ? "1 unread reply" : `${count} unread replies`,
   replies: (count: number) => (count === 1 ? "1 reply" : `${count} replies`),
   close: "Close threads",
+  muted: "Muted",
 };
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -83,6 +84,7 @@ function threadItem(overrides: Partial<ChatRoomThread> = {}): ChatRoomThread {
     unreadReplyCount: 2,
     lastUnreadReplyAt: new Date("2026-08-01T01:00:00.000Z"),
     hasLooked: true,
+    mutedAt: null,
 
     ...overrides,
   };
@@ -157,6 +159,37 @@ describe("ThreadListPanel", () => {
     expect(items[1]).toHaveTextContent("Old standup notes");
     expect(items[1]).toHaveTextContent("4 replies");
     expect(items[1]).not.toHaveTextContent("unread");
+  });
+
+  it("marks only the muted thread with the muted icon", async () => {
+    const mutedId = "550e8400-e29b-41d4-a716-446655440098";
+    listThreadsActionMock.mockResolvedValue({
+      ok: true,
+      value: {
+        threads: [
+          threadItem(),
+          threadItem({
+            parentMessage: parentMessage({
+              id: mutedId,
+              content: "Muted parent",
+            }),
+            mutedAt: new Date("2026-08-01T02:00:00.000Z"),
+          }),
+        ],
+        nextCursor: null,
+      },
+    });
+
+    renderPanel();
+
+    const items = await screen.findAllByTestId("thread-list-item");
+    expect(
+      within(items[0]).queryByTestId("thread-list-muted"),
+    ).not.toBeInTheDocument();
+    expect(within(items[1]).getByTestId("thread-list-muted")).toHaveAttribute(
+      "aria-label",
+      labels.muted,
+    );
   });
 
   it("shows empty state when the room has no threads", async () => {

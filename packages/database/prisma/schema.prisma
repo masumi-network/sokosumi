@@ -3628,8 +3628,12 @@ model ChatRoomThreadReadState {
   parentMessage   ChatRoomMessage @relation(fields: [parentMessageId], references: [id], onDelete: Cascade)
 
   lastReadAt DateTime @default(now())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  /// Null = unmuted. Set to now when the user mutes this thread. A muted
+  /// thread stops counting toward room unread and stops writing CHAT
+  /// notifications for this user, without changing whether they Participate.
+  mutedAt    DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   @@unique([userId, parentMessageId])
   @@index([parentMessageId])
