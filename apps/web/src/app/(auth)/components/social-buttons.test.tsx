@@ -125,13 +125,14 @@ vi.mock("@/lib/auth/auth.utils", async () => {
 });
 
 interface MockSocialButtonProps {
+  className?: string;
   onClick?: () => void;
   text?: string;
 }
 
-function MockSocialButton({ onClick, text }: MockSocialButtonProps) {
+function MockSocialButton({ className, onClick, text }: MockSocialButtonProps) {
   return (
-    <button type="button" onClick={onClick}>
+    <button type="button" className={className} onClick={onClick}>
       {text}
     </button>
   );
@@ -242,6 +243,29 @@ describe("SocialButtons", () => {
       newUserCallbackReturnUrl: "/oauth/consent?client_id=prop-client",
     });
   });
+
+  it.each([
+    ["google", "Google"],
+    ["passkey", "Passkey"],
+    ["magic-link", "Magic Link"],
+  ] as const)(
+    "keeps a distinct hover fill for last-used %s",
+    (method, label) => {
+      render(
+        <SocialButtons showPasskey showMagicLink lastUsedMethod={method} />,
+      );
+
+      const button = screen.getByRole("button", {
+        name: `continue-with-${label}`,
+      });
+      const important = method === "google" ? "!" : "";
+      expect(button).toHaveClass(
+        `bg-primary-quinary${important}`,
+        `hover:bg-primary-quaternary${important}`,
+      );
+      expect(button).not.toHaveClass(`dark:bg-primary-quaternary${important}`);
+    },
+  );
 
   it("shows an inline marker on the matching provider button", () => {
     render(<SocialButtons lastUsedMethod="google" />);
