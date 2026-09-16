@@ -119,8 +119,9 @@ export interface TaskFormLabels {
   projectPlaceholder?: string;
   projectRequired?: string;
   coworker: string;
-  coworkerDescription: string;
-  unassigned?: string;
+  unassigned: string;
+  changeCoworker: string;
+  noCoworkerMatches: string;
   defaultBadge?: string;
   modelLabel?: string;
   hostingLabel?: string;
@@ -140,8 +141,6 @@ export interface TaskFormLabels {
   statusLabels?: Record<TaskStatus, string>;
   changeStatus: string;
   noStatusMatches: string;
-  changeCoworker?: string;
-  noCoworkerMatches?: string;
   back: string;
   uploadFile: string;
   uploadFileError?: string;
@@ -375,29 +374,23 @@ export function TaskForm({
     useState(false);
   const [createProjectQuery, setCreateProjectQuery] = useState("");
   const defaultAssigneeId = useMemo(() => {
-    // Empty string counts as absent: edit pages pass "" for unset tasks.
-    const hasInitialAssignee =
+    const fromTask =
       initialValues?.assigneeId ||
       initialValues?.assigneeSokoBotId ||
       initialValues?.assigneeUserId ||
-      null;
-    // In edit mode an explicitly unassigned task must stay unassigned:
-    // falling through to the create default would silently assign it on save.
-    if (mode === "edit" && hasInitialAssignee === null) {
-      return "";
+      "";
+    if (mode === "edit") {
+      return fromTask;
     }
-    // Default to Elena on first open. Match by slug or name (case-insensitive)
-    // so it works across environments (dev seed + mainnet) where the slug may
-    // differ; fall back to the highest-priority coworker.
+    if (fromTask) {
+      return fromTask;
+    }
     const elenaCoworker = coworkerOptions.find(
       (option) =>
         option.slug.trim().toLowerCase() === "elena" ||
         option.name.trim().toLowerCase() === "elena",
     );
-
-    return (
-      hasInitialAssignee ?? elenaCoworker?.id ?? coworkerOptions[0]?.id ?? ""
-    );
+    return elenaCoworker?.id ?? coworkerOptions[0]?.id ?? "";
   }, [
     mode,
     coworkerOptions,
@@ -1252,10 +1245,9 @@ export function TaskForm({
                 options={coworkerOptions}
                 labels={{
                   ariaLabel: labels.coworker,
-                  unassigned: labels.unassigned ?? "Unassigned",
-                  searchPlaceholder:
-                    labels.changeCoworker ?? "Change coworker…",
-                  noResults: labels.noCoworkerMatches ?? "No coworker matches",
+                  unassigned: labels.unassigned,
+                  searchPlaceholder: labels.changeCoworker,
+                  noResults: labels.noCoworkerMatches,
                   agentsGroupLabel: labels.coworker,
                 }}
                 onSelect={handleCoworkerSelect}

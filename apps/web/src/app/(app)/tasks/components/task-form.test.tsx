@@ -296,8 +296,9 @@ const baseLabels = {
   projectEmptyResults: "No projects found.",
   projectCreate: "Create project...",
   coworker: "Coworker",
-  coworkerDescription: "Pick a coworker",
   unassigned: "Unassigned",
+  changeCoworker: "Change coworker…",
+  noCoworkerMatches: "No coworker matches",
   status: "Status",
   statusDescription: "Pick status",
   statusDraft: "Draft",
@@ -307,8 +308,6 @@ const baseLabels = {
   statusReady: "Ready",
   changeStatus: "Change status…",
   noStatusMatches: "No status matches",
-  changeCoworker: "Change coworker…",
-  noCoworkerMatches: "No coworker matches",
   statusLabels: Object.fromEntries(
     TASK_STATUS_DISPLAY_ORDER.map((status) => [
       status,
