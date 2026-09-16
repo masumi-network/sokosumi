@@ -1031,7 +1031,7 @@ describe("requireTaskScheduleWriteAccess", () => {
     });
   });
 
-  it("keeps DRAFT tasks assignee-only for contextual coworkers", async () => {
+  it("rejects non-creator siblings on DRAFT", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
       id: "cow_123",

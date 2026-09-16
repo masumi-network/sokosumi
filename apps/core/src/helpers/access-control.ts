@@ -698,10 +698,11 @@ export async function requireTaskCollaboration(
 /**
  * Schedule write access. Humans and Soko Bots follow
  * {@link requireTaskCollaboration}. Coworkers may also act as the task's
- * creator (the legacy create-then-`PUT /schedule` flow, matching what
- * `POST /tasks/scheduled` allows in one call) or on a non-DRAFT task assigned
- * to a same-vendor sibling. Schedules are the only mutation with this wider
- * scope; status, jobs, and files stay assignee-only.
+ * creator with user context (the legacy create-then-`PUT /schedule` flow,
+ * including DRAFT, matching what `POST /tasks/scheduled` allows in one call)
+ * or on a non-DRAFT task assigned to a same-vendor sibling. Bare coworker
+ * keys exclude DRAFT before the creator check. Schedules are the only
+ * mutation with this wider scope; status, jobs, and files stay assignee-only.
  */
 export async function requireTaskScheduleWriteAccess(
   authContext: AuthenticationContext,
