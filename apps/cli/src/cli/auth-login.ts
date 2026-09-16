@@ -56,10 +56,6 @@ export interface AuthLoginOptions {
   signal?: AbortSignal;
 }
 
-export function resolveAuthBaseUrl(env: AuthEnvironment): string {
-  return resolveCliConfig({ env }).authBaseUrl;
-}
-
 function writeResult(
   stdout: TextOutput,
   result: AuthLoginResult,
