@@ -5,8 +5,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import { LIMITS } from "@/config/constants";
 import { calculateCentsFromX402Amount } from "@/helpers/x402-pricing";
-
-import { composeX402ReadySources as composeReadySourcesUnchecked } from "./agent-sync.x402-readiness.compose";
 import {
   availableNetwork,
   BASE_MAINNET_USDC,
@@ -19,7 +17,8 @@ import {
   purchasingWallet,
   READY_SOURCE,
   USDC_BASE_SEPOLIA,
-} from "./agent-sync.x402-readiness.fixtures";
+} from "./__tests__/fixtures/agent-sync.x402-readiness.fixtures";
+import { composeX402ReadySources as composeReadySourcesUnchecked } from "./agent-sync.x402-readiness.compose";
 
 const MAINNET_READY_SOURCE = {
   caip2Network: "eip155:8453",

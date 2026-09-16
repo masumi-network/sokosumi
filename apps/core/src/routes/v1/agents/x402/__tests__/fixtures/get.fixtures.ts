@@ -16,7 +16,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
 import { X402_BUY_SIDE_READINESS_KEY } from "@/helpers/x402-readiness";
 
-import mountGetAgents from "../get";
+import mountGetAgents from "../../../get";
 
 export const BASE_SEPOLIA = "eip155:84532";
 export const BASE_MAINNET = "eip155:8453";
