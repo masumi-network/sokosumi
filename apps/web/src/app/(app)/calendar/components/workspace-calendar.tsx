@@ -683,11 +683,6 @@ function CalendarView({
           // the only fill wanted.
           eventDisplay="block"
           eventColor="transparent"
-          // The list view keeps its list-item dot slot even with a transparent
-          // color, and the theme sets the class per view, so a top-level
-          // override loses; an empty view-level class drops the element and
-          // the 12px gap after it.
-          views={{ list: { listItemEventBeforeClass: "" } }}
           editable={false}
           eventDurationEditable={false}
           eventAllow={(_span, movingEvent) => {

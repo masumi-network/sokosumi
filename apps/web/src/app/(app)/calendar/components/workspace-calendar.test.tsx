@@ -906,6 +906,28 @@ describe("WorkspaceCalendar", () => {
     }
   });
 
+  // globals.css hides the agenda's list-item dot with a structural selector
+  // because FullCalendar joins class-name options across theme and user
+  // layers. Pin the DOM shape that selector relies on.
+  it("keeps the agenda dot as the first child before the event card", () => {
+    const { container } = render(
+      <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&timezone=UTC">
+        <WorkspaceCalendar items={ITEMS} initialDate="2026-08-18" />
+      </NuqsTestingAdapter>,
+    );
+
+    const dots = container.querySelectorAll(
+      '[data-view="agenda"] [role="listitem"]:not([aria-label]) > :first-child:not(:only-child)',
+    );
+    expect(dots.length).toBeGreaterThan(0);
+    for (const dot of dots) {
+      expect(dot.querySelector('[data-testid="calendar-event"]')).toBeNull();
+      expect(
+        dot.nextElementSibling?.querySelector('[data-testid="calendar-event"]'),
+      ).not.toBeNull();
+    }
+  });
+
   it("defaults to the week view and offers every view switch", () => {
     render(
       <NuqsTestingAdapter searchParams="?date=2026-08-18">
