@@ -135,9 +135,14 @@ export function tweetTextFromOembedHtml(html: string): string | null {
   if (paragraph === undefined) {
     return null;
   }
-  const text = decodeEntities(
-    paragraph.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, ""),
-  ).trim();
+  let text = paragraph.replace(/<br\s*\/?>/gi, "\n");
+  // Strip to a fixpoint so a tag left behind by a removed one goes too.
+  let stripped = text.replace(/<[^>]*>/g, "");
+  while (stripped !== text) {
+    text = stripped;
+    stripped = text.replace(/<[^>]*>/g, "");
+  }
+  text = decodeEntities(text).trim();
   return text.length > 0 ? text : null;
 }
 
