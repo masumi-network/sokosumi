@@ -577,8 +577,11 @@ function CalendarView({
         headerToolbar={false}
         height="auto"
         // Timed events default to "list-item" (dot + time + title); the card
-        // already carries the time, so the dot was the only leftover.
+        // already carries the time, so the dot was the only leftover. Block
+        // mode paints the theme's event blue behind the card; the card is
+        // the only fill wanted.
         eventDisplay="block"
+        eventColor="transparent"
         editable={false}
         eventDurationEditable={false}
         eventAllow={(_span, movingEvent) => {
