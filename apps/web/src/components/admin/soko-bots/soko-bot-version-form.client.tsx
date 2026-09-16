@@ -155,7 +155,7 @@ export function SokoBotVersionForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {mode === "create" && initialVersion ? (
-        <div className="bg-muted/40 rounded-md border px-4 py-3 text-sm">
+        <div className="bg-card-background rounded-md border px-4 py-3 text-sm">
           {t("Form.duplicatedFrom", { version: initialVersion.name })}
         </div>
       ) : null}
@@ -374,7 +374,7 @@ export function SokoBotVersionForm({
           </legend>
           <p className="text-muted-foreground text-xs">{t("Form.toolsHint")}</p>
           {form.capabilities.length === 0 ? (
-            <div className="bg-muted/40 rounded-md border px-3 py-2 text-sm font-medium">
+            <div className="bg-card-background rounded-md border px-3 py-2 text-sm font-medium">
               {t("Form.allRouteTools")}
             </div>
           ) : null}

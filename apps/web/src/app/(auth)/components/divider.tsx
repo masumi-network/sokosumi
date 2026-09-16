@@ -9,9 +9,11 @@ export default function Divider({ labelKey }: DividerProps) {
 
   return (
     <div className="flex items-center justify-between gap-2">
-      <hr className="h-0 flex-1 border-0 border-t border-gray-200" />
-      <span className="text-xs text-gray-400 uppercase">{t(labelKey)}</span>
-      <hr className="h-0 flex-1 border-0 border-t border-gray-200" />
+      <hr className="h-0 flex-1 border-0 border-t border-border" />
+      <span className="text-xs text-muted-foreground uppercase">
+        {t(labelKey)}
+      </span>
+      <hr className="h-0 flex-1 border-0 border-t border-border" />
     </div>
   );
 }

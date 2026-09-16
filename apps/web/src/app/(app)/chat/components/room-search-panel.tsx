@@ -353,7 +353,7 @@ export function RoomSearchPanel({
           // It must drop its padding too: border-box cannot shrink below the
           // padding, so the 32px box would otherwise grow over the next button.
           !isExpanded &&
-            "px-0 hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50 cursor-pointer border-transparent dark:bg-transparent placeholder:opacity-0",
+            "px-0 hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent cursor-pointer border-transparent dark:bg-transparent placeholder:opacity-0",
         )}
       />
       {isMobile ? null : (

@@ -31,6 +31,7 @@ public final class WorkspaceState: ObservableObject {
   private var threadObservations: Set<AnyCancellable> = []
   private var workspaceGeneration = 0
   @Published public private(set) var openingDirect: DirectRecipient?
+  @Published public private(set) var directContext = UUID()
   public var phase: Phase {
     workspaceSession.phase
   }
@@ -249,6 +250,7 @@ public final class WorkspaceState: ObservableObject {
     workspaceLoadTask?.cancel()
     workspaceLoadTask = nil
     workspaceGeneration += 1
+    directContext = UUID()
     openingDirect = nil
     workspaceSession.reset()
     sidebar.reset()
@@ -273,21 +275,48 @@ public final class WorkspaceState: ObservableObject {
     return recipient.canOpen(from: room, currentUserId: currentUserId, hasActiveOrganization: selection?.workspace.organizationId != nil)
   }
 
+  public func loadDirectRecipients(context: UUID, auth: AuthState) async throws -> DirectRecipientRoster {
+    guard phase == .ready, context == directContext, !workspaceSession.isSwitching,
+          let client = resolveClient(auth: auth) else { throw CancellationError() }
+    do {
+      let roster = try await ChatService().directRecipients(
+        client: client, currentUserId: currentUserId,
+        organizationId: selection?.workspace.organizationId,
+        organizationSlug: selection?.workspace.organizationSlug
+      )
+      guard context == directContext, phase == .ready, !Task.isCancelled else { throw CancellationError() }
+      return roster
+    } catch {
+      guard context == directContext else { throw CancellationError() }
+      if let error = error as? ChatServiceError {
+        signOutIfUnauthorized(error, auth: auth)
+      }
+      throw error
+    }
+  }
+
   @discardableResult
   public func openParticipantDirect(_ recipient: DirectRecipient, auth: AuthState) async throws -> Bool {
-    guard openingDirect == nil, canOpenDirect(recipient), let client = resolveClient(auth: auth) else { return false }
-    let generation = workspaceGeneration
-    let selectionID = selectionId
+    guard canOpenDirect(recipient) else { return false }
+    var recipients = DirectConversationSelection(hasOrganization: selection?.workspace.organizationId != nil)
+    recipients.add(recipient)
+    return try await openDirect(recipients, context: directContext, auth: auth)
+  }
+
+  @discardableResult
+  public func openDirect(_ recipients: DirectConversationSelection, context: UUID, auth: AuthState) async throws -> Bool {
+    guard context == directContext, phase == .ready, !workspaceSession.isSwitching, openingDirect == nil,
+          let first = recipients.recipients.first, let client = resolveClient(auth: auth) else { return false }
     let sourceRoom = transcriptRoomId
-    openingDirect = recipient
+    openingDirect = first
     defer {
-      if generation == workspaceGeneration {
+      if context == directContext {
         openingDirect = nil
       }
     }
     do {
-      let room = try await ChatService().openDirect(client: client, recipient: recipient, organizationSlug: selection?.workspace.organizationSlug)
-      guard !Task.isCancelled, generation == workspaceGeneration, selectionID == selectionId, phase == .ready else { return false }
+      let room = try await ChatService().openDirect(client: client, selection: recipients, organizationSlug: selection?.workspace.organizationSlug)
+      guard !Task.isCancelled, context == directContext, phase == .ready else { return false }
       if let index = rooms.firstIndex(where: { $0.id == room.id }) {
         rooms[index] = room
       } else {
@@ -300,7 +329,7 @@ public final class WorkspaceState: ObservableObject {
       }
       return true
     } catch {
-      guard generation == workspaceGeneration, selectionID == selectionId else { return false }
+      guard context == directContext else { return false }
       if let error = error as? ChatServiceError {
         signOutIfUnauthorized(error, auth: auth)
       }
@@ -895,6 +924,7 @@ public final class WorkspaceState: ObservableObject {
     guard !Task.isCancelled else { return }
     sidebar.reset()
     workspaceGeneration += 1
+    directContext = UUID()
     openingDirect = nil
     let generation = workspaceGeneration
     rooms = []
@@ -916,6 +946,8 @@ public final class WorkspaceState: ObservableObject {
   }
 
   func switchRooms(auth: AuthState, option: WorkspaceOption) async {
+    directContext = UUID()
+    openingDirect = nil
     roomsRefreshTask?.cancel()
     roomsRefreshTask = nil
     roomsRefreshID = UUID()

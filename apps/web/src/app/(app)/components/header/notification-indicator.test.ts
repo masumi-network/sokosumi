@@ -82,13 +82,16 @@ describe("getNotificationIndicator", () => {
 describe("getNotificationIndicatorClassName", () => {
   it("maps tones to semantic utility classes", () => {
     expect(getNotificationIndicatorClassName("primary")).toContain(
-      "bg-primary",
+      "bg-primary-solid",
     );
     expect(getNotificationIndicatorClassName("warning")).toContain(
       "bg-semantic-warning",
     );
+    // The solid fill, not the text red. "bg-semantic-destructive" is a
+    // prefix of "bg-semantic-destructive-solid", so a toContain on the
+    // shorter name would pass either way.
     expect(getNotificationIndicatorClassName("destructive")).toContain(
-      "bg-semantic-destructive",
+      "bg-semantic-destructive-solid",
     );
   });
 });

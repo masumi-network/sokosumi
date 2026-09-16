@@ -115,7 +115,7 @@ export function HistorySearchDialog({
                     updatedAt={item.updatedAt}
                     formatTimeAgo={formatTimeAgo}
                     updatedLabel={labels.updated}
-                    className="text-muted-foreground/70 mt-0.5 block text-left text-xs sm:text-left"
+                    className="text-muted-foreground mt-0.5 block text-left text-xs sm:text-left"
                   />
                 </div>
                 <div className="flex shrink-0 items-center gap-2 self-center">

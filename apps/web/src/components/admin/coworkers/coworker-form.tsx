@@ -426,7 +426,7 @@ export function CoworkerForm({ coworker, accessRows = [] }: CoworkerFormProps) {
                       <AlertDialogAction
                         onClick={handleArchive}
                         disabled={isArchiving}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
                       >
                         {isArchiving ? (
                           <>

@@ -102,7 +102,7 @@ export function ParticipantCheckboxes({
             value={participantQuery}
             onChange={(event) => setParticipantQuery(event.target.value)}
             placeholder={t("Draft.searchPlaceholder")}
-            className="h-10 rounded-full border-0 bg-muted/60 pr-4 pl-9 shadow-none focus-visible:ring-1"
+            className="h-10 rounded-full border-0 bg-card-background pr-4 pl-9 shadow-none focus-visible:ring-1"
           />
         </div>
       </div>
@@ -130,7 +130,7 @@ export function ParticipantCheckboxes({
                       className={cn(
                         "flex min-w-0 items-center gap-3 rounded-md px-2 py-2 transition-colors",
                         locked ? "cursor-not-allowed" : "cursor-pointer",
-                        checked ? "bg-muted/70" : "hover:bg-muted/50",
+                        checked ? "bg-senary" : "hover:bg-card-background",
                       )}
                       onClick={
                         locked
@@ -212,7 +212,7 @@ export function ParticipantCheckboxes({
                       key={coworker.id}
                       className={cn(
                         "flex min-w-0 cursor-pointer items-center gap-3 rounded-md px-2 py-2 transition-colors",
-                        checked ? "bg-muted/70" : "hover:bg-muted/50",
+                        checked ? "bg-senary" : "hover:bg-card-background",
                       )}
                     >
                       <Avatar className="size-8 shrink-0">
@@ -267,7 +267,7 @@ export function ParticipantCheckboxes({
                       key={sokoBot.id}
                       className={cn(
                         "flex min-w-0 cursor-pointer items-center gap-3 rounded-md px-2 py-2 transition-colors",
-                        checked ? "bg-muted/70" : "hover:bg-muted/50",
+                        checked ? "bg-senary" : "hover:bg-card-background",
                       )}
                     >
                       <Avatar className="size-8 shrink-0">

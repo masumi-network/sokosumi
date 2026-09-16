@@ -122,7 +122,10 @@ export function RoomFileDropZone({
       {isDraggingFiles ? (
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-accent/50"
+          // The wash has to stay translucent: it covers the whole message
+          // list, and an opaque step would replace the conversation with a
+          // flat panel while the pointer holds a file over the room.
+          className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-overlay-primary"
         >
           <p className="bg-background text-foreground rounded-md border px-4 py-2 text-sm font-medium shadow-sm">
             {label}

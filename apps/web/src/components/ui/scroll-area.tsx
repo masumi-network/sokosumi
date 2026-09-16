@@ -40,7 +40,7 @@ const ScrollArea = React.forwardRef<
         ref={ref}
         data-slot="scroll-area-viewport"
         className={cn(
-          "focus-visible:ring-ring/50 size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:outline-1",
+          "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:outline-1",
           // `!` beats Radix inline styles on the content wrapper child.
           shrinkContent && "*:w-full *:!block *:!min-w-0",
         )}
