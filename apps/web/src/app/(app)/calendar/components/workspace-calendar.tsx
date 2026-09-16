@@ -576,6 +576,9 @@ function CalendarView({
         timeZone={timeZone}
         headerToolbar={false}
         height="auto"
+        // Timed events default to "list-item" (dot + time + title); the card
+        // already carries the time, so the dot was the only leftover.
+        eventDisplay="block"
         editable={false}
         eventDurationEditable={false}
         eventAllow={(_span, movingEvent) => {
