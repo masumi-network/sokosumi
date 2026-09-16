@@ -35,7 +35,7 @@ export interface FileChipMiniPreviewProps {
 }
 
 const previewTriggerClassName =
-  "group bg-accent/30 hover:bg-accent/50 focus-visible:ring-ring relative block shrink-0 cursor-pointer overflow-hidden rounded-xl border outline-none transition";
+  "group bg-card-background hover:bg-card-background-hover focus-visible:ring-ring relative block shrink-0 cursor-pointer overflow-hidden rounded-xl border outline-none transition";
 
 const largeImageTriggerClassName =
   "min-w-0 max-h-80 w-full max-w-full shrink";
@@ -192,7 +192,7 @@ function FileChipMiniPreviewShell({
               type="button"
               aria-label={removeLabel}
               onClick={onRemove}
-              className="bg-background/90 hover:bg-accent focus-visible:ring-ring absolute top-1 right-1 inline-flex size-5 items-center justify-center rounded-full border shadow-sm outline-none transition"
+              className="bg-surface-glass hover:bg-accent focus-visible:ring-ring absolute top-1 right-1 inline-flex size-5 items-center justify-center rounded-full border shadow-sm outline-none transition"
             >
               <X className="size-3" />
             </button>
@@ -268,7 +268,7 @@ export function FileChipMiniPreview(props: FileChipMiniPreviewProps) {
             <div className="flex flex-col">
               <span className="truncate">{resolvedFileName}</span>
               {prettySize ? (
-                <span className="text-primary-foreground/80">{prettySize}</span>
+                <span className="text-primary-solid-foreground">{prettySize}</span>
               ) : null}
             </div>
           </TooltipContent>

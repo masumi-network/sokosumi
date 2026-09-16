@@ -175,9 +175,9 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                     {badge ? (
                       <span
                         className={cn(
-                          "border-border/60 text-tertiary-foreground dark:text-muted-foreground rounded border px-1 py-0 text-[0.625rem] font-medium uppercase tracking-wide leading-4",
+                          "border-border text-tertiary-foreground dark:text-muted-foreground rounded border px-1 py-0 text-[0.625rem] font-medium uppercase tracking-wide leading-4",
                           isActive &&
-                            "border-primary-foreground/30 text-primary-foreground",
+                            "border-sidebar-accent-foreground text-sidebar-accent-foreground",
                         )}
                       >
                         {badge}
@@ -186,7 +186,7 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                     {showUnread ? (
                       <span
                         aria-label={`${unreadDisplay} unread`}
-                        className="bg-primary text-primary-foreground inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[0.625rem] font-semibold leading-4 tabular-nums"
+                        className="bg-primary-solid text-primary-solid-foreground inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[0.625rem] font-semibold leading-4 tabular-nums"
                       >
                         {unreadDisplay}
                       </span>
@@ -211,7 +211,7 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                               className={cn(
                                 "flex min-h-auto w-full items-center gap-2 px-3",
                                 isActive
-                                  ? "text-primary-foreground"
+                                  ? "text-sidebar-accent-foreground"
                                   : "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                               )}
                             >

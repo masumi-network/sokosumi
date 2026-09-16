@@ -26,19 +26,19 @@ export default async function AuthAside() {
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-y-0 left-0 w-4/5 rounded-l-xl bg-gradient-to-r from-black/45 via-black/25 to-transparent"
+        className="pointer-events-none absolute inset-y-0 left-0 w-4/5 rounded-l-xl bg-gradient-to-r from-scrim via-scrim-soft to-transparent"
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-3/5 rounded-t-xl bg-gradient-to-b from-black/60 via-black/30 to-transparent"
+        className="pointer-events-none absolute inset-x-0 top-0 h-3/5 rounded-t-xl bg-gradient-to-b from-scrim via-scrim-soft to-transparent"
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 rounded-b-xl bg-gradient-to-t from-black/60 to-transparent"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 rounded-b-xl bg-gradient-to-t from-scrim to-transparent"
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-white/10 ring-inset"
+        className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-on-media-tertiary ring-inset"
       />
 
       <div
@@ -48,17 +48,17 @@ export default async function AuthAside() {
         <div className="relative z-10 max-w-md">
           <h2
             id="auth-aside-title"
-            className="font-medium text-4xl text-white leading-[1.05] tracking-tight xl:text-5xl"
+            className="font-medium text-4xl text-on-media leading-[1.05] tracking-tight xl:text-5xl"
           >
             <span className="block">{t("titleLine1")}</span>
             <span className="block">{t("titleLine2")}</span>
           </h2>
 
-          <ul className="mt-10 border-white/15 border-t">
+          <ul className="mt-10 border-on-media-tertiary border-t">
             {BULLET_KEYS.map((key) => (
               <li
                 key={key}
-                className="border-white/15 border-b py-3.5 text-base text-white/85 leading-snug"
+                className="border-on-media-tertiary border-b py-3.5 text-base text-on-media-muted leading-snug"
               >
                 {t(key)}
               </li>
@@ -73,13 +73,13 @@ export default async function AuthAside() {
             <div className="flex items-baseline justify-between gap-3">
               <p
                 id="auth-customer-logos-label"
-                className="font-medium text-white text-xs uppercase tracking-[0.16em]"
+                className="font-medium text-on-media text-xs uppercase tracking-[0.16em]"
               >
                 {t("logosLabel")}
               </p>
               <button
                 type="button"
-                className="sr-only rounded-sm text-white text-xs uppercase tracking-[0.16em] focus:not-sr-only focus:px-1.5 focus:py-0.5 focus:ring-2 focus:ring-white/80"
+                className="sr-only rounded-sm text-on-media text-xs uppercase tracking-[0.16em] focus:not-sr-only focus:px-1.5 focus:py-0.5 focus:ring-2 focus:ring-on-media"
               >
                 {t("pauseLogos")}
               </button>
@@ -115,7 +115,7 @@ export default async function AuthAside() {
         data-testid="auth-aside-quote"
         className="absolute right-10 bottom-10 z-10 max-w-md text-right xl:right-12 xl:bottom-12"
       >
-        <blockquote className="text-balance text-lg text-white leading-snug">
+        <blockquote className="text-balance text-lg text-on-media leading-snug">
           {t("quote")}
         </blockquote>
         <figcaption className="mt-5 flex items-center justify-end gap-3 text-sm">
@@ -124,15 +124,17 @@ export default async function AuthAside() {
             alt=""
             width={48}
             height={48}
-            className="size-12 shrink-0 rounded-full object-cover object-center ring-1 ring-white/20"
+            className="size-12 shrink-0 rounded-full object-cover object-center ring-1 ring-on-media-tertiary"
           />
           <div className="text-left">
-            <div className="whitespace-nowrap text-white">
+            <div className="whitespace-nowrap text-on-media">
               {t("quoteAuthor")}
             </div>
-            <div className="whitespace-nowrap text-white">{t("quoteRole")}</div>
+            <div className="whitespace-nowrap text-on-media">
+              {t("quoteRole")}
+            </div>
           </div>
-          <div className="border-white/20 border-l pl-4">
+          <div className="border-on-media-tertiary border-l pl-4">
             <Image
               src={AUTH_SERVICEPLAN_LOGO.src}
               alt=""

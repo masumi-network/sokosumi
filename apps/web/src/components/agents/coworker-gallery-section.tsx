@@ -42,7 +42,7 @@ interface OfferItem {
 }
 
 const FOCUS_RING =
-  "focus-visible:ring-primary/40 outline-none focus-visible:ring-2";
+  "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2";
 
 // Initial caps so the section stays tight as the team grows; both expand on
 // demand and are bypassed entirely while searching.
@@ -149,7 +149,7 @@ function MetaTags({
       {shownModels.map((model) => (
         <span
           key={model}
-          className="bg-muted/70 text-muted-foreground inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium"
+          className="bg-senary text-muted-foreground inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium"
         >
           <TagIcon name={model} size={12} />
           {model}
@@ -161,7 +161,7 @@ function MetaTags({
         </span>
       ) : null}
       {hosting ? (
-        <span className="bg-muted/70 text-muted-foreground inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium">
+        <span className="bg-senary text-muted-foreground inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium">
           <span aria-hidden>{regionFlag(hosting)}</span>
           {hosting}
         </span>
@@ -268,7 +268,7 @@ function VendorDashboard({
       </div>
 
       {/* Header rule — flush above the grid */}
-      <div aria-hidden className="border-border/60 -mx-6 border-t" />
+      <div aria-hidden className="border-border -mx-6 border-t" />
 
       {/* Master–detail. The detail column's left border is the divider; both
           columns pad to the bottom so it reaches the closing rule below. */}
@@ -289,7 +289,7 @@ function VendorDashboard({
                 className={cn(
                   "flex shrink-0 items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors md:w-full",
                   FOCUS_RING,
-                  isActive ? "bg-muted" : "hover:bg-muted/50",
+                  isActive ? "bg-muted" : "hover:bg-card-background",
                 )}
               >
                 <CoworkerAvatar
@@ -315,7 +315,7 @@ function VendorDashboard({
         {/* Detail — the selected coworker (focus) + their offers. Its left
               border IS the divider: a border always spans the element's full
               height, and this column is the tall, content-filled one. */}
-        <div className="space-y-5 md:border-border/60 md:border-l md:pt-6 md:pb-10 md:pl-9">
+        <div className="space-y-5 md:border-border md:border-l md:pt-6 md:pb-10 md:pl-9">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-start gap-4">
               <CoworkerAvatar
@@ -359,7 +359,7 @@ function VendorDashboard({
           </div>
 
           {active.description ? (
-            <p className="text-foreground/80 text-sm leading-relaxed text-pretty">
+            <p className="text-foreground text-sm leading-relaxed text-pretty">
               {active.description}
             </p>
           ) : null}
@@ -420,7 +420,7 @@ function VendorDashboard({
       </div>
       {/* Closing rule — flush below the grid; connects the vertical divider
             and separates this company from the next. */}
-      <div aria-hidden className="border-border/60 -mx-6 border-t" />
+      <div aria-hidden className="border-border -mx-6 border-t" />
     </div>
   );
 }
@@ -558,7 +558,7 @@ function CoworkerGallerySectionInner({
   return (
     <section className="space-y-12 md:space-y-16">
       {/* Hero search — full-bleed header band, same surface as the page below */}
-      <div className="border-border/60 -mx-6 -mt-4 border-b px-6 py-12 md:py-16">
+      <div className="border-border -mx-6 -mt-4 border-b px-6 py-12 md:py-16">
         <div className="mx-auto flex max-w-2xl flex-col items-center gap-6 text-center">
           {socialAvatars.length > 0 ? (
             <div className="flex items-center gap-2.5">
@@ -581,11 +581,11 @@ function CoworkerGallerySectionInner({
             {t("heroHeadline")}
           </h2>
           {/* Brand gradient ring + soft glow; intensifies on focus. */}
-          <div className="from-primary/50 to-[#00a4fa]/50 focus-within:from-primary focus-within:to-[#00a4fa] shadow-primary/15 focus-within:shadow-primary/30 relative w-full max-w-xl rounded-full bg-gradient-to-r p-[1.5px] shadow-lg transition-all duration-300 focus-within:shadow-xl">
+          <div className="from-primary-tertiary to-chart-1-quinary focus-within:from-primary focus-within:to-chart-1 shadow-primary-quaternary focus-within:shadow-primary-tertiary relative w-full max-w-xl rounded-full bg-gradient-to-r p-[1.5px] shadow-lg transition-all duration-300 focus-within:shadow-xl">
             <div className="relative rounded-full">
               <Search
                 aria-hidden
-                className="text-background/60 pointer-events-none absolute top-1/2 left-5 size-5 -translate-y-1/2 transition-colors"
+                className="text-background-muted pointer-events-none absolute top-1/2 left-5 size-5 -translate-y-1/2 transition-colors"
               />
               <input
                 value={query}
@@ -604,7 +604,7 @@ function CoworkerGallerySectionInner({
                 >
                   <span
                     key={hintIdx}
-                    className="text-background/55 animate-in fade-in slide-in-from-bottom-1.5 block truncate text-base duration-500 md:text-lg"
+                    className="text-background-muted animate-in fade-in slide-in-from-bottom-1.5 block truncate text-base duration-500 md:text-lg"
                   >
                     {rotatingHints[hintIdx % rotatingHints.length]}
                   </span>
@@ -620,7 +620,7 @@ function CoworkerGallerySectionInner({
                   type="button"
                   onClick={() => setQuery(suggestion)}
                   className={cn(
-                    "bg-card border-border/60 text-muted-foreground hover:text-foreground hover:border-border rounded-full border px-3 py-1.5 text-sm transition-colors",
+                    "bg-card border-border text-muted-foreground hover:text-foreground hover:border-border rounded-full border px-3 py-1.5 text-sm transition-colors",
                     FOCUS_RING,
                   )}
                 >
@@ -672,7 +672,7 @@ function CoworkerGallerySectionInner({
                 type="button"
                 onClick={() => setShowAllCompanies((value) => !value)}
                 className={cn(
-                  "border-border/60 bg-card text-foreground hover:bg-muted/60 inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-colors",
+                  "border-border bg-card text-foreground hover:bg-card-background inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-colors",
                   FOCUS_RING,
                 )}
               >
