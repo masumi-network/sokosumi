@@ -2143,14 +2143,14 @@ describe("ChatMessageRow", () => {
     // Fill the text column so the image edge lines up with the title. Until
     // the image loads its box is the cap itself, so a row scrolled into a
     // virtualized list does not grow under the reader.
-    expect(unfurlImage).toHaveClass("h-48", "w-full", "object-cover");
+    expect(unfurlImage).toHaveClass("h-50", "w-full", "object-cover");
     fireEvent.load(unfurlImage);
     // The remembered `width`/`height` attributes supply the ratio, so a wide
     // preview keeps its own height under the cap and only a tall one is
     // cropped by `object-cover`.
     expect(unfurlImage).toHaveClass(
       "h-auto",
-      "max-h-48",
+      "max-h-50",
       "w-full",
       "object-cover",
     );

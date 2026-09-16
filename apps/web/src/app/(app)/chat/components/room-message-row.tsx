@@ -429,10 +429,12 @@ function MessageUnfurlImage({
         // natural size still supplies the ratio, so a wide preview keeps its
         // own height and only a tall one is cropped.
         "mt-2 w-full rounded-md object-cover",
-        // Until the first load the box is the cap itself: link previews are
-        // wide, so nearly all of them land there, and the row does not grow
-        // under a reader scrolling past it.
-        loaded ? "h-auto max-h-48" : "h-48",
+        // 200px is the smallest cap that leaves the standard 1.91:1 Open Graph
+        // card whole in this 378px column (378 / 1.91 = 198), and it matches the
+        // Apple budget. Until the first load the box is the cap itself: link
+        // previews are wide, so nearly all of them land there, and the row does
+        // not grow under a reader scrolling past it.
+        loaded ? "h-auto max-h-50" : "h-50",
       )}
       onError={onError}
       onLoad={(event) => {
