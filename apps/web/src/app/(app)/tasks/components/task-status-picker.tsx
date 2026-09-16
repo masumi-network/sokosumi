@@ -188,7 +188,10 @@ export function TaskStatusPicker({
                   data-current={isCurrent || undefined}
                   onSelect={() => handleSelect(status)}
                 >
-                  <StatusMarker spec={rowMarker} />
+                  <StatusMarker
+                    spec={rowMarker}
+                    tone={STATUS_ROLE_STYLES[rowMarker.role].onSurface}
+                  />
                   <span className="flex-1 truncate">
                     {labels.statusLabels[status]}
                   </span>

@@ -77,6 +77,19 @@ describe("TaskStatusPicker", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("uses the surface tone for an unfilled Failed menu marker", async () => {
+    const user = userEvent.setup();
+    renderPicker({ options: [TaskStatus.FAILED] });
+
+    await user.click(screen.getByRole("combobox", { name: "Status" }));
+
+    const marker = screen
+      .getByRole("option", { name: /Failed/ })
+      .querySelector("svg");
+    expect(marker).toHaveClass(STATUS_ROLE_STYLES.failure.onSurface);
+    expect(marker).not.toHaveClass(STATUS_ROLE_STYLES.failure.marker);
+  });
+
   it("picks an option with its number key while the list is open", async () => {
     const user = userEvent.setup();
     const { onSelect } = renderPicker();
