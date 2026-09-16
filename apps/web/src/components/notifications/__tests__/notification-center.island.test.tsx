@@ -366,6 +366,28 @@ describe("Notification Center, both frames", () => {
     },
   );
 
+  it("keeps the page's action row in place when nothing is left unread", async () => {
+    getNotificationsMock.mockResolvedValue(
+      page([row("mine", { isRead: false, readAt: null })]),
+    );
+    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+    patchNotificationReadMock.mockResolvedValue({
+      data: row("mine", { isRead: true }),
+    });
+
+    await renderPage();
+    const actions = screen.getByTestId("notifications-page-actions");
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "markRead: mine" }));
+    await settle();
+
+    // The button goes, its row stays: a row that left with it would pull the
+    // whole list up under the reader's pointer.
+    expect(screen.queryByRole("button", { name: "markAllRead" })).toBeNull();
+    expect(screen.getByTestId("notifications-page-actions")).toBe(actions);
+  });
+
   it("puts a row back and says so when marking it read fails", async () => {
     const consoleError = vi
       .spyOn(console, "error")

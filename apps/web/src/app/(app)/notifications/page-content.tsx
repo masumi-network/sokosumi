@@ -7,6 +7,7 @@ import { NotificationCenterList } from "@/components/notifications/notification-
 import { useMarkAllRead } from "@/components/notifications/use-mark-all-read";
 import { Button } from "@/components/ui/button";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
+import { useNotifications } from "@/contexts/notification-provider";
 
 /**
  * The Notification Center at full width, and the only frame it has on a
@@ -16,23 +17,31 @@ import { useAccountNotice } from "@/contexts/account-notice-provider";
 export function NotificationsPageContent() {
   const t = useTranslations("Components.NotificationCenter");
   const { notice } = useAccountNotice();
+  const { notifications } = useNotifications();
   const { unreadCount, isMarkingAllRead, handleMarkAllRead } = useMarkAllRead();
 
   return (
     <div className="flex flex-col gap-5 pb-4">
       {notice !== null ? <AccountNoticeRow /> : null}
       <NotificationBrowserPermissionPrimer variant="page" />
-      {unreadCount > 0 ? (
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            size="sm"
-            className="self-start"
-            onClick={handleMarkAllRead}
-            disabled={isMarkingAllRead}
-          >
-            {isMarkingAllRead ? t("loading") : t("markAllRead")}
-          </Button>
+      {/* The row outlives its button. Reading the last unread row takes the
+          button away, and a row that went with it would pull the whole list
+          up under the reader's pointer. */}
+      {notifications.length > 0 ? (
+        <div
+          data-testid="notifications-page-actions"
+          className="flex min-h-8 justify-end"
+        >
+          {unreadCount > 0 ? (
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleMarkAllRead}
+              disabled={isMarkingAllRead}
+            >
+              {isMarkingAllRead ? t("loading") : t("markAllRead")}
+            </Button>
+          ) : null}
         </div>
       ) : null}
       {/* Empty only when the list has nothing to say under an account notice,
