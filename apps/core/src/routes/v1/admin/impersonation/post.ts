@@ -8,9 +8,8 @@ import prisma from "@/lib/db/prisma";
 import { auditImpersonationDenied, auditImpersonationStart } from "@/lib/evlog";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
+  denialAuditActor,
   hasAdminRole,
-  isCoworkerAuthContext,
-  isSokoBotAuthContext,
   requireInteractiveAdminAuthContext,
   requireUserAuthContext,
 } from "@/middleware/auth";
@@ -74,14 +73,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     try {
       caller = requireUserAuthContext(c.var.authContext);
     } catch (error) {
-      const actorId = isCoworkerAuthContext(c.var.authContext)
-        ? c.var.authContext.coworkerId
-        : isSokoBotAuthContext(c.var.authContext)
-          ? c.var.authContext.sokoBotId
-          : "unknown";
+      const actor = denialAuditActor(c.var.authContext);
       auditImpersonationDenied({
         action: "impersonation.start",
-        actorId,
+        actorId: actor.actorId,
+        actorType: actor.actorType,
         denial:
           error instanceof Error
             ? error.message

@@ -1,3 +1,4 @@
+import { hasAdminRole } from "@sokosumi/utils";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { HistorySearchDialogProvider } from "@/app/components/history-search-dialog-provider";
@@ -9,7 +10,6 @@ import { NotificationProvider } from "@/contexts/notification-provider";
 import { OrgPresenceProvider } from "@/contexts/org-presence-provider";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 import { signInRedirectPath } from "@/lib/auth/auth.server";
-import { hasAdminRole } from "@/lib/auth/has-admin-role";
 import { readRouteSession } from "@/lib/auth/route-session";
 import { hasCurrentUserCalendarBetaAccess } from "@/lib/calendar-beta-access.server";
 import type { Notice } from "@/lib/clients/generated/core";

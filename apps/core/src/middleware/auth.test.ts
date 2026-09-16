@@ -5,6 +5,7 @@ import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 import type { AuthVariables } from "./auth";
 import {
   authMiddleware,
+  denialAuditActor,
   forbidAgentActor,
   requireAdminAuthContext,
   requireInteractiveAdminAuthContext,
@@ -1211,6 +1212,41 @@ describe("forbidAgentActor", () => {
         context: { userId: "user_123", organizationId: null },
       }),
     ).toThrowError("Agent authentication cannot perform this owner action");
+  });
+});
+
+describe("denialAuditActor", () => {
+  it("audits coworker callers as agents", () => {
+    expect(
+      denialAuditActor({
+        actor: "coworker",
+        coworkerId: "cow_123",
+        vendorId: TEST_VENDOR_ID,
+      }),
+    ).toEqual({ actorId: "cow_123", actorType: "agent" });
+  });
+
+  it("audits Soko Bot callers as agents", () => {
+    expect(
+      denialAuditActor({
+        actor: "sokoBot",
+        sokoBotId: "sokobot_123",
+        userId: "user_123",
+        workspaceId: "ws_123",
+        organizationId: null,
+      }),
+    ).toEqual({ actorId: "sokobot_123", actorType: "agent" });
+  });
+
+  it("keeps the historical user shape for anything else", () => {
+    expect(
+      denialAuditActor({
+        actor: "user",
+        userId: "user_123",
+        organizationId: null,
+        role: "user",
+      }),
+    ).toEqual({ actorId: "unknown", actorType: "user" });
   });
 });
 

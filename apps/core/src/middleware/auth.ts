@@ -192,6 +192,24 @@ export function isSokoBotAuthContext(
 }
 
 /**
+ * Identifies the caller for an impersonation-denial audit. Coworker and
+ * Soko Bot actors audit as evlog `agent` (the union has no coworker/sokoBot
+ * type); anything else keeps the historical `user` shape.
+ */
+export function denialAuditActor(authContext: AuthenticationContext): {
+  actorId: string;
+  actorType: "user" | "agent";
+} {
+  if (isCoworkerAuthContext(authContext)) {
+    return { actorId: authContext.coworkerId, actorType: "agent" };
+  }
+  if (isSokoBotAuthContext(authContext)) {
+    return { actorId: authContext.sokoBotId, actorType: "agent" };
+  }
+  return { actorId: "unknown", actorType: "user" };
+}
+
+/**
  * True for an sokoBot or a coworker acting as itself with no context headers.
  * A coworker that supplies workspace context acts in that user's workspace, so this
  * returns false for it (use {@link requireUserContext} / the user code paths in that case).

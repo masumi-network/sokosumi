@@ -6,11 +6,7 @@ import { ok } from "@/helpers/response";
 import { auth } from "@/lib/auth";
 import { auditImpersonationDenied, auditImpersonationStop } from "@/lib/evlog";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import {
-  isCoworkerAuthContext,
-  isSokoBotAuthContext,
-  requireUserAuthContext,
-} from "@/middleware/auth";
+import { denialAuditActor, requireUserAuthContext } from "@/middleware/auth";
 import { adminUserOptionSchema } from "@/schemas/admin.schema";
 
 import { forwardSessionCookies } from "./cookies.js";
@@ -47,14 +43,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     try {
       caller = requireUserAuthContext(c.var.authContext);
     } catch (error) {
-      const actorId = isCoworkerAuthContext(c.var.authContext)
-        ? c.var.authContext.coworkerId
-        : isSokoBotAuthContext(c.var.authContext)
-          ? c.var.authContext.sokoBotId
-          : "unknown";
+      const actor = denialAuditActor(c.var.authContext);
       auditImpersonationDenied({
         action: "impersonation.stop",
-        actorId,
+        actorId: actor.actorId,
+        actorType: actor.actorType,
         denial:
           error instanceof Error
             ? error.message

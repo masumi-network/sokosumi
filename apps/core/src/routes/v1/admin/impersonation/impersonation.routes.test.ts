@@ -364,7 +364,7 @@ describe("POST /v1/admin/impersonation", () => {
     expect(captured[0]?.event).toMatchObject({
       audit: expect.objectContaining({
         action: "impersonation.start",
-        actor: { type: "user", id: "cow_123" },
+        actor: { type: "agent", id: "cow_123" },
         outcome: "denied",
       }),
     });
@@ -533,7 +533,7 @@ describe("DELETE /v1/admin/impersonation", () => {
     expect(captured[0]?.event).toMatchObject({
       audit: expect.objectContaining({
         action: "impersonation.stop",
-        actor: { type: "user", id: "cow_123" },
+        actor: { type: "agent", id: "cow_123" },
         outcome: "denied",
       }),
     });

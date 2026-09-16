@@ -200,6 +200,11 @@ export function auditImpersonationStop(input: ImpersonationAuditInput) {
 export interface ImpersonationDenialInput {
   action: "impersonation.start" | "impersonation.stop";
   actorId: string;
+  /**
+   * evlog actor type. evlog has no coworker/sokoBot type, so agent callers
+   * audit as `agent`. Defaults to `user`.
+   */
+  actorType?: "user" | "agent";
   targetUserId?: string;
   /** Why the attempt was rejected (policy message, not the Linear start reason). */
   denial: string;
@@ -209,7 +214,7 @@ export interface ImpersonationDenialInput {
 export function auditImpersonationDenied(input: ImpersonationDenialInput) {
   tryUseLogger()?.audit.deny(input.denial, {
     action: input.action,
-    actor: { type: "user", id: input.actorId },
+    actor: { type: input.actorType ?? "user", id: input.actorId },
     ...(input.targetUserId
       ? { target: { type: "user", id: input.targetUserId } }
       : {}),

@@ -143,7 +143,7 @@ describe("POST /api/admin/impersonation", () => {
     ]);
   });
 
-  it.each(["cross-site", null] as const)(
+  it.each(["cross-site", "same-site", null] as const)(
     "rejects %s requests without reaching Core",
     async (secFetchSite) => {
       const response = await POST(
@@ -382,12 +382,15 @@ describe("DELETE /api/admin/impersonation", () => {
     expect(response.headers.getSetCookie()).toEqual([SIGNED_SESSION_COOKIE]);
   });
 
-  it("rejects cross-site requests without reaching Core", async () => {
-    const response = await DELETE(deleteRequest("cross-site"));
+  it.each(["cross-site", "same-site", null] as const)(
+    "rejects %s requests without reaching Core",
+    async (secFetchSite) => {
+      const response = await DELETE(deleteRequest(secFetchSite));
 
-    expect(response.status).toBe(403);
-    expect(stopAdminImpersonationMock).not.toHaveBeenCalled();
-  });
+      expect(response.status).toBe(403);
+      expect(stopAdminImpersonationMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("answers 401 for a signed-out browser", async () => {
     readRouteSessionMock.mockResolvedValue({ status: "signedOut" });

@@ -18,12 +18,13 @@ import {
 import { collectResponseSetCookies } from "@/lib/http/set-cookies";
 
 /**
- * Fetch-metadata guard: only same-origin/same-site `fetch()` calls reach the
- * session switch. Browsers send truthful `Sec-Fetch-Site` (cross-site fetch
- * reads `cross-site`), so this rejects CSRF without tokens. Unlike the
- * billing navigation guard, `none` is rejected: `fetch()` never sends it.
+ * Fetch-metadata guard: only same-origin `fetch()` calls reach the session
+ * switch. Browsers send truthful `Sec-Fetch-Site` (cross-site fetch reads
+ * `cross-site`), so this rejects CSRF without tokens. Unlike the billing
+ * navigation guard, `same-site` and `none` are rejected: the only client is
+ * this app's own relative `fetch()`, which always reads `same-origin`.
  */
-const ALLOWED_SEC_FETCH_SITE_VALUES = new Set(["same-origin", "same-site"]);
+const ALLOWED_SEC_FETCH_SITE_VALUES = new Set(["same-origin"]);
 
 function isSameOriginFetch(request: NextRequest): boolean {
   const secFetchSite = request.headers.get("Sec-Fetch-Site");
