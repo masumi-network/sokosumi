@@ -324,7 +324,7 @@ export default function HeaderWorkspaceSwitch({
             disabled={isPending || isCreatingPersonal}
             onClick={handleOpenCreateWorkspace}
           >
-            <Avatar className="bg-primary/10 flex size-6 items-center justify-center gap-2">
+            <Avatar className="bg-primary-quinary flex size-6 items-center justify-center gap-2">
               <Plus className="text-primary size-4" />
             </Avatar>
             <span>{tOrganizationSwitcher("createWorkspace")}</span>
@@ -354,8 +354,9 @@ export default function HeaderWorkspaceSwitch({
             <Label
               htmlFor="switcher-workspace-choice-personal"
               className={cn(
-                "border-input hover:bg-accent/40 flex cursor-pointer items-start gap-3 rounded-lg border p-4",
-                workspaceChoice === "personal" && "border-primary bg-accent/30",
+                "border-input hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
+                workspaceChoice === "personal" &&
+                  "border-primary bg-card-background",
               )}
             >
               <RadioGroupItem
@@ -375,9 +376,9 @@ export default function HeaderWorkspaceSwitch({
             <Label
               htmlFor="switcher-workspace-choice-organization"
               className={cn(
-                "border-input hover:bg-accent/40 flex cursor-pointer items-start gap-3 rounded-lg border p-4",
+                "border-input hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
                 workspaceChoice === "organization" &&
-                  "border-primary bg-accent/30",
+                  "border-primary bg-card-background",
               )}
             >
               <RadioGroupItem

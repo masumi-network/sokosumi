@@ -86,7 +86,7 @@ export function ProjectMemoryRow({
   const notConfiguredHint =
     memoryEnabled === false ? (
       <p
-        className="text-muted-foreground/60 truncate text-xs"
+        className="text-muted-foreground truncate text-xs"
         data-testid="project-memory-disabled"
       >
         {t("memory.notConfigured")}
@@ -99,7 +99,7 @@ export function ProjectMemoryRow({
         className="min-w-0 self-start space-y-2"
         data-testid="project-memory-empty"
       >
-        <h2 className="text-muted-foreground/60 text-xs font-medium">
+        <h2 className="text-muted-foreground text-xs font-medium">
           {t("memory.fileName")}
         </h2>
         <p className="truncate text-sm font-medium">{t("memory.empty")}</p>
@@ -129,16 +129,16 @@ export function ProjectMemoryRow({
         data-testid="project-memory-row"
         disabled={!contextMd}
         onClick={() => void handleOpen()}
-        className="hover:bg-muted/50 -mx-2 min-w-0 w-[calc(100%+1rem)] space-y-2 self-start rounded-lg px-2 py-2 text-left transition-colors disabled:cursor-default disabled:hover:bg-transparent"
+        className="hover:bg-card-background -mx-2 min-w-0 w-[calc(100%+1rem)] space-y-2 self-start rounded-lg px-2 py-2 text-left transition-colors disabled:cursor-default disabled:hover:bg-transparent"
       >
-        <h2 className="text-muted-foreground/60 text-xs font-medium">
+        <h2 className="text-muted-foreground text-xs font-medium">
           {t("memory.fileName")}
         </h2>
         <div className="flex items-center gap-1.5">
           <p className="truncate text-sm font-medium">{statusLabel}</p>
           {contextMdUpdating ? (
             <span
-              className="bg-muted-foreground/40 size-1.5 shrink-0 animate-pulse rounded-full"
+              className="bg-tertiary size-1.5 shrink-0 animate-pulse rounded-full"
               data-testid="project-memory-updating"
               aria-hidden
             />
@@ -165,7 +165,7 @@ export function ProjectMemoryRow({
 
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
             {isLoading ? (
-              <p className="text-muted-foreground/60 text-sm">
+              <p className="text-muted-foreground text-sm">
                 {t("memory.loading")}
               </p>
             ) : content ? (

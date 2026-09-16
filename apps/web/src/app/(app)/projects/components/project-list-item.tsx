@@ -27,7 +27,7 @@ export function ProjectListItem({ project, labels }: ProjectListItemProps) {
         href={`/projects/${project.id}`}
         className={cn(
           "flex min-w-0 flex-row items-center gap-4 rounded-none px-2 py-3 transition-colors",
-          "hover:bg-muted/50 active:scale-[0.995] md:rounded-lg",
+          "hover:bg-card-background-hover active:scale-[0.995] md:rounded-lg",
         )}
       >
         <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -36,7 +36,7 @@ export function ProjectListItem({ project, labels }: ProjectListItemProps) {
             <span className="text-foreground line-clamp-1 text-sm font-medium">
               {project.name}
             </span>
-            <p className="text-muted-foreground/70 line-clamp-1 text-xs break-all">
+            <p className="text-muted-foreground line-clamp-1 text-xs break-all">
               {briefing}
             </p>
           </div>

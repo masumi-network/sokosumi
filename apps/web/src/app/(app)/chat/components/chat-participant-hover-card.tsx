@@ -307,7 +307,7 @@ export function ChatParticipantHoverCard({
                 seed={profile.avatarSeed}
                 size={96}
                 alt=""
-                className="ring-border/40 size-12 ring-1"
+                className="ring-border size-12 ring-1"
               />
             ) : (
               <Avatar className="size-12">
@@ -316,7 +316,7 @@ export function ChatParticipantHoverCard({
                   className={cn(
                     "text-sm",
                     isAi
-                      ? "bg-primary/10 text-primary"
+                      ? "bg-primary-quinary text-primary"
                       : "bg-muted text-muted-foreground",
                   )}
                 >

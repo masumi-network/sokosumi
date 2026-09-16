@@ -56,7 +56,7 @@ const STATUS_CARD_STYLES: Record<
     dot: COLUMN_STATUS_COLORS.todo,
   },
   QUEUED: {
-    badge: "bg-primary/10 text-primary",
+    badge: "bg-primary-quinary text-primary",
     dot: CELEBRATION_SCHEDULED_DOT,
   },
 };
@@ -94,12 +94,12 @@ export function TaskCreatedCelebration({
             return (
               <div
                 key={col.id}
-                className="border-border/60 bg-muted/30 flex flex-col gap-2 rounded-xl border p-2"
+                className="border-border bg-card-background flex flex-col gap-2 rounded-xl border p-2"
               >
                 {/* Column header */}
                 <div className="flex items-center gap-1.5 px-0.5 pt-0.5">
                   <span className={cn("size-1.5 rounded-full", col.dot)} />
-                  <span className="bg-muted-foreground/30 h-1.5 w-8 rounded-full" />
+                  <span className="bg-quaternary h-1.5 w-8 rounded-full" />
                 </div>
 
                 {isTarget ? (
@@ -148,7 +148,7 @@ export function TaskCreatedCelebration({
                     {reduceMotion ? null : (
                       <motion.span
                         aria-hidden
-                        className="ring-primary/50 pointer-events-none absolute inset-0 rounded-lg ring-2"
+                        className="ring-ring-halo pointer-events-none absolute inset-0 rounded-lg ring-2"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: [0, 1, 0] }}
                         transition={{ duration: 0.9, delay: 0.3 }}
@@ -179,16 +179,16 @@ export function TaskCreatedCelebration({
                     </motion.span>
                   </motion.div>
                 ) : (
-                  <div className="border-border/40 bg-muted/40 space-y-1.5 rounded-lg border p-2 opacity-50">
-                    <span className="bg-muted-foreground/30 block h-1 w-6 rounded-full" />
-                    <span className="bg-muted-foreground/20 block h-1 w-full rounded-full" />
+                  <div className="border-border bg-card-background space-y-1.5 rounded-lg border p-2 opacity-50">
+                    <span className="bg-quaternary block h-1 w-6 rounded-full" />
+                    <span className="bg-quaternary block h-1 w-full rounded-full" />
                   </div>
                 )}
 
                 {/* Faint card to give each column some weight */}
-                <div className="border-border/40 bg-muted/30 space-y-1.5 rounded-lg border p-2 opacity-40">
-                  <span className="bg-muted-foreground/30 block h-1 w-6 rounded-full" />
-                  <span className="bg-muted-foreground/20 block h-1 w-3/4 rounded-full" />
+                <div className="border-border bg-card-background space-y-1.5 rounded-lg border p-2 opacity-40">
+                  <span className="bg-quaternary block h-1 w-6 rounded-full" />
+                  <span className="bg-quaternary block h-1 w-3/4 rounded-full" />
                 </div>
               </div>
             );

@@ -23,6 +23,22 @@
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-card-background: var(--card-background);
+  --color-card-background-hover: var(--card-background-hover);
+  --color-overlay: var(--overlay);
+  --color-overlay-primary: var(--overlay-primary);
+  --color-surface-glass: var(--surface-glass);
+  --color-surface-sticky: var(--surface-sticky);
+  --color-scrim: var(--scrim);
+  --color-scrim-soft: var(--scrim-soft);
+  --color-scrim-strong: var(--scrim-strong);
+  --color-on-media: var(--on-media);
+  --color-media-ground: var(--media-ground);
+  --color-hero-wash: var(--hero-wash);
+  --color-hero-ground: var(--hero-ground);
+  --color-on-media-muted: var(--on-media-muted);
+  --color-on-media-tertiary: var(--on-media-tertiary);
+  --color-on-media-quaternary: var(--on-media-quaternary);
+  --color-background-muted: var(--background-muted);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
@@ -61,6 +77,11 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-chart-1-quinary: var(--chart-1-quinary);
+  --color-chart-2-quinary: var(--chart-2-quinary);
+  --color-chart-3-quinary: var(--chart-3-quinary);
+  --color-chart-4-quinary: var(--chart-4-quinary);
+  --color-chart-5-quinary: var(--chart-5-quinary);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-accent: var(--sidebar-accent);
@@ -257,6 +278,55 @@
   --card: hsla(300, 50%, 100%, 1);
   --card-foreground: hsla(300, 0%, 4%, 1);
   --card-background: hsla(0, 0%, 98%, 1);
+  /* The hover for a row that sits on --card-background. The step is capped
+     by the text riding on it, not by taste: --muted-foreground is 44% here,
+     which measures 4.727:1 on the resting 98% and 4.521:1 at 96%. The
+     floor is crossed just below that, at 95.8%, so there is no step worth
+     having between 96% and a fill that puts the row's own timestamps and
+     captions under 4.5:1. */
+  --card-background-hover: hsla(0, 0%, 96%, 1);
+  /* Translucency with a role. These keep their alpha on purpose: each one
+     must show what sits behind it, which is the one job a frozen step
+     cannot do. The scrims and the on-media steps sit over user media, not
+     over the page, so they hold the same value in both themes.
+
+     --on-media is a label, --on-media-muted a quieter label. The two steps
+     below it are not labels at all: -tertiary is the hairline, ring or
+     border drawn on media, and -quaternary is the hover wash under a
+     control. Reading "muted" as "faint" and using it as a wash paints an
+     85% white pill, which swallows the white icon on top of it.
+
+     --background-muted is the page-side twin of --muted-foreground, for a
+     quieter label on an inverted surface (one painted bg-foreground). It
+     follows the theme; the on-media steps do not. The alpha is .58, not the
+     .55 the call sites used to write by hand: .55 measures 4.34:1 on the dark
+     inverted surface, under the 4.5 floor, and the label it carries is 16 to
+     18px regular, which is not large text. .58 measures 4.82 dark and 6.87
+     light. */
+  --overlay: hsla(0, 0%, 100%, 0.5);
+  /* The drop-target wash. --overlay cannot serve here: it is the page
+     ground at half alpha, so over an unpainted surface it composites
+     back to the ground at 1.000:1 and disappears. The modal scrims get
+     away with it because they pair it with a backdrop blur. This one
+     tints instead, at 1.474:1 against the page, and leaves the text
+     under it at 12.41:1. */
+  --overlay-primary: hsla(263.5, 100%, 50%, 0.2);
+  --surface-glass: hsla(0, 0%, 100%, 0.8);
+  --surface-sticky: hsla(0, 0%, 100%, 0.95);
+  --scrim-soft: hsla(0, 0%, 0%, 0.25);
+  --scrim: hsla(0, 0%, 0%, 0.5);
+  --scrim-strong: hsla(0, 0%, 0%, 0.8);
+  --media-ground: hsla(0, 0%, 0%, 1);
+  /* The landing hero is a photograph with a wash over it. The wash hue and
+     the stop under it differ per theme, so they are tokens, not a dark
+     variant on the utility. */
+  --hero-wash: hsla(200.6, 100%, 49%, 0.39);
+  --hero-ground: hsla(0, 0%, 100%, 1);
+  --on-media: hsla(0, 0%, 100%, 1);
+  --on-media-muted: hsla(0, 0%, 100%, 0.85);
+  --on-media-tertiary: hsla(0, 0%, 100%, 0.15);
+  --on-media-quaternary: hsla(0, 0%, 100%, 0.1);
+  --background-muted: hsla(0, 0%, 100%, 0.58);
   --popover: hsla(300, 50%, 100%, 1);
   --popover-foreground: hsla(300, 0%, 4%, 1);
   --primary: hsla(263.5, 100%, 50%, 1); /* Sokosumi · Wisteria Purple #6400FF */
@@ -310,6 +380,11 @@
   --chart-3: #0afa14; /* kodosumi · Neon Grass */
   --chart-4: #ffd300; /* masumi · Golden Yellow */
   --chart-5: #ff6400; /* masumi · Persimmon */
+  --chart-1-quinary: hsla(201, 94.9%, 92.4%, 1);
+  --chart-2-quinary: hsla(326, 94.9%, 92.4%, 1);
+  --chart-3-quinary: hsla(123, 94.7%, 92.5%, 1);
+  --chart-4-quinary: hsla(49, 100.0%, 92.5%, 1);
+  --chart-5-quinary: hsla(24, 100.0%, 92.5%, 1);
   --sidebar: hsla(300, 0%, 98%, 1);
   --sidebar-foreground: hsla(300, 0%, 4%, 1);
   --sidebar-accent: hsla(300, 0%, 96%, 1);
@@ -407,6 +482,30 @@
   --card: hsla(300, 0%, 4%, 1);
   --card-foreground: hsla(0, 0%, 98%, 1);
   --card-background: hsla(0, 0%, 9%, 1);
+  /* The hover moves towards the page to separate the row from its card.
+     The earlier 50% text value required this darker fill for contrast.
+     Muted text now uses 72% so it also remains readable on lighter control
+     surfaces. Keep the existing darker hover direction on cards. */
+  --card-background-hover: hsla(0, 0%, 6%, 1);
+  /* See the light block. The scrims do not change: they sit over media. */
+  --overlay: hsla(0, 0%, 4%, 0.5);
+  /* Same wash, more alpha: the dark primary is a lighter purple and
+     needs 0.32 to reach the same weight. 1.489:1 against the page,
+     text under it at 8.73:1. */
+  --overlay-primary: hsla(270, 64%, 63%, 0.32);
+  --surface-glass: hsla(0, 0%, 4%, 0.8);
+  --surface-sticky: hsla(0, 0%, 4%, 0.95);
+  --scrim-soft: hsla(0, 0%, 0%, 0.25);
+  --scrim: hsla(0, 0%, 0%, 0.5);
+  --scrim-strong: hsla(0, 0%, 0%, 0.8);
+  --media-ground: hsla(0, 0%, 0%, 1);
+  --hero-wash: hsla(264, 100%, 38.6%, 0.62);
+  --hero-ground: hsla(0, 0%, 0%, 1);
+  --on-media: hsla(0, 0%, 100%, 1);
+  --on-media-muted: hsla(0, 0%, 100%, 0.85);
+  --on-media-tertiary: hsla(0, 0%, 100%, 0.15);
+  --on-media-quaternary: hsla(0, 0%, 100%, 0.1);
+  --background-muted: hsla(0, 0%, 4%, 0.58);
   --popover: hsla(330, 0%, 9%, 1);
   --popover-foreground: hsla(0, 0%, 98%, 1);
   --primary: hsla(270, 64%, 63%, 1);
@@ -446,6 +545,11 @@
   --chart-3: #0afa14; /* kodosumi · Neon Grass */
   --chart-4: #ffd300; /* masumi · Golden Yellow */
   --chart-5: #ff6400; /* masumi · Persimmon */
+  --chart-1-quinary: hsla(201, 67.3%, 10.8%, 1);
+  --chart-2-quinary: hsla(326, 67.3%, 10.8%, 1);
+  --chart-3-quinary: hsla(123, 64.3%, 11.0%, 1);
+  --chart-4-quinary: hsla(49, 67.9%, 11.0%, 1);
+  --chart-5-quinary: hsla(24, 67.9%, 11.0%, 1);
   --sidebar: hsla(330, 0%, 9%, 1);
   --sidebar-foreground: hsla(0, 0%, 98%, 1);
   --sidebar-accent: hsla(0, 0%, 15%, 1);
@@ -618,17 +722,11 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
 
 @utility landing-hero-bg {
   background-image:
-    linear-gradient(rgba(0, 164, 250, 0.39), rgba(255, 255, 255, 1)),
+    linear-gradient(var(--hero-wash), var(--hero-ground)),
     url("/backgrounds/landing-hero.jpg");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-
-  @variant dark {
-    background-image:
-      linear-gradient(rgba(79, 0, 197, 0.62), rgba(0, 0, 0, 1)),
-      url("/backgrounds/landing-hero.jpg");
-  }
 }
 
 @utility landing-join-our-community-bg {

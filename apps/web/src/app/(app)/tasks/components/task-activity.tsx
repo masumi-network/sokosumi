@@ -377,7 +377,7 @@ export function TaskActivitySection({
         <form
           ref={formRef}
           onSubmit={handleSubmit}
-          className="border-border/50 rounded-lg border p-3"
+          className="border-border rounded-lg border p-3"
         >
           <FileUpload
             value={pendingUploadFiles}
@@ -388,13 +388,13 @@ export function TaskActivitySection({
             multiple
           >
             <FileUploadDropzone
-              className="data-dragging:bg-accent/20 w-full items-stretch justify-start border-0 p-0 hover:bg-transparent"
+              className="data-dragging:bg-card-background w-full items-stretch justify-start border-0 p-0 hover:bg-transparent"
               onClick={(event) => event.preventDefault()}
             >
               <MarkdownEditor
                 ref={markdownEditorRef}
                 placeholder={placeholder}
-                className="border-border/50 bg-muted-foreground/5 w-full rounded-lg border"
+                className="border-border bg-senary w-full rounded-lg border"
                 value={comment}
                 onChange={setComment}
                 onSubmitShortcut={() => formRef.current?.requestSubmit()}
@@ -593,7 +593,7 @@ export function TaskActivitySection({
                 key={event.id}
                 className={cn(
                   "rounded-lg pr-3 pl-3",
-                  isCardEvent && "bg-muted/20 border-border/50 border",
+                  isCardEvent && "bg-card-background border-border border",
                   shouldHighlightDoneBorder &&
                     getTaskStatusBorderColorClass(TaskStatus.COMPLETED),
                 )}
@@ -640,13 +640,13 @@ export function TaskActivitySection({
                     <div className="flex flex-row items-baseline justify-between gap-2">
                       <div className="flex flex-wrap items-baseline gap-1.5 text-sm">
                         <span className="text-sm font-medium">{actorName}</span>
-                        <span className="text-muted-foreground/60 inline-flex items-center gap-1 text-xs">
+                        <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
                           <span>{action}</span>
                           {!event.status ? (
                             <>
                               <span>{originFromLabel}</span>
                               <ChannelIcon
-                                className="text-muted-foreground/50 size-3.5 shrink-0"
+                                className="text-muted-foreground size-3.5 shrink-0"
                                 role="img"
                                 aria-label={originFromLabel}
                                 data-testid={`origin-icon-${event.id}`}
@@ -660,10 +660,10 @@ export function TaskActivitySection({
                               status={event.status}
                               label={tStatus(event.status)}
                             />
-                            <span className="text-muted-foreground/60 inline-flex items-center gap-1 text-xs">
+                            <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
                               <span>{originFromLabel}</span>
                               <ChannelIcon
-                                className="text-muted-foreground/50 size-3.5 shrink-0"
+                                className="text-muted-foreground size-3.5 shrink-0"
                                 role="img"
                                 aria-label={originFromLabel}
                                 data-testid={`origin-icon-${event.id}`}
@@ -674,13 +674,13 @@ export function TaskActivitySection({
                       </div>
                       <TimeAgo
                         date={event.createdAt}
-                        className="text-muted-foreground/40 text-xs whitespace-nowrap"
+                        className="text-muted-foreground text-xs whitespace-nowrap"
                       />
                     </div>
                     {formattedComment ? (
                       <ExpandableMarkdown
                         content={formattedComment}
-                        className="prose-sm text-foreground/70 text-sm"
+                        className="prose-sm text-foreground text-sm"
                         expandLabel={expandLabel}
                         collapseLabel={collapseLabel}
                         fadeClassName="to-transparent"
@@ -688,7 +688,7 @@ export function TaskActivitySection({
                       />
                     ) : null}
                     {shouldShowBillingPlaceholder ? (
-                      <p className="text-foreground/70 text-sm">
+                      <p className="text-foreground text-sm">
                         {billingPlaceholderLabel}
                       </p>
                     ) : null}
@@ -732,7 +732,7 @@ export function TaskActivitySection({
                       </div>
                     ) : null}
                     {shouldShowSecondaryChargeLine ? (
-                      <div className="text-muted-foreground/60 text-xs">
+                      <div className="text-muted-foreground text-xs">
                         {chargedLabel}
                       </div>
                     ) : null}
