@@ -34,15 +34,15 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ai-sdk/provider": "4.0.14",
+    "@ai-sdk/provider": "4.0.15",
     "@sokosumi/chat": "workspace:*",
     "@sokosumi/utils": "workspace:*"
   },
   "devDependencies": {
-    "@ai-sdk/provider-utils": "5.0.40",
-    "@types/node": "24.13.4",
+    "@ai-sdk/provider-utils": "5.0.41",
+    "@types/node": "24.13.5",
     "@typescript/typescript6": "6.0.2",
     "typescript": "7.0.2",
-    "vitest": "5.0.0"
+    "vitest": "5.0.1"
   }
 }
