@@ -1920,7 +1920,7 @@
         "createAnother": "Crear otra tarea",
         "close": "Cerrar",
         "privateLabel": "Privada",
-        "privateDescription": "Solo tú, tu Soko Bot y el coworker asignado pueden ver esta tarea."
+        "privateDescription": "Oculta para el resto de miembros del workspace. Sigue visible para ti, tu Soko Bot y el coworker asignado."
       },
       "EditTask": {
         "title": "Editar Task",

@@ -1920,7 +1920,7 @@
         "createAnother": "Create another task",
         "close": "Close",
         "privateLabel": "Private",
-        "privateDescription": "Only you, your Soko Bot, and the assigned coworker can see this task."
+        "privateDescription": "Hidden from other workspace members. Still visible to you, your Soko Bot, and the assigned coworker."
       },
       "EditTask": {
         "title": "Edit Task",
