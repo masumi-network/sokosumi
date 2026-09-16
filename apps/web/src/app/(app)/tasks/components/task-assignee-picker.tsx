@@ -176,41 +176,44 @@ export function TaskAssigneePicker({
     <Popover open={open} onOpenChange={handleOpenChange}>
       <div className="flex items-center gap-3">
         <AssigneeAvatar option={selectedOption} />
-        <div className="flex min-w-0 items-center gap-1">
-          <div className="min-w-0">
-            <p
-              className={cn(
-                "truncate text-sm leading-tight font-semibold",
-                isUnassigned && "text-muted-foreground",
-              )}
-            >
-              {displayName}
-            </p>
-            {selectedOption?.caption ? (
-              <p className="text-muted-foreground truncate text-xs">
-                {selectedOption.caption}
-              </p>
-            ) : null}
-          </div>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              role="combobox"
-              aria-expanded={open}
-              aria-label={labels.ariaLabel}
-              disabled={disabled}
-              className="text-muted-foreground inline-flex size-8 shrink-0 items-center justify-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed"
-            >
-              <ChevronDown className="size-4 opacity-70" aria-hidden />
-            </button>
-          </PopoverTrigger>
-        </div>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            role="combobox"
+            aria-expanded={open}
+            aria-label={labels.ariaLabel}
+            disabled={disabled}
+            className="inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed"
+          >
+            <span className="min-w-0">
+              <span
+                className={cn(
+                  "block truncate text-sm leading-tight font-semibold",
+                  isUnassigned && "text-muted-foreground",
+                )}
+              >
+                {displayName}
+              </span>
+              {selectedOption?.caption ? (
+                <span className="text-muted-foreground block truncate text-xs">
+                  {selectedOption.caption}
+                </span>
+              ) : null}
+            </span>
+            <ChevronDown
+              className="text-muted-foreground size-4 shrink-0 opacity-70"
+              aria-hidden
+            />
+          </button>
+        </PopoverTrigger>
         {selectedOption ? (
-          <VendorMark
-            vendor={selectedOption.vendor}
-            className="ml-auto h-5 shrink-0"
-            textClassName="text-muted-foreground shrink-0 text-xs font-medium"
-          />
+          <span className="ml-auto shrink-0">
+            <VendorMark
+              vendor={selectedOption.vendor}
+              className="h-5"
+              textClassName="text-muted-foreground text-xs font-medium"
+            />
+          </span>
         ) : null}
       </div>
       <PopoverContent align={align} className="w-72 p-0">

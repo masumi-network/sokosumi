@@ -129,26 +129,22 @@ describe("TaskAssigneePicker", () => {
   it("shows the unassigned label when no assignee is selected", () => {
     renderPicker({ value: "" });
 
-    expect(screen.getByText("Unassigned")).toBeInTheDocument();
+    expect(
+      screen.getByRole("combobox", { name: "Coworker" }),
+    ).toHaveTextContent("Unassigned");
     expect(screen.queryByAltText("Serviceplan")).not.toBeInTheDocument();
   });
 
-  it("shows the vendor mark beside a compact dropdown trigger", () => {
+  it("keeps the assignee trigger compact next to the vendor mark", () => {
     renderPicker({ value: "coworker-2" });
 
-    expect(screen.getByText("Elena")).toBeInTheDocument();
+    const trigger = screen.getByRole("combobox", { name: "Coworker" });
+    expect(trigger).toHaveTextContent("Elena");
+    expect(trigger.className).toMatch(/\binline-flex\b/);
+    expect(trigger.className).not.toMatch(/(?:^|\s)w-full(?:\s|$)/);
     expect(screen.getAllByAltText("Serviceplan").length).toBeGreaterThan(0);
 
-    const trigger = screen.getByRole("combobox", { name: "Coworker" });
-    expect(trigger).not.toHaveTextContent("Elena");
-    expect(trigger.className).toMatch(/\bsize-8\b/);
-    expect(trigger.className).not.toMatch(/\bw-full\b/);
-
-    const name = screen.getByText("Elena");
     const vendor = screen.getAllByAltText("Serviceplan")[0];
-    expect(
-      name.compareDocumentPosition(trigger) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
     expect(
       trigger.compareDocumentPosition(vendor) &
         Node.DOCUMENT_POSITION_FOLLOWING,
