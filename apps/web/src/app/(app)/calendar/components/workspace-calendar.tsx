@@ -75,6 +75,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+  SEGMENTED_TABS_LIST_CLASS_NAME,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   clearTaskSchedule,
@@ -1271,22 +1278,33 @@ export function WorkspaceCalendar({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div
-          className="flex flex-1 gap-1 md:flex-none"
-          data-testid="calendar-views"
+        <Tabs
+          className="flex-1 md:flex-none"
+          value={view}
+          onValueChange={(value) => {
+            const nextView = CALENDAR_VIEWS.find(
+              (candidate) => candidate === value,
+            );
+            if (nextView) {
+              handleViewChange(nextView);
+            }
+          }}
         >
-          {CALENDAR_VIEWS.map((calendarView) => (
-            <Button
-              className="flex-1 md:flex-none"
-              key={calendarView}
-              size="sm"
-              variant={view === calendarView ? "primary" : "outline"}
-              onClick={() => handleViewChange(calendarView)}
-            >
-              {t(`view.${calendarView}`)}
-            </Button>
-          ))}
-        </div>
+          <TabsList
+            className={cn(SEGMENTED_TABS_LIST_CLASS_NAME, "md:w-auto")}
+            data-testid="calendar-views"
+          >
+            {CALENDAR_VIEWS.map((calendarView) => (
+              <TabsTrigger
+                key={calendarView}
+                className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
+                value={calendarView}
+              >
+                {t(`view.${calendarView}`)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
         <FilterDropdownMenu
           buttonLabel={tFilters("title")}
           emptyResultsLabel={tFilters("emptyResults")}

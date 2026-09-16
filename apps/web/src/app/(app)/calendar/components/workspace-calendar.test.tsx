@@ -707,7 +707,7 @@ describe("WorkspaceCalendar", () => {
       </NuqsTestingAdapter>,
     );
 
-    await user.click(screen.getByRole("button", { name: "view.week" }));
+    await user.click(screen.getByRole("tab", { name: "view.week" }));
     await user.click(screen.getByRole("button", { name: "next" }));
 
     await waitFor(() => expect(onUrlUpdate).toHaveBeenCalled());
