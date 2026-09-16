@@ -1,6 +1,13 @@
+import * as Sentry from "@sentry/node";
 import { NotificationKind, type Prisma } from "@sokosumi/database";
 import { CHAT_ROOM_MESSAGE_MESSAGE_KEY } from "@sokosumi/utils";
 
+import {
+  JOB_ATTENTION_MESSAGE_KEYS,
+  JOB_TERMINAL_MESSAGE_KEYS,
+  TASK_ATTENTION_MESSAGE_KEYS,
+  TASK_TERMINAL_MESSAGE_KEYS,
+} from "@/helpers/notification-delivery";
 import { notificationFeedWhere } from "@/helpers/notification-feed";
 import prisma from "@/lib/db/prisma";
 
@@ -46,4 +53,80 @@ export async function markNotificationsRead(
       )
       .map((row) => row.id),
   };
+}
+
+/**
+ * The attention rows a settled record leaves behind, by the key that settled it.
+ *
+ * One map rather than a list plus a switch, for the same reason the follow-up
+ * map is one: "is this key terminal" and "what does it clear" are one question.
+ * A key absent from here clears nothing, which is the safe way round.
+ */
+const ATTENTION_KEYS_CLEARED_BY = new Map<string, readonly string[]>([
+  ...TASK_TERMINAL_MESSAGE_KEYS.map((key): [string, readonly string[]] => [
+    key,
+    TASK_ATTENTION_MESSAGE_KEYS,
+  ]),
+  ...JOB_TERMINAL_MESSAGE_KEYS.map((key): [string, readonly string[]] => [
+    key,
+    JOB_ATTENTION_MESSAGE_KEYS,
+  ]),
+]);
+
+/**
+ * Mark a record's outstanding attention rows read, because it has settled.
+ *
+ * Marking a notification read is how this product records that the thing it
+ * was about has been dealt with. Until now only the reader could do that, by
+ * opening the notification, the room, the task or the job. A task canceled by
+ * a teammate, or a job that failed on its own, was dealt with by nobody, so
+ * its attention row stayed unread for ever and the follow-up sync would remind
+ * the reader a day later to answer a question that is no longer being asked
+ * (SOK-916 user stories 14, 15 and 16).
+ *
+ * Done here rather than by the follow-up sync re-checking the record's status.
+ * A re-check there would be a second, weaker copy of "this is no longer
+ * waiting", it would only ever fix the one caller that asked, and it would
+ * outlive the reason it was added. Written as a read, it is the same fact in
+ * the same column every other reader of it already trusts: the badge, the
+ * unread count and the feed all stop showing the row too, which is what a
+ * settled record should do to them anyway.
+ *
+ * Best-effort, and reports rather than throws. Both callers are already
+ * best-effort notification dispatch scheduled after their transaction
+ * commits; a failure here must not cost the reader the outcome notification
+ * that is being written next to it.
+ */
+export async function markSettledAttentionRead(
+  userId: string,
+  kind: NotificationKind,
+  referenceId: string,
+  settledByMessageKey: string,
+): Promise<number> {
+  const attentionKeys = ATTENTION_KEYS_CLEARED_BY.get(settledByMessageKey);
+
+  if (!attentionKeys) {
+    return 0;
+  }
+
+  try {
+    const { count } = await markNotificationsRead(userId, {
+      kind,
+      referenceId,
+      messageKey: { in: [...attentionKeys] },
+    });
+
+    return count;
+  } catch (error) {
+    Sentry.captureException(error, {
+      extra: {
+        userId,
+        referenceId,
+        settledByMessageKey,
+        notificationType: "settled-attention-read",
+      },
+    });
+
+    return 0;
+  }
 }

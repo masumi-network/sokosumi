@@ -23,6 +23,7 @@ import type { SendEmailInput } from "@/clients/email.client";
 import { WEBHOOK_TIMEOUT_MS, WEBHOOK_USER_AGENT } from "@/config/constants";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
 import { getAgentName } from "@/helpers/agent";
+import { markSettledAttentionRead } from "@/helpers/notification-read";
 import { createNotification } from "@/helpers/notifications";
 import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
 import { publishJobStatusData } from "@/lib/ably/publish";
@@ -316,6 +317,15 @@ async function dispatchJobNotification(
         workspaceId: job.workspaceId,
       },
     });
+
+    // As for tasks: a job that has settled stops waiting on the reader, so
+    // what it left unread stops being a question.
+    await markSettledAttentionRead(
+      job.ownerId,
+      NotificationKind.JOB,
+      job.id,
+      messageKey,
+    );
   } catch (error) {
     Sentry.captureException(error, {
       extra: {

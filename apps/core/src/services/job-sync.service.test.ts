@@ -189,10 +189,19 @@ vi.mock("@/helpers/notifications", () => ({
   createNotification: createNotificationMock,
 }));
 
+const { notificationUpdateManyAndReturnMock } = vi.hoisted(() => ({
+  notificationUpdateManyAndReturnMock: vi.fn(),
+}));
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     job: {
       findMany: prismaJobFindManyMock,
+    },
+    // A settled job marks its own attention rows read, so the notification
+    // dispatch writes here as well as through `createNotification` (SOK-916).
+    notification: {
+      updateManyAndReturn: notificationUpdateManyAndReturnMock,
     },
     jobPurchase: {
       findMany: jobPurchaseFindManyMock,
@@ -469,6 +478,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       notification: { id: "notif_1" },
       created: true,
     });
+    notificationUpdateManyAndReturnMock.mockResolvedValue([]);
     updateJobPurchaseByJobIdMock.mockResolvedValue(undefined);
     global.fetch = requestFetchMock as unknown as typeof fetch;
     requestFetchMock.mockResolvedValue(new Response(null, { status: 200 }));

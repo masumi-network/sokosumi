@@ -5,12 +5,25 @@ import {
 } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  JOB_ATTENTION_MESSAGE_KEYS,
+  TASK_ATTENTION_MESSAGE_KEYS,
+} from "@/helpers/notification-delivery";
 import { notificationFeedWhere } from "@/helpers/notification-feed";
 
-import { markNotificationsRead } from "./notification-read";
+import {
+  markNotificationsRead,
+  markSettledAttentionRead,
+} from "./notification-read";
 
-const { notificationUpdateManyAndReturnMock } = vi.hoisted(() => ({
-  notificationUpdateManyAndReturnMock: vi.fn(),
+const { captureExceptionMock, notificationUpdateManyAndReturnMock } =
+  vi.hoisted(() => ({
+    captureExceptionMock: vi.fn(),
+    notificationUpdateManyAndReturnMock: vi.fn(),
+  }));
+
+vi.mock("@sentry/node", () => ({
+  captureException: captureExceptionMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -84,5 +97,116 @@ describe("markNotificationsRead", () => {
 
     expect(result.count).toBe(3);
     expect(result.clearedRoomIds).toEqual(["notif_room"]);
+  });
+});
+
+describe("markSettledAttentionRead", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    notificationUpdateManyAndReturnMock.mockResolvedValue([]);
+  });
+
+  /**
+   * SOK-916 user stories 14 and 15. A task nobody was waiting on any more left
+   * its attention row unread, and the follow-up sync would have reminded the
+   * reader a day later to answer a question that had stopped being asked.
+   */
+  it.each([
+    "Notifications.Task.completed",
+    "Notifications.Task.failed",
+    "Notifications.Task.canceled",
+  ])("clears a task's attention rows when it settles as %s", async (key) => {
+    await markSettledAttentionRead(
+      "user_123",
+      NotificationKind.TASK,
+      "task_123",
+      key,
+    );
+
+    expect(notificationUpdateManyAndReturnMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userId: "user_123",
+          kind: NotificationKind.TASK,
+          referenceId: "task_123",
+          isRead: false,
+          messageKey: { in: TASK_ATTENTION_MESSAGE_KEYS },
+        }),
+      }),
+    );
+  });
+
+  /** Story 16, the job half. */
+  it.each(["Notifications.Job.completed", "Notifications.Job.failed"])(
+    "clears a job's attention rows when it settles as %s",
+    async (key) => {
+      await markSettledAttentionRead(
+        "user_123",
+        NotificationKind.JOB,
+        "job_123",
+        key,
+      );
+
+      expect(notificationUpdateManyAndReturnMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            referenceId: "job_123",
+            messageKey: { in: JOB_ATTENTION_MESSAGE_KEYS },
+          }),
+        }),
+      );
+    },
+  );
+
+  /**
+   * The half that matters most. A key that is not terminal must write nothing:
+   * clearing on a key that still waits on the reader would silence the very
+   * row the reminder exists for.
+   *
+   * The attention keys are in here on purpose. They are the ones a wrong map
+   * would most plausibly pick up, and the ones it would cost most.
+   */
+  it.each([
+    ...TASK_ATTENTION_MESSAGE_KEYS,
+    ...JOB_ATTENTION_MESSAGE_KEYS,
+    "Notifications.Job.refundResolved",
+    "Notifications.Job.disputeResolved",
+    "Notifications.Task.somethingAddedLater",
+  ])("writes nothing for %s, which does not settle anything", async (key) => {
+    const count = await markSettledAttentionRead(
+      "user_123",
+      NotificationKind.TASK,
+      "task_123",
+      key,
+    );
+
+    expect(count).toBe(0);
+    expect(notificationUpdateManyAndReturnMock).not.toHaveBeenCalled();
+  });
+
+  it("reports a failed write and does not throw at the caller", async () => {
+    notificationUpdateManyAndReturnMock.mockRejectedValue(
+      new Error("write failed"),
+    );
+
+    const count = await markSettledAttentionRead(
+      "user_123",
+      NotificationKind.TASK,
+      "task_123",
+      "Notifications.Task.canceled",
+    );
+
+    // Both dispatchers write the outcome notification next to this call. A
+    // throw here would cost the reader that notification as well.
+    expect(count).toBe(0);
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        extra: expect.objectContaining({
+          notificationType: "settled-attention-read",
+          referenceId: "task_123",
+        }),
+      }),
+    );
   });
 });

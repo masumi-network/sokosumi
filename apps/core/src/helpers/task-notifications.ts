@@ -3,6 +3,7 @@ import { NotificationKind } from "@sokosumi/database";
 
 import prisma from "@/lib/db/prisma";
 
+import { markSettledAttentionRead } from "./notification-read.js";
 import { createNotification } from "./notifications.js";
 
 function taskNotificationPayload(task: {
@@ -104,6 +105,17 @@ export async function dispatchTaskNotification(
       messageParams,
       metadata,
     });
+
+    // A task that has settled is no longer waiting on the reader, however it
+    // got there. Whatever it left unread stops being a question, so it stops
+    // being unread. Does nothing for the keys that are not terminal, and
+    // reports rather than throws.
+    await markSettledAttentionRead(
+      task.ownerId,
+      NotificationKind.TASK,
+      task.id,
+      messageKey,
+    );
   } catch (error) {
     Sentry.captureException(error, {
       extra: {
