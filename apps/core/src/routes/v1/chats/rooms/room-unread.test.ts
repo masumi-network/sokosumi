@@ -419,10 +419,6 @@ describe("thread mute gate", () => {
       "unread thread count",
       (tx: never) => countChatRoomUnreadThreads(ROOM_ID, USER_ID, tx),
     ],
-    [
-      "mark all threads",
-      (tx: never) => markAllChatRoomThreadsRead(ROOM_ID, USER_ID, tx),
-    ],
   ])("still pages a named reader in %s", async (_name, run) => {
     const [sql] = await sqlOf(run);
 
@@ -430,6 +426,15 @@ describe("thread mute gate", () => {
       /OR EXISTS \(\s*SELECT 1\s*FROM "chat_room_user_mention" reply_mention/,
     );
     expect(sql).toContain('reply_mention."messageId" = reply.id');
+  });
+
+  it("keeps muted threads out of Mark all even when a reply names the reader", async () => {
+    const [sql] = await sqlOf((tx: never) =>
+      markAllChatRoomThreadsRead(ROOM_ID, USER_ID, tx),
+    );
+
+    expect(sql).toContain('thread_read."mutedAt" IS NULL');
+    expect(sql).not.toContain('reply_mention."messageId" = reply.id');
   });
 
   it("reads the viewer's own mute state onto each thread", async () => {

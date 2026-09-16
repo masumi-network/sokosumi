@@ -237,10 +237,22 @@ describeWithDb("thread mute against Postgres", () => {
     expect(await unreadRepliesOn(PARENT_ID)).toBe(1);
   });
 
-  it("leaves a muted thread out of Mark all threads", async () => {
-    await setChatRoomThreadMuted(ROOM_ID, READER_ID, PARENT_ID, true, prisma!);
-    await reply(PARENT_ID);
+  it("SOK-1087 story 9: Mark all skips muted threads with unread mentions", async () => {
+    const mutedAt = past(5);
+    await setChatRoomThreadMuted(
+      ROOM_ID,
+      READER_ID,
+      PARENT_ID,
+      true,
+      prisma!,
+      mutedAt,
+    );
+    const namedId = await reply(PARENT_ID, "@reader look");
+    await prisma?.chatRoomUserMention.create({
+      data: { messageId: namedId, userId: READER_ID },
+    });
     await reply(OTHER_PARENT_ID);
+    expect(await roomUnread()).toBe(2);
 
     const looked = await markAllChatRoomThreadsRead(
       ROOM_ID,
@@ -257,7 +269,14 @@ describeWithDb("thread mute against Postgres", () => {
         },
       },
     });
-    expect(muted?.mutedAt).not.toBeNull();
+    expect(muted?.mutedAt).toEqual(mutedAt);
+    expect(muted?.lastReadAt).toEqual(mutedAt);
+    expect(await unreadRepliesOn(PARENT_ID)).toBe(1);
+    expect(await unreadRepliesOn(OTHER_PARENT_ID)).toBe(0);
+    expect(await countChatRoomUnreadThreads(ROOM_ID, READER_ID, prisma!)).toBe(
+      1,
+    );
+    expect(await roomUnread()).toBe(1);
   });
 
   it("refuses a parent that is not a thread yet", async () => {

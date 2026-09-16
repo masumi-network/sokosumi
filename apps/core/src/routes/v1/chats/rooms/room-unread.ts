@@ -184,7 +184,7 @@ export interface ChatRoomThreadAggregate {
  * (ADR-0030): non-self replies after dual-baseline look (thread lastReadAt,
  * else room join createdAt, else -infinity). Never-looked Participants can be
  * > 0. Lurkers are 0. A muted Thread is 0 apart from replies that name the
- * viewer. `unreadOnly` and Mark all filter on `unreadReplyCount >= 1`.
+ * viewer. `unreadOnly` filters on `unreadReplyCount >= 1`.
  */
 export async function getChatRoomThreadAggregates(
   roomId: string,
@@ -615,8 +615,8 @@ export async function setChatRoomThreadMuted(
 
 /**
  * Count parents with `unreadReplyCount >= 1` (Participant-gated dual-baseline,
- * muted Threads excluded). Cheap count path: no parent hydrate, no row list.
- * Same eligibility as `unreadOnly` / Mark all (ADR-0013, ADR-0030).
+ * including mentions in muted Threads). No parent hydrate or row list.
+ * Same eligibility as `unreadOnly` (ADR-0013, ADR-0030).
  */
 export async function countChatRoomUnreadThreads(
   roomId: string,
@@ -658,7 +658,7 @@ export async function countChatRoomUnreadThreads(
 /**
  * Upsert look state for every unread Thread the viewer Participates in and
  * has not muted. Does not change room ChatRoomReadState or CHAT notifications.
- * Same gated set as `unreadOnly` (ADR-0013, ADR-0030).
+ * Muted Threads stay untouched even when a mention is unread (SOK-1087).
  */
 export async function markAllChatRoomThreadsRead(
   roomId: string,
@@ -683,7 +683,7 @@ export async function markAllChatRoomThreadsRead(
       AND reply."deletedAt" IS NULL
       AND parent."deletedAt" IS NULL
       AND parent."parentMessageId" IS NULL
-      AND ${sqlThreadReplyPagesViewer("$2")}
+      AND thread_read."mutedAt" IS NULL AND ${sqlViewerIsThreadParticipant("$2")}
       AND (reply."senderUserId" IS NULL OR reply."senderUserId" <> $2)
       AND ${sqlMessageAttentionAt("reply")} > COALESCE(
         thread_read."lastReadAt",
