@@ -31,6 +31,31 @@ describe("collectResponseSetCookies", () => {
   it("returns an empty list when no cookies were set", () => {
     expect(collectResponseSetCookies(new Response("{}"))).toEqual([]);
   });
+
+  it("trusts an empty getSetCookie and does not fall back to a joined header", () => {
+    const response = {
+      headers: {
+        getSetCookie: () => [],
+        get: (name: string) =>
+          name.toLowerCase() === "set-cookie"
+            ? "a=1; Expires=Wed, 21 Oct 2015 07:28:00 GMT, b=2; Path=/"
+            : null,
+      },
+    } as unknown as Response;
+
+    expect(collectResponseSetCookies(response)).toEqual([]);
+  });
+
+  it("falls back to headers.get when getSetCookie is absent", () => {
+    const response = {
+      headers: {
+        get: (name: string) =>
+          name.toLowerCase() === "set-cookie" ? SIGNED_COOKIE : null,
+      },
+    } as unknown as Response;
+
+    expect(collectResponseSetCookies(response)).toEqual([SIGNED_COOKIE]);
+  });
 });
 
 describe("appendProxiedSetCookies", () => {

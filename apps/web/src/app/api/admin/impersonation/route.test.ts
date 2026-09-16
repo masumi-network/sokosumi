@@ -6,7 +6,7 @@ const stopAdminImpersonationMock = vi.fn();
 const readRouteSessionMock = vi.fn();
 
 vi.mock("@/lib/clients/core.client", () => ({
-  coreClient: {
+  coreClientNoRedirect: {
     startAdminImpersonation: (...args: unknown[]) =>
       startAdminImpersonationMock(...args),
     stopAdminImpersonation: (...args: unknown[]) =>
@@ -321,6 +321,25 @@ describe("POST /api/admin/impersonation", () => {
     const body = await response.json();
     expect(body.ok).toBe(false);
     expect(body.error.code).toBe(CommonErrorCode.INTERNAL_SERVER_ERROR);
+  });
+
+  it("returns JSON 401 when Core rejects the session", async () => {
+    startAdminImpersonationMock.mockRejectedValue(
+      new CoreApiRequestError("Invalid session", { status: 401 }),
+    );
+
+    const response = await POST(
+      postRequest({ userId: TARGET_USER.id, reason: "SOK-1: x" }),
+    );
+
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({
+      ok: false,
+      error: {
+        code: CommonErrorCode.UNAUTHORIZED,
+        message: "Invalid session",
+      },
+    });
   });
 
   it("answers 502 when Core returns no session cookies", async () => {

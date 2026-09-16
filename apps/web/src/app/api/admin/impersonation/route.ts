@@ -13,7 +13,7 @@ import {
   type RouteSessionRead,
   readRouteSession,
 } from "@/lib/auth/route-session";
-import { coreClient } from "@/lib/clients/core.client";
+import { coreClientNoRedirect } from "@/lib/clients/core.client";
 import {
   CoreApiRequestError,
   toCoreApiActionError,
@@ -203,10 +203,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const { data, response } = await coreClient.startAdminImpersonation({
-      userId: params.userId,
-      reason: params.reason,
-    });
+    const { data, response } =
+      await coreClientNoRedirect.startAdminImpersonation({
+        userId: params.userId,
+        reason: params.reason,
+      });
     const setCookies = collectResponseSetCookies(response);
     if (setCookies.length === 0) {
       return resultResponse(
@@ -252,7 +253,8 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const { data, response } = await coreClient.stopAdminImpersonation();
+    const { data, response } =
+      await coreClientNoRedirect.stopAdminImpersonation();
     const setCookies = collectResponseSetCookies(response);
     if (setCookies.length === 0) {
       return resultResponse(

@@ -15,11 +15,10 @@ export function collectResponseSetCookies(
   if (!response) {
     return [];
   }
+  // getSetCookie is authoritative, including empty: falling through to
+  // headers.get("set-cookie") joins Expires commas into one malformed line.
   if (typeof response.headers.getSetCookie === "function") {
-    const cookies = response.headers.getSetCookie();
-    if (cookies.length > 0) {
-      return cookies;
-    }
+    return response.headers.getSetCookie();
   }
 
   const singleCookie = response.headers.get("set-cookie");
