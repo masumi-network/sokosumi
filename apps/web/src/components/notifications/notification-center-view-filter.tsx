@@ -1,51 +1,47 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Button } from "@/components/ui/button";
 import { useNotifications } from "@/contexts/notification-provider";
 
 /**
- * The Notification Center's view switch: All or Unread, drawn once and used
- * by both frames. A lens, not a write: switching refetches under the new
- * view and never marks anything read.
+ * The Notification Center's Unread lens, drawn once and used by both frames.
+ * A lens, not a write: pressing it refetches under the narrowed view and
+ * never marks anything read.
  *
- * A compact take on the app's segmented-control recipe (muted pill, active
- * option in background with a shadow): it sits next to Mark all read in the
- * panel's header row and on the page's action row, and neither row grows
- * taller for it.
+ * One pressed chip rather than an All/Unread pair. All is the resting state
+ * of the list, so it needs no button of its own, and the header row keeps
+ * room for Mark all read beside it. The dot and the pressed fill take the
+ * unread colour, the same purple as the rail on an unread row, so the chip
+ * and the rows it narrows to say "unread" in one voice. The count is the
+ * reason to press it, and it leaves with the last unread row.
  */
 export function NotificationCenterViewFilter() {
   const t = useTranslations("Components.NotificationCenter");
-  const { view, setView } = useNotifications();
+  const { view, setView, unreadCount } = useNotifications();
+  const isPressed = view === "unread";
 
-  function handleValueChange(next: string): void {
-    // Single required value: clicking the active option clears the group's
-    // value, and the list keeps the view it has.
-    if (next === "all" || next === "unread") {
-      setView(next);
-    }
+  function handleClick(): void {
+    setView(isPressed ? "all" : "unread");
   }
 
   return (
-    <ToggleGroup
-      type="single"
-      value={view}
-      aria-label={t("filterLabel")}
-      onValueChange={handleValueChange}
-      className="bg-card-background shrink-0 gap-1 rounded-lg p-1"
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      aria-pressed={isPressed}
+      onClick={handleClick}
+      className="group/filter text-muted-foreground hover:text-foreground aria-pressed:border-primary-quaternary aria-pressed:bg-primary-quinary aria-pressed:text-primary aria-pressed:hover:bg-primary-quaternary aria-pressed:hover:text-primary h-7 shrink-0 gap-1.5 rounded-full px-2.5 text-xs"
     >
-      <ToggleGroupItem
-        value="all"
-        className="text-muted-foreground h-auto rounded px-2 text-xs first:rounded last:rounded hover:bg-transparent hover:text-foreground data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm dark:data-[state=on]:bg-background"
-      >
-        {t("filterAll")}
-      </ToggleGroupItem>
-      <ToggleGroupItem
-        value="unread"
-        className="text-muted-foreground h-auto rounded px-2 text-xs first:rounded last:rounded hover:bg-transparent hover:text-foreground data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm dark:data-[state=on]:bg-background"
-      >
-        {t("filterUnread")}
-      </ToggleGroupItem>
-    </ToggleGroup>
+      <span
+        aria-hidden
+        className="bg-quaternary group-aria-pressed/filter:bg-primary size-2 rounded-full"
+      />
+      {t("filterUnread")}
+      {unreadCount > 0 ? (
+        <span className="tabular-nums">{unreadCount}</span>
+      ) : null}
+    </Button>
   );
 }
