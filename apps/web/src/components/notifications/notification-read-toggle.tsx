@@ -1,6 +1,6 @@
 "use client";
 
-import { Mail, MailOpen } from "lucide-react";
+import { Check } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
@@ -28,9 +28,11 @@ interface NotificationReadToggleProps {
  * a read they did not mean.
  *
  * One control, never two: a row is in one state, and the only move worth
- * offering is the one that changes it. The icon is the state the control
- * produces — an opened envelope going one way, a sealed one coming back — and
- * the tooltip says the same thing in words, because an icon alone is a guess.
+ * offering is the one that changes it. A check marks a row read, because
+ * reading is how a row is done. A dot marks it unread, the mark most apps use
+ * for unread. The two shapes cannot be mistaken for each other at this size,
+ * which two envelopes could, and the tooltip says the same thing in words,
+ * because an icon alone is a guess.
  */
 export function NotificationReadToggle({
   notificationId,
@@ -39,7 +41,6 @@ export function NotificationReadToggle({
 }: NotificationReadToggleProps) {
   const t = useTranslations("Components.NotificationCenter");
   const { markRead, markUnread } = useNotifications();
-  const Icon = isRead ? Mail : MailOpen;
 
   function handleClick(): void {
     const change = isRead ? markUnread : markRead;
@@ -64,7 +65,14 @@ export function NotificationReadToggle({
           className="text-muted-foreground size-7 shrink-0 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/row:opacity-100 [@media(hover:hover)]:group-focus-within/row:opacity-100"
           onClick={handleClick}
         >
-          <Icon className="size-4" />
+          {isRead ? (
+            <span
+              aria-hidden
+              className="size-2 rounded-full bg-current forced-colors:bg-[ButtonText]"
+            />
+          ) : (
+            <Check className="size-4" />
+          )}
         </Button>
       </TooltipTrigger>
       <TooltipContent side="top" sideOffset={6}>
