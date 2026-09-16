@@ -4,6 +4,7 @@ import {
   CORE_API_ERROR_KINDS,
   hasActiveTaskSchedule,
   isTaskEditableStatus,
+  parseTaskContextFromDescription,
   removeTaskContextAttachmentLinks,
 } from "@sokosumi/utils";
 
@@ -313,12 +314,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           description !== undefined && description !== null
             ? description
             : (task.description ?? "");
+        const preservedBrandUrl = parseTaskContextFromDescription(
+          task.description ?? "",
+        ).selection.brandUrl;
         nextDescription = await resolveTaskDescriptionWithContext({
           context,
           description: removeTaskContextAttachmentLinks(proseSource) || null,
           organizationId: task.organizationId,
           ownerId: task.ownerId,
           project: healedProject,
+          preservedBrandUrl,
           tx,
         });
       }

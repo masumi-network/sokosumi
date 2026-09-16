@@ -485,9 +485,43 @@ function toCoreTaskContext(
       throw new Error("Custom DESIGN.md attachment required");
     }
 
+    const customUrl = selection.brand.custom.url;
+    let brandUrl: string;
+    try {
+      brandUrl = resolveDesignMdAttachmentUrl(customUrl, userId);
+    } catch (error) {
+      // Edit may still carry a stored DESIGN.md that is not under this user's
+      // ad-hoc prefix (stale project/workspace brand). Forward non-adhoc https
+      // URLs so Core can grandfather the existing attachment. Foreign ad-hoc
+      // prefixes still fail here.
+      let pathname = "";
+      try {
+        const parsed = new URL(customUrl);
+        if (parsed.protocol !== "https:") {
+          throw new Error("DESIGN.md attachment URL must use https");
+        }
+        pathname = decodeURIComponent(parsed.pathname);
+      } catch (parseError) {
+        if (
+          parseError instanceof Error &&
+          parseError.message === "DESIGN.md attachment URL must use https"
+        ) {
+          throw parseError;
+        }
+        throw error;
+      }
+      if (pathname.startsWith("/design-md/adhoc/")) {
+        throw error;
+      }
+      if (!pathname.startsWith("/design-md/")) {
+        throw error;
+      }
+      brandUrl = customUrl;
+    }
+
     return {
       brand: {
-        url: resolveDesignMdAttachmentUrl(selection.brand.custom.url, userId),
+        url: brandUrl,
       },
       briefing: selection.briefingEnabled,
       memory: selection.contextMdEnabled,

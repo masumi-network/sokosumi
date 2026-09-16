@@ -797,6 +797,57 @@ describe("PATCH /tasks/{id}", () => {
       }),
     );
   });
+
+  it("grandfathers a stored DESIGN.md URL that is no longer live project brand", async () => {
+    const app = createApp();
+    const staleBrandUrl =
+      "https://store.public.blob.vercel-storage.com/design-md/projects/old.md";
+    const liveBrandUrl =
+      "https://store.public.blob.vercel-storage.com/design-md/projects/new.md";
+    requireTaskOwnershipMock.mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.DRAFT,
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: "org_123",
+      ownerId: "user_123",
+      description: `[DESIGN.md](${staleBrandUrl})\n\nKeep prose`,
+      visibility: TaskVisibility.PUBLIC,
+      metadata: null,
+      nextRunAt: null,
+      scheduleRevision: 0,
+    });
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      filesToken: null,
+      designMdUrl: liveBrandUrl,
+      briefing: null,
+      briefingUrl: null,
+      contextMdUrl: null,
+    });
+    resolveEffectiveDesignMdMock.mockResolvedValue(null);
+
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        description: "Keep prose",
+        context: { brand: { url: staleBrandUrl } },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(taskUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          description: `[DESIGN.md](${staleBrandUrl})\n\nKeep prose`,
+        }),
+      }),
+    );
+  });
 });
 
 describe("PATCH /tasks/{id} active schedule series (SOK-884)", () => {

@@ -65,8 +65,17 @@ function resolveBrandSource(
   ) {
     return "custom";
   }
-  // Unknown DESIGN.md URL still reflects stored state as custom rather than
-  // inventing a project/workspace default that would rewrite the link on save.
+  // Stale or foreign DESIGN.md cannot round-trip as `custom` — web only
+  // accepts caller ad-hoc URLs and Core 422s anything else. Prefer the live
+  // project/workspace brand so a no-op edit save still succeeds.
+  if (options.projectDesignMdUrl) {
+    return "project";
+  }
+  if (options.workspaceDesignMdUrl) {
+    return "default";
+  }
+  // No live brand to remap onto — keep custom with the stored URL so the chip
+  // stays on; Core update may grandfather the existing attachment.
   return "custom";
 }
 

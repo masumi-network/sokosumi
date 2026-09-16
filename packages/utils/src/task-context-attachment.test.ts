@@ -131,4 +131,31 @@ describe("parseTaskContextFromDescription", () => {
       brandUrl: adHocDesignMdUrl,
     });
   });
+
+  it("remaps stale DESIGN.md URLs onto live project or workspace sources", () => {
+    const staleUrl = "https://blob.example/design-md/projects/old/hash.md";
+
+    expect(
+      parseTaskContextFromDescription(`[DESIGN.md](${staleUrl})\n\nBody`, {
+        projectDesignMdUrl,
+        workspaceDesignMdUrl,
+        adHocPathPrefix: "design-md/adhoc/user-1/",
+      }).selection,
+    ).toMatchObject({
+      brandEnabled: true,
+      brandSource: "project",
+      brandUrl: staleUrl,
+    });
+
+    expect(
+      parseTaskContextFromDescription(`[DESIGN.md](${staleUrl})\n\nBody`, {
+        workspaceDesignMdUrl,
+        adHocPathPrefix: "design-md/adhoc/user-1/",
+      }).selection,
+    ).toMatchObject({
+      brandEnabled: true,
+      brandSource: "default",
+      brandUrl: staleUrl,
+    });
+  });
 });
