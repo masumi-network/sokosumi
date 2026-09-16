@@ -72,11 +72,6 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 import {
-  boundCheckErrorForLogging,
-  isX402ReadinessPreviewDeploy,
-  syncX402BuySideReadiness,
-} from "./agent-sync.x402-readiness";
-import {
   availableNetwork,
   cappedWith,
   fundedWalletBalances,
@@ -86,7 +81,12 @@ import {
   purchasingWallet,
   READY_SOURCE,
   USDC_BASE_SEPOLIA,
-} from "./agent-sync.x402-readiness.fixtures";
+} from "./__tests__/fixtures/agent-sync.x402-readiness.fixtures";
+import {
+  boundCheckErrorForLogging,
+  isX402ReadinessPreviewDeploy,
+  syncX402BuySideReadiness,
+} from "./agent-sync.x402-readiness";
 
 describe("syncX402BuySideReadiness", () => {
   beforeEach(() => {
