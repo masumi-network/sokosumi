@@ -15206,6 +15206,11 @@ export const WorkspaceCalendarItemSchema = {
             ],
             example: 'user_123'
         },
+        taskOwnerId: {
+            type: 'string',
+            description: 'User who owns the Task and put it on the Calendar',
+            example: 'user_123'
+        },
         scheduledAt: {
             type: 'string',
             format: 'date-time',
@@ -15285,6 +15290,7 @@ export const WorkspaceCalendarItemSchema = {
         'taskName',
         'taskStatus',
         'taskAssigneeId',
+        'taskOwnerId',
         'scheduledAt',
         'originalScheduledAt',
         'state',

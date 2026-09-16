@@ -112,6 +112,10 @@ export const workspaceCalendarItemSchema = z
       .nullable()
       .optional()
       .openapi({ example: "user_123" }),
+    taskOwnerId: z.string().openapi({
+      description: "User who owns the Task and put it on the Calendar",
+      example: "user_123",
+    }),
     scheduledAt: dateTimeSchema.openapi({
       description: "Effective time at which the item appears in the Calendar",
     }),
