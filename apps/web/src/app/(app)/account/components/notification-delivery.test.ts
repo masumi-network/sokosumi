@@ -468,3 +468,24 @@ describe("presetStops", () => {
     expect(presetStops(preset("JOB", "OFF"), group("JOB").kinds)).toEqual([]);
   });
 });
+
+describe("NOTIFICATION_GROUPS", () => {
+  /**
+   * A preset writes the reaches it names and nothing else, and `REACH_CHANNELS`
+   * names no email. So a group that both offers presets and stores an email
+   * cell would switch that cell off on every press of a situation, silently.
+   *
+   * Today the reminder row is the only one that stores email and its group
+   * offers no presets. This is what makes adding a preset there fail here
+   * rather than in somebody's inbox (SOK-916).
+   */
+  it("offers no preset over a row that stores its own email cell", () => {
+    const offending = NOTIFICATION_GROUPS.filter(
+      (group) =>
+        group.presets.length > 0 &&
+        group.kinds.some((kind) => kind.email === "CHANNEL"),
+    ).map((group) => group.id);
+
+    expect(offending).toEqual([]);
+  });
+});

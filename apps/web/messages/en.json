@@ -4181,7 +4181,7 @@
         "channelPush": "Push",
         "channelPushHint": "On your device, even when Sokosumi is closed.",
         "channelEmail": "Email",
-        "channelEmailHint": "One switch behind every job email: an email when a job completes, resolves, or waits on your input. Reminders have a cell of their own, on the Reminders row.",
+        "channelEmailHint": "Where Sokosumi emails you. Reminders carry their own cell. Every job email shares one switch: an email when a job completes, resolves, or waits on your input.",
         "channelsKindLabel": "Notification",
         "channelsLegendLabel": "What the columns mean",
         "channelEmailFallbackHint": "An email when a job completes, resolves, or waits on your input.",

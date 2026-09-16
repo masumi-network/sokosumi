@@ -4145,7 +4145,7 @@
         "channelPush": "Push",
         "channelPushHint": "En tu dispositivo, aunque Sokosumi esté cerrado.",
         "channelEmail": "Email",
-        "channelEmailHint": "Un interruptor detrás de cada email de trabajos: un email cuando un trabajo se completa, se resuelve o espera tu input. Los recordatorios tienen su propia celda, en la fila Recordatorios.",
+        "channelEmailHint": "Dónde Sokosumi te envía emails. Los recordatorios tienen su propia celda. Todos los emails de trabajos comparten un interruptor: un email cuando un trabajo se completa, se resuelve o espera tu input.",
         "channelsKindLabel": "Notificación",
         "channelsLegendLabel": "Qué significan las columnas",
         "channelEmailFallbackHint": "Un email cuando un trabajo se completa, se resuelve o espera tu input.",

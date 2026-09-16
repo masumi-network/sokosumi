@@ -307,7 +307,27 @@ describe("resolveNotificationDelivery", () => {
     expect(
       resolveNotificationDelivery({
         category: "SYSTEM",
-        preferences: [{ category: "SYSTEM", channel: "EMAIL", enabled: false }],
+        preferences: [
+          // A channel no vocabulary holds. `EMAIL` used to stand here and
+          // stopped being unrecognised the day it joined the vocabulary, which
+          // left this pinning nothing (SOK-916).
+          { category: "SYSTEM", channel: "CARRIER_PIGEON", enabled: false },
+        ],
+        pushOptIn: true,
+      }),
+    ).toEqual({ inApp: true, osBanner: false, email: false });
+  });
+
+  /**
+   * The row Core will never mail. A stored cell saying otherwise is somebody's
+   * old preference or a write the page should not have made, and it must not
+   * turn into an email.
+   */
+  it("ignores a stored email cell on a category that does not mail", () => {
+    expect(
+      resolveNotificationDelivery({
+        category: "SYSTEM",
+        preferences: [{ category: "SYSTEM", channel: "EMAIL", enabled: true }],
         pushOptIn: true,
       }),
     ).toEqual({ inApp: true, osBanner: false, email: false });

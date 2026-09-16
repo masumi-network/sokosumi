@@ -4145,7 +4145,7 @@
         "channelPush": "Push",
         "channelPushHint": "Auf deinem Gerät, auch wenn Sokosumi geschlossen ist.",
         "channelEmail": "E-Mail",
-        "channelEmailHint": "Ein Schalter hinter jeder Job-E-Mail: eine E-Mail, wenn ein Job abgeschlossen ist, geklärt wurde oder auf deine Eingabe wartet. Erinnerungen haben eine eigene Zelle, in der Zeile Erinnerungen.",
+        "channelEmailHint": "Wohin Sokosumi dir E-Mails schickt. Erinnerungen haben eine eigene Zelle. Alle Job-E-Mails teilen sich einen Schalter: eine E-Mail, wenn ein Job abgeschlossen ist, geklärt wurde oder auf deine Eingabe wartet.",
         "channelsKindLabel": "Benachrichtigung",
         "channelsLegendLabel": "Was die Spalten bedeuten",
         "channelEmailFallbackHint": "Eine E-Mail, wenn ein Job abgeschlossen ist, geklärt wurde oder auf deine Eingabe wartet.",

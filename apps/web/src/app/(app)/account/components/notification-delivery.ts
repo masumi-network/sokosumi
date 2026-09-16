@@ -525,6 +525,12 @@ export function withChannel(
  * needs a cell in `CHANNEL_SPECS`. Without one, every press of a preset writes
  * it `enabled: false` for the whole group, and this page would quietly turn
  * off a channel it never showed.
+ *
+ * `EMAIL` is deliberately absent, and is the one case of that rule this page
+ * can hold rather than state: the only row that stores an email cell is the
+ * reminder row, and its group offers no presets, so no press here can reach
+ * it. A test pins that pairing, so giving the reminder row a preset fails
+ * rather than silently switching a reader's reminder emails off.
  */
 const REACH_CHANNELS: Record<Reach, readonly StoredChannel[]> = {
   NONE: [],
