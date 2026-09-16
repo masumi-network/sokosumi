@@ -3,7 +3,7 @@ version: alpha
 name: Sokosumi
 description: >-
   Design system for Sokosumi — the AI-agent marketplace in the Sumi (AGENTIC)
-  family alongside masumi (blockchain layer) and kodosumi (the code). Deep-purple
+  family alongside masumi (blockchain layer) and kodosumi (the code). Deep-blue
   primary on a neutral-gray base, Inter throughout, sentence case, segmented
   full-bleed lines, soft glow for depth. Sokosumi is the "vessel" where masumi
   (warm) and kodosumi (cool) palettes meet — its only chromatic accents beyond the
@@ -16,10 +16,10 @@ colors:
   card: "#FAFAFA"
   muted: "#F5F5F5"
   mutedForeground: "rgba(10,10,10,0.5)"
-  border: "#E6E6E6"
+  border: "#E2E2E2"
   input: "#E6E6E6"
-  ring: "#6400FF"
-  primary: "#6400FF"          # Wisteria Purple 藤色
+  ring: "#2B5C78"
+  primary: "#2B5C78"          # Sokosumi Blue
   primaryForeground: "#FAFAFA"
   secondary: "rgba(10,10,10,0.95)"
   accent: "#F5F5F5"
@@ -158,13 +158,25 @@ out. Brand names and the first letter of any brand are always **lowercase**; UI 
 
 ## Colors
 
-### Primary — Wisteria Purple (藤色), themeable
+### Primary — Sokosumi Blue, themeable
 
-`--primary: #6400FF` (`hsla(264, 100%, 50%, 1)`). Brand-sanctioned alternate primaries (swap
-`--primary` only; keep everything else neutral): Sky Blue `#00A4FA`, Light Teal `#0AFED3`,
-Neon Grass `#0AFA14`, Young Grass `#C4FE0A`, Persimmon `#FF6400`, Iris `#FF51FF`. The primary
-family also exposes `--primary-variant/-tertiary/-quaternary/-quinary` (decreasing alpha) and
-`--primary-iris` for tints and gradients.
+`--primary: #2B5C78` (`hsla(201.8, 47.2%, 32%, 1)`). It replaced Wisteria Purple `#6400FF`
+in September 2026 and reads 7.23:1 as text on the light page, against the purple's 5.20.
+
+Dark mode keeps the hue and the saturation and lifts the lightness to 48%
+(`hsla(201.9, 46.9%, 48%, 1)`, 5.20:1 on the dark page). The literal `#2B5C78` cannot be used
+there: it measures 2.74:1, under both the 4.5 text floor and the 3:1 focus-ring floor.
+
+Brand-sanctioned alternate primaries (swap `--primary` only; keep everything else neutral):
+Sky Blue `#00A4FA`, Light Teal `#0AFED3`, Neon Grass `#0AFA14`, Young Grass `#C4FE0A`,
+Persimmon `#FF6400`, Iris `#FF51FF`. The primary family also exposes
+`--primary-variant/-tertiary/-quaternary/-quinary` (opaque tint steps, frozen from the base at
+alpha .28 / .18 / .09 light and .40 / .26 / .14 dark) and `--primary-iris` for gradients.
+
+**Open conflict.** The brand hue 201.8 now sits 3.2 degrees from `--status-working` (205) and
+8.8 from `--semantic-info` (193). Anything inside 15 degrees reads as the same colour, so the
+brand, the "working" status and the info semantic currently collide. The purple sat 58.5 and
+70.5 degrees away. Resolving it means moving a status hue, which is a separate decision.
 
 ### Neutrals
 
