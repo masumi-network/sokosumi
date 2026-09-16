@@ -111,11 +111,35 @@ function extractRetryAfterSeconds(
   );
 }
 
+export interface CoreOperationWithResponse<TData> {
+  data: TData;
+  /** Present for HTTP outcomes; omitted when the client reports a network-level failure. */
+  response?: Response;
+}
+
 export async function executeCoreOperation<TData, TError>(
   getClient: GetCoreClient,
   operation: (client: Client) => Promise<CoreOperationResult<TData, TError>>,
   fallbackMessage: string,
 ): Promise<TData> {
+  const { data } = await executeCoreOperationWithResponse(
+    getClient,
+    operation,
+    fallbackMessage,
+  );
+  return data;
+}
+
+/**
+ * `executeCoreOperation` that also returns the raw response, for callers
+ * that must read response headers (impersonation forwards Set-Cookie).
+ * Error behavior is identical.
+ */
+export async function executeCoreOperationWithResponse<TData, TError>(
+  getClient: GetCoreClient,
+  operation: (client: Client) => Promise<CoreOperationResult<TData, TError>>,
+  fallbackMessage: string,
+): Promise<CoreOperationWithResponse<TData>> {
   const client = attachCoreRequestIdInterceptor(await getClient());
 
   let result: CoreOperationResult<TData, TError>;
@@ -166,7 +190,7 @@ export async function executeCoreOperation<TData, TError>(
     });
   }
 
-  return result.data as TData;
+  return { data: result.data as TData, response: result.response };
 }
 
 export function mapCoreApiStatusToCommonErrorCode(

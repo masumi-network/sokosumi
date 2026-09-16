@@ -7,6 +7,7 @@ import {
   fetchCoreAuth,
   getCoreAuthBaseUrl,
 } from "@/lib/auth/auth.server.client";
+import { appendProxiedSetCookies } from "@/lib/http/set-cookies";
 
 function buildLegacyCoreAuthUrl(
   request: NextRequest,
@@ -22,18 +23,6 @@ function buildLegacyCoreAuthUrl(
   return url.toString();
 }
 
-function getSetCookieHeaderValues(response: Response): string[] {
-  if (typeof response.headers.getSetCookie === "function") {
-    const cookies = response.headers.getSetCookie();
-    if (cookies.length > 0) {
-      return cookies;
-    }
-  }
-
-  const singleCookie = response.headers.get("set-cookie");
-  return singleCookie ? [singleCookie] : [];
-}
-
 function buildProxiedResponseHeaders(coreResponse: Response): Headers {
   const headers = new Headers();
   const contentType = coreResponse.headers.get("content-type");
@@ -42,9 +31,7 @@ function buildProxiedResponseHeaders(coreResponse: Response): Headers {
     headers.set("content-type", contentType);
   }
 
-  for (const cookie of getSetCookieHeaderValues(coreResponse)) {
-    headers.append("set-cookie", cookie);
-  }
+  appendProxiedSetCookies(headers, coreResponse);
 
   return headers;
 }

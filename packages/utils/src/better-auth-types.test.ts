@@ -68,4 +68,30 @@ describe("better-auth-types", () => {
     expect(account.providerId).toBe("google");
     expect(account.accountId).toBe("google-sub");
   });
+
+  it("accepts the impersonation marker on an impersonated session", () => {
+    const session: Session = {
+      session: {
+        id: "sess_impersonated",
+        userId: "user_target",
+        expiresAt: "2026-01-01T00:00:00.000Z",
+        token: "token",
+        createdAt: "2025-01-01T00:00:00.000Z",
+        updatedAt: "2025-01-01T00:00:00.000Z",
+        impersonatedBy: "user_admin",
+      },
+      user: {
+        id: "user_target",
+        name: "Target",
+        email: "target@example.com",
+        emailVerified: true,
+        createdAt: "2025-01-01T00:00:00.000Z",
+        updatedAt: "2025-01-01T00:00:00.000Z",
+        termsAccepted: true,
+        marketingOptIn: false,
+      },
+    };
+
+    expect(session.session.impersonatedBy).toBe("user_admin");
+  });
 });

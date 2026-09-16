@@ -335,6 +335,7 @@ export {
   getFirstName,
   resolveAccountDisplayName,
 } from "./user-name.js";
+export { hasAdminRole } from "./user-role.js";
 export {
   resolveUserUploadContentType,
   USER_UPLOAD_ALLOWED_CONTENT_TYPES,

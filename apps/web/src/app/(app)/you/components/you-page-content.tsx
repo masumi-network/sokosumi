@@ -1,3 +1,4 @@
+import { hasAdminRole } from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
 import {
   getCachedMyCredits,
@@ -7,7 +8,6 @@ import { mapAccountCreditsChrome } from "@/app/components/sidebar";
 import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-vendor-admin-access";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getSession } from "@/lib/auth/auth.server";
-import { hasAdminRole } from "@/lib/auth/has-admin-role";
 import { hasCalendarBetaAccess } from "@/lib/beta-access";
 import { resolvePlanName } from "@/lib/utils/plan-label";
 
