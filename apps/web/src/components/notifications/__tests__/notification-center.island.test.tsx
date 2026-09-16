@@ -538,6 +538,50 @@ describe("Notification Center, both frames", () => {
     expect(document.activeElement?.textContent).toContain("first");
   });
 
+  it("does not leave focus on a row's read control after a click", async () => {
+    const unread = row("mine", { isRead: false, readAt: null });
+    getNotificationsMock.mockResolvedValue(page([unread]));
+    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+    patchNotificationReadMock.mockResolvedValue({
+      data: { ...unread, isRead: true, readAt: new Date() },
+    });
+
+    await renderPanel();
+    const control = screen.getByRole("button", { name: "markRead: mine" });
+    await userEvent.setup().click(control);
+    await settle();
+
+    // A row shows its control while focus is inside it, so a control that
+    // kept focus after a click would stay on screen after the pointer left.
+    expect(patchNotificationReadMock).toHaveBeenCalledWith({ id: "mine" });
+    expect(
+      control.closest("[class*='group/row']")?.contains(document.activeElement),
+    ).toBe(false);
+  });
+
+  it("keeps a row's read control reachable and focused from the keyboard", async () => {
+    const unread = row("mine", { isRead: false, readAt: null });
+    getNotificationsMock.mockResolvedValue(page([unread]));
+    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+    patchNotificationReadMock.mockResolvedValue({
+      data: { ...unread, isRead: true, readAt: new Date() },
+    });
+
+    await renderPanel();
+    const user = userEvent.setup();
+    const control = screen.getByRole("button", { name: "markRead: mine" });
+    for (let step = 0; step < 5 && document.activeElement !== control; step++) {
+      await user.tab();
+    }
+    expect(document.activeElement).toBe(control);
+
+    await user.keyboard("{Enter}");
+    await settle();
+
+    expect(patchNotificationReadMock).toHaveBeenCalledWith({ id: "mine" });
+    expect(document.activeElement).toBe(control);
+  });
+
   it("opens the notifications page instead of a panel on a phone", async () => {
     isMobileMock.mockReturnValue(true);
     render(
