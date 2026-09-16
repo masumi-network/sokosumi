@@ -69,6 +69,7 @@ const route = createRoute({
             taskName: "Prepare release notes",
             taskStatus: "QUEUED",
             taskAssigneeId: null,
+            taskOwnerId: "user_123",
             scheduledAt: "2026-06-02T09:00:00.000Z",
             originalScheduledAt: "2026-06-02T09:00:00.000Z",
             state: "PLANNED",
@@ -424,6 +425,7 @@ export async function readWorkspaceCalendar(
         taskStatus: task.status,
         taskAssigneeId: task.assigneeId,
         taskAssigneeUserId: task.assigneeUserId,
+        taskOwnerId: task.ownerId,
         scheduledAt: occurrence.effectiveScheduledAt.toISOString(),
         originalScheduledAt:
           occurrence.originalScheduledAt?.toISOString() ?? null,

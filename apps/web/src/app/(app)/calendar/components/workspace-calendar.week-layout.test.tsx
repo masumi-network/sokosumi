@@ -60,6 +60,7 @@ const WEEK_ITEM: WorkspaceCalendarItem = {
   taskName: "Prepare release notes",
   taskStatus: "QUEUED",
   taskAssigneeId: null,
+  taskOwnerId: "user-1",
   scheduledAt: new Date("2026-08-18T09:00:00.000Z"),
   originalScheduledAt: new Date("2026-08-18T09:00:00.000Z"),
   state: "PLANNED",
@@ -122,5 +123,47 @@ describe("WorkspaceCalendar week layout", () => {
     expect(metaLine).toHaveTextContent("9:00 AM");
     expect(metaLine).toHaveTextContent("Ada's workspace");
     expect(titleLine).toHaveTextContent("Prepare release notes");
+  });
+
+  // Two lines of title, then who is on it: the assignee (a coworker or a
+  // member) and the owner who put it on the calendar.
+  it("wraps the title to two lines and shows assignee and owner avatars", () => {
+    render(
+      <NuqsTestingAdapter searchParams="?timezone=UTC">
+        <WorkspaceCalendar
+          coworkers={[
+            { id: "user-1", kind: "user", name: "Ada Lovelace", image: "" },
+            { id: "coworker-1", kind: "coworker", name: "Scout", image: "" },
+          ]}
+          initialDate="2026-08-18"
+          items={[{ ...WEEK_ITEM, taskAssigneeId: "coworker-1" }]}
+          sources={[WEEK_SOURCE]}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    const props = fullCalendarMock.mock.lastCall?.[0] as
+      | FullCalendarProps
+      | undefined;
+    render(
+      <>
+        {props?.eventContent?.({
+          event: {
+            id: WEEK_ITEM.id,
+            title: WEEK_ITEM.taskName,
+            start: WEEK_ITEM.scheduledAt,
+          },
+        })}
+      </>,
+    );
+
+    const event = screen.getByRole("button", { name: "event.accessibleName" });
+    const [, titleLine] = Array.from(event.children);
+    expect(titleLine).toHaveClass("line-clamp-2");
+    expect(event).toHaveAccessibleDescription("Scout, Ada Lovelace");
+    expect(screen.getByTestId("calendar-event-people")).toHaveAttribute(
+      "title",
+      "Scout, Ada Lovelace",
+    );
   });
 });

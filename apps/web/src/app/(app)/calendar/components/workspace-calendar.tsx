@@ -39,11 +39,13 @@ import {
   parseAsStringLiteral,
   useQueryStates,
 } from "nuqs";
-import { type MouseEvent, useEffect, useRef, useState } from "react";
+import { type MouseEvent, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Temporal } from "temporal-polyfill";
 import { loadTaskScheduleSeriesPrecondition } from "@/app/tasks/actions";
+import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
+import type { TaskAssigneeView } from "@/app/tasks/types/task-board";
 import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
@@ -76,6 +78,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   clearTaskSchedule,
@@ -124,7 +127,39 @@ interface CalendarCoworker {
   id: string;
   image?: string;
   name: string;
+  slug?: string;
   kind?: "coworker" | "user" | "sokoBot";
+  avatarSeed?: string | null;
+}
+
+interface CalendarPeople {
+  assignee: TaskAssigneeView | null;
+  owner: CalendarCoworker | null;
+}
+
+/** Joins an item's assignee and owner ids against the workspace roster. */
+function findCalendarPeople(
+  item: WorkspaceCalendarItem,
+  coworkers: CalendarCoworker[],
+): CalendarPeople {
+  const assigneeCoworker = item.taskAssigneeUserId
+    ? coworkers.find(
+        ({ id, kind }) => kind === "user" && id === item.taskAssigneeUserId,
+      )
+    : item.taskAssigneeId
+      ? coworkers.find(
+          ({ id, kind }) => kind !== "user" && id === item.taskAssigneeId,
+        )
+      : undefined;
+  return {
+    assignee: assigneeCoworker
+      ? { ...assigneeCoworker, kind: assigneeCoworker.kind ?? "coworker" }
+      : null,
+    owner:
+      coworkers.find(
+        ({ id, kind }) => kind === "user" && id === item.taskOwnerId,
+      ) ?? null,
+  };
 }
 
 interface WorkspaceCalendarProps {
@@ -264,6 +299,7 @@ function isRestorableCalendarItem(item: WorkspaceCalendarItem): boolean {
 
 function CalendarEvent({
   item,
+  people,
   onEditSchedule,
   onMoveOccurrence,
   onRestoreOccurrence,
@@ -274,6 +310,7 @@ function CalendarEvent({
   timeText,
 }: {
   item: WorkspaceCalendarItem;
+  people: CalendarPeople;
   onEditSchedule: (taskId: string) => void;
   onMoveOccurrence: (item: WorkspaceCalendarItem) => void;
   onRestoreOccurrence: (item: WorkspaceCalendarItem) => void;
@@ -284,6 +321,7 @@ function CalendarEvent({
   timeText?: string;
 }) {
   const t = useTranslations("App.Calendar");
+  const peopleId = useId();
   const sourceName = source?.displayName ?? t(`source.${item.sourceType}`);
   const sourceMarker = (
     <SourceMarker decorative source={source} sourceName={sourceName} />
@@ -298,6 +336,31 @@ function CalendarEvent({
         ~
       </span>
     ) : null;
+  const peopleNames = [people.assignee?.name, people.owner?.name]
+    .filter((name): name is string => Boolean(name?.trim()))
+    .join(", ");
+  const peopleStack = peopleNames ? (
+    <>
+      <span
+        aria-hidden
+        className="flex shrink-0 items-center -space-x-1"
+        data-testid="calendar-event-people"
+        title={peopleNames}
+      >
+        {people.assignee ? <AssigneeAvatar assignee={people.assignee} /> : null}
+        {people.owner ? (
+          <UserProfileAvatar
+            className="z-10"
+            image={people.owner.image}
+            name={people.owner.name}
+          />
+        ) : null}
+      </span>
+      <span className="sr-only" id={peopleId}>
+        {peopleNames}
+      </span>
+    </>
+  ) : null;
   const sourceDetails = showDetails ? (
     <>
       <span className="text-muted-foreground shrink-0">{sourceName}</span>
@@ -313,6 +376,7 @@ function CalendarEvent({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
+          aria-describedby={peopleNames ? peopleId : undefined}
           aria-label={t(
             item.state === "SKIPPED"
               ? "event.accessibleNameSkipped"
@@ -341,7 +405,10 @@ function CalendarEvent({
                   {sourceName}
                 </span>
               </span>
-              <span className="w-full min-w-0 truncate">{item.taskName}</span>
+              <span className="line-clamp-2 w-full min-w-0">
+                {item.taskName}
+              </span>
+              {peopleStack}
             </>
           ) : (
             <>
@@ -349,6 +416,7 @@ function CalendarEvent({
               {accuracyMarker}
               <span className="min-w-0 flex-1 truncate">{item.taskName}</span>
               {sourceDetails}
+              {peopleStack}
             </>
           )}
         </button>
@@ -384,6 +452,7 @@ function CalendarEvent({
 
 function CalendarView({
   canCreate,
+  coworkers,
   date,
   items,
   onDateClick,
@@ -397,6 +466,7 @@ function CalendarView({
   view,
 }: {
   canCreate: boolean;
+  coworkers: CalendarCoworker[];
   date: Date;
   items: WorkspaceCalendarItem[];
   onDateClick: (date: Date) => void;
@@ -524,6 +594,7 @@ function CalendarView({
           return (
             <CalendarEvent
               item={item}
+              people={findCalendarPeople(item, coworkers)}
               onEditSchedule={onEventEdit}
               onMoveOccurrence={onMoveOccurrence}
               onRestoreOccurrence={onRestoreOccurrence}
@@ -1339,6 +1410,7 @@ export function WorkspaceCalendar({
       <CalendarView
         key={calendarRenderEpoch}
         canCreate={canCreate}
+        coworkers={coworkers}
         date={date}
         items={visibleItems}
         onDateClick={handleDateClick}

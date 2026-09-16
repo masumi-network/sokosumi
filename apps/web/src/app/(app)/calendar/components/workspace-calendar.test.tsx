@@ -71,6 +71,7 @@ const ITEMS: WorkspaceCalendarItem[] = [
     taskName: "Prepare release notes",
     taskStatus: "QUEUED",
     taskAssigneeId: "coworker-1",
+    taskOwnerId: "user-1",
     scheduledAt: new Date("2026-08-18T09:00:00.000Z"),
     originalScheduledAt: new Date("2026-08-18T09:00:00.000Z"),
     state: "PLANNED",
