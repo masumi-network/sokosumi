@@ -186,11 +186,13 @@ On these Task-collaboration routes, a standalone Coworker key (no
 relationship: mutations require the Task to be assigned to the calling
 Coworker, and reads may also use the vendor-sibling baseline.
 
-**Schedule routes are vendor-wide.** The five schedule mutations above accept
-the assignee *or* any Coworker from the same vendor as the assignee (non-DRAFT
-Task), so one vendor can create, edit, and remove schedules across all of its
-Coworkers. With `X-Context-*` the Task must also belong to the contextual user.
-Status transitions, jobs, and files stay assignee-only.
+**Schedule routes are wider than assignment.** The five schedule mutations
+above accept the assignee, the Coworker that created the Task
+(`creatorCoworkerId`, so the legacy `POST /v1/tasks` then
+`PUT /v1/tasks/{id}/schedule` flow can target any assignee exactly like
+`POST /v1/tasks/scheduled`), *or* any Coworker from the same vendor as the
+assignee (non-DRAFT Task). With `X-Context-*` the Task must also belong to the
+contextual user. Status transitions, jobs, and files stay assignee-only.
 
 ---
 

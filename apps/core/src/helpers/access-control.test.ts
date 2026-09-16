@@ -958,6 +958,30 @@ describe("requireTaskScheduleWriteAccess", () => {
     });
   });
 
+  it("lets the creating coworker schedule a task assigned to another vendor", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+    } as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      ...scheduledTask,
+      status: "DRAFT",
+      creatorCoworkerId: "cow_123",
+      assignee: { vendorId: "01960001-0001-7001-8001-00000000beef" },
+    } as never);
+
+    const task = await requireTaskScheduleWriteAccess(
+      createCoworkerContext("cow_123", {
+        userId: "user_123",
+        organizationId: null,
+      }),
+      "tsk_123",
+      tx,
+    );
+
+    expect(task.creatorCoworkerId).toBe("cow_123");
+  });
+
   it("rejects a sibling task from another vendor", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({

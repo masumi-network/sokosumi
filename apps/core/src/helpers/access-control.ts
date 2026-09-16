@@ -697,9 +697,10 @@ export async function requireTaskCollaboration(
 
 /**
  * Schedule write access. Humans and Soko Bots follow
- * {@link requireTaskCollaboration}. Coworkers may also act on a non-DRAFT task
- * assigned to a same-vendor sibling, so one vendor can manage every schedule
- * across its Coworkers. Schedules are the only mutation with this vendor-wide
+ * {@link requireTaskCollaboration}. Coworkers may also act as the task's
+ * creator (the legacy create-then-`PUT /schedule` flow, matching what
+ * `POST /tasks/scheduled` allows in one call) or on a non-DRAFT task assigned
+ * to a same-vendor sibling. Schedules are the only mutation with this wider
  * scope; status, jobs, and files stay assignee-only.
  */
 export async function requireTaskScheduleWriteAccess(
@@ -728,12 +729,13 @@ export async function requireTaskScheduleWriteAccess(
 
   const { assignee, ...task } = found;
   const isAssignee = task.assigneeId === authContext.coworkerId;
+  const isCreator = task.creatorCoworkerId === authContext.coworkerId;
   const isVendorSibling =
     assignee?.vendorId === authContext.vendorId &&
     task.status !== TaskStatus.DRAFT;
-  if (!isAssignee && !isVendorSibling) {
+  if (!isAssignee && !isCreator && !isVendorSibling) {
     throw forbidden(
-      "You can only act on tasks assigned to your coworker or its vendor siblings",
+      "You can only schedule tasks your coworker created, is assigned to, or that are assigned to its vendor siblings",
     );
   }
 
