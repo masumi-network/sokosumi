@@ -143,5 +143,15 @@ describe("TaskAssigneePicker", () => {
     expect(trigger).not.toHaveTextContent("Elena");
     expect(trigger.className).toMatch(/\bsize-8\b/);
     expect(trigger.className).not.toMatch(/\bw-full\b/);
+
+    const name = screen.getByText("Elena");
+    const vendor = screen.getAllByAltText("Serviceplan")[0];
+    expect(
+      name.compareDocumentPosition(trigger) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      trigger.compareDocumentPosition(vendor) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 });

@@ -176,40 +176,42 @@ export function TaskAssigneePicker({
     <Popover open={open} onOpenChange={handleOpenChange}>
       <div className="flex items-center gap-3">
         <AssigneeAvatar option={selectedOption} />
-        <div className="min-w-0 flex-1">
-          <p
-            className={cn(
-              "truncate text-sm leading-tight font-semibold",
-              isUnassigned && "text-muted-foreground",
-            )}
-          >
-            {displayName}
-          </p>
-          {selectedOption?.caption ? (
-            <p className="text-muted-foreground truncate text-xs">
-              {selectedOption.caption}
+        <div className="flex min-w-0 items-center gap-1">
+          <div className="min-w-0">
+            <p
+              className={cn(
+                "truncate text-sm leading-tight font-semibold",
+                isUnassigned && "text-muted-foreground",
+              )}
+            >
+              {displayName}
             </p>
-          ) : null}
+            {selectedOption?.caption ? (
+              <p className="text-muted-foreground truncate text-xs">
+                {selectedOption.caption}
+              </p>
+            ) : null}
+          </div>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              role="combobox"
+              aria-expanded={open}
+              aria-label={labels.ariaLabel}
+              disabled={disabled}
+              className="text-muted-foreground inline-flex size-8 shrink-0 items-center justify-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed"
+            >
+              <ChevronDown className="size-4 opacity-70" aria-hidden />
+            </button>
+          </PopoverTrigger>
         </div>
         {selectedOption ? (
           <VendorMark
             vendor={selectedOption.vendor}
-            className="h-5 shrink-0"
+            className="ml-auto h-5 shrink-0"
             textClassName="text-muted-foreground shrink-0 text-xs font-medium"
           />
         ) : null}
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            role="combobox"
-            aria-expanded={open}
-            aria-label={labels.ariaLabel}
-            disabled={disabled}
-            className="text-muted-foreground inline-flex size-8 shrink-0 items-center justify-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed"
-          >
-            <ChevronDown className="size-4 opacity-70" aria-hidden />
-          </button>
-        </PopoverTrigger>
       </div>
       <PopoverContent align={align} className="w-72 p-0">
         <Command>
