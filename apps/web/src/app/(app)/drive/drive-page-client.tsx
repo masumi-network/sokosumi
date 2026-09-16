@@ -1673,7 +1673,7 @@ function DrivePageWorkspace({
       ) : emptyState ? (
         <div
           className={cn(
-            "bg-muted/30 border-border/50 -mx-6 flex flex-col items-center justify-center overflow-hidden rounded-none border-0 py-12 text-center md:mx-0 md:rounded-xl md:border",
+            "bg-card-background border-border -mx-6 flex flex-col items-center justify-center overflow-hidden rounded-none border-0 py-12 text-center md:mx-0 md:rounded-xl md:border",
             PROJECTS_LIST_CARD_MIN_H_CLASS,
           )}
         >
@@ -1907,7 +1907,7 @@ function DrivePageWorkspace({
                         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                           {nameEl}
                           {searchContext && layoutMode !== "grid" ? (
-                            <p className="text-muted-foreground/70 line-clamp-1 text-xs">
+                            <p className="text-muted-foreground line-clamp-1 text-xs">
                               {searchContext}
                             </p>
                           ) : null}
@@ -2201,7 +2201,7 @@ function DrivePageWorkspace({
           <AlertDialogFooter>
             <AlertDialogCancel>{t("deleteDialogCancel")}</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
+              className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
               onClick={(event) => {
                 event.preventDefault();
                 void handleDeleteConfirm();
@@ -2274,7 +2274,7 @@ function DrivePageWorkspace({
                   type="button"
                   onClick={() => setSelectedDestination(dest.path)}
                   className={cn(
-                    "text-foreground hover:bg-muted/50 flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                    "text-foreground hover:bg-card-background flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
                     selectedDestination === dest.path &&
                       "bg-muted border-primary",
                   )}

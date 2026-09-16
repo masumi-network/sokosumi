@@ -45,7 +45,7 @@ export async function DocsSection() {
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hover:bg-muted/50 flex items-center gap-3 rounded-lg border p-4 transition-colors"
+                className="hover:bg-card-background flex items-center gap-3 rounded-lg border p-4 transition-colors"
               >
                 <Icon className="text-muted-foreground size-4 shrink-0" />
                 <div className="min-w-0 flex-1">

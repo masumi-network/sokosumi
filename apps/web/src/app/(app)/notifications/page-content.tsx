@@ -50,7 +50,7 @@ export function NotificationsPageContent() {
       ) : null}
       {/* Empty only when the list has nothing to say under an account notice,
           and then there is no card to draw either. */}
-      <div className="bg-muted/30 border-border/50 overflow-hidden rounded-xl border empty:hidden">
+      <div className="bg-card-background border-border overflow-hidden rounded-xl border empty:hidden">
         <NotificationCenterList />
       </div>
     </div>

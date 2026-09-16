@@ -59,8 +59,8 @@ export function getApiKeyColumns(
         <span
           className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
             row.original.enabled
-              ? "bg-semantic-success/10 text-semantic-success"
-              : "bg-semantic-destructive/10 text-semantic-destructive"
+              ? "bg-semantic-success-quaternary text-foreground"
+              : "bg-semantic-destructive-quaternary text-foreground"
           }`}
         >
           {row.original.enabled ? t("Status.enabled") : t("Status.disabled")}
