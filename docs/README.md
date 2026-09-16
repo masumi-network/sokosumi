@@ -24,10 +24,6 @@ This directory contains documentation for the Sokosumi monorepo.
 
 - [`wayfinder/`](./wayfinder/) — reached x402/EVM spec map (`MAP.md`, `PR1-SPEC.md`, `PR2-SPEC.md`)
 
-## Research
-
-- [`research/`](./research/) — standing research notes
-
 ## Architecture decisions
 
 - [`adr/`](./adr/) — accepted architecture decision records (`adr/superseded/` holds superseded records)
