@@ -23,6 +23,7 @@ struct BrowseChannelsView: View {
       TextField("Search channels", text: $model.query)
         .textFieldStyle(.roundedBorder)
         .focused($searchFocused)
+        .accessibilityLabel("Search channels")
         .task { searchFocused = true }
       List {
         if model.loading {
@@ -55,9 +56,10 @@ struct BrowseChannelsView: View {
     .interactiveDismissDisabled(model.joiningRoomId != nil)
     .disabled(model.joiningRoomId != nil)
     .task(id: SearchRequest(query: model.query, retry: retry)) {
+      try? await Task.sleep(for: .milliseconds(200))
+      guard !Task.isCancelled else { return }
       await model.search { query in
-        try await Task.sleep(for: .milliseconds(200))
-        return try await load(query)
+        try await load(query)
       }
     }
   }
