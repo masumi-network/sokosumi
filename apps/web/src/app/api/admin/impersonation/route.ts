@@ -1,12 +1,9 @@
 import { err, ok } from "neverthrow";
 import { type NextRequest, NextResponse } from "next/server";
 
-import {
-  type ActionResultDto,
-  toActionResult,
-} from "@/lib/actions/action-result";
+import { toActionResult } from "@/lib/actions/action-result";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
-import type { ImpersonationUser } from "@/lib/api/admin-impersonation";
+import type { ImpersonationResult } from "@/lib/api/admin-impersonation";
 import { assertAdminSession } from "@/lib/auth/admin-access";
 import { isAdminAccessRequiredError } from "@/lib/auth/errors";
 import {
@@ -35,10 +32,8 @@ function isSameOriginFetch(request: NextRequest): boolean {
   );
 }
 
-type ImpersonationResultDto = ActionResultDto<ImpersonationUser, ActionError>;
-
 function resultResponse(
-  result: ImpersonationResultDto,
+  result: ImpersonationResult,
   status: number,
   setCookies: string[] = [],
   retryAfter = false,
@@ -53,7 +48,7 @@ function resultResponse(
   return response;
 }
 
-function errorResult(error: ActionError): ImpersonationResultDto {
+function errorResult(error: ActionError): ImpersonationResult {
   return toActionResult(err(error));
 }
 
@@ -113,7 +108,7 @@ interface StartImpersonationBody {
 }
 
 function readStartBody(body: StartImpersonationBody):
-  | ImpersonationResultDto
+  | ImpersonationResult
   | {
       userId: string;
       reason: string;

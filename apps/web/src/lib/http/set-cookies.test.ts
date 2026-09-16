@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   appendProxiedSetCookies,
@@ -32,29 +32,23 @@ describe("collectResponseSetCookies", () => {
     expect(collectResponseSetCookies(new Response("{}"))).toEqual([]);
   });
 
-  it("trusts an empty getSetCookie and does not fall back to a joined header", () => {
-    const response = {
-      headers: {
-        getSetCookie: () => [],
-        get: (name: string) =>
-          name.toLowerCase() === "set-cookie"
-            ? "a=1; Expires=Wed, 21 Oct 2015 07:28:00 GMT, b=2; Path=/"
-            : null,
-      },
-    } as unknown as Response;
+  it("treats an empty getSetCookie() as authoritative, ignoring the joined header", () => {
+    const response = new Response("{}");
+    vi.spyOn(response.headers, "getSetCookie").mockReturnValue([]);
+    vi.spyOn(response.headers, "get").mockReturnValue(
+      "a=1; Expires=Wed, 21 Oct 2015 07:28:00 GMT; Path=/, b=2; Path=/",
+    );
 
     expect(collectResponseSetCookies(response)).toEqual([]);
   });
 
-  it("falls back to headers.get when getSetCookie is absent", () => {
-    const response = {
-      headers: {
-        get: (name: string) =>
-          name.toLowerCase() === "set-cookie" ? SIGNED_COOKIE : null,
-      },
-    } as unknown as Response;
+  it("falls back to the single header when getSetCookie() is unavailable", () => {
+    const response = responseWithCookies("plain=value; Path=/");
+    Object.assign(response.headers, { getSetCookie: undefined });
 
-    expect(collectResponseSetCookies(response)).toEqual([SIGNED_COOKIE]);
+    expect(collectResponseSetCookies(response)).toEqual([
+      "plain=value; Path=/",
+    ]);
   });
 });
 
