@@ -15,7 +15,7 @@ interface SokoBotLayoutProps {
 }
 
 export default async function SokoBotLayout({ children }: SokoBotLayoutProps) {
-  // 404 outside the beta whitelist so the feature does not leak.
+  // 404 without Soko Bot beta access so the feature does not leak.
   const session = await getSession();
   if (!hasSokoBotBetaAccess(session?.user ?? null)) {
     notFound();

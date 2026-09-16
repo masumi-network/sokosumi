@@ -292,6 +292,7 @@ const ITEM: WorkspaceCalendarItem = {
   taskName: "Prepare release notes",
   taskStatus: "QUEUED",
   taskAssigneeId: "coworker-1",
+  taskOwnerId: "user-1",
   scheduledAt: new Date("2030-01-02T09:00:00.000Z"),
   originalScheduledAt: new Date("2030-01-02T09:00:00.000Z"),
   state: "PLANNED",
@@ -1552,7 +1553,9 @@ describe("WorkspaceCalendar editing", () => {
     const event = screen.getAllByRole("button", {
       name: "Prepare release notes, Release planning, skipped",
     })[0];
-    expect(event).toHaveClass("line-through");
+    expect(screen.getAllByTestId("calendar-event")[0]).toHaveClass(
+      "line-through",
+    );
     await user.click(event);
     await user.click(
       screen.getByRole("menuitem", { name: "event.restoreOccurrence" }),

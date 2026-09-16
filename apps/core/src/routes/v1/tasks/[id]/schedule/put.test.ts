@@ -20,7 +20,7 @@ const {
   prismaTransactionMock,
   memberFindFirstMock,
   taskUpdateMock,
-  requireTaskCollaborationMock,
+  requireTaskScheduleWriteAccessMock,
   hasAssignedOrganizationSeatMock,
   lockCalendarScopeMock,
   lockTaskRowsMock,
@@ -32,7 +32,7 @@ const {
   prismaTransactionMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
   taskUpdateMock: vi.fn(),
-  requireTaskCollaborationMock: vi.fn(),
+  requireTaskScheduleWriteAccessMock: vi.fn(),
   hasAssignedOrganizationSeatMock: vi.fn(),
   lockCalendarScopeMock: vi.fn(),
   lockTaskRowsMock: vi.fn(),
@@ -42,7 +42,7 @@ const {
 }));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireTaskCollaboration: requireTaskCollaborationMock,
+  requireTaskScheduleWriteAccess: requireTaskScheduleWriteAccessMock,
 }));
 
 vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
@@ -279,7 +279,7 @@ function installLedgerTransaction(
 }
 
 function mockQueuedV2Task(nextRunAt: Date, epochId = V2_EPOCH_ID) {
-  requireTaskCollaborationMock.mockResolvedValue({
+  requireTaskScheduleWriteAccessMock.mockResolvedValue({
     id: TASK_ID,
     status: TaskStatus.QUEUED,
     assigneeId: "coworker-1",
@@ -372,7 +372,7 @@ describe("PUT /tasks/{id}/schedule", () => {
     vi.clearAllMocks();
     memberFindFirstMock.mockResolvedValue({ id: "member_123" });
     hasAssignedOrganizationSeatMock.mockResolvedValue(true);
-    requireTaskCollaborationMock.mockResolvedValue({
+    requireTaskScheduleWriteAccessMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.READY,
       assigneeId: "cow_123",
@@ -412,7 +412,7 @@ describe("PUT /tasks/{id}/schedule", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(requireTaskCollaborationMock).toHaveBeenCalled();
+    expect(requireTaskScheduleWriteAccessMock).toHaveBeenCalled();
   });
 
   it("returns 403 when the member has no assigned organization seat", async () => {
@@ -451,7 +451,7 @@ describe("PUT /tasks/{id}/schedule", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(requireTaskCollaborationMock).toHaveBeenCalled();
+    expect(requireTaskScheduleWriteAccessMock).toHaveBeenCalled();
     expect(hasAssignedOrganizationSeatMock).toHaveBeenCalledWith(
       "user_123",
       "org_123",
@@ -477,13 +477,13 @@ describe("PUT /tasks/{id}/schedule", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(requireTaskCollaborationMock).toHaveBeenCalled();
+    expect(requireTaskScheduleWriteAccessMock).toHaveBeenCalled();
     expect(hasAssignedOrganizationSeatMock).not.toHaveBeenCalled();
     expect(taskUpdateMock).toHaveBeenCalled();
   });
 
   it("persists the legacy request as metadata version 1", async () => {
-    requireTaskCollaborationMock.mockResolvedValue({
+    requireTaskScheduleWriteAccessMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.DRAFT,
       assigneeId: "coworker-1",
@@ -524,7 +524,7 @@ describe("PUT /tasks/{id}/schedule", () => {
   it("keeps an existing Calendar v2 epoch instead of rewriting version 1", async () => {
     const epochId = "123e4567-e89b-42d3-a456-426614174000";
     const nextRunAt = new Date("2026-06-02T09:00:00.000Z");
-    requireTaskCollaborationMock.mockResolvedValue({
+    requireTaskScheduleWriteAccessMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.QUEUED,
       assigneeId: "coworker-1",
@@ -567,7 +567,7 @@ describe("PUT /tasks/{id}/schedule", () => {
 
   it("starts a new v2 epoch when a Calendar schedule rule changes", async () => {
     const epochId = V2_EPOCH_ID;
-    requireTaskCollaborationMock.mockResolvedValue({
+    requireTaskScheduleWriteAccessMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.QUEUED,
       assigneeId: "coworker-1",
@@ -767,7 +767,7 @@ describe("PUT /tasks/{id}/schedule", () => {
   });
 
   it("keeps human-assigned tasks READY when scheduled", async () => {
-    requireTaskCollaborationMock.mockResolvedValue({
+    requireTaskScheduleWriteAccessMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.READY,
       assigneeId: null,
@@ -803,7 +803,7 @@ describe("PUT /tasks/{id}/schedule", () => {
   });
 
   it("sets agent-assigned tasks to QUEUED when scheduled (SOK-1033)", async () => {
-    requireTaskCollaborationMock.mockResolvedValue({
+    requireTaskScheduleWriteAccessMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.READY,
       assigneeId: "coworker-1",
@@ -834,7 +834,7 @@ describe("PUT /tasks/{id}/schedule", () => {
   });
 
   it("rejects scheduling an unset task (SOK-868)", async () => {
-    requireTaskCollaborationMock.mockResolvedValue({
+    requireTaskScheduleWriteAccessMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.READY,
       assigneeId: null,

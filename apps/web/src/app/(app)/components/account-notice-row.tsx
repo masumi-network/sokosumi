@@ -4,9 +4,8 @@ import { AlertTriangle, ArrowUpRight, CircleAlert } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-import { useAccountNoticeAction } from "@/app/components/use-account-notice-action";
+import { getAccountNoticePath } from "@/app/components/account-notice-action";
 import { Button } from "@/components/ui/button";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
 import { cn } from "@/lib/utils";
 
@@ -31,8 +30,8 @@ const ACCOUNT_NOTICE_STYLES = {
 
 interface AccountNoticeRowProps {
   className?: string;
-  /** Use inside DropdownMenuContent so the action is keyboard-reachable. */
-  variant?: "card" | "menu";
+  /** Use inside the notification panel, where the whole notice is one link. */
+  variant?: "card" | "panel";
   onActionComplete?: () => void;
 }
 
@@ -42,7 +41,6 @@ export function AccountNoticeRow({
   onActionComplete,
 }: AccountNoticeRowProps) {
   const { notice } = useAccountNotice();
-  const { handleAction } = useAccountNoticeAction();
   const tEmail = useTranslations("App.EmailVerificationNotice");
   const tCenter = useTranslations("Components.NotificationCenter");
   const tCredits = useTranslations("App.LowCreditsNotice");
@@ -73,11 +71,6 @@ export function AccountNoticeRow({
     description = tCredits(`${routeKey}.${stateKey}.description`);
     actionLabel = tCredits(`${routeKey}.button`);
   }
-
-  const handleMenuSelect = () => {
-    handleAction();
-    onActionComplete?.();
-  };
 
   const content = (
     <div className="flex items-start gap-3">
@@ -114,7 +107,7 @@ export function AccountNoticeRow({
               styles.action,
             )}
           >
-            {/* The menu cannot host the security check, so it leads to the
+            {/* The panel cannot host the security check, so it leads to the
                 notifications page where the resend button lives. */}
             {notice.type === "emailVerification"
               ? tCenter("view")
@@ -126,21 +119,19 @@ export function AccountNoticeRow({
     </div>
   );
 
-  if (variant === "menu") {
+  if (variant === "panel") {
     return (
-      <DropdownMenuItem
+      <Link
+        href={getAccountNoticePath(notice)}
         className={cn(
-          "mx-2 my-1 flex cursor-pointer flex-col items-start gap-3 rounded-lg border p-4 focus:bg-inherit",
+          "mx-2 my-1 flex flex-col items-start gap-3 rounded-lg border p-4 text-left",
           styles.container,
           className,
         )}
-        onSelect={(event) => {
-          event.preventDefault();
-          handleMenuSelect();
-        }}
+        onClick={onActionComplete}
       >
         {content}
-      </DropdownMenuItem>
+      </Link>
     );
   }
 

@@ -68,6 +68,14 @@ _Avoid_: Paused turn, confirmation card (presentation), Eve approval
 A person who builds, runs, and maintains Coworkers. Distinct from an Agent developer and from a user who assigns Tasks.
 _Avoid_: Agent developer (when meaning this), calling a Coworker an Agent
 
+**Coworker runtime**:
+An external execution environment that runs a Coworker.
+_Avoid_: Agent, Agent runtime
+
+**Runtime adapter**:
+A bridge between Sokosumi and one Coworker runtime. It is distinct from a Developer CLI skill.
+_Avoid_: Agent plugin, Sokosumi plugin (when meaning this)
+
 **Agent developer**:
 A person who lists Agents on the Masumi registry for Hire. Distinct from a Coworker developer.
 _Avoid_: Coworker developer (when meaning this)
@@ -111,8 +119,8 @@ An in-app alert about something that happened for the user or their workspace (f
 _Avoid_: Message (when meaning an alert), toast (toasts are a delivery mechanism, not the domain object)
 
 **Notification Center**:
-The product surface where the user reviews and acts on notifications: the header panel and the full notifications list page.
-_Avoid_: Inbox, activity feed (unless intentionally renaming the product surface)
+One chronological list of the user's notifications, shown in the header panel and on the full notifications page. Reading is the only change a reader makes to a Notification; a reader never removes one.
+_Avoid_: Inbox, activity feed (unless intentionally renaming the product surface), clear or delete (when meaning a reader removing notifications)
 
 **Account notice**:
 A workspace- or account-level call to action that is not itself a notification, but may surface next to notifications in the Notification Center.

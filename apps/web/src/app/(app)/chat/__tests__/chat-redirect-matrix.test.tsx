@@ -17,7 +17,7 @@ vi.mock("@/lib/auth/auth.server", () => ({
 }));
 
 vi.mock("@/lib/beta-access", () => ({
-  isSokoBotBetaAccessEmail: () => false,
+  hasSokoBotBetaAccess: () => false,
 }));
 
 vi.mock("@/app/components/private-sidebar-cache", () => ({

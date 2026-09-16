@@ -1,12 +1,5 @@
 import { createClient } from "@/lib/clients/generated/core/client";
 import type {
-  DeleteNotificationsByIdData,
-  DeleteNotificationsByIdErrors,
-  DeleteNotificationsByIdResponse,
-  DeleteNotificationsByIdResponses,
-  DeleteNotificationsErrors,
-  DeleteNotificationsResponse,
-  DeleteNotificationsResponses,
   GetNotificationsData,
   GetNotificationsErrors,
   GetNotificationsResponse,
@@ -194,38 +187,6 @@ export const notificationsBrowserClient = {
           responseTransformer: transformMetaTimestampResponse,
         }),
       "Failed to mark notifications as read",
-    );
-  },
-
-  async deleteNotification(
-    path: DeleteNotificationsByIdData["path"],
-  ): Promise<DeleteNotificationsByIdResponse> {
-    return executeCoreOperation(
-      getNotificationsGeneratedClient,
-      (client) =>
-        client.delete<
-          DeleteNotificationsByIdResponses,
-          DeleteNotificationsByIdErrors
-        >({
-          url: "/notifications/{id}",
-          path,
-          cache: "no-store",
-          responseTransformer: transformNotificationItemResponse,
-        }),
-      "Failed to delete notification",
-    );
-  },
-
-  async deleteNotifications(): Promise<DeleteNotificationsResponse> {
-    return executeCoreOperation(
-      getNotificationsGeneratedClient,
-      (client) =>
-        client.delete<DeleteNotificationsResponses, DeleteNotificationsErrors>({
-          url: "/notifications",
-          cache: "no-store",
-          responseTransformer: transformMetaTimestampResponse,
-        }),
-      "Failed to clear notifications",
     );
   },
 };

@@ -10,7 +10,7 @@ interface NotificationRowIconProps {
  * The circle at a notification row's leading edge: the kind as a glyph, and
  * the read state as a tint.
  *
- * Shared by the bell dropdown and the notifications page, so a reader moving
+ * Shared by the header panel and the notifications page, so a reader moving
  * between them sees one treatment. It carries no text, and the unread state
  * it tints is named by NotificationUnreadLabel, so it stays hidden from a
  * screen reader.

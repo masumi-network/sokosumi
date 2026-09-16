@@ -4570,6 +4570,10 @@ export type WorkspaceCalendarItem = {
     taskAssigneeId: string | null;
     taskAssigneeUserId?: string | null;
     /**
+     * User who owns the Task and put it on the Calendar
+     */
+    taskOwnerId: string;
+    /**
      * Effective time at which the item appears in the Calendar
      */
     scheduledAt: Date;
@@ -4916,13 +4920,6 @@ export type MarkReadForReferenceRequest = {
     referenceId: string;
 };
 
-export type ClearNotificationsResponse = {
-    /**
-     * Number of notifications deleted
-     */
-    count: number;
-};
-
 export type GetInvitationResult = {
     kind: 'ok';
     invitation: PendingInvitation & {
@@ -5045,7 +5042,37 @@ export type CreateSokoBotApiKeyResponse = {
 };
 
 export type SokoBotState = {
-    sokoBot: SokoBot | null;
+    sokoBot: {
+        id: string;
+        userId: string;
+        name: string | null;
+        avatarSeed: string | null;
+        personalityTone: number | null;
+        personalityDetail: number | null;
+        personalityStyle: number | null;
+        status: SokoBotStatus;
+        runtimeVersion: string | null;
+        lastSandboxStatus: string | null;
+        memoryVersion: number;
+        memoryHash: string | null;
+        lastActivityAt: Date | null;
+        lastTurnAt: Date | null;
+        lastSucceededAt: Date | null;
+        lastFailedAt: Date | null;
+        consecutiveTurnFailures: number;
+        memory?: SokoBotMemory;
+        legacyMessages?: Array<SokoBotLegacyMessage>;
+        pendingDecisions?: Array<SokoBotPendingDecision>;
+        schedules?: Array<SokoBotSchedule>;
+        avatarImageUrl?: string | null;
+        versionId?: string | null;
+        followWholeBoard?: boolean;
+        ingestTimezone?: string;
+        proactivePaused?: boolean;
+        proactiveDailyLimit?: number;
+        createdAt: Date;
+        updatedAt: Date;
+    } | null;
 };
 
 export type SokoBotActivity = {
@@ -33187,70 +33214,6 @@ export type PutJobsByIdWorkspaceResponses = {
 
 export type PutJobsByIdWorkspaceResponse = PutJobsByIdWorkspaceResponses[keyof PutJobsByIdWorkspaceResponses];
 
-export type DeleteNotificationsData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/notifications';
-};
-
-export type DeleteNotificationsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type DeleteNotificationsError = DeleteNotificationsErrors[keyof DeleteNotificationsErrors];
-
-export type DeleteNotificationsResponses = {
-    /**
-     * Notification center cleared
-     */
-    200: {
-        data: ClearNotificationsResponse;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type DeleteNotificationsResponse = DeleteNotificationsResponses[keyof DeleteNotificationsResponses];
-
 export type GetNotificationsData = {
     body?: never;
     headers?: {
@@ -33834,90 +33797,6 @@ export type PatchNotificationsReadForReferenceResponses = {
 
 export type PatchNotificationsReadForReferenceResponse = PatchNotificationsReadForReferenceResponses[keyof PatchNotificationsReadForReferenceResponses];
 
-export type DeleteNotificationsByIdData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path: {
-        /**
-         * Notification ID
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/notifications/{id}';
-};
-
-export type DeleteNotificationsByIdErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type DeleteNotificationsByIdError = DeleteNotificationsByIdErrors[keyof DeleteNotificationsByIdErrors];
-
-export type DeleteNotificationsByIdResponses = {
-    /**
-     * Notification deleted
-     */
-    200: {
-        data: NotificationItem;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type DeleteNotificationsByIdResponse = DeleteNotificationsByIdResponses[keyof DeleteNotificationsByIdResponses];
-
 export type GetInvitationsByIdData = {
     body?: never;
     path: {
@@ -34448,6 +34327,12 @@ export type ArchiveMySokoBotResponse = ArchiveMySokoBotResponses[keyof ArchiveMy
 
 export type GetMySokoBotData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
     path?: never;
     query?: never;
     url: '/soko-bots/me';
@@ -37241,6 +37126,12 @@ export type JudgeMySokoBotLabTurnResponse = JudgeMySokoBotLabTurnResponses[keyof
 
 export type GetCoworkersData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
     path?: never;
     query?: {
         /**
