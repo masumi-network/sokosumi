@@ -5031,7 +5031,37 @@ export type CreateSokoBotApiKeyResponse = {
 };
 
 export type SokoBotState = {
-    sokoBot: SokoBot | null;
+    sokoBot: {
+        id: string;
+        userId: string;
+        name: string | null;
+        avatarSeed: string | null;
+        personalityTone: number | null;
+        personalityDetail: number | null;
+        personalityStyle: number | null;
+        status: SokoBotStatus;
+        runtimeVersion: string | null;
+        lastSandboxStatus: string | null;
+        memoryVersion: number;
+        memoryHash: string | null;
+        lastActivityAt: Date | null;
+        lastTurnAt: Date | null;
+        lastSucceededAt: Date | null;
+        lastFailedAt: Date | null;
+        consecutiveTurnFailures: number;
+        memory?: SokoBotMemory;
+        legacyMessages?: Array<SokoBotLegacyMessage>;
+        pendingDecisions?: Array<SokoBotPendingDecision>;
+        schedules?: Array<SokoBotSchedule>;
+        avatarImageUrl?: string | null;
+        versionId?: string | null;
+        followWholeBoard?: boolean;
+        ingestTimezone?: string;
+        proactivePaused?: boolean;
+        proactiveDailyLimit?: number;
+        createdAt: Date;
+        updatedAt: Date;
+    } | null;
 };
 
 export type SokoBotActivity = {
@@ -34355,6 +34385,12 @@ export type ArchiveMySokoBotResponse = ArchiveMySokoBotResponses[keyof ArchiveMy
 
 export type GetMySokoBotData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
     path?: never;
     query?: never;
     url: '/soko-bots/me';
@@ -37148,6 +37184,12 @@ export type JudgeMySokoBotLabTurnResponse = JudgeMySokoBotLabTurnResponses[keyof
 
 export type GetCoworkersData = {
     body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
     path?: never;
     query?: {
         /**
