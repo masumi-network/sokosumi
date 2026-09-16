@@ -857,4 +857,13 @@ A native preview exposed a macOS List row crash; wrapping each custom recipient 
 
 Verification commands use the existing Apple workflow: `swift test --package-path Packages/<package>` for all five packages; pinned `mint run swiftformat --lint .` and `mint run swiftlint lint --strict`; `xcodebuild ... build`; `xcodebuild ... test -enableCodeCoverage NO -only-testing:SokosumiTests`; and `swift build --package-path Packages/SokosumiWorkspace --triple arm64-apple-ios17.0 --sdk "$(xcrun --sdk iphoneos --show-sdk-path)" --scratch-path /tmp/sokosumi-workspace-ios17`. The new native-window fixture also passes independently. Agent-launched preview/test hosts exited.
 
-Slice 27 delivery: draft [#4665](https://github.com/masumi-network/sokosumi/pull/4665). Repository Biome and all typecheck tasks passed through the commit hook. Do not start slice 27a until human merge; keep its approved Xcode recommendations separate from this feature.
+Slice 27 delivery: [#4665](https://github.com/masumi-network/sokosumi/pull/4665). Repository Biome and all typecheck tasks passed through the commit hook. Do not start slice 27a until human merge; keep its approved Xcode recommendations separate from this feature.
+
+
+### Slice 27 review follow-up
+
+Addressed review #4665's search-copy and submission notes: prompts now match web selection state, search submission and the default button share the guarded creation action, and selection changes reset roster scrolling. The original keyboard failure was not reproduced; physical Return-key interaction remains unverified. Failed workspace switches deliberately invalidate pending creation results, preserving the existing stale-context safety contract and its regression test.
+
+The recipient roster now uses a native SwiftUI ScrollView/LazyVStack of existing buttons instead of List, removing macOS's extra list inset. Row bounds align with the search field and retain only eight points of horizontal interior padding. Refreshed minimum-width light/dark screenshots were inspected; both native-window tests, all three picker tests, strict SwiftLint and SwiftFormat pass. Hover interaction itself is not covered by the static fixture.
+
+The user applied Xcode's recommended settings locally. Those project/scheme changes remain separate for approved slice 27a after #4665 merges.

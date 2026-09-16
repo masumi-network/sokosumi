@@ -52,9 +52,11 @@ struct StartDirectView: View {
         .scrollIndicators(.hidden)
         .disabled(picker.creating)
       }
-      TextField("Search by name or email", text: $picker.query)
+      TextField(searchPlaceholder, text: $picker.query)
+        .accessibilityLabel("Search people or AI coworkers")
         .textFieldStyle(.roundedBorder)
         .focused($searchFocused)
+        .onSubmit(startDirect)
         .disabled(picker.creating)
       roster
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -66,14 +68,7 @@ struct StartDirectView: View {
         Button("Cancel") { dismiss() }
           .keyboardShortcut(.cancelAction)
           .disabled(picker.creating)
-        Button {
-          Task {
-            let opened = await picker.create(using: open)
-            if opened {
-              dismiss()
-            }
-          }
-        } label: {
+        Button(action: startDirect) {
           HStack(spacing: 6) {
             if picker.creating {
               ProgressView().controlSize(.small)
@@ -91,6 +86,22 @@ struct StartDirectView: View {
     .task(id: retry) {
       searchFocused = true
       await picker.load(using: load)
+    }
+  }
+
+  private func startDirect() {
+    Task { @MainActor in
+      if await picker.create(using: open) {
+        dismiss()
+      }
+    }
+  }
+
+  private var searchPlaceholder: String {
+    switch picker.selection.recipients.first {
+    case nil: "Search people or AI coworkers"
+    case .human: "Add more people"
+    case .coworker, .sokoBot: "Replace recipient"
     }
   }
 
@@ -122,18 +133,22 @@ struct StartDirectView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
           ScrollViewReader { proxy in
-            List(picker.candidates) { target in
-              HStack {
-                DirectRecipientRow(target: target, disabledReason: picker.selection.disabledReason(for: target.id)) {
-                  picker.add(target)
-                  searchFocused = true
+            ScrollView {
+              LazyVStack(spacing: 4) {
+                ForEach(picker.candidates) { target in
+                  DirectRecipientRow(target: target, disabledReason: picker.selection.disabledReason(for: target.id)) {
+                    picker.add(target)
+                    searchFocused = true
+                  }
                 }
               }
-              .listRowSeparator(.hidden)
-              .listRowInsets(EdgeInsets(top: 2, leading: 4, bottom: 2, trailing: 4))
             }
-            .listStyle(.plain)
             .disabled(picker.creating)
+            .onChange(of: picker.selection) { _, _ in
+              if let first = picker.candidates.first {
+                proxy.scrollTo(first.id, anchor: .top)
+              }
+            }
             .onChange(of: picker.query) { _, _ in
               if let first = picker.candidates.first {
                 proxy.scrollTo(first.id, anchor: .top)
