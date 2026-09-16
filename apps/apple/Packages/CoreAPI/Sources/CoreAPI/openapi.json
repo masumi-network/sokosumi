@@ -667,7 +667,7 @@
     },
     "/users/{id}/organizations": {
       "get": {
-        "description": "Get organizations for a user: path `me` for the session user, or a user id when the caller may access that user's data. Session user or coworker with matching authorized `X-Context-User-Id`. Coworker and Soko Bot callers only see the organization their context is bound to.",
+        "description": "Get organizations for a user: path `me` for the session user, or a user id when the caller may access that user's data. Session user or coworker with matching authorized `X-Context-User-Id`.",
         "tags": [
           "Users"
         ],

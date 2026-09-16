@@ -19,10 +19,12 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 
 const {
   mapTaskMock,
+  markTaskArchivedReadMock,
   prismaTransactionMock,
   removeTaskSchedulePlannedOccurrencesMock,
   requireTaskArchiveAccessMock,
 } = vi.hoisted(() => ({
+  markTaskArchivedReadMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   requireTaskArchiveAccessMock: vi.fn(),
   removeTaskSchedulePlannedOccurrencesMock: vi.fn(),
@@ -159,6 +161,10 @@ const {
   }),
 }));
 
+vi.mock("@/helpers/task-notifications", () => ({
+  markTaskArchivedRead: markTaskArchivedReadMock,
+}));
+
 vi.mock("@/helpers/access-control", () => ({
   requireTaskArchiveAccess: requireTaskArchiveAccessMock,
 }));
@@ -258,6 +264,50 @@ const ACTIVE_SCHEDULE_METADATA = JSON.stringify({
 describe("DELETE /tasks/{id}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  /**
+   * An archived task cannot be opened, so every row still asking somebody to
+   * act on it stops being a question. Nothing else clears them, and the
+   * follow-up sync would remind a day later about a task nobody can act on
+   * (SOK-916). Four archivable statuses are non-terminal, so the rows can
+   * still be outstanding.
+   */
+  it("marks the attention rows read when the task is archived", async () => {
+    const findFirstOrThrowMock = vi.fn().mockResolvedValue({
+      ...archivedTask,
+      assigneeUserId: "user_assignee",
+    });
+
+    prismaTransactionMock.mockImplementation(async (callback) => {
+      return await callback({
+        task: {
+          updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+          findFirstOrThrow: findFirstOrThrowMock,
+        },
+      });
+    });
+
+    requireTaskArchiveAccessMock.mockResolvedValue({
+      id: "tsk_123",
+      ownerId: "user_123",
+      status: TaskStatus.READY,
+      workspaceId: "22222222-2222-7222-8222-222222222222",
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(200);
+    expect(markTaskArchivedReadMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "tsk_123",
+        ownerId: "user_123",
+        assigneeUserId: "user_assignee",
+      }),
+    );
   });
 
   it("uses the task workspace for link visibility in the archive response", async () => {

@@ -24,8 +24,6 @@ interface ResolveMemberOrganizationByIdInput
 interface ResolveMemberOrganizationBySlugInput
   extends ResolveMemberOrganizationInputBase {
   slug: string;
-  /** Constrain slug resolution to this organization when supplied. */
-  organizationId?: string;
 }
 
 type OrganizationRecord = Awaited<
@@ -47,13 +45,9 @@ async function getOrganizationById(
 async function getOrganizationBySlug(
   tx: OrgResolverClient,
   slug: string,
-  organizationId?: string,
 ): Promise<OrganizationRecord> {
   return await tx.organization.findUnique({
-    where: {
-      slug,
-      ...(organizationId !== undefined ? { id: organizationId } : {}),
-    },
+    where: { slug },
   });
 }
 
@@ -115,11 +109,7 @@ export async function resolveMemberOrganizationById(
 export async function resolveMemberOrganizationBySlug(
   input: ResolveMemberOrganizationBySlugInput,
 ) {
-  const organization = await getOrganizationBySlug(
-    input.tx,
-    input.slug,
-    input.organizationId,
-  );
+  const organization = await getOrganizationBySlug(input.tx, input.slug);
 
   return await resolveMemberAccess(organization, input);
 }

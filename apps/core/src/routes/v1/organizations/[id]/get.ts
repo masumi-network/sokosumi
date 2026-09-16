@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { parseOrganizationMetadata } from "@sokosumi/utils";
-import { assertOrganizationInContextScope } from "@/helpers/context-organization-scope";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
@@ -61,8 +60,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = await requireAuthorizedUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
-
-    assertOrganizationInContextScope(userContext, id);
 
     const { organization, role } = await resolveMemberOrganizationById({
       id,
