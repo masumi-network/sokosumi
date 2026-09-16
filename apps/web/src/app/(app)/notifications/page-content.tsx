@@ -27,8 +27,9 @@ export function NotificationsPageContent() {
       <NotificationBrowserPermissionPrimer variant="page" />
       {/* The row outlives its button. Reading the last unread row takes the
           button away, and a row that went with it would pull the whole list
-          up under the reader's pointer. */}
-      {notifications.length > 0 || view === "unread" ? (
+          up under the reader's pointer. A list with no rows at all has no
+          pointer to protect, so it gets no row. */}
+      {notifications.length > 0 ? (
         <div
           data-testid="notifications-page-actions"
           className="flex min-h-8 items-center justify-end gap-2"

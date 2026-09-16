@@ -65,14 +65,13 @@ export function NotificationCenterList({
     string | null
   >(null);
   // Read rows stay in the feed so mark-read can roll back. The Unread view
-  // only hides them after the fold, which is a lens, not a delete.
+  // only hides them after the fold, which is a lens, not a delete. The set
+  // never needs clearing: the All view does not consult it, and an Unread
+  // fetch never returns a read row, so a stale id can only ever match a row
+  // that is unread again, which the lens shows regardless.
   const [hiddenIds, setHiddenIds] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
-
-  useEffect(() => {
-    setHiddenIds(new Set());
-  }, [view]);
 
   const hideRow = useCallback((id: string) => {
     setHiddenIds((current) => {
@@ -275,7 +274,12 @@ function LeavingRow({
         "grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none",
         isCollapsed ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr]",
       )}
-      onPointerEnter={() => setIsPointerInside(true)}
+      // A finger is not a pointer that rests on a row: it lifts the moment
+      // the tap ends and some browsers never say it left. Only a hovering
+      // pointer holds the row; a tapped row folds right after the tap.
+      onPointerEnter={(event) => {
+        if (event.pointerType !== "touch") setIsPointerInside(true);
+      }}
       onPointerLeave={() => setIsPointerInside(false)}
       onFocus={() => setIsFocusInside(true)}
       onBlur={(event) => {

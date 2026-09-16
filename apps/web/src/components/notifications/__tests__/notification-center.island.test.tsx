@@ -934,6 +934,42 @@ describe("Notification Center view filter", () => {
     },
   );
 
+  it("folds a read row right after a tap, with no pointer left to hold it", async () => {
+    const unread = row("mine", { isRead: false, readAt: null });
+    getNotificationsMock.mockResolvedValue(page([unread]));
+    getNotificationsUnreadCountMock.mockResolvedValue({ data: { count: 1 } });
+    patchNotificationReadMock.mockResolvedValue({
+      data: { ...unread, isRead: true, readAt: new Date() },
+    });
+
+    await renderPage();
+    const user = userEvent.setup();
+
+    getNotificationsMock.mockResolvedValue(page([unread]));
+    await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
+    await settle();
+
+    await user.pointer({
+      keys: "[TouchA]",
+      target: screen.getByRole("button", { name: "markRead: mine" }),
+    });
+    await waitFor(() => {
+      expect(screen.queryByText("mine")).toBeNull();
+    });
+  });
+
+  it("gives an empty Unread page no action row to hold space for", async () => {
+    getNotificationsMock.mockResolvedValue(page([]));
+
+    await renderPage();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
+    await settle();
+
+    expect(screen.getByText("emptyUnreadState")).toBeTruthy();
+    expect(screen.queryByTestId("notifications-page-actions")).toBeNull();
+  });
+
   it("drops a read row once a keyboard reader tabs off it", async () => {
     const unread = row("mine", { isRead: false, readAt: null });
     getNotificationsMock.mockResolvedValue(page([unread]));
