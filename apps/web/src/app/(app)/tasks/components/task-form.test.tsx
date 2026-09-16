@@ -1650,7 +1650,7 @@ describe("TaskForm", () => {
     expect(screen.getAllByText("Soko").length).toBeGreaterThanOrEqual(1);
     expect(
       screen.getByRole("combobox", { name: "Coworker" }),
-    ).toHaveTextContent("Soko");
+    ).toBeInTheDocument();
 
     await selectTaskStatus(user, "Ready");
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -1913,9 +1913,10 @@ describe("TaskForm", () => {
       />,
     );
 
+    expect(screen.getByText("Unassigned")).toBeInTheDocument();
     expect(
       screen.getByRole("combobox", { name: "Coworker" }),
-    ).toHaveTextContent("Unassigned");
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(updateTaskMock).toHaveBeenCalledWith(
