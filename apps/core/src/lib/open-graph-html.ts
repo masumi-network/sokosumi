@@ -126,6 +126,21 @@ export function parseOpenGraphFields(html: string): OpenGraphFields {
   };
 }
 
+/**
+ * Tweet body from an X oEmbed `html` blockquote: the first `<p>` with
+ * `<br>` as line breaks, other tags stripped, entities decoded. No I/O.
+ */
+export function tweetTextFromOembedHtml(html: string): string | null {
+  const paragraph = html.match(/<p\b[^>]*>([\s\S]*?)<\/p>/i)?.[1];
+  if (paragraph === undefined) {
+    return null;
+  }
+  const text = decodeEntities(
+    paragraph.replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, ""),
+  ).trim();
+  return text.length > 0 ? text : null;
+}
+
 function resolveHttpUrl(candidate: string, baseUrl: string): string | null {
   try {
     const resolved = new URL(candidate, baseUrl);
