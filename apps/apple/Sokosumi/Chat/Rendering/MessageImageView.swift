@@ -62,7 +62,8 @@ struct MessageImageView: View {
         ProgressView()
       }
     }
-    .frame(maxWidth: maxSize.width, maxHeight: maxSize.height, alignment: .leading)
+    // Filling wants the whole width budget, so say so: `Color.clear` contributes no ideal width of its own.
+    .frame(idealWidth: fills ? maxSize.width : nil, maxWidth: maxSize.width, maxHeight: maxSize.height, alignment: .leading)
     .task(id: "\(url)-\(maxSize)-\(displayScale)") {
       let result = await loadImageThumbnail(
         urlString: url.absoluteString,
