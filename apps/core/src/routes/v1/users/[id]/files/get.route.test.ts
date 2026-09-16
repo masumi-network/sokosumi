@@ -117,7 +117,7 @@ function createApp(
 }
 
 beforeAll(async () => {
-  const module = await import("../../[id]/files/get");
+  const module = await import("./get");
   mountGetUserFiles = module.default;
 });
 
