@@ -3824,7 +3824,7 @@ export type NotificationPreference = {
      */
     category: 'JOB_ATTENTION' | 'JOB_COMPLETED' | 'JOB_UPDATE' | 'TASK_ATTENTION' | 'TASK_COMPLETED' | 'TASK_UPDATE' | 'CHAT_ROOM_MESSAGE' | 'CHAT_MENTION' | 'CHAT_DIRECT_MESSAGE' | 'SYSTEM' | 'FOLLOW_UP';
     /**
-     * Where it is delivered: in the app, or as an OS banner (which also needs pushOptIn)
+     * Where it is delivered: in the app, as an OS banner (which also needs pushOptIn), or by email (offered only on the categories that mail)
      */
     channel: 'IN_APP' | 'OS_BANNER' | 'EMAIL';
     /**
