@@ -79,6 +79,9 @@ export type NotificationAction =
       /** Whether Core has rows older than this page, which decides what the
           page is allowed to speak for. */
       hasMore: boolean;
+      /** When the page was fetched for the Unread view: rows kept below it
+          must still be unread. */
+      unreadOnly?: boolean;
     }
   | { type: "load_older_success"; fetched: NotificationItem[] }
   | { type: "realtime"; notification: NotificationItem; created: boolean }
@@ -95,7 +98,8 @@ export type NotificationAction =
       updated: NotificationItem;
     }
   | { type: "mark_all_read" }
-  | { type: "remove"; id: string };
+  | { type: "remove"; id: string }
+  | { type: "reset_list" };
 
 export function notificationReducer(
   state: NotificationState,
@@ -135,6 +139,7 @@ export function notificationReducer(
           ? state.notifications.filter(
               (notification) =>
                 !isFeedExcluded(notification) &&
+                (!action.unreadOnly || !notification.isRead) &&
                 byNewestFirst(notification, oldestFetched) > 0,
             )
           : [];
@@ -352,6 +357,13 @@ export function notificationReducer(
           ? state.unreadCount
           : Math.max(0, state.unreadCount - 1),
       };
+    }
+    case "reset_list": {
+      if (state.notifications.length === 0) {
+        return state;
+      }
+
+      return { notifications: [], unreadCount: state.unreadCount };
     }
     case "mark_all_read": {
       const readAt = new Date();

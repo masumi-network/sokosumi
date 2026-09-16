@@ -358,6 +358,28 @@ describe("notificationReducer", () => {
     expect(afterSuccess.unreadCount).toBe(1);
   });
 
+  /**
+   * Switching views restarts the list: rows loaded under one view speak for
+   * ranges the other never asked for, so none carry over. The badge counts
+   * the whole feed whatever the view, so it stays.
+   */
+  it("clears the rows but keeps the badge when the list restarts", () => {
+    const unread = createNotification({ id: "unread", isRead: false });
+    const read = createNotification({
+      id: "read",
+      isRead: true,
+      readAt: new Date("2026-06-18T09:30:00.000Z"),
+    });
+
+    const state = notificationReducer(
+      { notifications: [unread, read], unreadCount: 1 },
+      { type: "reset_list" },
+    );
+
+    expect(state.notifications).toEqual([]);
+    expect(state.unreadCount).toBe(1);
+  });
+
   it("is a no-op when optimistically marking an already-read notification", () => {
     const readNotification = createNotification({
       id: "notification-read",
@@ -435,6 +457,49 @@ describe("notificationReducer", () => {
     expect(state.notifications.map((one) => one.id)).toEqual([
       "newest",
       "older",
+    ]);
+  });
+
+  /**
+   * A refresh in the Unread view prunes what the reader has handled: rows the
+   * list still holds below the fetched page stay only while still unread, so
+   * a read from another tab converges the next time the list refreshes.
+   */
+  it("keeps below-page rows on an Unread refresh only while still unread", () => {
+    const newest = createNotification({
+      id: "newest",
+      createdAt: new Date("2026-06-18T09:00:00.000Z"),
+      isRead: false,
+      readAt: null,
+    });
+    const waiting = createNotification({
+      id: "waiting",
+      createdAt: new Date("2026-06-17T09:00:00.000Z"),
+      isRead: false,
+      readAt: null,
+    });
+    const handledElsewhere = createNotification({
+      id: "handled-elsewhere",
+      createdAt: new Date("2026-06-16T09:00:00.000Z"),
+      isRead: true,
+      readAt: new Date("2026-06-16T10:00:00.000Z"),
+    });
+
+    const state = notificationReducer(
+      { notifications: [newest, waiting, handledElsewhere], unreadCount: 2 },
+      {
+        type: "fetch_success",
+        realtimeIds: new Set<string>(),
+        fetched: [newest],
+        hasMore: true,
+        serverUnreadCount: 2,
+        unreadOnly: true,
+      },
+    );
+
+    expect(state.notifications.map((one) => one.id)).toEqual([
+      "newest",
+      "waiting",
     ]);
   });
 
