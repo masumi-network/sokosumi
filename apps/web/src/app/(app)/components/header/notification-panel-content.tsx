@@ -37,7 +37,7 @@ export function NotificationPanelContent({
           <Separator />
         </>
       ) : null}
-      {/* One height with or without Mark all as read, which is taller than
+      {/* One height with or without Mark all read, which is taller than
           the title. The header used to grow and shrink as the last unread
           row changed, and move the whole list with it. */}
       <div className="flex min-h-9 items-center justify-between gap-2 py-1.5 pr-1 pl-3">

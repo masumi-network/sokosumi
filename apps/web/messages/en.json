@@ -794,7 +794,7 @@
       "viewAll": "View all notifications",
       "justNow": "Just now",
       "loading": "Loading...",
-      "markAllRead": "Mark all as read",
+      "markAllRead": "Mark all read",
       "markAllReadError": "Failed to mark all notifications as read",
       "markReadError": "Failed to mark notification as read",
       "markUnreadError": "Failed to mark notification as unread",

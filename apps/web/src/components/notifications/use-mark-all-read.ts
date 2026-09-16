@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { useNotifications } from "@/contexts/notification-provider";
 
 /**
- * Mark all as read, as both frames of the Notification Center offer it: one
+ * Mark all read, as both frames of the Notification Center offer it: one
  * write at a time, nothing to do when nothing is unread, and a failure said
  * out loud. Only the button around it differs between the panel and the page.
  */
