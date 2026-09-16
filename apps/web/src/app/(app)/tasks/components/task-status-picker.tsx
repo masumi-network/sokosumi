@@ -191,6 +191,8 @@ export function TaskStatusPicker({
                   <StatusMarker
                     spec={rowMarker}
                     tone={STATUS_ROLE_STYLES[rowMarker.role].onSurface}
+                    // A status you could pick, not one that is running.
+                    live={false}
                   />
                   <span className="flex-1 truncate">
                     {labels.statusLabels[status]}
