@@ -76,7 +76,12 @@ export function NotificationPanelContent({
             {isMarkingAllRead ? t("loading") : t("markAllRead")}
           </Button>
         ) : null}
-        <Button asChild variant="ghost" size="sm" className="ml-auto">
+        <Button
+          asChild
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground hover:text-foreground ml-auto"
+        >
           <Link href="/notifications" onClick={onClose}>
             {t("viewAll")}
           </Link>
