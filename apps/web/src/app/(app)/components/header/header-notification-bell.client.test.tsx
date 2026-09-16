@@ -6,6 +6,7 @@ import { HeaderNotificationBell } from "@/app/components/header/header-notificat
 
 const useNotificationsMock = vi.fn();
 const useAccountNoticeMock = vi.fn();
+const isMobileMock = vi.fn();
 
 function notificationRow(id: string, isRead: boolean) {
   return { id, isRead };
@@ -39,30 +40,29 @@ vi.mock("@/contexts/account-notice-provider", () => ({
   useAccountNotice: () => useAccountNoticeMock(),
 }));
 
-vi.mock("@/app/components/header/notification-dropdown-content", () => ({
-  NotificationDropdownContent: ({
-    onClose,
-    onClearAll,
-  }: {
-    onClose: () => void;
-    onClearAll: () => void;
-  }) => (
-    <div data-testid="notification-dropdown-content">
-      <button
-        type="button"
-        onClick={() => {
-          onClose();
-          onClearAll();
-        }}
-      >
-        clear-all
-      </button>
+vi.mock("@/app/components/header/notification-panel-content", () => ({
+  NotificationPanelContent: ({ onClose }: { onClose: () => void }) => (
+    <div data-testid="notification-panel-content">
       <button type="button" onClick={onClose}>
         close-panel
       </button>
     </div>
   ),
 }));
+
+vi.mock("@/hooks/use-mobile", () => ({
+  MOBILE_BREAKPOINT: 768,
+  useIsMobile: () => isMobileMock(),
+  useIsMobileMedia: () => isMobileMock(),
+}));
+
+/** The popover's own element, which carries the panel's width. */
+function panelClassName(): string {
+  const panel = screen
+    .getByTestId("notification-panel-content")
+    .closest("[data-slot='popover-content']");
+  return panel?.className ?? "";
+}
 
 const markReadMock = vi.fn();
 const markAllReadMock = vi.fn();
@@ -73,6 +73,8 @@ describe("HeaderNotificationBell", () => {
     markReadMock.mockReset();
     markAllReadMock.mockReset();
     useAccountNoticeMock.mockReset();
+    isMobileMock.mockReset();
+    isMobileMock.mockReturnValue(false);
     useNotificationsMock.mockReturnValue({
       unreadCount: 0,
       notifications: [],
@@ -101,7 +103,7 @@ describe("HeaderNotificationBell", () => {
       screen.getByRole("button", { name: "2 unread notifications" }),
     );
     expect(
-      screen.getByTestId("notification-dropdown-content"),
+      screen.getByTestId("notification-panel-content"),
     ).toBeInTheDocument();
     expect(screen.getByTestId("notification-unread-badge")).toHaveTextContent(
       "2",
@@ -127,7 +129,7 @@ describe("HeaderNotificationBell", () => {
     await user.click(
       screen.getByRole("button", { name: "2 unread notifications" }),
     );
-    const withUnreadClassName = screen.getByRole("menu").className;
+    const withUnreadClassName = panelClassName();
     withUnread.unmount();
 
     useNotificationsMock.mockReturnValue({
@@ -139,7 +141,7 @@ describe("HeaderNotificationBell", () => {
     render(<HeaderNotificationBell />);
     await user.click(screen.getByRole("button", { name: "Notifications" }));
 
-    expect(screen.getByRole("menu").className).toBe(withUnreadClassName);
+    expect(panelClassName()).toBe(withUnreadClassName);
   });
 
   it("renders a notifications control with tooltip copy as the accessible name", () => {
@@ -199,7 +201,7 @@ describe("HeaderNotificationBell", () => {
     await user.click(screen.getByRole("button", { name: "Notifications" }));
 
     expect(
-      screen.getByTestId("notification-dropdown-content"),
+      screen.getByTestId("notification-panel-content"),
     ).toBeInTheDocument();
   });
 
@@ -226,7 +228,7 @@ describe("HeaderNotificationBell", () => {
 
     await waitFor(() =>
       expect(
-        screen.queryByTestId("notification-dropdown-content"),
+        screen.queryByTestId("notification-panel-content"),
       ).not.toBeInTheDocument(),
     );
     expect(markReadMock).not.toHaveBeenCalled();
@@ -252,27 +254,10 @@ describe("HeaderNotificationBell", () => {
 
     await waitFor(() =>
       expect(
-        screen.queryByTestId("notification-dropdown-content"),
+        screen.queryByTestId("notification-panel-content"),
       ).not.toBeInTheDocument(),
     );
     expect(markReadMock).not.toHaveBeenCalled();
     expect(markAllReadMock).not.toHaveBeenCalled();
   });
-});
-
-it("restores focus to the bell after canceling clear", async () => {
-  useNotificationsMock.mockReturnValue({
-    unreadCount: 0,
-    notifications: [],
-    markRead: markReadMock,
-    markAllRead: markAllReadMock,
-  });
-  useAccountNoticeMock.mockReturnValue({ notice: null });
-  const user = userEvent.setup();
-  render(<HeaderNotificationBell />);
-  const bell = screen.getByRole("button", { name: "Notifications" });
-  await user.click(bell);
-  await user.click(screen.getByRole("button", { name: "clear-all" }));
-  await user.click(screen.getByRole("button", { name: "cancel" }));
-  await waitFor(() => expect(bell).toHaveFocus());
 });

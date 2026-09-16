@@ -4898,13 +4898,6 @@ export type MarkNotificationsReadRequest = {
     ids: Array<string>;
 };
 
-export type ClearNotificationsResponse = {
-    /**
-     * Number of notifications deleted
-     */
-    count: number;
-};
-
 export type GetInvitationResult = {
     kind: 'ok';
     invitation: PendingInvitation & {
@@ -33169,70 +33162,6 @@ export type PutJobsByIdWorkspaceResponses = {
 
 export type PutJobsByIdWorkspaceResponse = PutJobsByIdWorkspaceResponses[keyof PutJobsByIdWorkspaceResponses];
 
-export type DeleteNotificationsData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/notifications';
-};
-
-export type DeleteNotificationsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type DeleteNotificationsError = DeleteNotificationsErrors[keyof DeleteNotificationsErrors];
-
-export type DeleteNotificationsResponses = {
-    /**
-     * Notification center cleared
-     */
-    200: {
-        data: ClearNotificationsResponse;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type DeleteNotificationsResponse = DeleteNotificationsResponses[keyof DeleteNotificationsResponses];
-
 export type GetNotificationsData = {
     body?: never;
     headers?: {
@@ -33736,90 +33665,6 @@ export type PatchNotificationsReadResponses = {
 };
 
 export type PatchNotificationsReadResponse = PatchNotificationsReadResponses[keyof PatchNotificationsReadResponses];
-
-export type DeleteNotificationsByIdData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path: {
-        /**
-         * Notification ID
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/notifications/{id}';
-};
-
-export type DeleteNotificationsByIdErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type DeleteNotificationsByIdError = DeleteNotificationsByIdErrors[keyof DeleteNotificationsByIdErrors];
-
-export type DeleteNotificationsByIdResponses = {
-    /**
-     * Notification deleted
-     */
-    200: {
-        data: NotificationItem;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type DeleteNotificationsByIdResponse = DeleteNotificationsByIdResponses[keyof DeleteNotificationsByIdResponses];
 
 export type GetInvitationsByIdData = {
     body?: never;

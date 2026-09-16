@@ -86,18 +86,12 @@ function PendingAccessNotificationToast({
         <VendorGrantNotificationActions
           notification={notification}
           layout="toast"
-          onAccepted={() => {
-            toast.dismiss(notification.id);
-          }}
         />
       ) : null}
       {showCoworkerAccessActions ? (
         <CoworkerAccessNotificationActions
           notification={notification}
           layout="toast"
-          onAccepted={() => {
-            toast.dismiss(notification.id);
-          }}
         />
       ) : null}
     </div>

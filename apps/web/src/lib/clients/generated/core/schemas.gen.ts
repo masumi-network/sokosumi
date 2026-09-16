@@ -16305,21 +16305,6 @@ export const MarkNotificationsReadRequestSchema = {
     ]
 } as const;
 
-export const ClearNotificationsResponseSchema = {
-    type: 'object',
-    properties: {
-        count: {
-            type: 'integer',
-            minimum: 0,
-            description: 'Number of notifications deleted',
-            example: 10
-        }
-    },
-    required: [
-        'count'
-    ]
-} as const;
-
 export const GetInvitationResultSchema = {
     oneOf: [
         {

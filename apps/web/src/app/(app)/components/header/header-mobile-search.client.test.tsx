@@ -59,10 +59,8 @@ vi.mock("@/contexts/account-notice-provider", () => ({
   useAccountNotice: () => ({ notice: null }),
 }));
 
-vi.mock("@/app/components/header/notification-dropdown-content", () => ({
-  NotificationDropdownContent: () => (
-    <div data-testid="notification-dropdown" />
-  ),
+vi.mock("@/app/components/header/notification-panel-content", () => ({
+  NotificationPanelContent: () => <div data-testid="notification-panel" />,
 }));
 
 import { HeaderMobileSearchControl } from "@/app/components/header/header-mobile-search.client";

@@ -1,14 +1,14 @@
 "use client";
 
 import { Bell } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useRef, useState } from "react";
-import { ClearNotificationsDialog } from "@/components/notifications/clear-notifications-dialog";
+import { useState } from "react";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Tooltip,
   TooltipContent,
@@ -16,21 +16,21 @@ import {
 } from "@/components/ui/tooltip";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
 import { useNotifications } from "@/contexts/notification-provider";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import { NotificationDropdownContent } from "./notification-dropdown-content";
 import {
   getNotificationIndicator,
   getNotificationIndicatorClassName,
 } from "./notification-indicator";
+import { NotificationPanelContent } from "./notification-panel-content";
 
 export function HeaderNotificationBell() {
   const t = useTranslations("Components.NotificationCenter");
   const { unreadCount } = useNotifications();
   const { notice } = useAccountNotice();
-  const bellRef = useRef<HTMLButtonElement>(null);
+  const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState(false);
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
-  const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
   const hasAccountNotice = notice !== null;
   const indicator = getNotificationIndicator(
     unreadCount,
@@ -54,86 +54,96 @@ export function HeaderNotificationBell() {
           ? t("accountNoticeIndicator")
           : t("notifications");
 
-  return (
+  const buttonClassName =
+    "hover:bg-muted relative flex size-8 shrink-0 items-center justify-center rounded-full transition-colors";
+
+  const bellFace = (
     <>
-      <DropdownMenu
-        open={isOpen}
+      <Bell className="text-foreground size-4" aria-hidden />
+      {indicator?.kind === "count" ? (
+        <span
+          data-testid="notification-unread-badge"
+          className={cn(
+            "absolute -top-0.5 -right-0.5 inline-flex min-w-4.5 items-center justify-center rounded-full px-0.5 text-[0.625rem] leading-4 font-semibold tabular-nums ring-2 ring-background",
+            getNotificationIndicatorClassName(indicator.tone),
+          )}
+          aria-hidden
+        >
+          {indicator.value}
+        </span>
+      ) : null}
+      {indicator?.kind === "dot" ? (
+        <span
+          data-testid="notification-account-notice-dot"
+          className={cn(
+            "absolute top-0 right-0 size-2 rounded-full ring-2 ring-background",
+            getNotificationIndicatorClassName(indicator.tone),
+          )}
+          aria-hidden
+        />
+      ) : null}
+    </>
+  );
+
+  // On a phone the list gets the whole screen instead of a panel hanging off
+  // the header: the page is the same list, and a 24rem popover on a 20rem
+  // viewport is the list through a letterbox.
+  if (isMobile) {
+    return (
+      <Link
+        href="/notifications"
+        className={buttonClassName}
+        aria-label={ariaLabel}
+      >
+        {bellFace}
+      </Link>
+    );
+  }
+
+  return (
+    <Popover
+      open={isOpen}
+      onOpenChange={(open) => {
+        setIsOpen(open);
+        if (open) {
+          setIsTooltipOpen(false);
+        }
+      }}
+    >
+      <Tooltip
+        open={isOpen ? false : isTooltipOpen}
         onOpenChange={(open) => {
-          setIsOpen(open);
-          if (open) {
-            setIsTooltipOpen(false);
+          if (!isOpen) {
+            setIsTooltipOpen(open);
           }
         }}
       >
-        <Tooltip
-          open={isOpen ? false : isTooltipOpen}
-          onOpenChange={(open) => {
-            if (!isOpen) {
-              setIsTooltipOpen(open);
-            }
-          }}
-        >
-          <TooltipTrigger asChild>
-            <DropdownMenuTrigger asChild>
-              <button
-                ref={bellRef}
-                type="button"
-                className="hover:bg-muted relative flex size-8 shrink-0 items-center justify-center rounded-full transition-colors"
-                aria-label={ariaLabel}
-              >
-                <Bell className="text-foreground size-4" aria-hidden />
-                {indicator?.kind === "count" ? (
-                  <span
-                    data-testid="notification-unread-badge"
-                    className={cn(
-                      "absolute -top-0.5 -right-0.5 inline-flex min-w-4.5 items-center justify-center rounded-full px-0.5 text-[0.625rem] leading-4 font-semibold tabular-nums ring-2 ring-background",
-                      getNotificationIndicatorClassName(indicator.tone),
-                    )}
-                    aria-hidden
-                  >
-                    {indicator.value}
-                  </span>
-                ) : null}
-                {indicator?.kind === "dot" ? (
-                  <span
-                    data-testid="notification-account-notice-dot"
-                    className={cn(
-                      "absolute top-0 right-0 size-2 rounded-full ring-2 ring-background",
-                      getNotificationIndicatorClassName(indicator.tone),
-                    )}
-                    aria-hidden
-                  />
-                ) : null}
-              </button>
-            </DropdownMenuTrigger>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" sideOffset={6}>
-            {t("notifications")}
-          </TooltipContent>
-        </Tooltip>
-        {/* One width, whatever the unread count is. The panel used to narrow
-            the moment the count reached zero, and now that each row carries
-            its own mark read control the reader watches that happen under
-            their cursor. The cap keeps that one width inside a narrow
-            viewport, where 24rem is wider than the screen. */}
-        <DropdownMenuContent
-          className="w-96 max-w-(--radix-dropdown-menu-content-available-width)"
-          align="end"
-        >
-          <NotificationDropdownContent
-            onClose={closeBell}
-            onClearAll={() => setIsClearDialogOpen(true)}
-          />
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <ClearNotificationsDialog
-        open={isClearDialogOpen}
-        onCloseAutoFocus={(event) => {
-          event.preventDefault();
-          bellRef.current?.focus();
-        }}
-        onOpenChange={setIsClearDialogOpen}
-      />
-    </>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className={buttonClassName}
+              aria-label={ariaLabel}
+            >
+              {bellFace}
+            </button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" sideOffset={6}>
+          {t("notifications")}
+        </TooltipContent>
+      </Tooltip>
+      {/* One width, whatever the unread count is. The panel used to narrow
+          the moment the count reached zero, and now that each row carries
+          its own mark read control the reader watches that happen under
+          their cursor. The cap keeps that one width inside a narrow
+          viewport, where 24rem is wider than the screen. */}
+      <PopoverContent
+        className="w-96 max-w-(--radix-popover-content-available-width) p-0"
+        align="end"
+      >
+        <NotificationPanelContent onClose={closeBell} />
+      </PopoverContent>
+    </Popover>
   );
 }
