@@ -112,27 +112,29 @@ export async function deleteSokoBot(
       where: { sokoBotId: bot.id },
     });
 
-    const [
-      createdTasks,
-      assignedTasks,
-      taskEvents,
-      billingRecords,
-      chatMessages,
-      uploadedTaskFiles,
-    ] = await Promise.all([
-      tx.task.count({ where: { creatorSokoBotId: bot.id } }),
-      tx.task.count({ where: { assigneeSokoBotId: bot.id } }),
-      tx.taskEvent.count({ where: { sokoBotId: bot.id } }),
-      tx.sokoBotUsage.count({ where: { sokoBotId: bot.id } }),
-      tx.chatRoomMessage.count({
-        where: { senderSokoBotId: bot.id },
-      }),
-      // A file the assistant uploaded outlives it on the Task. The FK is
-      // ON DELETE SET NULL, so hard-deleting the bot would leave the file in
-      // place with its uploader silently blanked — provenance nobody can
-      // recover. Counting it keeps the tombstone.
-      tx.taskFile.count({ where: { uploadedBySokoBotId: bot.id } }),
-    ]);
+    // Sequential: Prisma forbids concurrent queries on one interactive tx (#2559).
+    const createdTasks = await tx.task.count({
+      where: { creatorSokoBotId: bot.id },
+    });
+    const assignedTasks = await tx.task.count({
+      where: { assigneeSokoBotId: bot.id },
+    });
+    const taskEvents = await tx.taskEvent.count({
+      where: { sokoBotId: bot.id },
+    });
+    const billingRecords = await tx.sokoBotUsage.count({
+      where: { sokoBotId: bot.id },
+    });
+    const chatMessages = await tx.chatRoomMessage.count({
+      where: { senderSokoBotId: bot.id },
+    });
+    // A file the assistant uploaded outlives it on the Task. The FK is
+    // ON DELETE SET NULL, so hard-deleting the bot would leave the file in
+    // place with its uploader silently blanked — provenance nobody can
+    // recover. Counting it keeps the tombstone.
+    const uploadedTaskFiles = await tx.taskFile.count({
+      where: { uploadedBySokoBotId: bot.id },
+    });
     const tasks = createdTasks + assignedTasks;
 
     const retained = {

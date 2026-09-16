@@ -2377,7 +2377,32 @@ export const archiveMySokoBotResponseTransformer = async (data: any): Promise<Ar
 
 const sokoBotStateSchemaResponseTransformer = (data: any) => {
     if (data.sokoBot) {
-        data.sokoBot = sokoBotSchemaResponseTransformer(data.sokoBot);
+        if (data.sokoBot.lastActivityAt) {
+            data.sokoBot.lastActivityAt = new Date(data.sokoBot.lastActivityAt);
+        }
+        if (data.sokoBot.lastTurnAt) {
+            data.sokoBot.lastTurnAt = new Date(data.sokoBot.lastTurnAt);
+        }
+        if (data.sokoBot.lastSucceededAt) {
+            data.sokoBot.lastSucceededAt = new Date(data.sokoBot.lastSucceededAt);
+        }
+        if (data.sokoBot.lastFailedAt) {
+            data.sokoBot.lastFailedAt = new Date(data.sokoBot.lastFailedAt);
+        }
+        if (data.sokoBot.memory) {
+            data.sokoBot.memory = sokoBotMemorySchemaResponseTransformer(data.sokoBot.memory);
+        }
+        if (data.sokoBot.legacyMessages) {
+            data.sokoBot.legacyMessages = data.sokoBot.legacyMessages.map((item: any) => sokoBotLegacyMessageSchemaResponseTransformer(item));
+        }
+        if (data.sokoBot.pendingDecisions) {
+            data.sokoBot.pendingDecisions = data.sokoBot.pendingDecisions.map((item: any) => sokoBotPendingDecisionSchemaResponseTransformer(item));
+        }
+        if (data.sokoBot.schedules) {
+            data.sokoBot.schedules = data.sokoBot.schedules.map((item: any) => sokoBotScheduleSchemaResponseTransformer(item));
+        }
+        data.sokoBot.createdAt = new Date(data.sokoBot.createdAt);
+        data.sokoBot.updatedAt = new Date(data.sokoBot.updatedAt);
     }
     return data;
 };

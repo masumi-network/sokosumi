@@ -24,7 +24,10 @@ import {
 } from "@/helpers/pagination";
 import { created, ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
-import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  OpenAPIHonoWithAuth,
+  withOrganizationSlugHeaderParameter,
+} from "@/lib/hono";
 import {
   hasAdminRole,
   isSokoBotAuthContext,
@@ -231,20 +234,22 @@ function mapControlPlaneError(error: unknown): never {
   throw error;
 }
 
-const getMeRoute = createRoute({
-  method: "get",
-  path: "/me",
-  operationId: "getMySokoBot",
-  tags: ["Soko Bots"],
-  responses: {
-    200: jsonSuccessResponse(
-      sokoBotStateSchema,
-      "Current user's Soko Bot state",
-    ),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-  },
-});
+const getMeRoute = withOrganizationSlugHeaderParameter(
+  createRoute({
+    method: "get",
+    path: "/me",
+    operationId: "getMySokoBot",
+    tags: ["Soko Bots"],
+    responses: {
+      200: jsonSuccessResponse(
+        sokoBotStateSchema,
+        "Current user's Soko Bot state",
+      ),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+    },
+  }),
+);
 
 app.openapi(getMeRoute, async (c) => {
   const authContext = c.var.authContext;
