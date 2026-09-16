@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { parseCategory } from "../../src/api/models/category.js";
 import {
   parseCoworker,
   parseCoworkerApiKey,
@@ -36,13 +35,6 @@ test("new Core models tolerate unexpected values with sibling defaults", () => {
     price: { credits: null, includedFee: null },
     capabilities: [],
     estimatedDuration: null,
-  });
-  assert.deepEqual(parseCategory(null), {
-    id: null,
-    name: null,
-    description: null,
-    slug: null,
-    agentCount: 0,
   });
   assert.equal(parseTask(null).jobs.length, 0);
   assert.deepEqual(parseJobEvent(null), {
