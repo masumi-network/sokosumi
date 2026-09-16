@@ -11,6 +11,7 @@ struct ConversationSidebarView: View {
 
   @State private var startDirect: CompositionPresentation?
   @State private var createChannel: CompositionPresentation?
+  @State private var browseChannels: CompositionPresentation?
 
   private struct CompositionPresentation: Identifiable {
     let id: UUID
@@ -77,15 +78,22 @@ struct ConversationSidebarView: View {
           Button("New chat", systemImage: "square.and.pencil") {
             startDirect = .init(id: workspaces.compositionContext, hasOrganization: workspaces.selection?.workspace.organizationId != nil)
           }
-          .disabled(workspaces.phase != .ready || workspaces.roomsLoading || workspaces.openingDirect != nil || workspaces.creatingChannel)
+          .disabled(workspaces.phase != .ready || workspaces.roomsLoading || workspaces.openingDirect != nil || workspaces.creatingChannel || workspaces.joiningChannel)
           .help("New chat")
         }
         ToolbarItem {
           Button("Create channel", systemImage: "number") {
             createChannel = .init(id: workspaces.compositionContext, hasOrganization: true)
           }
-          .disabled(workspaces.phase != .ready || workspaces.selection?.workspace.organizationId == nil || workspaces.creatingChannel || workspaces.openingDirect != nil)
+          .disabled(workspaces.phase != .ready || workspaces.selection?.workspace.organizationId == nil || workspaces.creatingChannel || workspaces.joiningChannel || workspaces.openingDirect != nil)
           .help("Create channel")
+        }
+        ToolbarItem {
+          Button("Browse channels", systemImage: "list.bullet") {
+            browseChannels = .init(id: workspaces.compositionContext, hasOrganization: true)
+          }
+          .disabled(workspaces.phase != .ready || workspaces.selection?.workspace.organizationId == nil || workspaces.creatingChannel || workspaces.joiningChannel || workspaces.openingDirect != nil)
+          .help("Browse channels")
         }
         ToolbarItem {
           Button("Refresh conversations", systemImage: "arrow.clockwise") {
@@ -133,9 +141,17 @@ struct ConversationSidebarView: View {
         try await workspaces.createChannel($0, roster: $1, context: presentation.id, auth: auth)
       })
     }
+    .sheet(item: $browseChannels) { presentation in
+      BrowseChannelsView(load: {
+        try await workspaces.browseChannels(query: $0, context: presentation.id, auth: auth)
+      }, join: {
+        try await workspaces.joinChannel(roomId: $0, context: presentation.id, auth: auth)
+      })
+    }
     .onChange(of: workspaces.compositionContext) { _, _ in
       startDirect = nil
       createChannel = nil
+      browseChannels = nil
     }
     .navigationSplitViewColumnWidth(min: 220, ideal: 260)
     .alert("Couldn’t update conversation", isPresented: Binding(

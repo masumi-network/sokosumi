@@ -10,8 +10,8 @@ import OpenAPIRuntime
 /// trusts Core's `unreadCount` / `unreadMentionCount` (ADR 0013 leftover
 /// thread unread keeps a room bold — never zeroed locally).
 public struct ChatService: Sendable {
-  private static let roomListLimit = 100
-  private static let roomListMaxPages = 50
+  static let roomListLimit = 100
+  static let roomListMaxPages = 50
 
   public init() {}
 
