@@ -464,7 +464,13 @@
      page and 3.01 against the card, so the button's own edge still reads. */
   --semantic-destructive-solid: hsla(0, 74.0%, 44.0%, 1);
   --semantic-destructive-tertiary: hsla(0, 50.9%, 26.4%, 1);
-  --semantic-destructive-quaternary: hsla(0, 47.1%, 18.6%, 1);
+  /* Darkened from 18.6% lightness. At 18.6% the step travelled 10.43 OKLab
+     dE from the popover surface, far enough that a hover over it read as
+     quicker than a neutral one. At 16.5% it travels 8.55, which is 0.0209
+     dE per millisecond over 410ms against the neutral row's 0.0210, and the
+     --semantic-destructive label on it goes 3.93 to 4.17. It stays 5.00 dE
+     clear of -quinary, so the two are still two surfaces. */
+  --semantic-destructive-quaternary: hsla(0, 47.1%, 16.5%, 1);
   --semantic-destructive-quinary: hsla(0, 39.7%, 11.8%, 1);
   --semantic-destructive-foreground: hsla(0, 86%, 97%, 1);
 
