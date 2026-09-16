@@ -4,9 +4,7 @@ interface CalendarBetaMembership {
   organization: { slug: string };
 }
 
-/**
- * Email domains allowed to use the Soko Bot beta.
- */
+/** Domain half of Soko Bot beta. Use hasSokoBotBetaAccess at product gates. */
 export function isSokoBotBetaAccessEmail(
   email: string | null | undefined,
 ): boolean {
