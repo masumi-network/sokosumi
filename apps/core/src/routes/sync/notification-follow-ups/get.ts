@@ -26,6 +26,9 @@ export default function mount(app: Hono) {
           durationMs: Date.now() - startedAt,
           examined: result.examined,
           sent: result.sent,
+          // Reminders handed to Resend, not reminders delivered. The field
+          // itself says what the difference covers.
+          emailed: result.emailed,
           // What false does and does not mean is on the field itself, in
           // `SendFollowUpsResult`. It is logged because it says the deadline
           // is deciding how much this run gets done.

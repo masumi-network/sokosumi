@@ -15,11 +15,15 @@ const {
   createNotificationMock,
   notificationFindManyMock,
   resolveDeliveryMock,
+  sendEmailsMock,
+  userFindUniqueMock,
 } = vi.hoisted(() => ({
   captureExceptionMock: vi.fn(),
   createNotificationMock: vi.fn(),
   notificationFindManyMock: vi.fn(),
   resolveDeliveryMock: vi.fn(),
+  sendEmailsMock: vi.fn(),
+  userFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("@sentry/node", () => ({
@@ -31,7 +35,13 @@ vi.mock("@/lib/db/prisma", () => ({
     notification: {
       findMany: notificationFindManyMock,
     },
+    user: {
+      findUnique: userFindUniqueMock,
+    },
   },
+}));
+vi.mock("@/clients/email.client", () => ({
+  sendEmails: sendEmailsMock,
 }));
 vi.mock("@/helpers/notifications", () => ({
   createNotification: createNotificationMock,
@@ -314,7 +324,16 @@ describe("NotificationFollowUpSyncService", () => {
     vi.clearAllMocks();
     written = [];
     seed([]);
-    resolveDeliveryMock.mockResolvedValue({ inApp: true, osBanner: false });
+    resolveDeliveryMock.mockResolvedValue({
+      inApp: true,
+      osBanner: false,
+      email: false,
+    });
+    userFindUniqueMock.mockResolvedValue({
+      email: "reader@example.com",
+      name: "Sandro",
+    });
+    sendEmailsMock.mockResolvedValue([]);
     createNotificationMock.mockImplementation(
       async (input: {
         eventId: string;
@@ -355,7 +374,12 @@ describe("NotificationFollowUpSyncService", () => {
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
     expect(written).toHaveLength(1);
-    expect(result).toEqual({ examined: 1, sent: 1, reachedEnd: true });
+    expect(result).toEqual({
+      examined: 1,
+      sent: 1,
+      emailed: 0,
+      reachedEnd: true,
+    });
     expect(firstFollowUpInput()).toEqual({
       userId: "reader-1",
       kind: NotificationKind.CHAT,
@@ -490,7 +514,12 @@ describe("NotificationFollowUpSyncService", () => {
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
     expect(written).toEqual([]);
-    expect(result).toEqual({ examined: 0, sent: 0, reachedEnd: true });
+    expect(result).toEqual({
+      examined: 0,
+      sent: 0,
+      emailed: 0,
+      reachedEnd: true,
+    });
   });
 
   /**
@@ -533,7 +562,12 @@ describe("NotificationFollowUpSyncService", () => {
       });
 
       expect(written).toEqual([]);
-      expect(result).toEqual({ examined: 0, sent: 0, reachedEnd: true });
+      expect(result).toEqual({
+        examined: 0,
+        sent: 0,
+        emailed: 0,
+        reachedEnd: true,
+      });
     },
   );
 
@@ -561,7 +595,12 @@ describe("NotificationFollowUpSyncService", () => {
     // The row was considered and the run was cut off, so it is counted and
     // the run says it did not finish. Reporting this one as finished would
     // hide the case the flag exists for.
-    expect(result).toEqual({ examined: 1, sent: 0, reachedEnd: false });
+    expect(result).toEqual({
+      examined: 1,
+      sent: 0,
+      emailed: 0,
+      reachedEnd: false,
+    });
   });
 
   /**
@@ -721,7 +760,12 @@ describe("NotificationFollowUpSyncService", () => {
 
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
-    expect(result).toEqual({ examined: 2, sent: 1, reachedEnd: true });
+    expect(result).toEqual({
+      examined: 2,
+      sent: 1,
+      emailed: 0,
+      reachedEnd: true,
+    });
     expect(firstFollowUpInput()).toEqual(
       expect.objectContaining({
         eventId: followUpId("room-1"),
@@ -766,7 +810,12 @@ describe("NotificationFollowUpSyncService", () => {
 
     expect(written).toEqual([]);
     // Looked at and passed over, not left behind by a run that stopped.
-    expect(result).toEqual({ examined: 2, sent: 0, reachedEnd: true });
+    expect(result).toEqual({
+      examined: 2,
+      sent: 0,
+      emailed: 0,
+      reachedEnd: true,
+    });
     expect(captureExceptionMock).toHaveBeenCalledTimes(2);
   });
 
@@ -849,7 +898,12 @@ describe("NotificationFollowUpSyncService", () => {
     // first and the two after it are refused as duplicates. All three were
     // still examined.
     expect(written[0]?.eventId).toBe(followUpId("room-1"));
-    expect(result).toEqual({ examined: 3, sent: 1, reachedEnd: true });
+    expect(result).toEqual({
+      examined: 3,
+      sent: 1,
+      emailed: 0,
+      reachedEnd: true,
+    });
   });
 
   /**
@@ -868,7 +922,12 @@ describe("NotificationFollowUpSyncService", () => {
       followUpId("room-1"),
       followUpId("room-2"),
     ]);
-    expect(result).toEqual({ examined: 2, sent: 2, reachedEnd: true });
+    expect(result).toEqual({
+      examined: 2,
+      sent: 2,
+      emailed: 0,
+      reachedEnd: true,
+    });
   });
 
   it("writes nothing when the reader turned reminders off", async () => {
@@ -878,7 +937,12 @@ describe("NotificationFollowUpSyncService", () => {
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
     expect(written).toEqual([]);
-    expect(result).toEqual({ examined: 1, sent: 0, reachedEnd: true });
+    expect(result).toEqual({
+      examined: 1,
+      sent: 0,
+      emailed: 0,
+      reachedEnd: true,
+    });
   });
 
   it("still reminds a reader who wants reminders only on their device", async () => {
@@ -905,7 +969,12 @@ describe("NotificationFollowUpSyncService", () => {
 
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
-    expect(result).toEqual({ examined: 2, sent: 1, reachedEnd: true });
+    expect(result).toEqual({
+      examined: 2,
+      sent: 1,
+      emailed: 0,
+      reachedEnd: true,
+    });
     expect(written.map((one) => one.eventId)).toEqual([followUpId("room-2")]);
     // Survived is not enough. `reachedEnd` stays true through this, so the
     // report is the only place the lost reminder is named.
@@ -938,7 +1007,12 @@ describe("NotificationFollowUpSyncService", () => {
 
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
-    expect(result).toEqual({ examined: 2, sent: 1, reachedEnd: true });
+    expect(result).toEqual({
+      examined: 2,
+      sent: 1,
+      emailed: 0,
+      reachedEnd: true,
+    });
     expect(written.map((one) => one.eventId)).toEqual([followUpId("room-2")]);
     // As with a failed write, the report is the only place this one is named.
     expect(captureExceptionMock).toHaveBeenCalledWith(
@@ -970,7 +1044,12 @@ describe("NotificationFollowUpSyncService", () => {
 
     expect(written).toEqual([]);
     // Considered and passed over, not left unread by a run that stopped.
-    expect(result).toEqual({ examined: 1, sent: 0, reachedEnd: true });
+    expect(result).toEqual({
+      examined: 1,
+      sent: 0,
+      emailed: 0,
+      reachedEnd: true,
+    });
   });
 
   /**
@@ -994,7 +1073,12 @@ describe("NotificationFollowUpSyncService", () => {
 
     const result = await notificationFollowUpSyncService.sendFollowUps({ now });
 
-    expect(result).toEqual({ examined: 2, sent: 1, reachedEnd: true });
+    expect(result).toEqual({
+      examined: 2,
+      sent: 1,
+      emailed: 0,
+      reachedEnd: true,
+    });
     expect(written.map((one) => one.eventId)).toEqual([followUpId("room-2")]);
   });
 
@@ -1155,7 +1239,12 @@ describe("NotificationFollowUpSyncService", () => {
     });
 
     expect(written).toHaveLength(1);
-    expect(result).toEqual({ examined: 1, sent: 1, reachedEnd: false });
+    expect(result).toEqual({
+      examined: 1,
+      sent: 1,
+      emailed: 0,
+      reachedEnd: false,
+    });
   });
 
   /**
@@ -1169,7 +1258,12 @@ describe("NotificationFollowUpSyncService", () => {
     });
 
     expect(notificationFindManyMock).not.toHaveBeenCalled();
-    expect(result).toEqual({ examined: 0, sent: 0, reachedEnd: false });
+    expect(result).toEqual({
+      examined: 0,
+      sent: 0,
+      emailed: 0,
+      reachedEnd: false,
+    });
   });
 
   it("does not read at all when the run was aborted before it started", async () => {
@@ -1182,6 +1276,118 @@ describe("NotificationFollowUpSyncService", () => {
     });
 
     expect(notificationFindManyMock).not.toHaveBeenCalled();
-    expect(result).toEqual({ examined: 0, sent: 0, reachedEnd: false });
+    expect(result).toEqual({
+      examined: 0,
+      sent: 0,
+      emailed: 0,
+      reachedEnd: false,
+    });
+  });
+
+  /**
+   * The reminder email (SOK-916).
+   *
+   * These say what lands in an inbox, not how it was rendered: the words
+   * themselves are the email package's tests. What matters here is that an
+   * email goes to the right reader exactly when a reminder was written and
+   * they asked for it, and never otherwise.
+   */
+  function wantsEmail() {
+    resolveDeliveryMock.mockResolvedValue({
+      inApp: true,
+      osBanner: false,
+      email: true,
+    });
+  }
+
+  /** Every email this run handed over, across all its batches. */
+  function emailsSent(): { subject: string; tag: string; to: string }[] {
+    return sendEmailsMock.mock.calls.flatMap((call) => call[0]);
+  }
+
+  it("emails a reader who wants reminders in their inbox", async () => {
+    wantsEmail();
+    seed([row()]);
+
+    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    expect(result.emailed).toBe(1);
+
+    const [email] = emailsSent();
+
+    expect(email.to).toBe("reader@example.com");
+    expect(email.tag).toBe("notification-follow-up");
+    // The room and the person waiting, which is what the mention row carried.
+    expect(email.subject).toContain("Ada");
+    expect(email.subject).toContain("Design");
+  });
+
+  it("sends no email to a reader who switched that cell off", async () => {
+    // The default delivery in this file says email off, which is the case.
+    seed([row()]);
+
+    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    // The reminder still arrives in Sokosumi. Only the inbox is spared.
+    expect(written).toHaveLength(1);
+    expect(result.emailed).toBe(0);
+    expect(sendEmailsMock).not.toHaveBeenCalled();
+  });
+
+  it("emails once per reminder and reads the reader once", async () => {
+    wantsEmail();
+    seed([
+      row({ id: "notification-1", referenceId: "room-1" }),
+      row({ id: "notification-2", referenceId: "room-2" }),
+    ]);
+
+    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    expect(result.emailed).toBe(2);
+    expect(emailsSent()).toHaveLength(2);
+    // One read for the reader, not one per reminder.
+    expect(userFindUniqueMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends no second email for a reminder it did not write", async () => {
+    wantsEmail();
+    seed([row()]);
+
+    await notificationFollowUpSyncService.sendFollowUps({ now });
+    const second = await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    // The row stays unread, so the next run reads it again and is refused the
+    // duplicate. The email follows the write rather than the read.
+    expect(second.sent).toBe(0);
+    expect(second.emailed).toBe(0);
+    expect(emailsSent()).toHaveLength(1);
+  });
+
+  it("keeps the reminder when the send is refused", async () => {
+    wantsEmail();
+    sendEmailsMock.mockRejectedValue(new Error("resend refused the batch"));
+    seed([row()]);
+
+    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    // The notification is already written and stays written. Nothing is
+    // counted as emailed, because nothing in a refused batch arrived.
+    expect(written).toHaveLength(1);
+    expect(result.sent).toBe(1);
+    expect(result.emailed).toBe(0);
+    expect(result.reachedEnd).toBe(true);
+    expect(captureExceptionMock).toHaveBeenCalled();
+  });
+
+  it("writes the reminder even when the account has gone", async () => {
+    wantsEmail();
+    userFindUniqueMock.mockResolvedValue(null);
+    seed([row()]);
+
+    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    expect(written).toHaveLength(1);
+    expect(result.emailed).toBe(0);
+    expect(sendEmailsMock).not.toHaveBeenCalled();
   });
 });

@@ -1,11 +1,12 @@
 import * as Sentry from "@sentry/node";
 import type { Prisma } from "@sokosumi/database";
-
+import { type SendEmailInput, sendEmails } from "@/clients/email.client";
 import {
   FOLLOW_UP_SOURCE_MESSAGE_KEYS,
   followUpEventId,
   followUpMessageKeyFor,
 } from "@/helpers/notification-follow-up";
+import { buildFollowUpEmail } from "@/helpers/notification-follow-up-email";
 import { readNotificationRowJson } from "@/helpers/notification-row-json";
 import type { CreateNotificationInput } from "@/helpers/notifications";
 import { createNotification, resolveDelivery } from "@/helpers/notifications";
@@ -100,6 +101,18 @@ export interface SendFollowUpsResult {
    */
   sent: number;
   /**
+   * Reminder emails this run handed to Resend.
+   *
+   * Never higher than `sent`, because an email is built only for a follow-up
+   * that was actually written. Lower when readers have switched the email cell
+   * off, and lower when a batch was refused: a refused batch is reported to
+   * Sentry and counted nowhere, because nothing in it arrived.
+   *
+   * Handed over, not delivered. What Resend does with a batch afterwards is
+   * not something this run can see.
+   */
+  emailed: number;
+  /**
    * Whether the run reached the end of the eligible rows.
    *
    * False when the deadline or an abort ended it first, including an abort
@@ -140,6 +153,60 @@ const FOLLOW_UP_SOURCE_COLUMNS = {
 type FollowUpSource = Prisma.NotificationGetPayload<{
   select: typeof FOLLOW_UP_SOURCE_COLUMNS;
 }>;
+
+/** Where a reminder email is sent, and who it greets. */
+interface FollowUpReader {
+  email: string;
+  name: null | string;
+}
+
+/**
+ * Reads the reader an email is about to be addressed to, once per run.
+ *
+ * A separate read rather than a column on the notification, because
+ * `Notification` carries a `userId` and no `user` relation: the model declares
+ * no relation field, so a `select` naming one resolves to `never` rather than
+ * to a row.
+ *
+ * Cached for the run, and only ever consulted for a reminder that is going to
+ * be emailed. A reader with three rooms waiting costs one read, and a run
+ * where nobody wants reminder emails costs none. The cache holds the misses
+ * too, so a deleted account is not asked about once per row.
+ *
+ * Never throws. The follow-up notification is already written by the time this
+ * is called, and a failed read must cost the email alone.
+ */
+function createReaderCache() {
+  const readers = new Map<string, FollowUpReader | null>();
+
+  return async function readerFor(
+    userId: string,
+  ): Promise<FollowUpReader | null> {
+    const cached = readers.get(userId);
+
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    try {
+      const reader = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true, name: true },
+      });
+
+      readers.set(userId, reader);
+
+      return reader;
+    } catch (error) {
+      Sentry.captureException(error, {
+        extra: { userId, notificationType: "notification-follow-up-reader" },
+      });
+      readers.set(userId, null);
+
+      return null;
+    }
+  };
+}
 
 /**
  * The follow-up this notification would be, or null when it is not one to send.
@@ -199,6 +266,41 @@ function toFollowUpInput(
 }
 
 /**
+ * Hand a batch of reminder emails to Resend.
+ *
+ * Empties what it is given, so a caller can flush repeatedly through a run
+ * without tracking what already went. Returns how many were accepted, which
+ * is the whole batch or none of it: `sendEmails` throws on a refused chunk
+ * and says nothing about which of its members were written.
+ *
+ * Never throws. The follow-up notifications these emails are about are
+ * already written, and a refused send must not cost the run the rest of its
+ * work or make it look like the reminders themselves failed.
+ */
+async function flushFollowUpEmails(pending: SendEmailInput[]): Promise<number> {
+  if (pending.length === 0) {
+    return 0;
+  }
+
+  const batch = pending.splice(0, pending.length);
+
+  try {
+    await sendEmails(batch);
+
+    return batch.length;
+  } catch (error) {
+    Sentry.captureException(error, {
+      extra: {
+        batchSize: batch.length,
+        notificationType: "notification-follow-up-email",
+      },
+    });
+
+    return 0;
+  }
+}
+
+/**
  * Say once more what nobody opened (SOK-916).
  *
  * A notification that waits on the reader and is still unread a day later gets
@@ -244,6 +346,10 @@ export async function sendFollowUps(
 
   let examined = 0;
   let sent = 0;
+  let emailed = 0;
+  /** Reminder emails written this page, handed over when the page ends. */
+  const pendingEmails: SendEmailInput[] = [];
+  const readerFor = createReaderCache();
   /** The last row this run finished, and where the next page starts after. */
   let after: { createdAt: Date; id: string } | undefined;
   /** Whether the run ended before the eligible rows did. */
@@ -355,8 +461,38 @@ export async function sendFollowUps(
         // nobody sees while this run counted a reminder as sent.
         const { created } = await createNotification(input, prisma, delivery);
 
-        if (created) {
-          sent += 1;
+        if (!created) {
+          continue;
+        }
+
+        sent += 1;
+
+        // Only for a row this run actually wrote, which is what makes one
+        // email per reminder true. The uniqueness the notification table
+        // enforces already stops the second reminder, so it stops the second
+        // email too, with no second mechanism to keep in step.
+        if (!delivery.email) {
+          continue;
+        }
+
+        const reader = await readerFor(input.userId);
+
+        if (!reader) {
+          continue;
+        }
+
+        const email = await buildFollowUpEmail({
+          kind: input.kind,
+          messageKey: input.messageKey,
+          messageParams: input.messageParams,
+          metadata: input.metadata,
+          recipientEmail: reader.email,
+          recipientName: reader.name,
+          referenceId: input.referenceId,
+        });
+
+        if (email) {
+          pendingEmails.push(email);
         }
       } catch (error) {
         Sentry.captureException(error, {
@@ -368,6 +504,11 @@ export async function sendFollowUps(
       }
     }
 
+    // Per page rather than once at the end, so a run the deadline cuts short
+    // still sends what it has already written reminders for. The rows in the
+    // page are done with either way: the notifications are committed.
+    emailed += await flushFollowUpEmails(pendingEmails);
+
     const last = page.at(-1);
 
     if (stopped || !hasMore || !last) {
@@ -377,7 +518,11 @@ export async function sendFollowUps(
     after = { createdAt: last.createdAt, id: last.id };
   }
 
-  return { examined, sent, reachedEnd: !stopped };
+  // An inner `break` leaves the page's emails unsent, because the flush above
+  // sits after the row loop. This is the one that covers a truncated run.
+  emailed += await flushFollowUpEmails(pendingEmails);
+
+  return { examined, sent, emailed, reachedEnd: !stopped };
 }
 
 export const notificationFollowUpSyncService = {
