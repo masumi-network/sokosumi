@@ -1553,7 +1553,9 @@ describe("WorkspaceCalendar editing", () => {
     const event = screen.getAllByRole("button", {
       name: "Prepare release notes, Release planning, skipped",
     })[0];
-    expect(event).toHaveClass("line-through");
+    expect(screen.getAllByTestId("calendar-event")[0]).toHaveClass(
+      "line-through",
+    );
     await user.click(event);
     await user.click(
       screen.getByRole("menuitem", { name: "event.restoreOccurrence" }),

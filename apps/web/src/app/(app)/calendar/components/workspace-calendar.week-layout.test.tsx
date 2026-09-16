@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -118,7 +118,7 @@ describe("WorkspaceCalendar week layout", () => {
       </>,
     );
 
-    const event = screen.getByRole("button", { name: "event.accessibleName" });
+    const event = screen.getByTestId("calendar-event");
     const [metaLine, titleLine] = Array.from(event.children);
     expect(metaLine).toHaveTextContent("9:00 AM");
     expect(metaLine).toHaveTextContent("Ada's workspace");
@@ -157,13 +157,54 @@ describe("WorkspaceCalendar week layout", () => {
       </>,
     );
 
-    const event = screen.getByRole("button", { name: "event.accessibleName" });
-    const [, titleLine] = Array.from(event.children);
+    const [, titleLine] = Array.from(
+      screen.getByTestId("calendar-event").children,
+    );
     expect(titleLine).toHaveClass("line-clamp-2");
-    expect(event).toHaveAccessibleDescription("Scout, Ada Lovelace");
+    expect(
+      screen.getByRole("button", { name: "event.accessibleName" }),
+    ).toHaveAccessibleDescription("Scout, Ada Lovelace");
     expect(screen.getByTestId("calendar-event-people")).toHaveAttribute(
       "title",
       "Scout, Ada Lovelace",
     );
+  });
+
+  // The card itself must stay a plain element so FullCalendar can start a
+  // drag from it; the menu opens from a tap on it or from its own button.
+  it("keeps the card out of the menu trigger and opens the menu on tap", () => {
+    render(
+      <NuqsTestingAdapter searchParams="?timezone=UTC">
+        <WorkspaceCalendar initialDate="2026-08-18" items={[WEEK_ITEM]} />
+      </NuqsTestingAdapter>,
+    );
+
+    const props = fullCalendarMock.mock.lastCall?.[0] as
+      | FullCalendarProps
+      | undefined;
+    render(
+      <>
+        {props?.eventContent?.({
+          event: {
+            id: WEEK_ITEM.id,
+            title: WEEK_ITEM.taskName,
+            start: WEEK_ITEM.scheduledAt,
+          },
+        })}
+      </>,
+    );
+
+    const card = screen.getByTestId("calendar-event");
+    expect(card.tagName).toBe("DIV");
+    expect(card).not.toHaveAttribute("aria-haspopup");
+    expect(
+      screen.getByRole("button", { name: "event.accessibleName" }),
+    ).toHaveAttribute("aria-haspopup", "menu");
+
+    fireEvent.click(card);
+
+    expect(
+      screen.getByRole("menuitem", { name: "event.openTask" }),
+    ).toBeInTheDocument();
   });
 });

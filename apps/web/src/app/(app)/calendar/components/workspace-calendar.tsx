@@ -27,6 +27,7 @@ import {
   ChevronRight,
   CircleDashed,
   Clock3,
+  Ellipsis,
   FolderKanban,
   Plus,
   Sparkles,
@@ -322,6 +323,7 @@ function CalendarEvent({
 }) {
   const t = useTranslations("App.Calendar");
   const peopleId = useId();
+  const [menuOpen, setMenuOpen] = useState(false);
   const sourceName = source?.displayName ?? t(`source.${item.sourceType}`);
   const sourceMarker = (
     <SourceMarker decorative source={source} sourceName={sourceName} />
@@ -372,56 +374,77 @@ function CalendarEvent({
     </>
   ) : null;
 
+  const menuButton = (
+    <DropdownMenuTrigger asChild>
+      <button
+        aria-describedby={peopleNames ? peopleId : undefined}
+        aria-label={t(
+          item.state === "SKIPPED"
+            ? "event.accessibleNameSkipped"
+            : "event.accessibleName",
+          {
+            source: sourceName,
+            task: item.taskName,
+          },
+        )}
+        className="text-muted-foreground hover:bg-primary/20 hover:text-foreground focus-visible:ring-ring/50 ml-auto flex size-5 shrink-0 cursor-pointer items-center justify-center rounded outline-none focus-visible:ring-2"
+        // Radix already toggled on pointerdown; the click must not reach the
+        // card's own open handler.
+        onClick={(event) => event.stopPropagation()}
+        type="button"
+      >
+        <Ellipsis aria-hidden className="size-4" />
+      </button>
+    </DropdownMenuTrigger>
+  );
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          aria-describedby={peopleNames ? peopleId : undefined}
-          aria-label={t(
-            item.state === "SKIPPED"
-              ? "event.accessibleNameSkipped"
-              : "event.accessibleName",
-            {
-              source: sourceName,
-              task: item.taskName,
-            },
-          )}
-          className={cn(
-            "bg-primary/10 text-foreground hover:bg-primary/20 focus-visible:bg-primary/20 focus-visible:ring-ring/50 flex w-full min-w-0 cursor-pointer overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium outline-none motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:ring-2",
-            timeText ? "flex-col items-start gap-0.5" : "items-center gap-1",
-            item.state === "SKIPPED" && "text-muted-foreground line-through",
-          )}
-          type="button"
-        >
-          {timeText ? (
-            <>
-              <span className="flex w-full min-w-0 items-center gap-1">
-                {sourceMarker}
-                <span className="text-muted-foreground shrink-0 tabular-nums">
-                  {timeText}
-                </span>
-                {accuracyMarker}
-                <span className="text-muted-foreground min-w-0 truncate">
-                  {sourceName}
-                </span>
-              </span>
-              <span className="line-clamp-2 w-full min-w-0">
-                {item.taskName}
-              </span>
-              {peopleStack}
-            </>
-          ) : (
-            <>
+    <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+      {/*
+        The card is deliberately not the menu trigger: Radix opens on
+        pointerdown and cancels the mousedown FullCalendar needs to start a
+        drag. A click after a drop never lands here (the mouseup hits the
+        drag mirror), so a click on the card is always a plain tap.
+      */}
+      <div
+        className={cn(
+          "bg-primary/10 text-foreground hover:bg-primary/20 flex w-full min-w-0 cursor-pointer overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out",
+          timeText ? "flex-col items-start gap-0.5" : "items-center gap-1",
+          item.state === "SKIPPED" && "text-muted-foreground line-through",
+        )}
+        data-testid="calendar-event"
+        onClick={() => setMenuOpen(true)}
+      >
+        {timeText ? (
+          <>
+            <span className="flex w-full min-w-0 items-center gap-1">
               {sourceMarker}
+              <span className="text-muted-foreground shrink-0 tabular-nums">
+                {timeText}
+              </span>
               {accuracyMarker}
-              <span className="min-w-0 flex-1 truncate">{item.taskName}</span>
-              {sourceDetails}
+              <span className="text-muted-foreground min-w-0 truncate">
+                {sourceName}
+              </span>
+            </span>
+            <span className="line-clamp-2 w-full min-w-0">{item.taskName}</span>
+            <span className="flex w-full min-w-0 items-center gap-1">
               {peopleStack}
-            </>
-          )}
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
+              {menuButton}
+            </span>
+          </>
+        ) : (
+          <>
+            {sourceMarker}
+            {accuracyMarker}
+            <span className="min-w-0 flex-1 truncate">{item.taskName}</span>
+            {sourceDetails}
+            {peopleStack}
+            {menuButton}
+          </>
+        )}
+      </div>
+      <DropdownMenuContent align="end">
         {item.canEditSchedule ? (
           <DropdownMenuItem onSelect={() => onEditSchedule(item.taskId)}>
             {t("event.editSchedule")}
@@ -613,7 +636,7 @@ function CalendarView({
               // FullCalendar's own timeText is en-US shorthand ("8a") in every
               // locale; format the instant in the calendar zone ourselves.
               timeText={
-                view === "week" && start
+                view !== "agenda" && start
                   ? formatDate(start, "time", { timeZone })
                   : undefined
               }
