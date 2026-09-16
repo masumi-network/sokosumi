@@ -31,7 +31,8 @@ public final class WorkspaceState: ObservableObject {
   private var threadObservations: Set<AnyCancellable> = []
   private var workspaceGeneration = 0
   @Published public private(set) var openingDirect: DirectRecipient?
-  @Published public private(set) var directContext = UUID()
+  @Published public private(set) var creatingChannel = false
+  @Published public private(set) var compositionContext = UUID()
   public var phase: Phase {
     workspaceSession.phase
   }
@@ -250,8 +251,9 @@ public final class WorkspaceState: ObservableObject {
     workspaceLoadTask?.cancel()
     workspaceLoadTask = nil
     workspaceGeneration += 1
-    directContext = UUID()
+    compositionContext = UUID()
     openingDirect = nil
+    creatingChannel = false
     workspaceSession.reset()
     sidebar.reset()
     rooms = []
@@ -270,13 +272,71 @@ public final class WorkspaceState: ObservableObject {
     applyRoomSelection(id, auth: auth)
   }
 
+  private func acceptCreatedRoom(_ room: Components.Schemas.ChatRoom, sourceRoom: String?, auth: AuthState) {
+    if let index = rooms.firstIndex(where: { $0.id == room.id }) {
+      rooms[index] = room
+    } else {
+      rooms.append(room)
+    }
+    realtime?.setMembershipRooms(Set(rooms.map(\.id)))
+    // A completed request must not pull the user away from a room they selected meanwhile.
+    if transcriptRoomId == sourceRoom {
+      selectRoom(room.id, auth: auth)
+    }
+  }
+
+  public func loadChannelRoster(context: UUID, auth: AuthState) async throws -> ChannelRoster {
+    try await channelOperation(context: context, auth: auth) { client, organizationId, slug in
+      try await ChatService().channelRoster(client: client, organizationId: organizationId, organizationSlug: slug)
+    }
+  }
+
+  public func checkChannelSlug(_ slug: String, context: UUID, auth: AuthState) async throws -> Bool {
+    try await channelOperation(context: context, auth: auth) { client, _, organizationSlug in
+      try await ChatService().channelSlugIsAvailable(client: client, slug: slug, organizationSlug: organizationSlug)
+    }
+  }
+
+  public func createChannel(_ draft: ChannelDraft, roster: ChatRecipientRoster, context: UUID, auth: AuthState) async throws -> Bool {
+    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, !creatingChannel, openingDirect == nil else { return false }
+    let sourceRoom = transcriptRoomId
+    creatingChannel = true
+    defer {
+      if context == compositionContext {
+        creatingChannel = false
+      }
+    }
+    let room = try await channelOperation(context: context, auth: auth) { client, _, slug in
+      try await ChatService().createChannel(client: client, draft: draft, roster: roster, currentUserId: self.currentUserId, organizationSlug: slug)
+    }
+    acceptCreatedRoom(room, sourceRoom: sourceRoom, auth: auth)
+    return true
+  }
+
+  private func channelOperation<Value: Sendable>(context: UUID, auth: AuthState, operation: (Client, String, String) async throws -> Value) async throws -> Value {
+    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching,
+          let organizationId = selection?.workspace.organizationId, let slug = selection?.workspace.organizationSlug,
+          let client = resolveClient(auth: auth) else { throw CancellationError() }
+    do {
+      let value = try await operation(client, organizationId, slug)
+      guard context == compositionContext, phase == .ready, !Task.isCancelled else { throw CancellationError() }
+      return value
+    } catch {
+      guard context == compositionContext else { throw CancellationError() }
+      if let error = error as? ChatServiceError {
+        signOutIfUnauthorized(error, auth: auth)
+      }
+      throw error
+    }
+  }
+
   public func canOpenDirect(_ recipient: DirectRecipient) -> Bool {
     guard phase == .ready, let room = rooms.first(where: { $0.id == transcriptRoomId }) else { return false }
     return recipient.canOpen(from: room, currentUserId: currentUserId, hasActiveOrganization: selection?.workspace.organizationId != nil)
   }
 
-  public func loadDirectRecipients(context: UUID, auth: AuthState) async throws -> DirectRecipientRoster {
-    guard phase == .ready, context == directContext, !workspaceSession.isSwitching,
+  public func loadDirectRecipients(context: UUID, auth: AuthState) async throws -> ChatRecipientRoster {
+    guard phase == .ready, context == compositionContext, !workspaceSession.isSwitching,
           let client = resolveClient(auth: auth) else { throw CancellationError() }
     do {
       let roster = try await ChatService().directRecipients(
@@ -284,10 +344,10 @@ public final class WorkspaceState: ObservableObject {
         organizationId: selection?.workspace.organizationId,
         organizationSlug: selection?.workspace.organizationSlug
       )
-      guard context == directContext, phase == .ready, !Task.isCancelled else { throw CancellationError() }
+      guard context == compositionContext, phase == .ready, !Task.isCancelled else { throw CancellationError() }
       return roster
     } catch {
-      guard context == directContext else { throw CancellationError() }
+      guard context == compositionContext else { throw CancellationError() }
       if let error = error as? ChatServiceError {
         signOutIfUnauthorized(error, auth: auth)
       }
@@ -300,36 +360,27 @@ public final class WorkspaceState: ObservableObject {
     guard canOpenDirect(recipient) else { return false }
     var recipients = DirectConversationSelection(hasOrganization: selection?.workspace.organizationId != nil)
     recipients.add(recipient)
-    return try await openDirect(recipients, context: directContext, auth: auth)
+    return try await openDirect(recipients, context: compositionContext, auth: auth)
   }
 
   @discardableResult
   public func openDirect(_ recipients: DirectConversationSelection, context: UUID, auth: AuthState) async throws -> Bool {
-    guard context == directContext, phase == .ready, !workspaceSession.isSwitching, openingDirect == nil,
+    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, openingDirect == nil, !creatingChannel,
           let first = recipients.recipients.first, let client = resolveClient(auth: auth) else { return false }
     let sourceRoom = transcriptRoomId
     openingDirect = first
     defer {
-      if context == directContext {
+      if context == compositionContext {
         openingDirect = nil
       }
     }
     do {
       let room = try await ChatService().openDirect(client: client, selection: recipients, organizationSlug: selection?.workspace.organizationSlug)
-      guard !Task.isCancelled, context == directContext, phase == .ready else { return false }
-      if let index = rooms.firstIndex(where: { $0.id == room.id }) {
-        rooms[index] = room
-      } else {
-        rooms.append(room)
-      }
-      realtime?.setMembershipRooms(Set(rooms.map(\.id)))
-      // A completed request must not pull the user away from a room they selected meanwhile.
-      if transcriptRoomId == sourceRoom {
-        selectRoom(room.id, auth: auth)
-      }
+      guard !Task.isCancelled, context == compositionContext, phase == .ready else { return false }
+      acceptCreatedRoom(room, sourceRoom: sourceRoom, auth: auth)
       return true
     } catch {
-      guard context == directContext else { return false }
+      guard context == compositionContext else { return false }
       if let error = error as? ChatServiceError {
         signOutIfUnauthorized(error, auth: auth)
       }
@@ -924,8 +975,9 @@ public final class WorkspaceState: ObservableObject {
     guard !Task.isCancelled else { return }
     sidebar.reset()
     workspaceGeneration += 1
-    directContext = UUID()
+    compositionContext = UUID()
     openingDirect = nil
+    creatingChannel = false
     let generation = workspaceGeneration
     rooms = []
     switchError = nil
@@ -946,8 +998,9 @@ public final class WorkspaceState: ObservableObject {
   }
 
   func switchRooms(auth: AuthState, option: WorkspaceOption) async {
-    directContext = UUID()
+    compositionContext = UUID()
     openingDirect = nil
+    creatingChannel = false
     roomsRefreshTask?.cancel()
     roomsRefreshTask = nil
     roomsRefreshID = UUID()

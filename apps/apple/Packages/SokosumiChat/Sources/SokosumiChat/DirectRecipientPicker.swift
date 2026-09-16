@@ -3,7 +3,7 @@ import Foundation
 
 @MainActor
 public final class DirectRecipientPicker: ObservableObject {
-  @Published public private(set) var roster = DirectRecipientRoster(targets: [])
+  @Published public private(set) var roster = ChatRecipientRoster(targets: [])
   @Published public private(set) var selection: DirectConversationSelection
   @Published public var query = ""
   @Published public private(set) var loading = false
@@ -16,15 +16,19 @@ public final class DirectRecipientPicker: ObservableObject {
     selection = DirectConversationSelection(hasOrganization: hasOrganization)
   }
 
-  public var candidates: [DirectRecipientTarget] {
-    roster.candidates(query: query, selection: selection)
+  public var sections: [ChatRecipientSection] {
+    roster.sections(query: query, excluding: Set(selection.recipients))
   }
 
-  public var selectedTargets: [DirectRecipientTarget] {
+  public var candidates: [ChatRecipientTarget] {
+    sections.flatMap(\.targets)
+  }
+
+  public var selectedTargets: [ChatRecipientTarget] {
     selection.recipients.compactMap { id in roster.targets.first { $0.id == id } }
   }
 
-  public func add(_ target: DirectRecipientTarget) {
+  public func add(_ target: ChatRecipientTarget) {
     guard !creating, !loading, roster.targets.contains(target), selection.disabledReason(for: target.id) == nil else { return }
     selection.add(target.id)
     query = ""
@@ -37,7 +41,7 @@ public final class DirectRecipientPicker: ObservableObject {
     creationError = nil
   }
 
-  public func load(using fetch: () async throws -> DirectRecipientRoster) async {
+  public func load(using fetch: () async throws -> ChatRecipientRoster) async {
     guard !creating else { return }
     generation += 1
     let current = generation
