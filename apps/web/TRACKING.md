@@ -77,8 +77,8 @@ Consent Mode gates whether GTM forwards them to GA4/Ads.
 
 | Event                 | Fires when…                                    | Where |
 |-----------------------|------------------------------------------------|-------|
-| `sign_up` `{provider}`| account created (`credential` from the form; social from the callback page) | `signup/components/form.tsx`, `components/social-auth-callback.tsx` |
-| `login` `{provider}`  | signed in. Social and magic-link fire on `/auth/callback/signin` after the full page load. Credential (`signin/components/form.tsx`) and passkey (`social-buttons.tsx`) fire in place, before the full-document leave in `lib/auth/finish-sign-in.client.ts` | `components/social-auth-callback.tsx`, `signin/components/form.tsx`, `components/social-buttons.tsx` |
+| `sign_up` `{provider}`| account created. Credential fires in place, before the full-document leave in `lib/auth/finish-auth.client.ts`; social fires on the callback page | `signup/components/form.tsx`, `components/social-auth-callback.tsx` |
+| `login` `{provider}`  | signed in. Social and magic-link fire on `/auth/callback/signin` after the full page load. Credential (`signin/components/form.tsx`) and passkey (`social-buttons.tsx`) fire in place, before the full-document leave in `lib/auth/finish-auth.client.ts` | `components/social-auth-callback.tsx`, `signin/components/form.tsx`, `components/social-buttons.tsx` |
 | `message_start` `{room_id}` | **a coworker DM is started** (first send per room) | `app/(app)/chat/hooks/use-coworker-direct-room-stream.ts` |
 | `begin_checkout` `{plan?, seats?}` | Stripe checkout opened — credits/coupon (no params) and subscription upgrade (`plan`, org `seats`) | `components/credits/*-form.tsx`, `components/billing/*-subscription-section.tsx` |
 | `purchase` `{transaction_id, value, currency, items}` | **a credit / coupon purchase succeeds** (Stripe returns with `session_id`). Subscription checkouts return with `status=success` only and do **not** fire `purchase` yet — see below | `components/billing/purchase-tracker.tsx` |

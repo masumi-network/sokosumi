@@ -8,10 +8,11 @@ import {
   vi,
 } from "vitest";
 
-import { finishSignInInPlace } from "./finish-sign-in.client";
+import { finishAuthInPlace } from "./finish-auth.client";
 
 const mockWaitForAuthSession = vi.fn();
 const mockSignInEvent = vi.fn();
+const mockSignUpEvent = vi.fn();
 const mockLocationReplace = vi.fn();
 
 vi.mock("@/lib/auth/auth.client", () => ({
@@ -29,12 +30,15 @@ vi.mock("@/lib/auth/auth.utils", async () => {
 });
 
 vi.mock("@/lib/gtm-events", () => ({
-  fireGTMEvent: { signIn: (...args: unknown[]) => mockSignInEvent(...args) },
+  fireGTMEvent: {
+    signIn: (...args: unknown[]) => mockSignInEvent(...args),
+    signUp: (...args: unknown[]) => mockSignUpEvent(...args),
+  },
 }));
 
 vi.mock("@sentry/nextjs", () => ({ captureMessage: vi.fn() }));
 
-describe("finishSignInInPlace", () => {
+describe("finishAuthInPlace", () => {
   const originalLocation = window.location;
 
   beforeAll(() => {
@@ -61,7 +65,11 @@ describe("finishSignInInPlace", () => {
   it("counts the login and leaves for the return URL once a session exists", async () => {
     mockWaitForAuthSession.mockResolvedValue({ id: "session-1" });
 
-    await finishSignInInPlace({ provider: "credential", returnUrl: "/chat" });
+    await finishAuthInPlace({
+      eventType: "signIn",
+      provider: "credential",
+      returnUrl: "/chat",
+    });
 
     expect(mockSignInEvent).toHaveBeenCalledWith("credential");
     expect(mockLocationReplace).toHaveBeenCalledWith("/chat");
@@ -70,16 +78,34 @@ describe("finishSignInInPlace", () => {
   it("still leaves for the app without counting a login when no session appears", async () => {
     mockWaitForAuthSession.mockResolvedValue(null);
 
-    await finishSignInInPlace({ provider: "passkey", returnUrl: undefined });
+    await finishAuthInPlace({
+      eventType: "signIn",
+      provider: "passkey",
+      returnUrl: undefined,
+    });
 
     expect(mockSignInEvent).not.toHaveBeenCalled();
     expect(mockLocationReplace).toHaveBeenCalledWith("/");
   });
 
+  it("counts a signup with the sign_up event, not login", async () => {
+    mockWaitForAuthSession.mockResolvedValue({ id: "session-1" });
+
+    await finishAuthInPlace({
+      eventType: "signUp",
+      provider: "credential",
+      returnUrl: "/",
+    });
+
+    expect(mockSignUpEvent).toHaveBeenCalledWith("credential");
+    expect(mockSignInEvent).not.toHaveBeenCalled();
+  });
+
   it("never navigates off-origin", async () => {
     mockWaitForAuthSession.mockResolvedValue({ id: "session-1" });
 
-    await finishSignInInPlace({
+    await finishAuthInPlace({
+      eventType: "signIn",
       provider: "credential",
       returnUrl: "https://evil.example/phish",
     });

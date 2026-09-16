@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as Sentry from "@sentry/nextjs";
 import { track } from "@vercel/analytics";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -15,15 +14,9 @@ import { signUpFormData } from "@/auth/signup/data";
 import { useAuthCaptcha } from "@/components/auth-captcha";
 import { AuthErrorCode } from "@/lib/actions";
 import { handleUtmConversion } from "@/lib/actions/auth";
-import { authClient, signUp } from "@/lib/auth/auth.client";
-import {
-  buildOAuthConsentReturnUrlFromSearchParams,
-  createAuthSessionGetter,
-  getAbsoluteAuthRedirectUrl,
-  getAuthOAuthRedirect,
-  normalizeAuthReturnUrl,
-  waitForAuthSession,
-} from "@/lib/auth/auth.utils";
+import { signUp } from "@/lib/auth/auth.client";
+import { buildOAuthConsentReturnUrlFromSearchParams } from "@/lib/auth/auth.utils";
+import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import type { FormData } from "@/lib/form";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { type SignUpFormSchemaType, signUpFormSchema } from "@/lib/schemas";
@@ -45,7 +38,7 @@ export default function SignUpForm({
     runWithCaptcha,
     getErrorMessage,
   } = useAuthCaptcha("signup");
-  const router = useRouter();
+  const _router = useRouter();
   const searchParams = useSearchParams();
   const effectiveReturnUrl = useMemo(
     () => returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams),
@@ -89,7 +82,6 @@ export default function SignUpForm({
         password: values.password,
         termsAccepted: values.termsAccepted,
         marketingOptIn: values.marketingOptIn,
-        callbackURL: getAbsoluteAuthRedirectUrl(effectiveReturnUrl, "/"),
       });
 
       if (result.error) {
@@ -112,29 +104,19 @@ export default function SignUpForm({
         return;
       }
 
-      // Record UTM attribution for every successful signup, including the OAuth
-      // consent flow that redirects away below.
+      // Record UTM attribution for every successful signup, including the
+      // OAuth consent flow that finishAuthInPlace redirects to below.
       await handleUtmConversion();
 
-      const oauthRedirect = getAuthOAuthRedirect(result.data);
-      if (oauthRedirect.redirect && oauthRedirect.redirectUrl) {
-        setIsLeaving(true);
-        window.location.href = oauthRedirect.redirectUrl;
-        return;
-      }
-
-      await waitForAuthSession({
-        context: "signup",
-        getSession: createAuthSessionGetter(() => authClient.getSession()),
-        logWarning: (message) => {
-          Sentry.captureMessage(message, { level: "warning" });
-        },
-      });
-
-      fireGTMEvent.signUp("credential");
-      toast.success(t("success"));
+      // No `callbackURL`: Better Auth would hard-redirect and every line
+      // here would be racing the unload, which is how the credential
+      // `sign_up` event went missing. See apps/web/TRACKING.md.
       setIsLeaving(true);
-      router.replace(normalizeAuthReturnUrl(effectiveReturnUrl));
+      await finishAuthInPlace({
+        eventType: "signUp",
+        provider: "credential",
+        returnUrl: effectiveReturnUrl,
+      });
     });
   };
 

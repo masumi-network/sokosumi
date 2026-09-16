@@ -9,15 +9,18 @@ import {
 import { fireGTMEvent } from "@/lib/gtm-events";
 import type { AuthMethodId } from "@/lib/schemas/auth";
 
-interface FinishSignInInPlaceOptions {
+interface FinishAuthInPlaceOptions {
+  /** Which conversion to count. Matches SocialAuthCallback's prop. */
+  eventType: "signIn" | "signUp";
   provider: AuthMethodId;
   returnUrl: string | undefined;
 }
 
 /**
- * Completes a sign-in that did not hand Better Auth a `callbackURL`
- * (credential, passkey): wait for the session cookie to settle, count the
- * login only if a session exists, then navigate to the destination.
+ * Completes a sign-in or sign-up that did not hand Better Auth a
+ * `callbackURL` (credential sign-in, credential sign-up, passkey): wait for
+ * the session cookie to settle, count the conversion only if a session
+ * exists, then navigate to the destination.
  *
  * The navigation is a full document load, not `router.replace`. The Next
  * client router cache still holds the pre-login middleware result for the
@@ -29,12 +32,13 @@ interface FinishSignInInPlaceOptions {
  * identity-onboarding-form.client.tsx. Social and magic-link cannot use this
  * — the provider round trip lands on `/auth/callback/signin` instead.
  */
-export async function finishSignInInPlace({
+export async function finishAuthInPlace({
+  eventType,
   provider,
   returnUrl,
-}: FinishSignInInPlaceOptions): Promise<void> {
+}: FinishAuthInPlaceOptions): Promise<void> {
   const session = await waitForAuthSession({
-    context: "login",
+    context: eventType === "signUp" ? "signup" : "login",
     getSession: createAuthSessionGetter(() => authClient.getSession()),
     logWarning: (message) => {
       Sentry.captureMessage(message, { level: "warning" });
@@ -42,7 +46,14 @@ export async function finishSignInInPlace({
   });
 
   if (session) {
-    fireGTMEvent.signIn(provider);
+    switch (eventType) {
+      case "signUp":
+        fireGTMEvent.signUp(provider);
+        break;
+      case "signIn":
+        fireGTMEvent.signIn(provider);
+        break;
+    }
   }
   window.location.replace(normalizeAuthReturnUrl(returnUrl));
 }

@@ -1188,7 +1188,6 @@
         },
         "Form": {
           "submit": "Register",
-          "success": "Register successful",
           "error": "Register failed",
           "Fields": {
             "Email": {

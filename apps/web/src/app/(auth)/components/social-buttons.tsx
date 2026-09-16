@@ -28,7 +28,7 @@ import {
   buildOAuthConsentReturnUrlFromSearchParams,
 } from "@/lib/auth/auth.utils";
 import { emailSchema } from "@/lib/auth/data";
-import { finishSignInInPlace } from "@/lib/auth/finish-sign-in.client";
+import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import { cn } from "@/lib/utils";
 
 export type SocialButtonProviderId = "google" | "microsoft";
@@ -88,7 +88,8 @@ export default function SocialButtons({
 
   const finishPasskeySignIn = useCallback(
     () =>
-      finishSignInInPlace({
+      finishAuthInPlace({
+        eventType: "signIn",
         provider: "passkey",
         returnUrl: effectiveReturnUrl,
       }),

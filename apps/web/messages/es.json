@@ -1188,7 +1188,6 @@
         },
         "Form": {
           "submit": "Registrarse",
-          "success": "Registro exitoso",
           "error": "Error al registrarse",
           "Fields": {
             "Email": {

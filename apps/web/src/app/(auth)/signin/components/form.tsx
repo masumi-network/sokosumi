@@ -18,7 +18,7 @@ import {
   buildOAuthConsentReturnUrlFromSearchParams,
   buildSignUpUrlFromSignIn,
 } from "@/lib/auth/auth.utils";
-import { finishSignInInPlace } from "@/lib/auth/finish-sign-in.client";
+import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import type { FormData } from "@/lib/form";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { type SignInFormSchemaType, signInFormSchema } from "@/lib/schemas";
@@ -106,7 +106,8 @@ export default function SignInForm({
       // No `callbackURL`: Better Auth would hard-redirect through a callback
       // page. Like passkey, finish in place and soft-navigate.
       setIsLeaving(true);
-      await finishSignInInPlace({
+      await finishAuthInPlace({
+        eventType: "signIn",
         provider: "credential",
         returnUrl: effectiveReturnUrl,
       });
