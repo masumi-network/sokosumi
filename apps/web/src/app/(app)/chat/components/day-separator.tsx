@@ -21,7 +21,7 @@ export default function DaySeparator({
 
   return (
     <div className="flex items-center justify-center pt-2 pb-1">
-      <span className="text-muted-foreground bg-muted-foreground/10 rounded-full px-3 py-1 text-xs font-medium">
+      <span className="text-muted-foreground bg-senary rounded-full px-3 py-1 text-xs font-medium">
         {localCalendarReady ? formatDaySeparator(date) : "\u00a0"}
       </span>
     </div>

@@ -289,7 +289,7 @@ export function DriveRecentsPanel({
     return (
       <div
         className={cn(
-          "bg-muted/30 border-border/50 -mx-6 flex flex-col items-center justify-center overflow-hidden rounded-none border-0 py-12 text-center md:mx-0 md:rounded-xl md:border",
+          "bg-card-background border-border -mx-6 flex flex-col items-center justify-center overflow-hidden rounded-none border-0 py-12 text-center md:mx-0 md:rounded-xl md:border",
           PROJECTS_LIST_CARD_MIN_H_CLASS,
         )}
       >
@@ -547,7 +547,7 @@ export function DriveRecentsPanel({
                           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                             {nameEl}
                             {searchContext && viewMode !== "grid" ? (
-                              <p className="text-muted-foreground/70 line-clamp-1 text-xs">
+                              <p className="text-muted-foreground line-clamp-1 text-xs">
                                 {searchContext}
                               </p>
                             ) : null}

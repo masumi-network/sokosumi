@@ -34,7 +34,7 @@ export function AssistantAvatar({
         src={imageUrl}
         alt={t("avatarAlt")}
         className={cn(
-          "ring-border/40 shrink-0 rounded-full object-cover ring-1",
+          "ring-border shrink-0 rounded-full object-cover ring-1",
           size === "lg" ? "size-20" : "size-8",
           className,
         )}
@@ -49,7 +49,7 @@ export function AssistantAvatar({
       expression={expression ?? null}
       alt={t("avatarAlt")}
       className={cn(
-        "ring-border/40 ring-1",
+        "ring-border ring-1",
         size === "lg" ? "size-20" : "size-8",
         className,
       )}

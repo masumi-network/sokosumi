@@ -1,0 +1,167 @@
+---
+description: "Color tokens in apps/web: no raw palette, no hex literals, no opacity modifiers"
+alwaysApply: true
+---
+
+## Color tokens
+
+Every color in `apps/web` product UI comes from a token in
+`apps/web/src/app/globals.css`. Components name a role. They never name a
+value.
+
+Three things are banned. Each has one replacement.
+
+### 1. No opacity modifiers on color utilities
+
+Do not write `bg-primary/55`, `text-muted-foreground/70`, `border-border/40`,
+or `bg-primary/[0.04]`.
+
+An opacity modifier invents a new color at the call site. Two components that
+want the same tint pick different numbers, so one tint becomes six. The
+opacity is also applied to whatever sits behind the element, which means the
+same class produces a different rendered color on a card than on the page.
+
+Use the step token instead. Each step is the base color composited once
+against the page ground and then frozen as an opaque value, so it renders the
+same shade on a card as on the page:
+
+| Step | Role |
+| --- | --- |
+| `-tertiary` | border or divider tint |
+| `-quaternary` | hover or pressed fill |
+| `-quinary` | resting fill, badge background |
+
+The four semantic ramps carry all three plus a `-foreground` for a label on the
+solid fill. The `status-*` ramps carry the base and `-quaternary`, which is what
+a badge needs: a vivid glyph and a tinted pill.
+
+Six ramps carry one more step, `-label`, for the status badge. The base of a
+ramp is tuned to 3:1, which is what a glyph needs. Badge text is `text-xs`, so
+it is normal text and needs 4.5:1 on the same tint, and on several roles the
+base misses it. `-label` is the same hue at the lightness that clears it.
+
+`--semantic-destructive` splits in two. `--semantic-destructive-solid` is the
+fill that carries a near-white label, and `--semantic-destructive` is the red
+that reads as text on the page. In dark mode those pull opposite ways, so one
+token cannot do both: white on the text red measures 3.43, under the 4.5 floor.
+
+The rule is absolute. A modifier on any colour utility is a bug, including on
+the neutrals, and `color-tokens.test.ts` fails on it.
+
+Where a surface genuinely has to show what sits behind it, the alpha lives in
+the token, not at the call site:
+
+| Token | Role |
+| --- | --- |
+| `--overlay` | scrim behind a dialog, or under the mobile chrome; always with a backdrop blur |
+| `--overlay-primary` | drop-target wash over content that must stay readable |
+| `--surface-glass` | floating chip or control over content |
+| `--surface-sticky` | header that sits on the page |
+| `--scrim`, `--scrim-soft`, `--scrim-strong` | over user media, same in both themes |
+| `--on-media`, `--on-media-muted` | label riding on a scrim |
+| `--on-media-tertiary` | hairline, ring or border drawn on media |
+| `--on-media-quaternary` | hover wash under a control on media |
+| `--media-ground` | the opaque ground behind media, and ink on light media |
+| `--hero-wash` | the gradient laid over the landing photograph |
+| `--background-muted` | quieter label on an inverted (`bg-foreground`) surface |
+| `--ring-halo`, `--destructive-halo` | the soft glow outside a focus ring |
+
+The `on-media` family is the one place a name has tripped people up. `-muted`
+is a *label*, at 85% white. The hairline and the wash are `-tertiary` and
+`-quaternary`, at 15% and 10%. Reading "muted" as "faint" paints an 85% white
+pill and swallows the white icon on top of it.
+
+```tsx
+// Do not
+<div className="border-semantic-success/20 bg-semantic-success/5" />
+
+// Do
+<div className="border-semantic-success-tertiary bg-semantic-success-quinary" />
+```
+
+If no step fits the role, add one to `globals.css` in **both** theme blocks and
+name it for the role it serves. Do not reach for a modifier because adding a
+token feels heavier. One token beats twenty call sites that disagree.
+
+Opacity modifiers stay legal on non-color utilities and on genuinely
+continuous animation values driven at runtime.
+
+### 2. No raw Tailwind palette colors
+
+Do not write `bg-emerald-500`, `text-amber-600`, `border-red-300`,
+`text-gray-400`, `bg-black`, `text-white`.
+
+The palette is a second color system running beside the tokens. It produced
+two different greens for "succeeded" on adjacent screens, because one badge
+reached for `emerald` and another for `green`.
+
+Map the meaning to a semantic ramp: `--semantic-success`,
+`--semantic-warning`, `--semantic-destructive`, `--semantic-info`. Map neutrals
+to `--foreground`, `--muted-foreground`, `--border`, `--background`, `--card`.
+
+`bg-black` and `text-white` count as raw palette too. A literal cannot follow
+the theme, and for media UI, where the ground really is theme-independent, the
+`--media-ground` and `--on-media` tokens say so by name.
+
+`--border` and `--input` are two roles, not one value. `--border` is the quiet
+divider at 1.61 against the page. `--input` is the control boundary at 3.0,
+which is what WCAG 2.2 SC 1.4.11 asks of a non-text control.
+
+### 3. No hex, rgb, hsl or oklch literals in components
+
+Do not write `#6400FF`, `style={{ color: "#00a4fa" }}`, or
+`shadow-[0_1px_2px_rgba(0,0,0,0.05)]`.
+
+A literal cannot follow the theme, so it is wrong in one of light or dark by
+construction. It also silently forks the brand: `#6400FF` is `--primary`, and
+a palette change now needs an edit in two places.
+
+Read the token. Where a canvas or WebGL painter genuinely needs a numeric
+value, resolve it from the CSS variable, or leave a comment naming the token
+the literal mirrors so the two stay in step.
+
+Third-party brand marks (`components/social-icons.tsx`) and user-facing color
+pickers are data, not UI color. Those keep their literals.
+
+### Adding a token
+
+1. Check an existing ramp does not already serve the role. Nine greens at hue
+   142 all meant "good" before this rule existed.
+2. Declare it in **both** `:root` and `.dark`. A token declared in `@theme`
+   cannot be themed.
+3. Bridge it in the `@theme inline` block so Tailwind emits the utility. Both
+   halves fail silently on their own: a token with no bridge emits no utility
+   at all, and a bridge with no token emits `var(--missing)`, which falls back
+   to `currentColor` and paints the loudest edge on the page. Neither shows up
+   in a type check. The guard checks both.
+4. Measure the pair it renders on: 4.5:1 for text, 3:1 for a border, icon,
+   status dot, or focus ring.
+
+### Guard
+
+`apps/web/src/lib/utils/__tests__/color-tokens.test.ts` fails the build on
+five things. Each is its own test case, and a call-site failure prints the
+file, the line number, and the offending line:
+
+1. A raw Tailwind palette class on any colour utility, `ring-offset` included.
+2. An opacity modifier on any colour utility. The rule is absolute; the only
+   exemption is a line height after a font size, and it is scoped to `text-`,
+   because `shadow` takes the same size words and a real alpha.
+3. A colour literal in a component.
+4. A bridged token that nothing defines.
+5. A token defined in one theme block but not the other.
+
+A hex counts only when it is quote-delimited or sits inside an arbitrary
+Tailwind value, so an issue number in a comment is not a color. The allowlist
+is the set of places that cannot read a custom property: third-party brand
+marks, the color picker's own swatches, two canvas painters and a canvas
+fallback that reads `--primary` first, the error page that renders when the
+stylesheet failed, an iframe `srcdoc`, and the two surfaces the OS reads
+rather than CSS. It is named file by file, and it exempts literals only. No
+file is exempt from the palette rule.
+
+The debt this rule was written against is gone. `apps/web/src` carried 820
+opacity modifiers across 242 files and 192 raw palette classes across 40 files
+when the sweep started; both are zero. The 55 literal lines that remain all sit
+in the nine allowlisted files. Nothing here is aspirational any more, so a new
+modifier is not debt to be tolerated, it is a build failure.

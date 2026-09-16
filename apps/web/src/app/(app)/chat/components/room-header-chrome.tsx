@@ -57,14 +57,14 @@ function RoomParticipantStack({
           className="relative inline-flex size-6 shrink-0 md:size-7"
           style={{ zIndex: visibleParticipants.length - index }}
         >
-          <Avatar className="ring-border/60 size-full shadow-xs ring-1">
+          <Avatar className="ring-border size-full shadow-xs ring-1">
             <AvatarImage src={participant.image ?? undefined} alt="" />
             <AvatarFallback
               className={cn(
                 "text-[0.625rem]",
                 participant.kind === "coworker" ||
                   participant.kind === "sokoBot"
-                  ? "bg-primary/10 text-primary"
+                  ? "bg-primary-quinary text-primary"
                   : "bg-muted text-muted-foreground",
               )}
             >
@@ -87,7 +87,7 @@ function RoomParticipantStack({
       ))}
       {remainingCount > 0 ? (
         <span
-          className="bg-muted text-muted-foreground ring-border/60 relative inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-medium shadow-xs ring-1 md:size-7"
+          className="bg-muted text-muted-foreground ring-border relative inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-medium shadow-xs ring-1 md:size-7"
           style={{ zIndex: 0 }}
           aria-hidden
         >
@@ -194,7 +194,7 @@ export function RoomHeaderChrome({
               <button
                 type="button"
                 className={cn(
-                  "text-foreground [@media(hover:hover)]:hover:bg-accent [@media(hover:hover)]:dark:hover:bg-accent/50 flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-0.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset md:gap-2",
+                  "text-foreground [@media(hover:hover)]:hover:bg-accent [@media(hover:hover)]:dark:hover:bg-card-background flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-0.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset md:gap-2",
                   channelTopic && "shrink-0",
                 )}
                 title={t("editChannel")}
