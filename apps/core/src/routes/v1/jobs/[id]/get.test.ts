@@ -11,6 +11,7 @@ const {
   jobFindFirstMock,
   coworkerFindFirstMock,
   taskFindFirstMock,
+  memberFindUniqueMock,
 } = vi.hoisted(() => ({
   authContextState: {
     current: {
@@ -36,6 +37,7 @@ const {
   jobFindFirstMock: vi.fn(),
   coworkerFindFirstMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
+  memberFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("@/middleware/auth", () => ({
@@ -122,6 +124,10 @@ vi.mock("@/middleware/workspace", async (importOriginal) => {
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    // organizationContextMiddleware verifies membership on every request.
+    member: {
+      findUnique: memberFindUniqueMock,
+    },
     job: {
       findFirst: jobFindFirstMock,
     },
@@ -272,6 +278,29 @@ describe("GET /jobs/{id}", () => {
     jobFindFirstMock.mockResolvedValue(createJob());
     coworkerFindFirstMock.mockReset();
     taskFindFirstMock.mockReset();
+    memberFindUniqueMock.mockResolvedValue({ id: "member_123" });
+  });
+
+  it("rejects a session whose organization membership was removed", async () => {
+    // This route carries no seat gate, so the membership check in
+    // organizationContextMiddleware is the only thing standing between a
+    // removed member and the organization's data.
+    memberFindUniqueMock.mockResolvedValue(null);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/job_123");
+
+    expect(response.status).toBe(403);
+    expect(memberFindUniqueMock).toHaveBeenCalledWith({
+      where: {
+        userId_organizationId: {
+          userId: "user_123",
+          organizationId: "org_123",
+        },
+      },
+      select: { id: true },
+    });
+    expect(jobFindFirstMock).not.toHaveBeenCalled();
   });
 
   it("returns a rich job details payload", async () => {

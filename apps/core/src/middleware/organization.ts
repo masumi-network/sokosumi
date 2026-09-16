@@ -40,41 +40,76 @@ async function resolveOrganizationFromSlug(
 }
 
 /**
- * Middleware that sets organizationId from X-Organization-Slug header,
- * but only if organizationId is currently null.
+ * Verifies that the user is still a member of the organization the request
+ * already carries.
+ *
+ * The session keeps `activeOrganizationId` after a member is removed, and
+ * Better Auth only clears it from the remover's own session. Request-time
+ * membership is therefore the control, not session state.
+ *
+ * @throws {forbidden} If the user is not a member of the organization
+ */
+async function assertOrganizationMembership(
+  organizationId: string,
+  userId: string,
+): Promise<void> {
+  const membership = await prisma.member.findUnique({
+    where: {
+      userId_organizationId: {
+        userId,
+        organizationId,
+      },
+    },
+    select: { id: true },
+  });
+
+  if (!membership) {
+    throw forbidden("You are not a member of this organization");
+  }
+}
+
+/**
+ * Middleware that establishes the organization for a user request.
+ *
+ * When the request already carries an organization (from the session), the
+ * user's current membership of it is verified. Otherwise the organization is
+ * resolved from the `X-Organization-Slug` header, which also verifies
+ * membership.
  *
  * This middleware should run after authMiddleware to ensure the user is authenticated.
- * It reads the X-Organization-Slug header and verifies the user is a member of that organization.
  *
  * @example
  * ```typescript
  * app.use(authMiddleware);
- * app.use(organizationHeaderMiddleware);
+ * app.use(organizationContextMiddleware);
  * ```
  */
-export const organizationHeaderMiddleware = createMiddleware<AuthEnv>(
+export const organizationContextMiddleware = createMiddleware<AuthEnv>(
   async (c, next) => {
     const { authContext, isAuthenticated } = c.var;
 
-    if (
-      isAuthenticated &&
-      isUserAuthContext(authContext) &&
-      !authContext.organizationId
-    ) {
-      const organizationSlug = c.req.header("x-organization-slug");
-
-      if (organizationSlug) {
-        const organizationId = await resolveOrganizationFromSlug(
-          organizationSlug,
+    if (isAuthenticated && isUserAuthContext(authContext)) {
+      if (authContext.organizationId) {
+        await assertOrganizationMembership(
+          authContext.organizationId,
           authContext.userId,
         );
-        setAuthContext(c, {
-          isAuthenticated,
-          authContext: {
-            ...authContext,
-            organizationId,
-          },
-        });
+      } else {
+        const organizationSlug = c.req.header("x-organization-slug");
+
+        if (organizationSlug) {
+          const organizationId = await resolveOrganizationFromSlug(
+            organizationSlug,
+            authContext.userId,
+          );
+          setAuthContext(c, {
+            isAuthenticated,
+            authContext: {
+              ...authContext,
+              organizationId,
+            },
+          });
+        }
       }
     }
 

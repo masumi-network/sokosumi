@@ -2,10 +2,11 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
-import { organizationHeaderMiddleware } from "./organization";
+import { organizationContextMiddleware } from "./organization";
 
-const { memberFindFirstMock } = vi.hoisted(() => ({
+const { memberFindFirstMock, memberFindUniqueMock } = vi.hoisted(() => ({
   memberFindFirstMock: vi.fn(),
+  memberFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("@/middleware/auth", () => ({
@@ -52,6 +53,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     member: {
       findFirst: memberFindFirstMock,
+      findUnique: memberFindUniqueMock,
     },
   },
 }));
@@ -88,7 +90,7 @@ function createUserApp(initialOrganizationId: string | null) {
     return await next();
   });
 
-  app.use("*", organizationHeaderMiddleware);
+  app.use("*", organizationContextMiddleware);
 
   app.get("/", (c) => {
     return c.json(c.var.authContext);
@@ -112,7 +114,7 @@ function createCoworkerApp() {
     return await next();
   });
 
-  app.use("*", organizationHeaderMiddleware);
+  app.use("*", organizationContextMiddleware);
 
   app.get("/", (c) => {
     return c.json(c.var.authContext);
@@ -121,12 +123,14 @@ function createCoworkerApp() {
   return app;
 }
 
-describe("organizationHeaderMiddleware", () => {
+describe("organizationContextMiddleware", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("does not query organization when organizationId is already set", async () => {
+  it("verifies current membership and ignores the header when organizationId is already set", async () => {
+    memberFindUniqueMock.mockResolvedValue({ id: "member_1" });
+
     const app = createUserApp("org_existing");
     const response = await app.request("http://localhost/", {
       headers: {
@@ -141,7 +145,25 @@ describe("organizationHeaderMiddleware", () => {
       organizationId: "org_existing",
       role: "user",
     });
+    expect(memberFindUniqueMock).toHaveBeenCalledWith({
+      where: {
+        userId_organizationId: {
+          userId: "user_123",
+          organizationId: "org_existing",
+        },
+      },
+      select: { id: true },
+    });
     expect(memberFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 when the session organization no longer has a membership", async () => {
+    memberFindUniqueMock.mockResolvedValue(null);
+
+    const app = createUserApp("org_removed");
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(403);
   });
 
   it("does not query organization when header is missing", async () => {

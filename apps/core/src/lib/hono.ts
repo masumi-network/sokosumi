@@ -3,7 +3,7 @@ import { OpenAPIHono, type RouteConfig, z } from "@hono/zod-openapi";
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
 import { type AuthVariables, authMiddleware } from "@/middleware/auth";
 import { coworkerContextMiddleware } from "@/middleware/coworker-context";
-import { organizationHeaderMiddleware } from "@/middleware/organization";
+import { organizationContextMiddleware } from "@/middleware/organization";
 import { organizationProductSeatMiddleware } from "@/middleware/organization-product-seat";
 import {
   type WorkspaceVariables,
@@ -56,7 +56,7 @@ export type EnvVariables = {
  *
  * @example
  * const app = new OpenAPIHonoWithAuth();
- * // authMiddleware and organizationHeaderMiddleware are already applied
+ * // authMiddleware and organizationContextMiddleware are already applied
  */
 export class OpenAPIHonoWithAuth<
   ExtraVariables extends object = {},
@@ -75,7 +75,7 @@ export class OpenAPIHonoWithAuth<
 
     this.use(authMiddleware);
     this.use(coworkerContextMiddleware);
-    this.use(organizationHeaderMiddleware);
+    this.use(organizationContextMiddleware);
     this.use(workspaceMiddleware(includeWorkspaceContext));
     if (requireOrganizationProductSeat) {
       this.use(organizationProductSeatMiddleware);
