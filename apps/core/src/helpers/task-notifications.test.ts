@@ -34,6 +34,7 @@ import { TASK_ATTENTION_MESSAGE_KEYS } from "@/helpers/notification-delivery";
 
 import {
   dispatchTaskNotification,
+  markTaskArchivedRead,
   markTaskAssignedRead,
   notifyTaskHumanAssignee,
 } from "./task-notifications";
@@ -90,6 +91,7 @@ describe("dispatchTaskNotification", () => {
   it.each([
     ["INPUT_REQUIRED", "Notifications.Task.inputRequired"],
     ["APPROVAL_REQUIRED", "Notifications.Task.approvalRequired"],
+    ["AUTHENTICATION_REQUIRED", "Notifications.Task.authenticationRequired"],
     ["OUT_OF_CREDITS", "Notifications.Task.outOfCredits"],
   ])(
     "still hands a %s task's key on, for the helper to refuse",
@@ -142,13 +144,13 @@ describe("dispatchTaskNotification", () => {
   });
 
   /**
-   * `createNotification` rethrows anything that is not a unique violation,
-   * and a failed realtime publish is one of those. If the clearing ran after
-   * it, the one run that settled the task would skip it and the reminder
-   * would go out. So the clearing goes first, and this pins that.
+   * `createNotification` rethrows any write error that is not a unique
+   * violation. If the clearing ran after it, the one run that settled the
+   * task would skip it and the reminder would go out. So the clearing goes
+   * first, and this pins that.
    */
   it("clears the settled rows even when the outcome write fails", async () => {
-    createNotificationMock.mockRejectedValue(new Error("publish failed"));
+    createNotificationMock.mockRejectedValue(new Error("write failed"));
 
     await dispatchTaskNotification(SETTLED_TASK, "event_1", "COMPLETED");
 
@@ -258,7 +260,7 @@ describe("markTaskAssignedRead", () => {
     expect(markNotificationsReadMock).toHaveBeenCalledWith("user_2", {
       kind: "TASK",
       referenceId: "task_1",
-      messageKey: "Notifications.Task.assigned",
+      messageKey: { in: ["Notifications.Task.assigned"] },
     });
   });
 
@@ -269,5 +271,54 @@ describe("markTaskAssignedRead", () => {
     await expect(
       markTaskAssignedRead("user_2", "task_1"),
     ).resolves.toBeUndefined();
+  });
+});
+
+describe("markTaskArchivedRead", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    markNotificationsReadMock.mockResolvedValue({
+      count: 1,
+      clearedRoomIds: [],
+    });
+  });
+
+  const ARCHIVED_TASK = {
+    id: "task_1",
+    ownerId: "user_1",
+    assigneeUserId: "user_2",
+  };
+
+  /**
+   * Nobody can open an archived task, so every row still asking somebody to
+   * act on it is about a question nobody is asking. The operator-removed
+   * schedule row is the concrete one: it is written to the owner with no
+   * status condition, and a task carrying it archives from a non-terminal
+   * status.
+   */
+  it("marks every attention row read, for both readers", async () => {
+    await markTaskArchivedRead(ARCHIVED_TASK);
+
+    for (const readerId of ["user_1", "user_2"]) {
+      expect(markNotificationsReadMock).toHaveBeenCalledWith(readerId, {
+        kind: "TASK",
+        referenceId: "task_1",
+        messageKey: { in: [...TASK_ATTENTION_MESSAGE_KEYS] },
+      });
+    }
+  });
+
+  /** One reader under two names on every task nobody delegated. */
+  it("writes once when the owner holds the task", async () => {
+    await markTaskArchivedRead({ ...ARCHIVED_TASK, assigneeUserId: "user_1" });
+
+    expect(markNotificationsReadMock).toHaveBeenCalledTimes(1);
+  });
+
+  /** Best-effort: the archive it follows has already committed. */
+  it("reports a failure rather than throwing it at the caller", async () => {
+    markNotificationsReadMock.mockRejectedValue(new Error("write failed"));
+
+    await expect(markTaskArchivedRead(ARCHIVED_TASK)).resolves.toBeUndefined();
   });
 });

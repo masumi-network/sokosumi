@@ -19,12 +19,12 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 
 const {
   mapTaskMock,
-  markTaskAssignedReadMock,
+  markTaskArchivedReadMock,
   prismaTransactionMock,
   removeTaskSchedulePlannedOccurrencesMock,
   requireTaskArchiveAccessMock,
 } = vi.hoisted(() => ({
-  markTaskAssignedReadMock: vi.fn(),
+  markTaskArchivedReadMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   requireTaskArchiveAccessMock: vi.fn(),
   removeTaskSchedulePlannedOccurrencesMock: vi.fn(),
@@ -162,7 +162,7 @@ const {
 }));
 
 vi.mock("@/helpers/task-notifications", () => ({
-  markTaskAssignedRead: markTaskAssignedReadMock,
+  markTaskArchivedRead: markTaskArchivedReadMock,
 }));
 
 vi.mock("@/helpers/access-control", () => ({
@@ -267,12 +267,13 @@ describe("DELETE /tasks/{id}", () => {
   });
 
   /**
-   * An archived task cannot be opened, so the `assigned` row it left its
-   * holder stops being true. Nothing else clears it, and the follow-up sync
-   * would remind them a day later about a task nobody can act on (SOK-916).
-   * READY is an archivable status, so the row can still be outstanding.
+   * An archived task cannot be opened, so every row still asking somebody to
+   * act on it stops being a question. Nothing else clears them, and the
+   * follow-up sync would remind a day later about a task nobody can act on
+   * (SOK-916). Four archivable statuses are non-terminal, so the rows can
+   * still be outstanding.
    */
-  it("marks the assignee's assigned row read when the task is archived", async () => {
+  it("marks the attention rows read when the task is archived", async () => {
     const findFirstOrThrowMock = vi.fn().mockResolvedValue({
       ...archivedTask,
       assigneeUserId: "user_assignee",
@@ -300,9 +301,12 @@ describe("DELETE /tasks/{id}", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(markTaskAssignedReadMock).toHaveBeenCalledWith(
-      "user_assignee",
-      "tsk_123",
+    expect(markTaskArchivedReadMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "tsk_123",
+        ownerId: "user_123",
+        assigneeUserId: "user_assignee",
+      }),
     );
   });
 

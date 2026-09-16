@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/node";
 import { NotificationKind } from "@sokosumi/database";
 
+import { TASK_ATTENTION_MESSAGE_KEYS } from "@/helpers/notification-delivery";
 import prisma from "@/lib/db/prisma";
 
 import {
@@ -266,38 +267,88 @@ export async function notifyTaskHumanAssignee(
 }
 
 /**
- * Mark a member's `assigned` row read, because the task is no longer theirs.
- *
- * The row says "this task is yours". Two things make that false without the
- * task settling: it moves to somebody else or to nobody, and it is archived.
- * Neither is covered by the settled read at the dispatcher above, which
- * reaches the assignee the task holds at the moment it settles.
- *
- * Left alone the member keeps an unread row for ever, and the follow-up sync
- * reminds them a day later about a task they do not have or that nobody can
- * open (SOK-916, the reasoning of user stories 14 and 15).
+ * Mark a reader's outstanding attention rows for one task read.
  *
  * Best-effort, like every other notification write on this path: the write it
  * follows has already committed and must not be undone by a failure to tidy
  * up after it.
  */
+async function markTaskAttentionRead(
+  userId: string,
+  taskId: string,
+  messageKeys: readonly string[],
+  notificationType: string,
+): Promise<void> {
+  try {
+    await markNotificationsRead(userId, {
+      kind: NotificationKind.TASK,
+      referenceId: taskId,
+      messageKey: { in: [...messageKeys] },
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      extra: { taskId, userId, notificationType },
+    });
+  }
+}
+
+/**
+ * Mark a member's `assigned` row read, because the task is no longer theirs.
+ *
+ * The row says "this task is yours", and a reassignment or an unassignment
+ * makes it false. That is not covered by the settled read at the dispatcher
+ * above, which reaches the assignee the task holds at the moment it settles,
+ * and by then that is somebody else. Left alone the member keeps an unread
+ * row for ever and the follow-up sync reminds them a day later about a task
+ * they do not have (SOK-916, the reasoning of user stories 14 and 15).
+ *
+ * That one key and no more, because the previous holder is sometimes the
+ * owner, and the owner's other attention rows are about a task that is still
+ * theirs and still waiting.
+ */
 export async function markTaskAssignedRead(
   assigneeUserId: string,
   taskId: string,
 ): Promise<void> {
-  try {
-    await markNotificationsRead(assigneeUserId, {
-      kind: NotificationKind.TASK,
-      referenceId: taskId,
-      messageKey: TASK_ASSIGNED_MESSAGE_KEY,
-    });
-  } catch (error) {
-    Sentry.captureException(error, {
-      extra: {
-        taskId,
-        userId: assigneeUserId,
-        notificationType: "task-assigned-read",
-      },
-    });
+  await markTaskAttentionRead(
+    assigneeUserId,
+    taskId,
+    [TASK_ASSIGNED_MESSAGE_KEY],
+    "task-assigned-read",
+  );
+}
+
+/**
+ * Mark every outstanding attention row for an archived task read.
+ *
+ * Archiving is the fourth way a task stops waiting on somebody, after
+ * completing, failing and being canceled, and it is the one the dispatcher
+ * above never sees. A task can be archived from `DRAFT`, `QUEUED`, `READY`
+ * and `GRANT_PENDING`, so a row asking the owner to act can still be
+ * outstanding: the operator-removed-schedule row is written with no status
+ * condition at all. Nobody can open an archived task, so every such row is
+ * now about a question nobody is asking.
+ *
+ * Every attention key rather than the assigned one, and both readers, because
+ * archiving ends the task for all of them at once. That is what separates it
+ * from a reassignment, which ends one row for one person.
+ */
+export async function markTaskArchivedRead(task: {
+  id: string;
+  ownerId: string;
+  assigneeUserId: string | null;
+}): Promise<void> {
+  const readerIds = [task.ownerId];
+  if (task.assigneeUserId && task.assigneeUserId !== task.ownerId) {
+    readerIds.push(task.assigneeUserId);
+  }
+
+  for (const readerId of readerIds) {
+    await markTaskAttentionRead(
+      readerId,
+      task.id,
+      TASK_ATTENTION_MESSAGE_KEYS,
+      "task-archived-read",
+    );
   }
 }

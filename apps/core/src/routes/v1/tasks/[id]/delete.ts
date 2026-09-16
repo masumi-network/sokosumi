@@ -10,7 +10,7 @@ import { conflict, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
-import { markTaskAssignedRead } from "@/helpers/task-notifications";
+import { markTaskArchivedRead } from "@/helpers/task-notifications";
 import { assertTaskScheduleInactive } from "@/helpers/task-schedule";
 import { removeTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import prisma from "@/lib/db/prisma";
@@ -92,14 +92,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
     });
 
-    // An archived task can no longer be opened, so the `assigned` row it left
-    // its holder stops being true the same way a reassignment ends it. Without
-    // this the follow-up sync reminds them a day later about a task nobody can
-    // act on (SOK-916). Archive is allowed from READY, so the row can still be
-    // outstanding here.
-    if (task.assigneeUserId) {
-      await markTaskAssignedRead(task.assigneeUserId, task.id);
-    }
+    // An archived task can no longer be opened, so every row still asking
+    // somebody to act on it stops being a question. Without this the
+    // follow-up sync reminds them a day later about a task nobody can act on
+    // (SOK-916). Archive is allowed from four non-terminal statuses, so those
+    // rows can still be outstanding here.
+    await markTaskArchivedRead(task);
 
     return ok(c, taskSchema.parse(mapTask(task, authContext)));
   });
