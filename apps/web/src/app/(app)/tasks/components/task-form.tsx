@@ -57,15 +57,6 @@ import {
 } from "@/components/ui/file-upload";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import {
   type CreateTaskResult,
@@ -99,6 +90,7 @@ import {
 } from "@/lib/utils/task-status-order";
 import { AgentSpotlight } from "./agent-spotlight";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
+import { TaskAssigneePicker } from "./task-assignee-picker";
 import {
   getDefaultTaskContextSelection,
   TaskContextAttachmentsField,
@@ -186,9 +178,6 @@ interface TaskFormInitialValues {
 }
 
 export type TaskFormInitialDesignMdAttachment = EffectiveDesignMdAttachment;
-
-/** Sentinel for the edit assignee select's Unassigned item (Radix needs non-empty values). */
-const UNASSIGNED_SELECT_VALUE = "__unassigned__";
 
 const CREATE_STATUS_OPTIONS = [
   TaskStatus.DRAFT,
@@ -1095,15 +1084,11 @@ export function TaskForm({
   // Queued work must stay agent-assigned: Core rejects reassignment away
   // from an agent while QUEUED, so the edit picker locks non-agent options.
   const isAssigneeLockedToAgent = originalStatus === TaskStatus.QUEUED;
-  const memberAssigneeOptions = coworkerOptions.filter(
-    (option) => option.kind === "user",
-  );
-  const agentAssigneeOptions = coworkerOptions.filter(
-    (option) => option.kind !== "user",
-  );
+  const showEditAssigneePicker = mode === "edit";
   const showModalCoworkerHeader =
-    selectedOption !== undefined && (useComposeLayout || mode === "edit");
-  const taskFieldsBorder = showModalCoworkerHeader ? "border-t" : "";
+    useComposeLayout && selectedOption !== undefined;
+  const taskFieldsBorder =
+    showModalCoworkerHeader || showEditAssigneePicker ? "border-t" : "";
   const cardLabels = useMemo(
     () => ({
       defaultBadge: labels.defaultBadge ?? "Default",
@@ -1258,7 +1243,26 @@ export function TaskForm({
             </TaskFormModalHeaderStart>
           ) : null}
 
-          {showModalCoworkerHeader ? (
+          {showEditAssigneePicker ? (
+            <div className="px-6 py-4 md:px-8">
+              <TaskAssigneePicker
+                value={assigneeId}
+                options={coworkerOptions}
+                labels={{
+                  ariaLabel: labels.coworker,
+                  unassigned: labels.unassigned ?? "Unassigned",
+                  searchPlaceholder: labels.changeStatus,
+                  noResults: labels.noStatusMatches,
+                  agentsGroupLabel: labels.coworker,
+                }}
+                onSelect={handleCoworkerSelect}
+                isOptionDisabled={(option) =>
+                  isAssigneeLockedToAgent &&
+                  (option === "unassigned" || option.kind === "user")
+                }
+              />
+            </div>
+          ) : showModalCoworkerHeader ? (
             <div className="flex items-center gap-3 px-6 py-4 md:px-8">
               {selectedOption.kind === "sokoBot" &&
               !selectedOption.image &&
@@ -1328,63 +1332,6 @@ export function TaskForm({
                     value={name}
                     onChange={(event) => setName(event.target.value)}
                   />
-                </div>
-              ) : null}
-
-              {mode === "edit" ? (
-                <div className="space-y-2">
-                  <Label htmlFor="task-assignee">{labels.coworker}</Label>
-                  <Select
-                    value={assigneeId || UNASSIGNED_SELECT_VALUE}
-                    onValueChange={(value) =>
-                      handleCoworkerSelect(
-                        value === UNASSIGNED_SELECT_VALUE ? "" : value,
-                      )
-                    }
-                  >
-                    <SelectTrigger id="task-assignee" className="w-full">
-                      <SelectValue
-                        placeholder={labels.unassigned ?? "Unassigned"}
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem
-                        value={UNASSIGNED_SELECT_VALUE}
-                        disabled={isAssigneeLockedToAgent}
-                      >
-                        {labels.unassigned ?? "Unassigned"}
-                      </SelectItem>
-                      {memberAssigneeOptions.length > 0 ? (
-                        <SelectGroup>
-                          <SelectLabel>
-                            {memberAssigneeOptions[0]?.vendor.name}
-                          </SelectLabel>
-                          {memberAssigneeOptions.map((option) => (
-                            <SelectItem
-                              key={option.id}
-                              value={option.id}
-                              disabled={isAssigneeLockedToAgent}
-                            >
-                              {option.name}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      ) : null}
-                      <SelectGroup>
-                        <SelectLabel>{labels.coworker}</SelectLabel>
-                        {agentAssigneeOptions.map((option) => (
-                          <SelectItem key={option.id} value={option.id}>
-                            {option.name}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                  {labels.coworkerDescription ? (
-                    <p className="text-muted-foreground text-xs">
-                      {labels.coworkerDescription}
-                    </p>
-                  ) : null}
                 </div>
               ) : null}
 

@@ -297,6 +297,7 @@ const baseLabels = {
   projectCreate: "Create project...",
   coworker: "Coworker",
   coworkerDescription: "Pick a coworker",
+  unassigned: "Unassigned",
   status: "Status",
   statusDescription: "Pick status",
   statusDraft: "Draft",
