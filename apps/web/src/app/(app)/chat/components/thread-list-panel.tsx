@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, VolumeX, X } from "lucide-react";
+import { Loader2, MegaphoneOff, X } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
   listThreadsAction,
@@ -266,7 +266,7 @@ export function ThreadListPanel({
                   {preview}
                 </span>
                 {item.mutedAt ? (
-                  <VolumeX
+                  <MegaphoneOff
                     className="text-muted-foreground mt-0.5 size-3.5 shrink-0"
                     aria-label={labels.muted}
                     data-testid="thread-list-muted"

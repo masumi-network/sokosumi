@@ -1,6 +1,6 @@
 "use client";
 
-import { Volume2, VolumeX } from "lucide-react";
+import { Megaphone, MegaphoneOff } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState, useTransition } from "react";
 
@@ -100,9 +100,9 @@ export function ThreadMuteButton({
       data-testid="thread-panel-mute"
     >
       {muted ? (
-        <VolumeX className="size-4" aria-hidden />
+        <MegaphoneOff className="size-4" aria-hidden />
       ) : (
-        <Volume2 className="size-4" aria-hidden />
+        <Megaphone className="size-4" aria-hidden />
       )}
     </Button>
   );
