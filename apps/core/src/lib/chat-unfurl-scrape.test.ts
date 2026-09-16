@@ -130,6 +130,31 @@ describe("scrapeOneUnfurlCard", () => {
     expect(ssrfSafeFetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it.each([
+    ["mobile.x.com", "https://mobile.x.com/Payward/status/2100178016617869710"],
+    [
+      "a photo sub-path",
+      "https://x.com/Payward/status/2100178016617869710/photo/1",
+    ],
+    ["the /i/status form", "https://x.com/i/status/2100178016617869710"],
+  ])("looks up oEmbed for %s", async (_label, statusUrl) => {
+    ssrfSafeFetchMock.mockImplementation(async (url: string) =>
+      url.startsWith("https://publish.x.com/oembed?")
+        ? jsonResponse(X_OEMBED_JSON)
+        : htmlResponse(X_STATUS_HTML),
+    );
+
+    const card = await scrapeOneUnfurlCard(statusUrl);
+
+    expect(card?.description).toContain("permissioned Hyperliquid");
+    const oembedCall = ssrfSafeFetchMock.mock.calls.find(([url]) =>
+      String(url).startsWith("https://publish.x.com/oembed?"),
+    );
+    expect(new URL(String(oembedCall?.[0])).searchParams.get("url")).toMatch(
+      /^https:\/\/x\.com\/(Payward|i)\/status\/2100178016617869710$/,
+    );
+  });
+
   it("canonicalizes twitter.com status links for the oEmbed lookup", async () => {
     ssrfSafeFetchMock.mockImplementation(async (url: string) =>
       url.startsWith("https://publish.x.com/oembed?")

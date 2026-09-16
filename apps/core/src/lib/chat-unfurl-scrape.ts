@@ -34,6 +34,7 @@ const MAX_OEMBED_BYTES = 64 * 1024;
 const X_STATUS_HOSTS = new Set([
   "x.com",
   "www.x.com",
+  "mobile.x.com",
   "twitter.com",
   "www.twitter.com",
   "mobile.twitter.com",
@@ -41,7 +42,8 @@ const X_STATUS_HOSTS = new Set([
 
 /**
  * Canonical `https://x.com/<user>/status/<id>` for an X / Twitter status
- * URL (query and host variants dropped), or null for anything else.
+ * URL (query, host variants, and `/photo/1`-style sub-paths dropped), or
+ * null for anything else.
  */
 function xStatusCanonicalUrl(url: string): string | null {
   let parsed: URL;
@@ -52,7 +54,7 @@ function xStatusCanonicalUrl(url: string): string | null {
   }
   if (!X_STATUS_HOSTS.has(parsed.hostname.toLowerCase())) return null;
   const match = parsed.pathname.match(
-    /^\/([A-Za-z0-9_]{1,15})\/status\/(\d+)\/?$/,
+    /^\/([A-Za-z0-9_]{1,15})\/status\/(\d+)(?:\/|$)/,
   );
   if (!match) return null;
   return `https://x.com/${match[1]}/status/${match[2]}`;
