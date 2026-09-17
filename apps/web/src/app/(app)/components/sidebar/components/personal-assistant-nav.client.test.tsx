@@ -146,6 +146,15 @@ describe("PersonalAssistantNav collapsed stack", () => {
     );
   });
 
+  it("rings rounded-md on the rail like its neighbours, not the expanded row's rounded-lg", () => {
+    render(<PersonalAssistantNav bots={bots} />);
+    const link = screen.getByRole("link");
+    expect(tokens(link.className)).toContain("rounded-lg");
+    expect(tokens(link.className)).toContain(
+      "group-data-[collapsible=icon]:rounded-md",
+    );
+  });
+
   it("keeps the label in the accessibility tree when the rail collapses", () => {
     render(<PersonalAssistantNav bots={bots} />);
     const label = screen.getByText("sokoBot");
