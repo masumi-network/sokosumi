@@ -32,7 +32,7 @@ The Xcode navigator follows the physical source folders. Start with `Sokosumi/Ap
 | `Sokosumi/Chat/Pins` | Pinned-message inspector and preview cards |
 | `Sokosumi/Chat/Search` | Room Find toolbar, shared inspector presentation and search result rows |
 | `Sokosumi/Chat/Composer` | Rich composer, Drive picker and native text input |
-| `Sokosumi/Chat/Rendering` | Markdown, code, thought presentation and attachment chips/previews |
+| `Sokosumi/Chat/Rendering` | Markdown, code, thought presentation, Soko Bot footer/hop badge and attachment chips/previews |
 | `Sokosumi/Shared` | Participant avatar, `PresenceDot`, `ParticipantProfileButton` and `ParticipantDetailsView` |
 | `Sokosumi/Settings` | Settings scene content |
 | `SokosumiTests` | App integration tests, grouped by feature |
