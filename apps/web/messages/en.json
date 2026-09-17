@@ -5464,7 +5464,11 @@
         "success": "Copied to clipboard",
         "error": "Failed to copy",
         "linkSuccess": "Link copied",
-        "linkError": "Failed to copy link"
+        "linkError": "Failed to copy link",
+        "sendToSelf": "Send to yourself",
+        "sendToSelfSuccess": "Sent to yourself",
+        "sendToSelfError": "Failed to send to yourself",
+        "sendToSelfOpen": "Open"
       },
       "MentionAll": {
         "label": "Everyone"

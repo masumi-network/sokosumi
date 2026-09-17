@@ -1,6 +1,7 @@
 import { CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE } from "@sokosumi/utils";
 import {
   act,
+  cleanup,
   fireEvent,
   render,
   screen,
@@ -21,6 +22,12 @@ import type {
   ChatRoomMessage,
 } from "@/lib/clients/generated/core";
 import { ChatMessageRow } from "./room-message-row";
+
+const { routerPushMock } = vi.hoisted(() => ({ routerPushMock: vi.fn() }));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: routerPushMock }),
+}));
 
 vi.mock("next-intl", () => ({
   useFormatter: () => ({
@@ -199,6 +206,7 @@ function renderRow({
   onRetryMention,
   onRemoveOutbound,
   onJumpToQuotedMessage,
+  onSendToSelf,
   showOutboundSentTick = false,
   isEditing = false,
   editDraft = "",
@@ -227,6 +235,7 @@ function renderRow({
   onRetryMention?: (message: ChatRoomMessage) => void;
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
   onJumpToQuotedMessage?: (messageId: string) => void;
+  onSendToSelf?: (message: ChatRoomMessage) => void;
   showOutboundSentTick?: boolean;
   isEditing?: boolean;
   editDraft?: string;
@@ -255,6 +264,7 @@ function renderRow({
       onRetryMention={onRetryMention}
       onRemoveOutbound={onRemoveOutbound}
       onJumpToQuotedMessage={onJumpToQuotedMessage}
+      onSendToSelf={onSendToSelf}
       showOutboundSentTick={showOutboundSentTick}
       isEditing={isEditing}
       editDraft={editDraft}
@@ -620,6 +630,68 @@ describe("ChatMessageRow", () => {
     expect(
       within(sheet).queryByRole("button", {
         name: "Copy.link",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("sends a message to yourself from the sheet", async () => {
+    const user = userEvent.setup();
+    const onSendToSelf = vi.fn();
+    const message = userMessage({ content: "Keep this" });
+    renderRow({ message, onSendToSelf });
+
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Copy.sendToSelf",
+      }),
+    );
+
+    expect(onSendToSelf).toHaveBeenCalledExactlyOnceWith(message);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("sends a message to yourself from the hover overflow", async () => {
+    const user = userEvent.setup();
+    const onSendToSelf = vi.fn();
+    const message = userMessage({ content: "Keep this too" });
+    renderRow({ message, onSendToSelf });
+    await user.hover(screen.getByRole("article"));
+
+    await user.click(
+      within(hoverPill() as HTMLElement).getByRole("button", {
+        name: "Actions.overflow",
+      }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Copy.sendToSelf" }),
+    );
+
+    expect(onSendToSelf).toHaveBeenCalledExactlyOnceWith(message);
+  });
+
+  it("hides Send to yourself without a handler and on a streaming overlay", async () => {
+    const user = userEvent.setup();
+    renderRow({ message: userMessage({ content: "In my Self Direct" }) });
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+    expect(
+      within(screen.getByRole("dialog")).queryByRole("button", {
+        name: "Copy.sendToSelf",
+      }),
+    ).not.toBeInTheDocument();
+    cleanup();
+
+    renderRow({
+      message: coworkerMessage({
+        id: "stream:turn-1",
+        content: "Still streaming",
+      }),
+      onSendToSelf: vi.fn(),
+    });
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+    expect(
+      within(screen.getByRole("dialog")).queryByRole("button", {
+        name: "Copy.sendToSelf",
       }),
     ).not.toBeInTheDocument();
   });
@@ -1039,6 +1111,32 @@ describe("ChatMessageRow", () => {
     expect(onJumpToQuotedMessage).toHaveBeenCalledExactlyOnceWith(
       "quoted-original",
     );
+  });
+
+  it("opens the Message link for a quote from another room without an empty body", async () => {
+    const user = userEvent.setup();
+    const onJumpToQuotedMessage = vi.fn();
+    renderRow({
+      message: userMessage({
+        content: "",
+        quote: {
+          messageId: "source-message",
+          roomId: "source-room",
+          authorName: "Bob",
+          snippet: "Saved for later",
+        },
+      }),
+      onJumpToQuotedMessage,
+    });
+
+    expect(screen.queryByTestId("room-message-body")).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Jump to message from Bob" }),
+    );
+    expect(routerPushMock).toHaveBeenCalledExactlyOnceWith(
+      "/chat/rooms/source-room?message=source-message",
+    );
+    expect(onJumpToQuotedMessage).not.toHaveBeenCalled();
   });
 
   it("shows quote image attachment as inert thumbnail, not a link", () => {
