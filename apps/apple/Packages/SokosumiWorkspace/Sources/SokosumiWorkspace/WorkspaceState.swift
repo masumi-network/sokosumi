@@ -33,7 +33,7 @@ public final class WorkspaceState: ObservableObject {
   @Published public private(set) var openingDirect: DirectRecipient?
   @Published public private(set) var creatingChannel = false
   @Published public private(set) var joiningChannel = false
-  @Published public private(set) var updatingChannel = false
+  @Published public internal(set) var updatingChannel = false
   @Published public private(set) var channelLifecycle: ChannelLifecycleRequest?
   @Published public internal(set) var invitationResponse: InvitationResponse?
   public let archivedChannels = ArchivedChannels()
@@ -373,7 +373,7 @@ public final class WorkspaceState: ObservableObject {
     return true
   }
 
-  private func channelOperation<Value: Sendable>(context: UUID, auth: AuthState, operation: (Client, String, String) async throws -> Value) async throws -> Value {
+  func channelOperation<Value: Sendable>(context: UUID, auth: AuthState, operation: (Client, String, String) async throws -> Value) async throws -> Value {
     guard let organizationId = selection?.workspace.organizationId, let slug = selection?.workspace.organizationSlug else { throw CancellationError() }
     return try await workspaceOperation(context: context, auth: auth) { client in
       try await operation(client, organizationId, slug)
