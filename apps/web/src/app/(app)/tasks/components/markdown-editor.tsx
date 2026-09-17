@@ -754,6 +754,10 @@ export const MarkdownEditor = forwardRef<
     [insertText, insertLink],
   );
 
+  const editorTop = editorRef.current?.getBoundingClientRect().top ?? 0;
+  const placeFormatToolbarBelow =
+    selectionRect != null && selectionRect.top - editorTop < 40;
+
   return (
     <div
       className={cn(
@@ -904,9 +908,13 @@ export const MarkdownEditor = forwardRef<
             aria-label="Format"
             className="bg-popover text-popover-foreground border-border fixed z-50 flex items-center gap-0.5 rounded-md border p-0.5 shadow-md"
             style={{
-              top: selectionRect.top,
+              top: placeFormatToolbarBelow
+                ? selectionRect.bottom
+                : selectionRect.top,
               left: selectionRect.left + selectionRect.width / 2,
-              transform: "translate(-50%, calc(-100% - 8px))",
+              transform: placeFormatToolbarBelow
+                ? "translate(-50%, 8px)"
+                : "translate(-50%, calc(-100% - 8px))",
             }}
             onMouseDown={(event) => event.preventDefault()}
           >
