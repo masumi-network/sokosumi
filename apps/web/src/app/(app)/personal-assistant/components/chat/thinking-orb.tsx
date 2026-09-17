@@ -5,14 +5,14 @@ import { MODE_DRAWS, type OrbState, resolvePreset } from "thinking-orbs";
 
 import { cn } from "@/lib/utils";
 
-/** Brand wisteria: fallback when the CSS variable can't be resolved. */
-const FALLBACK_PURPLE = "#6400ff";
+/** Brand primary: fallback when the CSS variable can't be resolved. */
+const FALLBACK_PRIMARY = "#2b5c78";
 
 function resolvePrimary(): string {
   const value = getComputedStyle(document.documentElement)
     .getPropertyValue("--primary")
     .trim();
-  return value || FALLBACK_PURPLE;
+  return value || FALLBACK_PRIMARY;
 }
 
 /**

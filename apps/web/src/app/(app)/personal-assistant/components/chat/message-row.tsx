@@ -204,7 +204,7 @@ function DelegationChips({ delegations }: { delegations: ChatDelegation[] }) {
                 failed
                   ? "bg-semantic-destructive"
                   : delegation.outcome === "processing"
-                    ? "bg-semantic-info"
+                    ? "bg-status-working"
                     : "bg-primary",
               )}
               aria-hidden
