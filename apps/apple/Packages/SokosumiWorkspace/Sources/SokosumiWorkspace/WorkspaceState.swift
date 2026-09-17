@@ -34,7 +34,14 @@ public final class WorkspaceState: ObservableObject {
   @Published public private(set) var creatingChannel = false
   @Published public private(set) var joiningChannel = false
   @Published public private(set) var updatingChannel = false
+  @Published public private(set) var channelLifecycle: ChannelLifecycleRequest?
+  public let archivedChannels = ArchivedChannels()
   @Published public private(set) var compositionContext = UUID()
+  /// Channel/Direct mutations are single-flight across the workspace, matching web's one open dialog at a time.
+  public var channelMutationInFlight: Bool {
+    creatingChannel || joiningChannel || updatingChannel || openingDirect != nil || channelLifecycle != nil
+  }
+
   public var phase: Phase {
     workspaceSession.phase
   }
@@ -198,7 +205,7 @@ public final class WorkspaceState: ObservableObject {
     self.clientProvider = clientProvider
     sidebar = ConversationSidebar(savedRoom: savedRoom)
     ablyClientInstanceId = getOrCreateAblyClientInstanceId(store: instanceStore)
-    for publisher in [threadOverview.objectWillChange, pins.objectWillChange, thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange] {
+    for publisher in [archivedChannels.objectWillChange, threadOverview.objectWillChange, pins.objectWillChange, thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange] {
       publisher.sink { [weak self] in self?.objectWillChange.send() }.store(in: &threadObservations)
     }
     // Rows need editor identity changes; draft and save state are observed by the editor itself.
@@ -258,6 +265,8 @@ public final class WorkspaceState: ObservableObject {
     creatingChannel = false
     joiningChannel = false
     updatingChannel = false
+    channelLifecycle = nil
+    archivedChannels.reset()
     workspaceSession.reset()
     sidebar.reset()
     rooms = []
@@ -302,7 +311,7 @@ public final class WorkspaceState: ObservableObject {
   }
 
   public func createChannel(_ draft: ChannelDraft, roster: ChatRecipientRoster, context: UUID, auth: AuthState) async throws -> Bool {
-    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, !creatingChannel, !joiningChannel, !updatingChannel, openingDirect == nil else { return false }
+    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, !channelMutationInFlight else { return false }
     let sourceRoom = transcriptRoomId
     creatingChannel = true
     defer {
@@ -320,7 +329,7 @@ public final class WorkspaceState: ObservableObject {
   /// Editing reconciles the room in place and never navigates: the sidebar row and any open transcript keep their identity.
   public func updateChannel(_ draft: ChannelEditDraft, roomId: String, permissions: ChannelEditPermissions, context: UUID, auth: AuthState) async throws -> Bool {
     guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, permissions.canEditMembers, draft.isValid,
-          !updatingChannel, !creatingChannel, !joiningChannel, openingDirect == nil else { return false }
+          !channelMutationInFlight else { return false }
     updatingChannel = true
     defer {
       if context == compositionContext {
@@ -345,7 +354,7 @@ public final class WorkspaceState: ObservableObject {
 
   public func joinChannel(roomId: String, context: UUID, auth: AuthState) async throws -> Bool {
     guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching,
-          !joiningChannel, !creatingChannel, !updatingChannel, openingDirect == nil else { return false }
+          !channelMutationInFlight else { return false }
     let sourceRoom = transcriptRoomId
     joiningChannel = true
     defer {
@@ -361,11 +370,17 @@ public final class WorkspaceState: ObservableObject {
   }
 
   private func channelOperation<Value: Sendable>(context: UUID, auth: AuthState, operation: (Client, String, String) async throws -> Value) async throws -> Value {
-    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching,
-          let organizationId = selection?.workspace.organizationId, let slug = selection?.workspace.organizationSlug,
-          let client = resolveClient(auth: auth) else { throw CancellationError() }
+    guard let organizationId = selection?.workspace.organizationId, let slug = selection?.workspace.organizationSlug else { throw CancellationError() }
+    return try await workspaceOperation(context: context, auth: auth) { client in
+      try await operation(client, organizationId, slug)
+    }
+  }
+
+  /// Runs an authenticated request for the current composition context; a workspace change or reset turns its result into cancellation.
+  private func workspaceOperation<Value: Sendable>(context: UUID, auth: AuthState, operation: (Client) async throws -> Value) async throws -> Value {
+    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, let client = resolveClient(auth: auth) else { throw CancellationError() }
     do {
-      let value = try await operation(client, organizationId, slug)
+      let value = try await operation(client)
       guard context == compositionContext, phase == .ready, !Task.isCancelled else { throw CancellationError() }
       return value
     } catch {
@@ -375,6 +390,77 @@ public final class WorkspaceState: ObservableObject {
       }
       throw error
     }
+  }
+
+  /// Web loads the Archived section for organization workspaces only and fails soft.
+  public func loadArchivedChannels(auth: AuthState) async {
+    guard selection?.workspace.organizationId != nil else {
+      archivedChannels.reset()
+      return
+    }
+    let context = compositionContext
+    await archivedChannels.load {
+      try await channelOperation(context: context, auth: auth) { client, organizationId, slug in
+        try await ChatService().archivedChannels(client: client, organizationId: organizationId, organizationSlug: slug)
+      }
+    }
+  }
+
+  /// Leaving drops the room like a membership revoke: the open transcript clears and no other room is forced open.
+  public func leaveChannel(roomId: String, context: UUID, auth: AuthState) async throws -> Bool {
+    try await runChannelLifecycle(.leave, roomId: roomId, context: context) {
+      let slug = selection?.workspace.organizationSlug
+      try await workspaceOperation(context: context, auth: auth) { client in
+        try await ChatService().leaveChannel(client: client, roomId: roomId, organizationSlug: slug)
+      }
+      applyMembershipRevoked(roomId: roomId)
+    }
+  }
+
+  /// Archiving hides the channel for everyone; it moves into the Archived section.
+  public func archiveChannel(roomId: String, context: UUID, auth: AuthState) async throws -> Bool {
+    try await runChannelLifecycle(.archive, roomId: roomId, context: context) {
+      try await channelOperation(context: context, auth: auth) { client, _, slug in
+        try await ChatService().archiveChannel(client: client, roomId: roomId, organizationSlug: slug)
+      }
+      if let room = rooms.first(where: { $0.id == roomId }) {
+        archivedChannels.insert(room)
+      }
+      applyMembershipRevoked(roomId: roomId)
+    }
+  }
+
+  /// Restoring returns the live room and opens it (web navigates to it) unless the user moved on meanwhile.
+  public func restoreChannel(roomId: String, context: UUID, auth: AuthState) async throws -> Bool {
+    let sourceRoom = transcriptRoomId
+    return try await runChannelLifecycle(.restore, roomId: roomId, context: context) {
+      let room = try await channelOperation(context: context, auth: auth) { client, _, slug in
+        try await ChatService().restoreChannel(client: client, roomId: roomId, organizationSlug: slug)
+      }
+      archivedChannels.remove(roomId: roomId)
+      acceptCreatedRoom(room, sourceRoom: sourceRoom, auth: auth)
+    }
+  }
+
+  public func deleteChannel(roomId: String, context: UUID, auth: AuthState) async throws -> Bool {
+    try await runChannelLifecycle(.delete, roomId: roomId, context: context) {
+      try await channelOperation(context: context, auth: auth) { client, _, slug in
+        try await ChatService().deleteChannel(client: client, roomId: roomId, organizationSlug: slug)
+      }
+      archivedChannels.remove(roomId: roomId)
+    }
+  }
+
+  private func runChannelLifecycle(_ action: ChannelLifecycleAction, roomId: String, context: UUID, perform: () async throws -> Void) async throws -> Bool {
+    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, !channelMutationInFlight else { return false }
+    channelLifecycle = .init(roomId: roomId, action: action)
+    defer {
+      if context == compositionContext {
+        channelLifecycle = nil
+      }
+    }
+    try await perform()
+    return true
   }
 
   public func canOpenDirect(_ recipient: DirectRecipient) -> Bool {
@@ -412,7 +498,7 @@ public final class WorkspaceState: ObservableObject {
 
   @discardableResult
   public func openDirect(_ recipients: DirectConversationSelection, context: UUID, auth: AuthState) async throws -> Bool {
-    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, openingDirect == nil, !creatingChannel, !joiningChannel, !updatingChannel,
+    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, !channelMutationInFlight,
           let first = recipients.recipients.first, let client = resolveClient(auth: auth) else { return false }
     let sourceRoom = transcriptRoomId
     openingDirect = first
@@ -1027,6 +1113,8 @@ public final class WorkspaceState: ObservableObject {
     creatingChannel = false
     joiningChannel = false
     updatingChannel = false
+    channelLifecycle = nil
+    archivedChannels.reset()
     let generation = workspaceGeneration
     rooms = []
     switchError = nil
@@ -1052,6 +1140,7 @@ public final class WorkspaceState: ObservableObject {
     creatingChannel = false
     joiningChannel = false
     updatingChannel = false
+    channelLifecycle = nil
     roomsRefreshTask?.cancel()
     roomsRefreshTask = nil
     roomsRefreshID = UUID()
@@ -1067,6 +1156,7 @@ public final class WorkspaceState: ObservableObject {
     do {
       guard let loaded = try await workspaceSession.select(option, client: client), generation == workspaceGeneration else { return }
       sidebar.dropPendingActions()
+      archivedChannels.reset()
       readAttention.reset()
       clearTranscript()
       selectedRoomId = nil
