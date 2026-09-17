@@ -63,6 +63,9 @@ vi.mock("@/helpers/agent-cost", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    agent: {
+      findFirst: agentFindFirstMock,
+    },
     $transaction: prismaTransactionMock,
   },
 }));
@@ -177,13 +180,12 @@ describe("GET /agents/{id}", () => {
         },
       ],
     });
-    prismaTransactionMock.mockImplementation(async (callback) => {
-      return await callback({
-        agent: {
-          findFirst: agentFindFirstMock,
-        },
-      });
-    });
+    // Batch form: Prisma resolves the array of operations together. The route
+    // relies on that for a shared pricing snapshot, so the mock must mirror
+    // it rather than handing back a callback result.
+    prismaTransactionMock.mockImplementation(async (operations: unknown) =>
+      Array.isArray(operations) ? await Promise.all(operations) : operations,
+    );
   });
 
   it("returns parsed category styles in the detail response", async () => {
@@ -210,5 +212,16 @@ describe("GET /agents/{id}", () => {
         url: "https://example.com/output.png",
       },
     ]);
+    expect(prismaTransactionMock).toHaveBeenCalledWith(expect.any(Array), {
+      isolationLevel: "RepeatableRead",
+    });
+    expect(calculateAverageExecutionTimeMock).toHaveBeenCalledWith(
+      "agent_123",
+      expect.objectContaining({ $transaction: prismaTransactionMock }),
+    );
+    expect(calculateAgentRatingMock).toHaveBeenCalledWith(
+      "agent_123",
+      expect.objectContaining({ $transaction: prismaTransactionMock }),
+    );
   });
 });
