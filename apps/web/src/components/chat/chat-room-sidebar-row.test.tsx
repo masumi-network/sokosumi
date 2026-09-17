@@ -409,6 +409,12 @@ describe("ChatRoomSidebarRow collapsed rail", () => {
       "group-data-[collapsible=icon]:justify-center",
     );
     expect(link?.className).toContain("group-data-[collapsible=icon]:px-0!");
+    // The menu button clips its content for name truncation. Collapsed, the
+    // 24px tile's corner mark hangs 6px below it inside a 32px button, so the
+    // clip has to lift there or the lock and globe lose their bottom.
+    expect(link?.className).toContain(
+      "group-data-[collapsible=icon]:overflow-visible",
+    );
 
     const slot = screen.getByTestId("custom-leading").parentElement;
     expect(slot?.className).toContain("group-data-[collapsible=icon]:h-6");

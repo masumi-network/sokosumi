@@ -331,12 +331,15 @@ export function ChatRoomSidebarRow({
   // Collapsed to icons the row is its leading mark, centred in the button.
   // The name goes `sr-only` rather than `hidden` so the link keeps its
   // accessible name (the tooltip adds none) while taking no flex space, and
-  // the spacer hides so neither can push the mark off centre.
+  // the spacer hides so neither can push the mark off centre. The button's
+  // `overflow-hidden` exists for name truncation, which the collapsed rail
+  // has none of, and it clipped the tile's kind corner mark, which hangs 6px
+  // below a 24px tile inside a 32px button. So the clip lifts there.
   const roomLink = (
     <Link
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-2 px-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0!",
+        "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-2 px-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:overflow-visible group-data-[collapsible=icon]:px-0!",
         isMuted && !isActive && "opacity-60",
       )}
       href={href}
