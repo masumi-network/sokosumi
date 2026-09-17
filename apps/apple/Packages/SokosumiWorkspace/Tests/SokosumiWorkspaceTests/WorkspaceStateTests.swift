@@ -229,6 +229,35 @@ struct WorkspaceStateTests {
     #expect(transport.operationIDs.filter { $0 == operation }.count == 1)
   }
 
+  @Test func channelUpdateReplacesRoomWithoutNavigating() async throws {
+    let edited = "550e8400-e29b-41d4-a716-446655440001"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general", "design"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: edited, unread: 3, name: "Design renamed"))
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    let opened = try #require(state.transcriptRoomId)
+    #expect(opened != edited)
+    let room = try #require(state.rooms.first { $0.id == edited })
+    var draft = ChannelEditDraft(room: room)
+    draft.setName("Design renamed")
+    let permissions = ChannelEditPermissions(canEditMembers: true, canManageSettings: true)
+    let context = state.compositionContext
+    #expect(try await state.updateChannel(draft, roomId: edited, permissions: permissions, context: context, auth: auth))
+    #expect(!state.updatingChannel)
+    #expect(state.transcriptRoomId == opened)
+    #expect(state.rooms.count == 2)
+    #expect(state.rooms.first { $0.id == edited }?.name == "Design renamed")
+    #expect(state.rooms.first { $0.id == edited }?.unreadCount == 3)
+    #expect(transport.operationIDs.filter { $0 == "patch/chats/rooms/{id}" }.count == 1)
+    #expect(try await state.updateChannel(draft, roomId: edited, permissions: permissions, context: UUID(), auth: auth) == false)
+    #expect(transport.operationIDs.filter { $0 == "patch/chats/rooms/{id}" }.count == 1)
+  }
+
   @Test(arguments: ["stay", "leave", "reset"], [true, false]) func participantDirectRespectsNavigation(action: String, fromPicker: Bool) async throws {
     let target = "550e8400-e29b-41d4-a716-446655440009"
     let (state, auth, transport, _) = try ephemeralState([
