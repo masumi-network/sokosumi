@@ -21,6 +21,7 @@ const QUOTE_BAR_CLASS = "border-l-2";
 const QUOTE_BAR_COLOR_CLASS = "border-input";
 const QUOTE_PAD_CLASS = "pl-3";
 const QUOTE_MUTED_CLASS = "text-muted-foreground";
+const QUOTE_NOT_ITALIC_CLASS = "not-italic";
 const QUOTE_NO_CURLY_MARKS_CLASS = "[&_p]:before:content-none";
 const QUOTE_NO_CURLY_MARKS_AFTER_CLASS = "[&_p]:after:content-none";
 
@@ -60,6 +61,7 @@ describe("room message blockquotes after send", () => {
     expect(quote).toHaveClass(QUOTE_BAR_COLOR_CLASS);
     expect(quote).toHaveClass(QUOTE_PAD_CLASS);
     expect(quote).toHaveClass(QUOTE_MUTED_CLASS);
+    expect(quote).toHaveClass(QUOTE_NOT_ITALIC_CLASS);
     expect(quote?.className).toContain(QUOTE_NO_CURLY_MARKS_CLASS);
     expect(quote?.className).toContain(QUOTE_NO_CURLY_MARKS_AFTER_CLASS);
     expect(rootClass).toContain("prose");
