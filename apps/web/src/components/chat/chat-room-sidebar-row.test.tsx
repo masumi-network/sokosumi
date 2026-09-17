@@ -510,35 +510,45 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
     expect(restSpacer?.className).not.toContain("[@media(hover:none)]:w-16");
   });
 
-  it("holds one spacer width when a mention badge shows, so the badge sits beside the menu and never moves", () => {
-    const { container } = render(
-      <ChatRoomSidebarRow
-        room={makeRoom({
-          starredAt: new Date("2026-09-01T00:00:00.000Z"),
-          unreadCount: 2,
-          unreadMentionCount: 2,
-        })}
-        href="/chat/rooms/room-1"
-        label="Patrick Tobler"
-        isActive={false}
-        leading={<span>#</span>}
-        onRoomUpdated={vi.fn()}
-      />,
-    );
+  it.each([
+    ["pinned", new Date("2026-09-01T00:00:00.000Z")],
+    ["unpinned", null],
+  ])(
+    "holds one spacer width on a %s row with a mention badge, so the badge sits beside the menu and never moves",
+    (_state, starredAt) => {
+      const { container } = render(
+        <ChatRoomSidebarRow
+          room={makeRoom({
+            starredAt,
+            unreadCount: 2,
+            unreadMentionCount: 2,
+          })}
+          href="/chat/rooms/room-1"
+          label="Patrick Tobler"
+          isActive={false}
+          leading={<span>#</span>}
+          onRoomUpdated={vi.fn()}
+        />,
+      );
 
-    const spacer = container.querySelector(
-      '[data-slot="room-trailing-spacer"]',
-    );
-    expect(spacer?.className).toContain("[@media(hover:hover)]:size-3");
-    expect(spacer?.className).not.toContain("[@media(hover:hover)]:size-4");
-    expect(spacer?.className).not.toContain("group-hover/room-row:size-7");
-    expect(spacer?.className).not.toContain(
-      "group-focus-within/room-row:size-7",
-    );
-    expect(spacer?.className).not.toContain(
-      "group-has-[[data-state=open]]/room-row:size-7",
-    );
-  });
+      const tokens =
+        container
+          .querySelector('[data-slot="room-trailing-spacer"]')
+          ?.className.split(" ") ?? [];
+      expect(tokens).toContain("[@media(hover:hover)]:size-3");
+      expect(tokens).not.toContain("[@media(hover:hover)]:size-4");
+      expect(tokens).not.toContain("[@media(hover:hover)]:size-0");
+      expect(tokens).not.toContain(
+        "[@media(hover:hover)]:group-hover/room-row:size-7",
+      );
+      expect(tokens).not.toContain(
+        "[@media(hover:hover)]:group-focus-within/room-row:size-7",
+      );
+      expect(tokens).not.toContain(
+        "[@media(hover:hover)]:group-has-[[data-state=open]]/room-row:size-7",
+      );
+    },
+  );
 });
 
 describe("ChatRoomSidebarRow edit menu", () => {
