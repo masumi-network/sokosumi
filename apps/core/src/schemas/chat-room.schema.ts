@@ -458,6 +458,11 @@ export const chatRoomMessageQuoteSchema = z
       example: "Can you summarize this launch risk?",
     }),
     attachment: chatRoomMessageQuoteAttachmentSchema.nullable().optional(),
+    roomId: z.string().uuid().optional().openapi({
+      description:
+        "Source room of a quote sent to the caller's Self Direct. Absent when the quoted message is in the same room.",
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
   })
   .openapi("ChatRoomMessageQuote");
 

@@ -9529,6 +9529,12 @@ export const ChatRoomMessageQuoteSchema = {
         },
         attachment: {
             $ref: '#/components/schemas/ChatRoomMessageQuoteAttachment'
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Source room of a quote sent to the caller\'s Self Direct. Absent when the quoted message is in the same room.',
+            example: '550e8400-e29b-41d4-a716-446655440000'
         }
     },
     required: [

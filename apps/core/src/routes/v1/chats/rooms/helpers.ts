@@ -216,13 +216,7 @@ export function mapChatRoom(
     slug: room.slug,
     kind: room.kind as "channel" | "direct",
     directKey: room.directKey,
-    isSelfDirect:
-      room.kind === "direct" &&
-      room.organizationId === null &&
-      room.userMembers.length === 1 &&
-      room.coworkerMembers.length === 0 &&
-      room.sokoBotMembers.length === 0 &&
-      room.directKey === buildSelfDirectRoomKey(room.userMembers[0]!.user.id),
+    isSelfDirect: isSelfDirectRoom(room),
     topic: room.topic,
     discoverability: mapChatRoomDiscoverability(
       room.kind,
@@ -665,6 +659,43 @@ function readQuoteFromMetadata(
     authorName: candidate.authorName,
     snippet: candidate.snippet,
     ...(attachment !== undefined ? { attachment } : {}),
+    ...(typeof candidate.roomId === "string"
+      ? { roomId: candidate.roomId }
+      : {}),
+  };
+}
+
+export const roomQuoteSourceSelect = {
+  id: true,
+  content: true,
+  metadata: true,
+  senderUser: { select: { name: true } },
+  senderCoworker: { select: { name: true } },
+  senderSokoBot: {
+    select: { name: true, user: { select: { name: true } } },
+  },
+} satisfies Prisma.ChatRoomMessageSelect;
+
+/** Durable quote snapshot of a content message read with `roomQuoteSourceSelect`. */
+export function buildRoomQuoteSnapshot(
+  quoted: Prisma.ChatRoomMessageGetPayload<{
+    select: typeof roomQuoteSourceSelect;
+  }>,
+): ChatRoomMessageQuote {
+  assertChatRoomContentMessage(quoted.metadata);
+
+  const { snippet, attachment } = buildRoomQuoteSnippetParts(quoted.content);
+
+  return {
+    messageId: quoted.id,
+    authorName:
+      quoted.senderUser?.name ??
+      quoted.senderCoworker?.name ??
+      (quoted.senderSokoBot
+        ? sokoBotDisplayName(quoted.senderSokoBot)
+        : "Someone"),
+    snippet,
+    attachment,
   };
 }
 
@@ -688,37 +719,14 @@ export async function resolveRoomQuoteSnapshot(
       roomId,
       deletedAt: null,
     },
-    select: {
-      id: true,
-      content: true,
-      metadata: true,
-      senderUser: { select: { name: true } },
-      senderCoworker: { select: { name: true } },
-      senderSokoBot: {
-        select: { name: true, user: { select: { name: true } } },
-      },
-    },
+    select: roomQuoteSourceSelect,
   });
 
   if (!quoted) {
     throw badRequest("Quoted message not found");
   }
 
-  assertChatRoomContentMessage(quoted.metadata);
-
-  const { snippet, attachment } = buildRoomQuoteSnippetParts(quoted.content);
-
-  return {
-    messageId: quoted.id,
-    authorName:
-      quoted.senderUser?.name ??
-      quoted.senderCoworker?.name ??
-      (quoted.senderSokoBot
-        ? sokoBotDisplayName(quoted.senderSokoBot)
-        : "Someone"),
-    snippet,
-    attachment,
-  };
+  return buildRoomQuoteSnapshot(quoted);
 }
 
 export function normalizeUniqueStrings(values: readonly string[]): string[] {
@@ -809,6 +817,18 @@ export function resolveChannelName(
 
 function buildSelfDirectRoomKey(userId: string): string {
   return `direct:self:${userId}`;
+}
+
+/** A room with a canonical self key and its owner as the sole member, not any room with one member left. */
+export function isSelfDirectRoom(room: ChatRoomWithMembers): boolean {
+  return (
+    room.kind === "direct" &&
+    room.organizationId === null &&
+    room.userMembers.length === 1 &&
+    room.coworkerMembers.length === 0 &&
+    room.sokoBotMembers.length === 0 &&
+    room.directKey === buildSelfDirectRoomKey(room.userMembers[0]!.user.id)
+  );
 }
 
 export function buildDirectRoomKey(userIdA: string, userIdB: string): string {
