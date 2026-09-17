@@ -1055,7 +1055,7 @@ describe("DrivePage files view mode", () => {
 
     const header = screen.getByTestId("files-desktop-header");
     expect(header.className).toContain("flex-col");
-    expect(header.className).toContain("@4xl:flex-row");
+    expect(header.className).toContain("@xl:flex-row");
     expect(
       within(header).getByRole("tab", { name: "recentsTab" }),
     ).toBeVisible();

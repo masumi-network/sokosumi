@@ -1349,9 +1349,9 @@ function DrivePageWorkspace({
       <div className="mb-4 flex flex-col gap-4 md:mb-6">
         <div
           data-testid="files-desktop-header"
-          className="flex flex-col gap-3 @4xl:flex-row @4xl:items-center @4xl:justify-between"
+          className="flex flex-col gap-3 @xl:flex-row @xl:items-center @xl:justify-between"
         >
-          <div className="flex min-w-0 items-center gap-3 @4xl:flex-1">
+          <div className="flex min-w-0 items-center gap-3 @xl:flex-1">
             <DriveViewTabs
               activeView={primaryView}
               browseLabel={storeRootLabel}
