@@ -1358,17 +1358,15 @@ export function TaskForm({
                   {taskStepTitle.replace("{name}", selectedOption.name)}
                 </h3>
               ) : null}
-              {mode === "edit" ? (
-                <input
-                  id="task-name"
-                  type="text"
-                  aria-label={labels.name}
-                  placeholder={labels.namePlaceholder}
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  className="w-full border-0 bg-transparent px-0 text-xl leading-tight font-semibold tracking-tight outline-none shadow-none placeholder:text-muted-foreground"
-                />
-              ) : null}
+              <input
+                id="task-name"
+                type="text"
+                aria-label={labels.name}
+                placeholder={labels.namePlaceholder}
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                className="w-full border-0 bg-transparent px-0 text-xl leading-tight font-semibold tracking-tight outline-none shadow-none placeholder:text-muted-foreground"
+              />
 
               <div
                 className={cn(

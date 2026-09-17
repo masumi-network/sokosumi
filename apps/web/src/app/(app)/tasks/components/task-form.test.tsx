@@ -625,7 +625,7 @@ describe("TaskForm", () => {
     expect(createTaskMock).not.toHaveBeenCalled();
   });
 
-  it("hides the title field on create and shows it on edit", () => {
+  it("uses document title sizing on create and edit", () => {
     const { rerender } = render(
       <TaskForm
         mode="create"
@@ -637,7 +637,11 @@ describe("TaskForm", () => {
       />,
     );
 
-    expect(screen.queryByLabelText("Task name")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Task name")).toHaveClass(
+      "text-xl",
+      "font-semibold",
+      "tracking-tight",
+    );
 
     rerender(
       <TaskForm
@@ -712,7 +716,7 @@ describe("TaskForm", () => {
     expect(privateButton).not.toHaveClass("w-full");
   });
 
-  it("omits name on create", async () => {
+  it("omits name on create when the title is empty", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
     createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "My task"));
@@ -733,6 +737,33 @@ describe("TaskForm", () => {
 
     expect(createTaskMock).toHaveBeenCalledTimes(1);
     expect(createTaskMock.mock.calls[0]?.[0]).not.toHaveProperty("name");
+  });
+
+  it("passes a trimmed name on create when the title field is filled", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "My task"));
+
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeUserId: "user-1" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByLabelText("Task name"), "  My task  ");
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    expect(createTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "My task",
+      }),
+    );
   });
 
   it("shows the footer status pill defaulting to Draft on create", () => {
