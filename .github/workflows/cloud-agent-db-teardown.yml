@@ -1,7 +1,7 @@
 name: Cloud agent database teardown
 
 on:
-  pull_request:
+  pull_request_target:
     types: [closed]
   workflow_dispatch:
     inputs:
@@ -17,13 +17,23 @@ permissions:
 jobs:
   teardown:
     name: Tear down agent Neon branch
+    # Same-repo only: pull_request_target would otherwise pass NEON secrets to
+    # fork close events. Cloud agent PRs are always same-repo.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          # Privileged (NEON_API_KEY). Never run the closed PR's tree — a
+          # same-repo branch can replace teardown.mjs. Match preview-deploy.
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          persist-credentials: false
 
       - name: Teardown from closed pull request
-        if: ${{ github.event_name == 'pull_request' }}
+        if: ${{ github.event_name == 'pull_request_target' }}
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
           NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}

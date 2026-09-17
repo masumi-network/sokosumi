@@ -108,7 +108,7 @@ production / `main` parent (or any non-agent branch).
 
 | Trigger | Mechanism |
 | --- | --- |
-| PR merged | GitHub Action `cloud-agent-db-teardown.yml` on `pull_request` closed; extracts `bc-…` ids from PR body (Cursor agent links) |
+| PR merged | GitHub Action `cloud-agent-db-teardown.yml` on `pull_request_target` closed; extracts `bc-…` ids from PR body (Cursor agent links). Checks out the base SHA, never the PR tree. |
 | PR closed without merge | Same workflow |
 | Agent finishes with **no PR** | Agent runs `node scripts/cloud-agent-db/teardown.mjs` (uses local state / `CURSOR_CONVERSATION_ID`) |
 | Agent archived | Same explicit teardown when possible; otherwise Neon idle TTL |
