@@ -86,6 +86,25 @@ interface MarkdownFormatToolsProps {
 
 const FORMAT_TOOL_BUTTON_CLASSNAME = "h-7 w-7 p-0";
 
+export function isMarkdownEditorDomEmpty(editor: HTMLElement): boolean {
+  const html = editor.innerHTML;
+  return (
+    html === "" ||
+    html === "<br>" ||
+    html === "<div><br></div>" ||
+    html === "<p><br></p>" ||
+    (editor.textContent ?? "").replace(/\u200b/g, "").trim() === ""
+  );
+}
+
+function syncMarkdownEditorEmptyState(editor: HTMLElement): void {
+  if (isMarkdownEditorDomEmpty(editor)) {
+    editor.setAttribute("data-empty", "");
+  } else {
+    editor.removeAttribute("data-empty");
+  }
+}
+
 function MarkdownFormatTools({
   onBold,
   onItalic,
@@ -209,6 +228,7 @@ export const MarkdownEditor = forwardRef<
 ) {
   const editorRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const savedSelectionRangeRef = useRef<Range | null>(null);
   const isSelectingRef = useRef(false);
   const isInternalChange = useRef(false);
   const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -316,12 +336,51 @@ export const MarkdownEditor = forwardRef<
       };
     }
 
+    syncMarkdownEditorEmptyState(editorRef.current);
     const markdown = htmlToMarkdown(editorRef.current);
     const { text, caret } = serializeEditor(editorRef.current);
     onChange(markdown);
 
     return { markdown, text, caret };
   }, [onChange]);
+
+  const saveSelectionRange = useCallback(() => {
+    const selection = window.getSelection();
+    if (
+      !selection ||
+      selection.isCollapsed ||
+      selection.rangeCount === 0 ||
+      !editorRef.current
+    ) {
+      savedSelectionRangeRef.current = null;
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    if (!editorRef.current.contains(range.commonAncestorContainer)) {
+      savedSelectionRangeRef.current = null;
+      return;
+    }
+
+    savedSelectionRangeRef.current = range.cloneRange();
+  }, []);
+
+  const restoreSavedSelection = useCallback(() => {
+    const editor = editorRef.current;
+    const saved = savedSelectionRangeRef.current;
+    if (!editor || !saved) {
+      return;
+    }
+
+    editor.focus();
+    const selection = window.getSelection();
+    if (!selection) {
+      return;
+    }
+
+    selection.removeAllRanges();
+    selection.addRange(saved);
+  }, []);
 
   // Initialize editor content from value prop
   useEffect(() => {
@@ -334,6 +393,7 @@ export const MarkdownEditor = forwardRef<
       // Only update if content actually changed (avoid cursor jumping)
       if (currentHtml !== newHtml && (!isFocused || isExternalClear)) {
         editorRef.current.innerHTML = newHtml || "";
+        syncMarkdownEditorEmptyState(editorRef.current);
       }
     }
     isInternalChange.current = false;
@@ -431,11 +491,12 @@ export const MarkdownEditor = forwardRef<
 
   const execCommand = useCallback(
     (command: string, value?: string) => {
+      restoreSavedSelection();
       editorRef.current?.focus();
       document.execCommand(command, false, value);
       handleInput();
     },
-    [handleInput],
+    [handleInput, restoreSavedSelection],
   );
 
   const insertText = useCallback(
@@ -513,6 +574,7 @@ export const MarkdownEditor = forwardRef<
   const handleBold = useCallback(() => execCommand("bold"), [execCommand]);
   const handleItalic = useCallback(() => execCommand("italic"), [execCommand]);
   const handleCode = () => {
+    restoreSavedSelection();
     const text = window.getSelection()?.toString() ?? "";
     const escapedText = (text || "code")
       .replace(/&/g, "&amp;")
@@ -535,6 +597,7 @@ export const MarkdownEditor = forwardRef<
       return;
     }
 
+    restoreSavedSelection();
     const selectedText = window.getSelection()?.toString() ?? "";
     if (selectedText.trim().length > 0) {
       execCommand("createLink", normalizedUrl);
@@ -729,8 +792,9 @@ export const MarkdownEditor = forwardRef<
       return;
     }
 
+    saveSelectionRange();
     setSelectionRect(rect);
-  }, [variant]);
+  }, [saveSelectionRange, variant]);
 
   useEffect(() => {
     if (variant !== "document") {
@@ -837,8 +901,8 @@ export const MarkdownEditor = forwardRef<
           variant === "document" ? "px-0" : "px-3",
           "outline-none focus:outline-none",
           "wrap-anywhere [word-break:break-word] whitespace-pre-wrap",
-          "empty:before:text-muted-foreground empty:before:pointer-events-none empty:before:content-[attr(data-placeholder)]",
-          "[&_em]:italic [&_strong]:font-bold [&_u]:underline [&_s]:line-through",
+          "empty:before:text-muted-foreground data-[empty]:before:text-muted-foreground empty:before:pointer-events-none data-[empty]:before:pointer-events-none empty:before:content-[attr(data-placeholder)] data-[empty]:before:content-[attr(data-placeholder)]",
+          "[&_em]:italic [&_i]:italic [&_strong]:font-bold [&_b]:font-bold [&_u]:underline [&_s]:line-through",
           "[&_code]:bg-muted [&_code]:rounded [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs",
           "[&_pre]:bg-muted [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:p-2 [&_pre]:whitespace-pre",
           "[&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-xs",

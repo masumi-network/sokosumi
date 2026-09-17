@@ -5,7 +5,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { MarkdownEditor } from "@/app/tasks/components/markdown-editor";
 
@@ -42,6 +42,10 @@ function setCaretToStart(element: HTMLElement): void {
 }
 
 describe("MarkdownEditor", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("uses bordered shell for field variant by default", () => {
     const { container } = render(
       <MarkdownEditor value="" onChange={vi.fn()} />,
@@ -123,6 +127,114 @@ describe("MarkdownEditor", () => {
       ).toBeInTheDocument();
     });
     expect(screen.getByTitle("Bold (Cmd+B)")).toBeInTheDocument();
+  });
+
+  it("applies bold from the floating toolbar after restoring saved selection", async () => {
+    const onChange = vi.fn();
+    const rect = {
+      x: 40,
+      y: 40,
+      top: 40,
+      left: 40,
+      width: 80,
+      height: 16,
+      bottom: 56,
+      right: 120,
+      toJSON() {
+        return this;
+      },
+    };
+    vi.spyOn(Range.prototype, "getBoundingClientRect").mockReturnValue(
+      rect as DOMRect,
+    );
+    if (!document.execCommand) {
+      Object.defineProperty(document, "execCommand", {
+        configurable: true,
+        value: vi.fn(),
+      });
+    }
+    const execCommandSpy = vi
+      .spyOn(document, "execCommand")
+      .mockImplementation((command) => {
+        if (command !== "bold") {
+          return false;
+        }
+
+        const selection = window.getSelection();
+        expect(selection?.isCollapsed).toBe(false);
+        if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+          return false;
+        }
+
+        const range = selection.getRangeAt(0);
+        const bold = document.createElement("b");
+        try {
+          range.surroundContents(bold);
+        } catch {
+          return false;
+        }
+        return true;
+      });
+
+    render(
+      <MarkdownEditor
+        value="Hello world"
+        onChange={onChange}
+        variant="document"
+      />,
+    );
+
+    const editor = screen.getByRole("textbox");
+    await waitFor(() => {
+      expect(editor).toHaveTextContent("Hello world");
+    });
+
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    document.dispatchEvent(new Event("selectionchange"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("toolbar", { name: "Format" }),
+      ).toBeInTheDocument();
+    });
+
+    const boldButton = screen.getByTitle("Bold (Cmd+B)");
+    fireEvent.mouseDown(boldButton);
+    fireEvent.click(boldButton);
+
+    expect(execCommandSpy).toHaveBeenCalledWith("bold", false, undefined);
+    await waitFor(() => {
+      const savedMarkdown = onChange.mock.calls.at(-1)?.[0] as string;
+      expect(savedMarkdown).toContain("**");
+    });
+  });
+
+  it("sets data-empty when contentEditable is cleared to a lone br", async () => {
+    const onChange = vi.fn();
+
+    render(
+      <MarkdownEditor
+        value=""
+        onChange={onChange}
+        variant="document"
+        placeholder="Add details"
+      />,
+    );
+
+    const editor = screen.getByRole("textbox");
+    editor.innerHTML = "<br>";
+    fireEvent.input(editor);
+
+    await waitFor(() => {
+      expect(editor).toHaveAttribute("data-empty");
+    });
+    expect(editor.className).toContain(
+      "data-[empty]:before:content-[attr(data-placeholder)]",
+    );
   });
 
   it("keeps attach on the field strip and off the document bubble", () => {
