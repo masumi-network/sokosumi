@@ -5,9 +5,9 @@ permissions:
 on:
   workflow_dispatch:
   pull_request:
-  # Lint on main after Apple merges so the Mint cache is saved on the default
-  # branch. PR caches are scoped to refs/pull/N/merge and cannot be restored
-  # by sibling PRs.
+  # Lint and test on main after Apple merges so the Mint and SwiftPM caches
+  # are saved on the default branch. PR caches are scoped to
+  # refs/pull/N/merge and cannot be restored by sibling PRs.
   push:
     branches:
       - main
@@ -17,7 +17,7 @@ on:
 
 concurrency:
   # A new push to the same PR cancels the queued or running run for the old
-  # commit. Runs on main are never cancelled so the Mint cache save completes.
+  # commit. Runs on main are never cancelled so the cache saves complete.
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
@@ -50,37 +50,15 @@ jobs:
   # below overrides it with ad-hoc signing (`DEVELOPMENT_TEAM=`
   # `CODE_SIGN_IDENTITY=-`, see SOK-973). `-skipPackagePluginValidation`: no
   # interactive user to trust the OpenAPIGenerator plugin in CI.
-  build:
-    name: Xcode build
-    needs: changes
-    # PR (Apple paths) or dispatch only. Skip `push` — main push exists to seed
-    # the Mint cache via `lint` (PR caches are ref-scoped).
-    if: (github.event_name == 'pull_request' && needs.changes.outputs.apple == 'true') || github.event_name == 'workflow_dispatch'
-    # Packages declare `swift-tools-version: 6.4`, which needs Xcode 27.
-    # GitHub's Xcode 27 image is `xcode-27` (arm64). There is no `macos-27` label.
-    runs-on: xcode-27
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-
-      - name: Select Xcode 27 toolchain
-        # Image default is Xcode 27; Xcode.app is the documented alias.
-        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-
-      - name: Show Xcode version
-        run: xcodebuild -version && swift --version
-
-      - name: Build Sokosumi for macOS
-        run: xcodebuild -project apps/apple/Sokosumi.xcodeproj -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- build
-
+  #
+  # There is no separate build job: `xcodebuild test` in the app leg builds
+  # the same scheme, configuration and destination before testing.
   test-suite:
     name: ${{ matrix.name }}
-    # Same PR/dispatch gate as `build` above (and as build.yml/test.yml
-    # for the JS apps): build and test run in parallel, neither waits.
+    # PR (Apple paths), dispatch, or path-filtered `push` to main. Main runs
+    # save the SwiftPM build cache that PRs restore.
     needs: changes
-    if: (github.event_name == 'pull_request' && needs.changes.outputs.apple == 'true') || github.event_name == 'workflow_dispatch'
+    if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     runs-on: xcode-27
     strategy:
       fail-fast: false
@@ -109,7 +87,10 @@ jobs:
         run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
       - name: Show Xcode version
-        run: xcodebuild -version && swift --version
+        id: toolchain
+        run: |
+          xcodebuild -version && swift --version
+          echo "swift=$(swift --version 2>&1 | shasum | cut -c1-12)" >> "$GITHUB_OUTPUT"
 
       - name: Test Sokosumi app target
         if: matrix.package == ''
@@ -135,11 +116,33 @@ jobs:
           retention-days: 3
           if-no-files-found: ignore
 
+      # Reuse the SwiftPM build from the last main run. Third-party
+      # dependencies (ably-cocoa, swift-openapi, tree-sitter) are the bulk of
+      # the compile; checkout gives our sources fresh mtimes, so they still
+      # rebuild. The key carries the toolchain so an Xcode image bump starts
+      # clean. Main and dispatch runs save; PRs only restore, by prefix.
+      - name: Restore SwiftPM build cache
+        if: matrix.package != ''
+        uses: actions/cache/restore@v6
+        with:
+          path: apps/apple/Packages/${{ matrix.package }}/.build
+          key: ${{ runner.os }}-spm-${{ matrix.package }}-${{ steps.toolchain.outputs.swift }}-${{ hashFiles(format('apps/apple/Packages/{0}/Package.resolved', matrix.package)) }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-spm-${{ matrix.package }}-${{ steps.toolchain.outputs.swift }}-${{ hashFiles(format('apps/apple/Packages/{0}/Package.resolved', matrix.package)) }}-
+            ${{ runner.os }}-spm-${{ matrix.package }}-${{ steps.toolchain.outputs.swift }}-
+
       - name: Test Swift package
         if: matrix.package != ''
         env:
           PACKAGE: ${{ matrix.package }}
         run: swift test --package-path "apps/apple/Packages/$PACKAGE"
+
+      - name: Save SwiftPM build cache
+        if: matrix.package != '' && github.event_name != 'pull_request'
+        uses: actions/cache/save@v6
+        with:
+          path: apps/apple/Packages/${{ matrix.package }}/.build
+          key: ${{ runner.os }}-spm-${{ matrix.package }}-${{ steps.toolchain.outputs.swift }}-${{ hashFiles(format('apps/apple/Packages/{0}/Package.resolved', matrix.package)) }}-${{ github.sha }}
 
   # Preserve the existing check name and require every suite to pass.
   test:
@@ -156,7 +159,7 @@ jobs:
   lint:
     name: Swift lint and format
     needs: changes
-    # Same PR/dispatch gate as `build`/`test`, plus path-filtered `push` to
+    # Same gate as `test-suite`: PR, dispatch, or path-filtered `push` to
     # main so `actions/cache` saves ~/.mint on the default branch.
     if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     runs-on: xcode-27
