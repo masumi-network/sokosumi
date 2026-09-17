@@ -73,7 +73,7 @@ import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
  * Hover-capable: one size-8 slot that swaps status ↔ overflow on hover.
  */
 const TRAILING_CLUSTER_CLASS =
-  "absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center";
+  "group-data-[collapsible=icon]:hidden absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center";
 
 interface ChatRoomSidebarRowProps {
   room: ChatRoom;
@@ -357,7 +357,7 @@ export function ChatRoomSidebarRow({
           roomLink
         )}
       </SidebarMenuButton>
-      <div className={TRAILING_CLUSTER_CLASS}>
+      <div data-slot="room-trailing" className={TRAILING_CLUSTER_CLASS}>
         {isMuted || isPinned ? (
           <span
             className={cn(
