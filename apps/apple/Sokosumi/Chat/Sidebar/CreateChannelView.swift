@@ -96,11 +96,11 @@ struct CreateChannelView: View {
       Picker("Visibility", selection: $model.draft.visibility) {
         Text("Public").tag(ChannelDraft.Visibility.public)
         Text("Private").tag(ChannelDraft.Visibility.private)
-        if model.roster?.canCreateExternal == true {
+        if model.roster?.isOwnerOrAdmin == true {
           Text("External").tag(ChannelDraft.Visibility.external)
         }
       }
-      Text(visibilityHelp).font(.caption).foregroundStyle(.secondary)
+      Text(model.draft.visibility.help).font(.caption).foregroundStyle(.secondary)
     }
     .formStyle(.grouped)
     .frame(height: 320)
@@ -114,51 +114,10 @@ struct CreateChannelView: View {
       }
       .pickerStyle(.radioGroup)
       if !model.draft.addAllMembers {
-        TextField("Search participants", text: $model.query)
-        List {
-          ForEach(model.sections) { section in
-            Section(sectionTitle(section.id)) {
-              ForEach(section.targets) { target in
-                Toggle(isOn: Binding(get: {
-                  target.id == .human(currentUserId) || model.draft.recipients.contains(target.id)
-                }, set: { selected in
-                  if selected {
-                    model.draft.recipients.insert(target.id)
-                  } else {
-                    model.draft.recipients.remove(target.id)
-                  }
-                })) {
-                  HStack(spacing: 8) {
-                    ParticipantAvatar(imageURL: target.imageURL, name: target.name, size: 28)
-                    VStack(alignment: .leading, spacing: 2) {
-                      Text(target.name)
-                      if !target.detail.isEmpty {
-                        Text(target.detail).font(.caption).foregroundStyle(.secondary)
-                      }
-                    }
-                  }
-                }
-                .disabled(target.id == .human(currentUserId))
-                .listRowSeparator(.hidden)
-              }
-            }
-          }
-          if model.sections.isEmpty {
-            Text("No matching participants").foregroundStyle(.secondary)
-          }
-        }
-        .listStyle(.plain)
-        .frame(height: 240)
+        RecipientSelectionList(sections: model.sections, currentUserId: currentUserId, query: $model.query, selection: $model.draft.recipients)
+      } else {
+        Text("You are always included in the channel.").font(.caption).foregroundStyle(.secondary)
       }
-      Text("You are always included in the channel.").font(.caption).foregroundStyle(.secondary)
-    }
-  }
-
-  private func sectionTitle(_ kind: ChatRecipientSection.Kind) -> LocalizedStringKey {
-    switch kind {
-    case .people: "People"
-    case .coworkers: "AI coworkers"
-    case .assistant: "Personal assistant"
     }
   }
 
@@ -169,14 +128,6 @@ struct CreateChannelView: View {
     case .free: "This handle is available."
     case .taken: "This handle is already taken."
     case .failed: "Couldn’t check availability."
-    }
-  }
-
-  private var visibilityHelp: String {
-    switch model.draft.visibility {
-    case .public: "People in your organization can find and join this channel."
-    case .private: "Only invited members can see this channel. Organization owners and admins can find and join it."
-    case .external: "People in your organization can join. Guests need an invitation."
     }
   }
 }

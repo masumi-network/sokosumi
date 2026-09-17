@@ -16,7 +16,7 @@ public extension ChatService {
     case let .internalServerError(value): throw try ChatServiceError.unprocessable(statusCode: 500, message: value.body.json.message)
     case let .undocumented(statusCode, payload): throw await unprocessableError(statusCode: statusCode, payload: payload)
     }
-    return try await .init(recipients: recipients, canCreateExternal: external)
+    return try await .init(recipients: recipients, isOwnerOrAdmin: external)
   }
 
   func channelSlugIsAvailable(client: Client, slug: String, organizationSlug: String) async throws -> Bool {

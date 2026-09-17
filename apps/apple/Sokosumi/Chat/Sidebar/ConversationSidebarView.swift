@@ -12,6 +12,7 @@ struct ConversationSidebarView: View {
   @State private var startDirect: CompositionPresentation?
   @State private var createChannel: CompositionPresentation?
   @State private var browseChannels: CompositionPresentation?
+  @State private var editChannel: EditChannelPresentation?
 
   private struct CompositionPresentation: Identifiable {
     let id: UUID
@@ -152,6 +153,7 @@ struct ConversationSidebarView: View {
       createChannel = nil
       browseChannels = nil
     }
+    .modifier(EditChannelSheet(presentation: $editChannel))
     .navigationSplitViewColumnWidth(min: 220, ideal: 260)
     .alert("Couldn’t update conversation", isPresented: Binding(
       get: { workspaces.sidebar.actionError != nil },
@@ -311,6 +313,12 @@ struct ConversationSidebarView: View {
       Task { @MainActor in await workspaces.performSidebarAction(room.mutedAt == nil ? .mute : .unmute, roomId: room.id, auth: auth) }
     }
     .disabled(!workspaces.sidebar.canPerform(room.mutedAt == nil ? .mute : .unmute, roomId: room.id))
+    if ChannelEditPermissions.isEditable(room) {
+      Divider()
+      Button("Channel settings…", systemImage: "gearshape") {
+        editChannel = .init(id: workspaces.compositionContext, roomId: room.id)
+      }
+    }
   }
 
   /// "Me" section pinned to the bottom of the sidebar: account menu with
