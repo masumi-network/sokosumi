@@ -1635,6 +1635,7 @@
         "created": "Created",
         "updated": "Updated",
         "description": "Description",
+        "context": "Context",
         "linkedTasksTitle": "Linked tasks",
         "linkedTasksEmpty": "No linked tasks yet.",
         "jobs": "Jobs",

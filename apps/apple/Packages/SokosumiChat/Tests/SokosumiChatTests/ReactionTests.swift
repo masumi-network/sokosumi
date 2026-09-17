@@ -4,23 +4,34 @@ import Testing
 
 @MainActor struct ReactionTests {
   @Test(arguments: [false, true])
-  func toggleUsesScopedEndpoint(organization: Bool) async throws {
+  func addUsesScopedEndpointWithEmojiInPath(organization: Bool) async throws {
     let transport = TestTransport([(200, testCreatedMessageBody(id: "message", content: "Hello", clientMessageId: "turn"))])
-    let response = try await ChatService().toggleReaction(client: makeTestClient(transport), roomId: testRoomId,
-                                                          messageId: "message", emoji: "👍", organizationSlug: organization ? "team" : nil)
+    let response = try await ChatService().addReaction(client: makeTestClient(transport), roomId: testRoomId,
+                                                       messageId: "message", emoji: "👍",
+                                                       organizationSlug: organization ? "team" : nil)
     #expect(response.id == "message")
-    #expect(transport.requests[0].request.method == .post)
-    #expect(transport.requests[0].request.path?.contains("/messages/message/reactions") == true)
+    #expect(transport.requests[0].request.method == .put)
+    #expect(transport.requests[0].request.path?.hasSuffix("/messages/message/reactions/%F0%9F%91%8D") == true)
     #expect(testOrgSlugHeader(transport.requests[0].request) == (organization ? "team" : nil))
-    #expect(testRequestJSON(transport.bodies[0]) as? [String: String] == ["emoji": "👍"])
   }
 
-  @Test(arguments: [400, 401, 403, 404, 500])
-  func toggleReportsFailure(status: Int) async throws {
+  @Test(arguments: ["❤️", "👨‍👩‍👧"])
+  func removeUsesDeleteWithEncodedEmoji(emoji: String) async throws {
+    let transport = TestTransport([(200, testCreatedMessageBody(id: "message", content: "Hello", clientMessageId: "turn"))])
+    _ = try await ChatService().removeReaction(client: makeTestClient(transport), roomId: testRoomId,
+                                               messageId: "message", emoji: emoji, organizationSlug: nil)
+    let encoded = try #require(emoji.addingPercentEncoding(withAllowedCharacters: .alphanumerics))
+    #expect(transport.requests[0].request.method == .delete)
+    #expect(transport.requests[0].request.path?.hasSuffix("/messages/message/reactions/\(encoded)") == true)
+  }
+
+  @Test(arguments: [400, 401, 403, 404, 422, 500], [true, false])
+  func reactionRequestsReportFailure(status: Int, add: Bool) async throws {
     let transport = TestTransport([(status, "{\"message\":\"Reaction denied\"}")])
+    let service = ChatService()
+    let sendReaction = add ? service.addReaction : service.removeReaction
     await #expect(throws: (any Error).self) {
-      try await ChatService().toggleReaction(client: makeTestClient(transport), roomId: testRoomId,
-                                             messageId: "message", emoji: "👍", organizationSlug: nil)
+      try await sendReaction(makeTestClient(transport), testRoomId, "message", "👍", nil)
     }
   }
 

@@ -17,6 +17,7 @@ import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { getSession } from "@/lib/auth/auth.server";
 import type { Project } from "@/lib/clients/generated/core";
 import { agentService } from "@/lib/services";
+import { designMdService } from "@/lib/services/design-md.service";
 import { projectService } from "@/lib/services/project.service";
 import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
@@ -67,11 +68,15 @@ export default async function TaskEditModalPage({
     );
   }
 
-  const [coworkerOptions, agents, projectsPage] = await Promise.all([
-    listTaskAssigneeOptions(targetOrganizationId),
-    agentService.getAvailableAgentsWithCreditsPrice(),
-    projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
-  ]);
+  const [coworkerOptions, agents, projectsPage, initialDesignMdAttachment] =
+    await Promise.all([
+      listTaskAssigneeOptions(targetOrganizationId),
+      agentService.getAvailableAgentsWithCreditsPrice(),
+      projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
+      session?.user?.id
+        ? designMdService.resolveEffectiveDesignMd()
+        : Promise.resolve(null),
+    ]);
   const projectOptions = await buildProjectOptions(
     projectsPage.projects,
     taskResult.projectId ?? null,
@@ -91,6 +96,7 @@ export default async function TaskEditModalPage({
       title={tEdit("title")}
       scheduleRevision={schedulePrecondition.scheduleRevision}
       futureExceptionCount={schedulePrecondition.futureExceptionCount}
+      initialDesignMdAttachment={initialDesignMdAttachment}
       labels={{
         details: tEdit("details"),
         detailsDescription: tEdit("detailsDescription"),

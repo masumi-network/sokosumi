@@ -144,8 +144,11 @@ const { default: mountGetChatRoomMessage } = await import(
 const { default: mountDeleteChatRoomMessage } = await import(
   "./[id]/messages/[messageId]/delete"
 );
-const { default: mountPostChatRoomMessageReaction } = await import(
-  "./[id]/messages/[messageId]/reactions/post"
+const { default: mountPutChatRoomMessageReaction } = await import(
+  "./[id]/messages/[messageId]/reactions/[emoji]/put"
+);
+const { default: mountDeleteChatRoomMessageReaction } = await import(
+  "./[id]/messages/[messageId]/reactions/[emoji]/delete"
 );
 const { default: mountRetryChatRoomMention } = await import(
   "./[id]/messages/[messageId]/mentions/[mentionId]/retry/post"
@@ -196,7 +199,8 @@ function createApp(authContext: AuthVariables["authContext"]) {
   mountGetChatRoomMessage(typed);
   mountPostChatRoomMessage(typed);
   mountDeleteChatRoomMessage(typed);
-  mountPostChatRoomMessageReaction(typed);
+  mountPutChatRoomMessageReaction(typed);
+  mountDeleteChatRoomMessageReaction(typed);
   mountRemoveChatRoomMessageUnfurl(typed);
   mountRetryChatRoomMention(typed);
   mountRoomStream(typed);
@@ -272,12 +276,17 @@ const userOnlyCases: AuthRequestCase[] = [
     }),
   },
   {
-    label: "POST /{id}/messages/{messageId}/reactions",
+    label: "PUT /{id}/messages/{messageId}/reactions/{emoji}",
     request: () => ({
-      method: "POST",
-      path: `/${ROOM_ID}/messages/${MESSAGE_ID}/reactions`,
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ emoji: "👍" }),
+      method: "PUT",
+      path: `/${ROOM_ID}/messages/${MESSAGE_ID}/reactions/${encodeURIComponent("👍")}`,
+    }),
+  },
+  {
+    label: "DELETE /{id}/messages/{messageId}/reactions/{emoji}",
+    request: () => ({
+      method: "DELETE",
+      path: `/${ROOM_ID}/messages/${MESSAGE_ID}/reactions/${encodeURIComponent("👍")}`,
     }),
   },
   {
@@ -471,12 +480,17 @@ const membershipScopedCases: AuthRequestCase[] = [
     }),
   },
   {
-    label: "POST /{id}/messages/{messageId}/reactions",
+    label: "PUT /{id}/messages/{messageId}/reactions/{emoji}",
     request: () => ({
-      method: "POST",
-      path: `/${ROOM_ID}/messages/${MESSAGE_ID}/reactions`,
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ emoji: "👍" }),
+      method: "PUT",
+      path: `/${ROOM_ID}/messages/${MESSAGE_ID}/reactions/${encodeURIComponent("👍")}`,
+    }),
+  },
+  {
+    label: "DELETE /{id}/messages/{messageId}/reactions/{emoji}",
+    request: () => ({
+      method: "DELETE",
+      path: `/${ROOM_ID}/messages/${MESSAGE_ID}/reactions/${encodeURIComponent("👍")}`,
     }),
   },
   {

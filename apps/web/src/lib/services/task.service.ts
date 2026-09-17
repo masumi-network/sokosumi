@@ -61,6 +61,7 @@ interface PatchTaskInput {
   assigneeSokoBotId?: string | null;
   assigneeUserId?: string | null;
   projectId?: string | null;
+  context?: CreateTaskContext;
   /**
    * Required by Core while the Task has an active schedule series: field edits
    * serialize against release under the same revision, and the returned Task

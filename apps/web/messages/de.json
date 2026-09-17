@@ -1634,6 +1634,7 @@
         "created": "Erstellt",
         "updated": "Aktualisiert",
         "description": "Beschreibung",
+        "context": "Kontext",
         "linkedTasksTitle": "Verknüpfte Aufgaben",
         "linkedTasksEmpty": "Noch keine verknüpften Aufgaben.",
         "jobs": "Jobs",
