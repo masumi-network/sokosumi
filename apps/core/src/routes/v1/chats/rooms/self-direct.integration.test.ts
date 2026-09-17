@@ -19,7 +19,6 @@ import mountInvite from "./[id]/invitations/post";
 import mountLeave from "./[id]/members/me/delete";
 import mountDeleteMessage from "./[id]/messages/[messageId]/delete";
 import mountPatchMessage from "./[id]/messages/[messageId]/patch";
-import mountSendToSelf from "./[id]/messages/[messageId]/send-to-self/post";
 import mountMessages from "./[id]/messages/get";
 import mountSend from "./[id]/messages/post";
 import mountPatchRoom from "./[id]/patch";
@@ -42,10 +41,9 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   );
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
-const { dispatch, realtime, roomsChanged, background } = vi.hoisted(() => ({
+const { dispatch, realtime, background } = vi.hoisted(() => ({
   dispatch: vi.fn(),
   realtime: vi.fn().mockResolvedValue(undefined),
-  roomsChanged: vi.fn().mockResolvedValue(undefined),
   background: [] as Promise<unknown>[],
 }));
 vi.mock("@/config/env", async (importOriginal) => {
@@ -67,9 +65,7 @@ vi.mock("@/services/chat-room-message-unfurl.service", () => ({
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtime: realtime,
 }));
-vi.mock("@/lib/ably/publish", () => ({
-  publishChatRoomsChanged: roomsChanged,
-}));
+vi.mock("@/lib/ably/publish", () => ({ publishChatRoomsChanged: vi.fn() }));
 vi.mock("@/helpers/chat-message-read-budget", () => ({
   assertChatMessageReadBudget: vi.fn(),
 }));
@@ -132,7 +128,6 @@ function appFor(auth: AuthVariables["authContext"]) {
     mountLeave,
     mountDeleteRoom,
     mountStar,
-    mountSendToSelf,
   ]) {
     mount(app);
   }
@@ -155,35 +150,6 @@ async function openSelf(auth = userAuth) {
     status: response.status,
     room: chatRoomSchema.parse((await response.json()).data),
   };
-}
-async function createSourceDirect(userIds = [ownerId, otherId]) {
-  const room = await prisma.chatRoom.create({
-    data: {
-      kind: "direct",
-      organizationId: organizationIds[1]!,
-      name: "Source direct",
-      directKey: `direct:v2:${randomUUID()}`,
-      createdByUserId: ownerId,
-      userMembers: { create: userIds.map((userId) => ({ userId })) },
-    },
-  });
-  const message = await prisma.chatRoomMessage.create({
-    data: {
-      roomId: room.id,
-      senderUserId: ownerId,
-      content: "Ship the launch notes",
-    },
-  });
-  return { room, message };
-}
-async function sendToSelf(
-  roomId: string,
-  messageId: string,
-  auth = userAuth,
-): Promise<Response> {
-  return appFor(auth).request(`/${roomId}/messages/${messageId}/send-to-self`, {
-    method: "POST",
-  });
 }
 async function drainBackground() {
   await Promise.all(background.splice(0));
@@ -474,136 +440,6 @@ describeWithDb("Self Direct through chat HTTP handlers with Postgres", () => {
     expect(restored.status).toBe(200);
     expect(restored.room.id).toBe(room.id);
     expect(restored.room.isSelfDirect).toBe(true);
-  });
-
-  it("sends a quote of a room message into a Self Direct created on demand", async () => {
-    const source = await createSourceDirect();
-    const otherAuth: AuthVariables["authContext"] = {
-      ...userAuth,
-      userId: otherId,
-    };
-    roomsChanged.mockClear();
-    realtime.mockClear();
-
-    const response = await sendToSelf(
-      source.room.id,
-      source.message.id,
-      otherAuth,
-    );
-    expect(response.status).toBe(201);
-    const saved = chatRoomMessageSchema.parse((await response.json()).data);
-    expect(saved.roomId).not.toBe(source.room.id);
-    expect(saved).toMatchObject({
-      content: "",
-      quote: {
-        messageId: source.message.id,
-        roomId: source.room.id,
-        authorName: "Note owner",
-        snippet: "Ship the launch notes",
-      },
-    });
-    const selfRoom = await appFor(otherAuth).request(`/${saved.roomId}`);
-    expect((await selfRoom.json()).data).toMatchObject({
-      isSelfDirect: true,
-      userMembers: [{ id: otherId }],
-    });
-    expect(realtime).toHaveBeenCalledWith(
-      expect.objectContaining({ id: saved.id }),
-      "create",
-    );
-    expect(roomsChanged).toHaveBeenCalledTimes(1);
-    expect(roomsChanged).toHaveBeenCalledWith(
-      expect.objectContaining({ userIds: [otherId], roomId: saved.roomId }),
-    );
-    expect(
-      await prisma.chatRoomReadState.count({
-        where: { roomId: saved.roomId, userId: otherId },
-      }),
-    ).toBe(1);
-
-    const again = await sendToSelf(
-      source.room.id,
-      source.message.id,
-      otherAuth,
-    );
-    expect(again.status).toBe(201);
-    expect((await again.json()).data.roomId).toBe(saved.roomId);
-    expect(roomsChanged).toHaveBeenCalledTimes(1);
-  });
-
-  it("keeps a saved quote readable after its source room is left", async () => {
-    const { room: selfRoom } = await openSelf();
-    const source = await createSourceDirect();
-    const response = await sendToSelf(source.room.id, source.message.id);
-    expect(response.status).toBe(201);
-    const saved = chatRoomMessageSchema.parse((await response.json()).data);
-    expect(saved.roomId).toBe(selfRoom.id);
-
-    await prisma.chatRoomUserMember.deleteMany({
-      where: { roomId: source.room.id, userId: ownerId },
-    });
-
-    const history = await appFor(userAuth).request(`/${selfRoom.id}/messages`);
-    expect((await history.json()).data).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: saved.id,
-          quote: expect.objectContaining({
-            roomId: source.room.id,
-            snippet: "Ship the launch notes",
-          }),
-        }),
-      ]),
-    );
-    expect((await sendToSelf(source.room.id, source.message.id)).status).toBe(
-      404,
-    );
-  });
-
-  it("rejects sending a message from the Self Direct itself", async () => {
-    const { room } = await openSelf();
-    const note = await appFor(userAuth).request(
-      `/${room.id}/messages`,
-      jsonRequest("POST", { content: "Already here" }),
-    );
-    const message = chatRoomMessageSchema.parse((await note.json()).data);
-    expect((await sendToSelf(room.id, message.id)).status).toBe(400);
-    await drainBackground();
-  });
-
-  it("rejects a membership status message", async () => {
-    const { room } = await createSourceDirect();
-    const membership = await prisma.chatRoomMessage.create({
-      data: {
-        roomId: room.id,
-        senderUserId: ownerId,
-        content: "",
-        metadata: {
-          membership: {
-            action: "joined",
-            subject: { type: "user", id: otherId, name: "Organization admin" },
-          },
-        },
-      },
-    });
-    expect((await sendToSelf(room.id, membership.id)).status).toBe(400);
-  });
-
-  it("hides unreadable, deleted and missing messages", async () => {
-    const foreign = await createSourceDirect([otherId]);
-    expect((await sendToSelf(foreign.room.id, foreign.message.id)).status).toBe(
-      404,
-    );
-
-    const source = await createSourceDirect();
-    expect((await sendToSelf(source.room.id, randomUUID())).status).toBe(404);
-    await prisma.chatRoomMessage.update({
-      where: { id: source.message.id },
-      data: { deletedAt: new Date() },
-    });
-    expect((await sendToSelf(source.room.id, source.message.id)).status).toBe(
-      404,
-    );
   });
 
   it("does not label a former group with one remaining member as Self Direct", async () => {
