@@ -69,6 +69,7 @@ describe("MarkdownEditor", () => {
     render(<MarkdownEditor value="Hello" onChange={vi.fn()} />);
     expect(screen.getByRole("toolbar", { name: "Format" })).toBeInTheDocument();
     expect(screen.getByTitle("Bold (Cmd+B)")).toBeInTheDocument();
+    expect(screen.getByTitle("Clear formatting")).toBeInTheDocument();
   });
 
   it("hides format tools on the document variant until text is selected", () => {
@@ -128,6 +129,86 @@ describe("MarkdownEditor", () => {
       ).toBeInTheDocument();
     });
     expect(screen.getByTitle("Bold (Cmd+B)")).toBeInTheDocument();
+    expect(screen.getByTitle("Clear formatting")).toBeInTheDocument();
+  });
+
+  it("clears bold formatting from the field toolbar without execCommand", async () => {
+    const onChange = vi.fn();
+
+    render(
+      <MarkdownEditor value="**Hello**" onChange={onChange} variant="field" />,
+    );
+
+    const editor = screen.getByRole("textbox");
+    await waitFor(() => {
+      expect(editor.querySelector("strong, b")).not.toBeNull();
+    });
+
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+
+    const clearButton = screen.getByTitle("Clear formatting");
+    fireEvent.mouseDown(clearButton);
+    fireEvent.click(clearButton);
+
+    await waitFor(() => {
+      const savedMarkdown = onChange.mock.calls.at(-1)?.[0] as string;
+      expect(savedMarkdown).toBe("Hello");
+      expect(savedMarkdown).not.toContain("**");
+    });
+  });
+
+  it("clears bold formatting from the floating toolbar without execCommand", async () => {
+    const onChange = vi.fn();
+    const rect = {
+      x: 40,
+      y: 40,
+      top: 40,
+      left: 40,
+      width: 80,
+      height: 16,
+      bottom: 56,
+      right: 120,
+      toJSON() {
+        return this;
+      },
+    };
+    vi.spyOn(Range.prototype, "getBoundingClientRect").mockReturnValue(
+      rect as DOMRect,
+    );
+
+    render(
+      <MarkdownEditor
+        value="**Hello**"
+        onChange={onChange}
+        variant="document"
+      />,
+    );
+
+    const editor = screen.getByRole("textbox");
+    await waitFor(() => {
+      expect(editor.querySelector("strong, b")).not.toBeNull();
+    });
+
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    document.dispatchEvent(new Event("selectionchange"));
+
+    const clearButton = await screen.findByTitle("Clear formatting");
+    fireEvent.mouseDown(clearButton);
+    fireEvent.click(clearButton);
+
+    await waitFor(() => {
+      const savedMarkdown = onChange.mock.calls.at(-1)?.[0] as string;
+      expect(savedMarkdown).toBe("Hello");
+      expect(savedMarkdown).not.toContain("**");
+    });
   });
 
   it("does not restore a stale selection for Cmd+B after the caret collapses", async () => {

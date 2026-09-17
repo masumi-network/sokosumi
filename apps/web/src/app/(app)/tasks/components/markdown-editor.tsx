@@ -10,6 +10,7 @@ import {
   ListOrdered,
   Loader2,
   Paperclip,
+  RemoveFormatting,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import {
@@ -45,6 +46,7 @@ import {
 } from "@/components/ui/mention-textarea-utils";
 import type { DriveFile } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
+import { clearComposerFormat } from "@/lib/utils/composer-clear-format";
 import {
   htmlToMarkdown,
   markdownToHtml,
@@ -82,6 +84,7 @@ interface MarkdownFormatToolsProps {
   onHeading: () => void;
   onBulletList: () => void;
   onNumberedList: () => void;
+  onCleanFormat: () => void;
 }
 
 const FORMAT_TOOL_BUTTON_CLASSNAME = "h-7 w-7 cursor-pointer p-0";
@@ -117,6 +120,7 @@ function MarkdownFormatTools({
   onHeading,
   onBulletList,
   onNumberedList,
+  onCleanFormat,
 }: MarkdownFormatToolsProps) {
   return (
     <>
@@ -203,6 +207,18 @@ function MarkdownFormatTools({
         title="Numbered List"
       >
         <ListOrdered className="size-3.5" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={FORMAT_TOOL_BUTTON_CLASSNAME}
+        onPointerDown={preventEditorSelectionLoss}
+        onMouseDown={preventEditorSelectionLoss}
+        onClick={onCleanFormat}
+        title="Clear formatting"
+      >
+        <RemoveFormatting className="size-3.5" />
       </Button>
     </>
   );
@@ -626,6 +642,18 @@ export const MarkdownEditor = forwardRef<
   const handleNumberedList = () => {
     execCommand("insertOrderedList");
   };
+  const handleCleanFormat = useCallback(() => {
+    restoreSavedSelection();
+    const editor = editorRef.current;
+    if (!editor) return;
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    const range = selection.getRangeAt(0);
+    if (!editor.contains(range.commonAncestorContainer)) return;
+
+    clearComposerFormat(editor, range);
+    handleInput();
+  }, [handleInput, restoreSavedSelection]);
 
   function handleDriveFileSelect(file: DriveFile) {
     insertLink(file.name, file.fileUrl);
@@ -859,6 +887,7 @@ export const MarkdownEditor = forwardRef<
             onHeading={handleHeading}
             onBulletList={handleBulletList}
             onNumberedList={handleNumberedList}
+            onCleanFormat={handleCleanFormat}
           />
           {onAttachClick ? (
             <AttachmentSubmenu
@@ -1016,6 +1045,7 @@ export const MarkdownEditor = forwardRef<
               onHeading={handleHeading}
               onBulletList={handleBulletList}
               onNumberedList={handleNumberedList}
+              onCleanFormat={handleCleanFormat}
             />
           </div>,
           document.body,
