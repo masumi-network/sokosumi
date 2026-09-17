@@ -31,36 +31,39 @@ export interface SidebarSokoBotAvatar {
 
 const MAX_STACK = 3;
 
-const STACK_FACE_CLASS =
-  "size-5 shrink-0 rounded-full object-cover group-data-[collapsible=icon]:size-3 group-data-[collapsible=icon]:border group-data-[collapsible=icon]:border-sidebar";
+function stackFaceClass(faceCount: number): string {
+  return cn(
+    "size-5 shrink-0 rounded-full object-cover",
+    "group-data-[collapsible=icon]:border group-data-[collapsible=icon]:border-sidebar",
+    faceCount === 1
+      ? "group-data-[collapsible=icon]:size-4"
+      : "group-data-[collapsible=icon]:size-3",
+  );
+}
 
 /** Up to three workspace Soko Bots, overlapping like a team roster. */
 function BotStack({ bots }: { bots: SidebarSokoBotAvatar[] }) {
+  const faces = bots.slice(0, MAX_STACK);
+  const faceClass = stackFaceClass(faces.length);
+
   return (
     <span
       data-slot="soko-bot-stack"
       className="flex shrink-0 -space-x-1.5 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:-space-x-2"
       aria-hidden
     >
-      {bots
-        .slice(0, MAX_STACK)
-        .map((bot) =>
-          bot.imageUrl ? (
-            <img
-              key={bot.id}
-              src={bot.imageUrl}
-              alt=""
-              className={STACK_FACE_CLASS}
-            />
-          ) : (
-            <AuroraOrb
-              key={bot.id}
-              seed={bot.seed}
-              size={40}
-              className={STACK_FACE_CLASS}
-            />
-          ),
-        )}
+      {faces.map((bot) =>
+        bot.imageUrl ? (
+          <img key={bot.id} src={bot.imageUrl} alt="" className={faceClass} />
+        ) : (
+          <AuroraOrb
+            key={bot.id}
+            seed={bot.seed}
+            size={40}
+            className={faceClass}
+          />
+        ),
+      )}
     </span>
   );
 }

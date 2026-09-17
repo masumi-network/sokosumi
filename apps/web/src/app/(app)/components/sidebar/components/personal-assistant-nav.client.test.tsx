@@ -107,7 +107,27 @@ describe("PersonalAssistantNav collapsed stack", () => {
           "group-data-[collapsible=icon]:border-sidebar",
         ]),
       );
+      expect(tokens(face.className)).not.toContain(
+        "group-data-[collapsible=icon]:size-4",
+      );
     }
+  });
+
+  it("keeps a lone collapsed face at the same size as the empty Bot icon", () => {
+    const { container } = render(
+      <PersonalAssistantNav bots={bots.slice(0, 1)} />,
+    );
+    const face = container.querySelector('[data-slot="soko-bot-stack"] img');
+    expect(face).not.toBeNull();
+    expect(tokens(face?.className ?? "")).toEqual(
+      expect.arrayContaining([
+        "group-data-[collapsible=icon]:size-4",
+        "group-data-[collapsible=icon]:border",
+      ]),
+    );
+    expect(tokens(face?.className ?? "")).not.toContain(
+      "group-data-[collapsible=icon]:size-3",
+    );
   });
 
   it("names the row on the sidebar button so the collapsed rail can show it", () => {
