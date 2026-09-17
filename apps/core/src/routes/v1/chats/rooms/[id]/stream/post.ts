@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import type { SokosumiProviderCallOptions } from "@sokosumi/ai-provider";
+import { isOwnedUserChatRoomFileUrl } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 import {
   convertToModelMessages,
@@ -107,6 +108,28 @@ async function validateUiMessagesOrBadRequest(
         ? error.message
         : "Invalid chat messages for AI SDK.",
     );
+  }
+}
+
+/** File parts are fetched by the coworker model. Only this user's uploads in this room. */
+function requireOwnedRoomStreamFileParts(
+  messages: UIMessage[],
+  userId: string,
+  roomId: string,
+): void {
+  for (const message of messages) {
+    for (const part of message.parts) {
+      if (part.type !== "file") {
+        continue;
+      }
+      const url =
+        "url" in part && typeof part.url === "string" ? part.url : null;
+      if (!url || !isOwnedUserChatRoomFileUrl(url, userId, roomId)) {
+        throw badRequest(
+          "File parts must be chat uploads owned by you in this room.",
+        );
+      }
+    }
   }
 }
 
@@ -218,6 +241,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const uiMessages = mapChatRequestToUiMessages(messages);
     await validateUiMessagesOrBadRequest(uiMessages);
+    requireOwnedRoomStreamFileParts(uiMessages, userContext.userId, room.id);
 
     const lastMessage = messages[messages.length - 1]!;
     const lastUserMessageText =
@@ -236,7 +260,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         : "";
 
     const lastUserFileParts =
-      "parts" in lastMessage && Array.isArray(lastMessage.parts)
+      (lastMessage.role === "user" || lastMessage.role === "system") &&
+      "parts" in lastMessage &&
+      Array.isArray(lastMessage.parts)
         ? lastMessage.parts.filter(
             (part): part is RoomStreamUserFilePart & { type: "file" } =>
               part.type === "file",

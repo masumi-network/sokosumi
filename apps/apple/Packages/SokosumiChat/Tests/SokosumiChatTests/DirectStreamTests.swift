@@ -99,6 +99,24 @@ struct DirectStreamTests {
     ])
   }
 
+  @Test func sendOmitsDrivePicksWithoutMediaType() async throws {
+    let transport = TestTransport([(200, "")])
+    _ = try await ChatService().startDirectStream(
+      client: makeTestClient(transport), roomId: testRoomId, organizationSlug: "team",
+      messageId: "turn", text: "Look [doc](https://drive.example/doc)",
+      attachments: [
+        .init(url: "https://drive.example/doc", fileName: "doc", mediaType: ""),
+        .init(url: "https://blob.example/a.png", fileName: "a.png", mediaType: "image/png")
+      ]
+    )
+    let json = try testRequestJSON(#require(transport.bodies.first))
+    let messages = try #require(json["messages"] as? [[String: Any]])
+    #expect(messages.first?["parts"] as? [[String: String]] == [
+      ["type": "text", "text": "Look [doc](https://drive.example/doc)"],
+      ["type": "file", "url": "https://blob.example/a.png", "mediaType": "image/png", "filename": "a.png"]
+    ])
+  }
+
   @Test func threadSendCarriesParentWithoutChangingRoomOrUserMessage() async throws {
     let transport = TestTransport([(200, "")])
     _ = try await ChatService().startDirectStream(

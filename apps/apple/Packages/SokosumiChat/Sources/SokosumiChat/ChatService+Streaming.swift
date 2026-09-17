@@ -16,9 +16,13 @@ public extension ChatService {
     quoteMessageId: String? = nil
   ) async throws -> HTTPBody {
     // Text keeps the markdown links for the persisted message; file parts let the model read the files.
+    // Drive picks have an empty media type and stay link-only, matching web.
     typealias Part = Operations.PostChatsRoomsIdStream.Input.Body.JsonPayload.Value1Payload.MessagesPayloadPayload.PartsPayloadPayload
     var parts: [Part] = [.init(value2: .init(_type: .text, text: text))]
-    parts += attachments.map { .init(value1: .init(_type: .file, url: $0.url, mediaType: $0.mediaType, filename: $0.fileName)) }
+    parts += attachments.compactMap { attachment in
+      guard !attachment.mediaType.isEmpty else { return nil }
+      return .init(value1: .init(_type: .file, url: attachment.url, mediaType: attachment.mediaType, filename: attachment.fileName))
+    }
     let response = try await client.postChatsRoomsIdStream(.init(
       path: .init(id: roomId),
       headers: .init(xOrganizationSlug: organizationSlug),
