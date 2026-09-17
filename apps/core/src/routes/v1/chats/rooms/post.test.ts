@@ -1408,19 +1408,62 @@ describe("POST /chats/rooms", () => {
     expect(roomCreateMock).not.toHaveBeenCalled();
   });
 
-  it("rejects listing the current user as a direct member with 400", async () => {
-    const app = createApp(userAuthContext);
-    const response = await app.request("/", {
+  it.each([ORG_ID, "org_other", null])(
+    "creates a Self Direct without a personal workspace in context %s",
+    async (organizationId) => {
+      workspaceFindUniqueMock.mockResolvedValue(null);
+      const self = channelRoom({
+        kind: "direct",
+        slug: null,
+        organizationId: null,
+        directKey: `direct:self:${USER_ID}`,
+        discoverability: null,
+      });
+      roomCreateMock.mockResolvedValue(self);
+      userFindManyMock.mockResolvedValue([
+        { id: USER_ID, name: "Ada", email: "ada@example.com" },
+      ]);
+      const app = createApp({ ...userAuthContext, organizationId });
+      const response = await app.request("/", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ kind: "direct", memberUserIds: [USER_ID] }),
+      });
+
+      expect(response.status).toBe(201);
+      expect((await response.json()).data).toMatchObject({
+        id: ROOM_ID,
+        organizationId: null,
+        isSelfDirect: true,
+        userMembers: [{ id: USER_ID }],
+        coworkerMembers: [],
+        sokoBotMembers: [],
+      });
+      expect(roomCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            organizationId: null,
+            directKey: `direct:self:${USER_ID}`,
+            userMembers: { create: [{ userId: USER_ID }] },
+            readStates: { create: [{ userId: USER_ID }] },
+          }),
+        }),
+      );
+    },
+  );
+
+  it.each([
+    { memberUserIds: [USER_ID, OTHER_USER_ID] },
+    { memberUserIds: [USER_ID], coworkerIds: [COWORKER_ID] },
+    { memberUserIds: [USER_ID], sokoBotIds: [SOKO_BOT_ID] },
+    { memberUserIds: [USER_ID, USER_ID] },
+  ])("rejects mixing self with other Direct targets: %j", async (targets) => {
+    const response = await createApp(userAuthContext).request("/", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        kind: "direct",
-        memberUserIds: [USER_ID],
-      }),
+      body: JSON.stringify({ kind: "direct", ...targets }),
     });
-
     expect(response.status).toBe(400);
-    expect(await response.text()).toBe("Choose another organization member");
     expect(roomCreateMock).not.toHaveBeenCalled();
   });
 

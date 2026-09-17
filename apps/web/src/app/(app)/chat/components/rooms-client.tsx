@@ -747,7 +747,7 @@ export function RoomsClient({
     return selectedRoomIdRef.current === roomId;
   }
   const selectedRoomDisplayName = selectedRoom
-    ? getRoomDisplayName(selectedRoom, currentUserId)
+    ? getRoomDisplayName(selectedRoom, currentUserId, t("SelfDirect.you"))
     : "";
 
   const isDirectRoom = selectedRoom?.kind === "direct";
@@ -2784,9 +2784,15 @@ export function RoomsClient({
           </div>
         ) : displayMessages.length === 0 ? (
           <div className="border-border bg-card-background rounded-md border border-dashed px-5 py-10 text-center">
-            <p className="font-medium">{t("Empty.noMessagesTitle")}</p>
+            <p className="font-medium">
+              {selectedRoom?.isSelfDirect
+                ? t("SelfDirect.messageYourself")
+                : t("Empty.noMessagesTitle")}
+            </p>
             <p className="text-muted-foreground mt-1 text-sm">
-              {t("Empty.noMessagesDescription")}
+              {selectedRoom?.isSelfDirect
+                ? t("SelfDirect.description")
+                : t("Empty.noMessagesDescription")}
             </p>
           </div>
         ) : null}

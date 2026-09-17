@@ -144,6 +144,32 @@ private func roomsBody(names: [String]) -> String {
   """
 }
 
+/// Org workspace with `general` open, then Core replies for: archived load (owner), archive, restore (+ transcript),
+/// a rejected leave, leave, archive and delete.
+@MainActor
+private func lifecycleFixture(general: String, design: String) throws -> (WorkspaceState, AuthState, ScriptedTransport) { // swiftlint:disable:this large_tuple
+  func envelope(_ data: String) -> String {
+    #"{"data":\#(data),"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#
+  }
+  let owner = envelope(#"{"id":"member-me","userId":"user_1","organizationId":"org_1","role":"owner","seatAssignedAt":null,"createdAt":"2026-01-01T00:00:00.000Z"}"#)
+  let lastMember = #"{"error":"Bad Request","message":"You are the last member of this room.","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/chats/rooms/x/members/me","method":"DELETE"}}"#
+  let (state, auth, transport, _) = try ephemeralState([
+    (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+    (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+    (200, roomsBody(names: ["general", "design"])),
+    (200, transcriptPageBody(messages: [], nextCursor: nil)),
+    (200, owner), (200, roomsBody(names: [])),
+    (200, envelope(#"{"id":"\#(design)","archivedAt":"2026-01-01T00:00:00.000Z"}"#)),
+    (200, roomReadBody(id: design, unread: 0, name: "design")),
+    (200, transcriptPageBody(messages: [], nextCursor: nil)),
+    (400, lastMember),
+    (200, envelope(#"{"id":"\#(design)","remainingUserMemberCount":1}"#)),
+    (200, envelope(#"{"id":"\#(general)","archivedAt":"2026-01-01T00:00:00.000Z"}"#)),
+    (204, "")
+  ], visible: false)
+  return (state, auth, transport)
+}
+
 /// One fixture bundle per test; a struct would churn every call site.
 private func ephemeralState(
   _ responses: [(Int, String)],
@@ -256,6 +282,93 @@ struct WorkspaceStateTests {
     #expect(transport.operationIDs.filter { $0 == "patch/chats/rooms/{id}" }.count == 1)
     #expect(try await state.updateChannel(draft, roomId: edited, permissions: permissions, context: UUID(), auth: auth) == false)
     #expect(transport.operationIDs.filter { $0 == "patch/chats/rooms/{id}" }.count == 1)
+  }
+
+  @Test func channelLifecycleMovesRoomsBetweenSidebarAndArchive() async throws {
+    let general = "550e8400-e29b-41d4-a716-446655440000"
+    let design = "550e8400-e29b-41d4-a716-446655440001"
+    let (state, auth, transport) = try lifecycleFixture(general: general, design: design)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    #expect(state.transcriptRoomId == general)
+    let context = state.compositionContext
+
+    await state.loadArchivedChannels(auth: auth)
+    #expect(state.archivedChannels.rooms.isEmpty && state.archivedChannels.canDelete)
+
+    // Archiving another room keeps the open transcript and lists it under Archived.
+    #expect(try await state.archiveChannel(roomId: design, context: context, auth: auth))
+    #expect(state.rooms.map(\.id) == [general])
+    #expect(state.archivedChannels.rooms.map(\.id) == [design])
+    #expect(state.transcriptRoomId == general)
+
+    // Restoring puts the live room back and opens it, as web navigates to it.
+    #expect(try await state.restoreChannel(roomId: design, context: context, auth: auth))
+    await waitForTranscriptIdle(state)
+    #expect(state.archivedChannels.rooms.isEmpty)
+    #expect(Set(state.rooms.map(\.id)) == [general, design])
+    #expect(state.transcriptRoomId == design)
+
+    // Core's last-member rejection surfaces and leaves the room in place.
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 400, message: "You are the last member of this room.")) {
+      try await state.leaveChannel(roomId: design, context: context, auth: auth)
+    }
+    #expect(state.channelLifecycle == nil)
+    #expect(state.transcriptRoomId == design)
+
+    // Leaving the open room drops it like a revoke; nothing else is forced open.
+    #expect(try await state.leaveChannel(roomId: design, context: context, auth: auth))
+    #expect(state.rooms.map(\.id) == [general])
+    #expect(state.transcriptRoomId == nil)
+    #expect(state.archivedChannels.rooms.isEmpty)
+
+    #expect(try await state.archiveChannel(roomId: general, context: context, auth: auth))
+    #expect(state.rooms.isEmpty)
+    #expect(try await state.deleteChannel(roomId: general, context: context, auth: auth))
+    #expect(state.archivedChannels.rooms.isEmpty)
+    #expect(transport.remainingStubs == 0)
+
+    // A request from a previous workspace context never reaches Core.
+    let sent = transport.operationIDs.count
+    #expect(try await state.deleteChannel(roomId: general, context: UUID(), auth: auth) == false)
+    #expect(try await state.leaveChannel(roomId: general, context: UUID(), auth: auth) == false)
+    #expect(transport.operationIDs.count == sent)
+    #expect(transport.operationIDs.suffix(9) == [
+      "get/users/{id}/organizations/{organizationId}/member", "get/chats/rooms",
+      "post/chats/rooms/{id}/archive", "post/chats/rooms/{id}/restore", "get/chats/rooms/{id}/messages",
+      "delete/chats/rooms/{id}/members/me", "delete/chats/rooms/{id}/members/me",
+      "post/chats/rooms/{id}/archive", "delete/chats/rooms/{id}"
+    ])
+    state.reset()
+    #expect(!state.archivedChannels.canDelete)
+  }
+
+  @Test func channelLifecycleWaitsForOtherChannelMutations() async throws {
+    let target = "550e8400-e29b-41d4-a716-446655440009"
+    let general = "550e8400-e29b-41d4-a716-446655440000"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: target, unread: 0)),
+      (200, transcriptPageBody(messages: [], nextCursor: nil))
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    let context = state.compositionContext
+    transport.pauseDirect = true
+    let join = Task { try await state.joinChannel(roomId: target, context: context, auth: auth) }
+    for _ in 0 ..< 1000 where !transport.operationIDs.contains("post/chats/rooms/{id}/members/me") {
+      await Task.yield()
+    }
+    #expect(state.channelMutationInFlight)
+    #expect(try await state.leaveChannel(roomId: general, context: context, auth: auth) == false)
+    #expect(try await state.archiveChannel(roomId: general, context: context, auth: auth) == false)
+    transport.releasePausedRequest()
+    #expect(try await join.value)
+    await waitForTranscriptIdle(state)
+    #expect(!transport.operationIDs.contains { $0.contains("archive") || $0.hasPrefix("delete/") })
   }
 
   @Test(arguments: ["stay", "leave", "reset"], [true, false]) func participantDirectRespectsNavigation(action: String, fromPicker: Bool) async throws {

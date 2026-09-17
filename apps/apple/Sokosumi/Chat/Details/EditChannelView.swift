@@ -7,15 +7,18 @@ struct EditChannelView: View {
   let currentUserId: String
   let load: () async throws -> ChannelRoster
   let save: (ChannelEditDraft, ChannelEditPermissions) async throws -> Bool
+  let requestLifecycle: (ChannelLifecycleAction) -> Void
 
   @StateObject private var model: ChannelEditing
   @State private var retry = 0
   @Environment(\.dismiss) private var dismiss
 
-  init(room: Components.Schemas.ChatRoom, currentUserId: String, model: ChannelEditing? = nil, load: @escaping () async throws -> ChannelRoster, save: @escaping (ChannelEditDraft, ChannelEditPermissions) async throws -> Bool) {
+  init(room: Components.Schemas.ChatRoom, currentUserId: String, model: ChannelEditing? = nil, load: @escaping () async throws -> ChannelRoster,
+       save: @escaping (ChannelEditDraft, ChannelEditPermissions) async throws -> Bool, requestLifecycle: @escaping (ChannelLifecycleAction) -> Void) {
     self.currentUserId = currentUserId
     self.load = load
     self.save = save
+    self.requestLifecycle = requestLifecycle
     _model = StateObject(wrappedValue: model ?? ChannelEditing(room: room))
   }
 
@@ -40,6 +43,7 @@ struct EditChannelView: View {
       if let error = model.errorMessage, model.roster != nil {
         Text(error).foregroundStyle(.red).font(.callout)
       }
+      manageChannel
       HStack {
         Spacer()
         Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
@@ -59,6 +63,26 @@ struct EditChannelView: View {
     .disabled(model.saving)
     .interactiveDismissDisabled(model.saving)
     .task(id: retry) { await model.load(using: load) }
+  }
+
+  /// Web "Manage channel": Leave for any member but a host channel's last host, Archive for owners/admins once the role is known.
+  @ViewBuilder
+  private var manageChannel: some View {
+    let canLeave = ChannelEditPermissions.canLeave(model.room)
+    let canArchive = model.permissions?.canArchive == true
+    if canLeave || canArchive {
+      Divider()
+      Text("Manage channel").font(.headline)
+      HStack {
+        if canLeave {
+          Button("Leave channel…", systemImage: "rectangle.portrait.and.arrow.right") { requestLifecycle(.leave) }
+        }
+        if canArchive {
+          Button("Archive channel…", systemImage: "archivebox", role: .destructive) { requestLifecycle(.archive) }
+        }
+      }
+      .disabled(model.saving)
+    }
   }
 
   private var settings: some View {

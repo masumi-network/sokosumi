@@ -97,6 +97,8 @@ export interface ChatComposeSokoBot {
 
 export interface ChatComposeRoster {
   currentUserId: string;
+  currentUserName: string;
+  currentUserImage: string | null;
   organizationName: string;
   hasOrganization: boolean;
   canCreateExternal: boolean;
@@ -144,8 +146,12 @@ export async function loadChatComposeRosterAction(): Promise<
     return roomFail("Sign in required.");
   }
 
+  const self = {
+    currentUserId: session.user.id,
+    currentUserName: session.user.name,
+    currentUserImage: session.user.image ?? null,
+  };
   try {
-    const currentUserId = session.user.id;
     const [activeOrganization, coworkers, bot, t] = await Promise.all([
       userService.getActiveOrganization(),
       coworkerService.listCoworkers("chat"),
@@ -165,7 +171,7 @@ export async function loadChatComposeRosterAction(): Promise<
 
     if (!activeOrganization) {
       return roomOk({
-        currentUserId,
+        ...self,
         organizationName: "",
         hasOrganization: false,
         canCreateExternal: false,
@@ -182,7 +188,7 @@ export async function loadChatComposeRosterAction(): Promise<
     ]);
 
     return roomOk({
-      currentUserId,
+      ...self,
       organizationName: activeOrganization.name,
       hasOrganization: true,
       canCreateExternal: Boolean(
@@ -193,8 +199,18 @@ export async function loadChatComposeRosterAction(): Promise<
       sokoBots,
       membersLoadFailed: membersPage.failed,
     });
-  } catch (error) {
-    return roomCatch(error, "Could not load chat recipients.");
+  } catch {
+    // Session identity stays usable for self-chat when recipient services fail.
+    return roomOk({
+      ...self,
+      organizationName: "",
+      hasOrganization: Boolean(session.session.activeOrganizationId),
+      canCreateExternal: false,
+      members: [],
+      coworkers: [],
+      sokoBots: [],
+      membersLoadFailed: true,
+    });
   }
 }
 

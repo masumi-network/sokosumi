@@ -14,6 +14,7 @@ struct EditChannelSheet: ViewModifier {
   @Binding var presentation: EditChannelPresentation?
   @EnvironmentObject private var workspaces: WorkspaceState
   @EnvironmentObject private var auth: AuthState
+  @State private var lifecycle: ChannelLifecycleRequest?
 
   func body(content: Content) -> some View {
     content
@@ -23,7 +24,12 @@ struct EditChannelSheet: ViewModifier {
             try await workspaces.loadChannelRoster(context: presentation.id, auth: auth)
           }, save: {
             try await workspaces.updateChannel($0, roomId: room.id, permissions: $1, context: presentation.id, auth: auth)
+          }, requestLifecycle: {
+            lifecycle = .init(context: presentation.id, roomId: room.id, name: room.name, action: $0)
           })
+          .disabled(workspaces.channelLifecycle != nil)
+          // Web closes the settings dialog once the channel is gone for this user.
+          .modifier(ChannelLifecycleConfirmation(request: $lifecycle) { self.presentation = nil })
         } else {
           // Kicked or archived while the sheet was open: never a blank modal.
           VStack(spacing: 16) {
