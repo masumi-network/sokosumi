@@ -11,6 +11,7 @@ import {
   Check,
   Copy,
   Ellipsis,
+  Link2,
   MessageCircle,
   Pencil,
   Pin,
@@ -128,6 +129,7 @@ import { cn } from "@/lib/utils";
 import { devicePrefersHover } from "@/lib/utils/device-prefers-hover";
 import { getEmojiShortcodeName } from "@/lib/utils/emoji-shortcodes";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
+import { chatRoomMessageHref } from "@/lib/utils/notification-href";
 import { getInitials } from "@/lib/utils/text";
 import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
 import { participantDirectKey } from "./open-direct-with-participant";
@@ -881,6 +883,7 @@ function MessageActionControls({
   onQuote,
   onPin,
   onCopy,
+  onCopyLink,
   onEdit,
   onDelete,
   showThreadButton,
@@ -888,6 +891,7 @@ function MessageActionControls({
   showPinButton,
   isPinned,
   showCopyButton,
+  showCopyLinkButton,
   showEditButton,
   showDeleteButton,
   collapseSecondary = false,
@@ -901,6 +905,7 @@ function MessageActionControls({
   onQuote?: (message: ChatRoomMessage) => void;
   onPin?: (message: ChatRoomMessage) => void;
   onCopy?: () => void;
+  onCopyLink?: () => void;
   onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
@@ -908,6 +913,7 @@ function MessageActionControls({
   showPinButton: boolean;
   isPinned: boolean;
   showCopyButton: boolean;
+  showCopyLinkButton: boolean;
   showEditButton: boolean;
   showDeleteButton: boolean;
   collapseSecondary?: boolean;
@@ -916,9 +922,11 @@ function MessageActionControls({
 }) {
   const t = useTranslations("App.Channels");
   const showPin = Boolean(showPinButton && onPin);
+  const showCopyLink = Boolean(showCopyLinkButton && onCopyLink);
   const showCopy = Boolean(showCopyButton && onCopy);
   const showDelete = Boolean(showDeleteButton && onDelete);
-  const showMore = collapseSecondary && (showPin || showCopy || showDelete);
+  const showMore =
+    collapseSecondary && (showPin || showCopyLink || showCopy || showDelete);
   const reactedEmojis = readerReactedEmojis(message);
 
   return (
@@ -1099,6 +1107,17 @@ function MessageActionControls({
                 {isPinned ? t("PinnedMessages.unpin") : t("PinnedMessages.pin")}
               </DropdownMenuItem>
             ) : null}
+            {showCopyLink ? (
+              <DropdownMenuItem
+                onSelect={() => {
+                  onCopyLink?.();
+                  onAfterAction?.();
+                }}
+              >
+                <Link2 className="size-4" aria-hidden />
+                {t("Copy.link")}
+              </DropdownMenuItem>
+            ) : null}
             {showCopy ? (
               <DropdownMenuItem
                 onSelect={() => {
@@ -1141,6 +1160,7 @@ function MessageActions({
   onQuote,
   onPin,
   onCopy,
+  onCopyLink,
   onEdit,
   onDelete,
   showThreadButton,
@@ -1148,6 +1168,7 @@ function MessageActions({
   showPinButton,
   isPinned,
   showCopyButton,
+  showCopyLinkButton,
   showEditButton,
   showDeleteButton,
 }: {
@@ -1157,6 +1178,7 @@ function MessageActions({
   onQuote?: (message: ChatRoomMessage) => void;
   onPin?: (message: ChatRoomMessage) => void;
   onCopy?: () => void;
+  onCopyLink?: () => void;
   onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
@@ -1164,6 +1186,7 @@ function MessageActions({
   showPinButton: boolean;
   isPinned: boolean;
   showCopyButton: boolean;
+  showCopyLinkButton: boolean;
   showEditButton: boolean;
   showDeleteButton: boolean;
 }) {
@@ -1211,6 +1234,7 @@ function MessageActions({
         onQuote={onQuote}
         onPin={onPin}
         onCopy={onCopy}
+        onCopyLink={onCopyLink}
         onEdit={onEdit}
         onDelete={onDelete}
         showThreadButton={showThreadButton}
@@ -1218,6 +1242,7 @@ function MessageActions({
         showPinButton={showPinButton}
         isPinned={isPinned}
         showCopyButton={showCopyButton}
+        showCopyLinkButton={showCopyLinkButton}
         showEditButton={showEditButton}
         showDeleteButton={showDeleteButton}
         collapseSecondary
@@ -1361,6 +1386,7 @@ function TouchMessageActionsSheet({
   onQuote,
   onPin,
   onCopy,
+  onCopyLink,
   onEdit,
   onDelete,
   showThreadButton,
@@ -1368,6 +1394,7 @@ function TouchMessageActionsSheet({
   showPinButton,
   isPinned,
   showCopyButton,
+  showCopyLinkButton,
   showEditButton,
   showDeleteButton,
 }: {
@@ -1379,6 +1406,7 @@ function TouchMessageActionsSheet({
   onQuote?: (message: ChatRoomMessage) => void;
   onPin?: (message: ChatRoomMessage) => void;
   onCopy?: () => void;
+  onCopyLink?: () => void;
   onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
@@ -1386,6 +1414,7 @@ function TouchMessageActionsSheet({
   showPinButton: boolean;
   isPinned: boolean;
   showCopyButton: boolean;
+  showCopyLinkButton: boolean;
   showEditButton: boolean;
   showDeleteButton: boolean;
 }) {
@@ -1545,6 +1574,19 @@ function TouchMessageActionsSheet({
                 <Pin className="size-4 shrink-0" aria-hidden />
               )}
               {isPinned ? t("PinnedMessages.unpin") : t("PinnedMessages.pin")}
+            </Button>
+          ) : null}
+          {showCopyLinkButton && onCopyLink ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-11 justify-start gap-3 px-3"
+              onClick={() => {
+                runAndClose(onCopyLink);
+              }}
+            >
+              <Link2 className="size-4 shrink-0" aria-hidden />
+              {t("Copy.link")}
             </Button>
           ) : null}
           {showCopyButton && onCopy ? (
@@ -2297,19 +2339,30 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   const longPress = useLongPress(openSheet);
   const showActions =
     !isThinking && !isDeleted && !isEditing && !isOutboundLocal;
-  const canCopy =
+  const isDurableRoomMessage =
     !isDeleted &&
     !isThinking &&
     !isEditing &&
     !isOutboundLocal &&
-    !isStreamOverlay &&
-    message.content.trim().length > 0;
+    !isStreamOverlay;
+  const canCopy = isDurableRoomMessage && message.content.trim().length > 0;
+  const canCopyLink = isDurableRoomMessage;
 
   function handleCopy() {
     void copyTextWithToast(message.content, {
       copySuccessMessage: tChannels("Copy.success"),
       copyErrorMessage: tChannels("Copy.error"),
     });
+  }
+
+  function handleCopyLink() {
+    void copyTextWithToast(
+      `${window.location.origin}${chatRoomMessageHref(message.roomId, message.id)}`,
+      {
+        copySuccessMessage: tChannels("Copy.linkSuccess"),
+        copyErrorMessage: tChannels("Copy.linkError"),
+      },
+    );
   }
 
   function requestDelete(_message: ChatRoomMessage) {
@@ -2640,13 +2693,15 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               onQuote={onQuote}
               onPin={onPin}
               onCopy={handleCopy}
+              onCopyLink={handleCopyLink}
               onEdit={onStartEdit}
               onDelete={requestDelete}
               showThreadButton={showThreadButton}
               showQuoteButton={canQuote}
               showPinButton={canPin}
               isPinned={isPinned}
-              showCopyButton={canCopy}
+              showCopyButton={false}
+              showCopyLinkButton={canCopyLink}
               showEditButton={canEdit}
               showDeleteButton={canDelete}
             />
@@ -2661,6 +2716,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               onQuote={onQuote}
               onPin={onPin}
               onCopy={handleCopy}
+              onCopyLink={handleCopyLink}
               onEdit={onStartEdit}
               onDelete={requestDelete}
               showThreadButton={showThreadButton}
@@ -2668,6 +2724,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               showPinButton={canPin}
               isPinned={isPinned}
               showCopyButton={canCopy}
+              showCopyLinkButton={canCopyLink}
               showEditButton={canEdit}
               showDeleteButton={canDelete}
             />

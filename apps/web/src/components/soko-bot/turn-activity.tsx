@@ -174,7 +174,7 @@ export async function TurnActivity({
                       delegation.outcome === "ambiguous" &&
                         "text-semantic-warning",
                       delegation.outcome === "processing" &&
-                        "text-semantic-info",
+                        "text-status-working",
                       !["failed", "ambiguous", "processing"].includes(
                         delegation.outcome,
                       ) && "text-muted-foreground",
