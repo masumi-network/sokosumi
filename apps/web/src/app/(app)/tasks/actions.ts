@@ -366,7 +366,11 @@ async function loadCreateTaskData(userId: string | null) {
 
 export async function loadCreateTaskModalData() {
   const session = await getSession();
-  return loadCreateTaskData(session?.user.id ?? null);
+  const [createData, projectOptions] = await Promise.all([
+    loadCreateTaskData(session?.user.id ?? null),
+    getProjectFilterOptions(),
+  ]);
+  return { ...createData, projectOptions };
 }
 
 /**

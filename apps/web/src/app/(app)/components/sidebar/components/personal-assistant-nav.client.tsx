@@ -13,6 +13,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarRailSelectionBar,
 } from "@/components/ui/sidebar";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
@@ -118,6 +119,7 @@ export default function PersonalAssistantNav({
                 </Link>
               </SheetClose>
             </SidebarMenuButton>
+            {isActive ? <SidebarRailSelectionBar /> : null}
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarGroupContent>

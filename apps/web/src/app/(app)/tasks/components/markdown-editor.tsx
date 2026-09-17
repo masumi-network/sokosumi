@@ -10,6 +10,7 @@ import {
   ListOrdered,
   Loader2,
   Paperclip,
+  RemoveFormatting,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import {
@@ -17,6 +18,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -45,6 +47,7 @@ import {
 } from "@/components/ui/mention-textarea-utils";
 import type { DriveFile } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
+import { clearComposerFormat } from "@/lib/utils/composer-clear-format";
 import {
   htmlToMarkdown,
   markdownToHtml,
@@ -59,6 +62,8 @@ interface MarkdownEditorProps {
   onChange: (value: string) => void;
   onSubmitShortcut?: () => void;
   placeholder?: string;
+  variant?: "field" | "document";
+  ariaLabel?: string;
   className?: string;
   editorClassName?: string;
   style?: React.CSSProperties;
@@ -72,9 +77,159 @@ interface MarkdownEditorProps {
   ) => ReactNode;
 }
 
+interface MarkdownFormatToolsProps {
+  onBold: () => void;
+  onItalic: () => void;
+  onCode: () => void;
+  onLink: () => void;
+  onHeading: () => void;
+  onBulletList: () => void;
+  onNumberedList: () => void;
+  onCleanFormat: () => void;
+}
+
+const FORMAT_TOOL_BUTTON_CLASSNAME = "h-7 w-7 cursor-pointer p-0";
+const FORMAT_TOOLBAR_FALLBACK_WIDTH_PX = 244;
+
+export function isMarkdownEditorDomEmpty(editor: HTMLElement): boolean {
+  const html = editor.innerHTML;
+  return (
+    html === "" ||
+    html === "<br>" ||
+    html === "<div><br></div>" ||
+    html === "<p><br></p>" ||
+    (editor.textContent ?? "").replace(/\u200b/g, "").trim() === ""
+  );
+}
+
+function syncMarkdownEditorEmptyState(editor: HTMLElement): void {
+  if (isMarkdownEditorDomEmpty(editor)) {
+    editor.setAttribute("data-empty", "");
+  } else {
+    editor.removeAttribute("data-empty");
+  }
+}
+
+function preventEditorSelectionLoss(event: { preventDefault: () => void }) {
+  event.preventDefault();
+}
+
+function MarkdownFormatTools({
+  onBold,
+  onItalic,
+  onCode,
+  onLink,
+  onHeading,
+  onBulletList,
+  onNumberedList,
+  onCleanFormat,
+}: MarkdownFormatToolsProps) {
+  return (
+    <>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={FORMAT_TOOL_BUTTON_CLASSNAME}
+        onPointerDown={preventEditorSelectionLoss}
+        onMouseDown={preventEditorSelectionLoss}
+        onClick={onBold}
+        title="Bold (Cmd+B)"
+      >
+        <Bold className="size-3.5" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={FORMAT_TOOL_BUTTON_CLASSNAME}
+        onPointerDown={preventEditorSelectionLoss}
+        onMouseDown={preventEditorSelectionLoss}
+        onClick={onItalic}
+        title="Italic (Cmd+I)"
+      >
+        <Italic className="size-3.5" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={FORMAT_TOOL_BUTTON_CLASSNAME}
+        onPointerDown={preventEditorSelectionLoss}
+        onMouseDown={preventEditorSelectionLoss}
+        onClick={onCode}
+        title="Code"
+      >
+        <Code className="size-3.5" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={FORMAT_TOOL_BUTTON_CLASSNAME}
+        onPointerDown={preventEditorSelectionLoss}
+        onMouseDown={preventEditorSelectionLoss}
+        onClick={onLink}
+        title="Link"
+      >
+        <Link2 className="size-3.5" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={FORMAT_TOOL_BUTTON_CLASSNAME}
+        onPointerDown={preventEditorSelectionLoss}
+        onMouseDown={preventEditorSelectionLoss}
+        onClick={onHeading}
+        title="Heading"
+      >
+        <Heading2 className="size-3.5" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={FORMAT_TOOL_BUTTON_CLASSNAME}
+        onPointerDown={preventEditorSelectionLoss}
+        onMouseDown={preventEditorSelectionLoss}
+        onClick={onBulletList}
+        title="Bullet List"
+      >
+        <List className="size-3.5" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={FORMAT_TOOL_BUTTON_CLASSNAME}
+        onPointerDown={preventEditorSelectionLoss}
+        onMouseDown={preventEditorSelectionLoss}
+        onClick={onNumberedList}
+        title="Numbered List"
+      >
+        <ListOrdered className="size-3.5" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={FORMAT_TOOL_BUTTON_CLASSNAME}
+        onPointerDown={preventEditorSelectionLoss}
+        onMouseDown={preventEditorSelectionLoss}
+        onClick={onCleanFormat}
+        title="Clear formatting"
+      >
+        <RemoveFormatting className="size-3.5" />
+      </Button>
+    </>
+  );
+}
+
 export interface MarkdownEditorHandle {
   insertText: (text: string) => void;
   insertLink: (label: string, url: string) => void;
+  openDrivePicker: () => void;
 }
 
 export const MarkdownEditor = forwardRef<
@@ -87,6 +242,8 @@ export const MarkdownEditor = forwardRef<
     onChange,
     onSubmitShortcut,
     placeholder = "Enter details...",
+    variant = "field",
+    ariaLabel,
     className,
     editorClassName,
     style,
@@ -100,6 +257,8 @@ export const MarkdownEditor = forwardRef<
 ) {
   const editorRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const formatToolbarRef = useRef<HTMLDivElement>(null);
+  const savedSelectionRangeRef = useRef<Range | null>(null);
   const isSelectingRef = useRef(false);
   const isInternalChange = useRef(false);
   const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -109,6 +268,10 @@ export const MarkdownEditor = forwardRef<
   const [triggerPosition, setTriggerPosition] =
     useState<TriggerPosition | null>(null);
   const [drivePickerOpen, setDrivePickerOpen] = useState(false);
+  const [selectionRect, setSelectionRect] = useState<DOMRect | null>(null);
+  const [formatToolbarWidth, setFormatToolbarWidth] = useState(
+    FORMAT_TOOLBAR_FALLBACK_WIDTH_PX,
+  );
 
   const normalizedMentions = useMemo(() => {
     const entries = Object.entries(mentions);
@@ -206,12 +369,51 @@ export const MarkdownEditor = forwardRef<
       };
     }
 
+    syncMarkdownEditorEmptyState(editorRef.current);
     const markdown = htmlToMarkdown(editorRef.current);
     const { text, caret } = serializeEditor(editorRef.current);
     onChange(markdown);
 
     return { markdown, text, caret };
   }, [onChange]);
+
+  const saveSelectionRange = useCallback(() => {
+    const selection = window.getSelection();
+    if (
+      !selection ||
+      selection.isCollapsed ||
+      selection.rangeCount === 0 ||
+      !editorRef.current
+    ) {
+      savedSelectionRangeRef.current = null;
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    if (!editorRef.current.contains(range.commonAncestorContainer)) {
+      savedSelectionRangeRef.current = null;
+      return;
+    }
+
+    savedSelectionRangeRef.current = range.cloneRange();
+  }, []);
+
+  const restoreSavedSelection = useCallback(() => {
+    const editor = editorRef.current;
+    const saved = savedSelectionRangeRef.current;
+    if (!editor || !saved) {
+      return;
+    }
+
+    editor.focus();
+    const selection = window.getSelection();
+    if (!selection) {
+      return;
+    }
+
+    selection.removeAllRanges();
+    selection.addRange(saved);
+  }, []);
 
   // Initialize editor content from value prop
   useEffect(() => {
@@ -224,6 +426,7 @@ export const MarkdownEditor = forwardRef<
       // Only update if content actually changed (avoid cursor jumping)
       if (currentHtml !== newHtml && (!isFocused || isExternalClear)) {
         editorRef.current.innerHTML = newHtml || "";
+        syncMarkdownEditorEmptyState(editorRef.current);
       }
     }
     isInternalChange.current = false;
@@ -321,11 +524,12 @@ export const MarkdownEditor = forwardRef<
 
   const execCommand = useCallback(
     (command: string, value?: string) => {
+      restoreSavedSelection();
       editorRef.current?.focus();
       document.execCommand(command, false, value);
       handleInput();
     },
-    [handleInput],
+    [handleInput, restoreSavedSelection],
   );
 
   const insertText = useCallback(
@@ -403,6 +607,7 @@ export const MarkdownEditor = forwardRef<
   const handleBold = useCallback(() => execCommand("bold"), [execCommand]);
   const handleItalic = useCallback(() => execCommand("italic"), [execCommand]);
   const handleCode = () => {
+    restoreSavedSelection();
     const text = window.getSelection()?.toString() ?? "";
     const escapedText = (text || "code")
       .replace(/&/g, "&amp;")
@@ -425,6 +630,7 @@ export const MarkdownEditor = forwardRef<
       return;
     }
 
+    restoreSavedSelection();
     const selectedText = window.getSelection()?.toString() ?? "";
     if (selectedText.trim().length > 0) {
       execCommand("createLink", normalizedUrl);
@@ -442,6 +648,18 @@ export const MarkdownEditor = forwardRef<
   const handleNumberedList = () => {
     execCommand("insertOrderedList");
   };
+  const handleCleanFormat = useCallback(() => {
+    restoreSavedSelection();
+    const editor = editorRef.current;
+    if (!editor) return;
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    const range = selection.getRangeAt(0);
+    if (!editor.contains(range.commonAncestorContainer)) return;
+
+    clearComposerFormat(editor, range);
+    handleInput();
+  }, [handleInput, restoreSavedSelection]);
 
   function handleDriveFileSelect(file: DriveFile) {
     insertLink(file.name, file.fileUrl);
@@ -590,151 +808,191 @@ export const MarkdownEditor = forwardRef<
     };
   }, []);
 
+  const updateSelectionToolbar = useCallback(() => {
+    if (variant !== "document") {
+      savedSelectionRangeRef.current = null;
+      setSelectionRect(null);
+      return;
+    }
+
+    const selection = window.getSelection();
+    if (
+      !selection ||
+      selection.isCollapsed ||
+      selection.rangeCount === 0 ||
+      !editorRef.current
+    ) {
+      savedSelectionRangeRef.current = null;
+      setSelectionRect(null);
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    if (!editorRef.current.contains(range.commonAncestorContainer)) {
+      savedSelectionRangeRef.current = null;
+      setSelectionRect(null);
+      return;
+    }
+
+    const rect = range.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) {
+      savedSelectionRangeRef.current = null;
+      setSelectionRect(null);
+      return;
+    }
+
+    saveSelectionRange();
+    setSelectionRect(rect);
+  }, [saveSelectionRange, variant]);
+
+  useEffect(() => {
+    if (variant !== "document") {
+      setSelectionRect(null);
+      return;
+    }
+
+    document.addEventListener("selectionchange", updateSelectionToolbar);
+    return () => {
+      document.removeEventListener("selectionchange", updateSelectionToolbar);
+    };
+  }, [updateSelectionToolbar, variant]);
+
   useImperativeHandle(
     ref,
     () => ({
       insertText,
       insertLink,
+      openDrivePicker: () => setDrivePickerOpen(true),
     }),
     [insertText, insertLink],
   );
 
+  const editorTop = editorRef.current?.getBoundingClientRect().top ?? 0;
+  const placeFormatToolbarBelow =
+    selectionRect != null && selectionRect.top - editorTop < 40;
+
+  useLayoutEffect(() => {
+    if (!selectionRect || !formatToolbarRef.current) return;
+    const width = formatToolbarRef.current.getBoundingClientRect().width;
+    if (width > 0) {
+      setFormatToolbarWidth(width);
+    }
+  }, [selectionRect]);
+
+  const formatToolbarLeft =
+    selectionRect == null
+      ? 0
+      : (() => {
+          const centerX = selectionRect.left + selectionRect.width / 2;
+          const halfWidth = formatToolbarWidth / 2;
+          const minCenter = VIEWPORT_PADDING_PX + halfWidth;
+          const maxCenter = window.innerWidth - VIEWPORT_PADDING_PX - halfWidth;
+          return Math.min(maxCenter, Math.max(minCenter, centerX));
+        })();
+
   return (
-    <div className={cn("rounded-md border", className)} style={style}>
-      {/* Toolbar */}
-      <div className="bg-card-background flex items-center gap-0.5 border-b px-2 py-1.5">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 w-7 p-0"
-          onClick={handleBold}
-          title="Bold (Cmd+B)"
+    <div
+      className={cn(
+        variant === "document" ? "rounded-none border-0" : "rounded-md border",
+        className,
+      )}
+      style={style}
+    >
+      {variant === "field" ? (
+        <div
+          role="toolbar"
+          aria-label="Format"
+          className="bg-card-background flex items-center gap-0.5 border-b px-2 py-1.5"
         >
-          <Bold className="size-3.5" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 w-7 p-0"
-          onClick={handleItalic}
-          title="Italic (Cmd+I)"
-        >
-          <Italic className="size-3.5" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 w-7 p-0"
-          onClick={handleCode}
-          title="Code"
-        >
-          <Code className="size-3.5" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 w-7 p-0"
-          onClick={handleLink}
-          title="Link"
-        >
-          <Link2 className="size-3.5" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 w-7 p-0"
-          onClick={handleHeading}
-          title="Heading"
-        >
-          <Heading2 className="size-3.5" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 w-7 p-0"
-          onClick={handleBulletList}
-          title="Bullet List"
-        >
-          <List className="size-3.5" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 w-7 p-0"
-          onClick={handleNumberedList}
-          title="Numbered List"
-        >
-          <ListOrdered className="size-3.5" />
-        </Button>
-        {onAttachClick ? (
-          <AttachmentSubmenu
-            onUploadClick={onAttachClick}
-            onDriveClick={() => setDrivePickerOpen(true)}
-            disabled={isAttachmentUploading}
-          >
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 w-7 p-0"
-              title={attachLabel}
-              aria-label={attachLabel}
+          <MarkdownFormatTools
+            onBold={handleBold}
+            onItalic={handleItalic}
+            onCode={handleCode}
+            onLink={handleLink}
+            onHeading={handleHeading}
+            onBulletList={handleBulletList}
+            onNumberedList={handleNumberedList}
+            onCleanFormat={handleCleanFormat}
+          />
+          {onAttachClick ? (
+            <AttachmentSubmenu
+              onUploadClick={onAttachClick}
+              onDriveClick={() => setDrivePickerOpen(true)}
               disabled={isAttachmentUploading}
             >
-              <Paperclip className="size-3.5" />
-            </Button>
-          </AttachmentSubmenu>
-        ) : null}
-        {isAttachmentUploading ? (
-          <div className="ml-auto inline-flex items-center pr-1">
-            <Loader2
-              className="text-muted-foreground size-3.5 animate-spin"
-              aria-hidden
-            />
-          </div>
-        ) : null}
-      </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className={FORMAT_TOOL_BUTTON_CLASSNAME}
+                title={attachLabel}
+                aria-label={attachLabel}
+                disabled={isAttachmentUploading}
+              >
+                <Paperclip className="size-3.5" />
+              </Button>
+            </AttachmentSubmenu>
+          ) : null}
+          {isAttachmentUploading ? (
+            <div className="ml-auto inline-flex items-center pr-1">
+              <Loader2
+                className="text-muted-foreground size-3.5 animate-spin"
+                aria-hidden
+              />
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
-      {/* Single editable area */}
-      <div
-        ref={editorRef}
-        id={id}
-        contentEditable
-        onInput={handleInput}
-        onKeyDown={handleKeyDown}
-        onKeyUp={syncMentionSuggestionsWithCaret}
-        onMouseUp={syncMentionSuggestionsWithCaret}
-        onBlur={handleBlur}
-        data-placeholder={placeholder}
-        role="textbox"
-        aria-multiline="true"
-        className={withEditableTextSize(
-          "markdown-compose-surface",
-          "max-h-48 min-h-32 overflow-x-hidden overflow-y-auto px-3 py-2",
-          "outline-none focus:outline-none",
-          "wrap-anywhere [word-break:break-word] whitespace-pre-wrap",
-          "empty:before:text-muted-foreground empty:before:pointer-events-none empty:before:content-[attr(data-placeholder)]",
-          "[&_em]:italic [&_strong]:font-bold [&_u]:underline [&_s]:line-through",
-          "[&_code]:bg-muted [&_code]:rounded [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs",
-          "[&_pre]:bg-muted [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:p-2 [&_pre]:whitespace-pre",
-          "[&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-xs",
-          "[&_a]:text-primary [&_a]:underline",
-          "[&_blockquote]:border-input [&_blockquote]:border-l-2 [&_blockquote]:pl-3",
-          "[&_h1]:mt-2 [&_h1]:mb-1 [&_h1]:text-xl [&_h1]:font-bold",
-          "[&_h2]:mt-2 [&_h2]:mb-1 [&_h2]:text-lg [&_h2]:font-semibold",
-          "[&_h3]:mt-2 [&_h3]:mb-1 [&_h3]:text-base [&_h3]:font-semibold",
-          "[&_li]:ml-4 [&_ol>li]:list-decimal [&_ul>li]:list-disc",
-          "[&_span[data-mention-key]]:text-primary [&_span[data-mention-key]]:cursor-pointer [&_span[data-mention-key]]:font-semibold [&_span[data-mention-key]]:hover:underline",
-          editorClassName,
-        )}
-      />
+      <div className="relative min-h-0 flex-1">
+        <div
+          ref={editorRef}
+          id={id}
+          contentEditable
+          onInput={handleInput}
+          onKeyDown={handleKeyDown}
+          onKeyUp={() => {
+            syncMentionSuggestionsWithCaret();
+            updateSelectionToolbar();
+          }}
+          onMouseUp={() => {
+            syncMentionSuggestionsWithCaret();
+            updateSelectionToolbar();
+          }}
+          onBlur={handleBlur}
+          role="textbox"
+          aria-label={ariaLabel}
+          aria-multiline="true"
+          className={withEditableTextSize(
+            "markdown-compose-surface peer",
+            "max-h-48 min-h-32 overflow-x-hidden overflow-y-auto py-2",
+            variant === "document" ? "px-0" : "px-3",
+            "outline-none focus:outline-none",
+            "wrap-anywhere [word-break:break-word] whitespace-pre-wrap",
+            "[&_em]:italic [&_i]:italic [&_strong]:font-bold [&_b]:font-bold [&_u]:underline [&_s]:line-through",
+            "[&_code]:bg-muted [&_code]:rounded [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs",
+            "[&_pre]:bg-muted [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:p-2 [&_pre]:whitespace-pre",
+            "[&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-xs",
+            "[&_a]:text-primary [&_a]:underline",
+            "[&_blockquote]:border-input [&_blockquote]:border-l-2 [&_blockquote]:pl-3",
+            "[&_h1]:mt-2 [&_h1]:mb-1 [&_h1]:text-xl [&_h1]:font-bold",
+            "[&_h2]:mt-2 [&_h2]:mb-1 [&_h2]:text-lg [&_h2]:font-semibold",
+            "[&_h3]:mt-2 [&_h3]:mb-1 [&_h3]:text-base [&_h3]:font-semibold",
+            "[&_li]:ml-4 [&_ol>li]:list-decimal [&_ul>li]:list-disc",
+            "[&_span[data-mention-key]]:text-primary [&_span[data-mention-key]]:cursor-pointer [&_span[data-mention-key]]:font-semibold [&_span[data-mention-key]]:hover:underline",
+            editorClassName,
+          )}
+        />
+        <div
+          aria-hidden="true"
+          className={withEditableTextSize(
+            "pointer-events-none absolute inset-x-0 top-0 hidden py-2 text-muted-foreground peer-data-[empty]:block peer-empty:block",
+            variant === "document" ? "px-0" : "px-3",
+          )}
+        >
+          {placeholder}
+        </div>
+      </div>
       {typeof window !== "undefined" &&
         isOpen &&
         filteredMentions.length > 0 &&
@@ -742,13 +1000,14 @@ export const MarkdownEditor = forwardRef<
           <div
             ref={listRef}
             role="listbox"
+            data-task-form-portal=""
             style={
               triggerPosition
                 ? { top: triggerPosition.top, left: triggerPosition.left }
                 : { top: VIEWPORT_PADDING_PX, left: VIEWPORT_PADDING_PX }
             }
             className={cn(
-              "bg-popover text-popover-foreground fixed z-50 max-h-60 w-72 overflow-y-auto rounded-md border p-1 shadow-md",
+              "bg-popover text-popover-foreground pointer-events-auto fixed z-50 max-h-60 w-72 overflow-y-auto rounded-md border p-1 shadow-md",
               !triggerPosition && "mt-1",
             )}
           >
@@ -778,6 +1037,42 @@ export const MarkdownEditor = forwardRef<
                 )}
               </div>
             ))}
+          </div>,
+          document.body,
+        )}
+      {typeof window !== "undefined" &&
+        variant === "document" &&
+        selectionRect &&
+        !isOpen &&
+        createPortal(
+          <div
+            ref={formatToolbarRef}
+            role="toolbar"
+            aria-label="Format"
+            data-task-form-portal=""
+            className="bg-popover text-popover-foreground border-border pointer-events-auto fixed z-50 flex cursor-pointer items-center gap-0.5 rounded-md border p-0.5 shadow-md"
+            style={{
+              top: placeFormatToolbarBelow
+                ? selectionRect.bottom
+                : selectionRect.top,
+              left: formatToolbarLeft,
+              transform: placeFormatToolbarBelow
+                ? "translate(-50%, 8px)"
+                : "translate(-50%, calc(-100% - 8px))",
+            }}
+            onPointerDown={preventEditorSelectionLoss}
+            onMouseDown={preventEditorSelectionLoss}
+          >
+            <MarkdownFormatTools
+              onBold={handleBold}
+              onItalic={handleItalic}
+              onCode={handleCode}
+              onLink={handleLink}
+              onHeading={handleHeading}
+              onBulletList={handleBulletList}
+              onNumberedList={handleNumberedList}
+              onCleanFormat={handleCleanFormat}
+            />
           </div>,
           document.body,
         )}

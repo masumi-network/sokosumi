@@ -158,6 +158,10 @@ vi.mock("@/components/ui/sidebar", () => ({
   SidebarMenuItem: ({ children }: { children: ReactNode }) => (
     <li>{children}</li>
   ),
+  // A marker, not the real bar: what it looks like belongs to the primitive
+  // that owns it, and `sidebar-rail-selection.test.tsx` pins that. This row
+  // only decides when it is there.
+  SidebarRailSelectionBar: () => <span data-testid="rail-selection-bar" />,
 }));
 
 vi.mock("@/components/ui/dropdown-menu", () => {
@@ -529,6 +533,47 @@ describe("ChatRoomSidebarRow collapsed rail", () => {
     const face = screen.getByTestId("dm-sidebar-avatar-user-2");
     expect(face).toBeInTheDocument();
     expect(face.parentElement?.contains(pill)).toBe(false);
+  });
+});
+
+// The rail selection bar: the row's job is when it shows, not how it looks.
+describe("ChatRoomSidebarRow rail selection bar", () => {
+  function renderRow(
+    room: Partial<ChatRoom>,
+    options: { isActive?: boolean } = {},
+  ) {
+    render(
+      <ChatRoomSidebarRow
+        room={makeRoom(room)}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={options.isActive ?? false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+    return screen.queryByTestId("rail-selection-bar");
+  }
+
+  it("marks the room the reader has open", () => {
+    expect(renderRow({}, { isActive: true })).toBeInTheDocument();
+  });
+
+  it("shows no selection mark on a room the reader does not have open", () => {
+    expect(renderRow({})).toBeNull();
+  });
+
+  // The two marks sit on opposite edges precisely so this can happen without
+  // either having to give way.
+  it("marks an unread open room on both edges at once", () => {
+    expect(
+      renderRow({ unreadMentionCount: 2 }, { isActive: true }),
+    ).toBeInTheDocument();
+    expect(
+      document
+        .querySelector('[data-slot="room-rail-attention"]')
+        ?.getAttribute("data-variant"),
+    ).toBe("mention");
   });
 });
 

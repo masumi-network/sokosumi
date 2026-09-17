@@ -63,7 +63,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SheetClose } from "@/components/ui/sheet";
-import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
+import {
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarRailSelectionBar,
+} from "@/components/ui/sidebar";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
@@ -353,6 +357,10 @@ export function ChatRoomSidebarRow({
       aria-current={isActive ? "page" : undefined}
       className={cn(
         "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-2 px-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:overflow-visible group-data-[collapsible=icon]:px-0!",
+        // The collapsed rail's hover ring and the fill it replaces live on
+        // `sidebarMenuButtonVariants`, so this row's own `hover:bg-` above is
+        // expanded-only. Its `hover:` outranks nothing there: the variant's
+        // rule carries a `group-data-` condition and so wins on specificity.
         isMuted && !isActive && "opacity-60",
       )}
       href={href}
@@ -436,6 +444,7 @@ export function ChatRoomSidebarRow({
   return (
     <SidebarMenuItem className="group/room-row relative">
       {railVariant ? <RailAttentionPill variant={railVariant} /> : null}
+      {isActive ? <SidebarRailSelectionBar /> : null}
       {/* Collapsed to icons the row is only its leading mark, so the name
           rides the button's tooltip, which the sidebar shows in that state
           alone. */}

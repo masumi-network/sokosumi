@@ -82,6 +82,7 @@ function CalendarSlotButton({
 function getLatestTaskFormProps() {
   return taskFormPropsSpy.mock.calls.at(-1)?.[0] as {
     agentNameById: Map<string, string>;
+    projectOptions?: { id: string; name: string }[];
   };
 }
 
@@ -113,6 +114,7 @@ describe("CreateTaskModal", () => {
     loadCreateTaskModalDataMock.mockResolvedValue({
       agentNameById: { "agent-1": "Agent One" },
       designMdAttachment: null,
+      projectOptions: [{ id: "project-1", name: "Sokosumi" }],
     });
   });
 
@@ -211,6 +213,20 @@ describe("CreateTaskModal", () => {
       ),
     );
     expect(loadCreateTaskModalDataMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("loads workspace projects when the caller omits projectOptions", async () => {
+    render(
+      <CreateTaskModalProvider initialOpen>
+        <CreateTaskModal coworkerOptions={[]} />
+      </CreateTaskModalProvider>,
+    );
+
+    await waitFor(() =>
+      expect(getLatestTaskFormProps().projectOptions).toEqual([
+        { id: "project-1", name: "Sokosumi" },
+      ]),
+    );
   });
 
   it("does not load create data when the caller owns it", async () => {

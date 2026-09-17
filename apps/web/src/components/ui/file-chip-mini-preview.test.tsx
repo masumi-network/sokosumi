@@ -288,6 +288,21 @@ describe("FileChipMiniPreview", () => {
     );
   });
 
+  it("falls back to a native image when next/image cannot load the host", () => {
+    render(
+      <FileChipMiniPreview
+        url="http://localhost:3000/images/photo.png"
+        fileName="photo.png"
+        mediaType="image/png"
+      />,
+    );
+
+    expect(screen.getByRole("img", { name: "photo.png" })).toHaveAttribute(
+      "referrerpolicy",
+      "no-referrer",
+    );
+  });
+
   it("opens an image viewer instead of navigating away for image files", () => {
     render(
       <FileChipMiniPreview
