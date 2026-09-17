@@ -212,6 +212,20 @@ export default function Markdown({
           </table>
         </div>
       ),
+      // Typography plugin paints `content: open-quote` on `blockquote p`.
+      // `quotes-none` alone does not kill it; blank the pseudo elements.
+      blockquote: ({ children, className, node: _node, ...props }) => (
+        <blockquote
+          className={cn(
+            "border-input text-muted-foreground border-l-2 pl-3 not-italic quotes-none",
+            "[&_p]:text-muted-foreground [&_p]:before:content-none [&_p]:after:content-none",
+            className,
+          )}
+          {...props}
+        >
+          {children}
+        </blockquote>
+      ),
       code: ({ className, children, ...props }) => {
         if (isMarkdownInlineCode(className, children)) {
           return (
