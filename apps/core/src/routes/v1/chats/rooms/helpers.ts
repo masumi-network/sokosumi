@@ -5,6 +5,7 @@ import {
   channelNameFromSlug,
   formatParticipantNameList,
   getFirstName,
+  MAX_LISTED_CHAT_REACTION_REACTORS,
   sanitizeChannelSlug,
 } from "@sokosumi/utils";
 
@@ -26,7 +27,6 @@ import {
   type ChatRoom,
   type ChatRoomMessageQuote,
   chatRoomSchema,
-  MAX_LISTED_CHAT_REACTION_REACTORS,
 } from "@/schemas/chat-room.schema";
 
 import {
