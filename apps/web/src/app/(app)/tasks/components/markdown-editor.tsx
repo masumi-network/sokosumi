@@ -84,7 +84,7 @@ interface MarkdownFormatToolsProps {
   onNumberedList: () => void;
 }
 
-const FORMAT_TOOL_BUTTON_CLASSNAME = "h-7 w-7 p-0";
+const FORMAT_TOOL_BUTTON_CLASSNAME = "h-7 w-7 cursor-pointer p-0";
 
 export function isMarkdownEditorDomEmpty(editor: HTMLElement): boolean {
   const html = editor.innerHTML;
@@ -105,6 +105,10 @@ function syncMarkdownEditorEmptyState(editor: HTMLElement): void {
   }
 }
 
+function preventEditorSelectionLoss(event: { preventDefault: () => void }) {
+  event.preventDefault();
+}
+
 function MarkdownFormatTools({
   onBold,
   onItalic,
@@ -121,7 +125,8 @@ function MarkdownFormatTools({
         variant="ghost"
         size="sm"
         className={FORMAT_TOOL_BUTTON_CLASSNAME}
-        onMouseDown={(event) => event.preventDefault()}
+        onPointerDown={preventEditorSelectionLoss}
+        onMouseDown={preventEditorSelectionLoss}
         onClick={onBold}
         title="Bold (Cmd+B)"
       >
@@ -132,7 +137,8 @@ function MarkdownFormatTools({
         variant="ghost"
         size="sm"
         className={FORMAT_TOOL_BUTTON_CLASSNAME}
-        onMouseDown={(event) => event.preventDefault()}
+        onPointerDown={preventEditorSelectionLoss}
+        onMouseDown={preventEditorSelectionLoss}
         onClick={onItalic}
         title="Italic (Cmd+I)"
       >
@@ -143,7 +149,8 @@ function MarkdownFormatTools({
         variant="ghost"
         size="sm"
         className={FORMAT_TOOL_BUTTON_CLASSNAME}
-        onMouseDown={(event) => event.preventDefault()}
+        onPointerDown={preventEditorSelectionLoss}
+        onMouseDown={preventEditorSelectionLoss}
         onClick={onCode}
         title="Code"
       >
@@ -154,7 +161,8 @@ function MarkdownFormatTools({
         variant="ghost"
         size="sm"
         className={FORMAT_TOOL_BUTTON_CLASSNAME}
-        onMouseDown={(event) => event.preventDefault()}
+        onPointerDown={preventEditorSelectionLoss}
+        onMouseDown={preventEditorSelectionLoss}
         onClick={onLink}
         title="Link"
       >
@@ -165,7 +173,8 @@ function MarkdownFormatTools({
         variant="ghost"
         size="sm"
         className={FORMAT_TOOL_BUTTON_CLASSNAME}
-        onMouseDown={(event) => event.preventDefault()}
+        onPointerDown={preventEditorSelectionLoss}
+        onMouseDown={preventEditorSelectionLoss}
         onClick={onHeading}
         title="Heading"
       >
@@ -176,7 +185,8 @@ function MarkdownFormatTools({
         variant="ghost"
         size="sm"
         className={FORMAT_TOOL_BUTTON_CLASSNAME}
-        onMouseDown={(event) => event.preventDefault()}
+        onPointerDown={preventEditorSelectionLoss}
+        onMouseDown={preventEditorSelectionLoss}
         onClick={onBulletList}
         title="Bullet List"
       >
@@ -187,7 +197,8 @@ function MarkdownFormatTools({
         variant="ghost"
         size="sm"
         className={FORMAT_TOOL_BUTTON_CLASSNAME}
-        onMouseDown={(event) => event.preventDefault()}
+        onPointerDown={preventEditorSelectionLoss}
+        onMouseDown={preventEditorSelectionLoss}
         onClick={onNumberedList}
         title="Numbered List"
       >
@@ -938,7 +949,7 @@ export const MarkdownEditor = forwardRef<
                 : { top: VIEWPORT_PADDING_PX, left: VIEWPORT_PADDING_PX }
             }
             className={cn(
-              "bg-popover text-popover-foreground fixed z-50 max-h-60 w-72 overflow-y-auto rounded-md border p-1 shadow-md",
+              "bg-popover text-popover-foreground pointer-events-auto fixed z-50 max-h-60 w-72 overflow-y-auto rounded-md border p-1 shadow-md",
               !triggerPosition && "mt-1",
             )}
           >
@@ -980,7 +991,7 @@ export const MarkdownEditor = forwardRef<
             role="toolbar"
             aria-label="Format"
             data-task-form-portal=""
-            className="bg-popover text-popover-foreground border-border fixed z-50 flex items-center gap-0.5 rounded-md border p-0.5 shadow-md"
+            className="bg-popover text-popover-foreground border-border pointer-events-auto fixed z-50 flex cursor-pointer items-center gap-0.5 rounded-md border p-0.5 shadow-md"
             style={{
               top: placeFormatToolbarBelow
                 ? selectionRect.bottom
@@ -990,7 +1001,8 @@ export const MarkdownEditor = forwardRef<
                 ? "translate(-50%, 8px)"
                 : "translate(-50%, calc(-100% - 8px))",
             }}
-            onMouseDown={(event) => event.preventDefault()}
+            onPointerDown={preventEditorSelectionLoss}
+            onMouseDown={preventEditorSelectionLoss}
           >
             <MarkdownFormatTools
               onBold={handleBold}
