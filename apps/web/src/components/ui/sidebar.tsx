@@ -6,6 +6,11 @@ import { VariantProps, cva } from "class-variance-authority";
 import { PanelLeftIcon } from "lucide-react";
 
 import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  SIDEBAR_BOOT_STOP_GLOBAL,
+  parseSidebarStateCookieHeader,
+  serializeSidebarStateCookie,
+} from "@/lib/ui-preferences/sidebar-state";
 import { cn } from "@/lib/utils";
 import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-target";
 import { Button } from "@/components/ui/button";
@@ -26,8 +31,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-const SIDEBAR_COOKIE_NAME = "sidebar_state";
-const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 const SIDEBAR_WIDTH = "14rem";
 const SIDEBAR_WIDTH_MOBILE = "18rem";
 const SIDEBAR_WIDTH_ICON = "3.5rem";
@@ -73,8 +76,9 @@ function SidebarProvider({
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
   // SSR / hydration always start from `defaultOpen` so the sync Instant Nav
-  // shell does not need `cookies()`. Restore the persisted preference in
-  // `useLayoutEffect` before paint to avoid an open/closed flash.
+  // shell does not need `cookies()`. The boot script (`SidebarBootScript`)
+  // applies the persisted preference to the streamed markup before paint; this
+  // `useLayoutEffect` hands the same value to React once it hydrates.
   const [_open, _setOpen] = React.useState(defaultOpen);
   const open = openProp ?? _open;
   const setOpen = React.useCallback(
@@ -87,7 +91,7 @@ function SidebarProvider({
       }
 
       // This sets the cookie to keep the sidebar state.
-      document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
+      document.cookie = serializeSidebarStateCookie(openState);
     },
     [setOpenProp, open],
   );
@@ -97,18 +101,17 @@ function SidebarProvider({
       return;
     }
 
-    const raw = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith(`${SIDEBAR_COOKIE_NAME}=`))
-      ?.slice(SIDEBAR_COOKIE_NAME.length + 1);
+    // React now owns the sidebar attributes, so retire the boot observer.
+    (
+      window as typeof window & {
+        [SIDEBAR_BOOT_STOP_GLOBAL]?: () => void;
+      }
+    )[SIDEBAR_BOOT_STOP_GLOBAL]?.();
 
-    if (raw === "true") {
-      _setOpen(true);
-      return;
-    }
+    const persisted = parseSidebarStateCookieHeader(document.cookie);
 
-    if (raw === "false") {
-      _setOpen(false);
+    if (persisted !== null) {
+      _setOpen(persisted);
     }
   }, [openProp]);
 
@@ -238,9 +241,14 @@ function Sidebar({
         className="group peer text-sidebar-foreground hidden md:block"
         data-state={state}
         data-collapsible={state === "collapsed" ? collapsible : ""}
+        // Read by the boot script, which cannot recover the mode from
+        // `data-collapsible` while the sidebar is still expanded.
+        data-collapsible-mode={collapsible}
         data-variant={variant}
         data-side={side}
         data-slot="sidebar"
+        // The boot script may already have collapsed this markup.
+        suppressHydrationWarning
       >
         {/* This is what handles the sidebar gap on desktop */}
         <div
