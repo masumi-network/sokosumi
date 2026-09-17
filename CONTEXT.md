@@ -212,6 +212,10 @@ _Avoid_: Description, purpose, bio, treating a Direct as having a topic
 How a Channel identifies itself in the collapsed sidebar rail: the first letters of its name on a neutral square. A private, external, or matched Channel carries its kind as a small corner mark; a public one carries none. Directs show participant avatars instead. The expanded list keeps the plain kind glyph beside the name.
 _Avoid_: Channel avatar (Channels have no image), channel icon (nothing is chosen by a person), a colour per Channel (tried, five hues repeat across a dozen Channels and the repeats read as meaning), showing it beside the name in the expanded list
 
+**Rail attention pill**:
+The collapsed sidebar rail's single attention mark, a short bar on the rail's left edge beside a room's Channel tile or Direct avatar: 8px primary for an unread User mention or direct, 6px neutral for Room unread (including marked unread), none when read or Muted. Mention wins; never two marks and never a number. Off the mark itself, so the presence dot and the kind corner mark keep their corners. Derived from the same attention rules as the expanded row's bold and badge.
+_Avoid_: Unread badge, attention dot, notification dot, a second mark for mention plus unread, a mark on the expanded list
+
 **External channel**:
 A Channel that host-organization members can browse and join, and that people outside that organization can join only as a Guest — without becoming organization members and without a seat.
 _Avoid_: Public channel (host-org only), guest channel, shared channel

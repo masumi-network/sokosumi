@@ -5,8 +5,8 @@ import Foundation
 /// Mirrors `@sokosumi/utils` (`ably-channel.ts`, `chat-membership-revoked.ts`)
 /// and web `use-chat-room-realtime`: room fan-out on
 /// `chat_rooms:room_{id}`, membership revoke on `chat_control:user_{id}`.
-/// No org presence channels here — the tracer never enters presence
-/// (ADR 0003) and never activates push (ADR 0022 / 0023).
+/// Org presence channel names live in `ChatPresence.swift` (ADR 0003);
+/// push is never activated (ADR 0022 / 0023).
 public let chatRoomMessageEventName = "chat_room_message"
 public let chatRoomPinnedMessageEventName = "chat_room_pinned_message"
 public let chatMembershipRevokedEventName = "chat_membership_revoked"
