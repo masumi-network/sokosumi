@@ -4,7 +4,7 @@ import {
   CORE_API_ERROR_KINDS,
   formatTaskAttachmentMarkdown,
   isAgentOnlyTaskStatus,
-  taskContextSelectionAttachesAnything,
+  taskContextSelectionResolvesAnything,
 } from "@sokosumi/utils";
 import {
   ArrowLeft,
@@ -689,7 +689,7 @@ export function TaskForm({
   const hasSaveableDescription =
     Boolean(description.trim()) ||
     (mode === "edit" &&
-      taskContextSelectionAttachesAnything(contextSelection, {
+      taskContextSelectionResolvesAnything(contextSelection, {
         projectDesignMdUrl: selectedProject?.designMd?.url ?? null,
         workspaceDesignMdUrl: initialDesignMdAttachment?.url ?? null,
         projectBriefingUrl: selectedProject?.briefingUrl ?? null,

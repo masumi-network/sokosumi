@@ -7,6 +7,7 @@ import {
   parseTaskContextFromDescription,
   removeTaskContextAttachmentLinks,
   taskContextSelectionAttachesAnything,
+  taskContextSelectionResolvesAnything,
 } from "./task-context-attachment.js";
 
 describe("removeTaskContextAttachmentLinks", () => {
@@ -168,7 +169,7 @@ describe("taskContextSelectionAttachesAnything", () => {
     contextMdEnabled: false,
   };
 
-  it("treats enabled chips as attaching when availability is omitted", () => {
+  it("returns true when any chip is enabled", () => {
     expect(taskContextSelectionAttachesAnything(enabledBrand)).toBe(true);
     expect(
       taskContextSelectionAttachesAnything({
@@ -178,23 +179,31 @@ describe("taskContextSelectionAttachesAnything", () => {
       }),
     ).toBe(false);
   });
+});
 
-  it("requires a resolvable URL when availability is provided", () => {
+describe("taskContextSelectionResolvesAnything", () => {
+  const enabledBrand = {
+    brand: { enabled: true, source: "project" as const, custom: null },
+    briefingEnabled: false,
+    contextMdEnabled: false,
+  };
+
+  it("requires a resolvable URL for each enabled chip", () => {
     expect(
-      taskContextSelectionAttachesAnything(enabledBrand, {
+      taskContextSelectionResolvesAnything(enabledBrand, {
         projectDesignMdUrl: null,
         workspaceDesignMdUrl: null,
       }),
     ).toBe(false);
 
     expect(
-      taskContextSelectionAttachesAnything(enabledBrand, {
+      taskContextSelectionResolvesAnything(enabledBrand, {
         workspaceDesignMdUrl: "https://blob.example/design.md",
       }),
     ).toBe(true);
 
     expect(
-      taskContextSelectionAttachesAnything(
+      taskContextSelectionResolvesAnything(
         {
           brand: { enabled: false },
           briefingEnabled: true,
@@ -205,7 +214,7 @@ describe("taskContextSelectionAttachesAnything", () => {
     ).toBe(false);
 
     expect(
-      taskContextSelectionAttachesAnything(
+      taskContextSelectionResolvesAnything(
         {
           brand: {
             enabled: true,

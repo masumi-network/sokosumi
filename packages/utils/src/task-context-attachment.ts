@@ -164,19 +164,20 @@ export interface TaskContextAttachmentAvailability {
   projectContextMdUrl?: string | null;
 }
 
-/** With `availability`, requires a resolvable URL; without it, any enabled chip counts. */
 export function taskContextSelectionAttachesAnything(
   selection: TaskContextAttachmentFlags,
-  availability?: TaskContextAttachmentAvailability,
 ): boolean {
-  if (!availability) {
-    return (
-      selection.brand.enabled ||
-      selection.briefingEnabled ||
-      selection.contextMdEnabled
-    );
-  }
+  return (
+    selection.brand.enabled ||
+    selection.briefingEnabled ||
+    selection.contextMdEnabled
+  );
+}
 
+export function taskContextSelectionResolvesAnything(
+  selection: TaskContextAttachmentFlags,
+  availability: TaskContextAttachmentAvailability,
+): boolean {
   if (selection.brand.enabled) {
     const source = selection.brand.source ?? "project";
     if (source === "custom") {

@@ -328,6 +328,7 @@ export {
   type TaskContextAttachmentFlags,
   type TaskContextSelectionSnapshot,
   taskContextSelectionAttachesAnything,
+  taskContextSelectionResolvesAnything,
 } from "./task-context-attachment.js";
 export { isTaskEditableStatus } from "./task-editable.js";
 export {
