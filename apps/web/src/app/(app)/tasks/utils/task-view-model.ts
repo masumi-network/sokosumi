@@ -158,12 +158,15 @@ export function mapTaskToTaskWithCoworker(
     task.description,
     agentsById,
   );
-  const descriptionPlain =
+  const strippedDescription =
     namedDescription === null
       ? null
       : stripMarkdownToText(
           removeTaskContextAttachmentLinks(namedDescription),
         )?.slice(0, 200);
+  // Context-only descriptions strip to "". Treat that as absent so cards do
+  // not render blank space and lists do not skip the "—" fallback.
+  const descriptionPlain = strippedDescription || null;
   const createdAt = task.createdAt.toISOString();
   const updatedAt = task.updatedAt.toISOString();
   const nextRunAt = task.nextRunAt?.toISOString() ?? null;

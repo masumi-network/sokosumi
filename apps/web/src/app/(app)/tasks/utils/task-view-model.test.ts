@@ -275,4 +275,16 @@ describe("mapTaskToTaskWithCoworker", () => {
       /DESIGN\.md|BRIEFING\.md|CONTEXT\.md/,
     );
   });
+
+  it("sets descriptionPlain to null when the description is only Context links", () => {
+    const task = buildTask(TaskStatus.DRAFT, {
+      description: [
+        "[DESIGN.md](https://blob.example/design.md)",
+        "[BRIEFING.md](https://blob.example/projects/p1/BRIEFING.md)",
+        "[CONTEXT.md](https://blob.example/projects/p1/CONTEXT.md)",
+      ].join("\n"),
+    });
+
+    expect(map(task).descriptionPlain).toBeNull();
+  });
 });
