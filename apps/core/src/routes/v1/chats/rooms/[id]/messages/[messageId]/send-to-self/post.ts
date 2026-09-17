@@ -70,22 +70,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserAuthContext(c.var.authContext);
     const { id, messageId } = c.req.valid("param");
 
-    const quote = await prisma.$transaction(async (tx) => {
-      const room = await requireChatRoomUserAccess(id, userContext.userId, tx);
-      if (isSelfDirectRoom(room)) {
-        throw badRequest("Messages in your Self Direct are already there.");
-      }
+    // Read-only: the snapshot is durable, so these two reads need no transaction.
+    const room = await requireChatRoomUserAccess(
+      id,
+      userContext.userId,
+      prisma,
+    );
+    if (isSelfDirectRoom(room)) {
+      throw badRequest("Messages in your Self Direct are already there.");
+    }
 
-      const source = await tx.chatRoomMessage.findFirst({
-        where: { id: messageId, roomId: id, deletedAt: null },
-        select: roomQuoteSourceSelect,
-      });
-      if (!source) {
-        throw notFound("Message not found");
-      }
-
-      return { ...buildRoomQuoteSnapshot(source), roomId: id };
+    const source = await prisma.chatRoomMessage.findFirst({
+      where: { id: messageId, roomId: id, deletedAt: null },
+      select: roomQuoteSourceSelect,
     });
+    if (!source) {
+      throw notFound("Message not found");
+    }
+
+    const quote = { ...buildRoomQuoteSnapshot(source), roomId: id };
 
     const selfDirect = await createOrGetDirectRoom({
       organizationId: null,

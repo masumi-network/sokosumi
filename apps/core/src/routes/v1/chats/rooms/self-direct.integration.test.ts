@@ -571,6 +571,24 @@ describeWithDb("Self Direct through chat HTTP handlers with Postgres", () => {
     await drainBackground();
   });
 
+  it("rejects a membership status message", async () => {
+    const { room } = await createSourceDirect();
+    const membership = await prisma.chatRoomMessage.create({
+      data: {
+        roomId: room.id,
+        senderUserId: ownerId,
+        content: "",
+        metadata: {
+          membership: {
+            action: "joined",
+            subject: { type: "user", id: otherId, name: "Organization admin" },
+          },
+        },
+      },
+    });
+    expect((await sendToSelf(room.id, membership.id)).status).toBe(400);
+  });
+
   it("hides unreadable, deleted and missing messages", async () => {
     const foreign = await createSourceDirect([otherId]);
     expect((await sendToSelf(foreign.room.id, foreign.message.id)).status).toBe(

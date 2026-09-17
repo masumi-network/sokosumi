@@ -1733,11 +1733,10 @@ export function RoomsClient({
   }
 
   async function handleSendMessageToSelf(message: ChatRoomMessage) {
-    const roomId = selectedRoom?.id;
-    if (!roomId) {
-      return;
-    }
-    const result = await sendRoomMessageToSelfAction(roomId, message.id);
+    const result = await sendRoomMessageToSelfAction(
+      message.roomId,
+      message.id,
+    );
     if (!result.ok) {
       toast.error(result.error.message);
       return;
