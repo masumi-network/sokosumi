@@ -61,6 +61,8 @@ import SwiftUI
     var sentAt: Date?
     let onRetry: (() -> Void)?
     let onRemove: (() -> Void)?
+    /// Mentioner-only retry of a failed coworker mention shell.
+    var onRetryMention: (() async throws -> Void)?
     var onReply: (() -> Void)?
     var onQuote: (() -> Void)?
     var onEdit: (() -> Void)?
@@ -104,14 +106,22 @@ import SwiftUI
       isHovered || isReplyHovered || focusedAction != nil || showsReactionPicker
     }
 
+    /// Persisted mention shell (thinking or failed); nil for ordinary rows.
+    private var mentionShell: CoworkerMentionShell? {
+      CoworkerMentionShell(message: message)
+    }
+
+    /// Web `isDurableRoomMessage`: no link while the shell is still thinking.
     private var canCopyMessageLink: Bool {
       message.deletedAt == nil
         && !isOutboundLocalMessage(message)
         && !message.id.hasPrefix("stream:")
+        && mentionShell?.isThinking != true
     }
 
     private var showsActionChrome: Bool {
       message.deletedAt == nil
+        && mentionShell?.isThinking != true
         && (onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil
           || onTogglePin != nil || onToggleReaction != nil || canCopyMessageLink)
     }
@@ -196,9 +206,15 @@ import SwiftUI
               }
             }
           }
-          if isCoworkerMessage(message), message.deletedAt == nil {
+          let mentionShell = mentionShell
+          if case .failed? = mentionShell {
+            CoworkerMentionFailedView(onRetry: onRetryMention)
+          } else if isCoworkerMessage(message), message.deletedAt == nil {
+            // A persisted mention shell keeps the live Thought header until Core
+            // fills the answer; its clock starts at `thought_timing_ms.start`.
             CoworkerThoughtView(thought: CoworkerThought(message: message, streamedText: streamReasoning),
-                                working: streamThinking, startedAt: message.createdAt)
+                                working: streamThinking || mentionShell != nil,
+                                startedAt: mentionShell?.startedAt ?? message.createdAt)
           }
           if message.deletedAt != nil {
             Text("This message was deleted")
@@ -211,7 +227,7 @@ import SwiftUI
             }
             if let editing, editing.source?.id == message.id {
               MessageEditComposer(editing: editing).id(message.id)
-            } else {
+            } else if mentionShell == nil {
               MessageMarkdownView(source: message.content, room: room, channels: channels, preparedDocument: preparedDocument)
             }
             if outbound == nil {

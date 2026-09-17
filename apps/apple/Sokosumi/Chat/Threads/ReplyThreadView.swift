@@ -58,6 +58,19 @@ import SwiftUI
       return { try await workspaces.deleteMessage(message, auth: auth) }
     }
 
+    private func mentionRetryAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
+      guard workspaces.canRetryMention(message) else { return nil }
+      return { try await workspaces.retryMention(message, auth: auth) }
+    }
+
+    private func quoteAction(for message: Components.Schemas.ChatRoomMessage) -> (() -> Void)? {
+      guard canQuoteMessage(message) else { return nil }
+      return {
+        pendingQuote = messageQuote(from: message)
+        quoteFocusRequest = UUID().uuidString
+      }
+    }
+
     var body: some View {
       content
         .alert("Couldn’t load message", isPresented: Binding(get: { jumpError != nil }, set: {
@@ -95,9 +108,7 @@ import SwiftUI
           ScrollView {
             LazyVStack(alignment: .leading, spacing: 8) {
               MessageRowView(channels: channels, room: currentRoom, preparedDocument: preparedTranscript?.documents[parent.id], message: parent, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
-                             onQuote: canQuoteMessage(parent) ? { pendingQuote = messageQuote(from: parent)
-                               quoteFocusRequest = UUID().uuidString
-                             } : nil,
+                             onQuote: quoteAction(for: parent),
                              onEdit: canModifyOwnMessage(parent, userId: workspaces.currentUserId) ? { workspaces.startEditing(parent) } : nil,
                              onDelete: deletionAction(for: parent),
                              onRemoveUnfurl: unfurlAction(for: parent),
@@ -286,9 +297,8 @@ import SwiftUI
                            outbound: shell, sentAt: outbox.sentAt[message.id],
                            onRetry: shell.map { item in { outbox.retry(item.clientTurnId) } },
                            onRemove: shell.map { item in { outbox.remove(item.clientTurnId) } },
-                           onQuote: canQuoteMessage(message) ? { pendingQuote = messageQuote(from: message)
-                             quoteFocusRequest = UUID().uuidString
-                           } : nil,
+                           onRetryMention: mentionRetryAction(for: message),
+                           onQuote: quoteAction(for: message),
                            onEdit: canModifyOwnMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
                            isHighlighted: workspaces.thread.jumpTarget?.messageId == message.id,
                            onDelete: deletionAction(for: message),
