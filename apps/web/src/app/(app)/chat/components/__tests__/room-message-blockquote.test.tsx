@@ -17,11 +17,12 @@ import {
 } from "../room-helpers";
 
 /** Tokens that encode the composer quote chrome contract. */
-const QUOTE_BAR_CLASS = "[&_blockquote]:border-l-2";
-const QUOTE_BAR_COLOR_CLASS = "[&_blockquote]:border-input";
-const QUOTE_PAD_CLASS = "[&_blockquote]:pl-3";
-const QUOTE_MUTED_CLASS = "[&_blockquote]:text-muted-foreground";
-const QUOTE_NO_CURLY_MARKS_CLASS = "[&_blockquote]:quotes-none";
+const QUOTE_BAR_CLASS = "border-l-2";
+const QUOTE_BAR_COLOR_CLASS = "border-input";
+const QUOTE_PAD_CLASS = "pl-3";
+const QUOTE_MUTED_CLASS = "text-muted-foreground";
+const QUOTE_NO_CURLY_MARKS_CLASS = "[&_p]:before:content-none";
+const QUOTE_NO_CURLY_MARKS_AFTER_CLASS = "[&_p]:after:content-none";
 
 function fromHtml(html: string): string {
   const root = document.createElement("div");
@@ -55,10 +56,12 @@ describe("room message blockquotes after send", () => {
 
     expect(quote).not.toBeNull();
     expect(quote).toHaveTextContent("quoted");
-    expect(rootClass).toContain(QUOTE_BAR_CLASS);
-    expect(rootClass).toContain(QUOTE_BAR_COLOR_CLASS);
-    expect(rootClass).toContain(QUOTE_PAD_CLASS);
-    expect(rootClass).toContain(QUOTE_MUTED_CLASS);
-    expect(rootClass).toContain(QUOTE_NO_CURLY_MARKS_CLASS);
+    expect(quote).toHaveClass(QUOTE_BAR_CLASS);
+    expect(quote).toHaveClass(QUOTE_BAR_COLOR_CLASS);
+    expect(quote).toHaveClass(QUOTE_PAD_CLASS);
+    expect(quote).toHaveClass(QUOTE_MUTED_CLASS);
+    expect(quote?.className).toContain(QUOTE_NO_CURLY_MARKS_CLASS);
+    expect(quote?.className).toContain(QUOTE_NO_CURLY_MARKS_AFTER_CLASS);
+    expect(rootClass).toContain("prose");
   });
 });
