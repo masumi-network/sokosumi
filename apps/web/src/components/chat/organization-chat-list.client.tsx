@@ -46,6 +46,7 @@ import type {
 import { cn } from "@/lib/utils";
 import { getActiveRoomIdFromPathname } from "./active-room-id";
 import { ChannelDiscoverabilityIcon } from "./channel-discoverability-icon";
+import { ChannelRoomMark } from "./channel-room-mark";
 import { ChatRoomSidebarRow } from "./chat-room-sidebar-row";
 import { ChatSidebarSectionHeader } from "./chat-sidebar-section-header";
 import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
@@ -254,11 +255,7 @@ export function OrganizationChatList({
                     href={`/chat/rooms/${room.id}`}
                     label={room.name}
                     isActive={activeRoomId === room.id}
-                    leading={
-                      <ChannelDiscoverabilityIcon
-                        discoverability={room.discoverability}
-                      />
-                    }
+                    leading={<ChannelRoomMark room={room} />}
                     onRoomUpdated={replaceRoom}
                     dismissSheetOnNavigate={dismissSheetOnNavigate}
                   />
@@ -355,9 +352,7 @@ export function OrganizationChatList({
                         : undefined
                     }
                     isActive={activeRoomId === room.id}
-                    leading={
-                      <ChannelDiscoverabilityIcon discoverability="external" />
-                    }
+                    leading={<ChannelRoomMark room={room} />}
                     onRoomUpdated={replaceRoom}
                     dismissSheetOnNavigate={dismissSheetOnNavigate}
                   />

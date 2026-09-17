@@ -359,7 +359,10 @@ export function ChatRoomSidebarRow({
 
   return (
     <SidebarMenuItem className="group/room-row relative">
-      <SidebarMenuButton asChild isActive={isActive}>
+      {/* Collapsed to icons the row is only its leading mark, so the name
+          rides the button's tooltip, which the sidebar shows in that state
+          alone. */}
+      <SidebarMenuButton asChild isActive={isActive} tooltip={label}>
         {dismissSheetOnNavigate ? (
           <SheetClose asChild>{roomLink}</SheetClose>
         ) : (

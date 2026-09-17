@@ -131,11 +131,16 @@ vi.mock("@/components/ui/sidebar", () => ({
   SidebarMenuButton: ({
     children,
     asChild,
+    tooltip,
   }: {
     children: ReactNode;
     asChild?: boolean;
-  }) =>
-    asChild && isValidElement(children) ? children : <div>{children}</div>,
+    tooltip?: string;
+  }) => (
+    <div data-testid="sidebar-menu-button" data-tooltip={tooltip}>
+      {asChild && isValidElement(children) ? children : <div>{children}</div>}
+    </div>
+  ),
   SidebarMenuItem: ({ children }: { children: ReactNode }) => (
     <li>{children}</li>
   ),
@@ -319,6 +324,26 @@ async function openRoomMenu(label = "general") {
   );
   return user;
 }
+
+describe("ChatRoomSidebarRow tooltip", () => {
+  it("names the room on the sidebar button so the collapsed rail can show it", () => {
+    render(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span />}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("sidebar-menu-button")).toHaveAttribute(
+      "data-tooltip",
+      "general",
+    );
+  });
+});
 
 describe("ChatRoomSidebarRow leading slot", () => {
   it("wraps any room leading icon in a min-w-5 / h-5 alignment slot", () => {
