@@ -358,4 +358,65 @@ describe("buildRoomStreamThreadModelMessages", () => {
       { role: "user", content: "converted" },
     ]);
   });
+
+  it("re-attaches request file parts to the converted newest user turn", async () => {
+    vi.mocked(prisma.chatRoomMessage.findMany).mockResolvedValue([
+      {
+        id: "reply_2",
+        content: "See [a.png](https://blob.example/a.png)",
+        senderUserId: "user_1",
+        senderCoworkerId: null,
+        metadata: null,
+        createdAt: new Date("2026-07-01T12:02:00.000Z"),
+        senderUser: { name: "Ada" },
+        senderCoworker: null,
+      },
+      {
+        id: "asst_1",
+        content: "Answer",
+        senderUserId: null,
+        senderCoworkerId: "cow_1",
+        metadata: null,
+        createdAt: new Date("2026-07-01T12:01:00.000Z"),
+        senderUser: null,
+        senderCoworker: { name: "Hannah" },
+      },
+      {
+        id: "parent_1",
+        content: "Root",
+        senderUserId: "user_1",
+        senderCoworkerId: null,
+        metadata: null,
+        createdAt: new Date("2026-07-01T12:00:00.000Z"),
+        senderUser: { name: "Ada" },
+        senderCoworker: null,
+      },
+    ] as never);
+
+    const result = await buildRoomStreamThreadModelMessages({
+      roomId: "room_1",
+      parentMessageId: "parent_1",
+      roomName: "Hannah DM",
+      senderName: "Ada",
+      lastUserMessageText: "See",
+      lastUserFileParts: [
+        { url: "https://blob.example/a.png", mediaType: "image/png" },
+      ],
+    });
+
+    expect(convertToModelMessages).toHaveBeenCalledOnce();
+    expect(result.modelMessages).toEqual([
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "converted" },
+          {
+            type: "file",
+            data: new URL("https://blob.example/a.png"),
+            mediaType: "image/png",
+          },
+        ],
+      },
+    ]);
+  });
 });

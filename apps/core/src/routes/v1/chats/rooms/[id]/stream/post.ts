@@ -44,7 +44,6 @@ import {
 import {
   buildRoomStreamThreadModelMessages,
   ensureThreadProviderConversation,
-  type RoomStreamUserFilePart,
   THREAD_PROVIDER_CONVERSATION_ID_KEY,
 } from "@/helpers/room-stream-thread";
 import prisma from "@/lib/db/prisma";
@@ -264,7 +263,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       "parts" in lastMessage &&
       Array.isArray(lastMessage.parts)
         ? lastMessage.parts.filter(
-            (part): part is RoomStreamUserFilePart & { type: "file" } =>
+            (part): part is Extract<typeof part, { type: "file" }> =>
               part.type === "file",
           )
         : [];
