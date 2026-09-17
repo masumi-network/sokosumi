@@ -149,7 +149,7 @@ vi.mock("@/app/chat/actions", () => ({
   markThreadReadAction: vi.fn(),
   retryRoomMentionAction: vi.fn(),
   sendRoomMessageAction: vi.fn(),
-  toggleMessageReactionAction: vi.fn(),
+  setMessageReactionAction: vi.fn(),
 }));
 
 vi.mock("@/components/chat/organization-chat-list.actions", () => ({

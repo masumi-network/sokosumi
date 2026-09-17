@@ -208,6 +208,10 @@ _Avoid_: Room slug (Directs have no slug), treating the slug as the Channel’s 
 An optional short description of what a Channel is for. Distinct from the Channel name and Channel slug. Absent when unset or blank. Directs have none.
 _Avoid_: Description, purpose, bio, treating a Direct as having a topic
 
+**Channel tile**:
+How a Channel identifies itself in the collapsed sidebar rail: the first letters of its name on a neutral square. A private, external, or matched Channel carries its kind as a small corner mark; a public one carries none. Directs show participant avatars instead. The expanded list keeps the plain kind glyph beside the name.
+_Avoid_: Channel avatar (Channels have no image), channel icon (nothing is chosen by a person), a colour per Channel (tried, five hues repeat across a dozen Channels and the repeats read as meaning), showing it beside the name in the expanded list
+
 **External channel**:
 A Channel that host-organization members can browse and join, and that people outside that organization can join only as a Guest — without becoming organization members and without a seat.
 _Avoid_: Public channel (host-org only), guest channel, shared channel
@@ -272,6 +276,16 @@ _Avoid_: Starred room (API-only name), favorite, treating this as a Pinned messa
 A top-level Channel message on that Channel's shared pin list. Everyone on the room roster sees the same list. Distinct from a Pinned room.
 _Avoid_: Announcement (a use of this), pinned room, thread pin
 
+### Chat reactions
+
+**Reaction**:
+One user's emoji on one room message. The user, the message and the emoji identify it; there is no separate reaction id. A user either has a given Reaction or does not.
+_Avoid_: Toggle (the old API verb), like, vote
+
+**Pending reaction**:
+The sender-local add or remove of a Reaction shown before the server confirms it. It overlays that emoji only; it is dropped on confirm, rolled back to the last confirmed state on failure, and never seen by other participants. Distinct from a Pending message.
+_Avoid_: Optimistic reaction (jargon), local reaction
+
 ### Chat presence
 
 **Presence**:
@@ -306,7 +320,11 @@ _Avoid_: Autolink (ambiguous with GFM scheme/`www` links), live link (composer d
 
 **Channel link**:
 In a room message body, a `#` immediately followed by a membership-visible Channel’s current name or slug (no space after `#`). Presentation shows it as a clickable link to that Channel after send; the stored markdown is unchanged. Distinct from User mention: no stored mention row, no paging. The composer `#` picker inserts a chip that looks like a User mention but serializes to this plain text; it is not a stored mention row.
-_Avoid_: Channel mention (that reads as User mention), hashtag, linking a Direct, treating `# Heading` (space after `#`) as a Channel link
+_Avoid_: Channel mention (that reads as User mention), hashtag, linking a Direct, treating `# Heading` (space after `#`) as a Channel link, Message link
+
+**Message link**:
+A URL that opens a room and jumps to one specific room message, for a reader who can already read that room. Distinct from a Channel link, which is `#name` or `#slug` in a room message body. Not a public share.
+_Avoid_: permalink, public share, Channel link, vanity slug URL
 
 **Unfurl**:
 A page-preview card scraped from a URL in a room message body and stored on that message. The same cards for every viewer. Distinct from the URL in the body.

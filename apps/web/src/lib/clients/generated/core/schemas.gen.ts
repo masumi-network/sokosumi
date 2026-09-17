@@ -10254,21 +10254,6 @@ export const UpdateChatRoomMessageRequestSchema = {
     ]
 } as const;
 
-export const ReactToChatRoomMessageRequestSchema = {
-    type: 'object',
-    properties: {
-        emoji: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 24,
-            example: '👍'
-        }
-    },
-    required: [
-        'emoji'
-    ]
-} as const;
-
 export const ChatRoomPinnedMessageMutationSchema = {
     type: 'object',
     properties: {

@@ -61,7 +61,6 @@ import type {
   PostAgentsByIdRatingsData,
   PostChatsRoomsByIdFilesData,
   PostChatsRoomsByIdInviteLinksData,
-  PostChatsRoomsByIdMessagesByMessageIdReactionsData,
   PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveData,
   PostChatsRoomsByIdMessagesData,
   PostChatsRoomsData,
@@ -130,6 +129,7 @@ import {
   deleteChatsRoomsByIdMembersMe as coreDeleteChatsRoomsByIdMembersMe,
   deleteChatsRoomsByIdMessagesByMessageId as coreDeleteChatsRoomsByIdMessagesByMessageId,
   deleteChatsRoomsByIdMessagesByMessageIdPin as coreDeleteChatsRoomsByIdMessagesByMessageIdPin,
+  deleteChatsRoomsByIdMessagesByMessageIdReactionsByEmoji as coreDeleteChatsRoomsByIdMessagesByMessageIdReactionsByEmoji,
   deleteChatsRoomsByIdMute as coreDeleteChatsRoomsByIdMute,
   deleteChatsRoomsByIdStar as coreDeleteChatsRoomsByIdStar,
   deleteChatsRoomsByIdThreadsByParentMessageIdMute as coreDeleteChatsRoomsByIdThreadsByParentMessageIdMute,
@@ -313,7 +313,6 @@ import {
   postChatsRoomsByIdMessages as corePostChatsRoomsByIdMessages,
   postChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetry as corePostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetry,
   postChatsRoomsByIdMessagesByMessageIdPin as corePostChatsRoomsByIdMessagesByMessageIdPin,
-  postChatsRoomsByIdMessagesByMessageIdReactions as corePostChatsRoomsByIdMessagesByMessageIdReactions,
   postChatsRoomsByIdMessagesByMessageIdUnfurlsRemove as corePostChatsRoomsByIdMessagesByMessageIdUnfurlsRemove,
   postChatsRoomsByIdMute as corePostChatsRoomsByIdMute,
   postChatsRoomsByIdRead as corePostChatsRoomsByIdRead,
@@ -365,6 +364,7 @@ import {
   postVendorsByIdFilesCleanup as corePostVendorsByIdFilesCleanup,
   postWorkspacesDesignMdAdhoc as corePostWorkspacesDesignMdAdhoc,
   promoteAdminSokoBotVersion as corePromoteAdminSokoBotVersion,
+  putChatsRoomsByIdMessagesByMessageIdReactionsByEmoji as corePutChatsRoomsByIdMessagesByMessageIdReactionsByEmoji,
   putJobsByIdShare as corePutJobsByIdShare,
   putJobsByIdWorkspace as corePutJobsByIdWorkspace,
   putOrganizationsByIdDesignMd as corePutOrganizationsByIdDesignMd,
@@ -1107,22 +1107,35 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function toggleChatRoomMessageReaction(
-    id: string,
+  async function addChatRoomMessageReaction(
+    roomId: string,
     messageId: string,
-    body: NonNullable<
-      PostChatsRoomsByIdMessagesByMessageIdReactionsData["body"]
-    >,
+    emoji: string,
   ) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        corePostChatsRoomsByIdMessagesByMessageIdReactions({
+        corePutChatsRoomsByIdMessagesByMessageIdReactionsByEmoji({
           client,
-          path: { id, messageId },
-          body,
+          path: { id: roomId, messageId, emoji },
         }),
-      "Failed to update chat room message reaction",
+      "Failed to add chat room message reaction",
+    );
+  }
+
+  async function removeChatRoomMessageReaction(
+    roomId: string,
+    messageId: string,
+    emoji: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteChatsRoomsByIdMessagesByMessageIdReactionsByEmoji({
+          client,
+          path: { id: roomId, messageId, emoji },
+        }),
+      "Failed to remove chat room message reaction",
     );
   }
 
@@ -5074,7 +5087,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     deleteChatRoomMessage,
     removeChatRoomMessageUnfurl,
     retryChatRoomMention,
-    toggleChatRoomMessageReaction,
+    addChatRoomMessageReaction,
+    removeChatRoomMessageReaction,
     getHistory,
     getNotifications,
     getNotificationsCounts,

@@ -1230,7 +1230,7 @@ export function TaskForm({
       <section className="flex min-h-0 flex-1 flex-col">
         <div className="[&::-webkit-scrollbar-thumb]:bg-tertiary flex min-h-0 flex-1 flex-col overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
           {useWizard && step === 1 ? (
-            <div className="flex min-h-0 flex-1 flex-col px-6 py-3 md:px-8">
+            <div className="flex min-h-0 flex-1 flex-col px-6 py-3 md:px-8 md:py-0">
               <AgentSpotlight
                 options={coworkerOptions}
                 selectedId={assigneeId}

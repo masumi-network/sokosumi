@@ -35,11 +35,13 @@ public final class WorkspaceState: ObservableObject {
   @Published public private(set) var joiningChannel = false
   @Published public private(set) var updatingChannel = false
   @Published public private(set) var channelLifecycle: ChannelLifecycleRequest?
+  @Published public internal(set) var invitationResponse: InvitationResponse?
   public let archivedChannels = ArchivedChannels()
+  public let pendingInvitations = PendingInvitations()
   @Published public private(set) var compositionContext = UUID()
   /// Channel/Direct mutations are single-flight across the workspace, matching web's one open dialog at a time.
   public var channelMutationInFlight: Bool {
-    creatingChannel || joiningChannel || updatingChannel || openingDirect != nil || channelLifecycle != nil
+    creatingChannel || joiningChannel || updatingChannel || openingDirect != nil || channelLifecycle != nil || invitationResponse != nil
   }
 
   public var phase: Phase {
@@ -205,7 +207,7 @@ public final class WorkspaceState: ObservableObject {
     self.clientProvider = clientProvider
     sidebar = ConversationSidebar(savedRoom: savedRoom)
     ablyClientInstanceId = getOrCreateAblyClientInstanceId(store: instanceStore)
-    for publisher in [archivedChannels.objectWillChange, threadOverview.objectWillChange, pins.objectWillChange, thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange] {
+    for publisher in [archivedChannels.objectWillChange, pendingInvitations.objectWillChange, threadOverview.objectWillChange, pins.objectWillChange, thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange] {
       publisher.sink { [weak self] in self?.objectWillChange.send() }.store(in: &threadObservations)
     }
     // Rows need editor identity changes; draft and save state are observed by the editor itself.
@@ -266,7 +268,9 @@ public final class WorkspaceState: ObservableObject {
     joiningChannel = false
     updatingChannel = false
     channelLifecycle = nil
+    invitationResponse = nil
     archivedChannels.reset()
+    pendingInvitations.reset()
     workspaceSession.reset()
     sidebar.reset()
     rooms = []
@@ -311,7 +315,7 @@ public final class WorkspaceState: ObservableObject {
   }
 
   public func createChannel(_ draft: ChannelDraft, roster: ChatRecipientRoster, context: UUID, auth: AuthState) async throws -> Bool {
-    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, !channelMutationInFlight else { return false }
+    guard canStartMutation(context: context) else { return false }
     let sourceRoom = transcriptRoomId
     creatingChannel = true
     defer {
@@ -376,8 +380,13 @@ public final class WorkspaceState: ObservableObject {
     }
   }
 
+  /// Channel, Direct and invitation mutations start only for the live composition context, outside a switch, one at a time.
+  func canStartMutation(context: UUID) -> Bool {
+    context == compositionContext && phase == .ready && !workspaceSession.isSwitching && !channelMutationInFlight
+  }
+
   /// Runs an authenticated request for the current composition context; a workspace change or reset turns its result into cancellation.
-  private func workspaceOperation<Value: Sendable>(context: UUID, auth: AuthState, operation: (Client) async throws -> Value) async throws -> Value {
+  func workspaceOperation<Value: Sendable>(context: UUID, auth: AuthState, operation: (Client) async throws -> Value) async throws -> Value {
     guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, let client = resolveClient(auth: auth) else { throw CancellationError() }
     do {
       let value = try await operation(client)
@@ -452,7 +461,7 @@ public final class WorkspaceState: ObservableObject {
   }
 
   private func runChannelLifecycle(_ action: ChannelLifecycleAction, roomId: String, context: UUID, perform: () async throws -> Void) async throws -> Bool {
-    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, !channelMutationInFlight else { return false }
+    guard canStartMutation(context: context) else { return false }
     channelLifecycle = .init(roomId: roomId, action: action)
     defer {
       if context == compositionContext {
@@ -498,7 +507,7 @@ public final class WorkspaceState: ObservableObject {
 
   @discardableResult
   public func openDirect(_ recipients: DirectConversationSelection, context: UUID, auth: AuthState) async throws -> Bool {
-    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, !channelMutationInFlight,
+    guard canStartMutation(context: context),
           let first = recipients.recipients.first, let client = resolveClient(auth: auth) else { return false }
     let sourceRoom = transcriptRoomId
     openingDirect = first
@@ -1114,7 +1123,9 @@ public final class WorkspaceState: ObservableObject {
     joiningChannel = false
     updatingChannel = false
     channelLifecycle = nil
+    invitationResponse = nil
     archivedChannels.reset()
+    pendingInvitations.reset()
     let generation = workspaceGeneration
     rooms = []
     switchError = nil
@@ -1141,6 +1152,7 @@ public final class WorkspaceState: ObservableObject {
     joiningChannel = false
     updatingChannel = false
     channelLifecycle = nil
+    invitationResponse = nil
     roomsRefreshTask?.cancel()
     roomsRefreshTask = nil
     roomsRefreshID = UUID()
@@ -1157,6 +1169,7 @@ public final class WorkspaceState: ObservableObject {
       guard let loaded = try await workspaceSession.select(option, client: client), generation == workspaceGeneration else { return }
       sidebar.dropPendingActions()
       archivedChannels.reset()
+      pendingInvitations.reset()
       readAttention.reset()
       clearTranscript()
       selectedRoomId = nil

@@ -1,0 +1,69 @@
+---
+description: "Whole pixels in apps/web: no fractional px on a layout or border length"
+alwaysApply: true
+---
+
+## Whole pixels
+
+A layout or border length in `apps/web` is a whole number of CSS pixels.
+Never `1.5px`, never `0.2px`, never `0.5px`.
+
+### Why
+
+A CSS pixel is not a device pixel. On a 2x Mac display, `1.5px` is exactly
+three device pixels, so it looks deliberate to the person who wrote it. On a
+1x display, which is most Windows hardware, there is no half pixel. The
+browser rounds, and it does not round consistently: a `1.5px` border lands at
+1px on one edge of the box and 2px on the opposite edge. A `0.2px` border
+rounds away to nothing on some surfaces and to a hairline on others.
+
+The result is an element that is visibly lopsided on the hardware most users
+have, and correct only on the hardware the author has.
+
+### What is banned
+
+Any fractional `px` on a length that resolves to a painted edge or a box
+dimension:
+
+- `width`, `height`, `size`, and the `min-` / `max-` forms
+- `padding`, `margin`, `gap`
+- `top`, `right`, `bottom`, `left`, `inset`
+- `border`, `border-*-width`, `outline`, `outline-width`, `outline-offset`
+
+In every form the codebase uses: a CSS declaration (`padding: 1.5px`), a React
+style object (`border: "0.2px solid transparent"`), and a Tailwind arbitrary
+value (`p-[1.5px]`, `border-[0.5px]`, `ring-offset-[1.5px]`).
+
+### What is allowed
+
+Continuous values. The browser interpolates these rather than snapping them to
+a device pixel, so a fraction is meaningful:
+
+- blur and shadow radii — `blur(1.5px)`, `--chat-jump-dim-blur: 1.5px`
+- translations inside a keyframe — `translateY(-0.25px)`, which the
+  compositor tweens anyway
+- unitless scale factors — `scale(0.96)`
+
+`rem` and `em` lengths are also out of scope. They are the correct unit for
+type and for anything that must scale with the root, and their computed px
+value is expected to be fractional.
+
+### The fix
+
+Pick the whole pixel the author meant.
+
+| Was | Use | Reason |
+| --- | --- | --- |
+| `border: "0.2px solid …"` | `border: "1px solid …"` | 0.2px is a fifth of a device pixel even at 2x. 1px is the hairline it was reaching for. |
+| `padding: 1.5px` | `padding: 2px` | Keeps the ring heavier than a hairline and renders the same on 1x and 2x. |
+| `p-[1.5px]` | `p-0.5` | 2px, and back on the 4pt scale. |
+
+Prefer a Tailwind spacing step over an arbitrary value. `p-0.5` is 2px; the
+fraction in the class name is a step on the 4pt scale, not a fraction of a
+pixel.
+
+### Guard
+
+`apps/web/src/lib/utils/__tests__/whole-pixels.test.ts` scans every `.ts`,
+`.tsx` and `.css` file under `apps/web/src` and fails on a fractional px in
+any of the three forms above. Generated clients and test files are skipped.

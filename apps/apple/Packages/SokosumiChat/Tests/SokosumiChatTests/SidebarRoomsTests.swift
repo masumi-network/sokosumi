@@ -55,7 +55,7 @@ private func makeRoom(
   .init(
     id: id,
     name: name,
-    kind: kind,
+    kind: kind, isSelfDirect: false,
     discoverability: kind == .channel ? discoverability : nil,
     createdByUserId: "user_1",
     createdAt: baseDate,
