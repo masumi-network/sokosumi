@@ -405,7 +405,7 @@ function SidebarContent({ className, ...props }: React.ComponentProps<"div">) {
       className={cn(
         // The icon rail scrolls too (channels/DMs sit below the fold); it only
         // hides the scrollbar so the 3.5rem rail keeps its full width for icons.
-        "flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden group-data-[collapsible=icon]:[scrollbar-width:none]",
+        "flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden group-data-[collapsible=icon]:[-ms-overflow-style:none] group-data-[collapsible=icon]:[scrollbar-width:none] group-data-[collapsible=icon]:[&::-webkit-scrollbar]:hidden",
         className,
       )}
       {...props}

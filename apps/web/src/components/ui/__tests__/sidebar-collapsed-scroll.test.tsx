@@ -29,6 +29,9 @@ describe("SidebarContent in the collapsed icon rail", () => {
     const content = container.querySelector('[data-slot="sidebar-content"]');
     expect(content).not.toBeNull();
     expect(content?.className).toContain("overflow-y-auto");
+    expect(content?.className).toContain(
+      "group-data-[collapsible=icon]:[scrollbar-width:none]",
+    );
     expect(content?.className).not.toMatch(
       /collapsible=icon\]:overflow-hidden/,
     );
