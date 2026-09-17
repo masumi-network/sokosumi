@@ -478,9 +478,10 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
 
   it("schedules owned chat-file and unfurl snapshot deletes on first tombstone", async () => {
     const ownedFile = `https://abc.public.blob.vercel-storage.com/users/${USER_ID}/chats/${ROOM_ID}/report.pdf`;
+    const ownedHeic = `https://abc.public.blob.vercel-storage.com/users/${USER_ID}/chats/${ROOM_ID}/photo.heic`;
     const snapshot = `https://abc.public.blob.vercel-storage.com/chats/${ROOM_ID}/unfurls/${MESSAGE_ID}/image-preview-xyz.png`;
     const live = baseMessage({
-      content: `see [report](${ownedFile})`,
+      content: `see [report](${ownedFile}) and [photo](${ownedHeic})`,
       metadata: {
         unfurls: [
           {
@@ -510,7 +511,7 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
     expect(response.status).toBe(200);
     await Promise.all(waitUntilPromises);
     expect(deleteChatRoomFilesIfOwnedMock).toHaveBeenCalledWith(
-      [ownedFile],
+      [ownedFile, ownedHeic],
       { kind: "user", userId: USER_ID },
       ROOM_ID,
     );

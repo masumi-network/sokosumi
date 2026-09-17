@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { extractFileLikeLinks } from "@sokosumi/utils";
+import { extractFileLikeLinks, extractHttpLinks } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 
 import { rewriteChatNotificationPreviews } from "@/helpers/chat-notification-fanout";
@@ -172,7 +172,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           unpinned: pinDelete.count > 0 ? { pinnedMessageCount } : null,
           blobCleanup: newlySoftDeleted
             ? {
-                chatFileUrls: extractFileLikeLinks(existing.content),
+                // File-like allowlist misses upload-allowed types (heic, m4a, webm).
+                chatFileUrls: [
+                  ...new Set([
+                    ...extractFileLikeLinks(existing.content),
+                    ...extractHttpLinks(existing.content),
+                  ]),
+                ],
                 unfurlImageUrls: (unfurls ?? []).map((card) => card.imageUrl),
               }
             : null,
