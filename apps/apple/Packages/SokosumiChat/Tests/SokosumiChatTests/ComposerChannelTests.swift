@@ -15,7 +15,7 @@ struct ComposerChannelTests {
   }
 
   @Test func catalogRequiresChannelSlugAndLabelsExternalOrganization() {
-    var room = Components.Schemas.ChatRoom(id: "room", name: "Room", kind: .channel, createdByUserId: "me",
+    var room = Components.Schemas.ChatRoom(id: "room", name: "Room", kind: .channel, isSelfDirect: false, createdByUserId: "me",
                                            createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0,
                                            markedUnread: false, myAccess: .member, userMembers: [], coworkerMembers: [], sokoBotMembers: [])
     #expect(ComposerChannel.catalog(rooms: [room]).isEmpty)
