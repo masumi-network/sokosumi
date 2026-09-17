@@ -376,6 +376,47 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
       "group-data-[collapsible=icon]:hidden",
     );
   });
+
+  it("reserves a glyph-sized hole at rest on hover, not a full menu button", () => {
+    const { container, rerender } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom({ mutedAt: new Date("2026-09-01T00:00:00.000Z") })}
+        href="/chat/rooms/room-1"
+        label="Agent Test Channel"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const spacer = container.querySelector(
+      '[data-slot="room-trailing-spacer"]',
+    );
+    expect(spacer).not.toBeNull();
+    expect(spacer?.className).toContain("[@media(hover:hover)]:size-4");
+    expect(spacer?.className).toContain(
+      "[@media(hover:hover)]:group-hover/room-row:size-7",
+    );
+    expect(spacer?.className).toContain("[@media(hover:none)]:w-16");
+    expect(spacer?.className.split(" ").includes("md:size-7")).toBe(false);
+
+    rerender(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="Agent Building"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const restSpacer = container.querySelector(
+      '[data-slot="room-trailing-spacer"]',
+    );
+    expect(restSpacer?.className).toContain("[@media(hover:hover)]:size-0");
+    expect(restSpacer?.className).not.toContain("[@media(hover:none)]:w-16");
+  });
 });
 
 describe("ChatRoomSidebarRow edit menu", () => {
