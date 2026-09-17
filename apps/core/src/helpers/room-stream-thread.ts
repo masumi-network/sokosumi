@@ -1,4 +1,9 @@
-import { convertToModelMessages, type ModelMessage, type UIMessage } from "ai";
+import {
+  convertToModelMessages,
+  type FilePart,
+  type ModelMessage,
+  type UIMessage,
+} from "ai";
 import { mergeChatRoomMessageMetadataKeys } from "@/helpers/chat-room-message-metadata-patch";
 import { chatRoomMessagesToUiMessages } from "@/helpers/chat-room-messages-to-ui-messages";
 import prisma from "@/lib/db/prisma";
@@ -123,7 +128,10 @@ export async function buildRoomStreamThreadModelMessages(options: {
   roomName: string;
   senderName: string;
   lastUserMessageText: string;
+  /** File parts on the request's last user message; persisted rows carry text only. */
+  lastUserFileParts?: readonly RoomStreamUserFilePart[];
 }): Promise<{ modelMessages: ModelMessage[]; uiMessages: UIMessage[] }> {
+  const fileParts = (options.lastUserFileParts ?? []).map(toModelFilePart);
   const newestFirst = await prisma.chatRoomMessage.findMany({
     where: {
       roomId: options.roomId,
@@ -170,12 +178,57 @@ export async function buildRoomStreamThreadModelMessages(options: {
       isThreadReply: true,
       contextMessages,
     });
-    const modelMessages: ModelMessage[] = [{ role: "user", content: prompt }];
+    const modelMessages: ModelMessage[] = [
+      {
+        role: "user",
+        content:
+          fileParts.length > 0
+            ? [{ type: "text", text: prompt }, ...fileParts]
+            : prompt,
+      },
+    ];
     return { modelMessages, uiMessages };
   }
 
   const modelMessages = await convertToModelMessages(
     uiMessages.map(({ id: _id, ...rest }) => rest),
   );
-  return { modelMessages, uiMessages };
+  return {
+    modelMessages: appendFilePartsToLastUserMessage(modelMessages, fileParts),
+    uiMessages,
+  };
+}
+
+export interface RoomStreamUserFilePart {
+  url: string;
+  mediaType: string;
+  filename?: string;
+}
+
+function toModelFilePart(part: RoomStreamUserFilePart): FilePart {
+  return {
+    type: "file",
+    data: new URL(part.url),
+    mediaType: part.mediaType,
+    ...(part.filename ? { filename: part.filename } : {}),
+  };
+}
+
+/** Thread rows persist text only, so the request's file parts rejoin the newest user turn here. */
+function appendFilePartsToLastUserMessage(
+  modelMessages: ModelMessage[],
+  fileParts: FilePart[],
+): ModelMessage[] {
+  const last = modelMessages.at(-1);
+  if (fileParts.length === 0 || last?.role !== "user") {
+    return modelMessages;
+  }
+  const content =
+    typeof last.content === "string"
+      ? [{ type: "text" as const, text: last.content }]
+      : last.content;
+  return [
+    ...modelMessages.slice(0, -1),
+    { ...last, content: [...content, ...fileParts] },
+  ];
 }
