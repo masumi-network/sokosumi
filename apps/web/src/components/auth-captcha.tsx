@@ -117,7 +117,7 @@ export function useAuthCaptcha(entry: AuthCaptchaEntry): AuthCaptcha {
 
   const runWithCaptcha = useCallback(
     async <T,>(action: (options: CaptchaFetchOptions) => Promise<T>) => {
-      // Omitting the public site key skips the check during local development.
+      // Omitting the public site key skips the check in any environment.
       if (!siteKey) return action({});
       if (loadFailed.current) {
         setAlert("load");

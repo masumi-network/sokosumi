@@ -817,4 +817,89 @@ extension ChatServiceTests {
     // Personal workspaces omit the organization header; the public link preview never sends it.
     #expect(transport.requests.map { orgSlugHeader($0.request) } == [nil, "team", "team", "team", "team", nil, nil, nil, "team", nil])
   }
+
+  private func guestEnvelope(_ data: String) -> String {
+    "{\"data\":\(data),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"req\"}}"
+  }
+
+  private func guestError(_ status: String, _ message: String) -> String {
+    "{\"error\":\"\(status)\",\"message\":\"\(message)\",\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"req\",\"path\":\"/chats/rooms/room/invitations\",\"method\":\"POST\"}}"
+  }
+
+  @Test func guestInvitationOperationsUseCoreRoutesAndMessages() async throws {
+    let invitation = "{\"id\":\"inv\",\"roomId\":\"room\",\"roomName\":\"Partners\",\"organizationId\":\"org\",\"organizationName\":\"Acme\",\"email\":\"guest@example.com\",\"status\":\"pending\",\"inviter\":{\"id\":\"me\",\"name\":\"Me\"},\"expiresAt\":\"\(timestamp)\",\"createdAt\":\"\(timestamp)\"}"
+    let transport = ScriptedTransport([
+      (200, guestEnvelope("[\(invitation)]")),
+      (201, guestEnvelope(invitation)),
+      (409, guestError("Conflict", "A pending invitation already exists for this email in this room.")),
+      (204, ""),
+      (404, guestError("Not Found", "Invitation not found")),
+      (200, guestEnvelope("{\"id\":\"room\",\"remainingUserMemberCount\":2}")),
+      (400, guestError("Bad Request", "Only guest members can be removed this way. Host members must leave themselves."))
+    ])
+    let client = try makeClient(transport)
+    let service = ChatService()
+    #expect(try await service.roomInvitations(client: client, roomId: "room", organizationSlug: "team").map(\.email) == ["guest@example.com"])
+    #expect(try await service.inviteGuest(client: client, roomId: "room", email: "guest@example.com", organizationSlug: "team").id == "inv")
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 409, message: "A pending invitation already exists for this email in this room.")) {
+      try await service.inviteGuest(client: client, roomId: "room", email: "guest@example.com", organizationSlug: "team")
+    }
+    try await service.revokeInvitation(client: client, roomId: "room", invitationId: "inv", organizationSlug: "team")
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 404, message: "Invitation not found")) {
+      try await service.revokeInvitation(client: client, roomId: "room", invitationId: "inv", organizationSlug: "team")
+    }
+    try await service.removeGuest(client: client, roomId: "room", userId: "guest", organizationSlug: "team")
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 400, message: "Only guest members can be removed this way. Host members must leave themselves.")) {
+      try await service.removeGuest(client: client, roomId: "room", userId: "me", organizationSlug: "team")
+    }
+    let routes = transport.requests.map { "\($0.request.method.rawValue) \($0.request.path ?? "")" }
+    #expect(routes == [
+      "GET /chats/rooms/room/invitations", "POST /chats/rooms/room/invitations", "POST /chats/rooms/room/invitations",
+      "DELETE /chats/rooms/room/invitations/inv", "DELETE /chats/rooms/room/invitations/inv",
+      "DELETE /chats/rooms/room/members/guest", "DELETE /chats/rooms/room/members/me"
+    ])
+    #expect(transport.requests.allSatisfy { orgSlugHeader($0.request) == "team" })
+    let bodies = try transport.bodies.filter { !$0.isEmpty }.map { try #require(JSONSerialization.jsonObject(with: $0) as? [String: Any]) }
+    #expect(bodies.map { $0["email"] as? String } == ["guest@example.com", "guest@example.com"])
+  }
+
+  /// The generated body has no `expiresInDays` (Core's `anyOf [integer, null]`), so the app middleware writes the
+  /// explicit null or day count and restamps Content-Length.
+  @Test func guestInviteLinkOperationsCarryExpiryThroughMiddleware() async throws {
+    func link(_ token: String, expiresAt: String, maxUses: String) -> String {
+      "{\"token\":\"\(token)\",\"url\":\"https://app.sokosumi.com/chat/join/\(token)\",\"roomId\":\"room\",\"createdAt\":\"\(timestamp)\",\"expiresAt\":\(expiresAt),\"revokedAt\":null,\"maxUses\":\(maxUses),\"useCount\":2}"
+    }
+    let transport = ScriptedTransport([
+      (200, guestEnvelope("[\(link("a", expiresAt: "\"\(timestamp)\"", maxUses: "10"))]")),
+      (201, guestEnvelope(link("b", expiresAt: "null", maxUses: "null"))),
+      (201, guestEnvelope(link("c", expiresAt: "\"\(timestamp)\"", maxUses: "5"))),
+      (429, guestError("Too Many Requests", "You can create at most 10 shareable invite links per hour. Try again later.")),
+      (200, guestEnvelope("{\"ok\":true}"))
+    ])
+    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport, middlewares: [GuestInviteLinkExpiryMiddleware()])
+    let service = ChatService()
+    let listed = try await service.guestInviteLinks(client: client, roomId: "room", organizationSlug: "team")
+    #expect(listed.map(\.token) == ["a"] && listed[0].maxUses == 10 && listed[0].expiresAt != nil)
+    let never = try await service.createGuestInviteLink(client: client, roomId: "room", options: .init(expiresInDays: nil, maxUses: nil), organizationSlug: "team")
+    #expect(never.token == "b" && never.expiresAt == nil && never.maxUses == nil)
+    let capped = try await service.createGuestInviteLink(client: client, roomId: "room", options: .init(expiresInDays: 30, maxUses: 5), organizationSlug: "team")
+    #expect(capped.token == "c" && capped.maxUses == 5)
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 429, message: "You can create at most 10 shareable invite links per hour. Try again later.")) {
+      try await service.createGuestInviteLink(client: client, roomId: "room", options: .init(), organizationSlug: "team")
+    }
+    try await service.revokeGuestInviteLink(client: client, roomId: "room", token: "a", organizationSlug: "team")
+    let routes = transport.requests.map { "\($0.request.method.rawValue) \($0.request.path ?? "")" }
+    #expect(routes == [
+      "GET /chats/rooms/room/invite-links", "POST /chats/rooms/room/invite-links", "POST /chats/rooms/room/invite-links",
+      "POST /chats/rooms/room/invite-links", "DELETE /chats/rooms/room/invite-links/a"
+    ])
+    #expect(transport.requests.allSatisfy { orgSlugHeader($0.request) == "team" })
+    let bodies = try transport.bodies.filter { !$0.isEmpty }.map { try #require(JSONSerialization.jsonObject(with: $0) as? [String: Any]) }
+    #expect(bodies.count == 3)
+    #expect(bodies[0]["expiresInDays"] is NSNull && bodies[0]["maxUses"] == nil)
+    #expect(bodies[1]["expiresInDays"] as? Int == 30 && bodies[1]["maxUses"] as? Int == 5)
+    #expect(bodies[2]["expiresInDays"] as? Int == 7 && bodies[2]["maxUses"] == nil)
+    let creates = transport.requests.filter { $0.request.method == .post }
+    #expect(creates.map { $0.request.headerFields[.contentLength] } == ["{\"expiresInDays\":null}".utf8.count, "{\"expiresInDays\":30,\"maxUses\":5}".utf8.count, "{\"expiresInDays\":7}".utf8.count].map { String($0) })
+  }
 }

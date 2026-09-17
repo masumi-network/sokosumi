@@ -31,29 +31,39 @@ export interface SidebarSokoBotAvatar {
 
 const MAX_STACK = 3;
 
+function stackFaceClass(faceCount: number): string {
+  return cn(
+    "size-5 shrink-0 rounded-full object-cover",
+    "group-data-[collapsible=icon]:border group-data-[collapsible=icon]:border-sidebar",
+    faceCount === 1
+      ? "group-data-[collapsible=icon]:size-4"
+      : "group-data-[collapsible=icon]:size-3",
+  );
+}
+
 /** Up to three workspace Soko Bots, overlapping like a team roster. */
 function BotStack({ bots }: { bots: SidebarSokoBotAvatar[] }) {
+  const faces = bots.slice(0, MAX_STACK);
+  const faceClass = stackFaceClass(faces.length);
+
   return (
-    <span className="flex shrink-0 -space-x-1.5" aria-hidden>
-      {bots
-        .slice(0, MAX_STACK)
-        .map((bot) =>
-          bot.imageUrl ? (
-            <img
-              key={bot.id}
-              src={bot.imageUrl}
-              alt=""
-              className="size-5 rounded-full object-cover"
-            />
-          ) : (
-            <AuroraOrb
-              key={bot.id}
-              seed={bot.seed}
-              size={40}
-              className="size-5"
-            />
-          ),
-        )}
+    <span
+      data-slot="soko-bot-stack"
+      className="flex shrink-0 -space-x-1.5 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:-space-x-2"
+      aria-hidden
+    >
+      {faces.map((bot) =>
+        bot.imageUrl ? (
+          <img key={bot.id} src={bot.imageUrl} alt="" className={faceClass} />
+        ) : (
+          <AuroraOrb
+            key={bot.id}
+            seed={bot.seed}
+            size={40}
+            className={faceClass}
+          />
+        ),
+      )}
     </span>
   );
 }
@@ -79,7 +89,12 @@ export default function PersonalAssistantNav({
       <SidebarGroupContent>
         <SidebarMenu className="gap-0">
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive} size="lg">
+            <SidebarMenuButton
+              asChild
+              isActive={isActive}
+              size="lg"
+              tooltip={t("sokoBot")}
+            >
               <SheetClose asChild>
                 <Link
                   href={SOKO_BOTS_ROUTE}
@@ -97,7 +112,7 @@ export default function PersonalAssistantNav({
                   ) : (
                     <Bot className="size-4 shrink-0" aria-hidden />
                   )}
-                  <span className="flex-1 truncate font-medium group-data-[collapsible=icon]:hidden">
+                  <span className="flex-1 truncate font-medium group-data-[collapsible=icon]:sr-only">
                     {t("sokoBot")}
                   </span>
                 </Link>

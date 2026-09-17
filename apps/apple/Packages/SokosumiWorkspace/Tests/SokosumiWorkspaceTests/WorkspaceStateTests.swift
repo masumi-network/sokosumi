@@ -176,7 +176,8 @@ private func ephemeralState(
   visible: Bool = true
 ) throws -> (WorkspaceState, AuthState, ScriptedTransport, UserDefaults) { // swiftlint:disable:this large_tuple
   let transport = ScriptedTransport(responses)
-  let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+  // The app registers this middleware too; without it the create-link body cannot carry `expiresInDays`.
+  let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport, middlewares: [GuestInviteLinkExpiryMiddleware()])
   let suite = "sokosumi-workspace-state-tests.\(UUID().uuidString)"
   let defaults = UserDefaults(suiteName: suite)!
   defaults.removePersistentDomain(forName: suite)
@@ -2411,5 +2412,68 @@ extension WorkspaceStateTests {
       "get/chat-room-invite-links/{token}", "post/chat-room-invite-links/{token}/accept", "post/chat-room-invite-links/{token}/accept",
       "get/chats/rooms", "get/chats/rooms/{id}/messages"
     ])
+  }
+}
+
+private func externalRoomsBody(general: String, partners: String) -> String {
+  let members = """
+  [{"id":"user_1","name":"Me","email":"me@example.com","image":null,"presence":"online","access":"member"},{"id":"user_guest","name":"Guest","email":"guest@example.com","image":null,"presence":"offline","access":"guest"}]
+  """
+  func room(_ id: String, name: String, discoverability: String, members: String) -> String {
+    """
+    {"id":"\(id)","organizationId":"org_1","organizationName":"Acme","name":"\(name)","slug":"\(name)","kind":"channel","isSelfDirect":false,"directKey":null,"topic":null,"discoverability":"\(discoverability)","createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":\(members),"coworkerMembers":[],"sokoBotMembers":[]}
+    """
+  }
+  return """
+  {"data":[\(room(general, name: "general", discoverability: "public", members: "[]")),\(room(partners, name: "partners", discoverability: "external", members: members))],"meta":{"timestamp":"\(timestamp)","requestId":"req-1","pagination":{"cursor":null,"limit":100,"total":2,"nextCursor":null}}}
+  """
+}
+
+extension WorkspaceStateTests {
+  /// Web's guest section lives in the channel settings dialog: invitations and links are room sub-resources under the
+  /// organization header; removing a guest edits the room DTO in place without navigating.
+  @Test func guestAccessOperationsUseOrganizationAndRemoveGuestInPlace() async throws {
+    let general = "550e8400-e29b-41d4-a716-446655440000"
+    let partners = "550e8400-e29b-41d4-a716-446655440001"
+    let invitation = invitationEnvelope(#"{"id":"inv-1","roomId":"\#(partners)","roomName":"partners","organizationId":"org_1","organizationName":"Acme","email":"guest2@example.com","status":"pending","inviter":{"id":"user_1","name":"Me"},"expiresAt":"\#(timestamp)","createdAt":"\#(timestamp)"}"#)
+    let link = invitationEnvelope(#"{"token":"tok","url":"https://app.sokosumi.com/chat/join/tok","roomId":"\#(partners)","createdAt":"\#(timestamp)","expiresAt":null,"revokedAt":null,"maxUses":null,"useCount":0}"#)
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, externalRoomsBody(general: general, partners: partners)),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, invitationEnvelope("[]")), (200, invitationEnvelope("[]")),
+      (201, invitation),
+      (204, ""),
+      (201, link),
+      (200, invitationEnvelope(#"{"ok":true}"#)),
+      (200, invitationEnvelope(#"{"id":"\#(partners)","remainingUserMemberCount":1}"#))
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    #expect(state.transcriptRoomId == general)
+    let context = state.compositionContext
+
+    let snapshot = try await state.loadGuestAccess(roomId: partners, context: context, auth: auth)
+    #expect(snapshot.invitations.isEmpty && snapshot.links.isEmpty)
+    #expect(try await state.inviteGuest(roomId: partners, email: "guest2@example.com", context: context, auth: auth).id == "inv-1")
+    try await state.revokeGuestInvitation(roomId: partners, invitationId: "inv-1", context: context, auth: auth)
+    #expect(try await state.createGuestInviteLink(roomId: partners, options: .init(expiresInDays: nil), context: context, auth: auth).token == "tok")
+    try await state.revokeGuestInviteLink(roomId: partners, token: "tok", context: context, auth: auth)
+    // "No expiry" reaches Core as an explicit null through the middleware the app also registers.
+    let linkBodyData = try #require(transport.bodies.last(where: { !$0.isEmpty }))
+    let linkBody = try #require(JSONSerialization.jsonObject(with: linkBodyData) as? [String: Any])
+    #expect(linkBody.count == 1 && linkBody["expiresInDays"] is NSNull)
+
+    #expect(try await state.removeGuest(roomId: partners, userId: "user_guest", context: UUID(), auth: auth) == false)
+    #expect(try await state.removeGuest(roomId: partners, userId: "user_guest", context: context, auth: auth))
+    #expect(!state.updatingChannel && state.transcriptRoomId == general)
+    #expect(state.rooms.first { $0.id == partners }?.userMembers.map(\.id) == ["user_1"])
+    #expect(transport.operationIDs.suffix(7) == [
+      "get/chats/rooms/{id}/invitations", "get/chats/rooms/{id}/invite-links", "post/chats/rooms/{id}/invitations",
+      "delete/chats/rooms/{id}/invitations/{invitationId}", "post/chats/rooms/{id}/invite-links",
+      "delete/chats/rooms/{id}/invite-links/{token}", "delete/chats/rooms/{id}/members/{userId}"
+    ])
+    #expect(transport.remainingStubs == 0)
   }
 }

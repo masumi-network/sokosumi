@@ -28,6 +28,8 @@ describe("ChannelRoomMark", () => {
     expect(tile.className).toContain(
       "group-data-[collapsible=icon]:inline-flex",
     );
+    // 24px, matching the collapsed DM face, so the rail stays one size.
+    expect(tile.className).toContain("size-6");
   });
 
   it("spells the channel name as initials on the tile", () => {

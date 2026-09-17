@@ -18,8 +18,6 @@ env:
   RESEND_API_KEY: "ci-resend-api-key"
   RESEND_FROM_EMAIL: "noreply@sokosumi.com"
   NEXT_PUBLIC_NETWORK: "Preprod"
-  # Cloudflare always-fail test site key for CI builds only.
-  NEXT_PUBLIC_TURNSTILE_SITE_KEY: "2x00000000000000000000AB"
   PAYMENT_API_KEY: "ci-payment-api-key"
   REGISTRY_API_KEY: "ci-registry-api-key"
   STRIPE_SECRET_KEY: "sk_test_ci_build_placeholder"

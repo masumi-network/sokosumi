@@ -37,9 +37,9 @@
           return false
         }, requestLifecycle: { _ in
           Issue.record("Rendering must not request leave or archive")
-        })
-        .background(.background)
-        .environment(\.colorScheme, dark ? .dark : .light)
+        }, guestAccess: .unused)
+          .background(.background)
+          .environment(\.colorScheme, dark ? .dark : .light)
         let host = NSHostingView(rootView: content)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: manages ? 780 : 540), styleMask: [.titled], backing: .buffered, defer: false)
         window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
@@ -61,6 +61,36 @@
         let png = try #require(bitmap.representation(using: .png, properties: [:]))
         try png.write(to: FileManager.default.temporaryDirectory.appendingPathComponent("edit-channel-\(manages ? "manager" : "member")-\(dark ? "dark" : "light").png"))
       }
+    }
+  }
+
+  extension GuestAccessActions {
+    /// Private channels never render the guest section, so none of these may run.
+    static let unused = loading {
+      Issue.record("Guest access must not load")
+      return GuestAccessSnapshot(invitations: [], links: [])
+    }
+
+    static func loading(_ snapshot: GuestAccessSnapshot) -> GuestAccessActions {
+      loading { snapshot }
+    }
+
+    /// Rendering fixtures load once and never mutate.
+    static func loading(_ load: @escaping () async throws -> GuestAccessSnapshot) -> GuestAccessActions {
+      GuestAccessActions(load: load, invite: { _ in
+        Issue.record("Rendering must not invite")
+        throw CancellationError()
+      }, revokeInvitation: { _ in
+        Issue.record("Rendering must not revoke")
+      }, createLink: { _ in
+        Issue.record("Rendering must not create links")
+        throw CancellationError()
+      }, revokeLink: { _ in
+        Issue.record("Rendering must not revoke links")
+      }, removeGuest: { _ in
+        Issue.record("Rendering must not remove guests")
+        return false
+      })
     }
   }
 #endif

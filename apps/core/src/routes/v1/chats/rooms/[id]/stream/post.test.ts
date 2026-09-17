@@ -208,6 +208,10 @@ const USER_ID = "user_123";
 const COWORKER_ID = "coworker_1";
 const PARENT_MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440099";
 const QUOTE_MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440004";
+const OWNED_ROOM_FILE_URL =
+  "https://abc.public.blob.vercel-storage.com/users/user_123/chats/550e8400-e29b-41d4-a716-446655440000/a.png";
+const OTHER_ROOM_FILE_URL =
+  "https://abc.public.blob.vercel-storage.com/users/user_123/chats/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/a.png";
 
 const quoteSnapshot = {
   messageId: QUOTE_MESSAGE_ID,
@@ -571,6 +575,7 @@ describe("POST /chats/rooms/{id}/stream", () => {
         roomId: ROOM_ID,
         parentMessageId: PARENT_MESSAGE_ID,
         lastUserMessageText: "Thread reply",
+        lastUserFileParts: [],
       }),
     );
     expect(createCoworkerConversationMock).not.toHaveBeenCalled();
@@ -597,6 +602,90 @@ describe("POST /chats/rooms/{id}/stream", () => {
         parentMessageId: PARENT_MESSAGE_ID,
       }),
     );
+  });
+
+  it("forwards owned last-user file parts on thread turns", async () => {
+    roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+    chatRoomMessageFindFirstMock.mockResolvedValue({
+      id: PARENT_MESSAGE_ID,
+      parentMessageId: null,
+    });
+
+    const response = await postStream({
+      messages: [
+        {
+          role: "user",
+          parts: [
+            { type: "text", text: "Look" },
+            {
+              type: "file",
+              url: OWNED_ROOM_FILE_URL,
+              mediaType: "image/png",
+              filename: "a.png",
+            },
+          ],
+        },
+      ],
+      parentMessageId: PARENT_MESSAGE_ID,
+    });
+
+    expect(response.status).toBe(200);
+    expect(buildRoomStreamThreadModelMessagesMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lastUserMessageText: "Look",
+        lastUserFileParts: [
+          {
+            type: "file",
+            url: OWNED_ROOM_FILE_URL,
+            mediaType: "image/png",
+            filename: "a.png",
+          },
+        ],
+      }),
+    );
+  });
+
+  it("returns 400 when a file part is not this user's upload in this room", async () => {
+    roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+
+    const otherRoom = await postStream({
+      messages: [
+        {
+          role: "user",
+          parts: [
+            { type: "text", text: "Look" },
+            {
+              type: "file",
+              url: OTHER_ROOM_FILE_URL,
+              mediaType: "image/png",
+              filename: "a.png",
+            },
+          ],
+        },
+      ],
+    });
+    const arbitraryHost = await postStream({
+      messages: [
+        {
+          role: "user",
+          parts: [
+            { type: "text", text: "Look" },
+            {
+              type: "file",
+              url: "https://example.com/a.png",
+              mediaType: "image/png",
+              filename: "a.png",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(otherRoom.status).toBe(400);
+    expect(arbitraryHost.status).toBe(400);
+    expect(streamTextMock).not.toHaveBeenCalled();
+    expect(persistUserMessageToChatRoomMock).not.toHaveBeenCalled();
+    expect(buildRoomStreamThreadModelMessagesMock).not.toHaveBeenCalled();
   });
 
   it("returns 400 when parentMessageId is not in the room", async () => {

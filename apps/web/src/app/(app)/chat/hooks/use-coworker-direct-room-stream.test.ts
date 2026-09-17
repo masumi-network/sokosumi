@@ -10,6 +10,7 @@ import {
   RESUME_PENDING_STREAM_MESSAGE_ID,
   readStoredStreamParentMessageId,
   shouldShowResumePendingCoworkerShell,
+  toCoworkerStreamFileParts,
   writeStoredStreamParentMessageId,
 } from "./use-coworker-direct-room-stream";
 
@@ -116,6 +117,29 @@ describe("buildCoworkerStreamSendMessageOptions", () => {
         quote: { messageId: "  " },
       }),
     ).toEqual({ body: { parentMessageId: "parent-1" } });
+  });
+});
+
+describe("toCoworkerStreamFileParts", () => {
+  it("maps typed attachments to file parts and drops untyped Drive picks", () => {
+    expect(
+      toCoworkerStreamFileParts([
+        {
+          url: "https://blob.example/a.png",
+          fileName: "a.png",
+          mediaType: "image/png",
+        },
+        { url: "https://blob.example/b", fileName: "b", mediaType: null },
+      ]),
+    ).toEqual([
+      {
+        type: "file",
+        url: "https://blob.example/a.png",
+        mediaType: "image/png",
+        filename: "a.png",
+      },
+    ]);
+    expect(toCoworkerStreamFileParts(undefined)).toEqual([]);
   });
 });
 

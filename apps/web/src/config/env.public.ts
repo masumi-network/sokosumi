@@ -81,23 +81,7 @@ function validateEnv() {
       process.env.NEXT_PUBLIC_SHOW_EMERGENCY_DIALOG,
   };
 
-  const parsedConfig = envPublicConfigSchema
-    .superRefine((value, context) => {
-      if (
-        (process.env.NODE_ENV === "production" ||
-          value.NEXT_PUBLIC_VERCEL_ENV === "production" ||
-          value.NEXT_PUBLIC_VERCEL_ENV === "preview") &&
-        !value.NEXT_PUBLIC_TURNSTILE_SITE_KEY
-      ) {
-        context.addIssue({
-          code: "custom",
-          path: ["NEXT_PUBLIC_TURNSTILE_SITE_KEY"],
-          message:
-            "NEXT_PUBLIC_TURNSTILE_SITE_KEY is required in deployed environments",
-        });
-      }
-    })
-    .safeParse(rawEnv);
+  const parsedConfig = envPublicConfigSchema.safeParse(rawEnv);
   if (!parsedConfig.success) {
     console.error(
       "❌ Invalid environment variables:",

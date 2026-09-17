@@ -69,9 +69,11 @@ Production and Preview. Both values come from the same Cloudflare Turnstile
 widget. Use Managed mode and allow `sokosumi.com` (which also covers its
 subdomains, including `*.preview.sokosumi.com`). Keep pre-clearance disabled.
 
-Core's secret is optional: omitting it disables server-side verification in any
-environment. Web requires its site key in deployed environments. Deploy Web and
-Core together after configuring the keys. With its secret set, Core enforces
+Both keys are optional in every environment: omitting Core's secret disables
+server-side verification, and omitting Web's site key skips the widget. Core
+logs a warning when its secret is missing in a deployed environment. Configure
+both keys or neither: a secret without a site key rejects every protected
+request. Deploy Web and Core together after configuring the keys. With its secret set, Core enforces
 verification on signup, email sign-in, email address changes, password reset
 requests, verification resends, and magic-link requests, before their email
 callbacks. Existing database rate limits still

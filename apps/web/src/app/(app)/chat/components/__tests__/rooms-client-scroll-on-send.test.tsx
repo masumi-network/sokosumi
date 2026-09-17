@@ -162,6 +162,7 @@ vi.mock("../room-session-composer", () => ({
             }
             void onSend?.({
               content: "hello",
+              attachments: [],
               mentionedIds: [],
               clientMessageId,
             });

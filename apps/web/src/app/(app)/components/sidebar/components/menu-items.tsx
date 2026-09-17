@@ -168,6 +168,20 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                 const unreadDisplay =
                   (unreadCount ?? 0) > 99 ? "99+" : String(unreadCount ?? 0);
 
+                // Collapsed rail hides the label, so every item needs the hint.
+                const tooltip = shortcutLabel
+                  ? {
+                      children: (
+                        <span className="flex items-center gap-2">
+                          <span>{label}</span>
+                          <span className="text-muted-foreground text-xs tracking-widest">
+                            {shortcutLabel}
+                          </span>
+                        </span>
+                      ),
+                    }
+                  : label;
+
                 const content = (
                   <>
                     <Icon className="size-4" aria-hidden />
@@ -203,7 +217,11 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                   <Fragment key={key}>
                     <SidebarMenuItem className="px-2">
                       {href ? (
-                        <SidebarMenuButton asChild isActive={isActive}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                          tooltip={tooltip}
+                        >
                           <SheetClose asChild>
                             <Link
                               href={href}
@@ -224,20 +242,7 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                           type="button"
                           onClick={onClick}
                           aria-keyshortcuts={ariaKeyshortcuts}
-                          tooltip={
-                            shortcutLabel
-                              ? {
-                                  children: (
-                                    <span className="flex items-center gap-2">
-                                      <span>{label}</span>
-                                      <span className="text-muted-foreground text-xs tracking-widest">
-                                        {shortcutLabel}
-                                      </span>
-                                    </span>
-                                  ),
-                                }
-                              : undefined
-                          }
+                          tooltip={tooltip}
                           className={cn(
                             "flex min-h-auto w-full items-center gap-2 px-3",
                             "text-tertiary-foreground dark:text-muted-foreground",
