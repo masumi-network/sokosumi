@@ -117,7 +117,7 @@ export default async function ProjectCalendarPage({
           websiteUrl={project.websiteUrl}
         />
 
-        <div className="mt-6 w-full px-2">
+        <div className="mt-6 w-full">
           <WorkspaceCalendar
             activeOrganizationId={
               session?.session?.activeOrganizationId ?? null

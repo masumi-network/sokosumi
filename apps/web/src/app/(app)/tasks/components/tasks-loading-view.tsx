@@ -51,7 +51,7 @@ export const TASKS_LOADING_DEFAULT_LABELS: TasksLoadingLabels = {
 
 export function TasksPageSkeleton({ viewMode }: { viewMode?: TasksViewMode }) {
   return (
-    <div className="w-full px-2">
+    <div className="w-full">
       <TasksLoadingView
         viewMode={viewMode}
         labels={TASKS_LOADING_DEFAULT_LABELS}
@@ -180,7 +180,7 @@ function TasksBoardLoading({ labels }: { labels: TasksLoadingLabels }) {
 
 function TasksListLoading() {
   return (
-    <div className="bg-card-background border-border -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border">
+    <div className="bg-card-background border-border -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border">
       <div className="flex items-center justify-center px-4 py-16">
         <Loader2
           className="text-muted-foreground size-5 animate-spin"

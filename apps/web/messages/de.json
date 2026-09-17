@@ -5461,9 +5461,12 @@
         "personalAssistants": "Persönliche Assistenten"
       },
       "Copy": {
-        "action": "Kopieren",
+        "action": "Text kopieren",
+        "link": "Link kopieren",
         "success": "In Zwischenablage kopiert",
-        "error": "Kopieren fehlgeschlagen"
+        "error": "Kopieren fehlgeschlagen",
+        "linkSuccess": "Link kopiert",
+        "linkError": "Link konnte nicht kopiert werden"
       },
       "Edit": {
         "action": "Bearbeiten",
