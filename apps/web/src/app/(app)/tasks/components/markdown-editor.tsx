@@ -59,6 +59,8 @@ interface MarkdownEditorProps {
   onChange: (value: string) => void;
   onSubmitShortcut?: () => void;
   placeholder?: string;
+  variant?: "field" | "document";
+  ariaLabel?: string;
   className?: string;
   editorClassName?: string;
   style?: React.CSSProperties;
@@ -87,6 +89,8 @@ export const MarkdownEditor = forwardRef<
     onChange,
     onSubmitShortcut,
     placeholder = "Enter details...",
+    variant = "field",
+    ariaLabel,
     className,
     editorClassName,
     style,
@@ -600,9 +604,20 @@ export const MarkdownEditor = forwardRef<
   );
 
   return (
-    <div className={cn("rounded-md border", className)} style={style}>
+    <div
+      className={cn(
+        variant === "document" ? "rounded-none border-0" : "rounded-md border",
+        className,
+      )}
+      style={style}
+    >
       {/* Toolbar */}
-      <div className="bg-card-background flex items-center gap-0.5 border-b px-2 py-1.5">
+      <div
+        className={cn(
+          "flex items-center gap-0.5 border-b py-1.5",
+          variant === "document" ? "px-0" : "bg-card-background px-2",
+        )}
+      >
         <Button
           type="button"
           variant="ghost"
@@ -714,10 +729,12 @@ export const MarkdownEditor = forwardRef<
         onBlur={handleBlur}
         data-placeholder={placeholder}
         role="textbox"
+        aria-label={ariaLabel}
         aria-multiline="true"
         className={withEditableTextSize(
           "markdown-compose-surface",
-          "max-h-48 min-h-32 overflow-x-hidden overflow-y-auto px-3 py-2",
+          "max-h-48 min-h-32 overflow-x-hidden overflow-y-auto py-2",
+          variant === "document" ? "px-0" : "px-3",
           "outline-none focus:outline-none",
           "wrap-anywhere [word-break:break-word] whitespace-pre-wrap",
           "empty:before:text-muted-foreground empty:before:pointer-events-none empty:before:content-[attr(data-placeholder)]",

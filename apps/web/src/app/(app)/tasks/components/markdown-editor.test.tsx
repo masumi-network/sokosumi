@@ -42,6 +42,24 @@ function setCaretToStart(element: HTMLElement): void {
 }
 
 describe("MarkdownEditor", () => {
+  it("uses bordered shell for field variant by default", () => {
+    const { container } = render(
+      <MarkdownEditor value="" onChange={vi.fn()} />,
+    );
+    const shell = container.firstElementChild;
+    expect(shell).toHaveClass("rounded-md", "border");
+    expect(shell).not.toHaveClass("border-0");
+  });
+
+  it("omits outer border for document variant", () => {
+    const { container } = render(
+      <MarkdownEditor value="" onChange={vi.fn()} variant="document" />,
+    );
+    const shell = container.firstElementChild;
+    expect(shell).toHaveClass("rounded-none", "border-0");
+    expect(shell).not.toHaveClass("rounded-md");
+  });
+
   it("disables Inter contextual alternates so ** markers stay aligned", () => {
     render(<MarkdownEditor value="" onChange={vi.fn()} />);
     expect(screen.getByRole("textbox")).toHaveClass("markdown-compose-surface");

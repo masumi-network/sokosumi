@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, Folder } from "lucide-react";
 import { type Ref, useMemo, useState } from "react";
 
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
@@ -36,6 +36,7 @@ interface TaskProjectSelectProps extends TaskProjectSelectLabels {
   value: string | null | undefined;
   onChange: (value: string | null) => void;
   onCreateProject?: (searchQuery: string) => void;
+  variant?: "field" | "chip";
   ref?: Ref<HTMLButtonElement>;
   invalid?: boolean;
   describedBy?: string;
@@ -55,6 +56,7 @@ export function TaskProjectSelect({
   projectCreate,
   projectCreateNamed,
   onCreateProject,
+  variant = "field",
   ref,
   invalid,
   describedBy,
@@ -75,7 +77,11 @@ export function TaskProjectSelect({
   const selectedLabel =
     selectedProject?.name ??
     value ??
-    (value === null ? noneLabel : (placeholder ?? noneLabel));
+    (value === null
+      ? noneLabel
+      : variant === "chip"
+        ? projectLabel
+        : (placeholder ?? noneLabel));
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
@@ -107,20 +113,35 @@ export function TaskProjectSelect({
           ref={ref}
           type="button"
           variant="outline"
+          size={variant === "chip" ? "sm" : "default"}
           role="combobox"
           aria-expanded={open}
           aria-label={projectLabel}
           aria-invalid={invalid || undefined}
           aria-describedby={describedBy}
-          className="w-full justify-between gap-2"
+          className={cn(
+            variant === "chip"
+              ? "h-7 w-auto max-w-56 justify-start gap-1.5 rounded-full px-2.5 text-xs font-medium"
+              : "w-full justify-between gap-2",
+          )}
         >
-          <span className="flex min-w-0 flex-1 items-center gap-2">
+          <span
+            className={cn(
+              "flex min-w-0 items-center gap-1.5",
+              variant === "field" && "flex-1 gap-2",
+            )}
+          >
             {selectedProject ? (
               <ProjectAvatar
                 name={selectedProject.name}
                 logo={selectedProject.logo}
-                className="size-5 shrink-0"
+                className={cn(
+                  "shrink-0",
+                  variant === "chip" ? "size-4" : "size-5",
+                )}
               />
+            ) : variant === "chip" ? (
+              <Folder className="size-3.5 shrink-0" aria-hidden />
             ) : null}
             <span
               className={cn(
@@ -131,12 +152,21 @@ export function TaskProjectSelect({
               {selectedLabel}
             </span>
           </span>
-          <ChevronsUpDown className="size-4 shrink-0 opacity-50" aria-hidden />
+          <ChevronsUpDown
+            className={cn(
+              "shrink-0 opacity-50",
+              variant === "chip" ? "size-3.5" : "size-4",
+            )}
+            aria-hidden
+          />
         </Button>
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="w-(--radix-popover-trigger-width) p-0"
+        className={cn(
+          "p-0",
+          variant === "chip" ? "w-72" : "w-(--radix-popover-trigger-width)",
+        )}
       >
         <Command className="**:data-[slot=command-list]:max-h-72" shouldFilter>
           <CommandInput

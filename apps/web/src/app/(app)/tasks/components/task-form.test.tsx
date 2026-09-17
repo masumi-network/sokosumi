@@ -2547,7 +2547,7 @@ describe("TaskForm", () => {
     );
 
     const projectSelect = screen.getByRole("combobox", { name: "Project" });
-    expect(projectSelect).toHaveTextContent(baseLabels.projectPlaceholder);
+    expect(projectSelect).toHaveTextContent(baseLabels.projectLabel);
 
     await user.type(screen.getByTestId("markdown-editor"), "Write docs");
     await user.click(screen.getByRole("button", { name: "Create Task" }));
