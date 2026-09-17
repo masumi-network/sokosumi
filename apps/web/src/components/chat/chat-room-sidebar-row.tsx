@@ -70,13 +70,22 @@ import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
 
 /**
  * Trailing controls. Touch: pin/mute then overflow side by side.
- * Hover-capable: a glyph-sized hole held open in every state, so the name does
- * not re-truncate under the cursor when the menu button fades in. The hole is
- * narrower than the button's 28px box, because what has to clear the name is
- * the glyph inside it, not the box: the `…` reaches 28px in from the row edge
- * and a 16px hole ends the name at 36px. The pin/mute glyph is smaller still
- * and sits in the same hole. A row with a mention badge holds 12px instead,
- * ending the badge where the button's box begins.
+ *
+ * Hover-capable: one 16px hole, opened whenever something is in it. Sized to
+ * the glyph rather than the button's 28px box, because what has to clear the
+ * name is the glyph inside it: the `…` reaches 28px in from the row edge, and
+ * 16px ends the name at 36px. The smaller pin/mute glyph clears the same hole.
+ *
+ * A plain row keeps its full name width at rest, because the menu button is
+ * `opacity-0` there and an invisible button needs no hole. The hole opens on
+ * hover, focus and menu-open, which is the only time a plain row's name moves.
+ *
+ * The open room holds the hole open at rest too. It is the row being read and
+ * the one most likely to be hovered, so it is the one row whose name must not
+ * move under the cursor: rest, hover and menu-open are all one width there.
+ *
+ * A row with a mention badge holds 12px in every state instead, ending the
+ * badge where the button's box begins.
  */
 const TRAILING_CLUSTER_CLASS =
   "group-data-[collapsible=icon]:hidden absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center";
@@ -399,16 +408,25 @@ export function ChatRoomSidebarRow({
           // width in every state or the badge jumps on hover. 12px plus the
           // link's gap ends the badge where the menu button's box begins.
           //
-          // Every other row holds 16px for the same reason: the name is
-          // `flex-1 min-w-0`, so a hole that opened on hover took width off it
-          // and re-truncated the name under the cursor. One width means one
-          // truncation point, and 16px is the smallest that buys it — it ends
-          // the name at 36px from the row edge, clearing the `…` glyph's 28px
-          // by 8px. A pinned or muted row's glyph is smaller and clears too,
-          // so pin, mute and plain all share the one hole.
+          // A pinned or muted row shows its glyph at rest, and the open room
+          // is the row being read, so both hold the 16px hole in every state.
+          // The name is `flex-1 min-w-0`, so a hole that opened later would
+          // take that width off the name and re-truncate it under the cursor.
+          //
+          // A plain, unopened row has nothing in the hole at rest — the menu
+          // button is `opacity-0` until hover, focus or open — so it keeps the
+          // full name width and opens the hole with the button. That is the
+          // one row whose name moves, and it moves as the button arrives.
           badgeCount > 0
             ? "[@media(hover:hover)]:size-3"
-            : "[@media(hover:hover)]:size-4",
+            : isMuted || isPinned || isActive
+              ? "[@media(hover:hover)]:size-4"
+              : [
+                  "[@media(hover:hover)]:size-0",
+                  "[@media(hover:hover)]:group-hover/room-row:size-4",
+                  "[@media(hover:hover)]:group-focus-within/room-row:size-4",
+                  "[@media(hover:hover)]:group-has-[[data-state=open]]/room-row:size-4",
+                ],
         )}
         aria-hidden
       />
