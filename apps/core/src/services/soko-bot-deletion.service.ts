@@ -7,7 +7,7 @@ import {
 import { notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
-import { revokeAllSokoBotIntegrations } from "@/services/soko-bot-integrations.service";
+import { revokeSokoBotIntegrationAccounts } from "@/services/soko-bot-integrations.service";
 
 /**
  * Deleting a Soko Bot always erases everything the bot owned — turns, runtime
@@ -74,11 +74,6 @@ export async function deleteSokoBot(
   });
   if (!live) throw notFound("Soko Bot not found");
 
-  // Revoke before the rows go: deleting the local pointer first would leave the
-  // account registered with the provider and remove the owner's only way to
-  // disconnect it. Outside the transaction because it is a remote call.
-  const revocation = await revokeAllSokoBotIntegrations(sokoBotId);
-
   const deleted = await serializableTransaction(async (tx) => {
     const bot = await tx.sokoBot.findFirst({
       where: { id: sokoBotId, deletedAt: null },
@@ -91,6 +86,17 @@ export async function deleteSokoBot(
       WHERE "id" = ${bot.id}::uuid
       FOR UPDATE
     `;
+
+    // Connection persistence also locks this bot row. Capture its accounts
+    // in the same transaction that prevents any further connection writes.
+    const integrations = await tx.sokoBotIntegration.findMany({
+      where: { sokoBotId: bot.id },
+      select: {
+        provider: true,
+        composioAccountId: true,
+        pendingComposioAccountId: true,
+      },
+    });
 
     // Stop live work before erasing what it would write back into.
     await tx.sokoBotTurn.updateMany({
@@ -144,7 +150,6 @@ export async function deleteSokoBot(
       chatMessages,
       uploadedTaskFiles,
     };
-    const unrevokedIntegrations = revocation.failed;
 
     if (
       tasks === 0 &&
@@ -158,9 +163,9 @@ export async function deleteSokoBot(
         result: {
           outcome: "deleted" as const,
           retained,
-          unrevokedIntegrations,
         },
         mentionMessageIds,
+        integrations,
       };
     }
 
@@ -202,13 +207,17 @@ export async function deleteSokoBot(
       result: {
         outcome: "tombstoned" as const,
         retained,
-        unrevokedIntegrations,
       },
       mentionMessageIds,
+      integrations,
     };
   }, "Soko Bot deletion collided with active work");
+  const revocation = await revokeSokoBotIntegrationAccounts(
+    sokoBotId,
+    deleted.integrations,
+  );
   await publishChatRoomMentionStatuses(deleted.mentionMessageIds);
-  return deleted.result;
+  return { ...deleted.result, unrevokedIntegrations: revocation.failed };
 }
 
 export async function deleteSokoBotForUser(

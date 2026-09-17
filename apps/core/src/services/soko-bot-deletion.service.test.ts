@@ -14,6 +14,7 @@ const {
   counts,
   deleteManyCalls,
   revokeIntegrationsMock,
+  txIntegrationsFindManyMock,
 } = vi.hoisted(() => ({
   botFindFirstMock: vi.fn(),
   txBotFindFirstMock: vi.fn(),
@@ -33,6 +34,7 @@ const {
   },
   deleteManyCalls: [] as string[],
   revokeIntegrationsMock: vi.fn(),
+  txIntegrationsFindManyMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/chat-room-mention-status", () => ({
@@ -44,7 +46,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: { sokoBot: { findFirst: botFindFirstMock } },
 }));
 vi.mock("@/services/soko-bot-integrations.service", () => ({
-  revokeAllSokoBotIntegrations: revokeIntegrationsMock,
+  revokeSokoBotIntegrationAccounts: revokeIntegrationsMock,
 }));
 
 function deleteManyRecorder(table: string) {
@@ -72,7 +74,10 @@ vi.mock("@/lib/db/transaction", () => ({
       },
       sokoBotMemoryRevision: { deleteMany: deleteManyRecorder("memory") },
       sokoBotSchedule: { deleteMany: deleteManyRecorder("schedules") },
-      sokoBotIntegration: { deleteMany: deleteManyRecorder("integrations") },
+      sokoBotIntegration: {
+        findMany: txIntegrationsFindManyMock,
+        deleteMany: deleteManyRecorder("integrations"),
+      },
       sokoBotInstalledSkill: { deleteMany: deleteManyRecorder("skills") },
       sokoBotLabRun: { deleteMany: deleteManyRecorder("labRuns") },
       sokoBotNudge: { deleteMany: deleteManyRecorder("nudges") },
@@ -106,6 +111,7 @@ describe("deleteSokoBot", () => {
       counts[key] = 0;
     }
     revokeIntegrationsMock.mockResolvedValue({ revoked: 0, failed: [] });
+    txIntegrationsFindManyMock.mockResolvedValue([]);
     // Deletion confirms the bot is live before it revokes anything remote.
     botFindFirstMock.mockResolvedValue({ id: BOT_ID });
     txBotFindFirstMock.mockResolvedValue({
@@ -224,6 +230,31 @@ describe("deleteSokoBot", () => {
     expect(cancelOrder).toBeLessThan(
       txBotDeleteMock.mock.invocationCallOrder[0],
     );
+  });
+
+  it("revokes the integration snapshot only after bot deletion commits", async () => {
+    const integrations = [
+      {
+        provider: "gmail",
+        composioAccountId: "selected",
+        pendingComposioAccountId: "latest",
+      },
+    ];
+    txIntegrationsFindManyMock.mockResolvedValue(integrations);
+    await deleteSokoBot(BOT_ID);
+    expect(revokeIntegrationsMock).toHaveBeenCalledWith(BOT_ID, integrations);
+    expect(txIntegrationsFindManyMock.mock.invocationCallOrder[0]).toBeLessThan(
+      txBotDeleteMock.mock.invocationCallOrder[0],
+    );
+    expect(txBotDeleteMock.mock.invocationCallOrder[0]).toBeLessThan(
+      revokeIntegrationsMock.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("does not revoke accounts when deletion rolls back", async () => {
+    txBotDeleteMock.mockRejectedValueOnce(new Error("transaction failed"));
+    await expect(deleteSokoBot(BOT_ID)).rejects.toThrow("transaction failed");
+    expect(revokeIntegrationsMock).not.toHaveBeenCalled();
   });
 
   it("revokes nothing when the bot is not there to delete", async () => {
