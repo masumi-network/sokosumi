@@ -5,7 +5,7 @@ import Testing
 
 struct RoomRosterTests {
   private func room() -> Components.Schemas.ChatRoom {
-    .init(id: "room", name: "Team", kind: .channel, createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast, unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [], coworkerMembers: [], sokoBotMembers: [])
+    .init(id: "room", name: "Team", kind: .channel, isSelfDirect: false, createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast, unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [], coworkerMembers: [], sokoBotMembers: [])
   }
 
   @Test func ordersEachKindAndUsesRosterSubtitles() {
