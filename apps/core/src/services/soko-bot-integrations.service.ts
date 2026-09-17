@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import type { Prisma } from "@sokosumi/database";
+import { Prisma } from "@sokosumi/database";
 import {
   getSokoBotIntegrationProvider,
   isSokoBotEmailProvider,
@@ -299,17 +299,13 @@ export async function connectSokoBotIntegration(input: {
   const request = await withComposio("start OAuth", () =>
     composio.connectedAccounts.link(composioEntityId(bot.id), authConfigId, {
       callbackUrl: input.returnUrl,
-      allowMultiple: false,
+      // Replacement authorization must coexist with the selected account.
+      // Execution always pins the locally stored connected_account_id.
+      allowMultiple: true,
     }),
   );
-  const previous = await prisma.sokoBotIntegration.findUnique({
-    where: { sokoBotId_provider: { sokoBotId: bot.id, provider: provider.id } },
-    select: { composioAccountId: true, status: true },
-  });
-  if (previous && previous.composioAccountId !== request.id) {
-    await composio.connectedAccounts
-      .delete(previous.composioAccountId)
-      .catch(() => undefined);
+  if (!request.redirectUrl) {
+    throw new SokoBotIntegrationError("Composio returned no redirect URL");
   }
   await prisma.sokoBotIntegration.upsert({
     where: { sokoBotId_provider: { sokoBotId: bot.id, provider: provider.id } },
@@ -322,16 +318,13 @@ export async function connectSokoBotIntegration(input: {
       status: "PENDING",
     },
     update: {
-      composioAccountId: request.id,
+      // The latest persisted attempt wins. Until it succeeds, keep the selected
+      // account and its status usable, even if the owner abandons this flow.
+      pendingComposioAccountId: request.id,
       name: toolkit.name,
       logoUrl: toolkit.logoUrl,
-      status: "PENDING",
-      lastError: null,
     },
   });
-  if (!request.redirectUrl) {
-    throw new SokoBotIntegrationError("Composio returned no redirect URL");
-  }
   return { redirectUrl: request.redirectUrl };
 }
 
@@ -345,23 +338,43 @@ export async function finalizeSokoBotIntegration(input: {
   const bot = await requireBot(input.userId, input.workspaceId);
   const row = await prisma.sokoBotIntegration.findUnique({
     where: { sokoBotId_provider: { sokoBotId: bot.id, provider: provider.id } },
-    select: { id: true, composioAccountId: true },
+    select: {
+      id: true,
+      composioAccountId: true,
+      pendingComposioAccountId: true,
+    },
   });
   if (!row) throw new SokoBotIntegrationError("Not connected", "NOT_FOUND");
   const composio = requireComposio();
+  const accountId = row.pendingComposioAccountId ?? row.composioAccountId;
   const account = await withComposio("account status", () =>
-    composio.connectedAccounts.get(row.composioAccountId),
+    composio.connectedAccounts.get(accountId),
   );
+  if (
+    account.id !== accountId ||
+    account.toolkit.slug.toLowerCase() !== provider.id
+  ) {
+    throw new SokoBotIntegrationError(
+      "Composio account does not match the provider",
+    );
+  }
   const status =
-    account.status === "ACTIVE"
+    account.status === "ACTIVE" && !account.isDisabled
       ? "ACTIVE"
       : account.status === "INITIALIZING" || account.status === "INITIATED"
         ? "PENDING"
         : account.status === "REVOKED"
           ? "REVOKED"
           : "FAILED";
-  await prisma.sokoBotIntegration.update({
-    where: { id: row.id },
+  // A failed/pending replacement must not disable the working selection.
+  if (row.pendingComposioAccountId && status !== "ACTIVE") return status;
+  const replacing = accountId !== row.composioAccountId;
+  const updated = await prisma.sokoBotIntegration.updateMany({
+    where: {
+      id: row.id,
+      composioAccountId: row.composioAccountId,
+      pendingComposioAccountId: row.pendingComposioAccountId,
+    },
     data: {
       status,
       connectedAt: status === "ACTIVE" ? new Date() : undefined,
@@ -369,8 +382,29 @@ export async function finalizeSokoBotIntegration(input: {
         status === "FAILED" || status === "REVOKED"
           ? (account.statusReason ?? account.status)
           : null,
+      ...(status === "ACTIVE" ? { lastErrorAt: null } : {}),
+      ...(replacing
+        ? {
+            composioAccountId: accountId,
+            pendingComposioAccountId: null,
+            cursor: Prisma.DbNull,
+            lastIngestAt: null,
+          }
+        : {}),
     },
   });
+  if (updated.count === 0) {
+    throw new SokoBotIntegrationError(
+      "Connection changed; retry finalizing OAuth",
+    );
+  }
+  // Preserve the existing replacement policy, but only revoke after the new
+  // account is active and persisted. Never delete unrelated upstream accounts.
+  if (replacing) {
+    await composio.connectedAccounts
+      .delete(row.composioAccountId)
+      .catch(() => undefined);
+  }
   return status;
 }
 
@@ -383,14 +417,24 @@ export async function disconnectSokoBotIntegration(input: {
   const bot = await requireBot(input.userId, input.workspaceId);
   const row = await prisma.sokoBotIntegration.findUnique({
     where: { sokoBotId_provider: { sokoBotId: bot.id, provider: provider.id } },
-    select: { id: true, composioAccountId: true },
+    select: {
+      id: true,
+      composioAccountId: true,
+      pendingComposioAccountId: true,
+    },
   });
   if (!row) return;
   const composio = getComposio();
   if (composio) {
-    await composio.connectedAccounts
-      .delete(row.composioAccountId)
-      .catch(() => undefined);
+    for (const accountId of new Set([
+      row.composioAccountId,
+      row.pendingComposioAccountId,
+    ])) {
+      if (accountId)
+        await composio.connectedAccounts
+          .delete(accountId)
+          .catch(() => undefined);
+    }
   }
   await prisma.sokoBotIntegration.delete({ where: { id: row.id } });
 }
@@ -408,26 +452,36 @@ export async function revokeAllSokoBotIntegrations(
 ): Promise<{ revoked: number; failed: string[] }> {
   const rows = await prisma.sokoBotIntegration.findMany({
     where: { sokoBotId },
-    select: { provider: true, composioAccountId: true },
+    select: {
+      provider: true,
+      composioAccountId: true,
+      pendingComposioAccountId: true,
+    },
   });
   if (rows.length === 0) return { revoked: 0, failed: [] };
   const composio = getComposio();
   if (!composio) return { revoked: 0, failed: rows.map((r) => r.provider) };
 
-  const failed: string[] = [];
+  const failed = new Set<string>();
   for (const row of rows) {
-    try {
-      await composio.connectedAccounts.delete(row.composioAccountId);
-    } catch (error) {
-      failed.push(row.provider);
-      console.error("Soko Bot integration revoke failed", {
-        sokoBotId,
-        provider: row.provider,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+    for (const accountId of new Set([
+      row.composioAccountId,
+      row.pendingComposioAccountId,
+    ])) {
+      if (!accountId) continue;
+      try {
+        await composio.connectedAccounts.delete(accountId);
+      } catch (error) {
+        failed.add(row.provider);
+        console.error("Soko Bot integration revoke failed", {
+          sokoBotId,
+          provider: row.provider,
+          error: error instanceof Error ? error.message : "unknown",
+        });
+      }
     }
   }
-  return { revoked: rows.length - failed.length, failed };
+  return { revoked: rows.length - failed.size, failed: [...failed] };
 }
 
 // ---------------------------------------------------------------------------
