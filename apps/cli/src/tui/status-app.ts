@@ -165,7 +165,7 @@ export function displayTargetLabel(config: CliTargetConfig): string {
   return sanitizeApiUrl(config.apiUrl);
 }
 
-export function apiKeyTargetEscapeState(_pendingApiKey: string | null): {
+export function apiKeyTargetEscapeState(): {
   screen: "auth-method";
   pendingApiKey: null;
 } {
@@ -751,7 +751,7 @@ function StatusApp({
           return;
         }
         if (screen === "api-key-target") {
-          const reset = apiKeyTargetEscapeState(pendingApiKey);
+          const reset = apiKeyTargetEscapeState();
           setPendingApiKey(reset.pendingApiKey);
           setScreen(reset.screen);
           setMessage("");
