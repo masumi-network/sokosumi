@@ -50,12 +50,23 @@ vi.mock("@/components/ui/sidebar", () => ({
   SidebarMenuButton: ({
     children,
     onClick,
+    tooltip,
+    asChild: _asChild,
+    isActive: _isActive,
     ...props
   }: {
     children: React.ReactNode;
     onClick?: () => void;
+    tooltip?: string | { children: React.ReactNode };
+    asChild?: boolean;
+    isActive?: boolean;
   }) => (
-    <button type="button" onClick={onClick} {...props}>
+    <button
+      type="button"
+      onClick={onClick}
+      data-has-tooltip={tooltip ? "true" : "false"}
+      {...props}
+    >
       {children}
     </button>
   ),
@@ -245,5 +256,17 @@ describe("MenuItems search action", () => {
 
     expect(positions.every((position) => position >= 0)).toBe(true);
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+  });
+
+  it("gives every menu item a hover hint for the collapsed rail", () => {
+    const { container } = renderMenu(true, true, false);
+    const buttons = Array.from(
+      container.querySelectorAll("[data-has-tooltip]"),
+    );
+
+    expect(buttons.length).toBeGreaterThan(0);
+    for (const button of buttons) {
+      expect(button).toHaveAttribute("data-has-tooltip", "true");
+    }
   });
 });
