@@ -350,6 +350,34 @@ describe("ChatRoomSidebarRow leading slot", () => {
   });
 });
 
+describe("ChatRoomSidebarRow trailing cluster", () => {
+  it("hides the pin glyph and room menu when the sidebar collapses", () => {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom({ starredAt: new Date("2026-09-01T00:00:00.000Z") })}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const cluster = container.querySelector('[data-slot="room-trailing"]');
+    expect(cluster).not.toBeNull();
+    // Pin glyph and the room menu both live in this one cluster.
+    expect(cluster?.querySelector("svg.lucide-pin")).not.toBeNull();
+    expect(
+      cluster?.contains(
+        screen.getByRole("button", { name: "Chat actions for general" }),
+      ),
+    ).toBe(true);
+    expect(cluster?.className).toContain(
+      "group-data-[collapsible=icon]:hidden",
+    );
+  });
+});
+
 describe("ChatRoomSidebarRow edit menu", () => {
   beforeEach(() => {
     vi.clearAllMocks();
