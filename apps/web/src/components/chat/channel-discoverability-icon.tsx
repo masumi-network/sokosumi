@@ -1,9 +1,24 @@
 import { Globe2, Hash, Lock } from "lucide-react";
+import type { ComponentProps } from "react";
+import type { ChatRoom } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
-interface ChannelDiscoverabilityIconProps {
-  discoverability?: "public" | "private" | "external" | "matched" | null;
-  className?: string;
+type Discoverability = ChatRoom["discoverability"];
+
+interface ChannelDiscoverabilityIconProps extends ComponentProps<"span"> {
+  discoverability?: Discoverability;
+}
+
+/**
+ * The icon a non-public kind carries: lock for private, globe for external
+ * and matched. Null for public, whose only mark is the `#` glyph itself.
+ */
+export function channelKindIcon(discoverability?: Discoverability) {
+  if (discoverability === "private") return Lock;
+  if (discoverability === "external" || discoverability === "matched") {
+    return Globe2;
+  }
+  return null;
 }
 
 /**
@@ -14,13 +29,9 @@ interface ChannelDiscoverabilityIconProps {
 export function ChannelDiscoverabilityIcon({
   discoverability,
   className,
+  ...props
 }: ChannelDiscoverabilityIconProps) {
-  const Icon =
-    discoverability === "private"
-      ? Lock
-      : discoverability === "external" || discoverability === "matched"
-        ? Globe2
-        : Hash;
+  const Icon = channelKindIcon(discoverability) ?? Hash;
 
   return (
     <span
@@ -28,6 +39,7 @@ export function ChannelDiscoverabilityIcon({
         "inline-flex size-5 shrink-0 items-center justify-center [&_svg]:size-3.5",
         className,
       )}
+      {...props}
       aria-hidden
     >
       <Icon />

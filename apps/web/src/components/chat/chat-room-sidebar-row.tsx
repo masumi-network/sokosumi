@@ -70,7 +70,8 @@ import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
 
 /**
  * Trailing controls. Touch: pin/mute then overflow side by side.
- * Hover-capable: one size-8 slot that swaps status ↔ overflow on hover.
+ * Hover-capable: glyph-sized hole at rest (none if no status); menu size on
+ * hover / focus / open so the name does not sit under the button.
  */
 const TRAILING_CLUSTER_CLASS =
   "group-data-[collapsible=icon]:hidden absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center";
@@ -339,9 +340,17 @@ export function ChatRoomSidebarRow({
       </span>
       <MentionBadge count={badgeCount} />
       <span
+        data-slot="room-trailing-spacer"
         className={cn(
-          "size-8 shrink-0 md:size-7",
+          "shrink-0",
+          "[@media(hover:none)]:size-8 [@media(hover:none)]:md:size-7",
           (isMuted || isPinned) && "[@media(hover:none)]:w-16",
+          isMuted || isPinned
+            ? "[@media(hover:hover)]:size-4"
+            : "[@media(hover:hover)]:size-0",
+          "[@media(hover:hover)]:group-hover/room-row:size-7",
+          "[@media(hover:hover)]:group-focus-within/room-row:size-7",
+          "[@media(hover:hover)]:group-has-[[data-state=open]]/room-row:size-7",
         )}
         aria-hidden
       />
@@ -350,7 +359,10 @@ export function ChatRoomSidebarRow({
 
   return (
     <SidebarMenuItem className="group/room-row relative">
-      <SidebarMenuButton asChild isActive={isActive}>
+      {/* Collapsed to icons the row is only its leading mark, so the name
+          rides the button's tooltip, which the sidebar shows in that state
+          alone. */}
+      <SidebarMenuButton asChild isActive={isActive} tooltip={label}>
         {dismissSheetOnNavigate ? (
           <SheetClose asChild>{roomLink}</SheetClose>
         ) : (

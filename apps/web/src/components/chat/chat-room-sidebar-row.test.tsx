@@ -131,11 +131,16 @@ vi.mock("@/components/ui/sidebar", () => ({
   SidebarMenuButton: ({
     children,
     asChild,
+    tooltip,
   }: {
     children: ReactNode;
     asChild?: boolean;
-  }) =>
-    asChild && isValidElement(children) ? children : <div>{children}</div>,
+    tooltip?: string;
+  }) => (
+    <div data-testid="sidebar-menu-button" data-tooltip={tooltip}>
+      {asChild && isValidElement(children) ? children : <div>{children}</div>}
+    </div>
+  ),
   SidebarMenuItem: ({ children }: { children: ReactNode }) => (
     <li>{children}</li>
   ),
@@ -320,6 +325,26 @@ async function openRoomMenu(label = "general") {
   return user;
 }
 
+describe("ChatRoomSidebarRow tooltip", () => {
+  it("names the room on the sidebar button so the collapsed rail can show it", () => {
+    render(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span />}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("sidebar-menu-button")).toHaveAttribute(
+      "data-tooltip",
+      "general",
+    );
+  });
+});
+
 describe("ChatRoomSidebarRow leading slot", () => {
   it("wraps any room leading icon in a min-w-5 / h-5 alignment slot", () => {
     const { container } = render(
@@ -375,6 +400,66 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
     expect(cluster?.className).toContain(
       "group-data-[collapsible=icon]:hidden",
     );
+  });
+
+  it("keeps the pin in the same size slot as the room menu", () => {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom({ starredAt: new Date("2026-09-01T00:00:00.000Z") })}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const pin = container.querySelector("svg.lucide-pin");
+    const box = pin?.parentElement;
+    expect(box).not.toBeNull();
+    expect(box?.className.split(" ").includes("md:size-7")).toBe(true);
+    expect(box?.className).not.toContain("[@media(hover:hover)]:size-4");
+  });
+
+  it("reserves a glyph-sized hole at rest on hover, not a full menu button", () => {
+    const { container, rerender } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom({ mutedAt: new Date("2026-09-01T00:00:00.000Z") })}
+        href="/chat/rooms/room-1"
+        label="Agent Test Channel"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const spacer = container.querySelector(
+      '[data-slot="room-trailing-spacer"]',
+    );
+    expect(spacer).not.toBeNull();
+    expect(spacer?.className).toContain("[@media(hover:hover)]:size-4");
+    expect(spacer?.className).toContain(
+      "[@media(hover:hover)]:group-hover/room-row:size-7",
+    );
+    expect(spacer?.className).toContain("[@media(hover:none)]:w-16");
+    expect(spacer?.className.split(" ").includes("md:size-7")).toBe(false);
+
+    rerender(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="Agent Building"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const restSpacer = container.querySelector(
+      '[data-slot="room-trailing-spacer"]',
+    );
+    expect(restSpacer?.className).toContain("[@media(hover:hover)]:size-0");
+    expect(restSpacer?.className).not.toContain("[@media(hover:none)]:w-16");
   });
 });
 
