@@ -61,7 +61,7 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-// The row's two numbers and the rail dot's two states resolve by full key
+// The row's two numbers and the rail pill's two states resolve by full key
 // path, so a typo in the namespace fails here instead of passing on a bare key
 // that happens to match. The real
 // catalog and the real ICU plurals are bound in
