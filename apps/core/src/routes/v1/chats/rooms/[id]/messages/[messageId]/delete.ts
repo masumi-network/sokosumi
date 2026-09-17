@@ -1,13 +1,22 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { extractFileLikeLinks } from "@sokosumi/utils";
+import { waitUntil } from "@vercel/functions";
+
 import { rewriteChatNotificationPreviews } from "@/helpers/chat-notification-fanout";
 import {
   publishChatRoomMessageRealtime,
   publishChatRoomMessageRealtimeById,
 } from "@/helpers/chat-room-message-realtime";
+import {
+  asMetadataRecord,
+  readUnfurlsFromMetadata,
+} from "@/helpers/chat-room-message-unfurl-metadata";
 import { publishChatRoomPinnedMessageRealtime } from "@/helpers/chat-room-pinned-message-realtime";
 import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { deleteChatRoomFilesIfOwned } from "@/lib/blob";
+import { deleteChatRoomUnfurlSnapshotsIfOwned } from "@/lib/chat-unfurl-snapshot";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -68,8 +77,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserAuthContext(c.var.authContext);
     const { id, messageId } = c.req.valid("param");
 
-    const { message, newlySoftDeleted, unpinned } = await prisma.$transaction(
-      async (tx) => {
+    const { message, newlySoftDeleted, unpinned, blobCleanup } =
+      await prisma.$transaction(async (tx) => {
         await requireChatRoomUserMembership(id, userContext.userId, tx);
 
         const existing = await tx.chatRoomMessage.findFirst({
@@ -103,6 +112,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             message: existing,
             newlySoftDeleted: false,
             unpinned: null,
+            blobCleanup: null,
           };
         }
 
@@ -152,13 +162,39 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ? await tx.chatRoomPinnedMessage.count({ where: { roomId: id } })
           : 0;
 
+        const unfurls = newlySoftDeleted
+          ? readUnfurlsFromMetadata(asMetadataRecord(existing.metadata))
+          : null;
+
         return {
           message: updated,
           newlySoftDeleted,
           unpinned: pinDelete.count > 0 ? { pinnedMessageCount } : null,
+          blobCleanup: newlySoftDeleted
+            ? {
+                chatFileUrls: extractFileLikeLinks(existing.content),
+                unfurlImageUrls: (unfurls ?? []).map((card) => card.imageUrl),
+              }
+            : null,
         };
-      },
-    );
+      });
+
+    if (newlySoftDeleted && blobCleanup) {
+      waitUntil(
+        deleteChatRoomFilesIfOwned(
+          blobCleanup.chatFileUrls,
+          { kind: "user", userId: userContext.userId },
+          message.roomId,
+        ),
+      );
+      waitUntil(
+        deleteChatRoomUnfurlSnapshotsIfOwned(
+          blobCleanup.unfurlImageUrls,
+          message.roomId,
+          message.id,
+        ),
+      );
+    }
 
     // Soft-deleted replies drop out of parent threadReplyCount — re-publish
     // the parent so room timeline / open-thread header stay in sync.

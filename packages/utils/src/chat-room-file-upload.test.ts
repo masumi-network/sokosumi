@@ -9,6 +9,7 @@ import {
   buildUserChatRoomFilePrefix,
   CHAT_ROOM_FILE_MAX_SIZE_BYTES,
   isOwnedCoworkerChatRoomFileUrl,
+  isOwnedSokoBotChatRoomFileUrl,
   isOwnedUserChatRoomFileUrl,
 } from "./chat-room-file-upload.js";
 
@@ -74,6 +75,20 @@ describe("chat room file upload helpers", () => {
       isOwnedCoworkerChatRoomFileUrl(
         "https://blob.example.com/coworkers/cow_123/image-ops.png",
         "cow_123",
+        "room_abc",
+      ),
+    ).toBe(false);
+    expect(
+      isOwnedSokoBotChatRoomFileUrl(
+        "https://blob.example.com/soko-bots/bot_123/chats/room_abc/a.txt",
+        "bot_123",
+        "room_abc",
+      ),
+    ).toBe(true);
+    expect(
+      isOwnedSokoBotChatRoomFileUrl(
+        "https://blob.example.com/soko-bots/bot_123/notes.txt",
+        "bot_123",
         "room_abc",
       ),
     ).toBe(false);

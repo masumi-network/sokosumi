@@ -94,3 +94,14 @@ export function isOwnedCoworkerChatRoomFileUrl(
     buildCoworkerChatRoomFilePrefix(coworkerId, roomId),
   );
 }
+
+export function isOwnedSokoBotChatRoomFileUrl(
+  url: string,
+  sokoBotId: string,
+  roomId: string,
+): boolean {
+  return isOwnedPrefixUrl(
+    url,
+    buildSokoBotChatRoomFilePrefix(sokoBotId, roomId),
+  );
+}

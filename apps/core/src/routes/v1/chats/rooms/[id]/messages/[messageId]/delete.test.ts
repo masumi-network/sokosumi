@@ -65,6 +65,30 @@ vi.mock("@/helpers/chat-notification-fanout", () => ({
   rewriteChatNotificationPreviews: rewriteChatNotificationPreviewsMock,
 }));
 
+const {
+  deleteChatRoomFilesIfOwnedMock,
+  deleteSnapshotsMock,
+  waitUntilPromises,
+} = vi.hoisted(() => ({
+  deleteChatRoomFilesIfOwnedMock: vi.fn().mockResolvedValue(undefined),
+  deleteSnapshotsMock: vi.fn().mockResolvedValue(undefined),
+  waitUntilPromises: [] as Promise<unknown>[],
+}));
+
+vi.mock("@/lib/blob", () => ({
+  deleteChatRoomFilesIfOwned: deleteChatRoomFilesIfOwnedMock,
+}));
+
+vi.mock("@/lib/chat-unfurl-snapshot", () => ({
+  deleteChatRoomUnfurlSnapshotsIfOwned: deleteSnapshotsMock,
+}));
+
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (promise: Promise<unknown>) => {
+    waitUntilPromises.push(promise);
+  },
+}));
+
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440001";
 const USER_ID = "user_123";
@@ -123,6 +147,7 @@ function baseMessage(overrides: Record<string, unknown> = {}) {
     deletedAt: null,
     senderUserId: USER_ID,
     senderCoworkerId: null,
+    senderSokoBotId: null,
     metadata: { quote: { messageId: "x" } },
     senderUser: {
       id: USER_ID,
@@ -142,6 +167,7 @@ function baseMessage(overrides: Record<string, unknown> = {}) {
 describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    waitUntilPromises.length = 0;
     prismaTransactionMock.mockImplementation(
       async (fn: (client: typeof tx) => Promise<unknown>) => fn(tx),
     );
@@ -448,5 +474,197 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
     });
 
     expect(response.status).toBe(404);
+  });
+
+  it("schedules owned chat-file and unfurl snapshot deletes on first tombstone", async () => {
+    const ownedFile = `https://abc.public.blob.vercel-storage.com/users/${USER_ID}/chats/${ROOM_ID}/report.pdf`;
+    const snapshot = `https://abc.public.blob.vercel-storage.com/chats/${ROOM_ID}/unfurls/${MESSAGE_ID}/image-preview-xyz.png`;
+    const live = baseMessage({
+      content: `see [report](${ownedFile})`,
+      metadata: {
+        unfurls: [
+          {
+            url: "https://example.com/article",
+            title: "Article",
+            description: null,
+            imageUrl: snapshot,
+            siteName: "Example",
+          },
+        ],
+      },
+    });
+    messageFindFirstMock.mockReset();
+    messageFindFirstMock.mockResolvedValueOnce(live).mockResolvedValueOnce(
+      baseMessage({
+        content: "",
+        deletedAt: new Date("2026-08-02T05:00:00.000Z"),
+        metadata: null,
+      }),
+    );
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}/messages/${MESSAGE_ID}`, {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(200);
+    await Promise.all(waitUntilPromises);
+    expect(deleteChatRoomFilesIfOwnedMock).toHaveBeenCalledWith(
+      [ownedFile],
+      { kind: "user", userId: USER_ID },
+      ROOM_ID,
+    );
+    expect(deleteSnapshotsMock).toHaveBeenCalledWith(
+      [snapshot],
+      ROOM_ID,
+      MESSAGE_ID,
+    );
+  });
+
+  it("names blob cleanup by the ids on the row, not the ones in the path", async () => {
+    const ownedFile = `https://abc.public.blob.vercel-storage.com/users/${USER_ID}/chats/${ROOM_ID}/report.pdf`;
+    const snapshot = `https://abc.public.blob.vercel-storage.com/chats/${ROOM_ID}/unfurls/${MESSAGE_ID}/image-preview-xyz.png`;
+    const live = baseMessage({
+      content: `see [report](${ownedFile})`,
+      metadata: {
+        unfurls: [
+          {
+            url: "https://example.com/article",
+            title: "Article",
+            description: null,
+            imageUrl: snapshot,
+            siteName: "Example",
+          },
+        ],
+      },
+    });
+    messageFindFirstMock.mockReset();
+    messageFindFirstMock.mockResolvedValueOnce(live).mockResolvedValueOnce(
+      baseMessage({
+        content: "",
+        deletedAt: new Date("2026-08-02T05:00:00.000Z"),
+        metadata: null,
+      }),
+    );
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(
+      `/${ROOM_ID.toUpperCase()}/messages/${MESSAGE_ID.toUpperCase()}`,
+      { method: "DELETE" },
+    );
+
+    expect(response.status).toBe(200);
+    await Promise.all(waitUntilPromises);
+    expect(deleteChatRoomFilesIfOwnedMock).toHaveBeenCalledWith(
+      [ownedFile],
+      { kind: "user", userId: USER_ID },
+      ROOM_ID,
+    );
+    expect(deleteSnapshotsMock).toHaveBeenCalledWith(
+      [snapshot],
+      ROOM_ID,
+      MESSAGE_ID,
+    );
+  });
+
+  it("still tombstones when owned blob delete rejects", async () => {
+    deleteChatRoomFilesIfOwnedMock.mockRejectedValueOnce(
+      new Error("blob down"),
+    );
+    const ownedFile = `https://abc.public.blob.vercel-storage.com/users/${USER_ID}/chats/${ROOM_ID}/report.pdf`;
+    const live = baseMessage({
+      content: `see [report](${ownedFile})`,
+    });
+    messageFindFirstMock.mockReset();
+    messageFindFirstMock.mockResolvedValueOnce(live).mockResolvedValueOnce(
+      baseMessage({
+        content: "",
+        deletedAt: new Date("2026-08-02T05:00:00.000Z"),
+        metadata: null,
+      }),
+    );
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}/messages/${MESSAGE_ID}`, {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(200);
+    await Promise.allSettled(waitUntilPromises);
+    const body = await response.json();
+    expect(body.data.deletedAt).toBeTruthy();
+    expect(body.data.content).toBe("");
+  });
+
+  it("passes drive, other-sender, and hotlinked URLs through for ownership filtering", async () => {
+    const drive = `https://abc.public.blob.vercel-storage.com/users/${USER_ID}/docs/notes.pdf`;
+    const otherSender = `https://abc.public.blob.vercel-storage.com/users/${OTHER_USER_ID}/chats/${ROOM_ID}/file.pdf`;
+    const hotlink = "https://pbs.twimg.com/media/foo.jpg";
+    const foreignSnapshot = `https://abc.public.blob.vercel-storage.com/chats/${ROOM_ID}/unfurls/other-message/image-preview-z9.png`;
+    const live = baseMessage({
+      content: `see [drive](${drive}) and [theirs](${otherSender})`,
+      metadata: {
+        unfurls: [
+          {
+            url: "https://x.com/status/1",
+            title: "Post",
+            description: null,
+            imageUrl: hotlink,
+            siteName: "X",
+          },
+          {
+            url: "https://example.com/other",
+            title: "Other",
+            description: null,
+            imageUrl: foreignSnapshot,
+            siteName: "Example",
+          },
+        ],
+      },
+    });
+    messageFindFirstMock.mockReset();
+    messageFindFirstMock.mockResolvedValueOnce(live).mockResolvedValueOnce(
+      baseMessage({
+        content: "",
+        deletedAt: new Date("2026-08-02T05:00:00.000Z"),
+        metadata: null,
+      }),
+    );
+
+    const app = createApp(userAuthContext);
+    await app.request(`/${ROOM_ID}/messages/${MESSAGE_ID}`, {
+      method: "DELETE",
+    });
+    await Promise.all(waitUntilPromises);
+
+    expect(deleteChatRoomFilesIfOwnedMock).toHaveBeenCalledWith(
+      expect.arrayContaining([drive, otherSender]),
+      { kind: "user", userId: USER_ID },
+      ROOM_ID,
+    );
+    expect(deleteSnapshotsMock).toHaveBeenCalledWith(
+      [hotlink, foreignSnapshot],
+      ROOM_ID,
+      MESSAGE_ID,
+    );
+  });
+
+  it("does not schedule blob deletes on an already-tombstoned message", async () => {
+    const tombstone = baseMessage({
+      content: "",
+      deletedAt: new Date("2026-08-01T00:00:00.000Z"),
+      metadata: null,
+    });
+    messageFindFirstMock.mockReset();
+    messageFindFirstMock.mockResolvedValue(tombstone);
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}/messages/${MESSAGE_ID}`, {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(200);
+    expect(deleteChatRoomFilesIfOwnedMock).not.toHaveBeenCalled();
+    expect(deleteSnapshotsMock).not.toHaveBeenCalled();
   });
 });
