@@ -94,7 +94,7 @@ interface ChatRoomSidebarRowProps {
  *
  * Text rather than a pill, because it is not the mention badge and a reader has
  * to tell the two apart at a glance. It caps like the badge so a very loud room
- * cannot reflow the row. Collapsed to icons the row is a 20px glyph with space
+ * cannot reflow the row. Collapsed to icons the row is a 24px mark with space
  * for neither number, so count and badge both hide. That is decided, not an
  * oversight.
  *
@@ -299,22 +299,26 @@ export function ChatRoomSidebarRow({
     </DropdownMenuItem>
   );
 
+  // Collapsed to icons the row is its leading mark, centred in the button.
+  // The name goes `sr-only` rather than `hidden` so the link keeps its
+  // accessible name (the tooltip adds none) while taking no flex space, and
+  // the spacer hides so neither can push the mark off centre.
   const roomLink = (
     <Link
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-2 px-3",
+        "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-2 px-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0!",
         isMuted && !isActive && "opacity-60",
       )}
       href={href}
     >
       <span
         data-slot="room-leading"
-        className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center"
+        className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center group-data-[collapsible=icon]:h-6 group-data-[collapsible=icon]:min-w-6"
       >
         {leading}
       </span>
-      <span className="min-w-0 flex-1">
+      <span className="group-data-[collapsible=icon]:sr-only min-w-0 flex-1">
         {/* The count rides the end of the name, not the row's right rail, so it
             reads as belonging to this room rather than to the row's controls.
             The name keeps `min-w-0` so it truncates first and the count stays.
@@ -342,7 +346,7 @@ export function ChatRoomSidebarRow({
       <span
         data-slot="room-trailing-spacer"
         className={cn(
-          "shrink-0",
+          "group-data-[collapsible=icon]:hidden shrink-0",
           "[@media(hover:none)]:size-8 [@media(hover:none)]:md:size-7",
           (isMuted || isPinned) && "[@media(hover:none)]:w-16",
           isMuted || isPinned

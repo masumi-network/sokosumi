@@ -45,8 +45,18 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("next/link", () => ({
-  default: ({ children, href }: { children: ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
+  default: ({
+    children,
+    href,
+    className,
+  }: {
+    children: ReactNode;
+    href: string;
+    className?: string;
+  }) => (
+    <a href={href} className={className}>
+      {children}
+    </a>
   ),
 }));
 
@@ -372,6 +382,44 @@ describe("ChatRoomSidebarRow leading slot", () => {
     // Slot is a direct child of the room link so every room type shares the same column.
     const link = container.querySelector('a[href="/chat/rooms/room-1"]');
     expect(link?.firstElementChild).toBe(slot);
+  });
+});
+
+describe("ChatRoomSidebarRow collapsed rail", () => {
+  it("centres a 24px leading mark and keeps the name for assistive tech", () => {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span data-testid="custom-leading">#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const link = container.querySelector('a[href="/chat/rooms/room-1"]');
+    // Padding drops and the mark centres: the collapsed button keeps its own
+    // `p-3!`, which `px-0!` outranks because Tailwind orders it later.
+    expect(link?.className).toContain(
+      "group-data-[collapsible=icon]:justify-center",
+    );
+    expect(link?.className).toContain("group-data-[collapsible=icon]:px-0!");
+
+    const slot = screen.getByTestId("custom-leading").parentElement;
+    expect(slot?.className).toContain("group-data-[collapsible=icon]:h-6");
+    expect(slot?.className).toContain("group-data-[collapsible=icon]:min-w-6");
+
+    // The name must stay in the accessible name (the tooltip adds none) while
+    // taking no flex space, so `sr-only`, never `hidden`. The spacer would
+    // otherwise pull the mark off centre on touch.
+    const name = screen.getByText("general");
+    expect(name.parentElement?.parentElement?.className).toContain(
+      "group-data-[collapsible=icon]:sr-only",
+    );
+    expect(
+      container.querySelector('[data-slot="room-trailing-spacer"]')?.className,
+    ).toContain("group-data-[collapsible=icon]:hidden");
   });
 });
 

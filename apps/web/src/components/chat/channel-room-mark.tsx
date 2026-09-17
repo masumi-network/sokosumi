@@ -12,9 +12,12 @@ interface ChannelRoomMarkProps {
 /**
  * Channel tile (see CONTEXT.md): the leading mark of a Channel row in the
  * sidebar. Expanded, the plain kind glyph beside the name. Collapsed to icons,
- * a rounded square of the name's initials on the same muted fill a DM avatar
- * falls back to, with a lock or globe corner mark for a non-public kind. Both are rendered and CSS picks one,
- * the same way the row hides its trailing controls when collapsed.
+ * a 24px rounded square of the name's initials on the same muted fill a DM
+ * avatar falls back to, with a lock or globe corner mark for a non-public kind.
+ * 24px rather than the expanded glyph's 20px for the same reason the DM face
+ * grows there (see `DirectRoomAvatarStack`), and so the rail stays one size.
+ * Both are rendered and CSS picks one, the same way the row hides its trailing
+ * controls when collapsed.
  */
 export function ChannelRoomMark({
   room: { name, discoverability },
@@ -30,7 +33,7 @@ export function ChannelRoomMark({
       />
       <span
         data-slot="channel-tile"
-        className="bg-muted text-foreground relative hidden size-5 shrink-0 items-center justify-center rounded-md text-[0.625rem] leading-none font-semibold group-data-[collapsible=icon]:inline-flex"
+        className="bg-muted text-foreground relative hidden size-6 shrink-0 items-center justify-center rounded-md text-[0.625rem] leading-none font-semibold group-data-[collapsible=icon]:inline-flex"
         aria-hidden
       >
         {getInitials(name)}
