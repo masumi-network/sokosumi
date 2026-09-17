@@ -26,7 +26,7 @@ function formatAgentStatus(status: string | null): string {
   return status || "unknown";
 }
 
-export function printAgentList(
+function printAgentList(
   stdout: CommandContext["stdout"],
   agents: readonly {
     id: string | null;

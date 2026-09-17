@@ -70,7 +70,6 @@ const resourceTitles: Record<ResourceKind, string> = {
 function readable(value: string | null | undefined, fallback: string): string {
   return value?.trim() || fallback;
 }
-export const safeError = redactErrorMessage;
 
 export function paginationTotal(
   response: { meta?: Record<string, unknown> },
@@ -456,7 +455,9 @@ export function ResourceView({
           const failures = results
             .filter((result) => result.status === "rejected")
             .map((result) =>
-              result.status === "rejected" ? safeError(result.reason) : "",
+              result.status === "rejected"
+                ? redactErrorMessage(result.reason)
+                : "",
             );
           if (failures.length === results.length) {
             setState({
@@ -551,7 +552,7 @@ export function ResourceView({
         }
       } catch (error: unknown) {
         if (!cancelled && !controller.signal.aborted) {
-          setState({ status: "error", message: safeError(error) });
+          setState({ status: "error", message: redactErrorMessage(error) });
         }
       }
     };
