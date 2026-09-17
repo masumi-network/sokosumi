@@ -1,3 +1,4 @@
+import { isVercelBlobPublicHost } from "./entity-image-upload.js";
 import { FILE_UPLOAD_MAX_SIZE_BYTES } from "./task-file-upload.js";
 import { sanitizeUserUploadFilename } from "./user-upload-path.js";
 
@@ -68,8 +69,14 @@ export function buildSokoBotChatRoomFilePathname(
 
 function isOwnedPrefixUrl(url: string, prefix: string): boolean {
   try {
-    const { pathname } = new URL(url);
-    const decoded = decodeURIComponent(pathname.replace(/^\/+/, ""));
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:") {
+      return false;
+    }
+    if (!isVercelBlobPublicHost(parsed.hostname)) {
+      return false;
+    }
+    const decoded = decodeURIComponent(parsed.pathname.replace(/^\/+/, ""));
     return decoded === prefix.slice(0, -1) || decoded.startsWith(prefix);
   } catch {
     return false;
@@ -92,5 +99,16 @@ export function isOwnedCoworkerChatRoomFileUrl(
   return isOwnedPrefixUrl(
     url,
     buildCoworkerChatRoomFilePrefix(coworkerId, roomId),
+  );
+}
+
+export function isOwnedSokoBotChatRoomFileUrl(
+  url: string,
+  sokoBotId: string,
+  roomId: string,
+): boolean {
+  return isOwnedPrefixUrl(
+    url,
+    buildSokoBotChatRoomFilePrefix(sokoBotId, roomId),
   );
 }
