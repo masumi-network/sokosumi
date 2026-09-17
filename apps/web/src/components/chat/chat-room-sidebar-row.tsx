@@ -71,7 +71,8 @@ import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
 /**
  * Trailing controls. Touch: pin/mute then overflow side by side.
  * Hover-capable: glyph-sized hole at rest (none if no status); menu size on
- * hover / focus / open so the name does not sit under the button.
+ * hover / focus / open so the name does not sit under the button. A row with a
+ * mention badge keeps one width in every state so the badge does not move.
  */
 const TRAILING_CLUSTER_CLASS =
   "group-data-[collapsible=icon]:hidden absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center";
@@ -94,7 +95,7 @@ interface ChatRoomSidebarRowProps {
  *
  * Text rather than a pill, because it is not the mention badge and a reader has
  * to tell the two apart at a glance. It caps like the badge so a very loud room
- * cannot reflow the row. Collapsed to icons the row is a 20px glyph with space
+ * cannot reflow the row. Collapsed to icons the row is a 24px mark with space
  * for neither number, so count and badge both hide. That is decided, not an
  * oversight.
  *
@@ -299,22 +300,26 @@ export function ChatRoomSidebarRow({
     </DropdownMenuItem>
   );
 
+  // Collapsed to icons the row is its leading mark, centred in the button.
+  // The name goes `sr-only` rather than `hidden` so the link keeps its
+  // accessible name (the tooltip adds none) while taking no flex space, and
+  // the spacer hides so neither can push the mark off centre.
   const roomLink = (
     <Link
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-2 px-3",
+        "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-2 px-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0!",
         isMuted && !isActive && "opacity-60",
       )}
       href={href}
     >
       <span
         data-slot="room-leading"
-        className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center"
+        className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center group-data-[collapsible=icon]:h-6 group-data-[collapsible=icon]:min-w-6"
       >
         {leading}
       </span>
-      <span className="min-w-0 flex-1">
+      <span className="group-data-[collapsible=icon]:sr-only min-w-0 flex-1">
         {/* The count rides the end of the name, not the row's right rail, so it
             reads as belonging to this room rather than to the row's controls.
             The name keeps `min-w-0` so it truncates first and the count stays.
@@ -342,15 +347,22 @@ export function ChatRoomSidebarRow({
       <span
         data-slot="room-trailing-spacer"
         className={cn(
-          "shrink-0",
+          "group-data-[collapsible=icon]:hidden shrink-0",
           "[@media(hover:none)]:size-8 [@media(hover:none)]:md:size-7",
           (isMuted || isPinned) && "[@media(hover:none)]:w-16",
-          isMuted || isPinned
-            ? "[@media(hover:hover)]:size-4"
-            : "[@media(hover:hover)]:size-0",
-          "[@media(hover:hover)]:group-hover/room-row:size-7",
-          "[@media(hover:hover)]:group-focus-within/room-row:size-7",
-          "[@media(hover:hover)]:group-has-[[data-state=open]]/room-row:size-7",
+          // The badge sits against this spacer, so a badged row holds one
+          // width in every state or the badge jumps on hover. 12px plus the
+          // link's gap ends the badge where the menu button's box begins.
+          badgeCount > 0
+            ? "[@media(hover:hover)]:size-3"
+            : [
+                isMuted || isPinned
+                  ? "[@media(hover:hover)]:size-4"
+                  : "[@media(hover:hover)]:size-0",
+                "[@media(hover:hover)]:group-hover/room-row:size-7",
+                "[@media(hover:hover)]:group-focus-within/room-row:size-7",
+                "[@media(hover:hover)]:group-has-[[data-state=open]]/room-row:size-7",
+              ],
         )}
         aria-hidden
       />

@@ -45,8 +45,18 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("next/link", () => ({
-  default: ({ children, href }: { children: ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
+  default: ({
+    children,
+    href,
+    className,
+  }: {
+    children: ReactNode;
+    href: string;
+    className?: string;
+  }) => (
+    <a href={href} className={className}>
+      {children}
+    </a>
   ),
 }));
 
@@ -375,6 +385,44 @@ describe("ChatRoomSidebarRow leading slot", () => {
   });
 });
 
+describe("ChatRoomSidebarRow collapsed rail", () => {
+  it("centres a 24px leading mark and keeps the name for assistive tech", () => {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span data-testid="custom-leading">#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const link = container.querySelector('a[href="/chat/rooms/room-1"]');
+    // Padding drops and the mark centres: the collapsed button keeps its own
+    // `p-3!`, which `px-0!` outranks because Tailwind orders it later.
+    expect(link?.className).toContain(
+      "group-data-[collapsible=icon]:justify-center",
+    );
+    expect(link?.className).toContain("group-data-[collapsible=icon]:px-0!");
+
+    const slot = screen.getByTestId("custom-leading").parentElement;
+    expect(slot?.className).toContain("group-data-[collapsible=icon]:h-6");
+    expect(slot?.className).toContain("group-data-[collapsible=icon]:min-w-6");
+
+    // The name must stay in the accessible name (the tooltip adds none) while
+    // taking no flex space, so `sr-only`, never `hidden`. The spacer would
+    // otherwise pull the mark off centre on touch.
+    const name = screen.getByText("general");
+    expect(name.parentElement?.parentElement?.className).toContain(
+      "group-data-[collapsible=icon]:sr-only",
+    );
+    expect(
+      container.querySelector('[data-slot="room-trailing-spacer"]')?.className,
+    ).toContain("group-data-[collapsible=icon]:hidden");
+  });
+});
+
 describe("ChatRoomSidebarRow trailing cluster", () => {
   it("hides the pin glyph and room menu when the sidebar collapses", () => {
     const { container } = render(
@@ -461,6 +509,46 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
     expect(restSpacer?.className).toContain("[@media(hover:hover)]:size-0");
     expect(restSpacer?.className).not.toContain("[@media(hover:none)]:w-16");
   });
+
+  it.each([
+    ["pinned", new Date("2026-09-01T00:00:00.000Z")],
+    ["unpinned", null],
+  ])(
+    "holds one spacer width on a %s row with a mention badge, so the badge sits beside the menu and never moves",
+    (_state, starredAt) => {
+      const { container } = render(
+        <ChatRoomSidebarRow
+          room={makeRoom({
+            starredAt,
+            unreadCount: 2,
+            unreadMentionCount: 2,
+          })}
+          href="/chat/rooms/room-1"
+          label="Patrick Tobler"
+          isActive={false}
+          leading={<span>#</span>}
+          onRoomUpdated={vi.fn()}
+        />,
+      );
+
+      const tokens =
+        container
+          .querySelector('[data-slot="room-trailing-spacer"]')
+          ?.className.split(" ") ?? [];
+      expect(tokens).toContain("[@media(hover:hover)]:size-3");
+      expect(tokens).not.toContain("[@media(hover:hover)]:size-4");
+      expect(tokens).not.toContain("[@media(hover:hover)]:size-0");
+      expect(tokens).not.toContain(
+        "[@media(hover:hover)]:group-hover/room-row:size-7",
+      );
+      expect(tokens).not.toContain(
+        "[@media(hover:hover)]:group-focus-within/room-row:size-7",
+      );
+      expect(tokens).not.toContain(
+        "[@media(hover:hover)]:group-has-[[data-state=open]]/room-row:size-7",
+      );
+    },
+  );
 });
 
 describe("ChatRoomSidebarRow edit menu", () => {

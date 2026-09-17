@@ -19,6 +19,7 @@ The Xcode navigator mirrors the real folders under `Sokosumi/` using filesystem-
 - `Chat/Timeline/`: room scrolling, message rows and timeline status rows.
 - `Chat/Threads/`: reply-thread presentation.
 - `Chat/Pins/`: pinned-message inspector and preview cards; pin state and networking stay in the shared packages.
+- `Chat/Details/`: room details/roster inspector, channel settings sheet, lifecycle confirmations and the host-side guest access section; guest state and networking stay in the shared packages.
 - `Chat/Invitations/`: channel invitation and guest join-link sheets; invitation state and networking stay in the shared packages.
 - `Chat/Composer/`: draft-owning rich composer, Drive picker (`DriveFilePickerView`) and isolated native text input.
 - `Chat/Rendering/`: Markdown, code, expansion, coworker thought, and attachment chips/previews (`MessageAttachmentView`, `DocumentAttachmentPreview`, `NativeOfficePreview`).
@@ -76,7 +77,7 @@ No ad-hoc signing assets live in CI: every `xcodebuild` invocation overrides wit
 
 - Swift package tests run via `swift test --package-path Packages/<name>`; app-target tests via `xcodebuild test -only-testing:SokosumiTests`.
 - Fake Core HTTP at the OpenAPI `ClientTransport` boundary. Do not test SwiftUI layout, Keychain, or `ASWebAuthenticationSession` as the required suite.
-- Apple CI (`.github/workflows/apple.yml`) runs build + tests in parallel on `xcode-27` for PRs touching `apps/apple/**` (or manual dispatch), including drafts. Lint/format is a separate job with that same PR/dispatch gate, plus path-filtered pushes to `main` so the Mint binary cache is saved on the default branch.
+- Apple CI (`.github/workflows/apple.yml`) runs the app tests and each Swift package's tests as parallel jobs on `xcode-27` for PRs touching `apps/apple/**` (or manual dispatch), including drafts. There is no separate build job: `xcodebuild test` builds the app. Tests and lint/format also run on path-filtered pushes to `main`, which save the Mint binary cache and the per-package SwiftPM `.build` cache (keyed by toolchain); PRs only restore them.
 
 ## App-Specific Gotchas
 

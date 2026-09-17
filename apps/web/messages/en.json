@@ -5459,9 +5459,12 @@
         "editedAt": "Edited {when}"
       },
       "Copy": {
-        "action": "Copy",
+        "action": "Copy text",
+        "link": "Copy link",
         "success": "Copied to clipboard",
-        "error": "Failed to copy"
+        "error": "Failed to copy",
+        "linkSuccess": "Link copied",
+        "linkError": "Failed to copy link"
       },
       "MentionAll": {
         "label": "Everyone"
