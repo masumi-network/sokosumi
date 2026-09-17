@@ -613,6 +613,7 @@ describe("RoomsClient notification deep link", () => {
         unreadReplyCount: 0,
         lastUnreadReplyAt: null,
         hasLooked: true,
+        mutedAt: null,
       },
     });
     vi.mocked(markThreadReadAction).mockResolvedValue({
@@ -831,6 +832,7 @@ describe("RoomsClient notification deep link", () => {
               unreadReplyCount: 0,
               lastUnreadReplyAt: null,
               hasLooked: true,
+              mutedAt: null,
             },
           });
       }),

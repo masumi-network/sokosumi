@@ -1,13 +1,11 @@
-import { Channel, type Prisma, TaskStatus } from "@sokosumi/database";
+import {
+  Channel,
+  NotificationKind,
+  type Prisma,
+  TaskStatus,
+} from "@sokosumi/database";
 
-function isPrismaRecordNotFoundError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "P2025"
-  );
-}
+import { isPrismaRecordNotFoundError } from "@/helpers/prisma";
 
 /**
  * Flip OUT_OF_CREDITS tasks to CREDITS_TOPPED_UP after a credit grant, scoped
@@ -66,5 +64,16 @@ export async function markOutOfCreditsTasksAsToppedUp(params: {
 
       throw error;
     }
+
+    // Keep the credit request and task status consistent within the grant.
+    await params.tx.notification.updateMany({
+      where: {
+        kind: NotificationKind.TASK,
+        referenceId: task.id,
+        messageKey: "Notifications.Task.outOfCredits",
+        isRead: false,
+      },
+      data: { isRead: true, readAt: new Date() },
+    });
   }
 }

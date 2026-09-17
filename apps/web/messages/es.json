@@ -775,6 +775,8 @@
       "title": "Notificaciones",
       "pageTitle": "Notificaciones",
       "emptyState": "Aún no hay notificaciones",
+      "emptyUnreadState": "Estás al día",
+      "emptyNeedsYouState": "Nada está esperando por ti",
       "viewAll": "Ver todas las notificaciones",
       "justNow": "Ahora mismo",
       "loading": "Cargando...",
@@ -791,6 +793,10 @@
       "retry": "Intentar de nuevo",
       "accept": "Aceptar",
       "view": "Ver",
+      "filterAll": "Todas",
+      "filterUnread": "Sin leer",
+      "filterNeedsYou": "Te necesita",
+      "filterLabel": "Vista de notificaciones",
       "browserNotificationTitle": "Sokosumi",
       "browserPermissionTitle": "Recibe avisos cuando Sokosumi esté cerrado",
       "browserPermissionDescription": "En la configuración de tu cuenta, activa Push para las novedades que quieras y las recibirás aunque Sokosumi esté cerrado.",
@@ -1142,7 +1148,6 @@
         "Form": {
           "submit": "Iniciar sesión",
           "lastUsed": "Usado por última vez",
-          "success": "Sesión iniciada correctamente",
           "error": "Email o contraseña incorrectos",
           "Fields": {
             "Email": {
@@ -1189,7 +1194,6 @@
         },
         "Form": {
           "submit": "Registrarse",
-          "success": "Registro exitoso",
           "error": "Error al registrarse",
           "Fields": {
             "Email": {
@@ -4150,7 +4154,7 @@
         "channelPush": "Push",
         "channelPushHint": "En tu dispositivo, aunque Sokosumi esté cerrado.",
         "channelEmail": "Email",
-        "channelEmailHint": "Un interruptor detrás de cada email de trabajos: un email cuando un trabajo se completa, se resuelve o espera tu input.",
+        "channelEmailHint": "Dónde Sokosumi te envía emails. Los recordatorios tienen su propia celda. Todos los emails de trabajos comparten un interruptor: un email cuando un trabajo se completa, se resuelve o espera tu input.",
         "channelsKindLabel": "Notificación",
         "channelsLegendLabel": "Qué significan las columnas",
         "channelEmailFallbackHint": "Un email cuando un trabajo se completa, se resuelve o espera tu input.",
@@ -4162,7 +4166,9 @@
         "channelEmailSoonLabel": "Email, todavía no se envía para {kind}",
         "channelEmailSoonHint": "Sokosumi todavía no envía email para esta notificación.",
         "deliveryAriaLabel": "Entrega para {kind}",
-        "newsDeliveryAriaLabel": "Entrega para los emails de marketing"
+        "newsDeliveryAriaLabel": "Entrega para los emails de marketing",
+        "kindFollowUp": "Recordatorios",
+        "kindFollowUpHint": "Un recordatorio un día después si no has abierto algo que te está esperando."
       },
       "ChatDisplay": {
         "title": "Visualización del chat",
@@ -5381,7 +5387,10 @@
         "loading": "Loading replies",
         "empty": "No replies yet",
         "replyPlaceholder": "Reply in thread",
-        "replyCount": "{count, plural, one {# reply} other {# replies}}"
+        "replyCount": "{count, plural, one {# reply} other {# replies}}",
+        "mute": "Silenciar hilo",
+        "unmute": "Reactivar el hilo",
+        "muted": "Silenciado"
       },
       "loadOlder": "Cargar mensajes anteriores",
       "loadingOlder": "Cargando mensajes anteriores…",
@@ -5670,9 +5679,6 @@
           "back": "Volver al chat"
         }
       }
-    },
-    "WorkspaceAccess": {
-      "checking": "Comprobando el acceso al espacio de trabajo"
     },
     "Drive": {
       "breadcrumb": "Archivos",
@@ -6444,7 +6450,8 @@
         "paymentFailed": "Error de pago para {jobName}",
         "inputRequired": "{agentName} necesita tu input para {jobName}",
         "refundResolved": "{jobName} fue reembolsado",
-        "disputeResolved": "Disputa resuelta para {jobName}"
+        "disputeResolved": "Disputa resuelta para {jobName}",
+        "followUp": "{jobName} sigue esperándote"
       },
       "Task": {
         "inputRequired": "{coworkerName} necesita tu input para {taskName}",
@@ -6456,7 +6463,8 @@
         "canceled": "{taskName} fue cancelado",
         "scheduleRepaired": "Se reparó la programación de {taskName}",
         "scheduleRemovedByOperator": "Se eliminó la programación de {taskName} después de revisarla",
-        "assigned": "Se te asignó {taskName}"
+        "assigned": "Se te asignó {taskName}",
+        "followUp": "{taskName} sigue esperándote"
       },
       "Chat": {
         "mentioned": "{authorName} te mencionó en {roomName}",
@@ -6469,7 +6477,10 @@
         "roomMessagesGroup": "{count} mensajes en el grupo {roomName}",
         "roomMessageTitle": "{authorName} en el canal {roomName}",
         "roomMessageGroupTitle": "{authorName} en el grupo {roomName}",
-        "mentionAll": "Todos"
+        "mentionAll": "Todos",
+        "mentionedFollowUp": "{authorName} sigue esperándote en {roomName}",
+        "mentionedDirectFollowUp": "{authorName} sigue esperando tu respuesta",
+        "directMessageFollowUp": "{authorName} sigue esperando tu respuesta"
       }
     }
   },

@@ -71,13 +71,18 @@ export const notificationListSchema = z
   .array(notificationItemSchema)
   .openapi("NotificationList");
 
-export const unreadCountSchema = z
+export const notificationCountsSchema = z
   .object({
-    count: z.number().int().min(0).openapi({
-      description: "Number of unread notifications",
+    unread: z.number().int().min(0).openapi({
+      description: "Number of unread notifications in the feed",
       example: 5,
     }),
+    needsAction: z.number().int().min(0).openapi({
+      description:
+        "Number of feed notifications whose request still waits on the reader",
+      example: 2,
+    }),
   })
-  .openapi("UnreadCount");
+  .openapi("NotificationCounts");
 
 export type NotificationItem = z.infer<typeof notificationItemSchema>;

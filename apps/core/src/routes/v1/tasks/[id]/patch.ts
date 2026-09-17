@@ -31,7 +31,10 @@ import {
   healProjectBriefingUrl,
   resolveTaskDescriptionWithContext,
 } from "@/helpers/task-create-context";
-import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
+import {
+  markTaskAssignedRead,
+  notifyTaskHumanAssignee,
+} from "@/helpers/task-notifications";
 import { assertTaskScheduleInactive } from "@/helpers/task-schedule";
 import { refreshTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
 import prisma from "@/lib/db/prisma";
@@ -361,11 +364,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return { task: updatedTask, previousAssigneeUserId };
     });
 
-    if (
-      result.previousAssigneeUserId !== result.task.assigneeUserId &&
-      result.task.assigneeUserId
-    ) {
-      await notifyTaskHumanAssignee(result.task.id, result.task.assigneeUserId);
+    if (result.previousAssigneeUserId !== result.task.assigneeUserId) {
+      if (result.previousAssigneeUserId) {
+        await markTaskAssignedRead(
+          result.previousAssigneeUserId,
+          result.task.id,
+        );
+      }
+
+      if (result.task.assigneeUserId) {
+        await notifyTaskHumanAssignee(
+          result.task.id,
+          result.task.assigneeUserId,
+        );
+      }
     }
 
     return ok(c, taskSchema.parse(mapTask(result.task, authContext)));

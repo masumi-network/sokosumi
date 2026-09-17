@@ -27,6 +27,7 @@ const mockPasskeySignIn = vi.fn();
 const mockMagicLinkSignIn = vi.fn();
 const mockToastError = vi.fn();
 const mockRouterReplace = vi.fn();
+const mockLocationReplace = vi.fn();
 const mockGetSession = vi.fn();
 const mockIsConditionalMediationAvailable = vi.fn();
 
@@ -178,6 +179,11 @@ describe("SocialButtons", () => {
     });
     mockToastError.mockReset();
     mockRouterReplace.mockReset();
+    mockLocationReplace.mockReset();
+    Object.defineProperty(window.location, "replace", {
+      configurable: true,
+      value: (...args: unknown[]) => mockLocationReplace(...args),
+    });
     mockGetSession.mockReset();
     mockGetSession.mockResolvedValue({
       data: {
@@ -370,7 +376,9 @@ describe("SocialButtons", () => {
     });
 
     await waitFor(() => {
-      expect(mockRouterReplace).toHaveBeenCalledWith("/jobs");
+      expect(mockLocationReplace).toHaveBeenCalledWith("/jobs");
+      // A soft nav would be served the pre-login middleware redirect.
+      expect(mockRouterReplace).not.toHaveBeenCalled();
     });
     expect(mockSignInEvent).toHaveBeenCalledWith("passkey");
   });
@@ -387,7 +395,7 @@ describe("SocialButtons", () => {
     );
 
     await waitFor(() => {
-      expect(mockRouterReplace).toHaveBeenCalledWith("/jobs");
+      expect(mockLocationReplace).toHaveBeenCalledWith("/jobs");
     });
     expect(mockSignInEvent).not.toHaveBeenCalled();
   });
@@ -410,7 +418,7 @@ describe("SocialButtons", () => {
       expect(mockToastError).toHaveBeenCalledWith("passkeyError");
     });
     expect(mockSignInEvent).not.toHaveBeenCalled();
-    expect(mockRouterReplace).not.toHaveBeenCalled();
+    expect(mockLocationReplace).not.toHaveBeenCalled();
   });
 
   it("does not fire login when passkey sign-in is cancelled", async () => {
@@ -434,7 +442,7 @@ describe("SocialButtons", () => {
     });
     expect(mockToastError).not.toHaveBeenCalled();
     expect(mockSignInEvent).not.toHaveBeenCalled();
-    expect(mockRouterReplace).not.toHaveBeenCalled();
+    expect(mockLocationReplace).not.toHaveBeenCalled();
   });
 
   it("passes unwrapped session data to waitForAuthSession", async () => {
@@ -529,7 +537,7 @@ describe("SocialButtons", () => {
       await Promise.resolve();
     });
 
-    expect(mockRouterReplace).not.toHaveBeenCalled();
+    expect(mockLocationReplace).not.toHaveBeenCalled();
 
     await act(async () => {
       secondPasskeyRequest.resolve({
@@ -544,7 +552,7 @@ describe("SocialButtons", () => {
     });
 
     await waitFor(() => {
-      expect(mockRouterReplace).toHaveBeenCalledWith("/profile");
+      expect(mockLocationReplace).toHaveBeenCalledWith("/profile");
     });
   });
 

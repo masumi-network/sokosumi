@@ -465,6 +465,18 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
+  /** Mute or unmute one thread for the signed-in user. */
+  async function setThreadMuted(
+    roomId: string,
+    parentMessageId: string,
+    muted: boolean,
+  ): Promise<ChatRoomThread> {
+    const response = muted
+      ? await coreClient.muteChatRoomThread(roomId, parentMessageId)
+      : await coreClient.unmuteChatRoomThread(roomId, parentMessageId);
+    return response.data;
+  }
+
   async function markAllUnreadThreadsRead(
     roomId: string,
   ): Promise<ChatRoomThreadsMarkAll> {
@@ -570,6 +582,7 @@ export const chatRoomService = (() => {
     markRead,
     markAllUnreadThreadsRead,
     markThreadRead,
+    setThreadMuted,
     markUnread,
     pinMessage,
     pinRoom,

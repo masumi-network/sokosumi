@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { AccountNoticeRow } from "@/app/components/account-notice-row";
 import { NotificationBrowserPermissionPrimer } from "@/app/components/notification-browser-permission-primer";
 import { NotificationCenterList } from "@/components/notifications/notification-center-list";
+import { NotificationCenterViewFilter } from "@/components/notifications/notification-center-view-filter";
 import { useMarkAllRead } from "@/components/notifications/use-mark-all-read";
 import { Button } from "@/components/ui/button";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
@@ -17,7 +18,7 @@ import { useNotifications } from "@/contexts/notification-provider";
 export function NotificationsPageContent() {
   const t = useTranslations("Components.NotificationCenter");
   const { notice } = useAccountNotice();
-  const { notifications } = useNotifications();
+  const { notifications, view } = useNotifications();
   const { unreadCount, isMarkingAllRead, handleMarkAllRead } = useMarkAllRead();
 
   return (
@@ -26,11 +27,12 @@ export function NotificationsPageContent() {
       <NotificationBrowserPermissionPrimer variant="page" />
       {/* The row outlives its button. Reading the last unread row takes the
           button away, and a row that went with it would pull the whole list
-          up under the reader's pointer. */}
+          up under the reader's pointer. A list with no rows at all has no
+          pointer to protect, so it gets no row. */}
       {notifications.length > 0 ? (
         <div
           data-testid="notifications-page-actions"
-          className="flex min-h-8 justify-end"
+          className="flex min-h-8 items-center justify-end gap-2"
         >
           {unreadCount > 0 ? (
             <Button
@@ -44,11 +46,16 @@ export function NotificationsPageContent() {
           ) : null}
         </div>
       ) : null}
-      {/* Empty only when the list has nothing to say under an account notice,
-          and then there is no card to draw either. */}
-      <div className="bg-card-background border-border overflow-hidden rounded-xl border empty:hidden">
-        <NotificationCenterList />
-      </div>
+      {/* The strip is the card's top edge, so it reads as this card's own
+          control and not as page navigation. The card stays out only when
+          the list has nothing to say under an account notice, and then
+          there is nothing to narrow either. */}
+      {notifications.length > 0 || view !== "all" || notice === null ? (
+        <div className="bg-card-background border-border overflow-hidden rounded-xl border">
+          <NotificationCenterViewFilter />
+          <NotificationCenterList />
+        </div>
+      ) : null}
     </div>
   );
 }

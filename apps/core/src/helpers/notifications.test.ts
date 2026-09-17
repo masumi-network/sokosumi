@@ -1,12 +1,12 @@
 import { type Notification, NotificationKind } from "@sokosumi/database";
+import {
+  COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+  VENDOR_GRANT_PENDING_MESSAGE_KEY,
+} from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type prisma from "@/lib/db/prisma";
 
-import {
-  COWORKER_ACCESS_PENDING_MESSAGE_KEY,
-  VENDOR_GRANT_PENDING_MESSAGE_KEY,
-} from "./notification-feed";
 import {
   type CreateNotificationInput,
   createNotification,
@@ -348,6 +348,40 @@ describe("createNotification push gating", () => {
     expect(publishNotificationEventMock).toHaveBeenCalledWith(
       expect.objectContaining({ push: false }),
     );
+  });
+
+  /**
+   * A caller that already asked hands the answer in, and this must not ask
+   * again. The follow-up sync reads delivery to decide whether a reminder is
+   * worth writing at all, and a second read could disagree with the first.
+   *
+   * The reader here wants the banner, and the answer handed in is the quieter
+   * one. A test that went the other way would be asserting that an override
+   * can push to someone who opted out, which is the one thing an override must
+   * never be used for.
+   */
+  it("uses the delivery the caller resolved instead of reading again", async () => {
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(createChatRecord());
+    // Reading the reader would answer `{ inApp: true, osBanner: true, email: false }`, so
+    // every assertion below fails if this asks rather than uses what it was
+    // handed.
+    mockReader({ pushOptIn: true, preferences: bannerOn("CHAT_MENTION") });
+
+    await createNotification(
+      chatInput,
+      prismaMock as unknown as typeof prisma,
+      { inApp: false, osBanner: false, email: false },
+    );
+
+    expect(userFindUniqueMock).not.toHaveBeenCalled();
+    expect(prismaMock.notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ inApp: false }),
+      }),
+    );
+    // Nothing to render and nothing to interrupt with, so nothing published.
+    expect(publishNotificationEventMock).not.toHaveBeenCalled();
   });
 
   // Every kind pushes now, not chat alone, so the gate is the opt-in and
@@ -721,9 +755,53 @@ describe("chat room arrival count", () => {
         referenceId: chatInput.referenceId,
         isRead: false,
       },
-      select: { id: true, messageParams: true, inApp: true, metadata: true },
+      select: {
+        id: true,
+        messageKey: true,
+        messageParams: true,
+        inApp: true,
+        metadata: true,
+      },
     });
   });
+
+  it.each([
+    ["Notifications.Chat.directMessageFollowUp", true],
+    ["Notifications.Chat.mentionedFollowUp", true],
+    ["Notifications.Chat.directMessageFollowUp", false],
+    ["Notifications.Chat.mentionedFollowUp", false],
+  ])(
+    "excludes %s reminders (inApp: %s) from message arrivals",
+    async (messageKey, inApp) => {
+      const source = chatRecord({
+        id: "source_message",
+        messageKey: "Notifications.Chat.directMessage",
+      });
+      const reminder = chatRecord({
+        id: "reminder",
+        messageKey,
+        inApp,
+        metadata: null,
+      });
+      const nextMessage = chatRecord({
+        id: "next_message",
+        messageKey: "Notifications.Chat.directMessage",
+      });
+      notificationFindManyMock.mockResolvedValue([
+        source,
+        reminder,
+        nextMessage,
+      ]);
+
+      await publishNotificationRow(nextMessage, {
+        inApp: true,
+        osBanner: true,
+        email: false,
+      });
+
+      expect(publishedGroupCount()).toBe(2);
+    },
+  );
 
   it("counts a room holding only this arrival as one", async () => {
     notificationFindManyMock.mockResolvedValue([
@@ -833,6 +911,7 @@ describe("chat room arrival count", () => {
       await publishNotificationRow(chatRecord(), {
         inApp: true,
         osBanner: true,
+        email: false,
       });
       expect(publishNotificationEventMock).toHaveBeenCalledTimes(1);
       expect(publishedGroupCount()).toBeUndefined();
@@ -856,8 +935,16 @@ describe("chat room arrival count", () => {
       });
       notificationFindManyMock.mockResolvedValue(hidden ? [damaged] : []);
       const published = hidden ? chatRecord() : damaged;
-      await publishNotificationRow(published, { inApp: true, osBanner: true });
-      await publishNotificationRow(published, { inApp: true, osBanner: true });
+      await publishNotificationRow(published, {
+        inApp: true,
+        osBanner: true,
+        email: false,
+      });
+      await publishNotificationRow(published, {
+        inApp: true,
+        osBanner: true,
+        email: false,
+      });
       expect(captureExceptionMock).toHaveBeenCalledExactlyOnceWith(
         expect.objectContaining({
           message: "A notification row will not read: SyntaxError",
@@ -888,8 +975,16 @@ describe("chat room arrival count", () => {
       }),
     ]);
 
-    await publishNotificationRow(chatRecord(), { inApp: true, osBanner: true });
-    await publishNotificationRow(chatRecord(), { inApp: true, osBanner: true });
+    await publishNotificationRow(chatRecord(), {
+      inApp: true,
+      osBanner: true,
+      email: false,
+    });
+    await publishNotificationRow(chatRecord(), {
+      inApp: true,
+      osBanner: true,
+      email: false,
+    });
 
     expect(publishedGroupCount()).toBeUndefined();
     const named = captureExceptionMock.mock.calls.filter(
@@ -924,8 +1019,16 @@ describe("chat room arrival count", () => {
     });
     notificationFindManyMock.mockResolvedValue([damaged]);
 
-    await publishNotificationRow(damaged, { inApp: true, osBanner: true });
-    await publishNotificationRow(damaged, { inApp: true, osBanner: true });
+    await publishNotificationRow(damaged, {
+      inApp: true,
+      osBanner: true,
+      email: false,
+    });
+    await publishNotificationRow(damaged, {
+      inApp: true,
+      osBanner: true,
+      email: false,
+    });
 
     // Nothing is published for a row that will not read, as before.
     expect(publishNotificationEventMock).not.toHaveBeenCalled();
@@ -959,7 +1062,11 @@ describe("chat room arrival count", () => {
 
   it("omits the count when a concurrent read leaves no unread rows", async () => {
     notificationFindManyMock.mockResolvedValue([]);
-    await publishNotificationRow(chatRecord(), { inApp: true, osBanner: true });
+    await publishNotificationRow(chatRecord(), {
+      inApp: true,
+      osBanner: true,
+      email: false,
+    });
     expect(publishNotificationEventMock).toHaveBeenCalledTimes(1);
     expect(publishedGroupCount()).toBeUndefined();
   });
@@ -988,7 +1095,7 @@ describe("chat room arrival count", () => {
   it("sends no count with a row that is already read", async () => {
     await publishNotificationRow(
       chatRecord({ isRead: true, readAt: READ_AT }),
-      { inApp: true, osBanner: false },
+      { inApp: true, osBanner: false, email: false },
       false,
     );
 

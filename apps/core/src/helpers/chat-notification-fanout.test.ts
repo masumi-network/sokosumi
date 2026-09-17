@@ -8,6 +8,7 @@ const {
   workspaceFindUniqueMock,
   membershipFindManyMock,
   messageFindUniqueMock,
+  threadReadFindManyMock,
   notificationFindFirstMock,
   notificationFindManyMock,
   notificationUpdateManyMock,
@@ -24,6 +25,7 @@ const {
   workspaceFindUniqueMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
   messageFindUniqueMock: vi.fn(),
+  threadReadFindManyMock: vi.fn(),
   notificationFindFirstMock: vi.fn(),
   notificationFindManyMock: vi.fn(),
   notificationUpdateManyMock: vi.fn(),
@@ -53,6 +55,9 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     chatRoomMessage: {
       findUnique: messageFindUniqueMock,
+    },
+    chatRoomThreadReadState: {
+      findMany: threadReadFindManyMock,
     },
     notification: {
       findFirst: notificationFindFirstMock,
@@ -86,6 +91,7 @@ import {
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440002";
+const PARENT_MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440003";
 const AUTHOR_ID = "user_author";
 const ALICE_ID = "user_alice";
 const BOB_ID = "user_bob";
@@ -130,6 +136,7 @@ beforeEach(() => {
   createNotificationMock.mockResolvedValue({ created: true });
   workspaceFindUniqueMock.mockResolvedValue({ id: "workspace_1" });
   membershipFindManyMock.mockResolvedValue([]);
+  threadReadFindManyMock.mockResolvedValue([]);
   notificationFindFirstMock.mockResolvedValue(null);
   notificationFindManyMock.mockResolvedValue([]);
   messageSays("ship it");
@@ -278,6 +285,45 @@ describe("fanOutChatNotifications", () => {
     expect(createNotificationMock).toHaveBeenCalledWith(
       expect.objectContaining({ userId: ALICE_ID }),
     );
+  });
+
+  it("does not notify a reader who muted the thread this reply is in", async () => {
+    threadReadFindManyMock.mockResolvedValue([{ userId: BOB_ID }]);
+
+    await fanOutChatNotifications(
+      params({
+        recipientUserIds: [ALICE_ID, BOB_ID],
+        parentMessageId: PARENT_MESSAGE_ID,
+      }),
+    );
+
+    expect(threadReadFindManyMock).toHaveBeenCalledWith({
+      where: {
+        parentMessageId: PARENT_MESSAGE_ID,
+        userId: { in: [ALICE_ID, BOB_ID] },
+        mutedAt: { not: null },
+      },
+      select: { userId: true },
+    });
+    expect(createNotificationMock).toHaveBeenCalledTimes(1);
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: ALICE_ID }),
+    );
+  });
+
+  /**
+   * A mention fans out with no parent, so being named reaches a reader who
+   * muted that thread. Muting silences the chatter, not their own name.
+   */
+  it("asks about no thread mute when the message names no thread", async () => {
+    threadReadFindManyMock.mockResolvedValue([{ userId: BOB_ID }]);
+
+    await fanOutChatNotifications(
+      params({ recipientUserIds: [ALICE_ID, BOB_ID] }),
+    );
+
+    expect(threadReadFindManyMock).not.toHaveBeenCalled();
+    expect(createNotificationMock).toHaveBeenCalledTimes(2);
   });
 
   /**
