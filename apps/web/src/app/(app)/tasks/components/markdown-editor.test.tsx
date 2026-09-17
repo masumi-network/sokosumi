@@ -5,6 +5,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { MarkdownEditor } from "@/app/tasks/components/markdown-editor";
@@ -281,6 +282,127 @@ describe("MarkdownEditor", () => {
 
     const toolbar = await screen.findByRole("toolbar", { name: "Format" });
     expect(toolbar).toHaveAttribute("data-task-form-portal");
+  });
+
+  it("keeps the floating format toolbar hittable while a modal disables body pointer events", async () => {
+    const rect = {
+      x: 40,
+      y: 40,
+      top: 40,
+      left: 40,
+      width: 80,
+      height: 16,
+      bottom: 56,
+      right: 120,
+      toJSON() {
+        return this;
+      },
+    };
+    vi.spyOn(Range.prototype, "getBoundingClientRect").mockReturnValue(
+      rect as DOMRect,
+    );
+
+    render(
+      <MarkdownEditor
+        value="Hello world"
+        onChange={vi.fn()}
+        variant="document"
+      />,
+    );
+
+    const editor = screen.getByRole("textbox");
+    await waitFor(() => {
+      expect(editor).toHaveTextContent("Hello world");
+    });
+
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    document.dispatchEvent(new Event("selectionchange"));
+
+    const toolbar = await screen.findByRole("toolbar", { name: "Format" });
+    expect(toolbar).toHaveClass("pointer-events-auto");
+    expect(toolbar).toHaveClass("cursor-pointer");
+    expect(screen.getByTitle("Bold (Cmd+B)")).toHaveClass("cursor-pointer");
+  });
+
+  it("applies bold from a pointer click on the floating toolbar", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const rect = {
+      x: 40,
+      y: 40,
+      top: 40,
+      left: 40,
+      width: 80,
+      height: 16,
+      bottom: 56,
+      right: 120,
+      toJSON() {
+        return this;
+      },
+    };
+    vi.spyOn(Range.prototype, "getBoundingClientRect").mockReturnValue(
+      rect as DOMRect,
+    );
+    if (!document.execCommand) {
+      Object.defineProperty(document, "execCommand", {
+        configurable: true,
+        value: vi.fn(),
+      });
+    }
+    const execCommandSpy = vi
+      .spyOn(document, "execCommand")
+      .mockImplementation((command) => {
+        if (command !== "bold") {
+          return false;
+        }
+
+        const selection = window.getSelection();
+        if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+          return false;
+        }
+
+        const range = selection.getRangeAt(0);
+        const bold = document.createElement("b");
+        try {
+          range.surroundContents(bold);
+        } catch {
+          return false;
+        }
+        return true;
+      });
+
+    render(
+      <MarkdownEditor
+        value="Hello world"
+        onChange={onChange}
+        variant="document"
+      />,
+    );
+
+    const editor = screen.getByRole("textbox");
+    await waitFor(() => {
+      expect(editor).toHaveTextContent("Hello world");
+    });
+
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    document.dispatchEvent(new Event("selectionchange"));
+
+    const boldButton = await screen.findByTitle("Bold (Cmd+B)");
+    await user.click(boldButton);
+
+    expect(execCommandSpy).toHaveBeenCalledWith("bold", false, undefined);
+    await waitFor(() => {
+      const savedMarkdown = onChange.mock.calls.at(-1)?.[0] as string;
+      expect(savedMarkdown).toContain("**");
+    });
   });
 
   it("keeps attach on the field strip and off the document bubble", () => {
