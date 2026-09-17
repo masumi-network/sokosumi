@@ -12,7 +12,7 @@
       func rendersRestoreAndPendingRowsInSidebarList(dark: Bool) async throws {
         func room(_ id: String, _ name: String, _ discoverability: Components.Schemas.ChatRoom.DiscoverabilityPayload) -> Components.Schemas.ChatRoom {
           .init(
-            id: id, organizationId: "org", name: name, slug: id, kind: .channel, topic: nil, discoverability: discoverability,
+            id: id, organizationId: "org", name: name, slug: id, kind: .channel, isSelfDirect: false, topic: nil, discoverability: discoverability,
             createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast, unreadCount: 0, unreadMentionCount: 0,
             markedUnread: false, myAccess: .member, userMembers: [], coworkerMembers: [], sokoBotMembers: []
           )
