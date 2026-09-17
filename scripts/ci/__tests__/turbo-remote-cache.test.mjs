@@ -124,7 +124,7 @@ describe("GitHub OIDC remote cache wiring", () => {
     assert.match(matrixCommand(test, "Packages"), /packages\/\*/);
   });
 
-  it("pins Neon teardown to trusted base checkout", async () => {
+  it("pins Neon teardown to trusted default-branch checkout", async () => {
     const workflow = await readRepoFile(
       ".github",
       "workflows",
@@ -138,7 +138,8 @@ describe("GitHub OIDC remote cache wiring", () => {
       /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/,
     );
     assert.match(workflow, /persist-credentials:\s*false/);
-    assert.match(workflow, /github\.event\.pull_request\.base\.sha/);
+    assert.match(workflow, /github\.event\.repository\.default_branch/);
+    assert.doesNotMatch(workflow, /pull_request\.base\.sha/);
     assert.doesNotMatch(workflow, /pull_request\.head\.sha/);
     assert.doesNotMatch(workflow, /pull_request\.head\.ref/);
     assert.match(workflow, /secrets\.NEON_API_KEY/);

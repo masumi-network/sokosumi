@@ -27,9 +27,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          # Privileged (NEON_API_KEY). Never run the closed PR's tree — a
-          # same-repo branch can replace teardown.mjs. Match preview-deploy.
-          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          # Privileged (NEON_API_KEY). Default branch only — never a PR tree.
+          ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
 
       - name: Teardown from closed pull request
@@ -47,4 +46,5 @@ jobs:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
           NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
           NEON_PARENT_BRANCH: ${{ vars.NEON_PARENT_BRANCH }}
-        run: node scripts/cloud-agent-db/teardown.mjs --agent-id "${{ inputs.agent_id }}"
+          AGENT_ID: ${{ inputs.agent_id }}
+        run: node scripts/cloud-agent-db/teardown.mjs --agent-id "$AGENT_ID"
