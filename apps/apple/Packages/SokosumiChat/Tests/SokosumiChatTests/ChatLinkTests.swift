@@ -8,15 +8,13 @@ struct ChatLinkTests {
   @Test func buildsRoomAndMessageURL() throws {
     let url = try #require(ChatLink.href(roomId: "room", messageId: "old", webBaseURL: base))
     #expect(url.absoluteString == "https://app.sokosumi.com/chat/rooms/room?message=old")
-    let link = ChatLink(url: url, webBaseURL: base)
-    #expect(link?.roomId == "room")
-    #expect(link?.messageId == "old")
+    #expect(ChatLink(url: url, webBaseURL: base) == .room(id: "room", messageId: "old"))
   }
 
   @Test func buildsRoomURLWhenMessageIsBlank() throws {
     let url = try #require(ChatLink.href(roomId: "room", messageId: "  ", webBaseURL: base))
     #expect(url.absoluteString == "https://app.sokosumi.com/chat/rooms/room")
-    #expect(ChatLink(url: url, webBaseURL: base)?.messageId == nil)
+    #expect(ChatLink(url: url, webBaseURL: base) == .room(id: "room", messageId: nil))
   }
 
   @Test func resolvesRoomAndMessage() throws {
