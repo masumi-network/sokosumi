@@ -67,10 +67,10 @@ export function TaskCard({
               </h3>
             </div>
 
-            {!compact && (task.descriptionPlain || task.description) ? (
+            {!compact && task.descriptionPlain ? (
               <div className="space-y-1.5">
                 <p className="text-muted-foreground line-clamp-2 text-xs leading-relaxed break-all">
-                  {task.descriptionPlain ?? task.description}
+                  {task.descriptionPlain}
                 </p>
               </div>
             ) : null}
