@@ -108,24 +108,18 @@ function SidebarAccountChipDesktop({
         summary,
       })}
       className={cn(
-        "group/chip focus-visible:ring-sidebar-ring flex cursor-pointer items-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:outline-hidden",
-        isCollapsed
-          ? // On the rail, hover and open are rings on transparent — the
-            // language `sidebarMenuButtonVariants` gives every room button
-            // there. A fill read as a selected room, and a `rounded-lg` fill
-            // sitting flush under a 32px circle showed at all four corners.
-            // The avatar drops to `size-6` inside the same 32px target, so the
-            // ring clears it by 4px exactly as a room tile's does.
-            "ring-sidebar-ring size-8 justify-center hover:ring-1 data-[state=open]:ring-2"
-          : "hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent w-full gap-2.5 p-2",
+        "group/chip focus-visible:ring-sidebar-ring hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent flex w-full cursor-pointer items-center gap-2.5 rounded-lg p-2 transition-colors focus-visible:ring-2 focus-visible:outline-hidden",
+        // Rail language matches `sidebarMenuButtonVariants`: rings on
+        // transparent, not a fill. Classes live on the element (not behind
+        // JS `isCollapsed`) so the boot-collapsed group and the Suspense
+        // swap keep size-6 + rings without a 32px square flash.
+        "group-data-[collapsible=icon]:ring-sidebar-ring group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:hover:bg-transparent group-data-[collapsible=icon]:hover:ring-1 group-data-[collapsible=icon]:data-[state=open]:bg-transparent group-data-[collapsible=icon]:data-[state=open]:ring-2 group-data-[collapsible=icon]:data-[state=open]:hover:ring-2",
       )}
     >
       <span className="relative shrink-0">
-        {/* Rooms are circles; the account is a rounded square, in both states.
-            One shape carries "this is you, not a conversation" at the scroll
-            position where the two sit flush, and on the rail where the chip is
-            otherwise just another avatar in the column. */}
-        <Avatar className={cn("rounded-md", isCollapsed ? "size-6" : "size-8")}>
+        {/* Square vs the rooms' circles. Size tracks the fallback via the
+            collapsible group, so credits streaming in do not 32↔24 the face. */}
+        <Avatar className="size-8 rounded-md group-data-[collapsible=icon]:size-6">
           <AvatarImage
             src={
               sessionUser.image ??
@@ -136,9 +130,8 @@ function SidebarAccountChipDesktop({
             }
             alt=""
           />
-          {/* `rounded-md` here too: the fallback carries its own `rounded-full`,
-              so without this its fill stays a circle inside the square clip and
-              the corners show the ground through. */}
+          {/* Fallback defaults to `rounded-full`; without this its fill stays
+              a circle inside the square clip. */}
           <AvatarFallback className="bg-muted text-muted-foreground rounded-md text-[0.6875rem] font-medium">
             {getInitials(displayName)}
           </AvatarFallback>
@@ -152,7 +145,7 @@ function SidebarAccountChipDesktop({
       </span>
       {isCollapsed ? null : (
         <>
-          <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
+          <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5 group-data-[collapsible=icon]:hidden">
             <span className="w-full truncate text-left text-sm leading-tight font-medium">
               {displayName}
             </span>
@@ -171,7 +164,7 @@ function SidebarAccountChipDesktop({
             </span>
           </span>
           <ChevronDown
-            className="text-muted-foreground size-3.5 shrink-0 transition-transform duration-200 group-data-[state=open]/chip:rotate-180"
+            className="text-muted-foreground size-3.5 shrink-0 transition-transform duration-200 group-data-[state=open]/chip:rotate-180 group-data-[collapsible=icon]:hidden"
             aria-hidden
           />
         </>
