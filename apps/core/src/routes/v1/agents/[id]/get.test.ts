@@ -188,7 +188,10 @@ describe("GET /agents/{id}", () => {
     );
   });
 
-  it("returns parsed category styles in the detail response", async () => {
+  it("reads the agent in one snapshot without an interactive transaction", async () => {
+    // Nested pricing rows must share one snapshot. The BATCH form does that
+    // without holding a pool connection across application code. Metrics stay
+    // on the default client — they are not part of the pricing snapshot.
     const app = createApp();
     const response = await app.request("http://localhost/agent_123");
     const body = await response.json();

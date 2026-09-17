@@ -591,6 +591,7 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
 
     expect(response.status).toBe(400);
     expect(occurrenceFindManyMock).not.toHaveBeenCalled();
+    expect(transactionMock).not.toHaveBeenCalled();
   });
 
   it("keeps an archived released Task in history and marks it archived", async () => {
@@ -719,5 +720,6 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
 
     expect(response.status).toBe(422);
     expect(occurrenceFindManyMock).not.toHaveBeenCalled();
+    expect(transactionMock).not.toHaveBeenCalled();
   });
 });
