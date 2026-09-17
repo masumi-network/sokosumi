@@ -216,6 +216,13 @@ export function mapChatRoom(
     slug: room.slug,
     kind: room.kind as "channel" | "direct",
     directKey: room.directKey,
+    isSelfDirect:
+      room.kind === "direct" &&
+      room.organizationId === null &&
+      room.userMembers.length === 1 &&
+      room.coworkerMembers.length === 0 &&
+      room.sokoBotMembers.length === 0 &&
+      room.directKey === buildSelfDirectRoomKey(room.userMembers[0]!.user.id),
     topic: room.topic,
     discoverability: mapChatRoomDiscoverability(
       room.kind,
@@ -798,6 +805,10 @@ export function resolveChannelName(
   return channelNameFromSlug(slug);
 }
 
+function buildSelfDirectRoomKey(userId: string): string {
+  return `direct:self:${userId}`;
+}
+
 export function buildDirectRoomKey(userIdA: string, userIdB: string): string {
   return [userIdA, userIdB].sort().join(":");
 }
@@ -831,7 +842,9 @@ export function buildDirectParticipantRoomKey(params: {
     coworkerIds.length === 0 &&
     sokoBotIds.length === 0
   ) {
-    return buildDirectRoomKey(params.currentUserId, memberUserIds[0]);
+    return memberUserIds[0] === params.currentUserId
+      ? buildSelfDirectRoomKey(params.currentUserId)
+      : buildDirectRoomKey(params.currentUserId, memberUserIds[0]);
   }
 
   if (
@@ -1786,7 +1799,21 @@ function parseDirectCreateShape(params: {
   const sokoBotIds = normalizeUniqueStrings(params.sokoBotIds);
 
   if (memberUserIds.includes(params.currentUserId)) {
-    throw badRequest("Choose another organization member");
+    if (
+      params.memberUserIds.length === 1 &&
+      coworkerIds.length === 0 &&
+      sokoBotIds.length === 0
+    ) {
+      return {
+        kind: "self-direct",
+        memberUserIds: [params.currentUserId],
+        coworkerIds: [],
+        sokoBotIds: [],
+      };
+    }
+    throw badRequest(
+      "Choose yourself alone or other direct message recipients.",
+    );
   }
 
   const targetKinds = [
@@ -1849,13 +1876,20 @@ function parseDirectCreateShape(params: {
  * they share an External channel. Multi-human groups stay org-scoped.
  */
 /**
- * Valid direct create targets: human-direct (≥1 humans, no coworkers or
+ * Self Direct has only the current user and is always personal.
+ * Other valid direct create targets: human-direct (≥1 humans, no coworkers or
  * sokoBots), coworker-1to1 (exactly one coworker, no humans or
  * sokoBots), or sokoBot-1to1 (exactly one personal assistant, no
  * humans or coworkers). Mix / multi-coworker / multi-sokoBot / empty
  * are invalid.
  */
 type DirectCreateShape =
+  | {
+      kind: "self-direct";
+      memberUserIds: [string];
+      coworkerIds: [];
+      sokoBotIds: [];
+    }
   | {
       kind: "human-direct";
       memberUserIds: string[];
@@ -1915,6 +1949,29 @@ export async function createOrGetDirectRoom(params: {
 
   try {
     const result = await prisma.$transaction(async (tx) => {
+      if (shape.kind === "self-direct") {
+        const directKey = buildDirectParticipantRoomKey({
+          currentUserId,
+          ...shape,
+        });
+        directKeyRef.current = directKey;
+        createOrganizationIdRef.current = null;
+        const existing = await findOrRestoreDirectByKey(tx, {
+          organizationId: null,
+          directKey,
+        });
+        if (existing) {
+          return { room: existing, created: false };
+        }
+        return createDirectRoomRecord({
+          tx,
+          currentUserId,
+          organizationId: null,
+          directKey,
+          ...shape,
+        });
+      }
+
       if (activeOrganizationId) {
         if (shape.kind === "human-direct") {
           await resolveMemberOrganizationById({
@@ -2097,7 +2154,7 @@ export async function createOrGetDirectRoom(params: {
     // directKey race: another request won the create — return that room.
     if (isDirectKeyUniqueConstraintError(error) && directKeyRef.current) {
       const existing =
-        shape.kind === "coworker-1to1" || shape.kind === "sokoBot-1to1"
+        shape.kind !== "human-direct"
           ? await findOrRestoreDirectByKey(prisma, {
               organizationId: createOrganizationIdRef.current,
               directKey: directKeyRef.current,
@@ -2196,6 +2253,10 @@ async function createDirectRoomRecord(params: {
       return bot ? sokoBotDisplayName(bot) : sokoBotId;
     }),
   ]);
+  const userMembers = normalizeUniqueStrings([
+    currentUserId,
+    ...memberUserIds,
+  ]).map((userId) => ({ userId }));
   const room = await tx.chatRoom.create({
     data: {
       organizationId,
@@ -2205,16 +2266,10 @@ async function createDirectRoomRecord(params: {
       kind: "direct",
       directKey,
       userMembers: {
-        create: [
-          { userId: currentUserId },
-          ...memberUserIds.map((userId) => ({ userId })),
-        ],
+        create: userMembers,
       },
       readStates: {
-        create: [
-          { userId: currentUserId },
-          ...memberUserIds.map((userId) => ({ userId })),
-        ],
+        create: userMembers,
       },
       coworkerMembers: {
         create: coworkerIds.map((coworkerId) => ({ coworkerId })),

@@ -5330,7 +5330,8 @@
         "removeRecipient": "Remove {name}",
         "groupDirectHumansOnly": "Gruppendirektnachrichten sind nur für Menschen.",
         "coworkerDirectOneToOneOnly": "Coworker-Direktnachrichten sind 1:1.",
-        "personalAssistantDirectOneToOneOnly": "Direktnachrichten mit persönlichen Assistenten sind nur 1:1."
+        "personalAssistantDirectOneToOneOnly": "Direktnachrichten mit persönlichen Assistenten sind nur 1:1.",
+        "openFailed": "Der Chat konnte nicht geöffnet werden. Versuche es erneut."
       },
       "RoomSearch": {
         "open": "In diesem Chat suchen",
@@ -5678,6 +5679,12 @@
           "notFound": "Dieser Einladungslink ist ungültig.",
           "back": "Zurück zum Chat"
         }
+      },
+      "SelfDirect": {
+        "messageYourself": "Dir selbst schreiben",
+        "you": "Du",
+        "description": "Schreibe dir Notizen und To-dos. Nur du kannst sie sehen.",
+        "exclusive": "Dein Chat mit dir selbst kann keine weiteren Empfänger enthalten."
       }
     },
     "Drive": {

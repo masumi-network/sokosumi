@@ -8427,6 +8427,11 @@ export const ChatRoomSchema = {
             ],
             example: 'channel'
         },
+        isSelfDirect: {
+            type: 'boolean',
+            description: 'Whether this is the owner\'s private, sole-human Personal Direct for notes.',
+            example: false
+        },
         directKey: {
             type: [
                 'string',
@@ -8548,6 +8553,7 @@ export const ChatRoomSchema = {
         'name',
         'slug',
         'kind',
+        'isSelfDirect',
         'directKey',
         'topic',
         'discoverability',
