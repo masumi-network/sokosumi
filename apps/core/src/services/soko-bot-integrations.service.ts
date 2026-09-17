@@ -16,6 +16,7 @@ import {
 
 import { getComposio } from "@/clients/composio.client";
 import { getEnv } from "@/config/env";
+import { isPrismaRecordNotFoundError } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 
 export class SokoBotIntegrationError extends Error {
@@ -307,24 +308,72 @@ export async function connectSokoBotIntegration(input: {
   if (!request.redirectUrl) {
     throw new SokoBotIntegrationError("Composio returned no redirect URL");
   }
-  await prisma.sokoBotIntegration.upsert({
-    where: { sokoBotId_provider: { sokoBotId: bot.id, provider: provider.id } },
-    create: {
-      sokoBotId: bot.id,
-      provider: provider.id,
-      name: toolkit.name,
-      logoUrl: toolkit.logoUrl,
-      composioAccountId: request.id,
-      status: "PENDING",
-    },
-    update: {
-      // The latest persisted attempt wins. Until it succeeds, keep the selected
-      // account and its status usable, even if the owner abandons this flow.
-      pendingComposioAccountId: request.id,
-      name: toolkit.name,
-      logoUrl: toolkit.logoUrl,
-    },
-  });
+  try {
+    const supersededAccountId = await prisma.$transaction(async (tx) => {
+      // Serialize persistence with bot deletion, then recheck ownership and
+      // liveness. No remote calls run while this row lock is held.
+      await tx.sokoBot.update({
+        where: {
+          id: bot.id,
+          userId: input.userId,
+          workspaceId: input.workspaceId,
+          archivedAt: null,
+          deletedAt: null,
+        },
+        data: { updatedAt: new Date() },
+        select: { id: true },
+      });
+      // Finalization and disconnect write this row too. Lock it before
+      // deciding which pending account the committed replacement supersedes.
+      await tx.$queryRaw`
+        SELECT "id" FROM "soko_bot_integration"
+        WHERE "sokoBotId" = ${bot.id}::uuid AND "provider" = ${provider.id}
+        FOR UPDATE
+      `;
+      const previous = await tx.sokoBotIntegration.findUnique({
+        where: {
+          sokoBotId_provider: { sokoBotId: bot.id, provider: provider.id },
+        },
+        select: { composioAccountId: true, pendingComposioAccountId: true },
+      });
+      await tx.sokoBotIntegration.upsert({
+        where: {
+          sokoBotId_provider: { sokoBotId: bot.id, provider: provider.id },
+        },
+        create: {
+          sokoBotId: bot.id,
+          provider: provider.id,
+          name: toolkit.name,
+          logoUrl: toolkit.logoUrl,
+          composioAccountId: request.id,
+          status: "PENDING",
+        },
+        update: {
+          // The latest persisted attempt wins. Until it succeeds, keep the selected
+          // account and its status usable, even if the owner abandons this flow.
+          pendingComposioAccountId: request.id,
+          name: toolkit.name,
+          logoUrl: toolkit.logoUrl,
+        },
+      });
+      const pending = previous?.pendingComposioAccountId;
+      return pending &&
+        pending !== previous.composioAccountId &&
+        pending !== request.id
+        ? pending
+        : null;
+    });
+    if (supersededAccountId) {
+      await composio.connectedAccounts
+        .delete(supersededAccountId)
+        .catch(() => undefined);
+    }
+  } catch (error) {
+    // The authorization was created outside the transaction. If deletion or
+    // another database failure wins, do not leave this new account orphaned.
+    await composio.connectedAccounts.delete(request.id).catch(() => undefined);
+    throw error;
+  }
   return { redirectUrl: request.redirectUrl };
 }
 
@@ -415,14 +464,19 @@ export async function disconnectSokoBotIntegration(input: {
 }): Promise<void> {
   const provider = resolveProvider(input.provider);
   const bot = await requireBot(input.userId, input.workspaceId);
-  const row = await prisma.sokoBotIntegration.findUnique({
-    where: { sokoBotId_provider: { sokoBotId: bot.id, provider: provider.id } },
-    select: {
-      id: true,
-      composioAccountId: true,
-      pendingComposioAccountId: true,
-    },
-  });
+  // Delete-and-return captures the latest IDs atomically. A later connect
+  // creates a new row, which this disconnect must not erase after remote I/O.
+  const row = await prisma.sokoBotIntegration
+    .delete({
+      where: {
+        sokoBotId_provider: { sokoBotId: bot.id, provider: provider.id },
+      },
+      select: { composioAccountId: true, pendingComposioAccountId: true },
+    })
+    .catch((error: unknown) => {
+      if (isPrismaRecordNotFoundError(error)) return null;
+      throw error;
+    });
   if (!row) return;
   const composio = getComposio();
   if (composio) {
@@ -436,28 +490,17 @@ export async function disconnectSokoBotIntegration(input: {
           .catch(() => undefined);
     }
   }
-  await prisma.sokoBotIntegration.delete({ where: { id: row.id } });
 }
 
-/**
- * Revokes every connected account a bot holds, for deletion. Deleting the local
- * rows alone would leave the accounts registered with Composio and take away
- * the owner's only way to disconnect them from here.
- *
- * Returns the accounts it could not revoke so the caller can tell the owner
- * rather than implying a clean break.
- */
-export async function revokeAllSokoBotIntegrations(
+/** Revoke the account snapshot captured atomically during bot deletion. */
+export async function revokeSokoBotIntegrationAccounts(
   sokoBotId: string,
+  rows: {
+    provider: string;
+    composioAccountId: string;
+    pendingComposioAccountId: string | null;
+  }[],
 ): Promise<{ revoked: number; failed: string[] }> {
-  const rows = await prisma.sokoBotIntegration.findMany({
-    where: { sokoBotId },
-    select: {
-      provider: true,
-      composioAccountId: true,
-      pendingComposioAccountId: true,
-    },
-  });
   if (rows.length === 0) return { revoked: 0, failed: [] };
   const composio = getComposio();
   if (!composio) return { revoked: 0, failed: rows.map((r) => r.provider) };

@@ -3,6 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   bot: vi.fn(),
+  botUpdate: vi.fn(),
+  transaction: vi.fn(),
+  lockIntegration: vi.fn(),
   find: vi.fn(),
   upsert: vi.fn(),
   updateMany: vi.fn(),
@@ -14,6 +17,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    $transaction: mocks.transaction,
     sokoBot: { findFirst: mocks.bot },
     sokoBotIntegration: {
       findUnique: mocks.find,
@@ -55,7 +59,7 @@ import {
   disconnectSokoBotIntegration,
   fetchInboxMessages,
   finalizeSokoBotIntegration,
-  revokeAllSokoBotIntegrations,
+  revokeSokoBotIntegrationAccounts,
 } from "./soko-bot-integrations.service";
 
 const input = {
@@ -78,6 +82,15 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.unstubAllGlobals();
   mocks.bot.mockResolvedValue({ id: "bot" });
+  mocks.botUpdate.mockResolvedValue({ id: "bot" });
+  mocks.transaction.mockImplementation(async (operation) =>
+    operation({
+      $queryRaw: mocks.lockIntegration,
+      sokoBot: { update: mocks.botUpdate },
+      sokoBotIntegration: { upsert: mocks.upsert, findUnique: mocks.find },
+    }),
+  );
+  mocks.deleteRow.mockResolvedValue(existing);
   mocks.find.mockResolvedValue(existing);
   mocks.link.mockImplementation(async (_user, _config, options) => {
     // SDK 0.18.1 rejects even ONE existing ACTIVE account without this option.
@@ -236,7 +249,7 @@ describe("Soko Bot OAuth replacement", () => {
   });
 
   it("disconnects both selected and pending accounts", async () => {
-    mocks.find.mockResolvedValue({
+    mocks.deleteRow.mockResolvedValue({
       ...existing,
       pendingComposioAccountId: "replacement",
     });
@@ -248,7 +261,11 @@ describe("Soko Bot OAuth replacement", () => {
     mocks.findMany.mockResolvedValue([
       { ...existing, pendingComposioAccountId: "replacement" },
     ]);
-    expect(await revokeAllSokoBotIntegrations("bot")).toEqual({
+    expect(
+      await revokeSokoBotIntegrationAccounts("bot", [
+        { ...existing, pendingComposioAccountId: "replacement" },
+      ]),
+    ).toEqual({
       revoked: 1,
       failed: [],
     });
@@ -263,7 +280,11 @@ it("attempts both account revocations and reports a provider once on partial fai
   mocks.remove.mockRejectedValue(new Error("upstream unavailable"));
   const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
   try {
-    expect(await revokeAllSokoBotIntegrations("bot")).toEqual({
+    expect(
+      await revokeSokoBotIntegrationAccounts("bot", [
+        { ...existing, pendingComposioAccountId: "replacement" },
+      ]),
+    ).toEqual({
       revoked: 0,
       failed: ["gmail"],
     });
@@ -293,7 +314,7 @@ describe("OAuth retries and failures", () => {
     });
     await connectSokoBotIntegration(input);
     await connectSokoBotIntegration(input);
-    expect(mocks.remove).not.toHaveBeenCalled();
+    expect(mocks.remove.mock.calls).toEqual([["attempt-one"]]);
     // The callback has only a provider, so it must check the current persisted
     // attempt, never adopt an account ID supplied by a browser or list order.
     mocks.get.mockResolvedValue({
@@ -311,7 +332,7 @@ describe("OAuth retries and failures", () => {
     });
     expect(await finalizeSokoBotIntegration(input)).toBe("ACTIVE");
     expect(mocks.get.mock.calls).toEqual([["attempt-two"], ["attempt-two"]]);
-    expect(mocks.remove.mock.calls).toEqual([["selected"]]);
+    expect(mocks.remove.mock.calls).toEqual([["attempt-one"], ["selected"]]);
   });
 
   it("creates the initial pending selection when there is no local connection", async () => {
@@ -366,7 +387,8 @@ describe("OAuth retries and failures", () => {
     await expect(connectSokoBotIntegration(input)).rejects.toThrow(
       "database unavailable",
     );
-    expect(mocks.remove).not.toHaveBeenCalled();
+    expect(mocks.remove).toHaveBeenCalledExactlyOnceWith("replacement");
+    mocks.remove.mockClear();
     mocks.find.mockResolvedValue({
       ...existing,
       pendingComposioAccountId: "replacement",
@@ -489,4 +511,136 @@ describe("installed Composio link contract", () => {
       expect(mocks.remove).not.toHaveBeenCalled();
     },
   );
+});
+
+describe("connection lifecycle races", () => {
+  it("captures the latest pending account at disconnect's atomic deletion", async () => {
+    // The earlier read would have captured the old pending ID. Atomic deletion
+    // returns a concurrent reconnect's newly persisted ID instead.
+    mocks.find.mockResolvedValue({
+      ...existing,
+      pendingComposioAccountId: "older",
+    });
+    mocks.deleteRow.mockResolvedValue({
+      ...existing,
+      pendingComposioAccountId: "newer",
+    });
+    await disconnectSokoBotIntegration(input);
+    expect(mocks.find).not.toHaveBeenCalled();
+    expect(mocks.remove.mock.calls).toEqual([["selected"], ["newer"]]);
+    expect(mocks.deleteRow.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.remove.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("does not erase a reconnect persisted during disconnect's remote cleanup", async () => {
+    mocks.remove.mockImplementationOnce(async () => {
+      await connectSokoBotIntegration(input);
+    });
+    await disconnectSokoBotIntegration(input);
+    expect(mocks.deleteRow).toHaveBeenCalledOnce();
+    expect(mocks.deleteRow.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.upsert.mock.invocationCallOrder[0],
+    );
+    expect(mocks.remove.mock.calls).toEqual([["selected"]]);
+  });
+
+  it("revalidates the bot under its write lock before persisting authorization", async () => {
+    await connectSokoBotIntegration(input);
+    expect(mocks.botUpdate).toHaveBeenCalledWith({
+      where: {
+        id: "bot",
+        userId: "owner",
+        workspaceId: "workspace",
+        archivedAt: null,
+        deletedAt: null,
+      },
+      data: { updatedAt: expect.any(Date) },
+      select: { id: true },
+    });
+    expect(mocks.botUpdate.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.upsert.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("cleans up only the new authorization if bot deletion wins persistence", async () => {
+    mocks.botUpdate.mockRejectedValue(new Error("bot was deleted"));
+    await expect(connectSokoBotIntegration(input)).rejects.toThrow(
+      "bot was deleted",
+    );
+    expect(mocks.upsert).not.toHaveBeenCalled();
+    expect(mocks.remove).toHaveBeenCalledExactlyOnceWith("replacement");
+  });
+
+  it("leaves upstream accounts untouched if atomic disconnection fails", async () => {
+    mocks.deleteRow.mockRejectedValue(new Error("database unavailable"));
+    await expect(disconnectSokoBotIntegration(input)).rejects.toThrow(
+      "database unavailable",
+    );
+    expect(mocks.remove).not.toHaveBeenCalled();
+  });
+
+  it("treats an already removed integration as disconnected", async () => {
+    mocks.deleteRow.mockRejectedValue({ code: "P2025" });
+    await expect(disconnectSokoBotIntegration(input)).resolves.toBeUndefined();
+    expect(mocks.remove).not.toHaveBeenCalled();
+  });
+});
+
+it("does not revoke a pending account promoted before the connection row lock", async () => {
+  mocks.lockIntegration.mockImplementation(async () => {
+    // A finalizer won before this transaction locked the integration.
+    mocks.find.mockResolvedValue({
+      ...existing,
+      composioAccountId: "promoted",
+      pendingComposioAccountId: null,
+    });
+  });
+  await connectSokoBotIntegration(input);
+  expect(mocks.lockIntegration.mock.invocationCallOrder[0]).toBeLessThan(
+    mocks.find.mock.invocationCallOrder[0],
+  );
+  expect(mocks.remove).not.toHaveBeenCalled();
+});
+
+it("cleans up the exact pending ID superseded by serialized concurrent connections", async () => {
+  let pendingId: string | null = "original-pending";
+  let transactionTail = Promise.resolve();
+  mocks.transaction.mockImplementation((operation) => {
+    const run = transactionTail.then(() =>
+      operation({
+        $queryRaw: mocks.lockIntegration,
+        sokoBot: { update: mocks.botUpdate },
+        sokoBotIntegration: { upsert: mocks.upsert, findUnique: mocks.find },
+      }),
+    );
+    transactionTail = run.then(() => undefined);
+    return run;
+  });
+  mocks.find.mockImplementation(async () => ({
+    ...existing,
+    pendingComposioAccountId: pendingId,
+  }));
+  mocks.upsert.mockImplementation(async ({ update }) => {
+    pendingId = update.pendingComposioAccountId;
+  });
+  mocks.link.mockResolvedValueOnce({
+    id: "first",
+    redirectUrl: "https://connect.example/first",
+  });
+  mocks.link.mockResolvedValueOnce({
+    id: "second",
+    redirectUrl: "https://connect.example/second",
+  });
+  await Promise.all([
+    connectSokoBotIntegration(input),
+    connectSokoBotIntegration(input),
+  ]);
+  expect(pendingId).toBe("second");
+  expect(mocks.remove.mock.calls.flat().sort()).toEqual([
+    "first",
+    "original-pending",
+  ]);
+  expect(mocks.remove).not.toHaveBeenCalledWith("selected");
+  expect(mocks.remove).not.toHaveBeenCalledWith("second");
 });
