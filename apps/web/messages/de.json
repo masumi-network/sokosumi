@@ -5466,7 +5466,11 @@
         "success": "In Zwischenablage kopiert",
         "error": "Kopieren fehlgeschlagen",
         "linkSuccess": "Link kopiert",
-        "linkError": "Link konnte nicht kopiert werden"
+        "linkError": "Link konnte nicht kopiert werden",
+        "sendToSelf": "An dich selbst senden",
+        "sendToSelfSuccess": "An dich selbst gesendet",
+        "sendToSelfError": "Senden an dich selbst fehlgeschlagen",
+        "sendToSelfOpen": "Öffnen"
       },
       "Edit": {
         "action": "Bearbeiten",

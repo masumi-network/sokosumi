@@ -947,6 +947,29 @@ export async function pinRoomMessageAction(
   }
 }
 
+/** Send to yourself: quote a room message into the caller's Self Direct. */
+export async function sendRoomMessageToSelfAction(
+  roomId: string,
+  messageId: string,
+): Promise<RoomActionResult<ChatRoomMessage>> {
+  const t = await getTranslations("App.Channels.Copy");
+  const cleanRoomId = cleanString(roomId);
+  const cleanMessageId = cleanString(messageId);
+  if (!cleanRoomId || !cleanMessageId) {
+    return roomFail(t("sendToSelfError"));
+  }
+
+  try {
+    const message = await chatRoomService.sendMessageToSelf(
+      cleanRoomId,
+      cleanMessageId,
+    );
+    return roomOk(message);
+  } catch (error) {
+    return roomCatch(error, t("sendToSelfError"));
+  }
+}
+
 export async function listPinnedMessagesAction(
   roomId: string,
   options?: { cursor?: string; limit?: number },

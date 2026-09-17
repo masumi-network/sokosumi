@@ -313,6 +313,7 @@ import {
   postChatsRoomsByIdMessages as corePostChatsRoomsByIdMessages,
   postChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetry as corePostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetry,
   postChatsRoomsByIdMessagesByMessageIdPin as corePostChatsRoomsByIdMessagesByMessageIdPin,
+  postChatsRoomsByIdMessagesByMessageIdSendToSelf as corePostChatsRoomsByIdMessagesByMessageIdSendToSelf,
   postChatsRoomsByIdMessagesByMessageIdUnfurlsRemove as corePostChatsRoomsByIdMessagesByMessageIdUnfurlsRemove,
   postChatsRoomsByIdMute as corePostChatsRoomsByIdMute,
   postChatsRoomsByIdRead as corePostChatsRoomsByIdRead,
@@ -953,6 +954,18 @@ export function createCoreClient(getClient: GetCoreClient) {
           path: { id: roomId, messageId },
         }),
       "Failed to pin message",
+    );
+  }
+
+  async function sendChatRoomMessageToSelf(roomId: string, messageId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdMessagesByMessageIdSendToSelf({
+          client,
+          path: { id: roomId, messageId },
+        }),
+      "Failed to send message to yourself",
     );
   }
 
@@ -5081,6 +5094,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getChatRoomPinnedMessages,
     pinChatRoomMessage,
     unpinChatRoomMessage,
+    sendChatRoomMessageToSelf,
     muteChatRoom,
     unmuteChatRoom,
     markChatRoomUnread,
