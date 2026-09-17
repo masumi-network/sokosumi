@@ -7,7 +7,7 @@ import Testing
 
 private func attentionRoomJSON(unread: Int = 4, marked: Bool = false) -> String {
   """
-  {"id":"\(testRoomId)","organizationId":null,"organizationName":null,"name":"general","slug":null,"kind":"channel","directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(testTimestamp)","updatedAt":"\(testTimestamp)","unreadCount":\(unread),"unreadMentionCount":1,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":\(marked),"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
+  {"id":"\(testRoomId)","organizationId":null,"organizationName":null,"name":"general","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(testTimestamp)","updatedAt":"\(testTimestamp)","unreadCount":\(unread),"unreadMentionCount":1,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":\(marked),"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
   """
 }
 
