@@ -19,6 +19,7 @@ vi.mock("@/lib/auth/auth.server", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
 }));
 
+const createRoomMock = vi.fn();
 const getActiveOrganizationMock = vi.fn();
 const getMyMemberInOrganizationMock = vi.fn();
 vi.mock("@/lib/services", () => ({
@@ -28,7 +29,9 @@ vi.mock("@/lib/services", () => ({
     getMyMemberInOrganization: (...args: unknown[]) =>
       getMyMemberInOrganizationMock(...args),
   },
-  chatRoomService: {},
+  chatRoomService: {
+    createRoom: (...args: unknown[]) => createRoomMock(...args),
+  },
 }));
 
 const listCoworkersMock = vi.fn();
@@ -51,13 +54,20 @@ vi.mock("@/app/chat/load-organization-members", () => ({
     loadOrganizationMembersMock(...args),
 }));
 
-import { loadChatComposeRosterAction } from "../actions";
+import {
+  createDirectRoomAction,
+  loadChatComposeRosterAction,
+} from "../actions";
 
 describe("loadChatComposeRosterAction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getSessionMock.mockResolvedValue({
-      user: { id: "user-self" },
+      user: {
+        id: "user-self",
+        name: "Ada",
+        image: "https://example.com/ada.png",
+      },
       session: { activeOrganizationId: "org-1" },
     });
     getActiveOrganizationMock.mockResolvedValue({
@@ -75,14 +85,61 @@ describe("loadChatComposeRosterAction", () => {
     getMineMock.mockResolvedValue(null);
   });
 
-  it("returns an error DTO when roster services throw", async () => {
-    listCoworkersMock.mockRejectedValue(new Error("coworkers down"));
-
-    await expect(loadChatComposeRosterAction()).resolves.toEqual({
+  it("forwards self-only creation through the existing Core service without an organization", async () => {
+    getActiveOrganizationMock.mockResolvedValue(null);
+    createRoomMock.mockResolvedValue({ id: "self-room", isSelfDirect: true });
+    await expect(
+      createDirectRoomAction({ memberUserIds: ["user-self"] }),
+    ).resolves.toMatchObject({
+      ok: true,
+      value: { id: "self-room", isSelfDirect: true },
+    });
+    expect(createRoomMock).toHaveBeenCalledWith({
+      kind: "direct",
+      memberUserIds: ["user-self"],
+      coworkerIds: [],
+      sokoBotIds: [],
+    });
+    createRoomMock.mockRejectedValueOnce(new Error("Core unavailable"));
+    await expect(
+      createDirectRoomAction({ memberUserIds: ["user-self"] }),
+    ).resolves.toMatchObject({
       ok: false,
-      error: {
-        code: "INTERNAL_SERVER_ERROR",
-        message: "coworkers down",
+      error: { message: "Core unavailable" },
+    });
+  });
+
+  it.each(["coworkers", "organization", "membership"])(
+    "keeps session identity available when %s fails",
+    async (service) => {
+      const failingService =
+        service === "coworkers"
+          ? listCoworkersMock
+          : service === "organization"
+            ? getActiveOrganizationMock
+            : getMyMemberInOrganizationMock;
+      failingService.mockRejectedValueOnce(new Error("roster down"));
+      await expect(loadChatComposeRosterAction()).resolves.toMatchObject({
+        ok: true,
+        value: {
+          currentUserId: "user-self",
+          currentUserName: "Ada",
+          currentUserImage: "https://example.com/ada.png",
+          members: [],
+          membersLoadFailed: true,
+        },
+      });
+    },
+  );
+
+  it("returns self identity without an active organization", async () => {
+    getActiveOrganizationMock.mockResolvedValue(null);
+    await expect(loadChatComposeRosterAction()).resolves.toMatchObject({
+      ok: true,
+      value: {
+        currentUserId: "user-self",
+        currentUserName: "Ada",
+        hasOrganization: false,
       },
     });
   });
@@ -97,6 +154,8 @@ describe("loadChatComposeRosterAction", () => {
       ok: true,
       value: {
         currentUserId: "user-self",
+        currentUserName: "Ada",
+        currentUserImage: "https://example.com/ada.png",
         organizationName: "Acme",
         hasOrganization: true,
         canCreateExternal: false,

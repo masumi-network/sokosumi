@@ -48,6 +48,7 @@ function directRoom(overrides: {
     name: "Direct",
     slug: null,
     kind: "direct",
+    isSelfDirect: false,
     directKey: "key",
     topic: null,
     discoverability: null,
@@ -79,10 +80,10 @@ describe("direct room display order", () => {
       userMembers: [self, patrick, francis],
     });
 
-    expect(getRoomDisplayName(orderA, CURRENT_USER_ID)).toBe(
+    expect(getRoomDisplayName(orderA, CURRENT_USER_ID, "You")).toBe(
       "Francis Luz, Patrick Tobler",
     );
-    expect(getRoomDisplayName(orderB, CURRENT_USER_ID)).toBe(
+    expect(getRoomDisplayName(orderB, CURRENT_USER_ID, "You")).toBe(
       "Francis Luz, Patrick Tobler",
     );
   });
@@ -121,7 +122,9 @@ describe("direct room display order", () => {
       coworkerMembers: [aaron],
     });
 
-    expect(getRoomDisplayName(room, CURRENT_USER_ID)).toBe("Ada, Zara, Aaron");
+    expect(getRoomDisplayName(room, CURRENT_USER_ID, "You")).toBe(
+      "Ada, Zara, Aaron",
+    );
   });
 
   it("breaks name ties by id", () => {

@@ -27,6 +27,7 @@ function channel(): ChatRoom {
     name: "general",
     slug: "general",
     kind: "channel",
+    isSelfDirect: false,
     directKey: null,
     topic: null,
     discoverability: "public",
