@@ -95,6 +95,16 @@ describe("ChatRoomSidebarRow against the English catalog", () => {
     expect(screen.getByText("7 unread messages")).toBeInTheDocument();
   });
 
+  // The collapsed rail's pill is announced through two keys of its own.
+  it("names the rail pill's two states from the catalog", () => {
+    const { unmount } = renderRow(makeRoom({ unreadMentionCount: 1 }));
+    expect(screen.getByText("Mentions you")).toBeInTheDocument();
+    unmount();
+
+    renderRow(makeRoom({ unreadCount: 1 }));
+    expect(screen.getByText("Unread")).toBeInTheDocument();
+  });
+
   it("announces both numbers past the shared cap", () => {
     renderRow(makeRoom({ unreadCount: 1234, unreadMentionCount: 1234 }));
 

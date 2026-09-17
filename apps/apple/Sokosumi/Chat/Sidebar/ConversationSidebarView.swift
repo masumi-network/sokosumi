@@ -345,14 +345,25 @@ struct ConversationSidebarView: View {
         room: room,
         icon: icon,
         currentUserId: workspaces.currentUserId,
-        showsDirectAvatars: showsDirectAvatars
+        showsDirectAvatars: showsDirectAvatars,
+        livePresence: workspaces.presence.byUserId
       )
     }
+    .presenceAccessibilityValue(directPresence(room, showsDirectAvatars: showsDirectAvatars))
     .labelStyle(RoomRowLabelStyle())
     .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
     .tag(room.id)
     .badge(attention.badgeCount)
     .contextMenu { roomActions(room) }
+  }
+
+  /// Web's 1:1 Direct row announces its one peer's availability; group rows
+  /// leave that to the roster so the label is not read twice.
+  private func directPresence(_ room: Components.Schemas.ChatRoom, showsDirectAvatars: Bool) -> Components.Schemas.ChatRoomPresence? {
+    guard showsDirectAvatars, !room.isSelfDirect else { return nil }
+    let participants = directRoomAvatarParticipants(room, currentUserId: workspaces.currentUserId)
+    guard participants.count == 1, let peer = participants.first else { return nil }
+    return peer.isAI ? .online : workspaces.presence(forUser: peer.id, fallback: peer.presence)
   }
 
   @ViewBuilder
@@ -422,11 +433,13 @@ struct ConversationSidebarView: View {
       }
     } label: {
       HStack(spacing: 8) {
+        // Web's account chip: a local self-approximation, not the org roster.
         ParticipantAvatar(
           imageURL: workspaces.currentUserImageURL,
           name: workspaces.currentUserName,
           size: 28
         )
+        .presenceBadge(workspaces.presence.selfPresence)
         VStack(alignment: .leading, spacing: 0) {
           Text(workspaces.currentUserName.isEmpty ? "Me" : workspaces.currentUserName)
             .font(.callout)
@@ -444,6 +457,7 @@ struct ConversationSidebarView: View {
       .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
+    .accessibilityValue(presenceLabel(workspaces.presence.selfPresence))
   }
 }
 
@@ -465,24 +479,29 @@ struct RoomRowLabelStyle: LabelStyle {
 private struct RoomLeadingIcon: View {
   let icon: String
   let showsDirectAvatars: Bool
+  let showsPresence: Bool
   let participants: [DirectRoomAvatarParticipant]
+  let livePresence: [String: Components.Schemas.ChatRoomPresence]
 
   init(
     room: Components.Schemas.ChatRoom,
     icon: String,
     currentUserId: String,
-    showsDirectAvatars: Bool
+    showsDirectAvatars: Bool,
+    livePresence: [String: Components.Schemas.ChatRoomPresence]
   ) {
     self.icon = icon
     self.showsDirectAvatars = showsDirectAvatars
+    showsPresence = !room.isSelfDirect
     participants = showsDirectAvatars
       ? directRoomAvatarParticipants(room, currentUserId: currentUserId)
       : []
+    self.livePresence = livePresence
   }
 
   var body: some View {
     if showsDirectAvatars {
-      DirectRoomAvatarStack(participants: participants)
+      DirectRoomAvatarStack(participants: participants, showsPresence: showsPresence, livePresence: livePresence)
     } else {
       Image(systemName: icon)
         .foregroundStyle(.secondary)
@@ -492,11 +511,16 @@ private struct RoomLeadingIcon: View {
 }
 
 struct DirectRoomAvatarStack: View {
-  /// Web `DirectRoomAvatarStack`: `size-5` faces, `-ml-2` overlap.
+  /// Web `DirectRoomAvatarStack`: `size-5` faces, `-ml-2` overlap, `size-2` marks.
   static let faceSize: CGFloat = 20
   private static let overlap: CGFloat = 8
+  private static let markSize: CGFloat = 8
 
   let participants: [DirectRoomAvatarParticipant]
+  /// Self Directs show no mark, like web.
+  var showsPresence = true
+  /// Live org map (userId → online/afk); humans fall back to their snapshot.
+  var livePresence: [String: Components.Schemas.ChatRoomPresence] = [:]
 
   var body: some View {
     stackContent
@@ -521,9 +545,18 @@ struct DirectRoomAvatarStack: View {
             Circle()
               .strokeBorder(.background, lineWidth: 1)
           }
+          .overlay(alignment: .bottomTrailing) {
+            if showsPresence {
+              PresenceDot(presence: presence(for: participant), size: Self.markSize).offset(x: 2, y: 2)
+            }
+          }
           .zIndex(Double(participants.count - index))
         }
       }
     }
+  }
+
+  private func presence(for participant: DirectRoomAvatarParticipant) -> Components.Schemas.ChatRoomPresence {
+    participant.isAI ? .online : livePresence[participant.id] ?? participant.presence
   }
 }
