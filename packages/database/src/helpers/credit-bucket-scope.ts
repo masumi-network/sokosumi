@@ -5,16 +5,6 @@ import {
 import { memberRepository } from "../repositories/member.repository.js";
 import { resolveOrganizationBillingPlan } from "./organization-billing-plan.js";
 
-const ENTERPRISE_POOL_REFERENCE_TYPES = [
-  CreditBucketReferenceType.ENTERPRISE_PERIOD,
-  CreditBucketReferenceType.ENTERPRISE_TOP_UP,
-] as const;
-
-const NON_SUBSCRIPTION_SHARED_REFERENCE_TYPES = [
-  CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-  ...ENTERPRISE_POOL_REFERENCE_TYPES,
-] as const;
-
 export interface PersonalCreditBucketScopeContext {
   workspace: "personal";
   userId: string;
@@ -101,47 +91,8 @@ export async function hasAssignedOrganizationSeat(
   return context.poolAccess !== "none";
 }
 
-function unsatisfiableOrganizationScopeWhere(
-  organizationId: string,
-): Prisma.CreditBucketWhereInput {
-  // CreditBucket.id is never "". Prisma forbids OR: [].
-  return {
-    organizationId,
-    id: { equals: "" },
-  };
-}
-
 function unsatisfiableOrganizationScopeSql(organizationId: string): Prisma.Sql {
   return Prisma.sql`cb."organizationId" = ${organizationId} AND FALSE`;
-}
-
-function buildOrganizationSharedScopeOr(
-  includeEnterprise: boolean,
-): Prisma.CreditBucketWhereInput[] {
-  const sharedBranches: Prisma.CreditBucketWhereInput[] = [
-    {
-      referenceType: null,
-    },
-    {
-      referenceType: CreditBucketReferenceType.STRIPE_SUBSCRIPTION_PERIOD,
-      userId: null,
-    },
-    {
-      referenceType: {
-        notIn: [...NON_SUBSCRIPTION_SHARED_REFERENCE_TYPES],
-      },
-    },
-  ];
-
-  if (includeEnterprise) {
-    sharedBranches.push({
-      referenceType: {
-        in: [...ENTERPRISE_POOL_REFERENCE_TYPES],
-      },
-    });
-  }
-
-  return sharedBranches;
 }
 
 function buildOrganizationSharedScopeSql(
@@ -172,26 +123,6 @@ function buildOrganizationSharedScopeSql(
   )`;
 }
 
-export function buildCreditBucketScopeWhere(
-  context: CreditBucketScopeContext,
-): Prisma.CreditBucketWhereInput {
-  if (context.workspace === "personal") {
-    return {
-      userId: context.userId,
-      organizationId: null,
-    };
-  }
-
-  if (context.poolAccess === "none") {
-    return unsatisfiableOrganizationScopeWhere(context.organizationId);
-  }
-
-  return {
-    organizationId: context.organizationId,
-    OR: buildOrganizationSharedScopeOr(context.poolAccess === "enterprise"),
-  };
-}
-
 export function buildCreditBucketScopeSql(
   context: CreditBucketScopeContext,
 ): Prisma.Sql {
@@ -207,24 +138,6 @@ export function buildCreditBucketScopeSql(
     cb."organizationId" = ${context.organizationId}
     AND ${buildOrganizationSharedScopeSql(context.poolAccess === "enterprise")}
   `;
-}
-
-export function buildEnterprisePoolScopeWhere(
-  context: CreditBucketScopeContext,
-): Prisma.CreditBucketWhereInput | null {
-  if (
-    context.workspace !== "organization" ||
-    context.poolAccess !== "enterprise"
-  ) {
-    return null;
-  }
-
-  return {
-    organizationId: context.organizationId,
-    referenceType: {
-      in: [...ENTERPRISE_POOL_REFERENCE_TYPES],
-    },
-  };
 }
 
 export function buildEnterprisePoolScopeSql(
