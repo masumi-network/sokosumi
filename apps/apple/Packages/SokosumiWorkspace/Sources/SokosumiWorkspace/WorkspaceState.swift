@@ -162,9 +162,15 @@ public final class WorkspaceState: ObservableObject {
   /// nil in tests unless a fake is installed. Without one the transcript
   /// stays HTTP-only and every realtime call below no-ops.
   public var realtimeConnectionFactory: (@Sendable () -> (any RealtimeConnection))?
-  private var realtime: (any RealtimeConnection)?
+  var realtime: (any RealtimeConnection)?
   private var realtimeStreamTask: Task<Void, Never>?
   private var realtimeContinuation: AsyncStream<ResolvedRealtimeDelivery>.Continuation?
+  /// Org presence map and publisher bookkeeping (ADR 0003); see `WorkspaceState+Presence`.
+  public let presence = OrgPresence()
+  var presenceTickTask: Task<Void, Never>?
+  /// The self dot reads offline only after the socket was up once; before
+  /// that a launch would flash offline while the first token mints.
+  var realtimeEverConnected = false
 
   /// Confirmed history plus unresolved outbound shells (sticky at the end).
   public var displayedTranscript: [Components.Schemas.ChatRoomMessage] {
@@ -207,7 +213,7 @@ public final class WorkspaceState: ObservableObject {
     self.clientProvider = clientProvider
     sidebar = ConversationSidebar(savedRoom: savedRoom)
     ablyClientInstanceId = getOrCreateAblyClientInstanceId(store: instanceStore)
-    for publisher in [archivedChannels.objectWillChange, pendingInvitations.objectWillChange, threadOverview.objectWillChange, pins.objectWillChange, thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange] {
+    for publisher in [archivedChannels.objectWillChange, pendingInvitations.objectWillChange, threadOverview.objectWillChange, pins.objectWillChange, thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange, presence.objectWillChange] {
       publisher.sink { [weak self] in self?.objectWillChange.send() }.store(in: &threadObservations)
     }
     // Rows need editor identity changes; draft and save state are observed by the editor itself.
@@ -613,6 +619,11 @@ public final class WorkspaceState: ObservableObject {
     if !wasVisible, readAttention.isVisible {
       realtime?.refreshMembership()
     }
+    if wasVisible != readAttention.isVisible {
+      // Web's visibilitychange: hidden publishes afk at once, visible counts as activity.
+      presence.setVisible(readAttention.isVisible)
+      publishPresence(force: true)
+    }
   }
 
   /// Wait for history/pagination before the recovery read. The scheduler's
@@ -730,11 +741,14 @@ public final class WorkspaceState: ObservableObject {
         handleRealtimeEvent(event)
       }
     }
+    syncPresenceOrganization()
+    startPresenceTick()
   }
 
   /// Closes the socket and drops the event stream. Sign-out and teardown go
   /// through here; room changes only detach via `watchRoom`.
-  private func stopRealtime() {
+  func stopRealtime() {
+    stopPresence()
     sidebarRecoveryGeneration = UUID()
     sidebarRecovery.stop()
     roomsRefreshTask?.cancel()
@@ -764,6 +778,9 @@ public final class WorkspaceState: ObservableObject {
     case let .connectionHealth(healthy):
       connectionHealthy = healthy
       sidebarRecovery.setHealthy(healthy)
+      applyPresenceReachability(healthy: healthy)
+    case let .presenceRoster(organizationId, members):
+      applyPresenceRoster(organizationId: organizationId, members: members)
     case let .envelope(envelope):
       applyRealtimeEnvelope(envelope)
     case let .revoked(roomId):
@@ -1178,6 +1195,7 @@ public final class WorkspaceState: ObservableObject {
       realtime?.setOrganizationSlug(option.workspace.organizationSlug)
       realtime?.setMembershipRooms(Set(rooms.map(\.id)))
       startRealtimeIfNeeded(auth: auth)
+      syncPresenceOrganization()
       startSidebarRecovery(auth: auth)
       guard generation == workspaceGeneration else { return }
       ensureRoomSelection(auth: auth)

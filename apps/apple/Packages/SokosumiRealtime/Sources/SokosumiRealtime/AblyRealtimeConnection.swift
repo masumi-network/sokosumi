@@ -4,12 +4,13 @@ import SokosumiChat
 
 /// ably-cocoa-backed `RealtimeConnection` (SOK-976).
 ///
-/// One socket: the user chat-control channel and membership room channels.
-/// Auth tokens come from Core (`POST /v1/realtime/ably-token`) through the
-/// provider, so capabilities track membership; the coordinator remints after
+/// One socket: the user chat-control channel, membership room channels and
+/// the active organization's presence channel (ADR 0003). Auth tokens come
+/// from Core (`POST /v1/realtime/ably-token`) through the provider, so
+/// capabilities track membership; the coordinator remints after
 /// join/leave/revoke. Ably invokes callbacks off the main thread — events
 /// hop out through the `Sendable` handler for the app to apply on MainActor.
-/// No presence enter (ADR 0003), no push (ADR 0022 / 0023).
+/// No push (ADR 0022 / 0023).
 public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendable {
   private let lock = NSLock()
   private var realtime: ARTRealtime?
@@ -17,6 +18,7 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
   private var watchedRoomId: String?
   private var tokenSource: RealtimeTokenSource?
   private var membershipSubscriptions: RoomMembershipSubscriptions?
+  private var presence: OrgPresenceChannel?
   private var onEvent: RealtimeEventHandler?
   private var roomGeneration = UUID()
   private var connectionGeneration = UUID()
@@ -64,7 +66,16 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
       self.realtime = realtime
       controlChannel = control
       membershipSubscriptions = RoomMembershipSubscriptions(realtime: realtime, onEvent: onEvent)
+      presence = OrgPresenceChannel(realtime: realtime, onEvent: onEvent)
     }
+  }
+
+  public func setPresenceOrganization(_ organizationId: String?) {
+    lock.withLock { presence }?.setOrganization(organizationId)
+  }
+
+  public func publishPresence(_ data: ChatPresenceMemberData) {
+    lock.withLock { presence }?.publish(data)
   }
 
   public func setMembershipRooms(_ roomIds: Set<String>) {
@@ -127,6 +138,8 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
       tokenSource = nil
       membershipSubscriptions?.stop()
       membershipSubscriptions = nil
+      presence?.stop()
+      presence = nil
       roomGeneration = UUID()
       roomHealth = nil
       cleanup = removeHealthListeners

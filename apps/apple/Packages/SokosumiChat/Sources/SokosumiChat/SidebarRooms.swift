@@ -28,11 +28,17 @@ public struct DirectRoomAvatarParticipant: Equatable, Sendable, Identifiable {
   public var id: String
   public var name: String
   public var imageURL: String?
+  /// Coworkers and Soko Bots stay always-online (ADR 0003 v1).
+  public var isAI: Bool
+  /// Core's snapshot; humans overlay live org presence on top.
+  public var presence: Components.Schemas.ChatRoomPresence
 
-  public init(id: String, name: String, imageURL: String?) {
+  public init(id: String, name: String, imageURL: String?, isAI: Bool = false, presence: Components.Schemas.ChatRoomPresence = .offline) {
     self.id = id
     self.name = name
     self.imageURL = imageURL
+    self.isAI = isAI
+    self.presence = presence
   }
 }
 
@@ -59,18 +65,19 @@ private func directRoomOtherParticipants(
       DirectRoomAvatarParticipant(
         id: $0.id,
         name: $0.name.isEmpty ? $0.email : $0.name,
-        imageURL: $0.image
+        imageURL: $0.image,
+        presence: $0.presence
       )
     }
     .sorted(by: compareParticipants)
   let coworkers = room.coworkerMembers
     .map {
-      DirectRoomAvatarParticipant(id: $0.id, name: $0.name, imageURL: $0.image)
+      DirectRoomAvatarParticipant(id: $0.id, name: $0.name, imageURL: $0.image, isAI: true, presence: $0.presence)
     }
     .sorted(by: compareParticipants)
   let bots = room.sokoBotMembers
     .map {
-      DirectRoomAvatarParticipant(id: $0.id, name: $0.name, imageURL: $0.image)
+      DirectRoomAvatarParticipant(id: $0.id, name: $0.name, imageURL: $0.image, isAI: true, presence: $0.presence)
     }
     .sorted(by: compareParticipants)
   return humans + coworkers + bots

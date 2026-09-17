@@ -13,6 +13,8 @@ public enum ResolvedRealtimeDelivery: Sendable {
   case roomHealth(roomId: String, healthy: Bool, continuityLost: Bool)
   case connectionHealth(healthy: Bool)
   case revoked(roomId: String)
+  /// Full member set of one organization's presence channel (ADR 0003).
+  case presenceRoster(organizationId: String, members: [ChatPresenceMember])
   case ignored
 
   /// Shared Ably payloads do not carry a meaningful viewer reaction flag.
@@ -109,10 +111,11 @@ public struct AblyTokenFields: Equatable, Sendable {
   }
 }
 
-/// Sort one Ably delivery into its meaning. Room payloads decode through the
-/// same `ChatRoomMessage` shape history renders; anything unparseable, for
-/// another room, or for presence/push (out of tracer scope) is ignored —
-/// the transcript only moves on proof, never on hope.
+/// Sort one Ably message delivery into its meaning. Room payloads decode
+/// through the same `ChatRoomMessage` shape history renders; anything
+/// unparseable, for another room, or for push (out of scope) is ignored —
+/// the transcript only moves on proof, never on hope. Presence arrives
+/// through `OrgPresenceChannel`, not as messages.
 public func resolveRealtimeDelivery(channel: String, event eventName: String, data: Any) -> ResolvedRealtimeDelivery {
   if eventName == chatRoomPinnedMessageEventName {
     guard let roomId = parseChatRoomId(fromChannelName: channel),
