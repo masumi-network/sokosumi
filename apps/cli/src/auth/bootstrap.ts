@@ -1,6 +1,6 @@
 import type { AuthEnvironment } from "./auth-manager.js";
 import type { CliTargetConfig } from "./config.js";
-import { targetFromUserApiKey } from "./config.js";
+import { rejectCoworkerApiKey, targetFromUserApiKey } from "./config.js";
 
 export type BootRoute = "boot" | "auth" | "signed-in";
 
@@ -37,8 +37,6 @@ export function selectBootRoute({
   return hasAuth ? "signed-in" : "auth";
 }
 
-const COWORKER_API_KEY_PREFIX = "coworker_";
-
 function assertApiKeyTarget(
   apiKey: string,
   config: CliTargetConfig,
@@ -47,9 +45,7 @@ function assertApiKeyTarget(
   if (/\s/.test(apiKey)) {
     throw new Error("API key must not contain whitespace");
   }
-  if (apiKey.startsWith(COWORKER_API_KEY_PREFIX)) {
-    throw new Error("Coworker API keys are not supported by the CLI");
-  }
+  rejectCoworkerApiKey(apiKey);
   const detectedTarget = targetFromUserApiKey(apiKey);
   if (!detectedTarget && !targetExplicit) {
     throw new Error(

@@ -7,6 +7,7 @@ import {
 } from "../auth/auth-manager.js";
 import {
   type CliTargetConfig,
+  rejectCoworkerApiKey,
   resolveCliConfig,
   resolveTargetScope,
   sanitizeApiUrl,
@@ -77,8 +78,6 @@ function readApiKeyFromStdin(readStdin: () => string): string {
   return apiKey;
 }
 
-const COWORKER_API_KEY_PREFIX = "coworker_";
-
 function validateApiKeyTarget(
   apiKey: string,
   config: CliTargetConfig,
@@ -87,9 +86,7 @@ function validateApiKeyTarget(
   if (/\s/.test(apiKey)) {
     throw new Error("API key must not contain whitespace");
   }
-  if (apiKey.startsWith(COWORKER_API_KEY_PREFIX)) {
-    throw new Error("Coworker API keys are not supported by the CLI");
-  }
+  rejectCoworkerApiKey(apiKey);
   const detectedTarget = targetFromUserApiKey(apiKey);
   if (!detectedTarget && !targetExplicit) {
     throw new Error(
