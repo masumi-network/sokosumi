@@ -5548,11 +5548,13 @@
       },
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# mensaje no leído} other {# mensajes no leídos}}",
-        "unreadMessagesCapped": "Más de {max} mensajes no leídos"
+        "unreadMessagesCapped": "Más de {max} mensajes no leídos",
+        "railUnread": "Sin leer"
       },
       "RoomMentions": {
         "mentions": "{count, plural, one {# mención} other {# menciones}}",
-        "mentionsCapped": "Más de {max} menciones"
+        "mentionsCapped": "Más de {max} menciones",
+        "railMention": "Te menciona"
       },
       "MembershipStatus": {
         "joined": "{name} se unió",

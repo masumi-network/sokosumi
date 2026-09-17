@@ -16,6 +16,7 @@ import {
 } from "@/app/chat/utils/chat-route-base";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 import { makeRoom, makeUser } from "./__tests__/chat-room-fixtures";
+import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
 
 const {
   leaveRoomActionMock,
@@ -60,23 +61,26 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-// The row's two numbers resolve by full key path, so a typo in the namespace
-// fails here instead of passing on a bare key that happens to match. The real
+// The row's two numbers and the rail dot's two states resolve by full key
+// path, so a typo in the namespace fails here instead of passing on a bare key
+// that happens to match. The real
 // catalog and the real ICU plurals are bound in
 // `__tests__/chat-room-sidebar-row-messages.test.tsx`.
 vi.mock("next-intl", () => ({
   useTranslations:
     (namespace?: string) =>
     (key: string, values?: Record<string, string | number>) => {
-      const numbers: Record<string, string> = {
+      const catalogKeys: Record<string, string> = {
         "App.Channels.RoomUnread.unreadMessages": `${values?.count ?? ""} unread messages`,
         "App.Channels.RoomUnread.unreadMessagesCapped": `More than ${values?.max ?? ""} unread messages`,
         "App.Channels.RoomMentions.mentions": `${values?.count ?? ""} mentions`,
         "App.Channels.RoomMentions.mentionsCapped": `More than ${values?.max ?? ""} mentions`,
+        "App.Channels.RoomUnread.railUnread": "Unread",
+        "App.Channels.RoomMentions.railMention": "Mentions you",
       };
-      const number = numbers[`${namespace ?? ""}.${key}`];
-      if (number !== undefined) {
-        return number;
+      const catalogValue = catalogKeys[`${namespace ?? ""}.${key}`];
+      if (catalogValue !== undefined) {
+        return catalogValue;
       }
 
       const translations: Record<string, string> = {
@@ -420,6 +424,92 @@ describe("ChatRoomSidebarRow collapsed rail", () => {
     expect(
       container.querySelector('[data-slot="room-trailing-spacer"]')?.className,
     ).toContain("group-data-[collapsible=icon]:hidden");
+  });
+
+  // The rail attention dot: the one cue left once bold, count, and badge hide.
+  function renderRail(
+    room: Partial<ChatRoom>,
+    options: { isActive?: boolean; leading?: ReactNode } = {},
+  ) {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom(room)}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={options.isActive ?? false}
+        leading={options.leading ?? <span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+    return container.querySelector('[data-slot="room-rail-attention"]');
+  }
+
+  it("shows the unread dot for an unread room, in the collapsed rail only", () => {
+    const dot = renderRail({ unreadCount: 3 });
+    expect(dot?.getAttribute("data-variant")).toBe("unread");
+    // Rendered always, shown only collapsed, like the channel tile.
+    expect(dot?.className).toContain("hidden");
+    expect(dot?.className).toContain(
+      "group-data-[collapsible=icon]:inline-flex",
+    );
+    expect(screen.getByText("Unread").className).toContain("sr-only");
+  });
+
+  it("shows the mention dot when the reader is mentioned", () => {
+    const dot = renderRail({ unreadMentionCount: 2 });
+    expect(dot?.getAttribute("data-variant")).toBe("mention");
+    expect(screen.getByText("Mentions you").className).toContain("sr-only");
+  });
+
+  it("shows exactly one dot, the mention one, when mention and unread meet", () => {
+    const dot = renderRail({ unreadCount: 5, unreadMentionCount: 2 });
+    expect(dot?.getAttribute("data-variant")).toBe("mention");
+    expect(screen.queryByText("Unread")).toBeNull();
+    expect(
+      document.querySelectorAll('[data-slot="room-rail-attention"]'),
+    ).toHaveLength(1);
+  });
+
+  it("shows the unread dot for a room the reader marked unread by hand", () => {
+    expect(
+      renderRail({ markedUnread: true })?.getAttribute("data-variant"),
+    ).toBe("unread");
+  });
+
+  it("shows no dot for a read room", () => {
+    expect(renderRail({})).toBeNull();
+  });
+
+  it("shows no dot for a muted room however loud it is", () => {
+    expect(
+      renderRail({
+        unreadCount: 9,
+        unreadMentionCount: 4,
+        markedUnread: true,
+        mutedAt: new Date("2026-09-01T00:00:00.000Z"),
+      }),
+    ).toBeNull();
+  });
+
+  it("keeps the dot on the room the reader has open", () => {
+    expect(
+      renderRail({ unreadCount: 1 }, { isActive: true })?.getAttribute(
+        "data-variant",
+      ),
+    ).toBe("unread");
+  });
+
+  // The dot belongs to the row, so a Direct gets it with no wiring of its own.
+  // The real avatar stack is the leading mark here because each face carries
+  // its own z-index; the dot has to sit above it or the face paints over it.
+  it("marks a Direct above its avatar the same way as a Channel", () => {
+    const room = makeRoom({ kind: "direct", unreadMentionCount: 1 });
+    const dot = renderRail(room, {
+      leading: <DirectRoomAvatarStack room={room} currentUserId="user-1" />,
+    });
+    expect(dot?.getAttribute("data-variant")).toBe("mention");
+    expect(dot?.className).toContain("z-10");
+    expect(screen.getByTestId("dm-sidebar-avatar-user-2")).toBeInTheDocument();
   });
 });
 

@@ -5548,11 +5548,13 @@
       },
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# unread message} other {# unread messages}}",
-        "unreadMessagesCapped": "More than {max} unread messages"
+        "unreadMessagesCapped": "More than {max} unread messages",
+        "railUnread": "Unread"
       },
       "RoomMentions": {
         "mentions": "{count, plural, one {# mention} other {# mentions}}",
-        "mentionsCapped": "More than {max} mentions"
+        "mentionsCapped": "More than {max} mentions",
+        "railMention": "Mentions you"
       },
       "MembershipStatus": {
         "joined": "{name} joined",

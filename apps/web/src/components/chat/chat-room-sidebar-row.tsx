@@ -161,6 +161,40 @@ function MentionBadge({ count }: { count: number }) {
   );
 }
 
+/**
+ * The collapsed rail's one attention mark (Rail attention dot, CONTEXT.md).
+ * Bold, count, and badge all hide there, so this is the only cue left. One
+ * disc, top-right of the leading mark: primary for a mention, foreground for
+ * unread, none when read or muted. Derived from `resolveRoomAttention`, so it
+ * cannot disagree with the expanded row. Rendered always and shown only
+ * collapsed, like the channel tile. The kind corner mark and the DM presence
+ * dot sit bottom-right, so the corners never collide. The halo is painted in
+ * the sidebar ground, same accepted mismatch on hover as `PresenceDot`.
+ */
+function RailAttentionDot({ variant }: { variant: "unread" | "mention" }) {
+  const t = useTranslations("App.Channels");
+
+  return (
+    <span
+      data-slot="room-rail-attention"
+      data-variant={variant}
+      className={cn(
+        // `z-10` because a DM face wrapper carries its own z-index and would
+        // otherwise paint over the dot. A 2px offset keeps the disc inside the
+        // 32px button's overflow clip; 4px would end exactly on its edge.
+        "border-sidebar absolute -top-0.5 -right-0.5 z-10 hidden size-2.5 rounded-full border group-data-[collapsible=icon]:inline-flex",
+        variant === "mention" ? "bg-primary-solid" : "bg-foreground",
+      )}
+    >
+      <span className="sr-only">
+        {variant === "mention"
+          ? t("RoomMentions.railMention")
+          : t("RoomUnread.railUnread")}
+      </span>
+    </span>
+  );
+}
+
 export function ChatRoomSidebarRow({
   room,
   href,
@@ -200,6 +234,7 @@ export function ChatRoomSidebarRow({
     isMuted,
     showUnreadCount,
   });
+  const railVariant = badgeCount > 0 ? "mention" : bold ? "unread" : null;
 
   function runRoomAction(
     action: (
@@ -314,9 +349,10 @@ export function ChatRoomSidebarRow({
     >
       <span
         data-slot="room-leading"
-        className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center group-data-[collapsible=icon]:h-6 group-data-[collapsible=icon]:min-w-6"
+        className="relative inline-flex h-5 min-w-5 shrink-0 items-center justify-center group-data-[collapsible=icon]:h-6 group-data-[collapsible=icon]:min-w-6"
       >
         {leading}
+        {railVariant ? <RailAttentionDot variant={railVariant} /> : null}
       </span>
       <span className="group-data-[collapsible=icon]:sr-only min-w-0 flex-1">
         {/* The count rides the end of the name, not the row's right rail, so it
