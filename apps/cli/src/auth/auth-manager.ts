@@ -253,22 +253,6 @@ export class AuthManager {
     }
   }
 
-  getRefreshToken(): string | null {
-    return this.credentials?.refreshToken || null;
-  }
-
-  getUserId(): string | null {
-    return this.credentials?.userId || null;
-  }
-
-  getUserEmail(): string | null {
-    return this.credentials?.email || null;
-  }
-
-  hasStoredCredentials(): boolean {
-    return Boolean(this.credentialStore.read() || this.apiKeyStore.read());
-  }
-
   getCredentials(): OAuthCredentials | null {
     return this.credentials;
   }
