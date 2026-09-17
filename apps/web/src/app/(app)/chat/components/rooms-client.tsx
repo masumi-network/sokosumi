@@ -2404,6 +2404,7 @@ export function RoomsClient({
       if (shouldUseCoworkerRoomStream(selectedRoom)) {
         const started = sendStreamMessage(request.content, {
           quote: request.quote,
+          files: request.attachments,
         });
         if (started) {
           pinToBottomAfterOwnSend();
@@ -2501,6 +2502,7 @@ export function RoomsClient({
         const started = sendStreamMessage(request.content, {
           parentMessageId,
           quote: request.quote,
+          files: request.attachments,
         });
         return { ok: started };
       }
