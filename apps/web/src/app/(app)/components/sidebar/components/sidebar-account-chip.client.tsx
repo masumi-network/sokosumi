@@ -113,7 +113,7 @@ function SidebarAccountChipDesktop({
         // transparent, not a fill. Classes live on the element (not behind
         // JS `isCollapsed`) so the boot-collapsed group and the Suspense
         // swap keep size-6 + rings without a 32px square flash.
-        "group-data-[collapsible=icon]:ring-sidebar-ring group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:hover:bg-transparent group-data-[collapsible=icon]:hover:ring-1 group-data-[collapsible=icon]:data-[state=open]:bg-transparent group-data-[collapsible=icon]:data-[state=open]:ring-2 group-data-[collapsible=icon]:data-[state=open]:hover:ring-2",
+        "group-data-[collapsible=icon]:ring-sidebar-ring group-data-[collapsible=icon]:rounded-md group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:hover:bg-transparent group-data-[collapsible=icon]:hover:ring-1 group-data-[collapsible=icon]:data-[state=open]:bg-transparent group-data-[collapsible=icon]:data-[state=open]:ring-2 group-data-[collapsible=icon]:data-[state=open]:hover:ring-2",
       )}
     >
       <span className="relative shrink-0">
@@ -136,10 +136,13 @@ function SidebarAccountChipDesktop({
             {getInitials(displayName)}
           </AvatarFallback>
         </Avatar>
+        {/* `size-2` on the rail, where the face is 24px and sits in a column
+            of DM faces that are also 24px carrying a `size-2` mark. Expanded
+            the face is 32px, which is what the default 10px mark is drawn for. */}
         <PresenceDot
           presence={presence}
           ground="sidebar"
-          className="absolute -right-0.5 -bottom-0.5"
+          className="absolute -right-0.5 -bottom-0.5 group-data-[collapsible=icon]:size-2"
           title={presenceLabel}
         />
       </span>
