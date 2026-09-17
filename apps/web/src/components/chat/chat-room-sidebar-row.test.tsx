@@ -426,7 +426,7 @@ describe("ChatRoomSidebarRow collapsed rail", () => {
     ).toContain("group-data-[collapsible=icon]:hidden");
   });
 
-  // The rail attention dot: the one cue left once bold, count, and badge hide.
+  // The rail attention pill: the one cue left once bold, count, and badge hide.
   function renderRail(
     room: Partial<ChatRoom>,
     options: { isActive?: boolean; leading?: ReactNode } = {},
@@ -444,43 +444,55 @@ describe("ChatRoomSidebarRow collapsed rail", () => {
     return container.querySelector('[data-slot="room-rail-attention"]');
   }
 
-  it("shows the unread dot for an unread room, in the collapsed rail only", () => {
-    const dot = renderRail({ unreadCount: 3 });
-    expect(dot?.getAttribute("data-variant")).toBe("unread");
+  it("shows the unread pill for an unread room, in the collapsed rail only", () => {
+    const pill = renderRail({ unreadCount: 3 });
+    expect(pill?.getAttribute("data-variant")).toBe("unread");
     // Rendered always, shown only collapsed, like the channel tile.
-    expect(dot?.className).toContain("hidden");
-    expect(dot?.className).toContain(
-      "group-data-[collapsible=icon]:inline-flex",
-    );
-    expect(screen.getByText("Unread").className).toContain("sr-only");
+    expect(pill?.className).toContain("hidden");
+    expect(pill?.className).toContain("group-data-[collapsible=icon]:block");
+    // 6px unread, on the rail's edge outside the link's overflow clip.
+    expect(pill?.className).toContain("h-1.5");
+    expect(pill?.className).toContain("-left-2");
+    expect(
+      document.querySelector('a[href="/chat/rooms/room-1"]')?.contains(pill),
+    ).toBe(false);
+    // The state is announced inside the link, collapsed only.
+    const text = screen.getByText("Unread");
+    expect(text.className).toContain("sr-only");
+    expect(text.className).toContain("hidden");
+    expect(text.className).toContain("group-data-[collapsible=icon]:block");
+    expect(
+      document.querySelector('a[href="/chat/rooms/room-1"]')?.contains(text),
+    ).toBe(true);
   });
 
-  it("shows the mention dot when the reader is mentioned", () => {
-    const dot = renderRail({ unreadMentionCount: 2 });
-    expect(dot?.getAttribute("data-variant")).toBe("mention");
+  it("shows the taller mention pill when the reader is mentioned", () => {
+    const pill = renderRail({ unreadMentionCount: 2 });
+    expect(pill?.getAttribute("data-variant")).toBe("mention");
+    expect(pill?.className).toContain("h-2");
     expect(screen.getByText("Mentions you").className).toContain("sr-only");
   });
 
-  it("shows exactly one dot, the mention one, when mention and unread meet", () => {
-    const dot = renderRail({ unreadCount: 5, unreadMentionCount: 2 });
-    expect(dot?.getAttribute("data-variant")).toBe("mention");
+  it("shows exactly one pill, the mention one, when mention and unread meet", () => {
+    const pill = renderRail({ unreadCount: 5, unreadMentionCount: 2 });
+    expect(pill?.getAttribute("data-variant")).toBe("mention");
     expect(screen.queryByText("Unread")).toBeNull();
     expect(
       document.querySelectorAll('[data-slot="room-rail-attention"]'),
     ).toHaveLength(1);
   });
 
-  it("shows the unread dot for a room the reader marked unread by hand", () => {
+  it("shows the unread pill for a room the reader marked unread by hand", () => {
     expect(
       renderRail({ markedUnread: true })?.getAttribute("data-variant"),
     ).toBe("unread");
   });
 
-  it("shows no dot for a read room", () => {
+  it("shows no pill for a read room", () => {
     expect(renderRail({})).toBeNull();
   });
 
-  it("shows no dot for a muted room however loud it is", () => {
+  it("shows no pill for a muted room however loud it is", () => {
     expect(
       renderRail({
         unreadCount: 9,
@@ -491,7 +503,7 @@ describe("ChatRoomSidebarRow collapsed rail", () => {
     ).toBeNull();
   });
 
-  it("keeps the dot on the room the reader has open", () => {
+  it("keeps the pill on the room the reader has open", () => {
     expect(
       renderRail({ unreadCount: 1 }, { isActive: true })?.getAttribute(
         "data-variant",
@@ -499,17 +511,18 @@ describe("ChatRoomSidebarRow collapsed rail", () => {
     ).toBe("unread");
   });
 
-  // The dot belongs to the row, so a Direct gets it with no wiring of its own.
-  // The real avatar stack is the leading mark here because each face carries
-  // its own z-index; the dot has to sit above it or the face paints over it.
-  it("marks a Direct above its avatar the same way as a Channel", () => {
+  // The pill belongs to the row, so a Direct gets it with no wiring of its
+  // own, and it sits beside the real avatar stack rather than on it: the face
+  // keeps its presence dot to itself.
+  it("marks a Direct beside its avatar the same way as a Channel", () => {
     const room = makeRoom({ kind: "direct", unreadMentionCount: 1 });
-    const dot = renderRail(room, {
+    const pill = renderRail(room, {
       leading: <DirectRoomAvatarStack room={room} currentUserId="user-1" />,
     });
-    expect(dot?.getAttribute("data-variant")).toBe("mention");
-    expect(dot?.className).toContain("z-10");
-    expect(screen.getByTestId("dm-sidebar-avatar-user-2")).toBeInTheDocument();
+    expect(pill?.getAttribute("data-variant")).toBe("mention");
+    const face = screen.getByTestId("dm-sidebar-avatar-user-2");
+    expect(face).toBeInTheDocument();
+    expect(face.parentElement?.contains(pill)).toBe(false);
   });
 });
 

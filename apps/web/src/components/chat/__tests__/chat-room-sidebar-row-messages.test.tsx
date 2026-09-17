@@ -95,8 +95,8 @@ describe("ChatRoomSidebarRow against the English catalog", () => {
     expect(screen.getByText("7 unread messages")).toBeInTheDocument();
   });
 
-  // The collapsed rail's dot is announced through two keys of its own.
-  it("names the rail dot's two states from the catalog", () => {
+  // The collapsed rail's pill is announced through two keys of its own.
+  it("names the rail pill's two states from the catalog", () => {
     const { unmount } = renderRow(makeRoom({ unreadMentionCount: 1 }));
     expect(screen.getByText("Mentions you")).toBeInTheDocument();
     unmount();

@@ -162,36 +162,29 @@ function MentionBadge({ count }: { count: number }) {
 }
 
 /**
- * The collapsed rail's one attention mark (Rail attention dot, CONTEXT.md).
- * Bold, count, and badge all hide there, so this is the only cue left. One
- * disc, top-right of the leading mark: primary for a mention, foreground for
- * unread, none when read or muted. Derived from `resolveRoomAttention`, so it
- * cannot disagree with the expanded row. Rendered always and shown only
- * collapsed, like the channel tile. The kind corner mark and the DM presence
- * dot sit bottom-right, so the corners never collide. The halo is painted in
- * the sidebar ground, same accepted mismatch on hover as `PresenceDot`.
+ * The collapsed rail's one attention mark (Rail attention pill, CONTEXT.md).
+ * Bold, count, and badge all hide there, so this is the only cue left. A 4px
+ * bar on the rail's left edge, outside the mark: 8px primary for a mention,
+ * 6px foreground for unread, none when read or muted. Off the mark rather
+ * than on it, because a DM face already carries its presence dot and a
+ * private tile its kind corner, and a second corner mark crowded both.
+ * Derived from `resolveRoomAttention`, so it cannot disagree with the
+ * expanded row. Rendered always and shown only collapsed, like the channel
+ * tile. The bar is decorative; the state reaches assistive technology as
+ * text inside the link, so the collapsed link announces it with the name.
+ * `-left-2` lands it flush on the sidebar's edge, inside the group's `p-2`.
  */
-function RailAttentionDot({ variant }: { variant: "unread" | "mention" }) {
-  const t = useTranslations("App.Channels");
-
+function RailAttentionPill({ variant }: { variant: "unread" | "mention" }) {
   return (
     <span
       data-slot="room-rail-attention"
       data-variant={variant}
+      aria-hidden="true"
       className={cn(
-        // `z-10` because a DM face wrapper carries its own z-index and would
-        // otherwise paint over the dot. A 2px offset keeps the disc inside the
-        // 32px button's overflow clip; 4px would end exactly on its edge.
-        "border-sidebar absolute -top-0.5 -right-0.5 z-10 hidden size-2.5 rounded-full border group-data-[collapsible=icon]:inline-flex",
-        variant === "mention" ? "bg-primary-solid" : "bg-foreground",
+        "absolute top-1/2 -left-2 z-10 hidden w-1 -translate-y-1/2 rounded-r-full group-data-[collapsible=icon]:block",
+        variant === "mention" ? "bg-primary-solid h-2" : "bg-foreground h-1.5",
       )}
-    >
-      <span className="sr-only">
-        {variant === "mention"
-          ? t("RoomMentions.railMention")
-          : t("RoomUnread.railUnread")}
-      </span>
-    </span>
+    />
   );
 }
 
@@ -349,10 +342,19 @@ export function ChatRoomSidebarRow({
     >
       <span
         data-slot="room-leading"
-        className="relative inline-flex h-5 min-w-5 shrink-0 items-center justify-center group-data-[collapsible=icon]:h-6 group-data-[collapsible=icon]:min-w-6"
+        className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center group-data-[collapsible=icon]:h-6 group-data-[collapsible=icon]:min-w-6"
       >
         {leading}
-        {railVariant ? <RailAttentionDot variant={railVariant} /> : null}
+        {/* The pill's state, as text, where the link's accessible name can
+            pick it up. `hidden` keeps it out of the expanded announcement;
+            the collapsed variant flips it to `block` so `sr-only` applies. */}
+        {railVariant ? (
+          <span className="sr-only hidden group-data-[collapsible=icon]:block">
+            {railVariant === "mention"
+              ? tChannels("RoomMentions.railMention")
+              : tChannels("RoomUnread.railUnread")}
+          </span>
+        ) : null}
       </span>
       <span className="group-data-[collapsible=icon]:sr-only min-w-0 flex-1">
         {/* The count rides the end of the name, not the row's right rail, so it
@@ -399,6 +401,7 @@ export function ChatRoomSidebarRow({
 
   return (
     <SidebarMenuItem className="group/room-row relative">
+      {railVariant ? <RailAttentionPill variant={railVariant} /> : null}
       {/* Collapsed to icons the row is only its leading mark, so the name
           rides the button's tooltip, which the sidebar shows in that state
           alone. */}
