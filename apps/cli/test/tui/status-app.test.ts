@@ -19,10 +19,10 @@ import {
 } from "../../src/auth/oauth.js";
 import { runCli } from "../../src/cli/index.js";
 import { CLI_VERSION } from "../../src/cli/metadata.js";
+import { redactErrorMessage } from "../../src/error-redaction.js";
 import {
   paginationTotal,
   recentTaskActivity,
-  safeError,
 } from "../../src/tui/resource-view.js";
 import {
   apiKeyCreationHint,
@@ -141,7 +141,7 @@ test("TestV55 recent task activity sorts valid updates and supports empty state"
 
 test("TestV47 TUI errors redact credential-shaped values", () => {
   assert.equal(
-    safeError(
+    redactErrorMessage(
       new Error("apiKey=soko_mainnet_secret accessToken=access-secret"),
     ),
     "apiKey: [REDACTED] accessToken: [REDACTED]",
@@ -199,7 +199,7 @@ test("TestV60 Ink solely owns API-key input and Esc/arrow navigation", async () 
 });
 
 test("TestV50 API-key target Escape discards the pending key", () => {
-  assert.deepEqual(apiKeyTargetEscapeState("legacy-key"), {
+  assert.deepEqual(apiKeyTargetEscapeState(), {
     screen: "auth-method",
     pendingApiKey: null,
   });
