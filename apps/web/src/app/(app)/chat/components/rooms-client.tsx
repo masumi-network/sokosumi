@@ -28,6 +28,7 @@ import {
   removeRoomMessageUnfurlAction,
   retryRoomMentionAction,
   sendRoomMessageAction,
+  sendRoomMessageToSelfAction,
   setMessageReactionAction,
   unpinRoomMessageAction,
 } from "@/app/chat/actions";
@@ -157,6 +158,7 @@ import type {
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
+import { chatRoomMessageHref } from "@/lib/utils/notification-href";
 import { MembershipStatusRow } from "./membership-status-row";
 import {
   canOpenHumanDirectFromSelectedRoom,
@@ -1730,6 +1732,26 @@ export function RoomsClient({
     applyPinnedMutation(message.id, !alreadyPinned);
   }
 
+  async function handleSendMessageToSelf(message: ChatRoomMessage) {
+    const result = await sendRoomMessageToSelfAction(
+      message.roomId,
+      message.id,
+    );
+    if (!result.ok) {
+      toast.error(result.error.message);
+      return;
+    }
+    const saved = result.value;
+    toast.success(t("Copy.sendToSelfSuccess"), {
+      action: {
+        label: t("Copy.sendToSelfOpen"),
+        onClick: () => {
+          router.push(chatRoomMessageHref(saved.roomId, saved.id));
+        },
+      },
+    });
+  }
+
   const applyRoomJumpWindow = useCallback((page: RoomTranscriptPage) => {
     setTranscript((current) => mergeRoomJumpWindow(current, page));
   }, []);
@@ -2336,6 +2358,7 @@ export function RoomsClient({
     handleOpenThreadFromMessage,
     handleQuoteMessage,
     handlePinMessage,
+    handleSendMessageToSelf,
     handleStartEdit,
     handleDeleteMessage,
     handleRemoveUnfurl,
@@ -2359,6 +2382,8 @@ export function RoomsClient({
         latestMessageHandlersRef.current.handleQuoteMessage(message),
       onPin: (message: ChatRoomMessage) =>
         latestMessageHandlersRef.current.handlePinMessage(message),
+      onSendToSelf: (message: ChatRoomMessage) =>
+        latestMessageHandlersRef.current.handleSendMessageToSelf(message),
       onStartEdit: (message: ChatRoomMessage) =>
         latestMessageHandlersRef.current.handleStartEdit(message),
       onDelete: (message: ChatRoomMessage) =>
@@ -2731,6 +2756,11 @@ export function RoomsClient({
               onJumpToQuotedMessage={
                 stableMessageHandlers.onJumpToQuotedMessage
               }
+              onSendToSelf={
+                room.isSelfDirect
+                  ? undefined
+                  : stableMessageHandlers.onSendToSelf
+              }
               showOutboundSentTick={outboundSentTickIds.has(message.id)}
               isEditing={editSession?.messageId === message.id}
               editDraft={
@@ -2937,6 +2967,11 @@ export function RoomsClient({
                 onRemoveOutbound={handleRemoveOutbound}
                 onJumpToQuotedMessage={
                   stableMessageHandlers.onJumpToQuotedMessage
+                }
+                onSendToSelf={
+                  selectedRoom.isSelfDirect
+                    ? undefined
+                    : stableMessageHandlers.onSendToSelf
                 }
                 outboundSentTickIds={outboundSentTickIds}
                 onBack={threadOpenedFromList ? backToThreadList : undefined}

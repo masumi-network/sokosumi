@@ -232,6 +232,10 @@ _Avoid_: Conversation (retired), treating a DM as a Channel
 One private Personal Direct per user for notes and to-dos, with that user as its sole human member and no AI members. Identified by a canonical self key, not by remaining member count. Shared across available workspaces without requiring a personal Workspace. Created on demand, survives Organization exit, and is removed by account deletion. Shown as “You”; sending notes triggers no self-notifications or AI work.
 _Avoid_: Notes channel, per-workspace self-chat, treating a former group with one remaining member as Self Direct
 
+**Send to yourself**:
+A room message action that posts a quote of that message into the sender's own Self Direct. The quote remembers its source room, so opening it follows the Message link. The copied author and snippet stay after the user loses access to the source room; only the link stops working. Not offered inside the Self Direct itself.
+_Avoid_: Forward, share, bookmark, saved message, cross-room quote in any other room
+
 **Coworker 1:1**:
 A Direct with exactly one human member and exactly one coworker.
 _Avoid_: Channel @mention thread, mixing extra humans or coworkers into this shape

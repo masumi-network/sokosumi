@@ -268,6 +268,29 @@ describe("mergeRoomMessages", () => {
     ]);
   });
 
+  it("keeps a quote sent to yourself, which has no body of its own", () => {
+    const chat = message("m1", "2026-07-01T10:00:00.000Z", "hello");
+    const savedQuote = {
+      ...message("m2", "2026-07-01T11:00:00.000Z", ""),
+      quote: {
+        messageId: "source-message",
+        roomId: "source-room",
+        authorName: "Alice",
+        snippet: "Ship the launch notes",
+        attachment: null,
+      },
+    };
+
+    expect(
+      mergeRoomMessages([chat], [savedQuote]).map((row) => row.id),
+    ).toEqual(["m1", "m2"]);
+    expect(
+      mergeMessagesWithStreamOverlay([chat, savedQuote], []).map(
+        (row) => row.id,
+      ),
+    ).toEqual(["m1", "m2"]);
+  });
+
   it("keeps membership status rows alongside chat messages", () => {
     const chat = message("m1", "2026-07-01T10:00:00.000Z", "hello");
     const joined = {

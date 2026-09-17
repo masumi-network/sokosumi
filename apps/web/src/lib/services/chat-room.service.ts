@@ -328,6 +328,17 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
+  async function sendMessageToSelf(
+    roomId: string,
+    messageId: string,
+  ): Promise<ChatRoomMessage> {
+    const response = await coreClient.sendChatRoomMessageToSelf(
+      roomId,
+      messageId,
+    );
+    return response.data;
+  }
+
   async function unpinMessage(
     roomId: string,
     messageId: string,
@@ -589,6 +600,7 @@ export const chatRoomService = (() => {
     setThreadMuted,
     markUnread,
     pinMessage,
+    sendMessageToSelf,
     pinRoom,
     listPinnedMessages,
     removeUnfurl,
