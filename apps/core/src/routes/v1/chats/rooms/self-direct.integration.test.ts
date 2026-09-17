@@ -94,6 +94,8 @@ vi.mock("@/lib/ably/create-token-request", async () => {
 const ownerId = randomUUID();
 const otherId = randomUUID();
 const organizationIds = [randomUUID(), randomUUID()];
+const workspaceIds = [randomUUID(), randomUUID()];
+const vendorId = randomUUID();
 const coworkerId = randomUUID();
 const sokoBotId = randomUUID();
 const userAuth: AuthVariables["authContext"] = {
@@ -167,13 +169,13 @@ describeWithDb("Self Direct through chat HTTP handlers with Postgres", () => {
         },
       });
     }
-    for (const id of organizationIds) {
+    for (const [index, id] of organizationIds.entries()) {
       await prisma.organization.create({
         data: {
           id,
           slug: `self-direct-${id}`,
           name: "Self Direct test",
-          workspace: { create: {} },
+          workspace: { create: { id: workspaceIds[index] } },
           members: {
             create: [
               { userId: ownerId, role: "member", seatAssignedAt: null },
@@ -183,6 +185,30 @@ describeWithDb("Self Direct through chat HTTP handlers with Postgres", () => {
         },
       });
     }
+    await prisma.coworker.create({
+      data: {
+        id: coworkerId,
+        name: "Self Direct test coworker",
+        slug: `self-direct-${coworkerId}`,
+        isWhitelisted: true,
+        capabilities: ["chat"],
+        baseURL: "https://coworker.example.test",
+        vendor: {
+          create: {
+            id: vendorId,
+            name: "Self Direct test vendor",
+            slug: `self-direct-${vendorId}`,
+          },
+        },
+      },
+    });
+    await prisma.sokoBot.create({
+      data: {
+        id: sokoBotId,
+        userId: ownerId,
+        workspaceId: workspaceIds[0]!,
+      },
+    });
   });
   afterAll(async () => {
     await drainBackground();
@@ -192,6 +218,8 @@ describeWithDb("Self Direct through chat HTTP handlers with Postgres", () => {
     await prisma.organization.deleteMany({
       where: { id: { in: organizationIds } },
     });
+    await prisma.coworker.deleteMany({ where: { id: coworkerId } });
+    await prisma.vendor.deleteMany({ where: { id: vendorId } });
     await prisma.user.deleteMany({ where: { id: { in: [ownerId, otherId] } } });
     await prisma.$disconnect();
   });
@@ -306,7 +334,7 @@ describeWithDb("Self Direct through chat HTTP handlers with Postgres", () => {
       {
         actor: "coworker",
         coworkerId,
-        vendorId: randomUUID(),
+        vendorId,
         context: { userId: ownerId, organizationId: organizationIds[0] },
       },
     ],
@@ -315,7 +343,7 @@ describeWithDb("Self Direct through chat HTTP handlers with Postgres", () => {
       {
         actor: "sokoBot",
         sokoBotId,
-        workspaceId: randomUUID(),
+        workspaceId: workspaceIds[0]!,
         userId: ownerId,
         organizationId: organizationIds[0],
       },
@@ -362,7 +390,18 @@ describeWithDb("Self Direct through chat HTTP handlers with Postgres", () => {
           "/",
           jsonRequest("POST", { kind: "direct", memberUserIds: [ownerId] }),
         );
-        expect([400, 403]).toContain(create.status);
+        expect(create.status).toBe(201);
+        const aiDirect = chatRoomSchema.parse((await create.json()).data);
+        expect(aiDirect.id).not.toBe(room.id);
+        expect(aiDirect).toMatchObject({
+          kind: "direct",
+          organizationId: organizationIds[0],
+          isSelfDirect: false,
+          userMembers: [{ id: ownerId }],
+          coworkerMembers:
+            auth.actor === "coworker" ? [{ id: coworkerId }] : [],
+          sokoBotMembers: auth.actor === "sokoBot" ? [{ id: sokoBotId }] : [],
+        });
       }
     },
   );
