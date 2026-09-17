@@ -578,7 +578,7 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
     expect(box?.className).not.toContain("[@media(hover:hover)]:size-4");
   });
 
-  it("reserves a glyph-sized hole at rest on hover, not a full menu button", () => {
+  it("holds the menu-sized hole at rest on hover, so the name truncates once", () => {
     const { container, rerender } = render(
       <ChatRoomSidebarRow
         room={makeRoom({ mutedAt: new Date("2026-09-01T00:00:00.000Z") })}
@@ -594,8 +594,8 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
       '[data-slot="room-trailing-spacer"]',
     );
     expect(spacer).not.toBeNull();
-    expect(spacer?.className).toContain("[@media(hover:hover)]:size-4");
-    expect(spacer?.className).toContain(
+    expect(spacer?.className).toContain("[@media(hover:hover)]:size-7");
+    expect(spacer?.className).not.toContain(
       "[@media(hover:hover)]:group-hover/room-row:size-7",
     );
     expect(spacer?.className).toContain("[@media(hover:none)]:w-16");
@@ -612,10 +612,13 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
       />,
     );
 
+    // A plain row reserves the same width as a muted or pinned one: the hole
+    // never opens on hover, so the name has one truncation point in both.
     const restSpacer = container.querySelector(
       '[data-slot="room-trailing-spacer"]',
     );
-    expect(restSpacer?.className).toContain("[@media(hover:hover)]:size-0");
+    expect(restSpacer?.className).toContain("[@media(hover:hover)]:size-7");
+    expect(restSpacer?.className).not.toContain("[@media(hover:hover)]:size-0");
     expect(restSpacer?.className).not.toContain("[@media(hover:none)]:w-16");
   });
 
@@ -645,7 +648,7 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
           .querySelector('[data-slot="room-trailing-spacer"]')
           ?.className.split(" ") ?? [];
       expect(tokens).toContain("[@media(hover:hover)]:size-3");
-      expect(tokens).not.toContain("[@media(hover:hover)]:size-4");
+      expect(tokens).not.toContain("[@media(hover:hover)]:size-7");
       expect(tokens).not.toContain("[@media(hover:hover)]:size-0");
       expect(tokens).not.toContain(
         "[@media(hover:hover)]:group-hover/room-row:size-7",

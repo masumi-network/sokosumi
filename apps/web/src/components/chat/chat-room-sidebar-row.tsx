@@ -70,9 +70,11 @@ import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
 
 /**
  * Trailing controls. Touch: pin/mute then overflow side by side.
- * Hover-capable: glyph-sized hole at rest (none if no status); menu size on
- * hover / focus / open so the name does not sit under the button. A row with a
- * mention badge keeps one width in every state so the badge does not move.
+ * Hover-capable: a menu-sized hole held open in every state, so the name does
+ * not sit under the button and does not re-truncate under the cursor when the
+ * button fades in. The pin/mute glyph sits inside that same hole. A row with a
+ * mention badge holds a narrower width, also in every state, because the badge
+ * already ends where the button's box begins.
  */
 const TRAILING_CLUSTER_CLASS =
   "group-data-[collapsible=icon]:hidden absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center";
@@ -394,16 +396,15 @@ export function ChatRoomSidebarRow({
           // The badge sits against this spacer, so a badged row holds one
           // width in every state or the badge jumps on hover. 12px plus the
           // link's gap ends the badge where the menu button's box begins.
+          //
+          // Every other row holds the menu's own width from rest for the same
+          // reason: the name is `flex-1 min-w-0`, so a hole that opened on
+          // hover took 28px off it and re-truncated the name under the cursor.
+          // One width means one truncation point. The cost is 28px of name at
+          // rest, which the row can spare; a name jumping mid-read it cannot.
           badgeCount > 0
             ? "[@media(hover:hover)]:size-3"
-            : [
-                isMuted || isPinned
-                  ? "[@media(hover:hover)]:size-4"
-                  : "[@media(hover:hover)]:size-0",
-                "[@media(hover:hover)]:group-hover/room-row:size-7",
-                "[@media(hover:hover)]:group-focus-within/room-row:size-7",
-                "[@media(hover:hover)]:group-has-[[data-state=open]]/room-row:size-7",
-              ],
+            : "[@media(hover:hover)]:size-7",
         )}
         aria-hidden
       />
