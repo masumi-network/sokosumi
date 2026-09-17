@@ -37,7 +37,14 @@ export const USER_API_KEY_PREFIX_BY_TARGET: Readonly<
   mainnet: "soko_mainnet_",
   preprod: "soko_preprod_",
 };
+export const COWORKER_API_KEY_PREFIX = "coworker_";
 export const WEB_API_KEY_ROUTE = "/connections";
+
+export function rejectCoworkerApiKey(apiKey: string): void {
+  if (apiKey.startsWith(COWORKER_API_KEY_PREFIX)) {
+    throw new Error("Coworker API keys are not supported by the CLI");
+  }
+}
 
 function trimUrl(value: string): string {
   return value.trim().replace(/\/+$/g, "");
