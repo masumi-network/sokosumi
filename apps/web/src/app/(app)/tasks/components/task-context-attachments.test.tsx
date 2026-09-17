@@ -258,4 +258,26 @@ describe("TaskContextAttachmentsField", () => {
     );
     expect(info).toBeInTheDocument();
   });
+
+  it("inline layout hides the Context label and keeps pills", () => {
+    render(
+      <TaskContextAttachmentsField
+        layout="inline"
+        defaultBrand={defaultBrand}
+        project={project}
+        selection={selection}
+        onSelectionChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText("label")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: 'namedBrand:{"name":"Autumn Launch"}',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "briefing" }),
+    ).toBeInTheDocument();
+  });
 });

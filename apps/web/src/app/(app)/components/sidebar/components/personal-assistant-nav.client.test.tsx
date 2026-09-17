@@ -6,8 +6,12 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 
+const { pathnameRef } = vi.hoisted(() => ({
+  pathnameRef: { current: "/" },
+}));
+
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/",
+  usePathname: () => pathnameRef.current,
 }));
 
 vi.mock("next/link", () => ({
@@ -53,6 +57,7 @@ vi.mock("@/components/ui/sidebar", () => ({
   SidebarMenuItem: ({ children }: { children: ReactNode }) => (
     <li>{children}</li>
   ),
+  SidebarRailSelectionBar: () => <span data-testid="rail-selection-bar" />,
 }));
 
 vi.mock("@/components/chat/personal-assistant-chrome-store", () => ({
@@ -64,6 +69,8 @@ vi.mock("@/components/aurora-orb", () => ({
     <span data-testid="aurora-orb" className={className} />
   ),
 }));
+
+import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 
 import PersonalAssistantNav from "./personal-assistant-nav.client";
 
@@ -80,6 +87,7 @@ function tokens(className: string): string[] {
 describe("PersonalAssistantNav collapsed stack", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    pathnameRef.current = "/";
   });
 
   it("packs the faces into a size-8 glyph for the icon rail", () => {
@@ -147,5 +155,32 @@ describe("PersonalAssistantNav collapsed stack", () => {
     expect(tokens(label.className)).not.toContain(
       "group-data-[collapsible=icon]:hidden",
     );
+  });
+});
+
+// Collapsed, the rail's fill belongs to hover alone. This row is on that
+// rail too, so the open destination is the same right-edge mark Chat and
+// nav already use.
+describe("PersonalAssistantNav rail selection bar", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    pathnameRef.current = "/";
+  });
+
+  it("marks the row when the reader is on Soko Bots", () => {
+    pathnameRef.current = SOKO_BOTS_ROUTE;
+    render(<PersonalAssistantNav bots={bots} />);
+    expect(screen.getByTestId("rail-selection-bar")).toBeInTheDocument();
+  });
+
+  it("marks the row from a personal-assistant page too", () => {
+    pathnameRef.current = `${SOKO_BOT_ROUTE}/bot-1`;
+    render(<PersonalAssistantNav bots={bots} />);
+    expect(screen.getByTestId("rail-selection-bar")).toBeInTheDocument();
+  });
+
+  it("shows no selection mark on a route it does not own", () => {
+    render(<PersonalAssistantNav bots={bots} />);
+    expect(screen.queryByTestId("rail-selection-bar")).toBeNull();
   });
 });
