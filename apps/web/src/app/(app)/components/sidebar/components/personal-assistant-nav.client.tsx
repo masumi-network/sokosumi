@@ -102,7 +102,7 @@ export default function PersonalAssistantNav({
                   aria-current={isActive ? "page" : undefined}
                   className={cn(
                     "flex min-h-auto w-full items-center gap-2.5 rounded-lg border px-3",
-                    "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-md group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:px-0",
+                    "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-md group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:hover:border-transparent group-data-[collapsible=icon]:px-0",
                     isActive
                       ? "border-transparent text-sidebar-accent-foreground"
                       : "border-primary-tertiary hover:border-primary text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
