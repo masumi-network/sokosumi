@@ -26,6 +26,19 @@ describe("task-attachments", () => {
     ]);
   });
 
+  it("excludes Context-owned labels from generic attachment chips", () => {
+    const markdown = [
+      "[DESIGN.md](https://blob.example/design.md)",
+      "[BRIEFING.md](https://blob.example/BRIEFING.md)",
+      "[CONTEXT.md](https://blob.example/CONTEXT.md)",
+      "[notes.pdf](https://blob.example/notes.pdf)",
+    ].join("\n");
+
+    expect(extractTaskAttachmentUrls(markdown)).toEqual([
+      "https://blob.example/notes.pdf",
+    ]);
+  });
+
   it("removes markdown links for specific urls", () => {
     const markdown = [
       "Task details",

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   getDefaultTaskContextSelection,
+  getTaskContextSelectionFromDescription,
   TaskContextAttachmentsField,
   type TaskContextAttachmentsSelection,
 } from "@/app/tasks/components/task-context-attachments";
@@ -94,6 +95,28 @@ describe("TaskContextAttachmentsField", () => {
       brand: { enabled: true, source: "default", custom: null },
       briefingEnabled: true,
       contextMdEnabled: true,
+    });
+  });
+
+  it("parses edit-mode Context selection from description links", () => {
+    const parsed = getTaskContextSelectionFromDescription(
+      [
+        `[DESIGN.md](${project.designMd?.url})`,
+        `[BRIEFING.md](${project.briefingUrl})`,
+        "",
+        "User prose",
+      ].join("\n"),
+      {
+        project,
+        defaultBrandUrl: defaultBrand.url,
+      },
+    );
+
+    expect(parsed.body).toBe("User prose");
+    expect(parsed.selection).toEqual({
+      brand: { enabled: true, source: "project", custom: null },
+      briefingEnabled: true,
+      contextMdEnabled: false,
     });
   });
 
