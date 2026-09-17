@@ -298,16 +298,26 @@ describe("MenuItems rail selection bar", () => {
     pathnameRef.current = "/";
   });
 
+  // A count alone would pass with the mark on the wrong row, which is the one
+  // way this can fail without looking broken.
+  function markedHrefs() {
+    return screen
+      .getAllByTestId("rail-selection-bar")
+      .map((bar) =>
+        bar.closest("li")?.querySelector("a")?.getAttribute("href"),
+      );
+  }
+
   it("marks exactly the destination the reader is on", () => {
     pathnameRef.current = "/tasks";
     renderMenu();
-    expect(screen.getAllByTestId("rail-selection-bar")).toHaveLength(1);
+    expect(markedHrefs()).toEqual(["/tasks"]);
   });
 
   it("marks the destination from one of its own pages too", () => {
     pathnameRef.current = "/projects/project-1";
     renderMenu();
-    expect(screen.getAllByTestId("rail-selection-bar")).toHaveLength(1);
+    expect(markedHrefs()).toEqual(["/projects"]);
   });
 
   // The actions (new task, search) are not destinations, so nothing is open.

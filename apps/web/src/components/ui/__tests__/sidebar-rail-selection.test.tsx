@@ -60,8 +60,17 @@ describe("SidebarMenuButton in the collapsed icon rail", () => {
     expect(button?.className).toContain(
       "group-data-[collapsible=icon]:hover:ring-sidebar-ring",
     );
-    // Expanded, the fill still carries both, so those rules stay.
+    // A press deepens the ring rather than flashing the fill, so the colour
+    // this rail stopped reading never appears on it at all.
+    expect(button?.className).toContain(
+      "group-data-[collapsible=icon]:active:bg-transparent",
+    );
+    expect(button?.className).toContain(
+      "group-data-[collapsible=icon]:active:ring-2",
+    );
+    // Expanded, the fill still carries all three, so those rules stay.
     expect(button?.className).toContain("hover:bg-sidebar-accent");
+    expect(button?.className).toContain("active:bg-sidebar-accent");
     expect(button?.className).toContain(
       "data-[active=true]:bg-sidebar-accent",
     );
