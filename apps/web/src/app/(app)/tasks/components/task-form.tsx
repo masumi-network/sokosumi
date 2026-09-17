@@ -688,8 +688,7 @@ export function TaskForm({
   }, [isSubmittingAny, isUploadingAttachments, onSubmittingChange]);
   const hasSaveableDescription =
     Boolean(description.trim()) ||
-    (mode === "edit" &&
-      taskContextSelectionAttachesAnything(contextSelection));
+    (mode === "edit" && taskContextSelectionAttachesAnything(contextSelection));
   const isSaveDisabled =
     createdTask !== null ||
     !hasSaveableDescription ||
