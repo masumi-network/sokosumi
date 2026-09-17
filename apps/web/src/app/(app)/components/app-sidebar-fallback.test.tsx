@@ -136,6 +136,7 @@ describe("AppSidebarFallback", () => {
     expect(tokens(row?.className ?? "")).toEqual(
       expect.arrayContaining([
         "group-data-[collapsible=icon]:size-8",
+        "group-data-[collapsible=icon]:min-h-8!",
         "group-data-[collapsible=icon]:mx-auto",
         "group-data-[collapsible=icon]:justify-center",
         "group-data-[collapsible=icon]:px-0",

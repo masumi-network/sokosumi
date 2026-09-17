@@ -42,7 +42,7 @@ export function SidebarChatListSkeleton() {
                   that square on the rail — `sidebarMenuButtonVariants` gives
                   it to every real rail item, and without it the group's own
                   `p-2` leaves the mark 4px left of the nav icons above. */}
-              <div className="flex min-h-10 w-full items-center gap-2 px-3 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+              <div className="flex min-h-10 w-full items-center gap-2 px-3 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:min-h-8! group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
                 {/* The leading mark is a 20px glyph slot expanded and the
                     24px channel tile collapsed, matching `ChannelRoomMark`. */}
                 <Skeleton className="size-5 shrink-0 group-data-[collapsible=icon]:size-6" />
