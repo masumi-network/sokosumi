@@ -33,6 +33,10 @@ vi.mock("@/hooks/use-mobile", () => ({
 import { AppSidebarFallback } from "@/app/components/app-sidebar-fallback";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
+function tokens(className: string): string[] {
+  return className.split(/\s+/).filter(Boolean);
+}
+
 function renderFallback() {
   return render(
     <SidebarProvider defaultOpen>
@@ -67,6 +71,56 @@ describe("AppSidebarFallback", () => {
     // avatar and two label lines.
     expect(container.querySelectorAll('[data-slot="skeleton"]').length).toBe(
       15,
+    );
+  });
+
+  it("keeps both logo states in the DOM so a collapsed boot script can hide the wordmark", () => {
+    const { container } = render(
+      <SidebarProvider defaultOpen={false}>
+        <AppSidebarFallback />
+      </SidebarProvider>,
+    );
+
+    expect(container.querySelector('a[href="/"]')).not.toBeNull();
+    const expand = container.querySelector(
+      'button[aria-label="expandSidebar"]',
+    );
+    expect(expand).not.toBeNull();
+    expect(tokens(expand?.className ?? "")).toEqual(
+      expect.arrayContaining([
+        "hidden",
+        "group-data-[collapsible=icon]:md:flex",
+      ]),
+    );
+    expect(tokens(expand?.className ?? "")).not.toContain("md:flex");
+  });
+
+  it("gives the room skeleton the rail's collapsed geometry", () => {
+    const { container } = renderFallback();
+    const skeleton = container.querySelector(
+      '[data-slot="sidebar-group"][aria-hidden]',
+    );
+    const header = skeleton?.querySelector(
+      '[data-slot="sidebar-group-content"] > div',
+    );
+    const row = skeleton?.querySelector(
+      '[data-slot="sidebar-menu-item"] > div',
+    );
+    const mark = row?.querySelector('[data-slot="skeleton"]');
+
+    expect(tokens(header?.className ?? "")).toContain(
+      "group-data-[collapsible=icon]:hidden",
+    );
+    expect(tokens(row?.className ?? "")).toEqual(
+      expect.arrayContaining([
+        "group-data-[collapsible=icon]:size-8",
+        "group-data-[collapsible=icon]:min-w-10",
+        "group-data-[collapsible=icon]:justify-center",
+        "group-data-[collapsible=icon]:px-0",
+      ]),
+    );
+    expect(tokens(mark?.className ?? "")).toContain(
+      "group-data-[collapsible=icon]:size-6",
     );
   });
 });

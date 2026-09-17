@@ -14,16 +14,17 @@ import { cn } from "@/lib/utils";
 
 export default function SidebarLogo() {
   const t = useTranslations("Components.UserAvatar");
-  const { state, toggleSidebar } = useSidebar();
-  const isCollapsed = state === "collapsed";
+  const { toggleSidebar } = useSidebar();
 
-  if (isCollapsed) {
-    return (
+  // Boot script collapses via `data-collapsible` before hydration. A React
+  // `state` branch would still paint the wordmark in the 56px rail until then.
+  return (
+    <>
       <button
         type="button"
         onClick={toggleSidebar}
         className={cn(
-          "group/logo relative hidden size-8 shrink-0 items-center justify-center rounded-md md:flex",
+          "group/logo relative hidden size-8 shrink-0 items-center justify-center rounded-md group-data-[collapsible=icon]:md:flex",
           "hover:bg-sidebar-accent",
         )}
         aria-label={t("expandSidebar")}
@@ -37,14 +38,11 @@ export default function SidebarLogo() {
           aria-hidden
         />
       </button>
-    );
-  }
-
-  return (
-    <div className="flex h-8 items-center pl-2">
-      <Link href="/" className="hover:opacity-80 transition-opacity">
-        <ThemedLogo LogoComponent={SokosumiLogo} height={16} width={123} />
-      </Link>
-    </div>
+      <div className="flex h-8 items-center pl-2 group-data-[collapsible=icon]:hidden">
+        <Link href="/" className="hover:opacity-80 transition-opacity">
+          <ThemedLogo LogoComponent={SokosumiLogo} height={16} width={123} />
+        </Link>
+      </div>
+    </>
   );
 }
