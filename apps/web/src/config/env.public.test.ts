@@ -24,4 +24,13 @@ describe("Turnstile public configuration", () => {
       ).toBeUndefined();
     },
   );
+
+  it("preserves a configured site key", async () => {
+    vi.resetModules();
+    vi.stubEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY", "test-site-key");
+    const { getEnvPublicConfig } = await import("./env.public");
+    expect(getEnvPublicConfig().NEXT_PUBLIC_TURNSTILE_SITE_KEY).toBe(
+      "test-site-key",
+    );
+  });
 });
