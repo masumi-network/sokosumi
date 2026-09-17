@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -131,7 +131,10 @@ vi.mock("@/app/chat/actions", () => ({
     ok: true as const,
     value: { items: [], nextCursor: null, total: 0 },
   })),
-  listThreadMessagesAction: vi.fn(),
+  listThreadMessagesAction: vi.fn(async () => ({
+    ok: true as const,
+    value: { messages: [], nextCursor: null },
+  })),
   markThreadReadAction: vi.fn(),
   retryRoomMentionAction: vi.fn(),
   sendRoomMessageAction: vi.fn(),
@@ -186,13 +189,30 @@ vi.mock("../room-session-composer", () => ({
 }));
 
 vi.mock("../room-message-row", () => ({
-  ChatMessageRow: ({ message }: { message: ChatRoomMessage }) => (
-    <div data-testid="chat-message-row">{message.content}</div>
+  ChatMessageRow: ({
+    message,
+    onOpenThread,
+  }: {
+    message: ChatRoomMessage;
+    onOpenThread?: (message: ChatRoomMessage) => void;
+  }) => (
+    <button
+      type="button"
+      data-testid={`open-thread-${message.id}`}
+      onClick={() => onOpenThread?.(message)}
+    >
+      {message.content}
+    </button>
   ),
 }));
 
 vi.mock("../thread-panel", () => ({
-  ThreadPanel: () => <aside data-testid="thread-panel" />,
+  ThreadPanel: ({ allowAttachments }: { allowAttachments?: boolean }) => (
+    <aside
+      data-testid="thread-panel"
+      data-allow-attachments={String(allowAttachments ?? true)}
+    />
+  ),
 }));
 
 vi.mock("../thread-list-panel", () => ({
@@ -262,6 +282,37 @@ function coworkerDirectRoom(): ChatRoom {
   };
 }
 
+function parentMessage(): ChatRoomMessage {
+  return {
+    id: "msg-parent",
+    roomId: "room-coworker",
+    parentMessageId: null,
+    content: "hello",
+    createdAt: new Date("2026-07-01T12:01:00.000Z"),
+    editedAt: null,
+    pinnedAt: null,
+    deletedAt: null,
+    mentions: [],
+    reactions: [],
+    threadReplyCount: 0,
+    threadLastReplyAt: null,
+    metadata: null,
+    quote: null,
+    membership: null,
+    unfurls: null,
+    sender: {
+      type: "user",
+      user: {
+        id: "user-1",
+        name: "Ada",
+        email: "ada@example.com",
+        image: null,
+        presence: "offline",
+      },
+    },
+  };
+}
+
 const organization = {
   id: "org-1",
   name: "Acme",
@@ -283,7 +334,7 @@ function renderRoom(room: ChatRoom) {
         selectedRoomId={room.id}
         messageLoadFailed={false}
         membersLoadFailed={false}
-        messages={[]}
+        messages={[parentMessage()]}
         messagesNextCursor={null}
       />
     </QueryClientProvider>,
@@ -303,5 +354,16 @@ describe("RoomsClient coworker DM attachments", () => {
       "data-enabled",
       "true",
     );
+  });
+
+  it("allows attachments in a coworker direct room thread", async () => {
+    renderRoom(coworkerDirectRoom());
+    fireEvent.click(screen.getByTestId("open-thread-msg-parent"));
+    await waitFor(() => {
+      expect(screen.getByTestId("thread-panel")).toHaveAttribute(
+        "data-allow-attachments",
+        "true",
+      );
+    });
   });
 });
