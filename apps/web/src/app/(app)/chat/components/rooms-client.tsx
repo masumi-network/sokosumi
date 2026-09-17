@@ -2841,7 +2841,7 @@ export function RoomsClient({
           }
           wrapColumn={(columnBody) => (
             <RoomFileDropZone
-              enabled={!isCoworkerStreamRoom}
+              enabled
               onFiles={(files) => {
                 roomComposerRef.current?.attachFiles(files);
               }}
@@ -2879,7 +2879,6 @@ export function RoomsClient({
               }
               isSending={isCoworkerStreaming}
               showMentionShortcut={shouldShowRoomMentionShortcut(selectedRoom)}
-              allowAttachments={!isCoworkerStreamRoom}
               pendingQuote={pendingQuote}
               onClearPendingQuote={() => setPendingQuote(null)}
               onRestorePendingQuote={setPendingQuote}
@@ -2960,7 +2959,6 @@ export function RoomsClient({
                 showMentionShortcut={shouldShowRoomMentionShortcut(
                   selectedRoom,
                 )}
-                allowAttachments={!isCoworkerStreamRoom}
                 roomId={selectedRoom.id}
               />
             ) : threadListOpen ? (
