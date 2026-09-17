@@ -130,6 +130,80 @@ describe("MarkdownEditor", () => {
     expect(screen.getByTitle("Bold (Cmd+B)")).toBeInTheDocument();
   });
 
+  it("does not restore a stale selection for Cmd+B after the caret collapses", async () => {
+    const rect = {
+      x: 40,
+      y: 40,
+      top: 40,
+      left: 40,
+      width: 80,
+      height: 16,
+      bottom: 56,
+      right: 120,
+      toJSON() {
+        return this;
+      },
+    };
+    vi.spyOn(Range.prototype, "getBoundingClientRect").mockReturnValue(
+      rect as DOMRect,
+    );
+    if (!document.execCommand) {
+      Object.defineProperty(document, "execCommand", {
+        configurable: true,
+        value: vi.fn(),
+      });
+    }
+    const execCommandSpy = vi
+      .spyOn(document, "execCommand")
+      .mockReturnValue(true);
+    const addRangeSpy = vi.spyOn(Selection.prototype, "addRange");
+
+    render(
+      <MarkdownEditor
+        value="Hello world"
+        onChange={vi.fn()}
+        variant="document"
+      />,
+    );
+
+    const editor = screen.getByRole("textbox");
+    await waitFor(() => {
+      expect(editor).toHaveTextContent("Hello world");
+    });
+
+    const selection = window.getSelection();
+    const highlight = document.createRange();
+    highlight.selectNodeContents(editor);
+    selection?.removeAllRanges();
+    selection?.addRange(highlight);
+    document.dispatchEvent(new Event("selectionchange"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("toolbar", { name: "Format" }),
+      ).toBeInTheDocument();
+    });
+
+    const caret = document.createRange();
+    caret.selectNodeContents(editor);
+    caret.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(caret);
+    document.dispatchEvent(new Event("selectionchange"));
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("toolbar", { name: "Format" }),
+      ).not.toBeInTheDocument();
+    });
+
+    addRangeSpy.mockClear();
+    fireEvent.keyDown(editor, { key: "b", metaKey: true });
+
+    expect(execCommandSpy).toHaveBeenCalledWith("bold", false, undefined);
+    expect(addRangeSpy).not.toHaveBeenCalled();
+  });
+
   it("applies bold from the floating toolbar after restoring saved selection", async () => {
     const onChange = vi.fn();
     const rect = {

@@ -776,6 +776,7 @@ export const MarkdownEditor = forwardRef<
 
   const updateSelectionToolbar = useCallback(() => {
     if (variant !== "document") {
+      savedSelectionRangeRef.current = null;
       setSelectionRect(null);
       return;
     }
@@ -787,18 +788,21 @@ export const MarkdownEditor = forwardRef<
       selection.rangeCount === 0 ||
       !editorRef.current
     ) {
+      savedSelectionRangeRef.current = null;
       setSelectionRect(null);
       return;
     }
 
     const range = selection.getRangeAt(0);
     if (!editorRef.current.contains(range.commonAncestorContainer)) {
+      savedSelectionRangeRef.current = null;
       setSelectionRect(null);
       return;
     }
 
     const rect = range.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) {
+      savedSelectionRangeRef.current = null;
       setSelectionRect(null);
       return;
     }
