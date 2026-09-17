@@ -21,7 +21,7 @@ private func roomJSON(
   unreadMentionCount: Int
 ) -> String {
   """
-  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"\(kind)","directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unreadCount),"unreadMentionCount":\(unreadMentionCount),"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
+  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"\(kind)","isSelfDirect":false,"directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unreadCount),"unreadMentionCount":\(unreadMentionCount),"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
   """
 }
 
@@ -143,7 +143,7 @@ struct ChatServiceTests {
     let transport = ScriptedTransport([(200, response), (403, forbidden)])
     let client = try makeClient(transport)
     var draft = ChannelEditDraft(room: .init(
-      id: "channel", organizationId: "org", name: "Team", slug: "team", kind: .channel, topic: nil, discoverability: ._private,
+      id: "channel", organizationId: "org", name: "Team", slug: "team", kind: .channel, isSelfDirect: false, topic: nil, discoverability: ._private,
       createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast, unreadCount: 0, unreadMentionCount: 0,
       markedUnread: false, myAccess: .member, userMembers: [], coworkerMembers: [], sokoBotMembers: []
     ))
@@ -761,4 +761,60 @@ private func drivePageBody(items: [String], nextCursor: String?) -> String {
   #expect(picker.errorMessage == nil)
   #expect(picker.items == [folder])
   #expect(!picker.loading)
+}
+
+extension ChatServiceTests {
+  @Test func invitationOperationsUseCoreRoutesAndSurfaceCoreMessages() async throws {
+    func envelope(_ data: String) -> String {
+      "{\"data\":\(data),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"req\"}}"
+    }
+    func error(_ status: String, _ message: String) -> String {
+      "{\"error\":\"\(status)\",\"message\":\"\(message)\",\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"req\",\"path\":\"/chats/invitations\",\"method\":\"POST\"}}"
+    }
+    func invitation(_ status: String) -> String {
+      "{\"id\":\"inv\",\"roomId\":\"room\",\"roomName\":\"Partners\",\"organizationId\":\"org\",\"organizationName\":\"Acme\",\"email\":\"me@example.com\",\"status\":\"\(status)\",\"inviter\":{\"id\":\"host\",\"name\":\"Hannah\"},\"expiresAt\":\"\(timestamp)\",\"createdAt\":\"\(timestamp)\"}"
+    }
+    let transport = ScriptedTransport([
+      (200, envelope("[\(invitation("pending"))]")),
+      (200, envelope(invitation("pending"))),
+      (404, error("Not Found", "Invitation not found")),
+      (200, envelope(invitation("accepted"))),
+      (400, error("Bad Request", "Invitation is no longer pending.")),
+      (200, envelope(invitation("declined"))),
+      (200, envelope("{\"status\":\"valid\",\"room\":{\"id\":\"room\",\"name\":\"Partners\",\"organizationId\":\"org\",\"organizationName\":\"Acme\"}}")),
+      (200, envelope("{\"status\":\"depleted\",\"room\":null}")),
+      (200, envelope("{\"status\":\"already_guest\",\"roomId\":\"room\",\"roomName\":\"Partners\"}")),
+      (403, error("Forbidden", "Sign in with a user session to join."))
+    ])
+    let client = try makeClient(transport)
+    let service = ChatService()
+    #expect(try await service.pendingInvitations(client: client, organizationSlug: nil).map(\.id) == ["inv"])
+    #expect(try await service.invitation(client: client, id: "inv", organizationSlug: "team").inviter.name == "Hannah")
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 404, message: "Invitation not found")) {
+      try await service.invitation(client: client, id: "inv", organizationSlug: "team")
+    }
+    #expect(try await service.acceptInvitation(client: client, id: "inv", organizationSlug: "team").status == .accepted)
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 400, message: "Invitation is no longer pending.")) {
+      try await service.acceptInvitation(client: client, id: "inv", organizationSlug: "team")
+    }
+    #expect(try await service.declineInvitation(client: client, id: "inv", organizationSlug: nil).status == .declined)
+    let valid = try await service.resolveGuestInviteLink(client: client, token: "tok")
+    #expect(valid.status == .valid && valid.room?.name == "Partners")
+    let depleted = try await service.resolveGuestInviteLink(client: client, token: "tok")
+    #expect(depleted.status == .depleted && depleted.room == nil)
+    let joined = try await service.acceptGuestInviteLink(client: client, token: "tok", organizationSlug: "team")
+    #expect(joined.status == .alreadyGuest && joined.roomId == "room")
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 403, message: "Sign in with a user session to join.")) {
+      try await service.acceptGuestInviteLink(client: client, token: "tok", organizationSlug: nil)
+    }
+    let routes = transport.requests.map { "\($0.request.method.rawValue) \($0.request.path ?? "")" }
+    #expect(routes == [
+      "GET /chats/invitations?status=pending", "GET /chats/invitations/inv", "GET /chats/invitations/inv",
+      "POST /chats/invitations/inv/accept", "POST /chats/invitations/inv/accept", "POST /chats/invitations/inv/decline",
+      "GET /chat-room-invite-links/tok", "GET /chat-room-invite-links/tok",
+      "POST /chat-room-invite-links/tok/accept", "POST /chat-room-invite-links/tok/accept"
+    ])
+    // Personal workspaces omit the organization header; the public link preview never sends it.
+    #expect(transport.requests.map { orgSlugHeader($0.request) } == [nil, "team", "team", "team", "team", nil, nil, nil, "team", nil])
+  }
 }
