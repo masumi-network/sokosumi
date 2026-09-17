@@ -209,7 +209,7 @@ An optional short description of what a Channel is for. Distinct from the Channe
 _Avoid_: Description, purpose, bio, treating a Direct as having a topic
 
 **Channel tile**:
-How a Channel identifies itself in the collapsed sidebar rail: the first letters of its name on a neutral square. A private or external Channel carries its kind as a small corner mark; a public one carries none. Directs show participant avatars instead. The expanded list keeps the plain kind glyph beside the name.
+How a Channel identifies itself in the collapsed sidebar rail: the first letters of its name on a neutral square. A private, external, or matched Channel carries its kind as a small corner mark; a public one carries none. Directs show participant avatars instead. The expanded list keeps the plain kind glyph beside the name.
 _Avoid_: Channel avatar (Channels have no image), channel icon (nothing is chosen by a person), a colour per Channel (tried, five hues repeat across a dozen Channels and the repeats read as meaning), showing it beside the name in the expanded list
 
 **External channel**:

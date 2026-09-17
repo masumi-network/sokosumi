@@ -35,7 +35,7 @@ export function ChannelRoomMark({
       >
         {getInitials(name)}
         {CornerIcon ? (
-          <span className="bg-sidebar text-muted-foreground absolute -right-1 -bottom-1 inline-flex size-3.5 items-center justify-center rounded-full [&_svg]:size-2.5">
+          <span className="bg-sidebar text-muted-foreground absolute -right-1.5 -bottom-1.5 inline-flex size-3 items-center justify-center rounded-full [&_svg]:size-2.5">
             <CornerIcon />
           </span>
         ) : null}
