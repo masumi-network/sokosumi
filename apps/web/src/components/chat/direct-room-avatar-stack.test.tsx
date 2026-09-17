@@ -174,6 +174,11 @@ describe("DirectRoomAvatarStack", () => {
     const emptyRoot = emptyContainer.firstElementChild;
     expect(emptyRoot?.className).toContain("size-5");
     expect(emptyRoot?.className).toContain("shrink-0");
+    // Grows with the faces when collapsed, so an empty direct is not the one
+    // 20px mark in a rail of 24px ones.
+    expect(emptyRoot?.className).toContain(
+      "group-data-[collapsible=icon]:size-6",
+    );
     unmount();
 
     const { container } = render(

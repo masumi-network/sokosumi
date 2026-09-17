@@ -94,7 +94,7 @@ interface ChatRoomSidebarRowProps {
  *
  * Text rather than a pill, because it is not the mention badge and a reader has
  * to tell the two apart at a glance. It caps like the badge so a very loud room
- * cannot reflow the row. Collapsed to icons the row is a 20px glyph with space
+ * cannot reflow the row. Collapsed to icons the row is a 24px mark with space
  * for neither number, so count and badge both hide. That is decided, not an
  * oversight.
  *
