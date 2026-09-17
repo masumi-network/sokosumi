@@ -1,5 +1,6 @@
 import CoreAPI
 import Foundation
+import OpenAPIRuntime
 
 /// Reasoning disclosure shared by streamed and persisted coworker messages.
 public struct CoworkerThought: Sendable {
@@ -22,6 +23,14 @@ public struct CoworkerThought: Sendable {
     } else {
       durationSeconds = nil
     }
+  }
+
+  /// Epoch start of a live Thought from `thought_timing_ms.start` (web
+  /// `extractThoughtStartedAtMs`). Nil when missing or not positive.
+  public static func startedAt(metadata: [String: OpenAPIValueContainer]?) -> Date? {
+    let timing = metadata?["thought_timing_ms"]?.value as? [String: Any]
+    guard let start = number(timing?["start"]), start > 0 else { return nil }
+    return Date(timeIntervalSince1970: start / 1000)
   }
 
   public static func durationLabel(seconds: Int) -> String {

@@ -101,6 +101,8 @@ public final class WorkspaceState: ObservableObject {
   }
 
   @Published var pendingReactions: Set<ReactionRequest> = []
+  /// Failed mention shells whose retry POST is in flight; see `WorkspaceState+Mentions`.
+  @Published var pendingMentionRetries: Set<MentionRetryRequest> = []
   public let timeline = RoomTimeline()
   public let pins = PinnedMessages()
   @Published var pendingPins: Set<String> = []
