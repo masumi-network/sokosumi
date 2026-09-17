@@ -52,6 +52,30 @@ export interface FanOutChatNotificationsParams {
    * reader is told the name their own screen uses instead.
    */
   nameRoomPerReader?: boolean;
+  /**
+   * The Thread this message replies in, so readers who muted that Thread are
+   * left out. Omitted for a top-level message, and omitted by the mention
+   * fan-out: being named breaks through a muted Thread, because muting
+   * silences the chatter and being addressed by name is not chatter.
+   */
+  parentMessageId?: string | null;
+}
+
+/** Readers who muted the Thread this message replies in. */
+async function loadThreadMutedUserIds(
+  parentMessageId: string,
+  userIds: readonly string[],
+): Promise<ReadonlySet<string>> {
+  const muted = await prisma.chatRoomThreadReadState.findMany({
+    where: {
+      parentMessageId,
+      userId: { in: [...userIds] },
+      mutedAt: { not: null },
+    },
+    select: { userId: true },
+  });
+
+  return new Set(muted.map((state) => state.userId));
 }
 
 /** How many messages a row is already standing for. */
@@ -304,8 +328,11 @@ export async function fanOutChatNotifications(
   const mutedUserIds = new Set(
     mutedMemberships.map((membership) => membership.userId),
   );
+  const threadMutedUserIds = params.parentMessageId
+    ? await loadThreadMutedUserIds(params.parentMessageId, recipientUserIds)
+    : new Set<string>();
   const notifyUserIds = recipientUserIds.filter(
-    (userId) => !mutedUserIds.has(userId),
+    (userId) => !mutedUserIds.has(userId) && !threadMutedUserIds.has(userId),
   );
 
   if (notifyUserIds.length === 0) {

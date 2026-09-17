@@ -2714,7 +2714,7 @@ export type ChatRoomThread = {
      */
     lastReplyAt: Date;
     /**
-     * Non-deleted replies from others after the dual-baseline look, only when the viewer is a Participant (parent author, remaining reply, or remaining user mention). Zero for lurkers, including never-looked lurkers.
+     * Non-deleted replies from others after the dual-baseline look, only when the viewer is a Participant (parent author, remaining reply, or remaining user mention) and has not muted this thread. Replies that name the viewer count even in a muted thread. Zero for lurkers, including never-looked lurkers.
      */
     unreadReplyCount: number;
     /**
@@ -2725,6 +2725,10 @@ export type ChatRoomThread = {
      * True when the viewer has a ChatRoomThreadReadState row for this parent. Never-looked threads are false even when replyCount > 0.
      */
     hasLooked: boolean;
+    /**
+     * When the viewer muted this thread, or null when they have not. A muted thread stops counting toward room unread and stops writing CHAT notifications for them; replies that name them still do. Mute does not change whether they Participate.
+     */
+    mutedAt: Date | null;
 };
 
 export type ChatRoomMessage = {
@@ -3822,11 +3826,11 @@ export type NotificationPreference = {
     /**
      * What the notification is about
      */
-    category: 'JOB_ATTENTION' | 'JOB_COMPLETED' | 'JOB_UPDATE' | 'TASK_ATTENTION' | 'TASK_COMPLETED' | 'TASK_UPDATE' | 'CHAT_ROOM_MESSAGE' | 'CHAT_MENTION' | 'CHAT_DIRECT_MESSAGE' | 'SYSTEM';
+    category: 'JOB_ATTENTION' | 'JOB_COMPLETED' | 'JOB_UPDATE' | 'TASK_ATTENTION' | 'TASK_COMPLETED' | 'TASK_UPDATE' | 'CHAT_ROOM_MESSAGE' | 'CHAT_MENTION' | 'CHAT_DIRECT_MESSAGE' | 'SYSTEM' | 'FOLLOW_UP';
     /**
-     * Where it is delivered: in the app, or as an OS banner (which also needs pushOptIn)
+     * Where it is delivered: in the app, as an OS banner (which also needs pushOptIn), or by email (offered only on the categories that mail)
      */
-    channel: 'IN_APP' | 'OS_BANNER';
+    channel: 'IN_APP' | 'OS_BANNER' | 'EMAIL';
     /**
      * Whether the reader wants this category on this channel
      */
@@ -4874,11 +4878,15 @@ export const NotificationKind = {
  */
 export type NotificationKind = typeof NotificationKind[keyof typeof NotificationKind];
 
-export type UnreadCount = {
+export type NotificationCounts = {
     /**
-     * Number of unread notifications
+     * Number of unread notifications in the feed
      */
-    count: number;
+    unread: number;
+    /**
+     * Number of feed notifications whose request still waits on the reader
+     */
+    needsAction: number;
 };
 
 export type MarkAllReadResponse = {
@@ -4895,11 +4903,24 @@ export type MarkNotificationsReadResponse = {
     count: number;
 };
 
-export type MarkNotificationsReadRequest = {
+export type MarkNotificationsReadRequest = MarkNotificationsReadByIdsRequest | MarkNotificationsReadByReferenceRequest;
+
+export type MarkNotificationsReadByIdsRequest = {
     /**
      * Notification IDs to mark as read
      */
     ids: Array<string>;
+};
+
+export type MarkNotificationsReadByReferenceRequest = {
+    /**
+     * Kind of the notifications to mark read.
+     */
+    kind: 'TASK' | 'JOB';
+    /**
+     * The task or job the notifications point at. Required and non-empty, so this can never read a kind in bulk.
+     */
+    referenceId: string;
 };
 
 export type GetInvitationResult = {
@@ -18172,6 +18193,200 @@ export type PostChatsRoomsByIdThreadsByParentMessageIdReadResponses = {
 };
 
 export type PostChatsRoomsByIdThreadsByParentMessageIdReadResponse = PostChatsRoomsByIdThreadsByParentMessageIdReadResponses[keyof PostChatsRoomsByIdThreadsByParentMessageIdReadResponses];
+
+export type DeleteChatsRoomsByIdThreadsByParentMessageIdMuteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        parentMessageId: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/threads/{parentMessageId}/mute';
+};
+
+export type DeleteChatsRoomsByIdThreadsByParentMessageIdMuteErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Thread not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdThreadsByParentMessageIdMuteError = DeleteChatsRoomsByIdThreadsByParentMessageIdMuteErrors[keyof DeleteChatsRoomsByIdThreadsByParentMessageIdMuteErrors];
+
+export type DeleteChatsRoomsByIdThreadsByParentMessageIdMuteResponses = {
+    /**
+     * Thread unmuted
+     */
+    200: {
+        data: ChatRoomThread;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdThreadsByParentMessageIdMuteResponse = DeleteChatsRoomsByIdThreadsByParentMessageIdMuteResponses[keyof DeleteChatsRoomsByIdThreadsByParentMessageIdMuteResponses];
+
+export type PostChatsRoomsByIdThreadsByParentMessageIdMuteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        parentMessageId: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/threads/{parentMessageId}/mute';
+};
+
+export type PostChatsRoomsByIdThreadsByParentMessageIdMuteErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Thread not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdThreadsByParentMessageIdMuteError = PostChatsRoomsByIdThreadsByParentMessageIdMuteErrors[keyof PostChatsRoomsByIdThreadsByParentMessageIdMuteErrors];
+
+export type PostChatsRoomsByIdThreadsByParentMessageIdMuteResponses = {
+    /**
+     * Thread muted
+     */
+    200: {
+        data: ChatRoomThread;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdThreadsByParentMessageIdMuteResponse = PostChatsRoomsByIdThreadsByParentMessageIdMuteResponses[keyof PostChatsRoomsByIdThreadsByParentMessageIdMuteResponses];
 
 export type DeleteChatsRoomsByIdStarData = {
     body?: never;
@@ -33215,6 +33430,10 @@ export type GetNotificationsData = {
          */
         isRead?: 'true' | 'false';
         /**
+         * When true, only rows whose request is still waiting on the reader: a task or job paused on input, a pending vendor grant or coworker access request. The newest row per request. Reading a row does not remove it; answering the request does.
+         */
+        needsAction?: 'true' | 'false';
+        /**
          * Cursor for pagination (ID of the last item from previous page)
          */
         cursor?: string;
@@ -33292,7 +33511,7 @@ export type GetNotificationsResponses = {
 
 export type GetNotificationsResponse = GetNotificationsResponses[keyof GetNotificationsResponses];
 
-export type GetNotificationsUnreadCountData = {
+export type GetNotificationsCountsData = {
     body?: never;
     headers?: {
         /**
@@ -33302,10 +33521,10 @@ export type GetNotificationsUnreadCountData = {
     };
     path?: never;
     query?: never;
-    url: '/notifications/unread-count';
+    url: '/notifications/counts';
 };
 
-export type GetNotificationsUnreadCountErrors = {
+export type GetNotificationsCountsErrors = {
     /**
      * Unauthorized
      */
@@ -33338,14 +33557,14 @@ export type GetNotificationsUnreadCountErrors = {
     };
 };
 
-export type GetNotificationsUnreadCountError = GetNotificationsUnreadCountErrors[keyof GetNotificationsUnreadCountErrors];
+export type GetNotificationsCountsError = GetNotificationsCountsErrors[keyof GetNotificationsCountsErrors];
 
-export type GetNotificationsUnreadCountResponses = {
+export type GetNotificationsCountsResponses = {
     /**
-     * Unread count retrieved
+     * Counts retrieved
      */
     200: {
-        data: UnreadCount;
+        data: NotificationCounts;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33354,7 +33573,7 @@ export type GetNotificationsUnreadCountResponses = {
     };
 };
 
-export type GetNotificationsUnreadCountResponse = GetNotificationsUnreadCountResponses[keyof GetNotificationsUnreadCountResponses];
+export type GetNotificationsCountsResponse = GetNotificationsCountsResponses[keyof GetNotificationsCountsResponses];
 
 export type PatchNotificationsByIdReadData = {
     body?: never;
@@ -33620,7 +33839,7 @@ export type PatchNotificationsReadAllResponse = PatchNotificationsReadAllRespons
 
 export type PatchNotificationsReadData = {
     /**
-     * Notification IDs to mark as read
+     * Notification IDs, or one task or job, to mark as read
      */
     body?: MarkNotificationsReadRequest;
     headers?: {

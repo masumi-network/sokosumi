@@ -3,11 +3,15 @@ import {
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_MENTION_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+  isFollowUpMessageKey,
+  JOB_INPUT_REQUIRED_MESSAGE_KEY,
   NOTIFICATION_CATEGORIES,
   NOTIFICATION_CHANNELS,
+  NOTIFICATION_EMAIL_CATEGORIES,
   type NotificationCategory,
   type NotificationChannel,
   notificationDefault,
+  TASK_INPUT_REQUIRED_MESSAGE_KEY,
 } from "@sokosumi/utils";
 
 /**
@@ -30,6 +34,15 @@ export const CHAT_ROOM_BADGE_MESSAGE_KEYS: readonly string[] = [
 ];
 
 /**
+ * The key an operator-removed schedule carries.
+ *
+ * Named on its own because it is the one attention key a run does not end:
+ * it asks the owner to put a schedule back, which no run answers.
+ */
+export const TASK_SCHEDULE_REMOVED_MESSAGE_KEY =
+  "Notifications.Task.scheduleRemovedByOperator";
+
+/**
  * The task keys that wait on the reader.
  *
  * A task that needs input, approval, authentication or credits stops until the
@@ -40,11 +53,11 @@ export const CHAT_ROOM_BADGE_MESSAGE_KEYS: readonly string[] = [
  */
 export const TASK_ATTENTION_MESSAGE_KEYS: readonly string[] = [
   "Notifications.Task.assigned",
-  "Notifications.Task.inputRequired",
+  TASK_INPUT_REQUIRED_MESSAGE_KEY,
   "Notifications.Task.approvalRequired",
   "Notifications.Task.authenticationRequired",
   "Notifications.Task.outOfCredits",
-  "Notifications.Task.scheduleRemovedByOperator",
+  TASK_SCHEDULE_REMOVED_MESSAGE_KEY,
 ];
 
 /**
@@ -58,12 +71,46 @@ export const TASK_COMPLETED_MESSAGE_KEY = "Notifications.Task.completed";
 
 /** The job keys that wait on the reader. Same split as the task keys. */
 export const JOB_ATTENTION_MESSAGE_KEYS: readonly string[] = [
-  "Notifications.Job.inputRequired",
+  JOB_INPUT_REQUIRED_MESSAGE_KEY,
   "Notifications.Job.paymentFailed",
 ];
 
 /** The key a finished job carries. Its own row for the same reason. */
 export const JOB_COMPLETED_MESSAGE_KEY = "Notifications.Job.completed";
+
+/**
+ * The task keys that mean the task has stopped waiting on anybody (SOK-916).
+ *
+ * A task that completed, failed or was canceled is settled, however it got
+ * there and whoever got it there. The reader may have done none of it: a
+ * teammate cancels, a run fails on its own. So the attention row the task left
+ * behind is now about a question nobody is asking, and user stories 14 and 15
+ * say they should not be reminded of it.
+ *
+ * Kept next to the attention list rather than at the seam that reads it, so
+ * the two halves of one taxonomy sit together and a key added to one is seen
+ * next to the other.
+ */
+export const TASK_TERMINAL_MESSAGE_KEYS: readonly string[] = [
+  TASK_COMPLETED_MESSAGE_KEY,
+  "Notifications.Task.failed",
+  "Notifications.Task.canceled",
+];
+
+/**
+ * The job keys that mean the job has stopped waiting on anybody. Story 16.
+ *
+ * Deliberately only the two the story names. A job also emits
+ * `refundResolved` and `disputeResolved`, and each plausibly settles a job
+ * whose payment failed, but what they mean for a job that is still running was
+ * not established here and guessing would clear an attention row that is still
+ * live. Leaving them out costs a stale reminder in a case that already had
+ * one; putting them in could cost a real one.
+ */
+export const JOB_TERMINAL_MESSAGE_KEYS: readonly string[] = [
+  JOB_COMPLETED_MESSAGE_KEY,
+  "Notifications.Job.failed",
+];
 
 /**
  * One stored choice, as the database holds it: strings rather than the unions,
@@ -88,6 +135,27 @@ export interface NotificationDelivery {
   /** The Notification Center for a feed kind, the in-app toast for a chat one. */
   inApp: boolean;
   osBanner: boolean;
+  /**
+   * The reader's inbox (SOK-916).
+   *
+   * Only ever true for a category that sends email at all, which today is
+   * follow-ups alone (`NOTIFICATION_EMAIL_CATEGORIES`). Every other category
+   * has no email to send, so the answer here is no rather than unasked.
+   *
+   * Unlike the banner there is no account-wide consent gating this. The
+   * address is already the one the account signs in with, and the row in the
+   * matrix is the reader's say over it.
+   */
+  email: boolean;
+  /**
+   * Set only when the reader's preferences would not read and this is a guess.
+   *
+   * The guess suits a caller that was going to write either way and only
+   * wants to know about the banner. It does not suit a caller for whom this
+   * answer decides whether to write at all: there it says yes on behalf of a
+   * reader who may have said no. Such a caller reads this and skips instead.
+   */
+  fellBack?: true;
 }
 
 /**
@@ -101,11 +169,22 @@ export interface NotificationDelivery {
  * Null means the defaults apply and nothing is stored against it: a chat key
  * added later that nobody mapped, and BILLING, which no producer emits yet. A
  * row would be a switch that controls nothing, so there is none.
+ *
+ * Follow-ups are the one exception to the split-by-key rule, and they break it
+ * in the other direction: every follow-up key, whatever its kind, answers to
+ * the single `FOLLOW_UP` row. Which keys those are is
+ * `isFollowUpMessageKey` in `@sokosumi/utils`.
  */
 export function toNotificationCategory(
   kind: NotificationKind,
   messageKey: string,
 ): NotificationCategory | null {
+  // Asked before the kind, because a follow-up exists for three of them and
+  // the reader decides about reminders once rather than once per kind.
+  if (isFollowUpMessageKey(messageKey)) {
+    return "FOLLOW_UP";
+  }
+
   switch (kind) {
     case "JOB":
       if (JOB_ATTENTION_MESSAGE_KEYS.includes(messageKey)) {
@@ -168,6 +247,15 @@ export function resolveNotificationDelivery({
   return {
     inApp: isEnabled(category, "IN_APP", preferences),
     osBanner: pushOptIn && isEnabled(category, "OS_BANNER", preferences),
+    // Gated on the category the way the banner is gated on the account-wide
+    // consent: a category that sends no email has none to send however the
+    // stored row reads. The preferences route does not refuse such a row, and
+    // a reader could hold one from a build where the category did email, so
+    // the gate is here rather than trusted to the absence of the row.
+    email:
+      category !== null &&
+      NOTIFICATION_EMAIL_CATEGORIES.includes(category) &&
+      isEnabled(category, "EMAIL", preferences),
   };
 }
 
@@ -179,18 +267,27 @@ export interface NotificationMatrixCell {
 }
 
 /**
- * The whole matrix, one cell per category and channel.
+ * The whole matrix, one cell per category and channel the reader can decide.
  *
  * Complete rather than sparse, so the reader's settings page renders what it
  * is given and the defaults stay in one place. A stored row that names a
  * category or a channel this build does not know belongs to no cell and is
  * dropped.
+ *
+ * With one hole in it, and on purpose: a category that sends no email has no
+ * email cell (SOK-916). The settings page draws the cells it is handed, so
+ * this is what stops it drawing eight switches that control nothing. A stored
+ * `EMAIL` row for such a category, which the preferences route does not refuse,
+ * is dropped here along with the cell, because nothing would read it.
  */
 export function resolveNotificationMatrix(
   preferences: readonly StoredNotificationPreference[],
 ): NotificationMatrixCell[] {
   return NOTIFICATION_CATEGORIES.flatMap((category) =>
-    NOTIFICATION_CHANNELS.map((channel) => ({
+    NOTIFICATION_CHANNELS.filter(
+      (channel) =>
+        channel !== "EMAIL" || NOTIFICATION_EMAIL_CATEGORIES.includes(category),
+    ).map((channel) => ({
       category,
       channel,
       enabled: isEnabled(category, channel, preferences),

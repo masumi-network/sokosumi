@@ -80,6 +80,107 @@ private func makeClient(_ transport: ScriptedTransport) throws -> Client {
 }
 
 struct ChatServiceTests {
+  @Test func discoverableChannelsWalkPagesAndUseOrganizationSearch() async throws {
+    func channel(_ id: String) -> String {
+      "{\"id\":\"\(id)\",\"name\":\"Team\",\"slug\":\"team\",\"topic\":null,\"discoverability\":\"public\",\"memberCount\":3,\"createdByUserId\":\"me\",\"createdAt\":\"\(timestamp)\",\"updatedAt\":\"\(timestamp)\"}"
+    }
+    let transport = ScriptedTransport([
+      (200, roomsPageBody(rooms: [channel("one")], nextCursor: "next")),
+      (200, roomsPageBody(rooms: [channel("two")], nextCursor: nil))
+    ])
+    let result = try await ChatService().discoverableChannels(client: makeClient(transport), query: "  team  ", organizationSlug: "org")
+    #expect(result.map(\.id) == ["one", "two"])
+    #expect(transport.requests.allSatisfy { orgSlugHeader($0.request) == "org" })
+    #expect(transport.requests.allSatisfy { requestQuery($0.request).contains("q=team") && requestQuery($0.request).contains("limit=100") })
+    #expect(requestQuery(transport.requests[1].request).contains("cursor=next"))
+  }
+
+  @Test func joinChannelUsesSelfMembershipEndpointAndPreservesFailure() async throws {
+    let room = roomJSON(id: "channel", name: "Team", kind: "channel", unreadCount: 0, unreadMentionCount: 0)
+    let response = "{\"data\":\(room),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"req\"}}"
+    let error = "{\"error\":\"Not Found\",\"message\":\"Room not found\",\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"req\",\"path\":\"/chats/rooms/channel/members/me\",\"method\":\"POST\"}}"
+    let transport = ScriptedTransport([(200, response), (404, error)])
+    let client = try makeClient(transport)
+    #expect(try await ChatService().joinChannel(client: client, roomId: "channel", organizationSlug: "org").id == "channel")
+    #expect(transport.requests[0].request.path == "/chats/rooms/channel/members/me")
+    #expect(orgSlugHeader(transport.requests[0].request) == "org")
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 404, message: "Room not found")) {
+      try await ChatService().joinChannel(client: client, roomId: "channel", organizationSlug: "org")
+    }
+  }
+
+  @Test func channelCreationUsesMixedParticipantsAndMapsSlugConflict() async throws {
+    let room = roomJSON(id: "channel", name: "Team", kind: "channel", unreadCount: 0, unreadMentionCount: 0)
+    let response = "{\"data\":\(room),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\"}}"
+    let conflict = "{\"error\":\"Conflict\",\"message\":\"Taken\",\"kind\":\"channel_slug_taken\",\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\",\"path\":\"/chats/rooms\",\"method\":\"POST\"}}"
+    let transport = ScriptedTransport([(201, response), (409, conflict)])
+    let client = try makeClient(transport)
+    var draft = ChannelDraft()
+    draft.setSlug("team-")
+    draft.setTopic(" topic ")
+    draft.addAllMembers = false
+    draft.visibility = .private
+    draft.recipients = [.human("peer"), .coworker("agent")]
+    let roster = ChatRecipientRoster(targets: [.init(id: .human("peer"), name: "Peer"), .init(id: .coworker("agent"), name: "Agent")])
+    let result = try await ChatService().createChannel(client: client, draft: draft, roster: roster, currentUserId: "me", organizationSlug: "team")
+    #expect(result.id == "channel")
+    let body = try #require(JSONSerialization.jsonObject(with: transport.bodies[0]) as? [String: Any])
+    #expect(body["memberUserIds"] as? [String] == ["me", "peer"])
+    #expect(body["coworkerIds"] as? [String] == ["agent"])
+    #expect(body["slug"] as? String == "team")
+    #expect(body["topic"] as? String == "topic")
+    #expect(body["discoverability"] as? String == "private")
+    #expect(try orgSlugHeader(#require(transport.requests.first).request) == "team")
+    await #expect(throws: ChannelCreationError.slugTaken) {
+      try await ChatService().createChannel(client: client, draft: draft, roster: roster, currentUserId: "me", organizationSlug: "team")
+    }
+  }
+
+  @Test(arguments: [false, true]) func channelUpdateSendsSettingsOnlyForManagers(managesSettings: Bool) async throws {
+    let room = roomJSON(id: "channel", name: "Team", kind: "channel", unreadCount: 0, unreadMentionCount: 0)
+    let response = "{\"data\":\(room),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\"}}"
+    let forbidden = "{\"error\":\"Forbidden\",\"message\":\"Guests cannot update channel settings or roster.\",\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\",\"path\":\"/chats/rooms/channel\",\"method\":\"PATCH\"}}"
+    let transport = ScriptedTransport([(200, response), (403, forbidden)])
+    let client = try makeClient(transport)
+    var draft = ChannelEditDraft(room: .init(
+      id: "channel", organizationId: "org", name: "Team", slug: "team", kind: .channel, topic: nil, discoverability: ._private,
+      createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast, unreadCount: 0, unreadMentionCount: 0,
+      markedUnread: false, myAccess: .member, userMembers: [], coworkerMembers: [], sokoBotMembers: []
+    ))
+    draft.setName(" Renamed ")
+    draft.setTopic("  ")
+    draft.visibility = .external
+    draft.recipients = [.human("peer"), .coworker("agent"), .sokoBot("bot")]
+    let permissions = ChannelEditPermissions(canEditMembers: true, canManageSettings: managesSettings)
+    let update = draft.updateRequest(permissions: permissions, currentUserId: "me")
+    let result = try await ChatService().updateChannel(client: client, roomId: "channel", request: update, organizationSlug: "team")
+    #expect(result.id == "channel")
+    let request = try #require(transport.requests.first).request
+    #expect(request.method == .patch)
+    #expect(request.path == "/chats/rooms/channel")
+    #expect(orgSlugHeader(request) == "team")
+    let body = try #require(JSONSerialization.jsonObject(with: transport.bodies[0]) as? [String: Any])
+    #expect(body["memberUserIds"] as? [String] == ["me", "peer"])
+    #expect(body["coworkerIds"] as? [String] == ["agent"])
+    #expect(body["sokoBotIds"] as? [String] == ["bot"])
+    #expect(body["name"] as? String == (managesSettings ? "Renamed" : nil))
+    #expect(body["topic"] as? String == (managesSettings ? "" : nil))
+    #expect(body["discoverability"] as? String == (managesSettings ? "external" : nil))
+    #expect(body["slug"] == nil)
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 403, message: "Guests cannot update channel settings or roster.")) {
+      try await ChatService().updateChannel(client: client, roomId: "channel", request: update, organizationSlug: "team")
+    }
+  }
+
+  @Test func channelAvailabilityUsesOrganizationAndQuery() async throws {
+    let response = "{\"data\":{\"status\":\"free\"},\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\"}}"
+    let transport = ScriptedTransport([(200, response)])
+    #expect(try await ChatService().channelSlugIsAvailable(client: makeClient(transport), slug: "team-soko", organizationSlug: "team"))
+    let request = try #require(transport.requests.first).request
+    #expect(request.path?.contains("slug=team-soko") == true)
+    #expect(orgSlugHeader(request) == "team")
+  }
+
   @Test func participantDirectPreservesOrganizationAndPermissionFailure() async throws {
     let response = """
     {"error":"Forbidden","message":"No shared channel","meta":{"timestamp":"\(timestamp)","requestId":"request","path":"/v1/chats/rooms","method":"POST"}}

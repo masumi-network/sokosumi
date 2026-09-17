@@ -68,7 +68,7 @@ private final class ScriptedTransport: ClientTransport {
     } else {
       bodies.append(Data())
     }
-    if pauseDirect, operationID == "post/chats/rooms" {
+    if pauseDirect, operationID == "post/chats/rooms" || operationID == "post/chats/rooms/{id}/members/me" {
       let next = responses.removeFirst()
       if !requestReleased {
         await withCheckedContinuation { pauseWaiter = $0 }
@@ -180,6 +180,84 @@ private func waitForOutboundIdle(_ state: WorkspaceState) async {
 }
 
 struct WorkspaceStateTests {
+  @Test(arguments: ["stay", "leave", "reset"], [false, true])
+  func channelMembershipRespectsNavigation(action: String, joining: Bool) async throws {
+    let target = "550e8400-e29b-41d4-a716-446655440009"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (joining ? 200 : 201, roomReadBody(id: target, unread: 0)),
+      (200, transcriptPageBody(messages: [], nextCursor: nil))
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    var draft = ChannelDraft()
+    draft.setSlug("team")
+    let roster = ChatRecipientRoster(targets: [])
+    let context = state.compositionContext
+    transport.pauseDirect = true
+    let operation = joining ? "post/chats/rooms/{id}/members/me" : "post/chats/rooms"
+    func submit() async throws -> Bool {
+      if joining {
+        return try await state.joinChannel(roomId: target, context: context, auth: auth)
+      }
+      return try await state.createChannel(draft, roster: roster, context: context, auth: auth)
+    }
+    let request = Task { try await submit() }
+    for _ in 0 ..< 1000 where !transport.operationIDs.contains(operation) {
+      await Task.yield()
+    }
+    #expect(joining ? state.joiningChannel : state.creatingChannel)
+    #expect(try await submit() == false)
+    if action == "reset" {
+      state.reset()
+    } else if action == "leave" {
+      state.clearTranscript()
+    }
+    transport.releasePausedRequest()
+    if action == "reset" {
+      await #expect(throws: CancellationError.self) { try await request.value }
+    } else {
+      #expect(try await request.value)
+    }
+    await waitForTranscriptIdle(state)
+    #expect(!state.creatingChannel && !state.joiningChannel)
+    #expect(state.transcriptRoomId == (action == "stay" ? target : nil))
+    #expect(state.rooms.contains { $0.id == target } == (action != "reset"))
+    #expect(transport.operationIDs.filter { $0 == operation }.count == 1)
+  }
+
+  @Test func channelUpdateReplacesRoomWithoutNavigating() async throws {
+    let edited = "550e8400-e29b-41d4-a716-446655440001"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general", "design"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: edited, unread: 3, name: "Design renamed"))
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    let opened = try #require(state.transcriptRoomId)
+    #expect(opened != edited)
+    let room = try #require(state.rooms.first { $0.id == edited })
+    var draft = ChannelEditDraft(room: room)
+    draft.setName("Design renamed")
+    let permissions = ChannelEditPermissions(canEditMembers: true, canManageSettings: true)
+    let context = state.compositionContext
+    #expect(try await state.updateChannel(draft, roomId: edited, permissions: permissions, context: context, auth: auth))
+    #expect(!state.updatingChannel)
+    #expect(state.transcriptRoomId == opened)
+    #expect(state.rooms.count == 2)
+    #expect(state.rooms.first { $0.id == edited }?.name == "Design renamed")
+    #expect(state.rooms.first { $0.id == edited }?.unreadCount == 3)
+    #expect(transport.operationIDs.filter { $0 == "patch/chats/rooms/{id}" }.count == 1)
+    #expect(try await state.updateChannel(draft, roomId: edited, permissions: permissions, context: UUID(), auth: auth) == false)
+    #expect(transport.operationIDs.filter { $0 == "patch/chats/rooms/{id}" }.count == 1)
+  }
+
   @Test(arguments: ["stay", "leave", "reset"], [true, false]) func participantDirectRespectsNavigation(action: String, fromPicker: Bool) async throws {
     let target = "550e8400-e29b-41d4-a716-446655440009"
     let (state, auth, transport, _) = try ephemeralState([
@@ -195,7 +273,7 @@ struct WorkspaceStateTests {
     #expect(try await state.openParticipantDirect(.coworker("peer"), auth: auth) == false)
     state.rooms[0].coworkerMembers = [.init(id: "peer", name: "Peer", slug: "peer", caption: nil, image: nil, presence: .online)]
     transport.pauseDirect = true
-    let context = state.directContext
+    let context = state.compositionContext
     var recipients = DirectConversationSelection(hasOrganization: false)
     recipients.add(.coworker("peer"))
     let request = Task {
@@ -241,7 +319,7 @@ struct WorkspaceStateTests {
     ], visible: false)
     await state.reload(auth: auth)
     await waitForTranscriptIdle(state)
-    let context = state.directContext
+    let context = state.compositionContext
     var selection = DirectConversationSelection(hasOrganization: false)
     selection.add(.coworker("peer"))
     transport.pauseDirect = true
@@ -253,7 +331,7 @@ struct WorkspaceStateTests {
     let organization = try #require(state.options.first { $0.id == "org_1" })
     await state.switchRooms(auth: auth, option: organization)
     #expect(state.selectionId == "personal")
-    #expect(state.directContext != context)
+    #expect(state.compositionContext != context)
     transport.releasePausedRequest()
     #expect(try await request.value == false)
     #expect(!state.rooms.contains { $0.id == target })

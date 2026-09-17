@@ -1,5 +1,6 @@
 "use client";
 
+import { isNeedsActionNotification } from "@sokosumi/utils";
 import { ChannelProvider } from "ably/react";
 import {
   createContext,
@@ -20,12 +21,16 @@ import { healPushSubscription } from "@/lib/ably/push-self-heal.client";
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
 import { notificationsBrowserClient } from "@/lib/clients/core.notifications.browser.client";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
-import type { NotificationItem } from "@/lib/clients/generated/core";
+import type {
+  GetNotificationsData,
+  NotificationItem,
+} from "@/lib/clients/generated/core";
 import { NOTIFICATION_TOASTER_ID } from "@/lib/constants/notification-toaster";
 import { createNotificationReadQueue } from "./notification-read-queue";
 import {
   NOTIFICATION_PAGE_SIZE,
   type NotificationAction,
+  type NotificationCenterView,
   type NotificationState,
   notificationReducer,
 } from "./notification-state";
@@ -47,6 +52,23 @@ function isRejectedCursor(error: unknown): boolean {
   return error instanceof CoreApiRequestError && error.status === 400;
 }
 
+/**
+ * The list request for a view: the Unread view asks Core for unread rows
+ * only, reusing the list's existing read-status filter. The page size never
+ * changes; the cursor only pages older.
+ */
+function buildListQuery(
+  view: NotificationCenterView,
+  cursor?: string,
+): GetNotificationsData["query"] {
+  return {
+    limit: NOTIFICATION_PAGE_SIZE,
+    ...(cursor === undefined ? {} : { cursor }),
+    ...(view === "unread" ? { isRead: "false" as const } : {}),
+    ...(view === "needs-action" ? { needsAction: "true" as const } : {}),
+  };
+}
+
 function dismissNotificationToast(notificationId: string) {
   toast.dismiss(notificationId);
 }
@@ -66,6 +88,12 @@ function dismissAllNotificationToasts() {
 interface NotificationContextValue {
   notifications: NotificationItem[];
   unreadCount: number;
+  /** Rows whose request still waits on the reader, for the Needs you tab. */
+  needsActionCount: number;
+  /** Which rows the list shows. Both frames read and write the same value. */
+  view: NotificationCenterView;
+  /** Switch views, restarting the list under the new one. */
+  setView: (view: NotificationCenterView) => void;
   markRead: (id: string) => Promise<void>;
   /** Put one row back to unread, the reader's way out of a read they did not mean. */
   markUnread: (id: string) => Promise<void>;
@@ -97,13 +125,29 @@ export function useNotifications() {
   return context;
 }
 
+/**
+ * The notification context when there is one, or null when there is not.
+ *
+ * For components that only nudge the bell and must not take a page down with
+ * them when they render outside the provider. Anything that needs the context
+ * to do its job should use `useNotifications` and fail loudly instead.
+ */
+export function useOptionalNotifications(): NotificationContextValue | null {
+  return use(NotificationContext);
+}
+
 async function noopAsync(): Promise<void> {}
 
 function noopRemove(_id: string): void {}
 
+function noopSetView(_view: NotificationCenterView): void {}
+
 const NOTIFICATION_FALLBACK_VALUE: NotificationContextValue = {
   notifications: [],
   unreadCount: 0,
+  needsActionCount: 0,
+  view: "all",
+  setView: noopSetView,
   markRead: noopAsync,
   markUnread: noopAsync,
   markAllRead: noopAsync,
@@ -193,9 +237,14 @@ export function NotificationProvider({
   const [state, setState] = useState<NotificationState>({
     notifications: [],
     unreadCount: 0,
+    needsActionCount: 0,
   });
   const confirmedState = useRef(state);
   const readQueue = useRef(createNotificationReadQueue());
+  const [view, setViewState] = useState<NotificationCenterView>("all");
+  // The view the next request asks for. A ref so the fetch callbacks keep
+  // their identity across switches: the switch itself starts the refetch.
+  const viewRef = useRef<NotificationCenterView>(view);
   const [isLoading, setIsLoading] = useState(true);
   const [hasFetchError, setHasFetchError] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -247,13 +296,13 @@ export function NotificationProvider({
     const realtimeIds = new Set<string>();
     realtimeDuringFetch.current = realtimeIds;
     setIsLoading(true);
+    const view = viewRef.current;
+    const listQuery = buildListQuery(view);
 
     try {
-      const [listResponse, countResponse] = await Promise.all([
-        notificationsBrowserClient.getNotifications({
-          limit: NOTIFICATION_PAGE_SIZE,
-        }),
-        notificationsBrowserClient.getNotificationsUnreadCount(),
+      const [listResponse, countsResponse] = await Promise.all([
+        notificationsBrowserClient.getNotifications(listQuery),
+        notificationsBrowserClient.getNotificationsCounts(),
       ]);
 
       if (generation !== fetchGenerationRef.current) {
@@ -277,9 +326,11 @@ export function NotificationProvider({
       dispatch({
         type: "fetch_success",
         fetched: listResponse.data,
-        serverUnreadCount: countResponse.data.count,
+        serverUnreadCount: countsResponse.data.unread,
+        serverNeedsActionCount: countsResponse.data.needsAction,
         realtimeIds,
         hasMore: nextCursor !== null,
+        view,
       });
       pagingGeneration.current += 1;
       // A refresh reads the newest page only. When it reports nothing after
@@ -308,8 +359,43 @@ export function NotificationProvider({
     }
   }, [dispatch]);
 
+  /**
+   * Switch the list between views. The rows loaded under one view
+   * speak for ranges the other never asked for, so the switch drops them,
+   * the older-page cursor, and anything in flight, and reads the first page
+   * of the new view. It never marks anything read.
+   */
+  const setView = useCallback(
+    (next: NotificationCenterView) => {
+      if (viewRef.current === next) return;
+      viewRef.current = next;
+      setViewState(next);
+      // A page in flight answers for the old view. Bumping both generations
+      // drops its result when it lands, like a refresh that started over.
+      fetchGenerationRef.current += 1;
+      pagingGeneration.current += 1;
+      dispatch({ type: "reset_list" });
+      olderCursorOverride.current = null;
+      rejectedCursorDropped.current = false;
+      setHasMore(false);
+      setOlderStatus("idle");
+      setHasFetchError(false);
+      setIsLoading(true);
+      void fetchNotifications();
+    },
+    [dispatch, fetchNotifications],
+  );
+
   const loadOlder = useCallback(() => {
     if (olderInFlight.current) return;
+    // Unread + a 0 badge: collapsing rows can expose the older-page sentinel
+    // while hasMore is still true. The badge already says there is nothing left.
+    if (
+      viewRef.current === "unread" &&
+      confirmedState.current.unreadCount === 0
+    ) {
+      return;
+    }
     const oldest = confirmedState.current.notifications.at(-1);
     const cursor = olderCursorOverride.current ?? oldest?.id;
     if (!cursor) return;
@@ -317,13 +403,12 @@ export function NotificationProvider({
     olderInFlight.current = true;
     setOlderStatus("loading");
     const generation = pagingGeneration.current;
+    const listQuery = buildListQuery(viewRef.current, cursor);
 
     void (async () => {
       try {
-        const response = await notificationsBrowserClient.getNotifications({
-          limit: NOTIFICATION_PAGE_SIZE,
-          cursor,
-        });
+        const response =
+          await notificationsBrowserClient.getNotifications(listQuery);
         if (generation !== pagingGeneration.current) {
           // The list this page was fetched for started over while it was in
           // the air: more than a page of newer rows arrived, and applying
@@ -498,6 +583,16 @@ export function NotificationProvider({
           createdAt: new Date(notification.createdAt),
         },
       });
+
+      // A new request for the reader changes the Needs you count, and only
+      // Core can say by how much: a task that asked again is still one row.
+      // The row is already painted; the fetch brings the number.
+      if (
+        notification.created &&
+        isNeedsActionNotification(notification.messageKey)
+      ) {
+        void fetchNotifications();
+      }
     },
     [dispatch, fetchNotifications],
   );
@@ -513,6 +608,9 @@ export function NotificationProvider({
   const value: NotificationContextValue = {
     notifications: state.notifications,
     unreadCount: state.unreadCount,
+    needsActionCount: state.needsActionCount,
+    view,
+    setView,
     markRead,
     markUnread,
     markAllRead,

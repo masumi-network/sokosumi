@@ -132,6 +132,7 @@ import {
   deleteChatsRoomsByIdMessagesByMessageIdPin as coreDeleteChatsRoomsByIdMessagesByMessageIdPin,
   deleteChatsRoomsByIdMute as coreDeleteChatsRoomsByIdMute,
   deleteChatsRoomsByIdStar as coreDeleteChatsRoomsByIdStar,
+  deleteChatsRoomsByIdThreadsByParentMessageIdMute as coreDeleteChatsRoomsByIdThreadsByParentMessageIdMute,
   deleteCoworkersById as coreDeleteCoworkersById,
   deleteCoworkersByIdImage as coreDeleteCoworkersByIdImage,
   deleteJobsByIdShare as coreDeleteJobsByIdShare,
@@ -203,7 +204,7 @@ import {
   getMySokoBotTurn as coreGetMySokoBotTurn,
   getMySokoBotUsage as coreGetMySokoBotUsage,
   getNotifications as coreGetNotifications,
-  getNotificationsUnreadCount as coreGetNotificationsUnreadCount,
+  getNotificationsCounts as coreGetNotificationsCounts,
   getOrganizationBySlug as coreGetOrganizationBySlug,
   getOrganizationEnterpriseContractSummary as coreGetOrganizationEnterpriseContractSummary,
   getOrganizationInviteLinksByToken as coreGetOrganizationInviteLinksByToken,
@@ -318,6 +319,7 @@ import {
   postChatsRoomsByIdRead as corePostChatsRoomsByIdRead,
   postChatsRoomsByIdRestore as corePostChatsRoomsByIdRestore,
   postChatsRoomsByIdStar as corePostChatsRoomsByIdStar,
+  postChatsRoomsByIdThreadsByParentMessageIdMute as corePostChatsRoomsByIdThreadsByParentMessageIdMute,
   postChatsRoomsByIdThreadsByParentMessageIdRead as corePostChatsRoomsByIdThreadsByParentMessageIdRead,
   postChatsRoomsByIdThreadsRead as corePostChatsRoomsByIdThreadsRead,
   postChatsRoomsByIdUnread as corePostChatsRoomsByIdUnread,
@@ -1052,6 +1054,30 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function muteChatRoomThread(id: string, parentMessageId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdThreadsByParentMessageIdMute({
+          client,
+          path: { id, parentMessageId },
+        }),
+      "Failed to mute thread",
+    );
+  }
+
+  async function unmuteChatRoomThread(id: string, parentMessageId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteChatsRoomsByIdThreadsByParentMessageIdMute({
+          client,
+          path: { id, parentMessageId },
+        }),
+      "Failed to unmute thread",
+    );
+  }
+
   async function markChatRoomThreadsRead(id: string) {
     return executeCoreOperation(
       getClient,
@@ -1220,15 +1246,15 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function getNotificationsUnreadCount() {
+  async function getNotificationsCounts() {
     return executeCoreOperation(
       getClient,
       (client) =>
-        coreGetNotificationsUnreadCount({
+        coreGetNotificationsCounts({
           client,
           cache: "no-store",
         }),
-      "Failed to fetch notification unread count",
+      "Failed to fetch notification counts",
     );
   }
 
@@ -5035,6 +5061,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     markChatRoomRead,
     markChatRoomThreadsRead,
     markChatRoomThreadRead,
+    muteChatRoomThread,
+    unmuteChatRoomThread,
     pinChatRoom,
     unpinChatRoom,
     getChatRoomPinnedMessages,
@@ -5049,7 +5077,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     toggleChatRoomMessageReaction,
     getHistory,
     getNotifications,
-    getNotificationsUnreadCount,
+    getNotificationsCounts,
     updateChatRoom,
     updateChatRoomMessage,
     patchNotificationRead,

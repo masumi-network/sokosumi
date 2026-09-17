@@ -9947,7 +9947,7 @@ export const ChatRoomThreadSchema = {
         unreadReplyCount: {
             type: 'integer',
             minimum: 0,
-            description: 'Non-deleted replies from others after the dual-baseline look, only when the viewer is a Participant (parent author, remaining reply, or remaining user mention). Zero for lurkers, including never-looked lurkers.',
+            description: 'Non-deleted replies from others after the dual-baseline look, only when the viewer is a Participant (parent author, remaining reply, or remaining user mention) and has not muted this thread. Replies that name the viewer count even in a muted thread. Zero for lurkers, including never-looked lurkers.',
             example: 2
         },
         lastUnreadReplyAt: {
@@ -9963,6 +9963,15 @@ export const ChatRoomThreadSchema = {
             type: 'boolean',
             description: 'True when the viewer has a ChatRoomThreadReadState row for this parent. Never-looked threads are false even when replyCount > 0.',
             example: true
+        },
+        mutedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-07-02T12:00:00.000Z',
+            description: 'When the viewer muted this thread, or null when they have not. A muted thread stops counting toward room unread and stops writing CHAT notifications for them; replies that name them still do. Mute does not change whether they Participate.'
         }
     },
     required: [
@@ -9971,7 +9980,8 @@ export const ChatRoomThreadSchema = {
         'lastReplyAt',
         'unreadReplyCount',
         'lastUnreadReplyAt',
-        'hasLooked'
+        'hasLooked',
+        'mutedAt'
     ]
 } as const;
 
@@ -12907,7 +12917,8 @@ export const NotificationPreferenceSchema = {
                 'CHAT_ROOM_MESSAGE',
                 'CHAT_MENTION',
                 'CHAT_DIRECT_MESSAGE',
-                'SYSTEM'
+                'SYSTEM',
+                'FOLLOW_UP'
             ],
             description: 'What the notification is about',
             example: 'CHAT_MENTION'
@@ -12916,9 +12927,10 @@ export const NotificationPreferenceSchema = {
             type: 'string',
             enum: [
                 'IN_APP',
-                'OS_BANNER'
+                'OS_BANNER',
+                'EMAIL'
             ],
-            description: 'Where it is delivered: in the app, or as an OS banner (which also needs pushOptIn)',
+            description: 'Where it is delivered: in the app, as an OS banner (which also needs pushOptIn), or by email (offered only on the categories that mail)',
             example: 'OS_BANNER'
         },
         enabled: {
@@ -16245,18 +16257,25 @@ export const NotificationKindSchema = {
     example: 'JOB'
 } as const;
 
-export const UnreadCountSchema = {
+export const NotificationCountsSchema = {
     type: 'object',
     properties: {
-        count: {
+        unread: {
             type: 'integer',
             minimum: 0,
-            description: 'Number of unread notifications',
+            description: 'Number of unread notifications in the feed',
             example: 5
+        },
+        needsAction: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Number of feed notifications whose request still waits on the reader',
+            example: 2
         }
     },
     required: [
-        'count'
+        'unread',
+        'needsAction'
     ]
 } as const;
 
@@ -16291,6 +16310,17 @@ export const MarkNotificationsReadResponseSchema = {
 } as const;
 
 export const MarkNotificationsReadRequestSchema = {
+    anyOf: [
+        {
+            $ref: '#/components/schemas/MarkNotificationsReadByIdsRequest'
+        },
+        {
+            $ref: '#/components/schemas/MarkNotificationsReadByReferenceRequest'
+        }
+    ]
+} as const;
+
+export const MarkNotificationsReadByIdsRequestSchema = {
     type: 'object',
     properties: {
         ids: {
@@ -16308,7 +16338,34 @@ export const MarkNotificationsReadRequestSchema = {
     },
     required: [
         'ids'
-    ]
+    ],
+    additionalProperties: false
+} as const;
+
+export const MarkNotificationsReadByReferenceRequestSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'TASK',
+                'JOB'
+            ],
+            description: 'Kind of the notifications to mark read.',
+            example: 'TASK'
+        },
+        referenceId: {
+            type: 'string',
+            minLength: 1,
+            description: 'The task or job the notifications point at. Required and non-empty, so this can never read a kind in bulk.',
+            example: 'cm123456789abcdefghij'
+        }
+    },
+    required: [
+        'kind',
+        'referenceId'
+    ],
+    additionalProperties: false
 } as const;
 
 export const GetInvitationResultSchema = {

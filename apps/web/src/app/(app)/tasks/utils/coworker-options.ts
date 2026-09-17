@@ -1,7 +1,17 @@
-import type { Coworker, SokoBot } from "@/lib/clients/generated/core";
+import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
+
+import { defaultOrbSeed } from "@/lib/aurora-orb";
+import type {
+  Coworker,
+  SokoBot,
+  TaskAssigneeCoworker,
+  TaskAssigneeSokoBot,
+  TaskAssigneeUser,
+} from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 import { COWORKER_FALLBACK_IMAGES } from "./coworker-fallback-images";
+import { getCoworkerImage } from "./coworker-image";
 
 /** Vendor bucket for workspace-member assignee options (SOK-868). */
 const WORKSPACE_MEMBERS_VENDOR = {
@@ -10,6 +20,20 @@ const WORKSPACE_MEMBERS_VENDOR = {
   slug: "workspace-members",
   logos: { light: null, dark: null },
 } as const;
+
+/** Vendor stub when a saved coworker is no longer in the live options list. */
+const UNKNOWN_COWORKER_VENDOR = {
+  id: "unknown-coworker",
+  name: "",
+  slug: "unknown-coworker",
+  logos: { light: null, dark: null },
+} as const;
+
+export type TaskAssigneeRef =
+  | TaskAssigneeCoworker
+  | TaskAssigneeUser
+  | TaskAssigneeSokoBot
+  | null;
 
 export interface OwnerSokoBotCopy {
   fallbackName: string;
@@ -114,6 +138,72 @@ export function withOwnerSokoBotOption(
   if (!option) {
     return options;
   }
+  if (options.some((candidate) => candidate.id === option.id)) {
+    return options;
+  }
+  return [option, ...options];
+}
+
+/**
+ * Keep a saved Task assignee visible in the edit picker when it is absent
+ * from the live workspace list (left the workspace, or coworker/Soko Bot
+ * lookup degraded to empty). Mirrors selected-project injection on edit.
+ */
+export function getTaskAssigneeOption(
+  assignee: TaskAssigneeRef,
+  copy: OwnerSokoBotCopy,
+): CoworkerOption | null {
+  if (!assignee) return null;
+
+  if (assignee.type === "user") {
+    return {
+      id: assignee.id,
+      slug: assignee.user.id,
+      name: assignee.user.name.trim() || "Member",
+      kind: "user",
+      image: assignee.user.image
+        ? (resolveIpfsOrHttpUrl(assignee.user.image) ?? "")
+        : "",
+      vendor: { ...WORKSPACE_MEMBERS_VENDOR },
+    };
+  }
+
+  if (assignee.type === "sokoBot") {
+    const claimed = assignee.sokoBot.avatarImageUrl
+      ? resolveIpfsOrHttpUrl(assignee.sokoBot.avatarImageUrl)
+      : null;
+    return {
+      id: assignee.id,
+      slug: "soko-bots",
+      name: assignee.sokoBot.name?.trim() || copy.fallbackName,
+      image: claimed ?? "",
+      kind: "sokoBot",
+      avatarSeed: claimed
+        ? null
+        : (assignee.sokoBot.avatarSeed ??
+          defaultOrbSeed(assignee.sokoBot.owner.id)),
+      vendor: sokoBotsVendor(copy.vendorName),
+    };
+  }
+
+  const slug = assignee.coworker.slug?.toLowerCase() ?? assignee.coworker.id;
+  return {
+    id: assignee.id,
+    slug,
+    name: assignee.coworker.name,
+    kind: "coworker",
+    image: getCoworkerImage(assignee.coworker) ?? "",
+    vendor: { ...UNKNOWN_COWORKER_VENDOR },
+  };
+}
+
+export function withCurrentTaskAssigneeOption(
+  options: CoworkerOption[],
+  assignee: TaskAssigneeRef,
+  copy: OwnerSokoBotCopy,
+): CoworkerOption[] {
+  const option = getTaskAssigneeOption(assignee, copy);
+  if (!option) return options;
   if (options.some((candidate) => candidate.id === option.id)) {
     return options;
   }

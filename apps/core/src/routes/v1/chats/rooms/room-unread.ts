@@ -55,15 +55,43 @@ function sqlViewerIsThreadParticipant(userIdSql: string): string {
 }
 
 /**
+ * SQL predicate: this `reply` pages the viewer.
+ *
+ * The viewer Participates in `parent` and has not muted that Thread, or they
+ * are named on this reply. A user mention breaks through mute: muting a
+ * Thread silences its chatter, and being addressed by name is not chatter.
+ * Mute never changes Participant, so unmuting restores the Thread to exactly
+ * the attention it would have had.
+ *
+ * Requires the `thread_read` and `reply` aliases, which every caller joins
+ * for the look baseline.
+ */
+function sqlThreadReplyPagesViewer(userIdSql: string): string {
+  return `(
+    (
+      thread_read."mutedAt" IS NULL
+      AND ${sqlViewerIsThreadParticipant(userIdSql)}
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM "chat_room_user_mention" reply_mention
+      WHERE reply_mention."userId" = ${userIdSql}
+        AND reply_mention."messageId" = reply.id
+    )
+  )`;
+}
+
+/**
  * Per-room unread message counts for sidebar attention.
  *
  * Dual baseline (matches the two read-state tables):
  * - Top-level messages (`parentMessageId IS NULL`): after room `lastReadAt`
  * - Thread replies: after per-thread look baseline
  *   (`ChatRoomThreadReadState.lastReadAt`, else room read-state `createdAt`,
- *   else -infinity), and only when the viewer is a Participant of that
- *   Thread (ADR-0013). Room mark-read must not clear thread look contribution;
- *   looking a thread must.
+ *   else -infinity), and only when that reply pages the viewer: they
+ *   Participate in the Thread and have not muted it (ADR-0013, ADR-0030), or
+ *   they are named on the reply. Room mark-read must not clear thread look
+ *   contribution; looking a thread must.
  *
  * Soft-deleted messages and the viewer's own user messages are excluded.
  */
@@ -119,7 +147,7 @@ export async function getChatRoomUnreadCounts(
         AND reply."deletedAt" IS NULL
         AND parent."deletedAt" IS NULL
         AND parent."parentMessageId" IS NULL
-        AND ${sqlViewerIsThreadParticipant(userIdPlaceholder)}
+        AND ${sqlThreadReplyPagesViewer(userIdPlaceholder)}
         AND ${sqlMessageAttentionAt("reply")} > COALESCE(
           thread_read."lastReadAt",
           room_read."createdAt",
@@ -144,16 +172,19 @@ export interface ChatRoomThreadAggregate {
   lastUnreadReplyAt: Date | null;
   /** True when the viewer has a ChatRoomThreadReadState row for this parent. */
   hasLooked: boolean;
+  /** When the viewer muted this thread, or null when they have not. */
+  mutedAt: Date | null;
 }
 
 /**
  * Parents (top-level messages) in a room that have ≥1 non-deleted reply,
  * with per-user unread counts.
  *
- * `unreadReplyCount` is Participant-gated (ADR-0013): non-self replies after
- * dual-baseline look (thread lastReadAt, else room join createdAt, else
- * -infinity). Never-looked Participants can be > 0. Lurkers are 0.
- * `unreadOnly` and Mark all filter on `unreadReplyCount >= 1`.
+ * `unreadReplyCount` is Participant-gated (ADR-0013) and mute-gated
+ * (ADR-0030): non-self replies after dual-baseline look (thread lastReadAt,
+ * else room join createdAt, else -infinity). Never-looked Participants can be
+ * > 0. Lurkers are 0. A muted Thread is 0 apart from replies that name the
+ * viewer. `unreadOnly` filters on `unreadReplyCount >= 1`.
  */
 export async function getChatRoomThreadAggregates(
   roomId: string,
@@ -174,7 +205,7 @@ export async function getChatRoomThreadAggregates(
       COUNT(reply.id)::int AS "replyCount",
       MAX(reply."createdAt") AS "lastReplyAt",
       COUNT(reply.id) FILTER (
-        WHERE ${sqlViewerIsThreadParticipant("$2")}
+        WHERE ${sqlThreadReplyPagesViewer("$2")}
           AND (reply."senderUserId" IS NULL OR reply."senderUserId" <> $2)
           AND ${sqlMessageAttentionAt("reply")} > COALESCE(
             thread_read."lastReadAt",
@@ -183,7 +214,7 @@ export async function getChatRoomThreadAggregates(
           )
       )::int AS "unreadReplyCount",
       MAX(${sqlMessageAttentionAt("reply")}) FILTER (
-        WHERE ${sqlViewerIsThreadParticipant("$2")}
+        WHERE ${sqlThreadReplyPagesViewer("$2")}
           AND (reply."senderUserId" IS NULL OR reply."senderUserId" <> $2)
           AND ${sqlMessageAttentionAt("reply")} > COALESCE(
             thread_read."lastReadAt",
@@ -191,7 +222,8 @@ export async function getChatRoomThreadAggregates(
             '-infinity'::timestamp
           )
       ) AS "lastUnreadReplyAt",
-      (MAX(thread_read."lastReadAt") IS NOT NULL) AS "hasLooked"
+      (MAX(thread_read."lastReadAt") IS NOT NULL) AS "hasLooked",
+      MAX(thread_read."mutedAt") AS "mutedAt"
     FROM "chat_room_message" reply
     INNER JOIN "chat_room_message" parent
       ON parent.id = reply."parentMessageId"
@@ -273,6 +305,7 @@ export async function getChatRoomThreadAggregates(
       unreadReplyCount: number | bigint;
       lastUnreadReplyAt: Date | null;
       hasLooked: boolean;
+      mutedAt: Date | null;
     }>
   >(recencySql, ...queryArgs);
 
@@ -283,6 +316,7 @@ export async function getChatRoomThreadAggregates(
     unreadReplyCount: Number(row.unreadReplyCount),
     lastUnreadReplyAt: row.lastUnreadReplyAt,
     hasLooked: row.hasLooked === true,
+    mutedAt: row.mutedAt,
   }));
 }
 
@@ -320,6 +354,7 @@ async function mapThreadAggregates(
         unreadReplyCount: aggregate.unreadReplyCount,
         lastUnreadReplyAt: aggregate.lastUnreadReplyAt,
         hasLooked: aggregate.hasLooked,
+        mutedAt: aggregate.mutedAt,
       },
     ];
   });
@@ -465,9 +500,123 @@ export async function markChatRoomThreadRead(
 }
 
 /**
- * Count parents with `unreadReplyCount >= 1` (Participant-gated dual-baseline).
- * Cheap count path: no parent hydrate, no row list. Same eligibility as
- * `unreadOnly` / Mark all (ADR-0013).
+ * Did a reply name the reader while the thread was muted?
+ *
+ * Mute lets a user mention through (ADR-0030), so such a reply was never
+ * silenced: it counted and it notified. Unmute must not step over it.
+ *
+ * Compares `createdAt`, while the unread predicate compares attention time
+ * (a responded coworker mention can raise that). The two agree for every
+ * message that can carry a user mention, because only a user-authored
+ * message does, and attention is raised only on agent responses.
+ */
+async function threadNamedReaderSinceLook(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  parentMessageId: string,
+  lastReadAt: Date,
+): Promise<boolean> {
+  const naming = await tx.chatRoomMessage.findFirst({
+    where: {
+      parentMessageId,
+      deletedAt: null,
+      createdAt: { gt: lastReadAt },
+      userMentionsAsSource: { some: { userId } },
+    },
+    select: { id: true },
+  });
+
+  return naming !== null;
+}
+
+/**
+ * Mute or unmute one thread for one user. Returns null when the parent is not
+ * a live top-level message in this room.
+ *
+ * Muting Looks the thread, so it takes the replies already waiting with it.
+ * Unmuting Looks it too, so paging starts from now rather than replaying the
+ * stretch that was deliberately silenced. Repeating either direction changes
+ * nothing, which is what keeps a reply that named the reader after the first
+ * mute: it broke through on purpose, and a second Look would step over it.
+ *
+ * A parent with no live reply is not a Thread, in either direction: there is
+ * nothing to page anyone, and the read-back the routes answer with would find
+ * no thread either.
+ */
+export async function setChatRoomThreadMuted(
+  roomId: string,
+  userId: string,
+  parentMessageId: string,
+  muted: boolean,
+  tx: Prisma.TransactionClient,
+  now: Date = new Date(),
+): Promise<{ parentMessageId: string; mutedAt: Date | null } | null> {
+  const parent = await tx.chatRoomMessage.findFirst({
+    where: {
+      id: parentMessageId,
+      roomId,
+      parentMessageId: null,
+      deletedAt: null,
+      replies: { some: { deletedAt: null } },
+    },
+    select: { id: true },
+  });
+  if (!parent) {
+    return null;
+  }
+
+  const existing = await tx.chatRoomThreadReadState.findUnique({
+    where: { userId_parentMessageId: { userId, parentMessageId: parent.id } },
+    select: { lastReadAt: true, mutedAt: true },
+  });
+
+  if (muted) {
+    // Muting an already muted thread changes nothing. Advancing the look
+    // again would step over a reply that named the reader in the meantime,
+    // and that reply broke through the mute on purpose.
+    if (existing?.mutedAt) {
+      return { parentMessageId: parent.id, mutedAt: existing.mutedAt };
+    }
+
+    const state = await tx.chatRoomThreadReadState.upsert({
+      where: { userId_parentMessageId: { userId, parentMessageId: parent.id } },
+      update: { mutedAt: now, lastReadAt: now },
+      create: {
+        userId,
+        parentMessageId: parent.id,
+        mutedAt: now,
+        lastReadAt: now,
+      },
+    });
+
+    return { parentMessageId: state.parentMessageId, mutedAt: state.mutedAt };
+  }
+
+  // Unmuting a thread that was not muted writes nothing: there is no silenced
+  // stretch to step over, and advancing the look would eat real unread.
+  if (existing?.mutedAt) {
+    const named = await threadNamedReaderSinceLook(
+      tx,
+      userId,
+      parent.id,
+      existing.lastReadAt,
+    );
+    await tx.chatRoomThreadReadState.update({
+      where: { userId_parentMessageId: { userId, parentMessageId: parent.id } },
+      // Leave the look where mute put it when the thread named the reader
+      // while it was muted: that reply is unread, and a high-water mark
+      // cannot clear the chatter around it without clearing it too.
+      data: named ? { mutedAt: null } : { mutedAt: null, lastReadAt: now },
+    });
+  }
+
+  return { parentMessageId: parent.id, mutedAt: null };
+}
+
+/**
+ * Count parents with `unreadReplyCount >= 1` (Participant-gated dual-baseline,
+ * including mentions in muted Threads). No parent hydrate or row list.
+ * Same eligibility as `unreadOnly` (ADR-0013, ADR-0030).
  */
 export async function countChatRoomUnreadThreads(
   roomId: string,
@@ -492,7 +641,7 @@ export async function countChatRoomUnreadThreads(
       AND reply."deletedAt" IS NULL
       AND parent."deletedAt" IS NULL
       AND parent."parentMessageId" IS NULL
-      AND ${sqlViewerIsThreadParticipant("$2")}
+      AND ${sqlThreadReplyPagesViewer("$2")}
       AND (reply."senderUserId" IS NULL OR reply."senderUserId" <> $2)
       AND ${sqlMessageAttentionAt("reply")} > COALESCE(
         thread_read."lastReadAt",
@@ -507,9 +656,9 @@ export async function countChatRoomUnreadThreads(
 }
 
 /**
- * Upsert look state for every unread Thread the viewer Participates in.
- * Does not change room ChatRoomReadState or CHAT notifications. Same
- * Participant-gated set as `unreadOnly` (ADR-0013).
+ * Upsert look state for every unread Thread the viewer Participates in and
+ * has not muted. Does not change room ChatRoomReadState or CHAT notifications.
+ * Muted Threads stay untouched even when a mention is unread (SOK-1087).
  */
 export async function markAllChatRoomThreadsRead(
   roomId: string,
@@ -534,7 +683,7 @@ export async function markAllChatRoomThreadsRead(
       AND reply."deletedAt" IS NULL
       AND parent."deletedAt" IS NULL
       AND parent."parentMessageId" IS NULL
-      AND ${sqlViewerIsThreadParticipant("$2")}
+      AND thread_read."mutedAt" IS NULL AND ${sqlViewerIsThreadParticipant("$2")}
       AND (reply."senderUserId" IS NULL OR reply."senderUserId" <> $2)
       AND ${sqlMessageAttentionAt("reply")} > COALESCE(
         thread_read."lastReadAt",

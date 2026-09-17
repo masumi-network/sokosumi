@@ -60,55 +60,68 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
 
-    const agent = await prisma.$transaction(async (tx) => {
-      const creditCosts = await getCreditCostsOrThrow(tx);
-      const cardanoV2ReadySources = await getCardanoV2ReadySources(tx);
+    const [creditCosts, cardanoV2ReadySources] = await Promise.all([
+      getCreditCostsOrThrow(),
+      getCardanoV2ReadySources(),
+    ]);
 
-      const agent = await tx.agent.findFirst({
-        where: {
-          id,
-          ...buildAvailableAgentWhereClause(creditCosts, cardanoV2ReadySources),
-        },
-        include: agentDetailInclude,
-      });
+    // Nested pricing rows must share one snapshot. Credit-cost and Cardano
+    // readiness are not that graph; metrics are not either. See
+    // AGENT_PRICING_READ_TRANSACTION_OPTIONS.
+    const [agent] = await prisma.$transaction(
+      [
+        prisma.agent.findFirst({
+          where: {
+            id,
+            ...buildAvailableAgentWhereClause(
+              creditCosts,
+              cardanoV2ReadySources,
+            ),
+          },
+          include: agentDetailInclude,
+        }),
+      ],
+      AGENT_PRICING_READ_TRANSACTION_OPTIONS,
+    );
 
-      if (!agent) {
-        throw notFound("Agent not found");
-      }
+    if (!agent) {
+      throw notFound("Agent not found");
+    }
 
-      const cost = getAgentCost(agent, creditCosts);
+    const cost = getAgentCost(agent, creditCosts);
 
-      const agentWithDetails = {
-        ...agent,
-        credits: convertCentsToCredits(cost.cents),
-        name: getAgentName(agent),
-        image: getAgentImage(agent),
-        icon: getAgentIcon(agent),
-        description: getAgentDescription(agent),
-        author: getAuthorFromAgent(agent),
-        legal: getAgentLegalFromAgent(agent),
-        categories: (agent.categories ?? []).map(mapCategoryForApi),
-        riskClassification: agent.riskClassification,
-        tags: getAgentTagsFromAgent(agent),
-        exampleOutputs: getAgentExampleOutputsFromAgent(agent),
-      };
+    const agentWithDetails = {
+      ...agent,
+      credits: convertCentsToCredits(cost.cents),
+      name: getAgentName(agent),
+      image: getAgentImage(agent),
+      icon: getAgentIcon(agent),
+      description: getAgentDescription(agent),
+      author: getAuthorFromAgent(agent),
+      legal: getAgentLegalFromAgent(agent),
+      categories: (agent.categories ?? []).map(mapCategoryForApi),
+      riskClassification: agent.riskClassification,
+      tags: getAgentTagsFromAgent(agent),
+      exampleOutputs: getAgentExampleOutputsFromAgent(agent),
+    };
 
-      const averageExecutionTime = await calculateAverageExecutionTime(id, tx);
-      const executionMetrics = {
-        count: agent.jobCount,
-        averageTime: averageExecutionTime ?? null,
-      };
+    const [averageExecutionTime, ratingMetrics] = await Promise.all([
+      calculateAverageExecutionTime(id, prisma),
+      calculateAgentRating(id, prisma),
+    ]);
 
-      const ratingMetrics = await calculateAgentRating(id, tx);
-
-      return {
+    return ok(
+      c,
+      agentDetailSchema.parse({
         ...agentWithDetails,
         metrics: {
-          executions: executionMetrics,
+          executions: {
+            count: agent.jobCount,
+            averageTime: averageExecutionTime ?? null,
+          },
           ratings: ratingMetrics,
         },
-      };
-    }, AGENT_PRICING_READ_TRANSACTION_OPTIONS);
-    return ok(c, agentDetailSchema.parse(agent));
+      }),
+    );
   });
 }

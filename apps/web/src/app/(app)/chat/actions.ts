@@ -853,6 +853,27 @@ export async function markThreadReadAction(
   }
 }
 
+/** Mute or unmute one thread for the signed-in user (SOK-1087). */
+export async function setThreadMutedAction(
+  roomId: string,
+  parentMessageId: string,
+  muted: boolean,
+): Promise<RoomActionResult<ChatRoomThread>> {
+  try {
+    const thread = await chatRoomService.setThreadMuted(
+      roomId,
+      parentMessageId,
+      muted,
+    );
+    return roomOk(thread);
+  } catch (error) {
+    return roomCatch(
+      error,
+      muted ? "Could not mute this thread." : "Could not unmute this thread.",
+    );
+  }
+}
+
 export async function markAllUnreadThreadsReadAction(
   roomId: string,
 ): Promise<RoomActionResult<ChatRoomThreadsMarkAll>> {

@@ -14,6 +14,7 @@ const {
   syncStripeCustomersMock,
   syncX402BuySideReadinessMock,
   expireStaleGuestInvitationsMock,
+  sendFollowUpsMock,
   purgeExpiredTaskX402PaymentHeadersMock,
   syncDueTaskSchedulesMock,
   reconcileScheduleHistoryMock,
@@ -31,18 +32,37 @@ const {
   syncStripeCustomersMock: vi.fn(),
   syncX402BuySideReadinessMock: vi.fn(),
   expireStaleGuestInvitationsMock: vi.fn(),
+  sendFollowUpsMock: vi.fn(),
   purgeExpiredTaskX402PaymentHeadersMock: vi.fn(),
   syncDueTaskSchedulesMock: vi.fn(),
   reconcileScheduleHistoryMock: vi.fn(),
   validateActiveSchedulesMock: vi.fn(),
 }));
 
+/** The mocked `LOCK_TIMEOUT`, which the env mock below hands the handler. */
+const LOCK_TIMEOUT_MS = 5000;
+/** The mocked `LOCK_TIMEOUT_BUFFER`, held back so the lock outlives the run. */
+const LOCK_TIMEOUT_BUFFER_MS = 1000;
+/**
+ * What the handler gives a sync run before it cancels it.
+ *
+ * The handler floors this at a minimum of its own, so the two above are
+ * chosen to land above that floor and this stays the deciding number.
+ */
+const SYNC_DEADLINE_MS = LOCK_TIMEOUT_MS - LOCK_TIMEOUT_BUFFER_MS;
+
 vi.mock("@/config/env", () => ({
   getEnv: () => ({
     CRON_SECRET: "test-cron-secret",
-    LOCK_TIMEOUT: 5000,
-    LOCK_TIMEOUT_BUFFER: 1000,
+    LOCK_TIMEOUT: LOCK_TIMEOUT_MS,
+    LOCK_TIMEOUT_BUFFER: LOCK_TIMEOUT_BUFFER_MS,
   }),
+}));
+
+vi.mock("@/services/notification-follow-up-sync.service", () => ({
+  notificationFollowUpSyncService: {
+    sendFollowUps: sendFollowUpsMock,
+  },
 }));
 
 vi.mock("@/services/sync-lock.service", () => ({
@@ -186,6 +206,11 @@ describe("sync routes", () => {
     });
     syncStripeCustomersMock.mockResolvedValue(undefined);
     expireStaleGuestInvitationsMock.mockResolvedValue({ expired: 0 });
+    sendFollowUpsMock.mockResolvedValue({
+      examined: 0,
+      sent: 0,
+      reachedEnd: true,
+    });
     syncDueTaskSchedulesMock.mockResolvedValue({
       promoted: 0,
       cloned: 0,
@@ -795,6 +820,122 @@ describe("sync routes", () => {
 
     await flushMicrotasks();
     expect(expireStaleGuestInvitationsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 401 for missing cron auth on follow-up notification sync", async () => {
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/notification-follow-ups",
+    );
+
+    expect(response.status).toBe(401);
+    expect(acquireLockMock).not.toHaveBeenCalled();
+    expect(sendFollowUpsMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when the follow-up notification lock is already held", async () => {
+    acquireLockMock.mockRejectedValue(new Error("LOCK_IS_LOCKED"));
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/notification-follow-ups",
+      {
+        headers: {
+          Authorization: "Bearer test-cron-secret",
+        },
+      },
+    );
+
+    expect(response.status).toBe(409);
+    expect(sendFollowUpsMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 and starts the follow-up notification sync exactly once in background", async () => {
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/notification-follow-ups",
+      {
+        headers: {
+          Authorization: "Bearer test-cron-secret",
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(acquireLockMock).toHaveBeenCalledWith(
+      "notification-follow-ups-sync",
+    );
+
+    await flushMicrotasks();
+    expect(sendFollowUpsMock).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * The run's own tests pass the abort and the deadline in by hand, so they
+   * prove the loop obeys them and never that the route hands over the pair
+   * the lock is actually held under. A run given a signal that never fires,
+   * or a deadline that always answers yes, pages a backlog on past the lock:
+   * the failure the whole arrangement exists to stop. Asserting their shape
+   * is not enough, because a fresh AbortController has the right shape.
+   */
+  it("hands the follow-up run the deadline its lock is held under", async () => {
+    vi.useFakeTimers();
+
+    try {
+      // Held open, so the handler is still inside the operation when the
+      // deadline lands. A run that returned first would clear the timeout
+      // and the signal would never fire.
+      let finishRun: ((result: unknown) => void) | undefined;
+      sendFollowUpsMock.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            finishRun = resolve;
+          }),
+      );
+
+      const app = await createApp();
+      const response = await app.request(
+        "http://localhost/sync/notification-follow-ups",
+        { headers: { Authorization: "Bearer test-cron-secret" } },
+      );
+
+      expect(response.status).toBe(200);
+      await vi.advanceTimersByTimeAsync(0);
+
+      const options = sendFollowUpsMock.mock.calls[0]?.[0];
+      // Exactly these two, which is all this pins. A third option would be
+      // one the run was never meant to get from here, and `now` is the one
+      // that would move the window rather than add to it.
+      expect(Object.keys(options).sort()).toEqual([
+        "abortSignal",
+        "shouldContinue",
+      ]);
+      expect(options.abortSignal.aborted).toBe(false);
+      expect(options.shouldContinue()).toBe(true);
+
+      // A millisecond short of it first. Without this the test passes for any
+      // deadline at all between nothing and the real one, and the arithmetic
+      // that produces it is decoration.
+      await vi.advanceTimersByTimeAsync(SYNC_DEADLINE_MS - 1);
+
+      expect(options.abortSignal.aborted).toBe(false);
+      expect(options.shouldContinue()).toBe(true);
+
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(options.abortSignal.aborted).toBe(true);
+      // Both, because they are two separate options and the route can get
+      // one of them right. Nothing else here ever sees this answer false,
+      // so without this line a deadline that always says yes passes.
+      expect(options.shouldContinue()).toBe(false);
+
+      finishRun?.({ examined: 0, sent: 0, reachedEnd: false });
+      await vi.advanceTimersByTimeAsync(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("returns 401 for missing cron auth on x402 header purge sync", async () => {

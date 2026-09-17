@@ -1,9 +1,8 @@
 "use client";
 
-import * as Sentry from "@sentry/nextjs";
 import { track } from "@vercel/analytics";
 import { KeyRound, Loader2, Mail } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   type ComponentProps,
@@ -27,12 +26,9 @@ import { authClient } from "@/lib/auth/auth.client";
 import {
   buildAuthCallbackUrl,
   buildOAuthConsentReturnUrlFromSearchParams,
-  createAuthSessionGetter,
-  normalizeAuthReturnUrl,
-  waitForAuthSession,
 } from "@/lib/auth/auth.utils";
 import { emailSchema } from "@/lib/auth/data";
-import { fireGTMEvent } from "@/lib/gtm-events";
+import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import { cn } from "@/lib/utils";
 
 export type SocialButtonProviderId = "google" | "microsoft";
@@ -76,7 +72,6 @@ export default function SocialButtons({
     runWithCaptcha,
     getErrorMessage,
   } = useAuthCaptcha("magic-link");
-  const router = useRouter();
   const searchParams = useSearchParams();
   const effectiveReturnUrl = useMemo(
     () => returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams),
@@ -91,20 +86,15 @@ export default function SocialButtons({
     magicLinkEmail.trim().length > 0 &&
     magicLinkEmail.trim() === magicLinkSentTo;
 
-  const finishPasskeySignIn = useCallback(async () => {
-    const session = await waitForAuthSession({
-      context: "login",
-      getSession: createAuthSessionGetter(() => authClient.getSession()),
-      logWarning: (message) => {
-        Sentry.captureMessage(message, { level: "warning" });
-      },
-    });
-
-    if (session) {
-      fireGTMEvent.signIn("passkey");
-    }
-    router.replace(normalizeAuthReturnUrl(effectiveReturnUrl));
-  }, [effectiveReturnUrl, router]);
+  const finishPasskeySignIn = useCallback(
+    () =>
+      finishAuthInPlace({
+        eventType: "signIn",
+        provider: "passkey",
+        returnUrl: effectiveReturnUrl,
+      }),
+    [effectiveReturnUrl],
+  );
 
   const handlePasskeySignIn = async (options?: {
     autoFill?: boolean;

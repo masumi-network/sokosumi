@@ -10,6 +10,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { fireGTMEvent } from "@/lib/gtm-events";
 import {
   captchaErrorMessageMock,
   requestCaptchaMock,
@@ -18,6 +19,7 @@ import {
 import SignUpForm from "./form";
 
 const mockReplace = vi.fn();
+const mockLocationReplace = vi.fn();
 const mockSignUpEmail = vi.fn();
 const mockHandleUtmConversion = vi.fn();
 const mockGetSession = vi.fn();
@@ -102,7 +104,8 @@ describe("SignUpForm OAuth workflow", () => {
       value: {
         href: "http://localhost/",
         origin: "http://localhost",
-      } as Location,
+        replace: (...args: unknown[]) => mockLocationReplace(...args),
+      } as unknown as Location,
     });
   });
 
@@ -115,6 +118,7 @@ describe("SignUpForm OAuth workflow", () => {
 
   beforeEach(() => {
     mockReplace.mockReset();
+    mockLocationReplace.mockReset();
     mockSignUpEmail.mockReset();
     mockHandleUtmConversion.mockReset();
     mockGetSession.mockReset();
@@ -184,49 +188,14 @@ describe("SignUpForm OAuth workflow", () => {
     ).toHaveAttribute("type", "password");
   });
 
-  it("redirects with window.location.href when signup returns oauth redirect", async () => {
-    mockSearchParams = new URLSearchParams({
-      client_id: "test-client",
-      redirect_uri: "https://consumer.example.com/callback",
-      code_challenge: "test-challenge",
-      code_challenge_method: "S256",
-      scope: "openid",
-      state: "test-state",
-      response_type: "code",
-      exp: "1772367377",
-      sig: "signed-value",
-    });
-
-    mockSignUpEmail.mockResolvedValue({
-      data: {
-        user: { id: "user-1" },
-        redirect: true,
-        url: "/auth/oauth2/authorize?client_id=test-client",
-      },
-      error: null,
-    });
-
-    render(<SignUpForm />);
-
-    await submitValidSignUpForm();
-
-    await waitFor(() => {
-      expect(window.location.href).toContain(
-        "/auth/oauth2/authorize?client_id=test-client",
-      );
-    });
-
-    expect(mockReplace).not.toHaveBeenCalled();
-    expect(mockWaitForAuthSession).not.toHaveBeenCalled();
-  });
-
-  it("uses standard post-signup navigation when oauth redirect is not present", async () => {
+  it("counts the signup in place and leaves with a full document load", async () => {
     mockSignUpEmail.mockResolvedValue({
       data: {
         user: { id: "user-2" },
       },
       error: null,
     });
+    mockWaitForAuthSession.mockResolvedValue({ id: "session-1" });
 
     render(<SignUpForm />);
 
@@ -234,11 +203,37 @@ describe("SignUpForm OAuth workflow", () => {
 
     await waitFor(() => {
       expect(mockWaitForAuthSession).toHaveBeenCalledTimes(1);
-      expect(mockReplace).toHaveBeenCalledWith("/");
+      expect(mockLocationReplace).toHaveBeenCalledWith("/");
       expect(mockHandleUtmConversion).toHaveBeenCalledTimes(1);
     });
 
-    expect(window.location.href).toBe("http://localhost/");
+    const signUpPayload = mockSignUpEmail.mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >;
+    expect(signUpPayload).not.toHaveProperty("callbackURL");
+    expect(fireGTMEvent.signUp).toHaveBeenCalledWith("credential");
+    // A soft nav would be served the pre-signup middleware redirect.
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it("does not count a signup when no session appears", async () => {
+    mockSignUpEmail.mockResolvedValue({
+      data: {
+        user: { id: "user-3" },
+      },
+      error: null,
+    });
+    mockWaitForAuthSession.mockResolvedValue(null);
+
+    render(<SignUpForm />);
+
+    await submitValidSignUpForm();
+
+    await waitFor(() => {
+      expect(mockLocationReplace).toHaveBeenCalledWith("/");
+    });
+    expect(fireGTMEvent.signUp).not.toHaveBeenCalled();
   });
 
   it("passes unwrapped session data to waitForAuthSession after credential signup", async () => {
@@ -312,20 +307,25 @@ describe("SignUpForm OAuth workflow", () => {
     );
     expect(signUpPayload).not.toHaveProperty("onboardingCompleted");
 
-    expect(signUpPayload.callbackURL).toContain("/oauth/consent?");
-    expect(signUpPayload.callbackURL).toContain("client_id=test-client");
-    expect(signUpPayload.callbackURL).toContain(
+    expect(signUpPayload).not.toHaveProperty("callbackURL");
+
+    await waitFor(() => {
+      expect(mockLocationReplace).toHaveBeenCalledTimes(1);
+    });
+    const consentUrl = mockLocationReplace.mock.calls[0]?.[0] as string;
+
+    expect(consentUrl).toContain("/oauth/consent?");
+    expect(consentUrl).toContain("client_id=test-client");
+    expect(consentUrl).toContain(
       "redirect_uri=https%3A%2F%2Fconsumer.example.com%2Fcallback",
     );
-    expect(signUpPayload.callbackURL).toContain(
-      "code_challenge=test-challenge",
-    );
-    expect(signUpPayload.callbackURL).toContain("code_challenge_method=S256");
-    expect(signUpPayload.callbackURL).toContain("scope=openid");
-    expect(signUpPayload.callbackURL).toContain("state=test-state");
-    expect(signUpPayload.callbackURL).toContain("response_type=code");
-    expect(signUpPayload.callbackURL).toContain("exp=1772367377");
-    expect(signUpPayload.callbackURL).toContain("sig=signed-value");
+    expect(consentUrl).toContain("code_challenge=test-challenge");
+    expect(consentUrl).toContain("code_challenge_method=S256");
+    expect(consentUrl).toContain("scope=openid");
+    expect(consentUrl).toContain("state=test-state");
+    expect(consentUrl).toContain("response_type=code");
+    expect(consentUrl).toContain("exp=1772367377");
+    expect(consentUrl).toContain("sig=signed-value");
   });
 
   it("keeps a left-edge submit spinner after credential signup succeeds", async () => {
@@ -341,7 +341,7 @@ describe("SignUpForm OAuth workflow", () => {
     await submitValidSignUpForm();
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledTimes(1);
+      expect(mockLocationReplace).toHaveBeenCalledTimes(1);
     });
 
     const submitButton = screen.getByRole("button", { name: "submit" });
@@ -374,33 +374,6 @@ describe("SignUpForm OAuth workflow", () => {
     });
 
     expect(submitButton.querySelector("svg.animate-spin")).toBeNull();
-  });
-
-  it("keeps a left-edge submit spinner until oauth redirect navigation", async () => {
-    mockSignUpEmail.mockResolvedValue({
-      data: {
-        user: { id: "user-6" },
-        redirect: true,
-        url: "/auth/oauth2/authorize?client_id=test-client",
-      },
-      error: null,
-    });
-
-    render(<SignUpForm />);
-
-    await submitValidSignUpForm();
-
-    await waitFor(() => {
-      expect(window.location.href).toContain(
-        "/auth/oauth2/authorize?client_id=test-client",
-      );
-    });
-
-    const submitButton = screen.getByRole("button", { name: "submit" });
-    const spinner = submitButton.querySelector("svg.animate-spin");
-
-    expect(submitButton).toBeDisabled();
-    expect(spinner).toHaveClass("absolute", "left-4");
   });
 });
 

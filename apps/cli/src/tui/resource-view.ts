@@ -5,12 +5,10 @@ import type { Agent } from "../api/models/agent.js";
 import type { AgentJob } from "../api/models/agent-job.js";
 import type { Coworker } from "../api/models/coworker.js";
 import type { Task } from "../api/models/task.js";
-import type { User } from "../api/models/user.js";
 import { fetchAgents } from "../api/services/agent-service.js";
 import { fetchCoworkers } from "../api/services/coworker-service.js";
 import { fetchJobs } from "../api/services/job-service.js";
 import { fetchTasks } from "../api/services/task-service.js";
-import { fetchCurrentUser } from "../api/services/user-service.js";
 import { redactErrorMessage } from "../error-redaction.js";
 import { SelectInput, type SelectItem } from "./select-input.js";
 import { TUI_THEME } from "./theme.js";
@@ -33,8 +31,7 @@ type ResourceData =
   | { kind: "agents"; items: Agent[] }
   | { kind: "coworkers"; items: Coworker[] }
   | { kind: "tasks"; items: Task[] }
-  | { kind: "jobs"; items: AgentJob[] }
-  | { kind: "account"; user: User };
+  | { kind: "jobs"; items: AgentJob[] };
 
 type ResourceState =
   | { status: "loading" }
@@ -73,7 +70,6 @@ const resourceTitles: Record<ResourceKind, string> = {
 function readable(value: string | null | undefined, fallback: string): string {
   return value?.trim() || fallback;
 }
-export const safeError = redactErrorMessage;
 
 export function paginationTotal(
   response: { meta?: Record<string, unknown> },
@@ -396,7 +392,6 @@ function renderDashboard(
 }
 
 function renderAccount(
-  user: User,
   onBack: () => void,
   listen = true,
   authMethod: "oauth" | "api-key" | null = null,
@@ -440,6 +435,7 @@ export function ResourceView({
 
   useEffect(() => {
     setSelectedIndex(null);
+    if (resource === "account") return;
     let cancelled = false;
     const controller = new AbortController();
     setState({ status: coreClient ? "loading" : "unavailable" });
@@ -459,7 +455,9 @@ export function ResourceView({
           const failures = results
             .filter((result) => result.status === "rejected")
             .map((result) =>
-              result.status === "rejected" ? safeError(result.reason) : "",
+              result.status === "rejected"
+                ? redactErrorMessage(result.reason)
+                : "",
             );
           if (failures.length === results.length) {
             setState({
@@ -552,16 +550,9 @@ export function ResourceView({
             });
           return;
         }
-
-        const result = await fetchCurrentUser(coreClient, controller.signal);
-        if (!cancelled)
-          setState({
-            status: "ready",
-            data: { kind: "account", user: result.user },
-          });
       } catch (error: unknown) {
         if (!cancelled && !controller.signal.aborted) {
-          setState({ status: "error", message: safeError(error) });
+          setState({ status: "error", message: redactErrorMessage(error) });
         }
       }
     };
@@ -572,6 +563,10 @@ export function ResourceView({
       controller.abort();
     };
   }, [coreClient, resource]);
+
+  if (resource === "account") {
+    return renderAccount(onBack, listen, accountAuthMethod, accountTarget);
+  }
 
   if (state.status === "loading")
     return React.createElement(
@@ -622,15 +617,6 @@ export function ResourceView({
       onNavigate,
       listen,
     );
-  if (data.kind === "account")
-    return renderAccount(
-      data.user,
-      onBack,
-      listen,
-      accountAuthMethod,
-      accountTarget,
-    );
-
   const listBack =
     selectedIndex === null ? onBack : () => setSelectedIndex(null);
   if (data.kind === "agents") {
