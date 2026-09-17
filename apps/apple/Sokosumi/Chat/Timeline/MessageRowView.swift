@@ -4,6 +4,8 @@ import SokosumiChat
 import SwiftUI
 
 #if os(macOS)
+  import AppKit
+
   /// Wall-clock HH:mm in the local timezone, like web `formatMessageTime`.
   private let messageTimeFormatter: DateFormatter = {
     let formatter = DateFormatter()
@@ -100,6 +102,18 @@ import SwiftUI
 
     private var showsActions: Bool {
       isHovered || isReplyHovered || focusedAction != nil || showsReactionPicker
+    }
+
+    private var canCopyMessageLink: Bool {
+      message.deletedAt == nil
+        && !isOutboundLocalMessage(message)
+        && !message.id.hasPrefix("stream:")
+    }
+
+    private var showsActionChrome: Bool {
+      message.deletedAt == nil
+        && (onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil
+          || onTogglePin != nil || onToggleReaction != nil || canCopyMessageLink)
     }
 
     private var reactionAction: ((String) -> Void)? {
@@ -244,12 +258,12 @@ import SwiftUI
       .background {
         if isHighlighted {
           Color.accentColor.opacity(0.12)
-        } else if isHovered || isReplyHovered, onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil || onTogglePin != nil || onToggleReaction != nil {
+        } else if isHovered || isReplyHovered, showsActionChrome {
           Color.primary.opacity(0.04)
         }
       }
       .overlay(alignment: .topTrailing) {
-        if message.deletedAt == nil, onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil || onTogglePin != nil || onToggleReaction != nil {
+        if showsActionChrome {
           ViewThatFits(in: .horizontal) {
             actionControls(compact: false)
             actionControls(compact: true)
@@ -312,6 +326,9 @@ import SwiftUI
         if onTogglePin != nil {
           pinButton
         }
+        if canCopyMessageLink {
+          copyLinkButton
+        }
         if onToggleReaction != nil, message.deletedAt == nil {
           Button("Add reaction", systemImage: "face.smiling") { showsReactionPicker = true }
         }
@@ -332,6 +349,9 @@ import SwiftUI
       }
       .accessibilityElement(children: .contain)
       .accessibilityActions {
+        if canCopyMessageLink {
+          Button("Copy link", action: copyMessageLink)
+        }
         if onToggleReaction != nil, message.deletedAt == nil {
           Button("Add reaction") { showsReactionPicker = true }
         }
@@ -366,7 +386,7 @@ import SwiftUI
         if let onQuote {
           messageAction("Quote", symbol: "quote.opening", focus: .quote, compact: compact, action: onQuote)
         }
-        if onEdit != nil || onDelete != nil || onTogglePin != nil {
+        if onEdit != nil || onDelete != nil || onTogglePin != nil || canCopyMessageLink {
           moreActions
         }
       }
@@ -377,6 +397,9 @@ import SwiftUI
       Menu {
         if onTogglePin != nil {
           pinButton
+        }
+        if canCopyMessageLink {
+          copyLinkButton
         }
 
         if let onEdit {
@@ -459,6 +482,18 @@ import SwiftUI
 
     private var pendingSince: Date? {
       outbound?.status == .pending ? outbound?.createdAt : nil
+    }
+
+    private var copyLinkButton: some View {
+      Button("Copy link", systemImage: "link", action: copyMessageLink)
+    }
+
+    private func copyMessageLink() {
+      guard let url = ChatLink(roomId: message.roomId, messageId: message.id).url(webBaseURL: CoreSettings.webBaseURL) else {
+        return
+      }
+      NSPasteboard.general.clearContents()
+      _ = NSPasteboard.general.setString(url.absoluteString, forType: .string)
     }
 
     private var pinButton: some View {

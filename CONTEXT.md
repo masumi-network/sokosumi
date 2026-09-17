@@ -316,7 +316,11 @@ _Avoid_: Autolink (ambiguous with GFM scheme/`www` links), live link (composer d
 
 **Channel link**:
 In a room message body, a `#` immediately followed by a membership-visible Channel’s current name or slug (no space after `#`). Presentation shows it as a clickable link to that Channel after send; the stored markdown is unchanged. Distinct from User mention: no stored mention row, no paging. The composer `#` picker inserts a chip that looks like a User mention but serializes to this plain text; it is not a stored mention row.
-_Avoid_: Channel mention (that reads as User mention), hashtag, linking a Direct, treating `# Heading` (space after `#`) as a Channel link
+_Avoid_: Channel mention (that reads as User mention), hashtag, linking a Direct, treating `# Heading` (space after `#`) as a Channel link, Message link
+
+**Message link**:
+A URL that opens a room and jumps to one specific room message, for a reader who can already read that room. Distinct from a Channel link, which is `#name` or `#slug` in a room message body. Not a public share.
+_Avoid_: permalink, public share, Channel link, vanity slug URL
 
 **Unfurl**:
 A page-preview card scraped from a URL in a room message body and stored on that message. The same cards for every viewer. Distinct from the URL in the body.
