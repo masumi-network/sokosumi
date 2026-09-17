@@ -55,7 +55,7 @@ public struct ChannelDraft: Equatable, Sendable {
     return [.human(currentUserId)] + selected.filter { $0 != .human(currentUserId) }
   }
 
-  private static func limit(_ raw: String, to maximum: Int) -> String {
+  static func limit(_ raw: String, to maximum: Int) -> String {
     var length = 0
     return String(raw.prefix { character in
       length += character.utf16.count
