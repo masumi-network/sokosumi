@@ -232,9 +232,55 @@ describe("MarkdownEditor", () => {
     await waitFor(() => {
       expect(editor).toHaveAttribute("data-empty");
     });
-    expect(editor.className).toContain(
-      "data-[empty]:before:content-[attr(data-placeholder)]",
+    expect(editor).not.toHaveTextContent("Add details");
+    expect(editor.className).not.toContain(
+      "before:content-[attr(data-placeholder)]",
     );
+    const placeholder = screen.getByText("Add details");
+    expect(placeholder).toHaveAttribute("aria-hidden", "true");
+    expect(placeholder).toHaveClass("pointer-events-none");
+  });
+
+  it("marks the floating format toolbar as a task-form portal", async () => {
+    const rect = {
+      x: 40,
+      y: 40,
+      top: 40,
+      left: 40,
+      width: 80,
+      height: 16,
+      bottom: 56,
+      right: 120,
+      toJSON() {
+        return this;
+      },
+    };
+    vi.spyOn(Range.prototype, "getBoundingClientRect").mockReturnValue(
+      rect as DOMRect,
+    );
+
+    render(
+      <MarkdownEditor
+        value="Hello world"
+        onChange={vi.fn()}
+        variant="document"
+      />,
+    );
+
+    const editor = screen.getByRole("textbox");
+    await waitFor(() => {
+      expect(editor).toHaveTextContent("Hello world");
+    });
+
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    document.dispatchEvent(new Event("selectionchange"));
+
+    const toolbar = await screen.findByRole("toolbar", { name: "Format" });
+    expect(toolbar).toHaveAttribute("data-task-form-portal");
   });
 
   it("keeps attach on the field strip and off the document bubble", () => {

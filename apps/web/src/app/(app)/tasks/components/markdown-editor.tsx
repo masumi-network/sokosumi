@@ -875,47 +875,55 @@ export const MarkdownEditor = forwardRef<
         </div>
       ) : null}
 
-      {/* Single editable area */}
-      <div
-        ref={editorRef}
-        id={id}
-        contentEditable
-        onInput={handleInput}
-        onKeyDown={handleKeyDown}
-        onKeyUp={() => {
-          syncMentionSuggestionsWithCaret();
-          updateSelectionToolbar();
-        }}
-        onMouseUp={() => {
-          syncMentionSuggestionsWithCaret();
-          updateSelectionToolbar();
-        }}
-        onBlur={handleBlur}
-        data-placeholder={placeholder}
-        role="textbox"
-        aria-label={ariaLabel}
-        aria-multiline="true"
-        className={withEditableTextSize(
-          "markdown-compose-surface",
-          "max-h-48 min-h-32 overflow-x-hidden overflow-y-auto py-2",
-          variant === "document" ? "px-0" : "px-3",
-          "outline-none focus:outline-none",
-          "wrap-anywhere [word-break:break-word] whitespace-pre-wrap",
-          "empty:before:text-muted-foreground data-[empty]:before:text-muted-foreground empty:before:pointer-events-none data-[empty]:before:pointer-events-none empty:before:content-[attr(data-placeholder)] data-[empty]:before:content-[attr(data-placeholder)]",
-          "[&_em]:italic [&_i]:italic [&_strong]:font-bold [&_b]:font-bold [&_u]:underline [&_s]:line-through",
-          "[&_code]:bg-muted [&_code]:rounded [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs",
-          "[&_pre]:bg-muted [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:p-2 [&_pre]:whitespace-pre",
-          "[&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-xs",
-          "[&_a]:text-primary [&_a]:underline",
-          "[&_blockquote]:border-input [&_blockquote]:border-l-2 [&_blockquote]:pl-3",
-          "[&_h1]:mt-2 [&_h1]:mb-1 [&_h1]:text-xl [&_h1]:font-bold",
-          "[&_h2]:mt-2 [&_h2]:mb-1 [&_h2]:text-lg [&_h2]:font-semibold",
-          "[&_h3]:mt-2 [&_h3]:mb-1 [&_h3]:text-base [&_h3]:font-semibold",
-          "[&_li]:ml-4 [&_ol>li]:list-decimal [&_ul>li]:list-disc",
-          "[&_span[data-mention-key]]:text-primary [&_span[data-mention-key]]:cursor-pointer [&_span[data-mention-key]]:font-semibold [&_span[data-mention-key]]:hover:underline",
-          editorClassName,
-        )}
-      />
+      <div className="relative min-h-0 flex-1">
+        <div
+          ref={editorRef}
+          id={id}
+          contentEditable
+          onInput={handleInput}
+          onKeyDown={handleKeyDown}
+          onKeyUp={() => {
+            syncMentionSuggestionsWithCaret();
+            updateSelectionToolbar();
+          }}
+          onMouseUp={() => {
+            syncMentionSuggestionsWithCaret();
+            updateSelectionToolbar();
+          }}
+          onBlur={handleBlur}
+          role="textbox"
+          aria-label={ariaLabel}
+          aria-multiline="true"
+          className={withEditableTextSize(
+            "markdown-compose-surface peer",
+            "max-h-48 min-h-32 overflow-x-hidden overflow-y-auto py-2",
+            variant === "document" ? "px-0" : "px-3",
+            "outline-none focus:outline-none",
+            "wrap-anywhere [word-break:break-word] whitespace-pre-wrap",
+            "[&_em]:italic [&_i]:italic [&_strong]:font-bold [&_b]:font-bold [&_u]:underline [&_s]:line-through",
+            "[&_code]:bg-muted [&_code]:rounded [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs",
+            "[&_pre]:bg-muted [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:p-2 [&_pre]:whitespace-pre",
+            "[&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-xs",
+            "[&_a]:text-primary [&_a]:underline",
+            "[&_blockquote]:border-input [&_blockquote]:border-l-2 [&_blockquote]:pl-3",
+            "[&_h1]:mt-2 [&_h1]:mb-1 [&_h1]:text-xl [&_h1]:font-bold",
+            "[&_h2]:mt-2 [&_h2]:mb-1 [&_h2]:text-lg [&_h2]:font-semibold",
+            "[&_h3]:mt-2 [&_h3]:mb-1 [&_h3]:text-base [&_h3]:font-semibold",
+            "[&_li]:ml-4 [&_ol>li]:list-decimal [&_ul>li]:list-disc",
+            "[&_span[data-mention-key]]:text-primary [&_span[data-mention-key]]:cursor-pointer [&_span[data-mention-key]]:font-semibold [&_span[data-mention-key]]:hover:underline",
+            editorClassName,
+          )}
+        />
+        <div
+          aria-hidden="true"
+          className={withEditableTextSize(
+            "pointer-events-none absolute inset-x-0 top-0 hidden py-2 text-muted-foreground peer-data-[empty]:block peer-empty:block",
+            variant === "document" ? "px-0" : "px-3",
+          )}
+        >
+          {placeholder}
+        </div>
+      </div>
       {typeof window !== "undefined" &&
         isOpen &&
         filteredMentions.length > 0 &&
@@ -923,6 +931,7 @@ export const MarkdownEditor = forwardRef<
           <div
             ref={listRef}
             role="listbox"
+            data-task-form-portal=""
             style={
               triggerPosition
                 ? { top: triggerPosition.top, left: triggerPosition.left }
@@ -970,6 +979,7 @@ export const MarkdownEditor = forwardRef<
           <div
             role="toolbar"
             aria-label="Format"
+            data-task-form-portal=""
             className="bg-popover text-popover-foreground border-border fixed z-50 flex items-center gap-0.5 rounded-md border p-0.5 shadow-md"
             style={{
               top: placeFormatToolbarBelow

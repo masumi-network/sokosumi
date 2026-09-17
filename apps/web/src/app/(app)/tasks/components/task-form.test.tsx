@@ -622,7 +622,7 @@ describe("TaskForm", () => {
     expect(createTaskMock).not.toHaveBeenCalled();
   });
 
-  it("uses document title sizing on create and edit", () => {
+  it("hides the title field on create and shows it on edit", () => {
     const { rerender } = render(
       <TaskForm
         mode="create"
@@ -634,11 +634,7 @@ describe("TaskForm", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Task name")).toHaveClass(
-      "text-xl",
-      "font-semibold",
-      "tracking-tight",
-    );
+    expect(screen.queryByLabelText("Task name")).not.toBeInTheDocument();
 
     rerender(
       <TaskForm
@@ -690,7 +686,30 @@ describe("TaskForm", () => {
     ).toBeTruthy();
   });
 
-  it("passes a trimmed name on create when the title field is filled", async () => {
+  it("puts visibility on the same chip row as project", () => {
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
+        initialValues={{ assigneeUserId: "user-1" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    const row = screen.getByTestId("task-compose-meta-row");
+    const projectSelect = screen.getByRole("combobox", { name: "Project" });
+    const privateButton = screen.getByLabelText("Private");
+
+    expect(row).toContainElement(projectSelect);
+    expect(row).toContainElement(privateButton);
+    expect(row).toHaveClass("flex");
+    expect(privateButton).not.toHaveClass("w-full");
+  });
+
+  it("omits name on create", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
     createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "My task"));
@@ -706,15 +725,11 @@ describe("TaskForm", () => {
       />,
     );
 
-    await user.type(screen.getByLabelText("Task name"), "  My task  ");
     await user.type(screen.getByTestId("markdown-editor"), "Write docs");
     await user.click(screen.getByRole("button", { name: "Create Task" }));
 
-    expect(createTaskMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: "My task",
-      }),
-    );
+    expect(createTaskMock).toHaveBeenCalledTimes(1);
+    expect(createTaskMock.mock.calls[0]?.[0]).not.toHaveProperty("name");
   });
 
   it("shows the footer status pill defaulting to Draft on create", () => {
