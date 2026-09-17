@@ -61,14 +61,14 @@ vi.mock("@/components/ui/sidebar", () => ({
     asChild?: boolean;
     isActive?: boolean;
   }) => (
-    <button
-      type="button"
-      onClick={onClick}
-      data-has-tooltip={tooltip ? "true" : "false"}
-      {...props}
-    >
-      {children}
-    </button>
+    <>
+      <button type="button" onClick={onClick} {...props}>
+        {children}
+      </button>
+      <span data-testid="menu-tooltip">
+        {typeof tooltip === "string" ? tooltip : tooltip?.children}
+      </span>
+    </>
   ),
   SidebarMenuItem: ({ children }: { children: React.ReactNode }) => (
     <li>{children}</li>
@@ -258,15 +258,20 @@ describe("MenuItems search action", () => {
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
   });
 
-  it("gives every menu item a hover hint for the collapsed rail", () => {
-    const { container } = renderMenu(true, true, false);
-    const buttons = Array.from(
-      container.querySelectorAll("[data-has-tooltip]"),
-    );
+  it("gives every menu item its label as a hover hint for the collapsed rail", () => {
+    renderMenu(true, true, false);
 
-    expect(buttons.length).toBeGreaterThan(0);
-    for (const button of buttons) {
-      expect(button).toHaveAttribute("data-has-tooltip", "true");
-    }
+    expect(
+      screen.getAllByTestId("menu-tooltip").map((hint) => hint.textContent),
+    ).toEqual([
+      "newTask",
+      "searchCtrl+K",
+      "exploreAgents",
+      "projects",
+      "taskManager",
+      "calendar",
+      "drive",
+      "history",
+    ]);
   });
 });
