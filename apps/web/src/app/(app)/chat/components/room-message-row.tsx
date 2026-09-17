@@ -2323,8 +2323,9 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     setDeleteDialogOpen(false);
   }
 
-  // The parent drops a repeat click while the first toggle is in flight, so
-  // a use counts once per emoji until the message's reactions change.
+  // A use counts once per emoji until the message's confirmed reactions
+  // change. Taps while a request is out flip a Pending reaction whose "off"
+  // state is the confirmed row itself, so on/off/on records the emoji once.
   const recordedUsesRef = useRef<{
     reactions: ChatRoomMessage["reactions"];
     emojis: Set<string>;

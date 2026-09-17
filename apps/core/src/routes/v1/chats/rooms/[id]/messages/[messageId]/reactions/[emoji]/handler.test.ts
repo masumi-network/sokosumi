@@ -200,74 +200,89 @@ describe("PUT /chats/rooms/{id}/messages/{messageId}/reactions/{emoji}", () => {
     expect(publishChatRoomMessageRealtime).not.toHaveBeenCalled();
   });
 
-  it("rejects a reaction on a deleted message", async () => {
-    messageFindFirstMock.mockResolvedValue({
-      deletedAt: new Date("2026-09-02T00:00:00.000Z"),
-      metadata: null,
-    });
+  it.each(["PUT", "DELETE"] as const)(
+    "rejects a reaction on a deleted message on %s",
+    async (method) => {
+      messageFindFirstMock.mockResolvedValue({
+        deletedAt: new Date("2026-09-02T00:00:00.000Z"),
+        metadata: null,
+      });
 
-    const response = await createApp(userAuthContext).request(
-      reactionPath("👍"),
-      { method: "PUT" },
-    );
+      const response = await createApp(userAuthContext).request(
+        reactionPath("👍"),
+        { method },
+      );
 
-    expect(response.status).toBe(400);
-    expect(reactionCreateManyMock).not.toHaveBeenCalled();
-  });
+      expect(response.status).toBe(400);
+      expect(reactionCreateManyMock).not.toHaveBeenCalled();
+    },
+  );
 
-  it("rejects a reaction on a membership status message", async () => {
-    messageFindFirstMock.mockResolvedValue({
-      deletedAt: null,
-      metadata: {
-        membership: {
-          action: "joined",
-          subject: { type: "user", id: USER_ID, name: "Ada" },
+  it.each(["PUT", "DELETE"] as const)(
+    "rejects a reaction on a membership status message on %s",
+    async (method) => {
+      messageFindFirstMock.mockResolvedValue({
+        deletedAt: null,
+        metadata: {
+          membership: {
+            action: "joined",
+            subject: { type: "user", id: USER_ID, name: "Ada" },
+          },
         },
-      },
-    });
+      });
 
-    const response = await createApp(userAuthContext).request(
-      reactionPath("👍"),
-      { method: "PUT" },
-    );
+      const response = await createApp(userAuthContext).request(
+        reactionPath("👍"),
+        { method },
+      );
 
-    expect(response.status).toBe(400);
-    expect(reactionCreateManyMock).not.toHaveBeenCalled();
-  });
+      expect(response.status).toBe(400);
+      expect(reactionCreateManyMock).not.toHaveBeenCalled();
+    },
+  );
 
-  it("404s when the message is not in the room", async () => {
-    messageFindFirstMock.mockResolvedValue(null);
+  it.each(["PUT", "DELETE"] as const)(
+    "404s when the message is not in the room on %s",
+    async (method) => {
+      messageFindFirstMock.mockResolvedValue(null);
 
-    const response = await createApp(userAuthContext).request(
-      reactionPath("👍"),
-      { method: "PUT" },
-    );
+      const response = await createApp(userAuthContext).request(
+        reactionPath("👍"),
+        { method },
+      );
 
-    expect(response.status).toBe(404);
-    expect(reactionCreateManyMock).not.toHaveBeenCalled();
-  });
+      expect(response.status).toBe(404);
+      expect(reactionCreateManyMock).not.toHaveBeenCalled();
+    },
+  );
 
-  it("rejects an emoji longer than 24 characters", async () => {
-    const response = await createApp(userAuthContext).request(
-      reactionPath("x".repeat(25)),
-      { method: "PUT" },
-    );
+  it.each(["PUT", "DELETE"] as const)(
+    "rejects an emoji longer than 24 characters on %s",
+    async (method) => {
+      const response = await createApp(userAuthContext).request(
+        reactionPath("x".repeat(25)),
+        { method },
+      );
 
-    expect(response.status).toBe(422);
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
-  });
+      expect(response.status).toBe(422);
+      expect(prismaTransactionMock).not.toHaveBeenCalled();
+    },
+  );
 
-  it("rejects coworker actors", async () => {
-    const response = await createApp({
-      actor: "coworker",
-      coworkerId: "cow_1",
-      vendorId: "01960001-0001-7001-8001-000000000001",
-      context: { userId: USER_ID, organizationId: ORG_ID },
-    }).request(reactionPath("👍"), { method: "PUT" });
+  it.each(["PUT", "DELETE"] as const)(
+    "rejects coworker actors on %s",
+    async (method) => {
+      const response = await createApp({
+        actor: "coworker",
+        coworkerId: "cow_1",
+        vendorId: "01960001-0001-7001-8001-000000000001",
+        context: { userId: USER_ID, organizationId: ORG_ID },
+      }).request(reactionPath("👍"), { method });
 
-    expect(response.status).toBe(403);
-    expect(reactionCreateManyMock).not.toHaveBeenCalled();
-  });
+      expect(response.status).toBe(403);
+      expect(reactionCreateManyMock).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe("DELETE /chats/rooms/{id}/messages/{messageId}/reactions/{emoji}", () => {
