@@ -1346,7 +1346,7 @@ function DrivePageWorkspace({
 
   return (
     <div className={cn("w-full", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
-      <div className="mb-4 flex flex-col gap-3 md:mb-6 md:gap-4">
+      <div className="mb-4 flex flex-col gap-4 md:mb-6">
         <div
           data-testid="files-desktop-header"
           className="flex flex-row items-center justify-between gap-3"
