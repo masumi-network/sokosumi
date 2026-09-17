@@ -1340,28 +1340,28 @@ function DrivePageWorkspace({
       onChange={handleFilesSortChange}
       surface={filesSortSurface}
       labels={filesSortLabels}
-      className="hidden md:block"
+      className="hidden @2xl:block"
     />
   );
 
   return (
-    <div className={cn("w-full", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
+    <div className={cn("@container w-full", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
       <div className="mb-4 flex flex-col gap-4 md:mb-6">
         <div
           data-testid="files-desktop-header"
-          className="flex flex-row items-center justify-between gap-3"
+          className="flex flex-col gap-3 @4xl:flex-row @4xl:items-center @4xl:justify-between"
         >
-          <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3 @4xl:flex-1">
             <DriveViewTabs
               activeView={primaryView}
               browseLabel={storeRootLabel}
               onViewChange={navigateToPrimaryView}
             />
           </div>
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
             {isTasksView && (
               <>
-                <div className="hidden items-center gap-2 md:flex">
+                <div className="hidden items-center gap-2 @2xl:flex">
                   <div className="relative">
                     <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
                     <Input
@@ -1369,11 +1369,11 @@ function DrivePageWorkspace({
                       placeholder={t("tasksSearchPlaceholder")}
                       value={searchQuery}
                       onChange={(e) => handleSearchChange(e.target.value)}
-                      className="w-64 pl-8"
+                      className="w-64 max-w-full pl-8"
                     />
                   </div>
                 </div>
-                <div className="hidden md:block">
+                <div className="hidden @2xl:block">
                   <DriveTasksFilters
                     activeOrganizationId={activeOrganizationId}
                     assigneeId={assigneeIdParam}
@@ -1388,7 +1388,7 @@ function DrivePageWorkspace({
               </>
             )}
             {!isTasksView && isBrowseView && (
-              <div className="hidden items-center gap-2 md:flex">
+              <div className="hidden items-center gap-2 @2xl:flex">
                 <div className="relative">
                   <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
                   <Input
@@ -1396,7 +1396,7 @@ function DrivePageWorkspace({
                     placeholder={t("searchPlaceholder")}
                     value={searchQuery}
                     onChange={(e) => handleSearchChange(e.target.value)}
-                    className="w-64 pl-8"
+                    className="w-64 max-w-full pl-8"
                   />
                 </div>
                 <Button
@@ -1435,7 +1435,7 @@ function DrivePageWorkspace({
               </div>
             )}
             {!isTasksView && isRecentsView && (
-              <div className="hidden items-center gap-2 md:flex">
+              <div className="hidden items-center gap-2 @2xl:flex">
                 <div className="relative">
                   <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
                   <Input
@@ -1443,7 +1443,7 @@ function DrivePageWorkspace({
                     placeholder={t("searchPlaceholder")}
                     value={searchQuery}
                     onChange={(e) => handleSearchChange(e.target.value)}
-                    className="w-64 pl-8"
+                    className="w-64 max-w-full pl-8"
                   />
                 </div>
               </div>
@@ -1536,7 +1536,10 @@ function DrivePageWorkspace({
       </div>
 
       {isTasksView && (
-        <div className="mb-6 flex items-center gap-2 md:hidden">
+        <div
+          className="mb-6 flex items-center gap-2 @2xl:hidden"
+          data-testid="tasks-mobile-toolbar"
+        >
           <div className="relative flex-1">
             <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
             <Input
@@ -1590,7 +1593,7 @@ function DrivePageWorkspace({
       )}
 
       {!isTasksView && isBrowseView && (
-        <div className="mb-6 flex items-center gap-2 md:hidden">
+        <div className="mb-6 flex items-center gap-2 @2xl:hidden">
           <div className="relative flex-1">
             <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
             <Input
@@ -1635,7 +1638,7 @@ function DrivePageWorkspace({
       )}
 
       {!isTasksView && isRecentsView && (
-        <div className="mb-6 flex items-center gap-2 md:hidden">
+        <div className="mb-6 flex items-center gap-2 @2xl:hidden">
           <div className="relative flex-1">
             <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
             <Input

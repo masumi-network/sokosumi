@@ -552,16 +552,12 @@ describe("DrivePage tasks mobile toolbar", () => {
       expect(fetchDriveTasksPageMock).toHaveBeenCalled();
     });
 
-    const mobileSearchInput = screen
-      .getAllByPlaceholderText("tasksSearchPlaceholder")
-      .find((input) => input.closest(".md\\:hidden"));
-
-    expect(mobileSearchInput).toBeDefined();
-
-    const mobileToolbar = mobileSearchInput?.closest(".md\\:hidden");
-    expect(mobileToolbar).not.toBeNull();
+    const mobileToolbar = screen.getByTestId("tasks-mobile-toolbar");
     expect(
-      within(mobileToolbar as HTMLElement).getByTestId("tasks-mobile-actions"),
+      within(mobileToolbar).getByPlaceholderText("tasksSearchPlaceholder"),
+    ).toBeVisible();
+    expect(
+      within(mobileToolbar).getByTestId("tasks-mobile-actions"),
     ).toBeVisible();
   });
 
@@ -904,7 +900,7 @@ describe("DrivePage files view mode", () => {
 
     const viewSwitch = screen.getByTestId("files-view-mode-switch");
     expect(viewSwitch.className).toContain("hidden");
-    expect(viewSwitch.className).toContain("md:flex");
+    expect(viewSwitch.className).toContain("@2xl:flex");
   });
 
   it("hides task/project path under the filename in grid", async () => {
@@ -1030,7 +1026,7 @@ describe("DrivePage files view mode", () => {
     });
 
     expect(screen.getByTestId("files-mobile-actions")).toBeVisible();
-    // Desktop create-folder control remains available (md+ toolbar).
+    // Desktop create-folder control remains in the header for wide containers.
     expect(
       screen.getAllByRole("button", { name: "createFolder" }).length,
     ).toBeGreaterThan(0);
@@ -1058,6 +1054,8 @@ describe("DrivePage files view mode", () => {
     });
 
     const header = screen.getByTestId("files-desktop-header");
+    expect(header.className).toContain("flex-col");
+    expect(header.className).toContain("@4xl:flex-row");
     expect(
       within(header).getByRole("tab", { name: "recentsTab" }),
     ).toBeVisible();

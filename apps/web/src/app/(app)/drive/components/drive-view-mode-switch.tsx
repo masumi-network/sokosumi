@@ -31,7 +31,7 @@ export function DriveViewModeSwitch({
       }}
       variant="outline"
       size="sm"
-      className="bg-background hidden md:flex"
+      className="bg-background hidden @2xl:flex"
       aria-label={`${labels.list} / ${labels.grid}`}
       data-testid="files-view-mode-switch"
     >

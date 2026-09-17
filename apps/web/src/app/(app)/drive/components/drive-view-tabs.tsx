@@ -32,9 +32,9 @@ export function DriveViewTabs({
       onValueChange={(value) => {
         onViewChange(value as DrivePrimaryView);
       }}
-      className="w-full md:w-auto"
+      className="w-full @2xl:w-auto"
     >
-      <TabsList className={cn(SEGMENTED_TABS_LIST_CLASS_NAME, "md:w-auto")}>
+      <TabsList className={cn(SEGMENTED_TABS_LIST_CLASS_NAME, "@2xl:w-auto")}>
         <TabsTrigger
           value="recents"
           className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
