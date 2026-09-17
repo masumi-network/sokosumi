@@ -51,6 +51,20 @@ private final class ScriptedTransport: ClientTransport {
     self.responses = responses
   }
 
+  /// One pause flag per operation family; only message-scoped operations honour them.
+  private func pausesMessageOperation(_ operationID: String) -> Bool {
+    let pausedByFlag = (pauseGET && operationID.hasPrefix("get/"))
+      || (pauseDELETE && operationID.hasPrefix("delete/"))
+      || (pauseReaction && operationID.hasSuffix("/reactions/{emoji}"))
+      || (pauseUnfurl && operationID.hasSuffix("/unfurls/remove"))
+      || (pauseMentionRetry && operationID.hasSuffix("/mentions/{mentionId}/retry"))
+      || (pauseSokoBotFeedback && operationID == "sendMySokoBotTurnFeedback")
+    let pausableOperation = operationID.contains("/messages")
+      || operationID == "get/chats/rooms/{id}/threads/{parentMessageId}"
+      || operationID == "sendMySokoBotTurnFeedback"
+    return pausedByFlag && pausableOperation
+  }
+
   func send(
     _: HTTPRequest,
     body: HTTPBody?,
@@ -94,7 +108,7 @@ private final class ScriptedTransport: ClientTransport {
       try Task.checkCancellation()
       return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
     }
-    if pauseGET && operationID.hasPrefix("get/") || pauseDELETE && operationID.hasPrefix("delete/") || pauseReaction && operationID.hasSuffix("/reactions/{emoji}") || pauseUnfurl && operationID.hasSuffix("/unfurls/remove") || pauseMentionRetry && operationID.hasSuffix("/mentions/{mentionId}/retry") || pauseSokoBotFeedback && operationID == "sendMySokoBotTurnFeedback", operationID.contains("/messages") || operationID == "get/chats/rooms/{id}/threads/{parentMessageId}" || operationID == "sendMySokoBotTurnFeedback" {
+    if pausesMessageOperation(operationID) {
       let next = responses.removeFirst()
       if !requestReleased {
         await withCheckedContinuation { pauseWaiter = $0 }

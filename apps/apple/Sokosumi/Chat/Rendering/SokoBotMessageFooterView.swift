@@ -31,15 +31,18 @@ struct SokoBotMessageFooterContent: View {
   var isSendingFeedback = false
   var onFeedback: ((Bool) -> Void)?
   @Environment(\.openURL) private var openURL
+  @ScaledMetric(relativeTo: .caption) private var taskDotSize = 6.0
+  @ScaledMetric(relativeTo: .caption) private var thumbTargetSize = 20.0
 
   var body: some View {
     WrappingRow(spacing: 8) {
       if turn.pendingDecisionCount > 0, let url = turn.assistantURL(webBaseURL: CoreSettings.webBaseURL) {
         FooterChip(accented: true) { openURL(url) } label: {
-          Image(systemName: "checkmark.shield").foregroundStyle(Color.accentColor)
+          // Decorative like web's aria-hidden icons; the texts carry the name.
+          Image(systemName: "checkmark.shield").foregroundStyle(Color.accentColor).accessibilityHidden(true)
           Text(turn.pendingDecisionCount == 1 ? "1 approval waiting" : "\(turn.pendingDecisionCount) approvals waiting").fontWeight(.medium)
           Text("Review on the assistant page").foregroundStyle(.secondary)
-          Image(systemName: "arrow.up.right").font(.caption2)
+          Image(systemName: "arrow.up.right").font(.caption2).accessibilityHidden(true)
         }
         .help("Review on the assistant page")
       }
@@ -47,9 +50,9 @@ struct SokoBotMessageFooterContent: View {
       ForEach(turn.taskIds, id: \.self) { taskId in
         if let url = SokoBotTurnMetadata.taskURL(taskId: taskId, webBaseURL: CoreSettings.webBaseURL) {
           FooterChip { openURL(url) } label: {
-            Circle().fill(Color.accentColor).frame(width: 6, height: 6)
+            Circle().fill(Color.accentColor).frame(width: taskDotSize, height: taskDotSize)
             Text("Task").fontWeight(.medium)
-            Image(systemName: "arrow.up.right").font(.caption2)
+            Image(systemName: "arrow.up.right").font(.caption2).accessibilityHidden(true)
           }
           .help("Open the task on web")
           .accessibilityLabel("Task")
@@ -82,7 +85,7 @@ struct SokoBotMessageFooterContent: View {
   private func feedbackButton(_ title: String, symbol: String, useful: Bool) -> some View {
     Button { onFeedback?(useful) } label: {
       Image(systemName: symbol)
-        .frame(width: 20, height: 20)
+        .frame(width: thumbTargetSize, height: thumbTargetSize)
         .contentShape(.rect)
     }
     .buttonStyle(.borderless)
@@ -134,20 +137,21 @@ struct SokoBotChainBadge: View {
   }
 }
 
-/// Left-aligned rows that wrap at the proposed width, like web `flex-wrap`.
+/// Left-aligned rows that wrap at the available width, like web `flex-wrap`.
 private struct WrappingRow: Layout {
   var spacing: CGFloat = 8
 
   func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache _: inout ()) -> CGSize {
-    let rows = arrange(proposal: proposal, subviews: subviews)
+    let rows = arrange(limit: proposal.width ?? .infinity, subviews: subviews)
     let width = rows.map(\.width).max() ?? 0
     let height = rows.reduce(0) { $0 + $1.height } + CGFloat(max(0, rows.count - 1)) * spacing
     return CGSize(width: proposal.width ?? width, height: height)
   }
 
-  func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache _: inout ()) {
+  func placeSubviews(in bounds: CGRect, proposal _: ProposedViewSize, subviews: Subviews, cache _: inout ()) {
     var top = bounds.minY
-    for row in arrange(proposal: proposal, subviews: subviews) {
+    // Wrap against the width actually granted, not the proposal, so an unspecified placement still wraps.
+    for row in arrange(limit: bounds.width, subviews: subviews) {
       var leading = bounds.minX
       for index in row.indices {
         let size = subviews[index].sizeThatFits(.unspecified)
@@ -164,8 +168,7 @@ private struct WrappingRow: Layout {
     var height: CGFloat = 0
   }
 
-  private func arrange(proposal: ProposedViewSize, subviews: Subviews) -> [Row] {
-    let limit = proposal.width ?? .infinity
+  private func arrange(limit: CGFloat, subviews: Subviews) -> [Row] {
     var rows: [Row] = []
     var current = Row()
     for (index, subview) in subviews.enumerated() {
