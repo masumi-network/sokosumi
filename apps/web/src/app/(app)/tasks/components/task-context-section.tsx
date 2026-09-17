@@ -100,7 +100,7 @@ export function TaskContextSectionContent({
   return (
     <section className="space-y-2">
       <h2 className="text-muted-foreground text-xs font-medium">{title}</h2>
-      <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-md border px-3 py-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
         {brandDisplay ? (
           <StaticContextPill
             label={brandDisplay.label}
