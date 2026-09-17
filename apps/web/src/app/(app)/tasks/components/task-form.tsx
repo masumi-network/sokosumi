@@ -154,7 +154,7 @@ export interface TaskFormLabels {
   uploadFileError?: string;
   uploadingFile: string;
   uploadingFiles: string;
-  removeAttachment?: string;
+  removeAttachment: string;
   submit: string;
   createTask?: string;
   scheduleTask?: string;
@@ -1431,7 +1431,7 @@ export function TaskForm({
                         url={url}
                         sizeClass="size-16"
                         onRemove={() => handleRemoveAttachment(url)}
-                        removeLabel={labels.removeAttachment ?? labels.cancel}
+                        removeLabel={labels.removeAttachment}
                       />
                     ))}
                   </div>
@@ -1606,12 +1606,20 @@ export function TaskForm({
                 onDriveClick={() =>
                   markdownEditorRef.current?.openDrivePicker()
                 }
-                disabled={createdTask !== null || isUploadingAttachments}
+                disabled={
+                  createdTask !== null ||
+                  isSubmittingAny ||
+                  isUploadingAttachments
+                }
               >
                 <button
                   type="button"
                   aria-label={labels.uploadFile}
-                  disabled={createdTask !== null || isUploadingAttachments}
+                  disabled={
+                    createdTask !== null ||
+                    isSubmittingAny ||
+                    isUploadingAttachments
+                  }
                   className="focus-visible:ring-ring text-muted-foreground hover:bg-accent hover:text-accent-foreground inline-flex size-7 items-center justify-center rounded-full outline-none transition-colors focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50"
                 >
                   {isUploadingAttachments ? (

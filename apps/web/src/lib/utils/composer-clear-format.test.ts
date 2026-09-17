@@ -137,6 +137,52 @@ describe("clearComposerFormat", () => {
     expect(root.querySelector("em, i")).not.toBeNull();
   });
 
+  it("does nothing when the caret is in plain unformatted text in root", () => {
+    const root = document.createElement("div");
+    root.innerHTML = "plain text";
+    const textNode = root.firstChild;
+    expect(textNode).not.toBeNull();
+
+    const range = document.createRange();
+    range.setStart(textNode as Node, 2);
+    range.collapse(true);
+    const { didChange } = clearComposerFormat(root, range);
+
+    expect(didChange).toBe(false);
+    expect(htmlToMarkdown(root).trim()).toBe("plain text");
+  });
+
+  it("does not strip sibling bold when the caret is in plain text in root", () => {
+    const root = document.createElement("div");
+    root.innerHTML = "plain <strong>bold</strong>";
+    const textNode = root.firstChild;
+    expect(textNode).not.toBeNull();
+
+    const range = document.createRange();
+    range.setStart(textNode as Node, 2);
+    range.collapse(true);
+    const { didChange } = clearComposerFormat(root, range);
+
+    expect(didChange).toBe(false);
+    expect(root.querySelector("strong, b")).not.toBeNull();
+    expect(htmlToMarkdown(root).trim()).toBe("plain **bold**");
+  });
+
+  it("unwraps only the selected portion of a bold run", () => {
+    const root = document.createElement("div");
+    root.innerHTML = "<strong>one two</strong>";
+    const textNode = root.querySelector("strong")?.firstChild;
+    expect(textNode).not.toBeNull();
+
+    const range = document.createRange();
+    range.setStart(textNode as Node, 0);
+    range.setEnd(textNode as Node, 3);
+    clearComposerFormat(root, range);
+
+    expect(htmlToMarkdown(root).trim()).toBe("one **two**");
+    expect(root.querySelector("strong, b")).not.toBeNull();
+  });
+
   it("preserves div and br line breaks", () => {
     expect(clearFormatFromHtml("line1<div>line2</div>line3<br>line4")).toBe(
       "line1\nline2\nline3\nline4",

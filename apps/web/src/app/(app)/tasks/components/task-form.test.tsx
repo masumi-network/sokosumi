@@ -374,6 +374,7 @@ const baseLabels = {
   ) as Record<(typeof TaskStatus)[keyof typeof TaskStatus], string>,
   back: "Back",
   uploadFile: "Upload File",
+  removeAttachment: "Remove attachment",
   submit: "Save",
   createTask: "Create Task",
   scheduleTask: "Schedule Task",
@@ -585,7 +586,9 @@ describe("TaskForm", () => {
     expect(screen.getByTestId("file-chip-mini-preview")).toHaveTextContent(
       "https://blob.example/users/u1/brief.pdf",
     );
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Remove attachment" }),
+    ).toBeInTheDocument();
   });
 
   it("does not create a task from Ctrl+Enter on wizard step 1", async () => {

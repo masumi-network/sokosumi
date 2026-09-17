@@ -96,7 +96,7 @@ function isFormatTarget(el: HTMLElement): boolean {
   return role !== "keep" && role !== "atomic";
 }
 
-function expandCollapsedRange(root: HTMLElement, range: Range): Range {
+function expandCollapsedRange(root: HTMLElement, range: Range): Range | null {
   if (!range.collapsed) {
     return range.cloneRange();
   }
@@ -125,9 +125,68 @@ function expandCollapsedRange(root: HTMLElement, range: Range): Range {
     node = node.parentNode;
   }
 
-  const expanded = document.createRange();
-  expanded.selectNodeContents(root);
-  return expanded;
+  // No local format/block target — do not expand to the entire root.
+  return null;
+}
+
+function isRangeFullyContaining(range: Range, node: Node): boolean {
+  const nodeRange = document.createRange();
+  try {
+    nodeRange.selectNode(node);
+  } catch {
+    nodeRange.selectNodeContents(node);
+  }
+  return (
+    range.compareBoundaryPoints(Range.START_TO_START, nodeRange) <= 0 &&
+    range.compareBoundaryPoints(Range.END_TO_END, nodeRange) >= 0
+  );
+}
+
+/**
+ * If `el` only partially intersects `range`, peel off the unselected prefix
+ * and suffix into sibling clones so `el` retains only the selected portion.
+ */
+function isolateFormatIntersection(el: HTMLElement, range: Range): void {
+  if (!el.parentNode || isRangeFullyContaining(range, el)) return;
+  if (!rangeIntersectsNode(range, el)) return;
+
+  // Peel content before the selection into a preceding clone.
+  if (el === range.startContainer || el.contains(range.startContainer)) {
+    const before = document.createRange();
+    before.selectNodeContents(el);
+    try {
+      before.setEnd(range.startContainer, range.startOffset);
+      if (!before.collapsed) {
+        const contents = before.extractContents();
+        const clone = el.cloneNode(false) as HTMLElement;
+        clone.appendChild(contents);
+        el.parentNode.insertBefore(clone, el);
+      }
+    } catch {
+      // Boundary no longer valid in this element — skip prefix peel.
+    }
+  }
+
+  // Peel content after the selection into a following clone.
+  if (el === range.endContainer || el.contains(range.endContainer)) {
+    const after = document.createRange();
+    after.selectNodeContents(el);
+    try {
+      after.setStart(range.endContainer, range.endOffset);
+      if (!after.collapsed) {
+        const contents = after.extractContents();
+        const clone = el.cloneNode(false) as HTMLElement;
+        clone.appendChild(contents);
+        if (el.nextSibling) {
+          el.parentNode.insertBefore(clone, el.nextSibling);
+        } else {
+          el.parentNode.appendChild(clone);
+        }
+      }
+    } catch {
+      // Boundary no longer valid in this element — skip suffix peel.
+    }
+  }
 }
 
 function rangeIntersectsNode(range: Range, node: Node): boolean {
@@ -286,12 +345,23 @@ export function clearComposerFormat(
   }
 
   const working = expandCollapsedRange(root, range);
+  if (!working) {
+    return { didChange: false };
+  }
+
   const targets = collectFormatTargets(root, working);
+  targets.sort(deepestFirst);
+  // Split partially selected format nodes before markers so unwrap only
+  // affects the selected slice (e.g. "<strong>one two</strong>" → clear "one").
+  for (const el of targets) {
+    if (!root.contains(el)) continue;
+    isolateFormatIntersection(el, working);
+  }
+
   const endMarker = insertRangeMarker(working, false);
   const startMarker = insertRangeMarker(working, true);
 
   let didChange = false;
-  targets.sort(deepestFirst);
 
   for (const el of targets) {
     if (!root.contains(el)) continue;

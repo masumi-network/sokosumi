@@ -18,6 +18,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -88,6 +89,7 @@ interface MarkdownFormatToolsProps {
 }
 
 const FORMAT_TOOL_BUTTON_CLASSNAME = "h-7 w-7 cursor-pointer p-0";
+const FORMAT_TOOLBAR_FALLBACK_WIDTH_PX = 244;
 
 export function isMarkdownEditorDomEmpty(editor: HTMLElement): boolean {
   const html = editor.innerHTML;
@@ -255,6 +257,7 @@ export const MarkdownEditor = forwardRef<
 ) {
   const editorRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const formatToolbarRef = useRef<HTMLDivElement>(null);
   const savedSelectionRangeRef = useRef<Range | null>(null);
   const isSelectingRef = useRef(false);
   const isInternalChange = useRef(false);
@@ -266,6 +269,9 @@ export const MarkdownEditor = forwardRef<
     useState<TriggerPosition | null>(null);
   const [drivePickerOpen, setDrivePickerOpen] = useState(false);
   const [selectionRect, setSelectionRect] = useState<DOMRect | null>(null);
+  const [formatToolbarWidth, setFormatToolbarWidth] = useState(
+    FORMAT_TOOLBAR_FALLBACK_WIDTH_PX,
+  );
 
   const normalizedMentions = useMemo(() => {
     const entries = Object.entries(mentions);
@@ -865,6 +871,25 @@ export const MarkdownEditor = forwardRef<
   const placeFormatToolbarBelow =
     selectionRect != null && selectionRect.top - editorTop < 40;
 
+  useLayoutEffect(() => {
+    if (!selectionRect || !formatToolbarRef.current) return;
+    const width = formatToolbarRef.current.getBoundingClientRect().width;
+    if (width > 0) {
+      setFormatToolbarWidth(width);
+    }
+  }, [selectionRect]);
+
+  const formatToolbarLeft =
+    selectionRect == null
+      ? 0
+      : (() => {
+          const centerX = selectionRect.left + selectionRect.width / 2;
+          const halfWidth = formatToolbarWidth / 2;
+          const minCenter = VIEWPORT_PADDING_PX + halfWidth;
+          const maxCenter = window.innerWidth - VIEWPORT_PADDING_PX - halfWidth;
+          return Math.min(maxCenter, Math.max(minCenter, centerX));
+        })();
+
   return (
     <div
       className={cn(
@@ -1021,6 +1046,7 @@ export const MarkdownEditor = forwardRef<
         !isOpen &&
         createPortal(
           <div
+            ref={formatToolbarRef}
             role="toolbar"
             aria-label="Format"
             data-task-form-portal=""
@@ -1029,7 +1055,7 @@ export const MarkdownEditor = forwardRef<
               top: placeFormatToolbarBelow
                 ? selectionRect.bottom
                 : selectionRect.top,
-              left: selectionRect.left + selectionRect.width / 2,
+              left: formatToolbarLeft,
               transform: placeFormatToolbarBelow
                 ? "translate(-50%, 8px)"
                 : "translate(-50%, calc(-100% - 8px))",
