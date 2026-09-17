@@ -4,24 +4,27 @@ import {
   buildAdHocDesignMdPrefix,
   parseTaskContextFromDescription,
 } from "@sokosumi/utils";
-import { Check, ChevronDown, FileText, Globe, Info } from "lucide-react";
+import { Check, ChevronDown, Globe, Info } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
+import {
+  DefaultBrandAvatar,
+  PillMarker,
+  resolveBrandPillDisplay,
+} from "@/app/tasks/components/task-context-pill";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import {
   type DesignMdAdHocAttachment,
   DesignMdAdHocDialog,
 } from "@/components/design-md";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Favicon } from "@/components/ui/favicon";
 import {
   HoverCard,
   HoverCardContent,
@@ -29,7 +32,6 @@ import {
 } from "@/components/ui/hover-card";
 import type { EffectiveDesignMdAttachment } from "@/lib/services/design-md.service";
 import { cn } from "@/lib/utils";
-import { buildFaviconCandidates } from "@/lib/utils/url";
 
 export interface TaskContextAttachmentsSelection {
   brand: {
@@ -55,27 +57,6 @@ interface TogglePillProps {
   onPressedChange: (pressed: boolean) => void;
 }
 
-function getHostname(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return url;
-  }
-}
-
-/** Explicit on/off readout so "attached" never has to be inferred from
- * fill colour alone: a check when on, an empty ring when off. */
-function PillMarker({ pressed }: { pressed: boolean }) {
-  return pressed ? (
-    <Check className="size-3 shrink-0" strokeWidth={2.5} aria-hidden />
-  ) : (
-    <span
-      className="border-input size-3 shrink-0 rounded-full border"
-      aria-hidden
-    />
-  );
-}
-
 function TogglePill({ label, pressed, onPressedChange }: TogglePillProps) {
   return (
     <button
@@ -92,31 +73,6 @@ function TogglePill({ label, pressed, onPressedChange }: TogglePillProps) {
       <PillMarker pressed={pressed} />
       {label}
     </button>
-  );
-}
-
-function DefaultBrandAvatar({
-  brand,
-}: {
-  brand: EffectiveDesignMdAttachment | null;
-}) {
-  if (brand?.owner.type === "organization") {
-    return (
-      <Avatar className="size-4">
-        {brand.owner.logo ? (
-          <AvatarImage src={brand.owner.logo} alt="" />
-        ) : null}
-        <AvatarFallback className="text-[0.5rem] font-medium">
-          {brand.owner.name.slice(0, 1).toUpperCase()}
-        </AvatarFallback>
-      </Avatar>
-    );
-  }
-
-  return (
-    <span className="bg-muted flex size-4 items-center justify-center rounded-full">
-      <FileText className="text-muted-foreground size-2.5" aria-hidden />
-    </span>
   );
 }
 
@@ -195,40 +151,19 @@ export function TaskContextAttachmentsField({
       ? formatter.relativeTime(contextUpdatedAt, { now, style: "narrow" })
       : null;
 
-  let brandLabel = t("brand");
-  let brandAvatar: React.ReactNode = (
-    <DefaultBrandAvatar brand={defaultBrand} />
-  );
-
-  if (selection.brand.source === "custom" && selection.brand.custom) {
-    brandLabel = getHostname(selection.brand.custom.sourceUrl);
-    brandAvatar = (
-      <span className="bg-muted flex size-4 items-center justify-center overflow-hidden rounded-full">
-        <Favicon
-          sources={buildFaviconCandidates(selection.brand.custom.sourceUrl)}
-          alt=""
-          size={14}
-          className="rounded-full"
-          fallback={
-            <Globe className="text-muted-foreground size-2.5" aria-hidden />
-          }
-        />
-      </span>
-    );
-  } else if (selection.brand.source === "project" && project?.designMd) {
-    brandLabel = t("namedBrand", { name: project.name });
-    brandAvatar = (
-      <ProjectAvatar
-        name={project.name}
-        logo={project.logo}
-        className="size-4 rounded-full"
-      />
-    );
-  } else if (defaultBrand?.owner.type === "organization") {
-    brandLabel = t("namedBrand", { name: defaultBrand.owner.name });
-  } else if (defaultBrand) {
-    brandLabel = t("personalBrand");
-  }
+  const brandDisplay = resolveBrandPillDisplay({
+    brandSource: selection.brand.source,
+    brandUrl: selection.brand.custom?.sourceUrl ?? null,
+    project,
+    defaultBrand,
+    labels: {
+      brand: t("brand"),
+      namedBrand: (values) => t("namedBrand", values),
+      personalBrand: t("personalBrand"),
+    },
+  });
+  const brandLabel = brandDisplay.label;
+  const brandAvatar = brandDisplay.avatar;
 
   // Nothing to attach until a brand exists somewhere: no project DESIGN.md,
   // no effective org/personal one, no ad hoc pick. The pill then reads as an
