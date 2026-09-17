@@ -28,4 +28,20 @@ public enum ChatLink: Equatable, Sendable {
       return nil
     }
   }
+
+  /// Inverse of `init?(url:webBaseURL:)`. Blank `messageId` is omitted.
+  public static func href(roomId: String, messageId: String?, webBaseURL: URL) -> URL? {
+    guard var components = URLComponents(url: webBaseURL, resolvingAgainstBaseURL: false) else {
+      return nil
+    }
+    let basePath = components.path.hasSuffix("/") ? String(components.path.dropLast()) : components.path
+    components.path = "\(basePath)/chat/rooms/\(roomId)"
+    let trimmed = messageId?.trimmingCharacters(in: .whitespacesAndNewlines)
+    if let trimmed, !trimmed.isEmpty {
+      components.queryItems = [URLQueryItem(name: "message", value: trimmed)]
+    } else {
+      components.queryItems = nil
+    }
+    return components.url
+  }
 }

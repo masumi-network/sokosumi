@@ -5,6 +5,18 @@ import Testing
 struct ChatLinkTests {
   private let base = URL(string: "https://app.sokosumi.com")!
 
+  @Test func buildsRoomAndMessageURL() throws {
+    let url = try #require(ChatLink.href(roomId: "room", messageId: "old", webBaseURL: base))
+    #expect(url.absoluteString == "https://app.sokosumi.com/chat/rooms/room?message=old")
+    #expect(ChatLink(url: url, webBaseURL: base) == .room(id: "room", messageId: "old"))
+  }
+
+  @Test func buildsRoomURLWhenMessageIsBlank() throws {
+    let url = try #require(ChatLink.href(roomId: "room", messageId: "  ", webBaseURL: base))
+    #expect(url.absoluteString == "https://app.sokosumi.com/chat/rooms/room")
+    #expect(ChatLink(url: url, webBaseURL: base) == .room(id: "room", messageId: nil))
+  }
+
   @Test func resolvesRoomAndMessage() throws {
     let url = try #require(URL(string: "https://app.sokosumi.com/chat/rooms/room?message=%20old%20"))
     #expect(ChatLink(url: url, webBaseURL: base) == .room(id: "room", messageId: "old"))
