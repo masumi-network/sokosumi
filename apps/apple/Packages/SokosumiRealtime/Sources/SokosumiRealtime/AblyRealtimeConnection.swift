@@ -132,13 +132,14 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
 
   public func disconnect() {
     var cleanup: (() -> Void)?
+    var presenceToStop: OrgPresenceChannel?
     let control = lock.withLock { () -> ARTRealtimeChannel? in
       tokenSource?.invalidate()
       connectionGeneration = UUID()
       tokenSource = nil
       membershipSubscriptions?.stop()
       membershipSubscriptions = nil
-      presence?.stop()
+      presenceToStop = presence
       presence = nil
       roomGeneration = UUID()
       roomHealth = nil
@@ -150,6 +151,7 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
       onEvent = nil
       return control
     }
+    presenceToStop?.stop()
     cleanup?()
     control?.unsubscribe()
     control?.detach()

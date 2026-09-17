@@ -66,8 +66,9 @@ final class OrgPresenceChannel: @unchecked Sendable {
     }
   }
 
+  /// Synchronous so `disconnect` can close after leave is issued, not before.
   func stop() {
-    queue.async { [self] in
+    queue.sync { [self] in
       active = false
       retry?.cancel()
       retry = nil
@@ -167,7 +168,8 @@ final class OrgPresenceChannel: @unchecked Sendable {
 
   /// `update` keeps an existing member's data; a member Ably no longer holds
   /// (hard reconnect) needs `enter` again. Own writes are mirrored locally,
-  /// since this connection does not echo.
+  /// since this connection does not echo. Failed enter retries in 15 s: the
+  /// coordinator already marked this payload published.
   private func send(_ data: ChatPresenceMemberData, subscription: Subscription) {
     let wire = data.wire
     subscription.channel.presence.update(wire) { [weak self] error in
@@ -176,8 +178,23 @@ final class OrgPresenceChannel: @unchecked Sendable {
         return
       }
       subscription.channel.presence.enter(wire) { [weak self] error in
-        guard error == nil else { return }
+        guard error == nil else {
+          self?.queue.async { [weak self] in self?.scheduleSendRetry() }
+          return
+        }
         self?.mirrorOwnMember(data, subscription: subscription)
+      }
+    }
+  }
+
+  private func scheduleSendRetry() {
+    guard active, retry == nil, scope.isGranted, subscription != nil, latestData != nil else { return }
+    retry = Task { [weak self] in
+      do { try await Task.sleep(for: .seconds(15)) } catch { return }
+      self?.queue.async { [weak self] in
+        guard let self, active, let subscription, let latestData else { return }
+        retry = nil
+        send(latestData, subscription: subscription)
       }
     }
   }
@@ -187,6 +204,8 @@ final class OrgPresenceChannel: @unchecked Sendable {
     queue.async { [weak self] in
       guard let self, active, self.subscription?.id == subscription.id,
             let organizationId = scope.organizationId else { return }
+      retry?.cancel()
+      retry = nil
       members[clientId] = ChatPresenceMember(clientId: clientId, data: data)
       emit(organizationId: organizationId)
     }
