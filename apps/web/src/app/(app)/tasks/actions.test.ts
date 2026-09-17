@@ -653,6 +653,10 @@ describe("loadCreateTaskModalData", () => {
       owner: { type: "organization", name: "Acme Inc", logo: null },
     });
 
+    getProjectFilterOptionsMock.mockResolvedValue([
+      { id: "project-1", name: "Sokosumi" },
+    ]);
+
     const result = await loadCreateTaskModalData();
 
     expect(result.agentNameById).toEqual({ "agent-1": "Agent One" });
@@ -661,16 +665,21 @@ describe("loadCreateTaskModalData", () => {
       url: "https://example.com/design.md",
       owner: { type: "organization", name: "Acme Inc", logo: null },
     });
+    expect(result.projectOptions).toEqual([
+      { id: "project-1", name: "Sokosumi" },
+    ]);
   });
 
   it("skips design.md when there is no session user", async () => {
     getSessionMock.mockResolvedValue(null);
     getAvailableAgentsWithCreditsPriceMock.mockResolvedValue([]);
+    getProjectFilterOptionsMock.mockResolvedValue([]);
 
     const result = await loadCreateTaskModalData();
 
     expect(resolveEffectiveDesignMdMock).not.toHaveBeenCalled();
     expect(result.designMdAttachment).toBeNull();
+    expect(result.projectOptions).toEqual([]);
   });
 });
 
