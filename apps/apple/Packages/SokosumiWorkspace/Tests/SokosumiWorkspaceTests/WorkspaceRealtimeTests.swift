@@ -238,6 +238,8 @@ private final class FakeRealtimeConnection: RealtimeConnection, @unchecked Senda
   private(set) var slugs: [String?] = []
   private(set) var tokenProvider: RealtimeTokenProvider?
   private(set) var disconnectCount = 0
+  private(set) var presenceOrganizations: [String?] = []
+  private(set) var publishedPresence: [ChatPresenceMemberData] = []
   private var handler: RealtimeEventHandler?
 
   func connect(
@@ -267,6 +269,14 @@ private final class FakeRealtimeConnection: RealtimeConnection, @unchecked Senda
 
   func refreshMembership() {
     membershipRefreshes += 1
+  }
+
+  func setPresenceOrganization(_ organizationId: String?) {
+    presenceOrganizations.append(organizationId)
+  }
+
+  func publishPresence(_ data: ChatPresenceMemberData) {
+    publishedPresence.append(data)
   }
 
   func disconnect() {
@@ -902,5 +912,102 @@ struct WorkspaceRealtimeTests {
     #expect(fake.membershipRooms.last == [roomB])
     #expect(fake.watchedRooms == [roomA, nil, roomB])
     #expect(state.selectedRoomId == roomB)
+  }
+
+  @Test func orgPresenceFollowsTheActiveOrganization() async throws {
+    let fake = FakeRealtimeConnection()
+    let (state, auth, _) = try realtimeState([
+      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA)),
+      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, realtimeRoomsBody(ids: [])),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, realtimeRoomsBody(ids: []))
+    ])
+    state.realtimeConnectionFactory = { fake }
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    // Personal workspace: nothing to enter, nothing to publish, DTO fallback wins.
+    #expect(fake.presenceOrganizations.isEmpty)
+    #expect(fake.publishedPresence.isEmpty)
+    #expect(state.presence(forUser: "alice", fallback: .afk) == .afk)
+
+    let org = try #require(state.options.first { $0.id == "org_1" })
+    await state.switchRooms(auth: auth, option: org)
+    await waitForRealtimeIdle(state)
+    #expect(fake.presenceOrganizations == ["org_1"])
+    #expect(fake.publishedPresence.count == 1)
+    #expect(fake.publishedPresence.last?.visible == true)
+
+    let alice = ChatPresenceMember(clientId: "alice:inst_00000001", data: ChatPresenceMemberData(lastActiveAt: Date(), visible: true))
+    let bob = ChatPresenceMember(clientId: "bob:inst_00000001", data: ChatPresenceMemberData(lastActiveAt: Date(), visible: false))
+    fake.deliver(.presenceRoster(organizationId: "org_2", members: [alice]))
+    fake.deliver(.presenceRoster(organizationId: "org_1", members: [alice, bob]))
+    for _ in 0 ..< 1000 where state.presence.byUserId.isEmpty {
+      await Task.yield()
+    }
+    #expect(state.presence(forUser: "alice", fallback: .offline) == .online)
+    #expect(state.presence(forUser: "bob", fallback: .offline) == .afk)
+    #expect(state.presence(forUser: "carol", fallback: .offline) == .offline)
+    let human = try #require(ChatParticipantProfile(sender: .case1(.init(_type: .user, user: .init(id: "carol", name: "Carol", email: "carol@example.com", presence: .afk)))))
+    #expect(state.presence(for: human) == .afk)
+    let coworker = try #require(ChatParticipantProfile(sender: .case2(.init(_type: .coworker, coworker: .init(id: "cw", name: "Helper", slug: "helper", presence: .offline)))))
+    #expect(state.presence(for: coworker) == .online)
+
+    let personal = try #require(state.options.first { $0.workspace == .personal })
+    await state.switchRooms(auth: auth, option: personal)
+    await waitForRealtimeIdle(state)
+    #expect(fake.presenceOrganizations == ["org_1", nil])
+    #expect(state.presence.byUserId.isEmpty)
+    #expect(fake.publishedPresence.count == 1)
+  }
+
+  @Test func presencePublishesOnVisibilityAndThrottlesActivity() async throws {
+    let fake = FakeRealtimeConnection()
+    let (state, auth, _) = try realtimeState([
+      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, realtimeRoomsBody(ids: []))
+    ])
+    state.realtimeConnectionFactory = { fake }
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    #expect(fake.presenceOrganizations == ["org_1"])
+    #expect(fake.publishedPresence.count == 1)
+
+    state.recordPresenceActivity()
+    state.recordPresenceActivity()
+    #expect(fake.publishedPresence.count == 1)
+    #expect(state.presence.selfPresence == .online)
+
+    state.setWindowVisible(false, window: realtimeWindow)
+    #expect(fake.publishedPresence.count == 2)
+    #expect(fake.publishedPresence.last?.visible == false)
+    #expect(state.presence.selfPresence == .afk)
+    state.setWindowVisible(false, window: UUID())
+    #expect(fake.publishedPresence.count == 2)
+    state.setWindowVisible(true, window: realtimeWindow)
+    #expect(fake.publishedPresence.count == 3)
+    #expect(fake.publishedPresence.last?.visible == true)
+    #expect(state.presence.selfPresence == .online)
+
+    // Self reads offline only after the socket was up once.
+    fake.deliver(.connectionHealth(healthy: false))
+    fake.deliver(.connectionHealth(healthy: true))
+    fake.deliver(.connectionHealth(healthy: false))
+    // A following roster is a visible barrier for the ordered event stream.
+    fake.deliver(.presenceRoster(organizationId: "org_1", members: [.init(clientId: "alice:inst_00000001", data: nil)]))
+    for _ in 0 ..< 1000 where state.presence.byUserId.isEmpty {
+      await Task.yield()
+    }
+    #expect(state.presence.selfPresence == .offline)
+
+    state.reset()
+    #expect(fake.disconnectCount == 1)
+    #expect(state.presence.organizationId == nil)
+    #expect(state.presence.selfPresence == .online)
+    #expect(fake.publishedPresence.count == 3)
   }
 }

@@ -80,16 +80,27 @@ struct RoomDetailsView: View {
   }
 
   private func memberRow(_ member: RoomRosterMember) -> some View {
-    HStack(spacing: 8) {
+    let presence = workspaces.presence(for: member.profile)
+    return HStack(spacing: 8) {
+      // Web keeps the mark decorative and states availability in hidden text
+      // per row; here the avatar button carries it as its value.
       Button { selectedProfile = member.profile } label: {
         ParticipantAvatar(imageURL: member.profile.image, name: member.profile.name, size: 32)
-      }.buttonStyle(.plain).help("Show participant details")
+          .presenceBadge(presence)
+      }
+      .buttonStyle(.plain).help("Show participant details")
+      .accessibilityLabel("Show details for \(member.profile.name)")
+      .accessibilityValue(presenceLabel(presence))
       VStack(alignment: .leading, spacing: 2) {
-        Text(member.profile.name).lineLimit(1)
+        HStack(spacing: 6) {
+          Text(member.profile.name).lineLimit(1)
+          if let badge = roleBadge(member.profile) {
+            Text(badge).font(.caption).foregroundStyle(.secondary).lineLimit(1).layoutPriority(1)
+          }
+        }
         if let subtitle = member.subtitle, !subtitle.isEmpty {
           CopyTextButton(text: subtitle).font(.caption).foregroundStyle(.secondary)
         }
-        Text(roleAndPresence(member.profile)).font(.caption).foregroundStyle(.secondary)
       }
       Spacer(minLength: 0)
       if workspaces.canOpenDirect(member.id) {
@@ -121,12 +132,12 @@ struct RoomDetailsView: View {
     }.padding(.vertical, 2)
   }
 
-  private func roleAndPresence(_ profile: ChatParticipantProfile) -> String {
-    let presence = profile.presence == "online" ? "Online" : profile.presence == "afk" ? "Away" : "Offline"
+  /// Web's roster badges beside the name; humans carry none.
+  private func roleBadge(_ profile: ChatParticipantProfile) -> String? {
     switch profile.recipient {
-    case .human: return presence
-    case .coworker: return "Coworker · \(presence)"
-    case .sokoBot: return "Personal assistant · \(presence)"
+    case .human: nil
+    case .coworker: "Coworker"
+    case .sokoBot: "Personal assistant"
     }
   }
 }
