@@ -255,4 +255,36 @@ describe("mapTaskToTaskWithCoworker", () => {
     });
     expect(mapped.columnId).toBe("in-progress");
   });
+
+  it("excludes DESIGN.md, BRIEFING.md and CONTEXT.md labels from descriptionPlain", () => {
+    const task = buildTask(TaskStatus.DRAFT, {
+      name: "Test task validation",
+      description: [
+        "[DESIGN.md](https://blob.example/design.md)",
+        "[BRIEFING.md](https://blob.example/projects/p1/BRIEFING.md)",
+        "[CONTEXT.md](https://blob.example/projects/p1/CONTEXT.md)",
+        "",
+        "Test task",
+      ].join("\n"),
+    });
+
+    const mapped = map(task);
+
+    expect(mapped.descriptionPlain).toBe("Test task");
+    expect(mapped.descriptionPlain).not.toMatch(
+      /DESIGN\.md|BRIEFING\.md|CONTEXT\.md/,
+    );
+  });
+
+  it("sets descriptionPlain to null when the description is only Context links", () => {
+    const task = buildTask(TaskStatus.DRAFT, {
+      description: [
+        "[DESIGN.md](https://blob.example/design.md)",
+        "[BRIEFING.md](https://blob.example/projects/p1/BRIEFING.md)",
+        "[CONTEXT.md](https://blob.example/projects/p1/CONTEXT.md)",
+      ].join("\n"),
+    });
+
+    expect(map(task).descriptionPlain).toBeNull();
+  });
 });
