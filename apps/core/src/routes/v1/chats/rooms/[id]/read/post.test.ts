@@ -23,7 +23,8 @@ const {
   notificationUpdateManyMock,
   notificationFindManyMock,
   publishClearedNotificationsMock,
-  membershipFindUniqueMock,
+  membershipFindManyMock,
+  readStateFindManyMock,
   threadReadUpsertMock,
   threadReadUpdateManyMock,
   threadReadDeleteManyMock,
@@ -37,7 +38,8 @@ const {
   notificationUpdateManyMock: vi.fn(),
   notificationFindManyMock: vi.fn(),
   publishClearedNotificationsMock: vi.fn(),
-  membershipFindUniqueMock: vi.fn(),
+  membershipFindManyMock: vi.fn(),
+  readStateFindManyMock: vi.fn(),
   threadReadUpsertMock: vi.fn(),
   threadReadUpdateManyMock: vi.fn(),
   threadReadDeleteManyMock: vi.fn(),
@@ -49,6 +51,8 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
     $queryRawUnsafe: queryRawUnsafeMock,
+    chatRoomUserMember: { findMany: membershipFindManyMock },
+    chatRoomReadState: { findMany: readStateFindManyMock },
     chatRoomPinnedMessage: { groupBy: vi.fn().mockResolvedValue([]) },
   },
 }));
@@ -75,7 +79,6 @@ const tx = {
     findMany: notificationFindManyMock,
     updateMany: notificationUpdateManyMock,
   },
-  chatRoomUserMember: { findUnique: membershipFindUniqueMock },
   chatRoomThreadReadState: {
     upsert: threadReadUpsertMock,
     updateMany: threadReadUpdateManyMock,
@@ -143,10 +146,8 @@ beforeEach(() => {
   readStateUpsertMock.mockResolvedValue({});
   notificationFindManyMock.mockResolvedValue([]);
   notificationUpdateManyMock.mockResolvedValue({ count: 0 });
-  membershipFindUniqueMock.mockResolvedValue({
-    starredAt: null,
-    mutedAt: null,
-  });
+  membershipFindManyMock.mockResolvedValue([]);
+  readStateFindManyMock.mockResolvedValue([]);
   // Dual-baseline unread: room mark-read leaves unlooked thread replies.
   queryRawUnsafeMock.mockResolvedValue([]);
 });

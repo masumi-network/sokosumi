@@ -130,7 +130,7 @@ T22|x|resource request → preflight API-key target check|V31
 T23|x|configured API target → key-prefix inference precedence|V30
 T24|x|TUI hosted target → explicit API URL override|V32
 T25|x|preprod live OAuth smoke: fresh authorization-code exchange → token; compare mainnet/preprod|V37,I
-T26|~|remove npm-global updater, prompt, tests, and runtime package-manager calls|V38,V39,V48,V62,I
+T26|x|remove npm-global updater, prompt, tests, and runtime package-manager calls|V38,V39,V48,V62,I
 T27|.|redesign Ink TUI against external v1 bundle: terminal chrome, sign-in, tabs/workspace, state variants, PTY widths|V40,V41,I
 T28|~|align CLI React types pin with workspace and sync lockfile|V64
 

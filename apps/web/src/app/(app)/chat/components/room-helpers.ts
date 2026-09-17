@@ -642,7 +642,11 @@ export function formatDirectParticipantNames(
 export function getRoomDisplayName(
   room: ChatRoom,
   currentUserId: string,
+  selfLabel: string,
 ): string {
+  if (room.isSelfDirect) {
+    return selfLabel;
+  }
   if (room.kind !== "direct") {
     return room.name;
   }

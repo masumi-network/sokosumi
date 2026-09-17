@@ -65,3 +65,18 @@ describe("TaskListItem privacy cue", () => {
     expect(screen.queryByLabelText("Private")).not.toBeInTheDocument();
   });
 });
+
+describe("TaskListItem description preview", () => {
+  it("shows an em dash instead of raw context attachment markdown", () => {
+    const task = {
+      ...buildTask(TaskVisibility.PUBLIC),
+      description: "[CONTEXT.md](https://blob.example/CONTEXT.md)",
+      descriptionPlain: null,
+    };
+
+    render(<TaskListItem task={task} />);
+
+    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(screen.queryByText(/CONTEXT\.md/)).not.toBeInTheDocument();
+  });
+});

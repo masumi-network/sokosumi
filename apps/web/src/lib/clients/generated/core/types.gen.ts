@@ -2279,6 +2279,10 @@ export type ChatRoom = {
     slug: string | null;
     kind: 'channel' | 'direct';
     /**
+     * Whether this is the owner's private, sole-human Personal Direct for notes.
+     */
+    isSelfDirect: boolean;
+    /**
      * Deterministic key for direct rooms; null for normal rooms.
      */
     directKey: string | null;
@@ -2807,10 +2811,6 @@ export type CreateChatRoomMessageRequest = {
 
 export type UpdateChatRoomMessageRequest = {
     content: string;
-};
-
-export type ReactToChatRoomMessageRequest = {
-    emoji: string;
 };
 
 export type ChatRoomPinnedMessageMutation = {
@@ -19422,8 +19422,8 @@ export type PatchChatsRoomsByIdMessagesByMessageIdResponses = {
 
 export type PatchChatsRoomsByIdMessagesByMessageIdResponse = PatchChatsRoomsByIdMessagesByMessageIdResponses[keyof PatchChatsRoomsByIdMessagesByMessageIdResponses];
 
-export type PostChatsRoomsByIdMessagesByMessageIdReactionsData = {
-    body?: ReactToChatRoomMessageRequest;
+export type DeleteChatsRoomsByIdMessagesByMessageIdReactionsByEmojiData = {
+    body?: never;
     headers?: {
         /**
          * Optional organization slug to set the organization context.
@@ -19433,12 +19433,16 @@ export type PostChatsRoomsByIdMessagesByMessageIdReactionsData = {
     path: {
         id: string;
         messageId: string;
+        /**
+         * The emoji, percent-encoded.
+         */
+        emoji: string;
     };
     query?: never;
-    url: '/chats/rooms/{id}/messages/{messageId}/reactions';
+    url: '/chats/rooms/{id}/messages/{messageId}/reactions/{emoji}';
 };
 
-export type PostChatsRoomsByIdMessagesByMessageIdReactionsErrors = {
+export type DeleteChatsRoomsByIdMessagesByMessageIdReactionsByEmojiErrors = {
     /**
      * Invalid request
      */
@@ -19500,6 +19504,21 @@ export type PostChatsRoomsByIdMessagesByMessageIdReactionsErrors = {
         };
     };
     /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Internal Server Error
      */
     500: {
@@ -19516,11 +19535,11 @@ export type PostChatsRoomsByIdMessagesByMessageIdReactionsErrors = {
     };
 };
 
-export type PostChatsRoomsByIdMessagesByMessageIdReactionsError = PostChatsRoomsByIdMessagesByMessageIdReactionsErrors[keyof PostChatsRoomsByIdMessagesByMessageIdReactionsErrors];
+export type DeleteChatsRoomsByIdMessagesByMessageIdReactionsByEmojiError = DeleteChatsRoomsByIdMessagesByMessageIdReactionsByEmojiErrors[keyof DeleteChatsRoomsByIdMessagesByMessageIdReactionsByEmojiErrors];
 
-export type PostChatsRoomsByIdMessagesByMessageIdReactionsResponses = {
+export type DeleteChatsRoomsByIdMessagesByMessageIdReactionsByEmojiResponses = {
     /**
-     * Room message reaction toggled
+     * Reaction removed
      */
     200: {
         data: ChatRoomMessage;
@@ -19532,7 +19551,138 @@ export type PostChatsRoomsByIdMessagesByMessageIdReactionsResponses = {
     };
 };
 
-export type PostChatsRoomsByIdMessagesByMessageIdReactionsResponse = PostChatsRoomsByIdMessagesByMessageIdReactionsResponses[keyof PostChatsRoomsByIdMessagesByMessageIdReactionsResponses];
+export type DeleteChatsRoomsByIdMessagesByMessageIdReactionsByEmojiResponse = DeleteChatsRoomsByIdMessagesByMessageIdReactionsByEmojiResponses[keyof DeleteChatsRoomsByIdMessagesByMessageIdReactionsByEmojiResponses];
+
+export type PutChatsRoomsByIdMessagesByMessageIdReactionsByEmojiData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        messageId: string;
+        /**
+         * The emoji, percent-encoded.
+         */
+        emoji: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/messages/{messageId}/reactions/{emoji}';
+};
+
+export type PutChatsRoomsByIdMessagesByMessageIdReactionsByEmojiErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Message not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutChatsRoomsByIdMessagesByMessageIdReactionsByEmojiError = PutChatsRoomsByIdMessagesByMessageIdReactionsByEmojiErrors[keyof PutChatsRoomsByIdMessagesByMessageIdReactionsByEmojiErrors];
+
+export type PutChatsRoomsByIdMessagesByMessageIdReactionsByEmojiResponses = {
+    /**
+     * Reaction added
+     */
+    200: {
+        data: ChatRoomMessage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutChatsRoomsByIdMessagesByMessageIdReactionsByEmojiResponse = PutChatsRoomsByIdMessagesByMessageIdReactionsByEmojiResponses[keyof PutChatsRoomsByIdMessagesByMessageIdReactionsByEmojiResponses];
 
 export type DeleteChatsRoomsByIdMessagesByMessageIdPinData = {
     body?: never;
@@ -39857,6 +40007,7 @@ export type PatchTasksByIdData = {
         name?: string;
         description?: string | null;
         projectId?: string | null;
+        context?: CreateTaskContext & unknown;
         assigneeId?: string | null;
         /**
          * Deprecated. Use assigneeId instead.
@@ -39940,6 +40091,21 @@ export type PatchTasksByIdErrors = {
      * Conflict
      */
     409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;

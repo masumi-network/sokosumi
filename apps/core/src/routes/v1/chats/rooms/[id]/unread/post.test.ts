@@ -20,18 +20,20 @@ const {
   organizationFindUniqueMock,
   memberFindUniqueMock,
   readStateUpsertMock,
-  membershipFindUniqueMock,
   unreadQueryMock,
   mentionGroupByMock,
+  membershipFindManyMock,
+  readStateFindManyMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   readStateUpsertMock: vi.fn(),
-  membershipFindUniqueMock: vi.fn(),
   unreadQueryMock: vi.fn(),
   mentionGroupByMock: vi.fn(),
+  membershipFindManyMock: vi.fn(),
+  readStateFindManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
 
@@ -40,6 +42,8 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: prismaTransactionMock,
     $queryRawUnsafe: unreadQueryMock,
     notification: { groupBy: mentionGroupByMock },
+    chatRoomUserMember: { findMany: membershipFindManyMock },
+    chatRoomReadState: { findMany: readStateFindManyMock },
     chatRoomPinnedMessage: { groupBy: vi.fn().mockResolvedValue([]) },
   },
 }));
@@ -53,7 +57,6 @@ const tx = {
   organization: { findUnique: organizationFindUniqueMock },
   member: { findUnique: memberFindUniqueMock },
   chatRoomReadState: { upsert: readStateUpsertMock },
-  chatRoomUserMember: { findUnique: membershipFindUniqueMock },
 };
 
 function createApp(authContext: AuthVariables["authContext"]) {
@@ -114,10 +117,10 @@ beforeEach(() => {
   organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
   readStateUpsertMock.mockResolvedValue({});
-  membershipFindUniqueMock.mockResolvedValue({
-    starredAt: null,
-    mutedAt: null,
-  });
+  membershipFindManyMock.mockResolvedValue([]);
+  readStateFindManyMock.mockResolvedValue([
+    { roomId: ROOM_ID, markedUnreadAt: new Date("2026-08-03T12:00:00.000Z") },
+  ]);
   unreadQueryMock.mockResolvedValue([]);
   mentionGroupByMock.mockResolvedValue([]);
 });

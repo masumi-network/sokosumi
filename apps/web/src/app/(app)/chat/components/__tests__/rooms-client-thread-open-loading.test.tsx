@@ -133,7 +133,7 @@ vi.mock("@/app/chat/actions", () => ({
   markThreadReadAction: actions.markThreadReadAction,
   retryRoomMentionAction: vi.fn(),
   sendRoomMessageAction: vi.fn(),
-  toggleMessageReactionAction: vi.fn(),
+  setMessageReactionAction: vi.fn(),
 }));
 
 vi.mock("@/components/chat/organization-chat-list.actions", () => ({
@@ -241,6 +241,7 @@ function channelRoom(): ChatRoom {
     name: "general",
     slug: "general",
     kind: "channel",
+    isSelfDirect: false,
     directKey: null,
     topic: null,
     discoverability: "public",

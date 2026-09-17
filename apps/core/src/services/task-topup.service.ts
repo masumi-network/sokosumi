@@ -5,14 +5,7 @@ import {
   TaskStatus,
 } from "@sokosumi/database";
 
-function isPrismaRecordNotFoundError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "P2025"
-  );
-}
+import { isPrismaRecordNotFoundError } from "@/helpers/prisma";
 
 /**
  * Flip OUT_OF_CREDITS tasks to CREDITS_TOPPED_UP after a credit grant, scoped

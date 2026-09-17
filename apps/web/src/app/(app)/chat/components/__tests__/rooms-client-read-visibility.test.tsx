@@ -134,7 +134,7 @@ vi.mock("@/app/chat/actions", () => ({
   markThreadReadAction: vi.fn(),
   retryRoomMentionAction: vi.fn(),
   sendRoomMessageAction: vi.fn(),
-  toggleMessageReactionAction: vi.fn(),
+  setMessageReactionAction: vi.fn(),
 }));
 
 const { fetchRoomMessagesMock } = vi.hoisted(() => ({
@@ -312,6 +312,7 @@ function channelRoom(): ChatRoom {
     name: "general",
     slug: "general",
     kind: "channel",
+    isSelfDirect: false,
     directKey: null,
     topic: null,
     discoverability: "public",

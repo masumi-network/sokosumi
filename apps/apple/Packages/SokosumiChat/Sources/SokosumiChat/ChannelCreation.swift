@@ -3,11 +3,12 @@ import Foundation
 
 public struct ChannelRoster: Sendable {
   public let recipients: ChatRecipientRoster
-  public let canCreateExternal: Bool
+  /// Organization owner/admin: may create External channels and manage channel settings.
+  public let isOwnerOrAdmin: Bool
 
-  public init(recipients: ChatRecipientRoster, canCreateExternal: Bool) {
+  public init(recipients: ChatRecipientRoster, isOwnerOrAdmin: Bool) {
     self.recipients = recipients
-    self.canCreateExternal = canCreateExternal
+    self.isOwnerOrAdmin = isOwnerOrAdmin
   }
 }
 
@@ -60,13 +61,13 @@ public final class ChannelCreation: ObservableObject {
       guard attempt == loadGeneration, !Task.isCancelled else { return }
       roster = result
       draft.recipients.formIntersection(Set(result.recipients.targets.map(\.id)))
-      if !result.canCreateExternal, draft.visibility == .external {
+      if !result.isOwnerOrAdmin, draft.visibility == .external {
         draft.visibility = .public
       }
     } catch {
       guard attempt == loadGeneration, !Task.isCancelled, !(error is CancellationError) else { return }
       roster = nil
-      errorMessage = Self.message(error)
+      errorMessage = channelErrorMessage(error)
     }
   }
 
@@ -107,7 +108,7 @@ public final class ChannelCreation: ObservableObject {
   public func create(using submit: (ChannelDraft, ChatRecipientRoster) async throws -> Bool) async -> Bool {
     guard step == .participants, !creating, !loading, draft.isValid,
           let roster, !roster.recipients.membersLoadFailed,
-          draft.visibility != .external || roster.canCreateExternal else { return false }
+          draft.visibility != .external || roster.isOwnerOrAdmin else { return false }
     creating = true
     errorMessage = nil
     defer { creating = false }
@@ -124,22 +125,23 @@ public final class ChannelCreation: ObservableObject {
         step = .details
         availability = .taken
       } else {
-        errorMessage = Self.message(error)
+        errorMessage = channelErrorMessage(error)
       }
       return false
     }
   }
+}
 
-  private static func message(_ error: Error) -> String {
-    if case let ChatServiceError.unauthorized(message) = error {
-      return message
-    }
-    if case let ChatServiceError.unprocessable(_, message) = error {
-      return message
-    }
-    if case let ChatServiceError.unexpectedResponse(message) = error {
-      return message
-    }
-    return friendlyMessage(for: error)
+/// Core's channel messages are user-facing; everything else falls back to the shared network wording.
+public func channelErrorMessage(_ error: Error) -> String {
+  if case let ChatServiceError.unauthorized(message) = error {
+    return message
   }
+  if case let ChatServiceError.unprocessable(_, message) = error {
+    return message
+  }
+  if case let ChatServiceError.unexpectedResponse(message) = error {
+    return message
+  }
+  return friendlyMessage(for: error)
 }

@@ -18,7 +18,7 @@ interface DirectRoomAvatarStackProps {
   currentUserId: string;
 }
 
-/** Humans, coworkers, and soko bots in a direct room, excluding the current user. */
+/** Direct avatars show peers, or the owner for Self Direct. */
 function getDirectParticipants(
   room: ChatRoom,
   currentUserId: string,
@@ -26,7 +26,9 @@ function getDirectParticipants(
   return getRoomParticipantPreviews(room)
     .filter(
       (participant) =>
-        participant.kind === "coworker" || participant.id !== currentUserId,
+        room.isSelfDirect ||
+        participant.kind === "coworker" ||
+        participant.id !== currentUserId,
     )
     .slice(0, 3);
 }
@@ -82,14 +84,16 @@ export function DirectRoomAvatarStack({
                 {getInitials(participant.name)}
               </AvatarFallback>
             </Avatar>
-            <LiveMemberPresenceDot
-              className="-right-0.5 -bottom-0.5 absolute size-2 border"
-              fallback={participant.presence}
-              ground="sidebar"
-              isCoworker={isAi}
-              userId={participant.id}
-            />
-            {participants.length === 1 ? (
+            {!room.isSelfDirect ? (
+              <LiveMemberPresenceDot
+                className="-right-0.5 -bottom-0.5 absolute size-2 border"
+                fallback={participant.presence}
+                ground="sidebar"
+                isCoworker={isAi}
+                userId={participant.id}
+              />
+            ) : null}
+            {participants.length === 1 && !room.isSelfDirect ? (
               <LiveMemberPresenceText
                 className="sr-only"
                 fallback={participant.presence}

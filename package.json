@@ -22,7 +22,6 @@
     "typecheck": "turbo run typecheck",
     "web:typecheck": "pnpm --filter web typecheck",
     "core:typecheck": "pnpm --filter core typecheck",
-    "start": "pnpm -r start",
     "sokosumi": "pnpm --filter ./apps/cli sokosumi",
     "core:start": "pnpm --filter core start",
     "web:start": "pnpm --filter web start",
@@ -40,7 +39,6 @@
     "masumi:test:ci": "pnpm --filter @sokosumi/masumi test:ci",
     "format": "biome format --write .",
     "format:check": "biome format .",
-    "data-migration:better-auth-1-7-harvest": "pnpm --filter @sokosumi/database data-migration:better-auth-1-7-harvest",
     "data-migration:org-only-personal-workspaces": "pnpm --filter @sokosumi/database data-migration:org-only-personal-workspaces",
     "prisma:generate": "pnpm --filter @sokosumi/database prisma:generate",
     "prisma:migrate:dev": "pnpm --filter @sokosumi/database prisma:migrate:dev",
@@ -58,7 +56,7 @@
     "prepare": "husky"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.13",
+    "@biomejs/biome": "2.5.14",
     "chrome-launcher": "1.2.1",
     "husky": "9.1.7",
     "lighthouse": "13.4.1",

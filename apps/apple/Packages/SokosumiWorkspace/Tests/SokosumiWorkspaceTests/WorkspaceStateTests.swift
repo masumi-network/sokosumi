@@ -68,7 +68,7 @@ private final class ScriptedTransport: ClientTransport {
     } else {
       bodies.append(Data())
     }
-    if pauseDirect, operationID == "post/chats/rooms" || operationID == "post/chats/rooms/{id}/members/me" {
+    if pauseDirect, ["post/chats/rooms", "post/chats/rooms/{id}/members/me", "post/chats/invitations/{id}/accept"].contains(operationID) {
       let next = responses.removeFirst()
       if !requestReleased {
         await withCheckedContinuation { pauseWaiter = $0 }
@@ -92,7 +92,7 @@ private final class ScriptedTransport: ClientTransport {
       try Task.checkCancellation()
       return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
     }
-    if pauseGET && operationID.hasPrefix("get/") || pauseDELETE && operationID.hasPrefix("delete/") || pauseReaction && operationID.hasSuffix("/reactions") || pauseUnfurl && operationID.hasSuffix("/unfurls/remove"), operationID.contains("/messages") || operationID == "get/chats/rooms/{id}/threads/{parentMessageId}" {
+    if pauseGET && operationID.hasPrefix("get/") || pauseDELETE && operationID.hasPrefix("delete/") || pauseReaction && operationID.hasSuffix("/reactions/{emoji}") || pauseUnfurl && operationID.hasSuffix("/unfurls/remove"), operationID.contains("/messages") || operationID == "get/chats/rooms/{id}/threads/{parentMessageId}" {
       let next = responses.removeFirst()
       if !requestReleased {
         await withCheckedContinuation { pauseWaiter = $0 }
@@ -136,12 +136,38 @@ private let userBody = """
 private func roomsBody(names: [String]) -> String {
   let rooms = names.enumerated().map { index, name in
     """
-    {"id":"550e8400-e29b-41d4-a716-44665544000\(index)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
+    {"id":"550e8400-e29b-41d4-a716-44665544000\(index)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
     """
   }.joined(separator: ",")
   return """
   {"data":[\(rooms)],"meta":{"timestamp":"\(timestamp)","requestId":"req-1","pagination":{"cursor":null,"limit":100,"total":\(names.count),"nextCursor":null}}}
   """
+}
+
+/// Org workspace with `general` open, then Core replies for: archived load (owner), archive, restore (+ transcript),
+/// a rejected leave, leave, archive and delete.
+@MainActor
+private func lifecycleFixture(general: String, design: String) throws -> (WorkspaceState, AuthState, ScriptedTransport) { // swiftlint:disable:this large_tuple
+  func envelope(_ data: String) -> String {
+    #"{"data":\#(data),"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#
+  }
+  let owner = envelope(#"{"id":"member-me","userId":"user_1","organizationId":"org_1","role":"owner","seatAssignedAt":null,"createdAt":"2026-01-01T00:00:00.000Z"}"#)
+  let lastMember = #"{"error":"Bad Request","message":"You are the last member of this room.","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/chats/rooms/x/members/me","method":"DELETE"}}"#
+  let (state, auth, transport, _) = try ephemeralState([
+    (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+    (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+    (200, roomsBody(names: ["general", "design"])),
+    (200, transcriptPageBody(messages: [], nextCursor: nil)),
+    (200, owner), (200, roomsBody(names: [])),
+    (200, envelope(#"{"id":"\#(design)","archivedAt":"2026-01-01T00:00:00.000Z"}"#)),
+    (200, roomReadBody(id: design, unread: 0, name: "design")),
+    (200, transcriptPageBody(messages: [], nextCursor: nil)),
+    (400, lastMember),
+    (200, envelope(#"{"id":"\#(design)","remainingUserMemberCount":1}"#)),
+    (200, envelope(#"{"id":"\#(general)","archivedAt":"2026-01-01T00:00:00.000Z"}"#)),
+    (204, "")
+  ], visible: false)
+  return (state, auth, transport)
 }
 
 /// One fixture bundle per test; a struct would churn every call site.
@@ -227,6 +253,122 @@ struct WorkspaceStateTests {
     #expect(state.transcriptRoomId == (action == "stay" ? target : nil))
     #expect(state.rooms.contains { $0.id == target } == (action != "reset"))
     #expect(transport.operationIDs.filter { $0 == operation }.count == 1)
+  }
+
+  @Test func channelUpdateReplacesRoomWithoutNavigating() async throws {
+    let edited = "550e8400-e29b-41d4-a716-446655440001"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general", "design"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: edited, unread: 3, name: "Design renamed"))
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    let opened = try #require(state.transcriptRoomId)
+    #expect(opened != edited)
+    let room = try #require(state.rooms.first { $0.id == edited })
+    var draft = ChannelEditDraft(room: room)
+    draft.setName("Design renamed")
+    let permissions = ChannelEditPermissions(canEditMembers: true, canManageSettings: true)
+    let context = state.compositionContext
+    #expect(try await state.updateChannel(draft, roomId: edited, permissions: permissions, context: context, auth: auth))
+    #expect(!state.updatingChannel)
+    #expect(state.transcriptRoomId == opened)
+    #expect(state.rooms.count == 2)
+    #expect(state.rooms.first { $0.id == edited }?.name == "Design renamed")
+    #expect(state.rooms.first { $0.id == edited }?.unreadCount == 3)
+    #expect(transport.operationIDs.filter { $0 == "patch/chats/rooms/{id}" }.count == 1)
+    #expect(try await state.updateChannel(draft, roomId: edited, permissions: permissions, context: UUID(), auth: auth) == false)
+    #expect(transport.operationIDs.filter { $0 == "patch/chats/rooms/{id}" }.count == 1)
+  }
+
+  @Test func channelLifecycleMovesRoomsBetweenSidebarAndArchive() async throws {
+    let general = "550e8400-e29b-41d4-a716-446655440000"
+    let design = "550e8400-e29b-41d4-a716-446655440001"
+    let (state, auth, transport) = try lifecycleFixture(general: general, design: design)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    #expect(state.transcriptRoomId == general)
+    let context = state.compositionContext
+
+    await state.loadArchivedChannels(auth: auth)
+    #expect(state.archivedChannels.rooms.isEmpty && state.archivedChannels.canDelete)
+
+    // Archiving another room keeps the open transcript and lists it under Archived.
+    #expect(try await state.archiveChannel(roomId: design, context: context, auth: auth))
+    #expect(state.rooms.map(\.id) == [general])
+    #expect(state.archivedChannels.rooms.map(\.id) == [design])
+    #expect(state.transcriptRoomId == general)
+
+    // Restoring puts the live room back and opens it, as web navigates to it.
+    #expect(try await state.restoreChannel(roomId: design, context: context, auth: auth))
+    await waitForTranscriptIdle(state)
+    #expect(state.archivedChannels.rooms.isEmpty)
+    #expect(Set(state.rooms.map(\.id)) == [general, design])
+    #expect(state.transcriptRoomId == design)
+
+    // Core's last-member rejection surfaces and leaves the room in place.
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 400, message: "You are the last member of this room.")) {
+      try await state.leaveChannel(roomId: design, context: context, auth: auth)
+    }
+    #expect(state.channelLifecycle == nil)
+    #expect(state.transcriptRoomId == design)
+
+    // Leaving the open room drops it like a revoke; nothing else is forced open.
+    #expect(try await state.leaveChannel(roomId: design, context: context, auth: auth))
+    #expect(state.rooms.map(\.id) == [general])
+    #expect(state.transcriptRoomId == nil)
+    #expect(state.archivedChannels.rooms.isEmpty)
+
+    #expect(try await state.archiveChannel(roomId: general, context: context, auth: auth))
+    #expect(state.rooms.isEmpty)
+    #expect(try await state.deleteChannel(roomId: general, context: context, auth: auth))
+    #expect(state.archivedChannels.rooms.isEmpty)
+    #expect(transport.remainingStubs == 0)
+
+    // A request from a previous workspace context never reaches Core.
+    let sent = transport.operationIDs.count
+    #expect(try await state.deleteChannel(roomId: general, context: UUID(), auth: auth) == false)
+    #expect(try await state.leaveChannel(roomId: general, context: UUID(), auth: auth) == false)
+    #expect(transport.operationIDs.count == sent)
+    #expect(transport.operationIDs.suffix(9) == [
+      "get/users/{id}/organizations/{organizationId}/member", "get/chats/rooms",
+      "post/chats/rooms/{id}/archive", "post/chats/rooms/{id}/restore", "get/chats/rooms/{id}/messages",
+      "delete/chats/rooms/{id}/members/me", "delete/chats/rooms/{id}/members/me",
+      "post/chats/rooms/{id}/archive", "delete/chats/rooms/{id}"
+    ])
+    state.reset()
+    #expect(!state.archivedChannels.canDelete)
+  }
+
+  @Test func channelLifecycleWaitsForOtherChannelMutations() async throws {
+    let target = "550e8400-e29b-41d4-a716-446655440009"
+    let general = "550e8400-e29b-41d4-a716-446655440000"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: target, unread: 0)),
+      (200, transcriptPageBody(messages: [], nextCursor: nil))
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    let context = state.compositionContext
+    transport.pauseDirect = true
+    let join = Task { try await state.joinChannel(roomId: target, context: context, auth: auth) }
+    for _ in 0 ..< 1000 where !transport.operationIDs.contains("post/chats/rooms/{id}/members/me") {
+      await Task.yield()
+    }
+    #expect(state.channelMutationInFlight)
+    #expect(try await state.leaveChannel(roomId: general, context: context, auth: auth) == false)
+    #expect(try await state.archiveChannel(roomId: general, context: context, auth: auth) == false)
+    transport.releasePausedRequest()
+    #expect(try await join.value)
+    await waitForTranscriptIdle(state)
+    #expect(!transport.operationIDs.contains { $0.contains("archive") || $0.hasPrefix("delete/") })
   }
 
   @Test(arguments: ["stay", "leave", "reset"], [true, false]) func participantDirectRespectsNavigation(action: String, fromPicker: Bool) async throws {
@@ -1104,7 +1246,7 @@ struct WorkspaceStateTests {
       (200, transcriptPageBody(messages: [transcriptMessage(id: "persisted", roomId: roomId, content: "Answer")], nextCursor: nil))
     ], visible: false)
     let sender = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
-    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
+    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
     state.timeline.reset(roomId: roomId)
     let client = try #require(state.clientResolver?())
     _ = try await state.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.timeline.generation)
@@ -1146,7 +1288,7 @@ struct WorkspaceStateTests {
     ]
     let (state, auth, transport, _) = try ephemeralState(responses, visible: false)
     let sender = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
-    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
+    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
     state.timeline.reset(roomId: roomId)
     let client = try #require(state.clientResolver?())
     _ = try await state.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.timeline.generation)
@@ -1184,7 +1326,7 @@ struct WorkspaceStateTests {
       ], nextCursor: nil))
     ], visible: false)
     let sender = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
-    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
+    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
     state.timeline.reset(roomId: roomId)
     let client = try #require(state.clientResolver?())
     _ = try await state.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.timeline.generation)
@@ -1223,7 +1365,7 @@ struct WorkspaceStateTests {
       (200, transcriptPageBody(messages: [transcriptMessage(id: "persisted", roomId: roomId, content: "Answer")], nextCursor: nil))
     ], visible: false)
     let sender = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
-    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
+    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
     state.timeline.reset(roomId: roomId)
     let client = try #require(state.clientResolver?())
     _ = try await state.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.timeline.generation)
@@ -1330,7 +1472,7 @@ private func waitWhile(_ condition: () -> Bool) async {
 private func coworkerDirect(roomId: String) -> Components.Schemas.ChatRoom {
   let sender = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
   return .init(
-    id: roomId, name: "Coworker", kind: .direct, createdByUserId: "me", createdAt: Date(), updatedAt: Date(),
+    id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(),
     unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [sender],
     coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: []
   )
@@ -1372,7 +1514,7 @@ private func preparedCoworkerDirect(
 
 private func unreadRoomsBody(id: String, unread: Int) -> String {
   """
-  {"data":[{"id":"\(id)","organizationId":null,"organizationName":null,"name":"general","slug":null,"kind":"channel","directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unread),"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}],"meta":{"timestamp":"\(timestamp)","requestId":"req-1","pagination":{"cursor":null,"limit":100,"total":1,"nextCursor":null}}}
+  {"data":[{"id":"\(id)","organizationId":null,"organizationName":null,"name":"general","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unread),"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}],"meta":{"timestamp":"\(timestamp)","requestId":"req-1","pagination":{"cursor":null,"limit":100,"total":1,"nextCursor":null}}}
   """
 }
 
@@ -1400,7 +1542,7 @@ private func createdMessageBody(id: String, roomId: String, content: String) -> 
 
 private func roomReadBody(id: String, unread: Int, name: String = "general") -> String {
   let room = """
-  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unread),"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
+  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unread),"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
   """
   return """
   {"data":\(room),"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
@@ -2012,9 +2154,8 @@ extension WorkspaceStateTests {
     defer { state.reset() }
     let base = try #require(URL(string: "https://example.com"))
     let url = try #require(URL(string: "https://example.com/chat/rooms/unknown?message=old"))
-    let parsed = ChatLink(url: url, webBaseURL: base)
-    let link = try #require(parsed)
-    #expect(try await state.openChatLink(link, auth: auth) == .unavailable)
+    guard case let .room(roomId, messageId) = try #require(ChatLink(url: url, webBaseURL: base)) else { return }
+    #expect(try await state.openRoomLink(roomId: roomId, messageId: messageId, auth: auth) == .unavailable)
     #expect(state.selectedRoomId == nil)
     #expect(transport.operationIDs.isEmpty)
   }
@@ -2029,9 +2170,8 @@ extension WorkspaceStateTests {
     state.rooms = [room]
     let base = try #require(URL(string: "https://example.com"))
     let url = try #require(URL(string: "https://example.com/chat/rooms/destination?message=target"))
-    let parsed = ChatLink(url: url, webBaseURL: base)
-    let link = try #require(parsed)
-    #expect(try await state.openChatLink(link, auth: auth) == .opened)
+    guard case let .room(roomId, messageId) = try #require(ChatLink(url: url, webBaseURL: base)) else { return }
+    #expect(try await state.openRoomLink(roomId: roomId, messageId: messageId, auth: auth) == .opened)
     #expect(state.selectedRoomId == "destination")
     #expect(state.messageJump?.messageId == "target")
     #expect(transport.operationIDs == ["get/chats/rooms/{id}/messages"])
@@ -2047,10 +2187,9 @@ extension WorkspaceStateTests {
     state.rooms = [room]
     let base = try #require(URL(string: "https://example.com"))
     let url = try #require(URL(string: "https://example.com/chat/rooms/destination?message=target"))
-    let parsed = ChatLink(url: url, webBaseURL: base)
-    let link = try #require(parsed)
+    guard case let .room(roomId, messageId) = try #require(ChatLink(url: url, webBaseURL: base)) else { return }
     transport.pauseGET = true
-    let request = Task { try await state.openChatLink(link, auth: auth) }
+    let request = Task { try await state.openRoomLink(roomId: roomId, messageId: messageId, auth: auth) }
     while transport.operationIDs.isEmpty {
       await Task.yield()
     }
@@ -2070,5 +2209,207 @@ extension WorkspaceStateTests {
     state.timeline.reset(roomId: "room")
     #expect(try await state.openMessage("target", auth: auth) == .opened)
     #expect(state.messageJump?.messageId == "target")
+  }
+}
+
+private func invitationBody(id: String, roomId: String, status: String = "pending") -> String {
+  """
+  {"id":"\(id)","roomId":"\(roomId)","roomName":"Partners","organizationId":"org_2","organizationName":"Acme Partners","email":"me@example.com","status":"\(status)","inviter":{"id":"host","name":"Hannah"},"expiresAt":"\(timestamp)","createdAt":"\(timestamp)"}
+  """
+}
+
+private func invitationEnvelope(_ data: String) -> String {
+  """
+  {"data":\(data),"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
+  """
+}
+
+extension WorkspaceStateTests {
+  /// Web drops the pending row, re-lists rooms (the accept response carries no room) and navigates to the joined room.
+  @Test func invitationAcceptListsRoomsAndOpensJoinedRoom() async throws {
+    let general = "550e8400-e29b-41d4-a716-446655440000"
+    let partners = "550e8400-e29b-41d4-a716-446655440001"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, invitationEnvelope("[\(invitationBody(id: "inv-1", roomId: partners)),\(invitationBody(id: "inv-2", roomId: partners))]")),
+      (404, #"{"error":"Not Found","message":"Invitation not found","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/chats/invitations/x/accept","method":"POST"}}"#),
+      (200, invitationEnvelope(invitationBody(id: "inv-1", roomId: partners, status: "accepted"))),
+      (200, roomsBody(names: ["general", "partners"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, invitationEnvelope(invitationBody(id: "inv-2", roomId: partners, status: "declined")))
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    #expect(state.transcriptRoomId == general)
+    let context = state.compositionContext
+
+    await state.loadPendingInvitations(auth: auth)
+    #expect(state.pendingInvitations.invitations.map(\.id) == ["inv-1", "inv-2"])
+
+    // Core's rejection surfaces and keeps the row; the response flag clears.
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 404, message: "Invitation not found")) {
+      try await state.acceptInvitation(id: "inv-1", context: context, auth: auth)
+    }
+    #expect(state.invitationResponse == nil && state.pendingInvitations.invitations.count == 2)
+
+    #expect(try await state.acceptInvitation(id: "inv-1", context: context, auth: auth))
+    await waitForTranscriptIdle(state)
+    #expect(state.pendingInvitations.invitations.map(\.id) == ["inv-2"])
+    #expect(state.rooms.map(\.id) == [general, partners])
+    #expect(state.transcriptRoomId == partners)
+    #expect(state.invitationResponse == nil)
+
+    #expect(try await state.declineInvitation(id: "inv-2", context: context, auth: auth))
+    #expect(state.pendingInvitations.invitations.isEmpty)
+    #expect(state.transcriptRoomId == partners)
+    #expect(transport.remainingStubs == 0)
+
+    // A request from a previous workspace context never reaches Core.
+    let sent = transport.operationIDs.count
+    #expect(try await state.acceptInvitation(id: "inv-2", context: UUID(), auth: auth) == false)
+    #expect(try await state.declineInvitation(id: "inv-2", context: UUID(), auth: auth) == false)
+    #expect(transport.operationIDs.count == sent)
+    #expect(transport.operationIDs.suffix(6) == [
+      "get/chats/invitations", "post/chats/invitations/{id}/accept", "post/chats/invitations/{id}/accept",
+      "get/chats/rooms", "get/chats/rooms/{id}/messages", "post/chats/invitations/{id}/decline"
+    ])
+    state.reset()
+    #expect(state.pendingInvitations.invitations.isEmpty)
+  }
+
+  /// "Open channel" on an already-accepted card re-lists only when the room is missing locally, then opens it.
+  @Test func invitationOpenChannelReListsMissingRoom() async throws {
+    let general = "550e8400-e29b-41d4-a716-446655440000"
+    let partners = "550e8400-e29b-41d4-a716-446655440001"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomsBody(names: ["general", "partners"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, transcriptPageBody(messages: [], nextCursor: nil))
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    #expect(state.transcriptRoomId == general)
+    let context = state.compositionContext
+
+    // A stale context never lists or navigates.
+    let sent = transport.operationIDs.count
+    await state.openInvitedRoom(partners, context: UUID(), auth: auth)
+    #expect(transport.operationIDs.count == sent && state.transcriptRoomId == general)
+
+    await state.openInvitedRoom(partners, context: context, auth: auth)
+    await waitForTranscriptIdle(state)
+    #expect(state.rooms.map(\.id) == [general, partners])
+    #expect(state.transcriptRoomId == partners)
+
+    // A listed room opens without another list request.
+    await state.openInvitedRoom(general, context: context, auth: auth)
+    await waitForTranscriptIdle(state)
+    #expect(state.transcriptRoomId == general)
+    #expect(transport.operationIDs.suffix(3) == ["get/chats/rooms", "get/chats/rooms/{id}/messages", "get/chats/rooms/{id}/messages"])
+    #expect(transport.remainingStubs == 0)
+  }
+
+  /// Accepting from the invite sheet while the user already moved to another room must not pull them back.
+  @Test func invitationAcceptRespectsNavigation() async throws {
+    let general = "550e8400-e29b-41d4-a716-446655440000"
+    let partners = "550e8400-e29b-41d4-a716-446655440001"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general", "design"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, invitationEnvelope(invitationBody(id: "inv-1", roomId: partners, status: "accepted"))),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomsBody(names: ["general", "design", "partners"]))
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    #expect(state.transcriptRoomId == general)
+    let context = state.compositionContext
+    transport.pauseDirect = true
+    let accept = Task { try await state.acceptInvitation(id: "inv-1", context: context, auth: auth) }
+    for _ in 0 ..< 1000 where !transport.operationIDs.contains("post/chats/invitations/{id}/accept") {
+      await Task.yield()
+    }
+    #expect(state.channelMutationInFlight)
+    state.selectRoom("550e8400-e29b-41d4-a716-446655440001", auth: auth)
+    await waitForTranscriptIdle(state)
+    transport.releasePausedRequest()
+    #expect(try await accept.value)
+    await waitForTranscriptIdle(state)
+    #expect(state.rooms.count == 3)
+    #expect(state.transcriptRoomId == "550e8400-e29b-41d4-a716-446655440001")
+    #expect(!state.channelMutationInFlight)
+    #expect(transport.operationIDs.suffix(3) == ["post/chats/invitations/{id}/accept", "get/chats/rooms/{id}/messages", "get/chats/rooms"])
+  }
+
+  @Test func invitationResponseWaitsForOtherChannelMutations() async throws {
+    let target = "550e8400-e29b-41d4-a716-446655440009"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: target, unread: 0)),
+      (200, transcriptPageBody(messages: [], nextCursor: nil))
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    let context = state.compositionContext
+    transport.pauseDirect = true
+    let join = Task { try await state.joinChannel(roomId: target, context: context, auth: auth) }
+    for _ in 0 ..< 1000 where !transport.operationIDs.contains("post/chats/rooms/{id}/members/me") {
+      await Task.yield()
+    }
+    #expect(try await state.acceptInvitation(id: "inv", context: context, auth: auth) == false)
+    #expect(try await state.declineInvitation(id: "inv", context: context, auth: auth) == false)
+    #expect(try await state.acceptGuestInviteLink(token: "tok", context: context, auth: auth) == false)
+    transport.releasePausedRequest()
+    #expect(try await join.value)
+    await waitForTranscriptIdle(state)
+    #expect(!transport.operationIDs.contains { $0.contains("invitations") || $0.contains("invite-links") })
+  }
+
+  /// Web's join page: a public preview, then a guest join that re-lists rooms and opens the room.
+  @Test func guestLinkJoinOpensRoom() async throws {
+    let general = "550e8400-e29b-41d4-a716-446655440000"
+    let partners = "550e8400-e29b-41d4-a716-446655440001"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, invitationEnvelope(#"{"status":"valid","room":{"id":"\#(partners)","name":"Partners","organizationId":"org_2","organizationName":"Acme Partners"}}"#)),
+      (400, #"{"error":"Bad Request","message":"This invite link has expired.","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/chat-room-invite-links/tok/accept","method":"POST"}}"#),
+      (200, invitationEnvelope(#"{"status":"joined","roomId":"\#(partners)","roomName":"Partners"}"#)),
+      (200, roomsBody(names: ["general", "partners"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil))
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    #expect(state.transcriptRoomId == general)
+    let context = state.compositionContext
+    let preview = try await state.resolveGuestInviteLink(token: "tok", context: context, auth: auth)
+    #expect(preview.room?.name == "Partners")
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 400, message: "This invite link has expired.")) {
+      try await state.acceptGuestInviteLink(token: "tok", context: context, auth: auth)
+    }
+    #expect(state.invitationResponse == nil)
+    #expect(try await state.acceptGuestInviteLink(token: "tok", context: context, auth: auth))
+    await waitForTranscriptIdle(state)
+    #expect(state.rooms.map(\.id) == [general, partners])
+    #expect(state.transcriptRoomId == partners)
+    #expect(transport.remainingStubs == 0)
+    #expect(transport.operationIDs.suffix(5) == [
+      "get/chat-room-invite-links/{token}", "post/chat-room-invite-links/{token}/accept", "post/chat-room-invite-links/{token}/accept",
+      "get/chats/rooms", "get/chats/rooms/{id}/messages"
+    ])
   }
 }

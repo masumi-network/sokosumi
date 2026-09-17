@@ -162,3 +162,62 @@ test("jobs get text surfaces the newest Core event result", async () => {
   assert.match(output.join(""), /latest event: Newest feedback\./);
   assert.doesNotMatch(output.join(""), /latest event: Oldest feedback\./);
 });
+
+test("jobs get --details maps events, files, links, and input request", async () => {
+  const client: CoreHttpClient = {
+    get: async <T>(path: string) => {
+      if (path.endsWith("/events")) return { data: [{ id: "ev-1" }] } as T;
+      if (path.endsWith("/files")) return { data: [{ id: "file-1" }] } as T;
+      if (path.endsWith("/links")) return { data: [{ id: "link-1" }] } as T;
+      if (path.endsWith("/input-request")) return { data: { id: "ir-1" } } as T;
+      return { data: { id: "job-1", agentId: "agent-1" } } as T;
+    },
+    post: async <T>() => ({ data: null }) as T,
+    patch: async <T>() => ({ data: null }) as T,
+    delete: async <T>() => ({ data: null }) as T,
+  };
+  const output: string[] = [];
+  await runJobsCommand({
+    client,
+    stdout: { write: (value) => output.push(value) },
+    json: true,
+    subcommand: "get",
+    positionalId: "job-1",
+    options: { details: true },
+  });
+  const parsed = JSON.parse(output.join(""));
+  assert.equal(parsed.job.id, "job-1");
+  assert.equal(parsed.events[0].id, "ev-1");
+  assert.equal(parsed.files[0].id, "file-1");
+  assert.equal(parsed.links[0].id, "link-1");
+  assert.equal(parsed.inputRequest.id, "ir-1");
+});
+
+test("jobs get --details still emits the job when a detail fetch fails", async () => {
+  const client: CoreHttpClient = {
+    get: async <T>(path: string) => {
+      if (path.endsWith("/files")) throw new Error("files boom");
+      if (path.endsWith("/events")) return { data: [{ id: "ev-1" }] } as T;
+      if (path.endsWith("/links")) return { data: [] } as T;
+      if (path.endsWith("/input-request")) return { data: null } as T;
+      return { data: { id: "job-1" } } as T;
+    },
+    post: async <T>() => ({ data: null }) as T,
+    patch: async <T>() => ({ data: null }) as T,
+    delete: async <T>() => ({ data: null }) as T,
+  };
+  const output: string[] = [];
+  await runJobsCommand({
+    client,
+    stdout: { write: (value) => output.push(value) },
+    json: true,
+    subcommand: "get",
+    positionalId: "job-1",
+    options: { details: true },
+  });
+  const parsed = JSON.parse(output.join(""));
+  assert.equal(parsed.job.id, "job-1");
+  assert.deepEqual(parsed.detailsErrors, [
+    { resource: "files", message: "fetch failed" },
+  ]);
+});

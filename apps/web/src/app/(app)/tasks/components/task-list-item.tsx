@@ -57,7 +57,7 @@ export function TaskListItem({
             </span>
             {!compact && (
               <p className="text-muted-foreground line-clamp-1 text-xs break-all">
-                {task.descriptionPlain ?? task.description ?? "—"}
+                {task.descriptionPlain ?? "—"}
               </p>
             )}
           </div>

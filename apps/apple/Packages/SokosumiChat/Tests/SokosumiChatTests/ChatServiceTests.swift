@@ -21,7 +21,7 @@ private func roomJSON(
   unreadMentionCount: Int
 ) -> String {
   """
-  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"\(kind)","directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unreadCount),"unreadMentionCount":\(unreadMentionCount),"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
+  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"\(kind)","isSelfDirect":false,"directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unreadCount),"unreadMentionCount":\(unreadMentionCount),"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
   """
 }
 
@@ -134,6 +134,102 @@ struct ChatServiceTests {
     await #expect(throws: ChannelCreationError.slugTaken) {
       try await ChatService().createChannel(client: client, draft: draft, roster: roster, currentUserId: "me", organizationSlug: "team")
     }
+  }
+
+  @Test(arguments: [false, true]) func channelUpdateSendsSettingsOnlyForManagers(managesSettings: Bool) async throws {
+    let room = roomJSON(id: "channel", name: "Team", kind: "channel", unreadCount: 0, unreadMentionCount: 0)
+    let response = "{\"data\":\(room),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\"}}"
+    let forbidden = "{\"error\":\"Forbidden\",\"message\":\"Guests cannot update channel settings or roster.\",\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\",\"path\":\"/chats/rooms/channel\",\"method\":\"PATCH\"}}"
+    let transport = ScriptedTransport([(200, response), (403, forbidden)])
+    let client = try makeClient(transport)
+    var draft = ChannelEditDraft(room: .init(
+      id: "channel", organizationId: "org", name: "Team", slug: "team", kind: .channel, isSelfDirect: false, topic: nil, discoverability: ._private,
+      createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast, unreadCount: 0, unreadMentionCount: 0,
+      markedUnread: false, myAccess: .member, userMembers: [], coworkerMembers: [], sokoBotMembers: []
+    ))
+    draft.setName(" Renamed ")
+    draft.setTopic("  ")
+    draft.visibility = .external
+    draft.recipients = [.human("peer"), .coworker("agent"), .sokoBot("bot")]
+    let permissions = ChannelEditPermissions(canEditMembers: true, canManageSettings: managesSettings)
+    let update = draft.updateRequest(permissions: permissions, currentUserId: "me")
+    let result = try await ChatService().updateChannel(client: client, roomId: "channel", request: update, organizationSlug: "team")
+    #expect(result.id == "channel")
+    let request = try #require(transport.requests.first).request
+    #expect(request.method == .patch)
+    #expect(request.path == "/chats/rooms/channel")
+    #expect(orgSlugHeader(request) == "team")
+    let body = try #require(JSONSerialization.jsonObject(with: transport.bodies[0]) as? [String: Any])
+    #expect(body["memberUserIds"] as? [String] == ["me", "peer"])
+    #expect(body["coworkerIds"] as? [String] == ["agent"])
+    #expect(body["sokoBotIds"] as? [String] == ["bot"])
+    #expect(body["name"] as? String == (managesSettings ? "Renamed" : nil))
+    #expect(body["topic"] as? String == (managesSettings ? "" : nil))
+    #expect(body["discoverability"] as? String == (managesSettings ? "external" : nil))
+    #expect(body["slug"] == nil)
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 403, message: "Guests cannot update channel settings or roster.")) {
+      try await ChatService().updateChannel(client: client, roomId: "channel", request: update, organizationSlug: "team")
+    }
+  }
+
+  @Test func channelLifecycleUsesCoreRoutesAndSurfacesCoreMessages() async throws {
+    func error(_ status: String, _ message: String) -> String {
+      "{\"error\":\"\(status)\",\"message\":\"\(message)\",\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"req\",\"path\":\"/chats/rooms/channel\",\"method\":\"POST\"}}"
+    }
+    let room = roomJSON(id: "channel", name: "Team", kind: "channel", unreadCount: 0, unreadMentionCount: 0)
+    let transport = ScriptedTransport([
+      (200, "{\"data\":{\"id\":\"channel\",\"remainingUserMemberCount\":2},\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"req\"}}"),
+      (400, error("Bad Request", "You are the last member of this room. Ask an organization owner or admin to archive it.")),
+      (200, "{\"data\":{\"id\":\"channel\",\"archivedAt\":\"\(timestamp)\"},\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"req\"}}"),
+      (403, error("Forbidden", "Only an organization owner or admin can archive this room.")),
+      (200, "{\"data\":\(room),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"req\"}}"),
+      (400, error("Bad Request", "Room is not archived.")),
+      (204, ""),
+      (403, error("Forbidden", "Only an organization owner or admin can permanently delete this room."))
+    ])
+    let client = try makeClient(transport)
+    let service = ChatService()
+    try await service.leaveChannel(client: client, roomId: "channel", organizationSlug: nil)
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 400, message: "You are the last member of this room. Ask an organization owner or admin to archive it.")) {
+      try await service.leaveChannel(client: client, roomId: "channel", organizationSlug: "team")
+    }
+    try await service.archiveChannel(client: client, roomId: "channel", organizationSlug: "team")
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 403, message: "Only an organization owner or admin can archive this room.")) {
+      try await service.archiveChannel(client: client, roomId: "channel", organizationSlug: "team")
+    }
+    #expect(try await service.restoreChannel(client: client, roomId: "channel", organizationSlug: "team").id == "channel")
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 400, message: "Room is not archived.")) {
+      try await service.restoreChannel(client: client, roomId: "channel", organizationSlug: "team")
+    }
+    try await service.deleteChannel(client: client, roomId: "channel", organizationSlug: "team")
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 403, message: "Only an organization owner or admin can permanently delete this room.")) {
+      try await service.deleteChannel(client: client, roomId: "channel", organizationSlug: "team")
+    }
+    let routes = transport.requests.map { "\($0.request.method.rawValue) \($0.request.path ?? "")" }
+    #expect(routes == [
+      "DELETE /chats/rooms/channel/members/me", "DELETE /chats/rooms/channel/members/me",
+      "POST /chats/rooms/channel/archive", "POST /chats/rooms/channel/archive",
+      "POST /chats/rooms/channel/restore", "POST /chats/rooms/channel/restore",
+      "DELETE /chats/rooms/channel", "DELETE /chats/rooms/channel"
+    ])
+    // Personal-workspace leave (guest/matched rooms) omits the organization header.
+    #expect(transport.requests.map { orgSlugHeader($0.request) } == [nil, "team", "team", "team", "team", "team", "team", "team"])
+  }
+
+  @Test(arguments: ["member", "admin", "owner"])
+  func archivedChannelsListArchivedChannelsWithDeleteRole(role: String) async throws {
+    let member = "{\"data\":{\"id\":\"member-me\",\"userId\":\"me\",\"organizationId\":\"org\",\"role\":\"\(role)\",\"seatAssignedAt\":null,\"createdAt\":\"\(timestamp)\"},\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"req\"}}"
+    let transport = ScriptedTransport([
+      (200, member),
+      (200, roomsPageBody(rooms: [roomJSON(id: "old", name: "Old", kind: "channel", unreadCount: 0, unreadMentionCount: 0)], nextCursor: nil))
+    ])
+    let list = try await ChatService().archivedChannels(client: makeClient(transport), organizationId: "org", organizationSlug: "team")
+    #expect(list.rooms.map(\.id) == ["old"])
+    #expect(list.canDelete == (role != "member"))
+    #expect(transport.requests[0].request.path == "/users/me/organizations/org/member")
+    let query = requestQuery(transport.requests[1].request)
+    #expect(query.contains("status=archived") && query.contains("kind=channel"))
+    #expect(orgSlugHeader(transport.requests[1].request) == "team")
   }
 
   @Test func channelAvailabilityUsesOrganizationAndQuery() async throws {
@@ -665,4 +761,60 @@ private func drivePageBody(items: [String], nextCursor: String?) -> String {
   #expect(picker.errorMessage == nil)
   #expect(picker.items == [folder])
   #expect(!picker.loading)
+}
+
+extension ChatServiceTests {
+  @Test func invitationOperationsUseCoreRoutesAndSurfaceCoreMessages() async throws {
+    func envelope(_ data: String) -> String {
+      "{\"data\":\(data),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"req\"}}"
+    }
+    func error(_ status: String, _ message: String) -> String {
+      "{\"error\":\"\(status)\",\"message\":\"\(message)\",\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"req\",\"path\":\"/chats/invitations\",\"method\":\"POST\"}}"
+    }
+    func invitation(_ status: String) -> String {
+      "{\"id\":\"inv\",\"roomId\":\"room\",\"roomName\":\"Partners\",\"organizationId\":\"org\",\"organizationName\":\"Acme\",\"email\":\"me@example.com\",\"status\":\"\(status)\",\"inviter\":{\"id\":\"host\",\"name\":\"Hannah\"},\"expiresAt\":\"\(timestamp)\",\"createdAt\":\"\(timestamp)\"}"
+    }
+    let transport = ScriptedTransport([
+      (200, envelope("[\(invitation("pending"))]")),
+      (200, envelope(invitation("pending"))),
+      (404, error("Not Found", "Invitation not found")),
+      (200, envelope(invitation("accepted"))),
+      (400, error("Bad Request", "Invitation is no longer pending.")),
+      (200, envelope(invitation("declined"))),
+      (200, envelope("{\"status\":\"valid\",\"room\":{\"id\":\"room\",\"name\":\"Partners\",\"organizationId\":\"org\",\"organizationName\":\"Acme\"}}")),
+      (200, envelope("{\"status\":\"depleted\",\"room\":null}")),
+      (200, envelope("{\"status\":\"already_guest\",\"roomId\":\"room\",\"roomName\":\"Partners\"}")),
+      (403, error("Forbidden", "Sign in with a user session to join."))
+    ])
+    let client = try makeClient(transport)
+    let service = ChatService()
+    #expect(try await service.pendingInvitations(client: client, organizationSlug: nil).map(\.id) == ["inv"])
+    #expect(try await service.invitation(client: client, id: "inv", organizationSlug: "team").inviter.name == "Hannah")
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 404, message: "Invitation not found")) {
+      try await service.invitation(client: client, id: "inv", organizationSlug: "team")
+    }
+    #expect(try await service.acceptInvitation(client: client, id: "inv", organizationSlug: "team").status == .accepted)
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 400, message: "Invitation is no longer pending.")) {
+      try await service.acceptInvitation(client: client, id: "inv", organizationSlug: "team")
+    }
+    #expect(try await service.declineInvitation(client: client, id: "inv", organizationSlug: nil).status == .declined)
+    let valid = try await service.resolveGuestInviteLink(client: client, token: "tok")
+    #expect(valid.status == .valid && valid.room?.name == "Partners")
+    let depleted = try await service.resolveGuestInviteLink(client: client, token: "tok")
+    #expect(depleted.status == .depleted && depleted.room == nil)
+    let joined = try await service.acceptGuestInviteLink(client: client, token: "tok", organizationSlug: "team")
+    #expect(joined.status == .alreadyGuest && joined.roomId == "room")
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 403, message: "Sign in with a user session to join.")) {
+      try await service.acceptGuestInviteLink(client: client, token: "tok", organizationSlug: nil)
+    }
+    let routes = transport.requests.map { "\($0.request.method.rawValue) \($0.request.path ?? "")" }
+    #expect(routes == [
+      "GET /chats/invitations?status=pending", "GET /chats/invitations/inv", "GET /chats/invitations/inv",
+      "POST /chats/invitations/inv/accept", "POST /chats/invitations/inv/accept", "POST /chats/invitations/inv/decline",
+      "GET /chat-room-invite-links/tok", "GET /chat-room-invite-links/tok",
+      "POST /chat-room-invite-links/tok/accept", "POST /chat-room-invite-links/tok/accept"
+    ])
+    // Personal workspaces omit the organization header; the public link preview never sends it.
+    #expect(transport.requests.map { orgSlugHeader($0.request) } == [nil, "team", "team", "team", "team", nil, nil, nil, "team", nil])
+  }
 }
