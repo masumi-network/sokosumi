@@ -239,6 +239,7 @@ function channelRoom(): ChatRoom {
     starredAt: null,
     mutedAt: null,
     markedUnread: false,
+    isSelfDirect: false,
     myAccess: "member",
     userMembers: [
       {
