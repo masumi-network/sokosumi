@@ -11,11 +11,8 @@ import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomSchema } from "@/schemas/chat-room.schema";
 
 import {
-  getChatRoomPinnedMessageCounts,
-  getChatRoomSidebarFlags,
-  mapChatRoom,
+  mapChatRoomWithSidebarFlags,
   requireChatRoomUserAccess,
-  resolvePeerInActiveOrganization,
 } from "../helpers";
 import {
   getChatRoomUnreadCounts,
@@ -65,45 +62,27 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       userContext.userId,
       prisma,
     );
-    const [
-      unreadCounts,
-      unreadMentionCounts,
-      sidebarFlags,
-      pinnedMessageCounts,
-      organization,
-      peerInActiveOrganization,
-    ] = await Promise.all([
-      getChatRoomUnreadCounts([room.id], userContext.userId, prisma),
-      getChatRoomUnreadMentionCounts([room.id], userContext.userId, prisma),
-      getChatRoomSidebarFlags([room.id], userContext.userId, prisma),
-      getChatRoomPinnedMessageCounts([room.id], prisma),
-      room.organizationId
-        ? prisma.organization.findUnique({
-            where: { id: room.organizationId },
-            select: { name: true },
-          })
-        : Promise.resolve(null),
-      resolvePeerInActiveOrganization(
-        room,
-        userContext.userId,
-        userContext.organizationId,
-        prisma,
-      ),
-    ]);
-    const flags = sidebarFlags.get(room.id);
+    const [unreadCounts, unreadMentionCounts, organization] = await Promise.all(
+      [
+        getChatRoomUnreadCounts([room.id], userContext.userId, prisma),
+        getChatRoomUnreadMentionCounts([room.id], userContext.userId, prisma),
+        room.organizationId
+          ? prisma.organization.findUnique({
+              where: { id: room.organizationId },
+              select: { name: true },
+            })
+          : Promise.resolve(null),
+      ],
+    );
 
     return ok(
       c,
       chatRoomSchema.parse(
-        mapChatRoom(room, userContext.userId, {
+        await mapChatRoomWithSidebarFlags(room, userContext.userId, prisma, {
           unreadCount: unreadCounts.get(room.id) ?? 0,
           unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
-          starredAt: flags?.starredAt ?? null,
-          pinnedMessageCount: pinnedMessageCounts.get(room.id) ?? 0,
-          mutedAt: flags?.mutedAt ?? null,
-          markedUnread: flags?.markedUnread ?? false,
+          activeOrganizationId: userContext.organizationId,
           organizationName: organization?.name ?? null,
-          peerInActiveOrganization,
         }),
       ),
     );

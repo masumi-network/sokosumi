@@ -29,8 +29,8 @@ client, refund policy. Ships **after** PR 1; reuses its helpers.
 - `JobX402Payment` — sibling of `JobPurchase` AND of PR 1's
   `TaskX402Payment` (two tables by decision). Shared columns by convention:
   `amount` is a digit `String` (node base units) plus `decimals` from
-  **node-published** ready-pair config, not the agent row — same as
-  PR1-SPEC §4. Also `jobId @unique`, `caip2Network`, `asset`,
+  **node-published** ready-pair config, not the agent row — same as shipped
+  `TaskX402Payment`. Also `jobId @unique`, `caip2Network`, `asset`,
   `payTo`, `paymentIdentifier?`, `status`
   (`PENDING | VERIFIED | FAILED | REFUNDED` — successful sign is
   `VERIFIED`, not a terminal record; goodwill refund is
@@ -41,8 +41,9 @@ client, refund policy. Ships **after** PR 1; reuses its helpers.
   (`payerAddress?`,
   `payloadNonce?`, `paymentPayloadHash?`, `validBefore?`) fill in only when the
   node returns a 200, so `PENDING` rows lack them (mirrors the
-  `TaskX402Payment` specified in [PR1-SPEC §4](PR1-SPEC.md); that table is
-  not on `main` until the PR 1 implementation lands). `transactionId @unique` is
+  `TaskX402Payment` specified in
+  [ADR 0001](../../adr/0001-x402-evm-payment-rail.md); that table is on
+  `main`). `transactionId @unique` is
   set at charge and is present from row creation; `refundTransactionId?
   @unique` is the compensating refund. `@@index([status, validBefore])` supports the
   future expiry reconciler.
@@ -77,7 +78,8 @@ client, refund policy. Ships **after** PR 1; reuses its helpers.
    cumulative task budget. Drift → fail the job, refund — provably unpaid,
    nothing signed.
 3. **Pay** — node `POST /x402/pay` (Soko wallet, `paymentIdentifier` only if
-   advertised). Three outcomes (the taxonomy specified in PR1-SPEC §3):
+   advertised). Three outcomes (the taxonomy in ADR 0001 Decision 8 /
+   refund policy):
    - **Documented pre-sign refusal** (node-owned 400, 402, or 500 with the
      documented error envelope, no header written) → **provably unpaid** →
      synchronous refund, record `FAILED`, job fails with a **new failure

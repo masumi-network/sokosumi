@@ -22,7 +22,7 @@ This directory contains documentation for the Sokosumi monorepo.
 
 ## Wayfinder
 
-- [`wayfinder/`](./wayfinder/) — reached x402/EVM spec map (`MAP.md`, `PR1-SPEC.md`, `PR2-SPEC.md`)
+- [`wayfinder/x402-evm/PR2-SPEC.md`](./wayfinder/x402-evm/PR2-SPEC.md) — remaining x402/EVM implementer spec (`Job.paymentRail` / `JobX402Payment`); substrate [`adr/0001-x402-evm-payment-rail.md`](./adr/0001-x402-evm-payment-rail.md)
 
 ## Architecture decisions
 

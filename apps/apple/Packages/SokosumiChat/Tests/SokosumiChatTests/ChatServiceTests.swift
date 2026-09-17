@@ -136,6 +136,42 @@ struct ChatServiceTests {
     }
   }
 
+  @Test(arguments: [false, true]) func channelUpdateSendsSettingsOnlyForManagers(managesSettings: Bool) async throws {
+    let room = roomJSON(id: "channel", name: "Team", kind: "channel", unreadCount: 0, unreadMentionCount: 0)
+    let response = "{\"data\":\(room),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\"}}"
+    let forbidden = "{\"error\":\"Forbidden\",\"message\":\"Guests cannot update channel settings or roster.\",\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\",\"path\":\"/chats/rooms/channel\",\"method\":\"PATCH\"}}"
+    let transport = ScriptedTransport([(200, response), (403, forbidden)])
+    let client = try makeClient(transport)
+    var draft = ChannelEditDraft(room: .init(
+      id: "channel", organizationId: "org", name: "Team", slug: "team", kind: .channel, topic: nil, discoverability: ._private,
+      createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast, unreadCount: 0, unreadMentionCount: 0,
+      markedUnread: false, myAccess: .member, userMembers: [], coworkerMembers: [], sokoBotMembers: []
+    ))
+    draft.setName(" Renamed ")
+    draft.setTopic("  ")
+    draft.visibility = .external
+    draft.recipients = [.human("peer"), .coworker("agent"), .sokoBot("bot")]
+    let permissions = ChannelEditPermissions(canEditMembers: true, canManageSettings: managesSettings)
+    let update = draft.updateRequest(permissions: permissions, currentUserId: "me")
+    let result = try await ChatService().updateChannel(client: client, roomId: "channel", request: update, organizationSlug: "team")
+    #expect(result.id == "channel")
+    let request = try #require(transport.requests.first).request
+    #expect(request.method == .patch)
+    #expect(request.path == "/chats/rooms/channel")
+    #expect(orgSlugHeader(request) == "team")
+    let body = try #require(JSONSerialization.jsonObject(with: transport.bodies[0]) as? [String: Any])
+    #expect(body["memberUserIds"] as? [String] == ["me", "peer"])
+    #expect(body["coworkerIds"] as? [String] == ["agent"])
+    #expect(body["sokoBotIds"] as? [String] == ["bot"])
+    #expect(body["name"] as? String == (managesSettings ? "Renamed" : nil))
+    #expect(body["topic"] as? String == (managesSettings ? "" : nil))
+    #expect(body["discoverability"] as? String == (managesSettings ? "external" : nil))
+    #expect(body["slug"] == nil)
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 403, message: "Guests cannot update channel settings or roster.")) {
+      try await ChatService().updateChannel(client: client, roomId: "channel", request: update, organizationSlug: "team")
+    }
+  }
+
   @Test func channelAvailabilityUsesOrganizationAndQuery() async throws {
     let response = "{\"data\":{\"status\":\"free\"},\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\"}}"
     let transport = ScriptedTransport([(200, response)])

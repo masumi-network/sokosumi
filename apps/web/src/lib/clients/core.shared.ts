@@ -132,6 +132,7 @@ import {
   deleteChatsRoomsByIdMessagesByMessageIdPin as coreDeleteChatsRoomsByIdMessagesByMessageIdPin,
   deleteChatsRoomsByIdMute as coreDeleteChatsRoomsByIdMute,
   deleteChatsRoomsByIdStar as coreDeleteChatsRoomsByIdStar,
+  deleteChatsRoomsByIdThreadsByParentMessageIdMute as coreDeleteChatsRoomsByIdThreadsByParentMessageIdMute,
   deleteCoworkersById as coreDeleteCoworkersById,
   deleteCoworkersByIdImage as coreDeleteCoworkersByIdImage,
   deleteJobsByIdShare as coreDeleteJobsByIdShare,
@@ -318,6 +319,7 @@ import {
   postChatsRoomsByIdRead as corePostChatsRoomsByIdRead,
   postChatsRoomsByIdRestore as corePostChatsRoomsByIdRestore,
   postChatsRoomsByIdStar as corePostChatsRoomsByIdStar,
+  postChatsRoomsByIdThreadsByParentMessageIdMute as corePostChatsRoomsByIdThreadsByParentMessageIdMute,
   postChatsRoomsByIdThreadsByParentMessageIdRead as corePostChatsRoomsByIdThreadsByParentMessageIdRead,
   postChatsRoomsByIdThreadsRead as corePostChatsRoomsByIdThreadsRead,
   postChatsRoomsByIdUnread as corePostChatsRoomsByIdUnread,
@@ -1049,6 +1051,30 @@ export function createCoreClient(getClient: GetCoreClient) {
           path: { id, parentMessageId },
         }),
       "Failed to mark thread looked",
+    );
+  }
+
+  async function muteChatRoomThread(id: string, parentMessageId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdThreadsByParentMessageIdMute({
+          client,
+          path: { id, parentMessageId },
+        }),
+      "Failed to mute thread",
+    );
+  }
+
+  async function unmuteChatRoomThread(id: string, parentMessageId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteChatsRoomsByIdThreadsByParentMessageIdMute({
+          client,
+          path: { id, parentMessageId },
+        }),
+      "Failed to unmute thread",
     );
   }
 
@@ -5035,6 +5061,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     markChatRoomRead,
     markChatRoomThreadsRead,
     markChatRoomThreadRead,
+    muteChatRoomThread,
+    unmuteChatRoomThread,
     pinChatRoom,
     unpinChatRoom,
     getChatRoomPinnedMessages,

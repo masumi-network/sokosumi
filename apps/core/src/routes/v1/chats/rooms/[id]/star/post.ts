@@ -12,9 +12,7 @@ import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomSchema } from "@/schemas/chat-room.schema";
 
 import {
-  getChatRoomPinnedMessageCounts,
-  getChatRoomSidebarFlags,
-  mapChatRoom,
+  mapChatRoomWithSidebarFlags,
   requireChatRoomUserAccess,
 } from "../../helpers";
 import {
@@ -91,25 +89,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return room;
     });
 
-    const [unreadCounts, unreadMentionCounts, sidebarFlags, pinnedCounts] =
-      await Promise.all([
-        getChatRoomUnreadCounts([room.id], userContext.userId, prisma),
-        getChatRoomUnreadMentionCounts([room.id], userContext.userId, prisma),
-        getChatRoomSidebarFlags([room.id], userContext.userId, prisma),
-        getChatRoomPinnedMessageCounts([room.id], prisma),
-      ]);
-    const flags = sidebarFlags.get(room.id);
+    const [unreadCounts, unreadMentionCounts] = await Promise.all([
+      getChatRoomUnreadCounts([room.id], userContext.userId, prisma),
+      getChatRoomUnreadMentionCounts([room.id], userContext.userId, prisma),
+    ]);
 
     return ok(
       c,
       chatRoomSchema.parse(
-        mapChatRoom(room, userContext.userId, {
+        await mapChatRoomWithSidebarFlags(room, userContext.userId, prisma, {
           unreadCount: unreadCounts.get(room.id) ?? 0,
           unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
-          starredAt: flags?.starredAt ?? starredAt,
-          pinnedMessageCount: pinnedCounts.get(room.id) ?? 0,
-          mutedAt: flags?.mutedAt ?? null,
-          markedUnread: flags?.markedUnread ?? false,
         }),
       ),
     );

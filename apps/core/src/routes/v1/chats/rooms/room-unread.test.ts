@@ -12,6 +12,7 @@ import {
   getChatRoomUnreadCounts,
   getChatRoomUnreadMentionCounts,
   markAllChatRoomThreadsRead,
+  setChatRoomThreadMuted,
   sqlMessageAttentionAt,
 } from "./room-unread";
 
@@ -358,5 +359,282 @@ describe("completed reply attention", () => {
     expect(aggregateSql).toContain('MAX(GREATEST(reply."createdAt"');
     expect(aggregateSql).toContain('MAX(reply."createdAt") AS "lastReplyAt"');
     expect(aggregateSql).toContain('ORDER BY MAX(reply."createdAt") DESC');
+  });
+});
+
+/**
+ * ADR-0030: a muted Thread stops paging its Participant. The gate lives in one
+ * predicate, so each query that pages a reader has to carry it. These assert
+ * the predicate reached every one of them; behaviour of the join itself is
+ * proved against Postgres.
+ */
+describe("thread mute gate", () => {
+  const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
+  const USER_ID = "user_123";
+
+  function sqlOf(run: (tx: never) => Promise<unknown>, rows: unknown[] = []) {
+    const queryRawUnsafe = vi.fn().mockResolvedValue(rows);
+    const tx = {
+      $queryRawUnsafe: queryRawUnsafe,
+      chatRoomThreadReadState: { upsert: vi.fn().mockResolvedValue({}) },
+    } as never;
+    return run(tx).then(() =>
+      queryRawUnsafe.mock.calls.map((call) => String(call[0])),
+    );
+  }
+
+  it.each([
+    [
+      "room unread",
+      (tx: never) => getChatRoomUnreadCounts([ROOM_ID], USER_ID, tx),
+    ],
+    [
+      "thread aggregates",
+      (tx: never) => getChatRoomThreadAggregates(ROOM_ID, USER_ID, tx),
+    ],
+    [
+      "unread thread count",
+      (tx: never) => countChatRoomUnreadThreads(ROOM_ID, USER_ID, tx),
+    ],
+    [
+      "mark all threads",
+      (tx: never) => markAllChatRoomThreadsRead(ROOM_ID, USER_ID, tx),
+    ],
+  ])("leaves a muted thread out of %s", async (_name, run) => {
+    const [sql] = await sqlOf(run);
+
+    expect(sql).toContain('thread_read."mutedAt" IS NULL');
+  });
+
+  it.each([
+    [
+      "room unread",
+      (tx: never) => getChatRoomUnreadCounts([ROOM_ID], USER_ID, tx),
+    ],
+    [
+      "thread aggregates",
+      (tx: never) => getChatRoomThreadAggregates(ROOM_ID, USER_ID, tx),
+    ],
+    [
+      "unread thread count",
+      (tx: never) => countChatRoomUnreadThreads(ROOM_ID, USER_ID, tx),
+    ],
+  ])("still pages a named reader in %s", async (_name, run) => {
+    const [sql] = await sqlOf(run);
+
+    expect(sql).toMatch(
+      /OR EXISTS \(\s*SELECT 1\s*FROM "chat_room_user_mention" reply_mention/,
+    );
+    expect(sql).toContain('reply_mention."messageId" = reply.id');
+  });
+
+  it("keeps muted threads out of Mark all even when a reply names the reader", async () => {
+    const [sql] = await sqlOf((tx: never) =>
+      markAllChatRoomThreadsRead(ROOM_ID, USER_ID, tx),
+    );
+
+    expect(sql).toContain('thread_read."mutedAt" IS NULL');
+    expect(sql).not.toContain('reply_mention."messageId" = reply.id');
+  });
+
+  it("reads the viewer's own mute state onto each thread", async () => {
+    const [sql] = await sqlOf((tx: never) =>
+      getChatRoomThreadAggregates(ROOM_ID, USER_ID, tx),
+    );
+
+    expect(sql).toContain('MAX(thread_read."mutedAt") AS "mutedAt"');
+  });
+});
+
+describe("setChatRoomThreadMuted", () => {
+  const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
+  const PARENT_ID = "550e8400-e29b-41d4-a716-446655440001";
+  const USER_ID = "user_123";
+
+  function txWith(
+    parent: { id: string } | null,
+    options: {
+      state?: { lastReadAt: Date; mutedAt: Date | null } | null;
+      naming?: { createdAt: Date } | null;
+    } = {},
+  ) {
+    const findFirst = vi
+      .fn()
+      .mockResolvedValueOnce(parent)
+      .mockResolvedValue(options.naming ?? null);
+    const upsert = vi
+      .fn()
+      .mockImplementation(async ({ create }: { create: unknown }) => create);
+    const update = vi.fn().mockResolvedValue({});
+    const findUnique = vi.fn().mockResolvedValue(options.state ?? null);
+    return {
+      tx: {
+        chatRoomMessage: { findFirst },
+        chatRoomThreadReadState: { upsert, update, findUnique },
+      } as never,
+      findFirst,
+      upsert,
+      update,
+      findUnique,
+    };
+  }
+
+  it("mutes the thread and looks it in the same row", async () => {
+    const { tx, upsert } = txWith({ id: PARENT_ID });
+    const now = new Date("2026-07-02T12:00:00.000Z");
+
+    const state = await setChatRoomThreadMuted(
+      ROOM_ID,
+      USER_ID,
+      PARENT_ID,
+      true,
+      tx,
+      now,
+    );
+
+    expect(state).toEqual({ parentMessageId: PARENT_ID, mutedAt: now });
+    expect(upsert).toHaveBeenCalledWith({
+      where: {
+        userId_parentMessageId: { userId: USER_ID, parentMessageId: PARENT_ID },
+      },
+      update: { mutedAt: now, lastReadAt: now },
+      create: {
+        userId: USER_ID,
+        parentMessageId: PARENT_ID,
+        mutedAt: now,
+        lastReadAt: now,
+      },
+    });
+  });
+
+  /** Repeating the mute must not step over a reply that broke through it. */
+  it("writes nothing when the thread is already muted", async () => {
+    const mutedAt = new Date("2026-07-02T10:00:00.000Z");
+    const { tx, upsert } = txWith(
+      { id: PARENT_ID },
+      { state: { lastReadAt: mutedAt, mutedAt } },
+    );
+
+    const state = await setChatRoomThreadMuted(
+      ROOM_ID,
+      USER_ID,
+      PARENT_ID,
+      true,
+      tx,
+      new Date("2026-07-02T12:00:00.000Z"),
+    );
+
+    expect(state).toEqual({ parentMessageId: PARENT_ID, mutedAt });
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  /** Unmuting resumes from now; it does not hand back the silenced stretch. */
+  it("unmutes and looks the thread, without creating a row", async () => {
+    const now = new Date("2026-07-02T12:00:00.000Z");
+    const { tx, upsert, update } = txWith(
+      { id: PARENT_ID },
+      {
+        state: {
+          lastReadAt: new Date("2026-07-02T10:00:00.000Z"),
+          mutedAt: new Date("2026-07-02T10:00:00.000Z"),
+        },
+      },
+    );
+
+    const state = await setChatRoomThreadMuted(
+      ROOM_ID,
+      USER_ID,
+      PARENT_ID,
+      false,
+      tx,
+      now,
+    );
+
+    expect(state).toEqual({ parentMessageId: PARENT_ID, mutedAt: null });
+    expect(upsert).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledWith({
+      where: {
+        userId_parentMessageId: { userId: USER_ID, parentMessageId: PARENT_ID },
+      },
+      data: { mutedAt: null, lastReadAt: now },
+    });
+  });
+
+  /** A reply that named the reader was never silenced, so it stays unread. */
+  it("keeps the look where mute put it when the thread named the reader", async () => {
+    const lastReadAt = new Date("2026-07-02T10:00:00.000Z");
+    const { tx, update } = txWith(
+      { id: PARENT_ID },
+      {
+        state: { lastReadAt, mutedAt: lastReadAt },
+        naming: { createdAt: new Date("2026-07-02T11:00:00.000Z") },
+      },
+    );
+
+    await setChatRoomThreadMuted(
+      ROOM_ID,
+      USER_ID,
+      PARENT_ID,
+      false,
+      tx,
+      new Date("2026-07-02T12:00:00.000Z"),
+    );
+
+    expect(update).toHaveBeenCalledWith({
+      where: {
+        userId_parentMessageId: { userId: USER_ID, parentMessageId: PARENT_ID },
+      },
+      data: { mutedAt: null },
+    });
+  });
+
+  it("writes nothing when the thread was not muted", async () => {
+    const { tx, update, upsert } = txWith(
+      { id: PARENT_ID },
+      {
+        state: {
+          lastReadAt: new Date("2026-07-02T10:00:00.000Z"),
+          mutedAt: null,
+        },
+      },
+    );
+
+    const state = await setChatRoomThreadMuted(
+      ROOM_ID,
+      USER_ID,
+      PARENT_ID,
+      false,
+      tx,
+    );
+
+    expect(state).toEqual({ parentMessageId: PARENT_ID, mutedAt: null });
+    expect(update).not.toHaveBeenCalled();
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it("writes nothing for a parent that is not a live thread here", async () => {
+    const { tx, upsert, update, findFirst } = txWith(null);
+
+    const state = await setChatRoomThreadMuted(
+      ROOM_ID,
+      USER_ID,
+      PARENT_ID,
+      true,
+      tx,
+    );
+
+    expect(state).toBeNull();
+    expect(findFirst).toHaveBeenCalledWith({
+      where: {
+        id: PARENT_ID,
+        roomId: ROOM_ID,
+        parentMessageId: null,
+        deletedAt: null,
+        replies: { some: { deletedAt: null } },
+      },
+      select: { id: true },
+    });
+    expect(upsert).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
   });
 });

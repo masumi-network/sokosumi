@@ -2714,7 +2714,7 @@ export type ChatRoomThread = {
      */
     lastReplyAt: Date;
     /**
-     * Non-deleted replies from others after the dual-baseline look, only when the viewer is a Participant (parent author, remaining reply, or remaining user mention). Zero for lurkers, including never-looked lurkers.
+     * Non-deleted replies from others after the dual-baseline look, only when the viewer is a Participant (parent author, remaining reply, or remaining user mention) and has not muted this thread. Replies that name the viewer count even in a muted thread. Zero for lurkers, including never-looked lurkers.
      */
     unreadReplyCount: number;
     /**
@@ -2725,6 +2725,10 @@ export type ChatRoomThread = {
      * True when the viewer has a ChatRoomThreadReadState row for this parent. Never-looked threads are false even when replyCount > 0.
      */
     hasLooked: boolean;
+    /**
+     * When the viewer muted this thread, or null when they have not. A muted thread stops counting toward room unread and stops writing CHAT notifications for them; replies that name them still do. Mute does not change whether they Participate.
+     */
+    mutedAt: Date | null;
 };
 
 export type ChatRoomMessage = {
@@ -18189,6 +18193,200 @@ export type PostChatsRoomsByIdThreadsByParentMessageIdReadResponses = {
 };
 
 export type PostChatsRoomsByIdThreadsByParentMessageIdReadResponse = PostChatsRoomsByIdThreadsByParentMessageIdReadResponses[keyof PostChatsRoomsByIdThreadsByParentMessageIdReadResponses];
+
+export type DeleteChatsRoomsByIdThreadsByParentMessageIdMuteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        parentMessageId: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/threads/{parentMessageId}/mute';
+};
+
+export type DeleteChatsRoomsByIdThreadsByParentMessageIdMuteErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Thread not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdThreadsByParentMessageIdMuteError = DeleteChatsRoomsByIdThreadsByParentMessageIdMuteErrors[keyof DeleteChatsRoomsByIdThreadsByParentMessageIdMuteErrors];
+
+export type DeleteChatsRoomsByIdThreadsByParentMessageIdMuteResponses = {
+    /**
+     * Thread unmuted
+     */
+    200: {
+        data: ChatRoomThread;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdThreadsByParentMessageIdMuteResponse = DeleteChatsRoomsByIdThreadsByParentMessageIdMuteResponses[keyof DeleteChatsRoomsByIdThreadsByParentMessageIdMuteResponses];
+
+export type PostChatsRoomsByIdThreadsByParentMessageIdMuteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        parentMessageId: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/threads/{parentMessageId}/mute';
+};
+
+export type PostChatsRoomsByIdThreadsByParentMessageIdMuteErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Thread not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdThreadsByParentMessageIdMuteError = PostChatsRoomsByIdThreadsByParentMessageIdMuteErrors[keyof PostChatsRoomsByIdThreadsByParentMessageIdMuteErrors];
+
+export type PostChatsRoomsByIdThreadsByParentMessageIdMuteResponses = {
+    /**
+     * Thread muted
+     */
+    200: {
+        data: ChatRoomThread;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdThreadsByParentMessageIdMuteResponse = PostChatsRoomsByIdThreadsByParentMessageIdMuteResponses[keyof PostChatsRoomsByIdThreadsByParentMessageIdMuteResponses];
 
 export type DeleteChatsRoomsByIdStarData = {
     body?: never;

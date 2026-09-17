@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, X } from "lucide-react";
+import { Loader2, MegaphoneOff, X } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
   listThreadsAction,
@@ -30,6 +30,8 @@ export interface ThreadListPanelLabels {
   loadOlder: string;
   startedBy: (name: string) => string;
   unreadReplies: (count: number) => string;
+  /** Read by a screen reader off the muted row's icon. */
+  muted: string;
   replies: (count: number) => string;
   close: string;
 }
@@ -263,6 +265,13 @@ export function ThreadListPanel({
                 >
                   {preview}
                 </span>
+                {item.mutedAt ? (
+                  <MegaphoneOff
+                    className="text-muted-foreground mt-0.5 size-3.5 shrink-0"
+                    aria-label={labels.muted}
+                    data-testid="thread-list-muted"
+                  />
+                ) : null}
                 <span className="text-muted-foreground shrink-0 text-xs">
                   {formatTimeAgo(
                     lastAt instanceof Date ? lastAt : new Date(lastAt),

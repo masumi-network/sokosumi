@@ -33,6 +33,7 @@ public final class WorkspaceState: ObservableObject {
   @Published public private(set) var openingDirect: DirectRecipient?
   @Published public private(set) var creatingChannel = false
   @Published public private(set) var joiningChannel = false
+  @Published public private(set) var updatingChannel = false
   @Published public private(set) var compositionContext = UUID()
   public var phase: Phase {
     workspaceSession.phase
@@ -256,6 +257,7 @@ public final class WorkspaceState: ObservableObject {
     openingDirect = nil
     creatingChannel = false
     joiningChannel = false
+    updatingChannel = false
     workspaceSession.reset()
     sidebar.reset()
     rooms = []
@@ -300,7 +302,7 @@ public final class WorkspaceState: ObservableObject {
   }
 
   public func createChannel(_ draft: ChannelDraft, roster: ChatRecipientRoster, context: UUID, auth: AuthState) async throws -> Bool {
-    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, !creatingChannel, !joiningChannel, openingDirect == nil else { return false }
+    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, !creatingChannel, !joiningChannel, !updatingChannel, openingDirect == nil else { return false }
     let sourceRoom = transcriptRoomId
     creatingChannel = true
     defer {
@@ -315,6 +317,26 @@ public final class WorkspaceState: ObservableObject {
     return true
   }
 
+  /// Editing reconciles the room in place and never navigates: the sidebar row and any open transcript keep their identity.
+  public func updateChannel(_ draft: ChannelEditDraft, roomId: String, permissions: ChannelEditPermissions, context: UUID, auth: AuthState) async throws -> Bool {
+    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, permissions.canEditMembers, draft.isValid,
+          !updatingChannel, !creatingChannel, !joiningChannel, openingDirect == nil else { return false }
+    updatingChannel = true
+    defer {
+      if context == compositionContext {
+        updatingChannel = false
+      }
+    }
+    let request = draft.updateRequest(permissions: permissions, currentUserId: currentUserId)
+    let room = try await channelOperation(context: context, auth: auth) { client, _, slug in
+      try await ChatService().updateChannel(client: client, roomId: roomId, request: request, organizationSlug: slug)
+    }
+    if let index = rooms.firstIndex(where: { $0.id == room.id }) {
+      rooms[index] = room
+    }
+    return true
+  }
+
   public func browseChannels(query: String, context: UUID, auth: AuthState) async throws -> [Components.Schemas.DiscoverableChatRoom] {
     try await channelOperation(context: context, auth: auth) { client, _, slug in
       try await ChatService().discoverableChannels(client: client, query: query, organizationSlug: slug)
@@ -323,7 +345,7 @@ public final class WorkspaceState: ObservableObject {
 
   public func joinChannel(roomId: String, context: UUID, auth: AuthState) async throws -> Bool {
     guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching,
-          !joiningChannel, !creatingChannel, openingDirect == nil else { return false }
+          !joiningChannel, !creatingChannel, !updatingChannel, openingDirect == nil else { return false }
     let sourceRoom = transcriptRoomId
     joiningChannel = true
     defer {
@@ -390,7 +412,7 @@ public final class WorkspaceState: ObservableObject {
 
   @discardableResult
   public func openDirect(_ recipients: DirectConversationSelection, context: UUID, auth: AuthState) async throws -> Bool {
-    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, openingDirect == nil, !creatingChannel, !joiningChannel,
+    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, openingDirect == nil, !creatingChannel, !joiningChannel, !updatingChannel,
           let first = recipients.recipients.first, let client = resolveClient(auth: auth) else { return false }
     let sourceRoom = transcriptRoomId
     openingDirect = first
@@ -1004,6 +1026,7 @@ public final class WorkspaceState: ObservableObject {
     openingDirect = nil
     creatingChannel = false
     joiningChannel = false
+    updatingChannel = false
     let generation = workspaceGeneration
     rooms = []
     switchError = nil
@@ -1028,6 +1051,7 @@ public final class WorkspaceState: ObservableObject {
     openingDirect = nil
     creatingChannel = false
     joiningChannel = false
+    updatingChannel = false
     roomsRefreshTask?.cancel()
     roomsRefreshTask = nil
     roomsRefreshID = UUID()

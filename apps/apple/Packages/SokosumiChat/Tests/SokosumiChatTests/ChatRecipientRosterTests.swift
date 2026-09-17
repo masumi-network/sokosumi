@@ -56,7 +56,7 @@ struct ChatRecipientRosterTests {
     let client = try Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport)
     let roster = try await ChatService().channelRoster(client: client, organizationId: "org", organizationSlug: "team")
     #expect(roster.recipients.targets.map(\.id) == [.human("me")])
-    #expect(roster.canCreateExternal == (role != "member"))
+    #expect(roster.isOwnerOrAdmin == (role != "member"))
   }
 
   @Test func rosterMatchesWebFilteringAndWorkspace() async throws {
