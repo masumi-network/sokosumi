@@ -129,13 +129,13 @@ describe("Soko Bot OAuth replacement", () => {
     expect(mocks.remove).not.toHaveBeenCalled();
   });
 
-  it("does not persist a broken OAuth response", async () => {
+  it("cleans up a broken OAuth response without changing the selected account", async () => {
     mocks.link.mockResolvedValue({ id: "replacement", redirectUrl: null });
     await expect(connectSokoBotIntegration(input)).rejects.toThrow(
       "no redirect URL",
     );
     expect(mocks.upsert).not.toHaveBeenCalled();
-    expect(mocks.remove).not.toHaveBeenCalled();
+    expect(mocks.remove).toHaveBeenCalledExactlyOnceWith("replacement");
   });
 
   it("switches only to the pending ID after verification and resets mailbox ingest state", async () => {

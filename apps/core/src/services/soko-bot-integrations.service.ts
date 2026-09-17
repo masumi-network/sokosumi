@@ -305,10 +305,10 @@ export async function connectSokoBotIntegration(input: {
       allowMultiple: true,
     }),
   );
-  if (!request.redirectUrl) {
-    throw new SokoBotIntegrationError("Composio returned no redirect URL");
-  }
   try {
+    if (!request.redirectUrl) {
+      throw new SokoBotIntegrationError("Composio returned no redirect URL");
+    }
     const supersededAccountId = await prisma.$transaction(async (tx) => {
       // Serialize persistence with bot deletion, then recheck ownership and
       // liveness. No remote calls run while this row lock is held.
@@ -368,13 +368,13 @@ export async function connectSokoBotIntegration(input: {
         .delete(supersededAccountId)
         .catch(() => undefined);
     }
+    return { redirectUrl: request.redirectUrl };
   } catch (error) {
-    // The authorization was created outside the transaction. If deletion or
-    // another database failure wins, do not leave this new account orphaned.
+    // Clean up this new authorization if its response is unusable or its
+    // persistence fails, including when bot deletion wins the race.
     await composio.connectedAccounts.delete(request.id).catch(() => undefined);
     throw error;
   }
-  return { redirectUrl: request.redirectUrl };
 }
 
 /** After the OAuth round-trip: ask Composio whether the account is live. */
