@@ -118,7 +118,14 @@ export default function Sidebar({
           {chatList}
         </div>
       </SidebarContent>
-      <SidebarFooter className="mt-auto shrink-0 px-0">
+      {/*
+        The hairline is the twin of SidebarHeader's `border-b`: without it the
+        scroll region runs straight into the account chip, and at the scroll
+        position where a DM row lands flush against it the chip reads as one
+        more room. It marks the footer as chrome in both states — expanded and
+        on the collapsed rail.
+      */}
+      <SidebarFooter className="border-sidebar-border mt-auto shrink-0 border-t px-0">
         <AnnouncementCards />
         {/* No bottom padding of its own: `SidebarFooter` already contributes
             8px there, matching the 8px this adds on the sides. The inset only
