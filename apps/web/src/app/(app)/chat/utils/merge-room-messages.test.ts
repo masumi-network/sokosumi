@@ -451,6 +451,39 @@ describe("mergeMessagesWithStreamOverlay", () => {
     );
   });
 
+  it("keeps a failed mention shell so Failed to reply and Retry can render", () => {
+    const chat = message("m1", "2026-07-01T10:00:00.000Z", "@hannah hi");
+    const failed = {
+      ...coworkerMessage("reply_failed", "2026-07-01T10:00:01.000Z", ""),
+      metadata: {
+        in_reply_to_message_id: "m1",
+        mention_id: "mention_1",
+        mention_failed: true,
+      },
+    };
+    const thinking = {
+      ...coworkerMessage("reply_2", "2026-07-01T10:00:02.000Z", ""),
+      metadata: { streaming: true, mention_id: "mention_2" },
+    };
+
+    const idle = mergeMessagesWithStreamOverlay([chat, failed, thinking], []);
+    expect(idle.map((row) => row.id)).toEqual([
+      "m1",
+      "reply_failed",
+      "reply_2",
+    ]);
+
+    const overlay = mergeMessagesWithStreamOverlay(
+      [chat, failed],
+      [coworkerMessage("stream:reply", "2026-07-01T10:00:03.000Z", "")],
+    );
+    expect(overlay.map((row) => row.id)).toEqual([
+      "m1",
+      "reply_failed",
+      "stream:reply",
+    ]);
+  });
+
   it("drops an empty persisted streaming coworker row that has no mention_id", () => {
     const chat = message("m1", "2026-07-01T10:00:00.000Z", "@hannah hi");
     const leaked = {
