@@ -5466,7 +5466,11 @@
         "success": "Copiado al portapapeles",
         "error": "Error al copiar",
         "linkSuccess": "Enlace copiado",
-        "linkError": "No se pudo copiar el enlace"
+        "linkError": "No se pudo copiar el enlace",
+        "sendToSelf": "Enviarte a ti",
+        "sendToSelfSuccess": "Enviado a ti",
+        "sendToSelfError": "No se pudo enviar a ti",
+        "sendToSelfOpen": "Abrir"
       },
       "Edit": {
         "action": "Editar",
