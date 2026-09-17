@@ -50,14 +50,25 @@ vi.mock("@/components/ui/sidebar", () => ({
   SidebarMenuButton: ({
     children,
     onClick,
+    tooltip,
+    asChild: _asChild,
+    isActive: _isActive,
     ...props
   }: {
     children: React.ReactNode;
     onClick?: () => void;
+    tooltip?: string | { children: React.ReactNode };
+    asChild?: boolean;
+    isActive?: boolean;
   }) => (
-    <button type="button" onClick={onClick} {...props}>
-      {children}
-    </button>
+    <>
+      <button type="button" onClick={onClick} {...props}>
+        {children}
+      </button>
+      <span data-testid="menu-tooltip">
+        {typeof tooltip === "string" ? tooltip : tooltip?.children}
+      </span>
+    </>
   ),
   SidebarMenuItem: ({ children }: { children: React.ReactNode }) => (
     <li>{children}</li>
@@ -245,5 +256,22 @@ describe("MenuItems search action", () => {
 
     expect(positions.every((position) => position >= 0)).toBe(true);
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+  });
+
+  it("gives every menu item its label as a hover hint for the collapsed rail", () => {
+    renderMenu(true, true, false);
+
+    expect(
+      screen.getAllByTestId("menu-tooltip").map((hint) => hint.textContent),
+    ).toEqual([
+      "newTask",
+      "searchCtrl+K",
+      "exploreAgents",
+      "projects",
+      "taskManager",
+      "calendar",
+      "drive",
+      "history",
+    ]);
   });
 });
