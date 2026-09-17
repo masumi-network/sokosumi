@@ -7,6 +7,7 @@ import { SIDEBAR_BOOT_SCRIPT } from "@/lib/ui-preferences/sidebar-state";
 export function SidebarBootScript() {
   return (
     <script
+      id="sokosumi-sidebar-state"
       data-cfasync="false"
       // Static string constant, no interpolated input.
       dangerouslySetInnerHTML={{ __html: SIDEBAR_BOOT_SCRIPT }}

@@ -43,8 +43,12 @@ export function serializeSidebarStateCookie(open: boolean): string {
  * first frame is already the rail. Hydration lands on the same values, so React
  * never has to correct anything. Only the cookie's own value is read; nothing
  * is persisted here.
+ *
+ * Idempotent: a second run retires the previous observer before attaching its
+ * own, so nothing is left observing the document.
  */
 export const SIDEBAR_BOOT_SCRIPT = `(function(){try{
+if(window.${SIDEBAR_BOOT_STOP_GLOBAL})window.${SIDEBAR_BOOT_STOP_GLOBAL}();
 if(!/(?:^|;\\s*)${SIDEBAR_STATE_COOKIE_NAME}=false(?:;|$)/.test(document.cookie))return;
 var sync=function(){
 var nodes=document.querySelectorAll('[data-slot="sidebar"][data-state="expanded"][data-collapsible-mode]');

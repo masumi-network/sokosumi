@@ -127,6 +127,20 @@ describe("sidebar boot script", () => {
     expect(none.getAttribute("data-state")).toBe("expanded");
   });
 
+  it("retires the previous observer when it runs twice", async () => {
+    document.cookie = "sidebar_state=false; path=/";
+    runBootScript();
+    runBootScript();
+
+    // Only the second run's observer may be live: stopping once must leave
+    // nothing behind rewriting the document.
+    stopBootScript();
+    const sidebar = appendSidebar("icon");
+    await flushObservers();
+
+    expect(sidebar.getAttribute("data-state")).toBe("expanded");
+  });
+
   it("stops rewriting once React takes over", async () => {
     document.cookie = "sidebar_state=false; path=/";
     runBootScript();

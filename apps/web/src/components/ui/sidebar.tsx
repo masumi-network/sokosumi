@@ -97,16 +97,17 @@ function SidebarProvider({
   );
 
   React.useLayoutEffect(() => {
-    if (openProp !== undefined) {
-      return;
-    }
-
-    // React now owns the sidebar attributes, so retire the boot observer.
+    // React now owns the sidebar attributes, so retire the boot observer —
+    // including when `open` is controlled and there is no cookie to read.
     (
       window as typeof window & {
         [SIDEBAR_BOOT_STOP_GLOBAL]?: () => void;
       }
     )[SIDEBAR_BOOT_STOP_GLOBAL]?.();
+
+    if (openProp !== undefined) {
+      return;
+    }
 
     const persisted = parseSidebarStateCookieHeader(document.cookie);
 
