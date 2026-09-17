@@ -13,7 +13,9 @@ import {
   CornerDownLeft,
   Loader2,
   Lock,
+  Paperclip,
   TriangleAlert,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
@@ -36,7 +38,8 @@ import {
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { VendorMark } from "@/components/agents/vendor-mark";
 import { AssistantOrb } from "@/components/aurora-orb";
-import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
+import { AttachmentSubmenu } from "@/components/drive/attachment-submenu";
+import { FileChipWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { formatTaskScheduleSelectionLabel } from "@/components/schedules/format";
 import {
@@ -1405,11 +1408,6 @@ export function TaskForm({
                       onSubmitShortcut={() => {
                         void handleSave();
                       }}
-                      onAttachClick={() =>
-                        attachmentTriggerRef.current?.click()
-                      }
-                      attachLabel={labels.uploadFile}
-                      isAttachmentUploading={isUploadingAttachments}
                       mentions={mentionOptions}
                     />
                     <FileUploadTrigger asChild>
@@ -1425,14 +1423,25 @@ export function TaskForm({
                   </FileUploadDropzone>
                 </FileUpload>
                 {attachmentUrls.length > 0 ? (
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex flex-wrap gap-2">
                     {attachmentUrls.map((url) => (
-                      <FileChipMiniPreviewWithMetadata
-                        key={url}
-                        url={url}
-                        onRemove={() => handleRemoveAttachment(url)}
-                        removeLabel={labels.removeAttachment ?? labels.cancel}
-                      />
+                      <div key={url} className="relative max-w-xs">
+                        <FileChipWithMetadata
+                          url={url}
+                          variant="single-line"
+                          sizeClass="size-8"
+                          iconPx={32}
+                          className="w-auto max-w-xs pr-8"
+                        />
+                        <button
+                          type="button"
+                          aria-label={labels.removeAttachment ?? labels.cancel}
+                          className="bg-surface-glass hover:bg-accent focus-visible:ring-ring absolute top-1/2 right-1 inline-flex size-5 -translate-y-1/2 items-center justify-center rounded-full border outline-none transition"
+                          onClick={() => handleRemoveAttachment(url)}
+                        >
+                          <X className="size-3" aria-hidden />
+                        </button>
+                      </div>
                     ))}
                   </div>
                 ) : null}
@@ -1507,6 +1516,26 @@ export function TaskForm({
         {showTaskStep ? (
           <div className="flex shrink-0 flex-col items-stretch justify-between gap-3 border-t px-6 py-3 sm:flex-row sm:items-center md:px-8">
             <div className="flex min-w-0 flex-wrap items-center gap-2 overflow-x-auto">
+              <AttachmentSubmenu
+                onUploadClick={() => attachmentTriggerRef.current?.click()}
+                onDriveClick={() =>
+                  markdownEditorRef.current?.openDrivePicker()
+                }
+                disabled={createdTask !== null || isUploadingAttachments}
+              >
+                <button
+                  type="button"
+                  aria-label={labels.uploadFile}
+                  disabled={createdTask !== null || isUploadingAttachments}
+                  className="focus-visible:ring-ring text-muted-foreground hover:bg-accent hover:text-accent-foreground inline-flex size-7 items-center justify-center rounded-full outline-none transition-colors focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50"
+                >
+                  {isUploadingAttachments ? (
+                    <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <Paperclip className="size-3.5" aria-hidden />
+                  )}
+                </button>
+              </AttachmentSubmenu>
               {seriesError ? (
                 <p
                   role="alert"

@@ -59,6 +59,13 @@ vi.mock("@/components/modals/global-modals-context", () => ({
 }));
 
 vi.mock("@/components/jobs/job-details/file-chip-with-metadata", () => ({
+  FileChipWithMetadata: ({
+    url,
+    fileName,
+  }: {
+    url: string;
+    fileName?: string | null;
+  }) => <div>{fileName ?? url}</div>,
   FileChipMiniPreviewWithMetadata: ({ url }: { url: string }) => (
     <div>{url}</div>
   ),
@@ -128,6 +135,7 @@ vi.mock("./markdown-editor", () => ({
       insertText: (text: string) => onChange(`${value}${text}`),
       insertLink: (label: string, url: string) =>
         onChange(`${value}[${label}](${url})`),
+      openDrivePicker: () => undefined,
     }));
     return (
       <div>
@@ -532,8 +540,37 @@ describe("TaskForm", () => {
       screen.getByRole("heading", { name: "What should Elena do?" }),
     ).toBeInTheDocument();
     expect(
+      screen
+        .getAllByRole("button", { name: "Upload File" })
+        .some((button) => !button.classList.contains("sr-only")),
+    ).toBe(true);
+    expect(
       screen.queryByRole("button", { name: /Start from scratch/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("renders named attachment chips from description links", () => {
+    render(
+      <TaskForm
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        taskId="task-1"
+        initialValues={{
+          assigneeId: "coworker-2",
+          name: "Task",
+          description:
+            "Body\n\n[brief.pdf](https://blob.example/users/u1/brief.pdf)",
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText("https://blob.example/users/u1/brief.pdf"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 
   it("does not create a task from Ctrl+Enter on wizard step 1", async () => {

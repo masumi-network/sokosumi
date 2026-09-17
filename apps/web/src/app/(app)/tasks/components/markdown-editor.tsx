@@ -74,9 +74,114 @@ interface MarkdownEditorProps {
   ) => ReactNode;
 }
 
+interface MarkdownFormatToolsProps {
+  onBold: () => void;
+  onItalic: () => void;
+  onCode: () => void;
+  onLink: () => void;
+  onHeading: () => void;
+  onBulletList: () => void;
+  onNumberedList: () => void;
+}
+
+const FORMAT_TOOL_BUTTON_CLASSNAME = "h-7 w-7 p-0";
+
+function MarkdownFormatTools({
+  onBold,
+  onItalic,
+  onCode,
+  onLink,
+  onHeading,
+  onBulletList,
+  onNumberedList,
+}: MarkdownFormatToolsProps) {
+  return (
+    <>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={FORMAT_TOOL_BUTTON_CLASSNAME}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={onBold}
+        title="Bold (Cmd+B)"
+      >
+        <Bold className="size-3.5" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={FORMAT_TOOL_BUTTON_CLASSNAME}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={onItalic}
+        title="Italic (Cmd+I)"
+      >
+        <Italic className="size-3.5" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={FORMAT_TOOL_BUTTON_CLASSNAME}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={onCode}
+        title="Code"
+      >
+        <Code className="size-3.5" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={FORMAT_TOOL_BUTTON_CLASSNAME}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={onLink}
+        title="Link"
+      >
+        <Link2 className="size-3.5" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={FORMAT_TOOL_BUTTON_CLASSNAME}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={onHeading}
+        title="Heading"
+      >
+        <Heading2 className="size-3.5" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={FORMAT_TOOL_BUTTON_CLASSNAME}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={onBulletList}
+        title="Bullet List"
+      >
+        <List className="size-3.5" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={FORMAT_TOOL_BUTTON_CLASSNAME}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={onNumberedList}
+        title="Numbered List"
+      >
+        <ListOrdered className="size-3.5" />
+      </Button>
+    </>
+  );
+}
+
 export interface MarkdownEditorHandle {
   insertText: (text: string) => void;
   insertLink: (label: string, url: string) => void;
+  openDrivePicker: () => void;
 }
 
 export const MarkdownEditor = forwardRef<
@@ -113,6 +218,7 @@ export const MarkdownEditor = forwardRef<
   const [triggerPosition, setTriggerPosition] =
     useState<TriggerPosition | null>(null);
   const [drivePickerOpen, setDrivePickerOpen] = useState(false);
+  const [selectionRect, setSelectionRect] = useState<DOMRect | null>(null);
 
   const normalizedMentions = useMemo(() => {
     const entries = Object.entries(mentions);
@@ -594,11 +700,56 @@ export const MarkdownEditor = forwardRef<
     };
   }, []);
 
+  const updateSelectionToolbar = useCallback(() => {
+    if (variant !== "document") {
+      setSelectionRect(null);
+      return;
+    }
+
+    const selection = window.getSelection();
+    if (
+      !selection ||
+      selection.isCollapsed ||
+      selection.rangeCount === 0 ||
+      !editorRef.current
+    ) {
+      setSelectionRect(null);
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    if (!editorRef.current.contains(range.commonAncestorContainer)) {
+      setSelectionRect(null);
+      return;
+    }
+
+    const rect = range.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) {
+      setSelectionRect(null);
+      return;
+    }
+
+    setSelectionRect(rect);
+  }, [variant]);
+
+  useEffect(() => {
+    if (variant !== "document") {
+      setSelectionRect(null);
+      return;
+    }
+
+    document.addEventListener("selectionchange", updateSelectionToolbar);
+    return () => {
+      document.removeEventListener("selectionchange", updateSelectionToolbar);
+    };
+  }, [updateSelectionToolbar, variant]);
+
   useImperativeHandle(
     ref,
     () => ({
       insertText,
       insertLink,
+      openDrivePicker: () => setDrivePickerOpen(true),
     }),
     [insertText, insertLink],
   );
@@ -611,111 +762,50 @@ export const MarkdownEditor = forwardRef<
       )}
       style={style}
     >
-      {/* Toolbar */}
-      <div
-        className={cn(
-          "flex items-center gap-0.5 border-b py-1.5",
-          variant === "document" ? "px-0" : "bg-card-background px-2",
-        )}
-      >
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 w-7 p-0"
-          onClick={handleBold}
-          title="Bold (Cmd+B)"
+      {variant === "field" ? (
+        <div
+          role="toolbar"
+          aria-label="Format"
+          className="bg-card-background flex items-center gap-0.5 border-b px-2 py-1.5"
         >
-          <Bold className="size-3.5" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 w-7 p-0"
-          onClick={handleItalic}
-          title="Italic (Cmd+I)"
-        >
-          <Italic className="size-3.5" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 w-7 p-0"
-          onClick={handleCode}
-          title="Code"
-        >
-          <Code className="size-3.5" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 w-7 p-0"
-          onClick={handleLink}
-          title="Link"
-        >
-          <Link2 className="size-3.5" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 w-7 p-0"
-          onClick={handleHeading}
-          title="Heading"
-        >
-          <Heading2 className="size-3.5" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 w-7 p-0"
-          onClick={handleBulletList}
-          title="Bullet List"
-        >
-          <List className="size-3.5" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 w-7 p-0"
-          onClick={handleNumberedList}
-          title="Numbered List"
-        >
-          <ListOrdered className="size-3.5" />
-        </Button>
-        {onAttachClick ? (
-          <AttachmentSubmenu
-            onUploadClick={onAttachClick}
-            onDriveClick={() => setDrivePickerOpen(true)}
-            disabled={isAttachmentUploading}
-          >
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 w-7 p-0"
-              title={attachLabel}
-              aria-label={attachLabel}
+          <MarkdownFormatTools
+            onBold={handleBold}
+            onItalic={handleItalic}
+            onCode={handleCode}
+            onLink={handleLink}
+            onHeading={handleHeading}
+            onBulletList={handleBulletList}
+            onNumberedList={handleNumberedList}
+          />
+          {onAttachClick ? (
+            <AttachmentSubmenu
+              onUploadClick={onAttachClick}
+              onDriveClick={() => setDrivePickerOpen(true)}
               disabled={isAttachmentUploading}
             >
-              <Paperclip className="size-3.5" />
-            </Button>
-          </AttachmentSubmenu>
-        ) : null}
-        {isAttachmentUploading ? (
-          <div className="ml-auto inline-flex items-center pr-1">
-            <Loader2
-              className="text-muted-foreground size-3.5 animate-spin"
-              aria-hidden
-            />
-          </div>
-        ) : null}
-      </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className={FORMAT_TOOL_BUTTON_CLASSNAME}
+                title={attachLabel}
+                aria-label={attachLabel}
+                disabled={isAttachmentUploading}
+              >
+                <Paperclip className="size-3.5" />
+              </Button>
+            </AttachmentSubmenu>
+          ) : null}
+          {isAttachmentUploading ? (
+            <div className="ml-auto inline-flex items-center pr-1">
+              <Loader2
+                className="text-muted-foreground size-3.5 animate-spin"
+                aria-hidden
+              />
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       {/* Single editable area */}
       <div
@@ -724,8 +814,14 @@ export const MarkdownEditor = forwardRef<
         contentEditable
         onInput={handleInput}
         onKeyDown={handleKeyDown}
-        onKeyUp={syncMentionSuggestionsWithCaret}
-        onMouseUp={syncMentionSuggestionsWithCaret}
+        onKeyUp={() => {
+          syncMentionSuggestionsWithCaret();
+          updateSelectionToolbar();
+        }}
+        onMouseUp={() => {
+          syncMentionSuggestionsWithCaret();
+          updateSelectionToolbar();
+        }}
         onBlur={handleBlur}
         data-placeholder={placeholder}
         role="textbox"
@@ -795,6 +891,34 @@ export const MarkdownEditor = forwardRef<
                 )}
               </div>
             ))}
+          </div>,
+          document.body,
+        )}
+      {typeof window !== "undefined" &&
+        variant === "document" &&
+        selectionRect &&
+        !isOpen &&
+        createPortal(
+          <div
+            role="toolbar"
+            aria-label="Format"
+            className="bg-popover text-popover-foreground border-border fixed z-50 flex items-center gap-0.5 rounded-md border p-0.5 shadow-md"
+            style={{
+              top: selectionRect.top,
+              left: selectionRect.left + selectionRect.width / 2,
+              transform: "translate(-50%, calc(-100% - 8px))",
+            }}
+            onMouseDown={(event) => event.preventDefault()}
+          >
+            <MarkdownFormatTools
+              onBold={handleBold}
+              onItalic={handleItalic}
+              onCode={handleCode}
+              onLink={handleLink}
+              onHeading={handleHeading}
+              onBulletList={handleBulletList}
+              onNumberedList={handleNumberedList}
+            />
           </div>,
           document.body,
         )}

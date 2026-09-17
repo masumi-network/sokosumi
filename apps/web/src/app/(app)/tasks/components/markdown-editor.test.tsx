@@ -60,6 +60,94 @@ describe("MarkdownEditor", () => {
     expect(shell).not.toHaveClass("rounded-md");
   });
 
+  it("keeps the format strip on the field variant", () => {
+    render(<MarkdownEditor value="Hello" onChange={vi.fn()} />);
+    expect(screen.getByRole("toolbar", { name: "Format" })).toBeInTheDocument();
+    expect(screen.getByTitle("Bold (Cmd+B)")).toBeInTheDocument();
+  });
+
+  it("hides format tools on the document variant until text is selected", () => {
+    render(
+      <MarkdownEditor
+        value="Hello world"
+        onChange={vi.fn()}
+        variant="document"
+      />,
+    );
+    expect(
+      screen.queryByRole("toolbar", { name: "Format" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows a floating format toolbar when document text is selected", async () => {
+    const rect = {
+      x: 40,
+      y: 40,
+      top: 40,
+      left: 40,
+      width: 80,
+      height: 16,
+      bottom: 56,
+      right: 120,
+      toJSON() {
+        return this;
+      },
+    };
+    vi.spyOn(Range.prototype, "getBoundingClientRect").mockReturnValue(
+      rect as DOMRect,
+    );
+
+    render(
+      <MarkdownEditor
+        value="Hello world"
+        onChange={vi.fn()}
+        variant="document"
+      />,
+    );
+
+    const editor = screen.getByRole("textbox");
+    await waitFor(() => {
+      expect(editor).toHaveTextContent("Hello world");
+    });
+
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    document.dispatchEvent(new Event("selectionchange"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("toolbar", { name: "Format" }),
+      ).toBeInTheDocument();
+    });
+    expect(screen.getByTitle("Bold (Cmd+B)")).toBeInTheDocument();
+  });
+
+  it("keeps attach on the field strip and off the document bubble", () => {
+    const { rerender } = render(
+      <MarkdownEditor
+        value=""
+        onChange={vi.fn()}
+        onAttachClick={vi.fn()}
+        attachLabel="Upload File"
+      />,
+    );
+    expect(screen.getByLabelText("Upload File")).toBeInTheDocument();
+
+    rerender(
+      <MarkdownEditor
+        value=""
+        onChange={vi.fn()}
+        variant="document"
+        onAttachClick={vi.fn()}
+        attachLabel="Upload File"
+      />,
+    );
+    expect(screen.queryByLabelText("Upload File")).not.toBeInTheDocument();
+  });
+
   it("disables Inter contextual alternates so ** markers stay aligned", () => {
     render(<MarkdownEditor value="" onChange={vi.fn()} />);
     expect(screen.getByRole("textbox")).toHaveClass("markdown-compose-surface");
