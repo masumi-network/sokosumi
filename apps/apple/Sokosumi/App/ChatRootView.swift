@@ -149,11 +149,9 @@ struct ChatRootView: View {
               }
           }
           .task(id: workspaces.streamingThreadToOpen?.id) {
-            await Task { @MainActor in
-              if let parent = workspaces.streamingThreadToOpen {
-                workspaces.openThread(parent, auth: auth)
-              }
-            }.value
+            if let parent = workspaces.streamingThreadToOpen {
+              workspaces.openThread(parent, auth: auth)
+            }
           }
         } else {
           Text("Pick a room to read it.")
