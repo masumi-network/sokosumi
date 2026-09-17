@@ -235,21 +235,22 @@ describe("POST /chats/rooms/{id}/messages/{messageId}/send-to-self", () => {
     });
   });
 
-  it("refreshes the sidebar only when the Self Direct was created", async () => {
-    await sendToSelf();
-    expect(publishChatRoomsChanged).not.toHaveBeenCalled();
+  it("refreshes the caller's sidebar whether or not the Self Direct is new", async () => {
+    for (const created of [false, true]) {
+      vi.mocked(publishChatRoomsChanged).mockClear();
+      createOrGetDirectRoomMock.mockResolvedValue({
+        room: { id: SELF_DIRECT_ID },
+        created,
+      });
 
-    createOrGetDirectRoomMock.mockResolvedValue({
-      room: { id: SELF_DIRECT_ID },
-      created: true,
-    });
-    await sendToSelf();
+      await sendToSelf();
 
-    expect(publishChatRoomsChanged).toHaveBeenCalledWith({
-      userIds: [USER_ID],
-      collections: ["active"],
-      roomId: SELF_DIRECT_ID,
-    });
+      expect(publishChatRoomsChanged).toHaveBeenCalledWith({
+        userIds: [USER_ID],
+        collections: ["active"],
+        roomId: SELF_DIRECT_ID,
+      });
+    }
   });
 
   it("404s when the caller cannot read the source room", async () => {

@@ -127,13 +127,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     });
 
     await publishChatRoomMessageRealtime(message, "create");
-    if (selfDirect.created) {
-      await publishChatRoomsChanged({
-        userIds: [userContext.userId],
-        collections: ["active"],
-        roomId: selfDirectId,
-      });
-    }
+    // The Self Direct is a one-member room, so the caller's own other tabs are
+    // the whole audience: they list a new room and reorder an existing one.
+    await publishChatRoomsChanged({
+      userIds: [userContext.userId],
+      collections: ["active"],
+      roomId: selfDirectId,
+    });
 
     return created(
       c,
