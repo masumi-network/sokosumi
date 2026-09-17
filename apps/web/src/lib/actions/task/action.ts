@@ -50,6 +50,7 @@ import {
 } from "@/middleware/auth-middleware";
 
 interface CreateTaskParameters extends AuthenticatedRequest {
+  name?: string;
   description: string;
   assigneeId: string | null;
   assigneeSokoBotId?: string | null;
@@ -572,6 +573,7 @@ function resolveAssigneeWrite(
 }
 
 async function createTaskFromDescription(input: {
+  name?: string;
   description: string;
   assigneeId: string | null;
   assigneeSokoBotId?: string | null;
@@ -601,6 +603,10 @@ async function createTaskFromDescription(input: {
   const isAgentAssignee =
     assigneeWrite.assigneeId != null || assigneeWrite.assigneeSokoBotId != null;
 
+  const trimmedName = input.name
+    ? normalizeTaskNameForCoreApi(input.name)
+    : undefined;
+
   const task = await taskService.createTask({
     description: trimmedDescription,
     ...assigneeWrite,
@@ -608,6 +614,7 @@ async function createTaskFromDescription(input: {
     ...(context ? { context } : {}),
     status: resolveCreateStatus(input.status, input.schedule),
     ...(input.visibility ? { visibility: input.visibility } : {}),
+    ...(trimmedName ? { name: trimmedName } : {}),
   });
 
   try {
@@ -757,6 +764,7 @@ async function archiveCreatedTaskAfterFailure(taskId: string): Promise<void> {
 
 export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
   async ({
+    name,
     description,
     assigneeId,
     assigneeSokoBotId,
@@ -770,6 +778,7 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
   }) => {
     try {
       const task = await createTaskFromDescription({
+        ...(name ? { name } : {}),
         description,
         assigneeId,
         assigneeSokoBotId,

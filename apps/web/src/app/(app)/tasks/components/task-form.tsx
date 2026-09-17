@@ -63,7 +63,6 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
-import { Input } from "@/components/ui/input";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import {
   type CreateTaskResult,
@@ -247,6 +246,7 @@ function getTaskFormStatusLabel(
 }
 
 export interface TaskFormCreateInput {
+  name?: string;
   description: string;
   assigneeId: string | null;
   assigneeSokoBotId: string | null;
@@ -788,6 +788,7 @@ export function TaskForm({
       setIsSubmitting(true);
       try {
         const trimmedDescription = description.trim();
+        const trimmedName = name.trim();
         const desiredStatus = overrideStatus ?? status;
         if (
           mode === "create" &&
@@ -810,6 +811,7 @@ export function TaskForm({
               session?.user.id,
             );
           const result = await createTaskHandler({
+            ...(trimmedName ? { name: trimmedName } : {}),
             description: trimmedDescription,
             ...assigneeFields,
             ...(createPrivateUnassigned
@@ -883,7 +885,6 @@ export function TaskForm({
           throw new Error("Task ID is required");
         }
 
-        const trimmedName = name.trim();
         const result = await updateTask({
           taskId,
           name: trimmedName,
@@ -1357,16 +1358,15 @@ export function TaskForm({
                   {taskStepTitle.replace("{name}", selectedOption.name)}
                 </h3>
               ) : null}
-              {mode === "edit" ? (
-                <Input
-                  id="task-name"
-                  aria-label={labels.name}
-                  placeholder={labels.namePlaceholder}
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  className="h-auto border-0 bg-transparent px-0 font-semibold shadow-none"
-                />
-              ) : null}
+              <input
+                id="task-name"
+                type="text"
+                aria-label={labels.name}
+                placeholder={labels.namePlaceholder}
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                className="w-full border-0 bg-transparent px-0 text-xl leading-tight font-semibold tracking-tight outline-none shadow-none placeholder:text-muted-foreground"
+              />
 
               <div
                 className={cn(
@@ -1435,6 +1435,89 @@ export function TaskForm({
                   </div>
                 ) : null}
               </div>
+
+              {shouldShowProjectSelect ? (
+                <div className="space-y-1">
+                  <TaskProjectSelect
+                    ref={projectSelectRef}
+                    variant="chip"
+                    projectOptions={localProjectOptions}
+                    value={projectId}
+                    onChange={handleProjectChange}
+                    projectLabel={labels.projectLabel}
+                    noneLabel={labels.projectNone}
+                    placeholder={labels.projectPlaceholder}
+                    searchPlaceholder={labels.projectSearchPlaceholder}
+                    emptyResults={labels.projectEmptyResults}
+                    projectCreate={labels.projectCreate}
+                    projectCreateNamed={labels.projectCreateNamed}
+                    onCreateProject={handleCreateProject}
+                    invalid={isProjectMissing}
+                    describedBy={
+                      isProjectMissing && labels.projectRequired
+                        ? projectErrorId
+                        : undefined
+                    }
+                  />
+                  {isProjectMissing && labels.projectRequired ? (
+                    <p id={projectErrorId} className="text-destructive text-xs">
+                      {labels.projectRequired}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+              <TaskContextAttachmentsField
+                layout="inline"
+                defaultBrand={initialDesignMdAttachment ?? null}
+                project={selectedProject}
+                selection={contextSelection}
+                onSelectionChange={setContextSelection}
+              />
+              {showPrivateControl ? (
+                <>
+                  {labels.privateDescription ? (
+                    <span id={privateDescriptionId} className="sr-only">
+                      {labels.privateDescription}
+                    </span>
+                  ) : null}
+                  <HoverCard openDelay={150}>
+                    <HoverCardTrigger asChild>
+                      <button
+                        type="button"
+                        id="task-private"
+                        aria-label={labels.privateLabel}
+                        aria-pressed={isPrivate}
+                        aria-describedby={
+                          labels.privateDescription
+                            ? privateDescriptionId
+                            : undefined
+                        }
+                        className={cn(
+                          "focus-visible:ring-ring inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium outline-none transition-colors focus-visible:ring-2",
+                          isPrivate
+                            ? "bg-secondary text-secondary-foreground border-transparent"
+                            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                        )}
+                        onClick={() => setIsPrivate((current) => !current)}
+                      >
+                        <Lock className="size-3.5 shrink-0" aria-hidden />
+                        {labels.privateLabel}
+                      </button>
+                    </HoverCardTrigger>
+                    {labels.privateDescription ? (
+                      <HoverCardContent
+                        side="top"
+                        align="start"
+                        className="w-72 text-sm"
+                      >
+                        <p className="text-muted-foreground">
+                          {labels.privateDescription}
+                        </p>
+                      </HoverCardContent>
+                    ) : null}
+                  </HoverCard>
+                </>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -1536,91 +1619,6 @@ export function TaskForm({
                   />
                   <span>{seriesError}</span>
                 </p>
-              ) : null}
-              {shouldShowProjectSelect ? (
-                <>
-                  <TaskProjectSelect
-                    ref={projectSelectRef}
-                    variant="chip"
-                    projectOptions={localProjectOptions}
-                    value={projectId}
-                    onChange={handleProjectChange}
-                    projectLabel={labels.projectLabel}
-                    noneLabel={labels.projectNone}
-                    placeholder={labels.projectPlaceholder}
-                    searchPlaceholder={labels.projectSearchPlaceholder}
-                    emptyResults={labels.projectEmptyResults}
-                    projectCreate={labels.projectCreate}
-                    projectCreateNamed={labels.projectCreateNamed}
-                    onCreateProject={handleCreateProject}
-                    invalid={isProjectMissing}
-                    describedBy={
-                      isProjectMissing && labels.projectRequired
-                        ? projectErrorId
-                        : undefined
-                    }
-                  />
-                  {isProjectMissing && labels.projectRequired ? (
-                    <p
-                      id={projectErrorId}
-                      className="text-destructive w-full text-xs"
-                    >
-                      {labels.projectRequired}
-                    </p>
-                  ) : null}
-                </>
-              ) : null}
-              <TaskContextAttachmentsField
-                layout="inline"
-                defaultBrand={initialDesignMdAttachment ?? null}
-                project={selectedProject}
-                selection={contextSelection}
-                onSelectionChange={setContextSelection}
-              />
-              {showPrivateControl ? (
-                <>
-                  {labels.privateDescription ? (
-                    <span id={privateDescriptionId} className="sr-only">
-                      {labels.privateDescription}
-                    </span>
-                  ) : null}
-                  <HoverCard openDelay={150}>
-                    <HoverCardTrigger asChild>
-                      <button
-                        type="button"
-                        id="task-private"
-                        aria-label={labels.privateLabel}
-                        aria-pressed={isPrivate}
-                        aria-describedby={
-                          labels.privateDescription
-                            ? privateDescriptionId
-                            : undefined
-                        }
-                        className={cn(
-                          "focus-visible:ring-ring inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium outline-none transition-colors focus-visible:ring-2",
-                          isPrivate
-                            ? "bg-secondary text-secondary-foreground border-transparent"
-                            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                        )}
-                        onClick={() => setIsPrivate((current) => !current)}
-                      >
-                        <Lock className="size-3.5 shrink-0" aria-hidden />
-                        {labels.privateLabel}
-                      </button>
-                    </HoverCardTrigger>
-                    {labels.privateDescription ? (
-                      <HoverCardContent
-                        side="top"
-                        align="start"
-                        className="w-72 text-sm"
-                      >
-                        <p className="text-muted-foreground">
-                          {labels.privateDescription}
-                        </p>
-                      </HoverCardContent>
-                    ) : null}
-                  </HoverCard>
-                </>
               ) : null}
               <TaskStatusPicker
                 value={status}
