@@ -72,7 +72,7 @@ import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
  * Trailing controls. Touch: pin/mute then overflow side by side.
  * Hover-capable: glyph-sized hole at rest (none if no status); menu size on
  * hover / focus / open so the name does not sit under the button. A row with a
- * mention badge keeps menu size at rest so the badge does not move.
+ * mention badge keeps one width in every state so the badge does not move.
  */
 const TRAILING_CLUSTER_CLASS =
   "group-data-[collapsible=icon]:hidden absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center";
@@ -350,16 +350,19 @@ export function ChatRoomSidebarRow({
           "group-data-[collapsible=icon]:hidden shrink-0",
           "[@media(hover:none)]:size-8 [@media(hover:none)]:md:size-7",
           (isMuted || isPinned) && "[@media(hover:none)]:w-16",
-          // The badge sits against this spacer, so a badged row reserves the
-          // menu at rest too. Otherwise the badge jumps left on every hover.
+          // The badge sits against this spacer, so a badged row holds one
+          // width in every state or the badge jumps on hover. 12px plus the
+          // link's gap ends the badge where the menu button's box begins.
           badgeCount > 0
-            ? "[@media(hover:hover)]:size-7"
-            : isMuted || isPinned
-              ? "[@media(hover:hover)]:size-4"
-              : "[@media(hover:hover)]:size-0",
-          "[@media(hover:hover)]:group-hover/room-row:size-7",
-          "[@media(hover:hover)]:group-focus-within/room-row:size-7",
-          "[@media(hover:hover)]:group-has-[[data-state=open]]/room-row:size-7",
+            ? "[@media(hover:hover)]:size-3"
+            : [
+                isMuted || isPinned
+                  ? "[@media(hover:hover)]:size-4"
+                  : "[@media(hover:hover)]:size-0",
+                "[@media(hover:hover)]:group-hover/room-row:size-7",
+                "[@media(hover:hover)]:group-focus-within/room-row:size-7",
+                "[@media(hover:hover)]:group-has-[[data-state=open]]/room-row:size-7",
+              ],
         )}
         aria-hidden
       />

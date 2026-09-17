@@ -510,7 +510,7 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
     expect(restSpacer?.className).not.toContain("[@media(hover:none)]:w-16");
   });
 
-  it("reserves the menu at rest when a mention badge shows, so the badge holds still on hover", () => {
+  it("holds one spacer width when a mention badge shows, so the badge sits beside the menu and never moves", () => {
     const { container } = render(
       <ChatRoomSidebarRow
         room={makeRoom({
@@ -529,8 +529,15 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
     const spacer = container.querySelector(
       '[data-slot="room-trailing-spacer"]',
     );
-    expect(spacer?.className).toContain("[@media(hover:hover)]:size-7");
+    expect(spacer?.className).toContain("[@media(hover:hover)]:size-3");
     expect(spacer?.className).not.toContain("[@media(hover:hover)]:size-4");
+    expect(spacer?.className).not.toContain("group-hover/room-row:size-7");
+    expect(spacer?.className).not.toContain(
+      "group-focus-within/room-row:size-7",
+    );
+    expect(spacer?.className).not.toContain(
+      "group-has-[[data-state=open]]/room-row:size-7",
+    );
   });
 });
 
