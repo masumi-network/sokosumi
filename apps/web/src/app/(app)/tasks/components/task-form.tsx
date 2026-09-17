@@ -15,7 +15,6 @@ import {
   Lock,
   Paperclip,
   TriangleAlert,
-  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
@@ -39,7 +38,7 @@ import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { VendorMark } from "@/components/agents/vendor-mark";
 import { AssistantOrb } from "@/components/aurora-orb";
 import { AttachmentSubmenu } from "@/components/drive/attachment-submenu";
-import { FileChipWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
+import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { formatTaskScheduleSelectionLabel } from "@/components/schedules/format";
 import {
@@ -1425,23 +1424,13 @@ export function TaskForm({
                 {attachmentUrls.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {attachmentUrls.map((url) => (
-                      <div key={url} className="relative max-w-xs">
-                        <FileChipWithMetadata
-                          url={url}
-                          variant="single-line"
-                          sizeClass="size-8"
-                          iconPx={32}
-                          className="w-auto max-w-xs pr-8"
-                        />
-                        <button
-                          type="button"
-                          aria-label={labels.removeAttachment ?? labels.cancel}
-                          className="bg-surface-glass hover:bg-accent focus-visible:ring-ring absolute top-1/2 right-1 inline-flex size-5 -translate-y-1/2 items-center justify-center rounded-full border outline-none transition"
-                          onClick={() => handleRemoveAttachment(url)}
-                        >
-                          <X className="size-3" aria-hidden />
-                        </button>
-                      </div>
+                      <FileChipMiniPreviewWithMetadata
+                        key={url}
+                        url={url}
+                        sizeClass="size-16"
+                        onRemove={() => handleRemoveAttachment(url)}
+                        removeLabel={labels.removeAttachment ?? labels.cancel}
+                      />
                     ))}
                   </div>
                 ) : null}

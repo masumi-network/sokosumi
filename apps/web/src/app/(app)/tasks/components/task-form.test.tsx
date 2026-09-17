@@ -66,8 +66,23 @@ vi.mock("@/components/jobs/job-details/file-chip-with-metadata", () => ({
     url: string;
     fileName?: string | null;
   }) => <div>{fileName ?? url}</div>,
-  FileChipMiniPreviewWithMetadata: ({ url }: { url: string }) => (
-    <div>{url}</div>
+  FileChipMiniPreviewWithMetadata: ({
+    url,
+    onRemove,
+    removeLabel,
+  }: {
+    url: string;
+    onRemove?: () => void;
+    removeLabel?: string;
+  }) => (
+    <div data-testid="file-chip-mini-preview">
+      {url}
+      {onRemove ? (
+        <button type="button" onClick={onRemove}>
+          {removeLabel ?? "Remove file"}
+        </button>
+      ) : null}
+    </div>
   ),
 }));
 
@@ -549,7 +564,7 @@ describe("TaskForm", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders named attachment chips from description links", () => {
+  it("renders attachment previews from description links", () => {
     render(
       <TaskForm
         mode="edit"
@@ -567,9 +582,9 @@ describe("TaskForm", () => {
       />,
     );
 
-    expect(
-      screen.getByText("https://blob.example/users/u1/brief.pdf"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("file-chip-mini-preview")).toHaveTextContent(
+      "https://blob.example/users/u1/brief.pdf",
+    );
     expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 
