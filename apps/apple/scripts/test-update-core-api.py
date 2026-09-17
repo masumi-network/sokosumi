@@ -35,6 +35,43 @@ class UpdateCoreAPITests(unittest.TestCase):
             self.assertEqual(set(result["paths"]["/messages/{id}"]), {"patch", "delete"})
             self.assertEqual(result["components"], previous["components"])
 
+    def test_paths_core_no_longer_serves_are_dropped(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            script = root / "scripts/update-core-api.py"
+            script.parent.mkdir()
+            shutil.copyfile(Path(__file__).with_name("update-core-api.py"), script)
+            target = root / "Packages/CoreAPI/Sources/CoreAPI/openapi.json"
+            target.parent.mkdir(parents=True)
+            previous = {
+                "paths": {
+                    "/messages/{id}/reactions": {"post": {"responses": {}}},
+                    "/messages/{id}/pin": {"post": {"responses": {}}, "delete": {"responses": {}}},
+                },
+                "components": {},
+            }
+            target.write_text(json.dumps(previous))
+            source = root / "source.json"
+            source.write_text(json.dumps({
+                "paths": {
+                    "/messages/{id}/pin": {"post": {"responses": {}}},
+                    "/messages/{id}/reactions/{emoji}": {"put": {"responses": {}}},
+                },
+                "components": {},
+            }))
+            subprocess.run(
+                [sys.executable, str(script), str(source), "/messages/{id}/reactions/{emoji}"],
+                check=True,
+            )
+            result = json.loads(target.read_text())
+            self.assertEqual(
+                result["paths"],
+                {
+                    "/messages/{id}/pin": {"post": {"responses": {}}},
+                    "/messages/{id}/reactions/{emoji}": {"put": {"responses": {}}},
+                },
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
