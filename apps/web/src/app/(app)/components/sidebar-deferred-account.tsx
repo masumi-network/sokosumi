@@ -83,7 +83,10 @@ export function SidebarAccountChipFallback() {
       className="flex w-full items-center gap-2.5 p-2 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0"
       aria-hidden
     >
-      <div className="bg-muted size-8 shrink-0 animate-pulse rounded-full" />
+      {/* Shape and rail size track SidebarAccountChip, so the avatar does not
+          morph from circle to square (and 32px to 24px collapsed) when credits
+          stream in behind this. */}
+      <div className="bg-muted size-8 shrink-0 animate-pulse rounded-md group-data-[collapsible=icon]:size-6" />
       <div className="flex min-w-0 flex-1 flex-col gap-1 group-data-[collapsible=icon]:hidden">
         <div className="bg-muted h-3 w-24 animate-pulse rounded-md" />
         <div className="bg-muted h-3 w-16 animate-pulse rounded-md" />
