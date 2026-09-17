@@ -188,6 +188,42 @@ describe("DirectRoomAvatarStack", () => {
     expect(stackRoot?.className).toContain("items-center");
   });
 
+  it("grows each face to 24px and keeps only the first when the sidebar collapses", () => {
+    const { container } = render(
+      <DirectRoomAvatarStack
+        room={makeDirectRoom({
+          userMembers: [
+            makeUser("me", "Me"),
+            makeUser("alice", "Alice"),
+            makeUser("bob", "Bob"),
+          ],
+        })}
+        currentUserId="me"
+      />,
+    );
+
+    // At 20px Inter's widest pairs ("MA", "WM") touch the rim of a circle;
+    // 24px holds every pair at the same type size. The collapsed button cannot
+    // hold a stack of those, so a group row shows its first face alone there
+    // and the button's tooltip names the rest.
+    const stackRoot = container.firstElementChild;
+    expect(stackRoot?.className).toContain("group-data-[collapsible=icon]:h-6");
+    for (const id of ["alice", "bob"]) {
+      const avatar = screen
+        .getByTestId(`dm-sidebar-avatar-${id}`)
+        .querySelector('[data-slot="avatar"]');
+      expect(avatar?.className).toContain(
+        "group-data-[collapsible=icon]:size-6",
+      );
+    }
+    expect(
+      screen.getByTestId("dm-sidebar-avatar-alice").className,
+    ).not.toContain("group-data-[collapsible=icon]:hidden");
+    expect(screen.getByTestId("dm-sidebar-avatar-bob").className).toContain(
+      "group-data-[collapsible=icon]:hidden",
+    );
+  });
+
   it("renders a fallback mark when the DM has no other participants", () => {
     render(
       <DirectRoomAvatarStack
