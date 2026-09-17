@@ -745,6 +745,54 @@ describe("updateTask context", () => {
       }),
     );
   });
+
+  it("allows an empty body when Context will re-attach files", async () => {
+    const { updateTask } = await import("./action");
+
+    await updateTask({
+      taskId: "task-1",
+      name: "Launch post",
+      description: "   ",
+      assigneeId: "cow_1",
+      context: {
+        brand: { enabled: true, source: "default", custom: null },
+        briefingEnabled: false,
+        contextMdEnabled: false,
+      },
+      currentStatus: TaskStatus.DRAFT,
+      desiredStatus: TaskStatus.DRAFT,
+      schedule: { mode: "none", timezone: "UTC" },
+    });
+
+    expect(taskServiceMock.patchTask).toHaveBeenCalledWith(
+      "task-1",
+      expect.objectContaining({
+        description: "",
+        context: expect.objectContaining({ brand: true }),
+      }),
+    );
+  });
+
+  it("rejects an empty body when every Context chip is off", async () => {
+    const { updateTask } = await import("./action");
+
+    await expect(
+      updateTask({
+        taskId: "task-1",
+        name: "Launch post",
+        description: "",
+        assigneeId: "cow_1",
+        context: {
+          brand: { enabled: false, source: "default", custom: null },
+          briefingEnabled: false,
+          contextMdEnabled: false,
+        },
+        currentStatus: TaskStatus.DRAFT,
+        desiredStatus: TaskStatus.DRAFT,
+        schedule: { mode: "none", timezone: "UTC" },
+      }),
+    ).rejects.toThrow("Description required");
+  });
 });
 
 describe("updateTask schedule status", () => {

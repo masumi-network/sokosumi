@@ -2366,6 +2366,53 @@ describe("TaskForm", () => {
     ).toHaveAttribute("aria-pressed", "true");
   });
 
+  it("keeps Save enabled for Context-only tasks on edit", async () => {
+    const user = userEvent.setup();
+    const updateTaskMock = vi.mocked(updateTask);
+    updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+    const designMdUrl = "https://blob.example/design-md/projects/p1/hash.md";
+
+    render(
+      <TaskForm
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
+        taskId="task-1"
+        initialValues={{
+          name: "Launch post",
+          description: `[DESIGN.md](${designMdUrl})`,
+          assigneeId: "coworker-2",
+          projectId: "project-1",
+          status: TaskStatus.DRAFT,
+        }}
+        initialDesignMdAttachment={{
+          label: "DESIGN.md",
+          url: "https://blob.example/design-md/org/hash.md",
+          owner: { type: "organization", name: "Acme Inc", logo: null },
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("markdown-editor")).toHaveValue("");
+    const saveButton = screen.getByRole("button", { name: "Save" });
+    expect(saveButton).toBeEnabled();
+
+    await user.click(saveButton);
+
+    expect(updateTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskId: "task-1",
+        description: "",
+        context: expect.objectContaining({
+          brand: expect.objectContaining({ enabled: true }),
+        }),
+      }),
+    );
+  });
+
   it("sends Context selection when saving an edit", async () => {
     const user = userEvent.setup();
     const updateTaskMock = vi.mocked(updateTask);

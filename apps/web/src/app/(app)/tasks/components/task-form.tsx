@@ -78,6 +78,7 @@ import {
   extractTaskAttachmentUrls,
   removeTaskAttachmentLinks,
 } from "@/lib/utils/task-attachments";
+import { taskContextSelectionAttachesAnything } from "@/lib/utils/task-context-selection";
 import {
   getTaskScheduleOperationId,
   hasTaskScheduleChanged,
@@ -685,9 +686,13 @@ export function TaskForm({
   useEffect(() => {
     onSubmittingChange?.(isSubmittingAny || isUploadingAttachments);
   }, [isSubmittingAny, isUploadingAttachments, onSubmittingChange]);
+  const hasSaveableDescription =
+    Boolean(description.trim()) ||
+    (mode === "edit" &&
+      taskContextSelectionAttachesAnything(contextSelection));
   const isSaveDisabled =
     createdTask !== null ||
-    !description.trim() ||
+    !hasSaveableDescription ||
     (isNameRequired && !name.trim()) ||
     isSubmittingAny ||
     isUploadingAttachments;

@@ -34,6 +34,7 @@ import {
 } from "@/lib/services/task-schedule.service";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 import { normalizeOptionalProjectId } from "@/lib/utils/project";
+import { taskContextSelectionAttachesAnything } from "@/lib/utils/task-context-selection";
 import {
   hasTaskScheduleChanged,
   selectionToApiBody,
@@ -1042,7 +1043,12 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
   }) => {
     const trimmedDescription = description.trim();
     const trimmedName = normalizeTaskNameForCoreApi(name);
-    if (!trimmedDescription) {
+    // Edit may strip Context links into an empty body; Core re-prepends from
+    // `context`. Reject only when both the body and every Context chip are off.
+    if (
+      !trimmedDescription &&
+      !(context && taskContextSelectionAttachesAnything(context))
+    ) {
       throw new Error("Description required");
     }
     if (!trimmedName) {
