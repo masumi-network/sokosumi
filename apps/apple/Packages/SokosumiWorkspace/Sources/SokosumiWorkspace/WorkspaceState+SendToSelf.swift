@@ -14,8 +14,13 @@ public extension WorkspaceState {
       throw ChatServiceError.unauthorized("Sign in to send messages to yourself.")
     }
     do {
-      return try await ChatService().sendMessageToSelf(client: client, roomId: message.roomId, messageId: message.id,
-                                                       organizationSlug: selection?.workspace.organizationSlug)
+      let saved = try await ChatService().sendMessageToSelf(client: client, roomId: message.roomId, messageId: message.id,
+                                                            organizationSlug: selection?.workspace.organizationSlug)
+      // Open uses openRoomLink, which only selects listed rooms. Apple ignores chat_rooms_changed.
+      if !rooms.contains(where: { $0.id == saved.roomId }) {
+        await refreshRooms(auth: auth)
+      }
+      return saved
     } catch {
       if let error = error as? ChatServiceError {
         signOutIfUnauthorized(error, auth: auth)
