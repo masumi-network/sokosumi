@@ -28,9 +28,12 @@ public func messageQuote(from message: Components.Schemas.ChatRoomMessage) -> Co
                                                   mediaKind: $0.kind == .image ? .image : .file) })
 }
 
+/// A coworker shell that is still thinking has no actions, like web's
+/// `showActions`; a failed shell keeps quote/pin/reactions.
 public func canQuoteMessage(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
   message.deletedAt == nil && !isOutboundLocalMessage(message)
     && !message.id.hasPrefix("stream:") && message.membership == nil
+    && CoworkerMentionShell(message: message)?.isThinking != true
 }
 
 /// Message link of a quote sent to yourself from another room. Same-room quotes scroll the transcript instead.

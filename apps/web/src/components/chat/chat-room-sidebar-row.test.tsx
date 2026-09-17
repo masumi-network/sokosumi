@@ -623,7 +623,77 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
     expect(box?.className).not.toContain("[@media(hover:hover)]:size-4");
   });
 
-  it("reserves a glyph-sized hole at rest on hover, not a full menu button", () => {
+  // The hole is sized to the glyph, not the button's 28px box: `size-4` ends
+  // the name 8px clear of the `…`. A row that shows something at rest holds it
+  // open in every state; a plain row opens it with the button.
+  const GLYPH_HOLE = "[@media(hover:hover)]:size-4";
+  const NO_HOLE = "[@media(hover:hover)]:size-0";
+  const HOLE_ON_INTERACTION = [
+    "[@media(hover:hover)]:group-hover/room-row:size-4",
+    "[@media(hover:hover)]:group-focus-within/room-row:size-4",
+    "[@media(hover:hover)]:group-has-[[data-state=open]]/room-row:size-4",
+  ];
+
+  function spacerTokens(container: HTMLElement) {
+    return (
+      container
+        .querySelector('[data-slot="room-trailing-spacer"]')
+        ?.className.split(" ") ?? []
+    );
+  }
+
+  it.each([
+    ["muted", { mutedAt: new Date("2026-09-01T00:00:00.000Z") }, false],
+    ["pinned", { starredAt: new Date("2026-09-01T00:00:00.000Z") }, false],
+    ["open", {}, true],
+  ])(
+    "holds the hole open in every state on a %s row, so its name never moves",
+    (_state, roomProps, isActive) => {
+      const { container } = render(
+        <ChatRoomSidebarRow
+          room={makeRoom(roomProps)}
+          href="/chat/rooms/room-1"
+          label="Agent Test Channel"
+          isActive={isActive}
+          leading={<span>#</span>}
+          onRoomUpdated={vi.fn()}
+        />,
+      );
+
+      const tokens = spacerTokens(container);
+      expect(tokens).toContain(GLYPH_HOLE);
+      expect(tokens).not.toContain(NO_HOLE);
+      // Nothing widens it further, so hovering the row is a no-op on the name.
+      for (const token of HOLE_ON_INTERACTION) {
+        expect(tokens).not.toContain(token);
+      }
+      expect(tokens.includes("md:size-7")).toBe(false);
+    },
+  );
+
+  it("keeps a plain row's full name width at rest and opens the hole with the button", () => {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="Agent Building"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    // The button is `opacity-0` at rest, so an invisible button needs no hole.
+    const tokens = spacerTokens(container);
+    expect(tokens).toContain(NO_HOLE);
+    expect(tokens).not.toContain(GLYPH_HOLE);
+    for (const token of HOLE_ON_INTERACTION) {
+      expect(tokens).toContain(token);
+    }
+    expect(tokens).not.toContain("[@media(hover:none)]:w-16");
+  });
+
+  it("opens a muted row's hole to the same width a plain row reaches on hover", () => {
     const { container, rerender } = render(
       <ChatRoomSidebarRow
         room={makeRoom({ mutedAt: new Date("2026-09-01T00:00:00.000Z") })}
@@ -635,16 +705,10 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
       />,
     );
 
-    const spacer = container.querySelector(
-      '[data-slot="room-trailing-spacer"]',
-    );
-    expect(spacer).not.toBeNull();
-    expect(spacer?.className).toContain("[@media(hover:hover)]:size-4");
-    expect(spacer?.className).toContain(
-      "[@media(hover:hover)]:group-hover/room-row:size-7",
-    );
-    expect(spacer?.className).toContain("[@media(hover:none)]:w-16");
-    expect(spacer?.className.split(" ").includes("md:size-7")).toBe(false);
+    expect(spacerTokens(container)).toContain(GLYPH_HOLE);
+    expect(
+      container.querySelector('[data-slot="room-trailing-spacer"]')?.className,
+    ).toContain("[@media(hover:none)]:w-16");
 
     rerender(
       <ChatRoomSidebarRow
@@ -657,11 +721,11 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
       />,
     );
 
-    const restSpacer = container.querySelector(
-      '[data-slot="room-trailing-spacer"]',
+    // Same 16px on both, so a plain row lands where an icon row already sits
+    // rather than overshooting it.
+    expect(spacerTokens(container)).toContain(
+      "[@media(hover:hover)]:group-hover/room-row:size-4",
     );
-    expect(restSpacer?.className).toContain("[@media(hover:hover)]:size-0");
-    expect(restSpacer?.className).not.toContain("[@media(hover:none)]:w-16");
   });
 
   it.each([
@@ -690,17 +754,11 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
           .querySelector('[data-slot="room-trailing-spacer"]')
           ?.className.split(" ") ?? [];
       expect(tokens).toContain("[@media(hover:hover)]:size-3");
-      expect(tokens).not.toContain("[@media(hover:hover)]:size-4");
-      expect(tokens).not.toContain("[@media(hover:hover)]:size-0");
-      expect(tokens).not.toContain(
-        "[@media(hover:hover)]:group-hover/room-row:size-7",
-      );
-      expect(tokens).not.toContain(
-        "[@media(hover:hover)]:group-focus-within/room-row:size-7",
-      );
-      expect(tokens).not.toContain(
-        "[@media(hover:hover)]:group-has-[[data-state=open]]/room-row:size-7",
-      );
+      expect(tokens).not.toContain(GLYPH_HOLE);
+      expect(tokens).not.toContain(NO_HOLE);
+      for (const token of HOLE_ON_INTERACTION) {
+        expect(tokens).not.toContain(token);
+      }
     },
   );
 });
