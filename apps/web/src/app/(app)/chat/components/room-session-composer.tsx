@@ -44,6 +44,8 @@ import {
 
 export interface RoomSessionSendRequest {
   content: string;
+  /** Chips at send time; content already carries their markdown links. */
+  attachments: RoomComposerAttachment[];
   mentionedIds: string[];
   quote?: { messageId: string };
   clientMessageId: string;
@@ -213,6 +215,7 @@ export function RoomSessionComposer({
 
     const result = await onSend({
       content,
+      attachments: snapshot.attachments,
       mentionedIds: snapshot.mentionedIds,
       quote: quotePayload,
       clientMessageId,

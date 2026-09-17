@@ -1,7 +1,7 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport, type UIMessage } from "ai";
+import { DefaultChatTransport, type FileUIPart, type UIMessage } from "ai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CHAT_API_PATH } from "@/app/chat/utils/chat-route-base";
@@ -212,10 +212,41 @@ export interface UseCoworkerDirectRoomStreamParams {
   onStreamSettled: (roomId: string) => boolean | Promise<boolean>;
 }
 
+export interface CoworkerStreamSendFile {
+  url: string;
+  fileName: string;
+  mediaType: string | null;
+}
+
 export interface CoworkerStreamSendOptions {
   parentMessageId?: string;
   /** Same-room quote target; does not set parentMessageId. */
   quote?: { messageId: string };
+  /** Composer attachments; sent as AI SDK file parts so the model sees them. */
+  files?: readonly CoworkerStreamSendFile[];
+}
+
+/**
+ * Attachments become `file` UI parts next to the text. The markdown link is
+ * still in the text for the persisted room message; the part is what lets the
+ * coworker model look at the file. Drive picks carry no media type and stay
+ * link-only.
+ */
+export function toCoworkerStreamFileParts(
+  files: readonly CoworkerStreamSendFile[] | undefined,
+): FileUIPart[] {
+  return (files ?? []).flatMap((file) =>
+    file.mediaType
+      ? [
+          {
+            type: "file" as const,
+            url: file.url,
+            mediaType: file.mediaType,
+            filename: file.fileName,
+          },
+        ]
+      : [],
+  );
 }
 
 /**
@@ -503,8 +534,9 @@ export function useCoworkerDirectRoomStream({
       setMessages([]);
       setStreamParentMessageId(parentMessageId);
       writeStoredStreamParentMessageId(roomId, parentMessageId);
+      const files = toCoworkerStreamFileParts(options?.files);
       void sendMessage(
-        { text: trimmed },
+        files.length > 0 ? { text: trimmed, files } : { text: trimmed },
         buildCoworkerStreamSendMessageOptions(options),
       );
       return true;
