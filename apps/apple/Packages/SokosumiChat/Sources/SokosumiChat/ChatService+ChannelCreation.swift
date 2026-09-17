@@ -4,19 +4,23 @@ import Foundation
 public extension ChatService {
   func channelRoster(client: Client, organizationId: String, organizationSlug: String) async throws -> ChannelRoster {
     async let recipients = chatRecipients(client: client, organizationId: organizationId, organizationSlug: organizationSlug)
+    let isOwnerOrAdmin = try await isOrganizationOwnerOrAdmin(client: client, organizationId: organizationId)
+    return try await .init(recipients: recipients, isOwnerOrAdmin: isOwnerOrAdmin)
+  }
+
+  /// The caller's organization role gates channel settings, archive, restore and delete; a missing membership is not elevated.
+  func isOrganizationOwnerOrAdmin(client: Client, organizationId: String) async throws -> Bool {
     let response = try await client.getUsersIdOrganizationsOrganizationIdMember(.init(path: .init(id: "me", organizationId: organizationId)))
-    let isOwnerOrAdmin: Bool
     switch response {
     case let .ok(value):
       let role = try value.body.json.data.role
-      isOwnerOrAdmin = role == .owner || role == .admin
+      return role == .owner || role == .admin
     case let .unauthorized(value): throw try ChatServiceError.unauthorized(value.body.json.message)
     case let .forbidden(value): throw try ChatServiceError.unprocessable(statusCode: 403, message: value.body.json.message)
-    case .notFound: isOwnerOrAdmin = false
+    case .notFound: return false
     case let .internalServerError(value): throw try ChatServiceError.unprocessable(statusCode: 500, message: value.body.json.message)
     case let .undocumented(statusCode, payload): throw await unprocessableError(statusCode: statusCode, payload: payload)
     }
-    return try await .init(recipients: recipients, isOwnerOrAdmin: isOwnerOrAdmin)
   }
 
   func channelSlugIsAvailable(client: Client, slug: String, organizationSlug: String) async throws -> Bool {

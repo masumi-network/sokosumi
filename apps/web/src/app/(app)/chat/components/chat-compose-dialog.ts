@@ -12,6 +12,8 @@ export const CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME =
 
 export const EMPTY_CHAT_COMPOSE_ROSTER: ChatComposeRoster = {
   currentUserId: "",
+  currentUserName: "",
+  currentUserImage: null,
   organizationName: "",
   hasOrganization: false,
   canCreateExternal: false,

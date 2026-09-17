@@ -2279,6 +2279,10 @@ export type ChatRoom = {
     slug: string | null;
     kind: 'channel' | 'direct';
     /**
+     * Whether this is the owner's private, sole-human Personal Direct for notes.
+     */
+    isSelfDirect: boolean;
+    /**
      * Deterministic key for direct rooms; null for normal rooms.
      */
     directKey: string | null;

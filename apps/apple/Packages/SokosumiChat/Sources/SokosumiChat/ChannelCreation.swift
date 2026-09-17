@@ -133,7 +133,7 @@ public final class ChannelCreation: ObservableObject {
 }
 
 /// Core's channel messages are user-facing; everything else falls back to the shared network wording.
-func channelErrorMessage(_ error: Error) -> String {
+public func channelErrorMessage(_ error: Error) -> String {
   if case let ChatServiceError.unauthorized(message) = error {
     return message
   }
