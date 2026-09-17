@@ -33,7 +33,7 @@ public final class WorkspaceState: ObservableObject {
   @Published public private(set) var openingDirect: DirectRecipient?
   @Published public private(set) var creatingChannel = false
   @Published public private(set) var joiningChannel = false
-  @Published public private(set) var updatingChannel = false
+  @Published public internal(set) var updatingChannel = false
   @Published public private(set) var channelLifecycle: ChannelLifecycleRequest?
   @Published public internal(set) var invitationResponse: InvitationResponse?
   public let archivedChannels = ArchivedChannels()
@@ -373,7 +373,7 @@ public final class WorkspaceState: ObservableObject {
     return true
   }
 
-  private func channelOperation<Value: Sendable>(context: UUID, auth: AuthState, operation: (Client, String, String) async throws -> Value) async throws -> Value {
+  func channelOperation<Value: Sendable>(context: UUID, auth: AuthState, operation: (Client, String, String) async throws -> Value) async throws -> Value {
     guard let organizationId = selection?.workspace.organizationId, let slug = selection?.workspace.organizationSlug else { throw CancellationError() }
     return try await workspaceOperation(context: context, auth: auth) { client in
       try await operation(client, organizationId, slug)
@@ -645,14 +645,14 @@ public final class WorkspaceState: ObservableObject {
   /// Queue a local shell immediately, then POST in order. Invalid drafts stay
   /// with the composer; accepted sends retain a stable ID for safe retries.
   @discardableResult
-  public func sendMessage(_ content: String, quote: Components.Schemas.ChatRoomMessageQuote? = nil, auth: AuthState) -> Bool {
+  public func sendMessage(_ content: String, attachments: [ComposeAttachment] = [], quote: Components.Schemas.ChatRoomMessageQuote? = nil, auth: AuthState) -> Bool {
     let draft = ComposerContent(content)
     guard let roomId = transcriptRoomId, draft.canSend, !transcriptLoading,
           let client = resolveClient(auth: auth) else { return false }
     timeline.followLatest()
     if directStream.roomId == roomId {
       let generation = transcriptGeneration
-      return directStream.send(draft.text, client: client, organizationSlug: selection?.workspace.organizationSlug, quote: quote, settled: { [weak self, weak auth] in
+      return directStream.send(draft.text, client: client, organizationSlug: selection?.workspace.organizationSlug, attachments: attachments, quote: quote, settled: { [weak self, weak auth] in
         guard let self, let auth else { return false }
         return await settleDirectStream(auth: auth, generation: generation)
       }, failed: { [weak self, weak auth] error in

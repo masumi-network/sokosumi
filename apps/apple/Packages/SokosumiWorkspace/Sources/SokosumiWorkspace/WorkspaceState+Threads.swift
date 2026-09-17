@@ -75,12 +75,12 @@ public extension WorkspaceState {
   }
 
   @discardableResult
-  func sendThreadReply(_ content: String, quote: Components.Schemas.ChatRoomMessageQuote? = nil, auth: AuthState) -> Bool {
+  func sendThreadReply(_ content: String, attachments: [ComposeAttachment] = [], quote: Components.Schemas.ChatRoomMessageQuote? = nil, auth: AuthState) -> Bool {
     guard let client = resolveClient(auth: auth), thread.parent?.roomId == transcriptRoomId else { return false }
     if directStream.roomId == transcriptRoomId, let parentId = thread.parent?.id {
       let generation = timeline.generation
       return directStream.send(content, client: client, organizationSlug: selection?.workspace.organizationSlug,
-                               parentMessageId: parentId, quote: quote, settled: { [weak self, weak auth] in
+                               attachments: attachments, parentMessageId: parentId, quote: quote, settled: { [weak self, weak auth] in
                                  guard let self, let auth else { return false }
                                  return await settleDirectStream(auth: auth, generation: generation)
                                }, failed: { [weak self, weak auth] error in

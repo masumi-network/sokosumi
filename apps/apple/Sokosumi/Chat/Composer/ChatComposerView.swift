@@ -154,8 +154,8 @@ import UniformTypeIdentifiers
       guard canSend else { return false }
       let content = preparedContent.text
       let accepted = parentMessageId == nil
-        ? workspaces.sendMessage(content, quote: pendingQuote, auth: auth)
-        : workspaces.sendThreadReply(content, quote: pendingQuote, auth: auth)
+        ? workspaces.sendMessage(content, attachments: uploads.attachments, quote: pendingQuote, auth: auth)
+        : workspaces.sendThreadReply(content, attachments: uploads.attachments, quote: pendingQuote, auth: auth)
       guard accepted else { return false }
       pendingQuote = nil
       draft = ""
