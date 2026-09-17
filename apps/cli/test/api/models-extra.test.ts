@@ -8,7 +8,6 @@ import {
 import { parseJobEvent } from "../../src/api/models/job-event.js";
 import { parseJobFile, parseJobLink } from "../../src/api/models/job-output.js";
 import { parseTask } from "../../src/api/models/task.js";
-import { parseUser } from "../../src/api/models/user.js";
 
 test("new Core models tolerate unexpected values with sibling defaults", () => {
   assert.deepEqual(parseCoworker(null), {
@@ -50,7 +49,6 @@ test("new Core models tolerate unexpected values with sibling defaults", () => {
   assert.equal(parseJobFile(null).url, null);
   assert.equal(parseJobLink(null).url, null);
   assert.equal(parseCoworkerApiKey(null).token, null);
-  assert.equal(parseUser(null).email, null);
 });
 
 test("preserves Core job event status and result", () => {
