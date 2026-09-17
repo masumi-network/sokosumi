@@ -55,7 +55,14 @@ describe("AppSidebarFallback", () => {
   it("renders the real nav links rather than placeholders", () => {
     renderFallback();
 
-    for (const href of ["/agents", "/projects", "/tasks", "/history"]) {
+    // `/drive` is desktop-only, and `use-mobile` is mocked to desktop above.
+    for (const href of [
+      "/agents",
+      "/projects",
+      "/tasks",
+      "/drive",
+      "/history",
+    ]) {
       expect(
         screen.getByRole("link", {
           name: (_, element) => element.getAttribute("href") === href,
@@ -67,11 +74,26 @@ describe("AppSidebarFallback", () => {
   it("leaves the session-backed surfaces as placeholders", () => {
     const { container } = renderFallback();
 
-    // Room list (5 rows × leading mark + name) plus the account chip's
-    // avatar and two label lines.
-    expect(container.querySelectorAll('[data-slot="skeleton"]').length).toBe(
-      15,
+    const roomList = container.querySelector(
+      '[data-slot="sidebar-group"][aria-hidden]',
     );
+    const rows =
+      roomList?.querySelectorAll('[data-slot="sidebar-menu-item"]') ?? [];
+
+    // Each row is a leading mark plus a name, under a section header that is
+    // its own chevron and label — derived from the rows so adding one does
+    // not mean editing a total here.
+    expect(rows.length).toBeGreaterThan(0);
+    expect(roomList?.querySelectorAll('[data-slot="skeleton"]').length).toBe(
+      rows.length * 2 + 2,
+    );
+
+    // The account chip: an avatar over name and plan lines.
+    expect(
+      container
+        .querySelector('[data-slot="sidebar-footer"]')
+        ?.querySelectorAll('[data-slot="skeleton"]').length,
+    ).toBe(3);
   });
 
   it("keeps both logo states in the DOM so a collapsed boot script can hide the wordmark", () => {
