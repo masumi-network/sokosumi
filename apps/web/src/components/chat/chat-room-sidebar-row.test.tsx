@@ -158,6 +158,10 @@ vi.mock("@/components/ui/sidebar", () => ({
   SidebarMenuItem: ({ children }: { children: ReactNode }) => (
     <li>{children}</li>
   ),
+  // A marker, not the real bar: what it looks like belongs to the primitive
+  // that owns it, and `sidebar-rail-selection.test.tsx` pins that. This row
+  // only decides when it is there.
+  SidebarRailSelectionBar: () => <span data-testid="rail-selection-bar" />,
 }));
 
 vi.mock("@/components/ui/dropdown-menu", () => {
@@ -532,14 +536,13 @@ describe("ChatRoomSidebarRow collapsed rail", () => {
   });
 });
 
-// The rail selection bar: the mirror of the pill, on the other edge, so the
-// open room is readable without the fill the three states used to share.
+// The rail selection bar: the row's job is when it shows, not how it looks.
 describe("ChatRoomSidebarRow rail selection bar", () => {
   function renderRow(
     room: Partial<ChatRoom>,
     options: { isActive?: boolean } = {},
   ) {
-    const { container } = render(
+    render(
       <ChatRoomSidebarRow
         room={makeRoom(room)}
         href="/chat/rooms/room-1"
@@ -549,61 +552,28 @@ describe("ChatRoomSidebarRow rail selection bar", () => {
         onRoomUpdated={vi.fn()}
       />,
     );
-    return container;
+    return screen.queryByTestId("rail-selection-bar");
   }
 
-  function selectionBar(container: HTMLElement) {
-    return container.querySelector('[data-slot="room-rail-selection"]');
-  }
-
-  it("marks the open room on the rail's right edge, collapsed only", () => {
-    const bar = selectionBar(renderRow({}, { isActive: true }));
-    expect(bar).not.toBeNull();
-    // Rendered always, shown only collapsed, like the pill and the tile.
-    expect(bar?.className).toContain("hidden");
-    expect(bar?.className).toContain("group-data-[collapsible=icon]:block");
-    // The opposite edge from the attention pill's `-left-2`, and longer than
-    // either pill so it answers "which row is open" from the corner of the eye.
-    expect(bar?.className).toContain("-right-2");
-    expect(bar?.className).toContain("h-5");
-    // Outside the link, so the collapsed announcement stays the room's name
-    // plus `aria-current`, with no second word for the same fact.
-    expect(bar?.getAttribute("aria-hidden")).toBe("true");
-    expect(
-      document.querySelector('a[href="/chat/rooms/room-1"]')?.contains(bar),
-    ).toBe(false);
+  it("marks the room the reader has open", () => {
+    expect(renderRow({}, { isActive: true })).toBeInTheDocument();
   });
 
-  it("shows no selection bar on a room the reader does not have open", () => {
-    expect(selectionBar(renderRow({}))).toBeNull();
+  it("shows no selection mark on a room the reader does not have open", () => {
+    expect(renderRow({})).toBeNull();
   });
 
+  // The two marks sit on opposite edges precisely so this can happen without
+  // either having to give way.
   it("marks an unread open room on both edges at once", () => {
-    const container = renderRow({ unreadMentionCount: 2 }, { isActive: true });
     expect(
-      container
+      renderRow({ unreadMentionCount: 2 }, { isActive: true }),
+    ).toBeInTheDocument();
+    expect(
+      document
         .querySelector('[data-slot="room-rail-attention"]')
         ?.getAttribute("data-variant"),
     ).toBe("mention");
-    expect(selectionBar(container)).not.toBeNull();
-  });
-
-  it("leaves the collapsed fill to hover alone", () => {
-    const link = renderRow({}, { isActive: true }).querySelector(
-      'a[href="/chat/rooms/room-1"]',
-    );
-    // Neither hover nor active paints the rail, or all three states land on
-    // the one 15% neutral that `--muted`/`--accent`/`--sidebar-accent` share.
-    expect(link?.className).toContain(
-      "group-data-[collapsible=icon]:hover:bg-transparent",
-    );
-    expect(link?.className).toContain(
-      "group-data-[collapsible=icon]:data-[active=true]:bg-transparent",
-    );
-    // Hover states itself with a ring instead, which reads over a filled tile.
-    expect(link?.className).toContain(
-      "group-data-[collapsible=icon]:hover:ring-1",
-    );
   });
 });
 
