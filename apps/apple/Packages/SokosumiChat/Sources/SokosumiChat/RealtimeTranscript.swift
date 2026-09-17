@@ -100,12 +100,6 @@ public func realtimeClientTurnId(_ message: Components.Schemas.ChatRoomMessage) 
   return turnId.isEmpty ? nil : turnId
 }
 
-/// Room-timeline scope: top-level only. Thread replies never enter the
-/// room transcript (mirrors web `mergeIntoRoomTimeline`).
-public func isTopLevelRealtimeMessage(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
-  message.parentMessageId == nil
-}
-
 /// Apply one full-DTO create/update/delete to confirmed history.
 /// Own send + Ably create confirm in place by turn id (one bubble, ADR 0004);
 /// hard deletes (`deletedAt == nil`) remove the row; tombstoned deletes and
