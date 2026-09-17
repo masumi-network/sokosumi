@@ -31,10 +31,17 @@ export interface SidebarSokoBotAvatar {
 
 const MAX_STACK = 3;
 
+const STACK_FACE_CLASS =
+  "size-5 shrink-0 rounded-full object-cover group-data-[collapsible=icon]:size-3 group-data-[collapsible=icon]:border group-data-[collapsible=icon]:border-sidebar";
+
 /** Up to three workspace Soko Bots, overlapping like a team roster. */
 function BotStack({ bots }: { bots: SidebarSokoBotAvatar[] }) {
   return (
-    <span className="flex shrink-0 -space-x-1.5" aria-hidden>
+    <span
+      data-slot="soko-bot-stack"
+      className="flex shrink-0 -space-x-1.5 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:-space-x-2"
+      aria-hidden
+    >
       {bots
         .slice(0, MAX_STACK)
         .map((bot) =>
@@ -43,14 +50,14 @@ function BotStack({ bots }: { bots: SidebarSokoBotAvatar[] }) {
               key={bot.id}
               src={bot.imageUrl}
               alt=""
-              className="size-5 rounded-full object-cover"
+              className={STACK_FACE_CLASS}
             />
           ) : (
             <AuroraOrb
               key={bot.id}
               seed={bot.seed}
               size={40}
-              className="size-5"
+              className={STACK_FACE_CLASS}
             />
           ),
         )}
@@ -79,7 +86,12 @@ export default function PersonalAssistantNav({
       <SidebarGroupContent>
         <SidebarMenu className="gap-0">
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive} size="lg">
+            <SidebarMenuButton
+              asChild
+              isActive={isActive}
+              size="lg"
+              tooltip={t("sokoBot")}
+            >
               <SheetClose asChild>
                 <Link
                   href={SOKO_BOTS_ROUTE}
@@ -97,7 +109,7 @@ export default function PersonalAssistantNav({
                   ) : (
                     <Bot className="size-4 shrink-0" aria-hidden />
                   )}
-                  <span className="flex-1 truncate font-medium group-data-[collapsible=icon]:hidden">
+                  <span className="flex-1 truncate font-medium group-data-[collapsible=icon]:sr-only">
                     {t("sokoBot")}
                   </span>
                 </Link>
