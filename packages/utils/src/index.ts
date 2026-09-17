@@ -324,7 +324,10 @@ export {
   PROJECT_CONTEXT_MD_ATTACHMENT_LABEL,
   parseTaskContextFromDescription,
   removeTaskContextAttachmentLinks,
+  type TaskContextAttachmentAvailability,
+  type TaskContextAttachmentFlags,
   type TaskContextSelectionSnapshot,
+  taskContextSelectionAttachesAnything,
 } from "./task-context-attachment.js";
 export { isTaskEditableStatus } from "./task-editable.js";
 export {

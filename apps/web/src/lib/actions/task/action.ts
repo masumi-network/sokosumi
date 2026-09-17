@@ -4,11 +4,11 @@ import {
   buildAdHocDesignMdPrefix,
   CORE_API_ERROR_KINDS,
   hasActiveTaskSchedule,
+  taskContextSelectionAttachesAnything,
   userTaskStatusTransitionRequiresComment,
 } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
-
 import {
   type ActionResultDto,
   toActionResult,
@@ -34,7 +34,6 @@ import {
 } from "@/lib/services/task-schedule.service";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 import { normalizeOptionalProjectId } from "@/lib/utils/project";
-import { taskContextSelectionAttachesAnything } from "@/lib/utils/task-context-selection";
 import {
   hasTaskScheduleChanged,
   selectionToApiBody,

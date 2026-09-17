@@ -6,6 +6,7 @@ import {
   PROJECT_CONTEXT_MD_ATTACHMENT_LABEL,
   parseTaskContextFromDescription,
   removeTaskContextAttachmentLinks,
+  taskContextSelectionAttachesAnything,
 } from "./task-context-attachment.js";
 
 describe("removeTaskContextAttachmentLinks", () => {
@@ -157,5 +158,65 @@ describe("parseTaskContextFromDescription", () => {
       brandSource: "default",
       brandUrl: staleUrl,
     });
+  });
+});
+
+describe("taskContextSelectionAttachesAnything", () => {
+  const enabledBrand = {
+    brand: { enabled: true, source: "project" as const, custom: null },
+    briefingEnabled: false,
+    contextMdEnabled: false,
+  };
+
+  it("treats enabled chips as attaching when availability is omitted", () => {
+    expect(taskContextSelectionAttachesAnything(enabledBrand)).toBe(true);
+    expect(
+      taskContextSelectionAttachesAnything({
+        brand: { enabled: false },
+        briefingEnabled: false,
+        contextMdEnabled: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("requires a resolvable URL when availability is provided", () => {
+    expect(
+      taskContextSelectionAttachesAnything(enabledBrand, {
+        projectDesignMdUrl: null,
+        workspaceDesignMdUrl: null,
+      }),
+    ).toBe(false);
+
+    expect(
+      taskContextSelectionAttachesAnything(enabledBrand, {
+        workspaceDesignMdUrl: "https://blob.example/design.md",
+      }),
+    ).toBe(true);
+
+    expect(
+      taskContextSelectionAttachesAnything(
+        {
+          brand: { enabled: false },
+          briefingEnabled: true,
+          contextMdEnabled: false,
+        },
+        { projectBriefingUrl: null },
+      ),
+    ).toBe(false);
+
+    expect(
+      taskContextSelectionAttachesAnything(
+        {
+          brand: {
+            enabled: true,
+            source: "custom",
+            custom: { url: "https://blob.example/adhoc.md" },
+          },
+          briefingEnabled: false,
+          contextMdEnabled: false,
+        },
+        {},
+      ),
+    ).toBe(true);
   });
 });

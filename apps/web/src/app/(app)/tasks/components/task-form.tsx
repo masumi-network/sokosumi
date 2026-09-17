@@ -4,6 +4,7 @@ import {
   CORE_API_ERROR_KINDS,
   formatTaskAttachmentMarkdown,
   isAgentOnlyTaskStatus,
+  taskContextSelectionAttachesAnything,
 } from "@sokosumi/utils";
 import {
   ArrowLeft,
@@ -78,7 +79,6 @@ import {
   extractTaskAttachmentUrls,
   removeTaskAttachmentLinks,
 } from "@/lib/utils/task-attachments";
-import { taskContextSelectionAttachesAnything } from "@/lib/utils/task-context-selection";
 import {
   getTaskScheduleOperationId,
   hasTaskScheduleChanged,
@@ -688,7 +688,13 @@ export function TaskForm({
   }, [isSubmittingAny, isUploadingAttachments, onSubmittingChange]);
   const hasSaveableDescription =
     Boolean(description.trim()) ||
-    (mode === "edit" && taskContextSelectionAttachesAnything(contextSelection));
+    (mode === "edit" &&
+      taskContextSelectionAttachesAnything(contextSelection, {
+        projectDesignMdUrl: selectedProject?.designMd?.url ?? null,
+        workspaceDesignMdUrl: initialDesignMdAttachment?.url ?? null,
+        projectBriefingUrl: selectedProject?.briefingUrl ?? null,
+        projectContextMdUrl: selectedProject?.contextMd?.url ?? null,
+      }));
   const isSaveDisabled =
     createdTask !== null ||
     !hasSaveableDescription ||

@@ -146,3 +146,60 @@ export function parseTaskContextFromDescription(
     },
   };
 }
+
+export interface TaskContextAttachmentFlags {
+  brand: {
+    enabled: boolean;
+    source?: "project" | "default" | "custom";
+    custom?: { url: string } | null;
+  };
+  briefingEnabled: boolean;
+  contextMdEnabled: boolean;
+}
+
+export interface TaskContextAttachmentAvailability {
+  projectDesignMdUrl?: string | null;
+  workspaceDesignMdUrl?: string | null;
+  projectBriefingUrl?: string | null;
+  projectContextMdUrl?: string | null;
+}
+
+/** With `availability`, requires a resolvable URL; without it, any enabled chip counts. */
+export function taskContextSelectionAttachesAnything(
+  selection: TaskContextAttachmentFlags,
+  availability?: TaskContextAttachmentAvailability,
+): boolean {
+  if (!availability) {
+    return (
+      selection.brand.enabled ||
+      selection.briefingEnabled ||
+      selection.contextMdEnabled
+    );
+  }
+
+  if (selection.brand.enabled) {
+    const source = selection.brand.source ?? "project";
+    if (source === "custom") {
+      if (selection.brand.custom?.url) {
+        return true;
+      }
+    } else if (source === "project") {
+      if (
+        availability.projectDesignMdUrl ||
+        availability.workspaceDesignMdUrl
+      ) {
+        return true;
+      }
+    } else if (availability.workspaceDesignMdUrl) {
+      return true;
+    }
+  }
+
+  if (selection.briefingEnabled && availability.projectBriefingUrl) {
+    return true;
+  }
+  if (selection.contextMdEnabled && availability.projectContextMdUrl) {
+    return true;
+  }
+  return false;
+}

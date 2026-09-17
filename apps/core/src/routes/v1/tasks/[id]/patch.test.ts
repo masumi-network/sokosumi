@@ -882,6 +882,95 @@ describe("PATCH /tasks/{id}", () => {
       }),
     );
   });
+
+  it("treats explicit description null as empty prose when context is provided", async () => {
+    const app = createApp();
+    const designMdUrl =
+      "https://store.public.blob.vercel-storage.com/design-md/projects/brand.md";
+    requireTaskOwnershipMock.mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.DRAFT,
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: "org_123",
+      ownerId: "user_123",
+      description: `[DESIGN.md](${designMdUrl})\n\nOld prose that must clear`,
+      visibility: TaskVisibility.PUBLIC,
+      metadata: null,
+      nextRunAt: null,
+      scheduleRevision: 0,
+    });
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      filesToken: null,
+      designMdUrl,
+      briefing: null,
+      briefingUrl: null,
+      contextMdUrl: null,
+    });
+
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        description: null,
+        context: { brand: true, brandSource: "project" },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(taskUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          description: `[DESIGN.md](${designMdUrl})`,
+        }),
+      }),
+    );
+  });
+
+  it("rejects when Context resolves to no attachments and prose is empty", async () => {
+    const app = createApp();
+    requireTaskOwnershipMock.mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.DRAFT,
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: "org_123",
+      ownerId: "user_123",
+      description: "Existing prose",
+      visibility: TaskVisibility.PUBLIC,
+      metadata: null,
+      nextRunAt: null,
+      scheduleRevision: 0,
+    });
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      filesToken: null,
+      designMdUrl: null,
+      briefing: null,
+      briefingUrl: null,
+      contextMdUrl: null,
+    });
+    resolveEffectiveDesignMdMock.mockResolvedValue(null);
+
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        description: "",
+        context: { brand: true, brandSource: "project" },
+      }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("PATCH /tasks/{id} active schedule series (SOK-884)", () => {

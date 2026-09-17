@@ -16,7 +16,12 @@ import {
   requireTaskAssignableUser,
 } from "@/helpers/access-control";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
-import { conflict, forbidden, notFound } from "@/helpers/error";
+import {
+  conflict,
+  forbidden,
+  notFound,
+  unprocessableEntity,
+} from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { ok } from "@/helpers/response";
@@ -314,8 +319,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ? await healProjectBriefingUrl(contextProject, task.workspaceId, tx)
             : contextProject;
         const proseSource =
-          description !== undefined && description !== null
-            ? description
+          description !== undefined
+            ? (description ?? "")
             : (task.description ?? "");
         const preservedBrandUrl = parseTaskContextFromDescription(
           task.description ?? "",
@@ -329,6 +334,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           preservedBrandUrl,
           tx,
         });
+        if (!nextDescription?.trim()) {
+          throw unprocessableEntity(
+            "Description required when Context resolves to no attachments",
+          );
+        }
       }
 
       const updatedTask = await tx.task.update({
