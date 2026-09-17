@@ -16,6 +16,7 @@ import {
 } from "@/app/chat/utils/chat-route-base";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 import { makeRoom, makeUser } from "./__tests__/chat-room-fixtures";
+import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
 
 const {
   leaveRoomActionMock,
@@ -60,23 +61,26 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-// The row's two numbers resolve by full key path, so a typo in the namespace
-// fails here instead of passing on a bare key that happens to match. The real
+// The row's two numbers and the rail pill's two states resolve by full key
+// path, so a typo in the namespace fails here instead of passing on a bare key
+// that happens to match. The real
 // catalog and the real ICU plurals are bound in
 // `__tests__/chat-room-sidebar-row-messages.test.tsx`.
 vi.mock("next-intl", () => ({
   useTranslations:
     (namespace?: string) =>
     (key: string, values?: Record<string, string | number>) => {
-      const numbers: Record<string, string> = {
+      const catalogKeys: Record<string, string> = {
         "App.Channels.RoomUnread.unreadMessages": `${values?.count ?? ""} unread messages`,
         "App.Channels.RoomUnread.unreadMessagesCapped": `More than ${values?.max ?? ""} unread messages`,
         "App.Channels.RoomMentions.mentions": `${values?.count ?? ""} mentions`,
         "App.Channels.RoomMentions.mentionsCapped": `More than ${values?.max ?? ""} mentions`,
+        "App.Channels.RoomUnread.railUnread": "Unread",
+        "App.Channels.RoomMentions.railMention": "Mentions you",
       };
-      const number = numbers[`${namespace ?? ""}.${key}`];
-      if (number !== undefined) {
-        return number;
+      const catalogValue = catalogKeys[`${namespace ?? ""}.${key}`];
+      if (catalogValue !== undefined) {
+        return catalogValue;
       }
 
       const translations: Record<string, string> = {
@@ -405,6 +409,12 @@ describe("ChatRoomSidebarRow collapsed rail", () => {
       "group-data-[collapsible=icon]:justify-center",
     );
     expect(link?.className).toContain("group-data-[collapsible=icon]:px-0!");
+    // The menu button clips its content for name truncation. Collapsed, the
+    // 24px tile's corner mark hangs 6px below it inside a 32px button, so the
+    // clip has to lift there or the lock and globe lose their bottom.
+    expect(link?.className).toContain(
+      "group-data-[collapsible=icon]:overflow-visible",
+    );
 
     const slot = screen.getByTestId("custom-leading").parentElement;
     expect(slot?.className).toContain("group-data-[collapsible=icon]:h-6");
@@ -420,6 +430,105 @@ describe("ChatRoomSidebarRow collapsed rail", () => {
     expect(
       container.querySelector('[data-slot="room-trailing-spacer"]')?.className,
     ).toContain("group-data-[collapsible=icon]:hidden");
+  });
+
+  // The rail attention pill: the one cue left once bold, count, and badge hide.
+  function renderRail(
+    room: Partial<ChatRoom>,
+    options: { isActive?: boolean; leading?: ReactNode } = {},
+  ) {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom(room)}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={options.isActive ?? false}
+        leading={options.leading ?? <span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+    return container.querySelector('[data-slot="room-rail-attention"]');
+  }
+
+  it("shows the unread pill for an unread room, in the collapsed rail only", () => {
+    const pill = renderRail({ unreadCount: 3 });
+    expect(pill?.getAttribute("data-variant")).toBe("unread");
+    // Rendered always, shown only collapsed, like the channel tile.
+    expect(pill?.className).toContain("hidden");
+    expect(pill?.className).toContain("group-data-[collapsible=icon]:block");
+    // 6px unread, on the rail's edge outside the link's overflow clip.
+    expect(pill?.className).toContain("h-1.5");
+    expect(pill?.className).toContain("-left-2");
+    expect(
+      document.querySelector('a[href="/chat/rooms/room-1"]')?.contains(pill),
+    ).toBe(false);
+    // The state is announced inside the link, collapsed only.
+    const text = screen.getByText("Unread");
+    expect(text.className).toContain("sr-only");
+    expect(text.className).toContain("hidden");
+    expect(text.className).toContain("group-data-[collapsible=icon]:block");
+    expect(
+      document.querySelector('a[href="/chat/rooms/room-1"]')?.contains(text),
+    ).toBe(true);
+  });
+
+  it("shows the taller mention pill when the reader is mentioned", () => {
+    const pill = renderRail({ unreadMentionCount: 2 });
+    expect(pill?.getAttribute("data-variant")).toBe("mention");
+    expect(pill?.className).toContain("h-2");
+    expect(screen.getByText("Mentions you").className).toContain("sr-only");
+  });
+
+  it("shows exactly one pill, the mention one, when mention and unread meet", () => {
+    const pill = renderRail({ unreadCount: 5, unreadMentionCount: 2 });
+    expect(pill?.getAttribute("data-variant")).toBe("mention");
+    expect(screen.queryByText("Unread")).toBeNull();
+    expect(
+      document.querySelectorAll('[data-slot="room-rail-attention"]'),
+    ).toHaveLength(1);
+  });
+
+  it("shows the unread pill for a room the reader marked unread by hand", () => {
+    expect(
+      renderRail({ markedUnread: true })?.getAttribute("data-variant"),
+    ).toBe("unread");
+  });
+
+  it("shows no pill for a read room", () => {
+    expect(renderRail({})).toBeNull();
+  });
+
+  it("shows no pill for a muted room however loud it is", () => {
+    expect(
+      renderRail({
+        unreadCount: 9,
+        unreadMentionCount: 4,
+        markedUnread: true,
+        mutedAt: new Date("2026-09-01T00:00:00.000Z"),
+      }),
+    ).toBeNull();
+  });
+
+  it("keeps the pill on the room the reader has open", () => {
+    expect(
+      renderRail({ unreadCount: 1 }, { isActive: true })?.getAttribute(
+        "data-variant",
+      ),
+    ).toBe("unread");
+  });
+
+  // The pill belongs to the row, so a Direct gets it with no wiring of its
+  // own, and it sits beside the real avatar stack rather than on it: the face
+  // keeps its presence dot to itself.
+  it("marks a Direct beside its avatar the same way as a Channel", () => {
+    const room = makeRoom({ kind: "direct", unreadMentionCount: 1 });
+    const pill = renderRail(room, {
+      leading: <DirectRoomAvatarStack room={room} currentUserId="user-1" />,
+    });
+    expect(pill?.getAttribute("data-variant")).toBe("mention");
+    const face = screen.getByTestId("dm-sidebar-avatar-user-2");
+    expect(face).toBeInTheDocument();
+    expect(face.parentElement?.contains(pill)).toBe(false);
   });
 });
 
