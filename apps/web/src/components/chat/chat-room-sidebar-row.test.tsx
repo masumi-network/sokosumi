@@ -532,6 +532,81 @@ describe("ChatRoomSidebarRow collapsed rail", () => {
   });
 });
 
+// The rail selection bar: the mirror of the pill, on the other edge, so the
+// open room is readable without the fill the three states used to share.
+describe("ChatRoomSidebarRow rail selection bar", () => {
+  function renderRow(
+    room: Partial<ChatRoom>,
+    options: { isActive?: boolean } = {},
+  ) {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom(room)}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={options.isActive ?? false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+    return container;
+  }
+
+  function selectionBar(container: HTMLElement) {
+    return container.querySelector('[data-slot="room-rail-selection"]');
+  }
+
+  it("marks the open room on the rail's right edge, collapsed only", () => {
+    const bar = selectionBar(renderRow({}, { isActive: true }));
+    expect(bar).not.toBeNull();
+    // Rendered always, shown only collapsed, like the pill and the tile.
+    expect(bar?.className).toContain("hidden");
+    expect(bar?.className).toContain("group-data-[collapsible=icon]:block");
+    // The opposite edge from the attention pill's `-left-2`, and longer than
+    // either pill so it answers "which row is open" from the corner of the eye.
+    expect(bar?.className).toContain("-right-2");
+    expect(bar?.className).toContain("h-5");
+    // Outside the link, so the collapsed announcement stays the room's name
+    // plus `aria-current`, with no second word for the same fact.
+    expect(bar?.getAttribute("aria-hidden")).toBe("true");
+    expect(
+      document.querySelector('a[href="/chat/rooms/room-1"]')?.contains(bar),
+    ).toBe(false);
+  });
+
+  it("shows no selection bar on a room the reader does not have open", () => {
+    expect(selectionBar(renderRow({}))).toBeNull();
+  });
+
+  it("marks an unread open room on both edges at once", () => {
+    const container = renderRow({ unreadMentionCount: 2 }, { isActive: true });
+    expect(
+      container
+        .querySelector('[data-slot="room-rail-attention"]')
+        ?.getAttribute("data-variant"),
+    ).toBe("mention");
+    expect(selectionBar(container)).not.toBeNull();
+  });
+
+  it("leaves the collapsed fill to hover alone", () => {
+    const link = renderRow({}, { isActive: true }).querySelector(
+      'a[href="/chat/rooms/room-1"]',
+    );
+    // Neither hover nor active paints the rail, or all three states land on
+    // the one 15% neutral that `--muted`/`--accent`/`--sidebar-accent` share.
+    expect(link?.className).toContain(
+      "group-data-[collapsible=icon]:hover:bg-transparent",
+    );
+    expect(link?.className).toContain(
+      "group-data-[collapsible=icon]:data-[active=true]:bg-transparent",
+    );
+    // Hover states itself with a ring instead, which reads over a filled tile.
+    expect(link?.className).toContain(
+      "group-data-[collapsible=icon]:hover:ring-1",
+    );
+  });
+});
+
 describe("ChatRoomSidebarRow trailing cluster", () => {
   it("hides the pin glyph and room menu when the sidebar collapses", () => {
     const { container } = render(

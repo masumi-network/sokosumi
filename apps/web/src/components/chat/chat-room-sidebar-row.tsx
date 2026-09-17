@@ -189,6 +189,34 @@ function RailAttentionPill({ variant }: { variant: "unread" | "mention" }) {
   );
 }
 
+/**
+ * The collapsed rail's selection mark (Rail selection bar, CONTEXT.md).
+ *
+ * The mirror of `RailAttentionPill`: attention arrives on the left edge, the
+ * open room is marked on the right, where the bar points at the panel it put
+ * there. Splitting the two edges is what lets a room be both at once without
+ * the marks arguing, and it keeps selection off the fill, so the Channel tile
+ * keeps the muted plate its kind corner mark sits on.
+ *
+ * 20px against the pill's 6px and 8px, because this one answers "which row is
+ * open" from the corner of the eye rather than "this room wants you". Length
+ * carries that on its own; sharing `--primary-solid` with the mention pill
+ * costs nothing when the two never sit on the same edge.
+ *
+ * Decorative: `aria-current="page"` on the link already states it, so a second
+ * announcement would only repeat the row. `-right-2` lands it flush on the
+ * rail's edge the way the pill's `-left-2` does, inside the group's `p-2`.
+ */
+function RailSelectionBar() {
+  return (
+    <span
+      data-slot="room-rail-selection"
+      aria-hidden="true"
+      className="bg-primary-solid absolute top-1/2 -right-2 z-10 hidden h-5 w-1 -translate-y-1/2 rounded-l-full group-data-[collapsible=icon]:block"
+    />
+  );
+}
+
 export function ChatRoomSidebarRow({
   room,
   href,
@@ -340,6 +368,17 @@ export function ChatRoomSidebarRow({
       aria-current={isActive ? "page" : undefined}
       className={cn(
         "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-2 px-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:overflow-visible group-data-[collapsible=icon]:px-0!",
+        // Collapsed, the fill is hover's alone. Expanded it carries hover and
+        // selection both, which on the rail left three states one colour:
+        // `--muted`, `--accent` and `--sidebar-accent` are the same value in
+        // dark, so the tile's own plate, the hover wash and the active wash
+        // all landed on 15% and only the box grew. So selection moves to the
+        // right-edge bar and hover takes a ring, which reads against a filled
+        // tile without repainting it. Both overrides outrank the base
+        // `hover:` and `data-[active=true]:` rules on specificity, not on
+        // source order, because Tailwind decides the latter.
+        "group-data-[collapsible=icon]:hover:bg-transparent group-data-[collapsible=icon]:data-[active=true]:bg-transparent",
+        "group-data-[collapsible=icon]:hover:ring-sidebar-ring group-data-[collapsible=icon]:hover:ring-1",
         isMuted && !isActive && "opacity-60",
       )}
       href={href}
@@ -413,6 +452,7 @@ export function ChatRoomSidebarRow({
   return (
     <SidebarMenuItem className="group/room-row relative">
       {railVariant ? <RailAttentionPill variant={railVariant} /> : null}
+      {isActive ? <RailSelectionBar /> : null}
       {/* Collapsed to icons the row is only its leading mark, so the name
           rides the button's tooltip, which the sidebar shows in that state
           alone. */}
