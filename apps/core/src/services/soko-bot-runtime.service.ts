@@ -1,5 +1,4 @@
 import { createHash, randomUUID } from "node:crypto";
-
 import * as Sentry from "@sentry/node";
 import {
   AgentJobStatus,
@@ -52,12 +51,26 @@ import {
 import {
   buildUserDriveFilePathname,
   buildUserDriveFilePrefix,
+  createDataTableSchema,
+  tableBatchSchema,
+  tableMutationSchema,
+  tableQuerySchema,
 } from "@sokosumi/utils";
 import { list, put } from "@vercel/blob";
 import { waitUntil } from "@vercel/functions";
+import { z } from "zod";
 import { getEnv } from "@/config/env";
 import { getAgentApiBaseUrl, toMasumiAgent } from "@/helpers/agent";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
+import {
+  batchTableRows,
+  createDataTable,
+  listDataTables,
+  mutateDataTable,
+  queryTableRows,
+  requireDataTable,
+  resolveTableActor,
+} from "@/helpers/data-table";
 import { createAgentJobForUser } from "@/helpers/job";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
@@ -85,6 +98,7 @@ import {
   resolveMentionedCoworkerIds,
   resolveMentionedSokoBotIds,
 } from "@/routes/v1/chats/rooms/helpers";
+import { dataTableSchema } from "@/schemas/data-table.schema";
 
 function toolAssigneeFields(
   coworkerId: string | null | undefined,
@@ -2291,6 +2305,111 @@ export class SokoBotRuntimeService {
   ): Promise<unknown> {
     const authorized = await this.authorize(input);
     switch (input.capability) {
+      case "list_tables":
+      case "read_table":
+      case "create_table":
+      case "write_table_rows":
+      case "update_table_columns": {
+        const workspace = await prisma.workspace.findUniqueOrThrow({
+          where: { id: authorized.turn.workspaceId },
+        });
+        const actor = await resolveTableActor(
+          {
+            actor: "sokoBot",
+            sokoBotId: authorized.turn.sokoBotId,
+            userId: authorized.turn.userId,
+            workspaceId: workspace.id,
+            organizationId: workspace.organizationId,
+          },
+          workspace.id,
+        );
+        if (input.capability === "list_tables")
+          return listDataTables(
+            actor,
+            z
+              .object({
+                cursor: z.uuid().optional(),
+                limit: z.number().int().min(1).max(100).optional(),
+              })
+              .parse(input.input),
+          );
+        const { taskId } = z
+          .object({ taskId: z.string().max(200).optional() })
+          .parse(input.input);
+        if (
+          authorized.turn.source !== "CHAT" &&
+          !taskId &&
+          ["create_table", "write_table_rows", "update_table_columns"].includes(
+            input.capability,
+          )
+        ) {
+          throw new SokoBotRuntimeAuthorizationError(
+            "Task-driven table writes require an assigned taskId",
+          );
+        }
+        const scopedActor = { ...actor, taskId };
+        if (input.capability === "create_table") {
+          const table = await createDataTable(
+            scopedActor,
+            createDataTableSchema.parse(input.input),
+          );
+          const url = `/drive/tables/${table.id}`;
+          const turn = await prisma.sokoBotTurn.findUnique({
+            where: { id: authorized.turn.id },
+            select: {
+              chatMention: {
+                select: { message: { select: { roomId: true } } },
+              },
+            },
+          });
+          if (turn?.chatMention) {
+            const content = `[${table.title.replaceAll("[", "").replaceAll("]", "")}](${url})`;
+            const existing = await prisma.chatRoomMessage.findFirst({
+              where: {
+                roomId: turn.chatMention.message.roomId,
+                senderSokoBotId: actor.actorId,
+                content,
+              },
+            });
+            if (!existing)
+              await this.postChat(authorized, {
+                roomId: turn.chatMention.message.roomId,
+                content,
+              });
+          }
+          return {
+            table,
+            url,
+            instruction:
+              "Table created. Present this link now; enrich in bounded batches. Reuse this table ID for follow-ups.",
+          };
+        }
+        const { tableId } = z
+          .object({ tableId: z.uuid(), taskId: z.string().optional() })
+          .parse(input.input);
+        if (input.capability === "read_table")
+          return {
+            table: dataTableSchema.parse(
+              await requireDataTable(scopedActor, tableId),
+            ),
+            ...(await queryTableRows(
+              scopedActor,
+              tableId,
+              tableQuerySchema.parse(input.input),
+            )),
+          };
+        if (input.capability === "write_table_rows")
+          return batchTableRows(
+            scopedActor,
+            tableId,
+            tableBatchSchema.parse(input.input),
+          );
+        return mutateDataTable(
+          scopedActor,
+          tableId,
+          tableMutationSchema.parse(input.input),
+        );
+      }
       case "refresh_context":
         return this.getContext(input);
       case "find_coworkers": {

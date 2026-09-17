@@ -30,7 +30,8 @@
     "test:ci": "vitest run"
   },
   "dependencies": {
-    "zod": "4.6.5"
+    "zod": "4.6.5",
+    "@sokosumi/utils": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "24.13.5",

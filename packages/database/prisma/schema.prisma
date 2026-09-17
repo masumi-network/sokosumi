@@ -258,6 +258,8 @@ model Workspace {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  dataTables DataTable[]
+
   calendarRevision Int @default(0)
 
   userId String? @unique
@@ -539,6 +541,7 @@ model Project {
   closingAt        DateTime?
   closedAt         DateTime?
 
+  dataTables            DataTable[]
   jobs                  Job[]
   tasks                 Task[]
   scheduleOccurrences   TaskScheduleOccurrence[]
@@ -2440,6 +2443,7 @@ model CoworkerApiKey {
 }
 
 model Task {
+  tableScope TableTaskScope?
   id         String    @id @default(uuid(7))
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
@@ -3862,4 +3866,127 @@ model SokoBotInstalledSkill {
   @@unique([sokoBotId, name])
   @@index([sokoBotId])
   @@map("soko_bot_installed_skill")
+}
+
+/// Live structured resource in Files. Values are keyed by immutable column IDs.
+model DataTable {
+  id          String           @id @default(uuid(7)) @db.Uuid
+  workspaceId String           @db.Uuid
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projectId   String?          @db.Uuid
+  project     Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  title       String
+  description String           @default("")
+  createdBy   String
+  version     Int              @default(1)
+  archivedAt  DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  columns     TableColumn[]
+  rows        TableRow[]
+  views       TableView[]
+  changes     TableChange[]
+  operations  TableOperation[]
+  taskScopes  TableTaskScope[]
+
+  @@index([workspaceId, archivedAt, createdAt, id])
+  @@index([projectId])
+  @@map("data_table")
+}
+
+model TableColumn {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  tableId     String    @db.Uuid
+  table       DataTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  name        String
+  description String    @default("")
+  type        String
+  options     Json      @default("[]")
+  position    Int
+  version     Int       @default(1)
+
+  @@index([tableId, position])
+  @@map("table_column")
+}
+
+model TableRow {
+  id      String    @id @default(uuid(7)) @db.Uuid
+  tableId String    @db.Uuid
+  table   DataTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  values  Json      @default("{}")
+  evidence Json @default("{}")
+  version Int @default(1)
+  archivedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tableId, archivedAt, id])
+  @@map("table_row")
+}
+
+model TableView {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  tableId    String    @db.Uuid
+  table      DataTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  name       String
+  definition Json
+  version    Int       @default(1)
+
+  @@index([tableId])
+  @@map("table_view")
+}
+
+model TableChange {
+  sequence  BigInt    @default(autoincrement())
+  id        String    @id @default(uuid(7)) @db.Uuid
+  tableId   String    @db.Uuid
+  table     DataTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  batchId   String    @db.Uuid
+  actorId   String
+  actorKind String
+  taskId    String?
+  rowId     String?   @db.Uuid
+  columnId  String?   @db.Uuid
+  before    Json
+  after     Json
+  evidence  Json      @default("[]")
+  createdAt DateTime  @default(now())
+
+  @@index([tableId, createdAt, id])
+  @@index([tableId, batchId])
+  @@index([tableId, rowId, columnId])
+  @@map("table_change")
+}
+
+/// Stores the request and exact result in the same transaction as the write.
+model TableOperation {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  workspaceId String    @db.Uuid
+  actorId     String
+  key         String
+  requestHash String
+  tableId     String    @db.Uuid
+  table       DataTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  result      Json
+  createdAt   DateTime  @default(now())
+
+  @@unique([workspaceId, actorId, key])
+  @@index([tableId])
+  @@map("table_operation")
+}
+
+/// Explicit human-authorized cell scope for an enrichment task.
+model TableTaskScope {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  tableId   String    @db.Uuid
+  table     DataTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  taskId    String    @unique
+  task      Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  rowIds    String[]
+  columnIds String[]
+  createdBy String
+  createdAt DateTime  @default(now())
+
+  @@index([tableId])
+  @@map("table_task_scope")
 }

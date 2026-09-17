@@ -174,6 +174,16 @@ vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
 vi.mock("@/services/soko-bot-availability.service", () => ({
   getSokoBotAvailability: availabilityMock,
 }));
+vi.mock("@/helpers/data-table", () => ({
+  resolveTableActor: vi.fn(),
+  createDataTable: vi.fn(),
+  listDataTables: vi.fn(),
+  requireDataTable: vi.fn(),
+  queryTableRows: vi.fn(),
+  batchTableRows: vi.fn(),
+  mutateDataTable: vi.fn(),
+}));
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: transactionMock,
