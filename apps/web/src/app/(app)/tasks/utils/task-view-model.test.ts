@@ -271,6 +271,8 @@ describe("mapTaskToTaskWithCoworker", () => {
     const mapped = map(task);
 
     expect(mapped.descriptionPlain).toBe("Test task");
-    expect(mapped.descriptionPlain).not.toMatch(/DESIGN\.md|BRIEFING\.md|CONTEXT\.md/);
+    expect(mapped.descriptionPlain).not.toMatch(
+      /DESIGN\.md|BRIEFING\.md|CONTEXT\.md/,
+    );
   });
 });
