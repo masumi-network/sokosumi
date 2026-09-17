@@ -381,6 +381,17 @@ describe("resolveMentionedSokoBotIds", () => {
 });
 
 describe("buildDirectRoomKey", () => {
+  it("reserves the self namespace for the caller as the only participant", () => {
+    expect(
+      buildDirectParticipantRoomKey({
+        currentUserId: "user_self",
+        memberUserIds: ["user_self"],
+        coworkerIds: [],
+        sokoBotIds: [],
+      }),
+    ).toBe("direct:self:user_self");
+  });
+
   it("builds the same key regardless of user order", () => {
     expect(buildDirectRoomKey("user_b", "user_a")).toBe("user_a:user_b");
     expect(buildDirectRoomKey("user_a", "user_b")).toBe("user_a:user_b");

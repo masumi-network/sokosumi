@@ -194,6 +194,7 @@ export function makeRoom(
     organizationName: "Acme",
     name: overrides.id,
     slug: overrides.kind === "channel" ? overrides.id : null,
+    isSelfDirect: false,
     directKey: null,
     topic: null,
     discoverability: overrides.kind === "channel" ? "public" : null,
