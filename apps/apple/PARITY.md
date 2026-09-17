@@ -996,11 +996,13 @@ Native adaptations: the invite and join pages are sheets over the chat window in
 
 Verification (all from `apps/apple`):
 - `swift test --package-path Packages/SokosumiChat` — 447 tests passed (new `ChatInvitationsTests`, invitation `ChatServiceTests`, extended `ChatLinkTests`).
-- `swift test --package-path Packages/SokosumiWorkspace` — 91 passed (new accept/decline/navigation/mutual-exclusion/guest-link cases); `SokosumiAuth` 35, `SokosumiRealtime` 27, `CoreAPI` 1 passed.
+- `swift test --package-path Packages/SokosumiWorkspace` — 92 passed (new accept/decline/navigation/mutual-exclusion/guest-link cases and `invitationOpenChannelReListsMissingRoom`); `SokosumiAuth` 35, `SokosumiRealtime` 27, `CoreAPI` 1 passed.
 - `mint run swiftformat --lint --cache ignore .` — 0/315 files require formatting; `mint run swiftlint lint --strict --no-cache` — 0 violations.
 - `xcodebuild … build` (macOS arm64, ad-hoc) — succeeded; `xcodebuild … test -enableCodeCoverage NO -only-testing:SokosumiTests` — succeeded, 153 test cases, 0 failures.
 - `swift build --package-path Packages/SokosumiWorkspace --triple arm64-apple-ios17.0 --sdk "$(xcrun --sdk iphoneos --show-sdk-path)"` — succeeded.
 - Native fixtures (`PendingInvitationRowTests`, `ChatInviteViewTests`, `ChatJoinViewTests`) captured through a one-off unsandboxed run (`CODE_SIGN_ENTITLEMENTS= ENABLE_APP_SANDBOX=NO`) and inspected in light/dark: sidebar rows truncate long names/organizations, the busy row shows "Loading…" with both buttons disabled and the globe/title columns align with a room row; the pending card, join preview, not-found and expired cards render without clipping. [Sidebar light](docs/screenshots/pending-invitations-light.png), [sidebar dark](docs/screenshots/pending-invitations-dark.png), [invite light](docs/screenshots/chat-invite-pending-light.png), [invite dark](docs/screenshots/chat-invite-pending-dark.png), [join light](docs/screenshots/chat-join-valid-light.png), [join dark](docs/screenshots/chat-join-valid-dark.png). Task-owned test hosts exited.
 
 Unverified: authenticated accept/decline/join against a live Core, clicking a real invite or join link inside a message, the live External section with real invitations, sheet keyboard focus, VoiceOver and large Dynamic Type. The running web UI was not exercised; the audit is source-based. No production invitation was changed.
+
+Review follow-ups: Escape/Close on the pending invite sheet dismisses without declining (Decline is click-only, Accept stays Return). The accepted card's "Open channel" goes through `WorkspaceState.openInvitedRoom`, which re-lists rooms only when the room is missing locally (an invitation accepted on another device) and then selects it; a stale composition context sends nothing. Pending-invite fixtures were recaptured after the Close button landed. Verified on the follow-up: Workspace 92, macOS app tests, strict lint/format and the iOS 17 Workspace build pass.
 

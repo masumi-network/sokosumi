@@ -34,7 +34,7 @@ struct InviteLinkSheet: ViewModifier {
             case .decline: try await workspaces.declineInvitation(id: id, context: presentation.context, auth: auth)
             }
           }, openRoom: { roomId in
-            workspaces.selectRoom(roomId, auth: auth)
+            Task { @MainActor in await workspaces.openInvitedRoom(roomId, context: presentation.context, auth: auth) }
           })
         case let .guestJoin(token):
           ChatJoinView(token: token, resolve: {

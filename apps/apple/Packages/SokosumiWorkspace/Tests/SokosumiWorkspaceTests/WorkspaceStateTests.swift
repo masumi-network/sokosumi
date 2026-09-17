@@ -2280,6 +2280,42 @@ extension WorkspaceStateTests {
     #expect(state.pendingInvitations.invitations.isEmpty)
   }
 
+  /// "Open channel" on an already-accepted card re-lists only when the room is missing locally, then opens it.
+  @Test func invitationOpenChannelReListsMissingRoom() async throws {
+    let general = "550e8400-e29b-41d4-a716-446655440000"
+    let partners = "550e8400-e29b-41d4-a716-446655440001"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomsBody(names: ["general", "partners"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, transcriptPageBody(messages: [], nextCursor: nil))
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    #expect(state.transcriptRoomId == general)
+    let context = state.compositionContext
+
+    // A stale context never lists or navigates.
+    let sent = transport.operationIDs.count
+    await state.openInvitedRoom(partners, context: UUID(), auth: auth)
+    #expect(transport.operationIDs.count == sent && state.transcriptRoomId == general)
+
+    await state.openInvitedRoom(partners, context: context, auth: auth)
+    await waitForTranscriptIdle(state)
+    #expect(state.rooms.map(\.id) == [general, partners])
+    #expect(state.transcriptRoomId == partners)
+
+    // A listed room opens without another list request.
+    await state.openInvitedRoom(general, context: context, auth: auth)
+    await waitForTranscriptIdle(state)
+    #expect(state.transcriptRoomId == general)
+    #expect(transport.operationIDs.suffix(3) == ["get/chats/rooms", "get/chats/rooms/{id}/messages", "get/chats/rooms/{id}/messages"])
+    #expect(transport.remainingStubs == 0)
+  }
+
   /// Accepting from the invite sheet while the user already moved to another room must not pull them back.
   @Test func invitationAcceptRespectsNavigation() async throws {
     let general = "550e8400-e29b-41d4-a716-446655440000"

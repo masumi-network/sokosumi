@@ -69,6 +69,18 @@ public extension WorkspaceState {
     }
   }
 
+  /// The accepted card's "Open channel": an invitation accepted on another device is not in the local list until the
+  /// next refresh, so re-list first. The click is explicit, so no navigation guard applies.
+  func openInvitedRoom(_ roomId: String, context: UUID, auth: AuthState) async {
+    guard context == compositionContext else { return }
+    if !rooms.contains(where: { $0.id == roomId }) {
+      await roomsRefreshTask?.value
+      await refreshRooms(auth: auth)
+    }
+    guard context == compositionContext, rooms.contains(where: { $0.id == roomId }) else { return }
+    selectRoom(roomId, auth: auth)
+  }
+
   /// Guest rooms are listed in every workspace, so the current list gains the room; a completed request must not pull the user away from a room they selected meanwhile.
   private func openJoinedRoom(_ roomId: String, sourceRoom: String?, context: UUID, auth: AuthState) async {
     // A list refresh that started before the membership was granted cannot contain the room.
