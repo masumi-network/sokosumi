@@ -428,7 +428,7 @@ describe("scheduleChatRoomMessageUnfurls", () => {
     });
   });
 
-  describe("unfurl snapshots (ADR 0030)", () => {
+  describe("unfurl snapshots (ADR 0031)", () => {
     const ROOM_ID = "019fa92e-3818-707e-86ea-2db89f35cc23";
     const STORED = `https://abc.public.blob.vercel-storage.com/chats/${ROOM_ID}/unfurls/${MESSAGE_ID}/image-preview-x1.png`;
     const PREVIOUS = `https://abc.public.blob.vercel-storage.com/chats/${ROOM_ID}/unfurls/${MESSAGE_ID}/image-preview-old.png`;

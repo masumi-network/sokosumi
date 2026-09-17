@@ -29,7 +29,7 @@ export interface SnapshotChatRoomUnfurlImageParams {
 
 /**
  * Download a page's preview image and store it in Vercel Blob under the
- * message (ADR 0030). Returns the stored URL, or null when Blob is not
+ * message (ADR 0031). Returns the stored URL, or null when Blob is not
  * configured or the source is not a usable raster image; the caller keeps
  * the source URL then.
  *

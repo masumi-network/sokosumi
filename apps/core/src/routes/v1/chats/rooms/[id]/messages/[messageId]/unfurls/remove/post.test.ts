@@ -223,7 +223,7 @@ describe("POST /chats/rooms/:id/messages/:messageId/unfurls/remove", () => {
       expect.objectContaining({ id: MESSAGE_ID }),
       "unfurl",
     );
-    // The removed card's snapshot goes with it (ADR 0030); ownership is
+    // The removed card's snapshot goes with it (ADR 0031); ownership is
     // checked inside the helper, so the source URL is passed as-is.
     expect(deleteSnapshotsMock).toHaveBeenCalledWith(
       [ablyCard.imageUrl],

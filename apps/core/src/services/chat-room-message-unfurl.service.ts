@@ -209,7 +209,7 @@ export async function scheduleChatRoomMessageUnfurls(
 }
 
 /**
- * Store each card's preview image under the message (ADR 0030). A card whose
+ * Store each card's preview image under the message (ADR 0031). A card whose
  * snapshot fails keeps its source URL.
  */
 function snapshotCardImages(

@@ -178,7 +178,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     });
 
     if (shouldPublish) {
-      // The snapshot belongs to the removed card only (ADR 0030). Off the
+      // The snapshot belongs to the removed card only (ADR 0031). Off the
       // response path, and not gated on the realtime publish succeeding.
       waitUntil(
         deleteChatRoomUnfurlSnapshotsIfOwned([removedImageUrl], id, messageId),
