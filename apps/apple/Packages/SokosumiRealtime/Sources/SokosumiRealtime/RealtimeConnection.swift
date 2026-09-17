@@ -1,11 +1,12 @@
 import Foundation
+import SokosumiChat
 
 /// Room + control subscription over one Ably connection (SOK-976).
 ///
 /// The app owns one connection while signed in; `WorkspaceState` drives it
 /// (connect after rooms load, observe the open room, refresh membership,
-/// disconnect on sign-out). ably-cocoa backs the real thing; tests inject a
-/// fake. No presence enter (ADR 0003), no push (ADR 0022 / 0023).
+/// enter org presence, disconnect on sign-out). ably-cocoa backs the real
+/// thing; tests inject a fake. No push (ADR 0022 / 0023).
 ///
 /// All closures are `Sendable`: the provider closes over the `OAuthSession`
 /// actor (actors cross isolation) plus values, never over MainActor state.
@@ -29,5 +30,11 @@ public protocol RealtimeConnection: AnyObject, Sendable {
   func watchRoom(_ roomId: String?)
   func setMembershipRooms(_ roomIds: Set<String>)
   func refreshMembership()
+  /// Enters org presence for the active organization once its token grant is
+  /// confirmed, leaving any previous one; nil (personal) only leaves (ADR 0003).
+  func setPresenceOrganization(_ organizationId: String?)
+  /// Latest presence data for this client. The coordinator throttles; the
+  /// transport re-sends it after every (re)authorization.
+  func publishPresence(_ data: ChatPresenceMemberData)
   func disconnect()
 }
