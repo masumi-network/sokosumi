@@ -509,6 +509,29 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
     expect(restSpacer?.className).toContain("[@media(hover:hover)]:size-0");
     expect(restSpacer?.className).not.toContain("[@media(hover:none)]:w-16");
   });
+
+  it("reserves the menu at rest when a mention badge shows, so the badge holds still on hover", () => {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom({
+          starredAt: new Date("2026-09-01T00:00:00.000Z"),
+          unreadCount: 2,
+          unreadMentionCount: 2,
+        })}
+        href="/chat/rooms/room-1"
+        label="Patrick Tobler"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const spacer = container.querySelector(
+      '[data-slot="room-trailing-spacer"]',
+    );
+    expect(spacer?.className).toContain("[@media(hover:hover)]:size-7");
+    expect(spacer?.className).not.toContain("[@media(hover:hover)]:size-4");
+  });
 });
 
 describe("ChatRoomSidebarRow edit menu", () => {
