@@ -1,3 +1,4 @@
+import { removeTaskContextAttachmentLinks } from "@sokosumi/utils";
 import type {
   TaskAssigneeView,
   TaskWithCoworker,
@@ -153,9 +154,16 @@ export function mapTaskToTaskWithCoworker(
   const agents = agentIds
     .map((id) => agentsById.get(id))
     .filter((agent): agent is CoreAgentDto => Boolean(agent));
-  const descriptionPlain = stripMarkdownToText(
-    replaceMentionsWithAgentNames(task.description, agentsById),
-  )?.slice(0, 200);
+  const namedDescription = replaceMentionsWithAgentNames(
+    task.description,
+    agentsById,
+  );
+  const descriptionPlain =
+    namedDescription === null
+      ? null
+      : stripMarkdownToText(
+          removeTaskContextAttachmentLinks(namedDescription),
+        )?.slice(0, 200);
   const createdAt = task.createdAt.toISOString();
   const updatedAt = task.updatedAt.toISOString();
   const nextRunAt = task.nextRunAt?.toISOString() ?? null;
