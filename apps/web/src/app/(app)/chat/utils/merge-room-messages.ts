@@ -142,6 +142,11 @@ function hasVisibleMessageBody(message: ChatRoomMessage): boolean {
   return message.content.trim().length > 0;
 }
 
+/** A quote sent to yourself is the whole message: the body is empty by design. */
+function isSavedQuoteMessage(message: ChatRoomMessage): boolean {
+  return message.quote != null;
+}
+
 /** Channel join/leave rows must stay even if content is empty. */
 function isMembershipStatusMessage(message: ChatRoomMessage): boolean {
   return message.membership != null;
@@ -158,6 +163,7 @@ function shouldKeepPersistedMessage(message: ChatRoomMessage): boolean {
   return (
     isMembershipStatusMessage(message) ||
     hasVisibleMessageBody(message) ||
+    isSavedQuoteMessage(message) ||
     isStreamingCoworkerPlaceholder(message)
   );
 }
