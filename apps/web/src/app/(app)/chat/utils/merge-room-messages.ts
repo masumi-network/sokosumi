@@ -1,6 +1,9 @@
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
-import { isPersistedMentionThoughtShell } from "./coworker-thought";
+import {
+  isFailedMentionThoughtShell,
+  isPersistedMentionThoughtShell,
+} from "./coworker-thought";
 
 import {
   confirmOutboundMessage,
@@ -147,18 +150,26 @@ function isMembershipStatusMessage(message: ChatRoomMessage): boolean {
   return message.membership != null;
 }
 
-function isStreamingCoworkerPlaceholder(message: ChatRoomMessage): boolean {
+/**
+ * Empty coworker shells for a mention stay while the Thought streams and after
+ * it fails: Core keeps the failed bubble so "Failed to reply" and Retry can
+ * live on it (`failMentionThoughtPlaceholder`).
+ */
+function isMentionCoworkerShell(message: ChatRoomMessage): boolean {
   if (message.sender.type !== "coworker") {
     return false;
   }
-  return isPersistedMentionThoughtShell(message.metadata);
+  return (
+    isPersistedMentionThoughtShell(message.metadata) ||
+    isFailedMentionThoughtShell(message.metadata)
+  );
 }
 
 function shouldKeepPersistedMessage(message: ChatRoomMessage): boolean {
   return (
     isMembershipStatusMessage(message) ||
     hasVisibleMessageBody(message) ||
-    isStreamingCoworkerPlaceholder(message)
+    isMentionCoworkerShell(message)
   );
 }
 
