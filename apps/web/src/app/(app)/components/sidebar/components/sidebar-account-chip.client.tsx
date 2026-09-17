@@ -108,12 +108,24 @@ function SidebarAccountChipDesktop({
         summary,
       })}
       className={cn(
-        "group/chip hover:bg-sidebar-accent focus-visible:ring-sidebar-ring data-[state=open]:bg-sidebar-accent flex cursor-pointer items-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:outline-hidden",
-        isCollapsed ? "size-8 justify-center" : "w-full gap-2.5 p-2",
+        "group/chip focus-visible:ring-sidebar-ring flex cursor-pointer items-center rounded-lg transition-colors focus-visible:ring-2 focus-visible:outline-hidden",
+        isCollapsed
+          ? // On the rail, hover and open are rings on transparent — the
+            // language `sidebarMenuButtonVariants` gives every room button
+            // there. A fill read as a selected room, and a `rounded-lg` fill
+            // sitting flush under a 32px circle showed at all four corners.
+            // The avatar drops to `size-6` inside the same 32px target, so the
+            // ring clears it by 4px exactly as a room tile's does.
+            "ring-sidebar-ring size-8 justify-center hover:ring-1 data-[state=open]:ring-2"
+          : "hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent w-full gap-2.5 p-2",
       )}
     >
       <span className="relative shrink-0">
-        <Avatar className="size-8">
+        {/* Rooms are circles; the account is a rounded square, in both states.
+            One shape carries "this is you, not a conversation" at the scroll
+            position where the two sit flush, and on the rail where the chip is
+            otherwise just another avatar in the column. */}
+        <Avatar className={cn("rounded-md", isCollapsed ? "size-6" : "size-8")}>
           <AvatarImage
             src={
               sessionUser.image ??
@@ -124,7 +136,10 @@ function SidebarAccountChipDesktop({
             }
             alt=""
           />
-          <AvatarFallback className="bg-muted text-muted-foreground text-[0.6875rem] font-medium">
+          {/* `rounded-md` here too: the fallback carries its own `rounded-full`,
+              so without this its fill stays a circle inside the square clip and
+              the corners show the ground through. */}
+          <AvatarFallback className="bg-muted text-muted-foreground rounded-md text-[0.6875rem] font-medium">
             {getInitials(displayName)}
           </AvatarFallback>
         </Avatar>
