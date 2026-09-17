@@ -111,9 +111,9 @@ struct ChatInviteView: View {
         Text(error).font(.callout).foregroundStyle(.red)
       }
       HStack {
-        respondButton("Decline", action: .decline)
-          .keyboardShortcut(.cancelAction)
+        Button("Close") { dismiss() }.keyboardShortcut(.cancelAction)
         Spacer()
+        respondButton("Decline", action: .decline)
         respondButton("Accept", action: .accept)
           .buttonStyle(.borderedProminent)
           .keyboardShortcut(.defaultAction)
