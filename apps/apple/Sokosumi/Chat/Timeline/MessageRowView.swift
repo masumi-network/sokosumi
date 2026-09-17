@@ -489,7 +489,7 @@ import SwiftUI
     }
 
     private func copyMessageLink() {
-      guard let url = ChatLink(roomId: message.roomId, messageId: message.id).url(webBaseURL: CoreSettings.webBaseURL) else {
+      guard let url = ChatLink.href(roomId: message.roomId, messageId: message.id, webBaseURL: CoreSettings.webBaseURL) else {
         return
       }
       NSPasteboard.general.clearContents()

@@ -5,26 +5,6 @@ public struct ChatLink: Equatable, Sendable {
   public let roomId: String
   public let messageId: String?
 
-  public init(roomId: String, messageId: String? = nil) {
-    self.roomId = roomId
-    let trimmed = messageId?.trimmingCharacters(in: .whitespacesAndNewlines)
-    self.messageId = trimmed?.isEmpty == false ? trimmed : nil
-  }
-
-  public func url(webBaseURL: URL) -> URL? {
-    guard var components = URLComponents(url: webBaseURL, resolvingAgainstBaseURL: false) else {
-      return nil
-    }
-    let basePath = components.path.hasSuffix("/") ? String(components.path.dropLast()) : components.path
-    components.path = "\(basePath)/chat/rooms/\(roomId)"
-    if let messageId {
-      components.queryItems = [URLQueryItem(name: "message", value: messageId)]
-    } else {
-      components.queryItems = nil
-    }
-    return components.url
-  }
-
   public init?(url: URL, webBaseURL: URL) {
     guard let target = URLComponents(url: url, resolvingAgainstBaseURL: true),
           let base = URLComponents(url: webBaseURL, resolvingAgainstBaseURL: true),
@@ -37,5 +17,21 @@ public struct ChatLink: Equatable, Sendable {
     roomId = String(parts[3])
     let message = target.queryItems?.first(where: { $0.name == "message" })?.value?.trimmingCharacters(in: .whitespacesAndNewlines)
     messageId = message?.isEmpty == false ? message : nil
+  }
+
+  /// Inverse of `init?(url:webBaseURL:)`. Blank `messageId` is omitted.
+  public static func href(roomId: String, messageId: String?, webBaseURL: URL) -> URL? {
+    guard var components = URLComponents(url: webBaseURL, resolvingAgainstBaseURL: false) else {
+      return nil
+    }
+    let basePath = components.path.hasSuffix("/") ? String(components.path.dropLast()) : components.path
+    components.path = "\(basePath)/chat/rooms/\(roomId)"
+    let trimmed = messageId?.trimmingCharacters(in: .whitespacesAndNewlines)
+    if let trimmed, !trimmed.isEmpty {
+      components.queryItems = [URLQueryItem(name: "message", value: trimmed)]
+    } else {
+      components.queryItems = nil
+    }
+    return components.url
   }
 }
