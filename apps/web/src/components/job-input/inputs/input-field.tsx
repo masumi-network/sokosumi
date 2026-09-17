@@ -5,33 +5,31 @@ import type { ControllerRenderProps, UseFormReturn } from "react-hook-form";
 
 import type { JobInputsFormSchemaType } from "@/lib/job-input";
 
-import {
-  BooleanInput,
-  CheckboxInput,
-  ColorInput,
-  DateInput,
-  DatetimeInput,
-  EmailInput,
-  FileInput,
-  HiddenInput,
-  type JobInputComponentProps,
-  MonthInput,
-  MultiselectInput,
-  NoneInput,
-  NumberInput,
-  OptionInput,
-  PasswordInput,
-  RadioGroupInput,
-  RangeInput,
-  SearchInput,
-  StringInput,
-  TelInput,
-  TextareaInput,
-  TextInput,
-  TimeInput,
-  UrlInput,
-  WeekInput,
-} from "./index";
+import { BooleanInput } from "./boolean-input";
+import { CheckboxInput } from "./checkbox-input";
+import { ColorInput } from "./color-input";
+import { DateInput } from "./date-input";
+import { DatetimeInput } from "./datetime-input";
+import { EmailInput } from "./email-input";
+import { FileInput } from "./file-input";
+import { HiddenInput } from "./hidden-input";
+import { MonthInput } from "./month-input";
+import { MultiselectInput } from "./multiselect-input";
+import { NoneInput } from "./none-input";
+import { NumberInput } from "./number-input";
+import { OptionInput } from "./option-input";
+import { PasswordInput } from "./password-input";
+import { RadioGroupInput } from "./radio-group-input";
+import { RangeInput } from "./range-input";
+import { SearchInput } from "./search-input";
+import { StringInput } from "./string-input";
+import { TelInput } from "./tel-input";
+import { TextInput } from "./text-input";
+import { TextareaInput } from "./textarea-input";
+import { TimeInput } from "./time-input";
+import type { JobInputComponentProps } from "./types";
+import { UrlInput } from "./url-input";
+import { WeekInput } from "./week-input";
 
 type InputComponent = ComponentType<
   JobInputComponentProps<InputType, InputFieldSchemaType>

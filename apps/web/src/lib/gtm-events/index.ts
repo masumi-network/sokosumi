@@ -79,11 +79,10 @@ export const fireGTMEvent = {
     });
   },
 
-  viewAgent(agentName: string, credits: number) {
+  viewAgent(agentName: string) {
     fireEvent({
       event: "view_agent",
       agent_name: agentName,
-      agent_price: credits.toString(),
     });
   },
 
