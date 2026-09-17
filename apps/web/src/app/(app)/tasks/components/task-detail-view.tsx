@@ -1,5 +1,6 @@
 import {
   hasActiveTaskSchedule,
+  removeTaskContextAttachmentLinks,
   resolveIpfsOrHttpUrl,
   type SubscriptionPlanName,
   type TaskAssigneeKind,
@@ -8,6 +9,7 @@ import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { TaskActivitySection } from "@/app/tasks/components/task-activity";
+import { TaskContextSection } from "@/app/tasks/components/task-context-section";
 import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
 import { mapVisibleTaskLinks } from "@/app/tasks/components/task-detail-api-types";
@@ -179,6 +181,15 @@ export async function TaskDetailView({
               <TaskDescriptionSection
                 task={task}
                 agentsPromise={agentsPromise}
+              />
+            </Suspense>
+
+            <Suspense
+              fallback={<TaskSectionFallback title={t("context")} rows={1} />}
+            >
+              <TaskContextSectionSlot
+                projectPromise={projectPromise}
+                task={task}
               />
             </Suspense>
           </div>
@@ -381,14 +392,45 @@ async function TaskDescriptionSection({
     agentsPromise,
     getTranslations("App.Tasks.Detail"),
   ]);
+  const descriptionBody = task.description
+    ? removeTaskContextAttachmentLinks(task.description)
+    : null;
 
   return (
     <TaskDescription
       title={t("description")}
-      description={task.description}
+      description={descriptionBody}
       agentNameById={buildAgentNameById(agents)}
       expandLabel={t("expand")}
       collapseLabel={t("collapse")}
+    />
+  );
+}
+
+async function TaskContextSectionSlot({
+  task,
+  projectPromise,
+}: {
+  task: Task;
+  projectPromise: Promise<ProjectResult>;
+}) {
+  const project = await projectPromise;
+
+  return (
+    <TaskContextSection
+      description={task.description}
+      project={
+        project
+          ? {
+              id: project.id,
+              name: project.name,
+              logo: project.logo,
+              designMd: project.designMd,
+              briefingUrl: project.briefingUrl,
+              contextMd: project.contextMd,
+            }
+          : null
+      }
     />
   );
 }

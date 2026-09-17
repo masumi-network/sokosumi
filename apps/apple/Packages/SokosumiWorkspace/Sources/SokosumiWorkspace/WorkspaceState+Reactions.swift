@@ -25,8 +25,10 @@ public extension WorkspaceState {
     pendingReactions.insert(request)
     defer { pendingReactions.remove(request) }
     do {
-      var message = try await ChatService().toggleReaction(client: client, roomId: source.roomId, messageId: source.id,
-                                                           emoji: emoji, organizationSlug: organizationSlug)
+      // The tap toggles what this client shows; the server is told the end state.
+      let service = ChatService()
+      let sendReaction = initialReaction?.reactedByCurrentUser == true ? service.removeReaction : service.addReaction
+      var message = try await sendReaction(client, source.roomId, source.id, emoji, organizationSlug)
       guard request.generation == timeline.generation, message.roomId == transcriptRoomId, !Task.isCancelled else { return }
       let current = currentReaction(messageId: source.id, emoji: emoji)
       if current != initialReaction, current != message.reactions.first(where: { $0.emoji == emoji }) {

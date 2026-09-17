@@ -492,16 +492,20 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
-  async function toggleReaction(
+  /** Idempotent: repeating either direction leaves the Reaction as asked. */
+  async function setReaction(
     roomId: string,
     messageId: string,
     emoji: string,
+    reacted: boolean,
   ): Promise<ChatRoomMessage> {
-    const response = await coreClient.toggleChatRoomMessageReaction(
-      roomId,
-      messageId,
-      { emoji },
-    );
+    const response = reacted
+      ? await coreClient.addChatRoomMessageReaction(roomId, messageId, emoji)
+      : await coreClient.removeChatRoomMessageReaction(
+          roomId,
+          messageId,
+          emoji,
+        );
     return response.data;
   }
 
@@ -598,7 +602,7 @@ export const chatRoomService = (() => {
     unmuteRoom,
     retryMention,
     sendMessage,
-    toggleReaction,
+    setReaction,
     updateRoom,
   };
 })();

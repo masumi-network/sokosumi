@@ -261,12 +261,21 @@ export function extractLinks(markdown: string): ExtractedLink[] {
   return results;
 }
 
-export function extractFileLikeLinks(markdown: string): string[] {
+export function extractFileLikeLinks(
+  markdown: string,
+  options?: { excludeLinkLabels?: ReadonlySet<string> },
+): string[] {
   const fileLinks = new Set<string>();
+  const excludedUrls = new Set<string>();
+  const excludeLabels = options?.excludeLinkLabels;
 
   // Extract from markdown links [text](url) and autolinks <http://...>
   const links = extractLinks(markdown);
   for (const l of links) {
+    if (excludeLabels && l.text && excludeLabels.has(l.text)) {
+      excludedUrls.add(l.url);
+      continue;
+    }
     if (isFileLikeUrl(l.url)) {
       fileLinks.add(l.url);
     }
@@ -276,6 +285,9 @@ export function extractFileLikeLinks(markdown: string): string[] {
   const excludedRanges = collectExcludedRanges(markdown);
   const bareUrls = findBareHttpUrls(markdown, excludedRanges);
   for (const url of bareUrls) {
+    if (excludedUrls.has(url)) {
+      continue;
+    }
     if (isFileLikeUrl(url)) {
       fileLinks.add(url);
     }

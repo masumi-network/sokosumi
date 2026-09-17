@@ -134,6 +134,7 @@ export async function resolveTaskDescriptionWithContext({
   organizationId,
   ownerId,
   project,
+  preservedBrandUrl = null,
   tx,
 }: {
   context: CreateTaskContext | undefined;
@@ -141,6 +142,8 @@ export async function resolveTaskDescriptionWithContext({
   organizationId: string | null;
   ownerId: string;
   project: TaskContextProject | null;
+  /** Existing DESIGN.md on the task — allowed to round-trip on update. */
+  preservedBrandUrl?: string | null;
   tx: Prisma.TransactionClient;
 }): Promise<string | null> {
   const attachments: TaskContextAttachment[] = [];
@@ -168,9 +171,12 @@ export async function resolveTaskDescriptionWithContext({
         buildAdHocDesignMdPrefix(ownerId),
       );
       const isProjectBrand = brandUrl === project?.designMdUrl;
+      const isPreservedBrand =
+        preservedBrandUrl !== null && brandUrl === preservedBrandUrl;
       if (
         !isOwnedAdHocBrand &&
         !isProjectBrand &&
+        !isPreservedBrand &&
         brandUrl !== (await getEffectiveDesignMdUrl())
       ) {
         throw unprocessableEntity(
