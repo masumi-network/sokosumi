@@ -211,28 +211,29 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // The ledger outlives its series: a removed schedule still answers with the
     // preserved history and the Task's current revision.
     const now = new Date();
-    const result = await prisma.$transaction(
-      async (tx) => {
-        const task = await requireTaskScheduleReadAccess(c.var, id, tx);
-        const { scheduleRevision } = task;
-        const cursor = requestedCursor
-          ? decodeTaskScheduleOccurrenceCursor(requestedCursor)
-          : null;
-        if (cursor) {
-          requireFreshCursor(cursor, view, scheduleRevision);
-        }
+    const task = await requireTaskScheduleReadAccess(c.var, id, prisma);
+    const { scheduleRevision } = task;
+    const cursor = requestedCursor
+      ? decodeTaskScheduleOccurrenceCursor(requestedCursor)
+      : null;
+    if (cursor) {
+      requireFreshCursor(cursor, view, scheduleRevision);
+    }
 
-        const viewWhere = buildViewWhere(id, view, now);
-        const direction = view === "upcoming" ? "asc" : "desc";
-        // Every page carries the whole series' exception count, at the same
-        // snapshot and `now` as the rows, total, and cursor revision.
-        const futureExceptionCount = hasActiveTaskSchedule(
-          task.metadata,
-          task.nextRunAt,
-        )
-          ? await countTaskScheduleFutureExceptions(tx, id, now)
-          : 0;
-        const rows = await tx.taskScheduleOccurrence.findMany({
+    const viewWhere = buildViewWhere(id, view, now);
+    const direction = view === "upcoming" ? "asc" : "desc";
+    // Cursor/revision come from the Task access read, not the occurrence
+    // snapshot. Exception count uses the same `now` as the page; page+count
+    // still share Repeatable Read so a later cursor cannot disagree with total.
+    const futureExceptionCount = hasActiveTaskSchedule(
+      task.metadata,
+      task.nextRunAt,
+    )
+      ? await countTaskScheduleFutureExceptions(prisma, id, now)
+      : 0;
+    const [rows, total] = await prisma.$transaction(
+      [
+        prisma.taskScheduleOccurrence.findMany({
           where: cursor
             ? { ...viewWhere, AND: [buildCursorWhere(cursor, view)] }
             : viewWhere,
@@ -260,46 +261,44 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               },
             },
           },
-        });
-        const total = await tx.taskScheduleOccurrence.count({
+        }),
+        prisma.taskScheduleOccurrence.count({
           where: viewWhere,
-        });
-
-        const page = rows.slice(0, limit);
-        return {
-          data: taskScheduleOccurrencePageSchema.parse({
-            scheduleRevision,
-            futureExceptionCount,
-            occurrences: page.map((occurrence) => ({
-              ...occurrence,
-              sourceId: getCalendarSourceId(occurrence),
-              // A planned row whose time has passed never released: history
-              // shows it as a missed run instead of an upcoming one.
-              isMissed:
-                occurrence.state === TaskScheduleOccurrenceState.PLANNED &&
-                occurrence.effectiveScheduledAt < now,
-            })),
-          }),
-          pagination: createPaginationMeta(
-            page,
-            total,
-            limit,
-            rows.length > page.length,
-            requestedCursor,
-            (occurrence) =>
-              encodeTaskScheduleOccurrenceCursor({
-                view,
-                scheduleRevision,
-                effectiveScheduledAt:
-                  occurrence.effectiveScheduledAt.toISOString(),
-                id: occurrence.id,
-              }),
-          ),
-        };
-      },
+        }),
+      ],
       { isolationLevel: "RepeatableRead" },
     );
 
-    return ok(c, result.data, result.pagination);
+    const page = rows.slice(0, limit);
+    return ok(
+      c,
+      taskScheduleOccurrencePageSchema.parse({
+        scheduleRevision,
+        futureExceptionCount,
+        occurrences: page.map((occurrence) => ({
+          ...occurrence,
+          sourceId: getCalendarSourceId(occurrence),
+          // A planned row whose time has passed never released: history
+          // shows it as a missed run instead of an upcoming one.
+          isMissed:
+            occurrence.state === TaskScheduleOccurrenceState.PLANNED &&
+            occurrence.effectiveScheduledAt < now,
+        })),
+      }),
+      createPaginationMeta(
+        page,
+        total,
+        limit,
+        rows.length > page.length,
+        requestedCursor,
+        (occurrence) =>
+          encodeTaskScheduleOccurrenceCursor({
+            view,
+            scheduleRevision,
+            effectiveScheduledAt: occurrence.effectiveScheduledAt.toISOString(),
+            id: occurrence.id,
+          }),
+      ),
+    );
   });
 }

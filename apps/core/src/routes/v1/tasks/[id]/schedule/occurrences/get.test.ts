@@ -194,16 +194,11 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
     });
     occurrenceCountMock.mockResolvedValue(0);
     occurrenceFindManyMock.mockResolvedValue([]);
-    transactionMock.mockImplementation((callback) =>
-      callback({
-        coworker: { findFirst: coworkerFindFirstMock },
-        member: { findFirst: memberFindFirstMock },
-        task: { findFirst: taskFindFirstMock },
-        taskScheduleOccurrence: {
-          count: occurrenceCountMock,
-          findMany: occurrenceFindManyMock,
-        },
-      }),
+    // Batch form: Prisma resolves the array of operations together. Access
+    // checks run on the default client, so the mock must not require a
+    // callback.
+    transactionMock.mockImplementation(async (operations: unknown) =>
+      Array.isArray(operations) ? await Promise.all(operations) : operations,
     );
   });
 
@@ -240,6 +235,7 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
     expect(response.status).toBe(403);
     expect(taskFindFirstMock).not.toHaveBeenCalled();
     expect(occurrenceFindManyMock).not.toHaveBeenCalled();
+    expect(transactionMock).not.toHaveBeenCalled();
   });
 
   it("requires Task ownership and surfaces a missing Task as 404", async () => {
@@ -252,6 +248,7 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
       where: { id: TASK_ID, ownerId: "user_123", archivedAt: null },
     });
     expect(occurrenceFindManyMock).not.toHaveBeenCalled();
+    expect(transactionMock).not.toHaveBeenCalled();
   });
 
   it("lets the owner read history while the Task is parked awaiting a grant", async () => {
@@ -277,7 +274,7 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
     const response = await createApp().request(request("?view=upcoming"));
 
     expect(response.status).toBe(200);
-    expect(transactionMock).toHaveBeenCalledWith(expect.any(Function), {
+    expect(transactionMock).toHaveBeenCalledWith(expect.any(Array), {
       isolationLevel: "RepeatableRead",
     });
     const body = await readBody(response);
@@ -547,6 +544,7 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
       kind: "schedule_cursor_stale",
     });
     expect(occurrenceFindManyMock).not.toHaveBeenCalled();
+    expect(transactionMock).not.toHaveBeenCalled();
   });
 
   it("rejects a cursor minted for the other view", async () => {
@@ -566,6 +564,7 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
       kind: "schedule_cursor_stale",
     });
     expect(occurrenceFindManyMock).not.toHaveBeenCalled();
+    expect(transactionMock).not.toHaveBeenCalled();
   });
 
   it("rejects a malformed cursor as a bad request", async () => {
@@ -573,6 +572,7 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
 
     expect(response.status).toBe(400);
     expect(occurrenceFindManyMock).not.toHaveBeenCalled();
+    expect(transactionMock).not.toHaveBeenCalled();
   });
 
   it("rejects a decodable cursor whose id is not a uuid", async () => {
@@ -591,6 +591,7 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
 
     expect(response.status).toBe(400);
     expect(occurrenceFindManyMock).not.toHaveBeenCalled();
+    expect(transactionMock).not.toHaveBeenCalled();
   });
 
   it("keeps an archived released Task in history and marks it archived", async () => {
@@ -719,5 +720,6 @@ describe("GET /tasks/{id}/schedule/occurrences", () => {
 
     expect(response.status).toBe(422);
     expect(occurrenceFindManyMock).not.toHaveBeenCalled();
+    expect(transactionMock).not.toHaveBeenCalled();
   });
 });
