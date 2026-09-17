@@ -377,6 +377,25 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
     );
   });
 
+  it("keeps the pin in the same size slot as the room menu", () => {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom({ starredAt: new Date("2026-09-01T00:00:00.000Z") })}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const pin = container.querySelector("svg.lucide-pin");
+    const box = pin?.parentElement;
+    expect(box).not.toBeNull();
+    expect(box?.className.split(" ").includes("md:size-7")).toBe(true);
+    expect(box?.className).not.toContain("[@media(hover:hover)]:size-4");
+  });
+
   it("reserves a glyph-sized hole at rest on hover, not a full menu button", () => {
     const { container, rerender } = render(
       <ChatRoomSidebarRow

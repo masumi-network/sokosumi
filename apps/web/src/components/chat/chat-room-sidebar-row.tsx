@@ -370,9 +370,8 @@ export function ChatRoomSidebarRow({
         {isMuted || isPinned ? (
           <span
             className={cn(
-              "text-muted-foreground pointer-events-none flex items-center justify-center",
-              "[@media(hover:none)]:size-8 [@media(hover:none)]:md:size-7",
-              "[@media(hover:hover)]:absolute [@media(hover:hover)]:top-1/2 [@media(hover:hover)]:right-0 [@media(hover:hover)]:-translate-y-1/2 [@media(hover:hover)]:size-4",
+              "text-muted-foreground pointer-events-none flex size-8 items-center justify-center md:size-7",
+              "[@media(hover:hover)]:absolute [@media(hover:hover)]:top-1/2 [@media(hover:hover)]:right-0 [@media(hover:hover)]:-translate-y-1/2",
               "[@media(hover:hover)]:group-hover/room-row:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-0 group-has-[[data-state=open]]/room-row:opacity-0",
             )}
             aria-hidden
