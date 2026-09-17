@@ -153,10 +153,17 @@ describe("PersonalAssistantNav collapsed stack", () => {
     expect(tokens(link.className)).toContain(
       "group-data-[collapsible=icon]:rounded-md",
     );
-    // The primary border is the expanded card's hover; on the rail every
-    // item hovers with the same neutral ring, this one included.
-    expect(tokens(link.className)).toContain("hover:border-primary");
-    expect(tokens(link.className)).toContain(
+    // Its primary hover border is the one state it keeps from the expanded
+    // card on the rail: the featured entry stays featured.
+    expect(tokens(link.className)).toEqual(
+      expect.arrayContaining([
+        "hover:border-primary",
+        "group-data-[collapsible=icon]:hover:ring-0!",
+        "group-data-[collapsible=icon]:active:ring-0!",
+        "group-data-[collapsible=icon]:hover:bg-sidebar-accent!",
+      ]),
+    );
+    expect(tokens(link.className)).not.toContain(
       "group-data-[collapsible=icon]:hover:border-transparent",
     );
   });
