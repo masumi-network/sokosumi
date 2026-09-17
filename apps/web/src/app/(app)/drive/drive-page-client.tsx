@@ -233,7 +233,7 @@ export function DrivePageClient({
 
   if (activeOrganizationId === undefined) {
     return (
-      <div className={cn("w-full px-2", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
+      <div className={cn("w-full", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
         <DriveListSkeleton viewMode={skeletonViewMode} />
       </div>
     );
@@ -1345,7 +1345,7 @@ function DrivePageWorkspace({
   );
 
   return (
-    <div className={cn("w-full px-2", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
+    <div className={cn("w-full", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
       <div className="mb-4 flex flex-col gap-4 md:mb-6">
         <DriveViewTabs
           activeView={primaryView}
@@ -1673,7 +1673,7 @@ function DrivePageWorkspace({
       ) : emptyState ? (
         <div
           className={cn(
-            "bg-card-background border-border -mx-6 flex flex-col items-center justify-center overflow-hidden rounded-none border-0 py-12 text-center md:mx-0 md:rounded-xl md:border",
+            "bg-card-background border-border -mx-4 flex flex-col items-center justify-center overflow-hidden rounded-none border-0 py-12 text-center md:mx-0 md:rounded-xl md:border",
             PROJECTS_LIST_CARD_MIN_H_CLASS,
           )}
         >

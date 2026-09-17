@@ -14,6 +14,16 @@ import { resolveVendorGrantNotificationTarget } from "@/lib/utils/vendor-grant-n
  */
 export const CHAT_MESSAGE_PARAM = "message";
 
+/** In-app href that opens a room and jumps to one message. */
+export function chatRoomMessageHref(roomId: string, messageId: string): string {
+  const room = `/chat/rooms/${encodeURIComponent(roomId)}`;
+  const trimmedMessageId = messageId.trim();
+  if (trimmedMessageId.length === 0) {
+    return room;
+  }
+  return `${room}?${CHAT_MESSAGE_PARAM}=${encodeURIComponent(trimmedMessageId)}`;
+}
+
 interface NotificationHrefItem {
   kind: NotificationKind;
   referenceId: string;
@@ -45,7 +55,6 @@ export function getNotificationHref(
     }
 
     case "CHAT": {
-      const room = `/chat/rooms/${encodeURIComponent(notification.referenceId)}`;
       const messageId = notification.metadata?.messageId;
       // A room notification is about one message in it. Without the message
       // the reader lands at the bottom of the room and scrolls back to find
@@ -59,10 +68,7 @@ export function getNotificationHref(
       // as well, so the two agree and neither has to guess.
       const trimmedMessageId =
         typeof messageId === "string" ? messageId.trim() : "";
-      if (trimmedMessageId.length === 0) {
-        return room;
-      }
-      return `${room}?${CHAT_MESSAGE_PARAM}=${encodeURIComponent(trimmedMessageId)}`;
+      return chatRoomMessageHref(notification.referenceId, trimmedMessageId);
     }
 
     case "SYSTEM": {

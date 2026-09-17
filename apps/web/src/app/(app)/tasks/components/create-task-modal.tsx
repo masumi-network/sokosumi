@@ -435,7 +435,7 @@ function NewTaskWizardLoading() {
       aria-busy="true"
       aria-label={tTasks("Actions.loading")}
       data-testid="new-task-wizard-loading"
-      className="flex min-h-0 flex-1 flex-col px-6 py-3 md:px-8"
+      className="flex min-h-0 flex-1 flex-col px-6 py-3 md:px-8 md:py-0"
     >
       <AgentSpotlightSkeleton />
     </div>
