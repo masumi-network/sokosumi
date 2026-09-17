@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   workspace: vi.fn(),
   turn: vi.fn(),
   message: vi.fn(),
+  taskEvent: vi.fn(),
   actor: vi.fn(),
   create: vi.fn(),
   batch: vi.fn(),
@@ -16,6 +17,7 @@ vi.mock("@/lib/db/prisma", () => ({
     workspace: { findUniqueOrThrow: mocks.workspace },
     sokoBotTurn: { findUnique: mocks.turn },
     chatRoomMessage: { findFirst: mocks.message },
+    taskEvent: { findFirst: mocks.taskEvent },
   },
 }));
 vi.mock("@/helpers/data-table", () => ({
@@ -211,5 +213,56 @@ describe("Soko Bot table dispatch", () => {
       }),
     ).rejects.toThrow("assigned taskId");
     expect(mocks.create).not.toHaveBeenCalled();
+  });
+  it("publishes a task-created table immediately and avoids a duplicate task link on retry", async () => {
+    const runtime = service();
+    vi.mocked(runtime.authorize).mockResolvedValue({
+      ...authorized,
+      turn: { ...authorized.turn, source: "EVENT" },
+    });
+    const reply = vi
+      .fn<SokoBotRuntimeService["replyToTask"]>()
+      .mockResolvedValue({
+        id: "assigned-task",
+        name: "Research",
+        status: "RUNNING",
+        commented: true,
+      });
+    runtime["replyToTask"] = reply;
+    mocks.turn.mockResolvedValue({ chatMention: null });
+    mocks.taskEvent
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue({ id: "event" });
+    const table = { id: randomUUID(), title: "Task research" };
+    mocks.create.mockResolvedValue(table);
+    const body = {
+      key: randomUUID(),
+      taskId: "assigned-task",
+      title: table.title,
+      columns: [{ name: "Company", type: "text" }],
+    };
+    for (let retry = 0; retry < 2; retry++)
+      await runtime["executeAuthorizedTool"]({
+        sessionId,
+        turnId,
+        toolCallId: `task-create-${retry}`,
+        capability: "create_table",
+        input: body,
+      });
+    expect(mocks.create).toHaveBeenCalledWith(
+      { ...actor, taskId: body.taskId },
+      expect.objectContaining({ key: body.key }),
+    );
+    expect(reply).toHaveBeenCalledTimes(1);
+    expect(reply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        turn: expect.objectContaining({ source: "EVENT" }),
+      }),
+      {
+        taskId: body.taskId,
+        comment: `[Open table](/drive/tables/${table.id})`,
+      },
+      "task-create-0:table-link",
+    );
   });
 });

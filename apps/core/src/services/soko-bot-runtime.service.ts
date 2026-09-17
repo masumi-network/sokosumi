@@ -2377,6 +2377,19 @@ export class SokoBotRuntimeService {
                 content,
               });
           }
+          if (taskId) {
+            const comment = `[Open table](${url})`;
+            const existing = await prisma.taskEvent.findFirst({
+              where: { taskId, sokoBotId: actor.actorId, comment },
+              select: { id: true },
+            });
+            if (!existing)
+              await this.replyToTask(
+                authorized,
+                { taskId, comment },
+                `${input.toolCallId}:table-link`,
+              );
+          }
           return {
             table,
             url,
