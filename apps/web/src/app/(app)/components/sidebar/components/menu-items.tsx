@@ -23,6 +23,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarRailSelectionBar,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
@@ -146,7 +147,12 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
 
   return (
     <>
-      <SidebarGroup className="w-full p-0">
+      {/* `px-2` here rather than on the item, so a nav row's
+          `SidebarMenuItem` is the same 40px box a Chat row's is and the rail
+          selection bar's `-right-2` lands on the rail's edge in both. The
+          separator spans the rail rather than the row, so it takes that
+          padding back with `-mx-2`. */}
+      <SidebarGroup className="w-full px-2 py-0">
         <SidebarGroupContent>
           <SidebarMenu className="gap-0 py-2">
             {items.map(
@@ -215,7 +221,7 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
 
                 return (
                   <Fragment key={key}>
-                    <SidebarMenuItem className="px-2">
+                    <SidebarMenuItem>
                       {href ? (
                         <SidebarMenuButton
                           asChild
@@ -260,11 +266,15 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                           ) : null}
                         </SidebarMenuButton>
                       )}
+                      {/* Collapsed, the rail's fill belongs to hover alone, so
+                          the open destination is marked on the rail's edge the
+                          same way an open Chat room is. */}
+                      {isActive ? <SidebarRailSelectionBar /> : null}
                     </SidebarMenuItem>
                     {separatorAfter ? (
                       <SidebarMenuItem
                         aria-hidden
-                        className="py-2 group-data-[collapsible=icon]:hidden"
+                        className="group-data-[collapsible=icon]:hidden -mx-2 py-2"
                       >
                         <div className="bg-sidebar-border h-px w-full" />
                       </SidebarMenuItem>

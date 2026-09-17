@@ -4,9 +4,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const openHistorySearchMock = vi.fn();
 const setOpenMobileMock = vi.fn();
 const openNewTaskWizardMock = vi.fn();
+const { pathnameRef } = vi.hoisted(() => ({
+  pathnameRef: { current: "/" },
+}));
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/",
+  usePathname: () => pathnameRef.current,
 }));
 
 vi.mock("next-intl", () => ({
@@ -73,6 +76,9 @@ vi.mock("@/components/ui/sidebar", () => ({
   SidebarMenuItem: ({ children }: { children: React.ReactNode }) => (
     <li>{children}</li>
   ),
+  // A marker, not the real bar: how it looks belongs to the primitive that
+  // owns it, and `ui/__tests__/sidebar-rail-selection.test.tsx` pins that.
+  SidebarRailSelectionBar: () => <span data-testid="rail-selection-bar" />,
   useSidebar: () => ({
     isMobile: sidebarIsMobile,
     setOpenMobile: setOpenMobileMock,
@@ -273,5 +279,51 @@ describe("MenuItems search action", () => {
       "drive",
       "history",
     ]);
+  });
+});
+
+// Collapsed to icons a nav row is a bare glyph and the neutral fill was
+// carrying hover and selection alike, so you could not tell the open
+// destination from the one under the cursor. Selection moves to the rail's
+// right edge, the same mark an open Chat room gets.
+describe("MenuItems rail selection bar", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sidebarIsMobile = false;
+    historySearchValue = {
+      openHistorySearch: openHistorySearchMock,
+      searchShortcutLabel: "Ctrl+K",
+    };
+    newTaskWizardValue = { openNewTaskWizard: openNewTaskWizardMock };
+    pathnameRef.current = "/";
+  });
+
+  // A count alone would pass with the mark on the wrong row, which is the one
+  // way this can fail without looking broken.
+  function markedHrefs() {
+    return screen
+      .getAllByTestId("rail-selection-bar")
+      .map((bar) =>
+        bar.closest("li")?.querySelector("a")?.getAttribute("href"),
+      );
+  }
+
+  it("marks exactly the destination the reader is on", () => {
+    pathnameRef.current = "/tasks";
+    renderMenu();
+    expect(markedHrefs()).toEqual(["/tasks"]);
+  });
+
+  it("marks the destination from one of its own pages too", () => {
+    pathnameRef.current = "/projects/project-1";
+    renderMenu();
+    expect(markedHrefs()).toEqual(["/projects"]);
+  });
+
+  // The actions (new task, search) are not destinations, so nothing is open.
+  it("marks nothing on a route no nav item owns", () => {
+    pathnameRef.current = "/";
+    renderMenu();
+    expect(screen.queryByTestId("rail-selection-bar")).toBeNull();
   });
 });
