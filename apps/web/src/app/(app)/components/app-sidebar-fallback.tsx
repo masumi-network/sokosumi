@@ -46,7 +46,11 @@ export function AppSidebarFallback() {
           <SidebarChatListSkeleton />
         </div>
       </SidebarContent>
-      <SidebarFooter className="mt-auto shrink-0 px-0">
+      {/* Hairline twin of the header's, matching `Sidebar`'s own footer: it
+          marks the footer as chrome so the chip does not read as one more
+          room, and carrying it here keeps the rule from appearing when the
+          streamed sidebar takes over. */}
+      <SidebarFooter className="border-sidebar-border mt-auto shrink-0 border-t px-0">
         <div className="p-2 pt-0 pb-[env(safe-area-inset-bottom)] group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
           <SidebarAccountChipFallback />
         </div>
