@@ -217,8 +217,12 @@ A platform user on one External channel’s room roster who is not a Member of t
 _Avoid_: External user, outsider, limited collaborator, org guest (there is no org-level guest role)
 
 **Direct**:
-A chat room whose identity is its participant set (1:1 or multi-human group), not a Channel name. Human 1:1, multi-human group, or coworker 1:1. Has no Channel slug.
+A chat room whose identity is its participant set, not a Channel name. Self Direct, human 1:1, multi-human group, coworker 1:1, or personal assistant 1:1. Has no Channel slug.
 _Avoid_: Conversation (retired), treating a DM as a Channel
+
+**Self Direct**:
+One private Personal Direct per user for notes and to-dos, with that user as its sole human member and no AI members. Identified by a canonical self key, not by remaining member count. Shared across available workspaces without requiring a personal Workspace. Created on demand, survives Organization exit, and is removed by account deletion. Shown as “You”; sending notes triggers no self-notifications or AI work.
+_Avoid_: Notes channel, per-workspace self-chat, treating a former group with one remaining member as Self Direct
 
 **Coworker 1:1**:
 A Direct with exactly one human member and exactly one coworker.

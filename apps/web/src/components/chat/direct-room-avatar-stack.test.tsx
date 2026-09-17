@@ -52,6 +52,7 @@ function makeDirectRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
     name: "dm",
     slug: "dm",
     kind: "direct",
+    isSelfDirect: false,
     directKey: "key",
     topic: null,
     discoverability: "private",
@@ -72,6 +73,21 @@ function makeDirectRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
 }
 
 describe("DirectRoomAvatarStack", () => {
+  it("shows the owner's avatar without presence for Self Direct", () => {
+    render(
+      <DirectRoomAvatarStack
+        room={makeDirectRoom({
+          isSelfDirect: true,
+          userMembers: [makeUser("me", "Me")],
+        })}
+        currentUserId="me"
+      />,
+    );
+    expect(screen.getByTestId("dm-sidebar-avatar-me")).toBeInTheDocument();
+    expect(screen.queryByText("Online")).toBeNull();
+    expect(screen.queryByText("Offline")).toBeNull();
+  });
+
   it("states availability on a 1:1 row and stays silent on a group row", () => {
     const { unmount } = render(
       <DirectRoomAvatarStack room={makeDirectRoom()} currentUserId="me" />,

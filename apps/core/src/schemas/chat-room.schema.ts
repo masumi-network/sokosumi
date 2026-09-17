@@ -146,6 +146,11 @@ export const chatRoomSchema = z
       example: "launch-room",
     }),
     kind: z.enum(["channel", "direct"]).openapi({ example: "channel" }),
+    isSelfDirect: z.boolean().openapi({
+      description:
+        "Whether this is the owner's private, sole-human Personal Direct for notes.",
+      example: false,
+    }),
     directKey: z.string().nullable().openapi({
       description: "Deterministic key for direct rooms; null for normal rooms.",
       example: "user_123:user_456",

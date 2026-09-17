@@ -13,6 +13,7 @@ struct RoomDetailsView: View {
   @State private var directRequestId: UUID?
   @State private var selectedProfile: ChatParticipantProfile?
   @State private var editChannel: EditChannelPresentation?
+  @State private var lifecycle: ChannelLifecycleRequest?
 
   var body: some View {
     VStack(spacing: 0) {
@@ -34,6 +35,12 @@ struct RoomDetailsView: View {
               Button("Channel settings…") {
                 editChannel = .init(id: workspaces.compositionContext, roomId: room.id)
               }
+            } else if ChannelEditPermissions.canLeave(room) {
+              // Guests and matched members cannot edit; web's dialog shrinks to Leave for them.
+              Button("Leave channel…") {
+                lifecycle = .init(context: workspaces.compositionContext, roomId: room.id, name: room.name, action: .leave)
+              }
+              .disabled(workspaces.channelMutationInFlight)
             }
           }
         }
@@ -53,12 +60,14 @@ struct RoomDetailsView: View {
     }
     .popover(item: $selectedProfile) { ParticipantDetailsView(profile: $0) }
     .modifier(EditChannelSheet(presentation: $editChannel))
+    .modifier(ChannelLifecycleConfirmation(request: $lifecycle))
     .onDisappear { directRequestId = nil }
     .onChange(of: room.id) { _, _ in
       directRequestId = nil
       errorMessage = nil
       selectedProfile = nil
       editChannel = nil
+      lifecycle = nil
     }
   }
 

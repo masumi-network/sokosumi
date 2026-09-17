@@ -543,7 +543,11 @@ export function OrganizationChatList({
                   key={room.id}
                   room={room}
                   href={`/chat/rooms/${room.id}`}
-                  label={getRoomDisplayName(room, currentUserId)}
+                  label={getRoomDisplayName(
+                    room,
+                    currentUserId,
+                    t("SelfDirect.you"),
+                  )}
                   isActive={activeRoomId === room.id}
                   leading={
                     <DirectRoomAvatarStack

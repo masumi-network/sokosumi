@@ -5331,7 +5331,8 @@
         "removeRecipient": "Remove {name}",
         "groupDirectHumansOnly": "Los mensajes directos de grupo son solo entre personas.",
         "coworkerDirectOneToOneOnly": "Los mensajes directos con coworkers son 1:1.",
-        "personalAssistantDirectOneToOneOnly": "Los mensajes directos con asistentes personales son solo 1:1."
+        "personalAssistantDirectOneToOneOnly": "Los mensajes directos con asistentes personales son solo 1:1.",
+        "openFailed": "No se pudo abrir la conversación. Inténtalo de nuevo."
       },
       "RoomSearch": {
         "open": "Buscar en este chat",
@@ -5679,6 +5680,12 @@
           "notFound": "Este enlace de invitación no es válido.",
           "back": "Volver al chat"
         }
+      },
+      "SelfDirect": {
+        "messageYourself": "Enviarte un mensaje",
+        "you": "Tú",
+        "description": "Envíate notas y tareas pendientes. Solo tú puedes verlas.",
+        "exclusive": "Tu chat personal no puede incluir otros destinatarios."
       }
     },
     "Drive": {

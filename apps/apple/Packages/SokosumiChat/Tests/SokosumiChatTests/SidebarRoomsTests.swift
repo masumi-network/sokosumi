@@ -95,16 +95,18 @@ struct SidebarRoomsTests {
     let state = ConversationSidebar()
     state.rooms = [makeRoom(id: "one", name: "One")]
     state.selectedRoomId = "one"
+    #expect(state.collapsedSections == [.archived])
     state.setExpanded(false, section: .channels)
-    #expect(state.collapsedSections == [.channels])
+    #expect(state.collapsedSections == [.channels, .archived])
     #expect(state.selectedRoomId == "one")
     state.setExpanded(true, section: .channels)
+    state.setExpanded(true, section: .archived)
     #expect(state.collapsedSections.isEmpty)
     state.setExpanded(false, section: .directs)
     state.reset()
     #expect(state.rooms.isEmpty)
     #expect(state.selectedRoomId == nil)
-    #expect(state.collapsedSections.isEmpty)
+    #expect(state.collapsedSections == [.archived])
   }
 
   @Test func partitionsChannelsDirectsAndExternal() {

@@ -5331,7 +5331,8 @@
         "removeRecipient": "Remove {name}",
         "groupDirectHumansOnly": "Group direct messages are humans only.",
         "coworkerDirectOneToOneOnly": "Coworker direct messages are 1:1.",
-        "personalAssistantDirectOneToOneOnly": "Personal assistant direct messages are 1:1."
+        "personalAssistantDirectOneToOneOnly": "Personal assistant direct messages are 1:1.",
+        "openFailed": "Could not open the conversation. Try again."
       },
       "RoomSearch": {
         "open": "Search in this chat",
@@ -5679,6 +5680,12 @@
             "footer": "Back to chat"
           }
         }
+      },
+      "SelfDirect": {
+        "messageYourself": "Message yourself",
+        "you": "You",
+        "description": "Send yourself notes and to-dos. Only you can see them.",
+        "exclusive": "Self-chat cannot include other recipients."
       }
     },
     "Drive": {
