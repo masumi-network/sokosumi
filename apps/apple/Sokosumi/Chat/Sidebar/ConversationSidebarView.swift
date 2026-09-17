@@ -85,14 +85,14 @@ struct ConversationSidebarView: View {
           Button("New chat", systemImage: "square.and.pencil") {
             startDirect = .init(id: workspaces.compositionContext, hasOrganization: workspaces.selection?.workspace.organizationId != nil)
           }
-          .disabled(workspaces.phase != .ready || workspaces.roomsLoading || workspaces.openingDirect != nil || workspaces.creatingChannel || workspaces.joiningChannel)
+          .disabled(workspaces.phase != .ready || workspaces.roomsLoading || workspaces.openingDirect != nil || workspaces.creatingChannel || workspaces.joiningChannel || workspaces.updatingChannel)
           .help("New chat")
         }
         ToolbarItem {
           Button("Create channel", systemImage: "number") {
             createChannel = .init(id: workspaces.compositionContext, hasOrganization: true)
           }
-          .disabled(workspaces.phase != .ready || workspaces.selection?.workspace.organizationId == nil || workspaces.creatingChannel || workspaces.joiningChannel || workspaces.openingDirect != nil)
+          .disabled(workspaces.phase != .ready || workspaces.selection?.workspace.organizationId == nil || workspaces.creatingChannel || workspaces.joiningChannel || workspaces.updatingChannel || workspaces.openingDirect != nil)
           .help("Create channel")
         }
         ToolbarItem {

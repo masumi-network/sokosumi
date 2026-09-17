@@ -10,7 +10,14 @@ struct RecipientSelectionList: View {
   @Binding var selection: Set<DirectRecipient>
 
   var body: some View {
-    TextField("Search participants", text: $query)
+    VStack(alignment: .leading, spacing: 12) {
+      TextField("Search participants", text: $query)
+      list
+      Text("You are always included in the channel.").font(.caption).foregroundStyle(.secondary)
+    }
+  }
+
+  private var list: some View {
     List {
       ForEach(sections) { section in
         Section(sectionTitle(section.id)) {
@@ -45,7 +52,6 @@ struct RecipientSelectionList: View {
     }
     .listStyle(.plain)
     .frame(height: 240)
-    Text("You are always included in the channel.").font(.caption).foregroundStyle(.secondary)
   }
 
   private func sectionTitle(_ kind: ChatRecipientSection.Kind) -> LocalizedStringKey {

@@ -24,6 +24,14 @@ struct EditChannelSheet: ViewModifier {
           }, save: {
             try await workspaces.updateChannel($0, roomId: room.id, permissions: $1, context: presentation.id, auth: auth)
           })
+        } else {
+          // Kicked or archived while the sheet was open: never a blank modal.
+          VStack(spacing: 16) {
+            ContentUnavailableView("This channel is no longer available.", systemImage: "number")
+            Button("Close") { self.presentation = nil }.keyboardShortcut(.cancelAction)
+          }
+          .padding(20)
+          .frame(width: 480)
         }
       }
       .onChange(of: workspaces.compositionContext) { _, _ in
