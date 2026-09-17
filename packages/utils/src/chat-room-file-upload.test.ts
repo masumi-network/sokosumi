@@ -52,43 +52,60 @@ describe("chat room file upload helpers", () => {
   it("detects owned chat room file URLs", () => {
     expect(
       isOwnedUserChatRoomFileUrl(
-        "https://blob.example.com/users/user_123/chats/room_abc/file-xyz.pdf",
+        "https://abc.public.blob.vercel-storage.com/users/user_123/chats/room_abc/file-xyz.pdf",
         "user_123",
         "room_abc",
       ),
     ).toBe(true);
     expect(
       isOwnedUserChatRoomFileUrl(
-        "https://blob.example.com/users/user_123/flat.pdf",
+        "https://abc.public.blob.vercel-storage.com/users/user_123/flat.pdf",
         "user_123",
         "room_abc",
       ),
     ).toBe(false);
     expect(
       isOwnedCoworkerChatRoomFileUrl(
-        "https://blob.example.com/coworkers/cow_123/chats/room_abc/a.txt",
+        "https://abc.public.blob.vercel-storage.com/coworkers/cow_123/chats/room_abc/a.txt",
         "cow_123",
         "room_abc",
       ),
     ).toBe(true);
     expect(
       isOwnedCoworkerChatRoomFileUrl(
-        "https://blob.example.com/coworkers/cow_123/image-ops.png",
+        "https://abc.public.blob.vercel-storage.com/coworkers/cow_123/image-ops.png",
         "cow_123",
         "room_abc",
       ),
     ).toBe(false);
     expect(
       isOwnedSokoBotChatRoomFileUrl(
-        "https://blob.example.com/soko-bots/bot_123/chats/room_abc/a.txt",
+        "https://abc.public.blob.vercel-storage.com/soko-bots/bot_123/chats/room_abc/a.txt",
         "bot_123",
         "room_abc",
       ),
     ).toBe(true);
     expect(
       isOwnedSokoBotChatRoomFileUrl(
-        "https://blob.example.com/soko-bots/bot_123/notes.txt",
+        "https://abc.public.blob.vercel-storage.com/soko-bots/bot_123/notes.txt",
         "bot_123",
+        "room_abc",
+      ),
+    ).toBe(false);
+  });
+
+  it("rejects foreign hosts and non-https URLs even when the path prefix matches", () => {
+    expect(
+      isOwnedUserChatRoomFileUrl(
+        "https://blob.example.com/users/user_123/chats/room_abc/file-xyz.pdf",
+        "user_123",
+        "room_abc",
+      ),
+    ).toBe(false);
+    expect(
+      isOwnedUserChatRoomFileUrl(
+        "http://abc.public.blob.vercel-storage.com/users/user_123/chats/room_abc/file-xyz.pdf",
+        "user_123",
         "room_abc",
       ),
     ).toBe(false);
