@@ -2611,3 +2611,85 @@ extension WorkspaceStateTests {
     #expect(!transport.operationIDs.contains(mentionRetryOperation))
   }
 }
+
+extension WorkspaceStateTests {
+  @Test func canSendToSelfHidesInsideSelfDirectAndOnLocalRows() throws {
+    let (state, _, _, _) = try ephemeralState([])
+    defer { state.reset() }
+    let roomId = "550e8400-e29b-41d4-a716-446655440000"
+    var room = coworkerDirect(roomId: roomId)
+    state.rooms = [room]
+    #expect(state.canSendToSelf(durableRoomMessage(roomId: roomId)))
+    room.isSelfDirect = true
+    state.rooms = [room]
+    #expect(!state.canSendToSelf(durableRoomMessage(roomId: roomId)))
+    room.isSelfDirect = false
+    state.rooms = [room]
+    var stream = durableRoomMessage(roomId: roomId)
+    stream.id = "stream:turn"
+    #expect(!state.canSendToSelf(stream))
+  }
+
+  @Test func sendToSelfListsANewlyCreatedSelfDirectWithoutLeavingTheSourceRoom() async throws {
+    let general = "550e8400-e29b-41d4-a716-446655440000"
+    let you = "550e8400-e29b-41d4-a716-446655440001"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")),
+      (200, orgsBody),
+      (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (201, createdMessageBody(id: "saved", roomId: you, content: "")),
+      (200, roomsBody(names: ["general", "You"])),
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "saved", roomId: you, content: "")], nextCursor: nil))
+    ], visible: false)
+    defer { state.reset() }
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    #expect(state.rooms.map(\.id) == [general])
+    let saved = try await state.sendMessageToSelf(durableRoomMessage(roomId: general), auth: auth)
+    #expect(saved.roomId == you)
+    #expect(state.rooms.map(\.id) == [general, you])
+    #expect(state.selectedRoomId == general)
+    #expect(try await state.openRoomLink(roomId: you, messageId: saved.id, auth: auth) == .opened)
+    #expect(transport.operationIDs.suffix(3) == [
+      "post/chats/rooms/{id}/messages/{messageId}/send-to-self",
+      "get/chats/rooms",
+      "get/chats/rooms/{id}/messages"
+    ])
+  }
+
+  @Test func sendToSelfSkipsRoomRefreshWhenSelfDirectIsAlreadyListed() async throws {
+    let general = "550e8400-e29b-41d4-a716-446655440000"
+    let you = "550e8400-e29b-41d4-a716-446655440001"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")),
+      (200, orgsBody),
+      (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general", "You"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (201, createdMessageBody(id: "saved", roomId: you, content: ""))
+    ], visible: false)
+    defer { state.reset() }
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    _ = try await state.sendMessageToSelf(durableRoomMessage(roomId: general), auth: auth)
+    #expect(state.rooms.map(\.id) == [general, you])
+    #expect(state.selectedRoomId == general)
+    #expect(transport.operationIDs.last == "post/chats/rooms/{id}/messages/{messageId}/send-to-self")
+    #expect(transport.remainingStubs == 0)
+  }
+}
+
+private func durableRoomMessage(roomId: String) -> Components.Schemas.ChatRoomMessage {
+  var message = chatRoomMessage(from: .init(
+    clientTurnId: "turn",
+    roomId: roomId,
+    content: "Keep this",
+    sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)
+  ))
+  message.id = "550e8400-e29b-41d4-a716-446655440123"
+  return message
+}

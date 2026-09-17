@@ -53,6 +53,11 @@ import SwiftUI
       return { emoji in try await workspaces.toggleReaction(message, emoji: emoji, auth: auth) }
     }
 
+    private func sendToSelfAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Components.Schemas.ChatRoomMessage)? {
+      guard workspaces.canSendToSelf(message) else { return nil }
+      return { try await workspaces.sendMessageToSelf(message, auth: auth) }
+    }
+
     private func deletionAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
       guard canModifyOwnMessage(message, userId: workspaces.currentUserId) else { return nil }
       return { try await workspaces.deleteMessage(message, auth: auth) }
@@ -115,7 +120,8 @@ import SwiftUI
                              onToggleReaction: reactionAction(for: parent),
                              pendingReactionEmoji: workspaces.pendingReactionEmoji(for: parent.id),
                              editing: workspaces.messageEditing,
-                             onQuoteJump: jumpToQuote)
+                             onQuoteJump: jumpToQuote,
+                             onSendToSelf: sendToSelfAction(for: parent))
                 .id(parent.id)
               Divider()
               HStack {
@@ -306,7 +312,7 @@ import SwiftUI
                            onToggleReaction: reactionAction(for: message),
                            pendingReactionEmoji: workspaces.pendingReactionEmoji(for: message.id),
                            editing: workspaces.messageEditing,
-                           onQuoteJump: jumpToQuote,
+                           onQuoteJump: jumpToQuote, onSendToSelf: sendToSelfAction(for: message),
                            streamReasoning: streaming ? reasoning : nil, streamThinking: thinking)
           }
         }

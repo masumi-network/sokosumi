@@ -2602,6 +2602,10 @@ export type ChatRoomMessageQuote = {
     authorName: string;
     snippet: string;
     attachment?: ChatRoomMessageQuoteAttachment;
+    /**
+     * Source room of a quote sent to the caller's Self Direct. Absent when the quoted message is in the same room.
+     */
+    roomId?: string;
 } | null;
 
 export type ChatRoomMessageQuoteAttachment = {
@@ -19907,6 +19911,118 @@ export type PostChatsRoomsByIdMessagesByMessageIdPinResponses = {
 };
 
 export type PostChatsRoomsByIdMessagesByMessageIdPinResponse = PostChatsRoomsByIdMessagesByMessageIdPinResponses[keyof PostChatsRoomsByIdMessagesByMessageIdPinResponses];
+
+export type PostChatsRoomsByIdMessagesByMessageIdSendToSelfData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        messageId: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/messages/{messageId}/send-to-self';
+};
+
+export type PostChatsRoomsByIdMessagesByMessageIdSendToSelfErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Message not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdMessagesByMessageIdSendToSelfError = PostChatsRoomsByIdMessagesByMessageIdSendToSelfErrors[keyof PostChatsRoomsByIdMessagesByMessageIdSendToSelfErrors];
+
+export type PostChatsRoomsByIdMessagesByMessageIdSendToSelfResponses = {
+    /**
+     * Quote created in the caller's Self Direct
+     */
+    201: {
+        data: ChatRoomMessage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdMessagesByMessageIdSendToSelfResponse = PostChatsRoomsByIdMessagesByMessageIdSendToSelfResponses[keyof PostChatsRoomsByIdMessagesByMessageIdSendToSelfResponses];
 
 export type PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveData = {
     body?: RemoveChatRoomMessageUnfurlRequest;

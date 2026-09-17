@@ -24187,6 +24187,391 @@
         }
       }
     },
+    "/chats/rooms/{id}/messages/{messageId}/send-to-self": {
+      "post": {
+        "description": "Send to yourself: post a quote of a readable room message into the caller's Self Direct, creating it on demand. The new message has an empty body and a quote that carries the source `roomId`. The quote snapshot stays readable after the caller loses access to the source room. Rejected for messages inside the Self Direct itself.",
+        "tags": [
+          "Chat Rooms"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationSlug"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "550e8400-e29b-41d4-a716-446655440000"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "550e8400-e29b-41d4-a716-446655440000"
+            },
+            "required": true,
+            "name": "messageId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Quote created in the caller's Self Direct",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ChatRoomMessage"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "pagination": {
+                          "$ref": "#/components/schemas/PaginationMetadata"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Message not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/chats/rooms/{id}/messages/{messageId}/mentions/{mentionId}/retry": {
       "post": {
         "description": "Retry a failed coworker @mention on a room message you authored. Reuses the existing mention row and dispatches again.",
@@ -25262,6 +25647,12 @@
           },
           "attachment": {
             "$ref": "#/components/schemas/ChatRoomMessageQuoteAttachment"
+          },
+          "roomId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Source room of a quote sent to the caller's Self Direct. Absent when the quoted message is in the same room.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         },
         "required": [
