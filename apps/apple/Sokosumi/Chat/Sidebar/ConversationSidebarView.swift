@@ -13,10 +13,17 @@ struct ConversationSidebarView: View {
   @State private var createChannel: CompositionPresentation?
   @State private var browseChannels: CompositionPresentation?
   @State private var editChannel: EditChannelPresentation?
+  @State private var lifecycle: ChannelLifecycleRequest?
 
   private struct CompositionPresentation: Identifiable {
     let id: UUID
     let hasOrganization: Bool
+  }
+
+  /// Reloads the Archived section per workspace and after each room list refresh settles, like web's collection refresh.
+  private struct ArchivedLoadKey: Equatable {
+    let context: UUID
+    let ready: Bool
   }
 
   var body: some View {
@@ -65,6 +72,21 @@ struct ConversationSidebarView: View {
               }
             }
           }
+          if workspaces.selection?.workspace.organizationId != nil, !workspaces.archivedChannels.rooms.isEmpty {
+            Section {
+              sectionHeader("Archived", section: .archived)
+              if !workspaces.sidebar.collapsedSections.contains(.archived) {
+                ForEach(workspaces.archivedChannels.rooms, id: \.id) { room in
+                  ArchivedChannelRow(
+                    room: room,
+                    pending: workspaces.channelLifecycle?.roomId == room.id,
+                    busy: workspaces.channelMutationInFlight,
+                    canDelete: workspaces.archivedChannels.canDelete
+                  ) { requestLifecycle($0, room: room) }
+                }
+              }
+            }
+          }
           Section {
             sectionHeader("Directs", section: .directs)
             if !workspaces.sidebar.collapsedSections.contains(.directs) {
@@ -85,14 +107,14 @@ struct ConversationSidebarView: View {
           Button("New chat", systemImage: "square.and.pencil") {
             startDirect = .init(id: workspaces.compositionContext, hasOrganization: workspaces.selection?.workspace.organizationId != nil)
           }
-          .disabled(workspaces.phase != .ready || workspaces.roomsLoading || workspaces.openingDirect != nil || workspaces.creatingChannel || workspaces.joiningChannel || workspaces.updatingChannel)
+          .disabled(workspaces.phase != .ready || workspaces.roomsLoading || workspaces.channelMutationInFlight)
           .help("New chat")
         }
         ToolbarItem {
           Button("Create channel", systemImage: "number") {
             createChannel = .init(id: workspaces.compositionContext, hasOrganization: true)
           }
-          .disabled(workspaces.phase != .ready || workspaces.selection?.workspace.organizationId == nil || workspaces.creatingChannel || workspaces.joiningChannel || workspaces.updatingChannel || workspaces.openingDirect != nil)
+          .disabled(workspaces.phase != .ready || workspaces.selection?.workspace.organizationId == nil || workspaces.channelMutationInFlight)
           .help("Create channel")
         }
         ToolbarItem {
@@ -154,6 +176,11 @@ struct ConversationSidebarView: View {
       browseChannels = nil
     }
     .modifier(EditChannelSheet(presentation: $editChannel))
+    .modifier(ChannelLifecycleConfirmation(request: $lifecycle))
+    .task(id: ArchivedLoadKey(context: workspaces.compositionContext, ready: workspaces.phase == .ready && !workspaces.roomsLoading)) {
+      guard workspaces.phase == .ready, !workspaces.roomsLoading else { return }
+      await workspaces.loadArchivedChannels(auth: auth)
+    }
     .navigationSplitViewColumnWidth(min: 220, ideal: 260)
     .alert("Couldn’t update conversation", isPresented: Binding(
       get: { workspaces.sidebar.actionError != nil },
@@ -195,7 +222,7 @@ struct ConversationSidebarView: View {
         .labelStyle(.iconOnly)
         .buttonStyle(.borderless)
         .frame(width: 20)
-        .disabled(workspaces.phase != .ready || workspaces.creatingChannel || workspaces.joiningChannel || workspaces.openingDirect != nil)
+        .disabled(workspaces.phase != .ready || workspaces.channelMutationInFlight)
         .help("Browse channels")
       }
     }
@@ -282,7 +309,7 @@ struct ConversationSidebarView: View {
 
   @ViewBuilder
   private func roomStatus(_ room: Components.Schemas.ChatRoom) -> some View {
-    if workspaces.sidebar.isPending(roomId: room.id) {
+    if workspaces.sidebar.isPending(roomId: room.id) || workspaces.channelLifecycle?.roomId == room.id {
       ProgressView()
         .controlSize(.mini)
         .accessibilityLabel("Updating conversation")
@@ -313,12 +340,25 @@ struct ConversationSidebarView: View {
       Task { @MainActor in await workspaces.performSidebarAction(room.mutedAt == nil ? .mute : .unmute, roomId: room.id, auth: auth) }
     }
     .disabled(!workspaces.sidebar.canPerform(room.mutedAt == nil ? .mute : .unmute, roomId: room.id))
-    if ChannelEditPermissions.isEditable(room) {
+    if ChannelEditPermissions.isEditable(room) || ChannelEditPermissions.canLeave(room) {
       Divider()
+    }
+    if ChannelEditPermissions.isEditable(room) {
       Button("Channel settings…", systemImage: "gearshape") {
         editChannel = .init(id: workspaces.compositionContext, roomId: room.id)
       }
     }
+    if ChannelEditPermissions.canLeave(room) {
+      Button("Leave channel…", systemImage: "rectangle.portrait.and.arrow.right") {
+        lifecycle = .init(context: workspaces.compositionContext, roomId: room.id, name: room.name, action: .leave)
+      }
+      .disabled(workspaces.channelMutationInFlight)
+    }
+  }
+
+  private func requestLifecycle(_ action: ChannelLifecycleAction, room: Components.Schemas.ChatRoom) {
+    guard !workspaces.channelMutationInFlight else { return }
+    lifecycle = .init(context: workspaces.compositionContext, roomId: room.id, name: room.name, action: action)
   }
 
   /// "Me" section pinned to the bottom of the sidebar: account menu with
@@ -361,7 +401,7 @@ struct ConversationSidebarView: View {
 
 /// Sidebar `Label` otherwise pins the icon to a square column, which
 /// squashes a group Direct stack into overlapping blobs.
-private struct RoomRowLabelStyle: LabelStyle {
+struct RoomRowLabelStyle: LabelStyle {
   func makeBody(configuration: Configuration) -> some View {
     HStack(spacing: 8) {
       configuration.icon
@@ -403,7 +443,7 @@ private struct RoomLeadingIcon: View {
   }
 }
 
-private struct DirectRoomAvatarStack: View {
+struct DirectRoomAvatarStack: View {
   /// Web `DirectRoomAvatarStack`: `size-5` faces, `-ml-2` overlap.
   static let faceSize: CGFloat = 20
   private static let overlap: CGFloat = 8

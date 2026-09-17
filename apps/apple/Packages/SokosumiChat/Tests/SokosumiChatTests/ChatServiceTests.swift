@@ -172,6 +172,66 @@ struct ChatServiceTests {
     }
   }
 
+  @Test func channelLifecycleUsesCoreRoutesAndSurfacesCoreMessages() async throws {
+    func error(_ status: String, _ message: String) -> String {
+      "{\"error\":\"\(status)\",\"message\":\"\(message)\",\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"req\",\"path\":\"/chats/rooms/channel\",\"method\":\"POST\"}}"
+    }
+    let room = roomJSON(id: "channel", name: "Team", kind: "channel", unreadCount: 0, unreadMentionCount: 0)
+    let transport = ScriptedTransport([
+      (200, "{\"data\":{\"id\":\"channel\",\"remainingUserMemberCount\":2},\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"req\"}}"),
+      (400, error("Bad Request", "You are the last member of this room. Ask an organization owner or admin to archive it.")),
+      (200, "{\"data\":{\"id\":\"channel\",\"archivedAt\":\"\(timestamp)\"},\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"req\"}}"),
+      (403, error("Forbidden", "Only an organization owner or admin can archive this room.")),
+      (200, "{\"data\":\(room),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"req\"}}"),
+      (400, error("Bad Request", "Room is not archived.")),
+      (204, ""),
+      (403, error("Forbidden", "Only an organization owner or admin can permanently delete this room."))
+    ])
+    let client = try makeClient(transport)
+    let service = ChatService()
+    try await service.leaveChannel(client: client, roomId: "channel", organizationSlug: nil)
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 400, message: "You are the last member of this room. Ask an organization owner or admin to archive it.")) {
+      try await service.leaveChannel(client: client, roomId: "channel", organizationSlug: "team")
+    }
+    try await service.archiveChannel(client: client, roomId: "channel", organizationSlug: "team")
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 403, message: "Only an organization owner or admin can archive this room.")) {
+      try await service.archiveChannel(client: client, roomId: "channel", organizationSlug: "team")
+    }
+    #expect(try await service.restoreChannel(client: client, roomId: "channel", organizationSlug: "team").id == "channel")
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 400, message: "Room is not archived.")) {
+      try await service.restoreChannel(client: client, roomId: "channel", organizationSlug: "team")
+    }
+    try await service.deleteChannel(client: client, roomId: "channel", organizationSlug: "team")
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 403, message: "Only an organization owner or admin can permanently delete this room.")) {
+      try await service.deleteChannel(client: client, roomId: "channel", organizationSlug: "team")
+    }
+    let routes = transport.requests.map { "\($0.request.method.rawValue) \($0.request.path ?? "")" }
+    #expect(routes == [
+      "DELETE /chats/rooms/channel/members/me", "DELETE /chats/rooms/channel/members/me",
+      "POST /chats/rooms/channel/archive", "POST /chats/rooms/channel/archive",
+      "POST /chats/rooms/channel/restore", "POST /chats/rooms/channel/restore",
+      "DELETE /chats/rooms/channel", "DELETE /chats/rooms/channel"
+    ])
+    // Personal-workspace leave (guest/matched rooms) omits the organization header.
+    #expect(transport.requests.map { orgSlugHeader($0.request) } == [nil, "team", "team", "team", "team", "team", "team", "team"])
+  }
+
+  @Test(arguments: ["member", "admin", "owner"])
+  func archivedChannelsListArchivedChannelsWithDeleteRole(role: String) async throws {
+    let member = "{\"data\":{\"id\":\"member-me\",\"userId\":\"me\",\"organizationId\":\"org\",\"role\":\"\(role)\",\"seatAssignedAt\":null,\"createdAt\":\"\(timestamp)\"},\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"req\"}}"
+    let transport = ScriptedTransport([
+      (200, member),
+      (200, roomsPageBody(rooms: [roomJSON(id: "old", name: "Old", kind: "channel", unreadCount: 0, unreadMentionCount: 0)], nextCursor: nil))
+    ])
+    let list = try await ChatService().archivedChannels(client: makeClient(transport), organizationId: "org", organizationSlug: "team")
+    #expect(list.rooms.map(\.id) == ["old"])
+    #expect(list.canDelete == (role != "member"))
+    #expect(transport.requests[0].request.path == "/users/me/organizations/org/member")
+    let query = requestQuery(transport.requests[1].request)
+    #expect(query.contains("status=archived") && query.contains("kind=channel"))
+    #expect(orgSlugHeader(transport.requests[1].request) == "team")
+  }
+
   @Test func channelAvailabilityUsesOrganizationAndQuery() async throws {
     let response = "{\"data\":{\"status\":\"free\"},\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\"}}"
     let transport = ScriptedTransport([(200, response)])
