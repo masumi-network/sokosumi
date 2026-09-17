@@ -48,6 +48,7 @@ interface TaskContextAttachmentsFieldProps {
   project?: ProjectFilterOption;
   selection: TaskContextAttachmentsSelection;
   onSelectionChange: (next: TaskContextAttachmentsSelection) => void;
+  layout?: "field" | "inline";
   className?: string;
 }
 
@@ -136,6 +137,7 @@ export function TaskContextAttachmentsField({
   project,
   selection,
   onSelectionChange,
+  layout = "field",
   className,
 }: TaskContextAttachmentsFieldProps) {
   const t = useTranslations("App.Tasks.NewTask.ContextAttachments");
@@ -181,17 +183,8 @@ export function TaskContextAttachmentsField({
     });
   }
 
-  return (
-    <div
-      className={cn(
-        "flex min-w-0 flex-wrap items-center gap-2 rounded-md border px-3 py-2",
-        className,
-      )}
-    >
-      <span className="text-muted-foreground mr-1 text-xs font-medium">
-        {t("label")}
-      </span>
-
+  const pills = (
+    <>
       <div
         className={cn(
           "inline-flex h-7 items-center overflow-hidden rounded-full border text-xs font-medium transition-colors",
@@ -333,6 +326,30 @@ export function TaskContextAttachmentsField({
           setIsAdHocDialogOpen(false);
         }}
       />
+    </>
+  );
+
+  if (layout === "inline") {
+    return (
+      <div
+        className={cn("flex min-w-0 flex-wrap items-center gap-2", className)}
+      >
+        {pills}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "flex min-w-0 flex-wrap items-center gap-2 rounded-md border px-3 py-2",
+        className,
+      )}
+    >
+      <span className="text-muted-foreground mr-1 text-xs font-medium">
+        {t("label")}
+      </span>
+      {pills}
     </div>
   );
 }

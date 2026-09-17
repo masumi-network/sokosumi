@@ -6,16 +6,17 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 
+import { canUseNextImageSrc } from "@/config/next-image";
 import { DocumentViewer } from "@/components/ui/document-viewer";
 import { FileChip } from "@/components/ui/file-chip";
 import { FileTypeIcon } from "@/components/ui/file-icon";
-import { useRememberedImageSize } from "@/hooks/use-remembered-image-size";
 import { ImageViewer } from "@/components/ui/image-viewer";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useRememberedImageSize } from "@/hooks/use-remembered-image-size";
 import { cn } from "@/lib/utils";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { formatBytes } from "@/lib/utils/format-bytes";
@@ -91,6 +92,8 @@ function FileChipMiniPreviewTrigger({
       );
     }
 
+    const canUseNextImage = canUseNextImageSrc(url);
+
     return (
       <button
         type="button"
@@ -99,13 +102,24 @@ function FileChipMiniPreviewTrigger({
         onClick={onOpenImage}
       >
         <div className="relative size-full overflow-hidden">
-          <Image
-            src={url}
-            alt={resolvedFileName}
-            fill
-            sizes="96px"
-            className="object-cover object-center"
-          />
+          {canUseNextImage ? (
+            <Image
+              src={url}
+              alt={resolvedFileName}
+              fill
+              sizes="96px"
+              className="object-cover object-center"
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element -- host is outside next/image remotePatterns
+            <img
+              src={url}
+              alt={resolvedFileName}
+              className="size-full object-cover object-center"
+              loading="lazy"
+              referrerPolicy="no-referrer"
+            />
+          )}
         </div>
       </button>
     );
