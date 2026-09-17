@@ -12,6 +12,7 @@ struct RoomDetailsView: View {
   @State private var errorMessage: String?
   @State private var directRequestId: UUID?
   @State private var selectedProfile: ChatParticipantProfile?
+  @State private var editChannel: EditChannelPresentation?
 
   var body: some View {
     VStack(spacing: 0) {
@@ -28,6 +29,11 @@ struct RoomDetailsView: View {
             Text(visibility).foregroundStyle(.secondary)
             if let topic = room.topic?.trimmingCharacters(in: .whitespacesAndNewlines), !topic.isEmpty {
               Text(topic).textSelection(.enabled)
+            }
+            if ChannelEditPermissions.isEditable(room) {
+              Button("Channel settings…") {
+                editChannel = .init(id: workspaces.compositionContext, roomId: room.id)
+              }
             }
           }
         }
@@ -46,11 +52,13 @@ struct RoomDetailsView: View {
       }
     }
     .popover(item: $selectedProfile) { ParticipantDetailsView(profile: $0) }
+    .modifier(EditChannelSheet(presentation: $editChannel))
     .onDisappear { directRequestId = nil }
     .onChange(of: room.id) { _, _ in
       directRequestId = nil
       errorMessage = nil
       selectedProfile = nil
+      editChannel = nil
     }
   }
 

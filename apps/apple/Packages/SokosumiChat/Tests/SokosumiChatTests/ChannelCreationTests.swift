@@ -40,7 +40,7 @@ struct ChannelCreationTests {
     model.draft.setSlug("team")
     await model.checkSlug { _ in true }
     #expect(!model.canAdvance)
-    await model.load { .init(recipients: roster, canCreateExternal: false) }
+    await model.load { .init(recipients: roster, isOwnerOrAdmin: false) }
     #expect(model.canAdvance)
     model.draft.setSlug("different")
     #expect(!model.canAdvance)
@@ -48,7 +48,7 @@ struct ChannelCreationTests {
     #expect(model.availability == .taken)
     #expect(!model.canAdvance)
     await model.checkSlug { _ in true }
-    await model.load { .init(recipients: .init(targets: [], membersLoadFailed: true), canCreateExternal: false) }
+    await model.load { .init(recipients: .init(targets: [], membersLoadFailed: true), isOwnerOrAdmin: false) }
     #expect(!model.canAdvance)
     model.advance()
     #expect(model.step == .details)
@@ -69,7 +69,7 @@ struct ChannelCreationTests {
     let model = ChannelCreation()
     await model.load { throw URLError(.notConnectedToInternet) }
     #expect(model.errorMessage == "No network connection. Check your connection and try again.")
-    await model.load { .init(recipients: roster, canCreateExternal: false) }
+    await model.load { .init(recipients: roster, isOwnerOrAdmin: false) }
     model.draft.setSlug("team")
     await model.checkSlug { _ in true }
     model.advance()
@@ -79,7 +79,7 @@ struct ChannelCreationTests {
 
   @Test func creationFailurePreservesDraftAndConflictReturnsToDetails() async {
     let model = ChannelCreation()
-    await model.load { .init(recipients: roster, canCreateExternal: false) }
+    await model.load { .init(recipients: roster, isOwnerOrAdmin: false) }
     model.draft.setSlug("team")
     await model.checkSlug { _ in true }
     model.advance()

@@ -14,7 +14,7 @@
           .init(id: .human("peer"), name: "Sam Rivera", detail: "sam@example.com"),
           .init(id: .coworker("agent"), name: "Research assistant", detail: "Research and analysis"),
           .init(id: .sokoBot("bot"), name: "Personal assistant")
-        ]), canCreateExternal: true)
+        ]), isOwnerOrAdmin: true)
         let model = ChannelCreation()
         await model.load { roster }
         model.draft.setSlug("team-soko")

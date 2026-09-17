@@ -10,36 +10,7 @@ description: >-
   purple come from those two ecosystems. Tokens are CSS-first (Tailwind v4
   `@theme` in apps/web/src/app/globals.css); there is no tailwind.config. shadcn/ui
   (new-york, neutral base, lucide) over Radix.
-colors:
-  background: "#FFFFFF"
-  foreground: "#0A0A0A"
-  card: "#FAFAFA"
-  muted: "#F5F5F5"
-  mutedForeground: "rgba(10,10,10,0.5)"
-  border: "#E6E6E6"
-  input: "#E6E6E6"
-  ring: "#6400FF"
-  primary: "#6400FF"          # Wisteria Purple 藤色
-  primaryForeground: "#FAFAFA"
-  secondary: "rgba(10,10,10,0.95)"
-  accent: "#F5F5F5"
-  destructive: "#FA140A"      # masumi Scarlet — error only
-  category1: "#00A4FA"        # kodosumi Sky Blue   (--chart-1)
-  category2: "#FA008C"        # masumi Electric Pink (--chart-2)
-  category3: "#0AFA14"        # kodosumi Neon Grass (--chart-3)
-  category4: "#FFD300"        # masumi Golden Yellow (--chart-4)
-  category5: "#FF6400"        # masumi Persimmon    (--chart-5)
-  neutral50: "#FAFAFA"
-  neutral100: "#F5F5F5"
-  neutral200: "#E5E5E5"
-  neutral300: "#D4D4D4"
-  neutral400: "#A3A3A3"
-  neutral500: "#737373"
-  neutral600: "#525252"
-  neutral700: "#404040"
-  neutral800: "#262626"
-  neutral900: "#171717"
-  neutral950: "#0C0C0C"
+  Color values live only in apps/web/src/app/globals.css — do not duplicate a hex table here.
 typography:
   display:
     fontFamily: Inter
@@ -72,7 +43,7 @@ typography:
     fontWeight: 400
     fontSize: 12px
     lineHeight: 16px
-    textColor: "{colors.mutedForeground}"
+    textColor: muted-foreground
 rounded:
   sm: 6px      # --radius - 4px
   md: 8px      # --radius - 2px
@@ -91,21 +62,21 @@ spacing:        # Tailwind default 4-pt scale (no custom --spacing token)
   12: 48px
 components:
   button:
-    backgroundColor: "{colors.primary}"
-    textColor: "{colors.primaryForeground}"
+    backgroundColor: primary-solid
+    textColor: primary-solid-foreground
     rounded: "{rounded.md}"
-    height: 36px
+    height: h-10
     padding: 8px 16px
-    typography: "{typography.label}"
+    typography: text-sm font-medium
   buttonHover:
-    backgroundColor: "color-mix(in oklab, {colors.primary} 90%, transparent)"
+    backgroundColor: primary-solid-hover
   buttonSm:
-    height: 32px
+    height: h-8
     padding: 0 12px
   buttonIcon:
-    size: 36px
+    size: size-10
   input:
-    height: 36px
+    height: h-10
     rounded: "{rounded.md}"
     backgroundColor: transparent
   badge:
@@ -113,15 +84,15 @@ components:
     padding: 2px 8px
     typography: "{typography.caption}"
   card:
-    backgroundColor: "{colors.card}"
+    backgroundColor: card
     rounded: "{rounded.xl}"
     padding: 24px
   dialog:
     rounded: "{rounded.lg}"
     padding: 24px
   searchHero:
-    backgroundColor: "{colors.foreground}"
-    textColor: "{colors.background}"
+    backgroundColor: foreground
+    textColor: background
     rounded: "{rounded.full}"
     height: 56px
   categoryChip:
@@ -129,7 +100,7 @@ components:
     padding: 2px 8px
     typography: "{typography.caption}"
   focusRing:
-    ring: "color-mix(in oklab, {colors.ring} 50%, transparent)"
+    ring: ring-ring-halo
     width: 3px
 ---
 
@@ -160,18 +131,21 @@ out. Brand names and the first letter of any brand are always **lowercase**; UI 
 
 ### Primary — Wisteria Purple (藤色), themeable
 
-`--primary: #6400FF` (`hsla(264, 100%, 50%, 1)`). Brand-sanctioned alternate primaries (swap
+`--primary: #6400FF` (`hsla(263.5, 100%, 50%, 1)`). Brand-sanctioned alternate primaries (swap
 `--primary` only; keep everything else neutral): Sky Blue `#00A4FA`, Light Teal `#0AFED3`,
 Neon Grass `#0AFA14`, Young Grass `#C4FE0A`, Persimmon `#FF6400`, Iris `#FF51FF`. The primary
-family also exposes `--primary-variant/-tertiary/-quaternary/-quinary` (decreasing alpha) and
-`--primary-iris` for tints and gradients.
+family also exposes `--primary-solid` (fill under a near-white label) plus opaque ramp steps
+`--primary-tertiary/-quaternary/-quinary` (border / hover fill / resting fill) and
+`--primary-iris` for gradients. Never invent a tint at the call site (`bg-primary/55`,
+`color-mix(…, transparent)`); if no step fits, add one in `globals.css`.
 
 ### Neutrals
 
-Black/White + the neutral ramp `#FAFAFA → #0C0C0C` plus a black-alpha ramp
-(`--secondary/-tertiary/-quaternary/-quinary/-senary` and `--alpha-5…95`). Elevated surfaces are
-**lighter** (card `#FAFAFA` on muted `#F5F5F5`), not heavier. Default border = `--border`; the
-base layer applies `border-border` + `outline-ring` to all elements.
+Black/White + the neutral ramp `#FAFAFA → #0C0C0C` plus the step ramp
+(`--secondary/-tertiary/-quaternary/-quinary/-senary`). Elevated surfaces are
+**lighter** (card `#FAFAFA` on muted `#F5F5F5`), not heavier. Default border = `--border`;
+`--input` is a separate, stronger control boundary. The base layer applies `border-border` +
+`outline-ring` to all elements.
 
 ### Category palette (ecosystem)
 
@@ -187,15 +161,19 @@ Category accents come from the **real masumi (warm) + kodosumi (cool)** palettes
 | `--chart-5` | `#FF6400` | masumi · Persimmon |
 
 These are vivid (built for fills/ink, not small text). Use as **solid fills** (badges, mock
-accents) or **soft 15% tints** (chips); keep adjacent text/icons **neutral** for contrast.
+accents) or **`-quinary` resting fills** (chips — `--chart-N-quinary`); keep adjacent
+text/icons **neutral** for contrast.
 
 ### Token families (reference)
 
-Beyond the above, `globals.css` exposes: **semantic** (`--destructive/critical/warning/success/
-info`, each with `-variant/-tertiary/-quaternary/-quinary/-foreground/-ring`); **material**
-translucent surfaces (`--material-ultrathin → -ultrathick`, each with `-overlay`) for blur/glass
-UI; **sidebar-** set; and `card/popover/border/input/ring/ring-semantic`. Use semantic tokens
-(`bg-primary`, `text-muted-foreground`, `border-input`, `ring-ring`) — never hardcoded hex.
+Beyond the above, `globals.css` exposes: **semantic** (`--destructive/warning/success/
+info`, each with `-tertiary/-quaternary/-quinary/-label/-foreground`; destructive also has
+`-solid` for a fill that carries a near-white label); **overlay / glass** tokens
+(`--overlay`, `--overlay-primary`, `--surface-glass`, `--scrim/-soft/-strong`) for blur/glass
+UI (alpha lives in the token, not at the call site); **sidebar-** set; and
+`card/popover/border/input/ring/ring-halo`. Use semantic tokens
+(`bg-primary`, `text-muted-foreground`, `border-input`, `bg-primary-solid`, `ring-ring-halo`) —
+never hardcoded hex, never an opacity modifier on a colour utility.
 
 ## Typography
 
@@ -236,7 +214,7 @@ Borders-first, then soft glow — **never** dramatic drop shadows.
   brand's "blur & glow." No shadow **token scale** exists — use Tailwind `shadow-*` defaults or
   the two custom utilities (`agent-card-image-shadow`, `agent-modal-card`); keep it subtle.
 - **Blur:** `backdrop-blur` for elements over busy backgrounds (dialog overlay = `bg-overlay
-  backdrop-blur-lg`); pairs with the **material** translucent-surface tokens.
+  backdrop-blur-lg`); pairs with the overlay / glass tokens (`--overlay`, `--surface-glass`).
 - **Z-index:** no formal ladder. **`z-50` is the standard overlay layer** (dropdowns, popovers,
   modals); `z-10` for local stacking. Don't invent new high values.
 
@@ -255,12 +233,15 @@ Borders-first, then soft glow — **never** dramatic drop shadows.
 shadcn/ui wrappers over Radix in `apps/web/src/components/ui/`; each carries a `data-slot`.
 Variants via `class-variance-authority` (only Button & Badge); others are prop/state-driven.
 
-- **Button** — 8 variants: `primary` (bg-primary), `default` (bg-secondary, *default*),
+- **Button** — 8 variants: `primary` (bg-primary-solid), `default` (bg-secondary, *default*),
   `destructive`, `outline`, `secondary` (bg-quinary), `ghost`, `link`, `muted`. 4 sizes:
-  `default` (h-9 px-4), `sm` (h-8 px-3), `lg` (h-10 px-6), `icon` (size-9). Base:
-  `cursor-pointer transition-all disabled:opacity-50`, hover per-variant (`hover:bg-primary-hover`),
+  `default` (h-10 px-4), `sm` (h-8 px-3), `lg` (h-10 px-6), `icon` (size-10). Default control
+  height is `h-10` (scales with root rem; Dynamic Type cap 1.25×). Base:
+  `cursor-pointer transition-all disabled:opacity-50`, hover per-variant
+  (`hover:bg-primary-solid-hover` / `hover:bg-secondary-hover` / `hover:bg-quaternary`),
   embedded SVG defaults to `size-4`.
-- **Input** — h-9, `rounded-md border-input bg-transparent`, `text-base md:text-sm`.
+- **Input** — h-10, `rounded-md border-input bg-transparent`, `text-base md:text-sm`
+  (via `withEditableTextSize`).
 - **Badge** — 4 variants (default/secondary/destructive/outline), `px-2 py-0.5 text-xs rounded-md`,
   SVG `size-3`.
 - **Card** — `bg-card rounded-xl border py-6`, with Header/Title(`font-semibold`)/Description
@@ -269,7 +250,7 @@ Variants via `class-variance-authority` (only Button & Badge); others are prop/s
   `bg-overlay backdrop-blur-lg`; built-in close button; open/close = fade + zoom-95.
 - **Select / DropdownMenu / Tabs / Tooltip / Switch / Checkbox** — token-driven; states via
   Radix `data-[state=…]` + `focus-visible:ring-ring-halo ring-[3px]`; tabs/list `bg-muted h-9
-  rounded-lg`; tooltip `bg-primary text-primary-foreground text-xs`.
+  rounded-lg`; tooltip `bg-primary-solid text-primary-solid-foreground text-xs`.
 - **Marketplace components** (`components/agents/coworker-gallery-section.tsx`): full-bleed
   **hero search** (black `rounded-full` pill); **company group** (header → coworker tiles →
   "Ready-to-run offers" sub-block, capped 2/5/3 with "Show all"); **coworker tile**
@@ -279,7 +260,7 @@ Variants via `class-variance-authority` (only Button & Badge); others are prop/s
 
 ## Motion
 
-- **Library:** `motion` 13.3.0 (framer-motion successor) is used in `motion-tabs`,
+- **Library:** `motion` 13.4.0 (framer-motion successor) is used in `motion-tabs`,
   `motion-highlight`, `purchase-success-modal`, `confetti-burst`, and
   `task-created-celebration`. Everything else is **CSS Tailwind transitions** +
   `tw-animate-css` overlay animations + `@theme` keyframes.
@@ -332,7 +313,7 @@ Variants via `class-variance-authority` (only Button & Badge); others are prop/s
 - **Images:** decorative `alt=""` (or `aria-hidden`); meaningful images get a real `alt`; avatars
   use `AvatarFallback` initials.
 - **Touch targets:** there is **no deliberate 44px convention** — icon buttons are often `size-7/8`
-  and `size="icon"` is 36px. For mobile-first surfaces, bump tap targets explicitly.
+  and `size="icon"` is `size-10`. For mobile-first surfaces, bump tap targets explicitly.
 
 ## Voice & Content
 
@@ -370,4 +351,7 @@ primary on a neutral background. Brand names are always lowercase.
 - Off-brand palettes (e.g. stock shadcn chart colors) — use the ecosystem.
 - Heavy/dramatic drop shadows; off-scale font sizes; animating layout properties.
 - Chromatic brand colors carrying small text — keep text/icons neutral on tints.
+- Opacity modifiers on colour utilities (`bg-primary/55`, `border-border/40`) or
+  `color-mix(…, transparent)` tints — use the opaque ramp step (`-tertiary` /
+  `-quaternary` / `-quinary`) or a named token (`--ring-halo`, `--overlay`).
 - Inventing new z-index values above `z-50`, or hardcoding hex / px radii.
