@@ -78,10 +78,10 @@ export function TaskContextSectionContent({
     personalBrand: string;
   };
 }) {
+  // Detail shows what is attached on the task, not what the project still offers.
   const showBrand = selection.brandEnabled;
-  const showBriefing =
-    selection.briefingEnabled && Boolean(project?.briefingUrl);
-  const showMemory = selection.memoryEnabled && Boolean(project?.contextMd);
+  const showBriefing = selection.briefingEnabled;
+  const showMemory = selection.memoryEnabled;
 
   if (!showBrand && !showBriefing && !showMemory) {
     return null;

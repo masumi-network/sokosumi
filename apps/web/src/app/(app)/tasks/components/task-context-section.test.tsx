@@ -103,7 +103,7 @@ describe("TaskContextSectionContent", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("hides briefing and memory when project files are unavailable", () => {
+  it("still shows briefing and memory when they are attached without a project", () => {
     render(
       <TaskContextSectionContent
         title="Context"
@@ -121,8 +121,8 @@ describe("TaskContextSectionContent", () => {
     );
 
     expect(screen.getByText("Acme brand guidelines")).toBeInTheDocument();
-    expect(screen.queryByText("Briefing")).toBeNull();
-    expect(screen.queryByText("Memory")).toBeNull();
+    expect(screen.getByText("Briefing")).toBeInTheDocument();
+    expect(screen.getByText("Memory")).toBeInTheDocument();
   });
 });
 
