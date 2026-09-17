@@ -55,3 +55,34 @@ struct CoworkerThoughtView: View {
     }
   }
 }
+
+/// Settled Thought header on a failed mention shell plus the mentioner-only
+/// Retry (web `CoworkerFailedThoughtSparkle` + `FailedMentionActions`). Core
+/// does not expose the failure reason, so the label stays generic. The row
+/// owns the POST and the rejection alert: this view unmounts while retry
+/// flips the shell to thinking.
+struct CoworkerMentionFailedView: View {
+  var onRetry: (() -> Void)?
+  var isRetrying = false
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 4) {
+      HStack(spacing: 6) {
+        Image(systemName: "sparkle")
+          .foregroundStyle(.tertiary)
+          .accessibilityHidden(true)
+        Text("Failed to reply")
+      }
+      .font(.callout)
+      .foregroundStyle(.secondary)
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel("Failed to reply")
+      if let onRetry {
+        Button("Retry", action: onRetry)
+          .buttonStyle(.borderless)
+          .font(.caption)
+          .disabled(isRetrying)
+      }
+    }
+  }
+}

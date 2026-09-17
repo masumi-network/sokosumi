@@ -61,6 +61,8 @@ import SwiftUI
     var sentAt: Date?
     let onRetry: (() -> Void)?
     let onRemove: (() -> Void)?
+    /// Mentioner-only retry of a failed coworker mention shell.
+    var onRetryMention: (() async throws -> Void)?
     var onReply: (() -> Void)?
     var onQuote: (() -> Void)?
     var onEdit: (() -> Void)?
@@ -91,6 +93,9 @@ import SwiftUI
     @State private var isDeleting = false
     @State private var deletionError: String?
     @State private var showsDeletionError = false
+    @State private var isRetryingMention = false
+    @State private var mentionRetryError: String?
+    @State private var showsMentionRetryError = false
     @State private var isSendingToSelf = false
     @State private var sentToSelf: Components.Schemas.ChatRoomMessage?
     @State private var sendToSelfError: String?
@@ -110,14 +115,22 @@ import SwiftUI
       isHovered || isReplyHovered || focusedAction != nil || showsReactionPicker
     }
 
+    /// Persisted mention shell (thinking or failed); nil for ordinary rows.
+    private var mentionShell: CoworkerMentionShell? {
+      CoworkerMentionShell(message: message)
+    }
+
+    /// Web `isDurableRoomMessage`: no link while the shell is still thinking.
     private var canCopyMessageLink: Bool {
       message.deletedAt == nil
         && !isOutboundLocalMessage(message)
         && !message.id.hasPrefix("stream:")
+        && mentionShell?.isThinking != true
     }
 
     private var showsActionChrome: Bool {
       message.deletedAt == nil
+        && mentionShell?.isThinking != true
         && (onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil
           || onTogglePin != nil || onToggleReaction != nil || canCopyMessageLink || onSendToSelf != nil)
     }
@@ -154,6 +167,29 @@ import SwiftUI
           showsDeletionError = true
         }
       }
+    }
+
+    /// Retry state lives on the row: optimistic thinking unmounts the failed
+    /// shell, and a child alert would die with it.
+    private func retryMention() {
+      guard !isRetryingMention, let onRetryMention else { return }
+      isRetryingMention = true
+      Task { @MainActor in
+        defer { isRetryingMention = false }
+        do { try await onRetryMention() } catch {
+          mentionRetryError = friendlyMessage(for: error)
+          showsMentionRetryError = true
+        }
+      }
+    }
+
+    private var mentionRetryHandler: (() -> Void)? {
+      guard onRetryMention != nil else { return nil }
+      return retryMention
+    }
+
+    private var failedMentionView: some View {
+      CoworkerMentionFailedView(onRetry: mentionRetryHandler, isRetrying: isRetryingMention)
     }
 
     private var pinnedLabel: some View {
@@ -202,9 +238,15 @@ import SwiftUI
               }
             }
           }
-          if isCoworkerMessage(message), message.deletedAt == nil {
+          let mentionShell = mentionShell
+          if case .failed? = mentionShell {
+            failedMentionView
+          } else if isCoworkerMessage(message), message.deletedAt == nil {
+            // A persisted mention shell keeps the live Thought header until Core
+            // fills the answer; its clock starts at `thought_timing_ms.start`.
             CoworkerThoughtView(thought: CoworkerThought(message: message, streamedText: streamReasoning),
-                                working: streamThinking, startedAt: message.createdAt)
+                                working: streamThinking || mentionShell != nil,
+                                startedAt: mentionShell?.startedAt ?? message.createdAt)
           }
           if message.deletedAt != nil {
             Text("This message was deleted")
@@ -217,11 +259,11 @@ import SwiftUI
             }
             if let editing, editing.source?.id == message.id {
               MessageEditComposer(editing: editing).id(message.id)
-            } else if message.quote == nil || !message.content.isEmpty {
-              // Send to yourself posts only a quote, so there is no body to render.
+            } else if mentionShell == nil, message.quote == nil || !message.content.isEmpty {
+              // Mention shells render their own state; Send to yourself posts only a quote, so there is no body to render.
               MessageMarkdownView(source: message.content, room: room, channels: channels, preparedDocument: preparedDocument)
             }
-            if outbound == nil {
+            if outbound == nil, mentionShell == nil {
               ForEach(message.unfurls ?? [], id: \.url) { preview in
                 MessageUnfurlView(preview: preview, remove: onRemoveUnfurl.map { action in { try await action(preview.url) } })
                   .id(preview.url + (preview.imageUrl ?? ""))
@@ -343,6 +385,11 @@ import SwiftUI
         Button("OK", role: .cancel) {}
       } message: {
         Text(deletionError ?? "Try again.")
+      }
+      .alert("Couldn’t retry the mention", isPresented: $showsMentionRetryError) {
+        Button("OK", role: .cancel) {}
+      } message: {
+        Text(mentionRetryError ?? "Try again.")
       }
       .contextMenu {
         if onTogglePin != nil {

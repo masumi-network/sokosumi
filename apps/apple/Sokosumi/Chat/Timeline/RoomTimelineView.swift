@@ -67,6 +67,11 @@ import SwiftUI
       return { try await workspaces.deleteMessage(message, auth: auth) }
     }
 
+    private func mentionRetryAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
+      guard workspaces.canRetryMention(message) else { return nil }
+      return { try await workspaces.retryMention(message, auth: auth) }
+    }
+
     var body: some View {
       transcriptBody
         .task(id: preparationInput) {
@@ -218,7 +223,10 @@ import SwiftUI
                                  onRemove: outbound.map { shell in
                                    { workspaces.removeOutbound(clientTurnId: shell.clientTurnId) }
                                  },
-                                 onReply: outbound == nil && !message.id.hasPrefix("stream:") ? { workspaces.openThread(message, auth: auth) } : nil,
+                                 onRetryMention: mentionRetryAction(for: message),
+                                 // Web hides the thread button on stream overlays and mention shells (`shouldShowChatRoomThreadButton`).
+                                 onReply: outbound == nil && !message.id.hasPrefix("stream:") && CoworkerMentionShell(message: message) == nil
+                                   ? { workspaces.openThread(message, auth: auth) } : nil,
                                  onQuote: canQuoteMessage(message) ? { pendingQuote = messageQuote(from: message)
                                    quoteFocusRequest = UUID().uuidString
                                  } : nil,
