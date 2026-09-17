@@ -5,6 +5,7 @@ import { hasSokoBotBetaAccess } from "@/lib/beta-access";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { getPrivateCachedChatListChrome } from "./private-sidebar-cache";
 import Sidebar from "./sidebar";
+import { SidebarChatListSkeleton } from "./sidebar/components/sidebar-chat-list-skeleton";
 import SidebarDeferredAccount, {
   SidebarAccountChipFallback,
 } from "./sidebar-deferred-account";
@@ -35,7 +36,7 @@ export default function PrivateCachedAppSidebar({
       sokoBotMenuEnabled={sokoBotMenuEnabled}
       calendarMenuEnabled={calendarMenuEnabled}
       chatList={
-        <Suspense fallback={<SidebarChatListFallback />}>
+        <Suspense fallback={<SidebarChatListSkeleton />}>
           <PrivateCachedSidebarRooms
             userId={sessionUser.id}
             activeOrganizationId={activeOrganizationId}
@@ -52,17 +53,6 @@ export default function PrivateCachedAppSidebar({
         </Suspense>
       }
     />
-  );
-}
-
-function SidebarChatListFallback() {
-  return (
-    <div className="flex flex-col gap-2 px-3 py-2" aria-hidden>
-      <div className="bg-muted h-4 w-20 animate-pulse rounded-md" />
-      <div className="bg-muted h-8 w-full animate-pulse rounded-md" />
-      <div className="bg-muted h-8 w-full animate-pulse rounded-md" />
-      <div className="bg-muted h-8 w-5/6 animate-pulse rounded-md" />
-    </div>
   );
 }
 
