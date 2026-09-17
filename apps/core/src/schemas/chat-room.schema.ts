@@ -2,6 +2,7 @@ import { z } from "@hono/zod-openapi";
 import {
   CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
   CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
+  MAX_LISTED_CHAT_REACTION_REACTORS,
 } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
@@ -410,9 +411,6 @@ export const chatRoomMessageSenderSchema = z
   ])
   .openapi("ChatRoomMessageSender");
 
-/** Cap on named reactors returned per emoji; `count` may still exceed this. */
-export const MAX_LISTED_CHAT_REACTION_REACTORS = 20;
-
 export const chatRoomMessageReactorSchema = z
   .object({
     id: z.string().openapi({ example: "user_123" }),
@@ -625,12 +623,6 @@ export const updateChatRoomMessageRequestSchema = z
       }),
   })
   .openapi("UpdateChatRoomMessageRequest");
-
-export const reactToChatRoomMessageRequestSchema = z
-  .object({
-    emoji: z.string().trim().min(1).max(24).openapi({ example: "👍" }),
-  })
-  .openapi("ReactToChatRoomMessageRequest");
 
 /**
  * Archiving and leaving both make the room unreachable for the caller, so

@@ -28,7 +28,7 @@ import {
   removeRoomMessageUnfurlAction,
   retryRoomMentionAction,
   sendRoomMessageAction,
-  toggleMessageReactionAction,
+  setMessageReactionAction,
   unpinRoomMessageAction,
 } from "@/app/chat/actions";
 import { chatMobileHeightShellClass } from "@/app/chat/components/chat-mobile-tab-registry";
@@ -97,6 +97,13 @@ import {
 } from "@/app/chat/utils/outbound-room-message";
 import { markOutboundSentTick } from "@/app/chat/utils/outbound-sent-tick";
 import { applyReplySoftDeleteToParentIfUnchanged } from "@/app/chat/utils/parent-thread-preview";
+import {
+  mergeConfirmedReaction,
+  overlayPendingReactions,
+  type PendingReaction,
+  type PendingReactionKey,
+  pendingReactionKey,
+} from "@/app/chat/utils/pending-reactions";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import {
   buildRoomTranscriptRows,
@@ -587,10 +594,17 @@ export function RoomsClient({
 
   // Classic outbound uses pending shells + a queue; composer stays unlocked.
   // Stream rooms still pass isCoworkerStreaming into isSending* props below.
-  const [_isReacting, startReactionTransition] = useTransition();
   const [_isRetryingMention, startMentionRetryTransition] = useTransition();
   const [_isDeleting, startDeleteTransition] = useTransition();
-  const pendingReactionsRef = useRef<Set<string>>(new Set());
+  // Pending reactions: the viewer's latest intent per message and emoji,
+  // shown on top of confirmed rows until the request settles (ADR 0032).
+  // Keyed by message id, so leaving the room hides them without clearing.
+  const [pendingReactions, setPendingReactions] = useState<
+    ReadonlyMap<PendingReactionKey, PendingReaction>
+  >(new Map());
+  const pendingReactionsRef = useRef(pendingReactions);
+  pendingReactionsRef.current = pendingReactions;
+  const inFlightReactionsRef = useRef<Set<PendingReactionKey>>(new Set());
   const pendingMentionRetriesRef = useRef<Set<string>>(new Set());
   // Classic POST: single-flight queue per composer (channel vs thread).
   const classicChannelRefs = useRef<ClassicOutboundQueueRefs>({
@@ -1091,12 +1105,36 @@ export function RoomsClient({
     setMessagesState(topLevelRoomMessages);
   }, [messagesState, topLevelRoomMessages]);
 
+  const reactionViewer = useMemo(
+    () => ({
+      id: currentUserId,
+      name:
+        selectedRoom?.userMembers.find((user) => user.id === currentUserId)
+          ?.name ??
+        organizationMembers.find((member) => member.user.id === currentUserId)
+          ?.user.name ??
+        null,
+    }),
+    [currentUserId, organizationMembers, selectedRoom],
+  );
+  const overlayReactions = useCallback(
+    (rows: ChatRoomMessage[]) =>
+      pendingReactions.size === 0
+        ? rows
+        : rows.map((row) =>
+            overlayPendingReactions(row, pendingReactions, reactionViewer),
+          ),
+    [pendingReactions, reactionViewer],
+  );
+
   const displayMessages = useMemo(() => {
-    return mergeMessagesWithStreamOverlay(
-      topLevelRoomMessages,
-      topLevelStreamOverlayMessages,
+    return overlayReactions(
+      mergeMessagesWithStreamOverlay(
+        topLevelRoomMessages,
+        topLevelStreamOverlayMessages,
+      ),
     );
-  }, [topLevelRoomMessages, topLevelStreamOverlayMessages]);
+  }, [overlayReactions, topLevelRoomMessages, topLevelStreamOverlayMessages]);
   // Message rows with a boundary row wherever history is missing. Day
   // separators still read across a gap; continuation chrome does not.
   const transcriptRows = useMemo(
@@ -1129,11 +1167,24 @@ export function RoomsClient({
   }, [threadMessages, threadParentMessage?.id]);
 
   const displayThreadMessages = useMemo(() => {
-    return mergeMessagesWithStreamOverlay(
-      persistedThreadMessages,
-      threadStreamOverlayMessages,
+    return overlayReactions(
+      mergeMessagesWithStreamOverlay(
+        persistedThreadMessages,
+        threadStreamOverlayMessages,
+      ),
     );
-  }, [persistedThreadMessages, threadStreamOverlayMessages]);
+  }, [overlayReactions, persistedThreadMessages, threadStreamOverlayMessages]);
+  const displayThreadParentMessage = useMemo(
+    () =>
+      threadParentMessage
+        ? overlayPendingReactions(
+            threadParentMessage,
+            pendingReactions,
+            reactionViewer,
+          )
+        : null,
+    [pendingReactions, reactionViewer, threadParentMessage],
+  );
 
   // Draft coworker DM stashes text then navigates — auto-stream once room opens.
   // Keep sessionStorage until stream actually starts so Strict Mode remount
@@ -1512,6 +1563,19 @@ export function RoomsClient({
     setThreadParentMessage((current) =>
       current?.id === updatedMessage.id ? updatedMessage : current,
     );
+  }
+
+  /** Only `emoji`'s entry moves; edits and other reactions stay (ADR 0032). */
+  function mergeConfirmedReactionIntoState(
+    messageId: string,
+    emoji: string,
+    response: ChatRoomMessage,
+  ) {
+    const merge = (row: ChatRoomMessage) =>
+      row.id === messageId ? mergeConfirmedReaction(row, response, emoji) : row;
+    setMessagesState((current) => current.map(merge));
+    setThreadMessages((current) => current.map(merge));
+    setThreadParentMessage((current) => (current ? merge(current) : current));
   }
 
   function handleRetryMention(shell: ChatRoomMessage) {
@@ -1895,29 +1959,54 @@ export function RoomsClient({
 
   function handleToggleReaction(message: ChatRoomMessage, emoji: string) {
     if (!selectedRoom) return;
-    // Guard the in-flight toggle: on a slow connection nothing changed
-    // visibly, so users tapped again and the second call flipped the reaction
-    // straight back off.
     const roomId = selectedRoom.id;
-    const pendingKey = `${message.id}:${emoji}`;
-    if (pendingReactionsRef.current.has(pendingKey)) return;
-    pendingReactionsRef.current.add(pendingKey);
-    startReactionTransition(async () => {
-      const result = await toggleMessageReactionAction(
-        roomId,
-        message.id,
-        emoji,
-      );
-      pendingReactionsRef.current.delete(pendingKey);
-      if (!result.ok) {
-        toast.error(result.error.message);
-        return;
+    const key = pendingReactionKey(message.id, emoji);
+    // `message` is the displayed row, overlay included, so flipping it is
+    // "last tap wins": every tap shows at once and records the newest intent.
+    const reacted = !message.reactions.some(
+      (entry) => entry.emoji === emoji && entry.reactedByCurrentUser,
+    );
+    const intent: PendingReaction = { messageId: message.id, emoji, reacted };
+    setPendingReactions((current) => new Map(current).set(key, intent));
+    if (inFlightReactionsRef.current.has(key)) {
+      // The running request sends the newest intent once it returns.
+      return;
+    }
+    inFlightReactionsRef.current.add(key);
+    void (async () => {
+      let sent = reacted;
+      try {
+        for (;;) {
+          const result = await setMessageReactionAction(
+            roomId,
+            message.id,
+            emoji,
+            sent,
+          );
+          if (!result.ok) {
+            // Rollback is dropping the overlay: rows underneath are confirmed.
+            toast.error(result.error.message);
+            return;
+          }
+          if (isStillSelectedRoom(roomId)) {
+            mergeConfirmedReactionIntoState(message.id, emoji, result.value);
+          }
+          const latest = pendingReactionsRef.current.get(key)?.reacted;
+          if (latest == null || latest === sent) {
+            return;
+          }
+          sent = latest;
+        }
+      } finally {
+        inFlightReactionsRef.current.delete(key);
+        setPendingReactions((current) => {
+          if (!current.has(key)) return current;
+          const next = new Map(current);
+          next.delete(key);
+          return next;
+        });
       }
-      if (!isStillSelectedRoom(roomId)) {
-        return;
-      }
-      mergeUpdatedMessage(result.value);
-    });
+    })();
   }
 
   function handleStartEdit(message: ChatRoomMessage) {
@@ -2802,7 +2891,9 @@ export function RoomsClient({
           mainEnd={
             threadParentMessage ? (
               <ThreadPanel
-                parentMessage={threadParentMessage}
+                parentMessage={
+                  displayThreadParentMessage ?? threadParentMessage
+                }
                 onMuteChanged={() => {
                   // Mute moves both numbers a Look moves: this room's unread
                   // thread count, and the room's own attention chrome.

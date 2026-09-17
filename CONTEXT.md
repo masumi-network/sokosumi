@@ -268,6 +268,16 @@ _Avoid_: Starred room (API-only name), favorite, treating this as a Pinned messa
 A top-level Channel message on that Channel's shared pin list. Everyone on the room roster sees the same list. Distinct from a Pinned room.
 _Avoid_: Announcement (a use of this), pinned room, thread pin
 
+### Chat reactions
+
+**Reaction**:
+One user's emoji on one room message. The user, the message and the emoji identify it; there is no separate reaction id. A user either has a given Reaction or does not.
+_Avoid_: Toggle (the old API verb), like, vote
+
+**Pending reaction**:
+The sender-local add or remove of a Reaction shown before the server confirms it. It overlays that emoji only; it is dropped on confirm, rolled back to the last confirmed state on failure, and never seen by other participants. Distinct from a Pending message.
+_Avoid_: Optimistic reaction (jargon), local reaction
+
 ### Chat presence
 
 **Presence**:

@@ -980,10 +980,11 @@ export async function unpinRoomMessageAction(
   }
 }
 
-export async function toggleMessageReactionAction(
+export async function setMessageReactionAction(
   roomId: string,
   messageId: string,
   emoji: string,
+  reacted: boolean,
 ): Promise<RoomActionResult<ChatRoomMessage>> {
   const cleanEmoji = cleanString(emoji);
   if (!cleanEmoji) {
@@ -991,10 +992,11 @@ export async function toggleMessageReactionAction(
   }
 
   try {
-    const message = await chatRoomService.toggleReaction(
+    const message = await chatRoomService.setReaction(
       roomId,
       messageId,
       cleanEmoji,
+      reacted,
     );
     // No revalidatePath: the updated message is returned and merged client
     // side, so a full RSC re-render of /chat would only duplicate work.

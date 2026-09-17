@@ -99,6 +99,7 @@ export {
   buildRoomQuoteSnippetParts,
   type ChatRoomQuoteAttachment,
 } from "./chat-room-quote-snippet.js";
+export { MAX_LISTED_CHAT_REACTION_REACTORS } from "./chat-room-reactions.js";
 export {
   buildChatRoomUnfurlSnapshotPathname,
   CHAT_ROOM_UNFURL_SNAPSHOT_MAX_SIZE_BYTES,
