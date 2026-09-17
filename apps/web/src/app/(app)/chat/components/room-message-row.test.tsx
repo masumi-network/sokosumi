@@ -651,6 +651,31 @@ describe("ChatMessageRow", () => {
     expect(onPin).toHaveBeenCalledTimes(1);
   });
 
+  it("shows Copy link on hover overflow when the body is empty", async () => {
+    const user = userEvent.setup();
+    renderRow({
+      message: userMessage({ content: "   " }),
+      onQuote: vi.fn(),
+    });
+    await user.hover(screen.getByRole("article"));
+
+    const hoverActions = document.querySelector(
+      '[data-message-actions="hover"]',
+    );
+    expect(hoverActions).toBeTruthy();
+    await user.click(
+      within(hoverActions as HTMLElement).getByRole("button", {
+        name: "Actions.overflow",
+      }),
+    );
+    expect(
+      screen.queryByRole("menuitem", { name: "Copy.action" }),
+    ).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole("menuitem", { name: "Copy.link" }),
+    ).toBeInTheDocument();
+  });
+
   it("copies a message link from the hover overflow and hides Copy text", async () => {
     const user = userEvent.setup();
     copyMock.mockClear();
