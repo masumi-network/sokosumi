@@ -74,10 +74,13 @@ import SwiftUI
     var pendingReactionEmoji: Set<String> = []
     var editing: MessageEditing?
     var onQuoteJump: ((String) -> Void)?
+    /// Send to yourself. Absent inside the Self Direct and for rows that are not durable.
+    var onSendToSelf: (() async throws -> Components.Schemas.ChatRoomMessage)?
     var horizontalInset: CGFloat = 0
     var streamReasoning: String?
     var streamThinking = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.openURL) private var openURL
     @State private var quickReactions = ReactionEmojiHistory.defaultQuickReactions
     @State private var showsReactionPicker = false
     @State private var pinError: String?
@@ -88,6 +91,9 @@ import SwiftUI
     @State private var isDeleting = false
     @State private var deletionError: String?
     @State private var showsDeletionError = false
+    @State private var isSendingToSelf = false
+    @State private var sentToSelf: Components.Schemas.ChatRoomMessage?
+    @State private var sendToSelfError: String?
     @State private var isHovered = false
     @State private var isReplyHovered = false
     @State private var hoveredAction: MessageAction?
@@ -113,7 +119,7 @@ import SwiftUI
     private var showsActionChrome: Bool {
       message.deletedAt == nil
         && (onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil
-          || onTogglePin != nil || onToggleReaction != nil || canCopyMessageLink)
+          || onTogglePin != nil || onToggleReaction != nil || canCopyMessageLink || onSendToSelf != nil)
     }
 
     private var reactionAction: ((String) -> Void)? {
@@ -206,12 +212,13 @@ import SwiftUI
               .foregroundStyle(.secondary)
           } else {
             if let quote = message.quote {
-              MessageQuoteView(quote: quote, room: room, channels: channels, jump: onQuoteJump)
+              MessageQuoteView(quote: quote, room: room, channels: channels, jump: quoteJump(for: quote))
                 .id(quote.messageId + quote.snippet)
             }
             if let editing, editing.source?.id == message.id {
               MessageEditComposer(editing: editing).id(message.id)
-            } else {
+            } else if message.quote == nil || !message.content.isEmpty {
+              // Send to yourself posts only a quote, so there is no body to render.
               MessageMarkdownView(source: message.content, room: room, channels: channels, preparedDocument: preparedDocument)
             }
             if outbound == nil {
@@ -311,6 +318,21 @@ import SwiftUI
       } message: {
         Text(reactionError ?? "Try again.")
       }
+      .alert("Sent to yourself", isPresented: Binding(get: { sentToSelf != nil }, set: {
+        if !$0 {
+          sentToSelf = nil
+        }
+      }), presenting: sentToSelf) { saved in
+        Button("Open") { openSavedMessage(saved) }
+        Button("OK", role: .cancel) {}
+      }
+      .alert("Couldn’t send to yourself", isPresented: Binding(get: { sendToSelfError != nil }, set: {
+        if !$0 {
+          sendToSelfError = nil
+        }
+      })) {
+        Button("OK", role: .cancel) {}
+      } message: { Text(sendToSelfError ?? "Try again.") }
       .alert("Delete message?", isPresented: $confirmsDeletion) {
         Button("Cancel", role: .cancel) {}
         Button("Delete", role: .destructive) { deleteMessage() }
@@ -328,6 +350,9 @@ import SwiftUI
         }
         if canCopyMessageLink {
           copyLinkButton
+        }
+        if onSendToSelf != nil {
+          sendToSelfButton
         }
         if onToggleReaction != nil, message.deletedAt == nil {
           Button("Add reaction", systemImage: "face.smiling") { showsReactionPicker = true }
@@ -351,6 +376,9 @@ import SwiftUI
       .accessibilityActions {
         if canCopyMessageLink {
           Button("Copy link", action: copyMessageLink)
+        }
+        if onSendToSelf != nil, !isSendingToSelf {
+          Button("Send to yourself", action: sendToSelf)
         }
         if onToggleReaction != nil, message.deletedAt == nil {
           Button("Add reaction") { showsReactionPicker = true }
@@ -386,7 +414,7 @@ import SwiftUI
         if let onQuote {
           messageAction("Quote", symbol: "quote.opening", focus: .quote, compact: compact, action: onQuote)
         }
-        if onEdit != nil || onDelete != nil || onTogglePin != nil || canCopyMessageLink {
+        if onEdit != nil || onDelete != nil || onTogglePin != nil || canCopyMessageLink || onSendToSelf != nil {
           moreActions
         }
       }
@@ -400,6 +428,9 @@ import SwiftUI
         }
         if canCopyMessageLink {
           copyLinkButton
+        }
+        if onSendToSelf != nil {
+          sendToSelfButton
         }
 
         if let onEdit {
@@ -494,6 +525,38 @@ import SwiftUI
       }
       NSPasteboard.general.clearContents()
       _ = NSPasteboard.general.setString(url.absoluteString, forType: .string)
+    }
+
+    private var sendToSelfButton: some View {
+      Button("Send to yourself", systemImage: "paperplane", action: sendToSelf)
+        .disabled(isSendingToSelf)
+    }
+
+    private func sendToSelf() {
+      guard let onSendToSelf, !isSendingToSelf else { return }
+      isSendingToSelf = true
+      Task { @MainActor in
+        defer { isSendingToSelf = false }
+        do {
+          sentToSelf = try await onSendToSelf()
+        } catch {
+          sendToSelfError = friendlyMessage(for: error)
+        }
+      }
+    }
+
+    private func openSavedMessage(_ saved: Components.Schemas.ChatRoomMessage) {
+      if let url = ChatLink.href(roomId: saved.roomId, messageId: saved.id, webBaseURL: CoreSettings.webBaseURL) {
+        openURL(url)
+      }
+    }
+
+    /// A quote sent to yourself from another room follows its Message link; same-room quotes scroll.
+    private func quoteJump(for quote: Components.Schemas.ChatRoomMessageQuote) -> ((String) -> Void)? {
+      guard let url = quoteSourceURL(quote, inRoom: message.roomId, webBaseURL: CoreSettings.webBaseURL) else {
+        return onQuoteJump
+      }
+      return { _ in openURL(url) }
     }
 
     private var pinButton: some View {

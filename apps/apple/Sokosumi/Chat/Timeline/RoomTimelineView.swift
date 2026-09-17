@@ -57,6 +57,11 @@ import SwiftUI
       return { emoji in try await workspaces.toggleReaction(message, emoji: emoji, auth: auth) }
     }
 
+    private func sendToSelfAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Components.Schemas.ChatRoomMessage)? {
+      guard workspaces.canSendToSelf(message) else { return nil }
+      return { try await workspaces.sendMessageToSelf(message, auth: auth) }
+    }
+
     private func deletionAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
       guard canModifyOwnMessage(message, userId: workspaces.currentUserId) else { return nil }
       return { try await workspaces.deleteMessage(message, auth: auth) }
@@ -234,6 +239,7 @@ import SwiftUI
                                      }
                                    } catch { jumpError = friendlyMessage(for: error) }
                                  } },
+                                 onSendToSelf: sendToSelfAction(for: message),
                                  horizontalInset: 12,
                                  streamReasoning: streamReasoning(for: message),
                                  streamThinking: isLiveCoworkerOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy)

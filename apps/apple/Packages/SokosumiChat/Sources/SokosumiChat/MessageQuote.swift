@@ -32,3 +32,9 @@ public func canQuoteMessage(_ message: Components.Schemas.ChatRoomMessage) -> Bo
   message.deletedAt == nil && !isOutboundLocalMessage(message)
     && !message.id.hasPrefix("stream:") && message.membership == nil
 }
+
+/// Message link of a quote sent to yourself from another room. Same-room quotes scroll the transcript instead.
+public func quoteSourceURL(_ quote: Components.Schemas.ChatRoomMessageQuote, inRoom roomId: String, webBaseURL: URL) -> URL? {
+  guard let sourceRoomId = quote.roomId, sourceRoomId != roomId else { return nil }
+  return ChatLink.href(roomId: sourceRoomId, messageId: quote.messageId, webBaseURL: webBaseURL)
+}
