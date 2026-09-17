@@ -5461,9 +5461,12 @@
         "personalAssistants": "Asistentes personales"
       },
       "Copy": {
-        "action": "Copiar",
+        "action": "Copiar texto",
+        "link": "Copiar enlace",
         "success": "Copiado al portapapeles",
-        "error": "Error al copiar"
+        "error": "Error al copiar",
+        "linkSuccess": "Enlace copiado",
+        "linkError": "No se pudo copiar el enlace"
       },
       "Edit": {
         "action": "Editar",
