@@ -11,16 +11,21 @@ public extension ChatService {
     organizationSlug: String?,
     messageId: String,
     text: String,
+    attachments: [ComposeAttachment] = [],
     parentMessageId: String? = nil,
     quoteMessageId: String? = nil
   ) async throws -> HTTPBody {
+    // Text keeps the markdown links for the persisted message; file parts let the model read the files.
+    typealias Part = Operations.PostChatsRoomsIdStream.Input.Body.JsonPayload.Value1Payload.MessagesPayloadPayload.PartsPayloadPayload
+    var parts: [Part] = [.init(value2: .init(_type: .text, text: text))]
+    parts += attachments.map { .init(value1: .init(_type: .file, url: $0.url, mediaType: $0.mediaType, filename: $0.fileName)) }
     let response = try await client.postChatsRoomsIdStream(.init(
       path: .init(id: roomId),
       headers: .init(xOrganizationSlug: organizationSlug),
       body: .json(.init(
         value1: .init(messages: [.init(
           role: .user,
-          parts: [.init(value2: .init(_type: .text, text: text))],
+          parts: parts,
           id: messageId
         )], id: roomId),
         value2: .init(parentMessageId: parentMessageId, roomId: roomId, quote: quoteMessageId.map { .init(messageId: $0) })

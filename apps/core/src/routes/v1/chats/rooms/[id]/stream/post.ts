@@ -43,6 +43,7 @@ import {
 import {
   buildRoomStreamThreadModelMessages,
   ensureThreadProviderConversation,
+  type RoomStreamUserFilePart,
   THREAD_PROVIDER_CONVERSATION_ID_KEY,
 } from "@/helpers/room-stream-thread";
 import prisma from "@/lib/db/prisma";
@@ -79,7 +80,10 @@ import { ensureCoworkerProviderConversationForRoom } from "./coworker-provider-c
  * Deferred to follow-up (parity with legacy conversation stream):
  * - Image generation / OpenRouter paths
  * - Web search
- * - Stream path attachments / multimodal uploads
+ *
+ * Attachments arrive as `file` parts on the last user message (public Blob
+ * URLs) and reach the model as image/file input; the persisted room message
+ * keeps the markdown links from the text part.
  */
 
 const paramsSchema = z.object({
@@ -230,6 +234,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             return extractMessageText(lastMessage as Record<string, unknown>);
           })()
         : "";
+
+    const lastUserFileParts =
+      "parts" in lastMessage && Array.isArray(lastMessage.parts)
+        ? lastMessage.parts.filter(
+            (part): part is RoomStreamUserFilePart & { type: "file" } =>
+              part.type === "file",
+          )
+        : [];
 
     if (
       (lastMessage.role === "user" || lastMessage.role === "system") &&
@@ -409,6 +421,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           roomName: room.name,
           senderName: sender?.name?.trim() || "A teammate",
           lastUserMessageText,
+          lastUserFileParts,
         });
         modelMessages = threadBuilt.modelMessages;
         originalUiMessages = threadBuilt.uiMessages;
