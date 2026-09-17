@@ -472,6 +472,13 @@ describe("mergeMessagesWithStreamOverlay", () => {
       "reply_failed",
       "reply_2",
     ]);
+    // The row decides Failed to reply / Retry from this flag; it must survive.
+    expect(idle[1]?.metadata).toEqual(
+      expect.objectContaining({
+        mention_failed: true,
+        mention_id: "mention_1",
+      }),
+    );
 
     const overlay = mergeMessagesWithStreamOverlay(
       [chat, failed],
@@ -482,6 +489,18 @@ describe("mergeMessagesWithStreamOverlay", () => {
       "reply_failed",
       "stream:reply",
     ]);
+  });
+
+  it("drops an empty failed coworker row that has no mention_id", () => {
+    const chat = message("m1", "2026-07-01T10:00:00.000Z", "@hannah hi");
+    const leaked = {
+      ...coworkerMessage("reply_leak", "2026-07-01T10:00:01.000Z", ""),
+      metadata: { mention_failed: true, in_reply_to_message_id: "m1" },
+    };
+
+    const merged = mergeMessagesWithStreamOverlay([chat, leaked], []);
+
+    expect(merged.map((row) => row.id)).toEqual(["m1"]);
   });
 
   it("drops an empty persisted streaming coworker row that has no mention_id", () => {
