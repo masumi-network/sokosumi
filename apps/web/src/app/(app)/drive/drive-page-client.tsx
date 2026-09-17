@@ -1346,104 +1346,111 @@ function DrivePageWorkspace({
 
   return (
     <div className={cn("w-full", LIST_MOBILE_CREATE_FAB_CLEARANCE)}>
-      <div className="mb-4 flex flex-col gap-4 md:mb-6">
-        <DriveViewTabs
-          activeView={primaryView}
-          browseLabel={storeRootLabel}
-          onViewChange={navigateToPrimaryView}
-        />
-        <div className="flex items-center justify-end gap-4">
-          {isTasksView && (
-            <>
+      <div className="mb-4 flex flex-col gap-3 md:mb-6 md:gap-4">
+        <div
+          data-testid="files-desktop-header"
+          className="flex flex-row items-center justify-between gap-3"
+        >
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <DriveViewTabs
+              activeView={primaryView}
+              browseLabel={storeRootLabel}
+              onViewChange={navigateToPrimaryView}
+            />
+          </div>
+          <div className="flex items-center gap-2 sm:gap-3">
+            {isTasksView && (
+              <>
+                <div className="hidden items-center gap-2 md:flex">
+                  <div className="relative">
+                    <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
+                    <Input
+                      type="text"
+                      placeholder={t("tasksSearchPlaceholder")}
+                      value={searchQuery}
+                      onChange={(e) => handleSearchChange(e.target.value)}
+                      className="w-64 pl-8"
+                    />
+                  </div>
+                </div>
+                <div className="hidden md:block">
+                  <DriveTasksFilters
+                    activeOrganizationId={activeOrganizationId}
+                    assigneeId={assigneeIdParam}
+                    projectId={projectIdParam}
+                    taskId={taskIdParam}
+                    labels={driveTasksFilterLabels}
+                    hideMobileTrigger
+                    sheetOpen={tasksFilterSheetOpen}
+                    onSheetOpenChange={setTasksFilterSheetOpen}
+                  />
+                </div>
+              </>
+            )}
+            {!isTasksView && isBrowseView && (
               <div className="hidden items-center gap-2 md:flex">
                 <div className="relative">
                   <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
                   <Input
                     type="text"
-                    placeholder={t("tasksSearchPlaceholder")}
+                    placeholder={t("searchPlaceholder")}
+                    value={searchQuery}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    className="w-64 pl-8"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={openCreateFolderDialog}
+                >
+                  <FolderPlus className="size-4" aria-hidden />
+                  {t("createFolder")}
+                </Button>
+                <Label htmlFor="file-upload" className="cursor-pointer">
+                  <Button
+                    disabled={uploading}
+                    size="sm"
+                    className="gap-1.5"
+                    asChild
+                  >
+                    <span>
+                      <Upload className="size-4" aria-hidden />
+                      {uploading
+                        ? t("uploadingProgress", { progress: uploadProgress })
+                        : t("uploadButton")}
+                    </span>
+                  </Button>
+                </Label>
+                <Input
+                  id="file-upload"
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  onChange={handleUpload}
+                  disabled={uploading}
+                />
+              </div>
+            )}
+            {!isTasksView && isRecentsView && (
+              <div className="hidden items-center gap-2 md:flex">
+                <div className="relative">
+                  <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
+                  <Input
+                    type="text"
+                    placeholder={t("searchPlaceholder")}
                     value={searchQuery}
                     onChange={(e) => handleSearchChange(e.target.value)}
                     className="w-64 pl-8"
                   />
                 </div>
               </div>
-              <div className="hidden md:block">
-                <DriveTasksFilters
-                  activeOrganizationId={activeOrganizationId}
-                  assigneeId={assigneeIdParam}
-                  projectId={projectIdParam}
-                  taskId={taskIdParam}
-                  labels={driveTasksFilterLabels}
-                  hideMobileTrigger
-                  sheetOpen={tasksFilterSheetOpen}
-                  onSheetOpenChange={setTasksFilterSheetOpen}
-                />
-              </div>
-            </>
-          )}
-          {!isTasksView && isBrowseView && (
-            <div className="hidden items-center gap-2 md:flex">
-              <div className="relative">
-                <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
-                <Input
-                  type="text"
-                  placeholder={t("searchPlaceholder")}
-                  value={searchQuery}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  className="w-64 pl-8"
-                />
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="gap-1.5"
-                onClick={openCreateFolderDialog}
-              >
-                <FolderPlus className="size-4" aria-hidden />
-                {t("createFolder")}
-              </Button>
-              <Label htmlFor="file-upload" className="cursor-pointer">
-                <Button
-                  disabled={uploading}
-                  size="sm"
-                  className="gap-1.5"
-                  asChild
-                >
-                  <span>
-                    <Upload className="size-4" aria-hidden />
-                    {uploading
-                      ? t("uploadingProgress", { progress: uploadProgress })
-                      : t("uploadButton")}
-                  </span>
-                </Button>
-              </Label>
-              <Input
-                id="file-upload"
-                ref={fileInputRef}
-                type="file"
-                className="hidden"
-                onChange={handleUpload}
-                disabled={uploading}
-              />
-            </div>
-          )}
-          {!isTasksView && isRecentsView && (
-            <div className="hidden items-center gap-2 md:flex">
-              <div className="relative">
-                <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
-                <Input
-                  type="text"
-                  placeholder={t("searchPlaceholder")}
-                  value={searchQuery}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  className="w-64 pl-8"
-                />
-              </div>
-            </div>
-          )}
-          {!isRecentsView && filesSortControl}
-          {filesViewModeSwitch}
+            )}
+            {!isRecentsView && filesSortControl}
+            {filesViewModeSwitch}
+          </div>
         </div>
 
         {!isTasksView && isBrowseView ? (

@@ -1046,6 +1046,46 @@ describe("DrivePage files view mode", () => {
       screen.getByRole("dialog", { name: "createFolderDialogTitle" }),
     ).toBeVisible();
   });
+
+  it("puts desktop tabs and browse actions on one header row", async () => {
+    searchParams = new URLSearchParams("view=browse");
+    listDriveItemsMock.mockResolvedValue([]);
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+
+    const header = screen.getByTestId("files-desktop-header");
+    expect(
+      within(header).getByRole("tab", { name: "recentsTab" }),
+    ).toBeVisible();
+    expect(
+      within(header).getByRole("button", { name: "createFolder" }),
+    ).toBeVisible();
+    expect(
+      within(header).getByPlaceholderText("searchPlaceholder"),
+    ).toBeVisible();
+  });
+
+  it("keeps mobile create-folder path outside the desktop header row", async () => {
+    useIsMobileMock.mockReturnValue(true);
+    searchParams = new URLSearchParams("view=browse");
+    listDriveItemsMock.mockResolvedValue([]);
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+
+    const header = screen.getByTestId("files-desktop-header");
+    expect(screen.getByTestId("files-mobile-actions")).toBeVisible();
+    expect(
+      within(header).queryByTestId("files-mobile-actions"),
+    ).not.toBeInTheDocument();
+  });
 });
 
 describe("DrivePage files sort", () => {

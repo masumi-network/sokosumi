@@ -32,7 +32,7 @@ export function DriveViewTabs({
       onValueChange={(value) => {
         onViewChange(value as DrivePrimaryView);
       }}
-      className="w-full"
+      className="w-full md:w-auto"
     >
       <TabsList className={cn(SEGMENTED_TABS_LIST_CLASS_NAME, "md:w-auto")}>
         <TabsTrigger
