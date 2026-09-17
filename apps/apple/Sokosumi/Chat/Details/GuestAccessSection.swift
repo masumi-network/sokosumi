@@ -38,7 +38,9 @@ struct GuestAccessSection: View {
       guests
       if let error = model.errorMessage {
         Text(error).font(.callout).foregroundStyle(.red)
-      } else if let notice {
+      }
+      // A copy or create notice must show even beside an earlier Core error.
+      if let notice {
         Text(notice).font(.callout).foregroundStyle(.secondary)
       }
     }

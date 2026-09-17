@@ -34,6 +34,8 @@ struct GuestAccessTests {
     #expect(try ChannelEditPermissions.canInviteGuests(room()))
     #expect(try !ChannelEditPermissions.canInviteGuests(room(access: .guest)))
     #expect(try !ChannelEditPermissions.canInviteGuests(room(discoverability: ._private)))
+    #expect(try !ChannelEditPermissions.canInviteGuests(room(discoverability: ._public)))
+    #expect(try !ChannelEditPermissions.canInviteGuests(room(discoverability: .matched)))
     #expect(try !ChannelEditPermissions.canInviteGuests(room(discoverability: .external, kind: .direct)))
   }
 

@@ -176,7 +176,8 @@ private func ephemeralState(
   visible: Bool = true
 ) throws -> (WorkspaceState, AuthState, ScriptedTransport, UserDefaults) { // swiftlint:disable:this large_tuple
   let transport = ScriptedTransport(responses)
-  let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+  // The app registers this middleware too; without it the create-link body cannot carry `expiresInDays`.
+  let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport, middlewares: [GuestInviteLinkExpiryMiddleware()])
   let suite = "sokosumi-workspace-state-tests.\(UUID().uuidString)"
   let defaults = UserDefaults(suiteName: suite)!
   defaults.removePersistentDomain(forName: suite)
@@ -2459,10 +2460,10 @@ extension WorkspaceStateTests {
     try await state.revokeGuestInvitation(roomId: partners, invitationId: "inv-1", context: context, auth: auth)
     #expect(try await state.createGuestInviteLink(roomId: partners, options: .init(expiresInDays: nil), context: context, auth: auth).token == "tok")
     try await state.revokeGuestInviteLink(roomId: partners, token: "tok", context: context, auth: auth)
-    // The link body carries the explicit null expiry only through the app middleware; the coordinator sends the typed body.
+    // "No expiry" reaches Core as an explicit null through the middleware the app also registers.
     let linkBodyData = try #require(transport.bodies.last(where: { !$0.isEmpty }))
     let linkBody = try #require(JSONSerialization.jsonObject(with: linkBodyData) as? [String: Any])
-    #expect(linkBody.isEmpty)
+    #expect(linkBody.count == 1 && linkBody["expiresInDays"] is NSNull)
 
     #expect(try await state.removeGuest(roomId: partners, userId: "user_guest", context: UUID(), auth: auth) == false)
     #expect(try await state.removeGuest(roomId: partners, userId: "user_guest", context: context, auth: auth))
