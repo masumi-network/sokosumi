@@ -108,6 +108,13 @@ function expandCollapsedRange(root: HTMLElement, range: Range): Range {
 
   while (node && node !== root) {
     if (node instanceof HTMLElement) {
+      // Prefer the nearest format mark (strong/em/h2/…) so a caret inside
+      // inline formatting does not fall through to the whole editor.
+      if (isFormatTarget(node)) {
+        const expanded = document.createRange();
+        expanded.selectNodeContents(node);
+        return expanded;
+      }
       const tag = node.tagName.toLowerCase();
       if (BLOCK_ANCESTOR_TAGS.has(tag)) {
         const expanded = document.createRange();

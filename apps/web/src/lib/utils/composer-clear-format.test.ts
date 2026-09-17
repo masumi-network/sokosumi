@@ -119,6 +119,24 @@ describe("clearComposerFormat", () => {
     expect(root.querySelector("h2")).toBeNull();
   });
 
+  it("unwraps only the inline mark when the caret is collapsed inside it", () => {
+    const root = document.createElement("div");
+    root.innerHTML = "plain <strong>bold</strong> and <em>italic</em>";
+    const strong = root.querySelector("strong");
+    expect(strong).not.toBeNull();
+    const textNode = strong?.firstChild;
+    expect(textNode).not.toBeNull();
+
+    const range = document.createRange();
+    range.setStart(textNode as Node, 1);
+    range.collapse(true);
+    clearComposerFormat(root, range);
+
+    expect(htmlToMarkdown(root).trim()).toBe("plain bold and _italic_");
+    expect(root.querySelector("strong, b")).toBeNull();
+    expect(root.querySelector("em, i")).not.toBeNull();
+  });
+
   it("preserves div and br line breaks", () => {
     expect(clearFormatFromHtml("line1<div>line2</div>line3<br>line4")).toBe(
       "line1\nline2\nline3\nline4",
