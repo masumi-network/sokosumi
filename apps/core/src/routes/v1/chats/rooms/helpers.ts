@@ -451,6 +451,7 @@ export async function mapChatRoomWithSidebarFlags(
     unreadCount?: number;
     unreadMentionCount?: number;
     activeOrganizationId?: string | null;
+    organizationName?: string | null;
   } = {},
 ) {
   const flagsByRoom = await getChatRoomSidebarFlags([room.id], userId, tx);
@@ -473,6 +474,7 @@ export async function mapChatRoomWithSidebarFlags(
     pinnedMessageCount: pinnedMessageCounts.get(room.id) ?? 0,
     mutedAt: flags?.mutedAt ?? null,
     markedUnread: flags?.markedUnread ?? false,
+    organizationName: attention.organizationName ?? null,
     peerInActiveOrganization,
   });
 }

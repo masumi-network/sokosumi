@@ -14,8 +14,7 @@ import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomSchema } from "@/schemas/chat-room.schema";
 
 import {
-  getChatRoomPinnedMessageCounts,
-  mapChatRoom,
+  mapChatRoomWithSidebarFlags,
   requireChatRoomUserAccess,
 } from "../../helpers";
 import { getChatRoomUnreadCounts } from "../../room-unread";
@@ -57,93 +56,71 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const readAt = new Date();
     let clearedIds: string[] = [];
 
-    const { room, starredAt, mutedAt } = await prisma.$transaction(
-      async (tx) => {
-        const room = await requireChatRoomUserAccess(
-          id,
-          userContext.userId,
-          tx,
-        );
+    const room = await prisma.$transaction(async (tx) => {
+      const room = await requireChatRoomUserAccess(id, userContext.userId, tx);
 
-        await tx.chatRoomReadState.upsert({
-          where: {
-            roomId_userId: {
-              roomId: room.id,
-              userId: userContext.userId,
-            },
-          },
-          update: { lastReadAt: readAt, markedUnreadAt: null },
-          create: {
+      await tx.chatRoomReadState.upsert({
+        where: {
+          roomId_userId: {
             roomId: room.id,
             userId: userContext.userId,
-            lastReadAt: readAt,
-            markedUnreadAt: null,
           },
-        });
+        },
+        update: { lastReadAt: readAt, markedUnreadAt: null },
+        create: {
+          roomId: room.id,
+          userId: userContext.userId,
+          lastReadAt: readAt,
+          markedUnreadAt: null,
+        },
+      });
 
-        // Read before the write, because after it there is nothing left to
-        // name. The reader's open tabs are told about each one below: a room
-        // message stands in the notification center now, and a badge that
-        // only ever heard about rows being written would keep counting rows
-        // this room no longer has.
-        clearedIds = (
-          await tx.notification.findMany({
-            where: {
-              userId: userContext.userId,
-              kind: NotificationKind.CHAT,
-              referenceId: room.id,
-              isRead: false,
-            },
-            select: { id: true },
-          })
-        ).map((notification) => notification.id);
-
-        await tx.notification.updateMany({
-          where: { id: { in: clearedIds } },
-          data: {
-            isRead: true,
-            readAt,
-          },
-        });
-
-        const membership = await tx.chatRoomUserMember.findUnique({
+      // Read before the write, because after it there is nothing left to
+      // name. The reader's open tabs are told about each one below: a room
+      // message stands in the notification center now, and a badge that
+      // only ever heard about rows being written would keep counting rows
+      // this room no longer has.
+      clearedIds = (
+        await tx.notification.findMany({
           where: {
-            roomId_userId: {
-              roomId: room.id,
-              userId: userContext.userId,
-            },
+            userId: userContext.userId,
+            kind: NotificationKind.CHAT,
+            referenceId: room.id,
+            isRead: false,
           },
-          select: { starredAt: true, mutedAt: true },
-        });
+          select: { id: true },
+        })
+      ).map((notification) => notification.id);
 
-        return {
-          room,
-          starredAt: membership?.starredAt ?? null,
-          mutedAt: membership?.mutedAt ?? null,
-        };
-      },
-    );
+      await tx.notification.updateMany({
+        where: { id: { in: clearedIds } },
+        data: {
+          isRead: true,
+          readAt,
+        },
+      });
+
+      return room;
+    });
 
     waitUntil(publishClearedNotifications(clearedIds));
 
     // Top-level unreads are cleared by lastReadAt; thread replies still use
     // look baseline. Return the real dual-baseline count so the sidebar does
-    // not optimistically hide unlooked threads.
-    const [unreadCounts, pinnedCounts] = await Promise.all([
-      getChatRoomUnreadCounts([room.id], userContext.userId, prisma),
-      getChatRoomPinnedMessageCounts([room.id], prisma),
-    ]);
+    // not optimistically hide unlooked threads. Mention badges are cleared
+    // with the CHAT notifications above.
+    const unreadCounts = await getChatRoomUnreadCounts(
+      [room.id],
+      userContext.userId,
+      prisma,
+    );
 
     return ok(
       c,
       chatRoomSchema.parse(
-        mapChatRoom(room, userContext.userId, {
+        await mapChatRoomWithSidebarFlags(room, userContext.userId, prisma, {
           unreadCount: unreadCounts.get(room.id) ?? 0,
           unreadMentionCount: 0,
-          starredAt,
-          pinnedMessageCount: pinnedCounts.get(room.id) ?? 0,
-          mutedAt,
-          markedUnread: false,
         }),
       ),
     );
