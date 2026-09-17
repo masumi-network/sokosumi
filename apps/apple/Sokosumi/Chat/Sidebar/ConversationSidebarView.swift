@@ -174,6 +174,7 @@ struct ConversationSidebarView: View {
       startDirect = nil
       createChannel = nil
       browseChannels = nil
+      lifecycle = nil
     }
     .modifier(EditChannelSheet(presentation: $editChannel))
     .modifier(ChannelLifecycleConfirmation(request: $lifecycle))
