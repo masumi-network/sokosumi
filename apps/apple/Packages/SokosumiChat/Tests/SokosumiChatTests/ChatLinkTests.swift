@@ -21,13 +21,9 @@ struct ChatLinkTests {
 
   @Test func resolvesRoomAndMessage() throws {
     let url = try #require(URL(string: "https://app.sokosumi.com/chat/rooms/room?message=%20old%20"))
-    let link = ChatLink(url: url, webBaseURL: base)
-    #expect(link?.roomId == "room")
-    #expect(link?.messageId == "old")
+    #expect(ChatLink(url: url, webBaseURL: base) == .room(id: "room", messageId: "old"))
     let blank = try #require(URL(string: "https://app.sokosumi.com/chat/rooms/room?message=%20"))
-    let room = ChatLink(url: blank, webBaseURL: base)
-    #expect(room?.roomId == "room")
-    #expect(room?.messageId == nil)
+    #expect(ChatLink(url: blank, webBaseURL: base) == .room(id: "room", messageId: nil))
   }
 
   @Test(arguments: [
@@ -35,9 +31,15 @@ struct ChatLinkTests {
     "https://app.sokosumi.com/chat/rooms/room/?message=old"
   ]) func equivalentChatURLsStayInApp(_ value: String) throws {
     let url = try #require(URL(string: value))
-    let link = ChatLink(url: url, webBaseURL: base)
-    #expect(link?.roomId == "room")
-    #expect(link?.messageId == "old")
+    #expect(ChatLink(url: url, webBaseURL: base) == .room(id: "room", messageId: "old"))
+  }
+
+  /// Web `/chat/invites/{id}` and `/chat/join/{token}` open natively; a message query is meaningless there and ignored.
+  @Test func resolvesInvitationAndJoinLinks() throws {
+    let invite = try #require(URL(string: "https://app.sokosumi.com/chat/invites/550e8400-e29b-41d4-a716-446655440010?message=x"))
+    #expect(ChatLink(url: invite, webBaseURL: base) == .invitation(id: "550e8400-e29b-41d4-a716-446655440010"))
+    let join = try #require(URL(string: "https://app.sokosumi.com/chat/join/tok_abc/"))
+    #expect(ChatLink(url: join, webBaseURL: base) == .guestJoin(token: "tok_abc"))
   }
 
   @Test(arguments: [
@@ -49,10 +51,12 @@ struct ChatLinkTests {
     "https://app.sokosumi.com/chat/rooms/",
     "https://app.sokosumi.com/chat/rooms/room/extra",
     "https://app.sokosumi.com/chat/rooms/room//",
-    "https://app.sokosumi.com/chat/rooms/room%2Fextra"
+    "https://app.sokosumi.com/chat/rooms/room%2Fextra",
+    "https://app.sokosumi.com/chat/invites/",
+    "https://app.sokosumi.com/chat/join/tok/extra",
+    "https://app.sokosumi.com/chat/welcome/x"
   ]) func unrelatedOrInvalidURLsStayExternal(_ value: String) throws {
     let url = try #require(URL(string: value))
-    let link = ChatLink(url: url, webBaseURL: base)
-    #expect(link == nil)
+    #expect(ChatLink(url: url, webBaseURL: base) == nil)
   }
 }

@@ -14,20 +14,28 @@ struct ConversationSidebarView: View {
   @State private var browseChannels: CompositionPresentation?
   @State private var editChannel: EditChannelPresentation?
   @State private var lifecycle: ChannelLifecycleRequest?
+  @State private var invitationFailure: InvitationFailure?
+
+  private struct InvitationFailure {
+    let action: InvitationAction
+    let message: String
+  }
 
   private struct CompositionPresentation: Identifiable {
     let id: UUID
     let hasOrganization: Bool
   }
 
-  /// Reloads the Archived section per workspace and after each room list refresh settles, like web's collection refresh.
-  private struct ArchivedLoadKey: Equatable {
+  /// Reloads the Archived section and pending invitations per workspace and after each room list refresh settles, like web's collection refresh.
+  private struct SidebarCollectionsLoadKey: Equatable {
     let context: UUID
     let ready: Bool
   }
 
   var body: some View {
     let partitioned = workspaces.sidebar.partitioned
+    // Web lists pending invitations above joined external rooms, in every workspace.
+    let invitations = workspaces.pendingInvitations.invitations
     VStack(spacing: 0) {
       List(selection: Binding(
         get: { workspaces.selectedRoomId },
@@ -62,10 +70,17 @@ struct ConversationSidebarView: View {
               }
             }
           }
-          if !partitioned.external.isEmpty {
+          if !partitioned.external.isEmpty || !invitations.isEmpty {
             Section {
               sectionHeader("External", section: .external)
               if !workspaces.sidebar.collapsedSections.contains(.external) {
+                ForEach(invitations, id: \.id) { invitation in
+                  PendingInvitationRow(
+                    invitation: invitation,
+                    responding: workspaces.invitationResponse?.invitationId == invitation.id ? workspaces.invitationResponse?.action : nil,
+                    busy: workspaces.channelMutationInFlight
+                  ) { respondToInvitation($0, invitation: invitation) }
+                }
                 ForEach(partitioned.external, id: \.id) { room in
                   roomRow(room, icon: "globe")
                 }
@@ -178,9 +193,11 @@ struct ConversationSidebarView: View {
     }
     .modifier(EditChannelSheet(presentation: $editChannel))
     .modifier(ChannelLifecycleConfirmation(request: $lifecycle))
-    .task(id: ArchivedLoadKey(context: workspaces.compositionContext, ready: workspaces.phase == .ready && !workspaces.roomsLoading)) {
+    .task(id: SidebarCollectionsLoadKey(context: workspaces.compositionContext, ready: workspaces.phase == .ready && !workspaces.roomsLoading)) {
       guard workspaces.phase == .ready, !workspaces.roomsLoading else { return }
-      await workspaces.loadArchivedChannels(auth: auth)
+      async let archived: Void = workspaces.loadArchivedChannels(auth: auth)
+      async let invitations: Void = workspaces.loadPendingInvitations(auth: auth)
+      _ = await (archived, invitations)
     }
     .navigationSplitViewColumnWidth(min: 220, ideal: 260)
     .alert("Couldn’t update conversation", isPresented: Binding(
@@ -194,6 +211,36 @@ struct ConversationSidebarView: View {
       Button("OK") { workspaces.sidebar.clearActionError() }
     } message: {
       Text(workspaces.sidebar.actionError ?? "")
+    }
+    .alert(invitationFailure?.action == .decline ? "Couldn’t decline invitation" : "Couldn’t accept invitation", isPresented: Binding(
+      get: { invitationFailure != nil },
+      set: {
+        if !$0 {
+          invitationFailure = nil
+        }
+      }
+    ), presenting: invitationFailure) { _ in
+      Button("OK") {}
+    } message: { failure in
+      Text(failure.message)
+    }
+  }
+
+  /// Web accepts or declines in place: the row leaves the list on success and Core's message surfaces on failure.
+  private func respondToInvitation(_ action: InvitationAction, invitation: Components.Schemas.ChatRoomInvitation) {
+    guard !workspaces.channelMutationInFlight else { return }
+    let context = workspaces.compositionContext
+    Task { @MainActor in
+      do {
+        switch action {
+        case .accept: try await workspaces.acceptInvitation(id: invitation.id, context: context, auth: auth)
+        case .decline: try await workspaces.declineInvitation(id: invitation.id, context: context, auth: auth)
+        }
+      } catch is CancellationError {
+        // The workspace changed underneath the request; nothing to report.
+      } catch {
+        invitationFailure = .init(action: action, message: channelErrorMessage(error))
+      }
     }
   }
 
