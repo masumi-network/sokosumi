@@ -58,13 +58,12 @@ struct CoworkerThoughtView: View {
 
 /// Settled Thought header on a failed mention shell plus the mentioner-only
 /// Retry (web `CoworkerFailedThoughtSparkle` + `FailedMentionActions`). Core
-/// does not expose the failure reason, so the label stays generic; a rejected
-/// retry (403/409/404) surfaces Core's message in an alert.
+/// does not expose the failure reason, so the label stays generic. The row
+/// owns the POST and the rejection alert: this view unmounts while retry
+/// flips the shell to thinking.
 struct CoworkerMentionFailedView: View {
-  let onRetry: (() async throws -> Void)?
-  @State private var isRetrying = false
-  @State private var retryError: String?
-  @State private var showsRetryError = false
+  var onRetry: (() -> Void)?
+  var isRetrying = false
 
   var body: some View {
     VStack(alignment: .leading, spacing: 4) {
@@ -78,28 +77,11 @@ struct CoworkerMentionFailedView: View {
       .foregroundStyle(.secondary)
       .accessibilityElement(children: .ignore)
       .accessibilityLabel("Failed to reply")
-      if onRetry != nil {
-        Button("Retry", action: retry)
+      if let onRetry {
+        Button("Retry", action: onRetry)
           .buttonStyle(.borderless)
           .font(.caption)
           .disabled(isRetrying)
-      }
-    }
-    .alert("Couldn’t retry the mention", isPresented: $showsRetryError) {
-      Button("OK", role: .cancel) {}
-    } message: {
-      Text(retryError ?? "Try again.")
-    }
-  }
-
-  private func retry() {
-    guard !isRetrying, let onRetry else { return }
-    isRetrying = true
-    Task { @MainActor in
-      defer { isRetrying = false }
-      do { try await onRetry() } catch {
-        retryError = friendlyMessage(for: error)
-        showsRetryError = true
       }
     }
   }

@@ -90,6 +90,9 @@ import SwiftUI
     @State private var isDeleting = false
     @State private var deletionError: String?
     @State private var showsDeletionError = false
+    @State private var isRetryingMention = false
+    @State private var mentionRetryError: String?
+    @State private var showsMentionRetryError = false
     @State private var isHovered = false
     @State private var isReplyHovered = false
     @State private var hoveredAction: MessageAction?
@@ -160,6 +163,29 @@ import SwiftUI
       }
     }
 
+    /// Retry state lives on the row: optimistic thinking unmounts the failed
+    /// shell, and a child alert would die with it.
+    private func retryMention() {
+      guard !isRetryingMention, let onRetryMention else { return }
+      isRetryingMention = true
+      Task { @MainActor in
+        defer { isRetryingMention = false }
+        do { try await onRetryMention() } catch {
+          mentionRetryError = friendlyMessage(for: error)
+          showsMentionRetryError = true
+        }
+      }
+    }
+
+    private var mentionRetryHandler: (() -> Void)? {
+      guard onRetryMention != nil else { return nil }
+      return retryMention
+    }
+
+    private var failedMentionView: some View {
+      CoworkerMentionFailedView(onRetry: mentionRetryHandler, isRetrying: isRetryingMention)
+    }
+
     private var pinnedLabel: some View {
       Label {
         Text("Pinned", tableName: "ChatPins", comment: "A channel message that is pinned.")
@@ -208,7 +234,7 @@ import SwiftUI
           }
           let mentionShell = mentionShell
           if case .failed? = mentionShell {
-            CoworkerMentionFailedView(onRetry: onRetryMention)
+            failedMentionView
           } else if isCoworkerMessage(message), message.deletedAt == nil {
             // A persisted mention shell keeps the live Thought header until Core
             // fills the answer; its clock starts at `thought_timing_ms.start`.
@@ -230,7 +256,7 @@ import SwiftUI
             } else if mentionShell == nil {
               MessageMarkdownView(source: message.content, room: room, channels: channels, preparedDocument: preparedDocument)
             }
-            if outbound == nil {
+            if outbound == nil, mentionShell == nil {
               ForEach(message.unfurls ?? [], id: \.url) { preview in
                 MessageUnfurlView(preview: preview, remove: onRemoveUnfurl.map { action in { try await action(preview.url) } })
                   .id(preview.url + (preview.imageUrl ?? ""))
@@ -337,6 +363,11 @@ import SwiftUI
         Button("OK", role: .cancel) {}
       } message: {
         Text(deletionError ?? "Try again.")
+      }
+      .alert("Couldn’t retry the mention", isPresented: $showsMentionRetryError) {
+        Button("OK", role: .cancel) {}
+      } message: {
+        Text(mentionRetryError ?? "Try again.")
       }
       .contextMenu {
         if onTogglePin != nil {
