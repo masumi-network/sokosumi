@@ -1,4 +1,4 @@
-# ADR 0030: Unfurl preview images are snapshotted, never hotlinked
+# ADR 0031: Unfurl preview images are snapshotted, never hotlinked
 
 - Status: Accepted
 - Date: 2026-09-16
