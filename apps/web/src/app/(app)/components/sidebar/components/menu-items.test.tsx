@@ -1,3 +1,7 @@
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({ data: null, isPending: false }),
+}));
+
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 

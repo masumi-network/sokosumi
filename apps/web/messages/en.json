@@ -2361,7 +2361,14 @@
           "back": "Back",
           "chat": "Chat",
           "sokoBot": "Soko Bots",
-          "calendar": "Schedules"
+          "calendar": "Schedules",
+          "expandProjects": "Expand Projects",
+          "collapseProjects": "Collapse Projects",
+          "projectsLoading": "Loading projects…",
+          "projectsError": "Could not load projects.",
+          "projectsEmpty": "No projects yet.",
+          "retryProjects": "Retry",
+          "viewAllProjects": "View all projects"
         },
         "ChatLists": {
           "title": "Recent Chats",

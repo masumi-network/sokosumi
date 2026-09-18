@@ -29,6 +29,8 @@ import {
 import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
 import { cn } from "@/lib/utils";
 
+import { ProjectsMenuItem } from "./projects-menu-item";
+
 interface MenuItemConfig {
   key: string;
   href?: string;
@@ -169,6 +171,9 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                 ariaKeyshortcuts,
                 separatorAfter,
               }) => {
+                if (key === "projects") {
+                  return <ProjectsMenuItem key={key} />;
+                }
                 const isActive = href ? isPathActive(href) : false;
                 const showUnread = (unreadCount ?? 0) > 0;
                 const unreadDisplay =
