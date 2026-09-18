@@ -9,6 +9,7 @@ vi.mock("@sokosumi/net", () => ({
 }));
 
 import {
+  DOCX_IMAGE_FETCH_TIMEOUT_MS,
   MAX_DOCX_IMAGE_BYTES,
   withDocxExportFetchGuard,
 } from "@/lib/utils/docx-export-ssrf";
@@ -44,6 +45,7 @@ describe("withDocxExportFetchGuard", () => {
       {
         method: "GET",
         maxResponseBytes: MAX_DOCX_IMAGE_BYTES,
+        signal: expect.any(AbortSignal),
       },
     );
   });
@@ -81,5 +83,49 @@ describe("withDocxExportFetchGuard", () => {
     ).rejects.toThrow("boom");
 
     expect(globalThis.fetch).toBe(originalFetch);
+  });
+
+  it("bounds an image fetch that never answers", async () => {
+    // A real timeout signal, just a short one: `AbortSignal.timeout` runs on a
+    // Node-internal timer that fake timers do not drive.
+    const shortTimeout = AbortSignal.timeout(5);
+    const timeoutSpy = vi
+      .spyOn(AbortSignal, "timeout")
+      .mockReturnValue(shortTimeout);
+
+    try {
+      ssrfSafeFetchMock.mockImplementationOnce(
+        (_url: string, init: { signal: AbortSignal }) =>
+          new Promise((_resolve, reject) => {
+            init.signal.addEventListener("abort", () =>
+              reject(init.signal.reason),
+            );
+          }),
+      );
+
+      await expect(
+        withDocxExportFetchGuard(async () => {
+          await fetch("https://slow.example/a.png");
+        }),
+      ).rejects.toThrow(/timed out/i);
+
+      expect(timeoutSpy).toHaveBeenCalledWith(DOCX_IMAGE_FETCH_TIMEOUT_MS);
+    } finally {
+      timeoutSpy.mockRestore();
+    }
+  });
+
+  it("keeps a caller-supplied signal instead of the timeout", async () => {
+    ssrfSafeFetchMock.mockResolvedValue(new Response("ok"));
+    const controller = new AbortController();
+
+    await withDocxExportFetchGuard(async () => {
+      await fetch("https://cdn.example/a.png", { signal: controller.signal });
+    });
+
+    expect(ssrfSafeFetchMock).toHaveBeenCalledWith(
+      "https://cdn.example/a.png",
+      expect.objectContaining({ signal: controller.signal }),
+    );
   });
 });
