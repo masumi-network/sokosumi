@@ -77,6 +77,7 @@ vi.mock("@/app/chat/components/room-helpers", () => ({
 
 vi.mock("../chat-room-sidebar-row", () => ({
   ChatRoomSidebarRow: ({ label }: { label: string }) => <span>{label}</span>,
+  RailAttentionPill: () => null,
 }));
 
 vi.mock("../pending-invitation-rail-button", () => ({
@@ -129,6 +130,9 @@ vi.mock("@/components/ui/sheet", () => ({
 }));
 
 vi.mock("@/components/ui/sidebar", () => ({
+  // The section header's rail square repeats the title the expanded heading
+  // already renders; `chat-sidebar-section-header.test.tsx` covers it.
+  SidebarMenuButton: () => null,
   SidebarGroup: ({ children }: { children: ReactNode }) => (
     <div>{children}</div>
   ),
