@@ -409,7 +409,7 @@ export function OrganizationChatList({
                       key={room.id}
                       className="group/room-row relative"
                     >
-                      <div className="text-tertiary-foreground dark:text-muted-foreground flex min-h-11 w-full items-center gap-2 px-3 py-1.5 group-data-[collapsible=icon]:hidden md:min-h-auto">
+                      <div className="text-tertiary-foreground dark:text-muted-foreground flex min-h-11 w-full items-center gap-3 px-3 py-1.5 md:gap-2 group-data-[collapsible=icon]:hidden md:min-h-auto">
                         <ChannelDiscoverabilityIcon
                           className="opacity-60"
                           discoverability={room.discoverability}
