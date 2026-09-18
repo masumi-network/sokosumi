@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
  * The bottom padding is the last message's clearance above the composer box.
  */
 export const ROOM_MESSAGE_LIST_CONTENT_CLASSNAME =
-  "flex min-h-full min-w-0 w-full flex-col justify-end px-5 pt-6 pb-2 md:pb-3";
+  "flex min-h-full min-w-0 w-full shrink-0 flex-col justify-end px-5 pt-6 pb-2 md:pb-3";
 
 interface MessageSkeletonRow {
   /** Author name bone width. */

@@ -367,7 +367,7 @@ export function ThreadPanel({
             // Named so a room-scoped lookup does not find this copy of a
             // message id the transcript also renders.
             data-chat-message-list={CHAT_MESSAGE_LIST_THREAD}
-            className="flex min-h-full min-w-0 w-full flex-col justify-end px-4 pt-4 pb-2 md:pb-3"
+            className="flex min-h-full min-w-0 w-full shrink-0 flex-col justify-end px-4 pt-4 pb-2 md:pb-3"
           >
             <TranscriptViewport
               key={parentMessage.id}

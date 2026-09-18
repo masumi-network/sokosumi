@@ -7,22 +7,30 @@ import { ROOM_SHELL_SCROLLER_CLASSNAME } from "../room-shell-layout";
 /**
  * Regression: SOK-778 progressive shell put `flex flex-col` on the message
  * scroller while content used `min-h-full` + pixel minHeight for justify-end.
- * That combination clamps scrollHeight to clientHeight — tall rooms cannot
- * scroll up to older messages.
+ * A flex column shrinks that child to the scroller's height, which clamps
+ * scrollHeight to clientHeight — tall rooms cannot scroll up to older
+ * messages.
  *
- * Scroller must stay a non-flex overflow box; content owns min-height.
+ * The scroller is a reversed flex column on purpose (bottom-anchored, see
+ * `chat-message-list-scroller.ts`), so the content must refuse to shrink.
  */
 describe("room shell scroller overflow contract", () => {
-  it("keeps native overflow scroller without flex column", () => {
+  it("anchors the scroller to the bottom", () => {
     expect(ROOM_SHELL_SCROLLER_CLASSNAME).toBe(
       CHAT_MESSAGE_LIST_SCROLLER_CLASS,
     );
-    expect(ROOM_SHELL_SCROLLER_CLASSNAME).toContain("overflow-y-auto");
-    expect(ROOM_SHELL_SCROLLER_CLASSNAME).toContain("min-h-0");
-    expect(ROOM_SHELL_SCROLLER_CLASSNAME).toContain("flex-1");
-    // flex-1 is width/height grow; display:flex on the scroller itself is the bug.
-    expect(ROOM_SHELL_SCROLLER_CLASSNAME.split(/\s+/)).not.toContain("flex");
-    expect(ROOM_SHELL_SCROLLER_CLASSNAME).not.toContain("flex-col");
+    const classes = ROOM_SHELL_SCROLLER_CLASSNAME.split(/\s+/);
+    expect(classes).toContain("overflow-y-auto");
+    expect(classes).toContain("min-h-0");
+    expect(classes).toContain("flex-1");
+    expect(classes).toContain("flex");
+    expect(classes).toContain("flex-col-reverse");
+  });
+
+  it("content refuses to shrink to the scroller's height", () => {
+    expect(ROOM_MESSAGE_LIST_CONTENT_CLASSNAME.split(/\s+/)).toContain(
+      "shrink-0",
+    );
   });
 
   it("content still uses min-h-full for short-transcript justify-end", () => {
