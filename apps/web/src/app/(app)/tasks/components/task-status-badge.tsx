@@ -31,8 +31,16 @@ const STATUS_LABELS: Partial<Record<TaskStatus, string>> = {
  *
  * `backlog` and `todo` each hold two, so each gets a filled state and an
  * outline one. `input-required` holds five, which no weight scale can carry,
- * so four of them are filled and the glyph separates them; `GRANT_PENDING` is
- * the outline because it is the one nobody in this workspace can answer.
+ * so four of them are filled and the glyph separates them.
+ *
+ * `GRANT_PENDING` takes the outline because it is blocked by something other
+ * than the reader. The other four are the coworker asking this person for
+ * something, and a person cannot even set them by hand. A parked task is not
+ * asking at all: Core refuses every write to it (`kind: "task_parked"`), it
+ * resumes to `grantResumeStatus` once a vendor workspace grant is approved,
+ * and the approval reaches an org OWNER or ADMIN through the grants surface
+ * rather than through this task. Blocked, but not by anything the reader does
+ * here, which is what `outline` says everywhere else in the scale.
  *
  * `done` is the exception to rule 1. Its three members are outcomes, and the
  * outcome is the whole point of that column, so they take three hues rather
@@ -71,6 +79,7 @@ const TASK_STATUS_MARKERS: Record<TaskStatus, StatusMarkerSpec> = {
   },
 
   // input-required: nothing proceeds until someone answers.
+  // Parked on a vendor workspace grant. See the note above the table.
   [TaskStatus.GRANT_PENDING]: {
     tone: { hue: "blocked", weight: "outline" },
     icon: MARKER_ICONS.grant,
