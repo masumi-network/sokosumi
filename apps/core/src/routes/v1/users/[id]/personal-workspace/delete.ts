@@ -1,11 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
-import {
-  CalendarErasureBlockedError,
-  eraseWorkspaceCalendarData,
-  lockCalendarErasureUser,
-} from "@/helpers/calendar-erasure";
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { isPrismaForeignKeyViolation } from "@/helpers/prisma";
@@ -61,10 +56,6 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 
     const workspace = await prisma.$transaction(async (tx) => {
-      if (!(await lockCalendarErasureUser(tx, resolvedUserId))) {
-        throw notFound("User is missing");
-      }
-
       const existing = await tx.workspace.findUnique({
         where: { userId: resolvedUserId },
       });
@@ -101,19 +92,10 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
       }
 
       try {
-        await eraseWorkspaceCalendarData(tx, existing.id);
         await tx.workspace.delete({
           where: { id: existing.id },
         });
       } catch (error) {
-        if (error instanceof CalendarErasureBlockedError) {
-          throw conflict(
-            "Cannot delete a personal workspace with unresolved task payments",
-            {
-              kind: CORE_API_ERROR_KINDS.WORKSPACE_HAS_DEPENDENTS,
-            },
-          );
-        }
         if (isPrismaForeignKeyViolation(error)) {
           throw conflict(
             "Cannot delete a personal workspace that still has jobs or tasks",
