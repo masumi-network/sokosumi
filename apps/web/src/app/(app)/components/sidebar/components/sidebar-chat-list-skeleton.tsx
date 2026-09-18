@@ -1,6 +1,7 @@
 import {
   SIDEBAR_RAIL_SQUARE_CLASS,
   SIDEBAR_ROW_CLASS,
+  SIDEBAR_ROW_RAIL_PAD_CLASS,
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
@@ -17,8 +18,9 @@ import { cn } from "@/lib/utils";
  *
  * Both states are answered, because the rail is not a narrower version of the
  * panel: the section header becomes one 32px square and each row keeps only
- * its leading mark, centred in the same 32px box every rail item is. A
- * full-width bar in a 56px rail is the shape nothing on this sidebar has.
+ * its leading mark, on the same 28px axis every rail item uses (`pl-1`, not
+ * `justify-center`, so a shrinking name cannot drag the mark). A full-width
+ * bar in a 56px rail is the shape nothing on this sidebar has.
  */
 
 /**
@@ -37,7 +39,7 @@ export function SidebarChatListSkeleton() {
           className={cn(
             SIDEBAR_ROW_CLASS,
             SIDEBAR_RAIL_SQUARE_CLASS,
-            "group-data-[collapsible=icon]:px-0",
+            SIDEBAR_ROW_RAIL_PAD_CLASS,
           )}
         >
           <SidebarRowSlot>
@@ -54,7 +56,7 @@ export function SidebarChatListSkeleton() {
                 className={cn(
                   SIDEBAR_ROW_CLASS,
                   SIDEBAR_RAIL_SQUARE_CLASS,
-                  "group-data-[collapsible=icon]:px-0",
+                  SIDEBAR_ROW_RAIL_PAD_CLASS,
                 )}
               >
                 <SidebarRowSlot>

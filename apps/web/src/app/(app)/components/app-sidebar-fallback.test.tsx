@@ -135,13 +135,14 @@ describe("AppSidebarFallback", () => {
     const mark = row?.querySelector('[data-slot="sidebar-row-slot"]');
 
     // The section header stays on the rail as one 32px square, on the same
-    // 28px leading axis (`ml-1`) every real row uses there.
+    // 28px leading axis (`ml-1` + `pl-1`) every real row uses there.
     expect(tokens(header?.className ?? "")).toEqual(
       expect.arrayContaining([
         "md:h-8",
         "group-data-[collapsible=icon]:w-8!",
         "group-data-[collapsible=icon]:ml-1",
-        "group-data-[collapsible=icon]:justify-center",
+        "group-data-[collapsible=icon]:pl-1!",
+        "group-data-[collapsible=icon]:justify-start!",
       ]),
     );
     expect(tokens(header?.className ?? "")).not.toContain(
@@ -157,12 +158,46 @@ describe("AppSidebarFallback", () => {
         "gap-2",
         "group-data-[collapsible=icon]:w-8!",
         "group-data-[collapsible=icon]:ml-1",
-        "group-data-[collapsible=icon]:justify-center",
-        "group-data-[collapsible=icon]:px-0",
+        "group-data-[collapsible=icon]:pl-1!",
+        "group-data-[collapsible=icon]:justify-start!",
       ]),
+    );
+    expect(tokens(row?.className ?? "")).not.toContain(
+      "group-data-[collapsible=icon]:px-0",
     );
     // The mark sits in the shared slot at one size, like every real row's.
     expect(mark?.getAttribute("data-slot")).toBe("sidebar-row-slot");
     expect(tokens(mark?.className ?? "")).toContain("min-w-6");
+  });
+
+  it("keeps the expanded skeleton on the same columns as a real row", () => {
+    const { container } = renderFallback();
+    const skeleton = container.querySelector(
+      '[data-slot="sidebar-group"][aria-hidden]',
+    );
+    const header = skeleton?.querySelector(
+      '[data-slot="sidebar-group-content"] > div',
+    );
+    const row = skeleton?.querySelector(
+      '[data-slot="sidebar-menu-item"] > div',
+    );
+    const name = row?.querySelectorAll('[data-slot="skeleton"]')[1];
+    const headerName = header?.querySelectorAll('[data-slot="skeleton"]')[1];
+
+    // Expanded: the same `px-2` + `gap-2` a real row uses, so the 24px slot
+    // sits on the 28px axis and the name bar starts on the 48px column.
+    for (const el of [header, row]) {
+      expect(tokens(el?.className ?? "")).toEqual(
+        expect.arrayContaining(["px-2", "gap-2", "h-11", "md:h-8"]),
+      );
+    }
+    expect(tokens(headerName?.className ?? "")).toContain("w-20");
+    expect(tokens(headerName?.className ?? "")).toContain(
+      "group-data-[collapsible=icon]:hidden",
+    );
+    expect(tokens(name?.className ?? "")).toEqual(
+      expect.arrayContaining(["h-3", "group-data-[collapsible=icon]:hidden"]),
+    );
+    expect(name?.className).toMatch(/\bw-(16|20|24|28|32)\b/);
   });
 });
