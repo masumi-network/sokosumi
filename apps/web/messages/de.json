@@ -1264,7 +1264,7 @@
         "description": "Gib dein neues Passwort ein",
         "Form": {
           "submit": "Passwort zurücksetzen",
-          "success": "Passwort erfolgreich zurückgesetzt",
+          "success": "Passwort zurückgesetzt. Du wurdest auf allen Geräten abgemeldet.",
           "error": "Passwort-Reset fehlgeschlagen",
           "Fields": {
             "Password": {
@@ -3982,6 +3982,8 @@
         "currentPassword": "Aktuelles Passwort",
         "newPassword": "Neues Passwort",
         "confirmPassword": "Neues Passwort bestätigen",
+        "revokeOtherSessionsLabel": "Von anderen Geräten abmelden",
+        "revokeOtherSessionsHelp": "Beendet alle anderen Sitzungen. Dieses Gerät bleibt angemeldet.",
         "submit": "Passwort aktualisieren",
         "success": "Passwort erfolgreich aktualisiert",
         "error": "Passwort konnte nicht aktualisiert werden"
