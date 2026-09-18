@@ -1,7 +1,7 @@
 import type { ChatRoom } from "@/lib/clients/generated/core";
 import { getInitials } from "@/lib/utils/text";
 import {
-  ChannelDiscoverabilityIcon,
+  ChannelKindGlyph,
   channelKindIcon,
 } from "./channel-discoverability-icon";
 
@@ -14,10 +14,9 @@ interface ChannelRoomMarkProps {
  * sidebar. Expanded, the plain kind glyph beside the name. Collapsed to icons,
  * a 24px rounded square of the name's initials on the same muted fill a DM
  * avatar falls back to, with a lock or globe corner mark for a non-public kind.
- * 24px rather than the expanded glyph's 20px for the same reason the DM face
- * grows there (see `DirectRoomAvatarStack`), and so the rail stays one size.
  * Both are rendered and CSS picks one, the same way the row hides its trailing
- * controls when collapsed.
+ * controls when collapsed. Either way the mark sits in the row's
+ * `SidebarRowSlot`, so glyph and tile share one centre line.
  */
 export function ChannelRoomMark({
   room: { name, discoverability },
@@ -26,8 +25,7 @@ export function ChannelRoomMark({
 
   return (
     <>
-      <ChannelDiscoverabilityIcon
-        data-slot="channel-glyph"
+      <ChannelKindGlyph
         className="group-data-[collapsible=icon]:hidden"
         discoverability={discoverability}
       />

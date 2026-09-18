@@ -132,30 +132,37 @@ describe("AppSidebarFallback", () => {
     const row = skeleton?.querySelector(
       '[data-slot="sidebar-menu-item"] > div',
     );
-    const mark = row?.querySelector('[data-slot="skeleton"]');
+    const mark = row?.querySelector('[data-slot="sidebar-row-slot"]');
 
-    // The section header stays on the rail as one 32px square.
+    // The section header stays on the rail as one 32px square, on the same
+    // 28px leading axis (`ml-1`) every real row uses there.
     expect(tokens(header?.className ?? "")).toEqual(
       expect.arrayContaining([
-        "group-data-[collapsible=icon]:size-8",
-        "group-data-[collapsible=icon]:mx-auto",
+        "md:h-8",
+        "group-data-[collapsible=icon]:w-8!",
+        "group-data-[collapsible=icon]:ml-1",
         "group-data-[collapsible=icon]:justify-center",
       ]),
     );
     expect(tokens(header?.className ?? "")).not.toContain(
       "group-data-[collapsible=icon]:hidden",
     );
+    // A Sidebar row's height: one rule for both states, so nothing under the
+    // skeleton moves when the real list arrives or the sidebar toggles.
     expect(tokens(row?.className ?? "")).toEqual(
       expect.arrayContaining([
-        "group-data-[collapsible=icon]:size-8",
-        "group-data-[collapsible=icon]:min-h-8!",
-        "group-data-[collapsible=icon]:mx-auto",
+        "h-11",
+        "md:h-8",
+        "px-2",
+        "gap-2",
+        "group-data-[collapsible=icon]:w-8!",
+        "group-data-[collapsible=icon]:ml-1",
         "group-data-[collapsible=icon]:justify-center",
         "group-data-[collapsible=icon]:px-0",
       ]),
     );
-    expect(tokens(mark?.className ?? "")).toContain(
-      "group-data-[collapsible=icon]:size-6",
-    );
+    // The mark sits in the shared slot at one size, like every real row's.
+    expect(mark?.getAttribute("data-slot")).toBe("sidebar-row-slot");
+    expect(tokens(mark?.className ?? "")).toContain("min-w-6");
   });
 });
