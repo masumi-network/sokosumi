@@ -45,18 +45,30 @@ export function MatchedChannelsHub() {
     setIsLoadingChannels(true);
     void listAdminMatchedChannelsAction({
       input: { status: listStatus },
-    }).then((result) => {
-      if (cancelled) {
-        return;
-      }
-      setIsLoadingChannels(false);
-      if (!result.ok) {
-        toast.error(result.error.message ?? t("listError"));
+    })
+      .then((result) => {
+        if (cancelled) {
+          return;
+        }
+        setIsLoadingChannels(false);
+        if (!result.ok) {
+          toast.error(result.error.message ?? t("listError"));
+          setChannels([]);
+          return;
+        }
+        setChannels(result.value);
+      })
+      // A server action rejects instead of answering with a result when the
+      // POST comes back as something other than RSC. The spinner has to stop
+      // here too, or the panel loads forever.
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+        setIsLoadingChannels(false);
+        toast.error(t("listError"));
         setChannels([]);
-        return;
-      }
-      setChannels(result.value);
-    });
+      });
 
     return () => {
       cancelled = true;
