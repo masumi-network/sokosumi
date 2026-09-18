@@ -93,8 +93,11 @@ import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
  * the one most likely to be hovered, so it is the one row whose name must not
  * move under the cursor: rest, hover and menu-open are all one width there.
  *
- * A row with a mention badge holds 12px in every state instead, ending the
- * badge where the button's box begins.
+ * A mention badge takes the same hole rather than one of its own: it stands in
+ * the menu's column and fades out as the menu fades in, so a badged row holds
+ * the 16px open in every state and the name is shortened once, by the hole
+ * both share. It used to be shortened by the badge, a gap and the hole in
+ * turn, which is the 16px the name gets back.
  */
 const TRAILING_CLUSTER_CLASS =
   "group-data-[collapsible=icon]:hidden absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center";
@@ -164,15 +167,17 @@ function RoomUnreadCount({ count }: { count: number }) {
 }
 
 /**
- * Unread @mentions and directs, never messages.
+ * Unread @mentions and directs, never messages: the part the reader hears.
  *
- * The announced text is a translated string in its own `sr-only` span, for the
- * same reason the count carries one: `aria-label` on a role `generic` span may
- * be dropped, and an English literal would reach a German or Spanish reader
- * untranslated either way. It hides with the count when the sidebar collapses
- * to icons.
+ * `MentionBadge` draws the number in the trailing cluster, outside the link
+ * and `aria-hidden`, so this span is what carries the mention into the link's
+ * accessible name beside the room name. A translated string in its own
+ * `sr-only` span, for the same reason the count carries one: `aria-label` on a
+ * role `generic` span may be dropped, and an English literal would reach a
+ * German or Spanish reader untranslated either way. The wrapper holds the
+ * collapsed rule, so the announcement goes quiet with the count and the badge.
  */
-function MentionBadge({ count }: { count: number }) {
+function MentionAnnouncement({ count }: { count: number }) {
   const t = useTranslations("App.Channels.RoomMentions");
 
   if (count <= 0) {
@@ -180,13 +185,64 @@ function MentionBadge({ count }: { count: number }) {
   }
 
   return (
-    <span className="bg-primary-solid text-primary-solid-foreground group-data-[collapsible=icon]:hidden inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[0.625rem] leading-4 font-semibold tabular-nums">
-      <span aria-hidden="true">{roomCountLabel(count)}</span>
+    <span className="group-data-[collapsible=icon]:hidden sr-only">
       <span className="sr-only">
         {count > ROOM_COUNT_CAP
           ? t("mentionsCapped", { max: ROOM_COUNT_CAP })
           : t("mentions", { count })}
       </span>
+    </span>
+  );
+}
+
+/**
+ * The mention count, drawn in the room menu's column.
+ *
+ * On a hover-capable row it crossfades with the menu: out of flow, fading as
+ * the `…` arrives, exactly as the muted bell does. Sharing the menu's column
+ * is what buys the name its width back, because the badge stops asking for a
+ * gap and a width of its own on top of the hole. The cost is the number going
+ * quiet under the cursor; the bold name and the reader's opt-in count stay, on
+ * the one row they are pointing at.
+ *
+ * `right-1` rather than the bell's `right-0`: the bell is a glyph centred in a
+ * 28px box and the badge has no box, so 4px lands a 20px badge on the `…`
+ * glyph's centre instead of flush against the row's edge. At its widest
+ * (`99+`, 27px) the badge then reaches 31px in from the row's edge, and the
+ * hole ends the name at 36px, so the name clears it in every state.
+ *
+ * Touch has no hover, so the badge stays in flow beside the menu there, as
+ * pin/mute does, and the trailing spacer holds a hole wide enough for both.
+ * Reorder mode is the same: its handle is visible at rest, so there is nothing
+ * to crossfade with.
+ *
+ * `pointer-events-none` keeps the badge off the menu button it covers at rest.
+ */
+function MentionBadge({
+  count,
+  crossfadesWithMenu,
+}: {
+  count: number;
+  crossfadesWithMenu: boolean;
+}) {
+  if (count <= 0) {
+    return null;
+  }
+
+  return (
+    <span
+      data-slot="room-mention-badge"
+      aria-hidden
+      className={cn(
+        "bg-primary-solid text-primary-solid-foreground pointer-events-none inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[0.625rem] leading-4 font-semibold tabular-nums",
+        crossfadesWithMenu && [
+          "[@media(hover:hover)]:absolute [@media(hover:hover)]:top-1/2 [@media(hover:hover)]:right-1 [@media(hover:hover)]:-translate-y-1/2",
+          "motion-safe:transition-opacity motion-safe:duration-150",
+          "[@media(hover:hover)]:group-hover/room-row:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-0 group-has-[[data-state=open]]/room-row:opacity-0",
+        ],
+      )}
+    >
+      {roomCountLabel(count)}
     </span>
   );
 }
@@ -428,29 +484,36 @@ export function ChatRoomSidebarRow({
           </span>
         ) : null}
       </span>
-      <MentionBadge count={badgeCount} />
+      <MentionAnnouncement count={badgeCount} />
       <span
         data-slot="room-trailing-spacer"
         className={cn(
           "group-data-[collapsible=icon]:hidden shrink-0",
           "[@media(hover:none)]:size-8 [@media(hover:none)]:md:size-7",
           isMuted && "[@media(hover:none)]:w-16",
-          // The badge sits against this spacer, so a badged row holds one
-          // width in every state or the badge jumps on hover. 12px plus the
-          // link's gap ends the badge where the menu button's box begins.
-          //
-          // A muted row shows its glyph at rest, and the open room
-          // is the row being read, so both hold the 16px hole in every state.
-          // The name is `flex-1 min-w-0`, so a hole that opened later would
-          // take that width off the name and re-truncate it under the cursor.
+          // Touch keeps the badge in flow beside the menu, so the hole holds
+          // both: 56px covers the widest badge (`99+`, 24px) and the 32px box.
+          // Muted rows carry no badge, so the two widths never meet.
+          badgeCount > 0 && "[@media(hover:none)]:w-14",
+          // A muted row shows its glyph at rest, a badged row shows its badge,
+          // and the open room is the row being read, so all three hold the
+          // 16px hole in every state. The name is `flex-1 min-w-0`, so a hole
+          // that opened later would take that width off the name and
+          // re-truncate it under the cursor — and on a badged row the name
+          // would run under the badge until it did.
           //
           // A plain, unopened row has nothing in the hole at rest — the menu
           // button is `opacity-0` until hover, focus or open — so it keeps the
           // full name width and opens the hole with the button. That is the
           // one row whose name moves, and it moves as the button arrives.
-          badgeCount > 0
-            ? "[@media(hover:hover)]:size-3"
-            : isMuted || isActive || reorderHandle
+          //
+          // The badge asks for no width beyond the hole, because it stands in
+          // the menu's column and crossfades with it. Reorder mode is the
+          // exception: its handle never fades, so the badge stays in flow
+          // beside it and the hole holds both.
+          badgeCount > 0 && reorderHandle
+            ? "[@media(hover:hover)]:w-14"
+            : isMuted || isActive || reorderHandle || badgeCount > 0
               ? "[@media(hover:hover)]:size-4"
               : [
                   "[@media(hover:hover)]:size-0",
@@ -488,6 +551,10 @@ export function ChatRoomSidebarRow({
         )}
       </SidebarMenuButton>
       <div data-slot="room-trailing" className={TRAILING_CLUSTER_CLASS}>
+        <MentionBadge
+          count={badgeCount}
+          crossfadesWithMenu={reorderHandle == null}
+        />
         {reorderHandle ?? (
           <>
             {isMuted ? (
@@ -495,6 +562,7 @@ export function ChatRoomSidebarRow({
                 className={cn(
                   "text-muted-foreground pointer-events-none flex size-8 items-center justify-center md:size-7",
                   "[@media(hover:hover)]:absolute [@media(hover:hover)]:top-1/2 [@media(hover:hover)]:right-0 [@media(hover:hover)]:-translate-y-1/2",
+                  "motion-safe:transition-opacity motion-safe:duration-150",
                   "[@media(hover:hover)]:group-hover/room-row:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-0 group-has-[[data-state=open]]/room-row:opacity-0",
                 )}
                 aria-hidden
@@ -512,7 +580,7 @@ export function ChatRoomSidebarRow({
                   className={cn(
                     // The box stays 32px so the `…` keeps its column under the section's
                     // `+`; the pseudo-element carries the touch target out to 44px.
-                    "text-muted-foreground relative size-8 opacity-100 after:absolute after:-inset-1.5 md:size-7 md:after:hidden [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
+                    "text-muted-foreground relative size-8 opacity-100 after:absolute after:-inset-1.5 md:size-7 md:after:hidden motion-safe:transition-opacity motion-safe:duration-150 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
                   )}
                   aria-label={tActions("roomMenu", { name: label })}
                 >
