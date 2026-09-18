@@ -2,7 +2,7 @@
 /**
  * Create Vercel git deployments from GitHub Actions.
  *
- *   node scripts/ci/vercel-deploy.mjs preview     # PR opened (human, same-repo) or `/deploy` comment
+ *   node scripts/ci/vercel-deploy.mjs preview     # PR opened (pull_request_target, human, same-repo) or `/deploy` comment
  *
  * Production deploys from Vercel Git on `main` (see apps/web and apps/core vercel.json).
  */
@@ -110,8 +110,8 @@ export function deployTargets(networks) {
  * Repo paths that can change a web/core preview build: the two Vercel apps
  * plus every workspace package (the transitive dependency closure of web and
  * core — currently all of `packages/`). Mirrored as the `paths:` filter on
- * the `pull_request` trigger in `.github/workflows/preview-deploy.yml`; the
- * `/deploy` comment flow checks the same prefixes via the PR files API.
+ * the `pull_request_target` trigger in `.github/workflows/preview-deploy.yml`;
+ * the `/deploy` comment flow checks the same prefixes via the PR files API.
  */
 export const PREVIEW_RELEVANT_PREFIXES = [
   "apps/web/",
@@ -559,9 +559,13 @@ export async function runPreviewDeployOpened(options) {
   });
 }
 
+export function isOpenedPreviewEventName(eventName) {
+  return eventName === "pull_request" || eventName === "pull_request_target";
+}
+
 export async function runPreviewFromGithubEvent(options) {
   const { eventName, event, ...rest } = options;
-  if (eventName === "pull_request") {
+  if (isOpenedPreviewEventName(eventName)) {
     if (event.action !== "opened") {
       return { kind: "ignore" };
     }

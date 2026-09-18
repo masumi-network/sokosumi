@@ -101,7 +101,7 @@ struct ChatInviteView: View {
         Text("You've been invited to join a channel as a guest.").foregroundStyle(.secondary)
       }
       VStack(alignment: .leading, spacing: 8) {
-        Text(invitation.inviter.name).bold() + Text(" has invited you to join ") + Text("#\(invitation.roomName)").bold()
+        Text("\(Text(verbatim: invitation.inviter.name).bold()) has invited you to join \(Text(verbatim: "#\(invitation.roomName)").bold())")
         Text("Host organization: \(invitation.organizationName)").foregroundStyle(.secondary)
         Text("Accepting joins this channel only. You will not become a member of the host organization.")
           .font(.caption)
