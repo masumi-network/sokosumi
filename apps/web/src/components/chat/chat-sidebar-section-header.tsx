@@ -10,7 +10,10 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 
-import { CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   SIDEBAR_ROW_CLASS,
   SidebarMenuButton,
@@ -122,7 +125,7 @@ export function ChatSidebarSectionHeader({
             <ChevronDown
               aria-hidden
               className={cn(
-                "size-4 shrink-0 transition-transform motion-reduce:transition-none md:size-3",
+                "size-4 shrink-0 transition-transform duration-200 ease-out motion-reduce:transition-none md:size-3",
                 !isOpen && "-rotate-90",
               )}
             />
@@ -171,5 +174,35 @@ export function ChatSidebarSectionHeader({
         </SidebarMenuButton>
       </div>
     </>
+  );
+}
+
+/**
+ * The rooms under a section heading, sliding on the same motion as the
+ * Projects disclosure in the main sidebar: height travels with the rows, so
+ * every section below moves with them instead of jumping.
+ *
+ * The height animation needs `overflow-hidden`, which would otherwise clip a
+ * room's `RailAttentionPill` — it sits at `-left-2`, in the group's padding,
+ * outside the rows' box. The negative margin pushes the clip edge out by
+ * exactly that gutter and the padding puts the rows back where they were.
+ */
+export function ChatSidebarSectionContent({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  /** For a section whose rows leave the box on their own — see Pinned. */
+  className?: string;
+}) {
+  return (
+    <CollapsibleContent
+      className={cn(
+        "motion-safe:data-[state=closed]:animate-collapsible-up motion-safe:data-[state=open]:animate-collapsible-down -mx-2 overflow-hidden px-2",
+        className,
+      )}
+    >
+      {children}
+    </CollapsibleContent>
   );
 }
