@@ -96,6 +96,8 @@ interface TranscriptViewportProps {
   ref: Ref<TranscriptViewportHandle>;
 }
 
+type TranscriptVirtualizer = Virtualizer<HTMLElement, HTMLDivElement>;
+
 /** What the hold below needs from the virtualizer, before the rows change. */
 type RowHoldSource = Pick<
   TranscriptVirtualizer,
@@ -109,17 +111,30 @@ export interface RowHold {
   offset: number;
 }
 
-type TranscriptVirtualizer = Virtualizer<HTMLElement, HTMLDivElement>;
-
 function maxScrollOf(element: HTMLElement): number {
   return element.scrollHeight - element.clientHeight;
 }
 
 /**
  * The scroller is bottom-anchored: `scrollTop` is 0 at the newest message
- * and negative above it. The virtualizer counts from the top, so it is told
- * `max + scrollTop`. That offset moves without a scroll event whenever the
- * list grows, which is why `onChange` reads it again.
+ * and negative above it. The virtualizer counts from the top.
+ */
+function topOffsetOf(element: HTMLElement): number {
+  return maxScrollOf(element) + element.scrollTop;
+}
+
+/**
+ * Whether the view sits on the live edge. `scrollTop` is fractional on a
+ * zoomed or high-density display, so exactly 0 is not the test.
+ */
+function isAtLiveEdge(element: HTMLElement): boolean {
+  return -element.scrollTop < 1;
+}
+
+/**
+ * Tells the virtualizer its top-based offset. That offset moves without a
+ * scroll event whenever the list grows, which is why `onChange` reads it
+ * again, and whenever the scroller is resized, which is reported here.
  */
 export function observeBottomAnchoredOffset(
   instance: TranscriptVirtualizer,
@@ -129,7 +144,7 @@ export function observeBottomAnchoredOffset(
   if (!element) {
     return undefined;
   }
-  const read = () => maxScrollOf(element) + element.scrollTop;
+  const read = () => topOffsetOf(element);
   const hasScrollEnd = "onscrollend" in window;
   let fallback: number | undefined;
   const onScroll = () => {
@@ -142,10 +157,17 @@ export function observeBottomAnchoredOffset(
   const onScrollEnd = () => {
     report(read(), false);
   };
+  // A composer that grows or a keyboard that opens: the distance from the
+  // end holds, so the offset from the top does not.
+  const resize = new ResizeObserver(() => {
+    report(read(), instance.isScrolling);
+  });
+  resize.observe(element);
   element.addEventListener("scroll", onScroll, { passive: true });
   element.addEventListener("scrollend", onScrollEnd, { passive: true });
   onScrollEnd();
   return () => {
+    resize.disconnect();
     element.removeEventListener("scroll", onScroll);
     element.removeEventListener("scrollend", onScrollEnd);
     window.clearTimeout(fallback);
@@ -267,8 +289,8 @@ export function TranscriptViewport({
   // distance from the end through the change, so the top-based offset moves
   // by however much the list grew.
   const rowsChangeRef = useRef<{
-    offset: number;
-    total: number;
+    previousOffset: number;
+    previousTotal: number;
     hold: RowHold | null;
   } | null>(null);
   if (rowsRef.current !== rows) {
@@ -279,8 +301,8 @@ export function TranscriptViewport({
       const follows =
         !hold && distanceFromEndRef.current <= STICK_TO_BOTTOM_NEAR_PX;
       rowsChangeRef.current = {
-        offset: previous.scrollOffset ?? 0,
-        total: previous.getTotalSize(),
+        previousOffset: previous.scrollOffset ?? 0,
+        previousTotal: previous.getTotalSize(),
         hold: follows
           ? null
           : rowHoldAfterRowsChange(previous, rowsRef.current, rows),
@@ -323,24 +345,25 @@ export function TranscriptViewport({
     deferredGrowthRef.current = 0;
     containerRef.current?.style.removeProperty("margin-bottom");
     // At the live edge the hidden growth comes into view instead.
-    if (element.scrollTop < 0) {
+    if (!isAtLiveEdge(element)) {
       element.scrollTop -= growth;
     }
-    instance.scrollOffset = maxScrollOf(element) + element.scrollTop;
+    instance.scrollOffset = topOffsetOf(element);
   };
-  const holdAgainstGrowth = (
+  /** Undo a push up of the rows on screen by `pushedUp` px. */
+  const keepRowsInPlace = (
     element: HTMLElement,
-    growth: number,
+    pushedUp: number,
     scrolling: boolean,
   ) => {
-    if (growth === 0) {
+    if (pushedUp === 0) {
       return;
     }
     if (!scrolling && !touchingRef.current) {
-      element.scrollTop -= growth;
+      element.scrollTop -= pushedUp;
       return;
     }
-    deferredGrowthRef.current += growth;
+    deferredGrowthRef.current += pushedUp;
     containerRef.current?.style.setProperty(
       "margin-bottom",
       `${-deferredGrowthRef.current}px`,
@@ -390,16 +413,19 @@ export function TranscriptViewport({
       const growth = growthBelowRef.current;
       growthBelowRef.current = 0;
       // The distance is still the one from before the growth. A reader
-      // following the live edge keeps it; anyone else keeps their rows.
-      const follows =
-        Math.max(-element.scrollTop, 0) <= (hold ? 0 : STICK_TO_BOTTOM_NEAR_PX);
+      // following the live edge keeps it; anyone else keeps their rows. Under
+      // a hold only a view on the edge itself follows a growing row, while a
+      // changed row list (above) is followed by no one.
+      const follows = hold
+        ? isAtLiveEdge(element)
+        : -element.scrollTop <= STICK_TO_BOTTOM_NEAR_PX;
       if (!follows) {
-        holdAgainstGrowth(element, growth, instance.isScrolling);
+        keepRowsInPlace(element, growth, instance.isScrolling);
       }
       settleDeferredGrowth(instance);
       // The list's height changed with no scroll event, and with it the
       // top-based offset of a view that did not move.
-      instance.scrollOffset = maxScrollOf(element) + element.scrollTop;
+      instance.scrollOffset = topOffsetOf(element);
       recordDistance(element);
     },
   });
@@ -467,8 +493,7 @@ export function TranscriptViewport({
     const margin = Math.round(
       container.getBoundingClientRect().top -
         scroller.getBoundingClientRect().top +
-        maxScrollOf(scroller) +
-        scroller.scrollTop,
+        topOffsetOf(scroller),
     );
     if (margin !== scrollMargin) {
       setScrollMargin(margin);
@@ -492,10 +517,11 @@ export function TranscriptViewport({
         ]
       : undefined;
     if (rowHold && item) {
-      virtualizer.scrollOffset = item.start + rowHold.offset;
+      virtualizer.scrollOffset = Math.max(item.start + rowHold.offset, 0);
       writeScrollRef.current = true;
     } else {
-      virtualizer.scrollOffset = rowsChange.offset + total - rowsChange.total;
+      virtualizer.scrollOffset =
+        rowsChange.previousOffset + total - rowsChange.previousTotal;
     }
   }
   useLayoutEffect(() => {
@@ -505,7 +531,7 @@ export function TranscriptViewport({
     writeScrollRef.current = false;
     // Rows that only changed above the held one leave it where it is.
     const target = (virtualizer.scrollOffset ?? 0) - maxScrollOf(scroller);
-    holdAgainstGrowth(
+    keepRowsInPlace(
       scroller,
       Math.round(scroller.scrollTop - target),
       virtualizer.isScrolling,
