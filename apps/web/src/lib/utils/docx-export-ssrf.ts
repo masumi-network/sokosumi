@@ -3,6 +3,16 @@ import { ssrfSafeFetch } from "@sokosumi/net";
 /** Hard cap on each remote image fetched during DOCX export. */
 export const MAX_DOCX_IMAGE_BYTES = 5_000_000;
 
+/**
+ * Wall-clock cap on each remote image fetch during DOCX export.
+ *
+ * A host that accepts the connection and then never answers would otherwise
+ * hang the whole conversion, and the conversion holds the per-instance export
+ * lock (see `docx-export-lock.ts`). `ssrfSafeFetch` sets no timeout of its own
+ * and `@m2d/image` calls `fetch` with no init, so the cap has to come from here.
+ */
+export const DOCX_IMAGE_FETCH_TIMEOUT_MS = 10_000;
+
 /** Hard cap on the DOCX export JSON body (markdown + optional logos). */
 export const MAX_MARKDOWN_BYTES = 1_500_000;
 
@@ -46,7 +56,7 @@ export async function withDocxExportFetchGuard<T>(
     return ssrfSafeFetch(url, {
       method,
       maxResponseBytes: MAX_DOCX_IMAGE_BYTES,
-      signal: init?.signal ?? undefined,
+      signal: init?.signal ?? AbortSignal.timeout(DOCX_IMAGE_FETCH_TIMEOUT_MS),
     });
   };
 
