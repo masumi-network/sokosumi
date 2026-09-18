@@ -40,6 +40,7 @@ private final class ScriptedTransport: ClientTransport {
   var pauseUnfurl = false
   var pauseMentionRetry = false
   var pauseSokoBotFeedback = false
+  var pauseStarredOrder = false
   /// Oldest first: requests for different emoji can wait at the same time.
   private var pauseWaiters: [CheckedContinuation<Void, Never>] = []
   /// Tests wait on `operationIDs` (appended before the body `await`). A
@@ -109,7 +110,7 @@ private final class ScriptedTransport: ClientTransport {
       try Task.checkCancellation()
       return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
     }
-    if pausesMessageOperation(operationID) {
+    if pausesMessageOperation(operationID) || (pauseStarredOrder && operationID == "put/chats/rooms/starred") {
       let next = responses.removeFirst()
       if !requestReleased {
         await withCheckedContinuation { pauseWaiters.append($0) }
@@ -152,10 +153,12 @@ private let userBody = """
 {"data":{"id":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
 """
 
-private func roomsBody(names: [String]) -> String {
+/// `pinned` stars every room one second apart, in the given order.
+private func roomsBody(names: [String], pinned: Bool = false) -> String {
   let rooms = names.enumerated().map { index, name in
-    """
-    {"id":"550e8400-e29b-41d4-a716-44665544000\(index)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
+    let starredAt = pinned ? "\"2026-01-01T00:00:0\(index).000Z\"" : "null"
+    return """
+    {"id":"550e8400-e29b-41d4-a716-44665544000\(index)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":\(starredAt),"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
     """
   }.joined(separator: ",")
   return """
@@ -507,6 +510,57 @@ struct WorkspaceStateTests {
     // First room is selected and persisted when nothing was saved.
     #expect(state.selectedRoomId == "550e8400-e29b-41d4-a716-446655440000")
     #expect(SavedRoomSelection(defaults: defaults).load(userId: "user_1", organizationId: nil) == "550e8400-e29b-41d4-a716-446655440000")
+  }
+
+  /// Pinned reorder at the transport boundary: `fail` answers the PUT with that status.
+  @Test(arguments: [nil, 500, 401] as [Int?])
+  func pinnedReorderShowsAtOnceAndAFailureReloadsFromCore(fail: Int?) async throws {
+    let ids = (0 ..< 3).map { "550e8400-e29b-41d4-a716-44665544000\($0)" }
+    let moved = [ids[2], ids[0], ids[1]]
+    let order = moved.enumerated().map { #"{"roomId":"\#($1)","starredAt":"2026-02-01T00:00:00.00\#($0)Z"}"# }.joined(separator: ",")
+    let put: (Int, String) = if let fail {
+      (fail, #"{"error":"Request failed","message":"Refused","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/chats/rooms/starred","method":"PUT"}}"#)
+    } else {
+      (200, #"{"data":[\#(order)],"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#)
+    }
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["a", "b", "c"], pinned: true)),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      put,
+      (200, roomsBody(names: ["a", "b", "c"], pinned: true))
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    #expect(state.sidebar.partitioned.pinned.map(\.id) == ids)
+    let selected = state.selectedRoomId
+    transport.pauseStarredOrder = true
+    let task = Task { await state.reorderPinnedRooms(moved, auth: auth) }
+    while transport.operationIDs.last != "put/chats/rooms/starred" {
+      await Task.yield()
+    }
+    #expect(state.sidebar.partitioned.pinned.map(\.id) == moved)
+    #expect(state.selectedRoomId == selected)
+    transport.releasePausedRequest()
+    await task.value
+    let sent = try #require(transport.bodies.last { !$0.isEmpty })
+    #expect(try JSONSerialization.jsonObject(with: sent) as? [String: [String]] == ["roomIds": moved])
+    switch fail {
+    case nil:
+      #expect(state.sidebar.partitioned.pinned.map(\.id) == moved)
+      #expect(state.sidebar.actionError == nil)
+      #expect(transport.operationIDs.last == "put/chats/rooms/starred")
+    case 500:
+      // What Core holds is the truth: the error shows and the list is read again.
+      #expect(state.sidebar.actionError == "Core rejected the request (500): Refused")
+      #expect(transport.operationIDs.suffix(2) == ["put/chats/rooms/starred", "get/chats/rooms"])
+      #expect(state.sidebar.partitioned.pinned.map(\.id) == ids)
+    default:
+      // The sign-in card takes over: no alert beside it and no reload with a dead session.
+      #expect(state.sidebar.actionError == nil)
+      #expect(transport.operationIDs.last == "put/chats/rooms/starred")
+    }
   }
 
   @Test func sidebarRefreshFailureThenRetryPreservesOpenTranscript() async throws {

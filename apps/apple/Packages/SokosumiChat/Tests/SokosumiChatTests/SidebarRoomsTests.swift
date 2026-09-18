@@ -89,6 +89,10 @@ struct SidebarRoomsTests {
     #expect(state.selectedRoomId == nil)
     state.rooms.removeAll { $0.id == "old" }
     #expect(state.restoredSelection(userId: "me", organizationId: nil) == "new")
+    // Pinned is the first section, so its first room is the fallback.
+    state.rooms.append(makeRoom(id: "pin", name: "Pin", starredAt: baseDate))
+    state.selectedRoomId = nil
+    #expect(state.restoredSelection(userId: "other", organizationId: nil) == "pin")
   }
 
   @MainActor @Test func sectionCollapsePreservesSelectionAndResetsWithAccount() {
@@ -126,15 +130,57 @@ struct SidebarRoomsTests {
     #expect(Set(partitioned.external.map(\.id)) == ["e1", "m1", "g1", "d2"])
   }
 
-  @Test func sortsMutedLastStarredFirstNewestActivity() {
+  @Test func sortsMutedLastPublicBeforePrivateNewestActivity() {
     let rooms = [
       makeRoom(id: "muted", name: "muted", unreadCount: 9, mutedAt: baseDate),
       makeRoom(id: "plain", name: "plain", updatedAt: baseDate),
-      makeRoom(id: "starred", name: "starred", starredAt: baseDate, updatedAt: baseDate.addingTimeInterval(-1000)),
+      makeRoom(id: "private", name: "private", discoverability: ._private, updatedAt: baseDate.addingTimeInterval(2000)),
       makeRoom(id: "active", name: "active", updatedAt: baseDate.addingTimeInterval(1000))
     ]
     let partitioned = partitionRoomsForSidebar(rooms)
-    #expect(partitioned.channels.map(\.id) == ["starred", "active", "plain", "muted"])
+    #expect(partitioned.pinned.isEmpty)
+    #expect(partitioned.channels.map(\.id) == ["active", "plain", "private", "muted"])
+  }
+
+  @Test func pinnedRoomsOfAnyKindLeaveTheirSectionInTheReadersOrder() {
+    let rooms = [
+      makeRoom(id: "c1", name: "general"),
+      // A private pin above a public one, a busy pin below a quiet one: only `starredAt` orders Pinned.
+      makeRoom(id: "p-public", name: "public", starredAt: baseDate.addingTimeInterval(30), updatedAt: baseDate.addingTimeInterval(9000)),
+      makeRoom(id: "p-private", name: "private", discoverability: ._private, starredAt: baseDate.addingTimeInterval(10)),
+      makeRoom(id: "p-direct", name: "Ada", kind: .direct, starredAt: baseDate.addingTimeInterval(20)),
+      makeRoom(id: "p-guest", name: "guest", myAccess: .guest, starredAt: baseDate.addingTimeInterval(40)),
+      makeRoom(id: "p-b", name: "tie b", discoverability: .external, starredAt: baseDate.addingTimeInterval(50)),
+      makeRoom(id: "p-a", name: "tie a", starredAt: baseDate.addingTimeInterval(50)),
+      makeRoom(id: "d1", name: "Bob", kind: .direct)
+    ]
+    let partitioned = partitionRoomsForSidebar(rooms)
+    #expect(partitioned.pinned.map(\.id) == ["p-private", "p-direct", "p-public", "p-guest", "p-a", "p-b"])
+    #expect(partitioned.channels.map(\.id) == ["c1"])
+    #expect(partitioned.directMessages.map(\.id) == ["d1"])
+    #expect(partitioned.external.isEmpty)
+    #expect(partitioned.pinned.map(sidebarRoomKind) == [.channel, .direct, .channel, .external, .channel, .external])
+  }
+
+  @Test func keyboardMoveSwapsWithTheNeighbourAndStopsAtTheEnds() {
+    let ids = ["a", "b", "c"]
+    #expect(movingPinnedRoom("b", by: -1, in: ids) == ["b", "a", "c"])
+    #expect(movingPinnedRoom("b", by: 1, in: ids) == ["a", "c", "b"])
+    #expect(movingPinnedRoom("a", by: -1, in: ids) == ids)
+    #expect(movingPinnedRoom("c", by: 1, in: ids) == ids)
+    #expect(movingPinnedRoom("missing", by: 1, in: ids) == ids)
+  }
+
+  @Test func closedSectionAttentionIsItsLoudestRooms() {
+    #expect(resolveSectionAttention([makeRoom(id: "quiet", name: "quiet")]) == nil)
+    #expect(resolveSectionAttention([makeRoom(id: "muted", name: "muted", unreadCount: 3, unreadMentionCount: 1, mutedAt: baseDate)]) == nil)
+    #expect(resolveSectionAttention([makeRoom(id: "unread", name: "unread", unreadCount: 1)]) == .unread)
+    #expect(resolveSectionAttention([makeRoom(id: "marked", name: "marked", markedUnread: true)]) == .unread)
+    #expect(resolveSectionAttention([
+      makeRoom(id: "unread", name: "unread", unreadCount: 1),
+      makeRoom(id: "mention", name: "mention", unreadCount: 1, unreadMentionCount: 1)
+    ]) == .mention)
+    #expect(resolveSectionAttention([], hasPendingInvitation: true) == .mention)
   }
 
   @Test func directDisplayNameExcludesSelf() {
