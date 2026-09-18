@@ -23,6 +23,7 @@ export class SokoBotIntegrationError extends Error {
   constructor(
     message: string,
     readonly kind:
+      | "IDENTITY_MISMATCH"
       | "NOT_CONFIGURED"
       | "NOT_FOUND"
       | "UNKNOWN_PROVIDER"
@@ -190,7 +191,7 @@ async function lookupToolkit(
   }
 }
 
-async function requireBot(userId: string, workspaceId: string) {
+export async function requireBot(userId: string, workspaceId: string) {
   const bot = await prisma.sokoBot.findFirst({
     where: { userId, workspaceId, archivedAt: null },
     select: { id: true },
