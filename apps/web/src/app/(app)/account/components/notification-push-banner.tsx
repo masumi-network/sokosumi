@@ -95,11 +95,19 @@ function BrowserNotice({
       <div className="flex flex-col gap-3 @xl:flex-row @xl:items-center">
         <div className="flex min-w-0 flex-1 items-start gap-3">
           {/* The tint and the mark carry the warning; the words do not.
-              `--semantic-warning` is a 40% yellow, about 2.3:1 on its own
-              quinary tint in light mode, which is under what a paragraph
-              needs, and the warning half has a reason to explain under its
-              title. The account notices colour their text with it and get
-              away with one short line. */}
+
+              The reason recorded here used to be contrast: that
+              `--semantic-warning` was a 40% yellow measuring about 2.3:1 on
+              its own quinary tint, under what a paragraph needs. That stopped
+              being true when the ramp was corrected. It measured 4.84:1 before
+              the hue rotation and measures 5.85:1 now in light, 9.15:1 in
+              dark, so a paragraph in it would clear its floor.
+
+              What holds instead is that the tint and the mark already say
+              "warning", so colouring the words as well spends one channel
+              three times, and this half has a reason to explain under its
+              title rather than the single short line the account notices get
+              away with. */}
           <Icon
             className={cn(
               "mt-0.5 size-4 shrink-0",
