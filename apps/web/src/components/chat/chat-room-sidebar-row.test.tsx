@@ -94,6 +94,8 @@ vi.mock("next-intl", () => ({
         editChannel: "Edit channel",
         pin: "Pin",
         unpin: "Unpin",
+        moveUp: "Move up",
+        moveDown: "Move down",
         mute: "Mute",
         unmute: "Unmute",
         roomMenu: `Chat actions for ${values?.name ?? ""}`,
@@ -578,10 +580,10 @@ describe("ChatRoomSidebarRow rail selection bar", () => {
 });
 
 describe("ChatRoomSidebarRow trailing cluster", () => {
-  it("hides the pin glyph and room menu when the sidebar collapses", () => {
+  it("hides the muted glyph and room menu when the sidebar collapses", () => {
     const { container } = render(
       <ChatRoomSidebarRow
-        room={makeRoom({ starredAt: new Date("2026-09-01T00:00:00.000Z") })}
+        room={makeRoom({ mutedAt: new Date("2026-09-01T00:00:00.000Z") })}
         href="/chat/rooms/room-1"
         label="general"
         isActive={false}
@@ -592,8 +594,8 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
 
     const cluster = container.querySelector('[data-slot="room-trailing"]');
     expect(cluster).not.toBeNull();
-    // Pin glyph and the room menu both live in this one cluster.
-    expect(cluster?.querySelector("svg.lucide-pin")).not.toBeNull();
+    // Muted glyph and the room menu both live in this one cluster.
+    expect(cluster?.querySelector("svg.lucide-bell-off")).not.toBeNull();
     expect(
       cluster?.contains(
         screen.getByRole("button", { name: "Chat actions for general" }),
@@ -604,7 +606,7 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
     );
   });
 
-  it("keeps the pin in the same size slot as the room menu", () => {
+  it("shows no glyph on a pinned row: the Pinned section already says so", () => {
     const { container } = render(
       <ChatRoomSidebarRow
         room={makeRoom({ starredAt: new Date("2026-09-01T00:00:00.000Z") })}
@@ -616,8 +618,25 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
       />,
     );
 
-    const pin = container.querySelector("svg.lucide-pin");
-    const box = pin?.parentElement;
+    expect(
+      container.querySelector('[data-slot="room-trailing"] svg.lucide-pin'),
+    ).toBeNull();
+  });
+
+  it("keeps the muted glyph in the same size slot as the room menu", () => {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom({ mutedAt: new Date("2026-09-01T00:00:00.000Z") })}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const glyph = container.querySelector("svg.lucide-bell-off");
+    const box = glyph?.parentElement;
     expect(box).not.toBeNull();
     expect(box?.className.split(" ").includes("md:size-7")).toBe(true);
     expect(box?.className).not.toContain("[@media(hover:hover)]:size-4");
@@ -644,7 +663,6 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
 
   it.each([
     ["muted", { mutedAt: new Date("2026-09-01T00:00:00.000Z") }, false],
-    ["pinned", { starredAt: new Date("2026-09-01T00:00:00.000Z") }, false],
     ["open", {}, true],
   ])(
     "holds the hole open in every state on a %s row, so its name never moves",
@@ -761,6 +779,47 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
       }
     },
   );
+});
+
+describe("ChatRoomSidebarRow pinned order menu", () => {
+  function renderPinnedRow(handlers: {
+    onMoveUp?: () => void;
+    onMoveDown?: () => void;
+  }) {
+    render(
+      <ChatRoomSidebarRow
+        room={makeRoom({ starredAt: new Date("2026-09-01T00:00:00.000Z") })}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+        {...handlers}
+      />,
+    );
+  }
+
+  // Touch and keyboard readers have no drag, so the menu is their way in.
+  it.each([
+    ["Move up", "onMoveUp"],
+    ["Move down", "onMoveDown"],
+  ] as const)("runs %s from the menu", async (name, handler) => {
+    const handlers = { onMoveUp: vi.fn(), onMoveDown: vi.fn() };
+    renderPinnedRow(handlers);
+
+    const user = await openRoomMenu();
+    await user.click(screen.getByRole("menuitem", { name }));
+
+    expect(handlers[handler]).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers no move past either end, and none outside Pinned", async () => {
+    renderPinnedRow({});
+
+    await openRoomMenu();
+    expect(screen.queryByRole("menuitem", { name: "Move up" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "Move down" })).toBeNull();
+  });
 });
 
 describe("ChatRoomSidebarRow edit menu", () => {

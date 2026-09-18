@@ -3,7 +3,7 @@
 import { Ellipsis, Globe2, RotateCcw, Trash2 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
   acceptChatRoomInvitationAction,
@@ -47,12 +47,23 @@ import { cn } from "@/lib/utils";
 import { getActiveRoomIdFromPathname } from "./active-room-id";
 import { ChannelDiscoverabilityIcon } from "./channel-discoverability-icon";
 import { ChannelRoomMark } from "./channel-room-mark";
-import { ChatRoomSidebarRow } from "./chat-room-sidebar-row";
+import {
+  ChatRoomSidebarRow,
+  type ChatRoomSidebarRowProps,
+} from "./chat-room-sidebar-row";
 import { ChatSidebarSectionHeader } from "./chat-sidebar-section-header";
 import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
-import { listOrganizationChatRoomsAction } from "./organization-chat-list.actions";
+import {
+  listOrganizationChatRoomsAction,
+  reorderPinnedOrganizationChatRoomsAction,
+} from "./organization-chat-list.actions";
 import { partitionRoomsForSidebar } from "./partition-rooms-for-sidebar";
 import { PendingInvitationRailButton } from "./pending-invitation-rail-button";
+import {
+  movePinnedRoomId,
+  PinnedRoomsDndContext,
+  SortablePinnedRoomRow,
+} from "./pinned-rooms-dnd";
 import { beginRoomAttentionRefresh } from "./room-read-overlay";
 import { useOrganizationChatRooms } from "./use-organization-chat-rooms";
 
@@ -108,6 +119,7 @@ export function OrganizationChatList({
     upsertRoomToTop,
     replaceRoom,
     replaceAllRooms,
+    applyPinnedOrder,
   } = useOrganizationChatRooms({
     rooms,
     archivedRooms,
@@ -116,6 +128,8 @@ export function OrganizationChatList({
     organizationId,
     paintOnly,
   });
+  const [pinnedOpen, setPinnedOpen] = useState(true);
+  const reorderRequestRef = useRef(0);
   const [channelSectionOpen, setChannelSectionOpen] = useState(true);
   const [archivedSectionOpen, setArchivedSectionOpen] = useState(false);
   const [directOpen, setDirectOpen] = useState(true);
@@ -221,10 +235,66 @@ export function OrganizationChatList({
     });
   }
 
-  const { directMessages, namedChannels, externalJoined } = useMemo(
+  const { pinned, directMessages, namedChannels, externalJoined } = useMemo(
     () => partitionRoomsForSidebar(roomRows),
     [roomRows],
   );
+  const pinnedRoomIds = pinned.map((room) => room.id);
+
+  function handleReorderPinned(roomIds: string[]) {
+    const request = ++reorderRequestRef.current;
+    // Local sort keys only; Core writes its own and the next list load
+    // brings them. The order is what matters, and it is the same.
+    const base = Date.now() - roomIds.length;
+    applyPinnedOrder(
+      roomIds.map((roomId, index) => ({
+        roomId,
+        starredAt: new Date(base + index),
+      })),
+    );
+
+    async function reloadAfterFailure() {
+      // A newer reorder owns the list now.
+      if (request !== reorderRequestRef.current) return;
+      toast.error(tActions("actionFailed"));
+      // What Core holds is the truth: an earlier overlapping reorder may
+      // have landed, so no local snapshot is safe to put back.
+      const requestRevision = beginRoomAttentionRefresh();
+      const roomsResult = await listOrganizationChatRoomsAction();
+      if (roomsResult.ok && request === reorderRequestRef.current) {
+        replaceAllRooms(roomsResult.value.rooms, requestRevision);
+      }
+    }
+
+    void reorderPinnedOrganizationChatRoomsAction(roomIds).then((result) => {
+      if (!result.ok) return reloadAfterFailure();
+    }, reloadAfterFailure);
+  }
+
+  function roomRowProps(room: ChatRoom): ChatRoomSidebarRowProps {
+    const isDirect = room.kind === "direct";
+    return {
+      room,
+      href: `/chat/rooms/${room.id}`,
+      label: isDirect
+        ? getRoomDisplayName(room, currentUserId, t("SelfDirect.you"))
+        : room.name,
+      subtitle:
+        room.myAccess === "guest" && room.organizationName
+          ? tExternal("hostOrganization", {
+              organization: room.organizationName,
+            })
+          : undefined,
+      isActive: activeRoomId === room.id,
+      leading: isDirect ? (
+        <DirectRoomAvatarStack room={room} currentUserId={currentUserId} />
+      ) : (
+        <ChannelRoomMark room={room} />
+      ),
+      onRoomUpdated: replaceRoom,
+      dismissSheetOnNavigate,
+    };
+  }
 
   const sortedArchivedChannels = useMemo(() => {
     return [...archivedRows].sort((a, b) =>
@@ -235,6 +305,58 @@ export function OrganizationChatList({
   return (
     <SidebarGroup className="w-full">
       <SidebarGroupContent className="space-y-2">
+        {pinned.length > 0 ? (
+          <Collapsible open={pinnedOpen} onOpenChange={setPinnedOpen}>
+            <ChatSidebarSectionHeader isOpen={pinnedOpen}>
+              {t("pinned")}
+            </ChatSidebarSectionHeader>
+            <CollapsibleContent>
+              <PinnedRoomsDndContext
+                roomIds={pinnedRoomIds}
+                onReorder={handleReorderPinned}
+              >
+                <SidebarMenu className="gap-0">
+                  {pinned.map((room, index) => {
+                    const above = pinnedRoomIds[index - 1];
+                    const below = pinnedRoomIds[index + 1];
+                    return (
+                      <SortablePinnedRoomRow
+                        key={room.id}
+                        index={index}
+                        {...roomRowProps(room)}
+                        onMoveUp={
+                          above
+                            ? () =>
+                                handleReorderPinned(
+                                  movePinnedRoomId(
+                                    pinnedRoomIds,
+                                    room.id,
+                                    above,
+                                  ),
+                                )
+                            : undefined
+                        }
+                        onMoveDown={
+                          below
+                            ? () =>
+                                handleReorderPinned(
+                                  movePinnedRoomId(
+                                    pinnedRoomIds,
+                                    room.id,
+                                    below,
+                                  ),
+                                )
+                            : undefined
+                        }
+                      />
+                    );
+                  })}
+                </SidebarMenu>
+              </PinnedRoomsDndContext>
+            </CollapsibleContent>
+          </Collapsible>
+        ) : null}
+
         {hasOrganization ? (
           <Collapsible
             open={channelSectionOpen}
@@ -250,16 +372,7 @@ export function OrganizationChatList({
             <CollapsibleContent>
               <SidebarMenu className="gap-0">
                 {namedChannels.map((room) => (
-                  <ChatRoomSidebarRow
-                    key={room.id}
-                    room={room}
-                    href={`/chat/rooms/${room.id}`}
-                    label={room.name}
-                    isActive={activeRoomId === room.id}
-                    leading={<ChannelRoomMark room={room} />}
-                    onRoomUpdated={replaceRoom}
-                    dismissSheetOnNavigate={dismissSheetOnNavigate}
-                  />
+                  <ChatRoomSidebarRow key={room.id} {...roomRowProps(room)} />
                 ))}
                 {namedChannels.length === 0 ? (
                   <SidebarMenuItem>
@@ -348,23 +461,7 @@ export function OrganizationChatList({
                   );
                 })}
                 {externalJoined.map((room) => (
-                  <ChatRoomSidebarRow
-                    key={room.id}
-                    room={room}
-                    href={`/chat/rooms/${room.id}`}
-                    label={room.name}
-                    subtitle={
-                      room.myAccess === "guest" && room.organizationName
-                        ? tExternal("hostOrganization", {
-                            organization: room.organizationName,
-                          })
-                        : undefined
-                    }
-                    isActive={activeRoomId === room.id}
-                    leading={<ChannelRoomMark room={room} />}
-                    onRoomUpdated={replaceRoom}
-                    dismissSheetOnNavigate={dismissSheetOnNavigate}
-                  />
+                  <ChatRoomSidebarRow key={room.id} {...roomRowProps(room)} />
                 ))}
               </SidebarMenu>
             </CollapsibleContent>
@@ -543,25 +640,7 @@ export function OrganizationChatList({
           <CollapsibleContent>
             <SidebarMenu className="gap-0">
               {directMessages.map((room) => (
-                <ChatRoomSidebarRow
-                  key={room.id}
-                  room={room}
-                  href={`/chat/rooms/${room.id}`}
-                  label={getRoomDisplayName(
-                    room,
-                    currentUserId,
-                    t("SelfDirect.you"),
-                  )}
-                  isActive={activeRoomId === room.id}
-                  leading={
-                    <DirectRoomAvatarStack
-                      room={room}
-                      currentUserId={currentUserId}
-                    />
-                  }
-                  onRoomUpdated={replaceRoom}
-                  dismissSheetOnNavigate={dismissSheetOnNavigate}
-                />
+                <ChatRoomSidebarRow key={room.id} {...roomRowProps(room)} />
               ))}
               {directMessages.length === 0 ? (
                 <SidebarMenuItem>

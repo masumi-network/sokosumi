@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  ArrowDown,
+  ArrowUp,
   Bell,
   BellOff,
   Ellipsis,
@@ -14,7 +16,12 @@ import {
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useState, useTransition } from "react";
+import {
+  type ComponentProps,
+  type ReactNode,
+  useState,
+  useTransition,
+} from "react";
 import { toast } from "sonner";
 import { leaveRoomAction } from "@/app/chat/actions";
 import {
@@ -94,7 +101,7 @@ import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
 const TRAILING_CLUSTER_CLASS =
   "group-data-[collapsible=icon]:hidden absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center";
 
-interface ChatRoomSidebarRowProps {
+export interface ChatRoomSidebarRowProps {
   room: ChatRoom;
   href: string;
   label: string;
@@ -105,6 +112,11 @@ interface ChatRoomSidebarRowProps {
   onRoomUpdated: (room: ChatRoom) => void;
   /** When false, render plain Link (page-mounted list outside Sheet). */
   dismissSheetOnNavigate?: boolean;
+  /** Pinned section only: the row's `<li>` is a drag handle and drop slot. */
+  itemProps?: ComponentProps<"li">;
+  /** Pinned section only. Absent on the first / last row. */
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
 }
 
 /**
@@ -219,6 +231,9 @@ export function ChatRoomSidebarRow({
   leading,
   onRoomUpdated,
   dismissSheetOnNavigate = true,
+  itemProps,
+  onMoveUp,
+  onMoveDown,
 }: ChatRoomSidebarRowProps) {
   const tActions = useTranslations("App.Channels.Actions");
   const tChannels = useTranslations("App.Channels");
@@ -415,12 +430,12 @@ export function ChatRoomSidebarRow({
         className={cn(
           "group-data-[collapsible=icon]:hidden shrink-0",
           "[@media(hover:none)]:size-8 [@media(hover:none)]:md:size-7",
-          (isMuted || isPinned) && "[@media(hover:none)]:w-16",
+          isMuted && "[@media(hover:none)]:w-16",
           // The badge sits against this spacer, so a badged row holds one
           // width in every state or the badge jumps on hover. 12px plus the
           // link's gap ends the badge where the menu button's box begins.
           //
-          // A pinned or muted row shows its glyph at rest, and the open room
+          // A muted row shows its glyph at rest, and the open room
           // is the row being read, so both hold the 16px hole in every state.
           // The name is `flex-1 min-w-0`, so a hole that opened later would
           // take that width off the name and re-truncate it under the cursor.
@@ -431,7 +446,7 @@ export function ChatRoomSidebarRow({
           // one row whose name moves, and it moves as the button arrives.
           badgeCount > 0
             ? "[@media(hover:hover)]:size-3"
-            : isMuted || isPinned || isActive
+            : isMuted || isActive
               ? "[@media(hover:hover)]:size-4"
               : [
                   "[@media(hover:hover)]:size-0",
@@ -446,7 +461,10 @@ export function ChatRoomSidebarRow({
   );
 
   return (
-    <SidebarMenuItem className="group/room-row relative">
+    <SidebarMenuItem
+      {...itemProps}
+      className={cn("group/room-row relative", itemProps?.className)}
+    >
       {railVariant ? <RailAttentionPill variant={railVariant} /> : null}
       {isActive ? <SidebarRailSelectionBar /> : null}
       {/* Collapsed to icons the row is only its leading mark, so the name
@@ -460,7 +478,7 @@ export function ChatRoomSidebarRow({
         )}
       </SidebarMenuButton>
       <div data-slot="room-trailing" className={TRAILING_CLUSTER_CLASS}>
-        {isMuted || isPinned ? (
+        {isMuted ? (
           <span
             className={cn(
               "text-muted-foreground pointer-events-none flex size-8 items-center justify-center md:size-7",
@@ -469,11 +487,7 @@ export function ChatRoomSidebarRow({
             )}
             aria-hidden
           >
-            {isMuted ? (
-              <BellOff className="size-3.5" />
-            ) : (
-              <Pin className="size-3.5" />
-            )}
+            <BellOff className="size-3.5" />
           </span>
         ) : null}
         <DropdownMenu>
@@ -527,6 +541,18 @@ export function ChatRoomSidebarRow({
               )}
               {isPinned ? tActions("unpin") : tActions("pin")}
             </DropdownMenuItem>
+            {onMoveUp ? (
+              <DropdownMenuItem disabled={isPending} onSelect={onMoveUp}>
+                <ArrowUp className="size-4" aria-hidden />
+                {tActions("moveUp")}
+              </DropdownMenuItem>
+            ) : null}
+            {onMoveDown ? (
+              <DropdownMenuItem disabled={isPending} onSelect={onMoveDown}>
+                <ArrowDown className="size-4" aria-hidden />
+                {tActions("moveDown")}
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuItem
               disabled={isPending || isPinned}
               onSelect={() => {

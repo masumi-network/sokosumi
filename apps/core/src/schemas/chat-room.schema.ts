@@ -229,6 +229,33 @@ export const chatRoomPinnedMessageMutationSchema = z
   })
   .openapi("ChatRoomPinnedMessageMutation");
 
+/** Far above any real starred list; bounds the one-row-per-id transaction. */
+const MAX_STARRED_ROOMS = 500;
+
+export const reorderStarredChatRoomsRequestSchema = z
+  .object({
+    roomIds: z
+      .array(z.string().uuid())
+      .max(MAX_STARRED_ROOMS)
+      .openapi({
+        description:
+          "Starred room ids in the wanted order. Ids the caller has not starred are ignored; starred rooms left out keep their relative order after the listed ones. Never stars or unstars a room.",
+        example: ["550e8400-e29b-41d4-a716-446655440000"],
+      }),
+  })
+  .openapi("ReorderStarredChatRoomsRequest");
+
+export const starredChatRoomOrderSchema = z
+  .object({
+    roomId: z.string().uuid().openapi({
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+    starredAt: dateTimeSchema.openapi({
+      description: "Sort key: starred rooms list oldest `starredAt` first.",
+    }),
+  })
+  .openapi("StarredChatRoomOrder");
+
 const roomMemberUserIdsSchema = z
   .array(z.string().min(1))
   .max(MAX_ROOM_MEMBERS)

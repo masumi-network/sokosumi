@@ -2484,6 +2484,21 @@ export type ChannelSlugAvailability = {
     status: 'free' | 'taken';
 };
 
+export type StarredChatRoomOrder = {
+    roomId: string;
+    /**
+     * Sort key: starred rooms list oldest `starredAt` first.
+     */
+    starredAt: Date;
+};
+
+export type ReorderStarredChatRoomsRequest = {
+    /**
+     * Starred room ids in the wanted order. Ids the caller has not starred are ignored; starred rooms left out keep their relative order after the listed ones. Never stars or unstars a room.
+     */
+    roomIds: Array<string>;
+};
+
 export type GetChatUiMessagesResponseData = {
     messages: Array<ChatUiMessage>;
 };
@@ -15180,6 +15195,94 @@ export type GetChatsRoomsChannelSlugAvailabilityResponses = {
 };
 
 export type GetChatsRoomsChannelSlugAvailabilityResponse = GetChatsRoomsChannelSlugAvailabilityResponses[keyof GetChatsRoomsChannelSlugAvailabilityResponses];
+
+export type PutChatsRoomsStarredData = {
+    body?: ReorderStarredChatRoomsRequest;
+    path?: never;
+    query?: never;
+    url: '/chats/rooms/starred';
+};
+
+export type PutChatsRoomsStarredErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutChatsRoomsStarredError = PutChatsRoomsStarredErrors[keyof PutChatsRoomsStarredErrors];
+
+export type PutChatsRoomsStarredResponses = {
+    /**
+     * Starred rooms in their new order
+     */
+    200: {
+        data: Array<StarredChatRoomOrder>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutChatsRoomsStarredResponse = PutChatsRoomsStarredResponses[keyof PutChatsRoomsStarredResponses];
 
 export type GetChatsRoomsByIdStreamMessagesData = {
     body?: never;

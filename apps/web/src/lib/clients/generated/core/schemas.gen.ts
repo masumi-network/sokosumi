@@ -9007,6 +9007,48 @@ export const ChannelSlugAvailabilitySchema = {
     ]
 } as const;
 
+export const StarredChatRoomOrderSchema = {
+    type: 'object',
+    properties: {
+        roomId: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        starredAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Sort key: starred rooms list oldest `starredAt` first.'
+        }
+    },
+    required: [
+        'roomId',
+        'starredAt'
+    ]
+} as const;
+
+export const ReorderStarredChatRoomsRequestSchema = {
+    type: 'object',
+    properties: {
+        roomIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            maxItems: 500,
+            description: 'Starred room ids in the wanted order. Ids the caller has not starred are ignored; starred rooms left out keep their relative order after the listed ones. Never stars or unstars a room.',
+            example: [
+                '550e8400-e29b-41d4-a716-446655440000'
+            ]
+        }
+    },
+    required: [
+        'roomIds'
+    ]
+} as const;
+
 export const GetChatUiMessagesResponseDataSchema = {
     type: 'object',
     properties: {

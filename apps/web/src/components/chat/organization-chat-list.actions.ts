@@ -8,7 +8,10 @@ import {
 } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
-import type { ChatRoom } from "@/lib/clients/generated/core";
+import type {
+  ChatRoom,
+  StarredChatRoomOrder,
+} from "@/lib/clients/generated/core";
 import { type ChatRoomsPage, chatRoomService } from "@/lib/services";
 
 /** Org sidebar / chat list wire shape — ActionResultDto (neverthrow at boundary). */
@@ -113,6 +116,17 @@ export async function unpinOrganizationChatRoomAction(
     return roomOk(room);
   } catch {
     return listCatch("Could not unpin room.");
+  }
+}
+
+export async function reorderPinnedOrganizationChatRoomsAction(
+  roomIds: string[],
+): Promise<OrganizationChatListActionResult<StarredChatRoomOrder[]>> {
+  try {
+    const order = await chatRoomService.reorderPinnedRooms(roomIds);
+    return toActionResult(ok(order));
+  } catch {
+    return listCatch("Could not reorder pinned rooms.");
   }
 }
 
