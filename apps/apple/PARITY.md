@@ -670,10 +670,15 @@ set, and `ChatService.createMessage` now takes the whole quote so a cross-room s
 `CoreAPI` snapshot was refreshed with `scripts/update-core-api.py` from the current Core specification; the only
 contract delta is SOK-1106's (`quote.roomId`, and `content` no longer `minLength: 1`).
 
+Every paste menu item routes through `pasteText(from:)`: Paste and Match Style previously reached `NSTextView` directly,
+skipping the composer's plain-text normalization, its file and image attaching and now the quote swap.
+
 Tests: `MessageLinkQuoteTests` covers the accepted paste shapes, the audience rule, same-room and cross-room quotes, an
 unlisted source room, a same-room-only send path, an unreadable message and a deleted one; `MessageQuoteTests` covers
 the cross-room POST body with an empty content; `ComposerContentTests` covers the quote-only draft and the length limit;
-`WorkspaceStateTests` covers the end-to-end paste, read and send, and that plain text reads nothing.
+`MacComposerTextInputTests` covers the paste swap leaving a blank draft and the caret insertion; `WorkspaceStateTests`
+covers the end-to-end paste, read and send with real rosters, a target room holding a reader outside the source room,
+and that plain text reads nothing.
 
 Not covered: after a failed coworker-stream send, the restored draft brings its quote chip back but not the link text it
 replaced, so removing that chip inserts nothing. Web's equivalent fix is still unmerged on the SOK-1106 branch.

@@ -348,6 +348,17 @@
         pasteText(from: .general)
       }
 
+      /// The composer has one paste: it already inserts plain text, attaches
+      /// files and images, and offers the paste as a quote. Paste and Match
+      /// Style must not slip past that.
+      override func pasteAsPlainText(_: Any?) {
+        pasteText(from: .general)
+      }
+
+      override func pasteAsRichText(_: Any?) {
+        pasteText(from: .general)
+      }
+
       func pasteText(from pasteboard: NSPasteboard) {
         if let attachFiles, let files = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !files.isEmpty {
           attachFiles(files)

@@ -153,12 +153,18 @@ private let userBody = """
 {"data":{"id":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
 """
 
-/// `pinned` stars every room one second apart, in the given order.
-private func roomsBody(names: [String], pinned: Bool = false) -> String {
+/// `pinned` stars every room one second apart, in the given order. `members`
+/// gives each room its roster by name, for tests that read one.
+private func roomsBody(names: [String], pinned: Bool = false, members: [String: [String]] = [:]) -> String {
   let rooms = names.enumerated().map { index, name in
     let starredAt = pinned ? "\"2026-01-01T00:00:0\(index).000Z\"" : "null"
+    let roster = (members[name] ?? []).map {
+      """
+      {"id":"\($0)","name":"\($0)","email":"\($0)@example.com","image":null,"presence":"offline"}
+      """
+    }.joined(separator: ",")
     return """
-    {"id":"550e8400-e29b-41d4-a716-44665544000\(index)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":\(starredAt),"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
+    {"id":"550e8400-e29b-41d4-a716-44665544000\(index)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":\(starredAt),"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[\(roster)],"coworkerMembers":[],"sokoBotMembers":[]}
     """
   }.joined(separator: ",")
   return """
@@ -2995,7 +3001,9 @@ extension WorkspaceStateTests {
       (200, orgsBody),
       (200, userBody),
       (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
-      (200, roomsBody(names: ["general", "random"])),
+      // Everyone in the target room also reads the source room, so the quote
+      // may cross; "outsider" is in neither.
+      (200, roomsBody(names: ["general", "random"], members: ["general": ["user_1"], "random": ["user_1", "peer"]])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: target, unread: 0)),
       (200, createdMessageBody(id: quoted, roomId: source, content: "Keep this")),
@@ -3018,6 +3026,29 @@ extension WorkspaceStateTests {
     let json = try #require(try JSONSerialization.jsonObject(with: body) as? [String: Any])
     #expect((json["content"] as? String)?.isEmpty == true)
     #expect(json["quote"] as? [String: String] == ["messageId": quoted, "roomId": source])
+  }
+
+  /// The same link stays plain when the target room holds a reader who cannot
+  /// follow it, so nothing is read and no quote is offered.
+  @MainActor
+  @Test func pastedMessageLinkStaysPlainForAReaderOutsideTheSourceRoom() async throws {
+    let target = "550e8400-e29b-41d4-a716-446655440000"
+    let source = "550e8400-e29b-41d4-a716-446655440001"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")),
+      (200, orgsBody),
+      (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general", "random"], members: ["general": ["user_1", "outsider"], "random": ["user_1", "peer"]])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: target, unread: 0))
+    ])
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    let base = try #require(URL(string: "https://app.sokosumi.com"))
+    let link = "https://app.sokosumi.com/chat/rooms/\(source)?message=550e8400-e29b-41d4-a716-446655440123"
+    #expect(await state.messageLinkQuote(pasted: link, roomId: target, webBaseURL: base, auth: auth) == nil)
+    #expect(!transport.operationIDs.contains("get/chats/rooms/{id}/messages/{messageId}"))
   }
 
   /// Plain text is not a link, so nothing is read and the paste stays as typed.
