@@ -79,6 +79,10 @@ vi.mock("../chat-room-sidebar-row", () => ({
   ChatRoomSidebarRow: ({ label }: { label: string }) => <span>{label}</span>,
 }));
 
+vi.mock("../pending-invitation-rail-button", () => ({
+  PendingInvitationRailButton: () => null,
+}));
+
 vi.mock("../direct-room-avatar-stack", () => ({
   DirectRoomAvatarStack: () => null,
 }));
