@@ -8,8 +8,6 @@ const mocks = vi.hoisted(() => ({
   reclaim: vi.fn(),
   workspace: vi.fn(),
   turn: vi.fn(),
-  message: vi.fn(),
-  taskEvent: vi.fn(),
   actor: vi.fn(),
   create: vi.fn(),
   batch: vi.fn(),
@@ -25,8 +23,6 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     workspace: { findUniqueOrThrow: mocks.workspace },
     sokoBotTurn: { findUnique: mocks.turn },
-    chatRoomMessage: { findFirst: mocks.message },
-    taskEvent: { findFirst: mocks.taskEvent },
   },
 }));
 vi.mock("@/helpers/data-table", () => ({

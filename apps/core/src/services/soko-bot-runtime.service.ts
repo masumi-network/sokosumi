@@ -58,6 +58,7 @@ import {
 } from "@sokosumi/utils";
 import { list, put } from "@vercel/blob";
 import { waitUntil } from "@vercel/functions";
+import { v5 as uuidv5 } from "uuid";
 import { z } from "zod";
 import { getEnv } from "@/config/env";
 import { getAgentApiBaseUrl, toMasumiAgent } from "@/helpers/agent";
@@ -1140,6 +1141,7 @@ export class SokoBotRuntimeService {
   private async postChat(
     authorized: AuthorizedSokoBotRuntime,
     input: { roomId: string; content: string },
+    publication?: { id: string },
   ) {
     // A turn another assistant started may answer only where it was asked.
     // Unreachable while the bot-to-bot ceiling withholds `post_chat` — kept
@@ -1205,6 +1207,13 @@ export class SokoBotRuntimeService {
     // `pending` for ever: reclaim only rescues `sent`, so nobody ever wakes.
     const mentionIds: string[] = [];
     const message = await serializableTransaction(async (tx) => {
+      if (publication) {
+        const existing = await tx.chatRoomMessage.findUnique({
+          where: { id: publication.id },
+          select: { id: true, createdAt: true },
+        });
+        if (existing) return { ...existing, replayed: true };
+      }
       // Counted inside the transaction: read outside it, two bots posting at
       // once both see room for one more and the room takes both.
       const botMessagesThisHour = await tx.chatRoomMessage.count({
@@ -1225,24 +1234,45 @@ export class SokoBotRuntimeService {
           `This room has taken ${botMessagesThisHour} assistant messages in the last hour and is rate limited. Say nothing further here for now.`,
         );
       }
-      const created = await tx.chatRoomMessage.create({
-        data: {
-          roomId: room.id,
-          senderSokoBotId: room.sokoBotId,
-          content: input.content,
-          // Lets the reader see, on hover, that this is part of an assistant
-          // exchange and how close it is to the point where it stops.
-          metadata: {
-            soko_bot_chain: {
-              depth: chainDepth,
-              max_depth: MAX_CHAT_CHAIN_DEPTH,
-              room_messages_this_hour: botMessagesThisHour + 1,
-              room_messages_per_hour: ROOM_BOT_MESSAGES_PER_HOUR,
-            },
+      const data = {
+        roomId: room.id,
+        senderSokoBotId: room.sokoBotId,
+        content: input.content,
+        // Lets the reader see, on hover, that this is part of an assistant
+        // exchange and how close it is to the point where it stops.
+        metadata: {
+          soko_bot_chain: {
+            depth: chainDepth,
+            max_depth: MAX_CHAT_CHAIN_DEPTH,
+            room_messages_this_hour: botMessagesThisHour + 1,
+            room_messages_per_hour: ROOM_BOT_MESSAGES_PER_HOUR,
           },
         },
-        select: { id: true, createdAt: true },
-      });
+      };
+      if (publication) {
+        // INSERT ON CONFLICT plus the existing primary key is the cross-process
+        // publication fence. Serializable retries refresh a competing snapshot.
+        const inserted = await tx.chatRoomMessage.createMany({
+          data: [{ ...data, id: publication.id }],
+          skipDuplicates: true,
+        });
+        if (!inserted.count) {
+          const existing = await tx.chatRoomMessage.findUniqueOrThrow({
+            where: { id: publication.id },
+            select: { id: true, createdAt: true },
+          });
+          return { ...existing, replayed: true };
+        }
+      }
+      const created = publication
+        ? await tx.chatRoomMessage.findUniqueOrThrow({
+            where: { id: publication.id },
+            select: { id: true, createdAt: true },
+          })
+        : await tx.chatRoomMessage.create({
+            data,
+            select: { id: true, createdAt: true },
+          });
       if (mentionedCoworkerIds.length > 0 || mentionedSokoBotIds.length > 0) {
         await tx.chatRoomMention.createMany({
           data: [
@@ -1274,12 +1304,13 @@ export class SokoBotRuntimeService {
         where: { id: room.id },
         data: { updatedAt: new Date() },
       });
-      return created;
+      return { ...created, replayed: false };
     }, "Another assistant posted into this room at the same moment");
     // Every other message-create site publishes; without this the bot's post
     // only appears after a refresh, which reads as the tool having failed.
     await publishChatRoomMessageRealtimeById(message.id, "create");
-    await scheduleSokoBotChatMessageEffects(room, message.id, input.content);
+    if (!message.replayed)
+      await scheduleSokoBotChatMessageEffects(room, message.id, input.content);
     for (const mentionId of mentionIds) {
       const { dispatchChatRoomMention } = await import(
         "@/services/chat-room-coworker-dispatch.service"
@@ -1640,6 +1671,7 @@ export class SokoBotRuntimeService {
     authorized: AuthorizedSokoBotRuntime,
     rawInput: unknown,
     toolCallId: string,
+    publication?: { id: string },
   ) {
     const input = replyToTaskInputSchema.parse(rawInput);
     const resumable: TaskStatus[] = [
@@ -1668,6 +1700,24 @@ export class SokoBotRuntimeService {
         },
       });
       if (!task) throw new SokoBotRuntimeValidationError("Task not found");
+      const recovered = (eventId: string) => ({
+        result: {
+          id: task.id,
+          name: task.name,
+          status: task.status,
+          commented: true,
+        },
+        eventId,
+        ownerId: task.ownerId,
+        eventStatus: null,
+      });
+      if (publication) {
+        const existing = await tx.taskEvent.findUnique({
+          where: { id: publication.id },
+          select: { id: true },
+        });
+        if (existing) return recovered(existing.id);
+      }
       if (!input.status) {
         const recent = await tx.taskEvent.count({
           where: {
@@ -1695,16 +1745,24 @@ export class SokoBotRuntimeService {
           );
         }
       }
-      const event = await tx.taskEvent.create({
-        data: {
-          taskId: task.id,
-          status: input.status ?? null,
-          comment: input.comment,
-          channel: Channel.SOKOSUMI,
-          sokoBotId: authorized.turn.sokoBotId,
-        },
-        select: { id: true },
-      });
+      const data = {
+        taskId: task.id,
+        status: input.status ?? null,
+        comment: input.comment,
+        channel: Channel.SOKOSUMI,
+        sokoBotId: authorized.turn.sokoBotId,
+      };
+      let event: { id: string };
+      if (publication) {
+        const inserted = await tx.taskEvent.createMany({
+          data: [{ ...data, id: publication.id }],
+          skipDuplicates: true,
+        });
+        if (!inserted.count) return recovered(publication.id);
+        event = { id: publication.id };
+      } else {
+        event = await tx.taskEvent.create({ data, select: { id: true } });
+      }
       if (input.status === "READY") {
         await applyGuardedTaskStatusUpdate({
           tx,
@@ -2382,33 +2440,34 @@ export class SokoBotRuntimeService {
               },
             },
           });
+          // A table ID identifies its durable create operation. Destination and
+          // sender namespace publication independently of turn/tool receipt IDs.
           if (turn?.chatMention) {
+            const roomId = turn.chatMention.message.roomId;
             const content = `[${table.title.replaceAll("[", "").replaceAll("]", "")}](${url})`;
-            const existing = await prisma.chatRoomMessage.findFirst({
-              where: {
-                roomId: turn.chatMention.message.roomId,
-                senderSokoBotId: actor.actorId,
-                content,
+            await this.postChat(
+              authorized,
+              { roomId, content },
+              {
+                id: uuidv5(
+                  `table-created:chat:${roomId}:${actor.actorId}`,
+                  table.id,
+                ),
               },
-            });
-            if (!existing)
-              await this.postChat(authorized, {
-                roomId: turn.chatMention.message.roomId,
-                content,
-              });
+            );
           }
           if (taskId) {
-            const comment = `[Open table](${url})`;
-            const existing = await prisma.taskEvent.findFirst({
-              where: { taskId, sokoBotId: actor.actorId, comment },
-              select: { id: true },
-            });
-            if (!existing)
-              await this.replyToTask(
-                authorized,
-                { taskId, comment },
-                `${input.toolCallId}:table-link`,
-              );
+            await this.replyToTask(
+              authorized,
+              { taskId, comment: `[Open table](${url})` },
+              `${input.toolCallId}:table-link`,
+              {
+                id: uuidv5(
+                  `table-created:task:${taskId}:${actor.actorId}`,
+                  table.id,
+                ),
+              },
+            );
           }
           return {
             table,

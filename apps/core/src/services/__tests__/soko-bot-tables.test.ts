@@ -5,8 +5,6 @@ import type { AuthorizedSokoBotRuntime } from "../soko-bot-runtime.service";
 const mocks = vi.hoisted(() => ({
   workspace: vi.fn(),
   turn: vi.fn(),
-  message: vi.fn(),
-  taskEvent: vi.fn(),
   actor: vi.fn(),
   create: vi.fn(),
   batch: vi.fn(),
@@ -16,8 +14,6 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     workspace: { findUniqueOrThrow: mocks.workspace },
     sokoBotTurn: { findUnique: mocks.turn },
-    chatRoomMessage: { findFirst: mocks.message },
-    taskEvent: { findFirst: mocks.taskEvent },
   },
 }));
 vi.mock("@/helpers/data-table", () => ({
@@ -79,7 +75,6 @@ describe("Soko Bot table dispatch", () => {
     mocks.turn.mockResolvedValue({
       chatMention: { message: { roomId: "room-test" } },
     });
-    mocks.message.mockResolvedValue(null);
   });
   function service() {
     const service = new SokoBotRuntimeService();
@@ -124,13 +119,17 @@ describe("Soko Bot table dispatch", () => {
       expect.objectContaining(actor),
       expect.objectContaining({ key: body.key, title: body.title }),
     );
-    expect(post).toHaveBeenCalledWith(authorized, {
-      roomId: "room-test",
-      content: `[Company research](/drive/tables/${table.id})`,
-    });
+    expect(post).toHaveBeenCalledWith(
+      authorized,
+      {
+        roomId: "room-test",
+        content: `[Company research](/drive/tables/${table.id})`,
+      },
+      { id: expect.any(String) },
+    );
     expect(result).toMatchObject({ table, url: `/drive/tables/${table.id}` });
   });
-  it("reuses the table operation key and avoids republishing an acknowledged link", async () => {
+  it("reuses the operation key and publication identity across tool receipts", async () => {
     const runtime = service();
     const post = vi.fn<SokoBotRuntimeService["postChat"]>().mockResolvedValue({
       messageId: "message",
@@ -141,7 +140,6 @@ describe("Soko Bot table dispatch", () => {
     runtime["postChat"] = post;
     const table = { id: randomUUID(), title: "Research" };
     mocks.create.mockResolvedValue(table);
-    mocks.message.mockResolvedValue({ id: "existing" });
     const body = {
       key: randomUUID(),
       title: table.title,
@@ -159,7 +157,8 @@ describe("Soko Bot table dispatch", () => {
       body.key,
       body.key,
     ]);
-    expect(post).not.toHaveBeenCalled();
+    expect(post).toHaveBeenCalledTimes(2);
+    expect(post.mock.calls[0][2]).toEqual(post.mock.calls[1][2]);
   });
   it("passes task scope and selected cell versions to durable writes", async () => {
     const runtime = service();
@@ -214,7 +213,7 @@ describe("Soko Bot table dispatch", () => {
     ).rejects.toThrow("assigned taskId");
     expect(mocks.create).not.toHaveBeenCalled();
   });
-  it("publishes a task-created table immediately and avoids a duplicate task link on retry", async () => {
+  it("passes a stable publication identity when retrying a task-created table", async () => {
     const runtime = service();
     vi.mocked(runtime.authorize).mockResolvedValue({
       ...authorized,
@@ -230,9 +229,6 @@ describe("Soko Bot table dispatch", () => {
       });
     runtime["replyToTask"] = reply;
     mocks.turn.mockResolvedValue({ chatMention: null });
-    mocks.taskEvent
-      .mockResolvedValueOnce(null)
-      .mockResolvedValue({ id: "event" });
     const table = { id: randomUUID(), title: "Task research" };
     mocks.create.mockResolvedValue(table);
     const body = {
@@ -253,7 +249,8 @@ describe("Soko Bot table dispatch", () => {
       { ...actor, taskId: body.taskId, ownerChat: false },
       expect.objectContaining({ key: body.key }),
     );
-    expect(reply).toHaveBeenCalledTimes(1);
+    expect(reply).toHaveBeenCalledTimes(2);
+    expect(reply.mock.calls[0][3]).toEqual(reply.mock.calls[1][3]);
     expect(reply).toHaveBeenCalledWith(
       expect.objectContaining({
         turn: expect.objectContaining({ source: "EVENT" }),
@@ -263,6 +260,7 @@ describe("Soko Bot table dispatch", () => {
         comment: `[Open table](/drive/tables/${table.id})`,
       },
       "task-create-0:table-link",
+      { id: expect.any(String) },
     );
   });
   it.each(["list_tables", "read_table"] as const)(

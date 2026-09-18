@@ -9,11 +9,24 @@ import {
   vi,
 } from "vitest";
 import { z } from "zod";
+import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import prisma from "@/lib/db/prisma";
 import {
   type AuthorizedSokoBotRuntime,
   SokoBotRuntimeService,
 } from "@/services/soko-bot-runtime.service";
+
+// Exercise actual publication transactions; only external delivery is replaced.
+vi.mock("@/helpers/chat-room-message-realtime", () => ({
+  publishChatRoomMessageRealtimeById: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/lib/soko-bot/chat-message-effects", () => ({
+  scheduleSokoBotChatMessageEffects: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/lib/ably/publish", () => ({
+  publishTaskEventData: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@vercel/functions", () => ({ waitUntil: vi.fn() }));
 
 const userId = randomUUID(),
   workspaceId = randomUUID(),
@@ -51,6 +64,7 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
     afterEach(() => vi.restoreAllMocks());
     afterAll(async () => {
       await prisma.chatRoom.deleteMany({ where: { createdByUserId: userId } });
+      await prisma.task.deleteMany({ where: { workspaceId } });
       await prisma.workspace.delete({ where: { id: workspaceId } });
       await prisma.user.delete({ where: { id: userId } });
       await prisma.$disconnect();
@@ -62,10 +76,12 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
           workspaceId,
           sokoBotId,
           source: "CHAT",
+          status: "RUNNING",
+          leaseExpiresAt: new Date(Date.now() + 600000),
           clientTurnId: randomUUID(),
           userMessage: "Research",
           capabilityNames: [...capabilities],
-          deadlineAt: new Date(Date.now() + 60000),
+          deadlineAt: new Date(Date.now() + 600000),
           eveSessionId: randomUUID(),
         },
       });
@@ -99,7 +115,7 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
         sessionId: turn.eveSessionId!,
         toolCallId: randomUUID(),
       };
-      return { runtime, authorize, request, turn };
+      return { runtime, authorize, authorized, request, turn };
     }
     const createdSchema = z.object({
       table: z.object({
@@ -246,32 +262,23 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
           where: { id: turn.id },
           data: { chatMentionId: mention.id },
         });
+        await prisma.chatRoomSokoBotMember.create({
+          data: { roomId: room.id, sokoBotId },
+        });
+        const originalPost = runtime["postChat"].bind(runtime);
         let first = true;
-        const post = vi
-          .spyOn(runtime, "postChat")
-          .mockImplementation(async (_authorized, body) => {
-            if (first && !published) {
-              first = false;
-              throw Error("publication interrupted");
-            }
-            const linked = await prisma.chatRoomMessage.create({
-              data: {
-                roomId: room.id,
-                content: body.content,
-                senderSokoBotId: sokoBotId,
-              },
-            });
-            if (first) {
-              first = false;
-              throw Error("publication interrupted");
-            }
-            return {
-              messageId: linked.id,
-              roomId: room.id,
-              postedAt: linked.createdAt.toISOString(),
-              summoned: 0,
-            };
-          });
+        vi.spyOn(runtime, "postChat").mockImplementation(async (...args) => {
+          if (first && !published) {
+            first = false;
+            throw Error("publication interrupted");
+          }
+          const result = await originalPost(...args);
+          if (first) {
+            first = false;
+            throw Error("publication interrupted");
+          }
+          return result;
+        });
         const call = {
           ...request,
           capability: "create_table" as const,
@@ -293,9 +300,310 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
         expect(
           await prisma.dataTable.findUnique({ where: { id: result.table.id } }),
         ).not.toBeNull();
-        expect(post).toHaveBeenCalledTimes(published ? 1 : 2);
       },
     );
+    async function chatDestination(turnId: string, roomId?: string) {
+      const room = roomId
+        ? { id: roomId }
+        : await prisma.chatRoom.create({
+            data: {
+              name: "Publication",
+              kind: "direct",
+              createdByUserId: userId,
+              directKey: randomUUID(),
+            },
+          });
+      if (!roomId)
+        await prisma.chatRoomSokoBotMember.create({
+          data: { roomId: room.id, sokoBotId },
+        });
+      const message = await prisma.chatRoomMessage.create({
+        data: { roomId: room.id, content: "Research", senderUserId: userId },
+      });
+      const mention = await prisma.chatRoomMention.create({
+        data: { messageId: message.id, sokoBotId },
+      });
+      await prisma.sokoBotTurn.update({
+        where: { id: turnId },
+        data: { chatMentionId: mention.id },
+      });
+      return room.id;
+    }
+    async function taskDestination() {
+      return (
+        await prisma.task.create({
+          data: {
+            ownerId: userId,
+            creatorUserId: userId,
+            workspaceId,
+            name: "Publication",
+            status: "RUNNING",
+            assigneeSokoBotId: sokoBotId,
+          },
+        })
+      ).id;
+    }
+    it.each([
+      { destination: "chat", separateTurns: false },
+      { destination: "task", separateTurns: false },
+      { destination: "chat", separateTurns: true },
+      { destination: "task", separateTurns: true },
+    ])(
+      "R3: concurrent distinct calls publish one $destination reference (separate turns: $separateTurns)",
+      async ({ destination, separateTurns }) => {
+        const { runtime, request, turn, authorized } = await setup();
+        const other = separateTurns
+          ? await setup()
+          : { runtime: new SokoBotRuntimeService(), request, turn };
+        const otherRuntime = other.runtime;
+        if (!separateTurns)
+          vi.spyOn(otherRuntime, "authorize").mockResolvedValue(authorized);
+        const destinationId =
+          destination === "chat"
+            ? await chatDestination(turn.id)
+            : await taskDestination();
+        if (destination === "chat" && separateTurns)
+          await chatDestination(other.turn.id, destinationId);
+        const input = {
+          ...createInput(),
+          ...(destination === "task" && { taskId: destinationId }),
+        };
+        let entered = 0;
+        let unblock!: () => void;
+        const barrier = new Promise<void>((resolve) => {
+          unblock = resolve;
+        });
+        // Synchronize the actual adapters after the old caller's lookup, then
+        // execute their real Prisma transactions from independent runtime instances.
+        for (const service of [runtime, otherRuntime]) {
+          if (destination === "chat") {
+            const post = service["postChat"].bind(service);
+            vi.spyOn(service, "postChat").mockImplementation(
+              async (...args) => {
+                if (++entered === 2) unblock();
+                await barrier;
+                return post(...args);
+              },
+            );
+          } else {
+            const reply = service["replyToTask"].bind(service);
+            vi.spyOn(service, "replyToTask").mockImplementation(
+              async (...args) => {
+                if (++entered === 2) unblock();
+                await barrier;
+                return reply(...args);
+              },
+            );
+          }
+        }
+        const before = await prisma.dataTable.count({ where: { workspaceId } });
+        const results = await Promise.all(
+          [runtime, otherRuntime].map((service, index) =>
+            service.executeTool({
+              ...(index ? other.request : request),
+              toolCallId: `concurrent-${index}`,
+              capability: "create_table",
+              input,
+            }),
+          ),
+        );
+        expect(results[0]).toEqual(results[1]);
+        expect(await prisma.dataTable.count({ where: { workspaceId } })).toBe(
+          before + 1,
+        );
+        const result = createdSchema.parse(results[0]);
+        if (destination === "chat") {
+          const links = await prisma.chatRoomMessage.findMany({
+            where: { roomId: destinationId, senderSokoBotId: sokoBotId },
+          });
+          expect(links).toHaveLength(1);
+          expect(links[0].content).toContain(result.url);
+        } else {
+          const links = await prisma.taskEvent.findMany({
+            where: { taskId: destinationId, sokoBotId },
+          });
+          expect(links).toHaveLength(1);
+          expect(links[0].comment).toContain(result.url);
+          expect(
+            await prisma.sokoBotDelegation.count({
+              where: { taskId: destinationId },
+            }),
+          ).toBe(1);
+        }
+        expect(
+          await runtime.executeTool({
+            ...request,
+            toolCallId: "concurrent-0",
+            capability: "create_table",
+            input,
+          }),
+        ).toEqual(results[0]);
+        const count =
+          destination === "chat"
+            ? await prisma.chatRoomMessage.count({
+                where: { roomId: destinationId, senderSokoBotId: sokoBotId },
+              })
+            : await prisma.taskEvent.count({
+                where: { taskId: destinationId, sokoBotId },
+              });
+        expect(count).toBe(1);
+      },
+    );
+    it.each([false, true])(
+      "R3: task publication recovers before/after persistence (committed: %s)",
+      async (committed) => {
+        const { runtime, request } = await setup();
+        const taskId = await taskDestination();
+        const original = runtime["replyToTask"].bind(runtime);
+        let first = true;
+        vi.spyOn(runtime, "replyToTask").mockImplementation(async (...args) => {
+          if (first && !committed) {
+            first = false;
+            throw Error("publication interrupted");
+          }
+          const result = await original(...args);
+          if (first) {
+            first = false;
+            throw Error("publication interrupted");
+          }
+          return result;
+        });
+        const call = {
+          ...request,
+          capability: "create_table" as const,
+          input: { ...createInput(), taskId },
+        };
+        await expect(runtime.executeTool(call)).rejects.toThrow(
+          "publication interrupted",
+        );
+        const recovered = await runtime.executeTool({
+          ...call,
+          toolCallId: randomUUID(),
+        });
+        expect(await runtime.executeTool(call)).toEqual(recovered);
+        const result = createdSchema.parse(recovered);
+        const events = await prisma.taskEvent.findMany({
+          where: { taskId, sokoBotId },
+        });
+        expect(events).toHaveLength(1);
+        expect(events[0].comment).toContain(result.url);
+        expect(
+          await prisma.sokoBotDelegation.count({ where: { taskId } }),
+        ).toBe(1);
+      },
+    );
+    it("R3: chat publication is isolated by table and destination, with fresh membership checks", async () => {
+      const first = await setup(),
+        second = await setup();
+      const a = await chatDestination(first.turn.id),
+        b = await chatDestination(second.turn.id);
+      const input = createInput();
+      const call = {
+        ...first.request,
+        capability: "create_table" as const,
+        input,
+      };
+      const result = await first.runtime.executeTool(call);
+      expect(
+        await second.runtime.executeTool({
+          ...second.request,
+          capability: "create_table",
+          input,
+        }),
+      ).toEqual(result);
+      await first.runtime.executeTool({
+        ...call,
+        toolCallId: randomUUID(),
+        input: createInput(),
+      });
+      const aLinks = await prisma.chatRoomMessage.findMany({
+        where: { roomId: a, senderSokoBotId: sokoBotId },
+      });
+      const bLinks = await prisma.chatRoomMessage.findMany({
+        where: { roomId: b, senderSokoBotId: sokoBotId },
+      });
+      expect(aLinks).toHaveLength(2);
+      expect(bLinks).toHaveLength(1);
+      expect(new Set([...aLinks, ...bLinks].map((link) => link.id)).size).toBe(
+        3,
+      );
+      expect(aLinks.some((link) => link.content === bLinks[0].content)).toBe(
+        true,
+      );
+      await prisma.chatRoomSokoBotMember.deleteMany({
+        where: { roomId: a, sokoBotId },
+      });
+      await expect(first.runtime.executeTool(call)).rejects.toThrow(
+        "not a member",
+      );
+      expect(
+        await prisma.chatRoomMessage.count({
+          where: { roomId: a, senderSokoBotId: sokoBotId },
+        }),
+      ).toBe(2);
+    });
+    it("R3: task publication cannot cross changed task authority or replay a terminal task", async () => {
+      const { runtime, request } = await setup();
+      const a = await taskDestination(),
+        b = await taskDestination();
+      const input = { ...createInput(), taskId: a };
+      const call = { ...request, capability: "create_table" as const, input };
+      await runtime.executeTool(call);
+      await expect(
+        runtime.executeTool({
+          ...call,
+          toolCallId: randomUUID(),
+          input: { ...input, taskId: b },
+        }),
+      ).rejects.toThrow("Retry key");
+      expect(await prisma.taskEvent.count({ where: { taskId: b } })).toBe(0);
+      await runtime.executeTool({
+        ...call,
+        toolCallId: randomUUID(),
+        input: { ...createInput(), taskId: b },
+      });
+      const links = await prisma.taskEvent.findMany({
+        where: { taskId: { in: [a, b] } },
+      });
+      expect(links).toHaveLength(2);
+      expect(links[0].id).not.toBe(links[1].id);
+      await prisma.task.update({
+        where: { id: a },
+        data: { status: "COMPLETED" },
+      });
+      await expect(runtime.executeTool(call)).rejects.toThrow("not assigned");
+      expect(await prisma.taskEvent.count({ where: { taskId: a } })).toBe(1);
+    });
+    it("R3: realtime failure after message persistence recovers the same link", async () => {
+      const { runtime, request, turn } = await setup();
+      const roomId = await chatDestination(turn.id);
+      vi.mocked(publishChatRoomMessageRealtimeById).mockRejectedValueOnce(
+        new Error("realtime unavailable"),
+      );
+      const call = {
+        ...request,
+        capability: "create_table" as const,
+        input: createInput(),
+      };
+      await expect(runtime.executeTool(call)).rejects.toThrow(
+        "realtime unavailable",
+      );
+      const before = await prisma.chatRoomMessage.findMany({
+        where: { roomId, senderSokoBotId: sokoBotId },
+      });
+      expect(before).toHaveLength(1);
+      const result = createdSchema.parse(await runtime.executeTool(call));
+      expect(
+        await prisma.chatRoomMessage.findMany({
+          where: { roomId, senderSokoBotId: sokoBotId },
+        }),
+      ).toEqual(before);
+      expect(before[0].content).toContain(result.url);
+      expect(publishChatRoomMessageRealtimeById).toHaveBeenLastCalledWith(
+        before[0].id,
+        "create",
+      );
+    });
     it("never replays a failed non-table side effect", async () => {
       const { runtime, request } = await setup();
       const input = { roomId: randomUUID(), content: "Do not send twice" };
