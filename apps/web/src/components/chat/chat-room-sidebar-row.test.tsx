@@ -50,12 +50,14 @@ vi.mock("next/link", () => ({
     children,
     href,
     className,
+    tabIndex,
   }: {
     children: ReactNode;
     href: string;
     className?: string;
+    tabIndex?: number;
   }) => (
-    <a href={href} className={className}>
+    <a href={href} className={className} tabIndex={tabIndex}>
       {children}
     </a>
   ),
@@ -94,8 +96,6 @@ vi.mock("next-intl", () => ({
         editChannel: "Edit channel",
         pin: "Pin",
         unpin: "Unpin",
-        moveUp: "Move up",
-        moveDown: "Move down",
         mute: "Mute",
         unmute: "Unmute",
         roomMenu: `Chat actions for ${values?.name ?? ""}`,
@@ -781,12 +781,9 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
   );
 });
 
-describe("ChatRoomSidebarRow pinned order menu", () => {
-  function renderPinnedRow(handlers: {
-    onMoveUp?: () => void;
-    onMoveDown?: () => void;
-  }) {
-    render(
+describe("ChatRoomSidebarRow reorder mode", () => {
+  function renderRow(reorderHandle?: React.ReactNode) {
+    return render(
       <ChatRoomSidebarRow
         room={makeRoom({ starredAt: new Date("2026-09-01T00:00:00.000Z") })}
         href="/chat/rooms/room-1"
@@ -794,31 +791,40 @@ describe("ChatRoomSidebarRow pinned order menu", () => {
         isActive={false}
         leading={<span>#</span>}
         onRoomUpdated={vi.fn()}
-        {...handlers}
+        reorderHandle={reorderHandle}
       />,
     );
   }
 
-  // Touch and keyboard readers have no drag, so the menu is their way in.
-  it.each([
-    ["Move up", "onMoveUp"],
-    ["Move down", "onMoveDown"],
-  ] as const)("runs %s from the menu", async (name, handler) => {
-    const handlers = { onMoveUp: vi.fn(), onMoveDown: vi.fn() };
-    renderPinnedRow(handlers);
+  it("puts the handle where the room menu stands and rests the link", () => {
+    const { container } = renderRow(<button type="button">grip</button>);
 
-    const user = await openRoomMenu();
-    await user.click(screen.getByRole("menuitem", { name }));
+    const cluster = container.querySelector('[data-slot="room-trailing"]');
+    expect(
+      cluster?.contains(screen.getByRole("button", { name: "grip" })),
+    ).toBe(true);
+    expect(
+      screen.queryByRole("button", { name: "Chat actions for general" }),
+    ).toBeNull();
 
-    expect(handlers[handler]).toHaveBeenCalledTimes(1);
+    const link = screen.getByRole("link");
+    expect(link.className.split(" ")).toContain("pointer-events-none");
+    // The collapsed rail shows no handle, so its rows keep opening rooms.
+    expect(link.className.split(" ")).toContain(
+      "group-data-[collapsible=icon]:pointer-events-auto",
+    );
+    expect(link).toHaveAttribute("tabindex", "-1");
   });
 
-  it("offers no move past either end, and none outside Pinned", async () => {
-    renderPinnedRow({});
+  it("is an ordinary row outside reorder mode", () => {
+    renderRow();
 
-    await openRoomMenu();
-    expect(screen.queryByRole("menuitem", { name: "Move up" })).toBeNull();
-    expect(screen.queryByRole("menuitem", { name: "Move down" })).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Chat actions for general" }),
+    ).toBeInTheDocument();
+    const link = screen.getByRole("link");
+    expect(link.className.split(" ")).not.toContain("pointer-events-none");
+    expect(link).not.toHaveAttribute("tabindex");
   });
 });
 

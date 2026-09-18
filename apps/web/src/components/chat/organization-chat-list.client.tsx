@@ -1,7 +1,9 @@
 "use client";
 
 import {
+  ArrowUpDown,
   Building2,
+  Check,
   Ellipsis,
   Globe2,
   Hash,
@@ -21,6 +23,7 @@ import {
   restoreRoomAction,
 } from "@/app/chat/actions";
 import { BrowseChannelsDialog } from "@/app/chat/components/browse-channels-dialog";
+import { CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME } from "@/app/chat/components/chat-compose-dialog";
 import { CreateChannelDialog } from "@/app/chat/components/create-channel-dialog";
 import { CreateDirectDialog } from "@/app/chat/components/create-direct-dialog";
 import { getRoomDisplayName } from "@/app/chat/components/room-helpers";
@@ -139,6 +142,7 @@ export function OrganizationChatList({
     paintOnly,
   });
   const [pinnedOpen, setPinnedOpen] = useState(true);
+  const [pinnedReorderMode, setPinnedReorderMode] = useState(false);
   const reorderRequestRef = useRef(0);
   const [channelSectionOpen, setChannelSectionOpen] = useState(true);
   const [archivedSectionOpen, setArchivedSectionOpen] = useState(false);
@@ -250,6 +254,17 @@ export function OrganizationChatList({
     [roomRows],
   );
   const pinnedRoomIds = pinned.map((room) => room.id);
+  // The mode needs its toggle on screen to leave it again.
+  const isReorderingPinned =
+    pinnedReorderMode && pinnedOpen && pinned.length > 1;
+
+  /** Undefined past either end of the list, which is how a row knows. */
+  function movePinnedTo(roomId: string, targetId: string | undefined) {
+    return targetId
+      ? () =>
+          handleReorderPinned(movePinnedRoomId(pinnedRoomIds, roomId, targetId))
+      : undefined;
+  }
 
   function handleReorderPinned(roomIds: string[]) {
     const request = ++reorderRequestRef.current;
@@ -321,52 +336,61 @@ export function OrganizationChatList({
               isOpen={pinnedOpen}
               railIcon={Pin}
               closedAttention={resolveSectionAttention(pinned)}
+              createAction={
+                pinnedOpen && pinned.length > 1 ? (
+                  <button
+                    type="button"
+                    aria-pressed={isReorderingPinned}
+                    aria-label={t(
+                      isReorderingPinned
+                        ? "reorderPinnedDone"
+                        : "reorderPinned",
+                    )}
+                    className={CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME}
+                    onClick={() => setPinnedReorderMode((current) => !current)}
+                  >
+                    {isReorderingPinned ? (
+                      <Check className="size-4 md:size-3.5" aria-hidden />
+                    ) : (
+                      <ArrowUpDown className="size-4 md:size-3.5" aria-hidden />
+                    )}
+                  </button>
+                ) : undefined
+              }
             >
               {t("pinned")}
             </ChatSidebarSectionHeader>
             <CollapsibleContent>
-              <PinnedRoomsDndContext
-                roomIds={pinnedRoomIds}
-                onReorder={handleReorderPinned}
-              >
-                <SidebarMenu className="gap-0">
-                  {pinned.map((room, index) => {
-                    const above = pinnedRoomIds[index - 1];
-                    const below = pinnedRoomIds[index + 1];
-                    return (
+              {isReorderingPinned ? (
+                <PinnedRoomsDndContext
+                  roomIds={pinnedRoomIds}
+                  onReorder={handleReorderPinned}
+                >
+                  <SidebarMenu className="gap-0">
+                    {pinned.map((room, index) => (
                       <SortablePinnedRoomRow
                         key={room.id}
                         index={index}
                         {...roomRowProps(room)}
-                        onMoveUp={
-                          above
-                            ? () =>
-                                handleReorderPinned(
-                                  movePinnedRoomId(
-                                    pinnedRoomIds,
-                                    room.id,
-                                    above,
-                                  ),
-                                )
-                            : undefined
-                        }
-                        onMoveDown={
-                          below
-                            ? () =>
-                                handleReorderPinned(
-                                  movePinnedRoomId(
-                                    pinnedRoomIds,
-                                    room.id,
-                                    below,
-                                  ),
-                                )
-                            : undefined
-                        }
+                        onMoveUp={movePinnedTo(
+                          room.id,
+                          pinnedRoomIds[index - 1],
+                        )}
+                        onMoveDown={movePinnedTo(
+                          room.id,
+                          pinnedRoomIds[index + 1],
+                        )}
                       />
-                    );
-                  })}
+                    ))}
+                  </SidebarMenu>
+                </PinnedRoomsDndContext>
+              ) : (
+                <SidebarMenu className="gap-0">
+                  {pinned.map((room) => (
+                    <ChatRoomSidebarRow key={room.id} {...roomRowProps(room)} />
+                  ))}
                 </SidebarMenu>
-              </PinnedRoomsDndContext>
+              )}
             </CollapsibleContent>
           </Collapsible>
         ) : null}

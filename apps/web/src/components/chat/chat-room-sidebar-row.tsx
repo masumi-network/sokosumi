@@ -1,8 +1,6 @@
 "use client";
 
 import {
-  ArrowDown,
-  ArrowUp,
   Bell,
   BellOff,
   Ellipsis,
@@ -112,11 +110,13 @@ export interface ChatRoomSidebarRowProps {
   onRoomUpdated: (room: ChatRoom) => void;
   /** When false, render plain Link (page-mounted list outside Sheet). */
   dismissSheetOnNavigate?: boolean;
-  /** Pinned section only: the row's `<li>` is a drag handle and drop slot. */
+  /** Pinned section only: the row's `<li>` is a drop slot and moves in a drag. */
   itemProps?: ComponentProps<"li">;
-  /** Pinned section only. Absent on the first / last row. */
-  onMoveUp?: () => void;
-  onMoveDown?: () => void;
+  /**
+   * Pinned section in its reorder mode: stands where the room menu does, and
+   * the row stops being a link, so a press moves the room instead of opening it.
+   */
+  reorderHandle?: ReactNode;
 }
 
 /**
@@ -232,8 +232,7 @@ export function ChatRoomSidebarRow({
   onRoomUpdated,
   dismissSheetOnNavigate = true,
   itemProps,
-  onMoveUp,
-  onMoveDown,
+  reorderHandle,
 }: ChatRoomSidebarRowProps) {
   const tActions = useTranslations("App.Channels.Actions");
   const tChannels = useTranslations("App.Channels");
@@ -381,8 +380,13 @@ export function ChatRoomSidebarRow({
         // expanded-only. Its `hover:` outranks nothing there: the variant's
         // rule carries a `group-data-` condition and so wins on specificity.
         isMuted && !isActive && "opacity-60",
+        // Reorder mode: a press moves the room, so the link stands down. The
+        // collapsed rail has no handle and keeps opening rooms.
+        reorderHandle &&
+          "pointer-events-none group-data-[collapsible=icon]:pointer-events-auto",
       )}
       href={href}
+      tabIndex={reorderHandle ? -1 : undefined}
     >
       <span
         data-slot="room-leading"
@@ -446,7 +450,7 @@ export function ChatRoomSidebarRow({
           // one row whose name moves, and it moves as the button arrives.
           badgeCount > 0
             ? "[@media(hover:hover)]:size-3"
-            : isMuted || isActive
+            : isMuted || isActive || reorderHandle
               ? "[@media(hover:hover)]:size-4"
               : [
                   "[@media(hover:hover)]:size-0",
@@ -478,127 +482,119 @@ export function ChatRoomSidebarRow({
         )}
       </SidebarMenuButton>
       <div data-slot="room-trailing" className={TRAILING_CLUSTER_CLASS}>
-        {isMuted ? (
-          <span
-            className={cn(
-              "text-muted-foreground pointer-events-none flex size-8 items-center justify-center md:size-7",
-              "[@media(hover:hover)]:absolute [@media(hover:hover)]:top-1/2 [@media(hover:hover)]:right-0 [@media(hover:hover)]:-translate-y-1/2",
-              "[@media(hover:hover)]:group-hover/room-row:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-0 group-has-[[data-state=open]]/room-row:opacity-0",
-            )}
-            aria-hidden
-          >
-            <BellOff className="size-3.5" />
-          </span>
-        ) : null}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              disabled={isPending}
-              className={cn(
-                "text-muted-foreground size-8 opacity-100 md:size-7 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
-              )}
-              aria-label={tActions("roomMenu", { name: label })}
-            >
-              <Ellipsis className="size-5 md:size-4" aria-hidden />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem
-              disabled={isActive || isPending || isMuted}
-              onSelect={() => {
-                runRoomAction(markOrganizationChatRoomUnreadAction, {
-                  ...room,
-                  markedUnread: true,
-                });
-              }}
-            >
-              <MessageSquare className="size-4" aria-hidden />
-              {tActions("markUnread")}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={isPending || isMuted}
-              onSelect={() => {
-                if (isPinned) {
-                  runRoomAction(unpinOrganizationChatRoomAction, {
-                    ...room,
-                    starredAt: null,
-                  });
-                  return;
-                }
-                runRoomAction(pinOrganizationChatRoomAction, {
-                  ...room,
-                  starredAt: new Date(),
-                });
-              }}
-            >
-              {isPinned ? (
-                <PinOff className="size-4" aria-hidden />
-              ) : (
-                <Pin className="size-4" aria-hidden />
-              )}
-              {isPinned ? tActions("unpin") : tActions("pin")}
-            </DropdownMenuItem>
-            {onMoveUp ? (
-              <DropdownMenuItem disabled={isPending} onSelect={onMoveUp}>
-                <ArrowUp className="size-4" aria-hidden />
-                {tActions("moveUp")}
-              </DropdownMenuItem>
-            ) : null}
-            {onMoveDown ? (
-              <DropdownMenuItem disabled={isPending} onSelect={onMoveDown}>
-                <ArrowDown className="size-4" aria-hidden />
-                {tActions("moveDown")}
-              </DropdownMenuItem>
-            ) : null}
-            <DropdownMenuItem
-              disabled={isPending || isPinned}
-              onSelect={() => {
-                if (isMuted) {
-                  runRoomAction(unmuteOrganizationChatRoomAction, {
-                    ...room,
-                    mutedAt: null,
-                  });
-                  return;
-                }
-                runRoomAction(muteOrganizationChatRoomAction, {
-                  ...room,
-                  mutedAt: new Date(),
-                });
-              }}
-            >
-              {isMuted ? (
-                <Bell className="size-4" aria-hidden />
-              ) : (
-                <BellOff className="size-4" aria-hidden />
-              )}
-              {isMuted ? tActions("unmute") : tActions("mute")}
-            </DropdownMenuItem>
-            {isChannel ? (
-              <>
-                <DropdownMenuSeparator />
-                {dismissSheetOnNavigate ? (
-                  <SheetClose asChild>{editChannelItem}</SheetClose>
-                ) : (
-                  editChannelItem
+        {reorderHandle ?? (
+          <>
+            {isMuted ? (
+              <span
+                className={cn(
+                  "text-muted-foreground pointer-events-none flex size-8 items-center justify-center md:size-7",
+                  "[@media(hover:hover)]:absolute [@media(hover:hover)]:top-1/2 [@media(hover:hover)]:right-0 [@media(hover:hover)]:-translate-y-1/2",
+                  "[@media(hover:hover)]:group-hover/room-row:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-0 group-has-[[data-state=open]]/room-row:opacity-0",
                 )}
-              </>
-            ) : null}
-            {canLeave ? (
-              <DropdownMenuItem
-                disabled={isPending || isLeaving}
-                onSelect={() => {
-                  setLeaveConfirmOpen(true);
-                }}
+                aria-hidden
               >
-                <LogOut className="size-4" aria-hidden />
-                {tActions("leave")}
-              </DropdownMenuItem>
+                <BellOff className="size-3.5" />
+              </span>
             ) : null}
-          </DropdownMenuContent>
-        </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  disabled={isPending}
+                  className={cn(
+                    "text-muted-foreground size-8 opacity-100 md:size-7 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
+                  )}
+                  aria-label={tActions("roomMenu", { name: label })}
+                >
+                  <Ellipsis className="size-5 md:size-4" aria-hidden />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem
+                  disabled={isActive || isPending || isMuted}
+                  onSelect={() => {
+                    runRoomAction(markOrganizationChatRoomUnreadAction, {
+                      ...room,
+                      markedUnread: true,
+                    });
+                  }}
+                >
+                  <MessageSquare className="size-4" aria-hidden />
+                  {tActions("markUnread")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={isPending || isMuted}
+                  onSelect={() => {
+                    if (isPinned) {
+                      runRoomAction(unpinOrganizationChatRoomAction, {
+                        ...room,
+                        starredAt: null,
+                      });
+                      return;
+                    }
+                    runRoomAction(pinOrganizationChatRoomAction, {
+                      ...room,
+                      starredAt: new Date(),
+                    });
+                  }}
+                >
+                  {isPinned ? (
+                    <PinOff className="size-4" aria-hidden />
+                  ) : (
+                    <Pin className="size-4" aria-hidden />
+                  )}
+                  {isPinned ? tActions("unpin") : tActions("pin")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={isPending || isPinned}
+                  onSelect={() => {
+                    if (isMuted) {
+                      runRoomAction(unmuteOrganizationChatRoomAction, {
+                        ...room,
+                        mutedAt: null,
+                      });
+                      return;
+                    }
+                    runRoomAction(muteOrganizationChatRoomAction, {
+                      ...room,
+                      mutedAt: new Date(),
+                    });
+                  }}
+                >
+                  {isMuted ? (
+                    <Bell className="size-4" aria-hidden />
+                  ) : (
+                    <BellOff className="size-4" aria-hidden />
+                  )}
+                  {isMuted ? tActions("unmute") : tActions("mute")}
+                </DropdownMenuItem>
+                {isChannel ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    {dismissSheetOnNavigate ? (
+                      <SheetClose asChild>{editChannelItem}</SheetClose>
+                    ) : (
+                      editChannelItem
+                    )}
+                  </>
+                ) : null}
+                {canLeave ? (
+                  <DropdownMenuItem
+                    disabled={isPending || isLeaving}
+                    onSelect={() => {
+                      setLeaveConfirmOpen(true);
+                    }}
+                  >
+                    <LogOut className="size-4" aria-hidden />
+                    {tActions("leave")}
+                  </DropdownMenuItem>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        )}
       </div>
 
       <AlertDialog

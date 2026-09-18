@@ -87,25 +87,14 @@ vi.mock("@/app/chat/components/room-helpers", () => ({
 vi.mock("../chat-room-sidebar-row", () => ({
   ChatRoomSidebarRow: ({
     label,
-    onMoveUp,
-    onMoveDown,
+    reorderHandle,
   }: {
     label: string;
-    onMoveUp?: () => void;
-    onMoveDown?: () => void;
+    reorderHandle?: ReactNode;
   }) => (
     <li data-testid="room-row">
       <span>{label}</span>
-      {onMoveUp ? (
-        <button type="button" onClick={onMoveUp}>
-          {`Move up ${label}`}
-        </button>
-      ) : null}
-      {onMoveDown ? (
-        <button type="button" onClick={onMoveDown}>
-          {`Move down ${label}`}
-        </button>
-      ) : null}
+      {reorderHandle}
     </li>
   ),
   RailAttentionPill: () => null,

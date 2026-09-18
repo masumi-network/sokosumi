@@ -48,32 +48,74 @@ describe("OrganizationChatList Pinned section", () => {
     expect(screen.queryByText("App.Channels.pinned")).not.toBeInTheDocument();
   });
 
+  const TOGGLE = "App.Channels.reorderPinned";
+  const DONE = "App.Channels.reorderPinnedDone";
+  const HANDLE = "App.Channels.Actions.reorderHandle";
+
+  function handleOf(label: string) {
+    const row = screen
+      .getAllByTestId("room-row")
+      .find((candidate) => within(candidate).queryByText(label));
+    if (!row) throw new Error(`no row ${label}`);
+    return within(row).getByRole("button", { name: HANDLE });
+  }
+
+  async function enterReorderMode() {
+    await userEvent.click(screen.getByRole("button", { name: TOGGLE }));
+  }
+
   it("lists pinned rooms first, in the reader's order, and only there", () => {
     renderOrganizationChatList({ organizationId: "org-1", rooms });
 
     expect(screen.getByText("App.Channels.pinned")).toBeInTheDocument();
     expect(rowLabels()).toEqual(["launch", "design", "general"]);
-    // No move past either end.
-    expect(screen.queryByText("Move up launch")).not.toBeInTheDocument();
-    expect(screen.queryByText("Move down design")).not.toBeInTheDocument();
   });
 
-  it("reorders at once and keeps the order Core confirms", async () => {
-    reorderPinnedMock.mockResolvedValue({
-      ok: true,
-      value: [
-        { roomId: "design", starredAt: new Date("2026-09-01T00:00:00.000Z") },
-        { roomId: "launch", starredAt: new Date("2026-09-01T00:00:00.001Z") },
-      ],
-    });
+  it("shows handles only in reorder mode, and only on pinned rows", async () => {
     renderOrganizationChatList({ organizationId: "org-1", rooms });
+    expect(screen.queryByRole("button", { name: HANDLE })).toBeNull();
 
-    await userEvent.click(screen.getByText("Move down launch"));
+    await enterReorderMode();
+    expect(screen.getAllByRole("button", { name: HANDLE })).toHaveLength(2);
+
+    await userEvent.click(screen.getByRole("button", { name: DONE }));
+    expect(screen.queryByRole("button", { name: HANDLE })).toBeNull();
+  });
+
+  it("offers no reorder mode for a single pinned room", () => {
+    renderOrganizationChatList({
+      organizationId: "org-1",
+      rooms: [rooms[0], rooms[2]],
+    });
+
+    expect(screen.queryByRole("button", { name: TOGGLE })).toBeNull();
+  });
+
+  it("moves a room with the arrow keys, at once, and stays on its handle", async () => {
+    reorderPinnedMock.mockResolvedValue({ ok: true, value: [] });
+    renderOrganizationChatList({ organizationId: "org-1", rooms });
+    await enterReorderMode();
+
+    handleOf("launch").focus();
+    await userEvent.keyboard("{ArrowDown}");
 
     expect(reorderPinnedMock).toHaveBeenCalledWith(["design", "launch"]);
     await waitFor(() =>
       expect(rowLabels()).toEqual(["design", "launch", "general"]),
     );
+    expect(handleOf("launch")).toHaveFocus();
+  });
+
+  it("does nothing past either end", async () => {
+    renderOrganizationChatList({ organizationId: "org-1", rooms });
+    await enterReorderMode();
+
+    handleOf("launch").focus();
+    await userEvent.keyboard("{ArrowUp}");
+    handleOf("design").focus();
+    await userEvent.keyboard("{ArrowDown}");
+
+    expect(reorderPinnedMock).not.toHaveBeenCalled();
   });
 
   it("puts the order back when Core refuses it", async () => {
@@ -82,8 +124,10 @@ describe("OrganizationChatList Pinned section", () => {
       error: { code: "INTERNAL_SERVER_ERROR", message: "nope" },
     });
     renderOrganizationChatList({ organizationId: "org-1", rooms });
+    await enterReorderMode();
 
-    await userEvent.click(screen.getByText("Move down launch"));
+    handleOf("launch").focus();
+    await userEvent.keyboard("{ArrowDown}");
 
     await waitFor(() => expect(reorderPinnedMock).toHaveBeenCalled());
     await waitFor(() =>

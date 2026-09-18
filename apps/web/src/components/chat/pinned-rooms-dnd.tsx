@@ -3,13 +3,15 @@
 import {
   DndContext,
   type DragEndEvent,
-  MouseSensor,
+  PointerSensor,
   useDraggable,
   useDroppable,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import type { ComponentProps, ReactNode } from "react";
+import { GripVertical } from "lucide-react";
+import { useTranslations } from "next-intl";
+import type { KeyboardEvent, ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -40,17 +42,14 @@ interface PinnedRoomsDndContextProps {
   children: ReactNode;
 }
 
-/**
- * Mouse only. A touch drag would fight the sidebar's own scroll and the
- * link's long-press, so touch and keyboard reorder from the row menu.
- */
+/** Drags start on a row's handle only, so the list still scrolls by touch. */
 export function PinnedRoomsDndContext({
   roomIds,
   onReorder,
   children,
 }: PinnedRoomsDndContextProps) {
   const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
   );
 
   function handleDragEnd({ active, over }: DragEndEvent) {
@@ -66,15 +65,28 @@ export function PinnedRoomsDndContext({
   );
 }
 
+interface SortablePinnedRoomRowProps
+  extends Omit<ChatRoomSidebarRowProps, "itemProps" | "reorderHandle"> {
+  index: number;
+  /** Absent on the first / last row. */
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+}
+
 /**
- * Props for the row's `<li>`: makes it both the dragged row and a drop slot.
- * Rows between the drag's start and the slot under it step one row aside, so
- * the gap shows where the drop lands.
+ * A pinned row in reorder mode. The row's `<li>` is both the dragged row and
+ * a drop slot; rows between the drag's start and the slot under it step one
+ * row aside, so the gap shows where the drop lands. The handle takes the drag
+ * (mouse and touch) and the arrow keys.
  */
-function usePinnedRoomSortable(
-  roomId: string,
-  index: number,
-): ComponentProps<"li"> {
+export function SortablePinnedRoomRow({
+  index,
+  onMoveUp,
+  onMoveDown,
+  ...rowProps
+}: SortablePinnedRoomRowProps) {
+  const t = useTranslations("App.Channels.Actions");
+  const roomId = rowProps.room.id;
   const { listeners, setNodeRef, transform, isDragging, active, over } =
     useDraggable({ id: roomId, data: { index } });
   const { setNodeRef: setDropRef } = useDroppable({
@@ -93,46 +105,49 @@ function usePinnedRoomSortable(
     if (to <= index && index < from) offsetY = rowHeight;
   }
 
-  return {
-    // React events bubble out of the row menu's portal; only a press on the
-    // row itself may start a drag.
-    onMouseDown(event) {
-      if (
-        event.target instanceof Node &&
-        event.currentTarget.contains(event.target)
-      ) {
-        listeners?.onMouseDown?.(event);
+  function handleKeyDown(event: KeyboardEvent) {
+    const move =
+      event.key === "ArrowUp"
+        ? onMoveUp
+        : event.key === "ArrowDown"
+          ? onMoveDown
+          : undefined;
+    if (!move) return;
+    event.preventDefault();
+    move();
+  }
+
+  return (
+    <ChatRoomSidebarRow
+      {...rowProps}
+      itemProps={{
+        ref(node) {
+          setNodeRef(node);
+          setDropRef(node);
+        },
+        style: active
+          ? { transform: `translate3d(0, ${Math.round(offsetY)}px, 0)` }
+          : undefined,
+        className: cn(
+          isDragging
+            ? "bg-sidebar-accent z-20 rounded-md shadow-md"
+            : active && "transition-transform motion-reduce:transition-none",
+        ),
+      }}
+      reorderHandle={
+        <button
+          type="button"
+          {...listeners}
+          onKeyDown={handleKeyDown}
+          aria-label={t("reorderHandle", { name: rowProps.label })}
+          className={cn(
+            "text-muted-foreground hover:text-foreground ring-sidebar-ring flex size-8 touch-none items-center justify-center rounded-md outline-hidden focus-visible:ring-2 md:size-7",
+            isDragging ? "cursor-grabbing" : "cursor-grab",
+          )}
+        >
+          <GripVertical className="size-5 md:size-4" aria-hidden />
+        </button>
       }
-    },
-    ref(node) {
-      setNodeRef(node);
-      setDropRef(node);
-    },
-    style: active
-      ? {
-          transform: `translate3d(0, ${Math.round(offsetY)}px, 0)`,
-          // Without this the mouse-up lands on the link and the browser
-          // follows it: dnd-kit only stops the click reaching React.
-          pointerEvents: isDragging ? "none" : undefined,
-        }
-      : undefined,
-    className: cn(
-      isDragging
-        ? "bg-sidebar-accent z-20 rounded-md shadow-md"
-        : active && "transition-transform motion-reduce:transition-none",
-    ),
-  };
-}
-
-interface SortablePinnedRoomRowProps
-  extends Omit<ChatRoomSidebarRowProps, "itemProps"> {
-  index: number;
-}
-
-export function SortablePinnedRoomRow({
-  index,
-  ...rowProps
-}: SortablePinnedRoomRowProps) {
-  const itemProps = usePinnedRoomSortable(rowProps.room.id, index);
-  return <ChatRoomSidebarRow {...rowProps} itemProps={itemProps} />;
+    />
+  );
 }
