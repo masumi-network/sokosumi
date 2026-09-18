@@ -277,6 +277,14 @@ export function ScenarioLab({
         setActiveVersion(requested);
         onTurnFinished?.();
       },
+      // A server action rejects instead of answering with a result when the
+      // POST comes back as something other than RSC. Release the switch, or
+      // the picker stays disabled.
+      () => {
+        if (cancelled) return;
+        setSwitching(false);
+        void setRequestedVersionId(null);
+      },
     );
     return () => {
       cancelled = true;
