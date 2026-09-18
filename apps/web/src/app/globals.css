@@ -417,24 +417,44 @@
   /* The whole light warning ramp is orange at hue 25, rotated from amber 35.
      Dark stays at 43 and is not part of this change.
 
-     The hue is the fix, not the values. Yellow carries more luminance than
-     any other hue, which pinned the input-required label dark: at 12px it is
-     normal text, so WCAG 2.2 SC 1.4.3 asks 4.5:1 on the tint, and on amber
-     that capped the label around L35 to L37 whatever else was tuned. Orange
-     takes the same label at L38.0 and measures 4.53:1, and every other
-     consumer of this ramp came up rather than down: notice text on the
-     quinary 4.84 to 5.85, on the page 5.47 to 6.70, the indicator's label on
-     the solid 5.41 to 6.42, and the glyph on the tint 4.66 to 5.40. The tint
-     also reads as a block more clearly, 1.13:1 to 1.19:1 against the card.
+     The complaint this answers was that the input-required label reads too
+     dark, not that it fails a floor. It did not fail one: at hue 35 the label
+     measured 4.60:1 on its own tint. What it could not do was get lighter.
+     At 12px it is normal text, so SC 1.4.3 asks 4.5:1 on the tint, and yellow
+     carries more luminance than any other hue, which pinned the label near
+     L35 at the old saturation whatever else was tuned.
 
-     The cost is separation from the fault red. The input-required mark and
-     the failed mark now measure 7.85 OKLab dE apart where amber gave 12.52.
-     That is still above the 6.0 this model treats as comfortable and far
-     above the 2.0 just-noticeable threshold, and the two never share a board
-     column, but it is the tightest pair in the set and belongs on the record.
+     So two things moved together, and only one of them is the hue. Dropping
+     the label from S95 to S55 is what bought the lightness; rotating to hue
+     25 is what let the ramp around it stay legible while that happened. The
+     label ends at L38.0 and 4.53:1, so it is 3 lightness steps lighter at
+     essentially unchanged contrast (4.60 to 4.53, a 0.07 loss). That is the
+     honest summary: the reader gets the lighter text they asked for, and the
+     ratio is held, not improved.
 
-     Hue 25 was chosen from a measured sheet of ten, as the point where the
-     label gets meaningfully lighter before the red collision gets tight. */
+     Everything else on the ramp did improve, because those surfaces are not
+     bound by the tint: notice text on the quinary 4.84 to 5.85, on the page
+     5.47 to 6.70, the indicator's label on the solid 5.41 to 6.42, the glyph
+     on the tint 4.66 to 5.40, and the tint reads as a block more clearly,
+     1.13:1 to 1.19:1 against the card.
+
+     The cost is separation from the fault red, and it is larger than the
+     marks alone. Measured in OKLab dE x100, amber to orange:
+
+       mark   (--semantic-warning vs --semantic-destructive-solid)  12.45 to 8.51
+       fill   (both -quaternary, the badge's largest area)           7.67 to 5.36
+       border (both -tertiary, the outline weight)                   4.95 to 3.32
+
+     Only the mark stays above the 6.0 this model calls comfortably separate.
+     The fill drops under it and the border was already under it and got
+     worse. All three stay well above the 2.0 just-noticeable threshold, and
+     warning and fault never share a board column, but they do stack in one
+     list on the history rows, the needs-attention section and the status
+     picker menu. What keeps them apart there is the glyph and the word, which
+     rule 3 of the status model says carry the status anyway. Recorded here so
+     the next person retuning either ramp starts from the real numbers.
+
+     Hue 25 was chosen from a measured sheet of ten. */
   --semantic-warning-quaternary: hsla(25, 100.0%, 90.0%, 1);
   --semantic-warning-quinary: hsla(25, 41.3%, 93.8%, 1);
   --semantic-warning-label: hsla(25, 55.0%, 38.0%, 1);
