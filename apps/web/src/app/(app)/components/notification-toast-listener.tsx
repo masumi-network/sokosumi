@@ -9,6 +9,7 @@ import { VendorGrantNotificationActions } from "@/components/notifications/vendo
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import type { NotificationEventData } from "@/lib/ably/schema";
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
+import { useSession } from "@/lib/auth/auth.client";
 import { NOTIFICATION_TOASTER_ID } from "@/lib/constants/notification-toaster";
 import {
   getBrowserNotificationPermission,
@@ -227,12 +228,35 @@ export function NotificationToastListener({
     },
   });
 
+  const { data: session } = useSession();
+
   /**
    * The worker asks before it skips a banner. Answering yes while the channel
    * is detached would drop the notification twice over: no banner from the
    * worker, and no in-app update either.
+   *
+   * A reader who asked to be alerted while Sokosumi is open answers no on
+   * purpose. The banner is the only thing that makes a sound, so letting the
+   * worker skip it is exactly the silence they turned the setting on to end.
+   * The in-app toast still renders either way.
+   *
+   * Read at answer time rather than at subscribe time, like the channel state
+   * beside it: the reader can flip the switch while this page sits there, and
+   * a stale yes would keep the banner suppressed until they reloaded.
+   *
+   * That covers this page only. `authClient.updateUser` refreshes the session
+   * of the tab that wrote, so a second Sokosumi window still holds the old one
+   * and still answers yes. The worker suppresses when any focused page answers
+   * yes, so turning the setting on is not heard in that other window until its
+   * session refreshes. Turning it off is immediate, because this page then
+   * answers yes and one yes is all the worker needs to skip. Closing the other
+   * direction would mean telling the other windows, which is a second channel
+   * between tabs that nothing else here needs.
    */
-  const showsNotifications = useEffectEvent(() => isReceivingNotifications());
+  const showsNotifications = useEffectEvent(
+    () =>
+      isReceivingNotifications() && session?.user.bannerWhileFocused !== true,
+  );
 
   // Install the worker ahead of the first banner. A reader who never turns
   // push on still renders through it, so waiting for an install at banner time

@@ -117,6 +117,7 @@ const USER_RECORD = {
   notificationsOptIn: false,
   pushOptIn: false,
   showRoomUnreadCount: false,
+  bannerWhileFocused: false,
   notificationPreferences: [],
 };
 

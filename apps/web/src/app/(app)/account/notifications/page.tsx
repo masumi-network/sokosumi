@@ -19,6 +19,7 @@ export default async function AccountNotificationsPage() {
       <NotificationPreferences
         notificationsOptIn={session.user.notificationsOptIn ?? true}
         marketingOptIn={session.user.marketingOptIn ?? false}
+        bannerWhileFocused={session.user.bannerWhileFocused ?? false}
       >
         <ChatDisplayPreferences
           showRoomUnreadCount={session.user.showRoomUnreadCount ?? false}

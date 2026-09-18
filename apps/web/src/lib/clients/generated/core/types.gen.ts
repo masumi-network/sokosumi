@@ -24768,6 +24768,10 @@ export type GetUsersByIdPreferencesResponses = {
              */
             showRoomUnreadCount: boolean;
             /**
+             * Whether the OS banner is shown while a Sokosumi page is focused. Delivery: the push worker otherwise suppresses it, and the banner is what makes a sound
+             */
+            bannerWhileFocused: boolean;
+            /**
              * Every cell of the notification preference matrix, with defaults already applied
              */
             notificationPreferences: Array<NotificationPreference>;
@@ -24800,6 +24804,10 @@ export type PatchUsersByIdPreferencesData = {
          * Whether chat sidebar rows show a room's unread message count. Display only: it changes no notification delivery
          */
         showRoomUnreadCount?: boolean;
+        /**
+         * Whether the OS banner is shown while a Sokosumi page is focused. Delivery: the push worker otherwise suppresses it, and the banner is what makes a sound
+         */
+        bannerWhileFocused?: boolean;
         /**
          * The matrix cells the reader changed. A cell left out keeps its current answer.
          */
@@ -24902,6 +24910,10 @@ export type PatchUsersByIdPreferencesResponses = {
              * Whether chat sidebar rows show a room's unread message count. Display only: it changes no notification delivery
              */
             showRoomUnreadCount: boolean;
+            /**
+             * Whether the OS banner is shown while a Sokosumi page is focused. Delivery: the push worker otherwise suppresses it, and the banner is what makes a sound
+             */
+            bannerWhileFocused: boolean;
             /**
              * Every cell of the notification preference matrix, with defaults already applied
              */

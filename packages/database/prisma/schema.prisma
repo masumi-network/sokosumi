@@ -58,6 +58,11 @@ model User {
   notificationsOptIn Boolean @default(true) // Whether the user wants to receive notifications
   pushOptIn          Boolean @default(false) // Whether the user wants OS banners while Sokosumi is closed
 
+  // Delivery: it decides whether the OS banner is suppressed while a Sokosumi
+  // page is focused. The banner is the only thing that makes a sound, so this
+  // is how a reader asks to hear a notification while the app is open.
+  bannerWhileFocused Boolean @default(false)
+
   notificationPreferences NotificationPreference[]
 
   // Chat display preferences. Not delivery: these change what the reader sees,

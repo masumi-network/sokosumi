@@ -16,6 +16,7 @@ export const USER_PREFERENCES_SELECT = {
   notificationsOptIn: true,
   pushOptIn: true,
   showRoomUnreadCount: true,
+  bannerWhileFocused: true,
   notificationPreferences: {
     select: { category: true, channel: true, enabled: true },
   },
@@ -26,6 +27,7 @@ interface UserPreferencesRow {
   notificationsOptIn: boolean;
   pushOptIn: boolean;
   showRoomUnreadCount: boolean;
+  bannerWhileFocused: boolean;
   notificationPreferences: StoredNotificationPreference[];
 }
 
@@ -41,6 +43,7 @@ export function toUserPreferencesResponse(user: UserPreferencesRow) {
     notificationsOptIn: user.notificationsOptIn,
     pushOptIn: user.pushOptIn,
     showRoomUnreadCount: user.showRoomUnreadCount,
+    bannerWhileFocused: user.bannerWhileFocused,
     notificationPreferences: resolveNotificationMatrix(
       user.notificationPreferences,
     ),

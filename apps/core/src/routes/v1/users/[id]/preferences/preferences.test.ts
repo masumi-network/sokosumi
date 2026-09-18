@@ -45,6 +45,7 @@ const PREFERENCES = {
   notificationsOptIn: false,
   pushOptIn: false,
   showRoomUnreadCount: false,
+  bannerWhileFocused: false,
   notificationPreferences: [] as {
     category: string;
     channel: string;
@@ -58,6 +59,7 @@ const PREFERENCE_FLAGS = {
   notificationsOptIn: PREFERENCES.notificationsOptIn,
   pushOptIn: PREFERENCES.pushOptIn,
   showRoomUnreadCount: PREFERENCES.showRoomUnreadCount,
+  bannerWhileFocused: PREFERENCES.bannerWhileFocused,
 };
 
 const SESSION_USER: AuthenticationContext = {
@@ -152,6 +154,7 @@ describe("user preferences routes", () => {
         notificationsOptIn: true,
         pushOptIn: true,
         showRoomUnreadCount: true,
+        bannerWhileFocused: true,
         notificationPreferences: {
           select: { category: true, channel: true, enabled: true },
         },
@@ -179,6 +182,7 @@ describe("user preferences routes", () => {
         notificationsOptIn: true,
         pushOptIn: true,
         showRoomUnreadCount: true,
+        bannerWhileFocused: true,
         notificationPreferences: {
           select: { category: true, channel: true, enabled: true },
         },
@@ -249,6 +253,67 @@ describe("user preferences routes", () => {
 
     // The route refuses a body that names nothing; the new field has to count
     // as something, or turning the setting off would 400.
+    expect(response.status).toBe(200);
+  });
+
+  it("writes bannerWhileFocused on PATCH and returns the stored value", async () => {
+    userUpdateMock.mockResolvedValue({
+      ...PREFERENCES,
+      bannerWhileFocused: true,
+    });
+    const app = createPreferencesApp(SESSION_USER);
+
+    const response = await app.request(
+      patchRequest("/me/preferences", { bannerWhileFocused: true }),
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.bannerWhileFocused).toBe(true);
+    expect(userUpdateMock.mock.calls[0]?.[0].data).toEqual({
+      bannerWhileFocused: true,
+    });
+  });
+
+  // It decides whether a banner is suppressed, never whether one is sent. A
+  // reader who asks to hear notifications must not find a category switched on
+  // behind their back.
+  it("changes no category or channel when only bannerWhileFocused is sent", async () => {
+    userUpdateMock.mockResolvedValue({
+      ...PREFERENCES,
+      bannerWhileFocused: true,
+    });
+    const app = createPreferencesApp(SESSION_USER);
+
+    await app.request(
+      patchRequest("/me/preferences", { bannerWhileFocused: true }),
+    );
+
+    // The cells are written by their own upsert loop, not by the user
+    // update, so this is the only assertion that can see one switched on.
+    // The sibling flags below sit in the same update as the field under test.
+    expect(notificationPreferenceUpsertMock).not.toHaveBeenCalled();
+
+    const data = userUpdateMock.mock.calls[0]?.[0].data;
+    expect(data).not.toHaveProperty("marketingOptIn");
+    expect(data).not.toHaveProperty("notificationsOptIn");
+    expect(data).not.toHaveProperty("pushOptIn");
+    expect(prismaTransactionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts bannerWhileFocused as the only field a write names", async () => {
+    userUpdateMock.mockResolvedValue({
+      ...PREFERENCES,
+      bannerWhileFocused: false,
+    });
+    const app = createPreferencesApp(SESSION_USER);
+
+    const response = await app.request(
+      patchRequest("/me/preferences", { bannerWhileFocused: false }),
+    );
+
+    // The route refuses a body that names nothing, so turning the setting back
+    // off would 400 unless this field counts as a named write.
     expect(response.status).toBe(200);
   });
 

@@ -13,10 +13,17 @@ import {
 } from "@/components/ui/card";
 import { authClient } from "@/lib/auth/auth.client";
 import { NotificationKinds } from "./notification-kinds";
+import { PreferenceSwitchRow } from "./preference-switch-row";
 
 interface NotificationPreferencesProps {
   notificationsOptIn: boolean;
   marketingOptIn: boolean;
+  /**
+   * Whether the OS banner is shown while a Sokosumi page is focused. Delivery,
+   * so it belongs to this card: the push worker otherwise suppresses it, and
+   * the banner is the only thing that makes a sound.
+   */
+  bannerWhileFocused: boolean;
   /** A quieter card rendered under the grid, for settings that are not delivery. */
   children?: ReactNode;
 }
@@ -26,6 +33,7 @@ type UpdateUserResult = Awaited<ReturnType<typeof authClient.updateUser>>;
 export function NotificationPreferences({
   notificationsOptIn: initialNotificationsOptIn,
   marketingOptIn: initialMarketingOptIn,
+  bannerWhileFocused: initialBannerWhileFocused,
   children,
 }: NotificationPreferencesProps) {
   const t = useTranslations("App.Account.Notifications");
@@ -33,12 +41,16 @@ export function NotificationPreferences({
     initialNotificationsOptIn,
   );
   const [marketingOptIn, setMarketingOptIn] = useState(initialMarketingOptIn);
-  // One flag for both fields: a write of either refuses the other, so there is
-  // no state where they differ and no control that reports only its own.
+  const [bannerWhileFocused, setBannerWhileFocused] = useState(
+    initialBannerWhileFocused,
+  );
+  // One flag for every field on this card: each write refuses the others, so
+  // there is no state where they differ and no control that reports only its
+  // own. They all write one user record through one endpoint.
   const [isSaving, setIsSaving] = useState(false);
 
   const createToggleHandler = (
-    field: "notificationsOptIn" | "marketingOptIn",
+    field: "notificationsOptIn" | "marketingOptIn" | "bannerWhileFocused",
     currentValue: boolean,
     setValue: (value: boolean) => void,
     enabledSuccessKey: string,
@@ -102,6 +114,14 @@ export function NotificationPreferences({
     "marketingEmailsDisabledSuccess",
   );
 
+  const handleBannerWhileFocusedToggle = createToggleHandler(
+    "bannerWhileFocused",
+    bannerWhileFocused,
+    setBannerWhileFocused,
+    "bannerWhileFocusedEnabledSuccess",
+    "bannerWhileFocusedDisabledSuccess",
+  );
+
   return (
     <Card className="flex h-full flex-col">
       <CardHeader>
@@ -136,6 +156,20 @@ export function NotificationPreferences({
             saving: isSaving,
             onChange: handleMarketingOptInToggle,
           }}
+        />
+        {/* Under the grid rather than in it: the grid answers what Sokosumi
+            tells you about and where, one cell per category and channel, and
+            this applies across every row at once. It is still delivery, so it
+            stays inside this card. The description has to name what it depends
+            on, because a reader with no banner turned on hears nothing after
+            switching it on and would read that as broken. */}
+        <PreferenceSwitchRow
+          className="mt-6"
+          label={t("bannerWhileFocusedTitle")}
+          description={t("bannerWhileFocusedDescription")}
+          checked={bannerWhileFocused}
+          disabled={isSaving}
+          onCheckedChange={handleBannerWhileFocusedToggle}
         />
       </CardContent>
       {children ? <CardContent>{children}</CardContent> : null}

@@ -24,6 +24,7 @@ export interface SessionUser {
   marketingOptIn: boolean;
   notificationsOptIn?: boolean | null;
   showRoomUnreadCount?: boolean | null;
+  bannerWhileFocused?: boolean | null;
   logo?: string | null;
   metadata?: string | null;
   stripeCustomerId?: string | null;

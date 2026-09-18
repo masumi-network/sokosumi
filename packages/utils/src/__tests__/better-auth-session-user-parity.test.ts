@@ -28,6 +28,7 @@ function buildSessionUserWithSchemaFields(
     marketingOptIn: true,
     notificationsOptIn: true,
     showRoomUnreadCount: false,
+    bannerWhileFocused: false,
     logo: null,
     metadata: null,
     stripeCustomerId: null,

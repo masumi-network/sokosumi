@@ -95,8 +95,15 @@ vi.mock("sonner", () => ({
 vi.mock("@/app/components/user-avatar/workspace-switcher", () => ({
   useWorkspaceSwitcher: () => ({ handleSelectWorkspace: vi.fn() }),
 }));
+let bannerWhileFocused = false;
+// `useSession` holds no session on the first render of a page load, so the
+// preference has to be answered for that window too, not only once it lands.
+let hasSession = true;
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: { getSession: vi.fn().mockResolvedValue({ data: null }) },
+  useSession: () => ({
+    data: hasSession ? { user: { bannerWhileFocused } } : null,
+  }),
 }));
 vi.mock("@/lib/utils/notification-message", () => ({
   useNotificationMessage:
@@ -143,6 +150,8 @@ describe("NotificationToastListener OS banner", () => {
 
   afterEach(() => {
     isReceiving = true;
+    bannerWhileFocused = false;
+    hasSession = true;
     vi.restoreAllMocks();
     showNotification.mockClear();
     getNotificationServiceWorker.mockClear();
@@ -467,6 +476,85 @@ describe("NotificationToastListener OS banner", () => {
 
     isReceiving = false;
     expect(showsNotifications()).toBe(false);
+  });
+
+  /**
+   * The reader asked to be alerted while Sokosumi is open, and the banner is
+   * the only thing that makes a sound. Answering yes here is what suppresses
+   * it, so the page has to answer no for the whole preference to mean
+   * anything.
+   */
+  it("tells the worker to keep its banner when the reader asked to be alerted", () => {
+    bannerWhileFocused = true;
+    render(<NotificationToastListener userId="user-1" markRead={markRead} />);
+
+    const showsNotifications = answerShowsNotificationsQuery.mock
+      .calls[0]?.[0] as () => boolean;
+
+    // Receiving, so the page renders the notification itself and would
+    // normally claim the banner.
+    expect(isReceiving).toBe(true);
+    expect(showsNotifications()).toBe(false);
+  });
+
+  /**
+   * Turning the switch on writes through `authClient.updateUser`, which
+   * refreshes the session this page reads. The worker subscribes once on
+   * mount, so the answer has to follow that refresh without the reader
+   * reloading the page.
+   */
+  it("follows a preference the reader changes while the page sits there", () => {
+    const { rerender } = render(
+      <NotificationToastListener userId="user-1" markRead={markRead} />,
+    );
+
+    const showsNotifications = answerShowsNotificationsQuery.mock
+      .calls[0]?.[0] as () => boolean;
+    expect(showsNotifications()).toBe(true);
+
+    bannerWhileFocused = true;
+    rerender(<NotificationToastListener userId="user-1" markRead={markRead} />);
+
+    // The same callback the worker already holds, not a new subscription.
+    expect(answerShowsNotificationsQuery).toHaveBeenCalledTimes(1);
+    expect(showsNotifications()).toBe(false);
+  });
+
+  /**
+   * The mirror of the test above. Turning the setting back off has to stop the
+   * banner on the same render, or the reader keeps hearing the thing they just
+   * switched off and has no way to tell it worked.
+   */
+  it("stops the banner again when the reader turns the setting off", () => {
+    bannerWhileFocused = true;
+    const { rerender } = render(
+      <NotificationToastListener userId="user-1" markRead={markRead} />,
+    );
+
+    const showsNotifications = answerShowsNotificationsQuery.mock
+      .calls[0]?.[0] as () => boolean;
+    expect(showsNotifications()).toBe(false);
+
+    bannerWhileFocused = false;
+    rerender(<NotificationToastListener userId="user-1" markRead={markRead} />);
+
+    expect(answerShowsNotificationsQuery).toHaveBeenCalledTimes(1);
+    expect(showsNotifications()).toBe(true);
+  });
+
+  /**
+   * The session is still loading on the first render of a page load. The
+   * reader has asked for nothing at that point, so the page keeps the banner
+   * the way it did before this preference existed, and re-answers once the
+   * session lands.
+   */
+  it("keeps the banner suppressed while the session is still loading", () => {
+    hasSession = false;
+    render(<NotificationToastListener userId="user-1" markRead={markRead} />);
+
+    const showsNotifications = answerShowsNotificationsQuery.mock
+      .calls[0]?.[0] as () => boolean;
+    expect(showsNotifications()).toBe(true);
   });
 
   it("marks read and routes when the worker reports a click", async () => {

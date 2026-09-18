@@ -183,6 +183,11 @@ export const userPreferencesResponseSchema = z.object({
       "Whether chat sidebar rows show a room's unread message count. Display only: it changes no notification delivery",
     example: false,
   }),
+  bannerWhileFocused: z.boolean().openapi({
+    description:
+      "Whether the OS banner is shown while a Sokosumi page is focused. Delivery: the push worker otherwise suppresses it, and the banner is what makes a sound",
+    example: false,
+  }),
   notificationPreferences: z.array(notificationPreferenceSchema).openapi({
     description:
       "Every cell of the notification preference matrix, with defaults already applied",

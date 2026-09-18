@@ -48,6 +48,11 @@ const requestBodySchema = z
         "Whether chat sidebar rows show a room's unread message count. Display only: it changes no notification delivery",
       example: false,
     }),
+    bannerWhileFocused: z.boolean().optional().openapi({
+      description:
+        "Whether the OS banner is shown while a Sokosumi page is focused. Delivery: the push worker otherwise suppresses it, and the banner is what makes a sound",
+      example: false,
+    }),
     notificationPreferences: z
       .array(notificationPreferenceSchema)
       // One write per cell, inside one transaction, so the body cannot ask for
@@ -66,6 +71,7 @@ const requestBodySchema = z
         data.notificationsOptIn !== undefined ||
         data.pushOptIn !== undefined ||
         data.showRoomUnreadCount !== undefined ||
+        data.bannerWhileFocused !== undefined ||
         (data.notificationPreferences !== undefined &&
           data.notificationPreferences.length > 0)
       );
@@ -77,6 +83,7 @@ const requestBodySchema = z
         "notificationsOptIn",
         "pushOptIn",
         "showRoomUnreadCount",
+        "bannerWhileFocused",
         "notificationPreferences",
       ],
     },
@@ -143,6 +150,9 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
       }),
       ...(body.showRoomUnreadCount !== undefined && {
         showRoomUnreadCount: body.showRoomUnreadCount,
+      }),
+      ...(body.bannerWhileFocused !== undefined && {
+        bannerWhileFocused: body.bannerWhileFocused,
       }),
     };
 

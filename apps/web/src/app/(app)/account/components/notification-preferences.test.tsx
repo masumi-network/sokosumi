@@ -89,10 +89,18 @@ vi.mock("sonner", () => ({
   },
 }));
 
-function renderPreferences() {
+function renderPreferences(bannerWhileFocused = false) {
   return render(
-    <NotificationPreferences notificationsOptIn marketingOptIn={false} />,
+    <NotificationPreferences
+      notificationsOptIn
+      marketingOptIn={false}
+      bannerWhileFocused={bannerWhileFocused}
+    />,
   );
+}
+
+function alertSwitch() {
+  return screen.getByRole("switch", { name: "bannerWhileFocusedTitle" });
 }
 
 function cell(name: "email" | "news") {
@@ -120,6 +128,90 @@ describe("NotificationPreferences", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
       "title",
     );
+  });
+
+  /**
+   * It is delivery, not display: it decides whether the OS banner is
+   * suppressed while a Sokosumi page is focused. So it belongs to this card
+   * rather than to the recessive one below, which holds the settings that
+   * change nothing about delivery.
+   */
+  it("writes bannerWhileFocused from its own switch", async () => {
+    const user = userEvent.setup();
+    updateUser.mockReturnValue(new Promise(() => {}));
+    renderPreferences();
+
+    expect(alertSwitch()).not.toBeChecked();
+    await user.click(alertSwitch());
+
+    expect(updateUser).toHaveBeenCalledWith({ bannerWhileFocused: true });
+    expect(alertSwitch()).toBeChecked();
+  });
+
+  it("turns the alert back off from a switch that is already on", async () => {
+    const user = userEvent.setup();
+    updateUser.mockReturnValue(new Promise(() => {}));
+    renderPreferences(true);
+
+    expect(alertSwitch()).toBeChecked();
+    await user.click(alertSwitch());
+
+    expect(updateUser).toHaveBeenCalledWith({ bannerWhileFocused: false });
+  });
+
+  it("puts the alert switch back when its write fails", async () => {
+    const user = userEvent.setup();
+    updateUser.mockResolvedValue({ data: null, error: { message: "nope" } });
+    renderPreferences();
+
+    await user.click(alertSwitch());
+
+    await waitFor(() => {
+      expect(alertSwitch()).not.toBeChecked();
+    });
+    // Putting it back without a word would read as the press missing the
+    // switch, and the reader would press it again.
+    await waitFor(() => {
+      expect(toasted).toEqual(["error"]);
+    });
+  });
+
+  /**
+   * Every control on this card writes through one handler, so the wording is
+   * the only thing that says which way this one moved. Swap the two keys and
+   * the reader is told the opposite of what they just did.
+   */
+  it("names which way the alert switch moved", async () => {
+    const user = userEvent.setup();
+    renderPreferences();
+
+    await user.click(alertSwitch());
+
+    await waitFor(() => {
+      expect(toasted).toEqual(["bannerWhileFocusedEnabledSuccess"]);
+    });
+
+    await user.click(alertSwitch());
+
+    await waitFor(() => {
+      expect(toasted).toEqual([
+        "bannerWhileFocusedEnabledSuccess",
+        "bannerWhileFocusedDisabledSuccess",
+      ]);
+    });
+  });
+
+  /**
+   * One user, one write at a time. The account rows already refuse each other
+   * while a write is in flight, and this switch writes the same record.
+   */
+  it("refuses the alert switch while another write is in flight", async () => {
+    const user = userEvent.setup();
+    updateUser.mockReturnValue(new Promise(() => {}));
+    renderPreferences();
+
+    await user.click(cell("email"));
+    expect(alertSwitch()).toBeDisabled();
   });
 
   it("shows the picked value before the write lands", async () => {

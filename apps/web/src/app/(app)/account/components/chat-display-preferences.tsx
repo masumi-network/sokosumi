@@ -1,13 +1,12 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useId, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { authClient } from "@/lib/auth/auth.client";
+import { PreferenceSwitchRow } from "./preference-switch-row";
 
 interface ChatDisplayPreferencesProps {
   showRoomUnreadCount: boolean;
@@ -34,7 +33,6 @@ export function ChatDisplayPreferences({
   showRoomUnreadCount: initialShowRoomUnreadCount,
 }: ChatDisplayPreferencesProps) {
   const t = useTranslations("App.Account.ChatDisplay");
-  const switchId = useId();
   const [showRoomUnreadCount, setShowRoomUnreadCount] = useState(
     initialShowRoomUnreadCount,
   );
@@ -100,22 +98,13 @@ export function ChatDisplayPreferences({
         </CardTitle>
       </CardHeader>
       <CardContent className="px-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-0.5">
-            <Label htmlFor={switchId} className="text-sm font-normal">
-              {t("roomUnreadCountTitle")}
-            </Label>
-            <p className="text-muted-foreground text-xs">
-              {t("roomUnreadCountDescription")}
-            </p>
-          </div>
-          <Switch
-            id={switchId}
-            checked={showRoomUnreadCount}
-            disabled={isSaving}
-            onCheckedChange={handleToggle}
-          />
-        </div>
+        <PreferenceSwitchRow
+          label={t("roomUnreadCountTitle")}
+          description={t("roomUnreadCountDescription")}
+          checked={showRoomUnreadCount}
+          disabled={isSaving}
+          onCheckedChange={handleToggle}
+        />
       </CardContent>
     </Card>
   );

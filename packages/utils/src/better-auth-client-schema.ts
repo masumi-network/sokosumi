@@ -23,6 +23,11 @@ export const betterAuthUserAdditionalFields = {
     required: false,
     defaultValue: false,
   },
+  bannerWhileFocused: {
+    type: "boolean",
+    required: false,
+    defaultValue: false,
+  },
   logo: {
     type: "string",
     required: false,
