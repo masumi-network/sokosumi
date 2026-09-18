@@ -1,5 +1,6 @@
 # SwiftLint config for the Apple clients. Run from apps/apple:
-# `mint run swiftlint lint --strict`. CI runs the same command (see apple.yml).
+# `mint run swiftlint lint --strict`. CI runs the same command (see apple.yml,
+# which is lint only — tests run on Xcode Cloud).
 #
 # Formatting (indent, spacing, imports) belongs to SwiftFormat
 # (see .swiftformat); this file stays to semantic lint rules.

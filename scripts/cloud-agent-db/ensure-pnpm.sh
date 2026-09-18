@@ -11,7 +11,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "${ROOT}"
 
-PM="$(node -p "require('./package.json').packageManager")"
+# devEngines.packageManager is the source of truth; the legacy top-level
+# packageManager field is kept only because Vercel's Corepack path reads it.
+PM="$(node -p "const p=require('./package.json'),d=p.devEngines?.packageManager;d?\`\${d.name}@\${d.version}\`:p.packageManager")"
 corepack enable
 corepack prepare "${PM}" --activate
 rm -rf "${HOME}/.local/share/pnpm/.tools/pnpm"
