@@ -111,14 +111,14 @@ public final class ThreadSession: ObservableObject {
     settled: @escaping (Result<Message, Error>) -> Void
   ) -> Bool {
     let draft = ComposerContent(content)
-    guard let parent, draft.canSend else { return false }
+    guard let parent, draft.canSend(quoted: quote != nil) else { return false }
     let id = UUID().uuidString
     let shell = OutboundShell(clientTurnId: id, roomId: parent.roomId, parentMessageId: parent.id,
                               content: draft.text, quote: quote, sender: sender)
     outbox.enqueue(shell, send: { [service] in
       try await service.createMessage(
         client: client, roomId: parent.roomId, content: draft.text, clientMessageId: id,
-        parentMessageId: parent.id, mentions: mentions, quoteMessageId: quote?.messageId, organizationSlug: organizationSlug
+        parentMessageId: parent.id, mentions: mentions, quote: quote, organizationSlug: organizationSlug
       )
     }, confirmed: { [weak self] message in
       guard let self else { return }

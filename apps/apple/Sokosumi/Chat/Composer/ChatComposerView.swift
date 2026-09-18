@@ -15,7 +15,18 @@ import UniformTypeIdentifiers
     @State private var draft: String
     @State private var filePickerPresented = false
     @State private var drivePickerPresented = false
+    // The pasted link the pending quote replaced, so removing that quote can
+    // put the link back as plain text.
+    @State private var quotedLink: QuotedLink?
+    @State private var insertion: ComposerInsertion?
+    @State private var pasteGeneration = 0
     @StateObject private var uploads: ComposeUploads
+
+    /// A pasted Message link that became the pending quote.
+    private struct QuotedLink {
+      let messageId: String
+      let text: String
+    }
 
     private let savedDraft: SavedComposeDraft
     private let quoteFocusRequest: String?
@@ -47,8 +58,14 @@ import UniformTypeIdentifiers
       ComposerContent(ComposeAttachment.message(ComposerEmoji.preparingToSend(draft), attachments: uploads.attachments))
     }
 
+    /// The coworker 1:1 stream needs words to answer, so a quote cannot be the
+    /// whole message there.
+    private var requiresBody: Bool {
+      workspaces.directStream.roomId == roomId
+    }
+
     private var canSend: Bool {
-      preparedContent.canSend
+      preparedContent.canSend(quoted: pendingQuote != nil && !requiresBody)
         && uploads.uploadingName == nil
         && (uploads.attachments.isEmpty || workspaces.canAttachFiles(roomId: roomId))
         && !workspaces.directStream.isBusy
@@ -60,7 +77,7 @@ import UniformTypeIdentifiers
     var body: some View {
       VStack(alignment: .leading, spacing: 6) {
         if let pendingQuote {
-          MessageQuoteView(quote: pendingQuote, room: workspaces.rooms.first { $0.id == roomId }, channels: workspaces.composerChannels, dismiss: { self.pendingQuote = nil })
+          MessageQuoteView(quote: pendingQuote, room: workspaces.rooms.first { $0.id == roomId }, channels: workspaces.composerChannels, dismiss: dismissPendingQuote)
         }
         ComposerAttachmentsView(uploads: uploads)
         editor
@@ -111,6 +128,8 @@ import UniformTypeIdentifiers
           savedDraft.save(text)
         }
       ), submit: sendDraft, focusRequest: quoteFocusRequest, placeholder: composerPlaceholder, canSend: canSend, content: preparedContent, channels: workspaces.composerChannels, mentions: workspaces.composerMentions)
+      input.onPaste = { paste in quotePastedLink(paste) }
+      input.insertion = insertion
       if workspaces.canAttachFiles(roomId: roomId) {
         input.attach = { filePickerPresented = true }
         input.attachFromDrive = { drivePickerPresented = true }
@@ -118,6 +137,31 @@ import UniformTypeIdentifiers
         input.attachImage = { data in attachImage(data) }
       }
       return input
+    }
+
+    /// A paste that is exactly one Message link the sender may quote here
+    /// becomes the pending quote, replacing the pasted text.
+    private func quotePastedLink(_ paste: ComposerTextPaste) {
+      pasteGeneration += 1
+      let generation = pasteGeneration
+      // One quote per message: never swap a quote the sender already chose.
+      guard pendingQuote == nil else { return }
+      Task { @MainActor in
+        guard let quote = await workspaces.messageLinkQuote(pasted: paste.text, roomId: roomId, webBaseURL: CoreSettings.webBaseURL, auth: auth),
+              generation == pasteGeneration, pendingQuote == nil, workspaces.transcriptRoomId == roomId,
+              // Nothing to swap once the link was edited away.
+              paste.remove() else { return }
+        pendingQuote = quote
+        quotedLink = QuotedLink(messageId: quote.messageId, text: paste.text)
+      }
+    }
+
+    private func dismissPendingQuote() {
+      if let quotedLink, quotedLink.messageId == pendingQuote?.messageId {
+        insertion = ComposerInsertion(text: draft.isEmpty ? quotedLink.text : " " + quotedLink.text)
+      }
+      quotedLink = nil
+      pendingQuote = nil
     }
 
     private func attachFiles(_ files: [URL]) {
@@ -157,6 +201,8 @@ import UniformTypeIdentifiers
         ? workspaces.sendMessage(content, attachments: uploads.attachments, quote: pendingQuote, auth: auth)
         : workspaces.sendThreadReply(content, attachments: uploads.attachments, quote: pendingQuote, auth: auth)
       guard accepted else { return false }
+      pasteGeneration += 1
+      quotedLink = nil
       pendingQuote = nil
       draft = ""
       savedDraft.save("")

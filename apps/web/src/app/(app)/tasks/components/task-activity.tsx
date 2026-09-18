@@ -69,7 +69,7 @@ import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-l
 import {
   getTaskStatusBorderColorClass,
   getTaskStatusDotColorClass,
-  TaskStatusBadge,
+  TaskStatusInline,
 } from "./task-status-badge";
 
 interface TaskActivityProps {
@@ -656,13 +656,9 @@ export function TaskActivitySection({
                         </span>
                         {event.status ? (
                           <>
-                            <TaskStatusBadge
+                            <TaskStatusInline
                               status={event.status}
                               label={tStatus(event.status)}
-                              // A record of a status someone set hours ago.
-                              // The running glyph must not claim the work is
-                              // in flight now.
-                              live={false}
                             />
                             <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
                               <span>{originFromLabel}</span>

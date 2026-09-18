@@ -102,6 +102,7 @@ Source links are relative to this file. The shared web service boundary is [chat
 | 15 | Attachment rendering: compact file tiles with type icons, image previews opening the viewer, viewer open/download actions, PDF/text/native document previews, inline audio/video and safe links; maintain content order and spacing with text. | 14 | Merged — [#4425](https://github.com/masumi-network/sokosumi/pull/4425), PDF [#4469](https://github.com/masumi-network/sokosumi/pull/4469), text [#4470](https://github.com/masumi-network/sokosumi/pull/4470); manual acceptance pending | [room-message-row.tsx](<../web/src/app/(app)/chat/components/room-message-row.tsx>), [room-message-segments.ts](<../web/src/app/(app)/chat/utils/room-message-segments.ts>), [markdown.tsx](<../web/src/components/markdown.tsx>), [file-chip-mini-preview.tsx](<../web/src/components/ui/file-chip-mini-preview.tsx>) |
 | 16 | Attach existing Drive file using the chat picker (browse/search/select and availability/errors only). This explicitly includes the attachment picker, not standalone Drive management. | 14 | Merged — [#4440](https://github.com/masumi-network/sokosumi/pull/4440); live acceptance pending | [room-composer.tsx](<../web/src/app/(app)/chat/components/room-composer.tsx>), [drive-file-picker.tsx](<../web/src/components/drive/drive-file-picker.tsx>), [attachment-submenu.tsx](<../web/src/components/drive/attachment-submenu.tsx>) |
 | 17 | Quote a message in room/reply composer, preview/dismiss, submit quote reference, expand quoted content and jump to source. | 08, 10 | Done — [#4477](https://github.com/masumi-network/sokosumi/pull/4477) | [room-composer.tsx](<../web/src/app/(app)/chat/components/room-composer.tsx>), [room-message-row.tsx](<../web/src/app/(app)/chat/components/room-message-row.tsx>), [rooms-client.tsx](<../web/src/app/(app)/chat/components/rooms-client.tsx>) |
+| 17a | Paste a Message link to quote it. Current web (after [#4783](https://github.com/masumi-network/sokosumi/pull/4783)): a paste that is exactly one Message link on the configured web origin becomes the pending quote at once — no offer row — the pasted URL leaves the draft, and removing the chip puts it back at the caret (with a leading space when the draft is not empty). A same-room link always qualifies; a link from another room qualifies only when the sender can read the message and every user member of the target room is also a member of the source room (the sender's Self Direct passes, because its only reader is the sender), and never in the coworker 1:1 stream, whose send path takes same-room quotes only. Anything else stays plain text, with no conversion and no error. Core re-checks the audience at send time from `quote.roomId` and answers 400 otherwise; the client check only decides whether the paste converts. One quote per message: a paste never replaces a quote chosen from the message menu. A quote may be the whole message, so send is enabled with an empty body — except in the coworker 1:1 stream, which needs words to answer. The thread composer behaves like the room composer. A hand-typed link, or one inside longer pasted text, stays plain. | 17, 25 | In review — [#4797](https://github.com/masumi-network/sokosumi/pull/4797); live acceptance pending | [message-link-quote.ts](<../web/src/app/(app)/chat/utils/message-link-quote.ts>), [room-session-composer.tsx](<../web/src/app/(app)/chat/components/room-session-composer.tsx>), [chat-room-quote-audience.ts](../../packages/utils/src/chat-room-quote-audience.ts), [helpers.ts](../core/src/routes/v1/chats/rooms/helpers.ts) |
 | 18 | Edit own eligible messages: prefilled composer, save/cancel, validation, edited timestamp and failure rollback. | 10, 12b | Done — [#4491](https://github.com/masumi-network/sokosumi/pull/4491) | [room-message-row.tsx](<../web/src/app/(app)/chat/components/room-message-row.tsx>), [rooms-client.tsx](<../web/src/app/(app)/chat/components/rooms-client.tsx>), [actions.ts](<../web/src/app/(app)/chat/actions.ts>) |
 | 19 | Delete eligible messages with confirmation; preserve tombstones, thread context and authorization/error behavior. | 07, 08 | Done — [#4498](https://github.com/masumi-network/sokosumi/pull/4498) | [room-message-row.tsx](<../web/src/app/(app)/chat/components/room-message-row.tsx>), [rooms-client.tsx](<../web/src/app/(app)/chat/components/rooms-client.tsx>), [actions.ts](<../web/src/app/(app)/chat/actions.ts>) |
 | 20 | Emoji reactions: picker, add/remove, counts, own selection, participant names and server-confirmed updates. | 07 | Done — [#4530](https://github.com/masumi-network/sokosumi/pull/4530) | [room-message-row.tsx](<../web/src/app/(app)/chat/components/room-message-row.tsx>), [rooms-client.tsx](<../web/src/app/(app)/chat/components/rooms-client.tsx>), [emoji-picker.tsx](<../web/src/components/chat/emoji-picker.tsx>) |
@@ -642,7 +643,7 @@ Validation: 323 Chat tests cover formats, precedence, download errors, extension
 
 Room and thread rows expose Quote beside Reply and in the native context menu. Quoting focuses the matching composer and shows a removable author/snippet/attachment preview. Classic and streamed sends transmit only `quote.messageId`; Core remains the snapshot authority. Pending shells retain the preview across classic retries; pre-stream failures restore the quote with the draft. Deleted and local pending/stream rows cannot be quoted. Switching rooms/threads clears the pending quote.
 
-Received quotes render their author, expandable four-line snippet and first attachment cue. Clicking the author scrolls to the source when loaded in that transcript, matching web's loaded-DOM jump. Loading missing sources and cross-thread deep-link routing remain in row 25. Quote-only drafts still require message text or an attachment, matching web.
+Received quotes render their author, expandable four-line snippet and first attachment cue. Clicking the author scrolls to the source when loaded in that transcript, matching web's loaded-DOM jump. Loading missing sources and cross-thread deep-link routing remain in row 25. Quote-only drafts required message text or an attachment until row 17a, which lets a quote be the whole message outside the coworker 1:1 stream, matching web.
 
 Verification: all 446 package tests pass (Chat 329, Workspace 55, Auth 34, Realtime 27, CoreAPI 1); Xcode app tests, pinned SwiftFormat/strict SwiftLint and the Workspace iOS 17 cross-build pass. Xcode still emits the existing AppIntents metadata and cmark module-map build warnings. A native fixture preview was rendered and inspected; it is not a live send/scroll test. Package tests cover request bodies in room/thread classic and streaming sends, source eligibility, preview attachment choice, retry retention and streamed failure restoration. No live messages were sent during verification.
 
@@ -651,6 +652,36 @@ Verification: all 446 package tests pass (Chat 329, Workspace 55, Auth 34, Realt
 Review follow-ups for #4477: verified the distinct Quote/Reply focus targets and deferred composer focus. Each quote click now requests focus independently of the source ID. Quote snippets refresh when participant/channel catalogs change; accessibility labels describe source navigation; decorative icons are hidden. Quote images scale with text and reuse the shared ImageIO thumbnail loader. macOS app tests, all 329 SokosumiChat tests, strict lint/format, and the shared Workspace iOS 17 cross-build pass. Live keyboard-focus and VoiceOver acceptance remain pending.
 
 Quote height follow-up (#4477): the shared expandable body now applies an exact collapsed height only when content overflows. Short quotes retain their natural text height in the composer and transcript. A native tall-container regression test failed before the fix (45pt extra for one line, 30pt for two) and passes afterward; all macOS app tests and pinned lint/format pass.
+
+### Paste a Message link to quote it (17a)
+
+`MacComposerTextInput.pasteText(from:)` is still the one plain-text paste entry point; it now reports the inserted text
+as a `ComposerTextPaste` that carries the editor's own `removeLastText`, so the swap happens in the text view and the
+words and caret around the link stay as typed. `ChatComposerView` resolves the paste through
+`WorkspaceState.messageLinkQuote`, which parses it with `pastedMessageLink` (the existing `ChatLink`, restricted to a
+whole link with a `message` query), reads the message with the existing `ChatService.getMessage`, and applies
+`canQuoteIntoRoom` against the rosters the app already holds. It commits only when the resolve wins its own paste
+generation, no quote was chosen meanwhile, the room is still open and the link is still in the draft; removing the chip
+re-inserts that text at the caret. `DirectStreamSession.supports` already marks the coworker 1:1, so that room neither
+offers a cross-room quote nor allows a bodiless send.
+
+`ComposerContent.canSend(quoted:)` and the `WorkspaceState`/`ThreadSession` guards accept an empty body when a quote is
+set, and `ChatService.createMessage` now takes the whole quote so a cross-room send carries `quote.roomId`. The
+`CoreAPI` snapshot was refreshed with `scripts/update-core-api.py` from the current Core specification; the only
+contract delta is SOK-1106's (`quote.roomId`, and `content` no longer `minLength: 1`).
+
+Every paste menu item routes through `pasteText(from:)`: Paste and Match Style previously reached `NSTextView` directly,
+skipping the composer's plain-text normalization, its file and image attaching and now the quote swap.
+
+Tests: `MessageLinkQuoteTests` covers the accepted paste shapes, the audience rule, same-room and cross-room quotes, an
+unlisted source room, a same-room-only send path, an unreadable message and a deleted one; `MessageQuoteTests` covers
+the cross-room POST body with an empty content; `ComposerContentTests` covers the quote-only draft and the length limit;
+`MacComposerTextInputTests` covers the paste swap leaving a blank draft and the caret insertion; `WorkspaceStateTests`
+covers the end-to-end paste, read and send with real rosters, a target room holding a reader outside the source room,
+and that plain text reads nothing.
+
+Not covered: after a failed coworker-stream send, the restored draft brings its quote chip back but not the link text it
+replaced, so removing that chip inserts nothing. Web's equivalent fix is still unmerged on the SOK-1106 branch.
 
 ### Edit own messages (18)
 

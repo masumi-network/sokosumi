@@ -95,11 +95,22 @@ function BrowserNotice({
       <div className="flex flex-col gap-3 @xl:flex-row @xl:items-center">
         <div className="flex min-w-0 flex-1 items-start gap-3">
           {/* The tint and the mark carry the warning; the words do not.
-              `--semantic-warning` is a 40% yellow, about 2.3:1 on its own
-              quinary tint in light mode, which is under what a paragraph
-              needs, and the warning half has a reason to explain under its
-              title. The account notices colour their text with it and get
-              away with one short line. */}
+
+              The reason recorded here used to be contrast: that
+              `--semantic-warning` was a 40% yellow measuring about 2.3:1 on
+              its own quinary tint, under what a paragraph needs. That stopped
+              being true when the ramp was corrected. It measured 4.84:1 before
+              the hue rotation and measures 5.85:1 now in light, 9.15:1 in
+              dark, so a paragraph in it would clear its floor.
+
+              The colour that does not clear it here is the muted grey; see
+              the note on the body paragraph below.
+
+              What holds instead is that the tint and the mark already say
+              "warning", so colouring the words as well spends one channel
+              three times, and this half has a reason to explain under its
+              title rather than the single short line the account notices get
+              away with. */}
           <Icon
             className={cn(
               "mt-0.5 size-4 shrink-0",
@@ -118,6 +129,22 @@ function BrowserNotice({
               {t(titleKey)}
             </p>
             {bodyKey ? (
+              // A known contrast miss, left alone deliberately.
+              //
+              // On the warning tint --muted-foreground measures 4.31:1, under
+              // the 4.5:1 SC 1.4.3 asks of text this size. It measured 4.37:1
+              // before the hue rotation in this change, so the miss predates
+              // the branch and the branch took 0.06 off it.
+              //
+              // Painting the warning half in the default foreground was tried
+              // and reverted. It measures 17.25:1, but the title above is the
+              // same size and the same colour and differs only by font-medium,
+              // so the two paragraphs read as one block and the reader loses
+              // the line that says what is wrong. Closing 0.19 of contrast is
+              // not worth the hierarchy.
+              //
+              // Whatever fixes this properly changes a colour, so it belongs
+              // in a change about colour rather than in this one.
               <p className="text-muted-foreground text-sm leading-5">
                 {t(bodyKey)}
               </p>
