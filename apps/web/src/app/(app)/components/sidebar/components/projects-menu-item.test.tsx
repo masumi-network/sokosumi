@@ -94,11 +94,11 @@ function projectHrefs(): string[] {
     .filter((href) => href.startsWith("/projects/"));
 }
 
-/** The control only exists once there is something behind it, so wait for it. */
+/** The control holds its place from the first paint, so wait for it to turn on. */
 async function expand() {
-  fireEvent.click(
-    await screen.findByRole("button", { name: "expandProjects" }),
-  );
+  const trigger = await screen.findByRole("button", { name: "expandProjects" });
+  await waitFor(() => expect(trigger).toBeEnabled());
+  fireEvent.click(trigger);
 }
 
 beforeEach(() => {
@@ -138,9 +138,11 @@ describe("Projects sidebar", () => {
     const container = document.createElement("div");
     container.innerHTML = renderToString(tree);
     document.body.append(container);
-    // Nothing is loaded on the server, so the row is a plain link: no control
-    // to disclose, and no rows to give away.
-    expect(container.querySelector("button[aria-expanded]")).toBeNull();
+    // The control is on the server markup already, off until rows exist, so
+    // the row does not change shape at hydration. No rows are given away.
+    const serverTrigger = container.querySelector("button[aria-expanded]");
+    expect(serverTrigger).toHaveAttribute("aria-expanded", "false");
+    expect(serverTrigger).toBeDisabled();
     expect(container.querySelectorAll('a[href^="/projects/"]')).toHaveLength(0);
     const onRecoverableError = vi.fn();
     let root: ReturnType<typeof hydrateRoot>;
@@ -249,14 +251,24 @@ describe("Projects sidebar", () => {
     expect(mocks.load).toHaveBeenCalledTimes(1);
   });
 
-  it("offers no disclosure for a workspace without projects", async () => {
+  it("keeps the disclosure in place but off for a workspace without projects", async () => {
     mocks.load.mockResolvedValue({ projects: [], nextCursor: null });
     setup();
     await waitFor(() => expect(mocks.load).toHaveBeenCalled());
+    // Present, so the row never loses a control it briefly had…
+    const trigger = screen.getByRole("button", { name: "expandProjects" });
+    expect(trigger).toBeDisabled();
+    // …and it cannot be opened onto nothing.
+    fireEvent.click(trigger);
+    expect(projectHrefs()).toEqual([]);
+  });
+
+  it("holds the disclosure off until the rows arrive", async () => {
+    mocks.load.mockImplementation(() => new Promise(() => {}));
+    setup();
     expect(
-      screen.queryByRole("button", { name: "expandProjects" }),
-    ).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "projects" })).toBeInTheDocument();
+      screen.getByRole("button", { name: "expandProjects" }),
+    ).toBeDisabled();
   });
 
   it("stands the rows in with a skeleton for a reader who left it open", async () => {

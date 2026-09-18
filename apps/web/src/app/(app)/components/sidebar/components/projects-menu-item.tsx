@@ -126,11 +126,12 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
   const active = pathname === "/projects" || pathname.startsWith("/projects/");
   const expandedSidebar = isMobile || state !== "collapsed";
 
-  // Offer the disclosure only once there is something behind it. A reader who
-  // left it open still gets the control while their rows load or fail, so the
+  // The control holds its place from the first paint and turns on once there
+  // is something behind it, so the row never changes shape under the reader.
+  // A workspace with no projects keeps a disabled chevron rather than losing
+  // one. A reader who left it open gets it live while their rows load, so the
   // skeleton and the retry are never trapped open.
-  const disclosable = rows.length > 0 || (open && (isPending || isError));
-  const showDisclosure = expandedSidebar && disclosable;
+  const disclosable = rows.length > 0 || isError || (open && isPending);
 
   function handleNavigate() {
     if (isMobile) setOpenMobile(false);
@@ -139,7 +140,7 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
   return (
     <SidebarMenuItem>
       <Collapsible
-        open={open && showDisclosure}
+        open={open && expandedSidebar && disclosable}
         onOpenChange={handleOpenChange}
       >
         <div
@@ -168,12 +169,13 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
               </span>
             </Link>
           </SidebarMenuButton>
-          {showDisclosure ? (
+          {expandedSidebar ? (
             <CollapsibleTrigger asChild>
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
+                disabled={!disclosable}
                 className="size-10 shrink-0 md:size-8 text-tertiary-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground dark:text-muted-foreground"
                 aria-label={t(open ? "collapseProjects" : "expandProjects")}
               >
