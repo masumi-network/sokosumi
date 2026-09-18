@@ -412,26 +412,33 @@
      under the threshold without the guard seeing it. */
   --semantic-destructive-label: hsla(0, 95.0%, 38.1%, 1);
 
-  --semantic-warning: hsla(35, 92%, 31%, 1);
-  --semantic-warning-tertiary: hsla(35, 41.3%, 80.7%, 1);
-  /* The tint is the shipped amber, unchanged. Desaturating it was tried and
-     reverted: at OKLCh chroma 1.8 it stopped reading as amber at all.
+  --semantic-warning: hsla(25, 92%, 31%, 1);
+  --semantic-warning-tertiary: hsla(25, 41.3%, 80.7%, 1);
+  /* The whole light warning ramp is orange at hue 25, rotated from amber 35.
+     Dark stays at 43 and is not part of this change.
 
-     The label is as light as this tint allows. At 12px it is normal text, so
-     WCAG 2.2 SC 1.4.3 asks 4.5:1 on the tint, which is the binding surface,
-     and hsla(30, 60%, 36.8%) measures 4.55:1 there and 5.13:1 on the card.
-     Against the original hsla(26, 95%, 34.9%) it is 1.9 lightness steps up and
-     down from OKLCh chroma 14.4 to 10.2, with the hue moved from 26 to 30 so
-     it stops reading brown against the tint's own 35.
+     The hue is the fix, not the values. Yellow carries more luminance than
+     any other hue, which pinned the input-required label dark: at 12px it is
+     normal text, so WCAG 2.2 SC 1.4.3 asks 4.5:1 on the tint, and on amber
+     that capped the label around L35 to L37 whatever else was tuned. Orange
+     takes the same label at L38.0 and measures 4.53:1, and every other
+     consumer of this ramp came up rather than down: notice text on the
+     quinary 4.84 to 5.85, on the page 5.47 to 6.70, the indicator's label on
+     the solid 5.41 to 6.42, and the glyph on the tint 4.66 to 5.40. The tint
+     also reads as a block more clearly, 1.13:1 to 1.19:1 against the card.
 
-     There is no more room. A visibly light label on a pale amber tint is not
-     reachable: L50 measures 2.34:1 here, and even near-white on a solid amber
-     fill reaches only 3.90:1, because yellow carries too much luminance. A
-     lighter label needs a different hue for this column, not a retune. */
-  --semantic-warning-quaternary: hsla(35, 100.0%, 90.0%, 1);
-  --semantic-warning-quinary: hsla(35, 41.3%, 93.8%, 1);
-  --semantic-warning-label: hsla(30, 60.0%, 36.8%, 1);
-  --semantic-warning-foreground: hsla(55, 100%, 98%, 1);
+     The cost is separation from the fault red. The input-required mark and
+     the failed mark now measure 7.85 OKLab dE apart where amber gave 12.52.
+     That is still above the 6.0 this model treats as comfortable and far
+     above the 2.0 just-noticeable threshold, and the two never share a board
+     column, but it is the tightest pair in the set and belongs on the record.
+
+     Hue 25 was chosen from a measured sheet of ten, as the point where the
+     label gets meaningfully lighter before the red collision gets tight. */
+  --semantic-warning-quaternary: hsla(25, 100.0%, 90.0%, 1);
+  --semantic-warning-quinary: hsla(25, 41.3%, 93.8%, 1);
+  --semantic-warning-label: hsla(25, 55.0%, 38.0%, 1);
+  --semantic-warning-foreground: hsla(25, 100%, 98%, 1);
 
   --semantic-success: hsla(142, 72%, 27%, 1);
   --semantic-success-tertiary: hsla(142, 26.6%, 79.6%, 1);
@@ -442,8 +449,11 @@
 
   /* Online and afk now come straight from --semantic-success and
      --semantic-warning. Those forked here because the old warning reached only
-     2.25:1 on white; the corrected ramps measure 5.07 and 4.95, well past the
-     3:1 that a small non-text mark needs (WCAG 2.2 SC 1.4.11).
+     2.25:1 on white; the corrected ramps measure 5.68 and 6.70 on the light
+     background, well past the 3:1 that a small non-text mark needs (WCAG 2.2
+     SC 1.4.11). The pair read 5.07 and 4.95 when this comment was written and
+     both ramps have moved since: success was retuned, and warning rotated
+     from hue 35 to hue 25, which raised it from 5.47 to 6.70.
      Offline stays its own token: "no signal" is not a semantic state, and
      --muted-foreground is a text role. Measured: 4.85 on white. */
   --presence-offline: hsla(220, 9%, 46%, 1);
