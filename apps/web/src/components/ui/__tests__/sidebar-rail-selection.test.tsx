@@ -209,3 +209,63 @@ describe("Sidebar row geometry", () => {
     expect(slot?.className).not.toContain("md:");
   });
 });
+
+/**
+ * The collapse is a width animation: the panel travels 224px to 56px and each
+ * row's box travels with it. A reader who asks for less motion gets the end
+ * state on the next frame instead — the geometry is identical either way, so
+ * nothing but the travel is lost.
+ */
+describe("Sidebar collapse under prefers-reduced-motion", () => {
+  it("drops the travel from everything the collapse moves", () => {
+    const { container } = render(
+      <SidebarProvider defaultOpen>
+        <Sidebar collapsible="icon">
+          <SidebarContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton>Tasks</SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarContent>
+        </Sidebar>
+      </SidebarProvider>,
+    );
+
+    // The gap that reserves the panel's width in the page, the fixed panel
+    // itself, and the row box inside it — every part of the one animation.
+    for (const selector of [
+      '[data-slot="sidebar-gap"]',
+      '[data-slot="sidebar-container"]',
+      '[data-slot="sidebar-menu-button"]',
+    ]) {
+      const el = container.querySelector(selector);
+      expect(el, selector).not.toBeNull();
+      expect(el?.className, selector).toContain("transition-");
+      expect(el?.className.split(/\s+/), selector).toContain(
+        "motion-reduce:transition-none",
+      );
+    }
+  });
+
+  it("does not offer to animate a height that no longer changes", () => {
+    const { container } = render(
+      <SidebarProvider defaultOpen>
+        <Sidebar collapsible="icon">
+          <SidebarContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton>Tasks</SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarContent>
+        </Sidebar>
+      </SidebarProvider>,
+    );
+    const button = container.querySelector('[data-slot="sidebar-menu-button"]');
+
+    // A row is `h-11 md:h-8` in both states now, so `height` in the
+    // transition list could never fire.
+    expect(button?.className).toContain("transition-[width,padding]");
+  });
+});

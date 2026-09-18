@@ -251,7 +251,10 @@ function Sidebar({
         <div
           data-slot="sidebar-gap"
           className={cn(
-            "relative w-(--sidebar-width) bg-transparent transition-[width] duration-200 ease-linear",
+            // The panel's width is the collapse animation. A reader who asks
+            // for less motion gets the end state on the next frame instead —
+            // the geometry is identical either way, only the travel goes.
+            "relative w-(--sidebar-width) bg-transparent transition-[width] duration-200 ease-linear motion-reduce:transition-none",
             "group-data-[collapsible=offcanvas]:w-0",
             "group-data-[side=right]:rotate-180",
             variant === "floating" || variant === "inset"
@@ -262,7 +265,7 @@ function Sidebar({
         <div
           data-slot="sidebar-container"
           className={cn(
-            "fixed inset-y-0 z-10 hidden h-dvh w-(--sidebar-width) overflow-x-hidden transition-[left,right,width] duration-200 ease-linear md:flex",
+            "fixed inset-y-0 z-10 hidden h-dvh w-(--sidebar-width) overflow-x-hidden transition-[left,right,width] duration-200 ease-linear motion-reduce:transition-none md:flex",
             side === "left"
               ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
               : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
@@ -503,7 +506,7 @@ const SIDEBAR_ROW_LABEL_INSET_CLASS = "pl-10";
  * is already the square's 32px at `md` — and the rail exists only at `md`.
  */
 const sidebarMenuButtonVariants = cva(
-  `peer/menu-button ${SIDEBAR_ROW_CLASS} ${SIDEBAR_RAIL_SQUARE_CLASS} overflow-hidden rounded-md text-left text-base outline-hidden ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:px-0! group-data-[collapsible=icon]:hover:bg-transparent group-data-[collapsible=icon]:hover:ring-sidebar-ring group-data-[collapsible=icon]:hover:ring-1 group-data-[collapsible=icon]:active:bg-transparent group-data-[collapsible=icon]:active:ring-sidebar-ring group-data-[collapsible=icon]:active:ring-2 group-data-[collapsible=icon]:data-[active=true]:bg-transparent md:text-sm [&>span:last-child]:truncate`,
+  `peer/menu-button ${SIDEBAR_ROW_CLASS} ${SIDEBAR_RAIL_SQUARE_CLASS} overflow-hidden rounded-md text-left text-base outline-hidden ring-sidebar-ring transition-[width,padding] motion-reduce:transition-none hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:px-0! group-data-[collapsible=icon]:hover:bg-transparent group-data-[collapsible=icon]:hover:ring-sidebar-ring group-data-[collapsible=icon]:hover:ring-1 group-data-[collapsible=icon]:active:bg-transparent group-data-[collapsible=icon]:active:ring-sidebar-ring group-data-[collapsible=icon]:active:ring-2 group-data-[collapsible=icon]:data-[active=true]:bg-transparent md:text-sm [&>span:last-child]:truncate`,
   {
     variants: {
       variant: {

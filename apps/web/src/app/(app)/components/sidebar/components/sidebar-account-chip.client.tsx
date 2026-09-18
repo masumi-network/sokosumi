@@ -175,7 +175,7 @@ function SidebarAccountChipDesktop({
             </span>
           </span>
           <ChevronDown
-            className="text-muted-foreground size-3.5 shrink-0 transition-transform duration-200 group-data-[state=open]/chip:rotate-180 group-data-[collapsible=icon]:hidden"
+            className="text-muted-foreground size-3.5 shrink-0 transition-transform duration-200 motion-reduce:transition-none group-data-[state=open]/chip:rotate-180 group-data-[collapsible=icon]:hidden"
             aria-hidden
           />
         </>

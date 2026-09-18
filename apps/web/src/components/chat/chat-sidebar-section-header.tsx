@@ -120,7 +120,7 @@ export function ChatSidebarSectionHeader({
             <ChevronDown
               aria-hidden
               className={cn(
-                "size-4 shrink-0 transition-transform md:size-3",
+                "size-4 shrink-0 transition-transform motion-reduce:transition-none md:size-3",
                 !isOpen && "-rotate-90",
               )}
             />
