@@ -670,9 +670,9 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
   // the name 8px clear of the `…`. A row that shows something at rest holds it
   // open in every state; a plain row opens it with the button.
   const GLYPH_HOLE = "[@media(hover:hover)]:size-4";
-  // Touch shows badge and menu together, so the hole holds both: 56px covers
-  // the widest badge (`99+`) and the 32px button box.
-  const BADGE_AND_CONTROL_HOLE_TOUCH = "[@media(hover:none)]:w-14";
+  // Touch shows the badge or the bell beside the menu, so the hole holds two
+  // 32px boxes. The badge rides the bell's box, so one width serves both.
+  const BADGE_AND_CONTROL_HOLE_TOUCH = "[@media(hover:none)]:w-16";
   const NO_HOLE = "[@media(hover:hover)]:size-0";
   const HOLE_ON_INTERACTION = [
     "[@media(hover:hover)]:group-hover/room-row:size-4",
@@ -834,7 +834,7 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
     );
 
     const tokens = spacerTokens(container);
-    expect(tokens).toContain("[@media(hover:hover)]:w-14");
+    expect(tokens).toContain("[@media(hover:hover)]:w-16");
     expect(tokens).not.toContain(GLYPH_HOLE);
     expect(tokens).not.toContain(NO_HOLE);
     expect(
@@ -903,9 +903,30 @@ describe("ChatRoomSidebarRow mention badge", () => {
       .className.split(" ");
     expect(tokens).toContain("motion-safe:transition-opacity");
     expect(tokens).toContain("[@media(hover:hover)]:opacity-0");
-    expect(tokens).toContain(
+    for (const token of [
       "[@media(hover:hover)]:group-hover/room-row:opacity-100",
-    );
+      // Tabbing to the row reveals the menu, so it stays a keyboard target on
+      // the same terms that fade the badge out.
+      "[@media(hover:hover)]:group-focus-within/room-row:opacity-100",
+      "data-[state=open]:opacity-100",
+    ]) {
+      expect(tokens).toContain(token);
+    }
+  });
+
+  // The pill's width is a count, so positioning it by its own edge centres `2`
+  // and leaves `99+` off-centre against the name. It rides the bell's box.
+  it("centres the pill in the same box the muted bell uses", () => {
+    const { container } = renderBadgedRow();
+
+    const badge = container.querySelector('[data-slot="room-mention-badge"]');
+    const tokens = badge?.className.split(" ") ?? [];
+    expect(tokens).toContain("size-8");
+    expect(tokens).toContain("md:size-7");
+    expect(tokens).toContain("[@media(hover:hover)]:right-0");
+    expect(tokens).not.toContain("[@media(hover:hover)]:right-1");
+    // The pill is the inner element, so the box's width is not its width.
+    expect(badge?.firstElementChild?.className).toContain("rounded-full");
   });
 
   // The badge is `aria-hidden` outside the link, so losing the announcement
@@ -1332,11 +1353,14 @@ describe("ChatRoomSidebarRow unread message count", () => {
   it("hides the count with the mention badge when the sidebar collapses", () => {
     renderRow(makeRoom({ unreadCount: 4, unreadMentionCount: 2 }));
 
-    for (const text of ["4 unread messages", "2 mentions"]) {
-      expect(screen.getByText(text).parentElement?.className).toContain(
-        "group-data-[collapsible=icon]:hidden",
-      );
-    }
+    // The count is a visible span wrapping its own announcement, so the rule
+    // sits on the parent there. The mention is announcement only.
+    expect(
+      screen.getByText("4 unread messages").parentElement?.className,
+    ).toContain("group-data-[collapsible=icon]:hidden");
+    expect(screen.getByText("2 mentions").className).toContain(
+      "group-data-[collapsible=icon]:hidden",
+    );
   });
 
   // The regression guard: a mention and unread messages on one row, each
@@ -1345,7 +1369,10 @@ describe("ChatRoomSidebarRow unread message count", () => {
     renderRow(makeRoom({ unreadCount: 9, unreadMentionCount: 2 }));
 
     expect(screen.getByText("2 mentions")).toBeInTheDocument();
-    expect(screen.getByText("2")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText("2").closest("[aria-hidden]")).toHaveAttribute(
+      "data-slot",
+      "room-mention-badge",
+    );
     expect(screen.getByText("9 unread messages")).toBeInTheDocument();
     expect(screen.getByText("· 9")).toHaveAttribute("aria-hidden", "true");
   });
@@ -1363,7 +1390,10 @@ describe("ChatRoomSidebarRow unread message count", () => {
   it("caps the mention badge at the same ceiling as the message count", () => {
     renderRow(makeRoom({ unreadCount: 1234, unreadMentionCount: 1234 }));
 
-    expect(screen.getByText("99+")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText("99+").closest("[aria-hidden]")).toHaveAttribute(
+      "data-slot",
+      "room-mention-badge",
+    );
     expect(screen.getByText("· 99+")).toHaveAttribute("aria-hidden", "true");
     expect(screen.getByText("More than 99 mentions")).toBeInTheDocument();
     expect(screen.getByText("More than 99 unread messages")).toBeVisible();

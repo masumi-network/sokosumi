@@ -186,11 +186,9 @@ function MentionAnnouncement({ count }: { count: number }) {
 
   return (
     <span className="group-data-[collapsible=icon]:hidden sr-only">
-      <span className="sr-only">
-        {count > ROOM_COUNT_CAP
-          ? t("mentionsCapped", { max: ROOM_COUNT_CAP })
-          : t("mentions", { count })}
-      </span>
+      {count > ROOM_COUNT_CAP
+        ? t("mentionsCapped", { max: ROOM_COUNT_CAP })
+        : t("mentions", { count })}
     </span>
   );
 }
@@ -205,11 +203,12 @@ function MentionAnnouncement({ count }: { count: number }) {
  * quiet under the cursor; the bold name and the reader's opt-in count stay, on
  * the one row they are pointing at.
  *
- * `right-1` rather than the bell's `right-0`: the bell is a glyph centred in a
- * 28px box and the badge has no box, so 4px lands a 20px badge on the `…`
- * glyph's centre instead of flush against the row's edge. At its widest
- * (`99+`, 27px) the badge then reaches 31px in from the row's edge, and the
- * hole ends the name at 36px, so the name clears it in every state.
+ * The pill rides the bell's own box rather than being positioned by its own
+ * edge, because its width is the reader's unread count and a `right-` offset
+ * that centres `2` leaves `99+` off-centre and all but touching the name. A
+ * 28px box pinned at `right-0` spans 4–32px in from the row's edge whatever is
+ * in it, so the pill sits on the `…` glyph's centre at every width and the
+ * hole ends the name at 36px, 4px clear of the widest one.
  *
  * Touch has no hover, so the badge stays in flow beside the menu there, as
  * pin/mute does, and the trailing spacer holds a hole wide enough for both.
@@ -234,15 +233,17 @@ function MentionBadge({
       data-slot="room-mention-badge"
       aria-hidden
       className={cn(
-        "bg-primary-solid text-primary-solid-foreground pointer-events-none inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[0.625rem] leading-4 font-semibold tabular-nums",
+        "pointer-events-none inline-flex size-8 shrink-0 items-center justify-center md:size-7",
         crossfadesWithMenu && [
-          "[@media(hover:hover)]:absolute [@media(hover:hover)]:top-1/2 [@media(hover:hover)]:right-1 [@media(hover:hover)]:-translate-y-1/2",
+          "[@media(hover:hover)]:absolute [@media(hover:hover)]:top-1/2 [@media(hover:hover)]:right-0 [@media(hover:hover)]:-translate-y-1/2",
           "motion-safe:transition-opacity motion-safe:duration-150",
           "[@media(hover:hover)]:group-hover/room-row:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-0 group-has-[[data-state=open]]/room-row:opacity-0",
         ],
       )}
     >
-      {roomCountLabel(count)}
+      <span className="bg-primary-solid text-primary-solid-foreground inline-flex min-w-4.5 items-center justify-center rounded-full px-1 text-[0.625rem] leading-4 font-semibold tabular-nums">
+        {roomCountLabel(count)}
+      </span>
     </span>
   );
 }
@@ -490,11 +491,10 @@ export function ChatRoomSidebarRow({
         className={cn(
           "group-data-[collapsible=icon]:hidden shrink-0",
           "[@media(hover:none)]:size-8 [@media(hover:none)]:md:size-7",
-          isMuted && "[@media(hover:none)]:w-16",
-          // Touch keeps the badge in flow beside the menu, so the hole holds
-          // both: 56px covers the widest badge (`99+`, 24px) and the 32px box.
-          // Muted rows carry no badge, so the two widths never meet.
-          badgeCount > 0 && "[@media(hover:none)]:w-14",
+          // Touch keeps the bell or the badge in flow beside the menu, so the
+          // hole holds two boxes. They are the same 32px box, and a muted room
+          // carries no badge, so one width serves both.
+          (isMuted || badgeCount > 0) && "[@media(hover:none)]:w-16",
           // A muted row shows its glyph at rest, a badged row shows its badge,
           // and the open room is the row being read, so all three hold the
           // 16px hole in every state. The name is `flex-1 min-w-0`, so a hole
@@ -512,7 +512,7 @@ export function ChatRoomSidebarRow({
           // exception: its handle never fades, so the badge stays in flow
           // beside it and the hole holds both.
           badgeCount > 0 && reorderHandle
-            ? "[@media(hover:hover)]:w-14"
+            ? "[@media(hover:hover)]:w-16"
             : isMuted || isActive || reorderHandle || badgeCount > 0
               ? "[@media(hover:hover)]:size-4"
               : [
