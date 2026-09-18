@@ -8,6 +8,8 @@
  * hand and owns the caret so the text always stays inside `code`.
  */
 
+import { readComposerCodeText } from "@/lib/utils/composer-code-text";
+
 function closestCodeBlock(
   node: Node | null,
   editor: HTMLElement,
@@ -20,30 +22,6 @@ function closestCodeBlock(
     current = current.parentNode;
   }
   return null;
-}
-
-function isBr(node: Node | null): boolean {
-  return node instanceof HTMLElement && node.tagName === "BR";
-}
-
-/** Text of a code block, with `br` read back as the newline it renders as. */
-function readCodeBlockText(pre: HTMLElement): string {
-  let out = "";
-  function walk(node: Node): void {
-    if (isBr(node)) {
-      out += "\n";
-      return;
-    }
-    if (node.nodeType === Node.TEXT_NODE) {
-      out += node.textContent ?? "";
-      return;
-    }
-    for (const child of node.childNodes) {
-      walk(child);
-    }
-  }
-  walk(pre);
-  return out.replace(/\u200b/g, "");
 }
 
 function createCodeBlock(text: string): HTMLPreElement {
@@ -91,7 +69,7 @@ function unwrapCodeBlock(pre: HTMLElement): void {
   const parent = pre.parentNode;
   if (!parent) return;
 
-  const text = readCodeBlockText(pre).replace(/\n$/, "");
+  const text = readComposerCodeText(pre);
   const replacement = document.createDocumentFragment();
   const lines = text.split("\n");
 

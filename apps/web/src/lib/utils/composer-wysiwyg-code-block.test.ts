@@ -134,6 +134,21 @@ describe("toggleComposerCodeBlock", () => {
     expect(prefix.toString()).toBe("hello");
   });
 
+  it("keeps the newlines of a div-split block when unwrapping", () => {
+    const editor = createEditor(
+      "<pre><code><div>line 1</div><div>line 2</div></code></pre>",
+    );
+    const code = editor.querySelector("code");
+    if (!code) throw new Error("No code element");
+    placeCaret(code, 0);
+
+    toggleComposerCodeBlock(editor);
+
+    expect(editor.querySelector("pre")).toBeNull();
+    expect(editor.querySelectorAll("br")).toHaveLength(1);
+    expect(editor.textContent).toBe("line 1line 2");
+  });
+
   it("serializes a wrapped selection as a fence with that text", () => {
     const editor = createEditor("hello world");
     const text = editor.firstChild;

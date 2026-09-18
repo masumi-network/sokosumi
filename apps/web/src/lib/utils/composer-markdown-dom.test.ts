@@ -191,6 +191,18 @@ describe("htmlToMarkdown", () => {
     );
   });
 
+  it("keeps an author's blank last line in a code block", () => {
+    // The trailing newline is in the text node, not a `br`, so it is the
+    // author's own blank line rather than contentEditable scaffolding.
+    expect(fromHtml("<pre><code>foo\n</code></pre>")).toBe("```\nfoo\n\n```\n");
+  });
+
+  it("round-trips a fence whose last line is blank", () => {
+    const root = document.createElement("div");
+    root.innerHTML = markdownToHtml("```\nfoo\n\n```");
+    expect(htmlToMarkdown(root)).toBe("```\nfoo\n\n```\n");
+  });
+
   it("serializes blockquote with > prefix", () => {
     expect(fromHtml("<blockquote>quoted</blockquote>").trim()).toBe("> quoted");
   });

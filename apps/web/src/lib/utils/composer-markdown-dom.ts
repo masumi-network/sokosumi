@@ -17,6 +17,7 @@ import {
   MENTION_CLASSNAME,
   UNKNOWN_MENTION_CLASSNAME,
 } from "@/components/ui/mention-textarea-utils";
+import { readComposerCodeText } from "@/lib/utils/composer-code-text";
 import {
   getBacktickFence,
   isBlockMarkdownElement,
@@ -29,8 +30,6 @@ const INTERNAL_MENTION_PLACEHOLDER_PREFIX = "unknown-mention-";
 // Info strings reach a double-quoted HTML attribute, so anything outside this
 // set is dropped rather than escaped into the attribute.
 const CODE_LANGUAGE_PATTERN = /^[a-zA-Z0-9_+#.-]+$/;
-// Tags contentEditable uses to split a code block into lines.
-const CODE_BLOCK_LINE_TAGS = new Set(["DIV", "P"]);
 
 function internalMentionPlaceholderKey(index: string): string {
   return `${INTERNAL_MENTION_PLACEHOLDER_PREFIX}${index}`;
@@ -369,51 +368,6 @@ export function markdownToHtml(
   return sanitizeComposerHtml(restored);
 }
 
-/**
- * Read a code container as the text it renders, with `br` counted as the
- * newline it draws. Reads the whole container rather than its `code` child:
- * contentEditable regularly parks typed text as a `pre` child *beside* the
- * `code`, and that text is part of the block the author sees.
- */
-function getCodeContent(codeContainer: HTMLElement): string {
-  let text = "";
-
-  const startLine = (): void => {
-    if (text.length > 0 && !text.endsWith("\n")) text += "\n";
-  };
-
-  const walk = (node: Node): void => {
-    if (node.nodeType === Node.TEXT_NODE) {
-      text += node.textContent ?? "";
-      return;
-    }
-    if (!(node instanceof HTMLElement)) {
-      node.childNodes.forEach(walk);
-      return;
-    }
-    if (node.tagName === "BR") {
-      text += "\n";
-      return;
-    }
-    // contentEditable splits code block lines into `div`/`p` as readily as it
-    // does into `br`; both draw a new line, so both read back as one.
-    const isBlock = CODE_BLOCK_LINE_TAGS.has(node.tagName);
-    if (isBlock) startLine();
-    node.childNodes.forEach(walk);
-    if (isBlock) startLine();
-  };
-  walk(codeContainer);
-
-  return (
-    text
-      .replace(/\r/g, "")
-      .replace(/\u200b/g, "")
-      // contentEditable keeps a trailing break in every block so it stays
-      // focusable; it is scaffolding, not a blank last line of the snippet.
-      .replace(/\n$/, "")
-  );
-}
-
 function getCodeLanguage(codeElement: HTMLElement): string {
   const dataLanguage = codeElement.dataset.language?.trim() ?? "";
   if (dataLanguage) return dataLanguage;
@@ -544,7 +498,7 @@ export function htmlToMarkdown(element: HTMLElement): string {
 
       if (tag === "pre") {
         const codeElement = htmlElement.querySelector("code");
-        const content = getCodeContent(htmlElement);
+        const content = readComposerCodeText(htmlElement);
         const language = codeElement ? getCodeLanguage(codeElement) : undefined;
         return serializeFencedCode(content, language);
       }
