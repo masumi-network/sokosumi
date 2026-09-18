@@ -52,9 +52,14 @@ export function SkillsSection({
 
   useEffect(() => {
     let cancelled = false;
-    void browseSokoBotSkillsAction({ page }).then((result) => {
-      if (!cancelled && result.ok) setBrowse(result.value);
-    });
+    void browseSokoBotSkillsAction({ page })
+      .then((result) => {
+        if (!cancelled && result.ok) setBrowse(result.value);
+      })
+      // A server action rejects instead of answering with a result when the
+      // POST comes back as something other than RSC. Same outcome as a failed
+      // browse: keep what the section already shows.
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
