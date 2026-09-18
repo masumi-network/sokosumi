@@ -8,6 +8,7 @@ import SwiftUI
 struct SettingsView: View {
   @EnvironmentObject private var auth: AuthState
   @EnvironmentObject private var workspaces: WorkspaceState
+  @Environment(\.scenePhase) private var scenePhase
   @AppStorage(TimeFormatPreference.defaultsKey) private var timeFormat: TimeFormatPreference = .auto
   @State private var saveError: String?
   /// The tapped value until the coordinator's optimistic flip lands, so the switch never snaps back for a frame.
@@ -70,6 +71,12 @@ struct SettingsView: View {
       if await !workspaces.refreshNotificationPreferences(auth: auth), !workspaces.notificationPreferences.isLoaded {
         notificationError = "Your notification settings did not load. Reopen Settings to try again."
       }
+      await ChatNotificationCenter.shared.refreshAuthorization()
+      notificationAuthorization = ChatNotificationCenter.shared.authorization
+    }
+    .task(id: scenePhase) {
+      // Coming back from System Settings: pick up a permission change without reopening this window.
+      guard scenePhase == .active else { return }
       await ChatNotificationCenter.shared.refreshAuthorization()
       notificationAuthorization = ChatNotificationCenter.shared.authorization
     }
