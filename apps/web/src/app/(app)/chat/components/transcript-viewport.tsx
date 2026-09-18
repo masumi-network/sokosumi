@@ -236,7 +236,15 @@ export function TranscriptViewport({
     count: rows.length,
     getScrollElement: () => scroller,
     estimateSize: (index) =>
-      estimateTranscriptRowHeight(rows[index], scroller?.clientWidth),
+      estimateTranscriptRowHeight(
+        rows[index],
+        scroller
+          ? {
+              listWidth: scroller.clientWidth,
+              viewportWidth: window.innerWidth,
+            }
+          : undefined,
+      ),
     getItemKey: (index) => {
       const row = rows[index];
       return row ? transcriptRowKey(row) : index;

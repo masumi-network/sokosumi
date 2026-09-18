@@ -2,6 +2,7 @@ import { unfurlCardHasPreviewContent } from "@sokosumi/utils";
 
 import { readClientTurnId } from "@/app/chat/utils/outbound-room-message";
 import type { RoomTranscriptRow } from "@/app/chat/utils/room-transcript-ranges";
+import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
 
 /**
  * Within this distance of the bottom, content resizes still pin the viewport.
@@ -33,19 +34,32 @@ const BODY_CLAMP_LINES = 16;
 /** List `px-5` on both sides, the `size-8` avatar and the `gap-3.5` after it. */
 const ROW_INSET_PX = 86;
 
-/** Below this the body is `text-base`, from it `md:text-sm`. */
-const BODY_SMALL_TEXT_MIN_WIDTH_PX = 768;
+/** Where the unmounted rows will be laid out. */
+export interface TranscriptRowSpace {
+  /** Width of the scroller the list lives in. */
+  listWidth: number;
+  /**
+   * Width of the window. The body is `text-base` below `md` and `text-sm`
+   * from it, and that breakpoint is the window's: a narrow thread panel on
+   * a wide window still sets the small type.
+   */
+  viewportWidth: number;
+}
 
 /**
  * Lines the body wraps to, from its length and the width it has. A phone
  * fits a third of the characters a desktop list does, so the same message
  * is several lines taller there; one flat height is wrong by that much.
  */
-function estimateBodyLines(content: string, listWidth: number): number {
-  if (listWidth <= 0) {
+function estimateBodyLines(
+  content: string,
+  space: TranscriptRowSpace | undefined,
+): number {
+  if (space === undefined || space.listWidth <= 0) {
     return 1;
   }
-  const fontPx = listWidth < BODY_SMALL_TEXT_MIN_WIDTH_PX ? 16 : 14;
+  const { listWidth, viewportWidth } = space;
+  const fontPx = viewportWidth < MOBILE_BREAKPOINT ? 16 : 14;
   // Inter averages about half an em a character.
   const charsPerLine = Math.max(
     Math.floor((listWidth - ROW_INSET_PX) / (fontPx / 2)),
@@ -67,7 +81,7 @@ function estimateBodyLines(content: string, listWidth: number): number {
  */
 export function estimateTranscriptRowHeight(
   row: RoomTranscriptRow | undefined,
-  listWidth = 0,
+  space?: TranscriptRowSpace,
 ): number {
   if (row === undefined || row.kind !== "message") {
     return DEFAULT_ROW_HEIGHT_PX;
@@ -83,7 +97,7 @@ export function estimateTranscriptRowHeight(
       extra += UNFURL_IMAGE_HEIGHT_PX;
     }
   }
-  const wrappedLines = estimateBodyLines(row.message.content, listWidth) - 1;
+  const wrappedLines = estimateBodyLines(row.message.content, space) - 1;
   return DEFAULT_ROW_HEIGHT_PX + wrappedLines * BODY_LINE_HEIGHT_PX + extra;
 }
 

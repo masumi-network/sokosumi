@@ -108,6 +108,9 @@ describe("findTranscriptRowIndex", () => {
   });
 });
 
+const PHONE = { listWidth: 402, viewportWidth: 402 };
+const DESKTOP = { listWidth: 1000, viewportWidth: 1440 };
+
 describe("estimateTranscriptRowHeight", () => {
   it("assumes 80px for a short text row", () => {
     expect(estimateTranscriptRowHeight(row(1))).toBe(80);
@@ -179,7 +182,7 @@ describe("estimateTranscriptRowHeight", () => {
       // 402px phone: 316px of text at 8px a character is 39 characters.
       long.message.content = "x".repeat(39 * 3);
     }
-    expect(estimateTranscriptRowHeight(long, 402)).toBe(80 + 2 * 24);
+    expect(estimateTranscriptRowHeight(long, PHONE)).toBe(80 + 2 * 24);
   });
 
   it("wraps the same body to fewer lines in a wide list", () => {
@@ -187,7 +190,32 @@ describe("estimateTranscriptRowHeight", () => {
     if (long.kind === "message") {
       long.message.content = "x".repeat(39 * 3);
     }
-    expect(estimateTranscriptRowHeight(long, 1000)).toBe(80);
+    expect(estimateTranscriptRowHeight(long, DESKTOP)).toBe(80);
+  });
+
+  it("keeps a long body at one line when the width is unknown", () => {
+    const long = row(1);
+    if (long.kind === "message") {
+      long.message.content = "x".repeat(10_000);
+    }
+    expect(estimateTranscriptRowHeight(long)).toBe(80);
+    expect(
+      estimateTranscriptRowHeight(long, { listWidth: 0, viewportWidth: 402 }),
+    ).toBe(80);
+  });
+
+  it("sets the small type in a narrow list on a wide window", () => {
+    const long = row(1);
+    if (long.kind === "message") {
+      // 420px thread panel: 334px of text at 7px a character is 47.
+      long.message.content = "x".repeat(47 * 2);
+    }
+    expect(
+      estimateTranscriptRowHeight(long, {
+        listWidth: 420,
+        viewportWidth: 1440,
+      }),
+    ).toBe(80 + 24);
   });
 
   it("counts each newline as a line", () => {
@@ -195,7 +223,7 @@ describe("estimateTranscriptRowHeight", () => {
     if (lines.kind === "message") {
       lines.message.content = "a\nb\nc";
     }
-    expect(estimateTranscriptRowHeight(lines, 402)).toBe(80 + 2 * 24);
+    expect(estimateTranscriptRowHeight(lines, PHONE)).toBe(80 + 2 * 24);
   });
 
   it("stops at the 16 lines the body is clamped to", () => {
@@ -203,7 +231,7 @@ describe("estimateTranscriptRowHeight", () => {
     if (huge.kind === "message") {
       huge.message.content = "x".repeat(10_000);
     }
-    expect(estimateTranscriptRowHeight(huge, 402)).toBe(80 + 15 * 24);
+    expect(estimateTranscriptRowHeight(huge, PHONE)).toBe(80 + 15 * 24);
   });
 
   it("treats a whitespace image URL as text-only", () => {
