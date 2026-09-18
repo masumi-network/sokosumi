@@ -36,7 +36,12 @@ export const SOKO_BOT_CAPABILITIES = [
   "post_chat",
   "open_direct_chat",
   "list_files",
+  "list_tables",
+  "read_table",
   "upload_file",
+  "create_table",
+  "write_table_rows",
+  "update_table_columns",
   "list_integrations",
   "search_inbox",
   "read_email",
@@ -56,6 +61,8 @@ const DIRECT_READ_CAPABILITIES = [
   "list_chats",
   "read_chat",
   "list_files",
+  "list_tables",
+  "read_table",
   "list_integrations",
   "search_inbox",
   "read_email",
@@ -77,6 +84,9 @@ const CHAT_FILE_WRITE_CAPABILITIES = [
   // the plainest sense: it puts the bot in front of a colleague.
   "open_direct_chat",
   "upload_file",
+  "create_table",
+  "write_table_rows",
+  "update_table_columns",
   // Runs a real tool on a connected account (send, create, update). It is a
   // write in every sense, so it belongs with the writes rather than the reads.
   "run_integration_tool",

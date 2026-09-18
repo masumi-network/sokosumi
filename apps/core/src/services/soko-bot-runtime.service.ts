@@ -1,5 +1,4 @@
 import { createHash, randomUUID } from "node:crypto";
-
 import * as Sentry from "@sentry/node";
 import {
   AgentJobStatus,
@@ -52,12 +51,27 @@ import {
 import {
   buildUserDriveFilePathname,
   buildUserDriveFilePrefix,
+  createDataTableSchema,
+  tableBatchSchema,
+  tableMutationSchema,
+  tableQuerySchema,
 } from "@sokosumi/utils";
 import { list, put } from "@vercel/blob";
 import { waitUntil } from "@vercel/functions";
+import { v5 as uuidv5 } from "uuid";
+import { z } from "zod";
 import { getEnv } from "@/config/env";
 import { getAgentApiBaseUrl, toMasumiAgent } from "@/helpers/agent";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
+import {
+  batchTableRows,
+  createDataTable,
+  listDataTables,
+  mutateDataTable,
+  queryTableRows,
+  requireDataTable,
+  resolveTableActor,
+} from "@/helpers/data-table";
 import { createAgentJobForUser } from "@/helpers/job";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
@@ -85,6 +99,7 @@ import {
   resolveMentionedCoworkerIds,
   resolveMentionedSokoBotIds,
 } from "@/routes/v1/chats/rooms/helpers";
+import { dataTableSchema } from "@/schemas/data-table.schema";
 
 function toolAssigneeFields(
   coworkerId: string | null | undefined,
@@ -1126,6 +1141,7 @@ export class SokoBotRuntimeService {
   private async postChat(
     authorized: AuthorizedSokoBotRuntime,
     input: { roomId: string; content: string },
+    publication?: { id: string },
   ) {
     // A turn another assistant started may answer only where it was asked.
     // Unreachable while the bot-to-bot ceiling withholds `post_chat` — kept
@@ -1191,6 +1207,13 @@ export class SokoBotRuntimeService {
     // `pending` for ever: reclaim only rescues `sent`, so nobody ever wakes.
     const mentionIds: string[] = [];
     const message = await serializableTransaction(async (tx) => {
+      if (publication) {
+        const existing = await tx.chatRoomMessage.findUnique({
+          where: { id: publication.id },
+          select: { id: true, createdAt: true },
+        });
+        if (existing) return { ...existing, replayed: true };
+      }
       // Counted inside the transaction: read outside it, two bots posting at
       // once both see room for one more and the room takes both.
       const botMessagesThisHour = await tx.chatRoomMessage.count({
@@ -1211,24 +1234,45 @@ export class SokoBotRuntimeService {
           `This room has taken ${botMessagesThisHour} assistant messages in the last hour and is rate limited. Say nothing further here for now.`,
         );
       }
-      const created = await tx.chatRoomMessage.create({
-        data: {
-          roomId: room.id,
-          senderSokoBotId: room.sokoBotId,
-          content: input.content,
-          // Lets the reader see, on hover, that this is part of an assistant
-          // exchange and how close it is to the point where it stops.
-          metadata: {
-            soko_bot_chain: {
-              depth: chainDepth,
-              max_depth: MAX_CHAT_CHAIN_DEPTH,
-              room_messages_this_hour: botMessagesThisHour + 1,
-              room_messages_per_hour: ROOM_BOT_MESSAGES_PER_HOUR,
-            },
+      const data = {
+        roomId: room.id,
+        senderSokoBotId: room.sokoBotId,
+        content: input.content,
+        // Lets the reader see, on hover, that this is part of an assistant
+        // exchange and how close it is to the point where it stops.
+        metadata: {
+          soko_bot_chain: {
+            depth: chainDepth,
+            max_depth: MAX_CHAT_CHAIN_DEPTH,
+            room_messages_this_hour: botMessagesThisHour + 1,
+            room_messages_per_hour: ROOM_BOT_MESSAGES_PER_HOUR,
           },
         },
-        select: { id: true, createdAt: true },
-      });
+      };
+      if (publication) {
+        // INSERT ON CONFLICT plus the existing primary key is the cross-process
+        // publication fence. Serializable retries refresh a competing snapshot.
+        const inserted = await tx.chatRoomMessage.createMany({
+          data: [{ ...data, id: publication.id }],
+          skipDuplicates: true,
+        });
+        if (!inserted.count) {
+          const existing = await tx.chatRoomMessage.findUniqueOrThrow({
+            where: { id: publication.id },
+            select: { id: true, createdAt: true },
+          });
+          return { ...existing, replayed: true };
+        }
+      }
+      const created = publication
+        ? await tx.chatRoomMessage.findUniqueOrThrow({
+            where: { id: publication.id },
+            select: { id: true, createdAt: true },
+          })
+        : await tx.chatRoomMessage.create({
+            data,
+            select: { id: true, createdAt: true },
+          });
       if (mentionedCoworkerIds.length > 0 || mentionedSokoBotIds.length > 0) {
         await tx.chatRoomMention.createMany({
           data: [
@@ -1260,12 +1304,16 @@ export class SokoBotRuntimeService {
         where: { id: room.id },
         data: { updatedAt: new Date() },
       });
-      return created;
+      return { ...created, replayed: false };
     }, "Another assistant posted into this room at the same moment");
     // Every other message-create site publishes; without this the bot's post
     // only appears after a refresh, which reads as the tool having failed.
     await publishChatRoomMessageRealtimeById(message.id, "create");
-    await scheduleSokoBotChatMessageEffects(room, message.id, input.content);
+    // Table publication retries may recover a commit that never scheduled effects.
+    // Direct-message notifications deduplicate by recipient/message in PostgreSQL;
+    // cache invalidation is safe to repeat. Do not replay mention dispatch.
+    if (!message.replayed || publication)
+      await scheduleSokoBotChatMessageEffects(room, message.id, input.content);
     for (const mentionId of mentionIds) {
       const { dispatchChatRoomMention } = await import(
         "@/services/chat-room-coworker-dispatch.service"
@@ -1626,6 +1674,7 @@ export class SokoBotRuntimeService {
     authorized: AuthorizedSokoBotRuntime,
     rawInput: unknown,
     toolCallId: string,
+    publication?: { id: string },
   ) {
     const input = replyToTaskInputSchema.parse(rawInput);
     const resumable: TaskStatus[] = [
@@ -1654,6 +1703,24 @@ export class SokoBotRuntimeService {
         },
       });
       if (!task) throw new SokoBotRuntimeValidationError("Task not found");
+      const recovered = (eventId: string) => ({
+        result: {
+          id: task.id,
+          name: task.name,
+          status: task.status,
+          commented: true,
+        },
+        eventId,
+        ownerId: task.ownerId,
+        eventStatus: null,
+      });
+      if (publication) {
+        const existing = await tx.taskEvent.findUnique({
+          where: { id: publication.id },
+          select: { id: true },
+        });
+        if (existing) return recovered(existing.id);
+      }
       if (!input.status) {
         const recent = await tx.taskEvent.count({
           where: {
@@ -1681,16 +1748,24 @@ export class SokoBotRuntimeService {
           );
         }
       }
-      const event = await tx.taskEvent.create({
-        data: {
-          taskId: task.id,
-          status: input.status ?? null,
-          comment: input.comment,
-          channel: Channel.SOKOSUMI,
-          sokoBotId: authorized.turn.sokoBotId,
-        },
-        select: { id: true },
-      });
+      const data = {
+        taskId: task.id,
+        status: input.status ?? null,
+        comment: input.comment,
+        channel: Channel.SOKOSUMI,
+        sokoBotId: authorized.turn.sokoBotId,
+      };
+      let event: { id: string };
+      if (publication) {
+        const inserted = await tx.taskEvent.createMany({
+          data: [{ ...data, id: publication.id }],
+          skipDuplicates: true,
+        });
+        if (!inserted.count) return recovered(publication.id);
+        event = { id: publication.id };
+      } else {
+        event = await tx.taskEvent.create({ data, select: { id: true } });
+      }
       if (input.status === "READY") {
         await applyGuardedTaskStatusUpdate({
           tx,
@@ -2231,19 +2306,42 @@ export class SokoBotRuntimeService {
           "Tool call id was reused with different input",
         );
       }
-      if (existing.status === "COMPLETED") return existing.result;
-      if (existing.status === "FAILED") {
+      if (existing.status === "COMPLETED") {
+        if (
+          [
+            "list_tables",
+            "read_table",
+            "create_table",
+            "write_table_rows",
+            "update_table_columns",
+          ].includes(input.capability)
+        )
+          return this.executeAuthorizedTool(input);
+        return existing.result;
+      }
+      // Only table mutations have an atomic durable result store. Reauthorize
+      // exact-input recovery after receipt or link-publication failure; other
+      // capabilities may have unsafe effects and must never replay a failure.
+      const recoverableFailure =
+        existing.status === "FAILED" &&
+        ["create_table", "write_table_rows", "update_table_columns"].includes(
+          input.capability,
+        );
+      if (existing.status === "FAILED" && !recoverableFailure) {
         throw new SokoBotRuntimeConflictError("Tool call previously failed");
       }
       const reclaimed = await prisma.sokoBotToolCall.updateMany({
         where: {
           id: existing.id,
-          status: "PENDING",
-          updatedAt: {
-            lt: new Date(Date.now() - TOOL_CALL_STALE_MS),
-          },
+          status: recoverableFailure ? "FAILED" : "PENDING",
+          ...(!recoverableFailure && {
+            updatedAt: {
+              lt: new Date(Date.now() - TOOL_CALL_STALE_MS),
+            },
+          }),
         },
         data: {
+          status: "PENDING",
           updatedAt: new Date(),
           errorKind: null,
           errorDetail: null,
@@ -2291,6 +2389,122 @@ export class SokoBotRuntimeService {
   ): Promise<unknown> {
     const authorized = await this.authorize(input);
     switch (input.capability) {
+      case "list_tables":
+      case "read_table":
+      case "create_table":
+      case "write_table_rows":
+      case "update_table_columns": {
+        const workspace = await prisma.workspace.findUniqueOrThrow({
+          where: { id: authorized.turn.workspaceId },
+        });
+        const actor = await resolveTableActor(
+          {
+            actor: "sokoBot",
+            sokoBotId: authorized.turn.sokoBotId,
+            userId: authorized.turn.userId,
+            workspaceId: workspace.id,
+            organizationId: workspace.organizationId,
+          },
+          workspace.id,
+        );
+        const { taskId } = z
+          .object({ taskId: z.string().max(200).optional() })
+          .parse(input.input);
+        const ownerChat =
+          authorized.turn.source === "CHAT" &&
+          (!authorized.askedByKind || authorized.askedByKind === "OWNER") &&
+          authorized.turn.chainDepth === 0;
+        if (!ownerChat && !taskId)
+          throw new SokoBotRuntimeAuthorizationError(
+            "Task-driven table operations require an assigned taskId",
+          );
+        const scopedActor = { ...actor, taskId, ownerChat };
+        if (input.capability === "list_tables")
+          return listDataTables(
+            scopedActor,
+            z
+              .object({
+                cursor: z.uuid().optional(),
+                limit: z.number().int().min(1).max(100).optional(),
+              })
+              .parse(input.input),
+          );
+        if (input.capability === "create_table") {
+          const table = await createDataTable(
+            scopedActor,
+            createDataTableSchema.parse(input.input),
+          );
+          const url = `/drive/tables/${table.id}`;
+          const turn = await prisma.sokoBotTurn.findUnique({
+            where: { id: authorized.turn.id },
+            select: {
+              chatMention: {
+                select: { message: { select: { roomId: true } } },
+              },
+            },
+          });
+          // A table ID identifies its durable create operation. Destination and
+          // sender namespace publication independently of turn/tool receipt IDs.
+          if (turn?.chatMention) {
+            const roomId = turn.chatMention.message.roomId;
+            const content = `[${table.title.replaceAll("[", "").replaceAll("]", "")}](${url})`;
+            await this.postChat(
+              authorized,
+              { roomId, content },
+              {
+                id: uuidv5(
+                  `table-created:chat:${roomId}:${actor.actorId}`,
+                  table.id,
+                ),
+              },
+            );
+          }
+          if (taskId) {
+            await this.replyToTask(
+              authorized,
+              { taskId, comment: `[Open table](${url})` },
+              `${input.toolCallId}:table-link`,
+              {
+                id: uuidv5(
+                  `table-created:task:${taskId}:${actor.actorId}`,
+                  table.id,
+                ),
+              },
+            );
+          }
+          return {
+            table,
+            url,
+            instruction:
+              "Table created. Present this link now; enrich in bounded batches. Reuse this table ID for follow-ups.",
+          };
+        }
+        const { tableId } = z
+          .object({ tableId: z.uuid(), taskId: z.string().optional() })
+          .parse(input.input);
+        if (input.capability === "read_table")
+          return {
+            table: dataTableSchema.parse(
+              await requireDataTable(scopedActor, tableId),
+            ),
+            ...(await queryTableRows(
+              scopedActor,
+              tableId,
+              tableQuerySchema.parse(input.input),
+            )),
+          };
+        if (input.capability === "write_table_rows")
+          return batchTableRows(
+            scopedActor,
+            tableId,
+            tableBatchSchema.parse(input.input),
+          );
+        return mutateDataTable(
+          scopedActor,
+          tableId,
+          tableMutationSchema.parse(input.input),
+        );
+      }
       case "refresh_context":
         return this.getContext(input);
       case "find_coworkers": {
