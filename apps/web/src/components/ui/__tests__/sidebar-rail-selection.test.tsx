@@ -68,6 +68,23 @@ describe("SidebarMenuButton in the collapsed icon rail", () => {
     expect(button?.className).toContain(
       "group-data-[collapsible=icon]:active:ring-2",
     );
+    // The ring hugs a 32px square: a 40px minimum width used to stretch it
+    // 8px wider than the logo's and the account chip's, so the same hover
+    // drew three different boxes down one rail. `min-h-10` is the matching
+    // height floor — `size-8!` sets height, not min-height, so without
+    // `min-h-8!` the box is 32×40. The square centres itself in the group's
+    // 40px (`mx-auto`), or its mark lands 4px left of theirs.
+    expect(button?.className).toContain("group-data-[collapsible=icon]:size-8!");
+    expect(button?.className).toContain("group-data-[collapsible=icon]:min-h-8!");
+    expect(button?.className).toContain("group-data-[collapsible=icon]:mx-auto");
+    expect(button?.className).not.toContain("min-w-10");
+    // And centres what it holds: a 12px left pad only centred a 16px icon
+    // while the box was 40px wide.
+    expect(button?.className).toContain(
+      "group-data-[collapsible=icon]:justify-center",
+    );
+    expect(button?.className).toContain("group-data-[collapsible=icon]:p-0!");
+    expect(button?.className).not.toContain("p-3!");
     // Expanded, the fill still carries all three, so those rules stay.
     expect(button?.className).toContain("hover:bg-sidebar-accent");
     expect(button?.className).toContain("active:bg-sidebar-accent");

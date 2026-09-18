@@ -24,7 +24,8 @@ The Xcode navigator mirrors the real folders under `Sokosumi/` using filesystem-
 - `Chat/Composer/`: draft-owning rich composer, Drive picker (`DriveFilePickerView`) and isolated native text input.
 - `Chat/Rendering/`: Markdown, code, expansion, coworker thought, and attachment chips/previews (`MessageAttachmentView`, `DocumentAttachmentPreview`, `NativeOfficePreview`).
 - `Shared/`: reusable participant avatar, `PresenceDot`, `ParticipantProfileButton` and `ParticipantDetailsView`. Avatar networking and presence state remain in `SokosumiChat`.
-- `Settings/`: Settings scene content.
+- `Settings/`: Settings scene content and the `timeFormat` environment value; preference state and networking stay in the shared packages.
+- `Notifications/`: `UNUserNotificationCenter` adapter (`ChatNotificationCenter`) and its lifecycle modifier for local chat banners while the app runs. The banner rules, preferences and navigation stay in the shared packages; no push registration.
 
 `SokosumiTests/` mirrors the relevant feature folders. Shared packages keep their existing platform-agnostic ownership. Name files after their main type; use role-specific names rather than generic `ContentView` or helper buckets. Extract independent views without changing their state identity or widening private orchestration state just to shorten a file.
 

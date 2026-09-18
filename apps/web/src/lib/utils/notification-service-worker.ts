@@ -372,6 +372,65 @@ export async function closeNotificationGroup(
 }
 
 /**
+ * Whether showing this banner replaces a *different* notification, and so owes
+ * the reader a second alert.
+ *
+ * A room is one tag, so two things replace a banner there and only one of them
+ * should make a sound. A newer message replacing an older one is the reason
+ * `renotify` exists. The push catching up with the banner this page already
+ * drew is the same notification arriving down the other transport, and the two
+ * collapse by tag on purpose; re-alerting for that would sound twice for one
+ * message.
+ *
+ * Identity rather than timing, so a page banner and the push that catches up
+ * with it agree however they are ordered, as long as one has been shown before
+ * the other asks. When both read before either shows, which is possible on an
+ * unfocused tab where the push and the Ably event land together, both see the
+ * older notification and both re-alert. That is one extra sound on a message
+ * that made none at all before, and closing it would need the two sources to
+ * agree with each other rather than with the screen.
+ *
+ * A push that arrives late for a notification the page has already replaced is
+ * the same kind of disagreement in the other direction: identity says the two
+ * differ, so it re-alerts and puts the older content back on screen. The tag
+ * collapse did that replacement before this change too; what is new is the
+ * sound on it. Ordering the two by `createdAt` would miss every banner drawn
+ * before that field existed, which are the ones a reader has had on screen
+ * longest.
+ *
+ * Outside chat the tag is the notification id itself, so the displayed banner
+ * matches and this answers false, unless that banner's data no longer parses.
+ * One drawn by an older build re-alerts once, which is the safe direction.
+ *
+ * Both failure directions answer false. Nothing displayed means nothing is
+ * being replaced, and a fresh banner alerts on its own. A lookup that throws
+ * is a guess, and a missed sound is recoverable where a doubled one is not.
+ *
+ * The worker keeps its own copy of this rule, because it renders the banner
+ * for a closed app and cannot import from here.
+ */
+async function shouldRenotify(
+  registration: ServiceWorkerRegistration,
+  tag: string,
+  id: string,
+): Promise<boolean> {
+  try {
+    const banners = await registration.getNotifications({ tag });
+    if (banners.length === 0) {
+      return false;
+    }
+
+    return !banners.some((banner) => {
+      const target = notificationTargetSchema.safeParse(banner.data);
+      return target.success && target.data.id === id;
+    });
+  } catch (error) {
+    console.error("Failed to read the displayed notifications", error);
+    return false;
+  }
+}
+
+/**
  * Shows an OS banner through the worker. Callers must gate with
  * `shouldShowBrowserNotification` first.
  *
@@ -394,12 +453,19 @@ export async function showNotification({
     return false;
   }
 
+  const tag = notificationGroupTag(target);
+
   try {
     await registration.showNotification(title, {
       body,
-      tag: notificationGroupTag(target),
+      tag,
       icon: NOTIFICATION_ICON_PATH,
       data: target,
+      // Left off entirely rather than sent as false: false is the default, and
+      // a browser that does not know the option reads no flag either way.
+      ...((await shouldRenotify(registration, tag, target.id)) && {
+        renotify: true,
+      }),
     });
     return true;
   } catch (error) {

@@ -134,13 +134,22 @@ describe("AppSidebarFallback", () => {
     );
     const mark = row?.querySelector('[data-slot="skeleton"]');
 
-    expect(tokens(header?.className ?? "")).toContain(
+    // The section header stays on the rail as one 32px square.
+    expect(tokens(header?.className ?? "")).toEqual(
+      expect.arrayContaining([
+        "group-data-[collapsible=icon]:size-8",
+        "group-data-[collapsible=icon]:mx-auto",
+        "group-data-[collapsible=icon]:justify-center",
+      ]),
+    );
+    expect(tokens(header?.className ?? "")).not.toContain(
       "group-data-[collapsible=icon]:hidden",
     );
     expect(tokens(row?.className ?? "")).toEqual(
       expect.arrayContaining([
         "group-data-[collapsible=icon]:size-8",
-        "group-data-[collapsible=icon]:min-w-10",
+        "group-data-[collapsible=icon]:min-h-8!",
+        "group-data-[collapsible=icon]:mx-auto",
         "group-data-[collapsible=icon]:justify-center",
         "group-data-[collapsible=icon]:px-0",
       ]),

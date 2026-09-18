@@ -213,12 +213,20 @@ How a Channel identifies itself in the collapsed sidebar rail: the first letters
 _Avoid_: Channel avatar (Channels have no image), channel icon (nothing is chosen by a person), a colour per Channel (tried, five hues repeat across a dozen Channels and the repeats read as meaning), showing it beside the name in the expanded list
 
 **Rail attention pill**:
-The collapsed sidebar rail's single attention mark, a short bar on the rail's left edge beside a room's Channel tile or Direct avatar: 8px primary for an unread User mention or direct, 6px neutral for Room unread (including marked unread), none when read or Muted. Mention wins; never two marks and never a number. Off the mark itself, so the presence dot and the kind corner mark keep their corners. Derived from the same attention rules as the expanded row's bold and badge.
+The collapsed sidebar rail's single attention mark, a short bar on the rail's left edge beside a room's Channel tile or Direct avatar: 8px primary for an unread User mention or direct, 6px neutral for Room unread (including marked unread), none when read or Muted. Mention wins; never two marks and never a number. Off the mark itself, so the presence dot and the kind corner mark keep their corners. Derived from the same attention rules as the expanded row's bold and badge. A pending External invitation rides the rail the same way: the Channel tile the room will have once joined, under the 8px primary pill, because an invitation is addressed to the reader. Pressing it expands the sidebar, where Accept and Decline live.
 _Avoid_: Unread badge, attention dot, notification dot, a second mark for mention plus unread, a mark on the expanded list
 
 **Rail selection bar**:
-The collapsed sidebar rail's mark for whatever the reader has open — a Chat room or a nav destination such as Tasks or Projects: a 20px primary bar on the rail's **right** edge, pointing at the panel it opened. The mirror of the Rail attention pill, which owns the left edge, so a room can be both unread and open without the two marks arguing. How it looks belongs to `SidebarRailSelectionBar`; *when* it shows is each rail list's own call, so every rail item states itself the same way without the primitive guessing what "open" means for a row. Collapsed, the rail's neutral fill belongs to hover alone (drawn as a ring, deepened on press) — `--muted`, `--accent` and `--sidebar-accent` are one value in dark, so hover, selection and the Channel tile's own plate all read as the same 15% wash. Decorative; `aria-current` already announces it.
+The collapsed sidebar rail's mark for whatever the reader has open — a Chat room or a nav destination such as Tasks or Projects: a 20px primary bar on the rail's **right** edge, pointing at the panel it opened. The mirror of the Rail attention pill, which owns the left edge, so a room can be both unread and open without the two marks arguing. How it looks belongs to `SidebarRailSelectionBar`; *when* it shows is each rail list's own call, so every rail item states itself the same way without the primitive guessing what "open" means for a row. Collapsed, every rail item is one 32px square (the logo, Soko Bots, nav, rooms and the account chip alike) and the rail's neutral fill belongs to hover alone (drawn as a ring around that square, deepened on press; Soko Bots alone keeps its expanded card's hover there, primary border and accent fill in place of the ring, the featured entry staying featured) — `--muted`, `--accent` and `--sidebar-accent` are one value in dark, so hover, selection and the Channel tile's own plate all read as the same 15% wash. Decorative; `aria-current` already announces it.
 _Avoid_: Active pill, selected dot, a left-edge selection bar (that edge is the attention pill's), a selected fill or tile recolour on the rail
+
+**Rail section header**:
+A chat sidebar section's heading on the collapsed sidebar rail: one 32px square holding the section's icon (Channels `#`, External a building, Direct Messages a speech bubble), named by its tooltip, which opens and closes the section there as the titled heading does expanded. It stands where the expanded heading's row stood, so it also marks where one section ends and the next begins. Dimmed while its section is closed. A closed section that holds something for the reader says so on its heading, by the rules its rooms follow: the Rail attention pill beside the rail square, bold on the expanded title; a pending External invitation counts as a mention. Archived has no rail header, because its rows never show on the rail.
+_Avoid_: Forcing sections open on the rail, a hairline divider between sections, the globe as the External icon (that is the Channel tile's corner mark)
+
+**Rail actions**:
+What the collapsed sidebar rail lets the reader do: go somewhere (a nav destination, a Chat room), open or close a chat section, and expand the sidebar (the logo, or a pending External invitation's tile). Everything that changes a room or makes one lives in the expanded sidebar only: the room menu (mark unread, pin, mute, edit, leave), Create channel, Browse channels, Start a Direct, and an invitation's Accept and Decline. A 32px square has no room for a second control beside its mark, and one press on the logo brings all of them back. Decided, not an oversight.
+_Avoid_: A right-click or long-press room menu on the rail, a `+` square under a Rail section header, Accept and Decline in a rail popover
 
 **External channel**:
 A Channel that host-organization members can browse and join, and that people outside that organization can join only as a Guest — without becoming organization members and without a seat.
@@ -238,7 +246,11 @@ _Avoid_: Notes channel, per-workspace self-chat, treating a former group with on
 
 **Send to yourself**:
 A room message action that posts a quote of that message into the sender's own Self Direct. The quote remembers its source room, so opening it follows the Message link. The copied author and snippet stay after the user loses access to the source room; only the link stops working. Not offered inside the Self Direct itself.
-_Avoid_: Forward, share, bookmark, saved message, cross-room quote in any other room
+_Avoid_: Forward, share, bookmark, saved message
+
+**Quote**:
+A durable copy of one room message (author, snippet, first attachment) carried on another room message. It stays after the source is edited, deleted, or no longer readable. A quote from another room remembers its source room, and opening it follows the Message link. A user may quote across rooms only when they can read the source room and every user member of the target room is a member of it too, so the snippet never reaches someone who cannot follow the link. Pasting a Message link into the composer turns it into the pending quote; removing that quote puts the plain link back. A quote can be the whole message, with an empty body, except in a Coworker 1:1, which needs words to answer. Coworkers and Soko Bots quote within one room only.
+_Avoid_: Reply (that is a thread), forward, Unfurl of an internal link, quoting into a room with readers outside the source room
 
 **Coworker 1:1**:
 A Direct with exactly one human member and exactly one coworker.
@@ -281,7 +293,7 @@ _Avoid_: Soft demote to guest on org leave (retired for org exit), cascade-strip
 ### Chat pins
 
 **Pinned room**:
-The current user's personal sidebar pin of a membership-visible room. Not shared. Product UI: Pin / Unpin and the pin icon. Distinct from a Pinned message.
+The current user's personal sidebar pin of a membership-visible room. Not shared. Product UI: Pin / Unpin; a Pinned room of any kind lists under the sidebar's Pinned section only, in the reader's own order, and activity never moves it. The reader changes that order in the section's reorder mode (a handle per row: drag, or arrow keys); outside it a pinned row is an ordinary row. That order is the membership's `starredAt` ascending, which a reorder rewrites (`PUT /chats/rooms/starred`) for the rooms of the sidebar it was made in only (a room in several sidebars, like a Personal Direct, has one key and moves in each), so `starredAt` is a sort key, not the time of pinning. Distinct from a Pinned message.
 _Avoid_: Starred room (API-only name), favorite, treating this as a Pinned message
 
 **Pinned message**:

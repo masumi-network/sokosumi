@@ -146,6 +146,28 @@ describe("PersonalAssistantNav collapsed stack", () => {
     );
   });
 
+  it("rings rounded-md on the rail like its neighbours, not the expanded row's rounded-lg", () => {
+    render(<PersonalAssistantNav bots={bots} />);
+    const link = screen.getByRole("link");
+    expect(tokens(link.className)).toContain("rounded-lg");
+    expect(tokens(link.className)).toContain(
+      "group-data-[collapsible=icon]:rounded-md",
+    );
+    // Its primary hover border is the one state it keeps from the expanded
+    // card on the rail: the featured entry stays featured.
+    expect(tokens(link.className)).toEqual(
+      expect.arrayContaining([
+        "hover:border-primary",
+        "group-data-[collapsible=icon]:hover:ring-0!",
+        "group-data-[collapsible=icon]:active:ring-0!",
+        "group-data-[collapsible=icon]:hover:bg-sidebar-accent!",
+      ]),
+    );
+    expect(tokens(link.className)).not.toContain(
+      "group-data-[collapsible=icon]:hover:border-transparent",
+    );
+  });
+
   it("keeps the label in the accessibility tree when the rail collapses", () => {
     render(<PersonalAssistantNav bots={bots} />);
     const label = screen.getByText("sokoBot");

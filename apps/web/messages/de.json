@@ -101,9 +101,6 @@
         }
       },
       "AgentDetail": {
-        "Header": {
-          "pricing": "{credits, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}"
-        },
         "Stats": {
           "executedJobs": "Ausgeführte Jobs",
           "averageExecutionTime": "Durchschnittliche Ausführungszeit",
@@ -5245,6 +5242,7 @@
         "markUnread": "Als ungelesen markieren",
         "pin": "Anheften",
         "unpin": "Lösen",
+        "reorderHandle": "{name} verschieben. Ziehen oder Pfeiltasten nach oben und unten drücken.",
         "mute": "Stummschalten",
         "unmute": "Stummschaltung aufheben",
         "roomMenu": "Chat-Aktionen für {name}",
@@ -5266,6 +5264,9 @@
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflowCount": "{count} weitere Teilnehmer",
       "directMessages": "Direct Messages",
+      "pinned": "Angeheftet",
+      "reorderPinned": "Angeheftete Chats sortieren",
+      "reorderPinnedDone": "Sortieren beenden",
       "loading": "Wird geladen...",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "composerTooLong": "Die Nachricht ist zu lang ({count}/{max}). Kürze sie, um sie zu senden.",

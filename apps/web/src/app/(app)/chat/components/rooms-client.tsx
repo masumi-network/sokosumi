@@ -50,11 +50,13 @@ import {
   useCoworkerDirectRoomStream,
 } from "@/app/chat/hooks/use-coworker-direct-room-stream";
 import { useEditChannelParam } from "@/app/chat/hooks/use-edit-channel-param";
+import { useQuietHoverWhileScrolling } from "@/app/chat/hooks/use-quiet-hover-while-scrolling";
 import { useRoomMessageJumps } from "@/app/chat/hooks/use-room-message-jumps";
 import { useRoomNotificationDeepLink } from "@/app/chat/hooks/use-room-notification-deep-link";
 import { useRoomReadAttention } from "@/app/chat/hooks/use-room-read-attention";
 import { useUnreadThreadCount } from "@/app/chat/hooks/use-unread-thread-count";
 import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
+import { getRoomMessageAction } from "@/app/chat/message-actions";
 import {
   filterTopLevelChatRoomMessages,
   isReplyUnderThreadParent,
@@ -83,6 +85,7 @@ import {
   mergeMessagesWithStreamOverlay,
   mergeRoomMessages,
 } from "@/app/chat/utils/merge-room-messages";
+import { resolveMessageLinkQuote } from "@/app/chat/utils/message-link-quote";
 import {
   confirmOutboundMessage,
   createPendingRoomMessage,
@@ -158,7 +161,10 @@ import type {
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
-import { chatRoomMessageHref } from "@/lib/utils/notification-href";
+import {
+  type ChatRoomMessageLink,
+  chatRoomMessageHref,
+} from "@/lib/utils/notification-href";
 import { MembershipStatusRow } from "./membership-status-row";
 import {
   canOpenHumanDirectFromSelectedRoom,
@@ -547,6 +553,7 @@ export function RoomsClient({
   // State, not a ref: the viewport needs the element as a prop, and the
   // shell attaches its ref after a same-commit child has already rendered.
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
+  useQuietHoverWhileScrolling(scroller);
   // The transcript viewport owns the live-edge pin and jump landings.
   // Reached through a ref so the callbacks handed to rows,
   // hooks and the composer keep one identity across the room's life.
@@ -2155,6 +2162,24 @@ export function RoomsClient({
     });
   }
 
+  const handleResolveMessageLink = useCallback(
+    async (link: ChatRoomMessageLink): Promise<PendingRoomQuote | null> => {
+      if (!selectedRoom) return null;
+      return await resolveMessageLinkQuote({
+        link,
+        targetRoom: selectedRoom,
+        rooms: channelCatalogRooms,
+        // The coworker stream endpoint only takes same-room quotes.
+        allowCrossRoom: !shouldUseCoworkerRoomStream(selectedRoom),
+        loadMessage: async (roomId, messageId) => {
+          const result = await getRoomMessageAction(roomId, messageId);
+          return result.ok ? result.value : null;
+        },
+      });
+    },
+    [channelCatalogRooms, selectedRoom],
+  );
+
   function handleQuoteMessage(message: ChatRoomMessage) {
     setPendingQuote(pendingQuoteFromMessage(message));
     requestAnimationFrame(() => {
@@ -2462,6 +2487,9 @@ export function RoomsClient({
               ...(pendingQuoteForShell.attachment
                 ? { attachment: pendingQuoteForShell.attachment }
                 : {}),
+              ...(pendingQuoteForShell.roomId
+                ? { roomId: pendingQuoteForShell.roomId }
+                : {}),
             }
           : request.quote
             ? {
@@ -2557,6 +2585,9 @@ export function RoomsClient({
               snippet: pendingQuoteForShell.snippet,
               ...(pendingQuoteForShell.attachment
                 ? { attachment: pendingQuoteForShell.attachment }
+                : {}),
+              ...(pendingQuoteForShell.roomId
+                ? { roomId: pendingQuoteForShell.roomId }
                 : {}),
             }
           : request.quote
@@ -2913,7 +2944,9 @@ export function RoomsClient({
               showMentionShortcut={shouldShowRoomMentionShortcut(selectedRoom)}
               pendingQuote={pendingQuote}
               onClearPendingQuote={() => setPendingQuote(null)}
-              onRestorePendingQuote={setPendingQuote}
+              onSetPendingQuote={setPendingQuote}
+              onResolveMessageLink={handleResolveMessageLink}
+              requireBody={isCoworkerStreamRoom}
               // Autofocus only after history settles. Send stays enabled so
               // optimistic posts work during progressive open (merge into list).
               focusOnMount={!messagesPending}
@@ -2992,7 +3025,9 @@ export function RoomsClient({
                 isSavingEdit={isSavingEdit}
                 pendingQuote={pendingThreadQuote}
                 onClearPendingQuote={() => setPendingThreadQuote(null)}
-                onRestorePendingQuote={setPendingThreadQuote}
+                onSetPendingQuote={setPendingThreadQuote}
+                onResolveMessageLink={handleResolveMessageLink}
+                requireBody={isCoworkerStreamRoom}
                 showMentionShortcut={shouldShowRoomMentionShortcut(
                   selectedRoom,
                 )}

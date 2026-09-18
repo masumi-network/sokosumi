@@ -2,6 +2,7 @@ import { unfurlCardHasPreviewContent } from "@sokosumi/utils";
 
 import { readClientTurnId } from "@/app/chat/utils/outbound-room-message";
 import type { RoomTranscriptRow } from "@/app/chat/utils/room-transcript-ranges";
+import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
 
 /**
  * Within this distance of the bottom, content resizes still pin the viewport.
@@ -9,7 +10,7 @@ import type { RoomTranscriptRow } from "@/app/chat/utils/room-transcript-ranges"
  */
 export const STICK_TO_BOTTOM_NEAR_PX = 200;
 
-/** Height assumed for a short text row until it is measured. */
+/** Height assumed for a one-line text row until it is measured. */
 const DEFAULT_ROW_HEIGHT_PX = 80;
 
 /**
@@ -24,13 +25,63 @@ const UNFURL_CARD_CHROME_PX = 150;
  */
 const UNFURL_IMAGE_HEIGHT_PX = 250;
 
+/** Body `leading-6`. */
+const BODY_LINE_HEIGHT_PX = 24;
+
+/** The row clamps a collapsed body to this many lines (`line-clamp-[16]`). */
+const BODY_CLAMP_LINES = 16;
+
+/** List `px-5` on both sides, the `size-8` avatar and the `gap-3.5` after it. */
+const ROW_INSET_PX = 86;
+
+/** Where the unmounted rows will be laid out. */
+export interface TranscriptRowSpace {
+  /** Width of the scroller the list lives in. */
+  listWidth: number;
+  /**
+   * Width of the window. The body is `text-base` below `md` and `text-sm`
+   * from it, and that breakpoint is the window's: a narrow thread panel on
+   * a wide window still sets the small type.
+   */
+  viewportWidth: number;
+}
+
+/**
+ * Lines the body wraps to, from its length and the width it has. A phone
+ * fits a third of the characters a desktop list does, so the same message
+ * is several lines taller there; one flat height is wrong by that much.
+ */
+function estimateBodyLines(
+  content: string,
+  space: TranscriptRowSpace | undefined,
+): number {
+  if (space === undefined || space.listWidth <= 0) {
+    return 1;
+  }
+  const { listWidth, viewportWidth } = space;
+  const fontPx = viewportWidth < MOBILE_BREAKPOINT ? 16 : 14;
+  // Inter averages about half an em a character.
+  const charsPerLine = Math.max(
+    Math.floor((listWidth - ROW_INSET_PX) / (fontPx / 2)),
+    1,
+  );
+  let lines = 0;
+  for (const paragraph of content.split("\n")) {
+    lines += Math.max(Math.ceil(paragraph.length / charsPerLine), 1);
+  }
+  return Math.min(lines, BODY_CLAMP_LINES);
+}
+
 /**
  * Size the virtualizer uses for a row that has not mounted yet. History
  * already carries scraped unfurls, so an image card is counted at the
- * image cap plus chrome instead of as another short text row.
+ * image cap plus chrome instead of as another short text row. The error
+ * matters most on iOS: the virtualizer cannot correct the scroll position
+ * during a touch scroll there, so the reader sees every pixel of it.
  */
 export function estimateTranscriptRowHeight(
   row: RoomTranscriptRow | undefined,
+  space?: TranscriptRowSpace,
 ): number {
   if (row === undefined || row.kind !== "message") {
     return DEFAULT_ROW_HEIGHT_PX;
@@ -46,7 +97,8 @@ export function estimateTranscriptRowHeight(
       extra += UNFURL_IMAGE_HEIGHT_PX;
     }
   }
-  return DEFAULT_ROW_HEIGHT_PX + extra;
+  const wrappedLines = estimateBodyLines(row.message.content, space) - 1;
+  return DEFAULT_ROW_HEIGHT_PX + wrappedLines * BODY_LINE_HEIGHT_PX + extra;
 }
 
 /**

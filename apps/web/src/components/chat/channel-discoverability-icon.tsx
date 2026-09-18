@@ -23,8 +23,10 @@ export function channelKindIcon(discoverability?: Discoverability) {
 
 /**
  * Slack-like: `#` for public, lock for private, globe for external/matched.
- * Outer size-5 matches DM avatars so every room row shares one leading column.
- * Glyph stays size-3.5; wrapper blocks sidebar `[&>svg]:size-4` override.
+ * The outer box matches DM avatars so every room row shares one leading column:
+ * 28px below `md`, where the row is 44px tall and a 20px mark left it looking
+ * empty, and 20px from `md` up. The wrapper blocks the sidebar's
+ * `[&>svg]:size-4` override.
  */
 export function ChannelDiscoverabilityIcon({
   discoverability,
@@ -36,7 +38,7 @@ export function ChannelDiscoverabilityIcon({
   return (
     <span
       className={cn(
-        "inline-flex size-5 shrink-0 items-center justify-center [&_svg]:size-3.5",
+        "inline-flex size-7 shrink-0 items-center justify-center md:size-5 [&_svg]:size-4.5 md:[&_svg]:size-3.5",
         className,
       )}
       {...props}

@@ -182,7 +182,7 @@ export const chatRoomSchema = z
     }),
     starredAt: dateTimeSchema.nullable().openapi({
       description:
-        "When the current user starred this room. Null when not starred.",
+        "Set while the current user has this room starred; null when not. A sort key, not the time of starring: starred rooms list oldest first, and `PUT /chats/rooms/starred` rewrites it.",
       example: "2026-08-02T12:00:00.000Z",
     }),
     pinnedMessageCount: z.number().int().min(0).default(0).openapi({
@@ -228,6 +228,33 @@ export const chatRoomPinnedMessageMutationSchema = z
     }),
   })
   .openapi("ChatRoomPinnedMessageMutation");
+
+/** Far above any real starred list; bounds the one-row-per-id transaction. */
+const MAX_STARRED_ROOMS = 500;
+
+export const reorderStarredChatRoomsRequestSchema = z
+  .object({
+    roomIds: z
+      .array(z.string().uuid())
+      .max(MAX_STARRED_ROOMS)
+      .openapi({
+        description:
+          "Starred room ids in the wanted order. Ids the caller has not starred in the active workspace are ignored; membership-visible starred rooms left out keep their relative order after the listed ones. Never stars or unstars a room.",
+        example: ["550e8400-e29b-41d4-a716-446655440000"],
+      }),
+  })
+  .openapi("ReorderStarredChatRoomsRequest");
+
+export const starredChatRoomOrderSchema = z
+  .object({
+    roomId: z.string().uuid().openapi({
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+    starredAt: dateTimeSchema.openapi({
+      description: "Sort key: starred rooms list oldest `starredAt` first.",
+    }),
+  })
+  .openapi("StarredChatRoomOrder");
 
 const roomMemberUserIdsSchema = z
   .array(z.string().min(1))
@@ -460,7 +487,7 @@ export const chatRoomMessageQuoteSchema = z
     attachment: chatRoomMessageQuoteAttachmentSchema.nullable().optional(),
     roomId: z.string().uuid().optional().openapi({
       description:
-        "Source room of a quote sent to the caller's Self Direct. Absent when the quoted message is in the same room.",
+        "Source room of a message quoted from another room. Absent when the quoted message is in the same room.",
       example: "550e8400-e29b-41d4-a716-446655440000",
     }),
   })
@@ -568,11 +595,12 @@ export const createChatRoomMessageRequestSchema = z
     content: z
       .string()
       .trim()
-      .min(1)
       .max(CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH, {
         error: CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
       })
       .openapi({
+        description:
+          "Message body. May be empty only when `quote` is set: a quote can be the whole message.",
         example: "@coworker:elena Can you summarize this launch risk?",
       }),
     mentionedCoworkerIds: z
@@ -605,17 +633,26 @@ export const createChatRoomMessageRequestSchema = z
         messageId: z.string().uuid().openapi({
           example: "550e8400-e29b-41d4-a716-446655440000",
         }),
+        roomId: z.string().uuid().optional().openapi({
+          description:
+            "Room the quoted message is in, when it is not this room. User senders only. Allowed when the sender can read that room and every user member of this room is also a member of it; anything else is a 400.",
+          example: "550e8400-e29b-41d4-a716-446655440001",
+        }),
       })
       .optional()
       .openapi({
         description:
-          "Quote another message in the same room. Snapshot is stored in metadata.quote; does not set parentMessageId.",
+          "Quote another message. Snapshot is stored in metadata.quote; does not set parentMessageId.",
       }),
     clientMessageId: z.string().trim().min(1).max(128).optional().openapi({
       description:
         "Opaque client turn id. Retries of the same send reuse this so concurrent or replayed POSTs create at most one row per room (unique on roomId + clientMessageId).",
       example: "019fbee7-676b-771f-ab7a-998f25f1f16b",
     }),
+  })
+  .refine((body) => body.content.length > 0 || body.quote !== undefined, {
+    path: ["content"],
+    error: "Message is required.",
   })
   .openapi("CreateChatRoomMessageRequest");
 

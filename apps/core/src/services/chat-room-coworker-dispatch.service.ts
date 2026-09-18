@@ -11,12 +11,16 @@ import {
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
 import { getSokosumiProvider } from "@/lib/sokosumi-ai-provider";
-import { resolveWorkspaceIdForChatRoom } from "@/routes/v1/chats/rooms/helpers";
+import {
+  readQuoteFromMetadata,
+  resolveWorkspaceIdForChatRoom,
+} from "@/routes/v1/chats/rooms/helpers";
 import { createCoworkerConversation } from "@/routes/v1/chats/stream/coworker-conversation";
 
 import {
   buildRoomMentionPrompt,
   loadRoomContextMessages,
+  roomMessagePromptText,
 } from "./chat-room-mention-context";
 import {
   claimMentionForDispatch,
@@ -414,7 +418,10 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     const prompt = buildRoomMentionPrompt({
       roomName: mention.message.room.name,
       senderName,
-      content: mention.message.content,
+      content: roomMessagePromptText(
+        mention.message.content,
+        readQuoteFromMetadata(mention.message.metadata),
+      ),
       isThreadReply: threadRootId != null,
       contextMessages,
     });

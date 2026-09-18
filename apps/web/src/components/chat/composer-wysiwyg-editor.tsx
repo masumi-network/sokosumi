@@ -98,6 +98,8 @@ export interface ComposerWysiwygEditorHandle {
   focus: () => void;
   focusAtEnd: () => void;
   insertText: (text: string) => void;
+  /** Remove the last occurrence of `text`; false when it is not in the editor. */
+  removeLastText: (text: string) => boolean;
   openMentions: () => void;
   applyFormat: (command: ComposerFormatCommand) => void;
   insertLink: (text: string, url: string) => void;
@@ -824,6 +826,24 @@ export function ComposerWysiwygEditor<TData = unknown>({
     [handleInput],
   );
 
+  const removeLastText = useCallback(
+    (text: string) => {
+      const editor = editorRef.current;
+      if (!editor || text.length === 0) return false;
+      const start = serializeEditorText(editor).lastIndexOf(text);
+      if (
+        start < 0 ||
+        !replaceComposerTextRange(editor, start, start + text.length, "")
+      ) {
+        return false;
+      }
+      savedCaretOffsetRef.current = getCaretOffset(editor);
+      handleInput();
+      return true;
+    },
+    [handleInput],
+  );
+
   const insertHtml = useCallback(
     (html: string) => {
       editorRef.current?.focus();
@@ -1380,6 +1400,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
         selection.addRange(range);
       },
       insertText,
+      removeLastText,
       openMentions,
       applyFormat,
       insertLink,
@@ -1393,6 +1414,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
       insertLink,
       insertText,
       openMentions,
+      removeLastText,
       tryFlushTrailingEmoticon,
     ],
   );
