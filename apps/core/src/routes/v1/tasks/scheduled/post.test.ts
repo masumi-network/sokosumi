@@ -95,6 +95,7 @@ function buildMappedTask() {
     ownerId: "user_123",
     organizationId: "org_123",
     projectId: null,
+    project: null,
     owner: { id: "user_123", name: "Ada Lovelace", image: null },
     userId: "user_123",
     user: { id: "user_123", name: "Ada Lovelace", image: null },

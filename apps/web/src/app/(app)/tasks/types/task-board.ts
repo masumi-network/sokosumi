@@ -1,4 +1,5 @@
 import type {
+  ProjectSummary,
   TaskEvent,
   TaskShare,
   TaskVisibility,
@@ -27,6 +28,7 @@ export interface TaskWithCoworker {
   visibility: TaskVisibility;
   ownerId: string;
   owner: UserSummary;
+  project: ProjectSummary | null;
   createdAt: string;
   updatedAt: string;
   jobsCount: number;

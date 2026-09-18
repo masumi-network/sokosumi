@@ -18,6 +18,7 @@ import { useOptionalHistorySearch } from "@/app/components/history-search-dialog
 import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
 import { SheetClose } from "@/components/ui/sheet";
 import {
+  SIDEBAR_ROW_LABEL_CLASS,
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
@@ -190,7 +191,7 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                     <SidebarRowSlot>
                       <Icon className="size-4" aria-hidden />
                     </SidebarRowSlot>
-                    <span className="flex-1 truncate group-data-[collapsible=icon]:sr-only">
+                    <span className={cn(SIDEBAR_ROW_LABEL_CLASS, "truncate")}>
                       {label}
                     </span>
                   </>

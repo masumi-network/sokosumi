@@ -19,6 +19,7 @@ import {
   jobSummariesSchema,
 } from "@/schemas/job.schema";
 import { organizationSummarySchema } from "@/schemas/organization.schema";
+import { projectSummarySchema } from "@/schemas/project.schema";
 import { taskShareSchema } from "@/schemas/share.schema";
 import { sokoBotSummarySchema } from "@/schemas/soko-bot.schema";
 import { taskFileSchema } from "@/schemas/task-file.schema";
@@ -261,6 +262,11 @@ const taskBaseSchema = z.object({
   organization: organizationSummarySchema.nullable(),
   projectId: z.string().uuid().nullable().openapi({
     example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+  }),
+  project: z.union([projectSummarySchema, z.null()]).openapi({
+    example: null,
+    description:
+      "Linked project name and logo. Null when the task has no project.",
   }),
   assigneeId: z.string().nullable().openapi({
     example: "cow_123",

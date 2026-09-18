@@ -14,6 +14,7 @@ function buildTask(
     visibility: "PUBLIC" as const,
     ownerId: "user-1",
     owner: { id: "user-1", name: "Test User", image: null },
+    project: null,
     createdAt: "2026-03-01T00:00:00.000Z",
     updatedAt: "2026-03-01T00:00:00.000Z",
     jobsCount: 0,

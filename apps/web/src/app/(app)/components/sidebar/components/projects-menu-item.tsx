@@ -1,7 +1,7 @@
 "use client";
 
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { Check, ChevronRight, FolderKanban } from "lucide-react";
+import { ChevronRight, FolderKanban } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -10,6 +10,7 @@ import { loadMoreProjects } from "@/app/projects/actions";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { Button } from "@/components/ui/button";
 import {
+  SIDEBAR_ROW_LABEL_CLASS,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
@@ -20,8 +21,11 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useLoadWhenVisible } from "@/hooks/use-load-when-visible";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
+
+const PROJECTS_EXPANDED_STORAGE_KEY = "sokosumi.sidebar.projects-expanded";
 
 export function ProjectsMenuItem() {
   const { data: session, isPending, isRefetching, error } = useSession();
@@ -45,6 +49,24 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
   const pathname = usePathname();
   const { isMobile, state, setOpenMobile } = useSidebar();
   const [open, setOpen] = useState(false);
+  useMountEffect(() => {
+    try {
+      setOpen(localStorage.getItem(PROJECTS_EXPANDED_STORAGE_KEY) === "true");
+    } catch {
+      // Keep disclosure usable when browser storage is blocked.
+    }
+  });
+
+  function handleToggle() {
+    const nextOpen = !open;
+    setOpen(nextOpen);
+    try {
+      localStorage.setItem(PROJECTS_EXPANDED_STORAGE_KEY, String(nextOpen));
+    } catch {
+      // Persistence is optional; the in-memory choice still works.
+    }
+  }
+
   const contentId = useId();
   const active = pathname === "/projects" || pathname.startsWith("/projects/");
   const expandedSidebar = isMobile || state !== "collapsed";
@@ -76,7 +98,7 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
             <SidebarRowSlot>
               <FolderKanban className="size-4" aria-hidden />
             </SidebarRowSlot>
-            <span className="flex-1 truncate group-data-[collapsible=icon]:sr-only">
+            <span className={cn(SIDEBAR_ROW_LABEL_CLASS, "truncate")}>
               {t("projects")}
             </span>
           </Link>
@@ -90,7 +112,7 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
             aria-label={t(open ? "collapseProjects" : "expandProjects")}
             aria-expanded={open}
             aria-controls={contentId}
-            onClick={() => setOpen(!open)}
+            onClick={handleToggle}
           >
             <ChevronRight
               className={cn("size-4", open && "rotate-90")}
@@ -166,7 +188,7 @@ function ProjectLinks({
 
   return (
     <SidebarMenuSub
-      className="max-h-64 overflow-y-auto"
+      className="mx-0 max-h-64 translate-x-0 overflow-y-auto border-l-0 pl-4 pr-0"
       onScroll={(event) => {
         const list = event.currentTarget;
         if (list.scrollHeight - list.scrollTop - list.clientHeight < 48)
@@ -185,7 +207,12 @@ function ProjectLinks({
               <SidebarMenuSubButton
                 asChild
                 isActive={selected}
-                className="min-h-9 h-auto py-2"
+                className={cn(
+                  "min-h-9 h-auto translate-x-0 py-2",
+                  selected
+                    ? "text-sidebar-accent-foreground"
+                    : "text-tertiary-foreground dark:text-muted-foreground hover:text-sidebar-accent-foreground dark:hover:text-sidebar-accent-foreground",
+                )}
               >
                 <Link
                   href={href}
@@ -207,9 +234,6 @@ function ProjectLinks({
                   <span className="min-w-0 flex-1 truncate">
                     {project.name}
                   </span>
-                  {selected ? (
-                    <Check className="size-3 shrink-0" aria-hidden />
-                  ) : null}
                 </Link>
               </SidebarMenuSubButton>
             </SidebarMenuSubItem>
