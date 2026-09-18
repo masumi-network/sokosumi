@@ -288,7 +288,7 @@ export function createResponsesSseToV4Stream(
 
         if (reactEnvelopeState === "idle" && !startsLikeEnvelope) {
           emitTextDelta(delta);
-          // Align with {@link extractReactEnvelope}: only a *leading* envelope is
+          // Align with {@link parseReactEnvelopeBuffer}: only a *leading* envelope is
           // stripped on persist. After non-candidate text was emitted, later `{`
           // chunks must pass through so streaming matches post-reload content.
           reactEnvelopeState = "afterEnvelope";
