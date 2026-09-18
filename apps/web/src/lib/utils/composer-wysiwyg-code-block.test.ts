@@ -114,6 +114,37 @@ describe("toggleComposerCodeBlock", () => {
     expect((editor.textContent ?? "").trim()).toBe("");
   });
 
+  it("keeps the caret at the unwrap site when an empty block follows text", () => {
+    const editor = createEditor("hello");
+    const text = editor.firstChild;
+    if (!text) throw new Error("No text node");
+    placeCaret(text, 5);
+    toggleComposerCodeBlock(editor);
+
+    const code = editor.querySelector("code");
+    if (!code) throw new Error("No code element");
+    placeCaret(code, 0);
+    toggleComposerCodeBlock(editor);
+
+    const selection = window.getSelection();
+    if (!selection?.anchorNode) throw new Error("No caret");
+    const prefix = document.createRange();
+    prefix.selectNodeContents(editor);
+    prefix.setEnd(selection.anchorNode, selection.anchorOffset);
+    expect(prefix.toString()).toBe("hello");
+  });
+
+  it("serializes a wrapped selection as a fence with that text", () => {
+    const editor = createEditor("hello world");
+    const text = editor.firstChild;
+    if (!text) throw new Error("No text node");
+    selectAcross(text, 0, 11);
+
+    toggleComposerCodeBlock(editor);
+
+    expect(htmlToMarkdown(editor)).toBe("```\nhello world\n```\n");
+  });
+
   it("serializes a freshly opened empty block as an empty fence", () => {
     const editor = createEditor();
     placeCaret(editor, 0);

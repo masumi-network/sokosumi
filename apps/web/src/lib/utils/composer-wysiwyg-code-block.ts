@@ -108,18 +108,19 @@ function unwrapCodeBlock(pre: HTMLElement): void {
 
   const last = replacement.lastChild;
   parent.replaceChild(replacement, pre);
-  if (last) {
-    if (last.nodeType === Node.TEXT_NODE) {
-      const selection = window.getSelection();
-      const range = document.createRange();
-      range.setStart(last, (last.textContent ?? "").length);
-      range.collapse(true);
-      selection?.removeAllRanges();
-      selection?.addRange(range);
-    } else if (last.parentNode) {
-      placeCaretAtStartOf(last.parentNode);
-    }
+  if (!last) return;
+
+  const selection = window.getSelection();
+  if (!selection) return;
+  const range = document.createRange();
+  if (last.nodeType === Node.TEXT_NODE) {
+    range.setStart(last, (last.textContent ?? "").length);
+  } else {
+    range.setStartAfter(last);
   }
+  range.collapse(true);
+  selection.removeAllRanges();
+  selection.addRange(range);
 }
 
 /**
