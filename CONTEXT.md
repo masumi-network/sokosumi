@@ -249,7 +249,7 @@ A room message action that posts a quote of that message into the sender's own S
 _Avoid_: Forward, share, bookmark, saved message
 
 **Quote**:
-A durable copy of one room message (author, snippet, first attachment) carried on another room message. It stays after the source is edited, deleted, or no longer readable. A quote from another room remembers its source room, and opening it follows the Message link. A user may quote across rooms only when they can read the source room and every user member of the target room is a member of it too, so the snippet never reaches someone who cannot follow the link. Pasting a Message link into the composer offers the quote; the paste can stay a plain link. Coworkers and Soko Bots quote within one room only.
+A durable copy of one room message (author, snippet, first attachment) carried on another room message. It stays after the source is edited, deleted, or no longer readable. A quote from another room remembers its source room, and opening it follows the Message link. A user may quote across rooms only when they can read the source room and every user member of the target room is a member of it too, so the snippet never reaches someone who cannot follow the link. Pasting a Message link into the composer turns it into the pending quote; removing that quote puts the plain link back. A quote can be the whole message, with an empty body, except in a Coworker 1:1, which needs words to answer. Coworkers and Soko Bots quote within one room only.
 _Avoid_: Reply (that is a thread), forward, Unfurl of an internal link, quoting into a room with readers outside the source room
 
 **Coworker 1:1**:

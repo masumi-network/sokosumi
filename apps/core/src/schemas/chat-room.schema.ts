@@ -595,11 +595,12 @@ export const createChatRoomMessageRequestSchema = z
     content: z
       .string()
       .trim()
-      .min(1)
       .max(CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH, {
         error: CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
       })
       .openapi({
+        description:
+          "Message body. May be empty only when `quote` is set: a quote can be the whole message.",
         example: "@coworker:elena Can you summarize this launch risk?",
       }),
     mentionedCoworkerIds: z
@@ -648,6 +649,10 @@ export const createChatRoomMessageRequestSchema = z
         "Opaque client turn id. Retries of the same send reuse this so concurrent or replayed POSTs create at most one row per room (unique on roomId + clientMessageId).",
       example: "019fbee7-676b-771f-ab7a-998f25f1f16b",
     }),
+  })
+  .refine((body) => body.content.length > 0 || body.quote !== undefined, {
+    path: ["content"],
+    error: "Message is required.",
   })
   .openapi("CreateChatRoomMessageRequest");
 

@@ -2946,6 +2946,7 @@ export function RoomsClient({
               onClearPendingQuote={() => setPendingQuote(null)}
               onSetPendingQuote={setPendingQuote}
               onResolveMessageLink={handleResolveMessageLink}
+              requireBody={isCoworkerStreamRoom}
               // Autofocus only after history settles. Send stays enabled so
               // optimistic posts work during progressive open (merge into list).
               focusOnMount={!messagesPending}
@@ -3026,6 +3027,7 @@ export function RoomsClient({
                 onClearPendingQuote={() => setPendingThreadQuote(null)}
                 onSetPendingQuote={setPendingThreadQuote}
                 onResolveMessageLink={handleResolveMessageLink}
+                requireBody={isCoworkerStreamRoom}
                 showMentionShortcut={shouldShowRoomMentionShortcut(
                   selectedRoom,
                 )}

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { buildRoomMentionPrompt } from "./chat-room-mention-context";
+import {
+  buildRoomMentionPrompt,
+  roomMessagePromptText,
+} from "./chat-room-mention-context";
 
 describe("buildRoomMentionPrompt", () => {
   it("returns the bare mention block when there is no context", () => {
@@ -90,5 +93,27 @@ describe("buildRoomMentionPrompt", () => {
 
     expect(prompt).toContain(`- Andreas: ${"x".repeat(500)}…`);
     expect(prompt).not.toContain("x".repeat(501));
+  });
+});
+
+describe("roomMessagePromptText", () => {
+  const quote = { authorName: "Alice", snippet: "Launch risk is\nthe vendor." };
+
+  it("is the message as typed when nothing is quoted", () => {
+    expect(roomMessagePromptText("what do you think?", null)).toBe(
+      "what do you think?",
+    );
+  });
+
+  it("puts the quoted message above the sender's words", () => {
+    expect(roomMessagePromptText("what do you think?", quote)).toBe(
+      "> Alice: Launch risk is the vendor.\n\nwhat do you think?",
+    );
+  });
+
+  it("is the quoted message alone when the body is empty", () => {
+    expect(roomMessagePromptText("  ", quote)).toBe(
+      "> Alice: Launch risk is the vendor.",
+    );
   });
 });

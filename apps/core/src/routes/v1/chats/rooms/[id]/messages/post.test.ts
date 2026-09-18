@@ -1734,6 +1734,57 @@ describe("POST /chats/rooms/{id}/messages", () => {
       );
     });
 
+    it("accepts an empty body when the message is a quote", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithMembers());
+      messageFindFirstMock.mockResolvedValue(quotedSourceMessage());
+      messageCreateMock.mockResolvedValue(
+        createdMessage({
+          senderUserId: USER_ID,
+          content: "",
+          metadata: { quote: quoteSnapshot },
+        }),
+      );
+
+      const response = await createApp(userAuthContext).request(
+        `/${ROOM_ID}/messages`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            content: "  ",
+            quote: { messageId: QUOTE_MESSAGE_ID },
+          }),
+        },
+      );
+
+      expect(response.status).toBe(201);
+      expect(messageCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            content: "",
+            metadata: { quote: quoteSnapshot },
+          }),
+        }),
+      );
+    });
+
+    it("still refuses an empty body without a quote", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithMembers());
+
+      const response = await createApp(userAuthContext).request(
+        `/${ROOM_ID}/messages`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ content: "  " }),
+        },
+      );
+
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(response.status).toBeLessThan(500);
+      expect(messageCreateMock).not.toHaveBeenCalled();
+    });
+
     it("returns 400 when quoted message is missing or in another room", async () => {
       roomFindFirstMock.mockResolvedValue(roomWithMembers());
       messageFindFirstMock.mockResolvedValue(null);

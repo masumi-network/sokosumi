@@ -27,6 +27,21 @@ function formatContextLine(message: RoomContextMessage): string {
 }
 
 /**
+ * What a message says to an AI reader: the quoted message, when there is one,
+ * above the sender's own words. A quote can be the whole message.
+ */
+export function roomMessagePromptText(
+  content: string,
+  quote: { authorName: string; snippet: string } | null,
+): string {
+  if (!quote) {
+    return content;
+  }
+  const quoted = `> ${quote.authorName}: ${quote.snippet.replace(/\s+/g, " ").trim()}`;
+  return content.trim().length === 0 ? quoted : `${quoted}\n\n${content}`;
+}
+
+/**
  * Prompt sent to a coworker for a room mention or thread reply. The
  * CONTEXT block carries the recent messages the coworker never saw (it only
  * receives what is addressed to it), oldest first. Nothing in it is secret —

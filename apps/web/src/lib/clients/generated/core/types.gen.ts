@@ -2802,6 +2802,9 @@ export type ChatRoomThreadReadState = {
 };
 
 export type CreateChatRoomMessageRequest = {
+    /**
+     * Message body. May be empty only when `quote` is set: a quote can be the whole message.
+     */
     content: string;
     mentionedCoworkerIds?: Array<string>;
     /**

@@ -10218,8 +10218,8 @@ export const CreateChatRoomMessageRequestSchema = {
     properties: {
         content: {
             type: 'string',
-            minLength: 1,
             maxLength: 10000,
+            description: 'Message body. May be empty only when `quote` is set: a quote can be the whole message.',
             example: '@coworker:elena Can you summarize this launch risk?'
         },
         mentionedCoworkerIds: {

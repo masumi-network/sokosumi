@@ -127,6 +127,7 @@ export function ThreadPanel({
   onClearPendingQuote,
   onSetPendingQuote,
   onResolveMessageLink,
+  requireBody,
   showMentionShortcut = true,
   allowAttachments = true,
   roomId,
@@ -184,6 +185,7 @@ export function ThreadPanel({
   onResolveMessageLink?: (
     link: ChatRoomMessageLink,
   ) => Promise<PendingRoomQuote | null>;
+  requireBody?: boolean;
   showMentionShortcut?: boolean;
   allowAttachments?: boolean;
   roomId: string;
@@ -431,6 +433,7 @@ export function ThreadPanel({
             onClearPendingQuote={onClearPendingQuote}
             onSetPendingQuote={onSetPendingQuote}
             onResolveMessageLink={onResolveMessageLink}
+            requireBody={requireBody}
             onBeforeSend={onBeforeSendReply}
             onSend={handleSendReply}
             currentUserId={currentUserId}

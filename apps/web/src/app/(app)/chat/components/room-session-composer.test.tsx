@@ -302,8 +302,10 @@ describe("RoomSessionComposer pasted Message link", () => {
     onSend,
     onResolveMessageLink,
     draftKey: harnessDraftKey = draftKey,
+    requireBody,
   }: {
     draftKey?: string;
+    requireBody?: boolean;
     onSend: ComponentProps<typeof RoomSessionComposer>["onSend"];
     onResolveMessageLink: ComponentProps<
       typeof RoomSessionComposer
@@ -322,6 +324,7 @@ describe("RoomSessionComposer pasted Message link", () => {
         onClearPendingQuote={() => setPendingQuote(null)}
         onSetPendingQuote={setPendingQuote}
         onResolveMessageLink={onResolveMessageLink}
+        requireBody={requireBody}
         isSending={false}
         onSend={onSend}
       />
@@ -361,6 +364,25 @@ describe("RoomSessionComposer pasted Message link", () => {
       content: "",
       quote: { messageId: "msg-1", roomId: "room-source" },
     });
+  });
+
+  it("needs a body with the quote where the room asks for one", async () => {
+    const onSend = vi.fn().mockResolvedValue({ ok: true });
+    render(
+      <Harness
+        onSend={onSend}
+        onResolveMessageLink={vi.fn().mockResolvedValue(quote)}
+        requireBody
+      />,
+    );
+
+    const editor = await screen.findByRole("textbox");
+    editor.focus();
+    await pasteAndAwaitQuote(editor);
+    fireEvent.submit(editor.closest("form")!);
+
+    expect(onSend).not.toHaveBeenCalled();
+    expect(screen.getByText("Earlier point about launch risk")).toBeTruthy();
   });
 
   it("keeps the sender's own text around the pasted link", async () => {

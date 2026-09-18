@@ -231,6 +231,8 @@ export function PinnedMessagesPanel({
           }
           const sender = messageSender(message);
           const isJumping = jumpingMessageId === item.messageId;
+          const quoteOnly =
+            message.content.trim().length === 0 ? message.quote : null;
           return (
             <div
               key={item.messageId}
@@ -261,9 +263,21 @@ export function PinnedMessagesPanel({
                     </span>
                   )}
                 </div>
-                <div className="mt-1 line-clamp-6 text-sm">
+                {/* A quote can be the whole message; show what was quoted. */}
+                {quoteOnly ? (
+                  <div className="text-foreground mt-1 truncate text-xs font-semibold">
+                    {quoteOnly.authorName}
+                  </div>
+                ) : null}
+                <div
+                  className={
+                    quoteOnly
+                      ? "border-primary-tertiary text-muted-foreground mt-1 line-clamp-6 border-l-2 pl-2.5 text-sm"
+                      : "mt-1 line-clamp-6 text-sm"
+                  }
+                >
                   <ChannelMessageText
-                    content={message.content}
+                    content={quoteOnly ? quoteOnly.snippet : message.content}
                     coworkersById={coworkersById}
                     coworkersBySlug={coworkersBySlug}
                     sokoBotsById={sokoBotsById}

@@ -100,6 +100,11 @@ interface RoomSessionComposerProps {
   onResolveMessageLink?: (
     link: ChatRoomMessageLink,
   ) => Promise<PendingRoomQuote | null>;
+  /**
+   * True where a quote cannot be the whole message: the coworker 1:1 stream
+   * needs words to answer.
+   */
+  requireBody?: boolean;
   isSending: boolean;
   showMentionShortcut?: boolean;
   allowAttachments?: boolean;
@@ -136,6 +141,7 @@ export function RoomSessionComposer({
   onClearPendingQuote,
   onSetPendingQuote,
   onResolveMessageLink,
+  requireBody = false,
   isSending,
   showMentionShortcut,
   allowAttachments,
@@ -263,7 +269,7 @@ export function RoomSessionComposer({
       composerAttachments,
       formatTaskAttachmentMarkdown,
     );
-    if (!content && !pendingQuote) return;
+    if (!content && (requireBody || !pendingQuote)) return;
     if (isRoomComposerContentOverLimit(content)) {
       toast.error(
         t("composerTooLong", {
@@ -340,7 +346,7 @@ export function RoomSessionComposer({
         isSending={isSending}
         sendDisabled={
           isRoomComposerEmpty(composerValue, composerAttachments) &&
-          !pendingQuote
+          (requireBody || !pendingQuote)
         }
         showMentionShortcut={showMentionShortcut}
         allowAttachments={allowAttachments}

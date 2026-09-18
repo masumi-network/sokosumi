@@ -744,7 +744,8 @@ export async function sendRoomMessageAction(
   },
 ): Promise<RoomActionResult<ChatRoomMessage>> {
   const cleanContent = cleanString(content);
-  if (!cleanContent) {
+  // A quote can be the whole message.
+  if (!cleanContent && !options?.quote?.messageId) {
     return roomFail("Message is required.");
   }
 

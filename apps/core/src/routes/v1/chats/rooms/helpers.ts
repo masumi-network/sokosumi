@@ -676,10 +676,14 @@ function readQuoteAttachmentFromMetadata(
   };
 }
 
-function readQuoteFromMetadata(
-  metadata: Record<string, unknown> | null,
+/** Soft-parses `metadata.quote` from a stored message's metadata JSON. */
+export function readQuoteFromMetadata(
+  metadata: unknown,
 ): ChatRoomMessageQuote | null {
-  const raw = metadata?.quote;
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+  const raw = (metadata as Record<string, unknown>).quote;
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     return null;
   }
