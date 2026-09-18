@@ -28,7 +28,10 @@ import {
   coreSessionUnavailableJson,
   readRouteSession,
 } from "@/lib/auth/route-session";
-import { withDocxExportLock } from "@/lib/utils/docx-export-lock";
+import {
+  DocxExportQueueError,
+  withDocxExportLock,
+} from "@/lib/utils/docx-export-lock";
 import {
   MAX_MARKDOWN_BYTES,
   withDocxExportFetchGuard,
@@ -272,5 +275,10 @@ export async function POST(request: NextRequest) {
       // Clean up DOM context
       cleanup();
     }
+  }, request.signal).catch((error: unknown) => {
+    if (error instanceof DocxExportQueueError) {
+      return NextResponse.json({ error: error.message }, { status: 503 });
+    }
+    throw error;
   });
 }

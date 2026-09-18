@@ -107,7 +107,7 @@ describe("withDocxExportFetchGuard", () => {
         withDocxExportFetchGuard(async () => {
           await fetch("https://slow.example/a.png");
         }),
-      ).rejects.toThrow(/timed out/i);
+      ).rejects.toMatchObject({ name: "TimeoutError" });
 
       expect(timeoutSpy).toHaveBeenCalledWith(DOCX_IMAGE_FETCH_TIMEOUT_MS);
     } finally {
