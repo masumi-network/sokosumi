@@ -12,6 +12,7 @@ function makeRoom(
     organizationName: "Acme",
     name: overrides.id,
     slug: overrides.kind === "channel" ? overrides.id : null,
+    isSelfDirect: false,
     directKey: null,
     topic: null,
     discoverability: overrides.kind === "channel" ? "public" : null,
@@ -171,6 +172,7 @@ describe("partitionRoomsForSidebar", () => {
 
   it("returns empty buckets for empty input", () => {
     expect(partitionRoomsForSidebar([])).toEqual({
+      pinned: [],
       namedChannels: [],
       directMessages: [],
       externalJoined: [],
@@ -199,5 +201,49 @@ describe("partitionRoomsForSidebar", () => {
       "guest-new",
       "guest-old",
     ]);
+  });
+
+  it("lists pinned rooms of every kind under pinned only, oldest starredAt first", () => {
+    const pinnedDirect = makeRoom({
+      id: "pinned-dm",
+      kind: "direct",
+      myAccess: "member",
+      starredAt: new Date("2026-08-02T12:00:00.000Z"),
+      updatedAt: new Date("2026-09-01T00:00:00.000Z"),
+    });
+    const pinnedChannel = makeRoom({
+      id: "pinned-channel",
+      kind: "channel",
+      myAccess: "member",
+      starredAt: new Date("2026-08-02T10:00:00.000Z"),
+    });
+    const pinnedGuest = makeRoom({
+      id: "pinned-guest",
+      kind: "channel",
+      myAccess: "guest",
+      discoverability: "external",
+      starredAt: new Date("2026-08-02T11:00:00.000Z"),
+    });
+    const channel = makeRoom({
+      id: "channel",
+      kind: "channel",
+      myAccess: "member",
+    });
+
+    const result = partitionRoomsForSidebar([
+      pinnedDirect,
+      channel,
+      pinnedGuest,
+      pinnedChannel,
+    ]);
+
+    expect(result.pinned.map((r) => r.id)).toEqual([
+      "pinned-channel",
+      "pinned-guest",
+      "pinned-dm",
+    ]);
+    expect(result.namedChannels.map((r) => r.id)).toEqual(["channel"]);
+    expect(result.directMessages).toEqual([]);
+    expect(result.externalJoined).toEqual([]);
   });
 });

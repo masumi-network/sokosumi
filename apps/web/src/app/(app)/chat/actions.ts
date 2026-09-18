@@ -97,6 +97,8 @@ export interface ChatComposeSokoBot {
 
 export interface ChatComposeRoster {
   currentUserId: string;
+  currentUserName: string;
+  currentUserImage: string | null;
   organizationName: string;
   hasOrganization: boolean;
   canCreateExternal: boolean;
@@ -144,8 +146,12 @@ export async function loadChatComposeRosterAction(): Promise<
     return roomFail("Sign in required.");
   }
 
+  const self = {
+    currentUserId: session.user.id,
+    currentUserName: session.user.name,
+    currentUserImage: session.user.image ?? null,
+  };
   try {
-    const currentUserId = session.user.id;
     const [activeOrganization, coworkers, bot, t] = await Promise.all([
       userService.getActiveOrganization(),
       coworkerService.listCoworkers("chat"),
@@ -165,7 +171,7 @@ export async function loadChatComposeRosterAction(): Promise<
 
     if (!activeOrganization) {
       return roomOk({
-        currentUserId,
+        ...self,
         organizationName: "",
         hasOrganization: false,
         canCreateExternal: false,
@@ -182,7 +188,7 @@ export async function loadChatComposeRosterAction(): Promise<
     ]);
 
     return roomOk({
-      currentUserId,
+      ...self,
       organizationName: activeOrganization.name,
       hasOrganization: true,
       canCreateExternal: Boolean(
@@ -193,8 +199,18 @@ export async function loadChatComposeRosterAction(): Promise<
       sokoBots,
       membersLoadFailed: membersPage.failed,
     });
-  } catch (error) {
-    return roomCatch(error, "Could not load chat recipients.");
+  } catch {
+    // Session identity stays usable for self-chat when recipient services fail.
+    return roomOk({
+      ...self,
+      organizationName: "",
+      hasOrganization: Boolean(session.session.activeOrganizationId),
+      canCreateExternal: false,
+      members: [],
+      coworkers: [],
+      sokoBots: [],
+      membersLoadFailed: true,
+    });
   }
 }
 
@@ -931,6 +947,29 @@ export async function pinRoomMessageAction(
   }
 }
 
+/** Send to yourself: quote a room message into the caller's Self Direct. */
+export async function sendRoomMessageToSelfAction(
+  roomId: string,
+  messageId: string,
+): Promise<RoomActionResult<ChatRoomMessage>> {
+  const t = await getTranslations("App.Channels.Copy");
+  const cleanRoomId = cleanString(roomId);
+  const cleanMessageId = cleanString(messageId);
+  if (!cleanRoomId || !cleanMessageId) {
+    return roomFail(t("sendToSelfError"));
+  }
+
+  try {
+    const message = await chatRoomService.sendMessageToSelf(
+      cleanRoomId,
+      cleanMessageId,
+    );
+    return roomOk(message);
+  } catch (error) {
+    return roomCatch(error, t("sendToSelfError"));
+  }
+}
+
 export async function listPinnedMessagesAction(
   roomId: string,
   options?: { cursor?: string; limit?: number },
@@ -980,10 +1019,11 @@ export async function unpinRoomMessageAction(
   }
 }
 
-export async function toggleMessageReactionAction(
+export async function setMessageReactionAction(
   roomId: string,
   messageId: string,
   emoji: string,
+  reacted: boolean,
 ): Promise<RoomActionResult<ChatRoomMessage>> {
   const cleanEmoji = cleanString(emoji);
   if (!cleanEmoji) {
@@ -991,10 +1031,11 @@ export async function toggleMessageReactionAction(
   }
 
   try {
-    const message = await chatRoomService.toggleReaction(
+    const message = await chatRoomService.setReaction(
       roomId,
       messageId,
       cleanEmoji,
+      reacted,
     );
     // No revalidatePath: the updated message is returned and merged client
     // side, so a full RSC re-render of /chat would only duplicate work.

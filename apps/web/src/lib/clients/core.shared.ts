@@ -61,7 +61,6 @@ import type {
   PostAgentsByIdRatingsData,
   PostChatsRoomsByIdFilesData,
   PostChatsRoomsByIdInviteLinksData,
-  PostChatsRoomsByIdMessagesByMessageIdReactionsData,
   PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveData,
   PostChatsRoomsByIdMessagesData,
   PostChatsRoomsData,
@@ -130,6 +129,7 @@ import {
   deleteChatsRoomsByIdMembersMe as coreDeleteChatsRoomsByIdMembersMe,
   deleteChatsRoomsByIdMessagesByMessageId as coreDeleteChatsRoomsByIdMessagesByMessageId,
   deleteChatsRoomsByIdMessagesByMessageIdPin as coreDeleteChatsRoomsByIdMessagesByMessageIdPin,
+  deleteChatsRoomsByIdMessagesByMessageIdReactionsByEmoji as coreDeleteChatsRoomsByIdMessagesByMessageIdReactionsByEmoji,
   deleteChatsRoomsByIdMute as coreDeleteChatsRoomsByIdMute,
   deleteChatsRoomsByIdStar as coreDeleteChatsRoomsByIdStar,
   deleteChatsRoomsByIdThreadsByParentMessageIdMute as coreDeleteChatsRoomsByIdThreadsByParentMessageIdMute,
@@ -313,7 +313,7 @@ import {
   postChatsRoomsByIdMessages as corePostChatsRoomsByIdMessages,
   postChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetry as corePostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetry,
   postChatsRoomsByIdMessagesByMessageIdPin as corePostChatsRoomsByIdMessagesByMessageIdPin,
-  postChatsRoomsByIdMessagesByMessageIdReactions as corePostChatsRoomsByIdMessagesByMessageIdReactions,
+  postChatsRoomsByIdMessagesByMessageIdSendToSelf as corePostChatsRoomsByIdMessagesByMessageIdSendToSelf,
   postChatsRoomsByIdMessagesByMessageIdUnfurlsRemove as corePostChatsRoomsByIdMessagesByMessageIdUnfurlsRemove,
   postChatsRoomsByIdMute as corePostChatsRoomsByIdMute,
   postChatsRoomsByIdRead as corePostChatsRoomsByIdRead,
@@ -365,6 +365,8 @@ import {
   postVendorsByIdFilesCleanup as corePostVendorsByIdFilesCleanup,
   postWorkspacesDesignMdAdhoc as corePostWorkspacesDesignMdAdhoc,
   promoteAdminSokoBotVersion as corePromoteAdminSokoBotVersion,
+  putChatsRoomsByIdMessagesByMessageIdReactionsByEmoji as corePutChatsRoomsByIdMessagesByMessageIdReactionsByEmoji,
+  putChatsRoomsStarred as corePutChatsRoomsStarred,
   putJobsByIdShare as corePutJobsByIdShare,
   putJobsByIdWorkspace as corePutJobsByIdWorkspace,
   putOrganizationsByIdDesignMd as corePutOrganizationsByIdDesignMd,
@@ -874,6 +876,18 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function reorderPinnedChatRooms(roomIds: string[]) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePutChatsRoomsStarred({
+          client,
+          body: { roomIds },
+        }),
+      "Failed to reorder pinned chat rooms",
+    );
+  }
+
   async function muteChatRoom(id: string) {
     return executeCoreOperation(
       getClient,
@@ -953,6 +967,18 @@ export function createCoreClient(getClient: GetCoreClient) {
           path: { id: roomId, messageId },
         }),
       "Failed to pin message",
+    );
+  }
+
+  async function sendChatRoomMessageToSelf(roomId: string, messageId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdMessagesByMessageIdSendToSelf({
+          client,
+          path: { id: roomId, messageId },
+        }),
+      "Failed to send message to yourself",
     );
   }
 
@@ -1107,22 +1133,35 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function toggleChatRoomMessageReaction(
-    id: string,
+  async function addChatRoomMessageReaction(
+    roomId: string,
     messageId: string,
-    body: NonNullable<
-      PostChatsRoomsByIdMessagesByMessageIdReactionsData["body"]
-    >,
+    emoji: string,
   ) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        corePostChatsRoomsByIdMessagesByMessageIdReactions({
+        corePutChatsRoomsByIdMessagesByMessageIdReactionsByEmoji({
           client,
-          path: { id, messageId },
-          body,
+          path: { id: roomId, messageId, emoji },
         }),
-      "Failed to update chat room message reaction",
+      "Failed to add chat room message reaction",
+    );
+  }
+
+  async function removeChatRoomMessageReaction(
+    roomId: string,
+    messageId: string,
+    emoji: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteChatsRoomsByIdMessagesByMessageIdReactionsByEmoji({
+          client,
+          path: { id: roomId, messageId, emoji },
+        }),
+      "Failed to remove chat room message reaction",
     );
   }
 
@@ -5065,16 +5104,19 @@ export function createCoreClient(getClient: GetCoreClient) {
     unmuteChatRoomThread,
     pinChatRoom,
     unpinChatRoom,
+    reorderPinnedChatRooms,
     getChatRoomPinnedMessages,
     pinChatRoomMessage,
     unpinChatRoomMessage,
+    sendChatRoomMessageToSelf,
     muteChatRoom,
     unmuteChatRoom,
     markChatRoomUnread,
     deleteChatRoomMessage,
     removeChatRoomMessageUnfurl,
     retryChatRoomMention,
-    toggleChatRoomMessageReaction,
+    addChatRoomMessageReaction,
+    removeChatRoomMessageReaction,
     getHistory,
     getNotifications,
     getNotificationsCounts,

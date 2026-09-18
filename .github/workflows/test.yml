@@ -94,6 +94,14 @@ jobs:
         if: needs.changes.outputs.js == 'true' || github.event_name == 'workflow_dispatch'
         run: ${{ matrix.target.command }}
 
+      # Build and launch the compiled binary: the Build job builds it but never
+      # runs it, and the CLI test suite exercises source via tsx, not dist.
+      - name: Smoke the built CLI
+        if: matrix.target.name == 'CLI' && (needs.changes.outputs.js == 'true' || github.event_name == 'workflow_dispatch')
+        run: |
+          pnpm --filter ./apps/cli build
+          node apps/cli/dist/bin/sokosumi.js --version
+
       - name: Test job sync against PostgreSQL
         if: matrix.target.name == 'Packages' && (needs.changes.outputs.js == 'true' || github.event_name == 'workflow_dispatch')
         env:

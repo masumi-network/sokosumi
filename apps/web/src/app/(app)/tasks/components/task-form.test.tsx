@@ -59,8 +59,30 @@ vi.mock("@/components/modals/global-modals-context", () => ({
 }));
 
 vi.mock("@/components/jobs/job-details/file-chip-with-metadata", () => ({
-  FileChipMiniPreviewWithMetadata: ({ url }: { url: string }) => (
-    <div>{url}</div>
+  FileChipWithMetadata: ({
+    url,
+    fileName,
+  }: {
+    url: string;
+    fileName?: string | null;
+  }) => <div>{fileName ?? url}</div>,
+  FileChipMiniPreviewWithMetadata: ({
+    url,
+    onRemove,
+    removeLabel,
+  }: {
+    url: string;
+    onRemove?: () => void;
+    removeLabel?: string;
+  }) => (
+    <div data-testid="file-chip-mini-preview">
+      {url}
+      {onRemove ? (
+        <button type="button" onClick={onRemove}>
+          {removeLabel ?? "Remove file"}
+        </button>
+      ) : null}
+    </div>
   ),
 }));
 
@@ -128,6 +150,7 @@ vi.mock("./markdown-editor", () => ({
       insertText: (text: string) => onChange(`${value}${text}`),
       insertLink: (label: string, url: string) =>
         onChange(`${value}[${label}](${url})`),
+      openDrivePicker: () => undefined,
     }));
     return (
       <div>
@@ -192,6 +215,34 @@ vi.mock("./task-context-attachments", () => ({
     briefingEnabled: true,
     contextMdEnabled: true,
   }),
+  getTaskContextSelectionFromDescription: (
+    description: string,
+    options: {
+      project?: { designMd?: unknown };
+    } = {},
+  ) => {
+    const hasDesign = description.includes("[DESIGN.md]");
+    const hasBriefing = description.includes("[BRIEFING.md]");
+    const hasMemory = description.includes("[CONTEXT.md]");
+    const body = description
+      .replace(/\[DESIGN\.md\]\([^)]*\)\n?/g, "")
+      .replace(/\[BRIEFING\.md\]\([^)]*\)\n?/g, "")
+      .replace(/\[CONTEXT\.md\]\([^)]*\)\n?/g, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    return {
+      body,
+      selection: {
+        brand: {
+          enabled: hasDesign,
+          source: options.project?.designMd ? "project" : "default",
+          custom: null,
+        },
+        briefingEnabled: hasBriefing,
+        contextMdEnabled: hasMemory,
+      },
+    };
+  },
   TaskContextAttachmentsField: ({
     selection,
     onSelectionChange,
@@ -323,6 +374,7 @@ const baseLabels = {
   ) as Record<(typeof TaskStatus)[keyof typeof TaskStatus], string>,
   back: "Back",
   uploadFile: "Upload File",
+  removeAttachment: "Remove attachment",
   submit: "Save",
   createTask: "Create Task",
   scheduleTask: "Schedule Task",
@@ -504,8 +556,39 @@ describe("TaskForm", () => {
       screen.getByRole("heading", { name: "What should Elena do?" }),
     ).toBeInTheDocument();
     expect(
+      screen
+        .getAllByRole("button", { name: "Upload File" })
+        .some((button) => !button.classList.contains("sr-only")),
+    ).toBe(true);
+    expect(
       screen.queryByRole("button", { name: /Start from scratch/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("renders attachment previews from description links", () => {
+    render(
+      <TaskForm
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        taskId="task-1"
+        initialValues={{
+          assigneeId: "coworker-2",
+          name: "Task",
+          description:
+            "Body\n\n[brief.pdf](https://blob.example/users/u1/brief.pdf)",
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("file-chip-mini-preview")).toHaveTextContent(
+      "https://blob.example/users/u1/brief.pdf",
+    );
+    expect(
+      screen.getByRole("button", { name: "Remove attachment" }),
+    ).toBeInTheDocument();
   });
 
   it("does not create a task from Ctrl+Enter on wizard step 1", async () => {
@@ -540,6 +623,116 @@ describe("TaskForm", () => {
     });
 
     expect(createTaskMock).not.toHaveBeenCalled();
+  });
+
+  it("hides the title field on create and shows it on edit", () => {
+    const { rerender } = render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeUserId: "user-1" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByLabelText("Task name")).not.toBeInTheDocument();
+
+    rerender(
+      <TaskForm
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        taskId="task-1"
+        initialValues={{
+          name: "Task name",
+          description: "Initial description",
+          assigneeId: "coworker-1",
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText("Task name")).toHaveClass(
+      "text-xl",
+      "font-semibold",
+      "tracking-tight",
+    );
+  });
+
+  it("places project and context controls above the footer status row", () => {
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
+        initialValues={{ assigneeUserId: "user-1" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    const statusControl = screen.getByRole("combobox", { name: "Status" });
+    const contextAttachments = screen.getByTestId("context-attachments");
+    const projectSelect = screen.getByRole("combobox", { name: "Project" });
+
+    expect(
+      contextAttachments.compareDocumentPosition(statusControl) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      projectSelect.compareDocumentPosition(statusControl) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("puts visibility on the same chip row as project", () => {
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
+        initialValues={{ assigneeUserId: "user-1" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    const row = screen.getByTestId("task-compose-meta-row");
+    const projectSelect = screen.getByRole("combobox", { name: "Project" });
+    const privateButton = screen.getByLabelText("Private");
+
+    expect(row).toContainElement(projectSelect);
+    expect(row).toContainElement(privateButton);
+    expect(row).toHaveClass("flex");
+    expect(privateButton).not.toHaveClass("w-full");
+  });
+
+  it("omits name on create", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue(createTaskSuccess("task-1", "My task"));
+
+    render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeUserId: "user-1" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByTestId("markdown-editor"), "Write docs");
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    expect(createTaskMock).toHaveBeenCalledTimes(1);
+    expect(createTaskMock.mock.calls[0]?.[0]).not.toHaveProperty("name");
   });
 
   it("shows the footer status pill defaulting to Draft on create", () => {
@@ -2288,6 +2481,153 @@ describe("TaskForm", () => {
     });
   });
 
+  it("shows Context on edit with selection derived from description links", () => {
+    const designMdUrl = "https://blob.example/design-md/projects/p1/hash.md";
+    const briefingUrl = "https://blob.example/projects/p1/BRIEFING.md";
+    const contextMdUrl = "https://blob.example/projects/p1/CONTEXT.md";
+
+    render(
+      <TaskForm
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
+        taskId="task-1"
+        initialValues={{
+          name: "Launch post",
+          description: [
+            `[DESIGN.md](${designMdUrl})`,
+            `[BRIEFING.md](${briefingUrl})`,
+            `[CONTEXT.md](${contextMdUrl})`,
+            "",
+            "Draft the LinkedIn launch post",
+          ].join("\n"),
+          assigneeId: "coworker-2",
+          projectId: "project-1",
+          status: TaskStatus.DRAFT,
+        }}
+        initialDesignMdAttachment={{
+          label: "DESIGN.md",
+          url: "https://blob.example/design-md/org/hash.md",
+          owner: { type: "organization", name: "Acme Inc", logo: null },
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("context-attachments")).toBeInTheDocument();
+    expect(screen.getByTestId("markdown-editor")).toHaveValue(
+      "Draft the LinkedIn launch post",
+    );
+    expect(
+      screen.getByRole("button", { name: "context-brand" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByRole("button", { name: "context-briefing" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByRole("button", { name: "context-memory" }),
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("keeps Save enabled for Context-only tasks on edit", async () => {
+    const user = userEvent.setup();
+    const updateTaskMock = vi.mocked(updateTask);
+    updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+    const designMdUrl = "https://blob.example/design-md/projects/p1/hash.md";
+
+    render(
+      <TaskForm
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
+        taskId="task-1"
+        initialValues={{
+          name: "Launch post",
+          description: `[DESIGN.md](${designMdUrl})`,
+          assigneeId: "coworker-2",
+          projectId: "project-1",
+          status: TaskStatus.DRAFT,
+        }}
+        initialDesignMdAttachment={{
+          label: "DESIGN.md",
+          url: "https://blob.example/design-md/org/hash.md",
+          owner: { type: "organization", name: "Acme Inc", logo: null },
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("markdown-editor")).toHaveValue("");
+    const saveButton = screen.getByRole("button", { name: "Save" });
+    expect(saveButton).toBeEnabled();
+
+    await user.click(saveButton);
+
+    expect(updateTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskId: "task-1",
+        description: "",
+        context: expect.objectContaining({
+          brand: expect.objectContaining({ enabled: true }),
+        }),
+      }),
+    );
+  });
+
+  it("sends Context selection when saving an edit", async () => {
+    const user = userEvent.setup();
+    const updateTaskMock = vi.mocked(updateTask);
+    updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+
+    render(
+      <TaskForm
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        projectOptions={projectOptions}
+        taskId="task-1"
+        initialValues={{
+          name: "Launch post",
+          description: [
+            "[DESIGN.md](https://blob.example/design.md)",
+            "",
+            "Draft the LinkedIn launch post",
+          ].join("\n"),
+          assigneeId: "coworker-2",
+          projectId: "project-1",
+          status: TaskStatus.DRAFT,
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "context-brand" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(updateTaskMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          taskId: "task-1",
+          description: "Draft the LinkedIn launch post",
+          context: {
+            brand: {
+              enabled: false,
+              source: "project",
+              custom: null,
+            },
+            briefingEnabled: false,
+            contextMdEnabled: false,
+          },
+        }),
+      ),
+    );
+  });
+
   it("passes projectId when creating a task from the project picker", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
@@ -2372,7 +2712,7 @@ describe("TaskForm", () => {
     );
 
     const projectSelect = screen.getByRole("combobox", { name: "Project" });
-    expect(projectSelect).toHaveTextContent(baseLabels.projectPlaceholder);
+    expect(projectSelect).toHaveTextContent(baseLabels.projectLabel);
 
     await user.type(screen.getByTestId("markdown-editor"), "Write docs");
     await user.click(screen.getByRole("button", { name: "Create Task" }));

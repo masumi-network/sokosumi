@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   editRoomMessageAction,
   pinRoomMessageAction,
-  toggleMessageReactionAction,
+  setMessageReactionAction,
   unpinRoomMessageAction,
 } from "@/app/chat/actions";
 import type { RoomComposerHandle } from "@/app/chat/components/room-composer";
@@ -128,7 +128,7 @@ vi.mock("@/app/chat/actions", () => ({
   pinRoomMessageAction: vi.fn(),
   retryRoomMentionAction: vi.fn(),
   sendRoomMessageAction: vi.fn(),
-  toggleMessageReactionAction: vi.fn(),
+  setMessageReactionAction: vi.fn(),
   unpinRoomMessageAction: vi.fn(),
 }));
 
@@ -257,6 +257,7 @@ function channelRoom(): ChatRoom {
     name: "general",
     slug: "general",
     kind: "channel",
+    isSelfDirect: false,
     directKey: null,
     topic: null,
     discoverability: "public",
@@ -441,14 +442,14 @@ describe("RoomsClient transcript row render isolation", () => {
   });
 
   it("re-renders only the reacted row", async () => {
-    vi.mocked(toggleMessageReactionAction).mockImplementation(
-      async (_roomId, messageId, emoji) => ({
+    vi.mocked(setMessageReactionAction).mockImplementation(
+      async (_roomId, messageId, emoji, reacted) => ({
         ok: true as const,
         value: {
           ...message(messageId, 2),
-          reactions: [
-            { emoji, count: 1, reactedByCurrentUser: true, reactors: [] },
-          ],
+          reactions: reacted
+            ? [{ emoji, count: 1, reactedByCurrentUser: true, reactors: [] }]
+            : [],
         },
       }),
     );
@@ -458,12 +459,14 @@ describe("RoomsClient transcript row render isolation", () => {
       fireEvent.click(screen.getByRole("button", { name: "React m2" }));
     });
 
-    expect(toggleMessageReactionAction).toHaveBeenCalledWith(
+    expect(setMessageReactionAction).toHaveBeenCalledWith(
       "room-channel",
       "m2",
       "👍",
+      true,
     );
-    expect(rendersSince(before)).toEqual({ m1: 0, m2: 1, m3: 0 });
+    // Once for the Pending reaction, once for the confirmed entry.
+    expect(rendersSince(before)).toEqual({ m1: 0, m2: 2, m3: 0 });
   });
 
   it("re-renders only the row entering edit mode", async () => {

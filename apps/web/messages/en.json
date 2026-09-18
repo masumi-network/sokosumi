@@ -101,9 +101,6 @@
         }
       },
       "AgentDetail": {
-        "Header": {
-          "pricing": "{credits, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
-        },
         "Stats": {
           "executedJobs": "Executed Jobs",
           "averageExecutionTime": "Average Execution Time",
@@ -1635,6 +1632,7 @@
         "created": "Created",
         "updated": "Updated",
         "description": "Description",
+        "context": "Context",
         "linkedTasksTitle": "Linked tasks",
         "linkedTasksEmpty": "No linked tasks yet.",
         "jobs": "Jobs",
@@ -5237,6 +5235,7 @@
         "markUnread": "Mark as unread",
         "pin": "Pin",
         "unpin": "Unpin",
+        "reorderHandle": "Reorder {name}. Drag, or press the up and down arrow keys.",
         "mute": "Mute",
         "unmute": "Unmute",
         "roomMenu": "Chat actions for {name}",
@@ -5258,6 +5257,9 @@
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflowCount": "{count} more participants",
       "directMessages": "Direct Messages",
+      "pinned": "Pinned",
+      "reorderPinned": "Reorder pinned chats",
+      "reorderPinnedDone": "Done reordering",
       "loading": "Loading...",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "composerTooLong": "Message is too long ({count}/{max}). Shorten it to send.",
@@ -5330,7 +5332,8 @@
         "removeRecipient": "Remove {name}",
         "groupDirectHumansOnly": "Group direct messages are humans only.",
         "coworkerDirectOneToOneOnly": "Coworker direct messages are 1:1.",
-        "personalAssistantDirectOneToOneOnly": "Personal assistant direct messages are 1:1."
+        "personalAssistantDirectOneToOneOnly": "Personal assistant direct messages are 1:1.",
+        "openFailed": "Could not open the conversation. Try again."
       },
       "RoomSearch": {
         "open": "Search in this chat",
@@ -5457,9 +5460,16 @@
         "editedAt": "Edited {when}"
       },
       "Copy": {
-        "action": "Copy",
+        "action": "Copy text",
+        "link": "Copy link",
         "success": "Copied to clipboard",
-        "error": "Failed to copy"
+        "error": "Failed to copy",
+        "linkSuccess": "Link copied",
+        "linkError": "Failed to copy link",
+        "sendToSelf": "Send to yourself",
+        "sendToSelfSuccess": "Sent to yourself",
+        "sendToSelfError": "Failed to send to yourself",
+        "sendToSelfOpen": "Open"
       },
       "MentionAll": {
         "label": "Everyone"
@@ -5543,11 +5553,13 @@
       },
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# unread message} other {# unread messages}}",
-        "unreadMessagesCapped": "More than {max} unread messages"
+        "unreadMessagesCapped": "More than {max} unread messages",
+        "railUnread": "Unread"
       },
       "RoomMentions": {
         "mentions": "{count, plural, one {# mention} other {# mentions}}",
-        "mentionsCapped": "More than {max} mentions"
+        "mentionsCapped": "More than {max} mentions",
+        "railMention": "Mentions you"
       },
       "MembershipStatus": {
         "joined": "{name} joined",
@@ -5678,6 +5690,12 @@
             "footer": "Back to chat"
           }
         }
+      },
+      "SelfDirect": {
+        "messageYourself": "Message yourself",
+        "you": "You",
+        "description": "Send yourself notes and to-dos. Only you can see them.",
+        "exclusive": "Self-chat cannot include other recipients."
       }
     },
     "Drive": {
@@ -5720,7 +5738,7 @@
       "moreActions": "More actions",
       "uploadFab": "Upload file",
       "folder": "Folder",
-      "createFolder": "Create folder",
+      "createFolder": "New",
       "folderName": "Folder name",
       "createFolderDialogTitle": "Create new folder",
       "createFolderDialogDescription": "Enter a name for the new folder",

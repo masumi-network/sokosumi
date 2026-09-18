@@ -191,9 +191,7 @@ function DelegationChips({ delegations }: { delegations: ChatDelegation[] }) {
       {collapsed.map((delegation) => {
         const href = delegation.taskId
           ? `/tasks/${encodeURIComponent(delegation.taskId)}`
-          : delegation.jobId
-            ? `/jobs/${encodeURIComponent(delegation.jobId)}`
-            : null;
+          : null;
         const label = delegation.kind === "TASK" ? t("task") : t("job");
         const failed = delegation.outcome === "failed" || delegation.error;
         const body = (
@@ -204,7 +202,7 @@ function DelegationChips({ delegations }: { delegations: ChatDelegation[] }) {
                 failed
                   ? "bg-semantic-destructive"
                   : delegation.outcome === "processing"
-                    ? "bg-semantic-info"
+                    ? "bg-status-working"
                     : "bg-primary",
               )}
               aria-hidden

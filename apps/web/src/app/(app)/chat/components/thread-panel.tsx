@@ -5,7 +5,10 @@ import { ChevronLeft, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type RefObject, useMemo, useRef, useState } from "react";
 import { CHAT_MESSAGE_LIST_THREAD } from "@/app/chat/chat-message-list";
-import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
+import {
+  CHAT_MESSAGE_LIST_CONTENT_CLASS,
+  CHAT_MESSAGE_LIST_SCROLLER_CLASS,
+} from "@/app/chat/chat-message-list-scroller";
 import {
   TranscriptBoundaryRow,
   type TranscriptBoundaryStatus,
@@ -14,6 +17,7 @@ import {
   TranscriptViewport,
   type TranscriptViewportHandle,
 } from "@/app/chat/components/transcript-viewport";
+import { useQuietHoverWhileScrolling } from "@/app/chat/hooks/use-quiet-hover-while-scrolling";
 import { isCurrentUserMentionerOfFailedShell } from "@/app/chat/utils/coworker-thought";
 import type { RoomTranscriptRenderRow } from "@/app/chat/utils/room-transcript-ranges";
 import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
@@ -25,6 +29,7 @@ import type {
   ChatRoomSokoBotParticipant,
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
+import { cn } from "@/lib/utils";
 import { MembershipStatusRow } from "./membership-status-row";
 import { type RoomComposerHandle } from "./room-composer";
 import { RoomFileDropZone } from "./room-file-drop-zone";
@@ -110,6 +115,7 @@ export function ThreadPanel({
   onRetryMention,
   onRemoveOutbound,
   onJumpToQuotedMessage,
+  onSendToSelf,
   outboundSentTickIds,
   editSession = null,
   onEditDraftChange,
@@ -163,6 +169,7 @@ export function ThreadPanel({
   onRetryMention?: (message: ChatRoomMessage) => void;
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
   onJumpToQuotedMessage?: (messageId: string) => void;
+  onSendToSelf?: (message: ChatRoomMessage) => void;
   outboundSentTickIds?: ReadonlySet<string>;
   editSession?: { messageId: string; draft: string } | null;
   onEditDraftChange?: (value: string) => void;
@@ -186,6 +193,7 @@ export function ThreadPanel({
   const localViewportRef = useRef<TranscriptViewportHandle | null>(null);
   const viewportRef = viewportRefFromParent ?? localViewportRef;
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
+  useQuietHoverWhileScrolling(scroller);
   const transcriptRows = useMemo(
     () =>
       buildThreadTranscriptRows(
@@ -281,6 +289,7 @@ export function ThreadPanel({
             onRetryMention={retryMentionFor(message)}
             onRemoveOutbound={isParent ? undefined : onRemoveOutbound}
             onJumpToQuotedMessage={onJumpToQuotedMessage}
+            onSendToSelf={onSendToSelf}
             showOutboundSentTick={
               isParent ? undefined : outboundSentTickIds?.has(message.id)
             }
@@ -364,7 +373,10 @@ export function ThreadPanel({
             // Named so a room-scoped lookup does not find this copy of a
             // message id the transcript also renders.
             data-chat-message-list={CHAT_MESSAGE_LIST_THREAD}
-            className="flex min-h-full min-w-0 w-full flex-col justify-end px-4 pt-4 pb-2 md:pb-3"
+            className={cn(
+              CHAT_MESSAGE_LIST_CONTENT_CLASS,
+              "px-4 pt-4 pb-2 md:pb-3",
+            )}
           >
             <TranscriptViewport
               key={parentMessage.id}

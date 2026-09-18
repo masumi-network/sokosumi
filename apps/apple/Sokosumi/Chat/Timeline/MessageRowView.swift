@@ -4,19 +4,14 @@ import SokosumiChat
 import SwiftUI
 
 #if os(macOS)
-  /// Wall-clock HH:mm in the local timezone, like web `formatMessageTime`.
-  private let messageTimeFormatter: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.timeStyle = .short
-    formatter.dateStyle = .none
-    return formatter
-  }()
+  import AppKit
 
   /// Delivery mark in the header or continuation gutter; retains the header clock until needed.
   private struct DeliveryFeedback: View {
     let pendingSince: Date?
     let sentAt: Date?
     var timestamp: Date?
+    @Environment(\.timeFormat) private var timeFormat
     @State private var showSending = false
 
     var body: some View {
@@ -30,7 +25,8 @@ import SwiftUI
             .accessibilityLabel("Sent")
             .help("Sent")
         } else if let timestamp {
-          Text(messageTimeFormatter.string(from: timestamp))
+          // Wall-clock time in the local timezone, like web `formatMessageTime`.
+          Text(timeFormat.time(timestamp))
         }
       }
       .font(.caption)
@@ -59,6 +55,8 @@ import SwiftUI
     var sentAt: Date?
     let onRetry: (() -> Void)?
     let onRemove: (() -> Void)?
+    /// Mentioner-only retry of a failed coworker mention shell.
+    var onRetryMention: (() async throws -> Void)?
     var onReply: (() -> Void)?
     var onQuote: (() -> Void)?
     var onEdit: (() -> Void)?
@@ -68,14 +66,18 @@ import SwiftUI
     var onTogglePin: (() async throws -> Void)?
     var onDelete: (() async throws -> Void)?
     var onRemoveUnfurl: ((String) async throws -> Void)?
-    var onToggleReaction: ((String) async throws -> Void)?
-    var pendingReactionEmoji: Set<String> = []
+    /// Returns whether the requests this tap started left the viewer's reaction on the message.
+    var onToggleReaction: ((String) async throws -> Bool)?
     var editing: MessageEditing?
     var onQuoteJump: ((String) -> Void)?
+    /// Send to yourself. Absent inside the Self Direct and for rows that are not durable.
+    var onSendToSelf: (() async throws -> Components.Schemas.ChatRoomMessage)?
     var horizontalInset: CGFloat = 0
     var streamReasoning: String?
     var streamThinking = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.openURL) private var openURL
+    @Environment(\.timeFormat) private var timeFormat
     @State private var quickReactions = ReactionEmojiHistory.defaultQuickReactions
     @State private var showsReactionPicker = false
     @State private var pinError: String?
@@ -86,6 +88,12 @@ import SwiftUI
     @State private var isDeleting = false
     @State private var deletionError: String?
     @State private var showsDeletionError = false
+    @State private var isRetryingMention = false
+    @State private var mentionRetryError: String?
+    @State private var showsMentionRetryError = false
+    @State private var isSendingToSelf = false
+    @State private var sentToSelf: Components.Schemas.ChatRoomMessage?
+    @State private var sendToSelfError: String?
     @State private var isHovered = false
     @State private var isReplyHovered = false
     @State private var hoveredAction: MessageAction?
@@ -102,6 +110,31 @@ import SwiftUI
       isHovered || isReplyHovered || focusedAction != nil || showsReactionPicker
     }
 
+    /// Persisted mention shell (thinking or failed); nil for ordinary rows.
+    private var mentionShell: CoworkerMentionShell? {
+      CoworkerMentionShell(message: message)
+    }
+
+    /// Web `isDurableRoomMessage`: no link while the shell is still thinking.
+    private var canCopyMessageLink: Bool {
+      message.deletedAt == nil
+        && !isOutboundLocalMessage(message)
+        && !message.id.hasPrefix("stream:")
+        && mentionShell?.isThinking != true
+    }
+
+    /// Hop badge on a message one assistant wrote to another; web shows it in the hover pill.
+    private var sokoBotChain: SokoBotChainMetadata? {
+      SokoBotChainMetadata(message: message)
+    }
+
+    private var showsActionChrome: Bool {
+      message.deletedAt == nil
+        && mentionShell?.isThinking != true
+        && (onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil
+          || onTogglePin != nil || onToggleReaction != nil || canCopyMessageLink || onSendToSelf != nil || sokoBotChain != nil)
+    }
+
     private var reactionAction: ((String) -> Void)? {
       guard onToggleReaction != nil else { return nil }
       return { emoji in toggleReaction(emoji) }
@@ -109,12 +142,11 @@ import SwiftUI
 
     private func toggleReaction(_ emoji: String) {
       guard let onToggleReaction else { return }
-      // Match web: adding teaches quick reactions; removing does not.
-      let isAdding = !message.reactions.contains { $0.emoji == emoji && $0.reactedByCurrentUser }
       Task { @MainActor in
         do {
-          try await onToggleReaction(emoji)
-          if isAdding {
+          // Match web: adding teaches quick reactions; removing does not. Taps
+          // absorbed by a running request answer false, so on/off/on counts once.
+          if try await onToggleReaction(emoji) {
             ReactionEmojiHistory().record(emoji)
           }
         } catch {
@@ -134,6 +166,29 @@ import SwiftUI
           showsDeletionError = true
         }
       }
+    }
+
+    /// Retry state lives on the row: optimistic thinking unmounts the failed
+    /// shell, and a child alert would die with it.
+    private func retryMention() {
+      guard !isRetryingMention, let onRetryMention else { return }
+      isRetryingMention = true
+      Task { @MainActor in
+        defer { isRetryingMention = false }
+        do { try await onRetryMention() } catch {
+          mentionRetryError = friendlyMessage(for: error)
+          showsMentionRetryError = true
+        }
+      }
+    }
+
+    private var mentionRetryHandler: (() -> Void)? {
+      guard onRetryMention != nil else { return nil }
+      return retryMention
+    }
+
+    private var failedMentionView: some View {
+      CoworkerMentionFailedView(onRetry: mentionRetryHandler, isRetrying: isRetryingMention)
     }
 
     private var pinnedLabel: some View {
@@ -173,7 +228,7 @@ import SwiftUI
               DeliveryFeedback(pendingSince: pendingSince, sentAt: sentAt,
                                timestamp: message.createdAt)
               if message.editedAt != nil, message.deletedAt == nil {
-                Text("Edited").help(message.editedAt?.formatted(date: .abbreviated, time: .shortened) ?? "")
+                Text("Edited").help(message.editedAt.map { timeFormat.dateTime($0) } ?? "")
                   .font(.caption)
                   .foregroundStyle(.secondary)
               }
@@ -182,9 +237,15 @@ import SwiftUI
               }
             }
           }
-          if isCoworkerMessage(message), message.deletedAt == nil {
+          let mentionShell = mentionShell
+          if case .failed? = mentionShell {
+            failedMentionView
+          } else if isCoworkerMessage(message), message.deletedAt == nil {
+            // A persisted mention shell keeps the live Thought header until Core
+            // fills the answer; its clock starts at `thought_timing_ms.start`.
             CoworkerThoughtView(thought: CoworkerThought(message: message, streamedText: streamReasoning),
-                                working: streamThinking, startedAt: message.createdAt)
+                                working: streamThinking || mentionShell != nil,
+                                startedAt: mentionShell?.startedAt ?? message.createdAt)
           }
           if message.deletedAt != nil {
             Text("This message was deleted")
@@ -192,26 +253,31 @@ import SwiftUI
               .foregroundStyle(.secondary)
           } else {
             if let quote = message.quote {
-              MessageQuoteView(quote: quote, room: room, channels: channels, jump: onQuoteJump)
+              MessageQuoteView(quote: quote, room: room, channels: channels, jump: quoteJump(for: quote))
                 .id(quote.messageId + quote.snippet)
             }
             if let editing, editing.source?.id == message.id {
               MessageEditComposer(editing: editing).id(message.id)
-            } else {
+            } else if mentionShell == nil, message.quote == nil || !message.content.isEmpty {
+              // Mention shells render their own state; Send to yourself posts only a quote, so there is no body to render.
               MessageMarkdownView(source: message.content, room: room, channels: channels, preparedDocument: preparedDocument)
             }
-            if outbound == nil {
+            if outbound == nil, mentionShell == nil {
               ForEach(message.unfurls ?? [], id: \.url) { preview in
                 MessageUnfurlView(preview: preview, remove: onRemoveUnfurl.map { action in { try await action(preview.url) } })
                   .id(preview.url + (preview.imageUrl ?? ""))
               }
+              // Web renders the Soko Bot footer only once the turn's answer is in the row.
+              if let turn = SokoBotTurnMetadata(message: message) {
+                SokoBotMessageFooterView(turn: turn)
+              }
             }
             if isContinuation, message.editedAt != nil {
-              Text("Edited").help(message.editedAt?.formatted(date: .abbreviated, time: .shortened) ?? "").font(.caption).foregroundStyle(.secondary)
+              Text("Edited").help(message.editedAt.map { timeFormat.dateTime($0) } ?? "").font(.caption).foregroundStyle(.secondary)
             }
           }
           if message.deletedAt == nil, outbound == nil, !message.reactions.isEmpty {
-            MessageReactionsView(reactions: message.reactions, pendingEmoji: pendingReactionEmoji, toggle: reactionAction)
+            MessageReactionsView(reactions: message.reactions, toggle: reactionAction)
           }
           if let onReply, message.threadReplyCount > 0 {
             Button("^[\(message.threadReplyCount) reply](inflect: true)", action: onReply)
@@ -244,12 +310,12 @@ import SwiftUI
       .background {
         if isHighlighted {
           Color.accentColor.opacity(0.12)
-        } else if isHovered || isReplyHovered, onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil || onTogglePin != nil || onToggleReaction != nil {
+        } else if isHovered || isReplyHovered, showsActionChrome {
           Color.primary.opacity(0.04)
         }
       }
       .overlay(alignment: .topTrailing) {
-        if message.deletedAt == nil, onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil || onTogglePin != nil || onToggleReaction != nil {
+        if showsActionChrome {
           ViewThatFits(in: .horizontal) {
             actionControls(compact: false)
             actionControls(compact: true)
@@ -297,6 +363,21 @@ import SwiftUI
       } message: {
         Text(reactionError ?? "Try again.")
       }
+      .alert("Sent to yourself", isPresented: Binding(get: { sentToSelf != nil }, set: {
+        if !$0 {
+          sentToSelf = nil
+        }
+      }), presenting: sentToSelf) { saved in
+        Button("Open") { openSavedMessage(saved) }
+        Button("OK", role: .cancel) {}
+      }
+      .alert("Couldn’t send to yourself", isPresented: Binding(get: { sendToSelfError != nil }, set: {
+        if !$0 {
+          sendToSelfError = nil
+        }
+      })) {
+        Button("OK", role: .cancel) {}
+      } message: { Text(sendToSelfError ?? "Try again.") }
       .alert("Delete message?", isPresented: $confirmsDeletion) {
         Button("Cancel", role: .cancel) {}
         Button("Delete", role: .destructive) { deleteMessage() }
@@ -308,9 +389,20 @@ import SwiftUI
       } message: {
         Text(deletionError ?? "Try again.")
       }
+      .alert("Couldn’t retry the mention", isPresented: $showsMentionRetryError) {
+        Button("OK", role: .cancel) {}
+      } message: {
+        Text(mentionRetryError ?? "Try again.")
+      }
       .contextMenu {
         if onTogglePin != nil {
           pinButton
+        }
+        if canCopyMessageLink {
+          copyLinkButton
+        }
+        if onSendToSelf != nil {
+          sendToSelfButton
         }
         if onToggleReaction != nil, message.deletedAt == nil {
           Button("Add reaction", systemImage: "face.smiling") { showsReactionPicker = true }
@@ -332,6 +424,12 @@ import SwiftUI
       }
       .accessibilityElement(children: .contain)
       .accessibilityActions {
+        if canCopyMessageLink {
+          Button("Copy link", action: copyMessageLink)
+        }
+        if onSendToSelf != nil, !isSendingToSelf {
+          Button("Send to yourself", action: sendToSelf)
+        }
         if onToggleReaction != nil, message.deletedAt == nil {
           Button("Add reaction") { showsReactionPicker = true }
         }
@@ -354,6 +452,10 @@ import SwiftUI
 
     private func actionControls(compact: Bool) -> some View {
       HStack(spacing: 2) {
+        if let sokoBotChain {
+          SokoBotChainBadge(chain: sokoBotChain)
+            .padding(.horizontal, 4)
+        }
         if onToggleReaction != nil {
           ForEach(Array(quickReactions.enumerated()), id: \.element.id) { index, emoji in
             quickReactionButton(emoji, position: index)
@@ -366,7 +468,7 @@ import SwiftUI
         if let onQuote {
           messageAction("Quote", symbol: "quote.opening", focus: .quote, compact: compact, action: onQuote)
         }
-        if onEdit != nil || onDelete != nil || onTogglePin != nil {
+        if onEdit != nil || onDelete != nil || onTogglePin != nil || canCopyMessageLink || onSendToSelf != nil {
           moreActions
         }
       }
@@ -377,6 +479,12 @@ import SwiftUI
       Menu {
         if onTogglePin != nil {
           pinButton
+        }
+        if canCopyMessageLink {
+          copyLinkButton
+        }
+        if onSendToSelf != nil {
+          sendToSelfButton
         }
 
         if let onEdit {
@@ -421,7 +529,6 @@ import SwiftUI
           .contentShape(.rect)
       }
       .buttonStyle(.plain)
-      .disabled(pendingReactionEmoji.contains(emoji.emoji))
       .onHover { hoveredAction = $0 ? focus : nil }
       .focused($focusedAction, equals: focus)
       .help(":\(emoji.name):")
@@ -459,6 +566,50 @@ import SwiftUI
 
     private var pendingSince: Date? {
       outbound?.status == .pending ? outbound?.createdAt : nil
+    }
+
+    private var copyLinkButton: some View {
+      Button("Copy link", systemImage: "link", action: copyMessageLink)
+    }
+
+    private func copyMessageLink() {
+      guard let url = ChatLink.href(roomId: message.roomId, messageId: message.id, webBaseURL: CoreSettings.webBaseURL) else {
+        return
+      }
+      NSPasteboard.general.clearContents()
+      _ = NSPasteboard.general.setString(url.absoluteString, forType: .string)
+    }
+
+    private var sendToSelfButton: some View {
+      Button("Send to yourself", systemImage: "paperplane", action: sendToSelf)
+        .disabled(isSendingToSelf)
+    }
+
+    private func sendToSelf() {
+      guard let onSendToSelf, !isSendingToSelf else { return }
+      isSendingToSelf = true
+      Task { @MainActor in
+        defer { isSendingToSelf = false }
+        do {
+          sentToSelf = try await onSendToSelf()
+        } catch {
+          sendToSelfError = friendlyMessage(for: error)
+        }
+      }
+    }
+
+    private func openSavedMessage(_ saved: Components.Schemas.ChatRoomMessage) {
+      if let url = ChatLink.href(roomId: saved.roomId, messageId: saved.id, webBaseURL: CoreSettings.webBaseURL) {
+        openURL(url)
+      }
+    }
+
+    /// A quote sent to yourself from another room follows its Message link; same-room quotes scroll.
+    private func quoteJump(for quote: Components.Schemas.ChatRoomMessageQuote) -> ((String) -> Void)? {
+      guard let url = quoteSourceURL(quote, inRoom: message.roomId, webBaseURL: CoreSettings.webBaseURL) else {
+        return onQuoteJump
+      }
+      return { _ in openURL(url) }
     }
 
     private var pinButton: some View {

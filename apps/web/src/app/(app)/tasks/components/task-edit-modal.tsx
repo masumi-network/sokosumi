@@ -6,7 +6,10 @@ import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
-import type { TaskFormLabels } from "./task-form";
+import type {
+  TaskFormInitialDesignMdAttachment,
+  TaskFormLabels,
+} from "./task-form";
 import { TaskForm } from "./task-form";
 import { TaskFormModal } from "./task-form-modal";
 
@@ -29,6 +32,7 @@ interface TaskEditModalProps {
   projectOptions: ProjectFilterOption[];
   agentNameById: Map<string, string>;
   labels: TaskFormLabels;
+  initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
   /** Precondition for every schedule write made from this render. */
   scheduleRevision: number;
   /**
@@ -46,6 +50,7 @@ export function TaskEditModal({
   projectOptions,
   agentNameById,
   labels,
+  initialDesignMdAttachment = null,
   scheduleRevision,
   futureExceptionCount,
 }: TaskEditModalProps) {
@@ -77,6 +82,7 @@ export function TaskEditModal({
         agentNameById={agentNameById}
         taskId={taskId}
         initialValues={initialValues}
+        initialDesignMdAttachment={initialDesignMdAttachment}
         scheduleRevision={scheduleRevision}
         futureExceptionCount={futureExceptionCount}
         onCancel={handleClose}

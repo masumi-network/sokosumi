@@ -208,6 +208,26 @@ _Avoid_: Room slug (Directs have no slug), treating the slug as the Channel’s 
 An optional short description of what a Channel is for. Distinct from the Channel name and Channel slug. Absent when unset or blank. Directs have none.
 _Avoid_: Description, purpose, bio, treating a Direct as having a topic
 
+**Channel tile**:
+How a Channel identifies itself in the collapsed sidebar rail: the first letters of its name on a neutral square. A private, external, or matched Channel carries its kind as a small corner mark; a public one carries none. Directs show participant avatars instead. The expanded list keeps the plain kind glyph beside the name.
+_Avoid_: Channel avatar (Channels have no image), channel icon (nothing is chosen by a person), a colour per Channel (tried, five hues repeat across a dozen Channels and the repeats read as meaning), showing it beside the name in the expanded list
+
+**Rail attention pill**:
+The collapsed sidebar rail's single attention mark, a short bar on the rail's left edge beside a room's Channel tile or Direct avatar: 8px primary for an unread User mention or direct, 6px neutral for Room unread (including marked unread), none when read or Muted. Mention wins; never two marks and never a number. Off the mark itself, so the presence dot and the kind corner mark keep their corners. Derived from the same attention rules as the expanded row's bold and badge. A pending External invitation rides the rail the same way: the Channel tile the room will have once joined, under the 8px primary pill, because an invitation is addressed to the reader. Pressing it expands the sidebar, where Accept and Decline live.
+_Avoid_: Unread badge, attention dot, notification dot, a second mark for mention plus unread, a mark on the expanded list
+
+**Rail selection bar**:
+The collapsed sidebar rail's mark for whatever the reader has open — a Chat room or a nav destination such as Tasks or Projects: a 20px primary bar on the rail's **right** edge, pointing at the panel it opened. The mirror of the Rail attention pill, which owns the left edge, so a room can be both unread and open without the two marks arguing. How it looks belongs to `SidebarRailSelectionBar`; *when* it shows is each rail list's own call, so every rail item states itself the same way without the primitive guessing what "open" means for a row. Collapsed, every rail item is one 32px square (the logo, Soko Bots, nav, rooms and the account chip alike) and the rail's neutral fill belongs to hover alone (drawn as a ring around that square, deepened on press; Soko Bots alone keeps its expanded card's hover there, primary border and accent fill in place of the ring, the featured entry staying featured) — `--muted`, `--accent` and `--sidebar-accent` are one value in dark, so hover, selection and the Channel tile's own plate all read as the same 15% wash. Decorative; `aria-current` already announces it.
+_Avoid_: Active pill, selected dot, a left-edge selection bar (that edge is the attention pill's), a selected fill or tile recolour on the rail
+
+**Rail section header**:
+A chat sidebar section's heading on the collapsed sidebar rail: one 32px square holding the section's icon (Channels `#`, External a building, Direct Messages a speech bubble), named by its tooltip, which opens and closes the section there as the titled heading does expanded. It stands where the expanded heading's row stood, so it also marks where one section ends and the next begins. Dimmed while its section is closed. A closed section that holds something for the reader says so on its heading, by the rules its rooms follow: the Rail attention pill beside the rail square, bold on the expanded title; a pending External invitation counts as a mention. Archived has no rail header, because its rows never show on the rail.
+_Avoid_: Forcing sections open on the rail, a hairline divider between sections, the globe as the External icon (that is the Channel tile's corner mark)
+
+**Rail actions**:
+What the collapsed sidebar rail lets the reader do: go somewhere (a nav destination, a Chat room), open or close a chat section, and expand the sidebar (the logo, or a pending External invitation's tile). Everything that changes a room or makes one lives in the expanded sidebar only: the room menu (mark unread, pin, mute, edit, leave), Create channel, Browse channels, Start a Direct, and an invitation's Accept and Decline. A 32px square has no room for a second control beside its mark, and one press on the logo brings all of them back. Decided, not an oversight.
+_Avoid_: A right-click or long-press room menu on the rail, a `+` square under a Rail section header, Accept and Decline in a rail popover
+
 **External channel**:
 A Channel that host-organization members can browse and join, and that people outside that organization can join only as a Guest — without becoming organization members and without a seat.
 _Avoid_: Public channel (host-org only), guest channel, shared channel
@@ -217,8 +237,16 @@ A platform user on one External channel’s room roster who is not a Member of t
 _Avoid_: External user, outsider, limited collaborator, org guest (there is no org-level guest role)
 
 **Direct**:
-A chat room whose identity is its participant set (1:1 or multi-human group), not a Channel name. Human 1:1, multi-human group, or coworker 1:1. Has no Channel slug.
+A chat room whose identity is its participant set, not a Channel name. Self Direct, human 1:1, multi-human group, coworker 1:1, or personal assistant 1:1. Has no Channel slug.
 _Avoid_: Conversation (retired), treating a DM as a Channel
+
+**Self Direct**:
+One private Personal Direct per user for notes and to-dos, with that user as its sole human member and no AI members. Identified by a canonical self key, not by remaining member count. Shared across available workspaces without requiring a personal Workspace. Created on demand, survives Organization exit, and is removed by account deletion. Shown as “You”; sending notes triggers no self-notifications or AI work.
+_Avoid_: Notes channel, per-workspace self-chat, treating a former group with one remaining member as Self Direct
+
+**Send to yourself**:
+A room message action that posts a quote of that message into the sender's own Self Direct. The quote remembers its source room, so opening it follows the Message link. The copied author and snippet stay after the user loses access to the source room; only the link stops working. Not offered inside the Self Direct itself.
+_Avoid_: Forward, share, bookmark, saved message, cross-room quote in any other room
 
 **Coworker 1:1**:
 A Direct with exactly one human member and exactly one coworker.
@@ -261,12 +289,22 @@ _Avoid_: Soft demote to guest on org leave (retired for org exit), cascade-strip
 ### Chat pins
 
 **Pinned room**:
-The current user's personal sidebar pin of a membership-visible room. Not shared. Product UI: Pin / Unpin and the pin icon. Distinct from a Pinned message.
+The current user's personal sidebar pin of a membership-visible room. Not shared. Product UI: Pin / Unpin; a Pinned room of any kind lists under the sidebar's Pinned section only, in the reader's own order, and activity never moves it. The reader changes that order in the section's reorder mode (a handle per row: drag, or arrow keys); outside it a pinned row is an ordinary row. That order is the membership's `starredAt` ascending, which a reorder rewrites (`PUT /chats/rooms/starred`) for the rooms of the sidebar it was made in only (a room in several sidebars, like a Personal Direct, has one key and moves in each), so `starredAt` is a sort key, not the time of pinning. Distinct from a Pinned message.
 _Avoid_: Starred room (API-only name), favorite, treating this as a Pinned message
 
 **Pinned message**:
 A top-level Channel message on that Channel's shared pin list. Everyone on the room roster sees the same list. Distinct from a Pinned room.
 _Avoid_: Announcement (a use of this), pinned room, thread pin
+
+### Chat reactions
+
+**Reaction**:
+One user's emoji on one room message. The user, the message and the emoji identify it; there is no separate reaction id. A user either has a given Reaction or does not.
+_Avoid_: Toggle (the old API verb), like, vote
+
+**Pending reaction**:
+The sender-local add or remove of a Reaction shown before the server confirms it. It overlays that emoji only; it is dropped on confirm, rolled back to the last confirmed state on failure, and never seen by other participants. Distinct from a Pending message.
+_Avoid_: Optimistic reaction (jargon), local reaction
 
 ### Chat presence
 
@@ -302,7 +340,11 @@ _Avoid_: Autolink (ambiguous with GFM scheme/`www` links), live link (composer d
 
 **Channel link**:
 In a room message body, a `#` immediately followed by a membership-visible Channel’s current name or slug (no space after `#`). Presentation shows it as a clickable link to that Channel after send; the stored markdown is unchanged. Distinct from User mention: no stored mention row, no paging. The composer `#` picker inserts a chip that looks like a User mention but serializes to this plain text; it is not a stored mention row.
-_Avoid_: Channel mention (that reads as User mention), hashtag, linking a Direct, treating `# Heading` (space after `#`) as a Channel link
+_Avoid_: Channel mention (that reads as User mention), hashtag, linking a Direct, treating `# Heading` (space after `#`) as a Channel link, Message link
+
+**Message link**:
+A URL that opens a room and jumps to one specific room message, for a reader who can already read that room. Distinct from a Channel link, which is `#name` or `#slug` in a room message body. Not a public share.
+_Avoid_: permalink, public share, Channel link, vanity slug URL
 
 **Unfurl**:
 A page-preview card scraped from a URL in a room message body and stored on that message. The same cards for every viewer. Distinct from the URL in the body.

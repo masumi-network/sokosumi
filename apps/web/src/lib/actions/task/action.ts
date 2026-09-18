@@ -4,11 +4,11 @@ import {
   buildAdHocDesignMdPrefix,
   CORE_API_ERROR_KINDS,
   hasActiveTaskSchedule,
+  taskContextSelectionAttachesAnything,
   userTaskStatusTransitionRequiresComment,
 } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
-
 import {
   type ActionResultDto,
   toActionResult,
@@ -50,6 +50,7 @@ import {
 } from "@/middleware/auth-middleware";
 
 interface CreateTaskParameters extends AuthenticatedRequest {
+  name?: string;
   description: string;
   assigneeId: string | null;
   assigneeSokoBotId?: string | null;
@@ -79,6 +80,7 @@ interface UpdateTaskParameters extends AuthenticatedRequest {
   assigneeSokoBotId?: string | null;
   assigneeUserId?: string | null;
   projectId?: string | null;
+  context?: TaskContextSelectionInput;
   currentStatus: TaskStatus;
   desiredStatus: TaskStatus;
   schedule?: TaskScheduleSelection;
@@ -484,9 +486,43 @@ function toCoreTaskContext(
       throw new Error("Custom DESIGN.md attachment required");
     }
 
+    const customUrl = selection.brand.custom.url;
+    let brandUrl: string;
+    try {
+      brandUrl = resolveDesignMdAttachmentUrl(customUrl, userId);
+    } catch (error) {
+      // Edit may still carry a stored DESIGN.md that is not under this user's
+      // ad-hoc prefix (stale project/workspace brand). Forward non-adhoc https
+      // URLs so Core can grandfather the existing attachment. Foreign ad-hoc
+      // prefixes still fail here.
+      let pathname = "";
+      try {
+        const parsed = new URL(customUrl);
+        if (parsed.protocol !== "https:") {
+          throw new Error("DESIGN.md attachment URL must use https");
+        }
+        pathname = decodeURIComponent(parsed.pathname);
+      } catch (parseError) {
+        if (
+          parseError instanceof Error &&
+          parseError.message === "DESIGN.md attachment URL must use https"
+        ) {
+          throw parseError;
+        }
+        throw error;
+      }
+      if (pathname.startsWith("/design-md/adhoc/")) {
+        throw error;
+      }
+      if (!pathname.startsWith("/design-md/")) {
+        throw error;
+      }
+      brandUrl = customUrl;
+    }
+
     return {
       brand: {
-        url: resolveDesignMdAttachmentUrl(selection.brand.custom.url, userId),
+        url: brandUrl,
       },
       briefing: selection.briefingEnabled,
       memory: selection.contextMdEnabled,
@@ -537,6 +573,7 @@ function resolveAssigneeWrite(
 }
 
 async function createTaskFromDescription(input: {
+  name?: string;
   description: string;
   assigneeId: string | null;
   assigneeSokoBotId?: string | null;
@@ -566,6 +603,10 @@ async function createTaskFromDescription(input: {
   const isAgentAssignee =
     assigneeWrite.assigneeId != null || assigneeWrite.assigneeSokoBotId != null;
 
+  const trimmedName = input.name
+    ? normalizeTaskNameForCoreApi(input.name)
+    : undefined;
+
   const task = await taskService.createTask({
     description: trimmedDescription,
     ...assigneeWrite,
@@ -573,6 +614,7 @@ async function createTaskFromDescription(input: {
     ...(context ? { context } : {}),
     status: resolveCreateStatus(input.status, input.schedule),
     ...(input.visibility ? { visibility: input.visibility } : {}),
+    ...(trimmedName ? { name: trimmedName } : {}),
   });
 
   try {
@@ -722,6 +764,7 @@ async function archiveCreatedTaskAfterFailure(taskId: string): Promise<void> {
 
 export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
   async ({
+    name,
     description,
     assigneeId,
     assigneeSokoBotId,
@@ -735,6 +778,7 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
   }) => {
     try {
       const task = await createTaskFromDescription({
+        ...(name ? { name } : {}),
         description,
         assigneeId,
         assigneeSokoBotId,
@@ -995,6 +1039,7 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
     assigneeSokoBotId,
     assigneeUserId,
     projectId,
+    context,
     currentStatus,
     desiredStatus,
     schedule,
@@ -1002,10 +1047,16 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
     expectedScheduleRevision,
     scheduleOperationId,
     originalSchedule,
+    session,
   }) => {
     const trimmedDescription = description.trim();
     const trimmedName = normalizeTaskNameForCoreApi(name);
-    if (!trimmedDescription) {
+    // Edit may strip Context links into an empty body; Core re-prepends from
+    // `context`. Reject only when both the body and every Context chip are off.
+    if (
+      !trimmedDescription &&
+      !(context && taskContextSelectionAttachesAnything(context))
+    ) {
       throw new Error("Description required");
     }
     if (!trimmedName) {
@@ -1029,6 +1080,9 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
         ...assigneeWrite,
         ...(typeof normalizedProjectId !== "undefined"
           ? { projectId: normalizedProjectId }
+          : {}),
+        ...(context
+          ? { context: toCoreTaskContext(context, session.user.id) }
           : {}),
         ...(hadSchedule ? { expectedScheduleRevision } : {}),
       });

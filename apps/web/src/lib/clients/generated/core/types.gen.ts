@@ -2279,6 +2279,10 @@ export type ChatRoom = {
     slug: string | null;
     kind: 'channel' | 'direct';
     /**
+     * Whether this is the owner's private, sole-human Personal Direct for notes.
+     */
+    isSelfDirect: boolean;
+    /**
      * Deterministic key for direct rooms; null for normal rooms.
      */
     directKey: string | null;
@@ -2299,7 +2303,7 @@ export type ChatRoom = {
      */
     unreadMentionCount: number;
     /**
-     * When the current user starred this room. Null when not starred.
+     * Set while the current user has this room starred; null when not. A sort key, not the time of starring: starred rooms list oldest first, and `PUT /chats/rooms/starred` rewrites it.
      */
     starredAt: Date | null;
     /**
@@ -2480,6 +2484,21 @@ export type ChannelSlugAvailability = {
     status: 'free' | 'taken';
 };
 
+export type StarredChatRoomOrder = {
+    roomId: string;
+    /**
+     * Sort key: starred rooms list oldest `starredAt` first.
+     */
+    starredAt: Date;
+};
+
+export type ReorderStarredChatRoomsRequest = {
+    /**
+     * Starred room ids in the wanted order. Ids the caller has not starred in the active workspace are ignored; membership-visible starred rooms left out keep their relative order after the listed ones. Never stars or unstars a room.
+     */
+    roomIds: Array<string>;
+};
+
 export type GetChatUiMessagesResponseData = {
     messages: Array<ChatUiMessage>;
 };
@@ -2598,6 +2617,10 @@ export type ChatRoomMessageQuote = {
     authorName: string;
     snippet: string;
     attachment?: ChatRoomMessageQuoteAttachment;
+    /**
+     * Source room of a quote sent to the caller's Self Direct. Absent when the quoted message is in the same room.
+     */
+    roomId?: string;
 } | null;
 
 export type ChatRoomMessageQuoteAttachment = {
@@ -2807,10 +2830,6 @@ export type CreateChatRoomMessageRequest = {
 
 export type UpdateChatRoomMessageRequest = {
     content: string;
-};
-
-export type ReactToChatRoomMessageRequest = {
-    emoji: string;
 };
 
 export type ChatRoomPinnedMessageMutation = {
@@ -15177,6 +15196,100 @@ export type GetChatsRoomsChannelSlugAvailabilityResponses = {
 
 export type GetChatsRoomsChannelSlugAvailabilityResponse = GetChatsRoomsChannelSlugAvailabilityResponses[keyof GetChatsRoomsChannelSlugAvailabilityResponses];
 
+export type PutChatsRoomsStarredData = {
+    body?: ReorderStarredChatRoomsRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/chats/rooms/starred';
+};
+
+export type PutChatsRoomsStarredErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutChatsRoomsStarredError = PutChatsRoomsStarredErrors[keyof PutChatsRoomsStarredErrors];
+
+export type PutChatsRoomsStarredResponses = {
+    /**
+     * Starred rooms in their new order
+     */
+    200: {
+        data: Array<StarredChatRoomOrder>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutChatsRoomsStarredResponse = PutChatsRoomsStarredResponses[keyof PutChatsRoomsStarredResponses];
+
 export type GetChatsRoomsByIdStreamMessagesData = {
     body?: never;
     headers?: {
@@ -19422,8 +19535,8 @@ export type PatchChatsRoomsByIdMessagesByMessageIdResponses = {
 
 export type PatchChatsRoomsByIdMessagesByMessageIdResponse = PatchChatsRoomsByIdMessagesByMessageIdResponses[keyof PatchChatsRoomsByIdMessagesByMessageIdResponses];
 
-export type PostChatsRoomsByIdMessagesByMessageIdReactionsData = {
-    body?: ReactToChatRoomMessageRequest;
+export type DeleteChatsRoomsByIdMessagesByMessageIdReactionsByEmojiData = {
+    body?: never;
     headers?: {
         /**
          * Optional organization slug to set the organization context.
@@ -19433,12 +19546,16 @@ export type PostChatsRoomsByIdMessagesByMessageIdReactionsData = {
     path: {
         id: string;
         messageId: string;
+        /**
+         * The emoji, percent-encoded.
+         */
+        emoji: string;
     };
     query?: never;
-    url: '/chats/rooms/{id}/messages/{messageId}/reactions';
+    url: '/chats/rooms/{id}/messages/{messageId}/reactions/{emoji}';
 };
 
-export type PostChatsRoomsByIdMessagesByMessageIdReactionsErrors = {
+export type DeleteChatsRoomsByIdMessagesByMessageIdReactionsByEmojiErrors = {
     /**
      * Invalid request
      */
@@ -19500,6 +19617,21 @@ export type PostChatsRoomsByIdMessagesByMessageIdReactionsErrors = {
         };
     };
     /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Internal Server Error
      */
     500: {
@@ -19516,11 +19648,11 @@ export type PostChatsRoomsByIdMessagesByMessageIdReactionsErrors = {
     };
 };
 
-export type PostChatsRoomsByIdMessagesByMessageIdReactionsError = PostChatsRoomsByIdMessagesByMessageIdReactionsErrors[keyof PostChatsRoomsByIdMessagesByMessageIdReactionsErrors];
+export type DeleteChatsRoomsByIdMessagesByMessageIdReactionsByEmojiError = DeleteChatsRoomsByIdMessagesByMessageIdReactionsByEmojiErrors[keyof DeleteChatsRoomsByIdMessagesByMessageIdReactionsByEmojiErrors];
 
-export type PostChatsRoomsByIdMessagesByMessageIdReactionsResponses = {
+export type DeleteChatsRoomsByIdMessagesByMessageIdReactionsByEmojiResponses = {
     /**
-     * Room message reaction toggled
+     * Reaction removed
      */
     200: {
         data: ChatRoomMessage;
@@ -19532,7 +19664,138 @@ export type PostChatsRoomsByIdMessagesByMessageIdReactionsResponses = {
     };
 };
 
-export type PostChatsRoomsByIdMessagesByMessageIdReactionsResponse = PostChatsRoomsByIdMessagesByMessageIdReactionsResponses[keyof PostChatsRoomsByIdMessagesByMessageIdReactionsResponses];
+export type DeleteChatsRoomsByIdMessagesByMessageIdReactionsByEmojiResponse = DeleteChatsRoomsByIdMessagesByMessageIdReactionsByEmojiResponses[keyof DeleteChatsRoomsByIdMessagesByMessageIdReactionsByEmojiResponses];
+
+export type PutChatsRoomsByIdMessagesByMessageIdReactionsByEmojiData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        messageId: string;
+        /**
+         * The emoji, percent-encoded.
+         */
+        emoji: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/messages/{messageId}/reactions/{emoji}';
+};
+
+export type PutChatsRoomsByIdMessagesByMessageIdReactionsByEmojiErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Message not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutChatsRoomsByIdMessagesByMessageIdReactionsByEmojiError = PutChatsRoomsByIdMessagesByMessageIdReactionsByEmojiErrors[keyof PutChatsRoomsByIdMessagesByMessageIdReactionsByEmojiErrors];
+
+export type PutChatsRoomsByIdMessagesByMessageIdReactionsByEmojiResponses = {
+    /**
+     * Reaction added
+     */
+    200: {
+        data: ChatRoomMessage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutChatsRoomsByIdMessagesByMessageIdReactionsByEmojiResponse = PutChatsRoomsByIdMessagesByMessageIdReactionsByEmojiResponses[keyof PutChatsRoomsByIdMessagesByMessageIdReactionsByEmojiResponses];
 
 export type DeleteChatsRoomsByIdMessagesByMessageIdPinData = {
     body?: never;
@@ -19757,6 +20020,118 @@ export type PostChatsRoomsByIdMessagesByMessageIdPinResponses = {
 };
 
 export type PostChatsRoomsByIdMessagesByMessageIdPinResponse = PostChatsRoomsByIdMessagesByMessageIdPinResponses[keyof PostChatsRoomsByIdMessagesByMessageIdPinResponses];
+
+export type PostChatsRoomsByIdMessagesByMessageIdSendToSelfData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        messageId: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/messages/{messageId}/send-to-self';
+};
+
+export type PostChatsRoomsByIdMessagesByMessageIdSendToSelfErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Message not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdMessagesByMessageIdSendToSelfError = PostChatsRoomsByIdMessagesByMessageIdSendToSelfErrors[keyof PostChatsRoomsByIdMessagesByMessageIdSendToSelfErrors];
+
+export type PostChatsRoomsByIdMessagesByMessageIdSendToSelfResponses = {
+    /**
+     * Quote created in the caller's Self Direct
+     */
+    201: {
+        data: ChatRoomMessage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdMessagesByMessageIdSendToSelfResponse = PostChatsRoomsByIdMessagesByMessageIdSendToSelfResponses[keyof PostChatsRoomsByIdMessagesByMessageIdSendToSelfResponses];
 
 export type PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveData = {
     body?: RemoveChatRoomMessageUnfurlRequest;
@@ -39857,6 +40232,7 @@ export type PatchTasksByIdData = {
         name?: string;
         description?: string | null;
         projectId?: string | null;
+        context?: CreateTaskContext & unknown;
         assigneeId?: string | null;
         /**
          * Deprecated. Use assigneeId instead.
@@ -39940,6 +40316,21 @@ export type PatchTasksByIdErrors = {
      * Conflict
      */
     409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;

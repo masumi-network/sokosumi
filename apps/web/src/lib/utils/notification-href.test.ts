@@ -6,8 +6,35 @@ import {
 import { describe, expect, it } from "vitest";
 
 import { COWORKER_ACCESS_PENDING_MESSAGE_KEY } from "@/lib/utils/coworker-access-notification";
-import { getNotificationHref } from "@/lib/utils/notification-href";
+import {
+  chatRoomMessageHref,
+  getNotificationHref,
+} from "@/lib/utils/notification-href";
 import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@/lib/utils/vendor-grant-notification";
+
+describe("chatRoomMessageHref", () => {
+  it("builds a room message link", () => {
+    expect(chatRoomMessageHref("room-1", "msg-1")).toBe(
+      "/chat/rooms/room-1?message=msg-1",
+    );
+  });
+
+  it("trims the message id on a room message link", () => {
+    expect(chatRoomMessageHref("room-1", "  msg-1  ")).toBe(
+      "/chat/rooms/room-1?message=msg-1",
+    );
+  });
+
+  it("drops a blank message id from a room message link", () => {
+    expect(chatRoomMessageHref("room-1", "   ")).toBe("/chat/rooms/room-1");
+  });
+
+  it("encodes the room and message on a room message link", () => {
+    expect(chatRoomMessageHref("room/with spaces", "a b")).toBe(
+      "/chat/rooms/room%2Fwith%20spaces?message=a%20b",
+    );
+  });
+});
 
 describe("getNotificationHref", () => {
   it("returns job href with agentId", () => {

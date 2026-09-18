@@ -9,6 +9,7 @@ struct ChatRootView: View {
   @EnvironmentObject private var workspaces: WorkspaceState
   @State private var linkError: String?
   @State private var linkTask: Task<Void, Never>?
+  @State private var inviteLink: InviteLinkPresentation?
   @State private var windowID = UUID()
   @Environment(\.scenePhase) private var scenePhase
 
@@ -23,20 +24,30 @@ struct ChatRootView: View {
     }
     .environment(\.openURL, OpenURLAction { url in
       guard let link = ChatLink(url: url, webBaseURL: CoreSettings.webBaseURL) else { return .systemAction }
-      linkTask?.cancel()
-      linkTask = Task { @MainActor in
-        do {
-          if try await workspaces.openChatLink(link, auth: auth) == .unavailable, !Task.isCancelled {
-            linkError = "This message or conversation is no longer available in this workspace."
-          }
-        } catch {
-          if !Task.isCancelled {
-            linkError = friendlyMessage(for: error)
+      switch link {
+      case let .room(roomId, messageId):
+        linkTask?.cancel()
+        linkTask = Task { @MainActor in
+          do {
+            if try await workspaces.openRoomLink(roomId: roomId, messageId: messageId, auth: auth) == .unavailable, !Task.isCancelled {
+              linkError = "This message or conversation is no longer available in this workspace."
+            }
+          } catch {
+            if !Task.isCancelled {
+              linkError = friendlyMessage(for: error)
+            }
           }
         }
+      case let .invitation(id):
+        inviteLink = .init(context: workspaces.compositionContext, destination: .invitation(id: id))
+      case let .guestJoin(token):
+        inviteLink = .init(context: workspaces.compositionContext, destination: .guestJoin(token: token))
       }
       return .handled
     })
+    .modifier(InviteLinkSheet(presentation: $inviteLink))
+    .modifier(PresenceLifecycleModifier())
+    .modifier(ChatNotificationLifecycleModifier())
     .alert("Couldn’t open chat link", isPresented: Binding(get: { linkError != nil }, set: {
       if !$0 {
         linkError = nil
@@ -149,11 +160,9 @@ struct ChatRootView: View {
               }
           }
           .task(id: workspaces.streamingThreadToOpen?.id) {
-            await Task { @MainActor in
-              if let parent = workspaces.streamingThreadToOpen {
-                workspaces.openThread(parent, auth: auth)
-              }
-            }.value
+            if let parent = workspaces.streamingThreadToOpen {
+              workspaces.openThread(parent, auth: auth)
+            }
           }
         } else {
           Text("Pick a room to read it.")

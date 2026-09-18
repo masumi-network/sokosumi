@@ -180,11 +180,12 @@ export function CreateTaskModalProvider({
 interface LoadedCreateData {
   agentNameById: Map<string, string>;
   designMdAttachment: TaskFormInitialDesignMdAttachment | null;
+  projectOptions: ProjectFilterOption[];
 }
 
 interface CreateTaskModalProps {
   coworkerOptions: CoworkerOption[];
-  /** Omit to hide the project picker (e.g. when opened from the agents page). */
+  /** Omit to load workspace projects after open (agents gallery). Pass `[]` to show an empty chip without fetching. */
   projectOptions?: ProjectFilterOption[];
   lockProjectSelection?: boolean;
   defaultProjectId?: string | null;
@@ -238,6 +239,8 @@ export function CreateTaskModal({
     initialDesignMdAttachmentProp ??
     loadedCreateData?.designMdAttachment ??
     null;
+  const resolvedProjectOptions =
+    projectOptions ?? loadedCreateData?.projectOptions;
   const selectedProjectId =
     projectOverrideId !== undefined ? projectOverrideId : defaultProjectId;
 
@@ -253,6 +256,7 @@ export function CreateTaskModal({
         setLoadedCreateData({
           agentNameById: new Map(Object.entries(data.agentNameById)),
           designMdAttachment: data.designMdAttachment,
+          projectOptions: data.projectOptions,
         });
       })
       .catch(() => {
@@ -392,7 +396,7 @@ export function CreateTaskModal({
             privateDescription: t("privateDescription"),
           }}
           coworkerOptions={coworkerOptions}
-          projectOptions={projectOptions}
+          projectOptions={resolvedProjectOptions}
           lockProjectSelection={lockProjectSelection}
           agentNameById={agentNameById}
           initialDesignMdAttachment={initialDesignMdAttachment}
@@ -435,7 +439,7 @@ function NewTaskWizardLoading() {
       aria-busy="true"
       aria-label={tTasks("Actions.loading")}
       data-testid="new-task-wizard-loading"
-      className="flex min-h-0 flex-1 flex-col px-6 py-3 md:px-8"
+      className="flex min-h-0 flex-1 flex-col px-6 py-3 md:px-8 md:py-0"
     >
       <AgentSpotlightSkeleton />
     </div>

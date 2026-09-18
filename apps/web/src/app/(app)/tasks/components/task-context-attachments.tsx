@@ -1,23 +1,30 @@
 "use client";
 
-import { Check, ChevronDown, FileText, Globe, Info } from "lucide-react";
+import {
+  buildAdHocDesignMdPrefix,
+  parseTaskContextFromDescription,
+} from "@sokosumi/utils";
+import { Check, ChevronDown, Globe, Info } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
+import {
+  DefaultBrandAvatar,
+  PillMarker,
+  resolveBrandPillDisplay,
+} from "@/app/tasks/components/task-context-pill";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import {
   type DesignMdAdHocAttachment,
   DesignMdAdHocDialog,
 } from "@/components/design-md";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Favicon } from "@/components/ui/favicon";
 import {
   HoverCard,
   HoverCardContent,
@@ -25,7 +32,6 @@ import {
 } from "@/components/ui/hover-card";
 import type { EffectiveDesignMdAttachment } from "@/lib/services/design-md.service";
 import { cn } from "@/lib/utils";
-import { buildFaviconCandidates } from "@/lib/utils/url";
 
 export interface TaskContextAttachmentsSelection {
   brand: {
@@ -42,6 +48,7 @@ interface TaskContextAttachmentsFieldProps {
   project?: ProjectFilterOption;
   selection: TaskContextAttachmentsSelection;
   onSelectionChange: (next: TaskContextAttachmentsSelection) => void;
+  layout?: "field" | "inline";
   className?: string;
 }
 
@@ -49,27 +56,6 @@ interface TogglePillProps {
   label: React.ReactNode;
   pressed: boolean;
   onPressedChange: (pressed: boolean) => void;
-}
-
-function getHostname(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return url;
-  }
-}
-
-/** Explicit on/off readout so "attached" never has to be inferred from
- * fill colour alone: a check when on, an empty ring when off. */
-function PillMarker({ pressed }: { pressed: boolean }) {
-  return pressed ? (
-    <Check className="size-3 shrink-0" strokeWidth={2.5} aria-hidden />
-  ) : (
-    <span
-      className="border-input size-3 shrink-0 rounded-full border"
-      aria-hidden
-    />
-  );
 }
 
 function TogglePill({ label, pressed, onPressedChange }: TogglePillProps) {
@@ -91,31 +77,6 @@ function TogglePill({ label, pressed, onPressedChange }: TogglePillProps) {
   );
 }
 
-function DefaultBrandAvatar({
-  brand,
-}: {
-  brand: EffectiveDesignMdAttachment | null;
-}) {
-  if (brand?.owner.type === "organization") {
-    return (
-      <Avatar className="size-4">
-        {brand.owner.logo ? (
-          <AvatarImage src={brand.owner.logo} alt="" />
-        ) : null}
-        <AvatarFallback className="text-[0.5rem] font-medium">
-          {brand.owner.name.slice(0, 1).toUpperCase()}
-        </AvatarFallback>
-      </Avatar>
-    );
-  }
-
-  return (
-    <span className="bg-muted flex size-4 items-center justify-center rounded-full">
-      <FileText className="text-muted-foreground size-2.5" aria-hidden />
-    </span>
-  );
-}
-
 export function getDefaultTaskContextSelection(
   project?: ProjectFilterOption,
 ): TaskContextAttachmentsSelection {
@@ -130,11 +91,53 @@ export function getDefaultTaskContextSelection(
   };
 }
 
+/** Map a stored description's Context links into form selection + editor body. */
+export function getTaskContextSelectionFromDescription(
+  description: string,
+  options: {
+    project?: ProjectFilterOption;
+    defaultBrandUrl?: string | null;
+    userId?: string | null;
+  } = {},
+): {
+  selection: TaskContextAttachmentsSelection;
+  body: string;
+} {
+  const parsed = parseTaskContextFromDescription(description, {
+    projectDesignMdUrl: options.project?.designMd?.url ?? null,
+    workspaceDesignMdUrl: options.defaultBrandUrl ?? null,
+    adHocPathPrefix: options.userId
+      ? buildAdHocDesignMdPrefix(options.userId)
+      : null,
+  });
+
+  return {
+    body: parsed.body,
+    selection: {
+      brand: {
+        enabled: parsed.selection.brandEnabled,
+        source: parsed.selection.brandSource,
+        custom:
+          parsed.selection.brandSource === "custom" && parsed.selection.brandUrl
+            ? {
+                label: "DESIGN.md",
+                url: parsed.selection.brandUrl,
+                sourceUrl: parsed.selection.brandUrl,
+              }
+            : null,
+      },
+      briefingEnabled: parsed.selection.briefingEnabled,
+      contextMdEnabled: parsed.selection.memoryEnabled,
+    },
+  };
+}
+
 export function TaskContextAttachmentsField({
   defaultBrand,
   project,
   selection,
   onSelectionChange,
+  layout = "field",
   className,
 }: TaskContextAttachmentsFieldProps) {
   const t = useTranslations("App.Tasks.NewTask.ContextAttachments");
@@ -150,40 +153,19 @@ export function TaskContextAttachmentsField({
       ? formatter.relativeTime(contextUpdatedAt, { now, style: "narrow" })
       : null;
 
-  let brandLabel = t("brand");
-  let brandAvatar: React.ReactNode = (
-    <DefaultBrandAvatar brand={defaultBrand} />
-  );
-
-  if (selection.brand.source === "custom" && selection.brand.custom) {
-    brandLabel = getHostname(selection.brand.custom.sourceUrl);
-    brandAvatar = (
-      <span className="bg-muted flex size-4 items-center justify-center overflow-hidden rounded-full">
-        <Favicon
-          sources={buildFaviconCandidates(selection.brand.custom.sourceUrl)}
-          alt=""
-          size={14}
-          className="rounded-full"
-          fallback={
-            <Globe className="text-muted-foreground size-2.5" aria-hidden />
-          }
-        />
-      </span>
-    );
-  } else if (selection.brand.source === "project" && project?.designMd) {
-    brandLabel = t("namedBrand", { name: project.name });
-    brandAvatar = (
-      <ProjectAvatar
-        name={project.name}
-        logo={project.logo}
-        className="size-4 rounded-full"
-      />
-    );
-  } else if (defaultBrand?.owner.type === "organization") {
-    brandLabel = t("namedBrand", { name: defaultBrand.owner.name });
-  } else if (defaultBrand) {
-    brandLabel = t("personalBrand");
-  }
+  const brandDisplay = resolveBrandPillDisplay({
+    brandSource: selection.brand.source,
+    brandUrl: selection.brand.custom?.sourceUrl ?? null,
+    project,
+    defaultBrand,
+    labels: {
+      brand: t("brand"),
+      namedBrand: (values) => t("namedBrand", values),
+      personalBrand: t("personalBrand"),
+    },
+  });
+  const brandLabel = brandDisplay.label;
+  const brandAvatar = brandDisplay.avatar;
 
   // Nothing to attach until a brand exists somewhere: no project DESIGN.md,
   // no effective org/personal one, no ad hoc pick. The pill then reads as an
@@ -201,17 +183,8 @@ export function TaskContextAttachmentsField({
     });
   }
 
-  return (
-    <div
-      className={cn(
-        "flex min-w-0 flex-wrap items-center gap-2 rounded-md border px-3 py-2",
-        className,
-      )}
-    >
-      <span className="text-muted-foreground mr-1 text-xs font-medium">
-        {t("label")}
-      </span>
-
+  const pills = (
+    <>
       <div
         className={cn(
           "inline-flex h-7 items-center overflow-hidden rounded-full border text-xs font-medium transition-colors",
@@ -353,6 +326,30 @@ export function TaskContextAttachmentsField({
           setIsAdHocDialogOpen(false);
         }}
       />
+    </>
+  );
+
+  if (layout === "inline") {
+    return (
+      <div
+        className={cn("flex min-w-0 flex-wrap items-center gap-2", className)}
+      >
+        {pills}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "flex min-w-0 flex-wrap items-center gap-2 rounded-md border px-3 py-2",
+        className,
+      )}
+    >
+      <span className="text-muted-foreground mr-1 text-xs font-medium">
+        {t("label")}
+      </span>
+      {pills}
     </div>
   );
 }

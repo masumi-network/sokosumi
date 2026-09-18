@@ -17,13 +17,17 @@ import SwiftUI
     private var preparationInput: PreparedTranscript.Input {
       let room = workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }
       return .init(scope: preparationScope,
-                   messages: (workspaces.thread.parent.map { [$0] } ?? []) + workspaces.displayedThreadReplies,
+                   messages: (workspaces.displayedThreadParent.map { [$0] } ?? []) + workspaces.displayedThreadReplies,
                    mentions: room.map(MessageMentions.init), channels: workspaces.composerChannels, baseURL: CoreSettings.webBaseURL)
     }
 
     private var preparedMessages: [Components.Schemas.ChatRoomMessage] {
       guard preparedTranscript?.input.scope == preparationScope else { return [] }
-      return preparedTranscript?.input.messages ?? []
+      let snapshot = preparedTranscript?.input.messages ?? []
+      // Markdown is prepared async; chips must follow the live overlay now.
+      let liveRows = (workspaces.displayedThreadParent.map { [$0] } ?? []) + workspaces.displayedThreadReplies
+      let live = Dictionary(liveRows.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
+      return snapshot.map { live[$0.id] ?? $0 }
     }
 
     private var readyJump: ThreadSession.JumpTarget? {
@@ -48,14 +52,32 @@ import SwiftUI
       return { url in try await workspaces.removeUnfurl(message, url: url, auth: auth) }
     }
 
-    private func reactionAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Void)? {
+    private func reactionAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Bool)? {
       guard canReactToMessage(message) else { return nil }
       return { emoji in try await workspaces.toggleReaction(message, emoji: emoji, auth: auth) }
+    }
+
+    private func sendToSelfAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Components.Schemas.ChatRoomMessage)? {
+      guard workspaces.canSendToSelf(message) else { return nil }
+      return { try await workspaces.sendMessageToSelf(message, auth: auth) }
     }
 
     private func deletionAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
       guard canModifyOwnMessage(message, userId: workspaces.currentUserId) else { return nil }
       return { try await workspaces.deleteMessage(message, auth: auth) }
+    }
+
+    private func mentionRetryAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
+      guard workspaces.canRetryMention(message) else { return nil }
+      return { try await workspaces.retryMention(message, auth: auth) }
+    }
+
+    private func quoteAction(for message: Components.Schemas.ChatRoomMessage) -> (() -> Void)? {
+      guard canQuoteMessage(message) else { return nil }
+      return {
+        pendingQuote = messageQuote(from: message)
+        quoteFocusRequest = UUID().uuidString
+      }
     }
 
     var body: some View {
@@ -95,16 +117,14 @@ import SwiftUI
           ScrollView {
             LazyVStack(alignment: .leading, spacing: 8) {
               MessageRowView(channels: channels, room: currentRoom, preparedDocument: preparedTranscript?.documents[parent.id], message: parent, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
-                             onQuote: canQuoteMessage(parent) ? { pendingQuote = messageQuote(from: parent)
-                               quoteFocusRequest = UUID().uuidString
-                             } : nil,
+                             onQuote: quoteAction(for: parent),
                              onEdit: canModifyOwnMessage(parent, userId: workspaces.currentUserId) ? { workspaces.startEditing(parent) } : nil,
                              onDelete: deletionAction(for: parent),
                              onRemoveUnfurl: unfurlAction(for: parent),
                              onToggleReaction: reactionAction(for: parent),
-                             pendingReactionEmoji: workspaces.pendingReactionEmoji(for: parent.id),
                              editing: workspaces.messageEditing,
-                             onQuoteJump: jumpToQuote)
+                             onQuoteJump: jumpToQuote,
+                             onSendToSelf: sendToSelfAction(for: parent))
                 .id(parent.id)
               Divider()
               HStack {
@@ -286,17 +306,15 @@ import SwiftUI
                            outbound: shell, sentAt: outbox.sentAt[message.id],
                            onRetry: shell.map { item in { outbox.retry(item.clientTurnId) } },
                            onRemove: shell.map { item in { outbox.remove(item.clientTurnId) } },
-                           onQuote: canQuoteMessage(message) ? { pendingQuote = messageQuote(from: message)
-                             quoteFocusRequest = UUID().uuidString
-                           } : nil,
+                           onRetryMention: mentionRetryAction(for: message),
+                           onQuote: quoteAction(for: message),
                            onEdit: canModifyOwnMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
                            isHighlighted: workspaces.thread.jumpTarget?.messageId == message.id,
                            onDelete: deletionAction(for: message),
                            onRemoveUnfurl: unfurlAction(for: message),
                            onToggleReaction: reactionAction(for: message),
-                           pendingReactionEmoji: workspaces.pendingReactionEmoji(for: message.id),
                            editing: workspaces.messageEditing,
-                           onQuoteJump: jumpToQuote,
+                           onQuoteJump: jumpToQuote, onSendToSelf: sendToSelfAction(for: message),
                            streamReasoning: streaming ? reasoning : nil, streamThinking: thinking)
           }
         }

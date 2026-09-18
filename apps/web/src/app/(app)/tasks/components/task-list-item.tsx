@@ -44,7 +44,7 @@ export function TaskListItem({
         href={`/tasks/${task.id}`}
         className={cn(
           "flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4",
-          "-mx-2 rounded-lg px-4 py-3 transition-colors",
+          "rounded-lg px-4 py-3 transition-colors",
           "hover:bg-card-background",
           "active:scale-[0.995]",
           (dragHandleProps?.isDragging || isOverlay) && "bg-senary shadow-sm",
@@ -57,7 +57,7 @@ export function TaskListItem({
             </span>
             {!compact && (
               <p className="text-muted-foreground line-clamp-1 text-xs break-all">
-                {task.descriptionPlain ?? task.description ?? "—"}
+                {task.descriptionPlain ?? "—"}
               </p>
             )}
           </div>

@@ -1,20 +1,8 @@
 export interface ChatRoomActivitySortKey {
   id: string;
   updatedAt: string | Date;
-  starredAt?: string | Date | null;
   mutedAt?: string | Date | null;
   discoverability?: "public" | "private" | "external" | "matched" | null;
-}
-
-function isPinned(value: string | Date | null | undefined): boolean {
-  return value != null;
-}
-
-function starredAtMs(value: string | Date | null | undefined): number {
-  if (value == null) {
-    return 0;
-  }
-  return new Date(value).getTime();
 }
 
 function mutedRank(value: string | Date | null | undefined): number {
@@ -29,9 +17,9 @@ function discoverabilityRank(
 }
 
 /**
- * Unmuted before muted; within bucket pinned before unpinned;
- * then public before private in every bucket; among pins oldest
- * starredAt first; then newest activity; stable id tie-break.
+ * Unmuted before muted; then public before private; then newest activity;
+ * stable id tie-break. Pinned rooms never reach this: the sidebar lists them
+ * in their own section, ordered by `comparePinnedChatRooms`.
  */
 export function compareChatRoomsByRecentActivity(
   a: ChatRoomActivitySortKey,
@@ -42,12 +30,6 @@ export function compareChatRoomsByRecentActivity(
     return byMuted;
   }
 
-  const aPinned = isPinned(a.starredAt);
-  const bPinned = isPinned(b.starredAt);
-  if (aPinned !== bPinned) {
-    return aPinned ? -1 : 1;
-  }
-
   const byDiscoverability =
     discoverabilityRank(a.discoverability) -
     discoverabilityRank(b.discoverability);
@@ -55,17 +37,31 @@ export function compareChatRoomsByRecentActivity(
     return byDiscoverability;
   }
 
-  if (aPinned) {
-    const byPinned = starredAtMs(a.starredAt) - starredAtMs(b.starredAt);
-    if (byPinned !== 0) {
-      return byPinned;
-    }
-  }
-
   const byActivity =
     new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
   if (byActivity !== 0) {
     return byActivity;
+  }
+  return a.id.localeCompare(b.id);
+}
+
+export interface PinnedChatRoomSortKey {
+  id: string;
+  starredAt?: string | Date | null;
+}
+
+/**
+ * The reader's own order: oldest `starredAt` first, which a reorder rewrites
+ * (Core `PUT /chats/rooms/starred`). Activity never moves a pinned room.
+ */
+export function comparePinnedChatRooms(
+  a: PinnedChatRoomSortKey,
+  b: PinnedChatRoomSortKey,
+): number {
+  const byStarred =
+    new Date(a.starredAt ?? 0).getTime() - new Date(b.starredAt ?? 0).getTime();
+  if (byStarred !== 0) {
+    return byStarred;
   }
   return a.id.localeCompare(b.id);
 }

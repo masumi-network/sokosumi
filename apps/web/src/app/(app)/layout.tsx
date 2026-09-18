@@ -9,6 +9,7 @@ import { APP_MESSAGE_PATHS } from "@/i18n/message-namespaces";
 import { AppShellLoadingFrame } from "./components/app-shell-loading-frame";
 import { AuthSessionGuard } from "./components/auth-session-guard";
 import AuthenticatedAppFrame from "./components/authenticated-app-frame";
+import { SidebarBootScript } from "./components/sidebar-boot-script";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -31,9 +32,13 @@ export default function AppLayout({ children }: AppLayoutProps) {
     <ClientMessageBoundary paths={APP_MESSAGE_PATHS}>
       <QueryProvider>
         <AuthSessionGuard />
+        {/* Applies the collapsed preference to the streamed shell before
+            paint; SidebarProvider takes over at hydration. */}
+        <SidebarBootScript />
         <SidebarProvider
-          // Cookie preference restored client-side in SidebarProvider
-          // (useLayoutEffect) so this layout stays sync for Instant Nav.
+          // Cookie preference restored client-side (boot script before paint,
+          // SidebarProvider at hydration) so this layout stays sync for
+          // Instant Nav.
           defaultOpen
           data-app-shell
           className="flex max-w-svw overflow-clip"

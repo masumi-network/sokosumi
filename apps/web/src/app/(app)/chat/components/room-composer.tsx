@@ -390,7 +390,7 @@ export function RoomComposer({
   sendDisabled: boolean;
   /** Channels always; direct rooms only when roster has more than two people. */
   showMentionShortcut?: boolean;
-  /** False when the send path cannot persist uploads (e.g. coworker stream). */
+  /** Hides the attach tools; every room send path persists attachment markdown. */
   allowAttachments?: boolean;
   /** Slack-like dismissible quote chip above the editor. */
   pendingQuote?: PendingRoomQuote | null;

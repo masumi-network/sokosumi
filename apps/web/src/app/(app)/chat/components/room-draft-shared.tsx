@@ -117,7 +117,7 @@ export interface DirectDraftTarget {
   name: string;
   detail: string;
   image: string | null;
-  kind: "human" | "coworker" | "sokoBot";
+  kind: "self" | "human" | "coworker" | "sokoBot";
   slug?: string;
   caption?: string | null;
   avatarSeed?: string | null;
@@ -212,11 +212,8 @@ export function DirectDraftTargetRow({
       )}
       onMouseDown={(event) => {
         event.preventDefault();
-        if (disabled) {
-          return;
-        }
-        onSelect(target);
       }}
+      onClick={() => onSelect(target)}
     >
       <Avatar className="size-7 shrink-0">
         <AvatarImage src={target.image ?? undefined} alt="" />
@@ -274,7 +271,9 @@ export function DirectDraftTargetList({
   disabledReason?: string;
 }) {
   const t = useTranslations("App.Channels");
-  const humans = targets.filter((target) => target.kind === "human");
+  const humans = targets.filter(
+    (target) => target.kind === "human" || target.kind === "self",
+  );
   const coworkerTargets = targets.filter(
     (target) => target.kind === "coworker",
   );

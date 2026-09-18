@@ -14,15 +14,15 @@ import { StatusBadge, type StatusTone } from "./status-badge";
 
 const BOT_STATUS_TONE: Record<SokoBotStatus, StatusTone> = {
   IDLE: "neutral",
-  RUNNING: "info",
+  RUNNING: "working",
   PAUSED: "warning",
   ERROR: "danger",
 };
 
 const TURN_STATUS_TONE: Record<SokoBotTurnStatus, StatusTone> = {
   QUEUED: "neutral",
-  STARTING: "info",
-  RUNNING: "info",
+  STARTING: "working",
+  RUNNING: "working",
   CANCEL_REQUESTED: "warning",
   COMPLETED: "success",
   CANCELLED: "neutral",
@@ -40,13 +40,13 @@ const ROUTE_TONE: Record<NonNullable<SokoBotTurnRoute>, StatusTone> = {
   CLARIFY: "warning",
   DELEGATE_TASK: "accent",
   HIRE_AGENT: "accent",
-  MANAGE_WORK: "info",
+  MANAGE_WORK: "working",
   MIXED: "warning",
 };
 
 const DECISION_TONE: Record<SokoBotPendingDecision["status"], StatusTone> = {
   PENDING: "warning",
-  PROCESSING: "info",
+  PROCESSING: "working",
   ACCEPTED: "success",
   REJECTED: "neutral",
   EXPIRED: "neutral",
@@ -54,15 +54,15 @@ const DECISION_TONE: Record<SokoBotPendingDecision["status"], StatusTone> = {
 
 const RUN_TONE: Record<SokoBotScheduleRun["status"], StatusTone> = {
   PENDING: "neutral",
-  CLAIMED: "info",
-  RUNNING: "info",
+  CLAIMED: "working",
+  RUNNING: "working",
   COMPLETED: "success",
   FAILED: "danger",
   DEAD_LETTER: "danger",
 };
 
 const TOOL_TONE: Record<SokoBotToolCall["status"], StatusTone> = {
-  PENDING: "info",
+  PENDING: "working",
   COMPLETED: "success",
   FAILED: "danger",
 };

@@ -91,7 +91,18 @@ function isPrismaUniqueViolationOnField(
     return false;
   }
 
-  const target = (error as { meta?: { target?: unknown } }).meta?.target;
+  const { meta } = error as {
+    meta?: {
+      target?: unknown;
+      driverAdapterError?: {
+        cause?: { constraint?: { fields?: unknown; index?: unknown } };
+      };
+    };
+  };
+  // Prisma's pg adapter reports partial unique indexes through the constraint,
+  // without meta.target (for example chat_room_personal_directKey_key).
+  const constraint = meta?.driverAdapterError?.cause?.constraint;
+  const target = meta?.target ?? constraint?.fields ?? constraint?.index;
   if (Array.isArray(target)) {
     return target.includes(field);
   }

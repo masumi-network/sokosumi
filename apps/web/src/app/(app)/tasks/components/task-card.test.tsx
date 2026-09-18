@@ -65,3 +65,32 @@ describe("TaskCard privacy cue", () => {
     expect(screen.queryByLabelText("Private")).not.toBeInTheDocument();
   });
 });
+
+describe("TaskCard description preview", () => {
+  it("does not render a blank preview for context-only raw description", () => {
+    const task = {
+      ...buildTask(TaskVisibility.PUBLIC),
+      description: "[CONTEXT.md](https://blob.example/CONTEXT.md)",
+      descriptionPlain: null,
+    };
+
+    const { container } = render(<TaskCard task={task} />);
+
+    expect(container.textContent).not.toContain("CONTEXT.md");
+    expect(
+      container.querySelector(".text-muted-foreground.line-clamp-2"),
+    ).toBeNull();
+  });
+
+  it("renders descriptionPlain when present", () => {
+    const task = {
+      ...buildTask(TaskVisibility.PUBLIC),
+      description: "[CONTEXT.md](https://blob.example/CONTEXT.md)\n\nHello",
+      descriptionPlain: "Hello",
+    };
+
+    render(<TaskCard task={task} />);
+
+    expect(screen.getByText("Hello")).toBeInTheDocument();
+  });
+});

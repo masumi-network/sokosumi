@@ -19,7 +19,9 @@ import mountRetryChatRoomMention from "./[id]/messages/[messageId]/mentions/[men
 import mountPatchChatRoomMessage from "./[id]/messages/[messageId]/patch.js";
 import mountUnpinChatRoomMessage from "./[id]/messages/[messageId]/pin/delete.js";
 import mountPinChatRoomMessage from "./[id]/messages/[messageId]/pin/post.js";
-import mountPostChatRoomMessageReaction from "./[id]/messages/[messageId]/reactions/post.js";
+import mountDeleteChatRoomMessageReaction from "./[id]/messages/[messageId]/reactions/[emoji]/delete.js";
+import mountPutChatRoomMessageReaction from "./[id]/messages/[messageId]/reactions/[emoji]/put.js";
+import mountSendChatRoomMessageToSelf from "./[id]/messages/[messageId]/send-to-self/post.js";
 import mountRemoveChatRoomMessageUnfurl from "./[id]/messages/[messageId]/unfurls/remove/post.js";
 import mountGetChatRoomMessages from "./[id]/messages/get.js";
 import mountPostChatRoomMessage from "./[id]/messages/post.js";
@@ -45,14 +47,16 @@ import mountGetChannelSlugAvailability from "./channel-slug-availability/get.js"
 import mountDiscoverableChatRooms from "./discoverable/get.js";
 import mountGetChatRooms from "./get.js";
 import mountPostChatRoom from "./post.js";
+import mountPutStarredChatRooms from "./starred/put.js";
 
 const app = new OpenAPIHonoWithAuth();
 
 mountGetChatRooms(app);
 mountPostChatRoom(app);
-// Static `/discoverable` and `/channel-slug-availability` before `/{id}`.
+// Static `/discoverable`, `/channel-slug-availability` and `/starred` before `/{id}`.
 mountDiscoverableChatRooms(app);
 mountGetChannelSlugAvailability(app);
+mountPutStarredChatRooms(app);
 // Static `stream` segment under `/{id}` — mount before generic `/{id}` if needed.
 mountRoomStream(app);
 mountGetChatRoomPinnedMessages(app);
@@ -94,9 +98,11 @@ mountGetChatRoomMessage(app);
 mountPostChatRoomMessage(app);
 mountDeleteChatRoomMessage(app);
 mountPatchChatRoomMessage(app);
-mountPostChatRoomMessageReaction(app);
+mountPutChatRoomMessageReaction(app);
+mountDeleteChatRoomMessageReaction(app);
 mountPinChatRoomMessage(app);
 mountUnpinChatRoomMessage(app);
+mountSendChatRoomMessageToSelf(app);
 mountRemoveChatRoomMessageUnfurl(app);
 mountRetryChatRoomMention(app);
 mountPostChatRoomFile(app);

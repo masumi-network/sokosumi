@@ -11,7 +11,7 @@
   @MainActor struct PinnedMessageCardTests {
     @Test(arguments: [false, true])
     func previewsFitInspectorWithoutExpandingShortMessages(dark: Bool) async throws {
-      let room = Components.Schemas.ChatRoom(id: "fixture", name: "General", kind: .channel,
+      let room = Components.Schemas.ChatRoom(id: "fixture", name: "General", kind: .channel, isSelfDirect: false,
                                              createdByUserId: "person", createdAt: .now, updatedAt: .now, unreadCount: 0,
                                              unreadMentionCount: 0, markedUnread: false, myAccess: .member,
                                              userMembers: [], coworkerMembers: [], sokoBotMembers: [])

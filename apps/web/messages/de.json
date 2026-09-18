@@ -101,9 +101,6 @@
         }
       },
       "AgentDetail": {
-        "Header": {
-          "pricing": "{credits, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}"
-        },
         "Stats": {
           "executedJobs": "Ausgeführte Jobs",
           "averageExecutionTime": "Durchschnittliche Ausführungszeit",
@@ -1634,6 +1631,7 @@
         "created": "Erstellt",
         "updated": "Aktualisiert",
         "description": "Beschreibung",
+        "context": "Kontext",
         "linkedTasksTitle": "Verknüpfte Aufgaben",
         "linkedTasksEmpty": "Noch keine verknüpften Aufgaben.",
         "jobs": "Jobs",
@@ -5237,6 +5235,7 @@
         "markUnread": "Als ungelesen markieren",
         "pin": "Anheften",
         "unpin": "Lösen",
+        "reorderHandle": "{name} verschieben. Ziehen oder Pfeiltasten nach oben und unten drücken.",
         "mute": "Stummschalten",
         "unmute": "Stummschaltung aufheben",
         "roomMenu": "Chat-Aktionen für {name}",
@@ -5258,6 +5257,9 @@
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflowCount": "{count} weitere Teilnehmer",
       "directMessages": "Direct Messages",
+      "pinned": "Angeheftet",
+      "reorderPinned": "Angeheftete Chats sortieren",
+      "reorderPinnedDone": "Sortieren beenden",
       "loading": "Wird geladen...",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "composerTooLong": "Die Nachricht ist zu lang ({count}/{max}). Kürze sie, um sie zu senden.",
@@ -5330,7 +5332,8 @@
         "removeRecipient": "Remove {name}",
         "groupDirectHumansOnly": "Gruppendirektnachrichten sind nur für Menschen.",
         "coworkerDirectOneToOneOnly": "Coworker-Direktnachrichten sind 1:1.",
-        "personalAssistantDirectOneToOneOnly": "Direktnachrichten mit persönlichen Assistenten sind nur 1:1."
+        "personalAssistantDirectOneToOneOnly": "Direktnachrichten mit persönlichen Assistenten sind nur 1:1.",
+        "openFailed": "Der Chat konnte nicht geöffnet werden. Versuche es erneut."
       },
       "RoomSearch": {
         "open": "In diesem Chat suchen",
@@ -5459,9 +5462,16 @@
         "personalAssistants": "Persönliche Assistenten"
       },
       "Copy": {
-        "action": "Kopieren",
+        "action": "Text kopieren",
+        "link": "Link kopieren",
         "success": "In Zwischenablage kopiert",
-        "error": "Kopieren fehlgeschlagen"
+        "error": "Kopieren fehlgeschlagen",
+        "linkSuccess": "Link kopiert",
+        "linkError": "Link konnte nicht kopiert werden",
+        "sendToSelf": "An dich selbst senden",
+        "sendToSelfSuccess": "An dich selbst gesendet",
+        "sendToSelfError": "Senden an dich selbst fehlgeschlagen",
+        "sendToSelfOpen": "Öffnen"
       },
       "Edit": {
         "action": "Bearbeiten",
@@ -5543,11 +5553,13 @@
       },
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# ungelesene Nachricht} other {# ungelesene Nachrichten}}",
-        "unreadMessagesCapped": "Mehr als {max} ungelesene Nachrichten"
+        "unreadMessagesCapped": "Mehr als {max} ungelesene Nachrichten",
+        "railUnread": "Ungelesen"
       },
       "RoomMentions": {
         "mentions": "{count, plural, one {# Erwähnung} other {# Erwähnungen}}",
-        "mentionsCapped": "Mehr als {max} Erwähnungen"
+        "mentionsCapped": "Mehr als {max} Erwähnungen",
+        "railMention": "Erwähnt dich"
       },
       "MembershipStatus": {
         "joined": "{name} ist beigetreten",
@@ -5678,6 +5690,12 @@
           "notFound": "Dieser Einladungslink ist ungültig.",
           "back": "Zurück zum Chat"
         }
+      },
+      "SelfDirect": {
+        "messageYourself": "Dir selbst schreiben",
+        "you": "Du",
+        "description": "Schreibe dir Notizen und To-dos. Nur du kannst sie sehen.",
+        "exclusive": "Dein Chat mit dir selbst kann keine weiteren Empfänger enthalten."
       }
     },
     "Drive": {
@@ -5720,7 +5738,7 @@
       "moreActions": "Weitere Aktionen",
       "uploadFab": "Datei hochladen",
       "folder": "Ordner",
-      "createFolder": "Ordner erstellen",
+      "createFolder": "Neu",
       "folderName": "Ordnername",
       "createFolderDialogTitle": "Neuen Ordner erstellen",
       "createFolderDialogDescription": "Gib einen Namen für den neuen Ordner ein",

@@ -38,7 +38,10 @@ import SwiftUI
 
     private var preparedMessages: [Components.Schemas.ChatRoomMessage] {
       guard preparedTranscript?.input.scope == preparationScope else { return [] }
-      return preparedTranscript?.input.messages ?? []
+      let snapshot = preparedTranscript?.input.messages ?? []
+      // Markdown is prepared async; chips must follow the live overlay now.
+      let live = Dictionary(workspaces.displayedTranscript.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
+      return snapshot.map { live[$0.id] ?? $0 }
     }
 
     let roomId: String
@@ -52,14 +55,24 @@ import SwiftUI
       return { url in try await workspaces.removeUnfurl(message, url: url, auth: auth) }
     }
 
-    private func reactionAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Void)? {
+    private func reactionAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Bool)? {
       guard canReactToMessage(message) else { return nil }
       return { emoji in try await workspaces.toggleReaction(message, emoji: emoji, auth: auth) }
+    }
+
+    private func sendToSelfAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Components.Schemas.ChatRoomMessage)? {
+      guard workspaces.canSendToSelf(message) else { return nil }
+      return { try await workspaces.sendMessageToSelf(message, auth: auth) }
     }
 
     private func deletionAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
       guard canModifyOwnMessage(message, userId: workspaces.currentUserId) else { return nil }
       return { try await workspaces.deleteMessage(message, auth: auth) }
+    }
+
+    private func mentionRetryAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
+      guard workspaces.canRetryMention(message) else { return nil }
+      return { try await workspaces.retryMention(message, auth: auth) }
     }
 
     var body: some View {
@@ -213,7 +226,10 @@ import SwiftUI
                                  onRemove: outbound.map { shell in
                                    { workspaces.removeOutbound(clientTurnId: shell.clientTurnId) }
                                  },
-                                 onReply: outbound == nil && !message.id.hasPrefix("stream:") ? { workspaces.openThread(message, auth: auth) } : nil,
+                                 onRetryMention: mentionRetryAction(for: message),
+                                 // Web hides the thread button on stream overlays and mention shells (`shouldShowChatRoomThreadButton`).
+                                 onReply: outbound == nil && !message.id.hasPrefix("stream:") && CoworkerMentionShell(message: message) == nil
+                                   ? { workspaces.openThread(message, auth: auth) } : nil,
                                  onQuote: canQuoteMessage(message) ? { pendingQuote = messageQuote(from: message)
                                    quoteFocusRequest = UUID().uuidString
                                  } : nil,
@@ -225,7 +241,6 @@ import SwiftUI
                                  onDelete: deletionAction(for: message),
                                  onRemoveUnfurl: unfurlAction(for: message),
                                  onToggleReaction: reactionAction(for: message),
-                                 pendingReactionEmoji: workspaces.pendingReactionEmoji(for: message.id),
                                  editing: workspaces.messageEditing,
                                  onQuoteJump: { id in Task {
                                    do {
@@ -234,6 +249,7 @@ import SwiftUI
                                      }
                                    } catch { jumpError = friendlyMessage(for: error) }
                                  } },
+                                 onSendToSelf: sendToSelfAction(for: message),
                                  horizontalInset: 12,
                                  streamReasoning: streamReasoning(for: message),
                                  streamThinking: isLiveCoworkerOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy)

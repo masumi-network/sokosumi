@@ -133,12 +133,6 @@
   --color-status-done-quaternary: var(--status-done-quaternary);
   --color-status-done-tertiary: var(--status-done-tertiary);
 
-  --color-semantic-info: var(--semantic-info);
-  --color-semantic-info-tertiary: var(--semantic-info-tertiary);
-  --color-semantic-info-quaternary: var(--semantic-info-quaternary);
-  --color-semantic-info-quinary: var(--semantic-info-quinary);
-  --color-semantic-info-foreground: var(--semantic-info-foreground);
-
   /* Custom Colors */
   /* Duplicated the success ramp verbatim and, declared here, could not follow
      the theme: 3.90:1 in dark. Alias the themed tokens instead. */
@@ -310,7 +304,7 @@
      away with it because they pair it with a backdrop blur. This one
      tints instead, at 1.474:1 against the page, and leaves the text
      under it at 12.41:1. */
-  --overlay-primary: hsla(263.5, 100%, 50%, 0.2);
+  --overlay-primary: hsla(201.8, 47.2%, 32.0%, 0.2);
   --surface-glass: hsla(0, 0%, 100%, 0.8);
   --surface-sticky: hsla(0, 0%, 100%, 0.95);
   --scrim-soft: hsla(0, 0%, 0%, 0.25);
@@ -329,20 +323,26 @@
   --background-muted: hsla(0, 0%, 100%, 0.58);
   --popover: hsla(300, 50%, 100%, 1);
   --popover-foreground: hsla(300, 0%, 4%, 1);
-  --primary: hsla(263.5, 100%, 50%, 1); /* Sokosumi · Wisteria Purple #6400FF */
-  --primary-variant: hsla(263.5, 100%, 50%, 1);
-  --primary-tertiary: hsla(264, 100.0%, 86.0%, 1);
-  --primary-quaternary: hsla(264, 100.0%, 91.0%, 1);
-  --primary-quinary: hsla(264, 100.0%, 95.5%, 1);
+  /* The brand primary. #2B5C78 exactly, at hue 201.8 and 47.2% saturation.
+     It replaces Wisteria Purple #6400FF and reads 7.23:1 as text on the page,
+     against the purple's 5.20. The three tints below are not picked by eye:
+     they are this base composited over the page at the ramp's own alpha
+     ladder, .28 / .18 / .09, then frozen, so the step spacing matches every
+     other tinted ramp in the file. */
+  --primary: hsla(201.8, 47.2%, 32.0%, 1); /* Sokosumi · #2B5C78 */
+  --primary-variant: hsla(201.8, 47.2%, 32.0%, 1);
+  --primary-tertiary: hsla(202.9, 21.6%, 81.0%, 1);
+  --primary-quaternary: hsla(201.4, 22.6%, 87.8%, 1);
+  --primary-quinary: hsla(205.7, 22.6%, 93.9%, 1);
   --primary-foreground: hsla(0, 0%, 98%, 1);
   /* The fill under a label. --primary is the accent and the text colour, so
      in dark it has to stay light enough to read on the page, which leaves it
      too light to carry a near-white label. This step is the other half: dark
      enough for the label, still the brand hue. Light is the brand value
-     itself. Label measures 6.74:1 light and 5.14:1 dark. */
-  --primary-solid: hsla(263.5, 100%, 50%, 1);
+     itself. Label measures 6.93:1 light and 5.40:1 dark. */
+  --primary-solid: hsla(201.8, 47.2%, 32.0%, 1);
   --primary-solid-foreground: hsla(0, 0%, 98%, 1);
-  --primary-solid-hover: hsla(264, 100.0%, 55.0%, 1);
+  --primary-solid-hover: hsla(201.6, 47.1%, 37.1%, 1);
   --primary-iris: hsla(300, 100%, 50%, 1);
   --secondary: hsla(0, 0%, 4%, 0.95);
   --secondary-foreground: hsla(0, 0%, 98%, 1);
@@ -360,15 +360,15 @@
   --accent-foreground: hsla(330, 0%, 9%, 1);
   --destructive: hsla(0, 74%, 42%, 1);
   --destructive-foreground: hsla(0, 86%, 97%, 1);
-  --border: hsla(0, 0.0%, 80.0%, 1);
+  --border: hsla(0, 0.0%, 88.6%, 1);
   --input: hsla(0, 0.0%, 58.4%, 1);
   /* Focus is two-tone: --ring is the 1px solid core that carries the 3:1
-     (SC 1.4.11) at 7.04:1, --ring-halo is the wide soft glow the eye actually
+     (SC 1.4.11) at 7.23:1, --ring-halo is the wide soft glow the eye actually
      reads. The halo is decorative, so its alpha is free. A uniformly
      transparent ring cannot do both: it needs 0.55 alpha to reach 3:1. */
-  --ring: hsla(263.5, 100%, 50%, 1);
-  --ring-halo: hsla(263.5, 100%, 50%, 0.22);
-  --primary-hover: hsla(264, 100.0%, 55.0%, 1);
+  --ring: hsla(201.8, 47.2%, 32.0%, 1);
+  --ring-halo: hsla(201.8, 47.2%, 32.0%, 0.22);
+  --primary-hover: hsla(201.6, 47.1%, 37.1%, 1);
   --secondary-hover: hsla(0, 0.0%, 17.9%, 1);
   --destructive-hover: hsla(0, 74%, 36%, 1);
   /* The invalid-state halo. Same weight as --ring-halo so a field in error
@@ -389,7 +389,7 @@
   --sidebar-foreground: hsla(300, 0%, 4%, 1);
   --sidebar-accent: hsla(300, 0%, 96%, 1);
   --sidebar-accent-foreground: hsla(330, 0%, 9%, 1);
-  --sidebar-border: hsla(0, 0.0%, 80.0%, 1);
+  --sidebar-border: hsla(0, 0.0%, 88.6%, 1);
   --sidebar-ring: hsla(0, 0%, 63%, 1);
 
   /* Semantic */
@@ -433,12 +433,6 @@
      --muted-foreground is a text role. Measured: 4.85 on white. */
   --presence-offline: hsla(220, 9%, 46%, 1);
 
-  --semantic-info: hsla(193, 82%, 31%, 1);
-  --semantic-info-tertiary: hsla(193, 36.8%, 80.7%, 1);
-  --semantic-info-quaternary: hsla(193, 36.8%, 87.6%, 1);
-  --semantic-info-quinary: hsla(193, 36.8%, 93.8%, 1);
-  --semantic-info-foreground: hsla(183, 100%, 96%, 1);
-
   /* Ordered risk tiers. Low/Medium reuse the semantic ramps; High is the
      only extra value, solid with a near-black label at 7.88:1. Same in both
      themes: a solid fill is its own ground. */
@@ -451,7 +445,30 @@
      semantic hue carries "you must act", green carries a result to read, red
      a fault (tinted while it may still resolve, solid once it failed), and
      grey carries the states nobody owes anything on. The two blues sit 35
-     degrees apart, and 240 sits 23.5 from the brand at 263.5.
+     degrees apart.
+
+     Resolved after the move to #2B5C78. The separation above was measured
+     against a brand at hue 263.5. The brand is now 201.8, which put working
+     at 205 only 3.2 degrees from it and the retired --semantic-info at 193
+     only 8.8 away. Anything inside 15 degrees reads as one colour, so brand,
+     "working" and "info" had become one.
+
+     Two things fixed it. --semantic-info is gone: every one of its five
+     consumers meant "in flight right now", never "here is information", so
+     it was the working role under a second name. They all read
+     --status-working now. And working moved from 205 to 300.
+
+     300 is not a taste call. Sweeping all 360 hues against both the task
+     tints and the Soko Bot badge tones at once, it is the only hue whose
+     nearest neighbour in either set stays above 7: 7.08 in each. Violet 272
+     scores better against the badge alone and fails here, landing 3.76 from
+     --status-external at 240.
+
+     Magenta carries less luminance than blue at the same HSL lightness, so
+     --status-working-label drops from 35.4% to 33.4%. At 35.4% it measured
+     4.39:1 on its own fill and missed the 4.5:1 that 12px badge text needs.
+     33.4% measures 4.80:1. The glyph reads 4.86:1 and the bare dot 6.37:1 on
+     --card-background, both past the 3:1 of SC 1.4.11.
 
      The badge fill is a tint step, and -quaternary rather than -quinary: the
      quinary steps sit at OKLab dE 4.4 to 6.6 from the light page, too close
@@ -463,14 +480,14 @@
      rather than on lightness: they sit at OKLab dE 7.1 to 15.5 from the light
      page, and the label on top still clears 4.5:1. A grey at that luminance
      would be invisible. */
-  --status-working: hsla(205, 60.0%, 38.0%, 1);
+  --status-working: hsla(300, 60.0%, 38.0%, 1);
   --status-external: hsla(240, 60.0%, 40.0%, 1);
   --status-done: hsla(0, 0.0%, 45.0%, 1);
   --status-done-tertiary: hsla(0, 0.0%, 84.6%, 1);
-  --status-working-tertiary: hsla(205, 41.2%, 81.5%, 1);
-  --status-working-quaternary: hsla(205, 100.0%, 90.0%, 1);
+  --status-working-tertiary: hsla(300, 41.2%, 81.5%, 1);
+  --status-working-quaternary: hsla(300, 100.0%, 90.0%, 1);
   --status-external-quaternary: hsla(240, 100.0%, 90.0%, 1);
-  --status-working-label: hsla(205, 95.0%, 35.4%, 1);
+  --status-working-label: hsla(300, 95.0%, 33.4%, 1);
   --status-external-label: hsla(240, 95.0%, 58.7%, 1);
   --status-done-quaternary: hsla(0, 0.0%, 90.1%, 1);
 }
@@ -492,14 +509,14 @@
   /* Same wash, more alpha: the dark primary is a lighter purple and
      needs 0.32 to reach the same weight. 1.489:1 against the page,
      text under it at 8.73:1. */
-  --overlay-primary: hsla(270, 64%, 63%, 0.32);
+  --overlay-primary: hsla(201.9, 46.9%, 48.0%, 0.32);
   --surface-glass: hsla(0, 0%, 4%, 0.8);
   --surface-sticky: hsla(0, 0%, 4%, 0.95);
   --scrim-soft: hsla(0, 0%, 0%, 0.25);
   --scrim: hsla(0, 0%, 0%, 0.5);
   --scrim-strong: hsla(0, 0%, 0%, 0.8);
   --media-ground: hsla(0, 0%, 0%, 1);
-  --hero-wash: hsla(264, 100%, 38.6%, 0.62);
+  --hero-wash: hsla(201.9, 100%, 38.6%, 0.62);
   --hero-ground: hsla(0, 0%, 0%, 1);
   --on-media: hsla(0, 0%, 100%, 1);
   --on-media-muted: hsla(0, 0%, 100%, 0.85);
@@ -508,15 +525,26 @@
   --background-muted: hsla(0, 0%, 4%, 0.58);
   --popover: hsla(330, 0%, 9%, 1);
   --popover-foreground: hsla(0, 0%, 98%, 1);
-  --primary: hsla(270, 64%, 63%, 1);
-  --primary-variant: hsla(260, 100%, 73%, 1);
-  --primary-tertiary: hsla(270, 34.3%, 27.6%, 1);
-  --primary-quaternary: hsla(270, 31.8%, 19.3%, 1);
-  --primary-quinary: hsla(270, 27.0%, 12.3%, 1);
+  /* Dark keeps the hue and the saturation and lifts the lightness to 48%.
+     #2B5C78 itself measures 2.74:1 on the dark page, under both the 4.5 text
+     floor and the 3:1 SC 1.4.11 ring floor, so the literal hex cannot carry
+     the text or the focus role here. At 48% it measures 5.20:1, which is the
+     weight the purple held at 5.07. Tints are this base over the page at
+     .40 / .26 / .14.
+
+     Inherited, not introduced: --primary on its own -quaternary measures
+     3.84:1. The purple sits at 3.75 for the same pair, so no lightness of
+     this hue fixes it. A hover wash that must carry its own accent text is a
+     ramp problem, tracked separately. */
+  --primary: hsla(201.9, 46.9%, 48.0%, 1);
+  --primary-variant: hsla(202.1, 47.3%, 56.1%, 1);
+  --primary-tertiary: hsla(202.2, 41.8%, 21.6%, 1);
+  --primary-quaternary: hsla(202, 38.5%, 15.3%, 1);
+  --primary-quinary: hsla(202.5, 30.8%, 10.2%, 1);
   --primary-foreground: hsla(0, 0%, 4%, 1);
-  --primary-solid: hsla(264, 100.0%, 60.0%, 1);
+  --primary-solid: hsla(202.2, 47.4%, 38.0%, 1);
   --primary-solid-foreground: hsla(0, 0%, 98%, 1);
-  --primary-solid-hover: hsla(264, 100.0%, 63.0%, 1);
+  --primary-solid-hover: hsla(201.8, 47.4%, 41.0%, 1);
   --primary-iris: hsla(300, 100%, 50%, 1);
   --secondary: hsla(0, 0%, 100%, 0.95);
   --secondary-foreground: hsla(0, 0%, 4%, 1);
@@ -533,9 +561,9 @@
   --destructive-foreground: hsla(0, 86%, 97%, 1);
   --border: hsla(0, 0.0%, 20.4%, 1);
   --input: hsla(0, 0.0%, 36.5%, 1);
-  --ring: hsla(270, 64%, 63%, 1);
-  --ring-halo: hsla(270, 64%, 63%, 0.26);
-  --primary-hover: hsla(270, 64.0%, 68.0%, 1);
+  --ring: hsla(201.9, 46.9%, 48.0%, 1);
+  --ring-halo: hsla(201.9, 46.9%, 48.0%, 0.26);
+  --primary-hover: hsla(201.8, 47.3%, 53.1%, 1);
   --secondary-hover: hsla(0, 0.0%, 86.1%, 1);
   --destructive-hover: hsla(0, 74%, 39%, 1);
   --destructive-halo: hsla(0, 84.0%, 60.0%, 0.26);
@@ -592,24 +620,18 @@
   /* Measured against the dark ground: 5.61. */
   --presence-offline: hsla(215, 14%, 55%, 1);
 
-  --semantic-info: hsla(189, 94%, 43%, 1);
-  --semantic-info-tertiary: hsla(189, 82.5%, 19.6%, 1);
-  --semantic-info-quaternary: hsla(189, 74.3%, 14.1%, 1);
-  --semantic-info-quinary: hsla(189, 59.8%, 9.5%, 1);
-  --semantic-info-foreground: hsla(0, 0%, 4%, 1);
-
   /* Status roles, dark. Same vocabulary as light: colour says what the reader
      must do, the glyph says which status it is. The -label steps are badge
      text and clear 4.5:1 on their own fill; the plain step is the glyph and
      clears 3:1. */
-  --status-working: hsla(205, 95.0%, 70.0%, 1);
+  --status-working: hsla(300, 95.0%, 70.0%, 1);
   --status-external: hsla(240, 95.0%, 70.0%, 1);
   --status-done: hsla(0, 0.0%, 64.0%, 1);
   --status-done-tertiary: hsla(0, 0.0%, 28.0%, 1);
-  --status-working-tertiary: hsla(205, 37.5%, 30.4%, 1);
-  --status-working-quaternary: hsla(205, 35.0%, 21.2%, 1);
+  --status-working-tertiary: hsla(300, 37.5%, 30.4%, 1);
+  --status-working-quaternary: hsla(300, 35.0%, 21.2%, 1);
   --status-external-quaternary: hsla(240, 35.0%, 21.2%, 1);
-  --status-working-label: hsla(205, 95.0%, 70.0%, 1);
+  --status-working-label: hsla(300, 95.0%, 70.0%, 1);
   --status-external-label: hsla(240, 95.0%, 74.7%, 1);
   --status-done-quaternary: hsla(0, 0.0%, 19.6%, 1);
 
@@ -787,8 +809,12 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
 .chat-input-border-anchor {
   --chat-input-border-angle: 0deg;
   position: relative;
-  padding: 1.5px;
-  border: 1.5px solid transparent;
+  /* Whole pixels. 1.5px is 3 device pixels on a 2x Mac and an ambiguous
+     round on a 1x display, where the ring lands at 1px on one edge and 2px
+     on another. 2px keeps the author's intent of a ring heavier than a
+     hairline and renders the same everywhere. */
+  padding: 2px;
+  border: 2px solid transparent;
   background:
     linear-gradient(var(--background), var(--background)) padding-box,
     linear-gradient(
@@ -1094,4 +1120,22 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
     opacity: 1;
     filter: none;
   }
+}
+
+/* Scroll quiets the hover action pill. A stationary pointer crosses row after
+   row while the transcript moves under it, and each row it passes would flash
+   its pill in and out. The scroller carries data-chat-scrolling for as long as
+   the scroll runs (use-quiet-hover-while-scrolling). Unlayered, so it wins over
+   the pill's own Tailwind utilities; the zero delay drops the pill at once,
+   while coming back still waits out the pill's reveal delay. That same weight
+   means the exceptions have to live here too: a pill the keyboard is on, and
+   one whose menu or emoji picker is open — that focus sits in a portal, and a
+   live message can scroll the transcript out from under an open menu. */
+[data-chat-scrolling]
+[data-message-actions="hover"]:not(:focus-within):not(
+  :has([aria-expanded="true"])
+) {
+  opacity: 0;
+  pointer-events: none;
+  transition-delay: 0ms;
 }

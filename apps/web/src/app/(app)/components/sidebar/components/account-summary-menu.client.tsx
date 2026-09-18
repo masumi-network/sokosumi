@@ -223,7 +223,8 @@ function AccountSummaryAvatar({
   displayName: string;
 }) {
   return (
-    <Avatar className="size-8">
+    // Square like the chip this popover opens from: same identity, same shape.
+    <Avatar className="size-8 rounded-md">
       <AvatarImage
         src={
           sessionUser.image ??
@@ -234,7 +235,7 @@ function AccountSummaryAvatar({
         }
         alt=""
       />
-      <AvatarFallback className="bg-muted text-muted-foreground text-[0.6875rem] font-medium">
+      <AvatarFallback className="bg-muted text-muted-foreground rounded-md text-[0.6875rem] font-medium">
         {getInitials(displayName)}
       </AvatarFallback>
     </Avatar>

@@ -363,6 +363,10 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                                   <TaskStatusBadge
                                     status={event.status}
                                     label={statusLabels[event.status]}
+                                    // The share page carries the same history
+                                    // as the activity feed: a status someone
+                                    // set hours ago, since superseded.
+                                    live={false}
                                   />
                                   <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
                                     <span>{originFromLabel}</span>

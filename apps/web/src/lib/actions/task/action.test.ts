@@ -707,6 +707,94 @@ describe("task link actions", () => {
   });
 });
 
+describe("updateTask context", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    taskServiceMock.patchTask.mockResolvedValue({ id: "task-1" });
+    taskServiceMock.createTaskEvent.mockResolvedValue({});
+  });
+
+  it("maps Context selection into the Core patch payload", async () => {
+    const { updateTask } = await import("./action");
+
+    await updateTask({
+      taskId: "task-1",
+      name: "Launch post",
+      description: "Draft the LinkedIn launch post",
+      assigneeId: "cow_1",
+      projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+      context: {
+        brand: { enabled: false, source: "default", custom: null },
+        briefingEnabled: true,
+        contextMdEnabled: false,
+      },
+      currentStatus: TaskStatus.DRAFT,
+      desiredStatus: TaskStatus.DRAFT,
+      schedule: { mode: "none", timezone: "UTC" },
+    });
+
+    expect(taskServiceMock.patchTask).toHaveBeenCalledWith(
+      "task-1",
+      expect.objectContaining({
+        description: "Draft the LinkedIn launch post",
+        context: {
+          brand: false,
+          briefing: true,
+          memory: false,
+        },
+      }),
+    );
+  });
+
+  it("allows an empty body when Context will re-attach files", async () => {
+    const { updateTask } = await import("./action");
+
+    await updateTask({
+      taskId: "task-1",
+      name: "Launch post",
+      description: "   ",
+      assigneeId: "cow_1",
+      context: {
+        brand: { enabled: true, source: "default", custom: null },
+        briefingEnabled: false,
+        contextMdEnabled: false,
+      },
+      currentStatus: TaskStatus.DRAFT,
+      desiredStatus: TaskStatus.DRAFT,
+      schedule: { mode: "none", timezone: "UTC" },
+    });
+
+    expect(taskServiceMock.patchTask).toHaveBeenCalledWith(
+      "task-1",
+      expect.objectContaining({
+        description: "",
+        context: expect.objectContaining({ brand: true }),
+      }),
+    );
+  });
+
+  it("rejects an empty body when every Context chip is off", async () => {
+    const { updateTask } = await import("./action");
+
+    await expect(
+      updateTask({
+        taskId: "task-1",
+        name: "Launch post",
+        description: "",
+        assigneeId: "cow_1",
+        context: {
+          brand: { enabled: false, source: "default", custom: null },
+          briefingEnabled: false,
+          contextMdEnabled: false,
+        },
+        currentStatus: TaskStatus.DRAFT,
+        desiredStatus: TaskStatus.DRAFT,
+        schedule: { mode: "none", timezone: "UTC" },
+      }),
+    ).rejects.toThrow("Description required");
+  });
+});
+
 describe("updateTask schedule status", () => {
   const recurringSchedule = {
     mode: "recurring" as const,

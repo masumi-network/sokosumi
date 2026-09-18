@@ -38,6 +38,28 @@ describe("OrganizationChatList section visibility", () => {
     expect(screen.getByText("App.Channels.directMessages")).toBeInTheDocument();
   });
 
+  it("keeps archived rows off the collapsed rail, like every other non-row element", () => {
+    renderOrganizationChatList({
+      organizationId: "org-1",
+      archivedRooms: [
+        makeRoom({
+          id: "old-launch",
+          kind: "channel",
+          myAccess: "member",
+          name: "old-launch",
+        }),
+      ],
+    });
+
+    // An archived row is a plain div, not a `SidebarMenuButton`, so the
+    // rail's icon rules do not reach it: without this it rendered a glyph
+    // and a clipped name into the 56px rail whenever the section was open.
+    const row = screen.getByText("old-launch").parentElement;
+    expect(row?.className.split(/\s+/)).toContain(
+      "group-data-[collapsible=icon]:hidden",
+    );
+  });
+
   it("hides External when there are no joined rooms and no pending invitations", () => {
     renderOrganizationChatList({ organizationId: "org-1" });
 
@@ -92,6 +114,41 @@ describe("OrganizationChatList section visibility", () => {
     expect(screen.queryByText("App.Channels.title")).not.toBeInTheDocument();
   });
 
+  it("gives Channels, External and Direct Messages a rail header, and Archived none", async () => {
+    const external = makeRoom({
+      id: "ext-1",
+      kind: "channel",
+      myAccess: "guest",
+      discoverability: "external",
+      name: "Partners",
+    });
+    listRoomsMock.mockResolvedValue(emptyListResult([external]));
+
+    renderOrganizationChatList({
+      organizationId: "org-1",
+      rooms: [external],
+      archivedRooms: [
+        makeRoom({
+          id: "old-launch",
+          kind: "channel",
+          myAccess: "member",
+          name: "old-launch",
+        }),
+      ],
+    });
+
+    await screen.findByText("App.Channels.External.title");
+    expect(
+      screen
+        .getAllByTestId("section-rail-button")
+        .map((button) => button.dataset.tooltip),
+    ).toEqual([
+      "App.Channels.title",
+      "App.Channels.External.title",
+      "App.Channels.directMessages",
+    ]);
+  });
+
   it("shows External when a pending invitation exists", async () => {
     const invitation = makeInvitation();
     listPendingMock.mockResolvedValue({ ok: true, value: [invitation] });
@@ -106,6 +163,23 @@ describe("OrganizationChatList section visibility", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Partners")).toBeInTheDocument();
     expect(screen.getByText("Acme")).toBeInTheDocument();
+  });
+
+  it("gives the collapsed rail a mark for a pending invitation, aimed at its Accept", async () => {
+    const invitation = makeInvitation();
+    listPendingMock.mockResolvedValue({ ok: true, value: [invitation] });
+
+    renderOrganizationChatList({
+      organizationId: "org-1",
+      pendingInvitations: [invitation],
+    });
+
+    const railMark = await screen.findByTestId("rail-invitation");
+    expect(railMark.dataset.roomName).toBe("Partners");
+    expect(railMark.dataset.label).toBe("App.Channels.External.pendingAria");
+    expect(
+      screen.getByRole("button", { name: "App.Channels.External.accept" }).id,
+    ).toBe(railMark.dataset.acceptButtonId);
   });
 
   it("keeps External visible while the last pending invite is accepted", async () => {

@@ -16,17 +16,18 @@ private struct NavigationGuard {
 }
 
 public extension WorkspaceState {
-  /// Navigate within the current workspace. Membership-visible rooms remain the authority.
+  /// Navigate to a `ChatLink.room` within the current workspace. Membership-visible rooms remain the authority;
+  /// invitation and guest-join links are presented by the app instead.
   @discardableResult
-  func openChatLink(_ link: ChatLink, auth: AuthState) async throws -> MessageNavigationResult {
-    guard rooms.contains(where: { $0.id == link.roomId }) else { return .unavailable }
-    selectRoom(link.roomId, auth: auth)
+  func openRoomLink(roomId: String, messageId: String?, auth: AuthState) async throws -> MessageNavigationResult {
+    guard rooms.contains(where: { $0.id == roomId }) else { return .unavailable }
+    selectRoom(roomId, auth: auth)
     let request = UUID()
     messageNavigationRequest = request
     let generation = timeline.generation
     await transcriptLoadTask?.value
-    guard isCurrent(NavigationGuard(request: request, generation: generation)), transcriptRoomId == link.roomId else { return .superseded }
-    guard let messageId = link.messageId else { thread.close()
+    guard isCurrent(NavigationGuard(request: request, generation: generation)), transcriptRoomId == roomId else { return .superseded }
+    guard let messageId else { thread.close()
       return .opened
     }
     return try await openMessage(messageId, auth: auth)

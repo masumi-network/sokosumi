@@ -7,7 +7,10 @@ import Foundation
 @MainActor
 public final class ConversationSidebar: ObservableObject {
   public enum Section: String, CaseIterable, Sendable {
-    case channels, external, directs
+    case channels, external, archived, directs
+
+    /// Web opens every section except Archived.
+    static let initiallyCollapsed: Set<Section> = [.archived]
   }
 
   public enum Action: Sendable {
@@ -35,7 +38,7 @@ public final class ConversationSidebar: ObservableObject {
   @Published public var selectedRoomId: String?
   @Published public var isLoading = false
   @Published public private(set) var errorMessage: String?
-  @Published public private(set) var collapsedSections: Set<Section> = []
+  @Published public private(set) var collapsedSections = Section.initiallyCollapsed
   public let readAttention = RoomReadAttention()
   private let savedRoom: SavedRoomSelection
   private var generation = 0
@@ -62,7 +65,7 @@ public final class ConversationSidebar: ObservableObject {
     readAttention.reset()
     rooms = []
     selectedRoomId = nil
-    collapsedSections = []
+    collapsedSections = Section.initiallyCollapsed
   }
 
   /// Workspace reset rolls back optimistic pin/mute so a stale HTTP

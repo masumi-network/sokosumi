@@ -99,5 +99,8 @@ export function sanitizeMarkdown(markdown: string): string {
     },
   });
 
-  return restoreFencedCodeBlocks(sanitized, codeBlocks);
+  // sanitize-html encodes text `>` as `&gt;`. That is correct in HTML and
+  // wrong in markdown: `> quoted` must stay a blockquote marker. Unescape
+  // before restoring fences so a fenced `&gt;` stays literal.
+  return restoreFencedCodeBlocks(sanitized.replaceAll("&gt;", ">"), codeBlocks);
 }

@@ -52,6 +52,7 @@ function makeDirectRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
     name: "dm",
     slug: "dm",
     kind: "direct",
+    isSelfDirect: false,
     directKey: "key",
     topic: null,
     discoverability: "private",
@@ -72,6 +73,21 @@ function makeDirectRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
 }
 
 describe("DirectRoomAvatarStack", () => {
+  it("shows the owner's avatar without presence for Self Direct", () => {
+    render(
+      <DirectRoomAvatarStack
+        room={makeDirectRoom({
+          isSelfDirect: true,
+          userMembers: [makeUser("me", "Me")],
+        })}
+        currentUserId="me"
+      />,
+    );
+    expect(screen.getByTestId("dm-sidebar-avatar-me")).toBeInTheDocument();
+    expect(screen.queryByText("Online")).toBeNull();
+    expect(screen.queryByText("Offline")).toBeNull();
+  });
+
   it("states availability on a 1:1 row and stays silent on a group row", () => {
     const { unmount } = render(
       <DirectRoomAvatarStack room={makeDirectRoom()} currentUserId="me" />,
@@ -147,7 +163,7 @@ describe("DirectRoomAvatarStack", () => {
     expect(face.querySelector("[title]")?.getAttribute("title")).toBe("Online");
   });
 
-  it("fits empty and 1:1 DM leadings in a min-w-5 / h-5 box matching channel icons", () => {
+  it("fits empty and 1:1 DM leadings in a min-w-7 / h-7 box matching channel icons below md", () => {
     const { container: emptyContainer, unmount } = render(
       <DirectRoomAvatarStack
         room={makeDirectRoom({ userMembers: [makeUser("me", "Me")] })}
@@ -155,21 +171,64 @@ describe("DirectRoomAvatarStack", () => {
       />,
     );
 
-    const emptyRoot = emptyContainer.firstElementChild;
-    expect(emptyRoot?.className).toContain("size-5");
-    expect(emptyRoot?.className).toContain("shrink-0");
+    const emptyTokens =
+      emptyContainer.firstElementChild?.className.split(" ") ?? [];
+    expect(emptyTokens).toContain("size-7");
+    expect(emptyTokens).toContain("md:size-5");
+    expect(emptyTokens).toContain("shrink-0");
+    // Grows with the faces when collapsed, so an empty direct is not the one
+    // 20px mark in a rail of 24px ones.
+    expect(emptyTokens).toContain("group-data-[collapsible=icon]:size-6");
     unmount();
 
     const { container } = render(
       <DirectRoomAvatarStack room={makeDirectRoom()} currentUserId="me" />,
     );
 
-    // min-w-5 / h-5 matches channel icon column; multi stacks may grow wider.
+    // min-w-7 / h-7 matches the channel icon column below md; stacks may grow wider.
+    const stackTokens = container.firstElementChild?.className.split(" ") ?? [];
+    expect(stackTokens).toContain("min-w-7");
+    expect(stackTokens).toContain("h-7");
+    expect(stackTokens).toContain("md:min-w-5");
+    expect(stackTokens).toContain("md:h-5");
+    expect(stackTokens).toContain("shrink-0");
+    expect(stackTokens).toContain("items-center");
+  });
+
+  it("grows each face to 24px and keeps only the first when the sidebar collapses", () => {
+    const { container } = render(
+      <DirectRoomAvatarStack
+        room={makeDirectRoom({
+          userMembers: [
+            makeUser("me", "Me"),
+            makeUser("alice", "Alice"),
+            makeUser("bob", "Bob"),
+          ],
+        })}
+        currentUserId="me"
+      />,
+    );
+
+    // At 20px Inter's widest pairs ("MA", "WM") touch the rim of a circle;
+    // 24px holds every pair at the same type size. The collapsed button cannot
+    // hold a stack of those, so a group row shows its first face alone there
+    // and the button's tooltip names the rest.
     const stackRoot = container.firstElementChild;
-    expect(stackRoot?.className).toContain("min-w-5");
-    expect(stackRoot?.className).toContain("h-5");
-    expect(stackRoot?.className).toContain("shrink-0");
-    expect(stackRoot?.className).toContain("items-center");
+    expect(stackRoot?.className).toContain("group-data-[collapsible=icon]:h-6");
+    for (const id of ["alice", "bob"]) {
+      const avatar = screen
+        .getByTestId(`dm-sidebar-avatar-${id}`)
+        .querySelector('[data-slot="avatar"]');
+      expect(avatar?.className).toContain(
+        "group-data-[collapsible=icon]:size-6",
+      );
+    }
+    expect(
+      screen.getByTestId("dm-sidebar-avatar-alice").className,
+    ).not.toContain("group-data-[collapsible=icon]:hidden");
+    expect(screen.getByTestId("dm-sidebar-avatar-bob").className).toContain(
+      "group-data-[collapsible=icon]:hidden",
+    );
   });
 
   it("renders a fallback mark when the DM has no other participants", () => {

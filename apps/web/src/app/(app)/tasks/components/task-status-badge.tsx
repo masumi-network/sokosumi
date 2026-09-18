@@ -98,6 +98,11 @@ interface TaskStatusBadgeProps {
   label?: string;
   className?: string;
   showLabel?: boolean;
+  /**
+   * Whether this badge shows the task's status now. A history row shows what
+   * the status was, so it passes `false` and the running glyph holds still.
+   */
+  live?: boolean;
 }
 
 export function TaskStatusBadge({
@@ -105,6 +110,7 @@ export function TaskStatusBadge({
   label,
   className,
   showLabel = true,
+  live = true,
 }: TaskStatusBadgeProps) {
   const marker = getTaskStatusMarker(status);
 
@@ -117,7 +123,7 @@ export function TaskStatusBadge({
         className,
       )}
     >
-      <StatusMarker spec={marker} />
+      <StatusMarker spec={marker} live={live} />
       {showLabel && <span>{label ?? getTaskStatusLabel(status)}</span>}
     </span>
   );

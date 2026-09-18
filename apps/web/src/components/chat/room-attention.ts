@@ -40,3 +40,36 @@ export function resolveRoomAttention(options: {
     unreadTextCount: options.showUnreadCount === true ? options.unreadCount : 0,
   };
 }
+
+/** What a closed sidebar section holds for the reader, or null for nothing. */
+export type SectionAttention = "mention" | "unread" | null;
+
+/**
+ * A section's attention is its loudest room's, by the same rules a row
+ * follows, so a closed heading cannot disagree with the rooms under it.
+ * Mention wins, as it does on the Rail attention pill. A pending invitation
+ * is addressed to the reader, so it counts as a mention.
+ */
+export function resolveSectionAttention(
+  rooms: ReadonlyArray<{
+    unreadCount: number;
+    unreadMentionCount: number;
+    markedUnread?: boolean;
+    mutedAt?: unknown;
+  }>,
+  options: { hasPendingInvitation?: boolean } = {},
+): SectionAttention {
+  let unread = false;
+  for (const room of rooms) {
+    const { bold, badgeCount } = resolveRoomAttention({
+      unreadCount: room.unreadCount,
+      unreadMentionCount: room.unreadMentionCount,
+      markedUnread: room.markedUnread,
+      isMuted: room.mutedAt != null,
+    });
+    if (badgeCount > 0) return "mention";
+    unread ||= bold;
+  }
+  if (options.hasPendingInvitation === true) return "mention";
+  return unread ? "unread" : null;
+}

@@ -107,7 +107,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
   });
 
   return (
-    <div className="w-full px-2">
+    <div className="w-full">
       <div className="mx-auto flex w-full flex-col gap-6 pb-6">
         <HistoryToolbar
           activeOrganizationId={activeOrganizationId}

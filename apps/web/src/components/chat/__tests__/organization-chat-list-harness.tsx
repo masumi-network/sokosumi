@@ -8,15 +8,24 @@ import type {
 
 import { OrganizationChatList } from "../organization-chat-list.client";
 
-const { acceptInvitationMock, listRoomsMock, listPendingMock } = vi.hoisted(
-  () => ({
-    acceptInvitationMock: vi.fn(),
-    listRoomsMock: vi.fn(),
-    listPendingMock: vi.fn(),
-  }),
-);
+const {
+  acceptInvitationMock,
+  listRoomsMock,
+  listPendingMock,
+  reorderPinnedMock,
+} = vi.hoisted(() => ({
+  acceptInvitationMock: vi.fn(),
+  listRoomsMock: vi.fn(),
+  listPendingMock: vi.fn(),
+  reorderPinnedMock: vi.fn(),
+}));
 
-export { acceptInvitationMock, listPendingMock, listRoomsMock };
+export {
+  acceptInvitationMock,
+  listPendingMock,
+  listRoomsMock,
+  reorderPinnedMock,
+};
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -76,7 +85,38 @@ vi.mock("@/app/chat/components/room-helpers", () => ({
 }));
 
 vi.mock("../chat-room-sidebar-row", () => ({
-  ChatRoomSidebarRow: ({ label }: { label: string }) => <span>{label}</span>,
+  ChatRoomSidebarRow: ({
+    label,
+    reorderHandle,
+  }: {
+    label: string;
+    reorderHandle?: ReactNode;
+  }) => (
+    <li data-testid="room-row">
+      <span>{label}</span>
+      {reorderHandle}
+    </li>
+  ),
+  RailAttentionPill: () => null,
+}));
+
+vi.mock("../pending-invitation-rail-button", () => ({
+  PendingInvitationRailButton: ({
+    roomName,
+    label,
+    acceptButtonId,
+  }: {
+    roomName: string;
+    label: string;
+    acceptButtonId: string;
+  }) => (
+    <span
+      data-testid="rail-invitation"
+      data-room-name={roomName}
+      data-label={label}
+      data-accept-button-id={acceptButtonId}
+    />
+  ),
 }));
 
 vi.mock("../direct-room-avatar-stack", () => ({
@@ -87,6 +127,9 @@ vi.mock("../organization-chat-list.actions", () => ({
   listOrganizationChatRoomsAction: (
     ...args: Parameters<typeof listRoomsMock>
   ) => listRoomsMock(...args),
+  reorderPinnedOrganizationChatRoomsAction: (
+    ...args: Parameters<typeof reorderPinnedMock>
+  ) => reorderPinnedMock(...args),
   listOrganizationArchivedChatRoomsAction: vi.fn(async () => ({
     ok: true,
     value: { rooms: [], nextCursor: null },
@@ -110,6 +153,12 @@ vi.mock("@/components/ui/sheet", () => ({
 }));
 
 vi.mock("@/components/ui/sidebar", () => ({
+  // The section header's rail square, as a bare marker: its children repeat
+  // the title the expanded heading already renders, which would double every
+  // `getByText`. `chat-sidebar-section-header.test.tsx` covers the square.
+  SidebarMenuButton: ({ tooltip }: { tooltip?: string }) => (
+    <span data-testid="section-rail-button" data-tooltip={tooltip} />
+  ),
   SidebarGroup: ({ children }: { children: ReactNode }) => (
     <div>{children}</div>
   ),
@@ -174,6 +223,7 @@ export const emptyRooms: ChatRoom[] = [];
 
 export interface OrganizationChatListHarnessOptions {
   rooms?: ChatRoom[];
+  archivedRooms?: ChatRoom[];
   pendingInvitations?: ChatRoomInvitation[];
   organizationId?: string | null;
   paintOnly?: boolean;
@@ -194,6 +244,7 @@ export function makeRoom(
     organizationName: "Acme",
     name: overrides.id,
     slug: overrides.kind === "channel" ? overrides.id : null,
+    isSelfDirect: false,
     directKey: null,
     topic: null,
     discoverability: overrides.kind === "channel" ? "public" : null,
@@ -234,6 +285,7 @@ export function resetOrganizationChatListMocks() {
   acceptInvitationMock.mockReset();
   listRoomsMock.mockReset();
   listPendingMock.mockReset();
+  reorderPinnedMock.mockReset();
   listRoomsMock.mockResolvedValue(emptyListResult());
   listPendingMock.mockResolvedValue({ ok: true, value: [] });
   acceptInvitationMock.mockResolvedValue({
@@ -244,6 +296,7 @@ export function resetOrganizationChatListMocks() {
 
 export function createOrganizationChatList({
   rooms = emptyRooms,
+  archivedRooms = emptyRooms,
   pendingInvitations,
   organizationId = "org-1",
   paintOnly = false,
@@ -251,7 +304,7 @@ export function createOrganizationChatList({
   return (
     <OrganizationChatList
       rooms={rooms}
-      archivedRooms={emptyRooms}
+      archivedRooms={archivedRooms}
       {...(pendingInvitations === undefined ? {} : { pendingInvitations })}
       currentUserId="user-1"
       organizationId={organizationId}

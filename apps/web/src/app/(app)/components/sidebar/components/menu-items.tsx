@@ -23,6 +23,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarRailSelectionBar,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
@@ -33,9 +34,6 @@ interface MenuItemConfig {
   href?: string;
   label: string;
   Icon: ComponentType<SVGProps<SVGSVGElement>>;
-  hasIndicator?: boolean;
-  badge?: string;
-  unreadCount?: number;
   onClick?: () => void;
   shortcutLabel?: string;
   ariaKeyshortcuts?: string;
@@ -146,7 +144,12 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
 
   return (
     <>
-      <SidebarGroup className="w-full p-0">
+      {/* `px-2` here rather than on the item, so a nav row's
+          `SidebarMenuItem` is the same 40px box a Chat row's is and the rail
+          selection bar's `-right-2` lands on the rail's edge in both. The
+          separator spans the rail rather than the row, so it takes that
+          padding back with `-mx-2`. */}
+      <SidebarGroup className="w-full px-2 py-0">
         <SidebarGroupContent>
           <SidebarMenu className="gap-0 py-2">
             {items.map(
@@ -155,55 +158,45 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                 href,
                 label,
                 Icon,
-                hasIndicator,
-                badge,
-                unreadCount,
                 onClick,
                 shortcutLabel,
                 ariaKeyshortcuts,
                 separatorAfter,
               }) => {
                 const isActive = href ? isPathActive(href) : false;
-                const showUnread = (unreadCount ?? 0) > 0;
-                const unreadDisplay =
-                  (unreadCount ?? 0) > 99 ? "99+" : String(unreadCount ?? 0);
+
+                // Collapsed rail hides the label, so every item needs the hint.
+                const tooltip = shortcutLabel
+                  ? {
+                      children: (
+                        <span className="flex items-center gap-2">
+                          <span>{label}</span>
+                          <span className="text-muted-foreground text-xs tracking-widest">
+                            {shortcutLabel}
+                          </span>
+                        </span>
+                      ),
+                    }
+                  : label;
 
                 const content = (
                   <>
                     <Icon className="size-4" aria-hidden />
-                    <span className="flex-1 truncate">{label}</span>
-                    {badge ? (
-                      <span
-                        className={cn(
-                          "border-border text-tertiary-foreground dark:text-muted-foreground rounded border px-1 py-0 text-[0.625rem] font-medium uppercase tracking-wide leading-4",
-                          isActive &&
-                            "border-sidebar-accent-foreground text-sidebar-accent-foreground",
-                        )}
-                      >
-                        {badge}
-                      </span>
-                    ) : null}
-                    {showUnread ? (
-                      <span
-                        aria-label={`${unreadDisplay} unread`}
-                        className="bg-primary-solid text-primary-solid-foreground inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[0.625rem] font-semibold leading-4 tabular-nums"
-                      >
-                        {unreadDisplay}
-                      </span>
-                    ) : hasIndicator ? (
-                      <span
-                        aria-hidden
-                        className="bg-primary-iris size-2 shrink-0 rounded-full"
-                      />
-                    ) : null}
+                    <span className="flex-1 truncate group-data-[collapsible=icon]:sr-only">
+                      {label}
+                    </span>
                   </>
                 );
 
                 return (
                   <Fragment key={key}>
-                    <SidebarMenuItem className="px-2">
+                    <SidebarMenuItem>
                       {href ? (
-                        <SidebarMenuButton asChild isActive={isActive}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                          tooltip={tooltip}
+                        >
                           <SheetClose asChild>
                             <Link
                               href={href}
@@ -224,20 +217,7 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                           type="button"
                           onClick={onClick}
                           aria-keyshortcuts={ariaKeyshortcuts}
-                          tooltip={
-                            shortcutLabel
-                              ? {
-                                  children: (
-                                    <span className="flex items-center gap-2">
-                                      <span>{label}</span>
-                                      <span className="text-muted-foreground text-xs tracking-widest">
-                                        {shortcutLabel}
-                                      </span>
-                                    </span>
-                                  ),
-                                }
-                              : undefined
-                          }
+                          tooltip={tooltip}
                           className={cn(
                             "flex min-h-auto w-full items-center gap-2 px-3",
                             "text-tertiary-foreground dark:text-muted-foreground",
@@ -255,11 +235,15 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                           ) : null}
                         </SidebarMenuButton>
                       )}
+                      {/* Collapsed, the rail's fill belongs to hover alone, so
+                          the open destination is marked on the rail's edge the
+                          same way an open Chat room is. */}
+                      {isActive ? <SidebarRailSelectionBar /> : null}
                     </SidebarMenuItem>
                     {separatorAfter ? (
                       <SidebarMenuItem
                         aria-hidden
-                        className="py-2 group-data-[collapsible=icon]:hidden"
+                        className="group-data-[collapsible=icon]:hidden -mx-2 py-2"
                       >
                         <div className="bg-sidebar-border h-px w-full" />
                       </SidebarMenuItem>

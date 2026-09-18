@@ -20,6 +20,7 @@ import type {
   CreateChatRoomRequest,
   DiscoverableChatRoom,
   ResolveChatRoomGuestInviteLink,
+  StarredChatRoomOrder,
   UpdateChatRoomRequest,
 } from "@/lib/clients/generated/core";
 
@@ -301,6 +302,13 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
+  async function reorderPinnedRooms(
+    roomIds: string[],
+  ): Promise<StarredChatRoomOrder[]> {
+    const response = await coreClient.reorderPinnedChatRooms(roomIds);
+    return response.data;
+  }
+
   async function listPinnedMessages(
     roomId: string,
     options?: { cursor?: string; limit?: number },
@@ -325,6 +333,17 @@ export const chatRoomService = (() => {
     messageId: string,
   ): Promise<ChatRoomPinnedMessageMutation> {
     const response = await coreClient.pinChatRoomMessage(roomId, messageId);
+    return response.data;
+  }
+
+  async function sendMessageToSelf(
+    roomId: string,
+    messageId: string,
+  ): Promise<ChatRoomMessage> {
+    const response = await coreClient.sendChatRoomMessageToSelf(
+      roomId,
+      messageId,
+    );
     return response.data;
   }
 
@@ -492,16 +511,20 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
-  async function toggleReaction(
+  /** Idempotent: repeating either direction leaves the Reaction as asked. */
+  async function setReaction(
     roomId: string,
     messageId: string,
     emoji: string,
+    reacted: boolean,
   ): Promise<ChatRoomMessage> {
-    const response = await coreClient.toggleChatRoomMessageReaction(
-      roomId,
-      messageId,
-      { emoji },
-    );
+    const response = reacted
+      ? await coreClient.addChatRoomMessageReaction(roomId, messageId, emoji)
+      : await coreClient.removeChatRoomMessageReaction(
+          roomId,
+          messageId,
+          emoji,
+        );
     return response.data;
   }
 
@@ -585,7 +608,9 @@ export const chatRoomService = (() => {
     setThreadMuted,
     markUnread,
     pinMessage,
+    sendMessageToSelf,
     pinRoom,
+    reorderPinnedRooms,
     listPinnedMessages,
     removeUnfurl,
     resolveRoomGuestInviteLink,
@@ -598,7 +623,7 @@ export const chatRoomService = (() => {
     unmuteRoom,
     retryMention,
     sendMessage,
-    toggleReaction,
+    setReaction,
     updateRoom,
   };
 })();

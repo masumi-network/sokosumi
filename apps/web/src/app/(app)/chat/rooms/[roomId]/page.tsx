@@ -50,7 +50,7 @@ function NoOrganizationCard({
   description: string;
 }) {
   return (
-    <div className="min-h-full w-full px-4 py-6">
+    <div className="min-h-full w-full py-6">
       <div className="mx-auto max-w-3xl">
         <Card>
           <CardHeader>

@@ -8427,6 +8427,11 @@ export const ChatRoomSchema = {
             ],
             example: 'channel'
         },
+        isSelfDirect: {
+            type: 'boolean',
+            description: 'Whether this is the owner\'s private, sole-human Personal Direct for notes.',
+            example: false
+        },
         directKey: {
             type: [
                 'string',
@@ -8490,7 +8495,7 @@ export const ChatRoomSchema = {
             ],
             format: 'date-time',
             example: '2026-08-02T12:00:00.000Z',
-            description: 'When the current user starred this room. Null when not starred.'
+            description: 'Set while the current user has this room starred; null when not. A sort key, not the time of starring: starred rooms list oldest first, and `PUT /chats/rooms/starred` rewrites it.'
         },
         pinnedMessageCount: {
             type: 'integer',
@@ -8548,6 +8553,7 @@ export const ChatRoomSchema = {
         'name',
         'slug',
         'kind',
+        'isSelfDirect',
         'directKey',
         'topic',
         'discoverability',
@@ -8998,6 +9004,48 @@ export const ChannelSlugAvailabilitySchema = {
     },
     required: [
         'status'
+    ]
+} as const;
+
+export const StarredChatRoomOrderSchema = {
+    type: 'object',
+    properties: {
+        roomId: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        starredAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Sort key: starred rooms list oldest `starredAt` first.'
+        }
+    },
+    required: [
+        'roomId',
+        'starredAt'
+    ]
+} as const;
+
+export const ReorderStarredChatRoomsRequestSchema = {
+    type: 'object',
+    properties: {
+        roomIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            maxItems: 500,
+            description: 'Starred room ids in the wanted order. Ids the caller has not starred in the active workspace are ignored; membership-visible starred rooms left out keep their relative order after the listed ones. Never stars or unstars a room.',
+            example: [
+                '550e8400-e29b-41d4-a716-446655440000'
+            ]
+        }
+    },
+    required: [
+        'roomIds'
     ]
 } as const;
 
@@ -9523,6 +9571,12 @@ export const ChatRoomMessageQuoteSchema = {
         },
         attachment: {
             $ref: '#/components/schemas/ChatRoomMessageQuoteAttachment'
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Source room of a quote sent to the caller\'s Self Direct. Absent when the quoted message is in the same room.',
+            example: '550e8400-e29b-41d4-a716-446655440000'
         }
     },
     required: [
@@ -10245,21 +10299,6 @@ export const UpdateChatRoomMessageRequestSchema = {
     },
     required: [
         'content'
-    ]
-} as const;
-
-export const ReactToChatRoomMessageRequestSchema = {
-    type: 'object',
-    properties: {
-        emoji: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 24,
-            example: '👍'
-        }
-    },
-    required: [
-        'emoji'
     ]
 } as const;
 

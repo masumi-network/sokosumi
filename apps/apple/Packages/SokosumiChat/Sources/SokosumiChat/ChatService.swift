@@ -163,24 +163,14 @@ public struct ChatService: Sendable {
     }
   }
 
-  /// Gate first: anything other than `ready` throws `.blocked` without
-  /// touching the rooms endpoint.
-  public func loadRoomsIfReady(
-    client: Client,
-    organizationSlug: String?
-  ) async throws -> [Components.Schemas.ChatRoom] {
-    let access = try await fetchAccess(client: client)
-    guard access.gate == .ready else {
-      throw ChatServiceError.blocked(access.gate)
-    }
-    return try await listRooms(client: client, organizationSlug: organizationSlug)
-  }
-
   /// `GET /chats/rooms` walked to completion. Nil slug omits the org header
-  /// (personal); a slug sends `X-Organization-Slug`.
+  /// (personal); a slug sends `X-Organization-Slug`. Web's archived list walks
+  /// the same route with `kind=channel&status=archived`.
   public func listRooms(
     client: Client,
-    organizationSlug: String?
+    organizationSlug: String?,
+    kind: Components.Schemas.ChatRoomKind? = nil,
+    status: Components.Schemas.ChatRoomListStatus = .active
   ) async throws -> [Components.Schemas.ChatRoom] {
     var rooms: [Components.Schemas.ChatRoom] = []
     var cursor: String?
@@ -190,7 +180,8 @@ public struct ChatService: Sendable {
           query: .init(
             cursor: cursor,
             limit: Self.roomListLimit,
-            status: .active
+            kind: kind,
+            status: status
           ),
           headers: .init(xOrganizationSlug: organizationSlug)
         )

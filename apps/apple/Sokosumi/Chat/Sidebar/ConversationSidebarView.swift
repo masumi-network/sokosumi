@@ -13,14 +13,29 @@ struct ConversationSidebarView: View {
   @State private var createChannel: CompositionPresentation?
   @State private var browseChannels: CompositionPresentation?
   @State private var editChannel: EditChannelPresentation?
+  @State private var lifecycle: ChannelLifecycleRequest?
+  @State private var invitationFailure: InvitationFailure?
+
+  private struct InvitationFailure {
+    let action: InvitationAction
+    let message: String
+  }
 
   private struct CompositionPresentation: Identifiable {
     let id: UUID
     let hasOrganization: Bool
   }
 
+  /// Reloads the Archived section and pending invitations per workspace and after each room list refresh settles, like web's collection refresh.
+  private struct SidebarCollectionsLoadKey: Equatable {
+    let context: UUID
+    let ready: Bool
+  }
+
   var body: some View {
     let partitioned = workspaces.sidebar.partitioned
+    // Web lists pending invitations above joined external rooms, in every workspace.
+    let invitations = workspaces.pendingInvitations.invitations
     VStack(spacing: 0) {
       List(selection: Binding(
         get: { workspaces.selectedRoomId },
@@ -55,12 +70,34 @@ struct ConversationSidebarView: View {
               }
             }
           }
-          if !partitioned.external.isEmpty {
+          if !partitioned.external.isEmpty || !invitations.isEmpty {
             Section {
               sectionHeader("External", section: .external)
               if !workspaces.sidebar.collapsedSections.contains(.external) {
+                ForEach(invitations, id: \.id) { invitation in
+                  PendingInvitationRow(
+                    invitation: invitation,
+                    responding: workspaces.invitationResponse?.invitationId == invitation.id ? workspaces.invitationResponse?.action : nil,
+                    busy: workspaces.channelMutationInFlight
+                  ) { respondToInvitation($0, invitation: invitation) }
+                }
                 ForEach(partitioned.external, id: \.id) { room in
                   roomRow(room, icon: "globe")
+                }
+              }
+            }
+          }
+          if workspaces.selection?.workspace.organizationId != nil, !workspaces.archivedChannels.rooms.isEmpty {
+            Section {
+              sectionHeader("Archived", section: .archived)
+              if !workspaces.sidebar.collapsedSections.contains(.archived) {
+                ForEach(workspaces.archivedChannels.rooms, id: \.id) { room in
+                  ArchivedChannelRow(
+                    room: room,
+                    pending: workspaces.channelLifecycle?.roomId == room.id,
+                    busy: workspaces.channelMutationInFlight,
+                    canDelete: workspaces.archivedChannels.canDelete
+                  ) { requestLifecycle($0, room: room) }
                 }
               }
             }
@@ -85,14 +122,14 @@ struct ConversationSidebarView: View {
           Button("New chat", systemImage: "square.and.pencil") {
             startDirect = .init(id: workspaces.compositionContext, hasOrganization: workspaces.selection?.workspace.organizationId != nil)
           }
-          .disabled(workspaces.phase != .ready || workspaces.roomsLoading || workspaces.openingDirect != nil || workspaces.creatingChannel || workspaces.joiningChannel || workspaces.updatingChannel)
+          .disabled(workspaces.phase != .ready || workspaces.roomsLoading || workspaces.channelMutationInFlight)
           .help("New chat")
         }
         ToolbarItem {
           Button("Create channel", systemImage: "number") {
             createChannel = .init(id: workspaces.compositionContext, hasOrganization: true)
           }
-          .disabled(workspaces.phase != .ready || workspaces.selection?.workspace.organizationId == nil || workspaces.creatingChannel || workspaces.joiningChannel || workspaces.updatingChannel || workspaces.openingDirect != nil)
+          .disabled(workspaces.phase != .ready || workspaces.selection?.workspace.organizationId == nil || workspaces.channelMutationInFlight)
           .help("Create channel")
         }
         ToolbarItem {
@@ -152,8 +189,16 @@ struct ConversationSidebarView: View {
       startDirect = nil
       createChannel = nil
       browseChannels = nil
+      lifecycle = nil
     }
     .modifier(EditChannelSheet(presentation: $editChannel))
+    .modifier(ChannelLifecycleConfirmation(request: $lifecycle))
+    .task(id: SidebarCollectionsLoadKey(context: workspaces.compositionContext, ready: workspaces.phase == .ready && !workspaces.roomsLoading)) {
+      guard workspaces.phase == .ready, !workspaces.roomsLoading else { return }
+      async let archived: Void = workspaces.loadArchivedChannels(auth: auth)
+      async let invitations: Void = workspaces.loadPendingInvitations(auth: auth)
+      _ = await (archived, invitations)
+    }
     .navigationSplitViewColumnWidth(min: 220, ideal: 260)
     .alert("Couldn’t update conversation", isPresented: Binding(
       get: { workspaces.sidebar.actionError != nil },
@@ -166,6 +211,36 @@ struct ConversationSidebarView: View {
       Button("OK") { workspaces.sidebar.clearActionError() }
     } message: {
       Text(workspaces.sidebar.actionError ?? "")
+    }
+    .alert(invitationFailure?.action == .decline ? "Couldn’t decline invitation" : "Couldn’t accept invitation", isPresented: Binding(
+      get: { invitationFailure != nil },
+      set: {
+        if !$0 {
+          invitationFailure = nil
+        }
+      }
+    ), presenting: invitationFailure) { _ in
+      Button("OK") {}
+    } message: { failure in
+      Text(failure.message)
+    }
+  }
+
+  /// Web accepts or declines in place: the row leaves the list on success and Core's message surfaces on failure.
+  private func respondToInvitation(_ action: InvitationAction, invitation: Components.Schemas.ChatRoomInvitation) {
+    guard !workspaces.channelMutationInFlight else { return }
+    let context = workspaces.compositionContext
+    Task { @MainActor in
+      do {
+        switch action {
+        case .accept: try await workspaces.acceptInvitation(id: invitation.id, context: context, auth: auth)
+        case .decline: try await workspaces.declineInvitation(id: invitation.id, context: context, auth: auth)
+        }
+      } catch is CancellationError {
+        // The workspace changed underneath the request; nothing to report.
+      } catch {
+        invitationFailure = .init(action: action, message: channelErrorMessage(error))
+      }
     }
   }
 
@@ -195,7 +270,7 @@ struct ConversationSidebarView: View {
         .labelStyle(.iconOnly)
         .buttonStyle(.borderless)
         .frame(width: 20)
-        .disabled(workspaces.phase != .ready || workspaces.creatingChannel || workspaces.joiningChannel || workspaces.openingDirect != nil)
+        .disabled(workspaces.phase != .ready || workspaces.channelMutationInFlight)
         .help("Browse channels")
       }
     }
@@ -245,15 +320,22 @@ struct ConversationSidebarView: View {
       unreadMentionCount: room.unreadMentionCount,
       markedUnread: room.markedUnread,
       isMuted: room.mutedAt != nil,
-      isActive: room.id == workspaces.selectedRoomId
+      isActive: room.id == workspaces.selectedRoomId,
+      showUnreadCount: workspaces.chatDisplay.showsRoomUnreadCount
     )
     return Label {
       HStack(spacing: 6) {
         VStack(alignment: .leading, spacing: 2) {
-          Text(roomDisplayName(room, currentUserId: workspaces.currentUserId))
-            .lineLimit(1)
-            .fontWeight(attention.bold ? .bold : .regular)
-            .foregroundStyle(room.mutedAt != nil && room.id != workspaces.selectedRoomId ? .secondary : .primary)
+          // Web: the count rides the end of the name, the name truncates first.
+          HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(roomDisplayName(room, currentUserId: workspaces.currentUserId))
+              .lineLimit(1)
+              .fontWeight(attention.bold ? .bold : .regular)
+              .foregroundStyle(room.mutedAt != nil && room.id != workspaces.selectedRoomId ? .secondary : .primary)
+            if attention.unreadTextCount > 0 {
+              RoomUnreadCountLabel(count: attention.unreadTextCount)
+            }
+          }
           if room.myAccess == .guest, let organization = room.organizationName, !organization.isEmpty {
             Text(organization)
               .font(.caption)
@@ -270,9 +352,11 @@ struct ConversationSidebarView: View {
         room: room,
         icon: icon,
         currentUserId: workspaces.currentUserId,
-        showsDirectAvatars: showsDirectAvatars
+        showsDirectAvatars: showsDirectAvatars,
+        livePresence: workspaces.presence.byUserId
       )
     }
+    .presenceAccessibilityValue(directPresence(room, showsDirectAvatars: showsDirectAvatars))
     .labelStyle(RoomRowLabelStyle())
     .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
     .tag(room.id)
@@ -280,9 +364,18 @@ struct ConversationSidebarView: View {
     .contextMenu { roomActions(room) }
   }
 
+  /// Web's 1:1 Direct row announces its one peer's availability; group rows
+  /// leave that to the roster so the label is not read twice.
+  private func directPresence(_ room: Components.Schemas.ChatRoom, showsDirectAvatars: Bool) -> Components.Schemas.ChatRoomPresence? {
+    guard showsDirectAvatars, !room.isSelfDirect else { return nil }
+    let participants = directRoomAvatarParticipants(room, currentUserId: workspaces.currentUserId)
+    guard participants.count == 1, let peer = participants.first else { return nil }
+    return peer.isAI ? .online : workspaces.presence(forUser: peer.id, fallback: peer.presence)
+  }
+
   @ViewBuilder
   private func roomStatus(_ room: Components.Schemas.ChatRoom) -> some View {
-    if workspaces.sidebar.isPending(roomId: room.id) {
+    if workspaces.sidebar.isPending(roomId: room.id) || workspaces.channelLifecycle?.roomId == room.id {
       ProgressView()
         .controlSize(.mini)
         .accessibilityLabel("Updating conversation")
@@ -313,12 +406,25 @@ struct ConversationSidebarView: View {
       Task { @MainActor in await workspaces.performSidebarAction(room.mutedAt == nil ? .mute : .unmute, roomId: room.id, auth: auth) }
     }
     .disabled(!workspaces.sidebar.canPerform(room.mutedAt == nil ? .mute : .unmute, roomId: room.id))
-    if ChannelEditPermissions.isEditable(room) {
+    if ChannelEditPermissions.isEditable(room) || ChannelEditPermissions.canLeave(room) {
       Divider()
+    }
+    if ChannelEditPermissions.isEditable(room) {
       Button("Channel settings…", systemImage: "gearshape") {
         editChannel = .init(id: workspaces.compositionContext, roomId: room.id)
       }
     }
+    if ChannelEditPermissions.canLeave(room) {
+      Button("Leave channel…", systemImage: "rectangle.portrait.and.arrow.right") {
+        lifecycle = .init(context: workspaces.compositionContext, roomId: room.id, name: room.name, action: .leave)
+      }
+      .disabled(workspaces.channelMutationInFlight)
+    }
+  }
+
+  private func requestLifecycle(_ action: ChannelLifecycleAction, room: Components.Schemas.ChatRoom) {
+    guard !workspaces.channelMutationInFlight else { return }
+    lifecycle = .init(context: workspaces.compositionContext, roomId: room.id, name: room.name, action: action)
   }
 
   /// "Me" section pinned to the bottom of the sidebar: account menu with
@@ -334,11 +440,13 @@ struct ConversationSidebarView: View {
       }
     } label: {
       HStack(spacing: 8) {
+        // Web's account chip: a local self-approximation, not the org roster.
         ParticipantAvatar(
           imageURL: workspaces.currentUserImageURL,
           name: workspaces.currentUserName,
           size: 28
         )
+        .presenceBadge(workspaces.presence.selfPresence)
         VStack(alignment: .leading, spacing: 0) {
           Text(workspaces.currentUserName.isEmpty ? "Me" : workspaces.currentUserName)
             .font(.callout)
@@ -356,12 +464,29 @@ struct ConversationSidebarView: View {
       .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
+    .accessibilityValue(presenceLabel(workspaces.presence.selfPresence))
+  }
+}
+
+/// The reader's opt-in Room unread count (web `RoomUnreadCount`): text, not a
+/// pill, so it cannot be mistaken for the mention badge beside it.
+struct RoomUnreadCountLabel: View {
+  let count: Int
+
+  var body: some View {
+    Text("· \(roomCountLabel(count))")
+      .fontWeight(.bold)
+      .monospacedDigit()
+      .lineLimit(1)
+      .fixedSize()
+      .layoutPriority(1)
+      .accessibilityLabel(roomUnreadAccessibilityLabel(count))
   }
 }
 
 /// Sidebar `Label` otherwise pins the icon to a square column, which
 /// squashes a group Direct stack into overlapping blobs.
-private struct RoomRowLabelStyle: LabelStyle {
+struct RoomRowLabelStyle: LabelStyle {
   func makeBody(configuration: Configuration) -> some View {
     HStack(spacing: 8) {
       configuration.icon
@@ -377,24 +502,29 @@ private struct RoomRowLabelStyle: LabelStyle {
 private struct RoomLeadingIcon: View {
   let icon: String
   let showsDirectAvatars: Bool
+  let showsPresence: Bool
   let participants: [DirectRoomAvatarParticipant]
+  let livePresence: [String: Components.Schemas.ChatRoomPresence]
 
   init(
     room: Components.Schemas.ChatRoom,
     icon: String,
     currentUserId: String,
-    showsDirectAvatars: Bool
+    showsDirectAvatars: Bool,
+    livePresence: [String: Components.Schemas.ChatRoomPresence]
   ) {
     self.icon = icon
     self.showsDirectAvatars = showsDirectAvatars
+    showsPresence = !room.isSelfDirect
     participants = showsDirectAvatars
       ? directRoomAvatarParticipants(room, currentUserId: currentUserId)
       : []
+    self.livePresence = livePresence
   }
 
   var body: some View {
     if showsDirectAvatars {
-      DirectRoomAvatarStack(participants: participants)
+      DirectRoomAvatarStack(participants: participants, showsPresence: showsPresence, livePresence: livePresence)
     } else {
       Image(systemName: icon)
         .foregroundStyle(.secondary)
@@ -403,12 +533,17 @@ private struct RoomLeadingIcon: View {
   }
 }
 
-private struct DirectRoomAvatarStack: View {
-  /// Web `DirectRoomAvatarStack`: `size-5` faces, `-ml-2` overlap.
+struct DirectRoomAvatarStack: View {
+  /// Web `DirectRoomAvatarStack`: `size-5` faces, `-ml-2` overlap, `size-2` marks.
   static let faceSize: CGFloat = 20
   private static let overlap: CGFloat = 8
+  private static let markSize: CGFloat = 8
 
   let participants: [DirectRoomAvatarParticipant]
+  /// Self Directs show no mark, like web.
+  var showsPresence = true
+  /// Live org map (userId → online/afk); humans fall back to their snapshot.
+  var livePresence: [String: Components.Schemas.ChatRoomPresence] = [:]
 
   var body: some View {
     stackContent
@@ -433,9 +568,18 @@ private struct DirectRoomAvatarStack: View {
             Circle()
               .strokeBorder(.background, lineWidth: 1)
           }
+          .overlay(alignment: .bottomTrailing) {
+            if showsPresence {
+              PresenceDot(presence: presence(for: participant), size: Self.markSize).offset(x: 2, y: 2)
+            }
+          }
           .zIndex(Double(participants.count - index))
         }
       }
     }
+  }
+
+  private func presence(for participant: DirectRoomAvatarParticipant) -> Components.Schemas.ChatRoomPresence {
+    participant.isAI ? .online : livePresence[participant.id] ?? participant.presence
   }
 }

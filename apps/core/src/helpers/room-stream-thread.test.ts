@@ -189,6 +189,48 @@ describe("buildRoomStreamThreadModelMessages", () => {
     expect(String(result.modelMessages[0]?.content)).toContain("Follow-up");
   });
 
+  it("adds request file parts to the embedded first-turn prompt", async () => {
+    vi.mocked(prisma.chatRoomMessage.findMany).mockResolvedValue([
+      {
+        id: "parent_1",
+        content: "Look at this [a.png](https://blob.example/a.png)",
+        senderUserId: "user_1",
+        senderCoworkerId: null,
+        metadata: null,
+        createdAt: new Date("2026-07-01T12:00:00.000Z"),
+        senderUser: { name: "Ada" },
+        senderCoworker: null,
+      },
+    ] as never);
+
+    const result = await buildRoomStreamThreadModelMessages({
+      roomId: "room_1",
+      parentMessageId: "parent_1",
+      roomName: "Hannah DM",
+      senderName: "Ada",
+      lastUserMessageText: "Look at this",
+      lastUserFileParts: [
+        {
+          url: "https://blob.example/a.png",
+          mediaType: "image/png",
+          filename: "a.png",
+        },
+      ],
+    });
+
+    expect(result.modelMessages).toHaveLength(1);
+    const content = result.modelMessages[0]?.content;
+    expect(Array.isArray(content)).toBe(true);
+    expect(content).toHaveLength(2);
+    expect(content?.[0]).toMatchObject({ type: "text" });
+    expect(content?.[1]).toMatchObject({
+      type: "file",
+      data: new URL("https://blob.example/a.png"),
+      mediaType: "image/png",
+      filename: "a.png",
+    });
+  });
+
   it("embeds coworker root on first AI thread turn (does not treat root as prior reply)", async () => {
     vi.mocked(prisma.chatRoomMessage.findMany).mockResolvedValue([
       {
@@ -314,6 +356,67 @@ describe("buildRoomStreamThreadModelMessages", () => {
     expect(convertToModelMessages).toHaveBeenCalledOnce();
     expect(result.modelMessages).toEqual([
       { role: "user", content: "converted" },
+    ]);
+  });
+
+  it("re-attaches request file parts to the converted newest user turn", async () => {
+    vi.mocked(prisma.chatRoomMessage.findMany).mockResolvedValue([
+      {
+        id: "reply_2",
+        content: "See [a.png](https://blob.example/a.png)",
+        senderUserId: "user_1",
+        senderCoworkerId: null,
+        metadata: null,
+        createdAt: new Date("2026-07-01T12:02:00.000Z"),
+        senderUser: { name: "Ada" },
+        senderCoworker: null,
+      },
+      {
+        id: "asst_1",
+        content: "Answer",
+        senderUserId: null,
+        senderCoworkerId: "cow_1",
+        metadata: null,
+        createdAt: new Date("2026-07-01T12:01:00.000Z"),
+        senderUser: null,
+        senderCoworker: { name: "Hannah" },
+      },
+      {
+        id: "parent_1",
+        content: "Root",
+        senderUserId: "user_1",
+        senderCoworkerId: null,
+        metadata: null,
+        createdAt: new Date("2026-07-01T12:00:00.000Z"),
+        senderUser: { name: "Ada" },
+        senderCoworker: null,
+      },
+    ] as never);
+
+    const result = await buildRoomStreamThreadModelMessages({
+      roomId: "room_1",
+      parentMessageId: "parent_1",
+      roomName: "Hannah DM",
+      senderName: "Ada",
+      lastUserMessageText: "See",
+      lastUserFileParts: [
+        { url: "https://blob.example/a.png", mediaType: "image/png" },
+      ],
+    });
+
+    expect(convertToModelMessages).toHaveBeenCalledOnce();
+    expect(result.modelMessages).toEqual([
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "converted" },
+          {
+            type: "file",
+            data: new URL("https://blob.example/a.png"),
+            mediaType: "image/png",
+          },
+        ],
+      },
     ]);
   });
 });

@@ -134,7 +134,7 @@ private let realtimeUserBody = """
 private func realtimeRoomsBody(ids: [String]) -> String {
   let rooms = ids.map { id in
     """
-    {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(id)","slug":null,"kind":"channel","directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(realtimeTimestamp)","updatedAt":"\(realtimeTimestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
+    {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(id)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(realtimeTimestamp)","updatedAt":"\(realtimeTimestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
     """
   }.joined(separator: ",")
   return """
@@ -166,7 +166,7 @@ private func realtimePageBody(messages: [String], nextCursor: String? = nil) -> 
 
 private func realtimeReadBody(id: String) -> String {
   """
-  {"data":{"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(id)","slug":null,"kind":"channel","directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(realtimeTimestamp)","updatedAt":"\(realtimeTimestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]},"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
+  {"data":{"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(id)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(realtimeTimestamp)","updatedAt":"\(realtimeTimestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]},"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
   """
 }
 
@@ -238,6 +238,8 @@ private final class FakeRealtimeConnection: RealtimeConnection, @unchecked Senda
   private(set) var slugs: [String?] = []
   private(set) var tokenProvider: RealtimeTokenProvider?
   private(set) var disconnectCount = 0
+  private(set) var presenceOrganizations: [String?] = []
+  private(set) var publishedPresence: [ChatPresenceMemberData] = []
   private var handler: RealtimeEventHandler?
 
   func connect(
@@ -267,6 +269,14 @@ private final class FakeRealtimeConnection: RealtimeConnection, @unchecked Senda
 
   func refreshMembership() {
     membershipRefreshes += 1
+  }
+
+  func setPresenceOrganization(_ organizationId: String?) {
+    presenceOrganizations.append(organizationId)
+  }
+
+  func publishPresence(_ data: ChatPresenceMemberData) {
+    publishedPresence.append(data)
   }
 
   func disconnect() {
@@ -902,5 +912,222 @@ struct WorkspaceRealtimeTests {
     #expect(fake.membershipRooms.last == [roomB])
     #expect(fake.watchedRooms == [roomA, nil, roomB])
     #expect(state.selectedRoomId == roomB)
+  }
+
+  @Test func orgPresenceFollowsTheActiveOrganization() async throws {
+    let fake = FakeRealtimeConnection()
+    let (state, auth, _) = try realtimeState([
+      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA)),
+      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, realtimeRoomsBody(ids: [])),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, realtimeRoomsBody(ids: []))
+    ])
+    state.realtimeConnectionFactory = { fake }
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    // Personal workspace: nothing to enter, nothing to publish, DTO fallback wins.
+    #expect(fake.presenceOrganizations.isEmpty)
+    #expect(fake.publishedPresence.isEmpty)
+    #expect(state.presence(forUser: "alice", fallback: .afk) == .afk)
+
+    let org = try #require(state.options.first { $0.id == "org_1" })
+    await state.switchRooms(auth: auth, option: org)
+    await waitForRealtimeIdle(state)
+    #expect(fake.presenceOrganizations == ["org_1"])
+    #expect(fake.publishedPresence.count == 1)
+    #expect(fake.publishedPresence.last?.visible == true)
+
+    let alice = ChatPresenceMember(clientId: "alice:inst_00000001", data: ChatPresenceMemberData(lastActiveAt: Date(), visible: true))
+    let bob = ChatPresenceMember(clientId: "bob:inst_00000001", data: ChatPresenceMemberData(lastActiveAt: Date(), visible: false))
+    fake.deliver(.presenceRoster(organizationId: "org_2", members: [alice]))
+    fake.deliver(.presenceRoster(organizationId: "org_1", members: [alice, bob]))
+    for _ in 0 ..< 1000 where state.presence.byUserId.isEmpty {
+      await Task.yield()
+    }
+    #expect(state.presence(forUser: "alice", fallback: .offline) == .online)
+    #expect(state.presence(forUser: "bob", fallback: .offline) == .afk)
+    #expect(state.presence(forUser: "carol", fallback: .offline) == .offline)
+    let human = try #require(ChatParticipantProfile(sender: .case1(.init(_type: .user, user: .init(id: "carol", name: "Carol", email: "carol@example.com", presence: .afk)))))
+    #expect(state.presence(for: human) == .afk)
+    let coworker = try #require(ChatParticipantProfile(sender: .case2(.init(_type: .coworker, coworker: .init(id: "cw", name: "Helper", slug: "helper", presence: .offline)))))
+    #expect(state.presence(for: coworker) == .online)
+
+    let personal = try #require(state.options.first { $0.workspace == .personal })
+    await state.switchRooms(auth: auth, option: personal)
+    await waitForRealtimeIdle(state)
+    #expect(fake.presenceOrganizations == ["org_1", nil])
+    #expect(state.presence.byUserId.isEmpty)
+    #expect(fake.publishedPresence.count == 1)
+  }
+
+  @Test func presencePublishesOnVisibilityAndThrottlesActivity() async throws {
+    let fake = FakeRealtimeConnection()
+    let (state, auth, _) = try realtimeState([
+      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, realtimeRoomsBody(ids: []))
+    ])
+    state.realtimeConnectionFactory = { fake }
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    #expect(fake.presenceOrganizations == ["org_1"])
+    #expect(fake.publishedPresence.count == 1)
+
+    state.recordPresenceActivity()
+    state.recordPresenceActivity()
+    #expect(fake.publishedPresence.count == 1)
+    #expect(state.presence.selfPresence == .online)
+
+    state.setWindowVisible(false, window: realtimeWindow)
+    #expect(fake.publishedPresence.count == 2)
+    #expect(fake.publishedPresence.last?.visible == false)
+    #expect(state.presence.selfPresence == .afk)
+    state.setWindowVisible(false, window: UUID())
+    #expect(fake.publishedPresence.count == 2)
+    state.setWindowVisible(true, window: realtimeWindow)
+    #expect(fake.publishedPresence.count == 3)
+    #expect(fake.publishedPresence.last?.visible == true)
+    #expect(state.presence.selfPresence == .online)
+
+    // Self reads offline only after the socket was up once.
+    fake.deliver(.connectionHealth(healthy: false))
+    fake.deliver(.connectionHealth(healthy: true))
+    fake.deliver(.connectionHealth(healthy: false))
+    // A following roster is a visible barrier for the ordered event stream.
+    fake.deliver(.presenceRoster(organizationId: "org_1", members: [.init(clientId: "alice:inst_00000001", data: nil)]))
+    for _ in 0 ..< 1000 where state.presence.byUserId.isEmpty {
+      await Task.yield()
+    }
+    #expect(state.presence.selfPresence == .offline)
+
+    state.reset()
+    #expect(fake.disconnectCount == 1)
+    #expect(state.presence.organizationId == nil)
+    #expect(state.presence.selfPresence == .online)
+    #expect(fake.publishedPresence.count == 3)
+  }
+
+  @Test func notificationBannersFollowFocusPermissionAndReads() async throws {
+    let fake = FakeRealtimeConnection()
+    let presenter = FakeNotificationPresenter()
+    let (state, auth, _) = try realtimeState(notificationLoadScript)
+    state.realtimeConnectionFactory = { fake }
+    state.notificationPresenter = presenter
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    let arrival = ChatNotificationEvent(id: "n1", roomId: roomB, messageKey: "Notifications.Chat.mentioned", authorName: "Ada", roomName: "design",
+                                        createdAt: Date(timeIntervalSince1970: 100))
+    // Frontmost with an active chat window is web's focused tab: no banner.
+    state.applyRealtimeNotification(arrival)
+    #expect(presenter.shown.isEmpty)
+    // Frontmost without an active chat window (Settings is key) and a background app both count as unfocused.
+    state.setWindowVisible(false, window: realtimeWindow)
+    state.applyRealtimeNotification(arrival)
+    presenter.isAppActive = false
+    state.setWindowVisible(true, window: realtimeWindow)
+    var second = arrival
+    second.groupCount = 2
+    // The socket path: the transport resolves the delivery and the stream applies it.
+    fake.deliver(.notification(second))
+    while presenter.shown.count < 2 {
+      await Task.yield()
+    }
+    #expect(presenter.shown.map(\.identifier) == ["sokosumi-room:\(roomB)", "sokosumi-room:\(roomB)"])
+    #expect(presenter.shown[1].title == "Sokosumi" && presenter.shown[1].body == "2 messages in channel design")
+    presenter.authorization = .denied
+    state.applyRealtimeNotification(arrival)
+    #expect(presenter.shown.count == 2)
+    // Read elsewhere: the banner comes down whatever the gates say.
+    var read = second
+    read.isRead = true
+    read.osBanner = false
+    state.applyRealtimeNotification(read)
+    #expect(presenter.dismissed == ["sokosumi-room:\(roomB)"])
+    state.reset()
+    #expect(presenter.dismissAllCount == 1)
+  }
+
+  @Test func openingANotificationNavigatesEvenWhenMarkReadFails() async throws {
+    let presenter = FakeNotificationPresenter()
+    let (state, auth, transport) = try realtimeState(notificationLoadScript + [
+      (500, realtimeErrorBody),
+      (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomB))
+    ])
+    state.notificationPresenter = presenter
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    #expect(state.selectedRoomId == roomA)
+    let result = try await state.openNotification(.init(id: "n1", roomId: roomB), auth: auth)
+    await waitForRealtimeIdle(state)
+    #expect(result == .opened && state.selectedRoomId == roomB && state.transcriptRoomId == roomB)
+    #expect(presenter.dismissed == ["sokosumi-room:\(roomB)"])
+    #expect(transport.operationIDs.contains("patch/notifications/{id}/read"))
+    #expect(transport.requests.contains { $0.path == "/notifications/n1/read" })
+  }
+
+  @Test func openingANotificationDismissesEvenWhenUnavailable() async throws {
+    let presenter = FakeNotificationPresenter()
+    let (state, auth, _) = try realtimeState(notificationLoadScript)
+    state.notificationPresenter = presenter
+    let result = try await state.openNotification(.init(id: "n1", roomId: roomB), auth: auth)
+    #expect(result == .unavailable && presenter.dismissed == ["sokosumi-room:\(roomB)"])
+  }
+
+  @Test func openingANotificationSwitchesToItsWorkspace() async throws {
+    let (state, auth, transport) = try realtimeState(notificationLoadScript + [
+      (200, realtimeReadBody(id: roomA)),
+      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, realtimeRoomsBody(ids: ["550e8400-e29b-41d4-a716-446655440702"])),
+      (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: "550e8400-e29b-41d4-a716-446655440702"))
+    ])
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    let orgRoom = "550e8400-e29b-41d4-a716-446655440702"
+    let result = try await state.openNotification(.init(id: "n2", roomId: orgRoom, workspaceId: "11111111-1111-7111-8111-111111111111"), auth: auth)
+    await waitForRealtimeIdle(state)
+    #expect(result == .opened && state.selectionId == "org_1" && state.selectedRoomId == orgRoom)
+    let operations = transport.operationIDs
+    let read = try #require(operations.firstIndex(of: "patch/notifications/{id}/read"))
+    let lookup = try #require(operations.firstIndex(of: "get/workspaces/{id}"))
+    #expect(read < lookup)
+  }
+}
+
+private let notificationLoadScript: [(Int, String)] = [
+  (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
+  (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+  (200, realtimeRoomsBody(ids: [roomA, roomB])),
+  (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA))
+]
+
+private let realtimeErrorBody = #"{"error":"Error","message":"Nope","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/x","method":"PATCH"}}"#
+
+@MainActor
+private final class FakeNotificationPresenter: ChatNotificationPresenting {
+  var authorization: ChatNotificationAuthorization = .authorized
+  var isAppActive = true
+  private(set) var shown: [ChatNotificationBanner] = []
+  private(set) var dismissed: [String] = []
+  private(set) var dismissAllCount = 0
+
+  func requestAuthorization() async -> ChatNotificationAuthorization {
+    authorization
+  }
+
+  func show(_ banner: ChatNotificationBanner) {
+    shown.append(banner)
+  }
+
+  func dismiss(identifier: String) {
+    dismissed.append(identifier)
+  }
+
+  func dismissAll() {
+    dismissAllCount += 1
   }
 }

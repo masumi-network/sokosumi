@@ -2,6 +2,7 @@ import { z } from "@hono/zod-openapi";
 import {
   CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
   CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE,
+  MAX_LISTED_CHAT_REACTION_REACTORS,
 } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
@@ -146,6 +147,11 @@ export const chatRoomSchema = z
       example: "launch-room",
     }),
     kind: z.enum(["channel", "direct"]).openapi({ example: "channel" }),
+    isSelfDirect: z.boolean().openapi({
+      description:
+        "Whether this is the owner's private, sole-human Personal Direct for notes.",
+      example: false,
+    }),
     directKey: z.string().nullable().openapi({
       description: "Deterministic key for direct rooms; null for normal rooms.",
       example: "user_123:user_456",
@@ -176,7 +182,7 @@ export const chatRoomSchema = z
     }),
     starredAt: dateTimeSchema.nullable().openapi({
       description:
-        "When the current user starred this room. Null when not starred.",
+        "Set while the current user has this room starred; null when not. A sort key, not the time of starring: starred rooms list oldest first, and `PUT /chats/rooms/starred` rewrites it.",
       example: "2026-08-02T12:00:00.000Z",
     }),
     pinnedMessageCount: z.number().int().min(0).default(0).openapi({
@@ -222,6 +228,33 @@ export const chatRoomPinnedMessageMutationSchema = z
     }),
   })
   .openapi("ChatRoomPinnedMessageMutation");
+
+/** Far above any real starred list; bounds the one-row-per-id transaction. */
+const MAX_STARRED_ROOMS = 500;
+
+export const reorderStarredChatRoomsRequestSchema = z
+  .object({
+    roomIds: z
+      .array(z.string().uuid())
+      .max(MAX_STARRED_ROOMS)
+      .openapi({
+        description:
+          "Starred room ids in the wanted order. Ids the caller has not starred in the active workspace are ignored; membership-visible starred rooms left out keep their relative order after the listed ones. Never stars or unstars a room.",
+        example: ["550e8400-e29b-41d4-a716-446655440000"],
+      }),
+  })
+  .openapi("ReorderStarredChatRoomsRequest");
+
+export const starredChatRoomOrderSchema = z
+  .object({
+    roomId: z.string().uuid().openapi({
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+    starredAt: dateTimeSchema.openapi({
+      description: "Sort key: starred rooms list oldest `starredAt` first.",
+    }),
+  })
+  .openapi("StarredChatRoomOrder");
 
 const roomMemberUserIdsSchema = z
   .array(z.string().min(1))
@@ -410,9 +443,6 @@ export const chatRoomMessageSenderSchema = z
   ])
   .openapi("ChatRoomMessageSender");
 
-/** Cap on named reactors returned per emoji; `count` may still exceed this. */
-export const MAX_LISTED_CHAT_REACTION_REACTORS = 20;
-
 export const chatRoomMessageReactorSchema = z
   .object({
     id: z.string().openapi({ example: "user_123" }),
@@ -455,6 +485,11 @@ export const chatRoomMessageQuoteSchema = z
       example: "Can you summarize this launch risk?",
     }),
     attachment: chatRoomMessageQuoteAttachmentSchema.nullable().optional(),
+    roomId: z.string().uuid().optional().openapi({
+      description:
+        "Source room of a quote sent to the caller's Self Direct. Absent when the quoted message is in the same room.",
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
   })
   .openapi("ChatRoomMessageQuote");
 
@@ -625,12 +660,6 @@ export const updateChatRoomMessageRequestSchema = z
       }),
   })
   .openapi("UpdateChatRoomMessageRequest");
-
-export const reactToChatRoomMessageRequestSchema = z
-  .object({
-    emoji: z.string().trim().min(1).max(24).openapi({ example: "👍" }),
-  })
-  .openapi("ReactToChatRoomMessageRequest");
 
 /**
  * Archiving and leaving both make the room unreachable for the caller, so

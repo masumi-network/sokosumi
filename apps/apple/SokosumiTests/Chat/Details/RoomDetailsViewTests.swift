@@ -12,7 +12,7 @@
       @Test(arguments: [false, true])
       func rendersAtMinimumInspectorWidth(dark: Bool) async throws {
         let room = Components.Schemas.ChatRoom(
-          id: "fixture", name: "Design", kind: .channel,
+          id: "fixture", name: "Design", kind: .channel, isSelfDirect: false,
           topic: "Discuss designs and share feedback with the team.", discoverability: ._private, createdByUserId: "me",
           createdAt: .distantPast, updatedAt: .distantPast, unreadCount: 0, unreadMentionCount: 0,
           markedUnread: false, myAccess: .member,

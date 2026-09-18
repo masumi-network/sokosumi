@@ -208,6 +208,7 @@ export const MARKER_ICONS = {
 export function StatusMarker({
   spec,
   tone,
+  live = true,
 }: {
   spec: StatusMarkerSpec;
   /**
@@ -222,6 +223,16 @@ export function StatusMarker({
    * One value, named, is what makes the override readable at the call site.
    */
   tone?: string;
+  /**
+   * Whether the glyph stands for something happening right now.
+   *
+   * The spin is the only part of a marker that makes a claim about time: it
+   * says the work is in flight as you read it. That claim is false in a
+   * history row, where the status is a value someone set hours ago, and in a
+   * menu row, where the status is an option nobody has chosen. Those callers
+   * pass `false` and get the same glyph, held still.
+   */
+  live?: boolean;
 }) {
   const Icon = spec.icon;
   return (
@@ -236,7 +247,7 @@ export function StatusMarker({
       className={cn(
         "size-3.5 shrink-0",
         tone ?? STATUS_ROLE_STYLES[spec.role].marker,
-        spec.spin && "animate-spin motion-reduce:animate-none",
+        spec.spin && live && "animate-spin motion-reduce:animate-none",
       )}
     />
   );

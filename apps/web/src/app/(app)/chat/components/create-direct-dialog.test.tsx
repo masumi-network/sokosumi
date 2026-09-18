@@ -1,7 +1,9 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
+import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { RoomActionResult } from "@/app/chat/actions";
 import { OrganizationSeatProvider } from "@/contexts/organization-seat-context";
 import type { ChatRoom, Coworker, Member } from "@/lib/clients/generated/core";
 import { CreateDirectDialog } from "./create-direct-dialog";
@@ -93,6 +95,8 @@ describe("CreateDirectDialog", () => {
       ok: true,
       value: {
         currentUserId: "user-self",
+        currentUserName: "Ada",
+        currentUserImage: "https://example.com/ada.png",
         organizationName: "Acme",
         hasOrganization: true,
         canCreateExternal: false,
@@ -110,6 +114,100 @@ describe("CreateDirectDialog", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("opens self-chat with the keyboard and keeps recipient selection exclusive", async () => {
+    const user = userEvent.setup();
+    renderSeated(<CreateDirectDialog />);
+    await user.click(screen.getByRole("button", { name: "Draft.title" }));
+    const self = await screen.findByRole("button", {
+      name: /SelfDirect.messageYourself/,
+    });
+    expect(createDirectRoomActionMock).not.toHaveBeenCalled();
+    const targets = screen
+      .getByTestId("direct-roster-scrollport")
+      .querySelectorAll("button");
+    expect(targets[0]).toBe(self);
+    self.focus();
+    await user.keyboard("{Enter}");
+    expect(
+      screen.getByRole("button", { name: /Francis/ }).hasAttribute("disabled"),
+    ).toBe(true);
+    await user.click(screen.getByRole("button", { name: "Dialog.create" }));
+    expect(createDirectRoomActionMock).toHaveBeenCalledWith({
+      memberUserIds: ["user-self"],
+    });
+    expect(assignMock).toHaveBeenCalledWith("/chat/rooms/room-direct");
+  });
+
+  it.each(["SelfDirect.messageYourself", "SelfDirect.you", "Ada"])(
+    "finds self by %s without using the member roster",
+    async (query) => {
+      loadChatComposeRosterActionMock.mockResolvedValue({
+        ok: true,
+        value: {
+          currentUserId: "user-self",
+          currentUserName: "Ada",
+          currentUserImage: null,
+          organizationName: "",
+          hasOrganization: false,
+          canCreateExternal: false,
+          members: [],
+          coworkers: [],
+          sokoBots: [],
+          membersLoadFailed: true,
+        },
+      });
+      const user = userEvent.setup();
+      renderSeated(<CreateDirectDialog />);
+      await user.click(screen.getByRole("button", { name: "Draft.title" }));
+      await user.type(screen.getByRole("textbox"), query);
+      await user.click(
+        await screen.findByRole("button", {
+          name: /SelfDirect.messageYourself/,
+        }),
+      );
+      await user.click(screen.getByRole("button", { name: "Dialog.create" }));
+      expect(assignMock).toHaveBeenCalledWith("/chat/rooms/room-direct");
+    },
+  );
+
+  it("keeps self selected while opening and allows retry after a transport failure", async () => {
+    const pending = Promise.withResolvers<RoomActionResult<ChatRoom>>();
+    createDirectRoomActionMock.mockReturnValueOnce(pending.promise);
+    const user = userEvent.setup();
+    renderSeated(<CreateDirectDialog />);
+    await user.click(screen.getByRole("button", { name: "Draft.title" }));
+    await user.click(
+      await screen.findByRole("button", { name: /SelfDirect.messageYourself/ }),
+    );
+    await user.click(screen.getByRole("button", { name: "Dialog.create" }));
+    expect(
+      screen.getByRole("button", { name: "CreateWizard.creating" }),
+    ).toBeDisabled();
+    await user.keyboard("{Escape}");
+    expect(
+      screen.getByRole("heading", { name: "Draft.title" }),
+    ).toBeInTheDocument();
+    pending.reject(new Error("Connection lost"));
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Draft.openFailed"),
+    );
+    await user.click(screen.getByRole("button", { name: "Dialog.create" }));
+    expect(createDirectRoomActionMock).toHaveBeenLastCalledWith({
+      memberUserIds: ["user-self"],
+    });
+    expect(assignMock).toHaveBeenCalledWith("/chat/rooms/room-direct");
+  });
+
+  it("prevents selecting self alongside a peer", async () => {
+    const user = userEvent.setup();
+    renderSeated(<CreateDirectDialog />);
+    await user.click(screen.getByRole("button", { name: "Draft.title" }));
+    await user.click(await screen.findByRole("button", { name: /Francis/ }));
+    expect(
+      screen.getByRole("button", { name: /SelfDirect.messageYourself/ }),
+    ).toBeDisabled();
   });
 
   it("creates a Direct without navigating away first, then opens the room", async () => {
@@ -140,6 +238,8 @@ describe("CreateDirectDialog", () => {
       ok: true,
       value: {
         currentUserId: "user-self",
+        currentUserName: "Ada",
+        currentUserImage: "https://example.com/ada.png",
         organizationName: "",
         hasOrganization: false,
         canCreateExternal: false,
@@ -174,6 +274,8 @@ describe("CreateDirectDialog", () => {
       ok: true,
       value: {
         currentUserId: "user-self",
+        currentUserName: "Ada",
+        currentUserImage: "https://example.com/ada.png",
         organizationName: "Acme",
         hasOrganization: true,
         canCreateExternal: false,
@@ -286,6 +388,8 @@ describe("CreateDirectDialog", () => {
       ok: true,
       value: {
         currentUserId: "user-self",
+        currentUserName: "Ada",
+        currentUserImage: "https://example.com/ada.png",
         organizationName: "Acme",
         hasOrganization: true,
         canCreateExternal: false,

@@ -101,9 +101,6 @@
         }
       },
       "AgentDetail": {
-        "Header": {
-          "pricing": "{credits, plural, =0 {Gratis} =1 {1 Credit} other {# Credits}}"
-        },
         "Stats": {
           "executedJobs": "Jobs ejecutados",
           "averageExecutionTime": "Tiempo medio de ejecución",
@@ -1634,6 +1631,7 @@
         "created": "Creado",
         "updated": "Actualizado",
         "description": "Descripción",
+        "context": "Contexto",
         "linkedTasksTitle": "Tareas vinculadas",
         "linkedTasksEmpty": "Aún no hay tareas vinculadas.",
         "jobs": "Jobs",
@@ -5237,6 +5235,7 @@
         "markUnread": "Marcar como no leído",
         "pin": "Fijar",
         "unpin": "Desfijar",
+        "reorderHandle": "Reordenar {name}. Arrastra o pulsa las flechas arriba y abajo.",
         "mute": "Silenciar",
         "unmute": "Dejar de silenciar",
         "roomMenu": "Acciones del chat para {name}",
@@ -5258,6 +5257,9 @@
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflowCount": "{count} participantes más",
       "directMessages": "Direct Messages",
+      "pinned": "Fijados",
+      "reorderPinned": "Reordenar chats fijados",
+      "reorderPinnedDone": "Terminar de reordenar",
       "loading": "Cargando...",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "composerTooLong": "El mensaje es demasiado largo ({count}/{max}). Acórtalo para enviarlo.",
@@ -5330,7 +5332,8 @@
         "removeRecipient": "Remove {name}",
         "groupDirectHumansOnly": "Los mensajes directos de grupo son solo entre personas.",
         "coworkerDirectOneToOneOnly": "Los mensajes directos con coworkers son 1:1.",
-        "personalAssistantDirectOneToOneOnly": "Los mensajes directos con asistentes personales son solo 1:1."
+        "personalAssistantDirectOneToOneOnly": "Los mensajes directos con asistentes personales son solo 1:1.",
+        "openFailed": "No se pudo abrir la conversación. Inténtalo de nuevo."
       },
       "RoomSearch": {
         "open": "Buscar en este chat",
@@ -5459,9 +5462,16 @@
         "personalAssistants": "Asistentes personales"
       },
       "Copy": {
-        "action": "Copiar",
+        "action": "Copiar texto",
+        "link": "Copiar enlace",
         "success": "Copiado al portapapeles",
-        "error": "Error al copiar"
+        "error": "Error al copiar",
+        "linkSuccess": "Enlace copiado",
+        "linkError": "No se pudo copiar el enlace",
+        "sendToSelf": "Enviarte a ti",
+        "sendToSelfSuccess": "Enviado a ti",
+        "sendToSelfError": "No se pudo enviar a ti",
+        "sendToSelfOpen": "Abrir"
       },
       "Edit": {
         "action": "Editar",
@@ -5543,11 +5553,13 @@
       },
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# mensaje no leído} other {# mensajes no leídos}}",
-        "unreadMessagesCapped": "Más de {max} mensajes no leídos"
+        "unreadMessagesCapped": "Más de {max} mensajes no leídos",
+        "railUnread": "Sin leer"
       },
       "RoomMentions": {
         "mentions": "{count, plural, one {# mención} other {# menciones}}",
-        "mentionsCapped": "Más de {max} menciones"
+        "mentionsCapped": "Más de {max} menciones",
+        "railMention": "Te menciona"
       },
       "MembershipStatus": {
         "joined": "{name} se unió",
@@ -5678,6 +5690,12 @@
           "notFound": "Este enlace de invitación no es válido.",
           "back": "Volver al chat"
         }
+      },
+      "SelfDirect": {
+        "messageYourself": "Enviarte un mensaje",
+        "you": "Tú",
+        "description": "Envíate notas y tareas pendientes. Solo tú puedes verlas.",
+        "exclusive": "Tu chat personal no puede incluir otros destinatarios."
       }
     },
     "Drive": {
@@ -5720,7 +5738,7 @@
       "moreActions": "Más acciones",
       "uploadFab": "Subir archivo",
       "folder": "Carpeta",
-      "createFolder": "Crear carpeta",
+      "createFolder": "Nuevo",
       "folderName": "Nombre de carpeta",
       "createFolderDialogTitle": "Crear nueva carpeta",
       "createFolderDialogDescription": "Escribe un nombre para la nueva carpeta",

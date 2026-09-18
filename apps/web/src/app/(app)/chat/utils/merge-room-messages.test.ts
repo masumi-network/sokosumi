@@ -268,6 +268,29 @@ describe("mergeRoomMessages", () => {
     ]);
   });
 
+  it("keeps a quote sent to yourself, which has no body of its own", () => {
+    const chat = message("m1", "2026-07-01T10:00:00.000Z", "hello");
+    const savedQuote = {
+      ...message("m2", "2026-07-01T11:00:00.000Z", ""),
+      quote: {
+        messageId: "source-message",
+        roomId: "source-room",
+        authorName: "Alice",
+        snippet: "Ship the launch notes",
+        attachment: null,
+      },
+    };
+
+    expect(
+      mergeRoomMessages([chat], [savedQuote]).map((row) => row.id),
+    ).toEqual(["m1", "m2"]);
+    expect(
+      mergeMessagesWithStreamOverlay([chat, savedQuote], []).map(
+        (row) => row.id,
+      ),
+    ).toEqual(["m1", "m2"]);
+  });
+
   it("keeps membership status rows alongside chat messages", () => {
     const chat = message("m1", "2026-07-01T10:00:00.000Z", "hello");
     const joined = {
@@ -449,6 +472,58 @@ describe("mergeMessagesWithStreamOverlay", () => {
     expect(merged[1]?.metadata).toEqual(
       expect.objectContaining({ streaming: true }),
     );
+  });
+
+  it("keeps a failed mention shell so Failed to reply and Retry can render", () => {
+    const chat = message("m1", "2026-07-01T10:00:00.000Z", "@hannah hi");
+    const failed = {
+      ...coworkerMessage("reply_failed", "2026-07-01T10:00:01.000Z", ""),
+      metadata: {
+        in_reply_to_message_id: "m1",
+        mention_id: "mention_1",
+        mention_failed: true,
+      },
+    };
+    const thinking = {
+      ...coworkerMessage("reply_2", "2026-07-01T10:00:02.000Z", ""),
+      metadata: { streaming: true, mention_id: "mention_2" },
+    };
+
+    const idle = mergeMessagesWithStreamOverlay([chat, failed, thinking], []);
+    expect(idle.map((row) => row.id)).toEqual([
+      "m1",
+      "reply_failed",
+      "reply_2",
+    ]);
+    // The row decides Failed to reply / Retry from this flag; it must survive.
+    expect(idle[1]?.metadata).toEqual(
+      expect.objectContaining({
+        mention_failed: true,
+        mention_id: "mention_1",
+      }),
+    );
+
+    const overlay = mergeMessagesWithStreamOverlay(
+      [chat, failed],
+      [coworkerMessage("stream:reply", "2026-07-01T10:00:03.000Z", "")],
+    );
+    expect(overlay.map((row) => row.id)).toEqual([
+      "m1",
+      "reply_failed",
+      "stream:reply",
+    ]);
+  });
+
+  it("drops an empty failed coworker row that has no mention_id", () => {
+    const chat = message("m1", "2026-07-01T10:00:00.000Z", "@hannah hi");
+    const leaked = {
+      ...coworkerMessage("reply_leak", "2026-07-01T10:00:01.000Z", ""),
+      metadata: { mention_failed: true, in_reply_to_message_id: "m1" },
+    };
+
+    const merged = mergeMessagesWithStreamOverlay([chat, leaked], []);
+
+    expect(merged.map((row) => row.id)).toEqual(["m1"]);
   });
 
   it("drops an empty persisted streaming coworker row that has no mention_id", () => {

@@ -72,7 +72,3 @@ export function isCoreAgentDetail(agent: CoreAgentDto): agent is AgentDetail {
 export function getAgentRatingStats(agent: CoreAgentDto): AgentRatingStats {
   return agent.metrics.ratings;
 }
-
-export function getAgentCredits(agent: CoreAgentDto): number {
-  return agent.credits;
-}

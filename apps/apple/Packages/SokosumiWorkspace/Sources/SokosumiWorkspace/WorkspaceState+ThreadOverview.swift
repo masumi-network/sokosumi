@@ -3,7 +3,7 @@ import SokosumiAuth
 import SokosumiChat
 
 public extension WorkspaceState {
-  enum ThreadOverviewAction { case load, older, count, displayPreference, markAllRead }
+  enum ThreadOverviewAction { case load, older, count, markAllRead }
 
   func updateThreadOverview(_ action: ThreadOverviewAction, roomId: String, auth: AuthState) async {
     guard roomId == transcriptRoomId, let client = resolveClient(auth: auth) else { return }
@@ -13,8 +13,6 @@ public extension WorkspaceState {
       switch action {
       case .load, .older:
         try await threadOverview.load(client: client, roomId: roomId, organizationSlug: slug, older: action == .older, mentions: rooms.first(where: { $0.id == roomId }).map(MessageMentions.init))
-      case .displayPreference:
-        try await threadOverview.refreshDisplayPreference(client: client)
       case .count:
         try await threadOverview.refreshCount(client: client, roomId: roomId, organizationSlug: slug)
       case .markAllRead:

@@ -45,7 +45,8 @@ describe("TasksLoadingView", () => {
       ".bg-card-background.border-border",
     );
     expect(listShell).toBeTruthy();
-    expect(listShell?.className).toContain("-mx-6");
+    // The one gutter the app has is 16px, so the bleed is -mx-4.
+    expect(listShell?.className).toContain("-mx-4");
     expect(listShell?.className).toContain("rounded-none");
     expect(listShell?.className).toContain("border-0");
     expect(listShell?.className).toContain("md:mx-0");

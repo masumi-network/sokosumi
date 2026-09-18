@@ -16,6 +16,7 @@ import {
 } from "@/app/chat/utils/chat-route-base";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 import { makeRoom, makeUser } from "./__tests__/chat-room-fixtures";
+import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
 
 const {
   leaveRoomActionMock,
@@ -45,28 +46,43 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("next/link", () => ({
-  default: ({ children, href }: { children: ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
+  default: ({
+    children,
+    href,
+    className,
+    tabIndex,
+  }: {
+    children: ReactNode;
+    href: string;
+    className?: string;
+    tabIndex?: number;
+  }) => (
+    <a href={href} className={className} tabIndex={tabIndex}>
+      {children}
+    </a>
   ),
 }));
 
-// The row's two numbers resolve by full key path, so a typo in the namespace
-// fails here instead of passing on a bare key that happens to match. The real
+// The row's two numbers and the rail pill's two states resolve by full key
+// path, so a typo in the namespace fails here instead of passing on a bare key
+// that happens to match. The real
 // catalog and the real ICU plurals are bound in
 // `__tests__/chat-room-sidebar-row-messages.test.tsx`.
 vi.mock("next-intl", () => ({
   useTranslations:
     (namespace?: string) =>
     (key: string, values?: Record<string, string | number>) => {
-      const numbers: Record<string, string> = {
+      const catalogKeys: Record<string, string> = {
         "App.Channels.RoomUnread.unreadMessages": `${values?.count ?? ""} unread messages`,
         "App.Channels.RoomUnread.unreadMessagesCapped": `More than ${values?.max ?? ""} unread messages`,
         "App.Channels.RoomMentions.mentions": `${values?.count ?? ""} mentions`,
         "App.Channels.RoomMentions.mentionsCapped": `More than ${values?.max ?? ""} mentions`,
+        "App.Channels.RoomUnread.railUnread": "Unread",
+        "App.Channels.RoomMentions.railMention": "Mentions you",
       };
-      const number = numbers[`${namespace ?? ""}.${key}`];
-      if (number !== undefined) {
-        return number;
+      const catalogValue = catalogKeys[`${namespace ?? ""}.${key}`];
+      if (catalogValue !== undefined) {
+        return catalogValue;
       }
 
       const translations: Record<string, string> = {
@@ -131,14 +147,23 @@ vi.mock("@/components/ui/sidebar", () => ({
   SidebarMenuButton: ({
     children,
     asChild,
+    tooltip,
   }: {
     children: ReactNode;
     asChild?: boolean;
-  }) =>
-    asChild && isValidElement(children) ? children : <div>{children}</div>,
+    tooltip?: string;
+  }) => (
+    <div data-testid="sidebar-menu-button" data-tooltip={tooltip}>
+      {asChild && isValidElement(children) ? children : <div>{children}</div>}
+    </div>
+  ),
   SidebarMenuItem: ({ children }: { children: ReactNode }) => (
     <li>{children}</li>
   ),
+  // A marker, not the real bar: what it looks like belongs to the primitive
+  // that owns it, and `sidebar-rail-selection.test.tsx` pins that. This row
+  // only decides when it is there.
+  SidebarRailSelectionBar: () => <span data-testid="rail-selection-bar" />,
 }));
 
 vi.mock("@/components/ui/dropdown-menu", () => {
@@ -320,8 +345,28 @@ async function openRoomMenu(label = "general") {
   return user;
 }
 
+describe("ChatRoomSidebarRow tooltip", () => {
+  it("names the room on the sidebar button so the collapsed rail can show it", () => {
+    render(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span />}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("sidebar-menu-button")).toHaveAttribute(
+      "data-tooltip",
+      "general",
+    );
+  });
+});
+
 describe("ChatRoomSidebarRow leading slot", () => {
-  it("wraps any room leading icon in a min-w-5 / h-5 alignment slot", () => {
+  it("wraps any room leading icon in a min-w-7 / h-7 alignment slot below md", () => {
     const { container } = render(
       <ChatRoomSidebarRow
         room={makeRoom()}
@@ -337,16 +382,608 @@ describe("ChatRoomSidebarRow leading slot", () => {
     const slot = leading.parentElement;
     expect(slot).not.toBeNull();
     expect(slot?.getAttribute("data-slot")).toBe("room-leading");
-    // min-w-5 aligns single icons; width may grow for multi-avatar stacks.
-    expect(slot?.className).toContain("min-w-5");
-    expect(slot?.className).toContain("h-5");
-    expect(slot?.className).toContain("shrink-0");
-    expect(slot?.className).toContain("items-center");
-    expect(slot?.className).toContain("justify-center");
+    // Split tokens: `md:min-w-5` contains the substring `min-w-5`.
+    const tokens = slot?.className.split(" ") ?? [];
+    // min-w-7 aligns single icons below md; width may grow for multi-avatar stacks.
+    expect(tokens).toContain("min-w-7");
+    expect(tokens).toContain("h-7");
+    expect(tokens).toContain("md:min-w-5");
+    expect(tokens).toContain("md:h-5");
+    expect(tokens).toContain("shrink-0");
+    expect(tokens).toContain("items-center");
+    expect(tokens).toContain("justify-center");
 
     // Slot is a direct child of the room link so every room type shares the same column.
     const link = container.querySelector('a[href="/chat/rooms/room-1"]');
     expect(link?.firstElementChild).toBe(slot);
+  });
+});
+
+describe("ChatRoomSidebarRow collapsed rail", () => {
+  it("centres a 24px leading mark and keeps the name for assistive tech", () => {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span data-testid="custom-leading">#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const link = container.querySelector('a[href="/chat/rooms/room-1"]');
+    // Padding drops and the mark centres: the collapsed button keeps its own
+    // `p-3!`, which `px-0!` outranks because Tailwind orders it later.
+    expect(link?.className).toContain(
+      "group-data-[collapsible=icon]:justify-center",
+    );
+    expect(link?.className).toContain("group-data-[collapsible=icon]:px-0!");
+    // The menu button clips its content for name truncation. Collapsed, the
+    // 24px tile's corner mark hangs 6px below it inside a 32px button, so the
+    // clip has to lift there or the lock and globe lose their bottom.
+    expect(link?.className).toContain(
+      "group-data-[collapsible=icon]:overflow-visible",
+    );
+
+    const slot = screen.getByTestId("custom-leading").parentElement;
+    expect(slot?.className).toContain("group-data-[collapsible=icon]:h-6");
+    expect(slot?.className).toContain("group-data-[collapsible=icon]:min-w-6");
+
+    // The name must stay in the accessible name (the tooltip adds none) while
+    // taking no flex space, so `sr-only`, never `hidden`. The spacer would
+    // otherwise pull the mark off centre on touch.
+    const name = screen.getByText("general");
+    expect(name.parentElement?.parentElement?.className).toContain(
+      "group-data-[collapsible=icon]:sr-only",
+    );
+    expect(
+      container.querySelector('[data-slot="room-trailing-spacer"]')?.className,
+    ).toContain("group-data-[collapsible=icon]:hidden");
+  });
+
+  // The rail attention pill: the one cue left once bold, count, and badge hide.
+  function renderRail(
+    room: Partial<ChatRoom>,
+    options: { isActive?: boolean; leading?: ReactNode } = {},
+  ) {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom(room)}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={options.isActive ?? false}
+        leading={options.leading ?? <span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+    return container.querySelector('[data-slot="room-rail-attention"]');
+  }
+
+  it("shows the unread pill for an unread room, in the collapsed rail only", () => {
+    const pill = renderRail({ unreadCount: 3 });
+    expect(pill?.getAttribute("data-variant")).toBe("unread");
+    // Rendered always, shown only collapsed, like the channel tile.
+    expect(pill?.className).toContain("hidden");
+    expect(pill?.className).toContain("group-data-[collapsible=icon]:block");
+    // 6px unread, on the rail's edge outside the link's overflow clip.
+    expect(pill?.className).toContain("h-1.5");
+    expect(pill?.className).toContain("-left-2");
+    expect(
+      document.querySelector('a[href="/chat/rooms/room-1"]')?.contains(pill),
+    ).toBe(false);
+    // The state is announced inside the link, collapsed only.
+    const text = screen.getByText("Unread");
+    expect(text.className).toContain("sr-only");
+    expect(text.className).toContain("hidden");
+    expect(text.className).toContain("group-data-[collapsible=icon]:block");
+    expect(
+      document.querySelector('a[href="/chat/rooms/room-1"]')?.contains(text),
+    ).toBe(true);
+  });
+
+  it("shows the taller mention pill when the reader is mentioned", () => {
+    const pill = renderRail({ unreadMentionCount: 2 });
+    expect(pill?.getAttribute("data-variant")).toBe("mention");
+    expect(pill?.className).toContain("h-2");
+    expect(screen.getByText("Mentions you").className).toContain("sr-only");
+  });
+
+  it("shows exactly one pill, the mention one, when mention and unread meet", () => {
+    const pill = renderRail({ unreadCount: 5, unreadMentionCount: 2 });
+    expect(pill?.getAttribute("data-variant")).toBe("mention");
+    expect(screen.queryByText("Unread")).toBeNull();
+    expect(
+      document.querySelectorAll('[data-slot="room-rail-attention"]'),
+    ).toHaveLength(1);
+  });
+
+  it("shows the unread pill for a room the reader marked unread by hand", () => {
+    expect(
+      renderRail({ markedUnread: true })?.getAttribute("data-variant"),
+    ).toBe("unread");
+  });
+
+  it("shows no pill for a read room", () => {
+    expect(renderRail({})).toBeNull();
+  });
+
+  it("shows no pill for a muted room however loud it is", () => {
+    expect(
+      renderRail({
+        unreadCount: 9,
+        unreadMentionCount: 4,
+        markedUnread: true,
+        mutedAt: new Date("2026-09-01T00:00:00.000Z"),
+      }),
+    ).toBeNull();
+  });
+
+  it("keeps the pill on the room the reader has open", () => {
+    expect(
+      renderRail({ unreadCount: 1 }, { isActive: true })?.getAttribute(
+        "data-variant",
+      ),
+    ).toBe("unread");
+  });
+
+  // The pill belongs to the row, so a Direct gets it with no wiring of its
+  // own, and it sits beside the real avatar stack rather than on it: the face
+  // keeps its presence dot to itself.
+  it("marks a Direct beside its avatar the same way as a Channel", () => {
+    const room = makeRoom({ kind: "direct", unreadMentionCount: 1 });
+    const pill = renderRail(room, {
+      leading: <DirectRoomAvatarStack room={room} currentUserId="user-1" />,
+    });
+    expect(pill?.getAttribute("data-variant")).toBe("mention");
+    const face = screen.getByTestId("dm-sidebar-avatar-user-2");
+    expect(face).toBeInTheDocument();
+    expect(face.parentElement?.contains(pill)).toBe(false);
+  });
+});
+
+// The rail selection bar: the row's job is when it shows, not how it looks.
+describe("ChatRoomSidebarRow rail selection bar", () => {
+  function renderRow(
+    room: Partial<ChatRoom>,
+    options: { isActive?: boolean } = {},
+  ) {
+    render(
+      <ChatRoomSidebarRow
+        room={makeRoom(room)}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={options.isActive ?? false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+    return screen.queryByTestId("rail-selection-bar");
+  }
+
+  it("marks the room the reader has open", () => {
+    expect(renderRow({}, { isActive: true })).toBeInTheDocument();
+  });
+
+  it("shows no selection mark on a room the reader does not have open", () => {
+    expect(renderRow({})).toBeNull();
+  });
+
+  // The two marks sit on opposite edges precisely so this can happen without
+  // either having to give way.
+  it("marks an unread open room on both edges at once", () => {
+    expect(
+      renderRow({ unreadMentionCount: 2 }, { isActive: true }),
+    ).toBeInTheDocument();
+    expect(
+      document
+        .querySelector('[data-slot="room-rail-attention"]')
+        ?.getAttribute("data-variant"),
+    ).toBe("mention");
+  });
+});
+
+describe("ChatRoomSidebarRow trailing cluster", () => {
+  it("hides the muted glyph and room menu when the sidebar collapses", () => {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom({ mutedAt: new Date("2026-09-01T00:00:00.000Z") })}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const cluster = container.querySelector('[data-slot="room-trailing"]');
+    expect(cluster).not.toBeNull();
+    // Muted glyph and the room menu both live in this one cluster.
+    expect(cluster?.querySelector("svg.lucide-bell-off")).not.toBeNull();
+    expect(
+      cluster?.contains(
+        screen.getByRole("button", { name: "Chat actions for general" }),
+      ),
+    ).toBe(true);
+    expect(cluster?.className).toContain(
+      "group-data-[collapsible=icon]:hidden",
+    );
+  });
+
+  it("gives the room menu a 44px touch target below md", () => {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    // The box stays 32px; the pseudo-element carries it out to 44px.
+    const menuTokens =
+      container.querySelector("button")?.className.split(" ") ?? [];
+    expect(menuTokens).toContain("size-8");
+    expect(menuTokens).toContain("after:-inset-1.5");
+    expect(menuTokens).toContain("md:after:hidden");
+  });
+
+  it("shows no glyph on a pinned row: the Pinned section already says so", () => {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom({ starredAt: new Date("2026-09-01T00:00:00.000Z") })}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    expect(
+      container.querySelector('[data-slot="room-trailing"] svg.lucide-pin'),
+    ).toBeNull();
+  });
+
+  it("keeps the muted glyph in the same size slot as the room menu", () => {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom({ mutedAt: new Date("2026-09-01T00:00:00.000Z") })}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const glyph = container.querySelector("svg.lucide-bell-off");
+    const box = glyph?.parentElement;
+    expect(box).not.toBeNull();
+    expect(box?.className.split(" ").includes("md:size-7")).toBe(true);
+    expect(box?.className).not.toContain("[@media(hover:hover)]:size-4");
+  });
+
+  // The hole is sized to the glyph, not the button's 28px box: `size-4` ends
+  // the name 8px clear of the `…`. A row that shows something at rest holds it
+  // open in every state; a plain row opens it with the button.
+  const GLYPH_HOLE = "[@media(hover:hover)]:size-4";
+  // Touch shows the badge or the bell beside the menu, so the hole holds two
+  // 32px boxes. The badge rides the bell's box, so one width serves both.
+  const BADGE_AND_CONTROL_HOLE_TOUCH = "[@media(hover:none)]:w-16";
+  const NO_HOLE = "[@media(hover:hover)]:size-0";
+  const HOLE_ON_INTERACTION = [
+    "[@media(hover:hover)]:group-hover/room-row:size-4",
+    "[@media(hover:hover)]:group-focus-within/room-row:size-4",
+    "[@media(hover:hover)]:group-has-[[data-state=open]]/room-row:size-4",
+  ];
+
+  function spacerTokens(container: HTMLElement) {
+    return (
+      container
+        .querySelector('[data-slot="room-trailing-spacer"]')
+        ?.className.split(" ") ?? []
+    );
+  }
+
+  it.each([
+    ["muted", { mutedAt: new Date("2026-09-01T00:00:00.000Z") }, false],
+    ["open", {}, true],
+  ])(
+    "holds the hole open in every state on a %s row, so its name never moves",
+    (_state, roomProps, isActive) => {
+      const { container } = render(
+        <ChatRoomSidebarRow
+          room={makeRoom(roomProps)}
+          href="/chat/rooms/room-1"
+          label="Agent Test Channel"
+          isActive={isActive}
+          leading={<span>#</span>}
+          onRoomUpdated={vi.fn()}
+        />,
+      );
+
+      const tokens = spacerTokens(container);
+      expect(tokens).toContain(GLYPH_HOLE);
+      expect(tokens).not.toContain(NO_HOLE);
+      // Nothing widens it further, so hovering the row is a no-op on the name.
+      for (const token of HOLE_ON_INTERACTION) {
+        expect(tokens).not.toContain(token);
+      }
+      expect(tokens.includes("md:size-7")).toBe(false);
+    },
+  );
+
+  // The other half of the badge rule: no badge, no hole, full name width.
+  it("keeps a plain row's full name width at rest and opens the hole with the button", () => {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="Agent Building"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    // The button is `opacity-0` at rest, so an invisible button needs no hole.
+    const tokens = spacerTokens(container);
+    expect(tokens).toContain(NO_HOLE);
+    expect(tokens).not.toContain(GLYPH_HOLE);
+    for (const token of HOLE_ON_INTERACTION) {
+      expect(tokens).toContain(token);
+    }
+    expect(tokens).not.toContain("[@media(hover:none)]:w-16");
+  });
+
+  it("opens a muted row's hole to the same width a plain row reaches on hover", () => {
+    const { container, rerender } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom({ mutedAt: new Date("2026-09-01T00:00:00.000Z") })}
+        href="/chat/rooms/room-1"
+        label="Agent Test Channel"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    expect(spacerTokens(container)).toContain(GLYPH_HOLE);
+    expect(
+      container.querySelector('[data-slot="room-trailing-spacer"]')?.className,
+    ).toContain("[@media(hover:none)]:w-16");
+
+    rerender(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="Agent Building"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    // Same 16px on both, so a plain row lands where an icon row already sits
+    // rather than overshooting it.
+    expect(spacerTokens(container)).toContain(
+      "[@media(hover:hover)]:group-hover/room-row:size-4",
+    );
+  });
+
+  // The badge stands in the menu's column and is out of flow, so the hole is
+  // the only thing keeping the name off it. A badged row therefore holds the
+  // hole open in every state, like a muted row and the open room: the name is
+  // shortened once, by the hole the badge and the menu share, and it does not
+  // move when they swap. It fails if a badged row ever rests at `size-0`,
+  // which would run the name and its count under the badge.
+  it.each([
+    ["pinned", new Date("2026-09-01T00:00:00.000Z")],
+    ["unpinned", null],
+  ])(
+    "shortens a %s row's name for its mention badge and holds it there",
+    (_state, starredAt) => {
+      const { container } = render(
+        <ChatRoomSidebarRow
+          room={makeRoom({
+            starredAt,
+            unreadCount: 2,
+            unreadMentionCount: 2,
+          })}
+          href="/chat/rooms/room-1"
+          label="Patrick Tobler"
+          isActive={false}
+          leading={<span>#</span>}
+          onRoomUpdated={vi.fn()}
+        />,
+      );
+
+      const tokens = spacerTokens(container);
+      expect(tokens).toContain(GLYPH_HOLE);
+      expect(tokens).not.toContain(NO_HOLE);
+      // Nothing widens it further, so the crossfade moves no text.
+      for (const token of HOLE_ON_INTERACTION) {
+        expect(tokens).not.toContain(token);
+      }
+      // Touch has no hover, so the badge stays in flow beside the menu there
+      // and the hole holds both.
+      expect(tokens).toContain(BADGE_AND_CONTROL_HOLE_TOUCH);
+    },
+  );
+
+  // Reorder mode's handle never fades, so there is nothing to crossfade with
+  // and the badge stays in flow beside it.
+  it("holds a badge and the reorder handle side by side", () => {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom({
+          starredAt: new Date("2026-09-01T00:00:00.000Z"),
+          unreadCount: 2,
+          unreadMentionCount: 2,
+        })}
+        href="/chat/rooms/room-1"
+        label="Patrick Tobler"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+        reorderHandle={<button type="button">grip</button>}
+      />,
+    );
+
+    const tokens = spacerTokens(container);
+    expect(tokens).toContain("[@media(hover:hover)]:w-16");
+    expect(tokens).not.toContain(GLYPH_HOLE);
+    expect(tokens).not.toContain(NO_HOLE);
+    expect(
+      container
+        .querySelector('[data-slot="room-mention-badge"]')
+        ?.className.split(" "),
+    ).not.toContain("[@media(hover:hover)]:absolute");
+  });
+});
+
+// The badge shares the room menu's column and fades out as the menu fades in,
+// which is what frees the width the name gets back. The number itself is
+// decoration outside the link; `MentionAnnouncement` carries it to the reader.
+describe("ChatRoomSidebarRow mention badge", () => {
+  function renderBadgedRow(props?: { reorderHandle?: React.ReactNode }) {
+    return render(
+      <ChatRoomSidebarRow
+        room={makeRoom({ unreadCount: 3, unreadMentionCount: 2 })}
+        href="/chat/rooms/room-1"
+        label="Patrick Tobler"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+        reorderHandle={props?.reorderHandle}
+      />,
+    );
+  }
+
+  it("draws the badge in the menu's column, not in the link", () => {
+    const { container } = renderBadgedRow();
+
+    const badge = container.querySelector('[data-slot="room-mention-badge"]');
+    expect(badge?.textContent).toBe("2");
+    expect(
+      container.querySelector('[data-slot="room-trailing"]')?.contains(badge),
+    ).toBe(true);
+    expect(screen.getByRole("link").contains(badge)).toBe(false);
+    // It never eats the menu button it covers at rest.
+    expect(badge?.className.split(" ")).toContain("pointer-events-none");
+  });
+
+  it("fades the badge out on hover, focus and menu-open", () => {
+    const { container } = renderBadgedRow();
+
+    const tokens =
+      container
+        .querySelector('[data-slot="room-mention-badge"]')
+        ?.className.split(" ") ?? [];
+    expect(tokens).toContain("[@media(hover:hover)]:absolute");
+    for (const token of [
+      "[@media(hover:hover)]:group-hover/room-row:opacity-0",
+      "[@media(hover:hover)]:group-focus-within/room-row:opacity-0",
+      "group-has-[[data-state=open]]/room-row:opacity-0",
+    ]) {
+      expect(tokens).toContain(token);
+    }
+    // The swap reads as one move, and stills for a reader who asked for that.
+    expect(tokens).toContain("motion-safe:transition-opacity");
+  });
+
+  it("fades the menu button in on the same terms", () => {
+    renderBadgedRow();
+
+    const tokens = screen
+      .getByRole("button", { name: "Chat actions for Patrick Tobler" })
+      .className.split(" ");
+    expect(tokens).toContain("motion-safe:transition-opacity");
+    expect(tokens).toContain("[@media(hover:hover)]:opacity-0");
+    for (const token of [
+      "[@media(hover:hover)]:group-hover/room-row:opacity-100",
+      // Tabbing to the row reveals the menu, so it stays a keyboard target on
+      // the same terms that fade the badge out.
+      "[@media(hover:hover)]:group-focus-within/room-row:opacity-100",
+      "data-[state=open]:opacity-100",
+    ]) {
+      expect(tokens).toContain(token);
+    }
+  });
+
+  // The pill's width is a count, so positioning it by its own edge centres `2`
+  // and leaves `99+` off-centre against the name. It rides the bell's box.
+  it("centres the pill in the same box the muted bell uses", () => {
+    const { container } = renderBadgedRow();
+
+    const badge = container.querySelector('[data-slot="room-mention-badge"]');
+    const tokens = badge?.className.split(" ") ?? [];
+    expect(tokens).toContain("size-8");
+    expect(tokens).toContain("md:size-7");
+    expect(tokens).toContain("[@media(hover:hover)]:right-0");
+    expect(tokens).not.toContain("[@media(hover:hover)]:right-1");
+    // The pill is the inner element, so the box's width is not its width.
+    expect(badge?.firstElementChild?.className).toContain("rounded-full");
+  });
+
+  // The badge is `aria-hidden` outside the link, so losing the announcement
+  // would leave a screen reader with no mention at all on the row.
+  it("keeps the mention in the link's accessible name", () => {
+    renderBadgedRow();
+
+    const announcement = screen.getByText("2 mentions");
+    expect(announcement.className).toContain("sr-only");
+    expect(screen.getByRole("link").contains(announcement)).toBe(true);
+  });
+});
+
+describe("ChatRoomSidebarRow reorder mode", () => {
+  function renderRow(reorderHandle?: React.ReactNode) {
+    return render(
+      <ChatRoomSidebarRow
+        room={makeRoom({ starredAt: new Date("2026-09-01T00:00:00.000Z") })}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+        reorderHandle={reorderHandle}
+      />,
+    );
+  }
+
+  it("puts the handle where the room menu stands and rests the link", () => {
+    const { container } = renderRow(<button type="button">grip</button>);
+
+    const cluster = container.querySelector('[data-slot="room-trailing"]');
+    expect(
+      cluster?.contains(screen.getByRole("button", { name: "grip" })),
+    ).toBe(true);
+    expect(
+      screen.queryByRole("button", { name: "Chat actions for general" }),
+    ).toBeNull();
+
+    const link = screen.getByRole("link");
+    expect(link.className.split(" ")).toContain("pointer-events-none");
+    // The collapsed rail shows no handle, so its rows keep opening rooms.
+    expect(link.className.split(" ")).toContain(
+      "group-data-[collapsible=icon]:pointer-events-auto",
+    );
+    expect(link).toHaveAttribute("tabindex", "-1");
+  });
+
+  it("is an ordinary row outside reorder mode", () => {
+    renderRow();
+
+    expect(
+      screen.getByRole("button", { name: "Chat actions for general" }),
+    ).toBeInTheDocument();
+    const link = screen.getByRole("link");
+    expect(link.className.split(" ")).not.toContain("pointer-events-none");
+    expect(link).not.toHaveAttribute("tabindex");
   });
 });
 
@@ -716,11 +1353,14 @@ describe("ChatRoomSidebarRow unread message count", () => {
   it("hides the count with the mention badge when the sidebar collapses", () => {
     renderRow(makeRoom({ unreadCount: 4, unreadMentionCount: 2 }));
 
-    for (const text of ["4 unread messages", "2 mentions"]) {
-      expect(screen.getByText(text).parentElement?.className).toContain(
-        "group-data-[collapsible=icon]:hidden",
-      );
-    }
+    // The count is a visible span wrapping its own announcement, so the rule
+    // sits on the parent there. The mention is announcement only.
+    expect(
+      screen.getByText("4 unread messages").parentElement?.className,
+    ).toContain("group-data-[collapsible=icon]:hidden");
+    expect(screen.getByText("2 mentions").className).toContain(
+      "group-data-[collapsible=icon]:hidden",
+    );
   });
 
   // The regression guard: a mention and unread messages on one row, each
@@ -729,7 +1369,10 @@ describe("ChatRoomSidebarRow unread message count", () => {
     renderRow(makeRoom({ unreadCount: 9, unreadMentionCount: 2 }));
 
     expect(screen.getByText("2 mentions")).toBeInTheDocument();
-    expect(screen.getByText("2")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText("2").closest("[aria-hidden]")).toHaveAttribute(
+      "data-slot",
+      "room-mention-badge",
+    );
     expect(screen.getByText("9 unread messages")).toBeInTheDocument();
     expect(screen.getByText("· 9")).toHaveAttribute("aria-hidden", "true");
   });
@@ -747,7 +1390,10 @@ describe("ChatRoomSidebarRow unread message count", () => {
   it("caps the mention badge at the same ceiling as the message count", () => {
     renderRow(makeRoom({ unreadCount: 1234, unreadMentionCount: 1234 }));
 
-    expect(screen.getByText("99+")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText("99+").closest("[aria-hidden]")).toHaveAttribute(
+      "data-slot",
+      "room-mention-badge",
+    );
     expect(screen.getByText("· 99+")).toHaveAttribute("aria-hidden", "true");
     expect(screen.getByText("More than 99 mentions")).toBeInTheDocument();
     expect(screen.getByText("More than 99 unread messages")).toBeVisible();

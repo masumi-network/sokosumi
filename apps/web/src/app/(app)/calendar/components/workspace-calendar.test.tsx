@@ -328,7 +328,7 @@ describe("WorkspaceCalendar", () => {
       "workspace-calendar-theme",
       "bg-background",
       "overflow-x-auto",
-      "-mx-6",
+      "-mx-4",
       "rounded-none",
       "border-0",
       "border-border",

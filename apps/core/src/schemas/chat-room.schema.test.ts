@@ -50,6 +50,7 @@ describe("chatRoomSchema", () => {
     name: "Launch Room",
     slug: "launch-room",
     kind: "channel" as const,
+    isSelfDirect: false,
     directKey: null,
     topic: null,
     discoverability: "external" as const,
@@ -95,6 +96,7 @@ describe("chatRoomSchema", () => {
       kind: "direct",
       slug: null,
       discoverability: null,
+      isSelfDirect: false,
       directKey: "user_123:user_456",
     });
     expect(parsed.slug).toBeNull();

@@ -1,4 +1,6 @@
-"""Extract the Apple client's existing operations plus requested paths (optionally path#method) from Core OpenAPI."""
+"""Extract the Apple client's existing operations plus requested paths (optionally path#method) from Core OpenAPI.
+
+Paths or methods Core no longer serves are dropped, so a removed contract leaves the snapshot too."""
 import json
 import sys
 from pathlib import Path
@@ -13,8 +15,12 @@ for selection in sys.argv[2:]:
         paths.setdefault(path, {})[method] = source['paths'][path][method]
     else:
         paths[path] = source['paths'][path]
-for path, operations in paths.items():
-    paths[path] = {method: source['paths'][path][method] for method in operations}
+paths = {
+    path: {method: source['paths'][path][method] for method in operations if method in source['paths'][path]}
+    for path, operations in paths.items()
+    if path in source['paths']
+}
+paths = {path: operations for path, operations in paths.items() if operations}
 components = {}
 def collect(value):
     if isinstance(value, dict):

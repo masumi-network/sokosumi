@@ -33,8 +33,17 @@ public final class WorkspaceState: ObservableObject {
   @Published public private(set) var openingDirect: DirectRecipient?
   @Published public private(set) var creatingChannel = false
   @Published public private(set) var joiningChannel = false
-  @Published public private(set) var updatingChannel = false
+  @Published public internal(set) var updatingChannel = false
+  @Published public private(set) var channelLifecycle: ChannelLifecycleRequest?
+  @Published public internal(set) var invitationResponse: InvitationResponse?
+  public let archivedChannels = ArchivedChannels()
+  public let pendingInvitations = PendingInvitations()
   @Published public private(set) var compositionContext = UUID()
+  /// Channel/Direct mutations are single-flight across the workspace, matching web's one open dialog at a time.
+  public var channelMutationInFlight: Bool {
+    creatingChannel || joiningChannel || updatingChannel || openingDirect != nil || channelLifecycle != nil || invitationResponse != nil
+  }
+
   public var phase: Phase {
     workspaceSession.phase
   }
@@ -91,7 +100,19 @@ public final class WorkspaceState: ObservableObject {
     workspaceSession.currentUser?.image
   }
 
-  @Published var pendingReactions: Set<ReactionRequest> = []
+  /// The viewer's unconfirmed reaction taps (ADR 0032); see `WorkspaceState+Reactions`.
+  @Published var pendingReactions = PendingReactions()
+  /// Failed mention shells whose retry POST is in flight; see `WorkspaceState+Mentions`.
+  @Published var pendingMentionRetries: Set<MentionRetryRequest> = []
+  /// Soko Bot turns rated in this session, by turn id; see `WorkspaceState+SokoBot`.
+  @Published public internal(set) var sokoBotFeedback: [String: Bool] = [:]
+  @Published var pendingSokoBotFeedback: Set<String> = []
+  /// Account-synced chat display preferences; see `WorkspaceState+DisplayPreferences`.
+  public let chatDisplay = ChatDisplayPreferences()
+  public let notificationPreferences = ChatNotificationPreferences()
+  /// App-side OS notification adapter; without it events raise no banner.
+  public var notificationPresenter: (any ChatNotificationPresenting)?
+  var notificationBanners = ChatNotificationBanners()
   public let timeline = RoomTimeline()
   public let pins = PinnedMessages()
   @Published var pendingPins: Set<String> = []
@@ -153,13 +174,20 @@ public final class WorkspaceState: ObservableObject {
   /// nil in tests unless a fake is installed. Without one the transcript
   /// stays HTTP-only and every realtime call below no-ops.
   public var realtimeConnectionFactory: (@Sendable () -> (any RealtimeConnection))?
-  private var realtime: (any RealtimeConnection)?
+  var realtime: (any RealtimeConnection)?
   private var realtimeStreamTask: Task<Void, Never>?
   private var realtimeContinuation: AsyncStream<ResolvedRealtimeDelivery>.Continuation?
+  /// Org presence map and publisher bookkeeping (ADR 0003); see `WorkspaceState+Presence`.
+  public let presence = OrgPresence()
+  var presenceTickTask: Task<Void, Never>?
+  /// The self dot reads offline only after the socket was up once; before
+  /// that a launch would flash offline while the first token mints.
+  var realtimeEverConnected = false
 
-  /// Confirmed history plus unresolved outbound shells (sticky at the end).
+  /// Confirmed history plus unresolved outbound shells (sticky at the end), with Pending reactions on top.
   public var displayedTranscript: [Components.Schemas.ChatRoomMessage] {
-    directStream.displayedMessages(persisted: SokosumiChat.displayedTranscript(messages: transcriptMessages, shells: outboundShells))
+    let messages = directStream.displayedMessages(persisted: SokosumiChat.displayedTranscript(messages: transcriptMessages, shells: outboundShells))
+    return pendingReactions.overlaying(messages, viewer: reactionViewer)
   }
 
   var transcriptCursor: String? {
@@ -198,7 +226,7 @@ public final class WorkspaceState: ObservableObject {
     self.clientProvider = clientProvider
     sidebar = ConversationSidebar(savedRoom: savedRoom)
     ablyClientInstanceId = getOrCreateAblyClientInstanceId(store: instanceStore)
-    for publisher in [threadOverview.objectWillChange, pins.objectWillChange, thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange] {
+    for publisher in [archivedChannels.objectWillChange, pendingInvitations.objectWillChange, threadOverview.objectWillChange, chatDisplay.objectWillChange, pins.objectWillChange, thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange, presence.objectWillChange] {
       publisher.sink { [weak self] in self?.objectWillChange.send() }.store(in: &threadObservations)
     }
     // Rows need editor identity changes; draft and save state are observed by the editor itself.
@@ -258,6 +286,16 @@ public final class WorkspaceState: ObservableObject {
     creatingChannel = false
     joiningChannel = false
     updatingChannel = false
+    channelLifecycle = nil
+    invitationResponse = nil
+    pendingReactions = PendingReactions()
+    sokoBotFeedback = [:]
+    pendingSokoBotFeedback = []
+    chatDisplay.reset()
+    notificationPreferences.reset()
+    clearNotificationBanners()
+    archivedChannels.reset()
+    pendingInvitations.reset()
     workspaceSession.reset()
     sidebar.reset()
     rooms = []
@@ -302,7 +340,7 @@ public final class WorkspaceState: ObservableObject {
   }
 
   public func createChannel(_ draft: ChannelDraft, roster: ChatRecipientRoster, context: UUID, auth: AuthState) async throws -> Bool {
-    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, !creatingChannel, !joiningChannel, !updatingChannel, openingDirect == nil else { return false }
+    guard canStartMutation(context: context) else { return false }
     let sourceRoom = transcriptRoomId
     creatingChannel = true
     defer {
@@ -320,7 +358,7 @@ public final class WorkspaceState: ObservableObject {
   /// Editing reconciles the room in place and never navigates: the sidebar row and any open transcript keep their identity.
   public func updateChannel(_ draft: ChannelEditDraft, roomId: String, permissions: ChannelEditPermissions, context: UUID, auth: AuthState) async throws -> Bool {
     guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, permissions.canEditMembers, draft.isValid,
-          !updatingChannel, !creatingChannel, !joiningChannel, openingDirect == nil else { return false }
+          !channelMutationInFlight else { return false }
     updatingChannel = true
     defer {
       if context == compositionContext {
@@ -345,7 +383,7 @@ public final class WorkspaceState: ObservableObject {
 
   public func joinChannel(roomId: String, context: UUID, auth: AuthState) async throws -> Bool {
     guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching,
-          !joiningChannel, !creatingChannel, !updatingChannel, openingDirect == nil else { return false }
+          !channelMutationInFlight else { return false }
     let sourceRoom = transcriptRoomId
     joiningChannel = true
     defer {
@@ -360,12 +398,23 @@ public final class WorkspaceState: ObservableObject {
     return true
   }
 
-  private func channelOperation<Value: Sendable>(context: UUID, auth: AuthState, operation: (Client, String, String) async throws -> Value) async throws -> Value {
-    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching,
-          let organizationId = selection?.workspace.organizationId, let slug = selection?.workspace.organizationSlug,
-          let client = resolveClient(auth: auth) else { throw CancellationError() }
+  func channelOperation<Value: Sendable>(context: UUID, auth: AuthState, operation: (Client, String, String) async throws -> Value) async throws -> Value {
+    guard let organizationId = selection?.workspace.organizationId, let slug = selection?.workspace.organizationSlug else { throw CancellationError() }
+    return try await workspaceOperation(context: context, auth: auth) { client in
+      try await operation(client, organizationId, slug)
+    }
+  }
+
+  /// Channel, Direct and invitation mutations start only for the live composition context, outside a switch, one at a time.
+  func canStartMutation(context: UUID) -> Bool {
+    context == compositionContext && phase == .ready && !workspaceSession.isSwitching && !channelMutationInFlight
+  }
+
+  /// Runs an authenticated request for the current composition context; a workspace change or reset turns its result into cancellation.
+  func workspaceOperation<Value: Sendable>(context: UUID, auth: AuthState, operation: (Client) async throws -> Value) async throws -> Value {
+    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, let client = resolveClient(auth: auth) else { throw CancellationError() }
     do {
-      let value = try await operation(client, organizationId, slug)
+      let value = try await operation(client)
       guard context == compositionContext, phase == .ready, !Task.isCancelled else { throw CancellationError() }
       return value
     } catch {
@@ -375,6 +424,77 @@ public final class WorkspaceState: ObservableObject {
       }
       throw error
     }
+  }
+
+  /// Web loads the Archived section for organization workspaces only and fails soft.
+  public func loadArchivedChannels(auth: AuthState) async {
+    guard selection?.workspace.organizationId != nil else {
+      archivedChannels.reset()
+      return
+    }
+    let context = compositionContext
+    await archivedChannels.load {
+      try await channelOperation(context: context, auth: auth) { client, organizationId, slug in
+        try await ChatService().archivedChannels(client: client, organizationId: organizationId, organizationSlug: slug)
+      }
+    }
+  }
+
+  /// Leaving drops the room like a membership revoke: the open transcript clears and no other room is forced open.
+  public func leaveChannel(roomId: String, context: UUID, auth: AuthState) async throws -> Bool {
+    try await runChannelLifecycle(.leave, roomId: roomId, context: context) {
+      let slug = selection?.workspace.organizationSlug
+      try await workspaceOperation(context: context, auth: auth) { client in
+        try await ChatService().leaveChannel(client: client, roomId: roomId, organizationSlug: slug)
+      }
+      applyMembershipRevoked(roomId: roomId)
+    }
+  }
+
+  /// Archiving hides the channel for everyone; it moves into the Archived section.
+  public func archiveChannel(roomId: String, context: UUID, auth: AuthState) async throws -> Bool {
+    try await runChannelLifecycle(.archive, roomId: roomId, context: context) {
+      try await channelOperation(context: context, auth: auth) { client, _, slug in
+        try await ChatService().archiveChannel(client: client, roomId: roomId, organizationSlug: slug)
+      }
+      if let room = rooms.first(where: { $0.id == roomId }) {
+        archivedChannels.insert(room)
+      }
+      applyMembershipRevoked(roomId: roomId)
+    }
+  }
+
+  /// Restoring returns the live room and opens it (web navigates to it) unless the user moved on meanwhile.
+  public func restoreChannel(roomId: String, context: UUID, auth: AuthState) async throws -> Bool {
+    let sourceRoom = transcriptRoomId
+    return try await runChannelLifecycle(.restore, roomId: roomId, context: context) {
+      let room = try await channelOperation(context: context, auth: auth) { client, _, slug in
+        try await ChatService().restoreChannel(client: client, roomId: roomId, organizationSlug: slug)
+      }
+      archivedChannels.remove(roomId: roomId)
+      acceptCreatedRoom(room, sourceRoom: sourceRoom, auth: auth)
+    }
+  }
+
+  public func deleteChannel(roomId: String, context: UUID, auth: AuthState) async throws -> Bool {
+    try await runChannelLifecycle(.delete, roomId: roomId, context: context) {
+      try await channelOperation(context: context, auth: auth) { client, _, slug in
+        try await ChatService().deleteChannel(client: client, roomId: roomId, organizationSlug: slug)
+      }
+      archivedChannels.remove(roomId: roomId)
+    }
+  }
+
+  private func runChannelLifecycle(_ action: ChannelLifecycleAction, roomId: String, context: UUID, perform: () async throws -> Void) async throws -> Bool {
+    guard canStartMutation(context: context) else { return false }
+    channelLifecycle = .init(roomId: roomId, action: action)
+    defer {
+      if context == compositionContext {
+        channelLifecycle = nil
+      }
+    }
+    try await perform()
+    return true
   }
 
   public func canOpenDirect(_ recipient: DirectRecipient) -> Bool {
@@ -412,7 +532,7 @@ public final class WorkspaceState: ObservableObject {
 
   @discardableResult
   public func openDirect(_ recipients: DirectConversationSelection, context: UUID, auth: AuthState) async throws -> Bool {
-    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, openingDirect == nil, !creatingChannel, !joiningChannel, !updatingChannel,
+    guard canStartMutation(context: context),
           let first = recipients.recipients.first, let client = resolveClient(auth: auth) else { return false }
     let sourceRoom = transcriptRoomId
     openingDirect = first
@@ -518,6 +638,11 @@ public final class WorkspaceState: ObservableObject {
     if !wasVisible, readAttention.isVisible {
       realtime?.refreshMembership()
     }
+    if wasVisible != readAttention.isVisible {
+      // Web's visibilitychange: hidden publishes afk at once, visible counts as activity.
+      presence.setVisible(readAttention.isVisible)
+      publishPresence(force: true)
+    }
   }
 
   /// Wait for history/pagination before the recovery read. The scheduler's
@@ -550,14 +675,14 @@ public final class WorkspaceState: ObservableObject {
   /// Queue a local shell immediately, then POST in order. Invalid drafts stay
   /// with the composer; accepted sends retain a stable ID for safe retries.
   @discardableResult
-  public func sendMessage(_ content: String, quote: Components.Schemas.ChatRoomMessageQuote? = nil, auth: AuthState) -> Bool {
+  public func sendMessage(_ content: String, attachments: [ComposeAttachment] = [], quote: Components.Schemas.ChatRoomMessageQuote? = nil, auth: AuthState) -> Bool {
     let draft = ComposerContent(content)
     guard let roomId = transcriptRoomId, draft.canSend, !transcriptLoading,
           let client = resolveClient(auth: auth) else { return false }
     timeline.followLatest()
     if directStream.roomId == roomId {
       let generation = transcriptGeneration
-      return directStream.send(draft.text, client: client, organizationSlug: selection?.workspace.organizationSlug, quote: quote, settled: { [weak self, weak auth] in
+      return directStream.send(draft.text, client: client, organizationSlug: selection?.workspace.organizationSlug, attachments: attachments, quote: quote, settled: { [weak self, weak auth] in
         guard let self, let auth else { return false }
         return await settleDirectStream(auth: auth, generation: generation)
       }, failed: { [weak self, weak auth] error in
@@ -635,11 +760,14 @@ public final class WorkspaceState: ObservableObject {
         handleRealtimeEvent(event)
       }
     }
+    syncPresenceOrganization()
+    startPresenceTick()
   }
 
   /// Closes the socket and drops the event stream. Sign-out and teardown go
   /// through here; room changes only detach via `watchRoom`.
-  private func stopRealtime() {
+  func stopRealtime() {
+    stopPresence()
     sidebarRecoveryGeneration = UUID()
     sidebarRecovery.stop()
     roomsRefreshTask?.cancel()
@@ -659,9 +787,7 @@ public final class WorkspaceState: ObservableObject {
     case let .message(roomId, eventType, message):
       applyRealtimeMessage(roomId: roomId, eventType: eventType, message: message)
     case let .patch(patch):
-      thread.apply(patch)
-      guard patch.roomId == transcriptRoomId else { return }
-      transcriptMessages = applyRealtimePatch(patch, messages: transcriptMessages)
+      applyRealtimeMessagePatch(patch)
     case let .pin(roomId, messageId, isPinned, count):
       applyRealtimePin(roomId: roomId, messageId: messageId, isPinned: isPinned, count: count)
     case let .roomHealth(roomId, healthy, continuityLost):
@@ -669,13 +795,24 @@ public final class WorkspaceState: ObservableObject {
     case let .connectionHealth(healthy):
       connectionHealthy = healthy
       sidebarRecovery.setHealthy(healthy)
+      applyPresenceReachability(healthy: healthy)
+    case let .presenceRoster(organizationId, members):
+      applyPresenceRoster(organizationId: organizationId, members: members)
     case let .envelope(envelope):
       applyRealtimeEnvelope(envelope)
+    case let .notification(notification):
+      applyRealtimeNotification(notification)
     case let .revoked(roomId):
       applyMembershipRevoked(roomId: roomId)
     case .ignored:
       break
     }
+  }
+
+  func applyRealtimeMessagePatch(_ patch: RealtimeMessagePatch) {
+    thread.apply(patch)
+    guard patch.roomId == transcriptRoomId else { return }
+    transcriptMessages = applyRealtimePatch(patch, messages: transcriptMessages)
   }
 
   private func applyRealtimePin(roomId: String, messageId: String, isPinned: Bool, count: Int) {
@@ -1027,6 +1164,10 @@ public final class WorkspaceState: ObservableObject {
     creatingChannel = false
     joiningChannel = false
     updatingChannel = false
+    channelLifecycle = nil
+    invitationResponse = nil
+    archivedChannels.reset()
+    pendingInvitations.reset()
     let generation = workspaceGeneration
     rooms = []
     switchError = nil
@@ -1052,6 +1193,8 @@ public final class WorkspaceState: ObservableObject {
     creatingChannel = false
     joiningChannel = false
     updatingChannel = false
+    channelLifecycle = nil
+    invitationResponse = nil
     roomsRefreshTask?.cancel()
     roomsRefreshTask = nil
     roomsRefreshID = UUID()
@@ -1067,6 +1210,8 @@ public final class WorkspaceState: ObservableObject {
     do {
       guard let loaded = try await workspaceSession.select(option, client: client), generation == workspaceGeneration else { return }
       sidebar.dropPendingActions()
+      archivedChannels.reset()
+      pendingInvitations.reset()
       readAttention.reset()
       clearTranscript()
       selectedRoomId = nil
@@ -1075,6 +1220,7 @@ public final class WorkspaceState: ObservableObject {
       realtime?.setOrganizationSlug(option.workspace.organizationSlug)
       realtime?.setMembershipRooms(Set(rooms.map(\.id)))
       startRealtimeIfNeeded(auth: auth)
+      syncPresenceOrganization()
       startSidebarRecovery(auth: auth)
       guard generation == workspaceGeneration else { return }
       ensureRoomSelection(auth: auth)

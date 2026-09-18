@@ -1,6 +1,7 @@
 import { CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE } from "@sokosumi/utils";
 import {
   act,
+  cleanup,
   fireEvent,
   render,
   screen,
@@ -21,6 +22,12 @@ import type {
   ChatRoomMessage,
 } from "@/lib/clients/generated/core";
 import { ChatMessageRow } from "./room-message-row";
+
+const { routerPushMock } = vi.hoisted(() => ({ routerPushMock: vi.fn() }));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: routerPushMock }),
+}));
 
 vi.mock("next-intl", () => ({
   useFormatter: () => ({
@@ -199,6 +206,7 @@ function renderRow({
   onRetryMention,
   onRemoveOutbound,
   onJumpToQuotedMessage,
+  onSendToSelf,
   showOutboundSentTick = false,
   isEditing = false,
   editDraft = "",
@@ -227,6 +235,7 @@ function renderRow({
   onRetryMention?: (message: ChatRoomMessage) => void;
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
   onJumpToQuotedMessage?: (messageId: string) => void;
+  onSendToSelf?: (message: ChatRoomMessage) => void;
   showOutboundSentTick?: boolean;
   isEditing?: boolean;
   editDraft?: string;
@@ -255,6 +264,7 @@ function renderRow({
       onRetryMention={onRetryMention}
       onRemoveOutbound={onRemoveOutbound}
       onJumpToQuotedMessage={onJumpToQuotedMessage}
+      onSendToSelf={onSendToSelf}
       showOutboundSentTick={showOutboundSentTick}
       isEditing={isEditing}
       editDraft={editDraft}
@@ -505,7 +515,7 @@ describe("ChatMessageRow", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("shows Copy in the message actions sheet", async () => {
+  it("shows Copy text and Copy link in the message actions sheet", async () => {
     const user = userEvent.setup();
     renderRow({
       message: userMessage({ content: "Selectable chat body" }),
@@ -514,9 +524,15 @@ describe("ChatMessageRow", () => {
 
     await user.click(screen.getByRole("button", { name: "Actions.more" }));
 
+    const sheet = screen.getByRole("dialog");
     expect(
-      within(screen.getByRole("dialog")).getByRole("button", {
+      within(sheet).getByRole("button", {
         name: "Copy.action",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(sheet).getByRole("button", {
+        name: "Copy.link",
       }),
     ).toBeInTheDocument();
   });
@@ -546,7 +562,32 @@ describe("ChatMessageRow", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("hides Copy when the message has no copyable content", async () => {
+  it("copies a message link from the sheet", async () => {
+    copyMock.mockClear();
+    const user = userEvent.setup();
+    renderRow({
+      message: userMessage({ content: "**bold** body" }),
+      onQuote: vi.fn(),
+    });
+
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Copy.link",
+      }),
+    );
+
+    expect(copyMock).toHaveBeenCalledWith(
+      `${window.location.origin}/chat/rooms/room-1?message=message-1`,
+      expect.objectContaining({
+        copySuccessMessage: "Copy.linkSuccess",
+        copyErrorMessage: "Copy.linkError",
+      }),
+    );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("hides Copy text when the message has no copyable content", async () => {
     const user = userEvent.setup();
     renderRow({
       message: userMessage({ content: "   " }),
@@ -555,14 +596,20 @@ describe("ChatMessageRow", () => {
 
     await user.click(screen.getByRole("button", { name: "Actions.more" }));
 
+    const sheet = screen.getByRole("dialog");
     expect(
-      within(screen.getByRole("dialog")).queryByRole("button", {
+      within(sheet).queryByRole("button", {
         name: "Copy.action",
       }),
     ).not.toBeInTheDocument();
+    expect(
+      within(sheet).getByRole("button", {
+        name: "Copy.link",
+      }),
+    ).toBeInTheDocument();
   });
 
-  it("hides Copy on a still-streaming overlay message", async () => {
+  it("hides Copy text and Copy link on a still-streaming overlay message", async () => {
     const user = userEvent.setup();
     renderRow({
       message: coworkerMessage({
@@ -574,9 +621,77 @@ describe("ChatMessageRow", () => {
 
     await user.click(screen.getByRole("button", { name: "Actions.more" }));
 
+    const sheet = screen.getByRole("dialog");
+    expect(
+      within(sheet).queryByRole("button", {
+        name: "Copy.action",
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(sheet).queryByRole("button", {
+        name: "Copy.link",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("sends a message to yourself from the sheet", async () => {
+    const user = userEvent.setup();
+    const onSendToSelf = vi.fn();
+    const message = userMessage({ content: "Keep this" });
+    renderRow({ message, onSendToSelf });
+
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Copy.sendToSelf",
+      }),
+    );
+
+    expect(onSendToSelf).toHaveBeenCalledExactlyOnceWith(message);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("sends a message to yourself from the hover overflow", async () => {
+    const user = userEvent.setup();
+    const onSendToSelf = vi.fn();
+    const message = userMessage({ content: "Keep this too" });
+    renderRow({ message, onSendToSelf });
+    await user.hover(screen.getByRole("article"));
+
+    await user.click(
+      within(hoverPill() as HTMLElement).getByRole("button", {
+        name: "Actions.overflow",
+      }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Copy.sendToSelf" }),
+    );
+
+    expect(onSendToSelf).toHaveBeenCalledExactlyOnceWith(message);
+  });
+
+  it("hides Send to yourself without a handler and on a streaming overlay", async () => {
+    const user = userEvent.setup();
+    renderRow({ message: userMessage({ content: "In my Self Direct" }) });
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
     expect(
       within(screen.getByRole("dialog")).queryByRole("button", {
-        name: "Copy.action",
+        name: "Copy.sendToSelf",
+      }),
+    ).not.toBeInTheDocument();
+    cleanup();
+
+    renderRow({
+      message: coworkerMessage({
+        id: "stream:turn-1",
+        content: "Still streaming",
+      }),
+      onSendToSelf: vi.fn(),
+    });
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+    expect(
+      within(screen.getByRole("dialog")).queryByRole("button", {
+        name: "Copy.sendToSelf",
       }),
     ).not.toBeInTheDocument();
   });
@@ -608,7 +723,32 @@ describe("ChatMessageRow", () => {
     expect(onPin).toHaveBeenCalledTimes(1);
   });
 
-  it("shows Copy on the hover action pill", async () => {
+  it("shows Copy link on hover overflow when the body is empty", async () => {
+    const user = userEvent.setup();
+    renderRow({
+      message: userMessage({ content: "   " }),
+      onQuote: vi.fn(),
+    });
+    await user.hover(screen.getByRole("article"));
+
+    const hoverActions = document.querySelector(
+      '[data-message-actions="hover"]',
+    );
+    expect(hoverActions).toBeTruthy();
+    await user.click(
+      within(hoverActions as HTMLElement).getByRole("button", {
+        name: "Actions.overflow",
+      }),
+    );
+    expect(
+      screen.queryByRole("menuitem", { name: "Copy.action" }),
+    ).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole("menuitem", { name: "Copy.link" }),
+    ).toBeInTheDocument();
+  });
+
+  it("copies a message link from the hover overflow and hides Copy text", async () => {
     const user = userEvent.setup();
     copyMock.mockClear();
     renderRow({
@@ -626,14 +766,17 @@ describe("ChatMessageRow", () => {
         name: "Actions.overflow",
       }),
     );
+    expect(
+      screen.queryByRole("menuitem", { name: "Copy.action" }),
+    ).not.toBeInTheDocument();
     await user.click(
-      await screen.findByRole("menuitem", { name: "Copy.action" }),
+      await screen.findByRole("menuitem", { name: "Copy.link" }),
     );
     expect(copyMock).toHaveBeenCalledWith(
-      "Hover copy body",
+      `${window.location.origin}/chat/rooms/room-1?message=message-1`,
       expect.objectContaining({
-        copySuccessMessage: "Copy.success",
-        copyErrorMessage: "Copy.error",
+        copySuccessMessage: "Copy.linkSuccess",
+        copyErrorMessage: "Copy.linkError",
       }),
     );
   });
@@ -931,7 +1074,7 @@ describe("ChatMessageRow", () => {
     await user.click(
       within(pill).getByRole("button", { name: "Actions.overflow" }),
     );
-    await screen.findByRole("menuitem", { name: "Copy.action" });
+    await screen.findByRole("menuitem", { name: "Copy.link" });
 
     const pillClasses = pill.className.split(/\s+/);
     expect(pillClasses).toContain("[@media(hover:hover)]:pointer-events-none");
@@ -968,6 +1111,32 @@ describe("ChatMessageRow", () => {
     expect(onJumpToQuotedMessage).toHaveBeenCalledExactlyOnceWith(
       "quoted-original",
     );
+  });
+
+  it("opens the Message link for a quote from another room without an empty body", async () => {
+    const user = userEvent.setup();
+    const onJumpToQuotedMessage = vi.fn();
+    renderRow({
+      message: userMessage({
+        content: "",
+        quote: {
+          messageId: "source-message",
+          roomId: "source-room",
+          authorName: "Bob",
+          snippet: "Saved for later",
+        },
+      }),
+      onJumpToQuotedMessage,
+    });
+
+    expect(screen.queryByTestId("room-message-body")).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Jump to message from Bob" }),
+    );
+    expect(routerPushMock).toHaveBeenCalledExactlyOnceWith(
+      "/chat/rooms/source-room?message=source-message",
+    );
+    expect(onJumpToQuotedMessage).not.toHaveBeenCalled();
   });
 
   it("shows quote image attachment as inert thumbnail, not a link", () => {

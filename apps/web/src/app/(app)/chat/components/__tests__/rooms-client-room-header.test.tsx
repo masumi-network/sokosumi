@@ -136,7 +136,7 @@ vi.mock("@/app/chat/actions", () => ({
   markThreadReadAction: vi.fn(),
   retryRoomMentionAction: vi.fn(),
   sendRoomMessageAction: vi.fn(),
-  toggleMessageReactionAction: vi.fn(),
+  setMessageReactionAction: vi.fn(),
 }));
 
 vi.mock("@/components/chat/organization-chat-list.actions", () => ({
@@ -243,6 +243,7 @@ function channelRoom(): ChatRoom {
     name: "general",
     slug: "general",
     kind: "channel",
+    isSelfDirect: false,
     directKey: null,
     topic: null,
     discoverability: "public",
@@ -326,6 +327,21 @@ function renderRoom(room: ChatRoom) {
 }
 
 describe("RoomsClient edit channel deep link", () => {
+  it("labels Self Direct You and shows its private-notes empty state", () => {
+    renderRoom({
+      ...humanDirectRoom(),
+      isSelfDirect: true,
+      userMembers: [participant("user-1", "Ada")],
+      organizationId: null,
+    });
+    expect(screen.getByTestId("room-open-title")).toHaveTextContent(
+      "SelfDirect.you",
+    );
+    expect(screen.getByTestId("dm-sidebar-avatar-user-1")).toBeInTheDocument();
+    expect(screen.getByText("SelfDirect.description")).toBeInTheDocument();
+    expect(screen.queryByTestId("room-roster-trigger")).toBeNull();
+  });
+
   // Put the implementations back, not one fixed return: a stable
   // `searchParams` identity would quietly stop effects keyed on it from
   // re-running in the describes below.

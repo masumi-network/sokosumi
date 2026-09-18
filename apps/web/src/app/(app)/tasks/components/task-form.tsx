@@ -4,6 +4,7 @@ import {
   CORE_API_ERROR_KINDS,
   formatTaskAttachmentMarkdown,
   isAgentOnlyTaskStatus,
+  taskContextSelectionResolvesAnything,
 } from "@sokosumi/utils";
 import {
   ArrowLeft,
@@ -11,6 +12,8 @@ import {
   Command,
   CornerDownLeft,
   Loader2,
+  Lock,
+  Paperclip,
   TriangleAlert,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -34,6 +37,7 @@ import {
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { VendorMark } from "@/components/agents/vendor-mark";
 import { AssistantOrb } from "@/components/aurora-orb";
+import { AttachmentSubmenu } from "@/components/drive/attachment-submenu";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { formatTaskScheduleSelectionLabel } from "@/components/schedules/format";
@@ -49,14 +53,16 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   FileUpload,
   FileUploadDropzone,
   FileUploadTrigger,
 } from "@/components/ui/file-upload";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import {
   type CreateTaskResult,
@@ -93,6 +99,7 @@ import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
 import { TaskAssigneePicker } from "./task-assignee-picker";
 import {
   getDefaultTaskContextSelection,
+  getTaskContextSelectionFromDescription,
   TaskContextAttachmentsField,
   type TaskContextAttachmentsSelection,
 } from "./task-context-attachments";
@@ -147,7 +154,7 @@ export interface TaskFormLabels {
   uploadFileError?: string;
   uploadingFile: string;
   uploadingFiles: string;
-  removeAttachment?: string;
+  removeAttachment: string;
   submit: string;
   createTask?: string;
   scheduleTask?: string;
@@ -239,6 +246,7 @@ function getTaskFormStatusLabel(
 }
 
 export interface TaskFormCreateInput {
+  name?: string;
   description: string;
   assigneeId: string | null;
   assigneeSokoBotId: string | null;
@@ -331,8 +339,6 @@ export function TaskForm({
   const shouldShowProjectSelect = hasProjectSelection && !lockProjectSelection;
   const originalStatus = initialValues?.status ?? TaskStatus.DRAFT;
   const [name, setName] = useState(initialValues?.name ?? "");
-  const initialDescription = initialValues?.description ?? "";
-  const [description, setDescription] = useState(initialDescription);
   const [isPrivate, setIsPrivate] = useState(false);
   // `undefined` means the caller made no choice yet (Calendar slot creation on
   // an unfiltered Workspace Calendar); `null` is an explicit "no project".
@@ -340,25 +346,41 @@ export function TaskForm({
     initialValues && "projectId" in initialValues
       ? initialValues.projectId
       : defaultProjectId;
+  const initialProject = initialProjectId
+    ? projectOptions?.find((project) => project.id === initialProjectId)
+    : undefined;
+  const initialContext =
+    mode === "edit"
+      ? getTaskContextSelectionFromDescription(
+          initialValues?.description ?? "",
+          {
+            project: initialProject,
+            defaultBrandUrl: initialDesignMdAttachment?.url ?? null,
+            userId: session?.user.id ?? null,
+          },
+        )
+      : null;
   const [projectId, setProjectId] = useState<string | null | undefined>(
     initialProjectId,
   );
   const [isProjectMissing, setIsProjectMissing] = useState(false);
   const projectSelectRef = useRef<HTMLButtonElement>(null);
   const projectErrorId = useId();
+  const privateDescriptionId = useId();
   useLayoutEffect(() => {
     if (isProjectMissing) {
       projectSelectRef.current?.focus();
     }
   }, [isProjectMissing]);
   const [contextSelection, setContextSelection] =
-    useState<TaskContextAttachmentsSelection>(() =>
-      getDefaultTaskContextSelection(
-        initialProjectId
-          ? projectOptions?.find((project) => project.id === initialProjectId)
-          : undefined,
-      ),
+    useState<TaskContextAttachmentsSelection>(
+      () =>
+        initialContext?.selection ??
+        getDefaultTaskContextSelection(initialProject),
     );
+  const initialDescription =
+    initialContext?.body ?? initialValues?.description ?? "";
+  const [description, setDescription] = useState(initialDescription);
   const [inlineCreatedProjects, setInlineCreatedProjects] = useState<
     ProjectFilterOption[]
   >([]);
@@ -671,9 +693,18 @@ export function TaskForm({
   useEffect(() => {
     onSubmittingChange?.(isSubmittingAny || isUploadingAttachments);
   }, [isSubmittingAny, isUploadingAttachments, onSubmittingChange]);
+  const hasSaveableDescription =
+    Boolean(description.trim()) ||
+    (mode === "edit" &&
+      taskContextSelectionResolvesAnything(contextSelection, {
+        projectDesignMdUrl: selectedProject?.designMd?.url ?? null,
+        workspaceDesignMdUrl: initialDesignMdAttachment?.url ?? null,
+        projectBriefingUrl: selectedProject?.briefingUrl ?? null,
+        projectContextMdUrl: selectedProject?.contextMd?.url ?? null,
+      }));
   const isSaveDisabled =
     createdTask !== null ||
-    !description.trim() ||
+    !hasSaveableDescription ||
     (isNameRequired && !name.trim()) ||
     isSubmittingAny ||
     isUploadingAttachments;
@@ -757,6 +788,7 @@ export function TaskForm({
       setIsSubmitting(true);
       try {
         const trimmedDescription = description.trim();
+        const trimmedName = name.trim();
         const desiredStatus = overrideStatus ?? status;
         if (
           mode === "create" &&
@@ -779,6 +811,7 @@ export function TaskForm({
               session?.user.id,
             );
           const result = await createTaskHandler({
+            ...(trimmedName ? { name: trimmedName } : {}),
             description: trimmedDescription,
             ...assigneeFields,
             ...(createPrivateUnassigned
@@ -852,7 +885,6 @@ export function TaskForm({
           throw new Error("Task ID is required");
         }
 
-        const trimmedName = name.trim();
         const result = await updateTask({
           taskId,
           name: trimmedName,
@@ -864,6 +896,17 @@ export function TaskForm({
             initialValues?.assigneeUserId,
           ),
           ...(hasProjectSelection ? { projectId } : {}),
+          context: {
+            brand: {
+              enabled: contextSelection.brand.enabled,
+              source: contextSelection.brand.source,
+              custom: contextSelection.brand.custom
+                ? { url: contextSelection.brand.custom.url }
+                : null,
+            },
+            briefingEnabled: contextSelection.briefingEnabled,
+            contextMdEnabled: contextSelection.contextMdEnabled,
+          },
           currentStatus: originalStatus,
           desiredStatus,
           schedule: scheduleSelection,
@@ -1188,7 +1231,7 @@ export function TaskForm({
       <section className="flex min-h-0 flex-1 flex-col">
         <div className="[&::-webkit-scrollbar-thumb]:bg-tertiary flex min-h-0 flex-1 flex-col overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
           {useWizard && step === 1 ? (
-            <div className="flex min-h-0 flex-1 flex-col px-6 py-3 md:px-8">
+            <div className="flex min-h-0 flex-1 flex-col px-6 py-3 md:px-8 md:py-0">
               <AgentSpotlight
                 options={coworkerOptions}
                 selectedId={assigneeId}
@@ -1311,65 +1354,27 @@ export function TaskForm({
               )}
             >
               {useComposeLayout && selectedOption ? (
-                <div className="space-y-1">
-                  <h3 className="text-lg font-semibold">
-                    {taskStepTitle.replace("{name}", selectedOption.name)}
-                  </h3>
-                  <p className="text-muted-foreground text-sm">
-                    {labels.detailsDescription}
-                  </p>
-                </div>
+                <h3 className="text-lg font-semibold">
+                  {taskStepTitle.replace("{name}", selectedOption.name)}
+                </h3>
               ) : null}
               {mode === "edit" ? (
-                <div className="space-y-2">
-                  <Label htmlFor="task-name">{labels.name}</Label>
-                  <Input
-                    id="task-name"
-                    placeholder={labels.namePlaceholder}
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                  />
-                </div>
-              ) : null}
-
-              {shouldShowProjectSelect ? (
-                <div className="space-y-2">
-                  <Label>{labels.projectLabel}</Label>
-                  <TaskProjectSelect
-                    ref={projectSelectRef}
-                    projectOptions={localProjectOptions}
-                    value={projectId}
-                    onChange={handleProjectChange}
-                    projectLabel={labels.projectLabel}
-                    noneLabel={labels.projectNone}
-                    placeholder={labels.projectPlaceholder}
-                    searchPlaceholder={labels.projectSearchPlaceholder}
-                    emptyResults={labels.projectEmptyResults}
-                    projectCreate={labels.projectCreate}
-                    projectCreateNamed={labels.projectCreateNamed}
-                    onCreateProject={handleCreateProject}
-                    invalid={isProjectMissing}
-                    describedBy={
-                      isProjectMissing && labels.projectRequired
-                        ? projectErrorId
-                        : undefined
-                    }
-                  />
-                  {isProjectMissing && labels.projectRequired ? (
-                    <p id={projectErrorId} className="text-destructive text-xs">
-                      {labels.projectRequired}
-                    </p>
-                  ) : null}
-                </div>
+                <input
+                  id="task-name"
+                  type="text"
+                  aria-label={labels.name}
+                  placeholder={labels.namePlaceholder}
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  className="w-full border-0 bg-transparent px-0 text-xl leading-tight font-semibold tracking-tight outline-none shadow-none placeholder:text-muted-foreground"
+                />
               ) : null}
 
               <div
                 className={cn(
-                  "space-y-2",
                   useModalFieldFill && "flex min-h-0 flex-1 flex-col",
                 )}
               >
-                <Label htmlFor="task-description">{labels.details}</Label>
                 <FileUpload
                   className={cn(useModalFieldFill && "min-h-0 flex-1")}
                   value={pendingUploadFiles}
@@ -1389,6 +1394,8 @@ export function TaskForm({
                     <MarkdownEditor
                       ref={markdownEditorRef}
                       id="task-description"
+                      variant="document"
+                      ariaLabel={labels.details}
                       placeholder={labels.descriptionPlaceholder}
                       className={cn(
                         "w-full",
@@ -1402,11 +1409,6 @@ export function TaskForm({
                       onSubmitShortcut={() => {
                         void handleSave();
                       }}
-                      onAttachClick={() =>
-                        attachmentTriggerRef.current?.click()
-                      }
-                      attachLabel={labels.uploadFile}
-                      isAttachmentUploading={isUploadingAttachments}
                       mentions={mentionOptions}
                     />
                     <FileUploadTrigger asChild>
@@ -1421,51 +1423,114 @@ export function TaskForm({
                     </FileUploadTrigger>
                   </FileUploadDropzone>
                 </FileUpload>
-                {mode === "create" ? (
-                  <TaskContextAttachmentsField
-                    defaultBrand={initialDesignMdAttachment ?? null}
-                    project={selectedProject}
-                    selection={contextSelection}
-                    onSelectionChange={setContextSelection}
-                  />
-                ) : null}
-                {showPrivateControl ? (
-                  <div className="flex items-start gap-2">
-                    <Checkbox
-                      id="task-private"
-                      checked={isPrivate}
-                      onCheckedChange={(checked) =>
-                        setIsPrivate(checked === true)
-                      }
-                    />
-                    <div className="grid gap-1">
-                      <Label
-                        htmlFor="task-private"
-                        className="cursor-pointer font-normal"
-                      >
-                        {labels.privateLabel}
-                      </Label>
-                      {labels.privateDescription ? (
-                        <p className="text-muted-foreground text-sm">
-                          {labels.privateDescription}
-                        </p>
-                      ) : null}
-                    </div>
-                  </div>
-                ) : null}
                 {attachmentUrls.length > 0 ? (
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex flex-wrap gap-2">
                     {attachmentUrls.map((url) => (
                       <FileChipMiniPreviewWithMetadata
                         key={url}
                         url={url}
+                        sizeClass="size-16"
                         onRemove={() => handleRemoveAttachment(url)}
-                        removeLabel={labels.removeAttachment ?? labels.cancel}
+                        removeLabel={labels.removeAttachment}
                       />
                     ))}
                   </div>
                 ) : null}
               </div>
+
+              {shouldShowProjectSelect || showPrivateControl ? (
+                <div className="space-y-1">
+                  <div
+                    data-testid="task-compose-meta-row"
+                    className="flex flex-wrap items-center gap-2"
+                  >
+                    {shouldShowProjectSelect ? (
+                      <TaskProjectSelect
+                        ref={projectSelectRef}
+                        variant="chip"
+                        projectOptions={localProjectOptions}
+                        value={projectId}
+                        onChange={handleProjectChange}
+                        projectLabel={labels.projectLabel}
+                        noneLabel={labels.projectNone}
+                        placeholder={labels.projectPlaceholder}
+                        searchPlaceholder={labels.projectSearchPlaceholder}
+                        emptyResults={labels.projectEmptyResults}
+                        projectCreate={labels.projectCreate}
+                        projectCreateNamed={labels.projectCreateNamed}
+                        onCreateProject={handleCreateProject}
+                        invalid={isProjectMissing}
+                        describedBy={
+                          isProjectMissing && labels.projectRequired
+                            ? projectErrorId
+                            : undefined
+                        }
+                      />
+                    ) : null}
+                    {showPrivateControl ? (
+                      <>
+                        {labels.privateDescription ? (
+                          <span id={privateDescriptionId} className="sr-only">
+                            {labels.privateDescription}
+                          </span>
+                        ) : null}
+                        <HoverCard openDelay={150}>
+                          <HoverCardTrigger asChild>
+                            <button
+                              type="button"
+                              id="task-private"
+                              aria-label={labels.privateLabel}
+                              aria-pressed={isPrivate}
+                              aria-describedby={
+                                labels.privateDescription
+                                  ? privateDescriptionId
+                                  : undefined
+                              }
+                              className={cn(
+                                "focus-visible:ring-ring inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium outline-none transition-colors focus-visible:ring-2",
+                                isPrivate
+                                  ? "bg-secondary text-secondary-foreground border-transparent"
+                                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                              )}
+                              onClick={() =>
+                                setIsPrivate((current) => !current)
+                              }
+                            >
+                              <Lock className="size-3.5 shrink-0" aria-hidden />
+                              {labels.privateLabel}
+                            </button>
+                          </HoverCardTrigger>
+                          {labels.privateDescription ? (
+                            <HoverCardContent
+                              side="top"
+                              align="start"
+                              className="w-72 text-sm"
+                            >
+                              <p className="text-muted-foreground">
+                                {labels.privateDescription}
+                              </p>
+                            </HoverCardContent>
+                          ) : null}
+                        </HoverCard>
+                      </>
+                    ) : null}
+                  </div>
+                  {shouldShowProjectSelect &&
+                  isProjectMissing &&
+                  labels.projectRequired ? (
+                    <p id={projectErrorId} className="text-destructive text-xs">
+                      {labels.projectRequired}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+              <TaskContextAttachmentsField
+                layout="inline"
+                defaultBrand={initialDesignMdAttachment ?? null}
+                project={selectedProject}
+                selection={contextSelection}
+                onSelectionChange={setContextSelection}
+              />
             </div>
           ) : null}
         </div>
@@ -1535,11 +1600,39 @@ export function TaskForm({
 
         {showTaskStep ? (
           <div className="flex shrink-0 flex-col items-stretch justify-between gap-3 border-t px-6 py-3 sm:flex-row sm:items-center md:px-8">
-            <div className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2 overflow-x-auto">
+              <AttachmentSubmenu
+                onUploadClick={() => attachmentTriggerRef.current?.click()}
+                onDriveClick={() =>
+                  markdownEditorRef.current?.openDrivePicker()
+                }
+                disabled={
+                  createdTask !== null ||
+                  isSubmittingAny ||
+                  isUploadingAttachments
+                }
+              >
+                <button
+                  type="button"
+                  aria-label={labels.uploadFile}
+                  disabled={
+                    createdTask !== null ||
+                    isSubmittingAny ||
+                    isUploadingAttachments
+                  }
+                  className="focus-visible:ring-ring text-muted-foreground hover:bg-accent hover:text-accent-foreground inline-flex size-7 items-center justify-center rounded-full outline-none transition-colors focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50"
+                >
+                  {isUploadingAttachments ? (
+                    <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <Paperclip className="size-3.5" aria-hidden />
+                  )}
+                </button>
+              </AttachmentSubmenu>
               {seriesError ? (
                 <p
                   role="alert"
-                  className="text-destructive flex min-w-0 items-start gap-2 text-sm"
+                  className="text-destructive flex w-full min-w-0 items-start gap-2 text-sm"
                 >
                   <TriangleAlert
                     className="mt-0.5 size-4 shrink-0"

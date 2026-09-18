@@ -104,7 +104,7 @@ export default async function CalendarPage({
 
   return (
     <CreateTaskModalProvider>
-      <div className="w-full px-2">
+      <div className="w-full">
         <WorkspaceCalendar
           activeOrganizationId={session?.session?.activeOrganizationId ?? null}
           key={`${initialDate}-${projectId ?? "all"}-${sourceId ?? "all"}-${scope ?? "workspace"}-${assigneeId ?? "all"}-${calendarStatus ?? "all"}`}

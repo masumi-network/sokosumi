@@ -99,6 +99,7 @@ export {
   buildRoomQuoteSnippetParts,
   type ChatRoomQuoteAttachment,
 } from "./chat-room-quote-snippet.js";
+export { MAX_LISTED_CHAT_REACTION_REACTORS } from "./chat-room-reactions.js";
 export {
   buildChatRoomUnfurlSnapshotPathname,
   CHAT_ROOM_UNFURL_SNAPSHOT_MAX_SIZE_BYTES,
@@ -320,7 +321,11 @@ export {
 export {
   PROJECT_BRIEFING_ATTACHMENT_LABEL,
   PROJECT_CONTEXT_MD_ATTACHMENT_LABEL,
+  parseTaskContextFromDescription,
   removeTaskContextAttachmentLinks,
+  type TaskContextSelectionSnapshot,
+  taskContextSelectionAttachesAnything,
+  taskContextSelectionResolvesAnything,
 } from "./task-context-attachment.js";
 export { isTaskEditableStatus } from "./task-editable.js";
 export {

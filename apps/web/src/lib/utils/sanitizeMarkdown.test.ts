@@ -73,6 +73,19 @@ describe("sanitizeMarkdown", () => {
     expect(sanitized).toContain("@Elena");
   });
 
+  it("keeps markdown blockquote markers that sanitize-html would encode", () => {
+    expect(sanitizeMarkdown("> quoted")).toBe("> quoted");
+    expect(sanitizeMarkdown("> line one\n> line two")).toBe(
+      "> line one\n> line two",
+    );
+  });
+
+  it("does not rewrite &gt; inside fenced code", () => {
+    const markdown = ["```", "&gt; quoted", "```"].join("\n");
+
+    expect(sanitizeMarkdown(markdown)).toContain("&gt; quoted");
+  });
+
   it("strips autoplay from video and audio tags", () => {
     const markdown = [
       '<video src="https://blob.example.com/clip.mp4" controls autoplay></video>',

@@ -113,8 +113,8 @@ public final class DirectStreamSession: ObservableObject {
 
   @discardableResult
   public func send(
-    _ content: String, client: Client, organizationSlug: String?, parentMessageId: String? = nil,
-    quote: Components.Schemas.ChatRoomMessageQuote? = nil,
+    _ content: String, client: Client, organizationSlug: String?, attachments: [ComposeAttachment] = [],
+    parentMessageId: String? = nil, quote: Components.Schemas.ChatRoomMessageQuote? = nil,
     settled: @escaping () async -> Bool, failed: @escaping (Error) -> Void
   ) -> Bool {
     let draft = ComposerContent(content)
@@ -135,7 +135,8 @@ public final class DirectStreamSession: ObservableObject {
     phase = .submitted
     run(body: { [service] in
       try await service.startDirectStream(client: client, roomId: roomId, organizationSlug: organizationSlug,
-                                          messageId: id, text: draft.text, parentMessageId: parentMessageId, quoteMessageId: quote?.messageId)
+                                          messageId: id, text: draft.text, attachments: attachments, parentMessageId: parentMessageId,
+                                          quoteMessageId: quote?.messageId)
     }, settled: settled, failed: failed)
     return true
   }

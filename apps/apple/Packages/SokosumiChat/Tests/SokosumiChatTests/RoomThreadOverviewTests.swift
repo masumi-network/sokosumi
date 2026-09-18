@@ -60,7 +60,7 @@ struct RoomThreadOverviewTests {
 
   @Test func markAllReadReloadPreservesResolvedMentionPreview() async throws {
     let user = Components.Schemas.ChatRoomUserParticipant(id: "AbCdEfGhIjKlMnOpQrStUvWxYz012345", name: "Anna Smith", email: "anna@example.com", presence: .online)
-    let room = Components.Schemas.ChatRoom(id: testRoomId, name: "Room", kind: .direct, createdByUserId: "AbCdEfGhIjKlMnOpQrStUvWxYz012345", createdAt: Date(), updatedAt: Date(),
+    let room = Components.Schemas.ChatRoom(id: testRoomId, name: "Room", kind: .direct, isSelfDirect: false, createdByUserId: "AbCdEfGhIjKlMnOpQrStUvWxYz012345", createdAt: Date(), updatedAt: Date(),
                                            unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member,
                                            userMembers: [user], coworkerMembers: [], sokoBotMembers: [])
     let transport = TestTransport([
@@ -100,27 +100,11 @@ struct RoomThreadOverviewTests {
     #expect(transport.requests.count == 3)
   }
 
-  @Test(arguments: [false, true])
-  func displayPreferenceUsesCurrentUserAndResets(enabled: Bool) async throws {
-    let body = """
-    {"data":{"marketingOptIn":false,"notificationsOptIn":false,"pushOptIn":false,"showRoomUnreadCount":\(enabled),"notificationPreferences":[]},"meta":{"timestamp":"\(testTimestamp)","requestId":"test"}}
-    """
-    let transport = TestTransport([(200, body)])
-    let overview = RoomThreadOverview()
-    #expect(!overview.showsUnreadCount)
-    try await overview.refreshDisplayPreference(client: makeTestClient(transport))
-    #expect(overview.showsUnreadCount == enabled)
-    #expect(transport.requests.first?.request.path == "/users/me/preferences")
-    overview.reset()
-    #expect(!overview.showsUnreadCount)
-  }
-
-  @Test(arguments: ["list", "count", "markAll", "preference"])
+  @Test(arguments: ["list", "count", "markAll"])
   func resetRejectsLateResponses(operation: String) async throws {
     let data = switch operation {
     case "count": #"{"count":7}"#
     case "markAll": #"{"markedCount":1}"#
-    case "preference": #"{"marketingOptIn":false,"notificationsOptIn":false,"pushOptIn":false,"showRoomUnreadCount":true,"notificationPreferences":[]}"#
     default: "[]"
     }
     let body = operation == "list"
@@ -133,7 +117,6 @@ struct RoomThreadOverviewTests {
       switch operation {
       case "count": try await overview.refreshCount(client: client, roomId: testRoomId, organizationSlug: nil)
       case "markAll": try await overview.markAllRead(client: client, roomId: testRoomId, organizationSlug: nil)
-      case "preference": try await overview.refreshDisplayPreference(client: client)
       default: try await overview.load(client: client, roomId: testRoomId, organizationSlug: nil)
       }
     }
@@ -148,7 +131,7 @@ struct RoomThreadOverviewTests {
     try await task.value
     #expect(overview.items.isEmpty && overview.previews.isEmpty)
     #expect(overview.nextCursor == nil && overview.unreadCount == 0)
-    #expect(!overview.isLoading && !overview.isMarkingRead && !overview.showsUnreadCount)
+    #expect(!overview.isLoading && !overview.isMarkingRead)
     #expect(overview.failure == nil)
     #expect(await transport.requestCount == 1)
   }

@@ -11,14 +11,17 @@ import {
   Check,
   Copy,
   Ellipsis,
+  Link2,
   MessageCircle,
   Pencil,
   Pin,
   PinOff,
   Quote,
+  Send,
   Trash2,
   X,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import {
   memo,
@@ -128,6 +131,7 @@ import { cn } from "@/lib/utils";
 import { devicePrefersHover } from "@/lib/utils/device-prefers-hover";
 import { getEmojiShortcodeName } from "@/lib/utils/emoji-shortcodes";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
+import { chatRoomMessageHref } from "@/lib/utils/notification-href";
 import { getInitials } from "@/lib/utils/text";
 import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
 import { participantDirectKey } from "./open-direct-with-participant";
@@ -309,6 +313,7 @@ function formatWhoReactedLabel(
 
 function MessageQuoteBlock({
   messageId,
+  roomId,
   quote,
   coworkersById,
   coworkersBySlug,
@@ -324,6 +329,7 @@ function MessageQuoteBlock({
   onJumpToQuotedMessage,
 }: {
   messageId: string;
+  roomId: string;
   quote: RoomMessageQuoteSnapshot;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
@@ -339,6 +345,7 @@ function MessageQuoteBlock({
   onJumpToQuotedMessage?: (messageId: string) => void;
 }) {
   const t = useTranslations("App.Channels.Quote");
+  const router = useRouter();
   const { expanded, toggleExpanded, overflows, contentRef } =
     useClampedOverflow({
       cacheKey: `quote:${messageId}`,
@@ -354,6 +361,12 @@ function MessageQuoteBlock({
         className="hover:bg-senary focus-visible:ring-ring -mx-1 w-[calc(100%+0.5rem)] rounded-sm px-1 text-left outline-none transition-colors focus-visible:ring-2"
         aria-label={t("jump", { author: quote.authorName })}
         onClick={() => {
+          // Sent to yourself from another room: this transcript does not hold
+          // the original, so follow its Message link instead of scrolling.
+          if (quote.roomId && quote.roomId !== roomId) {
+            router.push(chatRoomMessageHref(quote.roomId, quote.messageId));
+            return;
+          }
           onJumpToQuotedMessage?.(quote.messageId);
         }}
       >
@@ -881,6 +894,8 @@ function MessageActionControls({
   onQuote,
   onPin,
   onCopy,
+  onCopyLink,
+  onSendToSelf,
   onEdit,
   onDelete,
   showThreadButton,
@@ -888,6 +903,7 @@ function MessageActionControls({
   showPinButton,
   isPinned,
   showCopyButton,
+  showCopyLinkButton,
   showEditButton,
   showDeleteButton,
   collapseSecondary = false,
@@ -901,6 +917,9 @@ function MessageActionControls({
   onQuote?: (message: ChatRoomMessage) => void;
   onPin?: (message: ChatRoomMessage) => void;
   onCopy?: () => void;
+  onCopyLink?: () => void;
+  /** Absent when the message cannot be sent to the Self Direct. */
+  onSendToSelf?: () => void;
   onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
@@ -908,6 +927,7 @@ function MessageActionControls({
   showPinButton: boolean;
   isPinned: boolean;
   showCopyButton: boolean;
+  showCopyLinkButton: boolean;
   showEditButton: boolean;
   showDeleteButton: boolean;
   collapseSecondary?: boolean;
@@ -916,9 +936,16 @@ function MessageActionControls({
 }) {
   const t = useTranslations("App.Channels");
   const showPin = Boolean(showPinButton && onPin);
+  const showCopyLink = Boolean(showCopyLinkButton && onCopyLink);
   const showCopy = Boolean(showCopyButton && onCopy);
   const showDelete = Boolean(showDeleteButton && onDelete);
-  const showMore = collapseSecondary && (showPin || showCopy || showDelete);
+  const showMore =
+    collapseSecondary &&
+    (showPin ||
+      showCopyLink ||
+      Boolean(onSendToSelf) ||
+      showCopy ||
+      showDelete);
   const reactedEmojis = readerReactedEmojis(message);
 
   return (
@@ -1099,6 +1126,28 @@ function MessageActionControls({
                 {isPinned ? t("PinnedMessages.unpin") : t("PinnedMessages.pin")}
               </DropdownMenuItem>
             ) : null}
+            {showCopyLink ? (
+              <DropdownMenuItem
+                onSelect={() => {
+                  onCopyLink?.();
+                  onAfterAction?.();
+                }}
+              >
+                <Link2 className="size-4" aria-hidden />
+                {t("Copy.link")}
+              </DropdownMenuItem>
+            ) : null}
+            {onSendToSelf ? (
+              <DropdownMenuItem
+                onSelect={() => {
+                  onSendToSelf();
+                  onAfterAction?.();
+                }}
+              >
+                <Send className="size-4" aria-hidden />
+                {t("Copy.sendToSelf")}
+              </DropdownMenuItem>
+            ) : null}
             {showCopy ? (
               <DropdownMenuItem
                 onSelect={() => {
@@ -1134,6 +1183,15 @@ function MessageActionControls({
 const MESSAGE_ACTIONS_PILL_CLASS =
   "border-border bg-background absolute top-0 right-2 -translate-y-1/2 items-center gap-0.5 rounded-full border p-0.5 shadow-sm";
 
+// Debounce the reveal: scrolling drags a stationary pointer across row after
+// row, and an instant pill flashes at each one. The delay only applies while
+// the row is hovered, so leaving clears it with no delay and the pill goes
+// straight out. pointer-events rides the same transition (discrete, so it
+// flips mid-fade) — an invisible pill covering the row above must not take
+// clicks during the wait.
+const MESSAGE_ACTIONS_PILL_REVEAL_DELAY_CLASS =
+  "[@media(hover:hover)]:group-hover:delay-200";
+
 function MessageActions({
   message,
   onToggleReaction,
@@ -1141,6 +1199,8 @@ function MessageActions({
   onQuote,
   onPin,
   onCopy,
+  onCopyLink,
+  onSendToSelf,
   onEdit,
   onDelete,
   showThreadButton,
@@ -1148,6 +1208,7 @@ function MessageActions({
   showPinButton,
   isPinned,
   showCopyButton,
+  showCopyLinkButton,
   showEditButton,
   showDeleteButton,
 }: {
@@ -1157,6 +1218,9 @@ function MessageActions({
   onQuote?: (message: ChatRoomMessage) => void;
   onPin?: (message: ChatRoomMessage) => void;
   onCopy?: () => void;
+  onCopyLink?: () => void;
+  /** Absent when the message cannot be sent to the Self Direct. */
+  onSendToSelf?: () => void;
   onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
@@ -1164,6 +1228,7 @@ function MessageActions({
   showPinButton: boolean;
   isPinned: boolean;
   showCopyButton: boolean;
+  showCopyLinkButton: boolean;
   showEditButton: boolean;
   showDeleteButton: boolean;
 }) {
@@ -1188,7 +1253,8 @@ function MessageActions({
       data-message-actions="hover"
       className={cn(
         MESSAGE_ACTIONS_PILL_CLASS,
-        "hidden transition-opacity focus-within:opacity-100 [@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:flex [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100",
+        "hidden transition-[opacity,pointer-events] transition-discrete focus-within:opacity-100 [@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:flex [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100",
+        MESSAGE_ACTIONS_PILL_REVEAL_DELAY_CLASS,
         // The upper half covers the row above, and an opacity-0 pill still
         // takes clicks, so it takes the pointer only on row hover or focus.
         // Not while More is open: Radix makes the page inert, and an explicit
@@ -1211,6 +1277,8 @@ function MessageActions({
         onQuote={onQuote}
         onPin={onPin}
         onCopy={onCopy}
+        onCopyLink={onCopyLink}
+        onSendToSelf={onSendToSelf}
         onEdit={onEdit}
         onDelete={onDelete}
         showThreadButton={showThreadButton}
@@ -1218,6 +1286,7 @@ function MessageActions({
         showPinButton={showPinButton}
         isPinned={isPinned}
         showCopyButton={showCopyButton}
+        showCopyLinkButton={showCopyLinkButton}
         showEditButton={showEditButton}
         showDeleteButton={showDeleteButton}
         collapseSecondary
@@ -1361,6 +1430,8 @@ function TouchMessageActionsSheet({
   onQuote,
   onPin,
   onCopy,
+  onCopyLink,
+  onSendToSelf,
   onEdit,
   onDelete,
   showThreadButton,
@@ -1368,6 +1439,7 @@ function TouchMessageActionsSheet({
   showPinButton,
   isPinned,
   showCopyButton,
+  showCopyLinkButton,
   showEditButton,
   showDeleteButton,
 }: {
@@ -1379,6 +1451,9 @@ function TouchMessageActionsSheet({
   onQuote?: (message: ChatRoomMessage) => void;
   onPin?: (message: ChatRoomMessage) => void;
   onCopy?: () => void;
+  onCopyLink?: () => void;
+  /** Absent when the message cannot be sent to the Self Direct. */
+  onSendToSelf?: () => void;
   onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
@@ -1386,6 +1461,7 @@ function TouchMessageActionsSheet({
   showPinButton: boolean;
   isPinned: boolean;
   showCopyButton: boolean;
+  showCopyLinkButton: boolean;
   showEditButton: boolean;
   showDeleteButton: boolean;
 }) {
@@ -1545,6 +1621,32 @@ function TouchMessageActionsSheet({
                 <Pin className="size-4 shrink-0" aria-hidden />
               )}
               {isPinned ? t("PinnedMessages.unpin") : t("PinnedMessages.pin")}
+            </Button>
+          ) : null}
+          {showCopyLinkButton && onCopyLink ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-11 justify-start gap-3 px-3"
+              onClick={() => {
+                runAndClose(onCopyLink);
+              }}
+            >
+              <Link2 className="size-4 shrink-0" aria-hidden />
+              {t("Copy.link")}
+            </Button>
+          ) : null}
+          {onSendToSelf ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-11 justify-start gap-3 px-3"
+              onClick={() => {
+                runAndClose(onSendToSelf);
+              }}
+            >
+              <Send className="size-4 shrink-0" aria-hidden />
+              {t("Copy.sendToSelf")}
             </Button>
           ) : null}
           {showCopyButton && onCopy ? (
@@ -2127,6 +2229,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   onRetryMention,
   onRemoveOutbound,
   onJumpToQuotedMessage,
+  onSendToSelf,
   showOutboundSentTick = false,
   isEditing = false,
   editDraft = "",
@@ -2168,6 +2271,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
   /** Quote tap: scroll the room transcript to the quoted message. */
   onJumpToQuotedMessage?: (messageId: string) => void;
+  /** Send to yourself. The room omits it inside the Self Direct. */
+  onSendToSelf?: (message: ChatRoomMessage) => void;
   /** Brief check in the timestamp slot after confirm (fades, then wall-clock). */
   showOutboundSentTick?: boolean;
   isEditing?: boolean;
@@ -2297,19 +2402,35 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   const longPress = useLongPress(openSheet);
   const showActions =
     !isThinking && !isDeleted && !isEditing && !isOutboundLocal;
-  const canCopy =
+  const isDurableRoomMessage =
     !isDeleted &&
     !isThinking &&
     !isEditing &&
     !isOutboundLocal &&
-    !isStreamOverlay &&
-    message.content.trim().length > 0;
+    !isStreamOverlay;
+  const canCopy = isDurableRoomMessage && message.content.trim().length > 0;
+  const canCopyLink = isDurableRoomMessage;
+  const canSendToSelf = isDurableRoomMessage && onSendToSelf != null;
 
   function handleCopy() {
     void copyTextWithToast(message.content, {
       copySuccessMessage: tChannels("Copy.success"),
       copyErrorMessage: tChannels("Copy.error"),
     });
+  }
+
+  function handleCopyLink() {
+    void copyTextWithToast(
+      `${window.location.origin}${chatRoomMessageHref(message.roomId, message.id)}`,
+      {
+        copySuccessMessage: tChannels("Copy.linkSuccess"),
+        copyErrorMessage: tChannels("Copy.linkError"),
+      },
+    );
+  }
+
+  function handleSendToSelf() {
+    onSendToSelf?.(message);
   }
 
   function requestDelete(_message: ChatRoomMessage) {
@@ -2323,8 +2444,9 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     setDeleteDialogOpen(false);
   }
 
-  // The parent drops a repeat click while the first toggle is in flight, so
-  // a use counts once per emoji until the message's reactions change.
+  // A use counts once per emoji until the message's confirmed reactions
+  // change. Taps while a request is out flip a Pending reaction whose "off"
+  // state is the confirmed row itself, so on/off/on records the emoji once.
   const recordedUsesRef = useRef<{
     reactions: ChatRoomMessage["reactions"];
     emojis: Set<string>;
@@ -2489,6 +2611,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               {quote ? (
                 <MessageQuoteBlock
                   messageId={message.id}
+                  roomId={message.roomId}
                   quote={quote}
                   coworkersById={coworkersById}
                   coworkersBySlug={coworkersBySlug}
@@ -2562,29 +2685,32 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                       />
                     </div>
                   ) : null}
-                  <ChannelMessageBody
-                    messageId={message.id}
-                    content={message.content}
-                    coworkersById={coworkersById}
-                    coworkersBySlug={coworkersBySlug}
-                    sokoBotsById={sokoBotsById}
-                    sokoBotsBySlug={sokoBotsBySlug}
-                    usersById={usersById}
-                    usersBySlug={usersBySlug}
-                    channelLinks={channelLinks}
-                    currentUserId={currentUserId}
-                    canOpenHumanDirect={canOpenHumanDirect}
-                    onOpenDirectMessage={onOpenDirectMessage}
-                    openingDirectParticipantKey={openingDirectParticipantKey}
-                    trailing={
-                      isContinuation && showEdited && editedAt != null ? (
-                        <MessageEditedLabel
-                          editedAt={editedAt}
-                          className="ms-1.5 inline-flex h-6 items-center"
-                        />
-                      ) : null
-                    }
-                  />
+                  {/* Send to yourself posts only a quote, so there is no body. */}
+                  {quote && !message.content.trim() ? null : (
+                    <ChannelMessageBody
+                      messageId={message.id}
+                      content={message.content}
+                      coworkersById={coworkersById}
+                      coworkersBySlug={coworkersBySlug}
+                      sokoBotsById={sokoBotsById}
+                      sokoBotsBySlug={sokoBotsBySlug}
+                      usersById={usersById}
+                      usersBySlug={usersBySlug}
+                      channelLinks={channelLinks}
+                      currentUserId={currentUserId}
+                      canOpenHumanDirect={canOpenHumanDirect}
+                      onOpenDirectMessage={onOpenDirectMessage}
+                      openingDirectParticipantKey={openingDirectParticipantKey}
+                      trailing={
+                        isContinuation && showEdited && editedAt != null ? (
+                          <MessageEditedLabel
+                            editedAt={editedAt}
+                            className="ms-1.5 inline-flex h-6 items-center"
+                          />
+                        ) : null
+                      }
+                    />
+                  )}
                   <MessageUnfurlList
                     unfurls={message.unfurls}
                     canRemove={canRemoveUnfurl}
@@ -2639,13 +2765,16 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               onQuote={onQuote}
               onPin={onPin}
               onCopy={handleCopy}
+              onCopyLink={handleCopyLink}
+              onSendToSelf={canSendToSelf ? handleSendToSelf : undefined}
               onEdit={onStartEdit}
               onDelete={requestDelete}
               showThreadButton={showThreadButton}
               showQuoteButton={canQuote}
               showPinButton={canPin}
               isPinned={isPinned}
-              showCopyButton={canCopy}
+              showCopyButton={false}
+              showCopyLinkButton={canCopyLink}
               showEditButton={canEdit}
               showDeleteButton={canDelete}
             />
@@ -2660,6 +2789,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               onQuote={onQuote}
               onPin={onPin}
               onCopy={handleCopy}
+              onCopyLink={handleCopyLink}
+              onSendToSelf={canSendToSelf ? handleSendToSelf : undefined}
               onEdit={onStartEdit}
               onDelete={requestDelete}
               showThreadButton={showThreadButton}
@@ -2667,6 +2798,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               showPinButton={canPin}
               isPinned={isPinned}
               showCopyButton={canCopy}
+              showCopyLinkButton={canCopyLink}
               showEditButton={canEdit}
               showDeleteButton={canDelete}
             />

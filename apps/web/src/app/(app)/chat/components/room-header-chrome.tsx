@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import type { ChatComposeSokoBot } from "@/app/chat/actions";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
 import { ChannelDiscoverabilityIcon } from "@/components/chat/channel-discoverability-icon";
+import { DirectRoomAvatarStack } from "@/components/chat/direct-room-avatar-stack";
 import { LiveMemberPresenceDot } from "@/components/chat/live-member-presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type {
@@ -166,7 +167,14 @@ export function RoomHeaderChrome({
       <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden md:gap-2">
         {isDirectRoom ? (
           <>
-            <MessageCircle className="text-muted-foreground size-4 shrink-0" />
+            {room.isSelfDirect ? (
+              <DirectRoomAvatarStack
+                room={room}
+                currentUserId={currentUserId}
+              />
+            ) : (
+              <MessageCircle className="text-muted-foreground size-4 shrink-0" />
+            )}
             <p
               className="text-foreground min-w-0 truncate text-sm"
               data-testid="room-open-title"

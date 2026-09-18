@@ -5,7 +5,6 @@ import type { CoreHttpClient } from "../../src/api/http-client.js";
 import {
   createCoworker,
   createCoworkerApiKey,
-  fetchCoworker,
   fetchCoworkers,
   fetchCurrentCoworker,
   updateCoworker,
@@ -44,7 +43,6 @@ test("coworker services use Core routes, encode IDs, and repeat capabilities", a
   const calls: Call[] = [];
   const api = client(calls, { data: [{ id: "cow-1" }] });
   await fetchCoworkers(api, { scope: "owned", capability: ["tasks", "chat"] });
-  await fetchCoworker(api, "cow/1");
   await fetchCurrentCoworker(api);
   await createCoworker(api, { name: "  Ops  ", vendorId: "vendor-1" });
   await updateCoworker(api, "cow/1", { caption: "Ops" });
@@ -56,21 +54,19 @@ test("coworker services use Core routes, encode IDs, and repeat capabilities", a
         method: "GET",
         path: "/v1/coworkers?scope=owned&capability=tasks&capability=chat",
       },
-      { method: "GET", path: "/v1/coworkers/cow%2F1" },
       { method: "GET", path: "/v1/coworkers/me" },
       { method: "POST", path: "/v1/coworkers" },
       { method: "PATCH", path: "/v1/coworkers/cow%2F1" },
       { method: "POST", path: "/v1/coworkers/cow%2F1/api-keys" },
     ],
   );
-  assert.deepEqual(calls[3]?.body, { name: "Ops", vendorId: "vendor-1" });
-  assert.deepEqual(calls[5]?.body, { name: "Production" });
+  assert.deepEqual(calls[2]?.body, { name: "Ops", vendorId: "vendor-1" });
+  assert.deepEqual(calls[4]?.body, { name: "Production" });
 });
 
 test("coworker services validate required inputs before HTTP", async () => {
   const calls: Call[] = [];
   const api = client(calls);
-  await assert.rejects(() => fetchCoworker(api, ""), /coworkerId is required/);
   await assert.rejects(() => createCoworker(api, {}), /name is required/);
   await assert.rejects(() => updateCoworker(api, ""), /coworkerId is required/);
   await assert.rejects(

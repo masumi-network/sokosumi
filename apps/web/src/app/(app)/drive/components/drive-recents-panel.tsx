@@ -289,7 +289,7 @@ export function DriveRecentsPanel({
     return (
       <div
         className={cn(
-          "bg-card-background border-border -mx-6 flex flex-col items-center justify-center overflow-hidden rounded-none border-0 py-12 text-center md:mx-0 md:rounded-xl md:border",
+          "bg-card-background border-border -mx-4 flex flex-col items-center justify-center overflow-hidden rounded-none border-0 py-12 text-center md:mx-0 md:rounded-xl md:border",
           PROJECTS_LIST_CARD_MIN_H_CLASS,
         )}
       >
