@@ -255,4 +255,20 @@ struct SidebarRoomsTests {
     #expect(resolveRoomAttention(unreadCount: 5, unreadMentionCount: 2) == .init(bold: true, badgeCount: 2))
     #expect(resolveRoomAttention(unreadCount: 0, unreadMentionCount: 0) == .init(bold: false, badgeCount: 0))
   }
+
+  @Test func unreadTextCountIsOptInAndObeysMuteAndTheOpenRoom() {
+    #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 1).unreadTextCount == 0)
+    #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 1, showUnreadCount: true) == .init(bold: true, badgeCount: 1, unreadTextCount: 3))
+    // Forced unread without messages stays bold with no number, like web.
+    #expect(resolveRoomAttention(unreadCount: 0, unreadMentionCount: 0, markedUnread: true, showUnreadCount: true) == .init(bold: true, badgeCount: 0))
+    #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 1, isMuted: true, showUnreadCount: true).unreadTextCount == 0)
+    #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 1, isActive: true, showUnreadCount: true).unreadTextCount == 0)
+  }
+
+  @Test func roomCountCapsAtNinetyNine() {
+    #expect(roomCountLabel(1) == "1" && roomCountLabel(99) == "99" && roomCountLabel(100) == "99+")
+    #expect(roomUnreadAccessibilityLabel(1) == "1 unread message")
+    #expect(roomUnreadAccessibilityLabel(42) == "42 unread messages")
+    #expect(roomUnreadAccessibilityLabel(250) == "More than 99 unread messages")
+  }
 }

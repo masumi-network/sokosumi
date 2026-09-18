@@ -52,7 +52,7 @@ import SwiftUI
           await workspaces.updateThreadOverview(.count, roomId: roomId, auth: auth)
         }
         .task(id: scope + [String(showsThreads)]) {
-          await workspaces.updateThreadOverview(.displayPreference, roomId: roomId, auth: auth)
+          await workspaces.refreshChatDisplayPreferences(auth: auth)
         }
         .task(id: request) {
           jumpError = nil
@@ -149,8 +149,8 @@ import SwiftUI
           HStack(spacing: 4) {
             Image(systemName: "bubble.left.and.bubble.right")
             if workspaces.threadOverview.unreadCount > 0 {
-              if workspaces.threadOverview.showsUnreadCount {
-                Text(workspaces.threadOverview.unreadCount > 99 ? "99+" : String(workspaces.threadOverview.unreadCount))
+              if workspaces.chatDisplay.showsRoomUnreadCount {
+                Text(roomCountLabel(workspaces.threadOverview.unreadCount))
                   .font(.caption).monospacedDigit()
               } else {
                 Circle().fill(Color.accentColor).frame(width: 6, height: 6)

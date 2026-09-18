@@ -320,15 +320,22 @@ struct ConversationSidebarView: View {
       unreadMentionCount: room.unreadMentionCount,
       markedUnread: room.markedUnread,
       isMuted: room.mutedAt != nil,
-      isActive: room.id == workspaces.selectedRoomId
+      isActive: room.id == workspaces.selectedRoomId,
+      showUnreadCount: workspaces.chatDisplay.showsRoomUnreadCount
     )
     return Label {
       HStack(spacing: 6) {
         VStack(alignment: .leading, spacing: 2) {
-          Text(roomDisplayName(room, currentUserId: workspaces.currentUserId))
-            .lineLimit(1)
-            .fontWeight(attention.bold ? .bold : .regular)
-            .foregroundStyle(room.mutedAt != nil && room.id != workspaces.selectedRoomId ? .secondary : .primary)
+          // Web: the count rides the end of the name, the name truncates first.
+          HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(roomDisplayName(room, currentUserId: workspaces.currentUserId))
+              .lineLimit(1)
+              .fontWeight(attention.bold ? .bold : .regular)
+              .foregroundStyle(room.mutedAt != nil && room.id != workspaces.selectedRoomId ? .secondary : .primary)
+            if attention.unreadTextCount > 0 {
+              RoomUnreadCountLabel(count: attention.unreadTextCount)
+            }
+          }
           if room.myAccess == .guest, let organization = room.organizationName, !organization.isEmpty {
             Text(organization)
               .font(.caption)
@@ -458,6 +465,22 @@ struct ConversationSidebarView: View {
     }
     .buttonStyle(.plain)
     .accessibilityValue(presenceLabel(workspaces.presence.selfPresence))
+  }
+}
+
+/// The reader's opt-in Room unread count (web `RoomUnreadCount`): text, not a
+/// pill, so it cannot be mistaken for the mention badge beside it.
+struct RoomUnreadCountLabel: View {
+  let count: Int
+
+  var body: some View {
+    Text("· \(roomCountLabel(count))")
+      .fontWeight(.bold)
+      .monospacedDigit()
+      .lineLimit(1)
+      .fixedSize()
+      .layoutPriority(1)
+      .accessibilityLabel(roomUnreadAccessibilityLabel(count))
   }
 }
 
