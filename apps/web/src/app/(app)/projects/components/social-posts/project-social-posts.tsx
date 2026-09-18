@@ -118,7 +118,7 @@ function SocialPostMediaThumb({ media }: { media: SocialPostMediaRef }) {
   return (
     <a
       aria-label={media.name}
-      className="bg-accent/30 hover:bg-accent/50 focus-visible:ring-ring relative block size-12 shrink-0 overflow-hidden rounded-xl border outline-none transition"
+      className="bg-card-background hover:bg-card-background-hover focus-visible:ring-ring relative block size-12 shrink-0 overflow-hidden rounded-xl border outline-none transition"
       href={media.fileUrl}
       rel="noreferrer noopener"
       target="_blank"
