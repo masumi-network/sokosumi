@@ -1087,6 +1087,22 @@ public final class WorkspaceState: ObservableObject {
     }
   }
 
+  /// Reorder Pinned. A failure of the latest reorder reloads the list: what Core holds is the truth.
+  public func reorderPinnedRooms(_ roomIds: [String], auth: AuthState) async {
+    guard let client = resolveClient(auth: auth) else { return }
+    do {
+      try await sidebar.reorderPinned(roomIds, client: client, organizationSlug: selection?.workspace.organizationSlug)
+    } catch {
+      if let error = error as? ChatServiceError, signOutIfUnauthorized(error, auth: auth) {
+        sidebar.clearActionError()
+        return
+      }
+      // A read that started before the failure may already be running; it must not stand in for the reload.
+      await roomsRefreshTask?.value
+      await refreshRooms(auth: auth)
+    }
+  }
+
   /// Older history page for scroll-up. Merges by message ID; never marks read and never
   /// clears resolved history on failure.
   public func loadOlderMessages(auth: AuthState) {
