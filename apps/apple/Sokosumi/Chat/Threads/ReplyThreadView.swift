@@ -23,7 +23,11 @@ import SwiftUI
 
     private var preparedMessages: [Components.Schemas.ChatRoomMessage] {
       guard preparedTranscript?.input.scope == preparationScope else { return [] }
-      return preparedTranscript?.input.messages ?? []
+      let snapshot = preparedTranscript?.input.messages ?? []
+      // Markdown is prepared async; chips must follow the live overlay now.
+      let liveRows = (workspaces.displayedThreadParent.map { [$0] } ?? []) + workspaces.displayedThreadReplies
+      let live = Dictionary(liveRows.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
+      return snapshot.map { live[$0.id] ?? $0 }
     }
 
     private var readyJump: ThreadSession.JumpTarget? {
