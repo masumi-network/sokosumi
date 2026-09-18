@@ -134,6 +134,9 @@ function TableWorkspace({
   const [archivedRows, setArchivedRows] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [error, setError] = useState("");
+  const [retryAction, setRetryAction] = useState<
+    (() => Promise<unknown>) | null
+  >(null);
   const [pending, setPending] = useState(false);
   const [column, setColumn] = useState<TableColumn | "new" | null>(null);
   const [dialog, setDialog] = useState<
@@ -197,12 +200,21 @@ function TableWorkspace({
     ]);
   }
   async function run(action: () => Promise<unknown>) {
+    if (retryAction && action !== retryAction) {
+      setError(t("errors.unresolved"));
+      return;
+    }
     setPending(true);
     setError("");
     try {
       await action();
+      setRetryAction(null);
       await refresh();
     } catch (error) {
+      // Capture the original action and render snapshot, never rebuild from polled props.
+      setRetryAction((previous) =>
+        mutate.hasPending() ? (previous ?? action) : null,
+      );
       setError(tableError(error, t));
     } finally {
       setPending(false);
@@ -455,6 +467,11 @@ function TableWorkspace({
       {error && (
         <p role="alert" className="text-destructive text-sm">
           {error}
+          {retryAction && (
+            <Button disabled={pending} onClick={() => void run(retryAction)}>
+              {t("retry")}
+            </Button>
+          )}
         </p>
       )}
       {rows.error && (
@@ -996,6 +1013,14 @@ function TableWorkspace({
           {error && (
             <p role="alert" className="text-destructive text-sm">
               {error}
+              {retryAction && (
+                <Button
+                  disabled={pending}
+                  onClick={() => void run(retryAction)}
+                >
+                  {t("retry")}
+                </Button>
+              )}
             </p>
           )}
           {dialog !== "history" && (

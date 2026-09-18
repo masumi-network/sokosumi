@@ -2258,18 +2258,29 @@ export class SokoBotRuntimeService {
           return this.executeAuthorizedTool(input);
         return existing.result;
       }
-      if (existing.status === "FAILED") {
+      // Only table mutations have an atomic durable result store. Reauthorize
+      // exact-input recovery after receipt or link-publication failure; other
+      // capabilities may have unsafe effects and must never replay a failure.
+      const recoverableFailure =
+        existing.status === "FAILED" &&
+        ["create_table", "write_table_rows", "update_table_columns"].includes(
+          input.capability,
+        );
+      if (existing.status === "FAILED" && !recoverableFailure) {
         throw new SokoBotRuntimeConflictError("Tool call previously failed");
       }
       const reclaimed = await prisma.sokoBotToolCall.updateMany({
         where: {
           id: existing.id,
-          status: "PENDING",
-          updatedAt: {
-            lt: new Date(Date.now() - TOOL_CALL_STALE_MS),
-          },
+          status: recoverableFailure ? "FAILED" : "PENDING",
+          ...(!recoverableFailure && {
+            updatedAt: {
+              lt: new Date(Date.now() - TOOL_CALL_STALE_MS),
+            },
+          }),
         },
         data: {
+          status: "PENDING",
           updatedAt: new Date(),
           errorKind: null,
           errorDetail: null,

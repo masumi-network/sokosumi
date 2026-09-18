@@ -7,6 +7,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { TableCell } from "@/app/drive/tables/table-cell";
+import { TableColumnDialog } from "@/app/drive/tables/table-column-dialog";
 import { TableCreateDialog } from "@/app/drive/tables/table-create-dialog";
 import { TableEditor } from "@/app/drive/tables/table-editor";
 
@@ -33,11 +34,15 @@ const f = vi.hoisted(() => {
   };
   return {
     column,
+    columns: [column],
+    tableVersion: 1,
+    tableArchived: null as Date | null,
     row,
     shown: [row],
     enrich: vi.fn(),
     batch: vi.fn(),
     create: vi.fn(),
+    update: vi.fn(),
     push: vi.fn(),
   };
 });
@@ -66,10 +71,10 @@ vi.mock("@tanstack/react-query", () => ({
             workspaceId: "ws",
             title: "Fixture table",
             description: "",
-            version: 1,
-            columns: [f.column],
+            version: f.tableVersion,
+            columns: f.columns,
             views: [],
-            archivedAt: null,
+            archivedAt: f.tableArchived,
           }
         : queryKey[0] === "table-rows"
           ? { rows: f.shown, nextCursor: null }
@@ -91,6 +96,7 @@ vi.mock("@/lib/services/data-table.client", () => ({
     enrich: f.enrich,
     batch: f.batch,
     create: f.create,
+    update: f.update,
     projects: vi.fn(),
     get: vi.fn(),
     query: vi.fn(),
@@ -101,6 +107,9 @@ vi.mock("@/lib/services/data-table.client", () => ({
 beforeEach(() => {
   vi.resetAllMocks();
   f.shown = [f.row];
+  f.columns = [f.column];
+  f.tableVersion = 1;
+  f.tableArchived = null;
 });
 afterEach(cleanup);
 it("F6: invalid enrichment stays editable without sending an invalid request", async () => {
@@ -133,7 +142,7 @@ it("F4: add-row lost-ack retry preserves the exact request", async () => {
   await waitFor(() =>
     expect(screen.getByRole("alert")).toHaveTextContent("network lost"),
   );
-  fireEvent.click(screen.getByRole("button", { name: "addRow" }));
+  fireEvent.click(screen.getByRole("button", { name: "retry" }));
   await waitFor(() => expect(f.batch).toHaveBeenCalledTimes(2));
   expect(f.batch.mock.calls[0][1]).toEqual(f.batch.mock.calls[1][1]);
 });
@@ -319,4 +328,140 @@ it("F2: canceling deliberate view navigation keeps the draft", () => {
   expect(confirm).toHaveBeenCalled();
   expect(input).toHaveValue("Keep draft");
   vi.unstubAllGlobals();
+});
+
+it.each(["disappeared", "updated"])(
+  "R1: explicit archive retry survives a %s row",
+  async (change) => {
+    f.batch
+      .mockRejectedValueOnce(new TypeError("lost acknowledgement"))
+      .mockResolvedValue({ rows: [] });
+    const view = render(<TableEditor id={f.column.tableId} />);
+    fireEvent.click(screen.getByRole("checkbox", { name: "selectRow" }));
+    fireEvent.click(screen.getByRole("button", { name: "archiveRows" }));
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+    f.shown = change === "disappeared" ? [] : [{ ...f.row, version: 2 }];
+    view.rerender(<TableEditor id={f.column.tableId} />);
+    fireEvent.click(screen.getByRole("button", { name: "addRow" }));
+    expect(f.batch).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("alert")).toHaveTextContent("errors.unresolved");
+    fireEvent.click(screen.getByRole("button", { name: "retry" }));
+    await waitFor(() => expect(f.batch).toHaveBeenCalledTimes(2));
+    expect(f.batch.mock.calls[1]).toEqual(f.batch.mock.calls[0]);
+    expect(f.batch.mock.calls[1][1].patch).toEqual([
+      { id: f.row.id, version: 1, archived: true },
+    ]);
+    await waitFor(() =>
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument(),
+    );
+  },
+);
+
+it("R1: table archive retry preserves pre-poll metadata and intent", async () => {
+  f.update
+    .mockRejectedValueOnce(new TypeError("lost acknowledgement"))
+    .mockResolvedValue({});
+  const view = render(<TableEditor id={f.column.tableId} />);
+  fireEvent.pointerDown(screen.getByRole("button", { name: "tableMenu" }), {
+    button: 0,
+    ctrlKey: false,
+  });
+  fireEvent.click(await screen.findByRole("menuitem", { name: "archive" }));
+  fireEvent.click(screen.getByRole("button", { name: "save" }));
+  await waitFor(() => expect(f.update).toHaveBeenCalledOnce());
+  await waitFor(() =>
+    expect(
+      screen.getAllByRole("button", { name: "retry" }).length,
+    ).toBeGreaterThan(0),
+  );
+  f.tableVersion = 2;
+  f.tableArchived = new Date();
+  view.rerender(<TableEditor id={f.column.tableId} />);
+  fireEvent.click(screen.getAllByRole("button", { name: "retry" })[0]);
+  await waitFor(() => expect(f.update).toHaveBeenCalledTimes(2));
+  expect(f.update.mock.calls[1]).toEqual(f.update.mock.calls[0]);
+  expect(f.update.mock.calls[1][1]).toMatchObject({
+    version: 1,
+    archived: true,
+  });
+});
+it("R1: reorder retry retains original column IDs and ordering after polling", async () => {
+  const second = {
+    ...f.column,
+    id: "00000000-0000-4000-8000-000000000005",
+    name: "Second",
+    position: 1,
+  };
+  f.columns = [f.column, second];
+  f.update
+    .mockRejectedValueOnce(new TypeError("lost acknowledgement"))
+    .mockResolvedValue({});
+  const view = render(<TableEditor id={f.column.tableId} />);
+  fireEvent.pointerDown(
+    screen.getAllByRole("button", { name: "columnMenu" })[0],
+    {
+      button: 0,
+      ctrlKey: false,
+    },
+  );
+  fireEvent.click(await screen.findByRole("menuitem", { name: "moveRight" }));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "retry" })).toBeInTheDocument(),
+  );
+  f.tableVersion = 2;
+  f.columns = [second, f.column];
+  view.rerender(<TableEditor id={f.column.tableId} />);
+  fireEvent.click(screen.getByRole("button", { name: "retry" }));
+  await waitFor(() => expect(f.update).toHaveBeenCalledTimes(2));
+  expect(f.update.mock.calls[1]).toEqual(f.update.mock.calls[0]);
+  expect(
+    f.update.mock.calls[1][1].columns.map((c: { id: string }) => c.id),
+  ).toEqual([second.id, f.column.id]);
+});
+it("R1: column dialog freezes ambiguous input and retries its original schema", async () => {
+  f.update
+    .mockRejectedValueOnce(new TypeError("lost acknowledgement"))
+    .mockResolvedValue({});
+  const table = {
+    id: f.column.tableId,
+    workspaceId: "ws",
+    title: "Table",
+    description: "",
+    version: 1,
+    columns: [f.column],
+    views: [],
+    archivedAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    projectId: null,
+    createdBy: "user",
+  };
+  const onClose = vi.fn();
+  const view = render(
+    <TableColumnDialog
+      table={table}
+      column={f.column}
+      onClose={onClose}
+      onSaved={vi.fn()}
+    />,
+  );
+  fireEvent.change(screen.getByLabelText("columnName"), {
+    target: { value: "Renamed" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "save" }));
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "retry" })).toBeInTheDocument(),
+  );
+  expect(screen.getByLabelText("columnName")).toBeDisabled();
+  view.rerender(
+    <TableColumnDialog
+      table={{ ...table, version: 2 }}
+      column={{ ...f.column, name: "Polled" }}
+      onClose={onClose}
+      onSaved={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "retry" }));
+  await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+  expect(f.update.mock.calls[1]).toEqual(f.update.mock.calls[0]);
 });

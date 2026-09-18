@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { DataTable, TableColumn } from "@/lib/clients/generated/core";
 import { dataTableService } from "@/lib/services/data-table.client";
 import { TABLE_TYPES } from "./table-create-dialog";
+import { isTableRejection } from "./table-mutations";
 import { tableError } from "./table-value";
 export function TableColumnDialog({
   table,
@@ -36,7 +37,8 @@ export function TableColumnDialog({
   const [options, setOptions] = useState(column?.options?.join("; ") ?? "");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
-  const [key] = useState(() => crypto.randomUUID());
+  const [request, setRequest] =
+    useState<Parameters<typeof dataTableService.update>[1]>();
   const [columnId] = useState(() => column?.id ?? crypto.randomUUID());
   async function handleSave() {
     setPending(true);
@@ -51,18 +53,21 @@ export function TableColumnDialog({
           .map((value) => value.trim())
           .filter(Boolean),
       };
-      await dataTableService.update(table.id, {
-        key,
+      const body = request ?? {
+        key: crypto.randomUUID(),
         version: baseTable.version,
         columns: column
           ? baseTable.columns.map((item) =>
               item.id === column.id ? next : item,
             )
           : [...baseTable.columns, next],
-      });
+      };
+      setRequest(body);
+      await dataTableService.update(table.id, body);
       onSaved();
       onClose();
     } catch (error) {
+      if (isTableRejection(error)) setRequest(undefined);
       setError(tableError(error, t));
     } finally {
       setPending(false);
@@ -72,7 +77,7 @@ export function TableColumnDialog({
     <Dialog
       open
       onOpenChange={(value) => {
-        if (!value && !pending) onClose();
+        if (!value && !pending && !request) onClose();
       }}
     >
       <DialogContent>
@@ -80,7 +85,7 @@ export function TableColumnDialog({
           <DialogTitle>{column ? t("editColumn") : t("addColumn")}</DialogTitle>
           <DialogDescription>{t("columnDescription")}</DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4">
+        <fieldset disabled={pending || !!request} className="grid gap-4">
           <div className="grid gap-2">
             <Label htmlFor="column-name">{t("columnName")}</Label>
             <Input
@@ -129,10 +134,10 @@ export function TableColumnDialog({
               {error}
             </p>
           )}
-        </div>
+        </fieldset>
         <DialogFooter>
           <Button onClick={() => void handleSave()} disabled={pending}>
-            {pending ? t("saving") : t("save")}
+            {pending ? t("saving") : request ? t("retry") : t("save")}
           </Button>
         </DialogFooter>
       </DialogContent>
