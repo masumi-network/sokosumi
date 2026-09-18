@@ -173,6 +173,39 @@ describe("estimateTranscriptRowHeight", () => {
     ).toBe(80);
   });
 
+  it("adds a 24px line for each line the body wraps to", () => {
+    const long = row(1);
+    if (long.kind === "message") {
+      // 402px phone: 316px of text at 8px a character is 39 characters.
+      long.message.content = "x".repeat(39 * 3);
+    }
+    expect(estimateTranscriptRowHeight(long, 402)).toBe(80 + 2 * 24);
+  });
+
+  it("wraps the same body to fewer lines in a wide list", () => {
+    const long = row(1);
+    if (long.kind === "message") {
+      long.message.content = "x".repeat(39 * 3);
+    }
+    expect(estimateTranscriptRowHeight(long, 1000)).toBe(80);
+  });
+
+  it("counts each newline as a line", () => {
+    const lines = row(1);
+    if (lines.kind === "message") {
+      lines.message.content = "a\nb\nc";
+    }
+    expect(estimateTranscriptRowHeight(lines, 402)).toBe(80 + 2 * 24);
+  });
+
+  it("stops at the 16 lines the body is clamped to", () => {
+    const huge = row(1);
+    if (huge.kind === "message") {
+      huge.message.content = "x".repeat(10_000);
+    }
+    expect(estimateTranscriptRowHeight(huge, 402)).toBe(80 + 15 * 24);
+  });
+
   it("treats a whitespace image URL as text-only", () => {
     expect(
       estimateTranscriptRowHeight(

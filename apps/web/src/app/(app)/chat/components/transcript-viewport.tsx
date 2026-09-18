@@ -235,7 +235,8 @@ export function TranscriptViewport({
   const virtualizer = useVirtualizer<HTMLElement, HTMLDivElement>({
     count: rows.length,
     getScrollElement: () => scroller,
-    estimateSize: (index) => estimateTranscriptRowHeight(rows[index]),
+    estimateSize: (index) =>
+      estimateTranscriptRowHeight(rows[index], scroller?.clientWidth),
     getItemKey: (index) => {
       const row = rows[index];
       return row ? transcriptRowKey(row) : index;
