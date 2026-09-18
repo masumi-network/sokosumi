@@ -164,6 +164,23 @@ describe("OrganizationChatList section visibility", () => {
     expect(screen.getByText("Acme")).toBeInTheDocument();
   });
 
+  it("gives the collapsed rail a mark for a pending invitation, aimed at its Accept", async () => {
+    const invitation = makeInvitation();
+    listPendingMock.mockResolvedValue({ ok: true, value: [invitation] });
+
+    renderOrganizationChatList({
+      organizationId: "org-1",
+      pendingInvitations: [invitation],
+    });
+
+    const railMark = await screen.findByTestId("rail-invitation");
+    expect(railMark.dataset.roomName).toBe("Partners");
+    expect(railMark.dataset.label).toBe("App.Channels.External.pendingAria");
+    expect(
+      screen.getByRole("button", { name: "App.Channels.External.accept" }).id,
+    ).toBe(railMark.dataset.acceptButtonId);
+  });
+
   it("keeps External visible while the last pending invite is accepted", async () => {
     const invitation = makeInvitation();
     const joined = makeRoom({
