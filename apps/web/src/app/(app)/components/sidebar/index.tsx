@@ -130,7 +130,10 @@ export default function Sidebar({
         {/* No bottom padding of its own: `SidebarFooter` already contributes
             8px there, matching the 8px this adds on the sides. The inset only
             grows on phones, where the home indicator sits in that 8px. */}
-        <div className="p-2 pt-0 pb-[env(safe-area-inset-bottom)] group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+        {/* No `justify-center` on the rail: the chip carries the same `ml-1`
+            every Sidebar row does, so its face lands on the sidebar's 28px
+            leading axis rather than on the rail's own half-pixel centre. */}
+        <div className="p-2 pt-0 pb-[env(safe-area-inset-bottom)] group-data-[collapsible=icon]:flex">
           {accountFooter}
         </div>
       </SidebarFooter>
