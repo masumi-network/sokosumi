@@ -41,6 +41,13 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
  */
 const OVERSCAN_ROWS = { above: 30, below: 8 };
 
+/**
+ * The composer's editor, blurred when the reader drags the transcript.
+ * Matched by attribute rather than `isContentEditable` so the rule is the
+ * markup React writes.
+ */
+const EDITOR_SELECTOR = '[contenteditable="true"]';
+
 /** A scroll is over this long after its last event, where `scrollend` is missing. */
 const SCROLL_END_FALLBACK_MS = 150;
 
@@ -463,6 +470,16 @@ export function TranscriptViewport({
       window.clearTimeout(grace);
       touchingRef.current = true;
     };
+    // Dragging the transcript means reading, not typing, so the keyboard
+    // gets out of the way. On `touchmove` rather than `scroll`: closing the
+    // keyboard resizes the viewport, which scrolls a bottom-anchored
+    // scroller, which would blur again on every keyboard open.
+    const onTouchMove = () => {
+      const active = document.activeElement;
+      if (active instanceof HTMLElement && active.matches(EDITOR_SELECTOR)) {
+        active.blur();
+      }
+    };
     const onTouchEnd = () => {
       window.clearTimeout(grace);
       grace = window.setTimeout(() => {
@@ -472,12 +489,14 @@ export function TranscriptViewport({
     };
     scroller.addEventListener("scroll", record, { passive: true });
     scroller.addEventListener("touchstart", onTouchStart, { passive: true });
+    scroller.addEventListener("touchmove", onTouchMove, { passive: true });
     scroller.addEventListener("touchend", onTouchEnd, { passive: true });
     scroller.addEventListener("touchcancel", onTouchEnd, { passive: true });
     return () => {
       window.clearTimeout(grace);
       scroller.removeEventListener("scroll", record);
       scroller.removeEventListener("touchstart", onTouchStart);
+      scroller.removeEventListener("touchmove", onTouchMove);
       scroller.removeEventListener("touchend", onTouchEnd);
       scroller.removeEventListener("touchcancel", onTouchEnd);
     };
