@@ -6,6 +6,7 @@ vi.mock("@/hooks/use-mobile", () => ({
 }));
 
 import {
+  SIDEBAR_ROW_LABEL_CLASS,
   Sidebar,
   SidebarContent,
   SidebarMenu,
@@ -217,8 +218,8 @@ describe("Sidebar row geometry", () => {
  * nothing but the travel is lost.
  */
 describe("Sidebar collapse under prefers-reduced-motion", () => {
-  it("drops the travel from everything the collapse moves", () => {
-    const { container } = render(
+  function renderCollapse() {
+    return render(
       <SidebarProvider defaultOpen>
         <Sidebar collapsible="icon">
           <SidebarContent>
@@ -231,6 +232,10 @@ describe("Sidebar collapse under prefers-reduced-motion", () => {
         </Sidebar>
       </SidebarProvider>,
     );
+  }
+
+  it("drops the travel from everything the collapse moves", () => {
+    const { container } = renderCollapse();
 
     // The gap that reserves the panel's width in the page, the fixed panel
     // itself, and the row box inside it — every part of the one animation.
@@ -248,24 +253,53 @@ describe("Sidebar collapse under prefers-reduced-motion", () => {
     }
   });
 
+  it("moves the gap, the panel and the row on one clock", () => {
+    const { container } = renderCollapse();
+
+    // Rows used Tailwind's 150ms ease-in-out default, so they settled 50ms
+    // before the panel they sit in. One duration and one easing, shared.
+    for (const selector of [
+      '[data-slot="sidebar-gap"]',
+      '[data-slot="sidebar-container"]',
+      '[data-slot="sidebar-menu-button"]',
+    ]) {
+      const tokens = (container.querySelector(selector)?.className ?? "").split(
+        /\s+/,
+      );
+      expect(tokens, selector).toContain("duration-200");
+      expect(tokens, selector).toContain("ease-linear");
+    }
+  });
+
   it("does not offer to animate a height that no longer changes", () => {
-    const { container } = render(
-      <SidebarProvider defaultOpen>
-        <Sidebar collapsible="icon">
-          <SidebarContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton>Tasks</SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarContent>
-        </Sidebar>
-      </SidebarProvider>,
-    );
+    const { container } = renderCollapse();
     const button = container.querySelector('[data-slot="sidebar-menu-button"]');
 
     // A row is `h-11 md:h-8` in both states now, so `height` in the
-    // transition list could never fire.
-    expect(button?.className).toContain("transition-[width,padding]");
+    // transition list could never fire. Margin is in it because the rail
+    // square's 4px offset (`ml-1`) used to snap while width and padding eased.
+    expect(button?.className).toContain("transition-[width,padding,margin]");
+  });
+});
+
+/**
+ * A row's name used `sr-only` on collapse, which clips to 1px on the first
+ * frame — gone long before the width that made room for it. The name stays
+ * painted at the 48px column, out of the flex flow so the mark stays centred,
+ * and the panel's overflow clips it as the edge moves. Opacity waits the same
+ * 200ms so the 8px of leftover letter on the 56px rail does not hang around;
+ * reduced motion drops that wait and jumps to the end state.
+ */
+describe("Sidebar row label", () => {
+  it("leaves with the narrowing edge instead of clipping to 1px on frame one", () => {
+    const tokens = SIDEBAR_ROW_LABEL_CLASS.split(/\s+/);
+
+    expect(tokens).toContain("group-data-[collapsible=icon]:absolute");
+    expect(tokens).toContain("group-data-[collapsible=icon]:left-10");
+    expect(tokens).toContain("group-data-[collapsible=icon]:opacity-0");
+    expect(tokens).toContain("group-data-[collapsible=icon]:delay-200");
+    expect(tokens).toContain("motion-reduce:delay-0");
+    expect(tokens).not.toContain("group-data-[collapsible=icon]:sr-only");
+    expect(tokens).not.toContain("group-data-[collapsible=icon]:hidden");
   });
 });

@@ -31,6 +31,9 @@ const SIDEBAR_WIDTH = "14rem";
 const SIDEBAR_WIDTH_MOBILE = "18rem";
 const SIDEBAR_WIDTH_ICON = "3.5rem";
 const SIDEBAR_KEYBOARD_SHORTCUT = "b";
+/** Gap, panel and row share this so the collapse is one movement. */
+const SIDEBAR_COLLAPSE_TRANSITION =
+  "duration-200 ease-linear motion-reduce:transition-none";
 
 type SidebarContextProps = {
   state: "expanded" | "collapsed";
@@ -254,7 +257,7 @@ function Sidebar({
             // The panel's width is the collapse animation. A reader who asks
             // for less motion gets the end state on the next frame instead —
             // the geometry is identical either way, only the travel goes.
-            "relative w-(--sidebar-width) bg-transparent transition-[width] duration-200 ease-linear motion-reduce:transition-none",
+            `relative w-(--sidebar-width) bg-transparent transition-[width] ${SIDEBAR_COLLAPSE_TRANSITION}`,
             "group-data-[collapsible=offcanvas]:w-0",
             "group-data-[side=right]:rotate-180",
             variant === "floating" || variant === "inset"
@@ -265,7 +268,7 @@ function Sidebar({
         <div
           data-slot="sidebar-container"
           className={cn(
-            "fixed inset-y-0 z-10 hidden h-dvh w-(--sidebar-width) overflow-x-hidden transition-[left,right,width] duration-200 ease-linear motion-reduce:transition-none md:flex",
+            `fixed inset-y-0 z-10 hidden h-dvh w-(--sidebar-width) overflow-x-hidden transition-[left,right,width] ${SIDEBAR_COLLAPSE_TRANSITION} md:flex`,
             side === "left"
               ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
               : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
@@ -500,13 +503,24 @@ const SIDEBAR_RAIL_SQUARE_CLASS =
 const SIDEBAR_ROW_LABEL_INSET_CLASS = "pl-10";
 
 /**
+ * A row's name on collapse. `sr-only` clipped it to 1px on the first frame,
+ * so the label vanished before the width that made room for it. Absolute at
+ * `left-10` (the 48px column, from the row) takes it out of the flex flow so
+ * the mark stays centred; the panel's overflow clips the paint as the edge
+ * moves. Opacity waits the same 200ms as the panel so the 8px of leftover
+ * letter on the 56px rail does not hang; reduced motion drops that wait.
+ */
+const SIDEBAR_ROW_LABEL_CLASS =
+  "min-w-0 flex-1 transition-opacity duration-0 motion-reduce:transition-none group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:left-10 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:delay-200 motion-reduce:delay-0";
+
+/**
  * A pressable **Sidebar row** (CONTEXT.md): the row shape above, plus the
  * rail square and the rest state, hover, focus and selection that go with
  * being pressable. On the rail it drops its `px` and keeps its height, which
  * is already the square's 32px at `md` — and the rail exists only at `md`.
  */
 const sidebarMenuButtonVariants = cva(
-  `peer/menu-button ${SIDEBAR_ROW_CLASS} ${SIDEBAR_RAIL_SQUARE_CLASS} overflow-hidden rounded-md text-left text-base outline-hidden ring-sidebar-ring transition-[width,padding] motion-reduce:transition-none hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:px-0! group-data-[collapsible=icon]:hover:bg-transparent group-data-[collapsible=icon]:hover:ring-sidebar-ring group-data-[collapsible=icon]:hover:ring-1 group-data-[collapsible=icon]:active:bg-transparent group-data-[collapsible=icon]:active:ring-sidebar-ring group-data-[collapsible=icon]:active:ring-2 group-data-[collapsible=icon]:data-[active=true]:bg-transparent md:text-sm [&>span:last-child]:truncate`,
+  `peer/menu-button ${SIDEBAR_ROW_CLASS} ${SIDEBAR_RAIL_SQUARE_CLASS} overflow-hidden rounded-md text-left text-base outline-hidden ring-sidebar-ring transition-[width,padding,margin] ${SIDEBAR_COLLAPSE_TRANSITION} hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:px-0! group-data-[collapsible=icon]:hover:bg-transparent group-data-[collapsible=icon]:hover:ring-sidebar-ring group-data-[collapsible=icon]:hover:ring-1 group-data-[collapsible=icon]:active:bg-transparent group-data-[collapsible=icon]:active:ring-sidebar-ring group-data-[collapsible=icon]:active:ring-2 group-data-[collapsible=icon]:data-[active=true]:bg-transparent md:text-sm [&>span:last-child]:truncate`,
   {
     variants: {
       variant: {
@@ -576,6 +590,7 @@ function SidebarMenuButton({
 export {
   SIDEBAR_RAIL_SQUARE_CLASS,
   SIDEBAR_ROW_CLASS,
+  SIDEBAR_ROW_LABEL_CLASS,
   SIDEBAR_ROW_LABEL_INSET_CLASS,
   Sidebar,
   SidebarContent,
