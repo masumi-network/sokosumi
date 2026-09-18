@@ -101,9 +101,6 @@
         }
       },
       "AgentDetail": {
-        "Header": {
-          "pricing": "{credits, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}"
-        },
         "Stats": {
           "executedJobs": "Ausgeführte Jobs",
           "averageExecutionTime": "Durchschnittliche Ausführungszeit",
