@@ -176,6 +176,24 @@ struct RealtimeEventTests {
     }
   }
 
+  @Test func chatNotificationResolvesOnlyOnTheNotificationsChannel() throws {
+    let json = #"{"id":"n1","userId":"u1","kind":"CHAT","referenceId":"room_1","eventId":"m1","messageKey":"Notifications.Chat.directMessage","messageParams":{"authorName":"Ada"},"metadata":{"messageId":"m1","workspaceId":null},"isRead":false,"readAt":null,"createdAt":"2026-09-18T10:00:00.000Z","inApp":true,"osBanner":true,"created":true,"groupCount":2}"#
+    let data = try JSONSerialization.jsonObject(with: Data(json.utf8))
+    guard case let .notification(event) = resolveRealtimeDelivery(channel: "notifications:all:user_u1", event: "notification_created", data: data) else {
+      Issue.record("expected a notification")
+      return
+    }
+    #expect(event.id == "n1" && event.roomId == "room_1" && event.messageId == "m1" && event.groupCount == 2 && event.osBanner && !event.isRead)
+    // Another channel, another kind and a malformed row are ignored.
+    if case .ignored = resolveRealtimeDelivery(channel: "chat_control:user_u1", event: "notification_created", data: data) {} else {
+      Issue.record("expected ignored for a foreign channel")
+    }
+    let job = try JSONSerialization.jsonObject(with: Data(json.replacingOccurrences(of: #""kind":"CHAT""#, with: #""kind":"JOB""#).utf8))
+    if case .ignored = resolveRealtimeDelivery(channel: "notifications:all:user_u1", event: "notification_created", data: job) {} else {
+      Issue.record("expected ignored for a job row")
+    }
+  }
+
   @Test func fullCreateResolvesWithDecodedMessage() {
     let event = resolveRealtimeDelivery(
       channel: "chat_rooms:room_\(roomId)",

@@ -15,6 +15,8 @@ public enum ResolvedRealtimeDelivery: Sendable {
   case revoked(roomId: String)
   /// Full member set of one organization's presence channel (ADR 0003).
   case presenceRoster(organizationId: String, members: [ChatPresenceMember])
+  /// A chat-kind row on the user notifications channel.
+  case notification(ChatNotificationEvent)
   case ignored
 
   /// Shared Ably payloads do not carry a meaningful viewer reaction flag.
@@ -117,21 +119,8 @@ public struct AblyTokenFields: Equatable, Sendable {
 /// the transcript only moves on proof, never on hope. Presence arrives
 /// through `OrgPresenceChannel`, not as messages.
 public func resolveRealtimeDelivery(channel: String, event eventName: String, data: Any) -> ResolvedRealtimeDelivery {
-  if eventName == chatRoomPinnedMessageEventName {
-    guard let roomId = parseChatRoomId(fromChannelName: channel),
-          let pin = decodeRealtimeValue(data, as: PinEvent.self),
-          pin.roomId == roomId, !pin.messageId.isEmpty, pin.pinnedMessageCount >= 0 else { return .ignored }
-    return .pin(roomId: roomId, messageId: pin.messageId, isPinned: pin.action == .pin, count: pin.pinnedMessageCount)
-  }
-  if eventName == chatMembershipRevokedEventName {
-    guard channel.hasPrefix("chat_control:user_"),
-          let dict = data as? [String: Any],
-          let roomId = dict["roomId"] as? String,
-          !roomId.isEmpty
-    else {
-      return .ignored
-    }
-    return .revoked(roomId: roomId)
+  if let named = resolveNamedDelivery(channel: channel, event: eventName, data: data) {
+    return named
   }
   guard eventName == chatRoomMessageEventName,
         let roomId = parseChatRoomId(fromChannelName: channel),
@@ -159,6 +148,31 @@ public func resolveRealtimeDelivery(channel: String, event eventName: String, da
     roomId: roomId,
     parentMessageId: dict["parentMessageId"] as? String
   ))
+}
+
+/// Pins, notifications and membership revokes: events identified by name alone. Nil for every other event.
+private func resolveNamedDelivery(channel: String, event eventName: String, data: Any) -> ResolvedRealtimeDelivery? {
+  if eventName == chatRoomPinnedMessageEventName {
+    guard let roomId = parseChatRoomId(fromChannelName: channel),
+          let pin = decodeRealtimeValue(data, as: PinEvent.self),
+          pin.roomId == roomId, !pin.messageId.isEmpty, pin.pinnedMessageCount >= 0 else { return .ignored }
+    return .pin(roomId: roomId, messageId: pin.messageId, isPinned: pin.action == .pin, count: pin.pinnedMessageCount)
+  }
+  if eventName == notificationCreatedEventName {
+    guard channel.hasPrefix("notifications:"), let notification = ChatNotificationEvent(payload: data) else { return .ignored }
+    return .notification(notification)
+  }
+  if eventName == chatMembershipRevokedEventName {
+    guard channel.hasPrefix("chat_control:user_"),
+          let dict = data as? [String: Any],
+          let roomId = dict["roomId"] as? String,
+          !roomId.isEmpty
+    else {
+      return .ignored
+    }
+    return .revoked(roomId: roomId)
+  }
+  return nil
 }
 
 private struct PinEvent: Decodable {

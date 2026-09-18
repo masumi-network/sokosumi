@@ -36,6 +36,7 @@ public extension WorkspaceState {
   /// process exits, so teammates see this device go offline at once instead
   /// of after Ably's disconnect grace.
   func prepareForTermination() {
+    clearNotificationBanners()
     stopRealtime()
   }
 }
