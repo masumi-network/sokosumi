@@ -40,7 +40,8 @@ private final class ScriptedTransport: ClientTransport {
   var pauseUnfurl = false
   var pauseMentionRetry = false
   var pauseSokoBotFeedback = false
-  private var pauseWaiter: CheckedContinuation<Void, Never>?
+  /// Oldest first: requests for different emoji can wait at the same time.
+  private var pauseWaiters: [CheckedContinuation<Void, Never>] = []
   /// Tests wait on `operationIDs` (appended before the body `await`). A
   /// release that arrives in that window must not be lost.
   private var requestReleased = false
@@ -87,14 +88,14 @@ private final class ScriptedTransport: ClientTransport {
     if pauseDirect, ["post/chats/rooms", "post/chats/rooms/{id}/members/me", "post/chats/invitations/{id}/accept"].contains(operationID) {
       let next = responses.removeFirst()
       if !requestReleased {
-        await withCheckedContinuation { pauseWaiter = $0 }
+        await withCheckedContinuation { pauseWaiters.append($0) }
       }
       requestReleased = false
       return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
     }
     if pausePOST, operationID == "post/chats/rooms/{id}/messages" {
       if !requestReleased {
-        await withCheckedContinuation { pauseWaiter = $0 }
+        await withCheckedContinuation { pauseWaiters.append($0) }
       }
       requestReleased = false
       try Task.checkCancellation()
@@ -102,7 +103,7 @@ private final class ScriptedTransport: ClientTransport {
     if pauseStream, operationID == "post/chats/rooms/{id}/stream" || operationID == "get/chats/rooms/{id}/stream/active" {
       let next = responses.removeFirst()
       if !requestReleased {
-        await withCheckedContinuation { pauseWaiter = $0 }
+        await withCheckedContinuation { pauseWaiters.append($0) }
       }
       requestReleased = false
       try Task.checkCancellation()
@@ -111,7 +112,7 @@ private final class ScriptedTransport: ClientTransport {
     if pausesMessageOperation(operationID) {
       let next = responses.removeFirst()
       if !requestReleased {
-        await withCheckedContinuation { pauseWaiter = $0 }
+        await withCheckedContinuation { pauseWaiters.append($0) }
       }
       requestReleased = false
       try Task.checkCancellation()
@@ -122,9 +123,11 @@ private final class ScriptedTransport: ClientTransport {
   }
 
   func releasePausedRequest() {
-    requestReleased = true
-    pauseWaiter?.resume()
-    pauseWaiter = nil
+    if pauseWaiters.isEmpty {
+      requestReleased = true
+    } else {
+      pauseWaiters.removeFirst().resume()
+    }
   }
 
   func waitForPOSTCompletion() async {
@@ -1736,15 +1739,33 @@ extension WorkspaceStateTests {
 }
 
 extension WorkspaceStateTests {
-  @Test(arguments: [false, true])
-  func reactionsWaitForServerAndPreserveNewerContent(reply: Bool) async throws {
-    let response = createdMessageBody(id: "message", roomId: "room", content: "Old content")
-      .replacingOccurrences(of: "\"reactions\":[]", with: "\"reactions\":[{\"emoji\":\"👍\",\"count\":1,\"reactedByCurrentUser\":true,\"reactors\":[]}]")
+  private func reactionBody(_ reactions: String, reply: Bool = false) -> String {
+    createdMessageBody(id: "message", roomId: "room", content: "Old content")
+      .replacingOccurrences(of: "\"reactions\":[]", with: "\"reactions\":[\(reactions)]")
       .replacingOccurrences(of: "\"parentMessageId\":null", with: reply ? "\"parentMessageId\":\"parent\"" : "\"parentMessageId\":null")
-    let (state, auth, transport, _) = try ephemeralState([(200, response)], visible: false)
+  }
+
+  private var ownThumbs: String {
+    "{\"emoji\":\"👍\",\"count\":1,\"reactedByCurrentUser\":true,\"reactors\":[]}"
+  }
+
+  private func reactionSource() -> Components.Schemas.ChatRoomMessage {
     var source = chatRoomMessage(from: .init(clientTurnId: "reaction", roomId: "room", content: "New content",
                                              sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
     source.id = "message"
+    return source
+  }
+
+  private func waitForRequests(_ count: Int, _ transport: ScriptedTransport) async {
+    while transport.operationIDs.count < count {
+      await Task.yield()
+    }
+  }
+
+  @Test(arguments: [false, true])
+  func reactionShowsBeforeCoreAnswersAndPreservesNewerContent(reply: Bool) async throws {
+    let (state, auth, transport, _) = try ephemeralState([(200, reactionBody(ownThumbs, reply: reply))], visible: false)
+    var source = reactionSource()
     state.timeline.reset(roomId: "room")
     if reply {
       var parent = source
@@ -1759,75 +1780,137 @@ extension WorkspaceStateTests {
     }
     transport.pauseReaction = true
     let toggle = Task { try await state.toggleReaction(source, emoji: "👍", auth: auth) }
-    while transport.operationIDs.isEmpty {
-      await Task.yield()
-    }
-    #expect(state.pendingReactionEmoji(for: source.id) == ["👍"])
+    await waitForRequests(1, transport)
+    let shown = reply ? state.displayedThreadReplies.first : state.displayedTranscript.first
+    #expect(shown?.reactions.first?.count == 1)
+    #expect(shown?.reactions.first?.reactedByCurrentUser == true)
+    // Confirmed rows stay untouched until Core answers.
     #expect((reply ? state.thread.timeline.messages.first : state.timeline.messages.first)?.reactions.isEmpty == true)
-    try await state.toggleReaction(source, emoji: "👍", auth: auth)
-    #expect(transport.operationIDs.count == 1)
+    if !reply {
+      #expect(state.displayedThreadParent?.reactions.first?.reactedByCurrentUser == true)
+    }
     transport.releasePausedRequest()
-    try await toggle.value
+    #expect(try await toggle.value)
+    #expect(transport.operationIDs == ["put/chats/rooms/{id}/messages/{messageId}/reactions/{emoji}"])
     let updated = reply ? state.thread.timeline.messages.first : state.timeline.messages.first
     #expect(updated?.content == "New content")
     #expect(updated?.reactions.first?.count == 1)
     #expect(updated?.reactions.first?.reactedByCurrentUser == true)
-    #expect(state.pendingReactionEmoji(for: source.id).isEmpty)
+    #expect(state.pendingReactions.intents.isEmpty)
+    #expect((reply ? state.displayedThreadReplies.first : state.displayedTranscript.first) == updated)
     if !reply {
       #expect(state.thread.parent?.reactions.first?.count == 1)
     }
   }
 
-  @Test(arguments: [false, true])
-  func failedOrStaleReactionPreservesMessages(roomChanged: Bool) async throws {
-    let (state, auth, transport, _) = try ephemeralState([(403, "{\"message\":\"Denied\"}")], visible: false)
-    var source = chatRoomMessage(from: .init(clientTurnId: "reaction", roomId: "room", content: "Unchanged",
-                                             sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
-    source.id = "message"
+  @Test func lastReactionTapWinsWithOneRequestAtATime() async throws {
+    let (state, auth, transport, _) = try ephemeralState([(200, reactionBody(ownThumbs)), (200, reactionBody(""))], visible: false)
+    let source = reactionSource()
     state.timeline.reset(roomId: "room")
     state.timeline.messages = [source]
     transport.pauseReaction = true
     let toggle = Task { try await state.toggleReaction(source, emoji: "👍", auth: auth) }
-    while transport.operationIDs.isEmpty {
-      await Task.yield()
+    await waitForRequests(1, transport)
+    // On, off, on, off while the PUT is out: every tap shows at once and none sends.
+    for expected in [false, true, false] {
+      #expect(try await state.toggleReaction(source, emoji: "👍", auth: auth) == false)
+      #expect(state.displayedTranscript.first?.reactions.isEmpty == !expected)
     }
-    if roomChanged {
-      state.timeline.reset(roomId: "other")
-    }
+    #expect(transport.operationIDs.count == 1)
     transport.releasePausedRequest()
-    if roomChanged {
-      try await toggle.value
-      #expect(state.timeline.messages.isEmpty)
-    } else {
-      await #expect(throws: (any Error).self) { try await toggle.value }
-      #expect(state.timeline.messages.first?.content == "Unchanged")
-      #expect(state.timeline.messages.first?.reactions.isEmpty == true)
-    }
-    #expect(state.pendingReactions.isEmpty)
+    await waitForRequests(2, transport)
+    // The PUT is confirmed underneath, yet the row still shows the newest intent.
+    #expect(state.timeline.messages.first?.reactions.first?.reactedByCurrentUser == true)
+    #expect(state.displayedTranscript.first?.reactions.isEmpty == true)
+    transport.releasePausedRequest()
+    #expect(try await toggle.value == false)
+    #expect(transport.operationIDs == [
+      "put/chats/rooms/{id}/messages/{messageId}/reactions/{emoji}",
+      "delete/chats/rooms/{id}/messages/{messageId}/reactions/{emoji}"
+    ])
+    #expect(state.timeline.messages.first?.reactions.isEmpty == true)
+    #expect(state.pendingReactions.intents.isEmpty)
   }
 
-  @Test func newerSameEmojiReactionIsReconciled() async throws {
-    let base = createdMessageBody(id: "message", roomId: "room", content: "Old")
-    let first = base.replacingOccurrences(of: "\"reactions\":[]", with: "\"reactions\":[{\"emoji\":\"👍\",\"count\":1,\"reactedByCurrentUser\":true,\"reactors\":[]}]")
-    let latest = first.replacingOccurrences(of: "\"count\":1", with: "\"count\":2")
-    let (state, auth, transport, _) = try ephemeralState([(200, first), (200, latest)], visible: false)
-    var source = chatRoomMessage(from: .init(clientTurnId: "reaction", roomId: "room", content: "Current",
-                                             sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
-    source.id = "message"
+  @Test func reversedTapsEndingOnTheSentIntentSendNothingMore() async throws {
+    let (state, auth, transport, _) = try ephemeralState([(200, reactionBody(ownThumbs))], visible: false)
+    let source = reactionSource()
     state.timeline.reset(roomId: "room")
     state.timeline.messages = [source]
     transport.pauseReaction = true
     let toggle = Task { try await state.toggleReaction(source, emoji: "👍", auth: auth) }
-    while transport.operationIDs.isEmpty {
-      await Task.yield()
-    }
-    source.reactions = [.init(emoji: "👍", count: 2, reactedByCurrentUser: true, reactors: [])]
-    state.timeline.messages = [source]
+    await waitForRequests(1, transport)
+    try await state.toggleReaction(source, emoji: "👍", auth: auth)
+    try await state.toggleReaction(source, emoji: "👍", auth: auth)
     transport.releasePausedRequest()
-    try await toggle.value
-    #expect(transport.operationIDs.last == "get/chats/rooms/{id}/messages/{messageId}")
-    #expect(state.timeline.messages.first?.reactions.first?.count == 2)
-    #expect(state.timeline.messages.first?.content == "Current")
+    #expect(try await toggle.value)
+    #expect(transport.operationIDs.count == 1)
+    #expect(state.displayedTranscript.first?.reactions.first?.reactedByCurrentUser == true)
+  }
+
+  @Test func pendingReactionStaysOnTopOfRealtimePatchAndFailureRollsBackOnlyThatEmoji() async throws {
+    let (state, auth, transport, _) = try ephemeralState([(500, "{\"message\":\"Could not update reaction.\"}"), (200, reactionBody(""))], visible: false)
+    var source = reactionSource()
+    source.reactions = [.init(emoji: "🎉", count: 1, reactedByCurrentUser: true, reactors: [])]
+    state.timeline.reset(roomId: "room")
+    state.timeline.messages = [source]
+    transport.pauseReaction = true
+    let failing = Task { try await state.toggleReaction(source, emoji: "👍", auth: auth) }
+    await waitForRequests(1, transport)
+    // A second emoji on the same message has its own request.
+    let removing = Task { try await state.toggleReaction(source, emoji: "🎉", auth: auth) }
+    await waitForRequests(2, transport)
+    let heart = Components.Schemas.ChatRoomMessageReaction(emoji: "❤️", count: 1, reactedByCurrentUser: false, reactors: [.init(id: "user_2", name: "Ada")])
+    state.applyRealtimeMessagePatch(.init(roomId: "room", messageId: "message", parentMessageId: nil,
+                                          value: .reactions([heart, source.reactions[0]])))
+    #expect(state.timeline.messages.first?.reactions.map(\.emoji) == ["❤️", "🎉"])
+    #expect(state.displayedTranscript.first?.reactions.map(\.emoji) == ["❤️", "👍"])
+    transport.releasePausedRequest()
+    await #expect(throws: (any Error).self) { try await failing.value }
+    // Only 👍 rolled back: the 🎉 removal is still shown, and confirmed rows never moved.
+    #expect(state.pendingReactions.intents == [.init(messageId: "message", emoji: "🎉", reacted: false)])
+    #expect(state.displayedTranscript.first?.reactions == [heart])
+    #expect(state.timeline.messages.first?.reactions.map(\.emoji) == ["❤️", "🎉"])
+    #expect(state.timeline.messages.first?.content == "New content")
+    transport.releasePausedRequest()
+    #expect(try await removing.value == false)
+    #expect(state.timeline.messages.first?.reactions == [heart])
+    #expect(state.pendingReactions.intents.isEmpty)
+  }
+
+  @Test func reactionRequestOutlivesLeavingTheRoom() async throws {
+    let (state, auth, transport, _) = try ephemeralState([(200, reactionBody(ownThumbs))], visible: false)
+    let source = reactionSource()
+    state.timeline.reset(roomId: "room")
+    state.timeline.messages = [source]
+    transport.pauseReaction = true
+    let toggle = Task { try await state.toggleReaction(source, emoji: "👍", auth: auth) }
+    await waitForRequests(1, transport)
+    state.timeline.reset(roomId: "other")
+    #expect(state.displayedTranscript.isEmpty)
+    // Back mid-request: the refreshed page predates the reaction, the intent still shows.
+    state.timeline.reset(roomId: "room")
+    state.timeline.messages = [source]
+    #expect(state.displayedTranscript.first?.reactions.first?.reactedByCurrentUser == true)
+    transport.releasePausedRequest()
+    #expect(try await toggle.value)
+    #expect(state.pendingReactions.intents.isEmpty)
+    #expect(state.timeline.messages.first?.reactions.first?.reactedByCurrentUser == true)
+  }
+
+  @Test func failedReactionAfterLeavingTheRoomStillReportsAndClears() async throws {
+    let (state, auth, transport, _) = try ephemeralState([(403, "{\"message\":\"Denied\"}")], visible: false)
+    let source = reactionSource()
+    state.timeline.reset(roomId: "room")
+    state.timeline.messages = [source]
+    transport.pauseReaction = true
+    let toggle = Task { try await state.toggleReaction(source, emoji: "👍", auth: auth) }
+    await waitForRequests(1, transport)
+    state.timeline.reset(roomId: "other")
+    transport.releasePausedRequest()
+    await #expect(throws: (any Error).self) { try await toggle.value }
+    #expect(state.timeline.messages.isEmpty)
+    #expect(state.pendingReactions.intents.isEmpty)
   }
 }
 
