@@ -1183,6 +1183,15 @@ function MessageActionControls({
 const MESSAGE_ACTIONS_PILL_CLASS =
   "border-border bg-background absolute top-0 right-2 -translate-y-1/2 items-center gap-0.5 rounded-full border p-0.5 shadow-sm";
 
+// Debounce the reveal: scrolling drags a stationary pointer across row after
+// row, and an instant pill flashes at each one. The delay only applies while
+// the row is hovered, so leaving clears it with no delay and the pill goes
+// straight out. pointer-events rides the same transition (discrete, so it
+// flips mid-fade) — an invisible pill covering the row above must not take
+// clicks during the wait.
+const MESSAGE_ACTIONS_PILL_REVEAL_DELAY_CLASS =
+  "[@media(hover:hover)]:group-hover:delay-200";
+
 function MessageActions({
   message,
   onToggleReaction,
@@ -1244,7 +1253,8 @@ function MessageActions({
       data-message-actions="hover"
       className={cn(
         MESSAGE_ACTIONS_PILL_CLASS,
-        "hidden transition-opacity focus-within:opacity-100 [@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:flex [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100",
+        "hidden transition-[opacity,pointer-events] transition-discrete focus-within:opacity-100 [@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:flex [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100",
+        MESSAGE_ACTIONS_PILL_REVEAL_DELAY_CLASS,
         // The upper half covers the row above, and an opacity-0 pill still
         // takes clicks, so it takes the pointer only on row hover or focus.
         // Not while More is open: Radix makes the page inert, and an explicit
