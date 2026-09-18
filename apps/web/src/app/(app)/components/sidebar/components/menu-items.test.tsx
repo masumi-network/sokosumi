@@ -226,7 +226,7 @@ describe("MenuItems search action", () => {
     expect(screen.queryByRole("link", { name: /drive/i })).toBeNull();
   });
 
-  it("shows Files after Schedules on desktop", () => {
+  it("shows Files after Calendar on desktop", () => {
     const { container } = renderMenu(true, true, false);
     const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
       (element) => element.textContent ?? "",
@@ -253,7 +253,7 @@ describe("MenuItems search action", () => {
     );
   });
 
-  it("orders primary destinations Search, Agents, Projects, Tasks, Schedules, History", () => {
+  it("orders primary destinations Search, Agents, Projects, Tasks, Calendar, History", () => {
     const { container } = renderMenu(true, true);
     const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
       (element) => element.textContent ?? "",
@@ -301,7 +301,13 @@ describe("MenuItems search action", () => {
     expect(slot?.querySelector("svg")).not.toBeNull();
     const label = slot?.nextElementSibling;
     expect(label).not.toBeNull();
+    // Shared label class: still in the flow and the accessibility tree.
+    // `absolute` painted the name on the mark; `sr-only` clipped it on
+    // frame one. max-width eases to 0 instead.
     expect(label?.className.split(/\s+/)).toContain(
+      "group-data-[collapsible=icon]:max-w-0",
+    );
+    expect(label?.className.split(/\s+/)).not.toContain(
       "group-data-[collapsible=icon]:sr-only",
     );
     expect(label?.className.split(/\s+/)).not.toContain(

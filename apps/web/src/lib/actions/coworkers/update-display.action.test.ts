@@ -216,4 +216,36 @@ describe("developer coworker actions", () => {
     expect(updateDisplayMock).not.toHaveBeenCalled();
     expect(getOwnedCoworkerByIdMock).not.toHaveBeenCalled();
   });
+
+  it("returns BAD_INPUT for an oversized image without calling Core", async () => {
+    const { updateDeveloperCoworkerDisplayAction } = await import(
+      "./update-display.action"
+    );
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { COWORKER_IMAGE_MAX_SIZE_BYTES } = await import(
+      "@/lib/constants/coworker-image"
+    );
+
+    const oversizedImage = new File(
+      [new Uint8Array(COWORKER_IMAGE_MAX_SIZE_BYTES + 1)],
+      "logo.png",
+      { type: "image/png" },
+    );
+
+    const result = await updateDeveloperCoworkerDisplayAction({
+      session,
+      id: "cow_123",
+      imageIntent: "upload",
+      imageFile: oversizedImage,
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error("Expected error result");
+    }
+
+    expect(result.error.code).toBe(CommonErrorCode.BAD_INPUT);
+    expect(updateDisplayMock).not.toHaveBeenCalled();
+    expect(getOwnedCoworkerByIdMock).not.toHaveBeenCalled();
+  });
 });
