@@ -46,13 +46,17 @@ vi.mock("next/link", () => ({
   }: ComponentProps<"a"> & { prefetch?: boolean }) => <a {...props} />,
 }));
 
+import { recentProjectsStorageKey } from "@/hooks/use-recent-projects";
 import de from "@/messages/de.json";
 import en from "@/messages/en.json";
 import es from "@/messages/es.json";
 import { ProjectsMenuItem } from "./projects-menu-item";
 
 const EXPANDED_KEY = "sokosumi.sidebar.projects-expanded";
-const VISITS_KEY = "sokosumi.sidebar.recent-projects.v1";
+const VISITS_KEY = recentProjectsStorageKey({
+  userId: "user-1",
+  organizationId: "org-1",
+});
 
 function MobileState() {
   const { openMobile, setOpenMobile } = useSidebar();
@@ -364,6 +368,60 @@ describe("Projects sidebar", () => {
     expect(first.closest("ul")?.className ?? "").not.toMatch(
       /overflow-y-auto|max-h-/,
     );
+  });
+
+  it("does not rank another user's visits in the same workspace", async () => {
+    localStorage.setItem(
+      recentProjectsStorageKey({
+        userId: "user-2",
+        organizationId: "org-1",
+      }),
+      JSON.stringify(["7", "9"]),
+    );
+    mocks.load.mockResolvedValue({
+      projects: Array.from({ length: 12 }, (_, i) => ({
+        id: String(i),
+        name: `Project ${i}`,
+      })),
+      nextCursor: null,
+    });
+    setup();
+    await expand();
+    await screen.findByRole("link", { name: "Project 0" });
+    expect(projectHrefs()).toEqual([
+      "/projects/0",
+      "/projects/1",
+      "/projects/2",
+      "/projects/3",
+      "/projects/4",
+    ]);
+  });
+
+  it("does not rank the same user's visits from another workspace", async () => {
+    localStorage.setItem(
+      recentProjectsStorageKey({
+        userId: "user-1",
+        organizationId: "org-2",
+      }),
+      JSON.stringify(["7", "9"]),
+    );
+    mocks.load.mockResolvedValue({
+      projects: Array.from({ length: 12 }, (_, i) => ({
+        id: String(i),
+        name: `Project ${i}`,
+      })),
+      nextCursor: null,
+    });
+    setup();
+    await expand();
+    await screen.findByRole("link", { name: "Project 0" });
+    expect(projectHrefs()).toEqual([
+      "/projects/0",
+      "/projects/1",
+      "/projects/2",
+      "/projects/3",
+      "/projects/4",
+    ]);
   });
 
   it("ranks the reader's last visits ahead of Core's activity order", async () => {

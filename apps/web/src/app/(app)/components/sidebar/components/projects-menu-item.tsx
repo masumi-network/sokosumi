@@ -27,7 +27,10 @@ import {
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import { useRecentProjectIds } from "@/hooks/use-recent-projects";
+import {
+  type RecentProjectsScope,
+  useRecentProjectIds,
+} from "@/hooks/use-recent-projects";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 
@@ -49,7 +52,7 @@ export function ProjectsMenuItem() {
 }
 
 interface ProjectsNavigationProps {
-  scope: { userId: string; organizationId: string | null } | null;
+  scope: RecentProjectsScope | null;
 }
 
 type SidebarProject = Awaited<
@@ -65,7 +68,7 @@ type SidebarProject = Awaited<
  * sidebar lives, so collapsing and coming back is instant.
  */
 function useSidebarProjects(scope: ProjectsNavigationProps["scope"]) {
-  const visitedIds = useRecentProjectIds();
+  const visitedIds = useRecentProjectIds(scope);
   const { data, isPending, isError, refetch } = useQuery({
     queryKey: [
       "sidebar-project-page",

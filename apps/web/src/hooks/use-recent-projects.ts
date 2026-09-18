@@ -3,17 +3,19 @@
 import { useSyncExternalStore } from "react";
 
 /**
- * The reader's project visit log, newest first, stored per browser.
+ * The reader's project visit log, newest first, stored per browser, user, and
+ * workspace. The sidebar's Projects disclosure ranks by this so the list
+ * stops reshuffling under the reader: Core sorts projects by latest activity,
+ * which means a teammate's task can move your sidebar.
  *
- * The sidebar's Projects disclosure ranks by this so the list stops
- * reshuffling under the reader: Core sorts projects by latest activity, which
- * means a teammate's task can move your sidebar. Visits are derived and
- * per-device on purpose — losing them on another browser costs nothing, unlike
- * a pin the reader placed by hand.
+ * Visits are derived and per-device on purpose — losing them on another
+ * browser costs nothing, unlike a pin the reader placed by hand. They must
+ * not leak across users or workspaces on a shared browser: the query is
+ * already scoped; this log matches that key.
  *
  * The project detail route records a visit; everything else only reads.
  */
-const RECENT_PROJECTS_STORAGE_KEY = "sokosumi.sidebar.recent-projects.v1";
+const RECENT_PROJECTS_STORAGE_PREFIX = "sokosumi.sidebar.recent-projects.v1";
 
 /** Deep enough to outlive the row cap as projects come and go. */
 const RECENT_PROJECTS_CAP = 20;
@@ -21,12 +23,30 @@ const RECENT_PROJECTS_CAP = 20;
 const NO_PROJECTS: readonly string[] = [];
 
 const listeners = new Set<() => void>();
+let cachedKey: string | null = null;
 let cachedRaw: string | null = null;
 let cachedIds: readonly string[] = NO_PROJECTS;
 
-function readRaw(): string | null {
+export interface RecentProjectsScope {
+  userId: string;
+  organizationId: string | null;
+}
+
+export function recentProjectsStorageKey(scope: RecentProjectsScope): string {
+  return `${RECENT_PROJECTS_STORAGE_PREFIX}:${scope.userId}:${scope.organizationId ?? ""}`;
+}
+
+function isRecentProjectsStorageKey(key: string | null): boolean {
+  return (
+    key === null ||
+    key === RECENT_PROJECTS_STORAGE_PREFIX ||
+    key.startsWith(`${RECENT_PROJECTS_STORAGE_PREFIX}:`)
+  );
+}
+
+function readRaw(key: string): string | null {
   try {
-    return localStorage.getItem(RECENT_PROJECTS_STORAGE_KEY);
+    return localStorage.getItem(key);
   } catch {
     return null;
   }
@@ -43,17 +63,14 @@ function parseIds(raw: string | null): readonly string[] {
   }
 }
 
-/** Re-parses only when the stored string changes, so the snapshot stays referentially stable. */
-function syncCache(): void {
-  const raw = readRaw();
-  if (raw !== cachedRaw) {
+/** Re-parses only when the stored string or scope key changes. */
+function readSnapshot(key: string): readonly string[] {
+  const raw = readRaw(key);
+  if (key !== cachedKey || raw !== cachedRaw) {
+    cachedKey = key;
     cachedRaw = raw;
     cachedIds = parseIds(raw);
   }
-}
-
-function getSnapshot(): readonly string[] {
-  syncCache();
   return cachedIds;
 }
 
@@ -68,7 +85,7 @@ function notifyListeners(): void {
 }
 
 function handleStorage(event: StorageEvent): void {
-  if (event.key === null || event.key === RECENT_PROJECTS_STORAGE_KEY) {
+  if (isRecentProjectsStorageKey(event.key)) {
     notifyListeners();
   }
 }
@@ -95,16 +112,26 @@ export function appendProjectVisit(
   return [projectId, ...log.filter((id) => id !== projectId)].slice(0, cap);
 }
 
-/** Distinct project ids, most recently opened first. */
-export function useRecentProjectIds(): readonly string[] {
-  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+/** Distinct project ids for this user and workspace, most recently opened first. */
+export function useRecentProjectIds(
+  scope: RecentProjectsScope | null,
+): readonly string[] {
+  const key = scope ? recentProjectsStorageKey(scope) : null;
+  return useSyncExternalStore(
+    subscribe,
+    () => (key === null ? NO_PROJECTS : readSnapshot(key)),
+    getServerSnapshot,
+  );
 }
 
-export function recordProjectVisit(projectId: string): void {
-  syncCache();
-  const next = appendProjectVisit(cachedIds, projectId);
+export function recordProjectVisit(
+  projectId: string,
+  scope: RecentProjectsScope,
+): void {
+  const key = recentProjectsStorageKey(scope);
+  const next = appendProjectVisit(readSnapshot(key), projectId);
   try {
-    localStorage.setItem(RECENT_PROJECTS_STORAGE_KEY, JSON.stringify(next));
+    localStorage.setItem(key, JSON.stringify(next));
   } catch {
     // Incognito / blocked storage — ignore.
   }
