@@ -2,7 +2,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ComposioApiError } from "@/clients/composio.client";
-import { conflict, notFound } from "@/helpers/error";
+import { conflict, forbidden, notFound } from "@/helpers/error";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
@@ -17,11 +17,13 @@ const {
   finalizeProjectSocialConnectionMock,
   initiateProjectSocialConnectionMock,
   listProjectSocialConnectionsMock,
+  requireCalendarBetaAccessMock,
 } = vi.hoisted(() => ({
   disconnectProjectSocialConnectionMock: vi.fn(),
   finalizeProjectSocialConnectionMock: vi.fn(),
   initiateProjectSocialConnectionMock: vi.fn(),
   listProjectSocialConnectionsMock: vi.fn(),
+  requireCalendarBetaAccessMock: vi.fn(),
 }));
 
 vi.mock("@/services/project-social-connections.service", () => ({
@@ -30,6 +32,12 @@ vi.mock("@/services/project-social-connections.service", () => ({
   initiateProjectSocialConnection: initiateProjectSocialConnectionMock,
   listProjectSocialConnections: listProjectSocialConnectionsMock,
 }));
+
+vi.mock("@/helpers/calendar-beta-access", () => ({
+  requireCalendarBetaAccess: requireCalendarBetaAccessMock,
+}));
+
+vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 
 const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
 const WORKSPACE_ID = "22222222-2222-4222-8222-222222222222";
@@ -111,6 +119,7 @@ function createApp(
 describe("Project social connection routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    requireCalendarBetaAccessMock.mockResolvedValue(undefined);
     listProjectSocialConnectionsMock.mockResolvedValue([connection]);
     initiateProjectSocialConnectionMock.mockResolvedValue({
       connectionId: CONNECTION_ID,
@@ -353,12 +362,55 @@ describe("Project social connection routes", () => {
       expect(responses.map((response) => response.status)).toEqual([
         403, 403, 403, 403,
       ]);
+      expect(requireCalendarBetaAccessMock).not.toHaveBeenCalled();
       expect(listProjectSocialConnectionsMock).not.toHaveBeenCalled();
       expect(initiateProjectSocialConnectionMock).not.toHaveBeenCalled();
       expect(finalizeProjectSocialConnectionMock).not.toHaveBeenCalled();
       expect(disconnectProjectSocialConnectionMock).not.toHaveBeenCalled();
     },
   );
+
+  it("gates every social-connection operation behind Calendar beta access", async () => {
+    requireCalendarBetaAccessMock.mockRejectedValue(
+      forbidden("Calendar is only available to utxo AG workspace members"),
+    );
+    const app = createApp();
+    const responses = await Promise.all([
+      app.request(`http://localhost/${PROJECT_ID}/social-connections`),
+      app.request(
+        `http://localhost/${PROJECT_ID}/social-connections/initiate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "connect", provider: "x" }),
+        },
+      ),
+      app.request(
+        `http://localhost/${PROJECT_ID}/social-connections/finalize`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ connectionId: CONNECTION_ID }),
+        },
+      ),
+      app.request(
+        `http://localhost/${PROJECT_ID}/social-connections/${SOCIAL_CONNECTION_ID}`,
+        { method: "DELETE" },
+      ),
+    ]);
+
+    expect(responses.map((response) => response.status)).toEqual([
+      403, 403, 403, 403,
+    ]);
+    expect(requireCalendarBetaAccessMock).toHaveBeenCalledWith(
+      USER_ID,
+      expect.anything(),
+    );
+    expect(listProjectSocialConnectionsMock).not.toHaveBeenCalled();
+    expect(initiateProjectSocialConnectionMock).not.toHaveBeenCalled();
+    expect(finalizeProjectSocialConnectionMock).not.toHaveBeenCalled();
+    expect(disconnectProjectSocialConnectionMock).not.toHaveBeenCalled();
+  });
 
   it("rejects a missing workspace and malformed route ids", async () => {
     const missingWorkspace = await createApp(SESSION_AUTH, null).request(
