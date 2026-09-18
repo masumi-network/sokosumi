@@ -19,7 +19,7 @@ const route = withCoworkerContextHeaderParameters(
       headers: z.object({
         "X-Table-Task-Id": z.string().max(200).optional().openapi({
           description:
-            "Assigned task context. Required for coworker table operations; enforces persisted selected-row scope.",
+            "Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.",
         }),
       }),
       body: {

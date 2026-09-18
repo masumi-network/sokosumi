@@ -21389,7 +21389,7 @@ export type GetDriveTablesData = {
          */
         'X-Context-Organization-Id'?: string;
         /**
-         * Assigned task context. Required for coworker table operations; enforces persisted selected-row scope.
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
          */
         'X-Table-Task-Id'?: string;
     };
@@ -21542,7 +21542,7 @@ export type PostDriveTablesData = {
          */
         'X-Context-Organization-Id'?: string;
         /**
-         * Assigned task context. Required for coworker table operations; enforces persisted selected-row scope.
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
          */
         'X-Table-Task-Id'?: string;
     };
@@ -21663,7 +21663,7 @@ export type GetDriveTablesByIdData = {
          */
         'X-Context-Organization-Id'?: string;
         /**
-         * Assigned task context. Required for coworker table operations; enforces persisted selected-row scope.
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
          */
         'X-Table-Task-Id'?: string;
     };
@@ -21799,7 +21799,7 @@ export type PatchDriveTablesByIdData = {
          */
         'X-Context-Organization-Id'?: string;
         /**
-         * Assigned task context. Required for coworker table operations; enforces persisted selected-row scope.
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
          */
         'X-Table-Task-Id'?: string;
     };
@@ -21937,7 +21937,7 @@ export type PostDriveTablesByIdQueryData = {
          */
         'X-Context-Organization-Id'?: string;
         /**
-         * Assigned task context. Required for coworker table operations; enforces persisted selected-row scope.
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
          */
         'X-Table-Task-Id'?: string;
     };
@@ -22089,7 +22089,7 @@ export type PostDriveTablesByIdRowsData = {
          */
         'X-Context-Organization-Id'?: string;
         /**
-         * Assigned task context. Required for coworker table operations; enforces persisted selected-row scope.
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
          */
         'X-Table-Task-Id'?: string;
     };
@@ -22229,7 +22229,7 @@ export type PostDriveTablesByIdViewsData = {
          */
         'X-Context-Organization-Id'?: string;
         /**
-         * Assigned task context. Required for coworker table operations; enforces persisted selected-row scope.
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
          */
         'X-Table-Task-Id'?: string;
     };
@@ -22355,7 +22355,7 @@ export type PostDriveTablesByIdUndoData = {
          */
         'X-Context-Organization-Id'?: string;
         /**
-         * Assigned task context. Required for coworker table operations; enforces persisted selected-row scope.
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
          */
         'X-Table-Task-Id'?: string;
     };
@@ -22478,7 +22478,7 @@ export type GetDriveTablesByIdHistoryData = {
          */
         'X-Context-Organization-Id'?: string;
         /**
-         * Assigned task context. Required for coworker table operations; enforces persisted selected-row scope.
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
          */
         'X-Table-Task-Id'?: string;
     };
@@ -22616,7 +22616,7 @@ export type PostDriveTablesByIdEnrichData = {
          */
         'X-Context-Organization-Id'?: string;
         /**
-         * Assigned task context. Required for coworker table operations; enforces persisted selected-row scope.
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
          */
         'X-Table-Task-Id'?: string;
     };

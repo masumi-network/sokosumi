@@ -6408,7 +6408,32 @@
         "multiple_select": "Selección múltiple"
       },
       "archived": "Archivada",
-      "active": "Activa"
+      "active": "Activa",
+      "discardDrafts": "¿Descartar los cambios sin guardar y salir?",
+      "resolveDrafts": "Guarda o descarta los cambios de las celdas antes de ocultar estas columnas.",
+      "enrichmentRequired": "Introduce una instrucción (hasta 4.000 caracteres), elige un agente y al menos una columna de salida.",
+      "errors": {
+        "number": "Introduce un número válido.",
+        "checkbox": "Usa true o false.",
+        "option": "Elige una opción definida para esta columna.",
+        "date": "Usa una fecha válida en formato AAAA-MM-DD.",
+        "url": "Usa una URL HTTP o HTTPS válida.",
+        "email": "Introduce una dirección de correo válida.",
+        "unresolved": "Reintenta la solicitud anterior con sus datos originales antes de hacer otro cambio.",
+        "request": "La solicitud falló. Reinténtala para comprobar el resultado.",
+        "conflict": "Los datos cambiaron o esta operación entra en conflicto con una edición posterior. Recarga y revisa tus cambios.",
+        "invalid": "Comprueba los valores, la selección y los tipos de columna antes de reintentar.",
+        "forbidden": "Ya no tienes permiso para esta operación.",
+        "missing": "Esta tabla o fila ya no está disponible.",
+        "rowSize": "Una fila puede contener hasta 64 KB de valores y fuentes.",
+        "requestSize": "Esta solicitud supera el límite de 1 MB. Usa un lote más pequeño.",
+        "csvLimit": "Los archivos CSV pueden tener hasta 5 MB.",
+        "csvColumns": "Los archivos CSV pueden contener hasta 100 columnas.",
+        "csvRows": "Los archivos CSV pueden contener hasta 10.000 filas de datos.",
+        "csv": "Comprueba las comillas y los separadores del archivo CSV.",
+        "csvHeaders": "Asigna un encabezado no vacío a cada columna del CSV.",
+        "csvWidth": "Todas las filas del CSV deben tener el mismo número de columnas."
+      }
     }
   },
   "Share": {

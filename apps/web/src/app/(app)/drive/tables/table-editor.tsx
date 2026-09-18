@@ -5,7 +5,7 @@ import { ArrowLeft, MoreHorizontal, Plus, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -35,6 +35,7 @@ import type {
 import { dataTableService } from "@/lib/services/data-table.client";
 import { TableCell } from "./table-cell";
 import { TableColumnDialog } from "./table-column-dialog";
+import { createTableMutations, isTableRejection } from "./table-mutations";
 import {
   parseTableInput,
   tableError,
@@ -59,10 +60,10 @@ export function TableEditor({ id }: { id: string }) {
         {t("loading")}
       </p>
     );
-  if (table.error || !table.data)
+  if (!table.data)
     return (
       <div role="alert" className="space-y-3 p-6">
-        <p>{tableError(table.error)}</p>
+        <p>{tableError(table.error, t)}</p>
         <Button onClick={() => void table.refetch()}>{t("retry")}</Button>
       </div>
     );
@@ -88,9 +89,47 @@ function TableWorkspace({
   const t = useTranslations("App.Tables");
   const format = useFormatter();
   const cache = useQueryClient();
+  const [mutate] = useState(createTableMutations);
+  const [editingRows, setEditingRows] = useState<
+    Record<string, { row: TableRow; columns: string[] }>
+  >({});
+  const hasDrafts = Object.keys(editingRows).length > 0;
+  useEffect(() => {
+    if (!hasDrafts) return;
+    function beforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+    function navigate(event: MouseEvent) {
+      const anchor =
+        event.target instanceof Element
+          ? event.target.closest("a[href]")
+          : null;
+      if (
+        anchor &&
+        anchor.getAttribute("target") !== "_blank" &&
+        !window.confirm(t("discardDrafts"))
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    }
+    window.addEventListener("beforeunload", beforeUnload);
+    document.addEventListener("click", navigate, true);
+    return () => {
+      window.removeEventListener("beforeunload", beforeUnload);
+      document.removeEventListener("click", navigate, true);
+    };
+  }, [hasDrafts, t]);
+  function allowNavigation() {
+    return !hasDrafts || window.confirm(t("discardDrafts"));
+  }
   const [cursor, setCursor] = useQueryState("cursor");
   const [definition, setDefinition] = useState<TableView["definition"]>(
     view?.definition ?? { filters: [], sort: null, visibleColumnIds: [] },
+  );
+  const [filterDraft, setFilterDraft] = useState(
+    tableValueText(view?.definition.filters?.[0]?.value ?? null),
   );
   const [archivedRows, setArchivedRows] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
@@ -127,6 +166,10 @@ function TableWorkspace({
       }),
     refetchInterval: 3000,
   });
+  const displayedRows = [...(rows.data?.rows ?? [])];
+  for (const { row } of Object.values(editingRows))
+    if (!displayedRows.some((item) => item.id === row.id))
+      displayedRows.push(row);
   const history = useQuery({
     queryKey: ["table-history", table.id, historyCell, historyCursor],
     queryFn: () =>
@@ -160,7 +203,7 @@ function TableWorkspace({
       await action();
       await refresh();
     } catch (error) {
-      setError(tableError(error));
+      setError(tableError(error, t));
     } finally {
       setPending(false);
     }
@@ -171,29 +214,46 @@ function TableWorkspace({
     version: number,
     value: TableRow["values"][string],
   ) {
-    await dataTableService.batch(table.id, {
-      key: crypto.randomUUID(),
-      patch: [{ id: row.id, version, values: { [column.id]: value } }],
-    });
+    await mutate(
+      `cell:${row.id}:${column.id}`,
+      {
+        patch: [{ id: row.id, version, values: { [column.id]: value } }],
+      },
+      (body) => dataTableService.batch(table.id, body),
+    );
     await refresh();
   }
-  function handleFilterValue(text: string) {
+  function filterDefinition(text: string): TableView["definition"] {
     const filter = definition.filters?.[0];
-    if (!filter) return;
+    if (!filter) return definition;
     const column = table.columns.find(
       (column) => column.id === filter.columnId,
     );
-    if (!column) return;
+    if (!column) return definition;
+    const value =
+      filter.operator === "equals" ? parseTableInput(column, text) : text;
+    return { ...definition, filters: [{ ...filter, value }] };
+  }
+  function handleFilterValue(text: string) {
     try {
-      const value =
-        filter.operator === "equals" ? parseTableInput(column, text) : text;
-      handleDefinition({ ...definition, filters: [{ ...filter, value }] });
+      handleDefinition(filterDefinition(text));
       setError("");
     } catch (error) {
-      setError(tableError(error));
+      setError(tableError(error, t));
     }
   }
   function handleDefinition(next: TableView["definition"]) {
+    // Edited rows stay pinned; view changes must not hide their cells.
+    if (
+      hasDrafts &&
+      next.visibleColumnIds?.length &&
+      Object.values(editingRows).some((item) =>
+        item.columns.some((id) => !next.visibleColumnIds?.includes(id)),
+      )
+    ) {
+      setError(t("resolveDrafts"));
+      return;
+    }
     setDefinition(next);
     void setCursor(null);
     setSelected([]);
@@ -231,11 +291,9 @@ function TableWorkspace({
     if (destination < 0 || destination >= next.length) return;
     [next[index], next[destination]] = [next[destination], next[index]];
     await run(() =>
-      dataTableService.update(table.id, {
-        key: crypto.randomUUID(),
-        version: table.version,
-        columns: next,
-      }),
+      mutate("reorder", { version: table.version, columns: next }, (body) =>
+        dataTableService.update(table.id, body),
+      ),
     );
   }
   return (
@@ -304,6 +362,7 @@ function TableWorkspace({
           aria-label={t("view")}
           value={view?.id ?? ""}
           onChange={(event) => {
+            if (!allowNavigation()) return;
             void setCursor(null);
             onViewChange(event.target.value || null);
           }}
@@ -323,10 +382,9 @@ function TableWorkspace({
           disabled={pending || !!table.archivedAt}
           onClick={() =>
             void run(() =>
-              dataTableService.batch(table.id, {
-                key: crypto.randomUUID(),
-                insert: [{ values: {} }],
-              }),
+              mutate("add-row", { insert: [{ values: {} }] }, (body) =>
+                dataTableService.batch(table.id, body),
+              ),
             )
           }
         >
@@ -372,16 +430,19 @@ function TableWorkspace({
               disabled={pending || !!table.archivedAt}
               onClick={() =>
                 void run(async () => {
-                  await dataTableService.batch(table.id, {
-                    key: crypto.randomUUID(),
-                    patch: (rows.data?.rows ?? [])
-                      .filter((row) => selected.includes(row.id))
-                      .map((row) => ({
-                        id: row.id,
-                        version: row.version,
-                        archived: !archivedRows,
-                      })),
-                  });
+                  await mutate(
+                    "archive-rows",
+                    {
+                      patch: (rows.data?.rows ?? [])
+                        .filter((row) => selected.includes(row.id))
+                        .map((row) => ({
+                          id: row.id,
+                          version: row.version,
+                          archived: !archivedRows,
+                        })),
+                    },
+                    (body) => dataTableService.batch(table.id, body),
+                  );
                   setSelected([]);
                 })
               }
@@ -398,7 +459,7 @@ function TableWorkspace({
       )}
       {rows.error && (
         <p role="alert" className="text-destructive text-sm">
-          {tableError(rows.error)}{" "}
+          {tableError(rows.error, t)}{" "}
           <Button onClick={() => void rows.refetch()}>{t("retry")}</Button>
         </p>
       )}
@@ -497,7 +558,7 @@ function TableWorkspace({
             </tr>
           </thead>
           <tbody>
-            {rows.data?.rows.map((row) => (
+            {displayedRows.map((row) => (
               <tr key={row.id} className="border-t">
                 <td className="p-3">
                   <Checkbox
@@ -517,6 +578,21 @@ function TableWorkspace({
                     <TableCell
                       column={column}
                       row={row}
+                      onEditingChange={(editing) =>
+                        setEditingRows((previous) => {
+                          const next = { ...previous };
+                          const columns = new Set(next[row.id]?.columns ?? []);
+                          if (editing) columns.add(column.id);
+                          else columns.delete(column.id);
+                          if (columns.size)
+                            next[row.id] = {
+                              row: next[row.id]?.row ?? row,
+                              columns: [...columns],
+                            };
+                          else delete next[row.id];
+                          return next;
+                        })
+                      }
                       disabled={!!table.archivedAt || !!row.archivedAt}
                       onSave={(version, value) =>
                         handleCell(row, column, version, value)
@@ -538,7 +614,7 @@ function TableWorkspace({
             {t("loading")}
           </p>
         ) : (
-          !rows.data?.rows.length && (
+          !displayedRows.length && (
             <p className="text-muted-foreground p-8 text-center text-sm">
               {t("noRows")}
             </p>
@@ -717,12 +793,13 @@ function TableWorkspace({
                     </select>
                     <Input
                       aria-label={t("filterValue")}
-                      value={tableValueText(
-                        definition.filters[0].value ?? null,
-                      )}
-                      onChange={(event) =>
-                        handleFilterValue(event.target.value)
-                      }
+                      value={filterDraft}
+                      onChange={(event) => setFilterDraft(event.target.value)}
+                      onBlur={() => handleFilterValue(filterDraft)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter")
+                          handleFilterValue(filterDraft);
+                      }}
                     />
                   </>
                 )}
@@ -738,7 +815,9 @@ function TableWorkspace({
           {dialog === "history" && (
             <div className="space-y-4">
               {history.isPending && <p role="status">{t("loading")}</p>}
-              {history.error && <p role="alert">{tableError(history.error)}</p>}
+              {history.error && (
+                <p role="alert">{tableError(history.error, t)}</p>
+              )}
               {history.data?.items.length === 0 && <p>{t("noHistory")}</p>}
               {history.data?.items.map((change) => (
                 <article
@@ -759,10 +838,15 @@ function TableWorkspace({
                       disabled={pending || !change.rowId}
                       onClick={() =>
                         void run(() =>
-                          dataTableService.undo(
-                            table.id,
-                            change.batchId,
-                            crypto.randomUUID(),
+                          mutate(
+                            `undo:${change.batchId}`,
+                            { batchId: change.batchId },
+                            (body) =>
+                              dataTableService.undo(
+                                table.id,
+                                body.batchId,
+                                body.key,
+                              ),
                           ),
                         )
                       }
@@ -921,27 +1005,30 @@ function TableWorkspace({
                 onClick={() =>
                   void run(async () => {
                     if (dialog === "views") {
-                      const saved = await dataTableService.view(table.id, {
-                        key: crypto.randomUUID(),
-                        id: view?.id,
-                        version: viewVersion,
-                        name: viewName,
-                        definition,
-                      });
+                      const saved = await mutate(
+                        "save-view",
+                        {
+                          id: view?.id,
+                          version: viewVersion,
+                          name: viewName,
+                          definition: filterDefinition(filterDraft),
+                        },
+                        (body) => dataTableService.view(table.id, body),
+                      );
                       setViewVersion(saved.version);
-                      onViewChange(saved.id);
+                      if (allowNavigation()) onViewChange(saved.id);
                     } else if (dialog === "rename")
-                      await dataTableService.update(table.id, {
-                        key: crypto.randomUUID(),
-                        version: renameVersion,
-                        title,
-                      });
+                      await mutate(
+                        "rename",
+                        { version: renameVersion, title },
+                        (body) => dataTableService.update(table.id, body),
+                      );
                     else if (dialog === "archive")
-                      await dataTableService.update(table.id, {
-                        key: crypto.randomUUID(),
-                        version: table.version,
-                        archived: !table.archivedAt,
-                      });
+                      await mutate(
+                        "archive",
+                        { version: table.version, archived: !table.archivedAt },
+                        (body) => dataTableService.update(table.id, body),
+                      );
                     else if (dialog === "enrich") {
                       const [kind, id] = agent.split(":");
                       const request = enrichmentRequest ?? {
@@ -953,11 +1040,24 @@ function TableWorkspace({
                           ? { assigneeSokoBotId: id }
                           : { assigneeId: id }),
                       };
+                      if (
+                        !request.prompt.trim() ||
+                        request.prompt.trim().length > 4000 ||
+                        !request.columnIds.length ||
+                        !request.rowIds.length ||
+                        !(request.assigneeId || request.assigneeSokoBotId)
+                      )
+                        throw new Error(t("enrichmentRequired"));
                       setEnrichmentRequest(request);
-                      const result = await dataTableService.enrich(
-                        table.id,
-                        request,
-                      );
+                      const result = await dataTableService
+                        .enrich(table.id, request)
+                        .catch((error: unknown) => {
+                          if (isTableRejection(error)) {
+                            setEnrichmentRequest(undefined);
+                            setEnrichmentKey(crypto.randomUUID());
+                          }
+                          throw error;
+                        });
                       setTaskId(result.taskId);
                       return;
                     }

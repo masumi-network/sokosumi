@@ -40,7 +40,7 @@ export function TableList({ workspaceId }: { workspaceId: string | null }) {
       )}
       {query.error && (
         <p role="alert" className="text-destructive">
-          {tableError(query.error)}{" "}
+          {tableError(query.error, t)}{" "}
           <Button variant="outline" onClick={() => void query.refetch()}>
             {t("retry")}
           </Button>

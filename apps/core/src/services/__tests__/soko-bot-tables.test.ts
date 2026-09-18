@@ -188,7 +188,7 @@ describe("Soko Bot table dispatch", () => {
       input: body,
     });
     expect(mocks.batch).toHaveBeenCalledWith(
-      { ...actor, taskId },
+      { ...actor, taskId, ownerChat: true },
       tableId,
       expect.objectContaining({ key: body.key, patch: body.patch }),
     );
@@ -250,7 +250,7 @@ describe("Soko Bot table dispatch", () => {
         input: body,
       });
     expect(mocks.create).toHaveBeenCalledWith(
-      { ...actor, taskId: body.taskId },
+      { ...actor, taskId: body.taskId, ownerChat: false },
       expect.objectContaining({ key: body.key }),
     );
     expect(reply).toHaveBeenCalledTimes(1);
@@ -265,4 +265,24 @@ describe("Soko Bot table dispatch", () => {
       "task-create-0:table-link",
     );
   });
+  it.each(["list_tables", "read_table"] as const)(
+    "requires task context for unattended %s",
+    async (capability) => {
+      const runtime = service();
+      vi.mocked(runtime.authorize).mockResolvedValue({
+        ...authorized,
+        turn: { ...authorized.turn, source: "EVENT" },
+      });
+      await expect(
+        runtime["executeAuthorizedTool"]({
+          sessionId,
+          turnId,
+          toolCallId: "read",
+          capability,
+          input: { tableId: randomUUID() },
+        }),
+      ).rejects.toThrow("assigned taskId");
+      expect(mocks.list).not.toHaveBeenCalled();
+    },
+  );
 });

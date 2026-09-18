@@ -138,7 +138,7 @@ describe.runIf(enabled)("native tables PostgreSQL invariants", () => {
     );
     const row = inserted.rows[0];
     const agentEdit = await batchTableRows(
-      { ...actor, actorKind: "sokoBot" },
+      { ...actor, actorKind: "sokoBot", ownerChat: true },
       table.id,
       tableBatchSchema.parse({
         key: randomUUID(),

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { TableColumn, TableRow } from "@/lib/clients/generated/core";
+import { isTableRejection } from "./table-mutations";
 import { parseTableInput, tableError, tableValueText } from "./table-value";
 
 interface Props {
@@ -14,12 +15,21 @@ interface Props {
   disabled: boolean;
   onSave: (version: number, value: TableRow["values"][string]) => Promise<void>;
   onHistory: () => void;
+  onEditingChange?: (editing: boolean) => void;
 }
-export function TableCell({ column, row, disabled, onSave, onHistory }: Props) {
+export function TableCell({
+  column,
+  row,
+  disabled,
+  onSave,
+  onHistory,
+  onEditingChange,
+}: Props) {
   const t = useTranslations("App.Tables");
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
+  const [uncertain, setUncertain] = useState(false);
   const [pending, setPending] = useState(false);
   const version = useRef(row.version);
   const initial = useRef("");
@@ -34,15 +44,21 @@ export function TableCell({ column, row, disabled, onSave, onHistory }: Props) {
     if (!editing || pending) return;
     if (draft === initial.current) {
       setEditing(false);
+      onEditingChange?.(false);
       return;
     }
     setPending(true);
     try {
-      await onSave(version.current, parseTableInput(column, draft));
+      const value = parseTableInput(column, draft);
+      setUncertain(true);
+      await onSave(version.current, value);
+      setUncertain(false);
       setError("");
       setEditing(false);
+      onEditingChange?.(false);
     } catch (error) {
-      setError(tableError(error));
+      if (isTableRejection(error)) setUncertain(false);
+      setError(tableError(error, t));
     } finally {
       setPending(false);
     }
@@ -50,19 +66,24 @@ export function TableCell({ column, row, disabled, onSave, onHistory }: Props) {
   const props = {
     "aria-label": column.name,
     "aria-invalid": !!error,
-    disabled: disabled || pending,
+    disabled: (disabled && !editing) || pending || (!!error && uncertain),
     value: editing ? draft : tableValueText(row.values[column.id]),
     onFocus: handleFocus,
     onChange: (
       event: React.ChangeEvent<
         HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
       >,
-    ) => setDraft(event.target.value),
+    ) => {
+      if (!editing) handleFocus();
+      setDraft(event.target.value);
+      onEditingChange?.(event.target.value !== initial.current);
+    },
     onBlur: () => void handleSave(),
     onKeyDown: (event: React.KeyboardEvent) => {
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && !uncertain) {
         setDraft(initial.current);
         setEditing(false);
+        onEditingChange?.(false);
         setError("");
       }
       if (event.key === "Enter" && column.type !== "long_text") {
@@ -128,13 +149,24 @@ export function TableCell({ column, row, disabled, onSave, onHistory }: Props) {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => {
-              setEditing(false);
-              setError("");
-            }}
+            disabled={pending}
+            onClick={() => void handleSave()}
           >
-            {t("discard")}
+            {t("retry")}
           </Button>
+          {!uncertain && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setEditing(false);
+                onEditingChange?.(false);
+                setError("");
+              }}
+            >
+              {t("discard")}
+            </Button>
+          )}
         </div>
       )}
     </div>

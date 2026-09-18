@@ -63,7 +63,7 @@ export function TableColumnDialog({
       onSaved();
       onClose();
     } catch (error) {
-      setError(tableError(error));
+      setError(tableError(error, t));
     } finally {
       setPending(false);
     }

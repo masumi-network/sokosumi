@@ -34,6 +34,8 @@ export interface TableActor {
   actorId: string;
   actorKind: "user" | "coworker" | "sokoBot";
   taskId?: string;
+  /** Set only by the authenticated in-process owner-chat runtime, never HTTP input. */
+  ownerChat?: boolean;
 }
 const tableInclude = {
   columns: { orderBy: { position: "asc" as const } },
@@ -90,6 +92,7 @@ export async function requireDataTable(
     include: tableInclude,
   });
   if (!table) throw notFound("Table not found");
+  await scopeForTask(actor, id, tx);
   return table;
 }
 
@@ -118,7 +121,13 @@ async function operation<T>(
   if (Buffer.byteLength(JSON.stringify(request), "utf8") > 1_000_000)
     throw unprocessableEntity("Table requests are limited to 1 MB");
   const requestHash = createHash("sha256")
-    .update(canonical(request))
+    .update(
+      canonical({
+        request,
+        taskId: actor.taskId ?? null,
+        ownerChat: actor.ownerChat === true,
+      }),
+    )
     .digest("hex");
   return serializableTransaction(async (tx) => {
     // A transaction-scoped lock also serializes the first use of an absent key.
@@ -157,8 +166,7 @@ async function operation<T>(
   }, "Table changed concurrently. Reload and retry.");
 }
 
-async function change(
-  tx: Prisma.TransactionClient,
+function changeData(
   actor: TableActor,
   tableId: string,
   batchId: string,
@@ -168,20 +176,46 @@ async function change(
   columnId?: string,
   evidence: unknown = [],
 ) {
-  await tx.tableChange.create({
-    data: {
-      tableId,
-      batchId,
-      actorId: actor.actorId,
-      actorKind: actor.actorKind,
-      taskId: actor.taskId,
-      rowId,
-      columnId,
-      before: json({ value: before }),
-      after: json({ value: after }),
-      evidence: json(evidence),
-    },
-  });
+  return {
+    tableId,
+    batchId,
+    actorId: actor.actorId,
+    actorKind: actor.actorKind,
+    taskId: actor.taskId,
+    rowId,
+    columnId,
+    before: json({ value: before }),
+    after: json({ value: after }),
+    evidence: json(evidence),
+  };
+}
+
+async function change(
+  tx: Prisma.TransactionClient,
+  ...args: Parameters<typeof changeData>
+) {
+  await tx.tableChange.create({ data: changeData(...args) });
+}
+
+/** One parameterized insert for at most 10,100 values; avoids ORM bind/round-trip overhead. */
+async function persistChanges(
+  tx: Prisma.TransactionClient,
+  changes: Prisma.TableChangeCreateManyInput[],
+) {
+  if (!changes.length) return;
+  const records = changes.map((change, position) => ({
+    ...change,
+    id: randomUUID(),
+    position,
+  }));
+  await tx.$executeRaw(PrismaRaw.sql`
+    INSERT INTO "table_change" ("id", "tableId", "batchId", "actorId", "actorKind", "taskId", "rowId", "columnId", "before", "after", "evidence")
+    SELECT "id", "tableId", "batchId", "actorId", "actorKind", "taskId", "rowId", "columnId", "before", "after", "evidence"
+    FROM jsonb_to_recordset(${JSON.stringify(records)}::jsonb) AS changes(
+      "id" uuid, "tableId" uuid, "batchId" uuid, "actorId" text, "actorKind" text, "taskId" text,
+      "rowId" uuid, "columnId" uuid, "before" jsonb, "after" jsonb, "evidence" jsonb, "position" integer
+    ) ORDER BY "position"
+  `);
 }
 
 function assertUnique(ids: string[], label: string) {
@@ -197,7 +231,7 @@ export async function createDataTable(
   input: z.infer<typeof createDataTableSchema>,
 ) {
   const body = createDataTableSchema.parse(input);
-  if (actor.actorKind === "coworker" && !actor.taskId)
+  if (actor.actorKind !== "user" && !actor.ownerChat && !actor.taskId)
     throw forbidden("Creating a table requires an assigned task context");
   if (actor.taskId) await scopeForTask(actor, "", prisma);
   if (
@@ -262,12 +296,14 @@ export async function listDataTables(
     projectId?: string;
   } = {},
 ) {
+  const scope = await scopeForTask(actor, null, prisma);
   const limit = Math.min(options.limit ?? 50, 100);
   const tables = await prisma.dataTable.findMany({
     where: {
       workspaceId: actor.workspaceId,
+      ...(scope ? { id: scope.tableId } : {}),
       archivedAt: options.archived ? { not: null } : null,
-      ...(options.cursor ? { id: { gt: options.cursor } } : {}),
+      ...(options.cursor ? { AND: [{ id: { gt: options.cursor } }] } : {}),
       ...(options.projectId ? { projectId: options.projectId } : {}),
     },
     orderBy: { id: "asc" },
@@ -277,6 +313,7 @@ export async function listDataTables(
   const total = await prisma.dataTable.count({
     where: {
       workspaceId: actor.workspaceId,
+      ...(scope ? { id: scope.tableId } : {}),
       archivedAt: options.archived ? { not: null } : null,
       ...(options.projectId ? { projectId: options.projectId } : {}),
     },
@@ -346,7 +383,7 @@ export async function mutateDataTable(
               where: {
                 tableId: id,
                 NOT: {
-                  values: { path: [column.id], equals: PrismaRaw.DbNull },
+                  values: { path: [column.id], equals: PrismaRaw.AnyNull },
                 },
               },
               select: { id: true },
@@ -398,10 +435,10 @@ export async function mutateDataTable(
 
 async function scopeForTask(
   actor: TableActor,
-  tableId: string,
+  tableId: string | null,
   tx: Prisma.TransactionClient,
 ) {
-  if (actor.actorKind !== "user") {
+  if (tableId && actor.actorKind !== "user") {
     const activeScope = await tx.tableTaskScope.findFirst({
       where: {
         tableId,
@@ -429,8 +466,8 @@ async function scopeForTask(
       );
   }
   if (!actor.taskId) {
-    if (actor.actorKind === "coworker")
-      throw forbidden("Coworker table writes require an assigned task");
+    if (actor.actorKind !== "user" && !actor.ownerChat)
+      throw forbidden("Agent table operations require an assigned task");
     return null;
   }
   const task = await tx.task.findFirst({
@@ -458,7 +495,7 @@ async function scopeForTask(
   const scope = await tx.tableTaskScope.findUnique({
     where: { taskId: actor.taskId },
   });
-  if (scope && scope.tableId !== tableId)
+  if (scope && tableId !== null && scope.tableId !== tableId)
     throw forbidden("Task is bound to another table");
   return scope;
 }
@@ -500,14 +537,20 @@ export async function batchTableRows(
           "A table supports at most 10,000 rows, including archived rows",
         );
       const rows = [];
+      const audit: Prisma.TableChangeCreateManyInput[] = [];
       for (const row of body.insert) {
         validateTableValues(columns, row.values, row.evidence);
         const created = await tx.tableRow.create({
           data: { ...row, tableId: id },
         });
-        await change(tx, scopedActor, id, batchId, null, created, created.id);
+        audit.push(
+          changeData(scopedActor, id, batchId, null, created, created.id),
+        );
         rows.push(tableRowSchema.parse(created));
       }
+      const existingRows = await tx.tableRow.findMany({
+        where: { tableId: id, id: { in: body.patch.map((row) => row.id) } },
+      });
       for (const patch of body.patch) {
         if (
           scope &&
@@ -520,9 +563,7 @@ export async function batchTableRows(
           throw forbidden(
             "Write exceeds the task's selected rows or output columns",
           );
-        const previous = await tx.tableRow.findFirst({
-          where: { id: patch.id, tableId: id },
-        });
+        const previous = existingRows.find((row) => row.id === patch.id);
         if (!previous) throw notFound("Row not found");
         if (previous.archivedAt && patch.archived !== false)
           throw conflict("Restore this row before editing");
@@ -534,19 +575,20 @@ export async function batchTableRows(
         const values = tableValuesSchema.parse(previous.values);
         const evidence = tableEvidenceSchema.parse(previous.evidence);
         for (const [columnId, value] of Object.entries(patch.values)) {
-          await change(
-            tx,
-            scopedActor,
-            id,
-            batchId,
-            {
-              value: values[columnId] ?? null,
-              evidence: evidence[columnId] ?? [],
-            },
-            { value, evidence: patch.evidence[columnId] ?? [] },
-            previous.id,
-            columnId,
-            patch.evidence[columnId] ?? [],
+          audit.push(
+            changeData(
+              scopedActor,
+              id,
+              batchId,
+              {
+                value: values[columnId] ?? null,
+                evidence: evidence[columnId] ?? [],
+              },
+              { value, evidence: patch.evidence[columnId] ?? [] },
+              previous.id,
+              columnId,
+              patch.evidence[columnId] ?? [],
+            ),
           );
           values[columnId] = value;
           evidence[columnId] = patch.evidence[columnId] ?? [];
@@ -567,17 +609,19 @@ export async function batchTableRows(
           },
         });
         if (patch.archived !== undefined)
-          await change(
-            tx,
-            scopedActor,
-            id,
-            batchId,
-            { archived: !!previous.archivedAt },
-            { archived: !!updated.archivedAt },
-            previous.id,
+          audit.push(
+            changeData(
+              scopedActor,
+              id,
+              batchId,
+              { archived: !!previous.archivedAt },
+              { archived: !!updated.archivedAt },
+              previous.id,
+            ),
           );
         rows.push(tableRowSchema.parse(updated));
       }
+      await persistChanges(tx, audit);
       await tx.dataTable.update({
         where: { id },
         data: { updatedAt: new Date() },
@@ -737,19 +781,37 @@ export async function undoTableBatch(
         throw conflict(
           "This batch contains schema changes and cannot be undone as a row batch",
         );
-      const rows = new Map<string, z.infer<typeof tableRowSchema>>();
-      for (const item of changes) {
-        if (!item.rowId) continue;
+      const columns = table.columns.map((column) =>
+        tableColumnSchema.parse(column),
+      );
+      const rowIds = [
+        ...new Set(changes.flatMap((item) => (item.rowId ? [item.rowId] : []))),
+      ];
+      const currentRows = await tx.tableRow.findMany({
+        where: { tableId: id, id: { in: rowIds } },
+      });
+      const audit: Prisma.TableChangeCreateManyInput[] = [];
+      const rows = [];
+      for (const row of currentRows) {
+        const rowChanges = changes.filter((item) => item.rowId === row.id);
+        const earliest = rowChanges[rowChanges.length - 1].sequence;
         const later = await tx.tableChange.findFirst({
           where: {
             tableId: id,
-            rowId: item.rowId,
-            batchId: { notIn: [input.batchId, batchId] },
-            sequence: { gt: item.sequence },
-            ...(item.columnId
+            rowId: row.id,
+            batchId: { not: input.batchId },
+            sequence: { gt: earliest },
+            ...(rowChanges.every((item) => item.columnId)
               ? {
-                  AND: [
-                    { OR: [{ columnId: item.columnId }, { columnId: null }] },
+                  OR: [
+                    { columnId: null },
+                    {
+                      columnId: {
+                        in: rowChanges.flatMap((item) =>
+                          item.columnId ? [item.columnId] : [],
+                        ),
+                      },
+                    },
                   ],
                 }
               : {}),
@@ -759,62 +821,62 @@ export async function undoTableBatch(
           throw conflict(
             "A value in this batch changed later. Nothing was undone.",
           );
-        const row = await tx.tableRow.findFirst({
-          where: { id: item.rowId, tableId: id },
-        });
-        if (!row) throw conflict("Row is no longer available");
-        const before = item.before as { value: unknown };
-        const after = item.after as { value: unknown };
-        let updated;
-        if (item.columnId) {
-          const previous = before.value as {
-            value: z.infer<typeof tableValuesSchema>[string];
-            evidence: z.infer<typeof tableEvidenceSchema>[string];
-          };
-          const values = tableValuesSchema.parse(row.values);
-          const evidence = tableEvidenceSchema.parse(row.evidence);
-          const expected = after.value as { value: unknown; evidence: unknown };
-          if (
-            canonical(values[item.columnId] ?? null) !==
-              canonical(expected.value) ||
-            canonical(evidence[item.columnId] ?? []) !==
-              canonical(expected.evidence)
-          )
-            throw conflict("Cell changed after the batch");
-          values[item.columnId] = previous.value;
-          evidence[item.columnId] = previous.evidence;
-          updated = await tx.tableRow.update({
-            where: { id: row.id },
-            data: { values, evidence, version: { increment: 1 } },
-          });
-        } else if (before.value === null) {
-          updated = await tx.tableRow.update({
-            where: { id: row.id },
-            data: { archivedAt: new Date(), version: { increment: 1 } },
-          });
-        } else {
-          const previous = before.value as { archived: boolean };
-          updated = await tx.tableRow.update({
-            where: { id: row.id },
-            data: {
-              archivedAt: previous.archived ? new Date() : null,
-              version: { increment: 1 },
-            },
-          });
+        const values = tableValuesSchema.parse(row.values);
+        const evidence = tableEvidenceSchema.parse(row.evidence);
+        let archivedAt = row.archivedAt;
+        for (const item of rowChanges) {
+          const before = item.before as { value: unknown };
+          const after = item.after as { value: unknown };
+          if (item.columnId) {
+            const previous = before.value as {
+              value: z.infer<typeof tableValuesSchema>[string];
+              evidence: z.infer<typeof tableEvidenceSchema>[string];
+            };
+            const expected = after.value as {
+              value: unknown;
+              evidence: unknown;
+            };
+            if (
+              canonical(values[item.columnId] ?? null) !==
+                canonical(expected.value) ||
+              canonical(evidence[item.columnId] ?? []) !==
+                canonical(expected.evidence)
+            )
+              throw conflict("Cell changed after the batch");
+            values[item.columnId] = previous.value;
+            evidence[item.columnId] = previous.evidence;
+          } else if (before.value === null) archivedAt = new Date();
+          else
+            archivedAt = (before.value as { archived: boolean }).archived
+              ? new Date()
+              : null;
+          audit.push(
+            changeData(
+              actor,
+              id,
+              batchId,
+              after.value,
+              before.value,
+              row.id,
+              item.columnId ?? undefined,
+            ),
+          );
         }
-        await change(
-          tx,
-          actor,
-          id,
-          batchId,
-          after.value,
-          before.value,
-          row.id,
-          item.columnId ?? undefined,
+        // Validate the final merged row, not intermediate cell restoration order.
+        validateTableValues(columns, values, evidence);
+        rows.push(
+          tableRowSchema.parse(
+            await tx.tableRow.update({
+              where: { id: row.id },
+              data: { values, evidence, archivedAt, version: { increment: 1 } },
+            }),
+          ),
         );
-        rows.set(updated.id, tableRowSchema.parse(updated));
       }
-      return { tableId: id, result: { batchId, rows: [...rows.values()] } };
+      if (currentRows.length !== rowIds.length)
+        throw conflict("Row is no longer available");
+      await persistChanges(tx, audit);
+      return { tableId: id, result: { batchId, rows } };
     },
   );
 }

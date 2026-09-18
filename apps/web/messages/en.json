@@ -6408,7 +6408,32 @@
         "multiple_select": "Multiple select"
       },
       "archived": "Archived",
-      "active": "Active"
+      "active": "Active",
+      "discardDrafts": "Discard unsaved table edits and leave?",
+      "resolveDrafts": "Save or discard your cell edits before hiding these columns.",
+      "enrichmentRequired": "Enter an instruction (up to 4,000 characters), choose an agent and at least one output column.",
+      "errors": {
+        "number": "Enter a valid number.",
+        "checkbox": "Use true or false.",
+        "option": "Choose an option defined for this column.",
+        "date": "Use a valid date in YYYY-MM-DD format.",
+        "url": "Use a valid HTTP or HTTPS URL.",
+        "email": "Enter a valid email address.",
+        "unresolved": "Retry the previous request with its original input before making another change.",
+        "request": "The request failed. Retry to check its result.",
+        "conflict": "The data changed or this operation conflicts with a later edit. Reload and review your changes.",
+        "invalid": "Check the values, selection and column types before retrying.",
+        "forbidden": "You no longer have permission for this operation.",
+        "missing": "This table or row is no longer available.",
+        "rowSize": "A row can contain up to 64 KB of values and sources.",
+        "requestSize": "This request exceeds the 1 MB limit. Use a smaller batch.",
+        "csvLimit": "CSV files can be up to 5 MB.",
+        "csvColumns": "CSV files can contain up to 100 columns.",
+        "csvRows": "CSV files can contain up to 10,000 data rows.",
+        "csv": "Check the quotes and separators in the CSV file.",
+        "csvHeaders": "Give every CSV column a non-empty header.",
+        "csvWidth": "Every CSV row must have the same number of columns."
+      }
     }
   },
   "Share": {

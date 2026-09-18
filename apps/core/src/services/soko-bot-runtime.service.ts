@@ -2245,7 +2245,19 @@ export class SokoBotRuntimeService {
           "Tool call id was reused with different input",
         );
       }
-      if (existing.status === "COMPLETED") return existing.result;
+      if (existing.status === "COMPLETED") {
+        if (
+          [
+            "list_tables",
+            "read_table",
+            "create_table",
+            "write_table_rows",
+            "update_table_columns",
+          ].includes(input.capability)
+        )
+          return this.executeAuthorizedTool(input);
+        return existing.result;
+      }
       if (existing.status === "FAILED") {
         throw new SokoBotRuntimeConflictError("Tool call previously failed");
       }
@@ -2323,9 +2335,21 @@ export class SokoBotRuntimeService {
           },
           workspace.id,
         );
+        const { taskId } = z
+          .object({ taskId: z.string().max(200).optional() })
+          .parse(input.input);
+        const ownerChat =
+          authorized.turn.source === "CHAT" &&
+          (!authorized.askedByKind || authorized.askedByKind === "OWNER") &&
+          authorized.turn.chainDepth === 0;
+        if (!ownerChat && !taskId)
+          throw new SokoBotRuntimeAuthorizationError(
+            "Task-driven table operations require an assigned taskId",
+          );
+        const scopedActor = { ...actor, taskId, ownerChat };
         if (input.capability === "list_tables")
           return listDataTables(
-            actor,
+            scopedActor,
             z
               .object({
                 cursor: z.uuid().optional(),
@@ -2333,21 +2357,6 @@ export class SokoBotRuntimeService {
               })
               .parse(input.input),
           );
-        const { taskId } = z
-          .object({ taskId: z.string().max(200).optional() })
-          .parse(input.input);
-        if (
-          authorized.turn.source !== "CHAT" &&
-          !taskId &&
-          ["create_table", "write_table_rows", "update_table_columns"].includes(
-            input.capability,
-          )
-        ) {
-          throw new SokoBotRuntimeAuthorizationError(
-            "Task-driven table writes require an assigned taskId",
-          );
-        }
-        const scopedActor = { ...actor, taskId };
         if (input.capability === "create_table") {
           const table = await createDataTable(
             scopedActor,

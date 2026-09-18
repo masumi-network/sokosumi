@@ -25,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 import type { TableColumn } from "@/lib/clients/generated/core";
 import { dataTableService } from "@/lib/services/data-table.client";
+import { tableImportBatches } from "./table-import";
 import { parseTableInput, tableError } from "./table-value";
 
 export const TABLE_TYPES: TableColumn["type"][] = [
@@ -88,7 +89,7 @@ export function TableCreateDialog({
       setAttempt(null);
       setError("");
     } catch (error) {
-      setError(tableError(error));
+      setError(tableError(error, t));
     }
   }
   async function handleCreate() {
@@ -123,7 +124,7 @@ export function TableCreateDialog({
           );
           return parsed;
         } catch (error) {
-          throw new Error(`${t("row")} ${index + 2}: ${tableError(error)}`);
+          throw new Error(`${t("row")} ${index + 2}: ${tableError(error, t)}`);
         }
       });
       const payload = createDataTableSchema.parse({
@@ -133,23 +134,23 @@ export function TableCreateDialog({
         projectId: projectId || null,
         columns: definitions,
       });
+      const batches = tableImportBatches(current.key, rows);
       setAttempt(current);
       const table = current.tableId
         ? { id: current.tableId }
         : await dataTableService.create(payload);
       current.tableId = table.id;
       setAttempt({ ...current });
-      for (let offset = 0; offset < rows.length; offset += 100) {
-        await dataTableService.batch(table.id, {
-          key: `${current.key}:${offset}`,
-          insert: rows.slice(offset, offset + 100),
-        });
-        setProgress(Math.min(offset + 100, rows.length));
+      let imported = 0;
+      for (const batch of batches) {
+        await dataTableService.batch(table.id, batch);
+        imported += batch.insert.length;
+        setProgress(imported);
       }
       setOpen(false);
       router.push(`/drive/tables/${table.id}`);
     } catch (error) {
-      setError(tableError(error));
+      setError(tableError(error, t));
     } finally {
       setPending(false);
     }
