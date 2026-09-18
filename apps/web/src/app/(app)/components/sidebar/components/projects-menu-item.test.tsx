@@ -7,6 +7,8 @@ import {
   waitFor,
 } from "@testing-library/react";
 import type { ComponentProps } from "react";
+import { hydrateRoot } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   SidebarMenu,
@@ -82,7 +84,9 @@ function expand() {
 }
 
 beforeEach(() => {
+  vi.restoreAllMocks();
   vi.clearAllMocks();
+  localStorage.clear();
   mocks.organizationId = "org-1";
   mocks.userId = "user-1";
   mocks.pending = false;
@@ -96,6 +100,74 @@ beforeEach(() => {
 });
 
 describe("Projects sidebar", () => {
+  it("hydrates the server default before restoring a saved expanded choice", async () => {
+    const view = setup();
+    const tree = view.refresh();
+    view.unmount();
+    localStorage.setItem("sokosumi.sidebar.projects-expanded", "true");
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(tree);
+    document.body.append(container);
+    expect(container.querySelector("button[aria-expanded]")).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    const onRecoverableError = vi.fn();
+    let root: ReturnType<typeof hydrateRoot>;
+    await act(async () => {
+      root = hydrateRoot(container, tree, { onRecoverableError });
+    });
+    await waitFor(() =>
+      expect(container.querySelector("button[aria-expanded]")).toHaveAttribute(
+        "aria-expanded",
+        "true",
+      ),
+    );
+    expect(onRecoverableError).not.toHaveBeenCalled();
+    await act(async () => root.unmount());
+    container.remove();
+  });
+
+  it("restores both disclosure choices after remount without persisting project data", async () => {
+    const first = setup();
+    expand();
+    await screen.findByRole("link", { name: "Launch plan" });
+    expect(localStorage.getItem("sokosumi.sidebar.projects-expanded")).toBe(
+      "true",
+    );
+    expect(localStorage.length).toBe(1);
+    first.unmount();
+    const second = setup();
+    await screen.findByRole("link", { name: "Launch plan" });
+    fireEvent.click(screen.getByRole("button", { name: "collapseProjects" }));
+    expect(localStorage.getItem("sokosumi.sidebar.projects-expanded")).toBe(
+      "false",
+    );
+    second.unmount();
+    mocks.load.mockClear();
+    setup();
+    expect(
+      screen.getByRole("button", { name: "expandProjects" }),
+    ).toHaveAttribute("aria-expanded", "false");
+    expect(mocks.load).not.toHaveBeenCalled();
+  });
+
+  it("keeps disclosure usable when browser storage is unavailable", async () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("Blocked");
+    });
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("Blocked");
+    });
+    setup();
+    expand();
+    await screen.findByRole("link", { name: "Launch plan" });
+    fireEvent.click(screen.getByRole("button", { name: "collapseProjects" }));
+    expect(
+      screen.queryByRole("link", { name: "Launch plan" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("keeps overview navigation and loads only after disclosure, with current-project semantics", async () => {
     setup();
     expect(screen.getByRole("link", { name: "projects" })).toHaveAttribute(
@@ -165,11 +237,15 @@ describe("Projects sidebar", () => {
     );
     const view = setup();
     expand();
+    mocks.load.mockResolvedValueOnce({
+      projects: [{ id: "personal", name: "Personal project" }],
+      nextCursor: null,
+    });
     mocks.organizationId = null;
     view.rerender(view.refresh());
     expect(
-      screen.getByRole("button", { name: "expandProjects" }),
-    ).toHaveAttribute("aria-expanded", "false");
+      screen.getByRole("button", { name: "collapseProjects" }),
+    ).toHaveAttribute("aria-expanded", "true");
     await act(async () =>
       finish({
         projects: [{ id: "private", name: "Old org secret" }],
@@ -177,11 +253,7 @@ describe("Projects sidebar", () => {
       }),
     );
     expect(screen.queryByText("Old org secret")).not.toBeInTheDocument();
-    mocks.load.mockResolvedValueOnce({
-      projects: [{ id: "personal", name: "Personal project" }],
-      nextCursor: null,
-    });
-    expand();
+
     expect(
       await screen.findByRole("link", { name: "Personal project" }),
     ).toBeInTheDocument();
@@ -285,6 +357,10 @@ describe("Projects sidebar", () => {
     expand();
     fireEvent.focus(await screen.findByRole("link", { name: "Old workspace" }));
     await waitFor(() => expect(mocks.load).toHaveBeenCalledTimes(2));
+    mocks.load.mockResolvedValueOnce({
+      projects: [{ id: "new", name: "New workspace" }],
+      nextCursor: null,
+    });
     mocks.organizationId = null;
     view.rerender(view.refresh());
     await act(async () =>
@@ -295,11 +371,7 @@ describe("Projects sidebar", () => {
     );
     expect(screen.queryByText("Old workspace")).not.toBeInTheDocument();
     expect(screen.queryByText("Late private project")).not.toBeInTheDocument();
-    mocks.load.mockResolvedValueOnce({
-      projects: [{ id: "new", name: "New workspace" }],
-      nextCursor: null,
-    });
-    expand();
+
     expect(
       await screen.findByRole("link", { name: "New workspace" }),
     ).toBeInTheDocument();
@@ -310,6 +382,9 @@ describe("Projects sidebar", () => {
     expand();
     const link = await screen.findByRole("link", { name: "Launch plan" });
     expect(link.querySelector('[data-slot="avatar"]')).toBeInTheDocument();
+    expect(link.querySelector(".lucide-check")).not.toBeInTheDocument();
+    expect(link).toHaveAttribute("data-active", "true");
+    expect(link).toHaveAttribute("aria-current", "page");
     expect(
       link.querySelector('[data-slot="avatar-fallback"]'),
     ).toHaveTextContent("L");
