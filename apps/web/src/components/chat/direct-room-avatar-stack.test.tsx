@@ -117,11 +117,12 @@ describe("DirectRoomAvatarStack", () => {
 
     // A group row's label already lists these people, so per-face states would
     // make the link speak every name twice. The roster panel reports there.
-    // The dot goes with the text: one dot among three people reads as the
-    // room's state rather than Alice's.
-    const group = screen.getByTestId("dm-sidebar-avatar-alice");
-    expect(within(group).queryByText("Online")).toBeNull();
-    expect(group.querySelector("[title]")).toBeNull();
+    expect(
+      within(screen.getByTestId("dm-sidebar-avatar-alice")).queryByText(
+        "Online",
+      ),
+    ).toBeNull();
+    expect(screen.getByTestId("dm-sidebar-avatar-bob")).toBeInTheDocument();
   });
 
   it("renders faces as plain marks with no hover card or button semantics", () => {
@@ -190,7 +191,7 @@ describe("DirectRoomAvatarStack", () => {
     expect(face?.className).not.toContain("group-data-[collapsible=icon]:");
   });
 
-  it("shows one face however many people are in the room", () => {
+  it("stacks up to three faces and keeps only the first on the rail", () => {
     render(
       <DirectRoomAvatarStack
         room={makeDirectRoom({
@@ -204,16 +205,26 @@ describe("DirectRoomAvatarStack", () => {
       />,
     );
 
-    // A **Sidebar row**'s mark is one 24px slot (CONTEXT.md), and a stack is
-    // not: three 24px faces overlapping run 56px, which spilled out of the
-    // slot and over the name beside it. Shrinking them to fit would turn a
-    // group into three coloured dots, which is why Soko Bots stopped stacking
-    // too. The room's label lists everyone in this same order.
-    expect(screen.getByTestId("dm-sidebar-avatar-alice")).toBeInTheDocument();
-    for (const id of ["bob", "me"]) {
-      expect(screen.queryByTestId(`dm-sidebar-avatar-${id}`)).toBeNull();
-    }
-    expect(document.querySelectorAll('[data-slot="avatar"]')).toHaveLength(1);
+    // One face cannot say "several people are in here" — it reads as a direct
+    // with whoever that is. The stack grows the row's slot to the right off a
+    // fixed left edge, so the first face stays on the 28px axis and only this
+    // row's name starts later.
+    const first = screen.getByTestId("dm-sidebar-avatar-alice");
+    const second = screen.getByTestId("dm-sidebar-avatar-bob");
+    expect(first.className.split(/\s+/)).not.toContain("-ml-2");
+    expect(second.className.split(/\s+/)).toContain("-ml-2");
+    // The first face on top, so its presence dot is not buried under the
+    // one beside it.
+    expect(Number(first.style.zIndex)).toBeGreaterThan(
+      Number(second.style.zIndex),
+    );
+
+    // A 32px rail square cannot hold three of them, and the row's tooltip
+    // already names everyone.
+    expect(first.className).not.toContain("group-data-[collapsible=icon]:");
+    expect(second.className.split(/\s+/)).toContain(
+      "group-data-[collapsible=icon]:hidden",
+    );
   });
 
   it("renders a fallback mark when the DM has no other participants", () => {

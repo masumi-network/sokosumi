@@ -159,6 +159,6 @@ describe("AppSidebarFallback", () => {
     );
     // The mark sits in the shared slot at one size, like every real row's.
     expect(mark?.getAttribute("data-slot")).toBe("sidebar-row-slot");
-    expect(tokens(mark?.className ?? "")).toContain("size-6");
+    expect(tokens(mark?.className ?? "")).toContain("min-w-6");
   });
 });

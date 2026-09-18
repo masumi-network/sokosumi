@@ -193,12 +193,18 @@ describe("Sidebar row geometry", () => {
 
     expect(slot?.className.split(" ")).toEqual(
       expect.arrayContaining([
-        "size-6",
+        "h-6",
+        // A minimum, not a fixed width: a group Direct's stack of faces grows
+        // the box to the right off the same left edge, so the first face
+        // stays on the axis and only that row's name starts later. A hard
+        // `size-6` let the stack run out of the box and over the name.
+        "min-w-6",
         "shrink-0",
         "items-center",
         "justify-center",
       ]),
     );
+    expect(slot?.className.split(" ")).not.toContain("size-6");
     expect(slot?.className).not.toContain("group-data-[collapsible=icon]:");
     expect(slot?.className).not.toContain("md:");
   });

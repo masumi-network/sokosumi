@@ -151,7 +151,8 @@ describe("every sidebar row uses the shared leading slot", () => {
 
     for (const slot of container.querySelectorAll(SLOT)) {
       const tokens = slot.className.split(/\s+/);
-      expect(tokens).toContain("size-6");
+      expect(tokens).toContain("h-6");
+      expect(tokens).toContain("min-w-6");
       expect(tokens).toContain("shrink-0");
       // A slot that changed with the sidebar's state would be a mark that
       // moves on a toggle, which is the whole thing this rule forbids.

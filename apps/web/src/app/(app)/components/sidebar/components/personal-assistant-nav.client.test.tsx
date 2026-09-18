@@ -105,7 +105,7 @@ describe("PersonalAssistantNav as an ordinary Sidebar row", () => {
     const face = slot?.querySelector("img");
 
     expect(slot).not.toBeNull();
-    expect(tokens(slot?.className ?? "")).toContain("size-6");
+    expect(tokens(slot?.className ?? "")).toContain("min-w-6");
     expect(face).not.toBeNull();
     expect(tokens(face?.className ?? "")).toContain("size-6");
     // No state-dependent size: the face cannot resize on a toggle.

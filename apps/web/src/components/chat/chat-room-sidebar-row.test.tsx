@@ -399,7 +399,8 @@ describe("ChatRoomSidebarRow leading slot", () => {
     // size in both states, so the mark cannot resize or slide on a toggle.
     expect(slot?.getAttribute("data-slot")).toBe("sidebar-row-slot");
     const tokens = slot?.className.split(" ") ?? [];
-    expect(tokens).toContain("size-6");
+    expect(tokens).toContain("h-6");
+    expect(tokens).toContain("min-w-6");
     expect(tokens).toContain("shrink-0");
     expect(tokens).toContain("items-center");
     expect(tokens).toContain("justify-center");
@@ -481,7 +482,7 @@ describe("ChatRoomSidebarRow collapsed rail", () => {
     expect(link?.className).not.toContain("px-3");
 
     const slot = screen.getByTestId("custom-leading").parentElement;
-    expect(slot?.className).toContain("size-6");
+    expect(slot?.className).toContain("min-w-6");
 
     // The name must stay in the accessible name (the tooltip adds none) while
     // taking no flex space, so `sr-only`, never `hidden`. The spacer would

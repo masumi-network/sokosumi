@@ -425,12 +425,19 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
 /**
  * The leading slot of a **Sidebar row** (CONTEXT.md).
  *
- * One 24px box, centred on the sidebar's leading axis 28px from its left
- * edge, in both states: expanded the button's `px-2` puts it there, and on
- * the rail the 32px square's own `ml-1` lands its centred content on the same
- * line. Every mark a row can carry fits inside it — a 16px nav glyph, a 20px
- * kind glyph, a 24px avatar or Channel tile — so none of them has to know the
- * axis, and the label after it starts on one column at 48px.
+ * A 24px box whose left edge is fixed, so whatever it holds starts on the
+ * sidebar's leading axis 28px from its left edge, in both states: expanded
+ * the button's `px-2` puts it there, and on the rail the 32px square's own
+ * `ml-1` lands its centred content on the same line. Every mark a row can
+ * carry fits inside it — a 16px nav glyph, a 20px kind glyph, a 24px avatar
+ * or Channel tile — so none of them has to know the axis, and the label after
+ * it starts on one column at 48px.
+ *
+ * `min-w-6` rather than a hard `size-6`, because one mark says something a
+ * single face cannot: a group Direct's stack of up to three faces. It grows
+ * the box to the right, off the same left edge, so the first face still sits
+ * on the axis and only that row's name starts later. A hard box clipped
+ * nothing — the stack simply ran out of it and over the name beside it.
  *
  * It lives here rather than in each list because each list building its own
  * box by hand is exactly how a room's mark drifted 2px off the nav icons'
@@ -441,7 +448,7 @@ function SidebarRowSlot({ className, ...props }: React.ComponentProps<"span">) {
     <span
       data-slot="sidebar-row-slot"
       className={cn(
-        "inline-flex size-6 shrink-0 items-center justify-center",
+        "inline-flex h-6 min-w-6 shrink-0 items-center justify-center",
         className,
       )}
       {...props}
