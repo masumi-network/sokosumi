@@ -7,7 +7,7 @@ import {
 import { emitChatMentionNotifications } from "@/helpers/chat-mention-notifications";
 import { emitChatRoomMessageCreatedEffects } from "@/helpers/chat-room-message-created-effects";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
-import { badRequest, conflict } from "@/helpers/error";
+import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
@@ -33,6 +33,7 @@ import {
   chatRoomMessageInclude,
   mapChatRoomMessage,
   mergeChatRoomMessageMetadata,
+  quotedMessageNotFound,
   requireChatRoomCoworkerAccess,
   requireChatRoomSokoBotAccess,
   requireChatRoomUserWriteAccess,
@@ -105,7 +106,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           body.parentMessageId,
         );
         if (body.quote?.roomId && body.quote.roomId !== room.id) {
-          throw badRequest("Quoted message not found");
+          throw quotedMessageNotFound();
         }
         const quote = await resolveRoomQuoteSnapshot(
           tx,

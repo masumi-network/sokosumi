@@ -11,7 +11,6 @@ import {
   type FormEvent,
   type Ref,
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -71,8 +70,10 @@ interface ComposerSnapshot {
 }
 
 /** A resolved pasted Message link, waiting for the sender to accept or decline. */
-interface PastedLinkQuoteOffer {
+interface ResolvedQuoteOffer {
   quote: PendingRoomQuote;
+  /** Room or thread the link was pasted into; the offer does not follow the sender elsewhere. */
+  draftKey: string;
   /** Pasted text to remove from the body when the sender accepts. */
   linkText: string;
 }
@@ -197,17 +198,10 @@ export function RoomSessionComposer({
     [onSetPendingQuote],
   );
 
-  const [quoteOffer, setQuoteOffer] = useState<PastedLinkQuoteOffer | null>(
-    null,
-  );
-  // Bumped on every paste, send and room change so a slow resolve of an older
-  // paste never raises a stale offer.
+  const [quoteOffer, setQuoteOffer] = useState<ResolvedQuoteOffer | null>(null);
+  // Bumped on every paste and send so a slow resolve of an older paste never
+  // raises a stale offer.
   const pasteGeneration = useRef(0);
-
-  useEffect(() => {
-    pasteGeneration.current += 1;
-    setQuoteOffer(null);
-  }, [draftKey]);
 
   async function handlePaste(event: ClipboardEvent<HTMLDivElement>) {
     pasteGeneration.current += 1;
@@ -221,15 +215,22 @@ export function RoomSessionComposer({
 
     const quote = await onResolveMessageLink(link).catch(() => null);
     if (quote && generation === pasteGeneration.current) {
-      setQuoteOffer({ quote, linkText });
+      setQuoteOffer({ quote, draftKey, linkText });
     }
   }
 
   function handleAcceptQuoteOffer() {
     if (!quoteOffer) return;
-    setComposerValue((current) =>
-      current.replace(quoteOffer.linkText, "").trim(),
-    );
+    // The paste is the latest copy of the link in the body; the sender's own
+    // text around it stays as typed.
+    setComposerValue((current) => {
+      const start = current.lastIndexOf(quoteOffer.linkText);
+      if (start < 0) return current;
+      const rest =
+        current.slice(0, start) +
+        current.slice(start + quoteOffer.linkText.length);
+      return rest.trim().length === 0 ? "" : rest;
+    });
     onSetPendingQuote?.(quoteOffer.quote);
     setQuoteOffer(null);
   }
@@ -323,7 +324,9 @@ export function RoomSessionComposer({
         onClearPendingQuote={onClearPendingQuote}
         quoteOffer={
           // Nothing left to swap once the sender edits the link away.
-          quoteOffer && composerValue.includes(quoteOffer.linkText)
+          quoteOffer &&
+          quoteOffer.draftKey === draftKey &&
+          composerValue.includes(quoteOffer.linkText)
             ? {
                 authorName: quoteOffer.quote.authorName,
                 onAccept: handleAcceptQuoteOffer,

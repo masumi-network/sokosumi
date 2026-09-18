@@ -667,6 +667,11 @@ function readQuoteFromMetadata(
   };
 }
 
+/** One answer for every quote refusal, so it never reveals what exists. */
+export function quotedMessageNotFound() {
+  return badRequest("Quoted message not found");
+}
+
 export const roomQuoteSourceSelect = {
   id: true,
   content: true,
@@ -732,7 +737,7 @@ async function loadRoomQuoteSnapshot(
   });
 
   if (!quoted) {
-    throw badRequest("Quoted message not found");
+    throw quotedMessageNotFound();
   }
 
   return buildRoomQuoteSnapshot(quoted);
@@ -757,48 +762,40 @@ export async function resolveCrossRoomQuoteSnapshot(
   const { sourceRoomId, quoteMessageId, senderUserId, targetMemberUserIds } =
     options;
 
-  const sourceRoom = await tx.chatRoom.findFirst({
-    where: {
-      id: sourceRoomId,
-      archivedAt: null,
-      userMembers: { some: { userId: senderUserId } },
-    },
-    select: {
-      organizationId: true,
-      userMembers: { select: { userId: true, access: true } },
-    },
-  });
-  if (!sourceRoom) {
-    throw badRequest("Quoted message not found");
-  }
-
   try {
-    await assertRoomOrganizationAccessUnlessGuest(
-      sourceRoom.organizationId,
-      senderUserId,
-      membershipAccessForUser(sourceRoom.userMembers, senderUserId),
-      tx,
-    );
+    await requireChatRoomUserMembership(sourceRoomId, senderUserId, tx);
   } catch (error) {
     if (error instanceof HTTPException) {
-      throw badRequest("Quoted message not found");
+      throw quotedMessageNotFound();
     }
     throw error;
   }
 
+  const sourceMembers = await tx.chatRoomUserMember.findMany({
+    where: { roomId: sourceRoomId },
+    select: { userId: true },
+  });
   if (
     !canQuoteIntoRoom(
       targetMemberUserIds,
-      sourceRoom.userMembers.map((member) => member.userId),
+      sourceMembers.map((member) => member.userId),
     )
   ) {
-    throw badRequest("Quoted message not found");
+    throw quotedMessageNotFound();
   }
 
-  return {
-    ...(await loadRoomQuoteSnapshot(tx, sourceRoomId, quoteMessageId)),
-    roomId: sourceRoomId,
-  };
+  try {
+    return {
+      ...(await loadRoomQuoteSnapshot(tx, sourceRoomId, quoteMessageId)),
+      roomId: sourceRoomId,
+    };
+  } catch (error) {
+    // A membership status message refuses with its own wording.
+    if (error instanceof HTTPException) {
+      throw quotedMessageNotFound();
+    }
+    throw error;
+  }
 }
 
 export function normalizeUniqueStrings(values: readonly string[]): string[] {

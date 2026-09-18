@@ -237,7 +237,7 @@ export interface RoomComposerQuoteOffer {
   onDecline: () => void;
 }
 
-function PastedLinkQuoteOffer({ offer }: { offer: RoomComposerQuoteOffer }) {
+function QuoteOfferRow({ offer }: { offer: RoomComposerQuoteOffer }) {
   const t = useTranslations("App.Channels.Quote");
   return (
     <div
@@ -730,7 +730,7 @@ export function RoomComposer({
         onPrepareSubmit={() => editorRef.current?.flushTrailingEmoticon()}
         aboveEditor={
           <>
-            {quoteOffer ? <PastedLinkQuoteOffer offer={quoteOffer} /> : null}
+            {quoteOffer ? <QuoteOfferRow offer={quoteOffer} /> : null}
             {pendingQuote && onClearPendingQuote ? (
               <PendingQuotePreview
                 quote={pendingQuote}

@@ -182,6 +182,9 @@ const tx = {
   chatRoomThreadReadState: {
     upsert: threadReadUpsertMock,
   },
+  chatRoomUserMember: {
+    findMany: membershipFindManyMock,
+  },
   organization: {
     findUnique: organizationFindUniqueMock,
   },
@@ -1757,11 +1760,16 @@ describe("POST /chats/rooms/{id}/messages", () => {
         return userIds.map((userId) => ({ userId, user: { name: userId } }));
       }
 
+      /** The sender reads the source room; `userIds` is its roster. */
       function sourceRoom(userIds: string[]) {
+        membershipFindManyMock.mockResolvedValue(
+          userIds.map((userId) => ({ userId })),
+        );
         return {
           id: SOURCE_ROOM_ID,
           organizationId: "org_1",
-          userMembers: userIds.map((userId) => ({ userId, access: "member" })),
+          kind: "channel",
+          userMembers: [{ access: "member" }],
         };
       }
 
@@ -1897,7 +1905,34 @@ describe("POST /chats/rooms/{id}/messages", () => {
         const response = await postCrossRoomQuote();
 
         expect(response.status).toBe(400);
+        expect(await response.text()).toContain("Quoted message not found");
         expect(messageCreateMock).not.toHaveBeenCalled();
+      });
+
+      it("accepts a quote into the sender's Self Direct", async () => {
+        roomFindFirstMock
+          .mockResolvedValueOnce({
+            ...roomWithMembers({
+              kind: "direct",
+              userMembers: roomMembers([USER_ID]),
+              coworkerMembers: [],
+            }),
+            organizationId: null,
+            directKey: `direct:self:${USER_ID}`,
+          })
+          .mockResolvedValueOnce(sourceRoom([USER_ID, ALICE_ID, BOB_ID]));
+        messageFindFirstMock.mockResolvedValue(quotedSourceMessage());
+        messageCreateMock.mockResolvedValue(
+          createdMessage({
+            senderUserId: USER_ID,
+            metadata: { quote: crossRoomSnapshot },
+          }),
+        );
+
+        const response = await postCrossRoomQuote();
+
+        expect(response.status).toBe(201);
+        expect((await response.json()).data.quote).toEqual(crossRoomSnapshot);
       });
 
       it("treats a source room equal to the target as a same-room quote", async () => {

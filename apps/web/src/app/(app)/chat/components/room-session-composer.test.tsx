@@ -301,7 +301,9 @@ describe("RoomSessionComposer pasted Message link", () => {
   function Harness({
     onSend,
     onResolveMessageLink,
+    draftKey: harnessDraftKey = draftKey,
   }: {
+    draftKey?: string;
     onSend: ComponentProps<typeof RoomSessionComposer>["onSend"];
     onResolveMessageLink: ComponentProps<
       typeof RoomSessionComposer
@@ -313,7 +315,7 @@ describe("RoomSessionComposer pasted Message link", () => {
     return (
       <RoomSessionComposer
         roomId={roomId}
-        draftKey={draftKey}
+        draftKey={harnessDraftKey}
         mentions={{}}
         placeholder="Message"
         pendingQuote={pendingQuote}
@@ -368,6 +370,36 @@ describe("RoomSessionComposer pasted Message link", () => {
     });
   });
 
+  it("restores the text and the quote when the send fails", async () => {
+    const onSend = vi.fn().mockResolvedValue({ ok: false });
+    render(
+      <Harness
+        onSend={onSend}
+        onResolveMessageLink={vi.fn().mockResolvedValue(quote)}
+      />,
+    );
+
+    const editor = await screen.findByRole("textbox");
+    editor.focus();
+    pasteText(editor, link);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "pasteOffer.accept" }),
+    );
+    await act(async () => {
+      editor.innerHTML = "see this";
+      fireEvent.input(editor);
+    });
+    fireEvent.submit(editor.closest("form")!);
+
+    await waitFor(() => {
+      expect(onSend).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(editor.textContent).toContain("see this");
+    });
+    expect(screen.getByText("Earlier point about launch risk")).toBeTruthy();
+  });
+
   it("keeps the plain link when the offer is declined", async () => {
     const onSend = vi.fn().mockResolvedValue({ ok: true });
     render(
@@ -419,6 +451,25 @@ describe("RoomSessionComposer pasted Message link", () => {
         screen.queryByRole("button", { name: "pasteOffer.accept" }),
       ).toBeNull();
     });
+  });
+
+  it("does not carry the offer into another room or thread", async () => {
+    const props = {
+      onSend: vi.fn(),
+      onResolveMessageLink: vi.fn().mockResolvedValue(quote),
+    };
+    const { rerender } = render(<Harness {...props} />);
+
+    const editor = await screen.findByRole("textbox");
+    editor.focus();
+    pasteText(editor, link);
+    await screen.findByRole("button", { name: "pasteOffer.accept" });
+
+    rerender(<Harness {...props} draftKey={composeDraftKey.room("other")} />);
+
+    expect(
+      screen.queryByRole("button", { name: "pasteOffer.accept" }),
+    ).toBeNull();
   });
 
   it("shows no offer when the link cannot become a quote", async () => {
