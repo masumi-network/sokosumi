@@ -17,6 +17,7 @@ import {
   TranscriptViewport,
   type TranscriptViewportHandle,
 } from "@/app/chat/components/transcript-viewport";
+import { useQuietHoverWhileScrolling } from "@/app/chat/hooks/use-quiet-hover-while-scrolling";
 import { isCurrentUserMentionerOfFailedShell } from "@/app/chat/utils/coworker-thought";
 import type { RoomTranscriptRenderRow } from "@/app/chat/utils/room-transcript-ranges";
 import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
@@ -192,6 +193,7 @@ export function ThreadPanel({
   const localViewportRef = useRef<TranscriptViewportHandle | null>(null);
   const viewportRef = viewportRefFromParent ?? localViewportRef;
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
+  useQuietHoverWhileScrolling(scroller);
   const transcriptRows = useMemo(
     () =>
       buildThreadTranscriptRows(
