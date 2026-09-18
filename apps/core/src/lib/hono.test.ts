@@ -31,7 +31,7 @@ vi.mock("@/middleware/coworker-context", () => ({
 }));
 
 vi.mock("@/middleware/organization", () => ({
-  organizationContextMiddleware: async (
+  organizationHeaderMiddleware: async (
     c: {
       set: (key: string, value: unknown) => void;
       var: {

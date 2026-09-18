@@ -61,7 +61,7 @@ vi.mock(
 );
 
 vi.mock("@/middleware/organization", () => ({
-  organizationContextMiddleware: async (
+  organizationHeaderMiddleware: async (
     _c: unknown,
     next: () => Promise<unknown>,
   ) => await next(),

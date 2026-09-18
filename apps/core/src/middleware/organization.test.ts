@@ -2,31 +2,10 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
-import { organizationContextMiddleware } from "./organization";
+import { organizationHeaderMiddleware } from "./organization";
 
-const {
-  memberFindFirstMock,
-  memberFindUniqueMock,
-  setActiveOrganizationMock,
-  getSessionMock,
-} = vi.hoisted(() => ({
+const { memberFindFirstMock } = vi.hoisted(() => ({
   memberFindFirstMock: vi.fn(),
-  memberFindUniqueMock: vi.fn(),
-  setActiveOrganizationMock: vi.fn(),
-  getSessionMock: vi.fn(),
-}));
-
-vi.mock("@/lib/auth", () => ({
-  auth: {
-    api: {
-      setActiveOrganization: setActiveOrganizationMock,
-      getSession: getSessionMock,
-    },
-  },
-}));
-
-vi.mock("@/lib/external-service-errors", () => ({
-  captureExternalServiceError: vi.fn(),
 }));
 
 vi.mock("@/middleware/auth", () => ({
@@ -73,7 +52,6 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     member: {
       findFirst: memberFindFirstMock,
-      findUnique: memberFindUniqueMock,
     },
   },
 }));
@@ -110,7 +88,7 @@ function createUserApp(initialOrganizationId: string | null) {
     return await next();
   });
 
-  app.use("*", organizationContextMiddleware);
+  app.use("*", organizationHeaderMiddleware);
 
   app.get("/", (c) => {
     return c.json(c.var.authContext);
@@ -134,7 +112,7 @@ function createCoworkerApp() {
     return await next();
   });
 
-  app.use("*", organizationContextMiddleware);
+  app.use("*", organizationHeaderMiddleware);
 
   app.get("/", (c) => {
     return c.json(c.var.authContext);
@@ -143,22 +121,12 @@ function createCoworkerApp() {
   return app;
 }
 
-describe("organizationContextMiddleware", () => {
+describe("organizationHeaderMiddleware", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    setActiveOrganizationMock.mockResolvedValue({
-      headers: new Headers({ "set-cookie": "better-auth.session_data=fresh" }),
-      response: null,
-    });
-    getSessionMock.mockResolvedValue({
-      session: { activeOrganizationId: "org_removed" },
-      user: { id: "user_123" },
-    });
   });
 
-  it("verifies current membership and ignores the header when organizationId is already set", async () => {
-    memberFindUniqueMock.mockResolvedValue({ id: "member_1" });
-
+  it("does not query organization when organizationId is already set", async () => {
     const app = createUserApp("org_existing");
     const response = await app.request("http://localhost/", {
       headers: {
@@ -173,95 +141,7 @@ describe("organizationContextMiddleware", () => {
       organizationId: "org_existing",
       role: "user",
     });
-    expect(memberFindUniqueMock).toHaveBeenCalledWith({
-      where: {
-        userId_organizationId: {
-          userId: "user_123",
-          organizationId: "org_existing",
-        },
-      },
-      select: { id: true },
-    });
     expect(memberFindFirstMock).not.toHaveBeenCalled();
-  });
-
-  it("switches the session to the personal workspace when the membership is gone", async () => {
-    memberFindUniqueMock.mockResolvedValue(null);
-
-    const app = createUserApp("org_removed");
-    const response = await app.request("http://localhost/");
-
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
-      actor: "user",
-      userId: "user_123",
-      organizationId: null,
-      role: "user",
-    });
-    expect(setActiveOrganizationMock).toHaveBeenCalledWith({
-      body: { organizationId: null },
-      headers: expect.any(Headers),
-      returnHeaders: true,
-    });
-    expect(response.headers.get("set-cookie")).toBe(
-      "better-auth.session_data=fresh",
-    );
-  });
-
-  it("leaves a newer organization alone when the session already moved on", async () => {
-    memberFindUniqueMock.mockResolvedValue(null);
-    getSessionMock.mockResolvedValue({
-      session: { activeOrganizationId: "org_other" },
-      user: { id: "user_123" },
-    });
-
-    const app = createUserApp("org_removed");
-    const response = await app.request("http://localhost/");
-
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
-      actor: "user",
-      userId: "user_123",
-      organizationId: null,
-      role: "user",
-    });
-    expect(setActiveOrganizationMock).not.toHaveBeenCalled();
-  });
-
-  it("does not write again once the session is already clear", async () => {
-    memberFindUniqueMock.mockResolvedValue(null);
-    getSessionMock.mockResolvedValue({
-      session: { activeOrganizationId: null },
-      user: { id: "user_123" },
-    });
-
-    const app = createUserApp("org_removed");
-    const response = await app.request("http://localhost/");
-
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
-      actor: "user",
-      userId: "user_123",
-      organizationId: null,
-      role: "user",
-    });
-    expect(setActiveOrganizationMock).not.toHaveBeenCalled();
-  });
-
-  it("still drops the organization when the session switch fails", async () => {
-    memberFindUniqueMock.mockResolvedValue(null);
-    setActiveOrganizationMock.mockRejectedValue(new Error("better auth down"));
-
-    const app = createUserApp("org_removed");
-    const response = await app.request("http://localhost/");
-
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
-      actor: "user",
-      userId: "user_123",
-      organizationId: null,
-      role: "user",
-    });
   });
 
   it("does not query organization when header is missing", async () => {

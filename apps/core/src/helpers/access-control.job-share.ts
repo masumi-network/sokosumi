@@ -25,9 +25,9 @@ import { buildHumanParentTaskVisibilityWhere } from "./task-visibility";
  *
  * `workspaceContext` is not client-controlled. It comes from the session's
  * active organization, or, when the session carries none, from an
- * `X-Organization-Slug` header. `organizationContextMiddleware` confirms the
- * caller's current `Member` row on both paths, so a caller can neither name an
- * organization they do not belong to nor keep one they were removed from.
+ * `X-Organization-Slug` header that `organizationHeaderMiddleware` resolves
+ * only after `resolveOrganizationFromSlug` confirms the caller's `Member` row.
+ * A caller therefore cannot name an organization they do not belong to.
  *
  * Ownership stays in the predicate because API key and OAuth callers carry no
  * active organization (`organizationId: null` in their auth context), so their

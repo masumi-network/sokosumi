@@ -82,12 +82,8 @@ vi.mock("@sokosumi/database/repositories", () => ({
   },
 }));
 
-vi.mock("@/lib/db/prisma", async () => ({
+vi.mock("@/lib/db/prisma", () => ({
   default: {
-    member: {
-      findUnique: (await import("@/test-fixtures/organization-membership"))
-        .stubMemberFindUnique,
-    },
     $transaction: (...args: unknown[]) => prismaTransactionMock(...args),
   },
 }));
