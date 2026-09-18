@@ -69,6 +69,36 @@
       try png.write(to: URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("chat-settings-\(dark ? "dark" : "light").png"))
     }
 
+    @Test(arguments: [false, true])
+    func notificationSettingsFixtureRenders(dark: Bool) async throws {
+      func section(preset: ChatNotificationPreset?, blocked: Bool, error: String?) -> some View {
+        NotificationSettingsSection(
+          kinds: ChatNotificationKind.allCases, preset: preset,
+          reach: { kind in preset?.reach(for: kind) ?? (kind == .roomMessage ? .banner : .inApp) },
+          isSaving: false, isAvailable: true, bannersBlocked: blocked, error: error,
+          onPreset: { _ in }, onReach: { _, _ in }
+        )
+      }
+      let content = Form {
+        section(preset: .essential, blocked: false, error: nil)
+        section(preset: nil, blocked: true, error: "Could not save that change. Check your connection and try again.")
+      }
+      .formStyle(.grouped)
+      .frame(width: 440, alignment: .leading)
+      .background(.background)
+      .environment(\.colorScheme, dark ? .dark : .light)
+      let host = NSHostingView(rootView: content)
+      host.frame = NSRect(x: 0, y: 0, width: 440, height: 900)
+      for _ in 0 ..< 10 {
+        host.layoutSubtreeIfNeeded()
+        try await Task.sleep(for: .milliseconds(20))
+      }
+      let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+      host.cacheDisplay(in: host.bounds, to: bitmap)
+      let png = try #require(bitmap.representation(using: .png, properties: [:]))
+      try png.write(to: URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("notification-settings-\(dark ? "dark" : "light").png"))
+    }
+
     private func sidebarName(_ name: String, count: Int) -> some View {
       HStack(alignment: .firstTextBaseline, spacing: 6) {
         Text(name).lineLimit(1).fontWeight(.bold)

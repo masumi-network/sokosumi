@@ -108,6 +108,10 @@ public final class WorkspaceState: ObservableObject {
   @Published var pendingSokoBotFeedback: Set<String> = []
   /// Account-synced chat display preferences; see `WorkspaceState+DisplayPreferences`.
   public let chatDisplay = ChatDisplayPreferences()
+  public let notificationPreferences = ChatNotificationPreferences()
+  /// App-side OS notification adapter; without it events raise no banner.
+  public var notificationPresenter: (any ChatNotificationPresenting)?
+  var notificationBanners = ChatNotificationBanners()
   public let timeline = RoomTimeline()
   public let pins = PinnedMessages()
   @Published var pendingPins: Set<String> = []
@@ -285,6 +289,8 @@ public final class WorkspaceState: ObservableObject {
     sokoBotFeedback = [:]
     pendingSokoBotFeedback = []
     chatDisplay.reset()
+    notificationPreferences.reset()
+    clearNotificationBanners()
     archivedChannels.reset()
     pendingInvitations.reset()
     workspaceSession.reset()
@@ -778,9 +784,7 @@ public final class WorkspaceState: ObservableObject {
     case let .message(roomId, eventType, message):
       applyRealtimeMessage(roomId: roomId, eventType: eventType, message: message)
     case let .patch(patch):
-      thread.apply(patch)
-      guard patch.roomId == transcriptRoomId else { return }
-      transcriptMessages = applyRealtimePatch(patch, messages: transcriptMessages)
+      applyRealtimeMessagePatch(patch)
     case let .pin(roomId, messageId, isPinned, count):
       applyRealtimePin(roomId: roomId, messageId: messageId, isPinned: isPinned, count: count)
     case let .roomHealth(roomId, healthy, continuityLost):
@@ -793,11 +797,19 @@ public final class WorkspaceState: ObservableObject {
       applyPresenceRoster(organizationId: organizationId, members: members)
     case let .envelope(envelope):
       applyRealtimeEnvelope(envelope)
+    case let .notification(notification):
+      applyRealtimeNotification(notification)
     case let .revoked(roomId):
       applyMembershipRevoked(roomId: roomId)
     case .ignored:
       break
     }
+  }
+
+  private func applyRealtimeMessagePatch(_ patch: RealtimeMessagePatch) {
+    thread.apply(patch)
+    guard patch.roomId == transcriptRoomId else { return }
+    transcriptMessages = applyRealtimePatch(patch, messages: transcriptMessages)
   }
 
   private func applyRealtimePin(roomId: String, messageId: String, isPinned: Bool, count: Int) {

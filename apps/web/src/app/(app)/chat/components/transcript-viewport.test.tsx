@@ -260,6 +260,41 @@ function Harness({
   );
 }
 
+/** The shell's part plus a composer editor, to watch the keyboard close. */
+function HarnessWithComposer({
+  rows,
+  editorInsideScroller = false,
+}: {
+  rows: readonly RoomTranscriptRenderRow[];
+  editorInsideScroller?: boolean;
+}) {
+  const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
+  const editor = (
+    <div contentEditable data-testid="editor" role="textbox" tabIndex={0} />
+  );
+  return (
+    <>
+      <div
+        ref={setScroller}
+        data-testid="scroller"
+        style={{ overflowY: "auto" }}
+      >
+        <div {...{ [CHAT_MESSAGE_LIST_ATTRIBUTE]: CHAT_MESSAGE_LIST_ROOM }}>
+          <TranscriptViewport
+            ref={null}
+            scroller={scroller}
+            rows={rows}
+            renderRow={renderRow}
+            holdOffBottom={false}
+          />
+        </div>
+        {editorInsideScroller ? editor : null}
+      </div>
+      {editorInsideScroller ? null : editor}
+    </>
+  );
+}
+
 function scrollerOf(container: HTMLElement): HTMLElement {
   const scroller = container.querySelector<HTMLElement>(
     '[data-testid="scroller"]',
@@ -298,6 +333,72 @@ afterEach(() => {
 });
 
 describe("TranscriptViewport", () => {
+  it("closes the keyboard when the reader drags the transcript", async () => {
+    const { container } = render(<HarnessWithComposer rows={rows(80)} />);
+    await settle(container);
+    const editor = container.querySelector<HTMLElement>(
+      '[data-testid="editor"]',
+    );
+    editor?.focus();
+    expect(document.activeElement).toBe(editor);
+
+    fireEvent.touchMove(scrollerOf(container));
+
+    expect(document.activeElement).not.toBe(editor);
+  });
+
+  it("leaves the composer focused while the reader only taps the transcript", async () => {
+    const { container } = render(<HarnessWithComposer rows={rows(80)} />);
+    await settle(container);
+    const editor = container.querySelector<HTMLElement>(
+      '[data-testid="editor"]',
+    );
+    editor?.focus();
+
+    const scroller = scrollerOf(container);
+    fireEvent.touchStart(scroller);
+    fireEvent.touchEnd(scroller);
+
+    expect(document.activeElement).toBe(editor);
+  });
+
+  it("leaves an in-row editor focused when the drag is on the editor", async () => {
+    const { container } = render(
+      <HarnessWithComposer rows={rows(80)} editorInsideScroller />,
+    );
+    await settle(container);
+    const editor = container.querySelector<HTMLElement>(
+      '[data-testid="editor"]',
+    );
+    if (!editor) {
+      throw new Error("expected the editor");
+    }
+    editor.focus();
+    expect(document.activeElement).toBe(editor);
+
+    fireEvent.touchMove(editor);
+
+    expect(document.activeElement).toBe(editor);
+  });
+
+  it("leaves an in-row editor focused when the drag is elsewhere in the transcript", async () => {
+    const { container } = render(
+      <HarnessWithComposer rows={rows(80)} editorInsideScroller />,
+    );
+    await settle(container);
+    const editor = container.querySelector<HTMLElement>(
+      '[data-testid="editor"]',
+    );
+    editor?.focus();
+    expect(document.activeElement).toBe(editor);
+
+    // Scrolling back to re-read the conversation mid-edit: the edit stays
+    // open, and `MessageEditComposer`'s blur does not cancel it.
+    fireEvent.touchMove(scrollerOf(container));
+
+    expect(document.activeElement).toBe(editor);
+  });
+
   it("mounts only the rows near the live edge of a long room", async () => {
     const handle = createRef<TranscriptViewportHandle>();
     const { container } = render(<Harness rows={rows(500)} handle={handle} />);

@@ -47,6 +47,7 @@ struct ChatRootView: View {
     })
     .modifier(InviteLinkSheet(presentation: $inviteLink))
     .modifier(PresenceLifecycleModifier())
+    .modifier(ChatNotificationLifecycleModifier())
     .alert("Couldn’t open chat link", isPresented: Binding(get: { linkError != nil }, set: {
       if !$0 {
         linkError = nil
