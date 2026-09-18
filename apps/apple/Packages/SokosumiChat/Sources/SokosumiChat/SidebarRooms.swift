@@ -12,14 +12,34 @@ public struct PartitionedSidebarRooms: Sendable {
 /// and the active room suppress chrome — the active transcript has
 /// resolved and marks read via `RoomReadAttention` (ADR 0026). Bold
 /// covers any unread, including leftover thread unread (ADR 0013).
+/// `unreadTextCount` is the reader's opt-in Room unread count: a third field,
+/// because the badge keeps counting mentions only.
 public struct RoomAttention: Equatable, Sendable {
   public var bold: Bool
   public var badgeCount: Int
+  public var unreadTextCount: Int
 
-  public init(bold: Bool, badgeCount: Int) {
+  public init(bold: Bool, badgeCount: Int, unreadTextCount: Int = 0) {
     self.bold = bold
     self.badgeCount = badgeCount
+    self.unreadTextCount = unreadTextCount
   }
+}
+
+/// Web `ROOM_COUNT_CAP`: a very loud room cannot reflow its row.
+public let roomCountCap = 99
+
+/// Web `roomCountLabel`: the count, capped as "99+".
+public func roomCountLabel(_ count: Int) -> String {
+  count > roomCountCap ? "\(roomCountCap)+" : String(count)
+}
+
+/// Spoken form of the Room unread count (web `RoomUnread.unreadMessages*`).
+public func roomUnreadAccessibilityLabel(_ count: Int) -> String {
+  if count > roomCountCap {
+    return "More than \(roomCountCap) unread messages"
+  }
+  return count == 1 ? "1 unread message" : "\(count) unread messages"
 }
 
 /// One face in a Direct sidebar stack. Mirrors web's `DirectRoomAvatarStack`
@@ -128,12 +148,17 @@ public func resolveRoomAttention(
   unreadMentionCount: Int,
   markedUnread: Bool = false,
   isMuted: Bool = false,
-  isActive: Bool = false
+  isActive: Bool = false,
+  showUnreadCount: Bool = false
 ) -> RoomAttention {
   if isMuted || isActive {
     return .init(bold: false, badgeCount: 0)
   }
-  return .init(bold: unreadCount > 0 || markedUnread, badgeCount: unreadMentionCount)
+  return .init(
+    bold: unreadCount > 0 || markedUnread,
+    badgeCount: unreadMentionCount,
+    unreadTextCount: showUnreadCount ? max(0, unreadCount) : 0
+  )
 }
 
 /// Split the unified room list for the sidebar, mirroring web:

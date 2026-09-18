@@ -106,6 +106,8 @@ public final class WorkspaceState: ObservableObject {
   /// Soko Bot turns rated in this session, by turn id; see `WorkspaceState+SokoBot`.
   @Published public internal(set) var sokoBotFeedback: [String: Bool] = [:]
   @Published var pendingSokoBotFeedback: Set<String> = []
+  /// Account-synced chat display preferences; see `WorkspaceState+DisplayPreferences`.
+  public let chatDisplay = ChatDisplayPreferences()
   public let timeline = RoomTimeline()
   public let pins = PinnedMessages()
   @Published var pendingPins: Set<String> = []
@@ -218,7 +220,7 @@ public final class WorkspaceState: ObservableObject {
     self.clientProvider = clientProvider
     sidebar = ConversationSidebar(savedRoom: savedRoom)
     ablyClientInstanceId = getOrCreateAblyClientInstanceId(store: instanceStore)
-    for publisher in [archivedChannels.objectWillChange, pendingInvitations.objectWillChange, threadOverview.objectWillChange, pins.objectWillChange, thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange, presence.objectWillChange] {
+    for publisher in [archivedChannels.objectWillChange, pendingInvitations.objectWillChange, threadOverview.objectWillChange, chatDisplay.objectWillChange, pins.objectWillChange, thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange, presence.objectWillChange] {
       publisher.sink { [weak self] in self?.objectWillChange.send() }.store(in: &threadObservations)
     }
     // Rows need editor identity changes; draft and save state are observed by the editor itself.
@@ -282,6 +284,7 @@ public final class WorkspaceState: ObservableObject {
     invitationResponse = nil
     sokoBotFeedback = [:]
     pendingSokoBotFeedback = []
+    chatDisplay.reset()
     archivedChannels.reset()
     pendingInvitations.reset()
     workspaceSession.reset()

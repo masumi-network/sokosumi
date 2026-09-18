@@ -34,7 +34,7 @@ The Xcode navigator follows the physical source folders. Start with `Sokosumi/Ap
 | `Sokosumi/Chat/Composer` | Rich composer, Drive picker and native text input |
 | `Sokosumi/Chat/Rendering` | Markdown, code, thought presentation, Soko Bot footer/hop badge and attachment chips/previews |
 | `Sokosumi/Shared` | Participant avatar, `PresenceDot`, `ParticipantProfileButton` and `ParticipantDetailsView` |
-| `Sokosumi/Settings` | Settings scene content |
+| `Sokosumi/Settings` | Settings scene content (account, chat display and time format) and the time-format environment value |
 | `SokosumiTests` | App integration tests, grouped by feature |
 
 The app composes these UI-free packages:
