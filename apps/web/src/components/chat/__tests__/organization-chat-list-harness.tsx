@@ -174,6 +174,7 @@ export const emptyRooms: ChatRoom[] = [];
 
 export interface OrganizationChatListHarnessOptions {
   rooms?: ChatRoom[];
+  archivedRooms?: ChatRoom[];
   pendingInvitations?: ChatRoomInvitation[];
   organizationId?: string | null;
   paintOnly?: boolean;
@@ -245,6 +246,7 @@ export function resetOrganizationChatListMocks() {
 
 export function createOrganizationChatList({
   rooms = emptyRooms,
+  archivedRooms = emptyRooms,
   pendingInvitations,
   organizationId = "org-1",
   paintOnly = false,
@@ -252,7 +254,7 @@ export function createOrganizationChatList({
   return (
     <OrganizationChatList
       rooms={rooms}
-      archivedRooms={emptyRooms}
+      archivedRooms={archivedRooms}
       {...(pendingInvitations === undefined ? {} : { pendingInvitations })}
       currentUserId="user-1"
       organizationId={organizationId}

@@ -38,6 +38,28 @@ describe("OrganizationChatList section visibility", () => {
     expect(screen.getByText("App.Channels.directMessages")).toBeInTheDocument();
   });
 
+  it("keeps archived rows off the collapsed rail, like every other non-row element", () => {
+    renderOrganizationChatList({
+      organizationId: "org-1",
+      archivedRooms: [
+        makeRoom({
+          id: "old-launch",
+          kind: "channel",
+          myAccess: "member",
+          name: "old-launch",
+        }),
+      ],
+    });
+
+    // An archived row is a plain div, not a `SidebarMenuButton`, so the
+    // rail's icon rules do not reach it: without this it rendered a glyph
+    // and a clipped name into the 56px rail whenever the section was open.
+    const row = screen.getByText("old-launch").parentElement;
+    expect(row?.className.split(/\s+/)).toContain(
+      "group-data-[collapsible=icon]:hidden",
+    );
+  });
+
   it("hides External when there are no joined rooms and no pending invitations", () => {
     renderOrganizationChatList({ organizationId: "org-1" });
 

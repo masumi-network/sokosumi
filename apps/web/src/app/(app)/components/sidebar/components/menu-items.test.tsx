@@ -264,6 +264,20 @@ describe("MenuItems search action", () => {
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
   });
 
+  it("leaves only the icon in the flow on the collapsed rail, so the square centres it", () => {
+    render(<MenuItems calendarMenuEnabled={false} />);
+    const label = screen
+      .getByRole("link", { name: "exploreAgents" })
+      .querySelector("span");
+    expect(label).not.toBeNull();
+    expect(label?.className.split(/\s+/)).toContain(
+      "group-data-[collapsible=icon]:sr-only",
+    );
+    expect(label?.className.split(/\s+/)).not.toContain(
+      "group-data-[collapsible=icon]:hidden",
+    );
+  });
+
   it("gives every menu item its label as a hover hint for the collapsed rail", () => {
     renderMenu(true, true, false);
 
