@@ -16,6 +16,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarRailSelectionBar,
+  SidebarRowSlot,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useLoadWhenVisible } from "@/hooks/use-load-when-visible";
@@ -66,13 +67,15 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
             onClick={handleNavigate}
             aria-current={pathname === "/projects" ? "page" : undefined}
             className={cn(
-              "min-h-auto min-w-0 gap-2 px-3",
+              "min-w-0",
               active
                 ? "text-sidebar-accent-foreground"
                 : "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
             )}
           >
-            <FolderKanban className="size-4" aria-hidden />
+            <SidebarRowSlot>
+              <FolderKanban className="size-4" aria-hidden />
+            </SidebarRowSlot>
             <span className="flex-1 truncate group-data-[collapsible=icon]:sr-only">
               {t("projects")}
             </span>

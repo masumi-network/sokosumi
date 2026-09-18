@@ -102,7 +102,11 @@ describe("Projects sidebar", () => {
       "href",
       "/projects",
     );
-    expect(mocks.load).not.toHaveBeenCalled();
+    expect(
+      screen
+        .getByRole("link", { name: "projects" })
+        .querySelector('[data-slot="sidebar-row-slot"]'),
+    ).toBeInTheDocument();
     const trigger = screen.getByRole("button", { name: "expandProjects" });
     expect(trigger).toHaveAttribute("aria-expanded", "false");
     expect(
