@@ -10,6 +10,106 @@ Status: proposed implementation; product direction approved in the 2026-09-18 pl
 
 The contract is [SPEC.md](../SPEC.md). The architecture decision is [ADR 0004](adr/0004-coworker-capabilities-and-graduation.md). Follow those documents before implementing a slice. Use the existing TypeScript CLI and Core HTTP boundary. No new CLI product, recursive CLI dispatch, automatic npm installer, or TUI redesign belongs to this plan.
 
+## Architecture and ownership
+
+[REPORTED: approved boundaries] One developer CLI lives in `apps/cli`. Skills teach supported runtimes how to use the integration. Thin adapters handle framework-specific execution. They do not duplicate Core's authorization or Masumi's settlement logic.
+
+| Component | Owns | Must not own |
+| --- | --- | --- |
+| Developer CLI | Human login, setup, registration requests, lifecycle controls, diagnostics, readiness display | Runtime identity, independent grant policy, self-approval, wallet signing backend |
+| Skill or framework plugin | Discoverable tool instructions and framework integration | Broad developer credentials or a second CLI product |
+| Runtime adapter and worker | Coworker execution identity, task invocation, progress, reconnect behavior | Granting itself workspace access or replacing Core task authority |
+| Core | Registration policy, workspace permissions, task/job state, spending authorization, waitlist review, graduation | Treating runtime-reported credits as proof of accepted seller pricing |
+| Masumi Payment Service | Supported chain-specific payment operations and settlement | Sokosumi workspace authorization or administrative promotion |
+
+[PROPOSED] Shared command handlers serve integrations directly. Do not recursively launch the CLI entrypoint from the TUI or adapters. Existing developer auth remains separate from the proposed runtime invocation contract. A short-lived delegation token is a candidate, not an approved implementation choice.
+
+The runtime initiates its local connection outward. Automatic work requires a running worker; a closed local session is not an always-on service. Cloud-hosted operation needs the same capability checks and credential isolation. Verify the exact Hermes, OpenClaw, Pi, Eve, Claude Code, or other framework interface before claiming support. A tool-call integration does not prove automatic execution support.
+
+[VERIFIED: inspected API snapshot] The referenced Masumi CLI's `src/generated/payment/types.d.ts:5217-5254` describes Cardano x402 unsigned transaction construction; `:9755-9824` describes managed EVM signing and a payment header returned to the caller. These are distinct implementation paths, not live deployment verification. The Masumi CLI repository remains read-only reference material.
+
+[PROPOSED] Preserve that split behind the user-facing payment capability. Resolve network, asset, recipient, approved amount, and selected funding source before payment. A payment header or customer debit is not seller receipt. General x402 resource access also requires destination and redirect controls. No new payment command or Masumi SaaS contract is implied by this document.
+
+## Visual flows
+
+[PROPOSED] These diagrams describe the agreed direction, not installed commands or implemented transports. A framework runtime acts as a Coworker; a Masumi Agent is a separate service it can hire.
+
+### CLI setup and runtime operation
+
+```mermaid
+flowchart TD
+  Developer["Developer"] --> CLI["Sokosumi developer CLI: admin control"]
+  CLI --> Setup["Sign in; choose or create workspace and controlled Vendor"]
+  Setup --> Register["Core authorizes workspace-only Coworker registration"]
+  Register --> Mode{"Choose connection lifetime"}
+  Mode --> Session["Brief local session"]
+  Mode --> Private["Retained workspace-only Coworker"]
+  Mode --> Hosted["Persistent hosted worker"]
+  Session --> Connect["Connect existing framework runtime through its adapter"]
+  Private --> Connect
+  Hosted --> Connect
+  Connect --> Tools["Active-session tools"]
+  Connect --> Worker["Automatic execution while worker is running"]
+  Tools --> Core["Core checks Coworker identity, workspace, and permissions"]
+  Worker --> Core
+  Core --> Work["Authorized chat, Tasks, or Masumi Agent Jobs"]
+  Work --> Results["Results and progress return to Sokosumi"]
+  Session --> End["Session ends or expires"]
+  End --> Revoke["Remove temporary authority; retain identity and work history"]
+```
+
+The CLI administers the connection. Runtime credentials and execution belong to the adapter, not the developer login. A brief session does not require an always-on worker.
+
+### Road to paid graduation
+
+```mermaid
+flowchart TD
+  Connected["Registered Coworker"] --> Choice{"Choose optional capabilities; no fixed order"}
+  Choice --> Chat["Chat and room-access checks"]
+  Choice --> Tasks["Task and Job authorization checks"]
+  Choice --> Buy["x402 purchase checks: chosen funding and spending limits"]
+  Choice --> Sell["Seller checks: metering, customer charge, seller receipt"]
+  Connected --> Baseline["Identity, permissions, and public-runtime isolation checks"]
+  Connected --> Stay["Remain private; publication is optional"]
+  Chat -.-> Readiness["Core derives readiness for advertised capabilities"]
+  Tasks -.-> Readiness
+  Buy -.-> Readiness
+  Sell -.-> Readiness
+  Baseline --> Readiness
+  Readiness --> Eligible{"Paid baseline, seller proof, and relevant checks valid?"}
+  Eligible -->|No| Fix["Show missing or expired checks; fix affected capability"]
+  Fix --> Choice
+  Eligible -->|Yes| Apply["Developer applies with usage pricing and evidence"]
+  Apply --> Review["Waitlisted: Sokosumi admin review"]
+  Review -->|Changes requested| Fix
+  Review -->|Explicit approval| Public["Globally available paid Coworker"]
+  Public --> Access["Customer workspace authorizes use and spending"]
+  Public --> Invalid["Required readiness becomes invalid"]
+  Invalid --> Suspend["Block affected operations or paid availability; retain approval history"]
+```
+
+Dotted arrows are independent evidence inputs, not a requirement to enable every capability. The public paid path always needs baseline safety and seller payment proof. Chat, Tasks, and buying checks apply only when offered. Live grants, health, and payment settings stay with their canonical owners; test evidence covers only facts that cannot be derived.
+
+### Spending versus earning
+
+```mermaid
+flowchart LR
+  Work["Authorized Coworker operation"] --> Buy{"Buying an external x402 service?"}
+  Buy --> Funding{"Explicit funding choice"}
+  Funding --> Credits["Workspace credits"]
+  Funding --> Wallet["Runtime-held wallet"]
+  Credits --> Policy["Approved amount, asset, network, and recipient"]
+  Wallet --> Policy
+  Policy --> Masumi["Masumi payment execution"]
+  Masumi --> Result["Service result and reconciled payment outcome"]
+  Customer["Customer uses public paid Coworker"] --> Price["Accepted usage-price version and spending ceiling"]
+  Price --> Meter["Authorized metered usage"]
+  Meter --> Debit["Customer charge"]
+  Debit --> Settlement["Separate seller settlement and receipt proof"]
+```
+
+There is no fallback edge between funding sources. Customer charging and seller receipt are separate outcomes. Private use has no automatic seller fee, but model/provider costs and approved external purchases remain payable. Exact payment and runtime contracts remain prerequisites in the delivery units below.
+
 ## Evidence from the target base
 
 [VERIFIED: source inspection at 63377d7; not runtime verification]
@@ -22,6 +122,27 @@ The contract is [SPEC.md](../SPEC.md). The architecture decision is [ADR 0004](a
 | `apps/core/src/routes/v1/coworkers/me/events/get.ts:68-94` | Pulls events for assigned non-DRAFT Tasks | Reuse as an input source, not as a work-claim protocol |
 | `apps/core/src/routes/v1/coworkers/me/usage/post.ts:91-200` | Coworker reports credits and customer identity; Core records an idempotent debit | Metering does not establish a customer-approved price or seller receipt |
 | `apps/core/src/services/task-x402-payment.service.ts:238-310` | Requires listed payable Agent; validates demands; dynamic pricing requires a ceiling | General external x402 purchases need additional Core policy |
+
+## Stages and checkpoints
+
+[PROPOSED] Stages describe progress within a chosen capability, not a compulsory product ladder: selected, configured, verified, then eligible where applicable. A failed or stale check returns that capability to action-required. Public approval is a separate Core decision.
+
+| Checkpoint | Prerequisite and owner | Pass evidence | Failure or revalidation condition |
+| --- | --- | --- | --- |
+| C0: Workspace and ownership | Developer login; Core authorizes workspace and Vendor | Authorized setup succeeds; foreign ownership is denied | Ownership or workspace grant changes |
+| C1: Runtime connection | C0 and approved runtime auth contract; Core plus adapter | Correct actor identity; bounded session expiry; disconnect/reconnect proof; no developer-auth fallback | Credential expiry, revocation, or changed adapter configuration |
+| C2: Chat participation | C1, approved transport, authorized room; Core plus adapter | Mention and reply in direct chat, channel, and group for each supported type; unrelated context denied | Membership revocation, transport change, or stale delivery evidence |
+| C3: Tasks and Jobs | C1 and required grants; Core plus adapter | Authorized reads, updates, follow-up Task, and Task-linked Agent Job; unauthorized transitions denied; duplicate delivery safe | Grant or execution contract changes; failed recovery test |
+| C4: x402 purchasing | C1, funding selection, Masumi configuration; Core and payment service | Controlled purchase for each advertised rail/funding mode; invalid amount, asset, recipient, and network rejected; retry reconciled | Budget, wallet, rail, or signer configuration changes |
+| C5: Seller readiness | Seller registration and accepted test pricing; Core and payment service | Metering tied to authorized work; customer debit, delivered result, and intended seller receipt; duplicate billing denied | Price, receiving wallet, settlement integration, or relevant test validity changes |
+| C6: Paid eligibility | C0/C1, public isolation proof, C5, and only advertised capability checks; Core | Current live policy plus valid non-derivable evidence passes the declared service profile | Any required authority or evidence becomes invalid; unknown readiness fails closed |
+| C7: Public approval | C6 and developer application with pricing; Sokosumi administration | Explicit recorded approval after review; customer workspace still authorizes use | Required readiness loss blocks affected service; approval history remains; new public pricing needs review |
+
+[PROPOSED] Checkpoint output identifies the capability, current result, missing prerequisite, evidence reference, configuration version, and next action. Core derives live grants and health rather than copying them into attestations. Persist test results only when the live authoritative state cannot establish the claim.
+
+A private-session profile can stop at C1 or add C2/C3. A buyer-only profile can add C4 without C5 or public graduation. A public Task service needs C3 and seller readiness, but not chat or arbitrary outbound buying unless offered. A developer may register solely to run the applicable checks.
+
+[DECISION] A checkpoint is not a claim that its implementation or test suite exists. Each delivery unit below must add its behavioral checks and record the actual execution result. Publishing the documentation does not pass any runtime or financial checkpoint.
 
 ## Delivery units
 
@@ -44,7 +165,7 @@ Acceptance cases:
 
 ### B. Active-session operations and automatic execution
 
-[PROPOSED] Support both agent-operated tools during a live session and a connected worker for automatic assignment. Use shared operation handlers, never recursive invocation of `runCli`.
+[PROPOSED] Support both runtime-operated tools during a live session and a connected worker for automatic assignment. Use shared operation handlers, never recursive invocation of `runCli`.
 
 Prerequisites: Core binds each operation to a Coworker and authorized context. Choose the adapter contract, claim/recovery semantics, and secret-delivery channel before implementation. The developer CLI remains an admin control tool.
 
