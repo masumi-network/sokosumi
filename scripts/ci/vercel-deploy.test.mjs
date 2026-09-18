@@ -9,6 +9,7 @@ import {
   deployTargets,
   GITHUB_PR_FILES_LIMIT,
   hasPreviewRelevantChanges,
+  isOpenedPreviewEventName,
   isPreviewRelevantPath,
   isTruncatedFileList,
   isWritePermission,
@@ -688,36 +689,13 @@ describe("runPreviewDeployOpened", () => {
 });
 
 describe("runPreviewFromGithubEvent", () => {
-  it("routes pull_request opened events to the opened deploy", async () => {
-    const created = [];
-    const result = await runPreviewFromGithubEvent({
-      eventName: "pull_request",
-      event: {
-        action: "opened",
-        pull_request: {
-          user: { type: "User", login: "alice" },
-          head: { sha: "deadbeef", ref: "feat/x", repo: { id: 99 } },
-          base: { repo: { id: 99 } },
-        },
-        repository: { id: 99 },
-      },
-      createDeployment: async (input) => {
-        created.push(input);
-        return { id: `dpl_${input.target.name}`, readyState: "READY" };
-      },
-      pollDeployment: async (deployment) => deployment,
-    });
-    assert.equal(result.kind, "deploy");
-    assert.equal(created.length, 4);
-  });
-
-  it("ignores pull_request events that are not opened", async () => {
-    const created = [];
-    for (const action of ["synchronize", "ready_for_review", "reopened"]) {
+  it("routes pull_request and pull_request_target opened events to the opened deploy", async () => {
+    for (const eventName of ["pull_request", "pull_request_target"]) {
+      const created = [];
       const result = await runPreviewFromGithubEvent({
-        eventName: "pull_request",
+        eventName,
         event: {
-          action,
+          action: "opened",
           pull_request: {
             user: { type: "User", login: "alice" },
             head: { sha: "deadbeef", ref: "feat/x", repo: { id: 99 } },
@@ -727,10 +705,37 @@ describe("runPreviewFromGithubEvent", () => {
         },
         createDeployment: async (input) => {
           created.push(input);
-          return { id: "dpl", readyState: "READY" };
+          return { id: `dpl_${input.target.name}`, readyState: "READY" };
         },
+        pollDeployment: async (deployment) => deployment,
       });
-      assert.equal(result.kind, "ignore", action);
+      assert.equal(result.kind, "deploy", eventName);
+      assert.equal(created.length, 4, eventName);
+    }
+  });
+
+  it("ignores pull_request events that are not opened", async () => {
+    const created = [];
+    for (const eventName of ["pull_request", "pull_request_target"]) {
+      for (const action of ["synchronize", "ready_for_review", "reopened"]) {
+        const result = await runPreviewFromGithubEvent({
+          eventName,
+          event: {
+            action,
+            pull_request: {
+              user: { type: "User", login: "alice" },
+              head: { sha: "deadbeef", ref: "feat/x", repo: { id: 99 } },
+              base: { repo: { id: 99 } },
+            },
+            repository: { id: 99 },
+          },
+          createDeployment: async (input) => {
+            created.push(input);
+            return { id: "dpl", readyState: "READY" };
+          },
+        });
+        assert.equal(result.kind, "ignore", `${eventName}:${action}`);
+      }
     }
     assert.deepEqual(created, []);
   });
@@ -896,13 +901,14 @@ describe("preview change gating", () => {
     }
   });
 
-  it("keeps the pull_request paths filter in sync with the prefixes", async () => {
+  it("keeps the pull_request_target paths filter in sync with the prefixes", async () => {
     const workflow = await readFile(
       path.join(repoRoot, ".github/workflows/preview-deploy.yml"),
       "utf8",
     );
     const triggerSection = workflow.split(/^jobs:/m)[0];
-    assert.match(triggerSection, /pull_request:\s*\n/);
+    assert.match(triggerSection, /pull_request_target:\s*\n/);
+    assert.doesNotMatch(triggerSection, /^\s+pull_request:\s*$/m);
     assert.match(triggerSection, /paths:\s*\n/);
     for (const prefix of PREVIEW_RELEVANT_PREFIXES) {
       assert.ok(
@@ -910,7 +916,7 @@ describe("preview change gating", () => {
         `workflow paths filter is missing ${prefix}**`,
       );
     }
-    const commentSection = triggerSection.split(/pull_request:/)[0];
+    const commentSection = triggerSection.split(/pull_request_target:/)[0];
     assert.match(commentSection, /issue_comment:/);
     assert.doesNotMatch(commentSection, /paths:/);
   });
@@ -1165,12 +1171,13 @@ describe("git preview policy", () => {
     );
     assert.match(workflow, /issue_comment:/);
     assert.match(workflow, /types:\s*\[created\]/);
-    assert.match(workflow, /pull_request:/);
+    assert.match(workflow, /pull_request_target:/);
+    assert.doesNotMatch(workflow, /^\s+pull_request:\s*$/m);
     assert.match(workflow, /types:\s*\[opened\]/);
     assert.doesNotMatch(workflow, /ready_for_review/);
     assert.doesNotMatch(workflow, /synchronize/);
     assert.match(workflow, /github\.event_name == 'issue_comment'/);
-    assert.match(workflow, /github\.event_name == 'pull_request'/);
+    assert.match(workflow, /github\.event_name == 'pull_request_target'/);
     assert.match(
       workflow,
       /github\.event\.pull_request\.user\.type\s*!=\s*'Bot'/,
@@ -1181,10 +1188,10 @@ describe("git preview policy", () => {
     );
     assert.match(workflow, /node scripts\/ci\/vercel-deploy\.mjs preview/);
     assert.match(workflow, /persist-credentials:\s*false/);
-    assert.match(
-      workflow,
-      /ref:\s*\$\{\{\s*github\.event\.pull_request\.base\.sha\s*\}\}/,
-    );
+    assert.match(workflow, /github\.event\.repository\.default_branch/);
+    assert.doesNotMatch(workflow, /pull_request\.base\.sha/);
+    assert.doesNotMatch(workflow, /pull_request\.head\.sha/);
+    assert.doesNotMatch(workflow, /pull_request\.head\.ref/);
     assert.match(workflow, /secrets\.VERCEL_TOKEN/);
     assert.match(workflow, /vars\.VERCEL_TEAM_ID/);
     assert.match(workflow, /secrets\.GITHUB_TOKEN/);
@@ -1195,16 +1202,18 @@ describe("git preview policy", () => {
     assert.doesNotMatch(openedJob, /GITHUB_TOKEN/);
     assert.doesNotMatch(openedJob, /issues:\s*write/);
     assert.doesNotMatch(openedJob, /pull-requests:\s*write/);
-    assert.doesNotMatch(
-      openedJob,
-      /ref:\s*\$\{\{\s*github\.event\.pull_request\.head\.sha/,
-    );
     assert.match(
       workflow,
       /contains\(github\.event\.comment\.body, '\/deploy'\)/,
     );
     assert.doesNotMatch(workflow, /lower\(/);
     assert.match(workflow, /github\.event\.comment\.user\.type\s*!=\s*'Bot'/);
+  });
+
+  it("treats pull_request_target as an opened-preview event name", () => {
+    assert.equal(isOpenedPreviewEventName("pull_request_target"), true);
+    assert.equal(isOpenedPreviewEventName("pull_request"), true);
+    assert.equal(isOpenedPreviewEventName("issue_comment"), false);
   });
 
   it("does not deploy production from GitHub Actions", () => {
