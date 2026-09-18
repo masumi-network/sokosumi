@@ -25,7 +25,9 @@ export default function SidebarLogo() {
         onClick={toggleSidebar}
         className={cn(
           "group/logo relative hidden size-8 shrink-0 items-center justify-center rounded-md group-data-[collapsible=icon]:md:flex",
-          "hover:bg-sidebar-accent",
+          // Same rail language as `sidebarMenuButtonVariants`: hover is a
+          // ring on transparent, deepened on press, never a fill.
+          "ring-sidebar-ring hover:ring-1 active:ring-2",
         )}
         aria-label={t("expandSidebar")}
       >
