@@ -113,6 +113,19 @@ export const projectLatestUpdateSchema = z
   })
   .openapi("ProjectLatestUpdate");
 
+export const projectSummarySchema = z
+  .object({
+    id: z.string().uuid().openapi({
+      example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+    }),
+    name: z.string().openapi({ example: "Q1 research" }),
+    logo: z.url().nullable().openapi({
+      example:
+        "https://example.public.blob.vercel-storage.com/projects/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa/logos/logo.png",
+    }),
+  })
+  .openapi("ProjectSummary");
+
 export const projectSchema = z
   .object({
     id: z.string().uuid().openapi({
@@ -331,6 +344,7 @@ export const projectStatsBatchSchema = z
   .openapi("ProjectStatsBatch");
 
 export type Project = z.infer<typeof projectSchema>;
+export type ProjectSummary = z.infer<typeof projectSummarySchema>;
 export type ProjectContextMd = z.infer<typeof projectContextMdSchema>;
 export type ProjectNeedsAttention = z.infer<typeof projectNeedsAttentionSchema>;
 
