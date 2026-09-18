@@ -137,6 +137,7 @@ import {
 import { mountSokoBotApiKeyRoutes } from "./api-keys.js";
 import { mountSokoBotAvatarRoutes } from "./avatars.js";
 import { mountSokoBotEventRoutes } from "./events.js";
+import { mountSokoBotIntegrationAuthRoutes } from "./integration-auth.js";
 
 const app = new OpenAPIHonoWithAuth({ includeWorkspaceContext: true });
 const sokoBotPaginationQuerySchema = cursorPaginationQuerySchema.extend({
@@ -760,6 +761,7 @@ app.openapi(resolveDecisionRoute, async (c) => {
 });
 
 mountSokoBotAvatarRoutes(app);
+mountSokoBotIntegrationAuthRoutes(app, mapIntegrationError);
 
 const providerParamSchema = z.object({ provider: z.string().min(1) });
 

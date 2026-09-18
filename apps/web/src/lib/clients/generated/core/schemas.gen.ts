@@ -17469,6 +17469,44 @@ export const SokoBotAvatarSchema = {
     ]
 } as const;
 
+export const CompleteSokoBotIntegrationAuthResponseSchema = {
+    type: 'object',
+    properties: {
+        provider: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'DISCONNECTED',
+                'PENDING',
+                'ACTIVE',
+                'FAILED',
+                'REVOKED'
+            ]
+        }
+    },
+    required: [
+        'provider',
+        'status'
+    ]
+} as const;
+
+export const CompleteSokoBotIntegrationAuthRequestSchema = {
+    type: 'object',
+    properties: {
+        sessionUri: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 2048,
+            description: 'The single-use session URI Composio hands to the verifier'
+        }
+    },
+    required: [
+        'sessionUri'
+    ]
+} as const;
+
 export const SokoBotIntegrationsSchema = {
     type: 'object',
     properties: {
