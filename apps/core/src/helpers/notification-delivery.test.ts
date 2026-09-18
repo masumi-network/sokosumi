@@ -13,8 +13,6 @@ import {
 import { describe, expect, it } from "vitest";
 
 import {
-  JOB_ATTENTION_MESSAGE_KEYS,
-  JOB_COMPLETED_MESSAGE_KEY,
   resolveNotificationDelivery,
   resolveNotificationMatrix,
   type StoredNotificationPreference,
@@ -24,16 +22,21 @@ import {
 } from "./notification-delivery";
 
 describe("toNotificationCategory", () => {
-  it("splits jobs three ways", () => {
+  /**
+   * A job has no row to answer to since SOK-930: nothing writes a JOB
+   * notification any more, so the matrix holds no switch for one. A stored row
+   * from before that keeps its defaults rather than a category that is gone.
+   */
+  it("gives a job no row of the matrix", () => {
     expect(
       toNotificationCategory(
         NotificationKind.JOB,
         "Notifications.Job.inputRequired",
       ),
-    ).toBe("JOB_ATTENTION");
+    ).toBeNull();
     expect(
       toNotificationCategory(NotificationKind.JOB, "Notifications.Job.failed"),
-    ).toBe("JOB_UPDATE");
+    ).toBeNull();
   });
 
   it("splits tasks three ways", () => {
@@ -105,27 +108,12 @@ describe("toNotificationCategory", () => {
     ).not.toBe("CHAT_DIRECT_MESSAGE");
   });
 
-  /** Same row, same reason, for the kind the reader started themselves. */
-  it("gives a finished job a row of its own", () => {
-    expect(JOB_COMPLETED_MESSAGE_KEY).toBe("Notifications.Job.completed");
-    expect(
-      toNotificationCategory(
-        NotificationKind.JOB,
-        "Notifications.Job.completed",
-      ),
-    ).toBe("JOB_COMPLETED");
-  });
-
   /**
    * Written out rather than looped over the exported lists: a loop over the
    * list cannot notice a key dropped from it, and a dropped key silently
    * demotes a notification the reader asked to be interrupted for.
    */
   it("names every key that waits on the reader", () => {
-    expect(JOB_ATTENTION_MESSAGE_KEYS).toEqual([
-      "Notifications.Job.inputRequired",
-      "Notifications.Job.paymentFailed",
-    ]);
     expect(TASK_ATTENTION_MESSAGE_KEYS).toEqual([
       "Notifications.Task.assigned",
       "Notifications.Task.inputRequired",
@@ -137,11 +125,6 @@ describe("toNotificationCategory", () => {
   });
 
   it("puts every listed attention key on the loud row", () => {
-    for (const key of JOB_ATTENTION_MESSAGE_KEYS) {
-      expect(toNotificationCategory(NotificationKind.JOB, key)).toBe(
-        "JOB_ATTENTION",
-      );
-    }
     for (const key of TASK_ATTENTION_MESSAGE_KEYS) {
       expect(toNotificationCategory(NotificationKind.TASK, key)).toBe(
         "TASK_ATTENTION",
@@ -207,9 +190,9 @@ describe("toNotificationCategory", () => {
    */
   it("has an answer for every kind Core can store", () => {
     const EXPECTED: Record<NotificationKind, NotificationCategory | null> = {
-      // Read with the mention key, which is no job or task key, so those two
-      // answer with their quiet row.
-      JOB: "JOB_UPDATE",
+      // Read with the mention key, which is no task key, so that one answers
+      // with its quiet row. A job answers with nothing at all (SOK-930).
+      JOB: null,
       TASK: "TASK_UPDATE",
       SYSTEM: "SYSTEM",
       CHAT: "CHAT_MENTION",
@@ -234,7 +217,7 @@ describe("resolveNotificationDelivery", () => {
   it("delivers in Sokosumi and nowhere else for a reader who set nothing", () => {
     expect(
       resolveNotificationDelivery({
-        category: "JOB_ATTENTION",
+        category: "TASK_ATTENTION",
         preferences: NO_PREFERENCES,
         pushOptIn: true,
       }),
@@ -244,9 +227,9 @@ describe("resolveNotificationDelivery", () => {
   it("withholds the banner without account-wide push consent", () => {
     expect(
       resolveNotificationDelivery({
-        category: "JOB_ATTENTION",
+        category: "TASK_ATTENTION",
         preferences: [
-          { category: "JOB_ATTENTION", channel: "OS_BANNER", enabled: true },
+          { category: "TASK_ATTENTION", channel: "OS_BANNER", enabled: true },
         ],
         pushOptIn: false,
       }),
@@ -296,7 +279,7 @@ describe("resolveNotificationDelivery", () => {
       resolveNotificationDelivery({
         category: null,
         preferences: [
-          { category: "JOB_ATTENTION", channel: "IN_APP", enabled: false },
+          { category: "TASK_ATTENTION", channel: "IN_APP", enabled: false },
         ],
         pushOptIn: true,
       }),
@@ -507,16 +490,16 @@ describe("resolveNotificationMatrix", () => {
 
   it("shows the reader's own choice where they made one", () => {
     const matrix = resolveNotificationMatrix([
-      { category: "JOB_ATTENTION", channel: "IN_APP", enabled: false },
+      { category: "TASK_ATTENTION", channel: "IN_APP", enabled: false },
     ]);
 
     expect(matrix).toContainEqual({
-      category: "JOB_ATTENTION",
+      category: "TASK_ATTENTION",
       channel: "IN_APP",
       enabled: false,
     });
     expect(matrix).toContainEqual({
-      category: "JOB_ATTENTION",
+      category: "TASK_ATTENTION",
       channel: "OS_BANNER",
       enabled: false,
     });
@@ -524,14 +507,35 @@ describe("resolveNotificationMatrix", () => {
 
   /**
    * A row written by an older build, for a category or channel this one no
-   * longer has. It belongs to no cell, so it cannot appear as one.
+   * longer has. It belongs to no cell, so it cannot appear as one. The job row
+   * is the case that actually happened: SOK-930 retired the three `JOB_*`
+   * categories and left every reader's stored rows behind.
    */
   it("drops a stored row that names nothing this build knows", () => {
     const matrix = resolveNotificationMatrix([
       { category: "PIGEON", channel: "IN_APP", enabled: false },
-      { category: "JOB_ATTENTION", channel: "CARRIER_PIGEON", enabled: false },
+      { category: "JOB_ATTENTION", channel: "IN_APP", enabled: false },
+      { category: "TASK_ATTENTION", channel: "CARRIER_PIGEON", enabled: false },
     ]);
 
+    // The three names, held as strings so the comparison compiles: the cells
+    // are typed on the lists this build knows, and `===` against a name that
+    // left one of them is a type error rather than a check.
+    //
+    // The length below cannot stand in for this. The matrix is built by
+    // walking the category list, so a stored row this build does not know
+    // cannot change how long it is, whether or not it is dropped.
+    const retired = new Set<string>([
+      "PIGEON",
+      "JOB_ATTENTION",
+      "CARRIER_PIGEON",
+    ]);
+
+    expect(
+      matrix.filter(
+        (cell) => retired.has(cell.category) || retired.has(cell.channel),
+      ),
+    ).toEqual([]);
     // Two channels for every category, and the email channel only for the
     // categories that send email. Written as the sum rather than as a number,
     // so a category or an email category added later moves it on its own.

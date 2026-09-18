@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   renderChatDirectMessageFollowUpEmail,
   renderChatMentionFollowUpEmail,
-  renderJobFollowUpEmail,
   renderTaskFollowUpEmail,
 } from "../index.js";
 
@@ -58,19 +57,6 @@ describe("reminder emails", () => {
     );
     expect(rendered.html).toContain("Quarterly report");
     expect(rendered.html).toContain(TASK_URL);
-  });
-
-  it("names the job that stopped", async () => {
-    const rendered = await renderJobFollowUpEmail({
-      actionUrl: "https://app.sokosumi.com/agents/a_1/jobs/j_1",
-      jobName: "Market scan",
-      locale: "en",
-      recipientName: "Sandro",
-    });
-
-    expect(rendered.subject).toBe(
-      "Sokosumi - Market scan is still waiting for you",
-    );
   });
 
   it("stands in for a name the notification did not carry", async () => {
@@ -232,22 +218,6 @@ describe("reminder emails", () => {
     // assigned task did neither, so the reason has to reach the preheader too.
     expect(rendered.html).toContain("was assigned to you a day ago");
     expect(rendered.html).not.toContain("stopped and asked for you");
-  });
-
-  it("names the agent a job is waiting on", async () => {
-    const rendered = await renderJobFollowUpEmail({
-      actionUrl: TASK_URL,
-      agentName: "Reporter",
-      jobName: "Nightly report",
-      locale: "en",
-      reason: "inputRequired",
-      recipientName: "Sandro",
-    });
-
-    expect(rendered.html).toContain(
-      "Nightly report stopped a day ago because Reporter needs your input",
-    );
-    expect(rendered.html).toContain("Agent");
   });
 
   it("says the reason in German too", async () => {

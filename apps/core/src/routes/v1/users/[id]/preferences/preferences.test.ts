@@ -306,7 +306,7 @@ describe("user preferences routes", () => {
     const response = await app.request(
       patchRequest("/me/preferences", {
         notificationPreferences: [
-          { category: "JOB_ATTENTION", channel: "OS_BANNER", enabled: false },
+          { category: "TASK_ATTENTION", channel: "OS_BANNER", enabled: false },
         ],
       }),
     );
@@ -316,13 +316,13 @@ describe("user preferences routes", () => {
       where: {
         userId_category_channel: {
           userId: "user_123",
-          category: "JOB_ATTENTION",
+          category: "TASK_ATTENTION",
           channel: "OS_BANNER",
         },
       },
       create: {
         userId: "user_123",
-        category: "JOB_ATTENTION",
+        category: "TASK_ATTENTION",
         channel: "OS_BANNER",
         enabled: false,
       },
@@ -362,7 +362,7 @@ describe("user preferences routes", () => {
               NOTIFICATION_CATEGORIES.length * NOTIFICATION_CHANNELS.length + 1,
           },
           () => ({
-            category: "JOB_ATTENTION",
+            category: "TASK_ATTENTION",
             channel: "IN_APP",
             enabled: false,
           }),

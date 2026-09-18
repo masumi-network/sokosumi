@@ -6,7 +6,6 @@ import {
 import type {
   ChatDirectMessageFollowUpEmailProps,
   ChatMentionFollowUpEmailProps,
-  JobFollowUpEmailProps,
   RenderedEmail,
   TaskFollowUpEmailProps,
 } from "../types.js";
@@ -14,10 +13,10 @@ import type {
 /**
  * The reminder emails (SOK-916).
  *
- * One per family rather than one for all four. A mention, a direct message, a
- * task that stopped for you and a job that stopped for you are four different
- * things to the reader, and a single "you have an unread notification" would
- * say less than the notification it is reminding them about.
+ * One per family rather than one for all three. A mention, a direct message
+ * and a task that stopped for you are three different things to the reader,
+ * and a single "you have an unread notification" would say less than the
+ * notification it is reminding them about.
  *
  * Each is the same shape underneath: the existing action email, which every
  * other transactional email in this package already uses. The families differ
@@ -71,15 +70,15 @@ function nameOr(
 interface FollowUpEmailOptions {
   actionUrl: string;
   facts?: readonly ActionEmailFact[];
-  family: "directMessage" | "job" | "mention" | "task";
+  family: "directMessage" | "mention" | "task";
   quote?: null | string;
   /**
    * Why the thing is waiting, named by the notification that started it.
    *
-   * A task stops for six different reasons and a job for two, and "it needs
-   * you" says none of them. The reminder is stored under one message key per
-   * family so that a task asking twice in a day is still one reminder, so the
-   * reason comes from the source row rather than from the reminder.
+   * A task stops for six different reasons, and "it needs you" says none of
+   * them. The reminder is stored under one message key per family so that a
+   * task asking twice in a day is still one reminder, so the reason comes from
+   * the source row rather than from the reminder.
    *
    * Absent when the source key is one this catalog has no sentence for, which
    * leaves the family's own body. A union rather than a string, so a key with
@@ -206,39 +205,6 @@ export function renderTaskFollowUpEmail({
     values: {
       coworkerName: nameOr(t, coworkerName, "fallbackCoworkerName"),
       taskName: nameOr(t, taskName, "fallbackTaskName"),
-    },
-  });
-}
-
-/** A job still waiting on the reader: input, or a payment that failed. */
-export function renderJobFollowUpEmail({
-  actionUrl,
-  agentName,
-  jobName,
-  locale,
-  reason,
-  recipientName,
-}: JobFollowUpEmailProps): Promise<RenderedEmail> {
-  const { t } = createEmailTranslator(locale);
-  const trimmedAgentName = agentName?.trim();
-
-  return renderFollowUpEmail({
-    actionUrl,
-    facts: trimmedAgentName
-      ? [
-          {
-            label: t(`${FOLLOW_UP_SCOPE}.job.agentLabel`),
-            value: trimmedAgentName,
-          },
-        ]
-      : undefined,
-    family: "job",
-    reason,
-    recipientName,
-    t,
-    values: {
-      agentName: nameOr(t, agentName, "fallbackAgentName"),
-      jobName: nameOr(t, jobName, "fallbackJobName"),
     },
   });
 }

@@ -51,20 +51,19 @@ vi.mock("@sentry/node", () => ({
 
 const CREATED_AT = new Date("2026-06-18T09:00:00.000Z");
 const READ_AT = new Date("2026-06-18T09:30:00.000Z");
-const JOB_KIND = NotificationKind.JOB;
+const TASK_KIND = NotificationKind.TASK;
 
 const notificationInput: CreateNotificationInput = {
   userId: "user_123",
-  kind: JOB_KIND,
-  referenceId: "job_123",
-  eventId: "job_event_123",
-  messageKey: "Notifications.Job.completed",
+  kind: TASK_KIND,
+  referenceId: "task_123",
+  eventId: "task_event_123",
+  messageKey: "Notifications.Task.completed",
   messageParams: {
-    agentName: "Research Agent",
-    jobName: "Market Analysis",
+    coworkerName: "Ada",
+    taskName: "Market Analysis",
   },
   metadata: {
-    agentId: "agent_123",
     projectId: "project_123",
   },
 };
@@ -197,11 +196,11 @@ describe("createNotification", () => {
   it("creates a separate row when the message key differs for the same event", async () => {
     publishNotificationEventMock.mockClear();
     const existing = createNotificationRecord({
-      messageKey: "Notifications.Job.completed",
+      messageKey: "Notifications.Task.completed",
     });
     const created = createNotificationRecord({
       id: "notification_456",
-      messageKey: "Notifications.Job.paymentFailed",
+      messageKey: "Notifications.Task.outOfCredits",
     });
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockResolvedValue(created);
@@ -209,7 +208,7 @@ describe("createNotification", () => {
     const result = await createNotification(
       {
         ...notificationInput,
-        messageKey: "Notifications.Job.paymentFailed",
+        messageKey: "Notifications.Task.outOfCredits",
       },
       prismaMock as unknown as typeof prisma,
     );
@@ -221,7 +220,7 @@ describe("createNotification", () => {
         kind: notificationInput.kind,
         referenceId: notificationInput.referenceId,
         eventId: notificationInput.eventId,
-        messageKey: "Notifications.Job.paymentFailed",
+        messageKey: "Notifications.Task.outOfCredits",
         messageParams: JSON.stringify(notificationInput.messageParams),
         metadata: JSON.stringify(notificationInput.metadata),
         inApp: true,
@@ -229,7 +228,7 @@ describe("createNotification", () => {
     });
     expect(publishNotificationEventMock).toHaveBeenCalled();
     expect(prismaMock.notification.findUnique).not.toHaveBeenCalled();
-    expect(existing.messageKey).toBe("Notifications.Job.completed");
+    expect(existing.messageKey).toBe("Notifications.Task.completed");
   });
 
   it("preserves read state when a duplicate emit arrives after mark-read", async () => {
@@ -397,11 +396,11 @@ describe("createNotification push gating", () => {
   /**
    * The row each kind lands on with this input's message key. Billing has
    * none: the matrix holds no row for it, so it keeps both channels and there
-   * is nothing for a reader to ask for.
+   * is nothing for a reader to ask for. Jobs have none either, since SOK-930
+   * retired their rows along with the notifications that used them.
    */
   const KIND_CATEGORY: Partial<Record<NotificationKind, string>> = {
-    [NotificationKind.JOB]: "JOB_COMPLETED",
-    [NotificationKind.TASK]: "TASK_UPDATE",
+    [NotificationKind.TASK]: "TASK_COMPLETED",
     [NotificationKind.SYSTEM]: "SYSTEM",
   };
 
@@ -500,8 +499,8 @@ describe("createNotification push gating", () => {
     );
     mockReader({
       preferences: [
-        { category: "JOB_COMPLETED", channel: "IN_APP", enabled: false },
-        { category: "JOB_COMPLETED", channel: "OS_BANNER", enabled: true },
+        { category: "TASK_COMPLETED", channel: "IN_APP", enabled: false },
+        { category: "TASK_COMPLETED", channel: "OS_BANNER", enabled: true },
       ],
     });
 
@@ -530,7 +529,7 @@ describe("createNotification push gating", () => {
     );
     mockReader({
       preferences: [
-        { category: "JOB_COMPLETED", channel: "OS_BANNER", enabled: false },
+        { category: "TASK_COMPLETED", channel: "OS_BANNER", enabled: false },
       ],
     });
 
@@ -585,8 +584,8 @@ describe("createNotification push gating", () => {
     );
     mockReader({
       preferences: [
-        { category: "JOB_COMPLETED", channel: "IN_APP", enabled: false },
-        { category: "JOB_COMPLETED", channel: "OS_BANNER", enabled: false },
+        { category: "TASK_COMPLETED", channel: "IN_APP", enabled: false },
+        { category: "TASK_COMPLETED", channel: "OS_BANNER", enabled: false },
       ],
     });
 
