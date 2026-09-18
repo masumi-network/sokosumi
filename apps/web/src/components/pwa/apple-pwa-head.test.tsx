@@ -18,4 +18,13 @@ describe("ApplePwaHead", () => {
     const file = join(process.cwd(), "public", href?.slice(1) ?? "");
     expect(existsSync(file)).toBe(true);
   });
+
+  it("names the home screen after the manifest, not the page title", () => {
+    render(<ApplePwaHead />);
+    const title = document
+      .querySelector('meta[name="apple-mobile-web-app-title"]')
+      ?.getAttribute("content");
+
+    expect(title).toBe("Sokosumi");
+  });
 });
