@@ -153,7 +153,7 @@ export function ProjectSocialPosts({
 
       {hasConnections ? null : (
         <div
-          className="bg-muted/30 border-border/50 space-y-2 rounded-xl border p-4"
+          className="bg-card-background border-border space-y-2 rounded-xl border p-4"
           data-testid="social-posts-connect-callout"
           role="status"
         >
