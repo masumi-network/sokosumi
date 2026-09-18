@@ -6,7 +6,10 @@ import {
 import type { createPrismaClient } from "@sokosumi/database/client";
 import { APIError } from "better-auth/api";
 
-import { eraseWorkspaceCalendarData } from "@/helpers/calendar-erasure";
+import {
+  CalendarErasureBlockedError,
+  eraseWorkspaceCalendarData,
+} from "@/helpers/calendar-erasure";
 import { isPrismaTransactionConflict } from "@/helpers/prisma";
 import { SWEEPABLE_X402_STATUSES } from "@/helpers/task-deletion-payments";
 import { deleteTaskFileIfOwned } from "@/lib/blob";
@@ -536,6 +539,21 @@ export async function prepareTasksForUserDeletion(
       { maxWait: 5_000, timeout: 30_000 },
     );
   } catch (error) {
+    // Personal-workspace erasure runs before the payment guards below, so it
+    // is the first to see a blocking payment. Surface the same codes they use.
+    if (error instanceof CalendarErasureBlockedError) {
+      throw error.blocker === "task_payment_authorization_live"
+        ? new APIError("BAD_REQUEST", {
+            code: "TASK_X402_PAYMENT_AUTHORIZATION_LIVE",
+            message:
+              "A signed task payment authorization is still live. Retry account deletion after it expires, or contact support.",
+          })
+        : new APIError("BAD_REQUEST", {
+            code: "TASK_X402_PAYMENT_UNRESOLVED",
+            message:
+              "A task payment is in a state that blocks account deletion. Contact support, then delete your account again.",
+          });
+    }
     if (isPrismaTransactionConflict(error)) {
       // Deliberately NOT an x402-specific code: this catch wraps the whole
       // transaction, and a write conflict or deadlock can just as well come

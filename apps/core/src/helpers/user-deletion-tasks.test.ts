@@ -4,6 +4,7 @@ import {
 } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CalendarErasureBlockedError } from "./calendar-erasure";
 import { prepareTasksForUserDeletion } from "./user-deletion-tasks";
 
 const {
@@ -48,7 +49,8 @@ const {
   eraseWorkspaceCalendarDataMock: vi.fn(),
 }));
 
-vi.mock("@/helpers/calendar-erasure", () => ({
+vi.mock("@/helpers/calendar-erasure", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/helpers/calendar-erasure")>()),
   eraseWorkspaceCalendarData: eraseWorkspaceCalendarDataMock,
 }));
 
@@ -207,6 +209,30 @@ describe("prepareTasksForUserDeletion", () => {
       expect.any(Object),
       "workspace_personal",
     );
+  });
+
+  it.each([
+    ["task_payment_unresolved", "TASK_X402_PAYMENT_UNRESOLVED"],
+    ["task_payment_authorization_live", "TASK_X402_PAYMENT_AUTHORIZATION_LIVE"],
+  ] as const)("maps a %s erasure blocker to %s", async (blocker, code) => {
+    queryRawMock
+      .mockResolvedValueOnce([{ id: "user_delete" }])
+      .mockResolvedValueOnce([
+        { id: "workspace_personal", userId: "user_delete" },
+      ]);
+    eraseWorkspaceCalendarDataMock.mockRejectedValue(
+      new CalendarErasureBlockedError(blocker),
+    );
+
+    await expect(
+      prepareTasksForUserDeletion("user_delete", {
+        $transaction: transactionMock,
+      } as never),
+    ).rejects.toMatchObject({
+      status: "BAD_REQUEST",
+      body: expect.objectContaining({ code }),
+    });
+    expect(userDeleteManyMock).not.toHaveBeenCalled();
   });
 
   it("treats a concurrent delete that already removed the user as a no-op", async () => {
