@@ -3,6 +3,7 @@ import {
   composioEntityId,
   requireBot,
   SokoBotIntegrationError,
+  withComposio,
 } from "@/services/soko-bot-integrations.service";
 
 /** Composio's own default host; mirrors the SDK when no override is set. */
@@ -47,15 +48,19 @@ export async function completeSokoBotIntegrationAuth(input: {
   const bot = await requireBot(input.userId, input.workspaceId);
   // Keep any path prefix on the configured base; `new URL` would drop it.
   const endpoint = `${baseUrl.replace(/\/+$/, "")}${COMPLETE_AUTH_PATH}`;
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: { "x-api-key": apiKey, "content-type": "application/json" },
-    body: JSON.stringify({
-      session_uri: input.sessionUri,
-      user_id: composioEntityId(bot.id),
+  // A timeout or a transport failure must surface the same way as every other
+  // Composio call, not as an unmapped 500.
+  const response = await withComposio("complete auth", () =>
+    fetch(endpoint, {
+      method: "POST",
+      headers: { "x-api-key": apiKey, "content-type": "application/json" },
+      body: JSON.stringify({
+        session_uri: input.sessionUri,
+        user_id: composioEntityId(bot.id),
+      }),
+      signal: AbortSignal.timeout(COMPLETE_AUTH_TIMEOUT_MS),
     }),
-    signal: AbortSignal.timeout(COMPLETE_AUTH_TIMEOUT_MS),
-  });
+  );
   if (response.status === 400) {
     // Composio reports an identity mismatch here, and moves the connection to
     // FAILED on its side, so the refused authorization is not left usable.
