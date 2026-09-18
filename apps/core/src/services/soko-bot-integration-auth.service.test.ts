@@ -5,7 +5,7 @@ const requireBot = vi.fn();
 vi.mock("@/config/env", () => ({
   getEnv: () => ({
     COMPOSIO_API_KEY: "test-key",
-    COMPOSIO_API_BASE_URL: "https://composio.test",
+    COMPOSIO_API_BASE_URL: "https://composio.test/proxy",
   }),
 }));
 
@@ -66,7 +66,7 @@ describe("completeSokoBotIntegrationAuth", () => {
     expect(requireBot).toHaveBeenCalledWith("user-1", "workspace-1");
     const [url, init] = fetchMock.mock.calls[0] ?? [];
     expect(String(url)).toBe(
-      "https://composio.test/api/v3.1/connected_accounts/complete_auth",
+      "https://composio.test/proxy/api/v3.1/connected_accounts/complete_auth",
     );
     expect(init?.headers).toMatchObject({ "x-api-key": "test-key" });
     // The entity must be the signed-in caller's bot, never one named by the
@@ -88,7 +88,43 @@ describe("completeSokoBotIntegrationAuth", () => {
     await completeSokoBotIntegrationAuth(input);
 
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
-      "https://composio.test/api/v3.1/connected_accounts/complete_auth",
+      "https://composio.test/proxy/api/v3.1/connected_accounts/complete_auth",
+    );
+  });
+
+  it("bounds the request so a hung Composio cannot hold the verifier", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(200, {
+        connected_account_id: "ca_1",
+        toolkit_slug: "gmail",
+      }),
+    );
+
+    await completeSokoBotIntegrationAuth(input);
+
+    expect(fetchMock.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("surfaces a transport failure as an integration error, not a raw throw", async () => {
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(
+      new Error("socket hang up"),
+    );
+
+    await expect(completeSokoBotIntegrationAuth(input)).rejects.toBeInstanceOf(
+      SokoBotIntegrationError,
+    );
+  });
+
+  it("rejects a success body that is not JSON", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("<html>gateway</html>", {
+        status: 200,
+        headers: { "content-type": "text/html" },
+      }),
+    );
+
+    await expect(completeSokoBotIntegrationAuth(input)).rejects.toBeInstanceOf(
+      SokoBotIntegrationError,
     );
   });
 

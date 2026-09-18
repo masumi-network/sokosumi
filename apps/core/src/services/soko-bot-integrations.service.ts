@@ -39,7 +39,10 @@ export function composioEntityId(sokoBotId: string): string {
 }
 
 /** Any failure talking to Composio surfaces with its message instead of a 500. */
-async function withComposio<T>(what: string, fn: () => Promise<T>): Promise<T> {
+export async function withComposio<T>(
+  what: string,
+  fn: () => Promise<T>,
+): Promise<T> {
   try {
     return await fn();
   } catch (error) {
