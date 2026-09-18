@@ -2,10 +2,11 @@ import { z } from "@hono/zod-openapi";
 
 export const completeSokoBotIntegrationAuthRequestSchema = z
   .object({
+    // Deliberately unbounded beyond non-empty: the value is opaque and minted
+    // upstream, so a guessed length cap would fail every connect if it grew.
     sessionUri: z
       .string()
       .min(1)
-      .max(2048)
       .describe("The single-use session URI Composio hands to the verifier"),
   })
   .openapi("CompleteSokoBotIntegrationAuthRequest");

@@ -62,10 +62,12 @@ export async function completeSokoBotIntegrationAuth(input: {
     }),
   );
   if (response.status === 400) {
-    // Composio reports an identity mismatch here, and moves the connection to
-    // FAILED on its side, so the refused authorization is not left usable.
+    // Composio reports an identity mismatch here, but also a malformed session
+    // URI, and the body is not read, so the message must cover both. Composio
+    // is documented to move a refused connection to FAILED on its side; that
+    // has not been observed on a live call.
     throw new SokoBotIntegrationError(
-      "This authorization was started by a different account",
+      "This authorization could not be matched to your account",
       "IDENTITY_MISMATCH",
     );
   }

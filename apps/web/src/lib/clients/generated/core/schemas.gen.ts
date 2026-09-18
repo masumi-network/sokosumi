@@ -17754,7 +17754,6 @@ export const CompleteSokoBotIntegrationAuthRequestSchema = {
         sessionUri: {
             type: 'string',
             minLength: 1,
-            maxLength: 2048,
             description: 'The single-use session URI Composio hands to the verifier'
         }
     },
