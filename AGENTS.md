@@ -341,7 +341,7 @@ These notes cover non-obvious, durable facts about running this repo in the Curs
 ### Runtime versions
 
 - **Node 24 is the required runtime** (root `.nvmrc` = `lts/krypton`; apps and packages pin `"engines": { "node": "24.x" }` — root `package.json` has no `engines` field). The base image's `/exec-daemon/node` is Node 22 and is early in `PATH`, so Node 24 (installed via nvm) is symlinked into `/usr/local/cargo/bin` (which is first in `PATH`) as `node`/`npm`/`npx`/`corepack`/`pnpm`. This makes `node -v` report Node 24 in **every** shell (login or not). If a future run somehow sees Node 22, recreate those symlinks from `~/.nvm/versions/node/v24*/bin`.
-- **pnpm via Corepack:** Environment `install`/`start` call `scripts/cloud-agent-db/ensure-pnpm.sh`, which `corepack prepare`s the pin in root `package.json` `packageManager` and deletes `~/.local/share/pnpm/.tools/pnpm`. A leftover pnpm 12 standalone placeholder there is not a valid shell script and fails builds with `Syntax error: ")" unexpected`. Read `packageManager` for the version — do not remember a `pnpm -v` number here.
+- **pnpm via Corepack:** Environment `install`/`start` call `scripts/cloud-agent-db/ensure-pnpm.sh`, which `corepack prepare`s the pin in root `package.json` `devEngines.packageManager` and deletes `~/.local/share/pnpm/.tools/pnpm`. A leftover pnpm 12 standalone placeholder there is not a valid shell script and fails builds with `Syntax error: ")" unexpected`. Read `devEngines.packageManager` for the version — do not remember a `pnpm -v` number here. The legacy top-level `packageManager` field is kept in sync only because Vercel's Corepack path reads it; Corepack errors if the two disagree.
 
 ### Database (Cloud agent Neon branch)
 
