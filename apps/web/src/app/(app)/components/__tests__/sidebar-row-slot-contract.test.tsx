@@ -160,6 +160,31 @@ describe("every sidebar row uses the shared leading slot", () => {
     }
   });
 
+  it("renders a rail square per section, Archived included", () => {
+    const { container } = renderSidebar();
+
+    // Every section keeps a square on the rail or the sections below it jump
+    // on a toggle, and each square's mark uses the same slot as the rows it
+    // heads. Named rather than counted: the `> 20` total above would not dent
+    // if a section lost its square, and Archived is the one that only just
+    // got one — its rows never reach the rail, so nothing else there would
+    // hold its heading's place.
+    const squares = [
+      ...container.querySelectorAll('[data-slot="section-rail-header"]'),
+    ];
+    expect(squares.map((square) => square.textContent?.trim())).toContain(
+      "archivedChannels",
+    );
+    // Pinned, Channels, External, Archived, Direct Messages.
+    expect(squares).toHaveLength(5);
+    for (const square of squares) {
+      expect(
+        square.querySelector(SLOT),
+        square.textContent ?? "",
+      ).not.toBeNull();
+    }
+  });
+
   it("gives every row button the slot as its first child", () => {
     const { container } = renderSidebar();
 

@@ -29,11 +29,9 @@ import type { SectionAttention } from "./room-attention";
 function Section({
   defaultOpen = true,
   closedAttention = null,
-  withRailIcon = true,
 }: {
   defaultOpen?: boolean;
   closedAttention?: SectionAttention;
-  withRailIcon?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
 
@@ -44,7 +42,7 @@ function Section({
           <Collapsible open={open} onOpenChange={setOpen}>
             <ChatSidebarSectionHeader
               isOpen={open}
-              railIcon={withRailIcon ? Hash : undefined}
+              railIcon={Hash}
               closedAttention={closedAttention}
             >
               Channels
@@ -116,12 +114,6 @@ describe("ChatSidebarSectionHeader on the collapsed rail", () => {
     expect(
       screen.getAllByRole("button", { name: "Channels Unread" }),
     ).toHaveLength(2);
-  });
-
-  it("stays off the rail without an icon, as Archived does", () => {
-    const { container } = render(<Section withRailIcon={false} />);
-
-    expect(railHeader(container)).toBeNull();
   });
 });
 

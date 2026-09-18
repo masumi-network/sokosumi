@@ -29,8 +29,8 @@ import type { SectionAttention } from "./room-attention";
  * before it runs under them. Below `md` each control reaches 44px through a
  * pseudo-element, and the slot's gap keeps those two targets from overlapping.
  *
- * A section with a `railIcon` keeps its heading on the collapsed rail, as the
- * same 32px square every rail item is: the icon names the section, the
+ * Every section keeps its heading on the collapsed rail, as the same 32px
+ * square every rail item is: the icon names the section, the
  * tooltip spells it out, and pressing it opens or closes the section there
  * too. It stands where the expanded heading's 32px row stood, so the rooms
  * under it keep their place when the sidebar toggles, and it marks where one
@@ -64,7 +64,9 @@ export function ChatSidebarSectionHeader({
   /** The section's title. A string, because the rail's tooltip shows it too. */
   children: string;
   isOpen: boolean;
-  railIcon?: ComponentType<SVGProps<SVGSVGElement>>;
+  /** Required: every section keeps a square on the rail, or the sections
+   *  below it jump when the sidebar toggles. */
+  railIcon: ComponentType<SVGProps<SVGSVGElement>>;
   closedAttention?: SectionAttention;
   /** Rail square expands the sidebar and runs this, instead of toggling. */
   onRailPress?: () => void;
@@ -137,39 +139,37 @@ export function ChatSidebarSectionHeader({
           </div>
         ) : null}
       </div>
-      {RailIcon ? (
-        <div
-          data-slot="section-rail-header"
-          className="relative hidden group-data-[collapsible=icon]:block"
+      <div
+        data-slot="section-rail-header"
+        className="relative hidden group-data-[collapsible=icon]:block"
+      >
+        {attention ? <RailAttentionPill variant={attention} /> : null}
+        <SidebarMenuButton
+          asChild={!onRailPress}
+          type={onRailPress ? "button" : undefined}
+          tooltip={children}
+          onClick={
+            onRailPress
+              ? () => {
+                  // The expanded heading is `display: none` until the
+                  // sidebar commits its new state, so it cannot take focus
+                  // before then.
+                  flushSync(onRailPress);
+                  expandedTriggerRef.current?.focus();
+                }
+              : undefined
+          }
+          // `isOpen`, not `data-[state=closed]`: the tooltip trigger writes
+          // its own `data-state` onto this same button and wins.
+          className={cn("text-muted-foreground", !isOpen && "opacity-60")}
         >
-          {attention ? <RailAttentionPill variant={attention} /> : null}
-          <SidebarMenuButton
-            asChild={!onRailPress}
-            type={onRailPress ? "button" : undefined}
-            tooltip={children}
-            onClick={
-              onRailPress
-                ? () => {
-                    // The expanded heading is `display: none` until the
-                    // sidebar commits its new state, so it cannot take focus
-                    // before then.
-                    flushSync(onRailPress);
-                    expandedTriggerRef.current?.focus();
-                  }
-                : undefined
-            }
-            // `isOpen`, not `data-[state=closed]`: the tooltip trigger writes
-            // its own `data-state` onto this same button and wins.
-            className={cn("text-muted-foreground", !isOpen && "opacity-60")}
-          >
-            {onRailPress ? (
-              railContent
-            ) : (
-              <CollapsibleTrigger>{railContent}</CollapsibleTrigger>
-            )}
-          </SidebarMenuButton>
-        </div>
-      ) : null}
+          {onRailPress ? (
+            railContent
+          ) : (
+            <CollapsibleTrigger>{railContent}</CollapsibleTrigger>
+          )}
+        </SidebarMenuButton>
+      </div>
     </>
   );
 }
