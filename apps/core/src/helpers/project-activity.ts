@@ -1,5 +1,6 @@
+import { z } from "@hono/zod-openapi";
 import { PrismaRaw } from "@sokosumi/database/client";
-import { forbidden } from "@/helpers/error";
+import { badRequest, forbidden } from "@/helpers/error";
 import {
   buildCoworkerTaskAccessSql,
   buildHumanTaskVisibilitySql,
@@ -36,6 +37,43 @@ export async function projectActivityVisibility(
   };
 }
 
+const projectActivityCursorSchema = z.object({
+  workspaceId: z.uuid(),
+  id: z.uuid(),
+  lastActivityAt: z.iso.datetime(),
+});
+
+export interface ProjectActivityRow {
+  id: string;
+  lastActivityAt: Date;
+}
+
+export function encodeProjectActivityCursor(
+  workspaceId: string,
+  row: ProjectActivityRow,
+): string {
+  return Buffer.from(
+    JSON.stringify({
+      workspaceId,
+      id: row.id,
+      lastActivityAt: row.lastActivityAt.toISOString(),
+    }),
+  ).toString("base64url");
+}
+
+function decodeProjectActivityCursor(cursor: string, workspaceId: string) {
+  try {
+    const boundary = projectActivityCursorSchema.parse(
+      JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")),
+    );
+    if (boundary.workspaceId !== workspaceId)
+      throw new Error("Wrong workspace");
+    return boundary;
+  } catch {
+    throw badRequest("Invalid project pagination cursor");
+  }
+}
+
 interface ProjectActivityPageParams {
   workspaceId: string;
   cursor?: string;
@@ -46,7 +84,7 @@ interface ProjectActivityPageParams {
 /** Global database ordering, before LIMIT. Metadata/report refreshes do not
  * count as activity. Creation is the floor; task/job events, ready task outputs,
  * and project lifecycle events advance it. Reader-invisible work cannot do so.
- * ID is the deterministic tie break and remains the public cursor contract.
+ * The cursor carries the immutable activity/ID boundary, scoped to the workspace.
  */
 export function projectActivityPageQuery({
   workspaceId,
@@ -54,6 +92,9 @@ export function projectActivityPageQuery({
   take,
   visibility,
 }: ProjectActivityPageParams) {
+  const boundary = cursor
+    ? decodeProjectActivityCursor(cursor, workspaceId)
+    : undefined;
   return PrismaRaw.sql`
     WITH activity AS (
       SELECT t."projectId", GREATEST(t."createdAt",
@@ -69,7 +110,7 @@ export function projectActivityPageQuery({
         (SELECT MAX(e."createdAt") FROM "jobEvent" e WHERE e."jobId" = j.id)) AS at
       FROM job j LEFT JOIN task t ON t.id = j."taskId"
       WHERE j."workspaceId" = ${workspaceId}::uuid AND j."projectId" IS NOT NULL
-        AND (j."taskId" IS NULL OR t."workspaceId" = ${workspaceId}::uuid)
+        AND (j."taskId" IS NULL OR (t."workspaceId" = ${workspaceId}::uuid AND t."archivedAt" IS NULL))
         ${visibility.job}
       UNION ALL
       SELECT e."projectId", e."createdAt" AS at
@@ -83,10 +124,8 @@ export function projectActivityPageQuery({
     )
     SELECT r.id, r."lastActivityAt" FROM ranked r
     ${
-      cursor
-        ? PrismaRaw.sql`WHERE (r."lastActivityAt", r.id) < (
-      SELECT c."lastActivityAt", c.id FROM ranked c WHERE c.id::text = ${cursor}
-    )`
+      boundary
+        ? PrismaRaw.sql`WHERE (r."lastActivityAt", r.id) < (${boundary.lastActivityAt}::timestamp, ${boundary.id}::uuid)`
         : PrismaRaw.empty
     }
     ORDER BY r."lastActivityAt" DESC, r.id DESC

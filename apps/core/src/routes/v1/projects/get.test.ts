@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LIMITS } from "@/config/constants";
+import { encodeProjectActivityCursor } from "@/helpers/project-activity";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
@@ -184,7 +185,9 @@ describe("GET /projects", () => {
       }),
     );
     projectFindManyMock.mockResolvedValue([...rows].reverse());
-    queryRawMock.mockResolvedValue(rows.map(({ id }) => ({ id })));
+    queryRawMock.mockResolvedValue(
+      rows.map(({ id, createdAt }) => ({ id, lastActivityAt: createdAt })),
+    );
     projectCountMock.mockResolvedValue(50);
 
     const app = createApp();
@@ -200,24 +203,71 @@ describe("GET /projects", () => {
       rows.slice(0, LIMITS.DEFAULT_PAGINATION_LIMIT).map(({ id }) => id),
     );
     expect(body.meta.pagination.nextCursor).toBe(
-      body.data[LIMITS.DEFAULT_PAGINATION_LIMIT - 1]?.id ?? null,
+      encodeProjectActivityCursor(WORKSPACE_CONTEXT.workspaceId, {
+        id: rows[LIMITS.DEFAULT_PAGINATION_LIMIT - 1].id,
+        lastActivityAt: rows[0].createdAt,
+      }),
     );
   });
 
   it("passes a bounded cursor query for the next globally ordered page", async () => {
     const cursorId = "11111111-1111-4111-8111-111111111111";
+    const cursor = encodeProjectActivityCursor(WORKSPACE_CONTEXT.workspaceId, {
+      id: cursorId,
+      lastActivityAt: new Date("2026-04-01T10:00:00.000Z"),
+    });
     projectFindManyMock.mockResolvedValue([]);
     projectCountMock.mockResolvedValue(0);
 
     const app = createApp();
     const res = await app.request(
-      `http://localhost/?cursor=${encodeURIComponent(cursorId)}&limit=10`,
+      `http://localhost/?cursor=${encodeURIComponent(cursor)}&limit=10`,
     );
 
     expect(res.status).toBe(200);
     expect(queryRawMock).toHaveBeenCalledOnce();
     expect(queryRawMock.mock.calls[0][0].values).toEqual(
       expect.arrayContaining([cursorId, 11, WORKSPACE_CONTEXT.workspaceId]),
+    );
+  });
+
+  it.each([
+    "not-a-cursor",
+    Buffer.from(
+      JSON.stringify({
+        workspaceId: WORKSPACE_CONTEXT.workspaceId,
+        id: "not-an-id",
+        lastActivityAt: "not-a-date",
+      }),
+    ).toString("base64url"),
+    encodeProjectActivityCursor("bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb", {
+      id: "11111111-1111-4111-8111-111111111111",
+      lastActivityAt: new Date("2026-04-01"),
+    }),
+  ])(
+    "rejects invalid or foreign-workspace cursors before querying",
+    async (cursor) => {
+      const res = await createApp().request(
+        `http://localhost/?cursor=${encodeURIComponent(cursor)}`,
+      );
+      expect(res.status).toBe(400);
+      expect(queryRawMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps the ranked boundary when a project disappears before hydration", async () => {
+    const ranked = [1, 2].map((n) => ({
+      id: `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`,
+      lastActivityAt: new Date("2026-04-01"),
+    }));
+    queryRawMock.mockResolvedValue(ranked);
+    projectFindManyMock.mockResolvedValue([]);
+    const res = await createApp().request("http://localhost/?limit=1");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data).toEqual([]);
+    expect(body.meta.pagination.nextCursor).toBe(
+      encodeProjectActivityCursor(WORKSPACE_CONTEXT.workspaceId, ranked[0]),
     );
   });
 

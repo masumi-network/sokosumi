@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { createPrismaClient } from "@sokosumi/database/client";
 import { afterAll, describe, expect, it, vi } from "vitest";
 import {
+  encodeProjectActivityCursor,
+  type ProjectActivityRow,
   projectActivityPageQuery,
   projectActivityVisibility,
 } from "./project-activity";
@@ -77,6 +79,8 @@ describe.skipIf(!enabled)("project activity SQL against PostgreSQL", () => {
         await tx.$executeRaw`INSERT INTO "taskEvent" VALUES ('public','2026-02-01'),('mine','2026-02-01'),('secret','2031-01-01'),('archived','2031-01-01'),('draft','2026-01-15')`;
         await tx.$executeRaw`INSERT INTO task_file VALUES ('output','2026-03-01','READY','TASK_OUTPUT','https://example.com/file'),('public','2031-01-01','PENDING','TASK_OUTPUT',NULL),('public','2031-01-01','READY','TASK_INPUT','https://example.com/input')`;
         await tx.$executeRaw`INSERT INTO job VALUES ('job',${id(7)}::uuid,${workspaceId}::uuid,'2026-01-01',NULL), ('secret-job',${id(3)}::uuid,${workspaceId}::uuid,'2031-01-01','secret')`;
+        await tx.$executeRaw`INSERT INTO job VALUES ('archived-created', ${id(4)}::uuid, ${workspaceId}::uuid, '2033-01-01', 'archived'), ('archived-event', ${id(4)}::uuid, ${workspaceId}::uuid, '2026-01-01', 'archived')`;
+        await tx.$executeRaw`INSERT INTO "jobEvent" VALUES ('archived-event', '2034-01-01')`;
         await tx.$executeRaw`INSERT INTO "jobEvent" VALUES ('job','2026-04-01')`;
         await tx.$executeRaw`INSERT INTO project_event VALUES (${id(8)}::uuid,'2026-05-01'),(${id(26)}::uuid,'2032-01-01')`;
         const human = await projectActivityVisibility(
@@ -93,21 +97,42 @@ describe.skipIf(!enabled)("project activity SQL against PostgreSQL", () => {
           cursor?: string,
           take = 10,
         ) {
-          return tx.$queryRaw<Array<{ id: string }>>(
+          return tx.$queryRaw<ProjectActivityRow[]>(
             projectActivityPageQuery({ workspaceId, cursor, take, visibility }),
           );
         }
         const first = await page(human);
-        const second = await page(human, first.at(-1)?.id);
-        const third = await page(human, second.at(-1)?.id);
+        const second = await page(
+          human,
+          encodeProjectActivityCursor(workspaceId, first[first.length - 1]),
+        );
+        const third = await page(
+          human,
+          encodeProjectActivityCursor(workspaceId, second[second.length - 1]),
+        );
         const ids = [...first, ...second, ...third].map((p) => p.id);
         expect(ids).toHaveLength(25);
         expect(new Set(ids).size).toBe(25);
         expect(ids.slice(0, 8)).toEqual([8, 7, 6, 2, 1, 5, 25, 24].map(id));
         expect(ids.slice(-2)).toEqual([4, 3].map(id));
         expect(ids).not.toContain(id(26));
-        expect(await page(human, id(26))).toEqual([]);
-        expect(await page(human, "not-a-project")).toEqual([]);
+        await expect(
+          page(human, encodeProjectActivityCursor(otherWorkspace, first[0])),
+        ).rejects.toThrow("Invalid project pagination cursor");
+        await expect(page(human, "not-a-project")).rejects.toThrow(
+          "Invalid project pagination cursor",
+        );
+
+        const anchor = first.at(-1);
+        if (!anchor) throw new Error("Missing first-page anchor");
+        await tx.$executeRaw`INSERT INTO project_event VALUES (${anchor.id}::uuid, '2035-01-01')`;
+        expect(
+          await page(human, encodeProjectActivityCursor(workspaceId, anchor)),
+        ).toEqual(second);
+        await tx.$executeRaw`DELETE FROM project WHERE id=${anchor.id}::uuid`;
+        expect(
+          await page(human, encodeProjectActivityCursor(workspaceId, anchor)),
+        ).toEqual(second);
 
         const coworker = await projectActivityVisibility(
           {

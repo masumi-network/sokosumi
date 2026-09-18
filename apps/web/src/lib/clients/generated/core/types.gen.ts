@@ -31047,7 +31047,7 @@ export type GetProjectsData = {
     path?: never;
     query?: {
         /**
-         * Cursor for pagination (ID of the last item from previous page)
+         * Opaque activity cursor returned in nextCursor by the previous page
          */
         cursor?: string;
         /**
@@ -31059,6 +31059,21 @@ export type GetProjectsData = {
 };
 
 export type GetProjectsErrors = {
+    /**
+     * Invalid pagination cursor
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
