@@ -39,8 +39,16 @@ describe("useQuietHoverWhileScrolling", () => {
     scrollOnce(scroller);
     expect(scroller.hasAttribute(CHAT_SCROLLING_ATTRIBUTE)).toBe(true);
 
+    // The window is a tuning number, so bracket it rather than pin it: long
+    // enough that the pill does not flash back between two wheel ticks, short
+    // enough that it returns while the pointer is still where it was left.
     act(() => {
-      vi.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(100);
+    });
+    expect(scroller.hasAttribute(CHAT_SCROLLING_ATTRIBUTE)).toBe(true);
+
+    act(() => {
+      vi.advanceTimersByTime(200);
     });
     expect(scroller.hasAttribute(CHAT_SCROLLING_ATTRIBUTE)).toBe(false);
   });
@@ -93,19 +101,23 @@ describe("useQuietHoverWhileScrolling", () => {
     expect(scroller.hasAttribute(CHAT_SCROLLING_ATTRIBUTE)).toBe(true);
   });
 
-  it("does not hide a keyboard-focused pill while the scroller is marked", () => {
-    const css = readFileSync(
+  it("leaves a pill the reader is using out of the scroll rule", () => {
+    // Unlayered CSS outweighs the pill's own utilities, so the exceptions can
+    // only live in the rule itself. Read it back from the stylesheet: nothing
+    // else would catch a selector edit that drops one.
+    const selector = readFileSync(
       resolve(process.cwd(), "src/app/globals.css"),
       "utf8",
-    ).replace(/\/\*[\s\S]*?\*\//g, "");
+    )
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/\s+/g, " ")
+      .replace(/ ?([(){]) ?/g, "$1");
 
-    expect(css).toContain(
-      `[${CHAT_SCROLLING_ATTRIBUTE}] [data-message-actions="hover"]:not(:focus-within)`,
+    expect(selector).toContain(
+      `[${CHAT_SCROLLING_ATTRIBUTE}] [data-message-actions="hover"]:not(:focus-within):not(:has([aria-expanded="true"])){`,
     );
-    expect(css).not.toMatch(
-      new RegExp(
-        `\\[${CHAT_SCROLLING_ATTRIBUTE}\\]\\s+\\[data-message-actions="hover"\\]\\s*\\{`,
-      ),
+    expect(selector).not.toContain(
+      `[${CHAT_SCROLLING_ATTRIBUTE}] [data-message-actions="hover"]{`,
     );
   });
 });
