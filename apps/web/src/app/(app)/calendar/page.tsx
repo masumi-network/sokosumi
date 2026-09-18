@@ -18,7 +18,10 @@ import {
   resolveCalendarDate,
 } from "@/lib/schedules/calendar-range";
 import { coworkerService } from "@/lib/services/coworker.service";
-import { taskService } from "@/lib/services/task.service";
+import {
+  taskService,
+  type WorkspaceCalendarPage,
+} from "@/lib/services/task.service";
 
 interface CalendarPageProps {
   searchParams: Promise<{
@@ -29,6 +32,7 @@ interface CalendarPageProps {
     sourceId?: string;
     scope?: string;
     status?: string;
+    view?: string;
   }>;
 }
 
@@ -58,7 +62,9 @@ export default async function CalendarPage({
     sourceId,
     scope,
     status,
+    view,
   } = await searchParams;
+  const isSchedulesView = view === "schedules";
   const calendarStatus = Object.values(TaskStatus).find(
     (taskStatus) => taskStatus === status,
   );
@@ -67,29 +73,45 @@ export default async function CalendarPage({
   const initialDate = resolveCalendarDate(date, now);
   const range = getCalendarRange(initialDate);
   const [
-    { items, pagination },
+    occurrencePage,
     sources,
     coworkers,
     memberOptions,
     allProjectOptions,
+    schedulePage,
   ] = await Promise.all([
-    taskService.getWorkspaceCalendar({
-      ...range,
-      assigneeId,
-      assigneeUserId,
-      limit: 100,
-      projectId,
-      sourceId,
-      scope: scope === "owned" ? "owned" : "workspace",
-      status: calendarStatus,
-    }),
+    isSchedulesView
+      ? Promise.resolve<WorkspaceCalendarPage>({ items: [], pagination: null })
+      : taskService.getWorkspaceCalendar({
+          ...range,
+          assigneeId,
+          assigneeUserId,
+          limit: 100,
+          projectId,
+          sourceId,
+          scope: scope === "owned" ? "owned" : "workspace",
+          status: calendarStatus,
+        }),
     taskService.getWorkspaceCalendarSources(),
     coworkerService.listCoworkers().catch(() => []),
     listTaskAssigneeMemberOptions(
       session?.session?.activeOrganizationId ?? null,
     ),
     getProjectFilterOptions(projectId),
+    isSchedulesView
+      ? taskService.listTasks({
+          hasSchedule: true,
+          sort: "nextRunAt",
+          scope: scope === "owned" ? "owned" : "workspace",
+          projectId: projectId ?? undefined,
+          status: calendarStatus,
+          assigneeId,
+          assigneeUserId,
+          limit: 100,
+        })
+      : Promise.resolve(null),
   ]);
+  const { items, pagination } = occurrencePage;
   const coworkerOptions = [...memberOptions, ...getCoworkerOptions(coworkers)];
   const workspaceSource = sources.find(
     (source) =>
@@ -117,7 +139,7 @@ export default async function CalendarPage({
         <WorkspaceCalendar
           activeOrganizationId={session?.session?.activeOrganizationId ?? null}
           currentUserId={session?.user?.id ?? null}
-          key={`${initialDate}-${projectId ?? "all"}-${sourceId ?? "all"}-${scope ?? "workspace"}-${assigneeId ?? "all"}-${calendarStatus ?? "all"}`}
+          key={`${initialDate}-${projectId ?? "all"}-${sourceId ?? "all"}-${scope ?? "workspace"}-${assigneeId ?? "all"}-${calendarStatus ?? "all"}-${view ?? "all"}`}
           initialDate={initialDate}
           items={items}
           latestDate={format(latestCalendarDate, "yyyy-MM-dd")}
@@ -126,6 +148,8 @@ export default async function CalendarPage({
           pagination={pagination}
           range={range}
           coworkers={coworkerOptions}
+          scheduledTasks={schedulePage?.tasks}
+          scheduledTasksPagination={schedulePage?.pagination}
         />
         <CalendarCreateTaskModal
           coworkerOptions={coworkerOptions}

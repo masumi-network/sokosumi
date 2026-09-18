@@ -3299,7 +3299,7 @@ export const postCoworkersByIdUnarchive = <ThrowOnError extends boolean = false>
 });
 
 /**
- * List tasks in the active workspace (paginated)
+ * List tasks in the active workspace (paginated). hasSchedule=true returns only tasks with an active schedule series (metadata or nextRunAt set); hasSchedule=false returns only tasks without one. Use sort=nextRunAt to order series by their next run.
  */
 export const getTasks = <ThrowOnError extends boolean = false>(options?: Options<GetTasksData, ThrowOnError>): RequestResult<GetTasksResponses, GetTasksErrors, ThrowOnError> => (options?.client ?? client).get<GetTasksResponses, GetTasksErrors, ThrowOnError>({
     responseTransformer: getTasksResponseTransformer,
