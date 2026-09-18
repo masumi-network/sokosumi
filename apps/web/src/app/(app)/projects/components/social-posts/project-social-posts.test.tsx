@@ -1,4 +1,11 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -13,12 +20,37 @@ import {
 import type {
   ProjectSocialConnection,
   SocialPost,
+  SocialPostMediaRef,
 } from "@/lib/clients/generated/core/types.gen";
 
-const { refreshMock, toastErrorMock, toastSuccessMock } = vi.hoisted(() => ({
+const {
+  refreshMock,
+  toastErrorMock,
+  toastSuccessMock,
+  uploadDriveFileMock,
+  drivePickerFile,
+  drivePickerVideoFile,
+} = vi.hoisted(() => ({
   refreshMock: vi.fn(),
   toastErrorMock: vi.fn(),
   toastSuccessMock: vi.fn(),
+  uploadDriveFileMock: vi.fn(),
+  drivePickerFile: {
+    name: "launch.png",
+    fileUrl:
+      "https://store.public.blob.vercel-storage.com/drive/users/user_1/launch.png",
+    pathname: "drive/users/user_1/launch.png",
+    size: 2048,
+    uploadedAt: new Date("2026-09-14T10:00:00.000Z"),
+  },
+  drivePickerVideoFile: {
+    name: "clip.mp4",
+    fileUrl:
+      "https://store.public.blob.vercel-storage.com/drive/users/user_1/clip.mp4",
+    pathname: "drive/users/user_1/clip.mp4",
+    size: 4096,
+    uploadedAt: new Date("2026-09-14T10:00:00.000Z"),
+  },
 }));
 
 const MESSAGES: Record<string, string> = {
@@ -63,6 +95,25 @@ const MESSAGES: Record<string, string> = {
   "composer.text": "Text",
   "composer.textPlaceholder": "What do you want to post?",
   "composer.characters": "{count} / {limit}",
+  "composer.media.addFromDrive": "Add from Drive",
+  "composer.media.upload": "Upload",
+  "composer.media.uploading": "Uploading…",
+  "composer.media.remove": "Remove {name}",
+  "composer.media.hint": "Up to 4 images, or one GIF, or one video.",
+  "composer.media.unsupported": "Use a JPG, PNG, WebP, GIF, MP4, or MOV file.",
+  "composer.media.alreadyAttached": "That file is already attached.",
+  "composer.media.uploadDuplicate":
+    "A file with this name already exists in the Drive. Rename it and try again.",
+  "composer.media.uploadFailed": "The upload failed. Try again.",
+  "composer.media.errors.too_many_images":
+    "X allows at most 4 images per post.",
+  "composer.media.errors.too_many_gifs": "X allows one GIF per post.",
+  "composer.media.errors.too_many_videos": "X allows one video per post.",
+  "composer.media.errors.mixed_media":
+    "Use images, one GIF, or one video — not a mix.",
+  "composer.media.errors.unsupported_type":
+    "Use a JPG, PNG, WebP, GIF, MP4, or MOV file.",
+  "composer.media.errors.too_large": "A file is too large for X.",
   "composer.account": "Account",
   "composer.noAccount": "Choose an account",
   "composer.unknownHandle": "Unknown X account",
@@ -128,6 +179,36 @@ vi.mock("@/lib/actions/project/action", () => ({
   updateProjectSocialPost: vi.fn(),
 }));
 
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({ data: { session: { activeOrganizationId: "org_1" } } }),
+}));
+
+vi.mock("@/lib/utils/drive-file-upload.client", () => ({
+  uploadDriveFile: (...args: unknown[]) => uploadDriveFileMock(...args),
+}));
+
+vi.mock("@/components/drive/drive-file-picker", () => ({
+  DriveFilePicker: ({
+    open,
+    onSelect,
+  }: {
+    open: boolean;
+    onSelect: (file: unknown) => void;
+  }) =>
+    open ? (
+      <div data-testid="drive-file-picker-stub">
+        <button
+          type="button"
+          onClick={() => onSelect(drivePickerFile)}
+        >{`pick ${drivePickerFile.name}`}</button>
+        <button
+          type="button"
+          onClick={() => onSelect(drivePickerVideoFile)}
+        >{`pick ${drivePickerVideoFile.name}`}</button>
+      </div>
+    ) : null,
+}));
+
 const PROJECT_ID = "project-1";
 
 function buildConnection(
@@ -150,6 +231,7 @@ function buildPost(overrides: Partial<SocialPost> = {}): SocialPost {
     projectId: PROJECT_ID,
     provider: "x",
     text: "Draft text",
+    media: [],
     status: "DRAFT",
     scheduledAt: null,
     timezone: null,
@@ -266,6 +348,16 @@ const PUBLISHING_POST = buildPost({
   canCancel: false,
   canPublishNow: false,
 });
+
+const IMAGE_REF: SocialPostMediaRef = {
+  pathname: "drive/users/user_1/launch.png",
+  fileUrl:
+    "https://store.public.blob.vercel-storage.com/drive/users/user_1/launch.png",
+  name: "launch.png",
+  size: 2048,
+  mimeType: "image/png",
+  kind: "image",
+};
 
 function futureDateTimeLocal(): string {
   const date = new Date(Date.now() + 60 * 60 * 1000);
@@ -450,6 +542,7 @@ describe("ProjectSocialPosts", () => {
       expect(createProjectSocialPost).toHaveBeenCalledWith({
         projectId: PROJECT_ID,
         text: "Fresh",
+        media: [],
         socialConnectionId: "connection-1",
       });
     });
@@ -460,6 +553,162 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(screen.getByTestId("social-post-post-new")).getByText("Fresh"),
     ).toBeVisible();
+  });
+
+  it("renders media thumbnails on a post row", () => {
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[buildPost({ id: "post-media", media: [IMAGE_REF] })]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(screen.getByTestId("social-post-media-post-media")).toBeVisible();
+    expect(
+      within(screen.getByTestId("social-post-media-post-media")).getByAltText(
+        "launch.png",
+      ),
+    ).toBeVisible();
+  });
+
+  it("attaches a Drive file and sends it with the draft", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "With media");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add from Drive" }),
+    );
+    await user.click(screen.getByRole("button", { name: "pick launch.png" }));
+    expect(within(dialog).getByTestId("social-post-media")).toBeVisible();
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    );
+
+    await waitFor(() => {
+      expect(createProjectSocialPost).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectId: PROJECT_ID,
+          text: "With media",
+          media: [
+            expect.objectContaining({
+              pathname: "drive/users/user_1/launch.png",
+              mimeType: "image/png",
+              kind: "image",
+            }),
+          ],
+        }),
+      );
+    });
+  });
+
+  it("allows saving a post that has media and no text", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    const saveDraft = within(dialog).getByRole("button", {
+      name: "Save draft",
+    });
+    expect(saveDraft).toBeDisabled();
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add from Drive" }),
+    );
+    await user.click(screen.getByRole("button", { name: "pick launch.png" }));
+    expect(saveDraft).toBeEnabled();
+
+    await user.click(saveDraft);
+    await waitFor(() => {
+      expect(createProjectSocialPost).toHaveBeenCalledWith(
+        expect.objectContaining({ text: "" }),
+      );
+    });
+  });
+
+  it("rejects mixing media kinds with a clear message", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add from Drive" }),
+    );
+    await user.click(screen.getByRole("button", { name: "pick launch.png" }));
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add from Drive" }),
+    );
+    await user.click(screen.getByRole("button", { name: "pick clip.mp4" }));
+
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      "Use images, one GIF, or one video — not a mix.",
+    );
+    expect(within(dialog).queryByText("clip.mp4")).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByTestId("social-post-media").querySelectorAll("img"),
+    ).toHaveLength(1);
+  });
+
+  it("uploads a file into the Drive and attaches it", async () => {
+    const user = userEvent.setup();
+    uploadDriveFileMock.mockResolvedValue({
+      pathname: "drive/users/user_1/new-shot.png",
+      fileUrl:
+        "https://store.public.blob.vercel-storage.com/drive/users/user_1/new-shot.png",
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    const input = dialog.querySelector('input[type="file"]');
+    expect(input).not.toBeNull();
+    const file = new File(["x"], "new-shot.png", { type: "image/png" });
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+
+    await act(async () => {
+      fireEvent.change(input as HTMLInputElement, {
+        target: { files: dataTransfer.files },
+      });
+    });
+
+    await waitFor(() => {
+      expect(uploadDriveFileMock).toHaveBeenCalledWith(file, {
+        scope: "org",
+        organizationId: "org_1",
+      });
+    });
+    expect(within(dialog).getByTestId("social-post-media")).toBeVisible();
   });
 
   it("schedules a new post with an ISO timestamp and the viewer timezone", async () => {
@@ -492,6 +741,7 @@ describe("ProjectSocialPosts", () => {
       expect(createProjectSocialPost).toHaveBeenCalledWith({
         projectId: PROJECT_ID,
         text: "Scheduled text",
+        media: [],
         socialConnectionId: "connection-1",
         scheduledAt: new Date(localValue).toISOString(),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -530,6 +780,7 @@ describe("ProjectSocialPosts", () => {
         projectId: PROJECT_ID,
         postId: "post-draft",
         text: "Edited",
+        media: [],
         socialConnectionId: "connection-1",
         revision: 4,
       });
@@ -576,6 +827,84 @@ describe("ProjectSocialPosts", () => {
         revision: 2,
       });
     });
+    expect(updateProjectSocialPost).not.toHaveBeenCalled();
+  });
+
+  it("saves edited media before rescheduling a scheduled post", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updateProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: { ...SCHEDULED_POST, media: [IMAGE_REF], revision: 3 },
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[SCHEDULED_POST]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openRowMenu(user, "post-scheduled");
+    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add from Drive" }),
+    );
+    await user.click(screen.getByRole("button", { name: "pick launch.png" }));
+    const timeInput = within(dialog).getByLabelText("Scheduled time");
+    await user.clear(timeInput);
+    const localValue = futureDateTimeLocal();
+    await user.type(timeInput, localValue);
+    await user.click(
+      within(dialog).getByRole("button", { name: "Reschedule" }),
+    );
+
+    await waitFor(() => {
+      expect(updateProjectSocialPost).toHaveBeenCalledWith(
+        expect.objectContaining({
+          postId: "post-scheduled",
+          revision: 2,
+          media: [expect.objectContaining({ pathname: IMAGE_REF.pathname })],
+        }),
+      );
+    });
+    await waitFor(() => {
+      expect(scheduleProjectSocialPost).toHaveBeenCalledWith(
+        expect.objectContaining({
+          postId: "post-scheduled",
+          revision: 3,
+        }),
+      );
+    });
+  });
+
+  it("refuses to attach the same Drive file twice", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add from Drive" }),
+    );
+    await user.click(screen.getByRole("button", { name: "pick launch.png" }));
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add from Drive" }),
+    );
+    await user.click(screen.getByRole("button", { name: "pick launch.png" }));
+
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      "That file is already attached.",
+    );
+    expect(
+      within(dialog).getByTestId("social-post-media").querySelectorAll("img"),
+    ).toHaveLength(1);
   });
 
   it("cancels a scheduled post only after confirmation", async () => {

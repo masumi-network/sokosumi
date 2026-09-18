@@ -1,12 +1,18 @@
 "use client";
 
-import { SOCIAL_POST_TEXT_LIMITS } from "@sokosumi/utils";
+import {
+  SOCIAL_POST_MEDIA_RULES,
+  SOCIAL_POST_TEXT_LIMITS,
+  type SocialPostMediaValidationReason,
+  validateSocialPostMedia,
+} from "@sokosumi/utils";
 import { format } from "date-fns";
-import { Loader2 } from "lucide-react";
+import { ImagePlus, Loader2, Upload } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { DriveFilePicker } from "@/components/drive/drive-file-picker";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,6 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -32,11 +39,25 @@ import {
   scheduleProjectSocialPost,
   updateProjectSocialPost,
 } from "@/lib/actions/project/action";
+import { useSession } from "@/lib/auth/auth.client";
 import type {
+  DriveFile,
   ProjectSocialConnection,
   SocialPost,
+  SocialPostMediaRef,
 } from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
+import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
+import {
+  isDriveFileUploadDuplicate,
+  uploadDriveFile,
+} from "@/lib/utils/drive-file-upload.client";
+import {
+  buildSocialPostMediaRef,
+  hasSocialPostMedia,
+  sameSocialPostMedia,
+  socialPostMediaRefFromDriveFile,
+} from "./social-post-media";
 
 /** Composer entry points: a new post, editing text/account, or only picking a time. */
 export type SocialPostComposerMode =
@@ -57,6 +78,11 @@ interface SocialPostComposerDialogProps {
 type PendingSubmit = "save" | "schedule" | null;
 
 const DATETIME_LOCAL_FORMAT = "yyyy-MM-dd'T'HH:mm";
+const DRIVE_PICKER_ACCEPT = [
+  ...SOCIAL_POST_MEDIA_RULES.x.imageMimeTypes,
+  ...SOCIAL_POST_MEDIA_RULES.x.gifMimeTypes,
+  ...SOCIAL_POST_MEDIA_RULES.x.videoMimeTypes,
+].join(",");
 
 function toDateTimeLocalValue(date: Date | null): string {
   return date ? format(date, DATETIME_LOCAL_FORMAT) : "";
@@ -84,11 +110,20 @@ export function SocialPostComposerDialog({
   const textId = useId();
   const accountId = useId();
   const scheduledAtId = useId();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadInFlightRef = useRef(false);
   const post = mode.kind === "create" ? null : mode.post;
   const provider = post?.provider ?? "x";
   const textLimit = SOCIAL_POST_TEXT_LIMITS[provider];
+  const { data: session } = useSession();
+  const driveStore = driveStoreForActiveWorkspace(
+    session?.session.activeOrganizationId ?? null,
+  );
 
   const [text, setText] = useState(post?.text ?? "");
+  const [media, setMedia] = useState<SocialPostMediaRef[]>(
+    post?.media ? [...post.media] : [],
+  );
   const [connectionId, setConnectionId] = useState(
     post?.socialConnection?.id ?? connections[0]?.id ?? "",
   );
@@ -96,12 +131,17 @@ export function SocialPostComposerDialog({
     toDateTimeLocalValue(post?.scheduledAt ?? null),
   );
   const [pending, setPending] = useState<PendingSubmit>(null);
+  const [uploadPending, setUploadPending] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const isScheduleOnly = mode.kind === "schedule";
-  const isBusy = pending !== null;
+  const isBusy = pending !== null || uploadPending;
   const trimmedText = text.trim();
   const overLimit = text.length > textLimit;
-  const textValid = isScheduleOnly || (trimmedText.length > 0 && !overLimit);
+  const mediaValid = validateSocialPostMedia(provider, media).ok;
+  const textValid =
+    isScheduleOnly ||
+    ((trimmedText.length > 0 || media.length > 0) && !overLimit);
   const minScheduledAt = toDateTimeLocalValue(new Date());
   const scheduledDate = scheduledAt ? new Date(scheduledAt) : null;
   const scheduledInFuture =
@@ -109,8 +149,12 @@ export function SocialPostComposerDialog({
     !Number.isNaN(scheduledDate.getTime()) &&
     scheduledDate.getTime() > Date.now();
   const canSchedule =
-    textValid && connectionId !== "" && scheduledInFuture && !isBusy;
-  const canSave = textValid && !isBusy;
+    textValid &&
+    mediaValid &&
+    connectionId !== "" &&
+    scheduledInFuture &&
+    !isBusy;
+  const canSave = textValid && mediaValid && !isBusy;
   const isReschedule = post?.status === "SCHEDULED";
   const selectedConnectionExists = connections.some(
     (connection) => connection.id === connectionId,
@@ -125,6 +169,81 @@ export function SocialPostComposerDialog({
           ? t("composer.rescheduleTitle")
           : t("composer.scheduleTitle");
 
+  function mediaErrorText(reason: SocialPostMediaValidationReason): string {
+    return t(`composer.media.errors.${reason}`);
+  }
+
+  function attachMedia(ref: SocialPostMediaRef): void {
+    if (hasSocialPostMedia(media, ref.pathname)) {
+      toast.error(t("composer.media.alreadyAttached"));
+      return;
+    }
+    const check = validateSocialPostMedia(provider, [...media, ref]);
+    if (!check.ok) {
+      toast.error(mediaErrorText(check.reason));
+      return;
+    }
+    setMedia((current) => [...current, ref]);
+  }
+
+  function handleSelectDriveFile(file: DriveFile): void {
+    const ref = socialPostMediaRefFromDriveFile(file);
+    if (!ref) {
+      toast.error(t("composer.media.unsupported"));
+      return;
+    }
+    attachMedia(ref);
+  }
+
+  function handleRemoveMedia(pathname: string): void {
+    setMedia((current) => current.filter((ref) => ref.pathname !== pathname));
+  }
+
+  async function handleUpload(file: File): Promise<void> {
+    if (isBusy || uploadInFlightRef.current) return;
+    const candidate = buildSocialPostMediaRef({
+      name: file.name,
+      size: file.size,
+      pathname: "",
+      fileUrl: "",
+    });
+    if (!candidate) {
+      toast.error(t("composer.media.unsupported"));
+      return;
+    }
+    const precheck = validateSocialPostMedia(provider, [...media, candidate]);
+    if (!precheck.ok) {
+      toast.error(mediaErrorText(precheck.reason));
+      return;
+    }
+
+    uploadInFlightRef.current = true;
+    setUploadPending(true);
+    try {
+      const uploaded = await uploadDriveFile(file, driveStore);
+      const ref = buildSocialPostMediaRef({
+        name: file.name,
+        size: file.size,
+        pathname: uploaded.pathname,
+        fileUrl: uploaded.fileUrl ?? "",
+      });
+      if (!ref || !uploaded.fileUrl) {
+        toast.error(t("composer.media.uploadFailed"));
+        return;
+      }
+      setMedia((current) => [...current, ref]);
+    } catch (error) {
+      toast.error(
+        isDriveFileUploadDuplicate(error)
+          ? t("composer.media.uploadDuplicate")
+          : t("composer.media.uploadFailed"),
+      );
+    } finally {
+      uploadInFlightRef.current = false;
+      setUploadPending(false);
+    }
+  }
+
   async function handleSaveDraft(): Promise<void> {
     if (!canSave) return;
     setPending("save");
@@ -135,12 +254,14 @@ export function SocialPostComposerDialog({
               projectId,
               postId: mode.post.id,
               text: trimmedText,
+              media,
               socialConnectionId: connectionId || null,
               revision: mode.post.revision,
             })
           : await createProjectSocialPost({
               projectId,
               text: trimmedText,
+              media,
               socialConnectionId: connectionId || null,
             });
       if (!result.ok) {
@@ -167,6 +288,7 @@ export function SocialPostComposerDialog({
         const result = await createProjectSocialPost({
           projectId,
           text: trimmedText,
+          media,
           socialConnectionId: connectionId,
           scheduledAt: scheduledAtIso,
           timezone,
@@ -182,11 +304,15 @@ export function SocialPostComposerDialog({
       }
 
       let revision = mode.post.revision;
-      if (mode.kind === "edit" && trimmedText !== mode.post.text) {
+      const contentChanged =
+        trimmedText !== mode.post.text ||
+        !sameSocialPostMedia(media, mode.post.media);
+      if (mode.kind === "edit" && contentChanged) {
         const updated = await updateProjectSocialPost({
           projectId,
           postId: mode.post.id,
           text: trimmedText,
+          media,
           revision,
         });
         if (!updated.ok) {
@@ -216,6 +342,30 @@ export function SocialPostComposerDialog({
     }
   }
 
+  const mediaStrip = (
+    <div
+      className="flex flex-wrap items-center gap-2"
+      data-testid="social-post-media"
+    >
+      {media.map((ref) => (
+        <FileChipMiniPreview
+          key={ref.pathname}
+          fileName={ref.name}
+          mediaType={ref.mimeType}
+          onRemove={
+            isScheduleOnly || isBusy
+              ? undefined
+              : () => handleRemoveMedia(ref.pathname)
+          }
+          removeLabel={t("composer.media.remove", { name: ref.name })}
+          size={ref.size}
+          sizeClass="size-16"
+          url={ref.fileUrl}
+        />
+      ))}
+    </div>
+  );
+
   return (
     <Dialog
       open={open}
@@ -238,37 +388,90 @@ export function SocialPostComposerDialog({
           }}
         >
           {isScheduleOnly ? (
-            <p className="bg-card-background rounded-md border p-3 text-sm whitespace-pre-wrap">
-              {post?.text}
-            </p>
-          ) : (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor={textId}>{t("composer.text")}</Label>
-                <span
-                  aria-live="polite"
-                  className={cn(
-                    "text-xs tabular-nums",
-                    overLimit ? "text-destructive" : "text-muted-foreground",
-                  )}
-                  data-testid="social-post-character-count"
-                >
-                  {t("composer.characters", {
-                    count: text.length,
-                    limit: textLimit,
-                  })}
-                </span>
-              </div>
-              <Textarea
-                id={textId}
-                aria-invalid={overLimit || undefined}
-                disabled={isBusy}
-                onChange={(event) => setText(event.target.value)}
-                placeholder={t("composer.textPlaceholder")}
-                rows={5}
-                value={text}
-              />
+            <div className="space-y-3">
+              <p className="bg-card-background rounded-md border p-3 text-sm whitespace-pre-wrap">
+                {post?.text}
+              </p>
+              {media.length > 0 ? mediaStrip : null}
             </div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor={textId}>{t("composer.text")}</Label>
+                  <span
+                    aria-live="polite"
+                    className={cn(
+                      "text-xs tabular-nums",
+                      overLimit ? "text-destructive" : "text-muted-foreground",
+                    )}
+                    data-testid="social-post-character-count"
+                  >
+                    {t("composer.characters", {
+                      count: text.length,
+                      limit: textLimit,
+                    })}
+                  </span>
+                </div>
+                <Textarea
+                  id={textId}
+                  aria-invalid={overLimit || undefined}
+                  disabled={isBusy}
+                  onChange={(event) => setText(event.target.value)}
+                  placeholder={t("composer.textPlaceholder")}
+                  rows={5}
+                  value={text}
+                />
+              </div>
+
+              <div className="space-y-2">
+                {media.length > 0 ? mediaStrip : null}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isBusy}
+                    onClick={() => setPickerOpen(true)}
+                  >
+                    <ImagePlus className="size-4" aria-hidden />
+                    {t("composer.media.addFromDrive")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isBusy}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {uploadPending ? (
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                    ) : (
+                      <Upload className="size-4" aria-hidden />
+                    )}
+                    {uploadPending
+                      ? t("composer.media.uploading")
+                      : t("composer.media.upload")}
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    accept={DRIVE_PICKER_ACCEPT}
+                    className="hidden"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      event.target.value = "";
+                      if (file) {
+                        void handleUpload(file);
+                      }
+                    }}
+                    type="file"
+                  />
+                  <span className="text-muted-foreground text-xs">
+                    {t("composer.media.hint")}
+                  </span>
+                </div>
+              </div>
+            </>
           )}
 
           <div className="space-y-2">
@@ -344,6 +547,12 @@ export function SocialPostComposerDialog({
             {isReschedule ? t("composer.reschedule") : t("composer.schedule")}
           </Button>
         </DialogFooter>
+
+        <DriveFilePicker
+          open={pickerOpen}
+          onOpenChange={setPickerOpen}
+          onSelect={handleSelectDriveFile}
+        />
       </DialogContent>
     </Dialog>
   );

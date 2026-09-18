@@ -77,16 +77,27 @@ describe("uploadDriveFile", () => {
     const file = new File(["hello"], "report.pdf", {
       type: "application/pdf",
     });
-    const { constructor, getInstance } = mockXHR(200);
+    const { constructor, getInstance } = mockXHR(
+      200,
+      JSON.stringify({
+        url: "https://store.public.blob.vercel-storage.com/drive/users/user_123/report.pdf",
+        pathname: "drive/users/user_123/report.pdf",
+      }),
+    );
     vi.stubGlobal("XMLHttpRequest", constructor);
     postDriveFilesMock.mockResolvedValue(grantSession());
     const onUploadProgress = vi.fn();
 
-    await uploadDriveFile(file, {
+    const uploaded = await uploadDriveFile(file, {
       scope: "me",
       onUploadProgress,
     });
 
+    expect(uploaded).toEqual({
+      pathname: "drive/users/user_123/report.pdf",
+      fileUrl:
+        "https://store.public.blob.vercel-storage.com/drive/users/user_123/report.pdf",
+    });
     const xhrInstance = getInstance();
     expect(postDriveFilesMock).toHaveBeenCalledWith({
       client: { id: "browser-core-client" },
@@ -108,6 +119,20 @@ describe("uploadDriveFile", () => {
     );
     expect(xhrInstance?.send).toHaveBeenCalledWith(file);
     expect(onUploadProgress).toHaveBeenCalledWith({ percentage: 100 });
+  });
+
+  it("resolves with a null file URL when the PUT response has none", async () => {
+    const file = new File(["hello"], "report.pdf", {
+      type: "application/pdf",
+    });
+    const { constructor } = mockXHR(200);
+    vi.stubGlobal("XMLHttpRequest", constructor);
+    postDriveFilesMock.mockResolvedValue(grantSession());
+
+    await expect(uploadDriveFile(file, { scope: "me" })).resolves.toEqual({
+      pathname: "drive/users/user_123/report.pdf",
+      fileUrl: null,
+    });
   });
 
   it("rejects with duplicate error when Blob PUT returns 409", async () => {
@@ -150,7 +175,12 @@ describe("uploadDriveFile", () => {
 
   it("includes organizationId when minting an org-scope upload", async () => {
     const file = new File(["x"], "notes.txt", { type: "text/plain" });
-    const { constructor } = mockXHR(200);
+    const { constructor } = mockXHR(
+      200,
+      JSON.stringify({
+        url: "https://store.public.blob.vercel-storage.com/drive/organizations/org_123/notes.txt",
+      }),
+    );
     vi.stubGlobal("XMLHttpRequest", constructor);
     postDriveFilesMock.mockResolvedValue(
       grantSession({

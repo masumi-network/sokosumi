@@ -15578,6 +15578,12 @@ export const SocialPostSchema = {
         text: {
             type: 'string'
         },
+        media: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPostMediaRef'
+            }
+        },
         status: {
             $ref: '#/components/schemas/SocialPostStatus'
         },
@@ -15703,6 +15709,7 @@ export const SocialPostSchema = {
         'projectId',
         'provider',
         'text',
+        'media',
         'status',
         'scheduledAt',
         'timezone',
@@ -15726,6 +15733,56 @@ export const SocialPostSchema = {
         'canCancel',
         'canPublishNow',
         'connectionNeedsReconnect'
+    ]
+} as const;
+
+export const SocialPostMediaRefSchema = {
+    type: 'object',
+    properties: {
+        pathname: {
+            type: 'string',
+            minLength: 1,
+            example: 'drive/users/user_123/launch.png',
+            description: 'Drive blob pathname; must belong to the active workspace'
+        },
+        fileUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://store.public.blob.vercel-storage.com/drive/users/user_123/launch.png',
+            description: 'Public Blob URL of the Drive file'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            example: 'launch.png'
+        },
+        size: {
+            type: 'integer',
+            minimum: 0,
+            example: 240000
+        },
+        mimeType: {
+            type: 'string',
+            minLength: 1,
+            example: 'image/png'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'image',
+                'gif',
+                'video'
+            ],
+            example: 'image'
+        }
+    },
+    required: [
+        'pathname',
+        'fileUrl',
+        'name',
+        'size',
+        'mimeType',
+        'kind'
     ]
 } as const;
 
@@ -15878,9 +15935,16 @@ export const CreateSocialPostRequestSchema = {
     properties: {
         text: {
             type: 'string',
-            minLength: 1,
             maxLength: 280,
             example: 'Shipping the new Calendar today.'
+        },
+        media: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPostMediaRef'
+            },
+            maxItems: 4,
+            description: 'Drive files to attach: up to 4 images, or 1 GIF, or 1 video. Never mixed.'
         },
         socialConnectionId: {
             type: 'string',
@@ -15906,9 +15970,16 @@ export const UpdateSocialPostRequestSchema = {
     properties: {
         text: {
             type: 'string',
-            minLength: 1,
             maxLength: 280,
             example: 'Shipping the new Calendar today.'
+        },
+        media: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPostMediaRef'
+            },
+            maxItems: 4,
+            description: 'Drive files to attach: up to 4 images, or 1 GIF, or 1 video. Never mixed.'
         },
         socialConnectionId: {
             type: [
