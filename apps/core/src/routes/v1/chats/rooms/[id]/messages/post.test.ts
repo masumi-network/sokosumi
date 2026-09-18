@@ -2019,6 +2019,22 @@ describe("POST /chats/rooms/{id}/messages", () => {
         );
       });
 
+      it("refuses a cross-room quote from a Soko Bot", async () => {
+        roomFindFirstMock.mockResolvedValue({
+          id: ROOM_ID,
+          name: "general",
+          kind: "channel",
+          organizationId: "org_1",
+          userMembers: [],
+        });
+        messageFindFirstMock.mockResolvedValue(quotedSourceMessage());
+
+        const response = await postCrossRoomQuote(sokoBotAuthContext);
+
+        expect(response.status).toBe(400);
+        expect(messageCreateMock).not.toHaveBeenCalled();
+      });
+
       it("refuses a cross-room quote from a coworker", async () => {
         roomFindFirstMock.mockResolvedValue({
           id: ROOM_ID,

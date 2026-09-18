@@ -24,7 +24,7 @@ interface ResolveMessageLinkQuoteOptions {
 /**
  * The quote a pasted Message link may be sent as in `targetRoom`, or null when
  * it must stay a plain link. Core applies the same rule at send time; this only
- * decides whether to offer.
+ * decides whether the composer converts the paste.
  */
 export async function resolveMessageLinkQuote({
   link,

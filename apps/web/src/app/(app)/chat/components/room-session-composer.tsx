@@ -69,6 +69,7 @@ interface ComposerSnapshot {
   attachments: RoomComposerAttachment[];
   mentionedIds: string[];
   pendingQuote: PendingRoomQuote | null;
+  quotedLink: QuotedLink | null;
 }
 
 /** A pasted Message link that became the pending quote. */
@@ -191,6 +192,10 @@ export function RoomSessionComposer({
     },
   });
 
+  // The pasted link the pending quote replaced, so removing that quote can put
+  // the link back as plain text.
+  const [quotedLink, setQuotedLink] = useState<QuotedLink | null>(null);
+
   const restoreSnapshot = useCallback(
     (snapshot: ComposerSnapshot) => {
       setComposerValue(snapshot.value);
@@ -198,14 +203,12 @@ export function RoomSessionComposer({
       setMentionedIds(snapshot.mentionedIds);
       if (snapshot.pendingQuote) {
         onSetPendingQuote?.(snapshot.pendingQuote);
+        setQuotedLink(snapshot.quotedLink);
       }
     },
     [onSetPendingQuote],
   );
 
-  // The pasted link the pending quote replaced, so removing that quote can put
-  // the link back as plain text.
-  const [quotedLink, setQuotedLink] = useState<QuotedLink | null>(null);
   // What the sender is looking at now, for a quote that resolves after they
   // edited the link away, pasted again, sent, or moved to another room.
   const latest = useRef({ draftKey, pendingQuote, paste: 0 });
@@ -294,6 +297,7 @@ export function RoomSessionComposer({
       attachments: composerAttachments,
       mentionedIds,
       pendingQuote,
+      quotedLink,
     };
     const sentDraftKey = draftKey;
 

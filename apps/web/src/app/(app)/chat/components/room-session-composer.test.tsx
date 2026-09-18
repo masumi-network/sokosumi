@@ -486,6 +486,12 @@ describe("RoomSessionComposer pasted Message link", () => {
       expect(editor.textContent).toContain("see this");
     });
     expect(screen.getByText("Earlier point about launch risk")).toBeTruthy();
+
+    // The restored quote still came from a paste: removing it gives the link back.
+    fireEvent.click(screen.getByRole("button", { name: "dismiss" }));
+    await waitFor(() => {
+      expect(editor.textContent).toContain(link);
+    });
   });
 
   it("leaves the link alone once it was edited out before the quote resolved", async () => {
