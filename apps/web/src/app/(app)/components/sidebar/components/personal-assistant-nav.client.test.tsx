@@ -133,7 +133,7 @@ describe("PersonalAssistantNav as an ordinary Sidebar row", () => {
     renderNav({ bot });
     const label = screen.getByText("sokoBot");
     expect(tokens(label.className)).toContain(
-      "group-data-[collapsible=icon]:absolute",
+      "group-data-[collapsible=icon]:max-w-0",
     );
     expect(tokens(label.className)).not.toContain(
       "group-data-[collapsible=icon]:sr-only",

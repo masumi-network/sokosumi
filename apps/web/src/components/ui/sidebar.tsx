@@ -503,15 +503,14 @@ const SIDEBAR_RAIL_SQUARE_CLASS =
 const SIDEBAR_ROW_LABEL_INSET_CLASS = "pl-10";
 
 /**
- * A row's name on collapse. `sr-only` clipped it to 1px on the first frame,
- * so the label vanished before the width that made room for it. Absolute at
- * `left-10` (the 48px column, from the row) takes it out of the flex flow so
- * the mark stays centred; the panel's overflow clips the paint as the edge
- * moves. Opacity waits the same 200ms as the panel so the 8px of leftover
- * letter on the 56px rail does not hang; reduced motion drops that wait.
+ * A row's name on collapse. `sr-only` clipped it to 1px on the first frame.
+ * `absolute` then painted it on top of the mark while the panel narrowed.
+ * It stays in the flex flow at the 48px column; max-width eases to 0 on the
+ * same 200ms linear clock as the panel, so the name clips from the right
+ * instead of covering the icon. Reduced motion jumps to the end state.
  */
 const SIDEBAR_ROW_LABEL_CLASS =
-  "min-w-0 flex-1 transition-opacity duration-0 motion-reduce:transition-none group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:left-10 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:delay-200 motion-reduce:delay-0";
+  `min-w-0 flex-1 max-w-full overflow-hidden transition-[max-width] ${SIDEBAR_COLLAPSE_TRANSITION} group-data-[collapsible=icon]:max-w-0`;
 
 /**
  * A pressable **Sidebar row** (CONTEXT.md): the row shape above, plus the
@@ -520,7 +519,7 @@ const SIDEBAR_ROW_LABEL_CLASS =
  * is already the square's 32px at `md` — and the rail exists only at `md`.
  */
 const sidebarMenuButtonVariants = cva(
-  `peer/menu-button ${SIDEBAR_ROW_CLASS} ${SIDEBAR_RAIL_SQUARE_CLASS} overflow-hidden rounded-md text-left text-base outline-hidden ring-sidebar-ring transition-[width,padding,margin] ${SIDEBAR_COLLAPSE_TRANSITION} hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:px-0! group-data-[collapsible=icon]:hover:bg-transparent group-data-[collapsible=icon]:hover:ring-sidebar-ring group-data-[collapsible=icon]:hover:ring-1 group-data-[collapsible=icon]:active:bg-transparent group-data-[collapsible=icon]:active:ring-sidebar-ring group-data-[collapsible=icon]:active:ring-2 group-data-[collapsible=icon]:data-[active=true]:bg-transparent md:text-sm [&>span:last-child]:truncate`,
+  `peer/menu-button ${SIDEBAR_ROW_CLASS} ${SIDEBAR_RAIL_SQUARE_CLASS} overflow-hidden rounded-md text-left text-base outline-hidden ring-sidebar-ring transition-[width,padding,margin] ${SIDEBAR_COLLAPSE_TRANSITION} hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:pr-0! group-data-[collapsible=icon]:pl-1! group-data-[collapsible=icon]:justify-start! group-data-[collapsible=icon]:hover:bg-transparent group-data-[collapsible=icon]:hover:ring-sidebar-ring group-data-[collapsible=icon]:hover:ring-1 group-data-[collapsible=icon]:active:bg-transparent group-data-[collapsible=icon]:active:ring-sidebar-ring group-data-[collapsible=icon]:active:ring-2 group-data-[collapsible=icon]:data-[active=true]:bg-transparent md:text-sm [&>span:last-child]:truncate`,
   {
     variants: {
       variant: {

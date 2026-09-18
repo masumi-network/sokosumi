@@ -301,10 +301,11 @@ describe("MenuItems search action", () => {
     expect(slot?.querySelector("svg")).not.toBeNull();
     const label = slot?.nextElementSibling;
     expect(label).not.toBeNull();
-    // Shared label class: out of the flex flow, still in the accessibility
-    // tree. `sr-only` used to clip it to 1px on the first frame of collapse.
+    // Shared label class: still in the flow and the accessibility tree.
+    // `absolute` painted the name on the mark; `sr-only` clipped it on
+    // frame one. max-width eases to 0 instead.
     expect(label?.className.split(/\s+/)).toContain(
-      "group-data-[collapsible=icon]:absolute",
+      "group-data-[collapsible=icon]:max-w-0",
     );
     expect(label?.className.split(/\s+/)).not.toContain(
       "group-data-[collapsible=icon]:sr-only",

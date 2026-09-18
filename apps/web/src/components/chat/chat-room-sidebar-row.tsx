@@ -422,10 +422,10 @@ export function ChatRoomSidebarRow({
     </DropdownMenuItem>
   );
 
-  // Collapsed to icons the row is its leading mark, centred in the button.
-  // The name uses the shared label class rather than `hidden` so the link
-  // keeps its accessible name (the tooltip adds none) while taking no flex
-  // space, and the spacer hides so neither can push the mark off centre. The
+  // Collapsed to icons the row is its leading mark. The name uses the
+  // shared label class rather than `hidden` so the link keeps its
+  // accessible name (the tooltip adds none) while taking no flex space at
+  // rest, and the spacer hides so neither can push the mark off centre. The
   // button's `overflow-hidden` exists for name truncation, which the
   // collapsed rail has none of, and it clipped the tile's kind corner mark,
   // which hangs 6px below a 24px tile inside a 32px button. So the clip
