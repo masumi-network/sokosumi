@@ -50,12 +50,14 @@ vi.mock("next/link", () => ({
     children,
     href,
     className,
+    tabIndex,
   }: {
     children: ReactNode;
     href: string;
     className?: string;
+    tabIndex?: number;
   }) => (
-    <a href={href} className={className}>
+    <a href={href} className={className} tabIndex={tabIndex}>
       {children}
     </a>
   ),
@@ -582,10 +584,10 @@ describe("ChatRoomSidebarRow rail selection bar", () => {
 });
 
 describe("ChatRoomSidebarRow trailing cluster", () => {
-  it("hides the pin glyph and room menu when the sidebar collapses", () => {
+  it("hides the muted glyph and room menu when the sidebar collapses", () => {
     const { container } = render(
       <ChatRoomSidebarRow
-        room={makeRoom({ starredAt: new Date("2026-09-01T00:00:00.000Z") })}
+        room={makeRoom({ mutedAt: new Date("2026-09-01T00:00:00.000Z") })}
         href="/chat/rooms/room-1"
         label="general"
         isActive={false}
@@ -596,8 +598,8 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
 
     const cluster = container.querySelector('[data-slot="room-trailing"]');
     expect(cluster).not.toBeNull();
-    // Pin glyph and the room menu both live in this one cluster.
-    expect(cluster?.querySelector("svg.lucide-pin")).not.toBeNull();
+    // Muted glyph and the room menu both live in this one cluster.
+    expect(cluster?.querySelector("svg.lucide-bell-off")).not.toBeNull();
     expect(
       cluster?.contains(
         screen.getByRole("button", { name: "Chat actions for general" }),
@@ -628,7 +630,7 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
     expect(menuTokens).toContain("md:after:hidden");
   });
 
-  it("keeps the pin in the same size slot as the room menu", () => {
+  it("shows no glyph on a pinned row: the Pinned section already says so", () => {
     const { container } = render(
       <ChatRoomSidebarRow
         room={makeRoom({ starredAt: new Date("2026-09-01T00:00:00.000Z") })}
@@ -640,8 +642,25 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
       />,
     );
 
-    const pin = container.querySelector("svg.lucide-pin");
-    const box = pin?.parentElement;
+    expect(
+      container.querySelector('[data-slot="room-trailing"] svg.lucide-pin'),
+    ).toBeNull();
+  });
+
+  it("keeps the muted glyph in the same size slot as the room menu", () => {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom({ mutedAt: new Date("2026-09-01T00:00:00.000Z") })}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const glyph = container.querySelector("svg.lucide-bell-off");
+    const box = glyph?.parentElement;
     expect(box).not.toBeNull();
     expect(box?.className.split(" ").includes("md:size-7")).toBe(true);
     expect(box?.className).not.toContain("[@media(hover:hover)]:size-4");
@@ -668,7 +687,6 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
 
   it.each([
     ["muted", { mutedAt: new Date("2026-09-01T00:00:00.000Z") }, false],
-    ["pinned", { starredAt: new Date("2026-09-01T00:00:00.000Z") }, false],
     ["open", {}, true],
   ])(
     "holds the hole open in every state on a %s row, so its name never moves",
@@ -785,6 +803,53 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
       }
     },
   );
+});
+
+describe("ChatRoomSidebarRow reorder mode", () => {
+  function renderRow(reorderHandle?: React.ReactNode) {
+    return render(
+      <ChatRoomSidebarRow
+        room={makeRoom({ starredAt: new Date("2026-09-01T00:00:00.000Z") })}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+        reorderHandle={reorderHandle}
+      />,
+    );
+  }
+
+  it("puts the handle where the room menu stands and rests the link", () => {
+    const { container } = renderRow(<button type="button">grip</button>);
+
+    const cluster = container.querySelector('[data-slot="room-trailing"]');
+    expect(
+      cluster?.contains(screen.getByRole("button", { name: "grip" })),
+    ).toBe(true);
+    expect(
+      screen.queryByRole("button", { name: "Chat actions for general" }),
+    ).toBeNull();
+
+    const link = screen.getByRole("link");
+    expect(link.className.split(" ")).toContain("pointer-events-none");
+    // The collapsed rail shows no handle, so its rows keep opening rooms.
+    expect(link.className.split(" ")).toContain(
+      "group-data-[collapsible=icon]:pointer-events-auto",
+    );
+    expect(link).toHaveAttribute("tabindex", "-1");
+  });
+
+  it("is an ordinary row outside reorder mode", () => {
+    renderRow();
+
+    expect(
+      screen.getByRole("button", { name: "Chat actions for general" }),
+    ).toBeInTheDocument();
+    const link = screen.getByRole("link");
+    expect(link.className.split(" ")).not.toContain("pointer-events-none");
+    expect(link).not.toHaveAttribute("tabindex");
+  });
 });
 
 describe("ChatRoomSidebarRow edit menu", () => {

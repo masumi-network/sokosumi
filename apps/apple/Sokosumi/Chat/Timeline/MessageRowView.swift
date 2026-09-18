@@ -66,8 +66,8 @@ import SwiftUI
     var onTogglePin: (() async throws -> Void)?
     var onDelete: (() async throws -> Void)?
     var onRemoveUnfurl: ((String) async throws -> Void)?
-    var onToggleReaction: ((String) async throws -> Void)?
-    var pendingReactionEmoji: Set<String> = []
+    /// Returns whether the requests this tap started left the viewer's reaction on the message.
+    var onToggleReaction: ((String) async throws -> Bool)?
     var editing: MessageEditing?
     var onQuoteJump: ((String) -> Void)?
     /// Send to yourself. Absent inside the Self Direct and for rows that are not durable.
@@ -142,12 +142,11 @@ import SwiftUI
 
     private func toggleReaction(_ emoji: String) {
       guard let onToggleReaction else { return }
-      // Match web: adding teaches quick reactions; removing does not.
-      let isAdding = !message.reactions.contains { $0.emoji == emoji && $0.reactedByCurrentUser }
       Task { @MainActor in
         do {
-          try await onToggleReaction(emoji)
-          if isAdding {
+          // Match web: adding teaches quick reactions; removing does not. Taps
+          // absorbed by a running request answer false, so on/off/on counts once.
+          if try await onToggleReaction(emoji) {
             ReactionEmojiHistory().record(emoji)
           }
         } catch {
@@ -278,7 +277,7 @@ import SwiftUI
             }
           }
           if message.deletedAt == nil, outbound == nil, !message.reactions.isEmpty {
-            MessageReactionsView(reactions: message.reactions, pendingEmoji: pendingReactionEmoji, toggle: reactionAction)
+            MessageReactionsView(reactions: message.reactions, toggle: reactionAction)
           }
           if let onReply, message.threadReplyCount > 0 {
             Button("^[\(message.threadReplyCount) reply](inflect: true)", action: onReply)
@@ -530,7 +529,6 @@ import SwiftUI
           .contentShape(.rect)
       }
       .buttonStyle(.plain)
-      .disabled(pendingReactionEmoji.contains(emoji.emoji))
       .onHover { hoveredAction = $0 ? focus : nil }
       .focused($focusedAction, equals: focus)
       .help(":\(emoji.name):")
