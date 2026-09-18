@@ -10,6 +10,7 @@ import { loadMoreProjects } from "@/app/projects/actions";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { Button } from "@/components/ui/button";
 import {
+  SIDEBAR_ROW_LABEL_CLASS,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
@@ -97,7 +98,7 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
             <SidebarRowSlot>
               <FolderKanban className="size-4" aria-hidden />
             </SidebarRowSlot>
-            <span className="flex-1 truncate group-data-[collapsible=icon]:sr-only">
+            <span className={cn(SIDEBAR_ROW_LABEL_CLASS, "truncate")}>
               {t("projects")}
             </span>
           </Link>
