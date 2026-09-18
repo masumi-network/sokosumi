@@ -41,7 +41,8 @@ export function ChatSidebarSectionHeader({
   createAction,
   secondaryAction,
 }: {
-  children: ReactNode;
+  /** The section's title. A string, because the rail's tooltip shows it too. */
+  children: string;
   isOpen: boolean;
   railIcon?: ComponentType<SVGProps<SVGSVGElement>>;
   closedAttention?: SectionAttention;
@@ -63,7 +64,7 @@ export function ChatSidebarSectionHeader({
       <div className="group-data-[collapsible=icon]:hidden relative flex h-10 items-center gap-1 px-3 md:h-8">
         <CollapsibleTrigger
           className={cn(
-            "text-muted-foreground hover:text-foreground flex min-w-0 flex-1 items-center gap-1 rounded-md text-left text-base font-medium transition-colors md:text-xs",
+            "text-muted-foreground hover:text-foreground ring-sidebar-ring flex min-w-0 flex-1 items-center gap-1 rounded-md text-left text-base font-medium outline-hidden transition-colors focus-visible:ring-2 md:text-xs",
             attention && "text-foreground font-semibold",
             trailingCount === 1 && "pr-9",
             trailingCount >= 2 && "pr-16",
@@ -99,7 +100,7 @@ export function ChatSidebarSectionHeader({
           {attention ? <RailAttentionPill variant={attention} /> : null}
           <SidebarMenuButton
             asChild
-            tooltip={{ children }}
+            tooltip={children}
             // `isOpen`, not `data-[state=closed]`: the tooltip trigger writes
             // its own `data-state` onto this same button and wins.
             className={cn("text-muted-foreground", !isOpen && "opacity-60")}
