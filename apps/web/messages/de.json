@@ -2358,7 +2358,13 @@
           "back": "Zurück",
           "chat": "Chat",
           "sokoBot": "Soko Bots",
-          "calendar": "Zeitpläne"
+          "calendar": "Zeitpläne",
+          "expandProjects": "Projekte ausklappen",
+          "collapseProjects": "Projekte einklappen",
+          "projectsLoading": "Projekte werden geladen…",
+          "projectsError": "Projekte konnten nicht geladen werden.",
+          "projectsEmpty": "Noch keine Projekte.",
+          "retryProjects": "Erneut versuchen"
         },
         "ChatLists": {
           "title": "Letzte Chats",
