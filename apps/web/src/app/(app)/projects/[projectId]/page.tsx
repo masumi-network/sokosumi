@@ -6,6 +6,7 @@ import {
   ProjectBrandProvider,
 } from "@/app/projects/components/project-brand-card";
 import { ProjectBriefing } from "@/app/projects/components/project-briefing";
+import { ProjectCloseStatusCard } from "@/app/projects/components/project-close-status";
 import { ProjectDetailActions } from "@/app/projects/components/project-detail-actions";
 import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
 import { ProjectLatestUpdate } from "@/app/projects/components/project-latest-update";
@@ -35,15 +36,25 @@ export default async function ProjectDetailPage({
     notFound();
   }
 
-  const [attention, t, tHistory, tListStats, tTaskFilters, formatter] =
-    await Promise.all([
-      projectService.getProjectNeedsAttention(project.id),
-      getTranslations("App.Projects.Detail"),
-      getTranslations("App.History.Row"),
-      getTranslations("App.Projects.list.stats"),
-      getTranslations("App.Tasks.Filters"),
-      getFormatter(),
-    ]);
+  const [
+    attention,
+    closeStatus,
+    t,
+    tHistory,
+    tListStats,
+    tTaskFilters,
+    formatter,
+  ] = await Promise.all([
+    projectService.getProjectNeedsAttention(project.id),
+    project.closingAt || project.closedAt
+      ? projectService.getProjectCloseStatus(project.id)
+      : Promise.resolve(null),
+    getTranslations("App.Projects.Detail"),
+    getTranslations("App.History.Row"),
+    getTranslations("App.Projects.list.stats"),
+    getTranslations("App.Tasks.Filters"),
+    getFormatter(),
+  ]);
 
   const taskStatusLabels = buildTaskStatusLabels((key) =>
     tTaskFilters(`statusOptions.${key}`),
@@ -77,10 +88,25 @@ export default async function ProjectDetailPage({
               actions={
                 <ProjectDetailActions
                   projectId={project.id}
+                  projectRevision={project.projectRevision}
+                  isClosingOrClosed={Boolean(
+                    project.closingAt || project.closedAt,
+                  )}
                   labels={{
                     moreActions: t("actions.moreActions"),
                     edit: t("actions.edit"),
+                    close: t("actions.close"),
                     delete: t("actions.delete"),
+                    closeDialog: {
+                      title: t("close.dialog.title"),
+                      description: t("close.dialog.description"),
+                      reasonLabel: t("close.dialog.reasonLabel"),
+                      reasonPlaceholder: t("close.dialog.reasonPlaceholder"),
+                      confirm: t("close.dialog.confirm"),
+                      cancel: t("close.dialog.cancel"),
+                      success: t("close.dialog.success"),
+                      error: t("close.dialog.error"),
+                    },
                     deleteDialog: {
                       title: t("deleteDialog.title"),
                       description: t("deleteDialog.description"),
@@ -92,6 +118,10 @@ export default async function ProjectDetailPage({
                 />
               }
             />
+
+            {closeStatus ? (
+              <ProjectCloseStatusCard status={closeStatus} />
+            ) : null}
 
             {project.latestUpdate ? (
               <ProjectLatestUpdate

@@ -2296,9 +2296,55 @@
           "moreActions": "More actions",
           "viewDetails": "View details",
           "edit": "Edit",
+          "close": "Close project",
           "delete": "Delete",
           "remove": "Remove",
           "confirmRemoveJob": "Remove this job from the project?"
+        },
+        "close": {
+          "dialog": {
+            "title": "Close project?",
+            "description": "Work scheduled before the close cutoff will finish. Work at or after the cutoff will be canceled, and the project cannot be reopened.",
+            "reasonLabel": "Reason (optional)",
+            "reasonPlaceholder": "Why is this project closing?",
+            "confirm": "Close project",
+            "cancel": "Keep project open",
+            "success": "Project close started",
+            "error": "Unable to close the project. Review its latest state and try again."
+          },
+          "status": {
+            "CLOSING": {
+              "title": "Project is closing",
+              "description": "{count, plural, =0 {No owed occurrences remain} one {# owed occurrence remains} other {# owed occurrences remain}} before the {cutoff} cutoff. Work at or after the cutoff is being canceled."
+            },
+            "CLOSE_FAILED": {
+              "title": "Project close needs attention",
+              "descriptionWithCancel": "Scheduled work is paused at the {cutoff} cutoff. Retry the close, or cancel only the blocked owed work.",
+              "descriptionRetryOnly": "Scheduled work is paused at the {cutoff} cutoff. Retry the close to continue."
+            },
+            "CLOSED": {
+              "title": "Project closed",
+              "description": "Closed {completedAt}. Calendar history is retained."
+            }
+          },
+          "recovery": {
+            "retryAction": "Retry close",
+            "cancelOwedAction": "Cancel owed work",
+            "reasonLabel": "Reason",
+            "reasonPlaceholder": "Explain why this recovery action is needed",
+            "reasonRequired": "Enter a reason for this recovery action.",
+            "keepFailed": "Keep close paused",
+            "success": "Project close resumed",
+            "error": "Unable to resume the project close. Review its latest state and try again.",
+            "retry": {
+              "title": "Retry project close?",
+              "description": "The close worker will retry the blocked scheduled work from the same cutoff."
+            },
+            "cancelOwed": {
+              "title": "Cancel owed work?",
+              "description": "Only the blocked work owed before the cutoff will be canceled. This cannot be undone."
+            }
+          }
         },
         "deleteDialog": {
           "title": "Delete project",

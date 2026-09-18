@@ -2296,9 +2296,55 @@
           "moreActions": "Weitere Aktionen",
           "viewDetails": "Details anzeigen",
           "edit": "Bearbeiten",
+          "close": "Projekt schließen",
           "delete": "Löschen",
           "remove": "Entfernen",
           "confirmRemoveJob": "Diesen Job aus dem Projekt entfernen?"
+        },
+        "close": {
+          "dialog": {
+            "title": "Projekt schließen?",
+            "description": "Arbeit, die vor dem Schließungszeitpunkt geplant ist, wird abgeschlossen. Arbeit ab diesem Zeitpunkt wird abgebrochen und das Projekt kann nicht erneut geöffnet werden.",
+            "reasonLabel": "Grund (optional)",
+            "reasonPlaceholder": "Warum wird dieses Projekt geschlossen?",
+            "confirm": "Projekt schließen",
+            "cancel": "Projekt geöffnet lassen",
+            "success": "Projektschließung gestartet",
+            "error": "Das Projekt konnte nicht geschlossen werden. Prüfe den aktuellen Status und versuche es erneut."
+          },
+          "status": {
+            "CLOSING": {
+              "title": "Projekt wird geschlossen",
+              "description": "{count, plural, =0 {Keine ausstehenden Ausführungen verbleiben} one {# ausstehende Ausführung verbleibt} other {# ausstehende Ausführungen verbleiben}} vor dem Schließungszeitpunkt {cutoff}. Arbeit ab diesem Zeitpunkt wird abgebrochen."
+            },
+            "CLOSE_FAILED": {
+              "title": "Projektschließung erfordert Aufmerksamkeit",
+              "descriptionWithCancel": "Geplante Arbeit ist am Schließungszeitpunkt {cutoff} pausiert. Wiederhole die Schließung oder brich nur die blockierte ausstehende Arbeit ab.",
+              "descriptionRetryOnly": "Geplante Arbeit ist am Schließungszeitpunkt {cutoff} pausiert. Wiederhole die Schließung, um fortzufahren."
+            },
+            "CLOSED": {
+              "title": "Projekt geschlossen",
+              "description": "Geschlossen am {completedAt}. Der Kalenderverlauf bleibt erhalten."
+            }
+          },
+          "recovery": {
+            "retryAction": "Schließung wiederholen",
+            "cancelOwedAction": "Ausstehende Arbeit abbrechen",
+            "reasonLabel": "Grund",
+            "reasonPlaceholder": "Begründe, warum diese Wiederherstellungsaktion nötig ist",
+            "reasonRequired": "Gib einen Grund für diese Wiederherstellungsaktion ein.",
+            "keepFailed": "Schließung pausiert lassen",
+            "success": "Projektschließung fortgesetzt",
+            "error": "Die Projektschließung konnte nicht fortgesetzt werden. Prüfe den aktuellen Status und versuche es erneut.",
+            "retry": {
+              "title": "Projektschließung wiederholen?",
+              "description": "Der Schließungsprozess versucht die blockierte geplante Arbeit ab demselben Schließungszeitpunkt erneut."
+            },
+            "cancelOwed": {
+              "title": "Ausstehende Arbeit abbrechen?",
+              "description": "Nur die blockierte, vor dem Schließungszeitpunkt fällige Arbeit wird abgebrochen. Dies kann nicht rückgängig gemacht werden."
+            }
+          }
         },
         "deleteDialog": {
           "title": "Projekt löschen",

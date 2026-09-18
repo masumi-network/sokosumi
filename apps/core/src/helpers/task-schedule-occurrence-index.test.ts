@@ -151,6 +151,24 @@ describe("retireTaskScheduleFutureOccurrences", () => {
     expect(updateMany).not.toHaveBeenCalled();
     expect(deleteMany).not.toHaveBeenCalled();
   });
+
+  it("scopes a Project close retirement and includes the cutoff equality", async () => {
+    const { client, findMany } = createRetireClient([]);
+
+    await retireTaskScheduleFutureOccurrences(client, "tsk_series", NOW, {
+      sourceProjectId: PROJECT_ID,
+    });
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: {
+        seriesTaskId: "tsk_series",
+        sourceProjectId: PROJECT_ID,
+        effectiveScheduledAt: { gte: NOW },
+        state: { in: ["PLANNED", "SKIPPED"] },
+      },
+      select: expect.any(Object),
+    });
+  });
 });
 
 describe("countTaskScheduleFutureExceptions", () => {

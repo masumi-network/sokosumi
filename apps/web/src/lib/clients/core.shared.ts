@@ -68,6 +68,9 @@ import type {
   PostOrganizationsByIdFilesCleanupData,
   PostOrganizationsByIdFilesData,
   PostOrganizationsByIdInviteLinksData,
+  PostProjectsByIdCloseCancelOwedData,
+  PostProjectsByIdCloseData,
+  PostProjectsByIdCloseRetryData,
   PostProjectsByIdJobsData,
   PostProjectsByIdTasksData,
   PostProjectsData,
@@ -224,6 +227,7 @@ import {
   getProjects as coreGetProjects,
   getProjectsById as coreGetProjectsById,
   getProjectsByIdCalendar as coreGetProjectsByIdCalendar,
+  getProjectsByIdClose as coreGetProjectsByIdClose,
   getProjectsByIdContextMd as coreGetProjectsByIdContextMd,
   getProjectsByIdNeedsAttention as coreGetProjectsByIdNeedsAttention,
   getProjectsStats as coreGetProjectsStats,
@@ -343,6 +347,9 @@ import {
   postOrganizationsByIdVendorGrantsByGrantIdDeny as corePostOrganizationsByIdVendorGrantsByGrantIdDeny,
   postOrganizationsByIdVendorGrantsByGrantIdRevoke as corePostOrganizationsByIdVendorGrantsByGrantIdRevoke,
   postProjects as corePostProjects,
+  postProjectsByIdClose as corePostProjectsByIdClose,
+  postProjectsByIdCloseCancelOwed as corePostProjectsByIdCloseCancelOwed,
+  postProjectsByIdCloseRetry as corePostProjectsByIdCloseRetry,
   postProjectsByIdJobs as corePostProjectsByIdJobs,
   postProjectsByIdTasks as corePostProjectsByIdTasks,
   postTasks as corePostTasks,
@@ -2873,6 +2880,19 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdClose(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdClose({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch project close status",
+    );
+  }
+
   async function getProjectsByIdContextMd(id: string) {
     return executeCoreOperation(
       getClient,
@@ -2952,6 +2972,54 @@ export function createCoreClient(getClient: GetCoreClient) {
           path: { id },
         }),
       "Failed to delete project",
+    );
+  }
+
+  async function postProjectsByIdClose(
+    id: string,
+    body: NonNullable<PostProjectsByIdCloseData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdClose({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to close project",
+    );
+  }
+
+  async function postProjectsByIdCloseRetry(
+    id: string,
+    body: NonNullable<PostProjectsByIdCloseRetryData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdCloseRetry({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to retry project close",
+    );
+  }
+
+  async function postProjectsByIdCloseCancelOwed(
+    id: string,
+    body: NonNullable<PostProjectsByIdCloseCancelOwedData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdCloseCancelOwed({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to cancel owed project work",
     );
   }
 
@@ -5270,6 +5338,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjects,
     getProjectsById,
     getProjectsByIdCalendar,
+    getProjectsByIdClose,
     getProjectsByIdContextMd,
     getProjectsByIdNeedsAttention,
     getProjectsStats,
@@ -5281,6 +5350,9 @@ export function createCoreClient(getClient: GetCoreClient) {
     patchProjectsById,
     putProjectsByIdDesignMd,
     postProjects,
+    postProjectsByIdClose,
+    postProjectsByIdCloseCancelOwed,
+    postProjectsByIdCloseRetry,
     postProjectsByIdJobs,
     postProjectsByIdTasks,
     requestJobRefund,
