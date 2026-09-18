@@ -38,6 +38,7 @@ import {
   SidebarGroupContent,
   SidebarMenu,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import type {
   ChatRoom,
@@ -119,6 +120,12 @@ export function OrganizationChatList({
   const [archivedSectionOpen, setArchivedSectionOpen] = useState(false);
   const [directOpen, setDirectOpen] = useState(true);
   const [externalOpen, setExternalOpen] = useState(true);
+  // The rail hides every section header, so a section closed while expanded
+  // would take its rooms off the rail with no way to bring them back, unread
+  // ones included. Collapsed to icons, every section shows. The phone sheet
+  // is never the rail, whatever the desktop state underneath it says.
+  const { state: sidebarState, isMobile } = useSidebar();
+  const isRail = sidebarState === "collapsed" && !isMobile;
   const [restoringRoomId, setRestoringRoomId] = useState<string | null>(null);
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
   const [pendingDeleteRoom, setPendingDeleteRoom] = useState<ChatRoom | null>(
@@ -236,7 +243,7 @@ export function OrganizationChatList({
       <SidebarGroupContent className="space-y-2">
         {hasOrganization ? (
           <Collapsible
-            open={channelSectionOpen}
+            open={channelSectionOpen || isRail}
             onOpenChange={setChannelSectionOpen}
           >
             <ChatSidebarSectionHeader
@@ -273,7 +280,10 @@ export function OrganizationChatList({
         ) : null}
 
         {pendingRows.length > 0 || externalJoined.length > 0 ? (
-          <Collapsible open={externalOpen} onOpenChange={setExternalOpen}>
+          <Collapsible
+            open={externalOpen || isRail}
+            onOpenChange={setExternalOpen}
+          >
             <ChatSidebarSectionHeader isOpen={externalOpen}>
               {tExternal("title")}
             </ChatSidebarSectionHeader>
@@ -518,7 +528,7 @@ export function OrganizationChatList({
           </AlertDialogContent>
         </AlertDialog>
 
-        <Collapsible open={directOpen} onOpenChange={setDirectOpen}>
+        <Collapsible open={directOpen || isRail} onOpenChange={setDirectOpen}>
           {/*
             Sidebar rows = messaged history only. `+` opens Start New Direct
             in place (org members + coworkers, 1:1 coworker / group humans).

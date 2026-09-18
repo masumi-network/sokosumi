@@ -1,9 +1,10 @@
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   acceptInvitationMock,
+  createOrganizationChatList,
   emptyListResult,
   listPendingMock,
   listRoomsMock,
@@ -11,6 +12,7 @@ import {
   makeRoom,
   renderOrganizationChatList,
   resetOrganizationChatListMocks,
+  sidebarMock,
 } from "./organization-chat-list-harness";
 
 describe("OrganizationChatList section visibility", () => {
@@ -50,6 +52,10 @@ describe("OrganizationChatList section visibility", () => {
         }),
       ],
     });
+
+    // Archived starts closed. A synchronous click, because the harness's
+    // archived refresh resolves empty and would take the section away.
+    fireEvent.click(screen.getByText("App.Channels.archivedChannels"));
 
     // An archived row is a plain div, not a `SidebarMenuButton`, so the
     // rail's icon rules do not reach it: without this it rendered a glyph
@@ -112,6 +118,34 @@ describe("OrganizationChatList section visibility", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Partners")).toBeInTheDocument();
     expect(screen.queryByText("App.Channels.title")).not.toBeInTheDocument();
+  });
+
+  it("shows a closed section's rooms on the collapsed rail, which has no header to reopen it", async () => {
+    const external = makeRoom({
+      id: "ext-1",
+      kind: "channel",
+      myAccess: "guest",
+      discoverability: "external",
+      name: "Partners",
+    });
+    listRoomsMock.mockResolvedValue(emptyListResult([external]));
+    const props = { organizationId: null, rooms: [external] };
+    const { rerender } = render(createOrganizationChatList(props));
+
+    await userEvent.click(
+      await screen.findByText("App.Channels.External.title"),
+    );
+    expect(screen.queryByText("Partners")).not.toBeInTheDocument();
+
+    sidebarMock.state = "collapsed";
+    rerender(createOrganizationChatList(props));
+    expect(screen.getByText("Partners")).toBeInTheDocument();
+
+    // The phone sheet always shows headers, so a closed section stays closed
+    // there even while the desktop state underneath says collapsed.
+    sidebarMock.isMobile = true;
+    rerender(createOrganizationChatList(props));
+    expect(screen.queryByText("Partners")).not.toBeInTheDocument();
   });
 
   it("shows External when a pending invitation exists", async () => {

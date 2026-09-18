@@ -109,7 +109,14 @@ vi.mock("@/components/ui/sheet", () => ({
   SheetClose: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
+/** Mutable so a test can put the list on the collapsed rail. */
+export const sidebarMock: {
+  state: "expanded" | "collapsed";
+  isMobile: boolean;
+} = { state: "expanded", isMobile: false };
+
 vi.mock("@/components/ui/sidebar", () => ({
+  useSidebar: () => sidebarMock,
   SidebarGroup: ({ children }: { children: ReactNode }) => (
     <div>{children}</div>
   ),
@@ -147,15 +154,40 @@ vi.mock("@/components/ui/alert-dialog", () => ({
   ),
 }));
 
-vi.mock("@/components/ui/collapsible", () => ({
-  Collapsible: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  CollapsibleContent: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
-  ),
-  CollapsibleTrigger: ({ children }: { children: ReactNode }) => (
-    <button type="button">{children}</button>
-  ),
-}));
+// Honours `open`, so a test can close a section and see its rows leave.
+vi.mock("@/components/ui/collapsible", async () => {
+  const { createContext, useContext } = await import("react");
+  const CollapsibleMockContext = createContext<{
+    open: boolean;
+    onOpenChange?: (open: boolean) => void;
+  }>({ open: true });
+
+  return {
+    Collapsible: ({
+      children,
+      open = true,
+      onOpenChange,
+    }: {
+      children: ReactNode;
+      open?: boolean;
+      onOpenChange?: (open: boolean) => void;
+    }) => (
+      <CollapsibleMockContext.Provider value={{ open, onOpenChange }}>
+        <div>{children}</div>
+      </CollapsibleMockContext.Provider>
+    ),
+    CollapsibleContent: ({ children }: { children: ReactNode }) =>
+      useContext(CollapsibleMockContext).open ? <div>{children}</div> : null,
+    CollapsibleTrigger: ({ children }: { children: ReactNode }) => {
+      const { open, onOpenChange } = useContext(CollapsibleMockContext);
+      return (
+        <button type="button" onClick={() => onOpenChange?.(!open)}>
+          {children}
+        </button>
+      );
+    },
+  };
+});
 
 vi.mock("@/components/ui/dropdown-menu", () => ({
   DropdownMenu: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -233,6 +265,8 @@ export function makeInvitation(
 }
 
 export function resetOrganizationChatListMocks() {
+  sidebarMock.state = "expanded";
+  sidebarMock.isMobile = false;
   acceptInvitationMock.mockReset();
   listRoomsMock.mockReset();
   listPendingMock.mockReset();
