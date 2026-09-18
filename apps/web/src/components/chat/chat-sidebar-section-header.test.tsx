@@ -17,13 +17,16 @@ vi.mock("next-intl", () => ({
   },
 }));
 
-import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
+import { Collapsible } from "@/components/ui/collapsible";
 import {
   Sidebar,
   SidebarContent,
   SidebarProvider,
 } from "@/components/ui/sidebar";
-import { ChatSidebarSectionHeader } from "./chat-sidebar-section-header";
+import {
+  ChatSidebarSectionContent,
+  ChatSidebarSectionHeader,
+} from "./chat-sidebar-section-header";
 import type { SectionAttention } from "./room-attention";
 
 function Section({
@@ -47,7 +50,7 @@ function Section({
             >
               Channels
             </ChatSidebarSectionHeader>
-            <CollapsibleContent>rooms</CollapsibleContent>
+            <ChatSidebarSectionContent>rooms</ChatSidebarSectionContent>
           </Collapsible>
         </SidebarContent>
       </Sidebar>
@@ -141,7 +144,7 @@ describe("ChatSidebarSectionHeader rail square that expands the sidebar", () => 
               >
                 Archived channels
               </ChatSidebarSectionHeader>
-              <CollapsibleContent>rooms</CollapsibleContent>
+              <ChatSidebarSectionContent>rooms</ChatSidebarSectionContent>
             </Collapsible>
           </SidebarContent>
         </Sidebar>
@@ -190,5 +193,54 @@ describe("ChatSidebarSectionHeader rail square that expands the sidebar", () => 
       square?.querySelector('[data-slot="sidebar-row-slot"]'),
     ).not.toBeNull();
     expect(square?.textContent).toContain("Archived channels");
+  });
+});
+
+describe("ChatSidebarSectionContent", () => {
+  it("slides on the same motion as the Projects disclosure", () => {
+    const { container } = render(<Section />);
+    const content = container.querySelector(
+      '[data-slot="collapsible-content"]',
+    );
+    const classes = content?.className.split(/\s+/) ?? [];
+
+    expect(classes).toContain(
+      "motion-safe:data-[state=open]:animate-collapsible-down",
+    );
+    expect(classes).toContain(
+      "motion-safe:data-[state=closed]:animate-collapsible-up",
+    );
+    expect(classes).toContain("overflow-hidden");
+  });
+
+  it("lets a caller drop the clip, which Pinned needs while its rows drag", () => {
+    // `cn` is `twMerge`, so the caller's `overflow-visible` has to win
+    // outright rather than land beside `overflow-hidden` and lose to it.
+    const { container } = render(
+      <Collapsible open>
+        <ChatSidebarSectionContent className="overflow-visible">
+          rooms
+        </ChatSidebarSectionContent>
+      </Collapsible>,
+    );
+    const classes =
+      container
+        .querySelector('[data-slot="collapsible-content"]')
+        ?.className.split(/\s+/) ?? [];
+
+    expect(classes).toContain("overflow-visible");
+    expect(classes).not.toContain("overflow-hidden");
+  });
+
+  it("widens the clip box by the gutter a room's rail pill sits in", () => {
+    const { container } = render(<Section />);
+    const classes =
+      container
+        .querySelector('[data-slot="collapsible-content"]')
+        ?.className.split(/\s+/) ?? [];
+
+    // `RailAttentionPill` is at `-left-2`, outside the rows' box.
+    expect(classes).toContain("-mx-2");
+    expect(classes).toContain("px-2");
   });
 });
