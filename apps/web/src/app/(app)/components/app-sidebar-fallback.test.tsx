@@ -84,31 +84,92 @@ describe("AppSidebarFallback", () => {
     const roomList = container.querySelector(
       '[data-slot="sidebar-group"][aria-hidden]',
     );
-    const rows =
-      roomList?.querySelectorAll('[data-slot="sidebar-menu-item"]') ?? [];
+    const menus = [
+      ...(roomList?.querySelectorAll('[data-slot="sidebar-menu"]') ?? []),
+    ];
+    const headers = [
+      ...(roomList?.querySelectorAll(
+        '[data-slot="sidebar-group-content"] > div',
+      ) ?? []),
+    ];
 
     // The two sections every reader has — Channels and Direct Messages —
     // each a heading of chevron and title over its own menu of rooms.
-    expect(
-      roomList?.querySelectorAll('[data-slot="sidebar-menu"]'),
-    ).toHaveLength(2);
-    for (const header of roomList?.querySelectorAll(
-      '[data-slot="sidebar-group-content"] > div',
-    ) ?? []) {
+    expect(menus).toHaveLength(2);
+    expect(headers).toHaveLength(2);
+    for (const header of headers) {
       expect(header.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(2);
     }
+    expect(
+      tokens(
+        headers[0]?.querySelectorAll('[data-slot="skeleton"]')[1]?.className ??
+          "",
+      ),
+    ).toContain("w-16");
+    expect(
+      tokens(
+        headers[1]?.querySelectorAll('[data-slot="skeleton"]')[1]?.className ??
+          "",
+      ),
+    ).toContain("w-24");
 
-    // Each row is its leading mark plus one name. Asserted per row rather
-    // than as a total, because a Channel draws two marks (glyph and tile, one
-    // per state) and a group Direct draws a face per participant, so no one
-    // number covers them and adding a row would mean editing it.
-    expect(rows.length).toBeGreaterThan(0);
-    for (const row of rows) {
+    // Channel rows carry both of ChannelRoomMark's shapes. Direct rows carry
+    // one face, except the group row whose second face grows the slot right.
+    const channelRows = [
+      ...(menus[0]?.querySelectorAll('[data-slot="sidebar-menu-item"]') ?? []),
+    ];
+    expect(channelRows).toHaveLength(3);
+    for (const row of channelRows) {
+      const marks = row.querySelectorAll(
+        '[data-slot="sidebar-row-slot"] [data-slot="skeleton"]',
+      );
+      expect(marks).toHaveLength(2);
+      expect(tokens(marks[0]?.className ?? "")).toEqual(
+        expect.arrayContaining([
+          "size-4",
+          "group-data-[collapsible=icon]:hidden",
+        ]),
+      );
+      expect(tokens(marks[1]?.className ?? "")).toEqual(
+        expect.arrayContaining([
+          "size-6",
+          "hidden",
+          "group-data-[collapsible=icon]:block",
+        ]),
+      );
       expect(
         row.querySelectorAll(
+          '[data-slot="sidebar-row-slot"] ~ [data-slot="skeleton"]',
+        ),
+      ).toHaveLength(1);
+    }
+
+    const directRows = [
+      ...(menus[1]?.querySelectorAll('[data-slot="sidebar-menu-item"]') ?? []),
+    ];
+    expect(directRows).toHaveLength(3);
+    for (const [rowIndex, row] of directRows.entries()) {
+      const faces = [
+        ...row.querySelectorAll(
           '[data-slot="sidebar-row-slot"] [data-slot="skeleton"]',
-        ).length,
-      ).toBeGreaterThan(0);
+        ),
+      ];
+      expect(faces).toHaveLength(rowIndex === 1 ? 2 : 1);
+      for (const [faceIndex, face] of faces.entries()) {
+        expect(tokens(face.className)).toEqual(
+          expect.arrayContaining(["size-6", "rounded-full"]),
+        );
+        if (faceIndex > 0) {
+          expect(tokens(face.className)).toEqual(
+            expect.arrayContaining([
+              "-ml-2",
+              "group-data-[collapsible=icon]:hidden",
+            ]),
+          );
+        } else {
+          expect(tokens(face.className)).not.toContain("-ml-2");
+        }
+      }
       expect(
         row.querySelectorAll(
           '[data-slot="sidebar-row-slot"] ~ [data-slot="skeleton"]',
