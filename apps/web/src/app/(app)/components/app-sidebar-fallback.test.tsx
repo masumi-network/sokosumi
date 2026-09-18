@@ -36,6 +36,7 @@ vi.mock("@/hooks/use-mobile", () => ({
 
 import { AppSidebarFallback } from "@/app/components/app-sidebar-fallback";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { TestQueryProvider } from "@/test/query-provider";
 
 function tokens(className: string): string[] {
   return className.split(/\s+/).filter(Boolean);
@@ -43,9 +44,11 @@ function tokens(className: string): string[] {
 
 function renderFallback() {
   return render(
-    <SidebarProvider defaultOpen>
-      <AppSidebarFallback />
-    </SidebarProvider>,
+    <TestQueryProvider>
+      <SidebarProvider defaultOpen>
+        <AppSidebarFallback />
+      </SidebarProvider>
+    </TestQueryProvider>,
   );
 }
 
@@ -102,9 +105,11 @@ describe("AppSidebarFallback", () => {
 
   it("keeps both logo states in the DOM so a collapsed boot script can hide the wordmark", () => {
     const { container } = render(
-      <SidebarProvider defaultOpen={false}>
-        <AppSidebarFallback />
-      </SidebarProvider>,
+      <TestQueryProvider>
+        <SidebarProvider defaultOpen={false}>
+          <AppSidebarFallback />
+        </SidebarProvider>
+      </TestQueryProvider>,
     );
 
     expect(container.querySelector('a[href="/"]')).not.toBeNull();

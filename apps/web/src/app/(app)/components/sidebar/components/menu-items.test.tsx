@@ -108,6 +108,7 @@ vi.mock("next/link", () => ({
 
 import MenuItems from "@/app/components/sidebar/components/menu-items";
 import { OrganizationSeatProvider } from "@/contexts/organization-seat-context";
+import { TestQueryProvider } from "@/test/query-provider";
 
 let sidebarIsMobile = true;
 
@@ -118,9 +119,11 @@ function renderMenu(
 ) {
   sidebarIsMobile = isMobile;
   return render(
-    <OrganizationSeatProvider hasAssignedSeat={hasAssignedSeat}>
-      <MenuItems calendarMenuEnabled={calendarMenuEnabled} />
-    </OrganizationSeatProvider>,
+    <TestQueryProvider>
+      <OrganizationSeatProvider hasAssignedSeat={hasAssignedSeat}>
+        <MenuItems calendarMenuEnabled={calendarMenuEnabled} />
+      </OrganizationSeatProvider>
+    </TestQueryProvider>,
   );
 }
 
@@ -209,9 +212,11 @@ describe("MenuItems search action", () => {
 
     sidebarIsMobile = true;
     rerender(
-      <OrganizationSeatProvider hasAssignedSeat>
-        <MenuItems calendarMenuEnabled />
-      </OrganizationSeatProvider>,
+      <TestQueryProvider>
+        <OrganizationSeatProvider hasAssignedSeat>
+          <MenuItems calendarMenuEnabled />
+        </OrganizationSeatProvider>
+      </TestQueryProvider>,
     );
 
     expect(screen.getByRole("link", { name: /calendar/i })).toHaveAttribute(
@@ -276,7 +281,11 @@ describe("MenuItems search action", () => {
   });
 
   it("keeps the separator under New Task on the collapsed rail", () => {
-    const { container } = render(<MenuItems calendarMenuEnabled={false} />);
+    const { container } = render(
+      <TestQueryProvider>
+        <MenuItems calendarMenuEnabled={false} />
+      </TestQueryProvider>,
+    );
     const separator = container.querySelector('li[aria-hidden="true"]');
 
     // The one action set apart from the destinations under it. It used to be
@@ -293,7 +302,11 @@ describe("MenuItems search action", () => {
   });
 
   it("leaves only the icon in the flow on the collapsed rail, so the square centres it", () => {
-    render(<MenuItems calendarMenuEnabled={false} />);
+    render(
+      <TestQueryProvider>
+        <MenuItems calendarMenuEnabled={false} />
+      </TestQueryProvider>,
+    );
     const link = screen.getByRole("link", { name: "exploreAgents" });
     // The icon rides the shared 24px slot, so a nav mark sits on the same
     // axis a room's mark does — and the label after it on the same column.

@@ -51,6 +51,9 @@ import en from "@/messages/en.json";
 import es from "@/messages/es.json";
 import { ProjectsMenuItem } from "./projects-menu-item";
 
+const EXPANDED_KEY = "sokosumi.sidebar.projects-expanded";
+const VISITS_KEY = "sokosumi.sidebar.recent-projects.v1";
+
 function MobileState() {
   const { openMobile, setOpenMobile } = useSidebar();
   return (
@@ -87,8 +90,11 @@ function projectHrefs(): string[] {
     .filter((href) => href.startsWith("/projects/"));
 }
 
-function expand() {
-  fireEvent.click(screen.getByRole("button", { name: "expandProjects" }));
+/** The control only exists once there is something behind it, so wait for it. */
+async function expand() {
+  fireEvent.click(
+    await screen.findByRole("button", { name: "expandProjects" }),
+  );
 }
 
 beforeEach(() => {
@@ -109,22 +115,36 @@ beforeEach(() => {
 
 describe("Projects sidebar", () => {
   it("hydrates the server default before restoring a saved expanded choice", async () => {
-    const view = setup();
-    const tree = view.refresh();
-    view.unmount();
-    localStorage.setItem("sokosumi.sidebar.projects-expanded", "true");
+    // Its own client, and rows that never arrive, so the server string and the
+    // first client render agree on having nothing yet.
+    mocks.load.mockImplementation(() => new Promise(() => {}));
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const tree = (
+      <QueryClientProvider client={client}>
+        <SidebarProvider open>
+          <SidebarMenu>
+            <ProjectsMenuItem />
+          </SidebarMenu>
+        </SidebarProvider>
+      </QueryClientProvider>
+    );
+    localStorage.setItem(EXPANDED_KEY, "true");
     const container = document.createElement("div");
     container.innerHTML = renderToString(tree);
     document.body.append(container);
-    expect(container.querySelector("button[aria-expanded]")).toHaveAttribute(
-      "aria-expanded",
-      "false",
-    );
+    // Nothing is loaded on the server, so the row is a plain link: no control
+    // to disclose, and no rows to give away.
+    expect(container.querySelector("button[aria-expanded]")).toBeNull();
+    expect(container.querySelectorAll('a[href^="/projects/"]')).toHaveLength(0);
     const onRecoverableError = vi.fn();
     let root: ReturnType<typeof hydrateRoot>;
     await act(async () => {
       root = hydrateRoot(container, tree, { onRecoverableError });
     });
+    // The saved choice comes back after hydration, standing on the skeleton
+    // until the rows land.
     await waitFor(() =>
       expect(container.querySelector("button[aria-expanded]")).toHaveAttribute(
         "aria-expanded",
@@ -138,26 +158,21 @@ describe("Projects sidebar", () => {
 
   it("restores both disclosure choices after remount without persisting project data", async () => {
     const first = setup();
-    expand();
+    await expand();
     await screen.findByRole("link", { name: "Launch plan" });
-    expect(localStorage.getItem("sokosumi.sidebar.projects-expanded")).toBe(
-      "true",
-    );
+    expect(localStorage.getItem(EXPANDED_KEY)).toBe("true");
+    // Only the reader's disclosure choice is written here; the rows are not.
     expect(localStorage.length).toBe(1);
     first.unmount();
     const second = setup();
     await screen.findByRole("link", { name: "Launch plan" });
     fireEvent.click(screen.getByRole("button", { name: "collapseProjects" }));
-    expect(localStorage.getItem("sokosumi.sidebar.projects-expanded")).toBe(
-      "false",
-    );
+    expect(localStorage.getItem(EXPANDED_KEY)).toBe("false");
     second.unmount();
-    mocks.load.mockClear();
     setup();
     expect(
-      screen.getByRole("button", { name: "expandProjects" }),
+      await screen.findByRole("button", { name: "expandProjects" }),
     ).toHaveAttribute("aria-expanded", "false");
-    expect(mocks.load).not.toHaveBeenCalled();
   });
 
   it("keeps disclosure usable when browser storage is unavailable", async () => {
@@ -168,7 +183,7 @@ describe("Projects sidebar", () => {
       throw new Error("Blocked");
     });
     setup();
-    expand();
+    await expand();
     await screen.findByRole("link", { name: "Launch plan" });
     fireEvent.click(screen.getByRole("button", { name: "collapseProjects" }));
     expect(
@@ -193,60 +208,97 @@ describe("Projects sidebar", () => {
     );
   });
 
-  it("keeps overview navigation and loads only after disclosure, with current-project semantics", async () => {
+  it("loads the rows before the reader opens the disclosure", async () => {
     setup();
     expect(screen.getByRole("link", { name: "projects" })).toHaveAttribute(
       "href",
       "/projects",
     );
+    // The fetch is already in flight while the disclosure is still shut.
+    expect(mocks.load).toHaveBeenCalledWith({
+      cursor: null,
+      expectedScope: { userId: "user-1", organizationId: "org-1" },
+    });
     expect(
-      screen
-        .getByRole("link", { name: "projects" })
-        .querySelector('[data-slot="sidebar-row-slot"]'),
-    ).toBeInTheDocument();
-    const trigger = screen.getByRole("button", { name: "expandProjects" });
-    expect(trigger).toHaveAttribute("aria-expanded", "false");
-    expect(
-      document.getElementById(trigger.getAttribute("aria-controls") ?? ""),
-    ).toHaveAttribute("hidden");
-    expand();
+      screen.queryByRole("link", { name: "Launch plan" }),
+    ).not.toBeInTheDocument();
+    await expand();
     expect(
       await screen.findByRole("link", { name: "Launch plan" }),
     ).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "projects" })).not.toHaveAttribute(
       "aria-current",
     );
-    expect(mocks.load).toHaveBeenCalledWith({
-      cursor: null,
-      expectedScope: { userId: "user-1", organizationId: "org-1" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "collapseProjects" }));
-    expect(
-      screen.queryByRole("link", { name: "Launch plan" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "expandProjects" }),
-    ).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("shows loading, failure, retry and empty states", async () => {
+  it("opens without a loading state and does not refetch when the reader comes back", async () => {
+    setup();
+    await expand();
+    await screen.findByRole("link", { name: "Launch plan" });
+    fireEvent.click(screen.getByRole("button", { name: "collapseProjects" }));
+    fireEvent.click(screen.getByRole("button", { name: "expandProjects" }));
+    // Same frame: the rows are already there, with no loading status between.
+    expect(
+      screen.getByRole("link", { name: "Launch plan" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(mocks.load).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers no disclosure for a workspace without projects", async () => {
+    mocks.load.mockResolvedValue({ projects: [], nextCursor: null });
+    setup();
+    await waitFor(() => expect(mocks.load).toHaveBeenCalled());
+    expect(
+      screen.queryByRole("button", { name: "expandProjects" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "projects" })).toBeInTheDocument();
+  });
+
+  it("stands the rows in with a skeleton for a reader who left it open", async () => {
+    localStorage.setItem(EXPANDED_KEY, "true");
+    mocks.load.mockImplementation(() => new Promise(() => {}));
+    setup();
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "projectsLoading",
+    );
+    expect(projectHrefs()).toEqual([]);
+    // Still closable while it waits, so the skeleton is never trapped open.
+    expect(
+      screen.getByRole("button", { name: "collapseProjects" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows failure and retries", async () => {
+    localStorage.setItem(EXPANDED_KEY, "true");
     mocks.load
       .mockRejectedValueOnce(new Error("Forbidden"))
-      .mockResolvedValueOnce({ projects: [], nextCursor: null });
+      .mockResolvedValueOnce({
+        projects: [{ id: "project-1", name: "Launch plan" }],
+        nextCursor: null,
+      });
     setup();
-    expand();
-    expect(screen.getByRole("status")).toHaveTextContent("projectsLoading");
-    expect(
-      await screen.findByRole("button", { name: "retryProjects" }),
-    ).toBeInTheDocument();
+    const retry = await screen.findByRole("button", { name: "retryProjects" });
     expect(screen.getByRole("status")).toHaveTextContent("projectsError");
-    fireEvent.click(screen.getByRole("button", { name: "retryProjects" }));
-    await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent("projectsEmpty"),
-    );
+    fireEvent.click(retry);
     expect(
-      screen.queryByRole("link", { name: "viewAllProjects" }),
-    ).not.toBeInTheDocument();
+      await screen.findByRole("link", { name: "Launch plan" }),
+    ).toBeInTheDocument();
+  });
+
+  it("animates the disclosure open and closed", async () => {
+    setup();
+    await expand();
+    await screen.findByRole("link", { name: "Launch plan" });
+    const content = document.querySelector('[data-slot="collapsible-content"]');
+    const classes = content?.className.split(/\s+/) ?? [];
+    expect(classes).toContain(
+      "motion-safe:data-[state=open]:animate-collapsible-down",
+    );
+    expect(classes).toContain(
+      "motion-safe:data-[state=closed]:animate-collapsible-up",
+    );
+    expect(classes).toContain("overflow-hidden");
   });
 
   it("drops old workspace rows and ignores an old in-flight response", async () => {
@@ -260,17 +312,14 @@ describe("Projects sidebar", () => {
           finish = resolve;
         }),
     );
+    localStorage.setItem(EXPANDED_KEY, "true");
     const view = setup();
-    expand();
     mocks.load.mockResolvedValueOnce({
       projects: [{ id: "personal", name: "Personal project" }],
       nextCursor: null,
     });
     mocks.organizationId = null;
     view.rerender(view.refresh());
-    expect(
-      screen.getByRole("button", { name: "collapseProjects" }),
-    ).toHaveAttribute("aria-expanded", "true");
     await act(async () =>
       finish({
         projects: [{ id: "private", name: "Old org secret" }],
@@ -278,7 +327,6 @@ describe("Projects sidebar", () => {
       }),
     );
     expect(screen.queryByText("Old org secret")).not.toBeInTheDocument();
-
     expect(
       await screen.findByRole("link", { name: "Personal project" }),
     ).toBeInTheDocument();
@@ -301,7 +349,7 @@ describe("Projects sidebar", () => {
       nextCursor: "page-2",
     });
     setup();
-    expand();
+    await expand();
     const first = await screen.findByTitle(name);
     expect(first).toHaveAttribute("href", "/projects/0");
     expect(projectHrefs()).toEqual([
@@ -319,10 +367,7 @@ describe("Projects sidebar", () => {
   });
 
   it("ranks the reader's last visits ahead of Core's activity order", async () => {
-    localStorage.setItem(
-      "sokosumi.sidebar.recent-projects.v1",
-      JSON.stringify(["7", "9"]),
-    );
+    localStorage.setItem(VISITS_KEY, JSON.stringify(["7", "9"]));
     mocks.load.mockResolvedValue({
       projects: Array.from({ length: 12 }, (_, i) => ({
         id: String(i),
@@ -331,7 +376,7 @@ describe("Projects sidebar", () => {
       nextCursor: null,
     });
     setup();
-    expand();
+    await expand();
     await screen.findByRole("link", { name: "Project 7" });
     expect(projectHrefs()).toEqual([
       "/projects/7",
@@ -344,18 +389,18 @@ describe("Projects sidebar", () => {
 
   it("ignores a visit log entry the workspace no longer carries", async () => {
     localStorage.setItem(
-      "sokosumi.sidebar.recent-projects.v1",
+      VISITS_KEY,
       JSON.stringify(["from-another-workspace", "project-1"]),
     );
     setup();
-    expand();
+    await expand();
     await screen.findByRole("link", { name: "Launch plan" });
     expect(projectHrefs()).toEqual(["/projects/project-1"]);
   });
 
   it("renders the established avatar fallback without changing the accessible link name", async () => {
     setup();
-    expand();
+    await expand();
     const link = await screen.findByRole("link", { name: "Launch plan" });
     expect(link.querySelector('[data-slot="avatar"]')).toBeInTheDocument();
     expect(link.querySelector(".lucide-check")).not.toBeInTheDocument();
@@ -366,23 +411,26 @@ describe("Projects sidebar", () => {
     ).toHaveTextContent("L");
   });
 
-  it("keeps the collapsed rail as an overview link without fetching", () => {
+  it("preloads behind the collapsed rail but offers no disclosure there", async () => {
     setup(false);
     expect(screen.getByRole("link", { name: "projects" })).toHaveAttribute(
       "href",
       "/projects",
     );
+    // Warm for the moment the reader widens the sidebar…
+    await waitFor(() => expect(mocks.load).toHaveBeenCalled());
+    // …but a 56px rail has nowhere to put the rows.
     expect(
       screen.queryByRole("button", { name: "expandProjects" }),
     ).not.toBeInTheDocument();
-    expect(mocks.load).not.toHaveBeenCalled();
+    expect(projectHrefs()).toEqual([]);
   });
 
   it("allows disclosure on mobile even when desktop is collapsed, then dismisses on navigation", async () => {
     mocks.mobile = true;
     setup(false);
     fireEvent.click(screen.getByRole("button", { name: "mobile-closed" }));
-    expand();
+    await expand();
     expect(
       screen.getByRole("button", { name: "mobile-open" }),
     ).toBeInTheDocument();
@@ -402,7 +450,6 @@ it.each([en, de, es])(
       "collapseProjects",
       "projectsLoading",
       "projectsError",
-      "projectsEmpty",
       "retryProjects",
     ] as const) {
       expect(labels[key]).toEqual(expect.any(String));

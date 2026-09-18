@@ -5,10 +5,15 @@ import { ChevronRight, FolderKanban } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useId, useState } from "react";
+import { useState } from "react";
 import { loadMoreProjects } from "@/app/projects/actions";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { Button } from "@/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   SIDEBAR_ROW_LABEL_CLASS,
   SidebarMenuButton,
@@ -20,6 +25,7 @@ import {
   SidebarRowSlot,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { useRecentProjectIds } from "@/hooks/use-recent-projects";
 import { useSession } from "@/lib/auth/auth.client";
@@ -46,6 +52,51 @@ interface ProjectsNavigationProps {
   scope: { userId: string; organizationId: string | null } | null;
 }
 
+type SidebarProject = Awaited<
+  ReturnType<typeof loadMoreProjects>
+>["projects"][number];
+
+/**
+ * The reader's sidebar rows, fetched as soon as the sidebar mounts rather than
+ * when the disclosure opens, so opening it never lands on a spinner.
+ *
+ * Caching is the app default (`get-query-client.ts`): one page stays fresh for
+ * a minute and the observer here keeps it subscribed for as long as the
+ * sidebar lives, so collapsing and coming back is instant.
+ */
+function useSidebarProjects(scope: ProjectsNavigationProps["scope"]) {
+  const visitedIds = useRecentProjectIds();
+  const { data, isPending, isError, refetch } = useQuery({
+    queryKey: [
+      "sidebar-project-page",
+      scope?.userId ?? null,
+      scope?.organizationId ?? null,
+    ],
+    queryFn: () => {
+      // `enabled` keeps this from running, but the guard is what proves it to
+      // the type system without an assertion.
+      if (!scope) throw new Error("No workspace scope");
+      return loadMoreProjects({ cursor: null, expectedScope: scope });
+    },
+    enabled: scope != null,
+    retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+
+  const rows = orderSidebarProjects({
+    projects: data?.projects ?? [],
+    // Pins arrive with the Core pin routes; the rule they plug into is already
+    // covered in `order-sidebar-projects.test.ts`.
+    pinnedIds: [],
+    visitedIds,
+  });
+
+  // A session that has not resolved yet reads as pending, which is what the
+  // disclosure should show for it.
+  return { rows, isPending: isPending || scope == null, isError, refetch };
+}
+
 function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
@@ -59,8 +110,7 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
     }
   });
 
-  function handleToggle() {
-    const nextOpen = !open;
+  function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
     try {
       localStorage.setItem(PROJECTS_EXPANDED_STORAGE_KEY, String(nextOpen));
@@ -69,9 +119,15 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
     }
   }
 
-  const contentId = useId();
+  const { rows, isPending, isError, refetch } = useSidebarProjects(scope);
   const active = pathname === "/projects" || pathname.startsWith("/projects/");
   const expandedSidebar = isMobile || state !== "collapsed";
+
+  // Offer the disclosure only once there is something behind it. A reader who
+  // left it open still gets the control while their rows load or fail, so the
+  // skeleton and the retry are never trapped open.
+  const disclosable = rows.length > 0 || (open && (isPending || isError));
+  const showDisclosure = expandedSidebar && disclosable;
 
   function handleNavigate() {
     if (isMobile) setOpenMobile(false);
@@ -79,106 +135,119 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
 
   return (
     <SidebarMenuItem>
-      <div
-        className={cn(
-          "flex items-center rounded-md",
-          active && expandedSidebar && "bg-sidebar-accent",
-        )}
+      <Collapsible
+        open={open && showDisclosure}
+        onOpenChange={handleOpenChange}
       >
-        <SidebarMenuButton asChild isActive={active} tooltip={t("projects")}>
-          <Link
-            href="/projects"
-            onClick={handleNavigate}
-            aria-current={pathname === "/projects" ? "page" : undefined}
-            className={cn(
-              "min-w-0",
-              active
-                ? "text-sidebar-accent-foreground"
-                : "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-            )}
-          >
-            <SidebarRowSlot>
-              <FolderKanban className="size-4" aria-hidden />
-            </SidebarRowSlot>
-            <span className={cn(SIDEBAR_ROW_LABEL_CLASS, "truncate")}>
-              {t("projects")}
-            </span>
-          </Link>
-        </SidebarMenuButton>
-        {expandedSidebar ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-10 shrink-0 md:size-8 text-tertiary-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground dark:text-muted-foreground"
-            aria-label={t(open ? "collapseProjects" : "expandProjects")}
-            aria-expanded={open}
-            aria-controls={contentId}
-            onClick={handleToggle}
-          >
-            <ChevronRight
-              className={cn("size-4", open && "rotate-90")}
-              aria-hidden
-            />
-          </Button>
-        ) : null}
-      </div>
-      {active ? <SidebarRailSelectionBar /> : null}
-      <div id={contentId} hidden={!open || !expandedSidebar}>
-        {open && expandedSidebar ? (
-          scope ? (
-            <ProjectLinks scope={scope} onNavigate={handleNavigate} />
-          ) : (
-            <p
-              role="status"
-              className="text-muted-foreground px-6 py-2 text-sm"
+        <div
+          className={cn(
+            "flex items-center rounded-md",
+            active && expandedSidebar && "bg-sidebar-accent",
+          )}
+        >
+          <SidebarMenuButton asChild isActive={active} tooltip={t("projects")}>
+            <Link
+              href="/projects"
+              onClick={handleNavigate}
+              aria-current={pathname === "/projects" ? "page" : undefined}
+              className={cn(
+                "min-w-0",
+                active
+                  ? "text-sidebar-accent-foreground"
+                  : "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+              )}
             >
-              {t("projectsLoading")}
-            </p>
-          )
-        ) : null}
-      </div>
+              <SidebarRowSlot>
+                <FolderKanban className="size-4" aria-hidden />
+              </SidebarRowSlot>
+              <span className={cn(SIDEBAR_ROW_LABEL_CLASS, "truncate")}>
+                {t("projects")}
+              </span>
+            </Link>
+          </SidebarMenuButton>
+          {showDisclosure ? (
+            <CollapsibleTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-10 shrink-0 md:size-8 text-tertiary-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground dark:text-muted-foreground"
+                aria-label={t(open ? "collapseProjects" : "expandProjects")}
+              >
+                <ChevronRight
+                  className={cn(
+                    "size-4 transition-transform duration-200 ease-out",
+                    open && "rotate-90",
+                  )}
+                  aria-hidden
+                />
+              </Button>
+            </CollapsibleTrigger>
+          ) : null}
+        </div>
+        {active ? <SidebarRailSelectionBar /> : null}
+        {/* Height travels with the rows, so everything below slides in the
+            same motion instead of jumping. */}
+        <CollapsibleContent className="motion-safe:data-[state=closed]:animate-collapsible-up motion-safe:data-[state=open]:animate-collapsible-down overflow-hidden">
+          {isPending ? (
+            <ProjectLinksSkeleton label={t("projectsLoading")} />
+          ) : isError ? (
+            <SidebarMenuSub className="mx-0 translate-x-0 border-l-0 pl-4 pr-0">
+              <SidebarMenuSubItem>
+                <p role="status" className="text-muted-foreground px-2 text-sm">
+                  {t("projectsError")}
+                </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => void refetch()}
+                >
+                  {t("retryProjects")}
+                </Button>
+              </SidebarMenuSubItem>
+            </SidebarMenuSub>
+          ) : (
+            <ProjectLinks rows={rows} onNavigate={handleNavigate} />
+          )}
+        </CollapsibleContent>
+      </Collapsible>
     </SidebarMenuItem>
   );
 }
 
+/**
+ * Stands in for the rows on a first paint the reader opened into, at the same
+ * geometry, so the disclosure does not resize once the names arrive.
+ */
+const SKELETON_NAME_WIDTHS = ["w-24", "w-16", "w-20"] as const;
+
+function ProjectLinksSkeleton({ label }: { label: string }) {
+  return (
+    <SidebarMenuSub className="mx-0 translate-x-0 border-l-0 pl-4 pr-0">
+      <p role="status" className="sr-only">
+        {label}
+      </p>
+      {SKELETON_NAME_WIDTHS.map((nameWidth) => (
+        <SidebarMenuSubItem key={nameWidth} aria-hidden>
+          <div className="flex min-h-9 items-center gap-2 py-2">
+            <Skeleton className="size-5 shrink-0 rounded-md" />
+            <Skeleton className={cn("h-3", nameWidth)} />
+          </div>
+        </SidebarMenuSubItem>
+      ))}
+    </SidebarMenuSub>
+  );
+}
+
 function ProjectLinks({
-  scope,
+  rows,
   onNavigate,
 }: {
-  scope: NonNullable<ProjectsNavigationProps["scope"]>;
+  rows: SidebarProject[];
   onNavigate: () => void;
 }) {
-  const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
-  const visitedIds = useRecentProjectIds();
-  const { data, isPending, isError, refetch } = useQuery({
-    queryKey: ["sidebar-project-page", scope.userId, scope.organizationId],
-    queryFn: () => loadMoreProjects({ cursor: null, expectedScope: scope }),
-    gcTime: 0,
-    retry: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-  });
-
-  // Whole rows only, ranked by the reader's own visits, so the disclosure no
-  // longer scrolls inside itself and no longer reshuffles when a teammate
-  // touches a project. `Projects` above still links to the full list.
-  const rows = orderSidebarProjects({
-    projects: data?.projects ?? [],
-    // Pins arrive with the Core pin routes; the rule they plug into is already
-    // covered in `order-sidebar-projects.test.ts`.
-    pinnedIds: [],
-    visitedIds,
-  });
-
-  const status = isPending
-    ? t("projectsLoading")
-    : isError
-      ? t("projectsError")
-      : rows.length === 0
-        ? t("projectsEmpty")
-        : null;
 
   return (
     <SidebarMenuSub className="mx-0 translate-x-0 border-l-0 pl-4 pr-0">
@@ -217,23 +286,6 @@ function ProjectLinks({
           </SidebarMenuSubItem>
         );
       })}
-      {status ? (
-        <SidebarMenuSubItem>
-          <p role="status" className="text-muted-foreground px-2 text-sm">
-            {status}
-          </p>
-          {isError ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => void refetch()}
-            >
-              {t("retryProjects")}
-            </Button>
-          ) : null}
-        </SidebarMenuSubItem>
-      ) : null}
     </SidebarMenuSub>
   );
 }

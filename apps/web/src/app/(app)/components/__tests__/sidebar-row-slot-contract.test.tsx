@@ -74,6 +74,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import type { ChatRoomInvitation } from "@/lib/clients/generated/core";
+import { TestQueryProvider } from "@/test/query-provider";
 
 const rooms = [
   makeRoom({ id: "channel-1", name: "general" }),
@@ -111,27 +112,29 @@ const pendingInvitations: ChatRoomInvitation[] = [
  */
 function renderSidebar() {
   return render(
-    <SidebarProvider defaultOpen>
-      <Sidebar collapsible="icon">
-        <SidebarContent>
-          <PersonalAssistantNav
-            bot={{ id: "bot-1", imageUrl: null, seed: "seed" }}
-          />
-          <MenuItems calendarMenuEnabled />
-          <OrganizationChatList
-            rooms={rooms}
-            archivedRooms={archivedRooms}
-            pendingInvitations={pendingInvitations}
-            currentUserId="user-1"
-            organizationId="org-1"
-            canDeleteArchivedRooms
-            dismissSheetOnNavigate={false}
-            paintOnly
-          />
-          <SidebarChatListSkeleton />
-        </SidebarContent>
-      </Sidebar>
-    </SidebarProvider>,
+    <TestQueryProvider>
+      <SidebarProvider defaultOpen>
+        <Sidebar collapsible="icon">
+          <SidebarContent>
+            <PersonalAssistantNav
+              bot={{ id: "bot-1", imageUrl: null, seed: "seed" }}
+            />
+            <MenuItems calendarMenuEnabled />
+            <OrganizationChatList
+              rooms={rooms}
+              archivedRooms={archivedRooms}
+              pendingInvitations={pendingInvitations}
+              currentUserId="user-1"
+              organizationId="org-1"
+              canDeleteArchivedRooms
+              dismissSheetOnNavigate={false}
+              paintOnly
+            />
+            <SidebarChatListSkeleton />
+          </SidebarContent>
+        </Sidebar>
+      </SidebarProvider>
+    </TestQueryProvider>,
   );
 }
 
