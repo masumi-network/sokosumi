@@ -45,8 +45,13 @@ import { cn } from "@/lib/utils";
  *    follows it.
  * 2. Weight is the status inside the column. `filled` is the column's
  *    ordinary state, `outline` the variant. The two measure 5.99 to 11.14
- *    OKLab dE apart, and the border is a second, structural cue on top of
- *    that. Two tints of one hue were tried first and rejected: warning
+ *    OKLab dE apart, and a box with a hole in it is a second, structural cue
+ *    on top of that. The cue is the shape, not the border's contrast: every
+ *    `-tertiary` border measures 1.37 to 2.42 against --card-background, under
+ *    the 3:1 SC 1.4.11 asks of a boundary, which is a property of the whole
+ *    ramp rather than of this scale (--border itself is 1.24). Nothing rests
+ *    on it: the glyph and the word carry the status, and both clear their
+ *    floors. Two tints of one hue were tried first and rejected: warning
  *    quaternary against quinary came to 3.58, under the 6.0 that reads as
  *    comfortably separate.
  * 3. A fault leaves its column. Anything wrong is `fault`, wherever the board
