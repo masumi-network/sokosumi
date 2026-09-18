@@ -71,7 +71,7 @@ const EMPTY_PENDING_INVITATIONS: ChatRoomInvitation[] = [];
 
 /** Same absolute slot as live room rows so archived height matches Channels/DMs. */
 const ARCHIVED_TRAILING_CONTROL_CLASS =
-  "absolute top-1/2 right-1 z-10 flex size-8 -translate-y-1/2 items-center justify-center md:size-7";
+  "absolute top-1/2 right-1 z-10 flex size-8 -translate-y-1/2 items-center justify-center after:absolute after:-inset-1.5 md:size-7 md:after:hidden";
 
 interface OrganizationChatListProps {
   rooms: ChatRoom[];
@@ -409,7 +409,7 @@ export function OrganizationChatList({
                       key={room.id}
                       className="group/room-row relative"
                     >
-                      <div className="text-tertiary-foreground dark:text-muted-foreground flex min-h-auto w-full items-center gap-2 px-3 py-1.5 group-data-[collapsible=icon]:hidden">
+                      <div className="text-tertiary-foreground dark:text-muted-foreground flex min-h-11 w-full items-center gap-3 px-3 py-1.5 md:gap-2 group-data-[collapsible=icon]:hidden md:min-h-auto">
                         <ChannelDiscoverabilityIcon
                           className="opacity-60"
                           discoverability={room.discoverability}
@@ -435,7 +435,7 @@ export function OrganizationChatList({
                                 "group-data-[collapsible=icon]:hidden text-muted-foreground",
                                 isRestoring || isDeleting
                                   ? "opacity-100"
-                                  : "opacity-0 group-focus-within/room-row:opacity-100 group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
+                                  : "[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
                               )}
                               aria-label={tActions("roomMenu", {
                                 name: room.name,
@@ -479,7 +479,7 @@ export function OrganizationChatList({
                             "group-data-[collapsible=icon]:hidden text-muted-foreground",
                             isRestoring
                               ? "opacity-100"
-                              : "opacity-0 group-focus-within/room-row:opacity-100 group-hover/room-row:opacity-100",
+                              : "[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100",
                           )}
                           disabled={actionBusy}
                           onClick={() => handleRestoreRoom(room)}

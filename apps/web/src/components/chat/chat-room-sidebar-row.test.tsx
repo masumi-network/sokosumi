@@ -364,7 +364,7 @@ describe("ChatRoomSidebarRow tooltip", () => {
 });
 
 describe("ChatRoomSidebarRow leading slot", () => {
-  it("wraps any room leading icon in a min-w-5 / h-5 alignment slot", () => {
+  it("wraps any room leading icon in a min-w-7 / h-7 alignment slot below md", () => {
     const { container } = render(
       <ChatRoomSidebarRow
         room={makeRoom()}
@@ -380,12 +380,16 @@ describe("ChatRoomSidebarRow leading slot", () => {
     const slot = leading.parentElement;
     expect(slot).not.toBeNull();
     expect(slot?.getAttribute("data-slot")).toBe("room-leading");
-    // min-w-5 aligns single icons; width may grow for multi-avatar stacks.
-    expect(slot?.className).toContain("min-w-5");
-    expect(slot?.className).toContain("h-5");
-    expect(slot?.className).toContain("shrink-0");
-    expect(slot?.className).toContain("items-center");
-    expect(slot?.className).toContain("justify-center");
+    // Split tokens: `md:min-w-5` contains the substring `min-w-5`.
+    const tokens = slot?.className.split(" ") ?? [];
+    // min-w-7 aligns single icons below md; width may grow for multi-avatar stacks.
+    expect(tokens).toContain("min-w-7");
+    expect(tokens).toContain("h-7");
+    expect(tokens).toContain("md:min-w-5");
+    expect(tokens).toContain("md:h-5");
+    expect(tokens).toContain("shrink-0");
+    expect(tokens).toContain("items-center");
+    expect(tokens).toContain("justify-center");
 
     // Slot is a direct child of the room link so every room type shares the same column.
     const link = container.querySelector('a[href="/chat/rooms/room-1"]');
@@ -602,6 +606,26 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
     expect(cluster?.className).toContain(
       "group-data-[collapsible=icon]:hidden",
     );
+  });
+
+  it("gives the room menu a 44px touch target below md", () => {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    // The box stays 32px; the pseudo-element carries it out to 44px.
+    const menuTokens =
+      container.querySelector("button")?.className.split(" ") ?? [];
+    expect(menuTokens).toContain("size-8");
+    expect(menuTokens).toContain("after:-inset-1.5");
+    expect(menuTokens).toContain("md:after:hidden");
   });
 
   it("keeps the pin in the same size slot as the room menu", () => {
