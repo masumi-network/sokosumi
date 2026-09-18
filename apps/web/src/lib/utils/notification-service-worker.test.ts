@@ -119,6 +119,9 @@ describe("showNotification", () => {
     const register = vi.fn().mockResolvedValue({
       active: {},
       showNotification: showNotificationSpy,
+      // A real registration always has this, so a stub without it sends the
+      // banner down the lookup's failure path and tests nothing this names.
+      getNotifications: vi.fn().mockResolvedValue([]),
     });
     stubServiceWorker({ register });
 
@@ -146,10 +149,125 @@ describe("showNotification", () => {
     });
   });
 
+  /**
+   * A room is one tag, so the second message replaces the first one's banner.
+   * Without `renotify` that replacement is silent, which is the whole reason a
+   * busy room only ever made one sound.
+   */
+  it("asks to re-alert when it replaces a banner for a different notification", async () => {
+    const showNotificationSpy = vi.fn().mockResolvedValue(undefined);
+    const getNotifications = vi
+      .fn()
+      .mockResolvedValue([{ data: { ...TARGET, id: "older-message" } }]);
+    stubServiceWorker({
+      register: vi.fn().mockResolvedValue({
+        active: {},
+        showNotification: showNotificationSpy,
+        getNotifications,
+      }),
+    });
+
+    const module = await importFresh();
+    await module.showNotification({
+      title: "Sokosumi",
+      body: "Ada mentioned you",
+      target: TARGET,
+    });
+
+    expect(getNotifications).toHaveBeenCalledWith({
+      tag: "sokosumi-room:room-1",
+    });
+    expect(showNotificationSpy.mock.calls[0]?.[1]).toMatchObject({
+      renotify: true,
+    });
+  });
+
+  /**
+   * The same notification from the other source. An open tab draws its banner
+   * from the Ably event and the push replaces it by tag on purpose, so a
+   * re-alert here would sound twice for one message.
+   */
+  it("stays silent when it replaces the banner for the same notification", async () => {
+    const showNotificationSpy = vi.fn().mockResolvedValue(undefined);
+    stubServiceWorker({
+      register: vi.fn().mockResolvedValue({
+        active: {},
+        showNotification: showNotificationSpy,
+        getNotifications: vi.fn().mockResolvedValue([{ data: TARGET }]),
+      }),
+    });
+
+    const module = await importFresh();
+    await module.showNotification({
+      title: "Sokosumi",
+      body: "Ada mentioned you",
+      target: TARGET,
+    });
+
+    expect(showNotificationSpy.mock.calls[0]?.[1]).not.toHaveProperty(
+      "renotify",
+    );
+  });
+
+  /**
+   * Nothing is being replaced, so a fresh banner alerts on its own and the
+   * flag would only be noise.
+   */
+  it("asks for no re-alert when the tag shows nothing yet", async () => {
+    const showNotificationSpy = vi.fn().mockResolvedValue(undefined);
+    stubServiceWorker({
+      register: vi.fn().mockResolvedValue({
+        active: {},
+        showNotification: showNotificationSpy,
+        getNotifications: vi.fn().mockResolvedValue([]),
+      }),
+    });
+
+    const module = await importFresh();
+    await module.showNotification({
+      title: "Sokosumi",
+      body: "Ada mentioned you",
+      target: TARGET,
+    });
+
+    expect(showNotificationSpy.mock.calls[0]?.[1]).not.toHaveProperty(
+      "renotify",
+    );
+  });
+
+  /**
+   * A lookup that throws must not cost the reader the banner, and must not
+   * guess `true`: silence is recoverable, a doubled alert is not.
+   */
+  it("still shows the banner when the lookup fails, without re-alerting", async () => {
+    const showNotificationSpy = vi.fn().mockResolvedValue(undefined);
+    stubServiceWorker({
+      register: vi.fn().mockResolvedValue({
+        active: {},
+        showNotification: showNotificationSpy,
+        getNotifications: vi.fn().mockRejectedValue(new Error("nope")),
+      }),
+    });
+
+    const module = await importFresh();
+    await expect(
+      module.showNotification({
+        title: "Sokosumi",
+        body: "Ada mentioned you",
+        target: TARGET,
+      }),
+    ).resolves.toBe(true);
+
+    expect(showNotificationSpy.mock.calls[0]?.[1]).not.toHaveProperty(
+      "renotify",
+    );
+  });
+
   it("registers once however many banners it shows", async () => {
     const register = vi.fn().mockResolvedValue({
       active: {},
       showNotification: vi.fn().mockResolvedValue(undefined),
+      getNotifications: vi.fn().mockResolvedValue([]),
     });
     stubServiceWorker({ register });
 
