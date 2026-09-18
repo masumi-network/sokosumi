@@ -4,7 +4,7 @@
 
 ## App-Specific Architecture
 
-**Stack**: One Xcode project (`Sokosumi.xcodeproj`, product `Sokosumi`), macOS target first, shared Swift packages under `Packages/` (first: `CoreAPI`, generated via Swift OpenAPI Generator). No iOS target yet; packages must stay free of AppKit/SwiftUI so iOS can link them later. No `package.json`. Xcode is outside turbo and Biome. Swift tooling (SwiftLint, SwiftFormat) installs via Mint with exact pins in `Mintfile`, not Homebrew directly.
+**Stack**: One Xcode workspace (`Sokosumi.xcworkspace`) holding `Sokosumi.xcodeproj` (product `Sokosumi`) and the five local packages as root packages, so the `Sokosumi` scheme runs the app tests and every package suite in one command. Build and test through the workspace, not the project — `-project` cannot reach the package test targets. macOS target first, shared Swift packages under `Packages/` (first: `CoreAPI`, generated via Swift OpenAPI Generator). No iOS target yet; packages must stay free of AppKit/SwiftUI so iOS can link them later. No `package.json`. Xcode is outside turbo and Biome. Swift tooling (SwiftLint, SwiftFormat) installs via Mint with exact pins in `Mintfile`, not Homebrew directly.
 
 **Key directories**: `Sokosumi/` (thin SwiftUI app: auth composition/browser adapter, workspace/chat composition, views), `Packages/CoreAPI/` (generated Core HTTP client), `Packages/SokosumiAuth/` (portable auth state, OAuth session and Keychain persistence), `Packages/SokosumiChat/` (portable WorkspaceSession/ConversationSidebar/RoomTimeline, avatar loading, scoped room/draft persistence, rooms/chat flows), `Packages/SokosumiRealtime/` (portable Ably connection, token source, room subscriptions, org presence), `Packages/SokosumiWorkspace/` (portable cross-package coordinator and integration tests), `SokosumiTests/` (app-target tests).
 
@@ -63,23 +63,25 @@ Run from `apps/apple/` (always via `mint run` so the pinned versions execute):
 mint run swiftformat .                  # format the tree
 mint run swiftformat --lint .           # check formatting without writing (CI runs this)
 mint run swiftlint lint --strict        # lint (CI runs this)
-xcodebuild -project Sokosumi.xcodeproj -scheme Sokosumi -configuration Debug \
+xcodebuild -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug \
   -destination 'platform=macOS,arch=arm64' \
   -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- build
-swift test --package-path Packages/SokosumiChat   # per-package tests
-swift test --package-path Packages/SokosumiAuth
-swift test --package-path Packages/CoreAPI
-swift test --package-path Packages/SokosumiRealtime
-swift test --package-path Packages/SokosumiWorkspace
+xcodebuild test -workspace Sokosumi.xcworkspace -scheme Sokosumi \
+  -configuration Debug -destination 'platform=macOS,arch=arm64' \
+  -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- \
+  -enableCodeCoverage NO                # app tests + all five package suites
+swift test --package-path Packages/SokosumiChat   # fast single-package rerun
 ```
 
 No ad-hoc signing assets live in CI: every `xcodebuild` invocation overrides with `DEVELOPMENT_TEAM=` / `CODE_SIGN_IDENTITY=-` (ad-hoc). Keep those flags when adding CI steps.
 
 ## App-Specific Testing
 
-- Swift package tests run via `swift test --package-path Packages/<name>`; app-target tests via `xcodebuild test -only-testing:SokosumiTests`.
+- The `Sokosumi` workspace scheme runs all six suites: `SokosumiTests` plus `CoreAPITests`, `SokosumiAuthTests`, `SokosumiChatTests`, `SokosumiRealtimeTests` and `SokosumiWorkspaceTests`. Narrow a run with `-only-testing:<target>`, or use `swift test --package-path Packages/<name>` for a fast single-package rerun. A new package must be added to both `Sokosumi.xcworkspace/contents.xcworkspacedata` and the scheme's `Testables`, or its tests run nowhere.
+- Coverage stays off (`-enableCodeCoverage NO`): ably-cocoa's `AblyDeltaCodec` C target cannot link the profile runtime (SOK-976).
 - Fake Core HTTP at the OpenAPI `ClientTransport` boundary. Do not test SwiftUI layout, Keychain, or `ASWebAuthenticationSession` as the required suite.
-- Apple CI (`.github/workflows/apple.yml`) runs the app tests and each Swift package's tests as parallel jobs on `xcode-27` for PRs touching `apps/apple/**` (or manual dispatch), including drafts. There is no separate build job: `xcodebuild test` builds the app. Tests and lint/format also run on path-filtered pushes to `main`, which save the Mint binary cache and the per-package SwiftPM `.build` cache (keyed by toolchain); PRs only restore them.
+- Tests run on **Xcode Cloud**: one macOS Test action on the `Sokosumi` workspace scheme, which covers the app tests and all five package suites. Do not add per-package Test actions — the workspace scheme already runs them, and a package scheme on its own does not build the app host.
+- `.github/workflows/apple.yml` is lint only (SwiftLint + SwiftFormat via Mint on `xcode-27`); Xcode Cloud has no lint action. Its `Swift lint and format` job is a **required status check** on `main`, so do not delete the workflow without first updating the `Default Branch` ruleset. It runs for PRs touching `apps/apple/**` (or manual dispatch), including drafts, and on path-filtered pushes to `main`, which save the Mint binary cache; PRs only restore it.
 
 ## App-Specific Gotchas
 

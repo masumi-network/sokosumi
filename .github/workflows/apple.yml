@@ -5,9 +5,9 @@ permissions:
 on:
   workflow_dispatch:
   pull_request:
-  # Lint and test on main after Apple merges so the Mint and SwiftPM caches
-  # are saved on the default branch. PR caches are scoped to
-  # refs/pull/N/merge and cannot be restored by sibling PRs.
+  # Lint on main after Apple merges so the Mint cache is saved on the default
+  # branch. PR caches are scoped to refs/pull/N/merge and cannot be restored
+  # by sibling PRs.
   push:
     branches:
       - main
@@ -45,122 +45,15 @@ jobs:
               - "apps/apple/**"
               - ".github/workflows/apple.yml"
 
-  # Shared CI signing note: the project carries a developer team for local
-  # runs, but CI holds no Apple certificates — so every xcodebuild invocation
-  # below overrides it with ad-hoc signing (`DEVELOPMENT_TEAM=`
-  # `CODE_SIGN_IDENTITY=-`, see SOK-973). `-skipPackagePluginValidation`: no
-  # interactive user to trust the OpenAPIGenerator plugin in CI.
-  #
-  # There is no separate build job: `xcodebuild test` in the app leg builds
-  # the same scheme, configuration and destination before testing.
-  test-suite:
-    name: ${{ matrix.name }}
-    # PR (Apple paths), dispatch, or path-filtered `push` to main. Main runs
-    # save the SwiftPM build cache that PRs restore.
-    needs: changes
-    if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
-    runs-on: xcode-27
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Xcode app tests
-            package: ""
-          - name: Swift tests (SokosumiChat)
-            package: SokosumiChat
-          - name: Swift tests (SokosumiAuth)
-            package: SokosumiAuth
-          - name: Swift tests (CoreAPI)
-            package: CoreAPI
-          - name: Swift tests (SokosumiWorkspace)
-            package: SokosumiWorkspace
-          - name: Swift tests (SokosumiRealtime)
-            package: SokosumiRealtime
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-
-      - name: Select Xcode 27 toolchain
-        # Image default is Xcode 27; Xcode.app is the documented alias.
-        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-
-      - name: Show Xcode version
-        id: toolchain
-        run: |
-          xcodebuild -version && swift --version
-          echo "swift=$(swift --version 2>&1 | shasum | cut -c1-12)" >> "$GITHUB_OUTPUT"
-
-      - name: Test Sokosumi app target
-        if: matrix.package == ''
-        # Coverage stays off: ably-cocoa's C target (AblyDeltaCodec) cannot
-        # link the profile runtime, so gathering coverage fails the test
-        # build (SOK-976). Nothing consumes coverage today. Restore later by
-        # excluding AblyDeltaCodec, not by re-enabling coverage on this job.
-        run: xcodebuild test -project apps/apple/Sokosumi.xcodeproj -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- -only-testing:SokosumiTests -enableCodeCoverage NO -resultBundlePath "$RUNNER_TEMP/SokosumiTests.xcresult"
-
-      - name: Report app test failures
-        if: failure() && matrix.package == ''
-        run: |
-          if [ -d "$RUNNER_TEMP/SokosumiTests.xcresult" ]; then
-            xcrun xcresulttool get test-results summary --path "$RUNNER_TEMP/SokosumiTests.xcresult"
-          fi
-
-      - name: Preserve failed app test results
-        if: failure() && matrix.package == ''
-        uses: actions/upload-artifact@v7.0.1
-        with:
-          name: SokosumiTests-results
-          path: ${{ runner.temp }}/SokosumiTests.xcresult
-          retention-days: 3
-          if-no-files-found: ignore
-
-      # Reuse the SwiftPM build from the last main run. Third-party
-      # dependencies (ably-cocoa, swift-openapi, tree-sitter) are the bulk of
-      # the compile; checkout gives our sources fresh mtimes, so they still
-      # rebuild. The key carries the toolchain so an Xcode image bump starts
-      # clean. Main and dispatch runs save; PRs only restore, by prefix.
-      - name: Restore SwiftPM build cache
-        if: matrix.package != ''
-        uses: actions/cache/restore@v6
-        with:
-          path: apps/apple/Packages/${{ matrix.package }}/.build
-          key: ${{ runner.os }}-spm-${{ matrix.package }}-${{ steps.toolchain.outputs.swift }}-${{ hashFiles(format('apps/apple/Packages/{0}/Package.resolved', matrix.package)) }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-spm-${{ matrix.package }}-${{ steps.toolchain.outputs.swift }}-${{ hashFiles(format('apps/apple/Packages/{0}/Package.resolved', matrix.package)) }}-
-            ${{ runner.os }}-spm-${{ matrix.package }}-${{ steps.toolchain.outputs.swift }}-
-
-      - name: Test Swift package
-        if: matrix.package != ''
-        env:
-          PACKAGE: ${{ matrix.package }}
-        run: swift test --package-path "apps/apple/Packages/$PACKAGE"
-
-      - name: Save SwiftPM build cache
-        if: matrix.package != '' && github.event_name != 'pull_request'
-        uses: actions/cache/save@v6
-        with:
-          path: apps/apple/Packages/${{ matrix.package }}/.build
-          key: ${{ runner.os }}-spm-${{ matrix.package }}-${{ steps.toolchain.outputs.swift }}-${{ hashFiles(format('apps/apple/Packages/{0}/Package.resolved', matrix.package)) }}-${{ github.sha }}
-
-  # Preserve the existing check name and require every suite to pass.
-  test:
-    name: Xcode test
-    needs: test-suite
-    if: always() && needs.test-suite.result != 'skipped'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check all Apple test suites
-        env:
-          RESULT: ${{ needs.test-suite.result }}
-        run: test "$RESULT" = success
-
   lint:
     name: Swift lint and format
     needs: changes
-    # Same gate as `test-suite`: PR, dispatch, or path-filtered `push` to
-    # main so `actions/cache` saves ~/.mint on the default branch.
+    # PR, dispatch, or path-filtered `push` to main so `actions/cache` saves
+    # ~/.mint on the default branch. Tests moved to Xcode Cloud (one macOS
+    # Test action on the `Sokosumi` workspace scheme, which runs the app tests
+    # and all five package suites); Xcode Cloud has no lint action, so
+    # SwiftLint and SwiftFormat stay here. `Swift lint and format` is a
+    # required status check on `main`.
     if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     runs-on: xcode-27
     steps:
