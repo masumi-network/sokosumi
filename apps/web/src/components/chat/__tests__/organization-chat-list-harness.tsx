@@ -8,15 +8,24 @@ import type {
 
 import { OrganizationChatList } from "../organization-chat-list.client";
 
-const { acceptInvitationMock, listRoomsMock, listPendingMock } = vi.hoisted(
-  () => ({
-    acceptInvitationMock: vi.fn(),
-    listRoomsMock: vi.fn(),
-    listPendingMock: vi.fn(),
-  }),
-);
+const {
+  acceptInvitationMock,
+  listRoomsMock,
+  listPendingMock,
+  reorderPinnedMock,
+} = vi.hoisted(() => ({
+  acceptInvitationMock: vi.fn(),
+  listRoomsMock: vi.fn(),
+  listPendingMock: vi.fn(),
+  reorderPinnedMock: vi.fn(),
+}));
 
-export { acceptInvitationMock, listPendingMock, listRoomsMock };
+export {
+  acceptInvitationMock,
+  listPendingMock,
+  listRoomsMock,
+  reorderPinnedMock,
+};
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -76,7 +85,18 @@ vi.mock("@/app/chat/components/room-helpers", () => ({
 }));
 
 vi.mock("../chat-room-sidebar-row", () => ({
-  ChatRoomSidebarRow: ({ label }: { label: string }) => <span>{label}</span>,
+  ChatRoomSidebarRow: ({
+    label,
+    reorderHandle,
+  }: {
+    label: string;
+    reorderHandle?: ReactNode;
+  }) => (
+    <li data-testid="room-row">
+      <span>{label}</span>
+      {reorderHandle}
+    </li>
+  ),
   RailAttentionPill: () => null,
 }));
 
@@ -107,6 +127,9 @@ vi.mock("../organization-chat-list.actions", () => ({
   listOrganizationChatRoomsAction: (
     ...args: Parameters<typeof listRoomsMock>
   ) => listRoomsMock(...args),
+  reorderPinnedOrganizationChatRoomsAction: (
+    ...args: Parameters<typeof reorderPinnedMock>
+  ) => reorderPinnedMock(...args),
   listOrganizationArchivedChatRoomsAction: vi.fn(async () => ({
     ok: true,
     value: { rooms: [], nextCursor: null },
@@ -262,6 +285,7 @@ export function resetOrganizationChatListMocks() {
   acceptInvitationMock.mockReset();
   listRoomsMock.mockReset();
   listPendingMock.mockReset();
+  reorderPinnedMock.mockReset();
   listRoomsMock.mockResolvedValue(emptyListResult());
   listPendingMock.mockResolvedValue({ ok: true, value: [] });
   acceptInvitationMock.mockResolvedValue({

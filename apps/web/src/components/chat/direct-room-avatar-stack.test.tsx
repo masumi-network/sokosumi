@@ -163,7 +163,7 @@ describe("DirectRoomAvatarStack", () => {
     expect(face.querySelector("[title]")?.getAttribute("title")).toBe("Online");
   });
 
-  it("fits empty and 1:1 DM leadings in a min-w-5 / h-5 box matching channel icons", () => {
+  it("fits empty and 1:1 DM leadings in a min-w-7 / h-7 box matching channel icons below md", () => {
     const { container: emptyContainer, unmount } = render(
       <DirectRoomAvatarStack
         room={makeDirectRoom({ userMembers: [makeUser("me", "Me")] })}
@@ -171,26 +171,28 @@ describe("DirectRoomAvatarStack", () => {
       />,
     );
 
-    const emptyRoot = emptyContainer.firstElementChild;
-    expect(emptyRoot?.className).toContain("size-5");
-    expect(emptyRoot?.className).toContain("shrink-0");
+    const emptyTokens =
+      emptyContainer.firstElementChild?.className.split(" ") ?? [];
+    expect(emptyTokens).toContain("size-7");
+    expect(emptyTokens).toContain("md:size-5");
+    expect(emptyTokens).toContain("shrink-0");
     // Grows with the faces when collapsed, so an empty direct is not the one
     // 20px mark in a rail of 24px ones.
-    expect(emptyRoot?.className).toContain(
-      "group-data-[collapsible=icon]:size-6",
-    );
+    expect(emptyTokens).toContain("group-data-[collapsible=icon]:size-6");
     unmount();
 
     const { container } = render(
       <DirectRoomAvatarStack room={makeDirectRoom()} currentUserId="me" />,
     );
 
-    // min-w-5 / h-5 matches channel icon column; multi stacks may grow wider.
-    const stackRoot = container.firstElementChild;
-    expect(stackRoot?.className).toContain("min-w-5");
-    expect(stackRoot?.className).toContain("h-5");
-    expect(stackRoot?.className).toContain("shrink-0");
-    expect(stackRoot?.className).toContain("items-center");
+    // min-w-7 / h-7 matches the channel icon column below md; stacks may grow wider.
+    const stackTokens = container.firstElementChild?.className.split(" ") ?? [];
+    expect(stackTokens).toContain("min-w-7");
+    expect(stackTokens).toContain("h-7");
+    expect(stackTokens).toContain("md:min-w-5");
+    expect(stackTokens).toContain("md:h-5");
+    expect(stackTokens).toContain("shrink-0");
+    expect(stackTokens).toContain("items-center");
   });
 
   it("grows each face to 24px and keeps only the first when the sidebar collapses", () => {

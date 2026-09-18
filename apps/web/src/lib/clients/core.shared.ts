@@ -366,6 +366,7 @@ import {
   postWorkspacesDesignMdAdhoc as corePostWorkspacesDesignMdAdhoc,
   promoteAdminSokoBotVersion as corePromoteAdminSokoBotVersion,
   putChatsRoomsByIdMessagesByMessageIdReactionsByEmoji as corePutChatsRoomsByIdMessagesByMessageIdReactionsByEmoji,
+  putChatsRoomsStarred as corePutChatsRoomsStarred,
   putJobsByIdShare as corePutJobsByIdShare,
   putJobsByIdWorkspace as corePutJobsByIdWorkspace,
   putOrganizationsByIdDesignMd as corePutOrganizationsByIdDesignMd,
@@ -872,6 +873,18 @@ export function createCoreClient(getClient: GetCoreClient) {
           path: { id },
         }),
       "Failed to unpin chat room",
+    );
+  }
+
+  async function reorderPinnedChatRooms(roomIds: string[]) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePutChatsRoomsStarred({
+          client,
+          body: { roomIds },
+        }),
+      "Failed to reorder pinned chat rooms",
     );
   }
 
@@ -5091,6 +5104,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     unmuteChatRoomThread,
     pinChatRoom,
     unpinChatRoom,
+    reorderPinnedChatRooms,
     getChatRoomPinnedMessages,
     pinChatRoomMessage,
     unpinChatRoomMessage,

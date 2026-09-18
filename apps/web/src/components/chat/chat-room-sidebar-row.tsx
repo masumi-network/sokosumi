@@ -14,7 +14,12 @@ import {
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useState, useTransition } from "react";
+import {
+  type ComponentProps,
+  type ReactNode,
+  useState,
+  useTransition,
+} from "react";
 import { toast } from "sonner";
 import { leaveRoomAction } from "@/app/chat/actions";
 import {
@@ -88,13 +93,16 @@ import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
  * the one most likely to be hovered, so it is the one row whose name must not
  * move under the cursor: rest, hover and menu-open are all one width there.
  *
- * A row with a mention badge holds 12px in every state instead, ending the
- * badge where the button's box begins.
+ * A mention badge takes the same hole rather than one of its own: it stands in
+ * the menu's column and fades out as the menu fades in, so a badged row holds
+ * the 16px open in every state and the name is shortened once, by the hole
+ * both share. It used to be shortened by the badge, a gap and the hole in
+ * turn, which is the 16px the name gets back.
  */
 const TRAILING_CLUSTER_CLASS =
   "group-data-[collapsible=icon]:hidden absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center";
 
-interface ChatRoomSidebarRowProps {
+export interface ChatRoomSidebarRowProps {
   room: ChatRoom;
   href: string;
   label: string;
@@ -105,6 +113,13 @@ interface ChatRoomSidebarRowProps {
   onRoomUpdated: (room: ChatRoom) => void;
   /** When false, render plain Link (page-mounted list outside Sheet). */
   dismissSheetOnNavigate?: boolean;
+  /** Pinned section only: the row's `<li>` is a drop slot and moves in a drag. */
+  itemProps?: ComponentProps<"li">;
+  /**
+   * Pinned section in its reorder mode: stands where the room menu does, and
+   * the row stops being a link, so a press moves the room instead of opening it.
+   */
+  reorderHandle?: ReactNode;
 }
 
 /**
@@ -152,15 +167,17 @@ function RoomUnreadCount({ count }: { count: number }) {
 }
 
 /**
- * Unread @mentions and directs, never messages.
+ * Unread @mentions and directs, never messages: the part the reader hears.
  *
- * The announced text is a translated string in its own `sr-only` span, for the
- * same reason the count carries one: `aria-label` on a role `generic` span may
- * be dropped, and an English literal would reach a German or Spanish reader
- * untranslated either way. It hides with the count when the sidebar collapses
- * to icons.
+ * `MentionBadge` draws the number in the trailing cluster, outside the link
+ * and `aria-hidden`, so this span is what carries the mention into the link's
+ * accessible name beside the room name. A translated string in its own
+ * `sr-only` span, for the same reason the count carries one: `aria-label` on a
+ * role `generic` span may be dropped, and an English literal would reach a
+ * German or Spanish reader untranslated either way. The wrapper holds the
+ * collapsed rule, so the announcement goes quiet with the count and the badge.
  */
-function MentionBadge({ count }: { count: number }) {
+function MentionAnnouncement({ count }: { count: number }) {
   const t = useTranslations("App.Channels.RoomMentions");
 
   if (count <= 0) {
@@ -168,12 +185,64 @@ function MentionBadge({ count }: { count: number }) {
   }
 
   return (
-    <span className="bg-primary-solid text-primary-solid-foreground group-data-[collapsible=icon]:hidden inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[0.625rem] leading-4 font-semibold tabular-nums">
-      <span aria-hidden="true">{roomCountLabel(count)}</span>
-      <span className="sr-only">
-        {count > ROOM_COUNT_CAP
-          ? t("mentionsCapped", { max: ROOM_COUNT_CAP })
-          : t("mentions", { count })}
+    <span className="group-data-[collapsible=icon]:hidden sr-only">
+      {count > ROOM_COUNT_CAP
+        ? t("mentionsCapped", { max: ROOM_COUNT_CAP })
+        : t("mentions", { count })}
+    </span>
+  );
+}
+
+/**
+ * The mention count, drawn in the room menu's column.
+ *
+ * On a hover-capable row it crossfades with the menu: out of flow, fading as
+ * the `…` arrives, exactly as the muted bell does. Sharing the menu's column
+ * is what buys the name its width back, because the badge stops asking for a
+ * gap and a width of its own on top of the hole. The cost is the number going
+ * quiet under the cursor; the bold name and the reader's opt-in count stay, on
+ * the one row they are pointing at.
+ *
+ * The pill rides the bell's own box rather than being positioned by its own
+ * edge, because its width is the reader's unread count and a `right-` offset
+ * that centres `2` leaves `99+` off-centre and all but touching the name. A
+ * 28px box pinned at `right-0` spans 4–32px in from the row's edge whatever is
+ * in it, so the pill sits on the `…` glyph's centre at every width and the
+ * hole ends the name at 36px, 4px clear of the widest one.
+ *
+ * Touch has no hover, so the badge stays in flow beside the menu there, as
+ * pin/mute does, and the trailing spacer holds a hole wide enough for both.
+ * Reorder mode is the same: its handle is visible at rest, so there is nothing
+ * to crossfade with.
+ *
+ * `pointer-events-none` keeps the badge off the menu button it covers at rest.
+ */
+function MentionBadge({
+  count,
+  crossfadesWithMenu,
+}: {
+  count: number;
+  crossfadesWithMenu: boolean;
+}) {
+  if (count <= 0) {
+    return null;
+  }
+
+  return (
+    <span
+      data-slot="room-mention-badge"
+      aria-hidden
+      className={cn(
+        "pointer-events-none inline-flex size-8 shrink-0 items-center justify-center md:size-7",
+        crossfadesWithMenu && [
+          "[@media(hover:hover)]:absolute [@media(hover:hover)]:top-1/2 [@media(hover:hover)]:right-0 [@media(hover:hover)]:-translate-y-1/2",
+          "motion-safe:transition-opacity motion-safe:duration-150",
+          "[@media(hover:hover)]:group-hover/room-row:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-0 group-has-[[data-state=open]]/room-row:opacity-0",
+        ],
+      )}
+    >
+      <span className="bg-primary-solid text-primary-solid-foreground inline-flex min-w-4.5 items-center justify-center rounded-full px-1 text-[0.625rem] leading-4 font-semibold tabular-nums">
+        {roomCountLabel(count)}
       </span>
     </span>
   );
@@ -219,6 +288,8 @@ export function ChatRoomSidebarRow({
   leading,
   onRoomUpdated,
   dismissSheetOnNavigate = true,
+  itemProps,
+  reorderHandle,
 }: ChatRoomSidebarRowProps) {
   const tActions = useTranslations("App.Channels.Actions");
   const tChannels = useTranslations("App.Channels");
@@ -360,18 +431,23 @@ export function ChatRoomSidebarRow({
     <Link
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-2 px-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:overflow-visible group-data-[collapsible=icon]:px-0!",
+        "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-3 px-3 md:gap-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:overflow-visible group-data-[collapsible=icon]:px-0!",
         // The collapsed rail's hover ring and the fill it replaces live on
         // `sidebarMenuButtonVariants`, so this row's own `hover:bg-` above is
         // expanded-only. Its `hover:` outranks nothing there: the variant's
         // rule carries a `group-data-` condition and so wins on specificity.
         isMuted && !isActive && "opacity-60",
+        // Reorder mode: a press moves the room, so the link stands down. The
+        // collapsed rail has no handle and keeps opening rooms.
+        reorderHandle &&
+          "pointer-events-none group-data-[collapsible=icon]:pointer-events-auto",
       )}
       href={href}
+      tabIndex={reorderHandle ? -1 : undefined}
     >
       <span
         data-slot="room-leading"
-        className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center group-data-[collapsible=icon]:h-6 group-data-[collapsible=icon]:min-w-6"
+        className="inline-flex h-7 min-w-7 shrink-0 items-center justify-center md:h-5 md:min-w-5 group-data-[collapsible=icon]:h-6 group-data-[collapsible=icon]:min-w-6"
       >
         {leading}
         {/* The pill's state, as text, where the link's accessible name can
@@ -409,29 +485,35 @@ export function ChatRoomSidebarRow({
           </span>
         ) : null}
       </span>
-      <MentionBadge count={badgeCount} />
+      <MentionAnnouncement count={badgeCount} />
       <span
         data-slot="room-trailing-spacer"
         className={cn(
           "group-data-[collapsible=icon]:hidden shrink-0",
           "[@media(hover:none)]:size-8 [@media(hover:none)]:md:size-7",
-          (isMuted || isPinned) && "[@media(hover:none)]:w-16",
-          // The badge sits against this spacer, so a badged row holds one
-          // width in every state or the badge jumps on hover. 12px plus the
-          // link's gap ends the badge where the menu button's box begins.
-          //
-          // A pinned or muted row shows its glyph at rest, and the open room
-          // is the row being read, so both hold the 16px hole in every state.
-          // The name is `flex-1 min-w-0`, so a hole that opened later would
-          // take that width off the name and re-truncate it under the cursor.
+          // Touch keeps the bell or the badge in flow beside the menu, so the
+          // hole holds two boxes. They are the same 32px box, and a muted room
+          // carries no badge, so one width serves both.
+          (isMuted || badgeCount > 0) && "[@media(hover:none)]:w-16",
+          // A muted row shows its glyph at rest, a badged row shows its badge,
+          // and the open room is the row being read, so all three hold the
+          // 16px hole in every state. The name is `flex-1 min-w-0`, so a hole
+          // that opened later would take that width off the name and
+          // re-truncate it under the cursor — and on a badged row the name
+          // would run under the badge until it did.
           //
           // A plain, unopened row has nothing in the hole at rest — the menu
           // button is `opacity-0` until hover, focus or open — so it keeps the
           // full name width and opens the hole with the button. That is the
           // one row whose name moves, and it moves as the button arrives.
-          badgeCount > 0
-            ? "[@media(hover:hover)]:size-3"
-            : isMuted || isPinned || isActive
+          //
+          // The badge asks for no width beyond the hole, because it stands in
+          // the menu's column and crossfades with it. Reorder mode is the
+          // exception: its handle never fades, so the badge stays in flow
+          // beside it and the hole holds both.
+          badgeCount > 0 && reorderHandle
+            ? "[@media(hover:hover)]:w-16"
+            : isMuted || isActive || reorderHandle || badgeCount > 0
               ? "[@media(hover:hover)]:size-4"
               : [
                   "[@media(hover:hover)]:size-0",
@@ -446,13 +528,22 @@ export function ChatRoomSidebarRow({
   );
 
   return (
-    <SidebarMenuItem className="group/room-row relative">
+    <SidebarMenuItem
+      {...itemProps}
+      className={cn("group/room-row relative", itemProps?.className)}
+    >
       {railVariant ? <RailAttentionPill variant={railVariant} /> : null}
       {isActive ? <SidebarRailSelectionBar /> : null}
       {/* Collapsed to icons the row is only its leading mark, so the name
           rides the button's tooltip, which the sidebar shows in that state
           alone. */}
-      <SidebarMenuButton asChild isActive={isActive} tooltip={label}>
+      <SidebarMenuButton
+        asChild
+        isActive={isActive}
+        tooltip={label}
+        // A thumb needs 44px; the desktop list keeps its 32px density.
+        className="h-11 md:h-8"
+      >
         {dismissSheetOnNavigate ? (
           <SheetClose asChild>{roomLink}</SheetClose>
         ) : (
@@ -460,119 +551,126 @@ export function ChatRoomSidebarRow({
         )}
       </SidebarMenuButton>
       <div data-slot="room-trailing" className={TRAILING_CLUSTER_CLASS}>
-        {isMuted || isPinned ? (
-          <span
-            className={cn(
-              "text-muted-foreground pointer-events-none flex size-8 items-center justify-center md:size-7",
-              "[@media(hover:hover)]:absolute [@media(hover:hover)]:top-1/2 [@media(hover:hover)]:right-0 [@media(hover:hover)]:-translate-y-1/2",
-              "[@media(hover:hover)]:group-hover/room-row:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-0 group-has-[[data-state=open]]/room-row:opacity-0",
-            )}
-            aria-hidden
-          >
+        <MentionBadge
+          count={badgeCount}
+          crossfadesWithMenu={reorderHandle == null}
+        />
+        {reorderHandle ?? (
+          <>
             {isMuted ? (
-              <BellOff className="size-3.5" />
-            ) : (
-              <Pin className="size-3.5" />
-            )}
-          </span>
-        ) : null}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              disabled={isPending}
-              className={cn(
-                "text-muted-foreground size-8 opacity-100 md:size-7 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
-              )}
-              aria-label={tActions("roomMenu", { name: label })}
-            >
-              <Ellipsis className="size-5 md:size-4" aria-hidden />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem
-              disabled={isActive || isPending || isMuted}
-              onSelect={() => {
-                runRoomAction(markOrganizationChatRoomUnreadAction, {
-                  ...room,
-                  markedUnread: true,
-                });
-              }}
-            >
-              <MessageSquare className="size-4" aria-hidden />
-              {tActions("markUnread")}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={isPending || isMuted}
-              onSelect={() => {
-                if (isPinned) {
-                  runRoomAction(unpinOrganizationChatRoomAction, {
-                    ...room,
-                    starredAt: null,
-                  });
-                  return;
-                }
-                runRoomAction(pinOrganizationChatRoomAction, {
-                  ...room,
-                  starredAt: new Date(),
-                });
-              }}
-            >
-              {isPinned ? (
-                <PinOff className="size-4" aria-hidden />
-              ) : (
-                <Pin className="size-4" aria-hidden />
-              )}
-              {isPinned ? tActions("unpin") : tActions("pin")}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={isPending || isPinned}
-              onSelect={() => {
-                if (isMuted) {
-                  runRoomAction(unmuteOrganizationChatRoomAction, {
-                    ...room,
-                    mutedAt: null,
-                  });
-                  return;
-                }
-                runRoomAction(muteOrganizationChatRoomAction, {
-                  ...room,
-                  mutedAt: new Date(),
-                });
-              }}
-            >
-              {isMuted ? (
-                <Bell className="size-4" aria-hidden />
-              ) : (
-                <BellOff className="size-4" aria-hidden />
-              )}
-              {isMuted ? tActions("unmute") : tActions("mute")}
-            </DropdownMenuItem>
-            {isChannel ? (
-              <>
-                <DropdownMenuSeparator />
-                {dismissSheetOnNavigate ? (
-                  <SheetClose asChild>{editChannelItem}</SheetClose>
-                ) : (
-                  editChannelItem
+              <span
+                className={cn(
+                  "text-muted-foreground pointer-events-none flex size-8 items-center justify-center md:size-7",
+                  "[@media(hover:hover)]:absolute [@media(hover:hover)]:top-1/2 [@media(hover:hover)]:right-0 [@media(hover:hover)]:-translate-y-1/2",
+                  "motion-safe:transition-opacity motion-safe:duration-150",
+                  "[@media(hover:hover)]:group-hover/room-row:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-0 group-has-[[data-state=open]]/room-row:opacity-0",
                 )}
-              </>
-            ) : null}
-            {canLeave ? (
-              <DropdownMenuItem
-                disabled={isPending || isLeaving}
-                onSelect={() => {
-                  setLeaveConfirmOpen(true);
-                }}
+                aria-hidden
               >
-                <LogOut className="size-4" aria-hidden />
-                {tActions("leave")}
-              </DropdownMenuItem>
+                <BellOff className="size-4 md:size-3.5" />
+              </span>
             ) : null}
-          </DropdownMenuContent>
-        </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  disabled={isPending}
+                  className={cn(
+                    // The box stays 32px so the `…` keeps its column under the section's
+                    // `+`; the pseudo-element carries the touch target out to 44px.
+                    "text-muted-foreground relative size-8 opacity-100 after:absolute after:-inset-1.5 md:size-7 md:after:hidden motion-safe:transition-opacity motion-safe:duration-150 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
+                  )}
+                  aria-label={tActions("roomMenu", { name: label })}
+                >
+                  <Ellipsis className="size-5 md:size-4" aria-hidden />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem
+                  disabled={isActive || isPending || isMuted}
+                  onSelect={() => {
+                    runRoomAction(markOrganizationChatRoomUnreadAction, {
+                      ...room,
+                      markedUnread: true,
+                    });
+                  }}
+                >
+                  <MessageSquare className="size-4" aria-hidden />
+                  {tActions("markUnread")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={isPending || isMuted}
+                  onSelect={() => {
+                    if (isPinned) {
+                      runRoomAction(unpinOrganizationChatRoomAction, {
+                        ...room,
+                        starredAt: null,
+                      });
+                      return;
+                    }
+                    runRoomAction(pinOrganizationChatRoomAction, {
+                      ...room,
+                      starredAt: new Date(),
+                    });
+                  }}
+                >
+                  {isPinned ? (
+                    <PinOff className="size-4" aria-hidden />
+                  ) : (
+                    <Pin className="size-4" aria-hidden />
+                  )}
+                  {isPinned ? tActions("unpin") : tActions("pin")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={isPending || isPinned}
+                  onSelect={() => {
+                    if (isMuted) {
+                      runRoomAction(unmuteOrganizationChatRoomAction, {
+                        ...room,
+                        mutedAt: null,
+                      });
+                      return;
+                    }
+                    runRoomAction(muteOrganizationChatRoomAction, {
+                      ...room,
+                      mutedAt: new Date(),
+                    });
+                  }}
+                >
+                  {isMuted ? (
+                    <Bell className="size-4" aria-hidden />
+                  ) : (
+                    <BellOff className="size-4" aria-hidden />
+                  )}
+                  {isMuted ? tActions("unmute") : tActions("mute")}
+                </DropdownMenuItem>
+                {isChannel ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    {dismissSheetOnNavigate ? (
+                      <SheetClose asChild>{editChannelItem}</SheetClose>
+                    ) : (
+                      editChannelItem
+                    )}
+                  </>
+                ) : null}
+                {canLeave ? (
+                  <DropdownMenuItem
+                    disabled={isPending || isLeaving}
+                    onSelect={() => {
+                      setLeaveConfirmOpen(true);
+                    }}
+                  >
+                    <LogOut className="size-4" aria-hidden />
+                    {tActions("leave")}
+                  </DropdownMenuItem>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        )}
       </div>
 
       <AlertDialog

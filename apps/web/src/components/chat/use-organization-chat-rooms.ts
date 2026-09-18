@@ -7,6 +7,7 @@ import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-stor
 import type {
   ChatRoom,
   ChatRoomInvitation,
+  StarredChatRoomOrder,
 } from "@/lib/clients/generated/core";
 
 import { fetchSidebarRoomCollection } from "./fetch-sidebar-room-collection";
@@ -130,6 +131,24 @@ export function useOrganizationChatRooms({
       applyRoomReadOverlays(
         current.map((room) => (room.id === updated.id ? updated : room)),
       ),
+    );
+  }, []);
+
+  /** Write a pinned order's `starredAt` sort keys onto the live list. */
+  const applyPinnedOrder = useCallback((order: StarredChatRoomOrder[]) => {
+    // A list fetch already in flight predates this order; drop it on arrival.
+    latestAppliedRefreshRef.current = beginRoomAttentionRefresh();
+    const starredAtByRoomId = new Map(
+      order.map((row) => [row.roomId, row.starredAt]),
+    );
+    setRoomRows((current) =>
+      current.map((room) => {
+        const starredAt = starredAtByRoomId.get(room.id);
+        // A room unpinned meanwhile stays unpinned.
+        return starredAt && room.starredAt != null
+          ? { ...room, starredAt }
+          : room;
+      }),
     );
   }, []);
 
@@ -328,5 +347,6 @@ export function useOrganizationChatRooms({
     upsertRoomToTop,
     replaceRoom,
     replaceAllRooms,
+    applyPinnedOrder,
   };
 }

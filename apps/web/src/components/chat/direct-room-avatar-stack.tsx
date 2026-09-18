@@ -63,14 +63,14 @@ export function DirectRoomAvatarStack({
 
   if (participants.length === 0) {
     return (
-      <span className="bg-muted text-muted-foreground flex size-5 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-medium group-data-[collapsible=icon]:size-6">
-        <MessageCircle className="size-3" aria-hidden />
+      <span className="bg-muted text-muted-foreground flex size-7 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-medium md:size-5 group-data-[collapsible=icon]:size-6">
+        <MessageCircle className="size-4 md:size-3" aria-hidden />
       </span>
     );
   }
 
   return (
-    <span className="inline-flex h-5 min-w-5 shrink-0 items-center group-data-[collapsible=icon]:h-6 group-data-[collapsible=icon]:min-w-6">
+    <span className="inline-flex h-7 min-w-7 shrink-0 items-center md:h-5 md:min-w-5 group-data-[collapsible=icon]:h-6 group-data-[collapsible=icon]:min-w-6">
       {participants.map((participant, index) => {
         // Soko bots are AI too, so they report always-online like coworkers
         // (ADR-0003). Miss the second arm and the row says "Offline" while the
@@ -83,20 +83,21 @@ export function DirectRoomAvatarStack({
             key={`${participant.kind}-${participant.id}`}
             className={cn(
               "relative inline-flex",
-              index > 0 && "-ml-2 group-data-[collapsible=icon]:hidden",
+              index > 0 &&
+                "-ml-3 md:-ml-2 group-data-[collapsible=icon]:hidden",
             )}
             style={{ zIndex: participants.length - index }}
             data-testid={`dm-sidebar-avatar-${participant.id}`}
           >
-            <Avatar className="border-sidebar size-5 border group-data-[collapsible=icon]:size-6">
+            <Avatar className="border-sidebar size-7 border md:size-5 group-data-[collapsible=icon]:size-6">
               <AvatarImage alt="" src={participant.image ?? undefined} />
-              <AvatarFallback className="text-[0.5625rem] font-medium">
+              <AvatarFallback className="text-[0.6875rem] font-medium md:text-[0.5625rem]">
                 {getInitials(participant.name)}
               </AvatarFallback>
             </Avatar>
             {!room.isSelfDirect ? (
               <LiveMemberPresenceDot
-                className="-right-0.5 -bottom-0.5 absolute size-2 border"
+                className="-right-0.5 -bottom-0.5 absolute size-2.5 border md:size-2"
                 fallback={participant.presence}
                 ground="sidebar"
                 isCoworker={isAi}
