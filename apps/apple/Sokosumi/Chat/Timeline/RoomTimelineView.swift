@@ -38,7 +38,10 @@ import SwiftUI
 
     private var preparedMessages: [Components.Schemas.ChatRoomMessage] {
       guard preparedTranscript?.input.scope == preparationScope else { return [] }
-      return preparedTranscript?.input.messages ?? []
+      let snapshot = preparedTranscript?.input.messages ?? []
+      // Markdown is prepared async; chips must follow the live overlay now.
+      let live = Dictionary(workspaces.displayedTranscript.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
+      return snapshot.map { live[$0.id] ?? $0 }
     }
 
     let roomId: String
@@ -52,7 +55,7 @@ import SwiftUI
       return { url in try await workspaces.removeUnfurl(message, url: url, auth: auth) }
     }
 
-    private func reactionAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Void)? {
+    private func reactionAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Bool)? {
       guard canReactToMessage(message) else { return nil }
       return { emoji in try await workspaces.toggleReaction(message, emoji: emoji, auth: auth) }
     }
@@ -238,7 +241,6 @@ import SwiftUI
                                  onDelete: deletionAction(for: message),
                                  onRemoveUnfurl: unfurlAction(for: message),
                                  onToggleReaction: reactionAction(for: message),
-                                 pendingReactionEmoji: workspaces.pendingReactionEmoji(for: message.id),
                                  editing: workspaces.messageEditing,
                                  onQuoteJump: { id in Task {
                                    do {
