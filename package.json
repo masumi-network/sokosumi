@@ -7,7 +7,7 @@
     "packageManager": {
       "name": "pnpm",
       "version": "12.4.2",
-      "onFail": "error"
+      "onFail": "warn"
     }
   },
   "scripts": {
