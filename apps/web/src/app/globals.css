@@ -414,17 +414,24 @@
 
   --semantic-warning: hsla(35, 92%, 31%, 1);
   --semantic-warning-tertiary: hsla(35, 41.3%, 80.7%, 1);
-  /* Light mode only. The amber tint was the loudest fill in the set at OKLCh
-     chroma 4.5, and its label was a red-brown at chroma 14.4, so the pair read
-     muddy rather than calm. Both drop their saturation and the label's hue
-     moves from 26 to 30, toward the tint's own 35. The label's LIGHTNESS
-     cannot move: at 12px it is normal text, so WCAG 2.2 SC 1.4.3 asks 4.5:1
-     and this pair measures 4.68:1 on the tint, which is the binding surface.
-     Contrast came up rather than down: label on tint 4.61 -> 4.68, label on
-     card 5.19 -> 5.27, and the tint still reads as a block at 1.126:1. */
-  --semantic-warning-quaternary: hsla(35, 72.0%, 91.0%, 1);
+  /* Light mode only. The amber tint was the loudest fill in the set and its
+     label a red-brown on a yellow ground, so the pair read muddy and heavy.
+     Both are lighter and much calmer now: the tint drops from OKLCh chroma 4.5
+     to 1.8 and the label from 14.4 to 9.6, with the label's hue moving from 26
+     to 30, toward the tint's own 35.
+
+     Chroma is what buys the lightness. At 12px the label is normal text, so
+     WCAG 2.2 SC 1.4.3 asks 4.5:1 on the tint, which is the binding surface,
+     and the old vivid pair was pinned at L34.9 by that floor. Taking the
+     saturation out of both lets the label rise to L37.5 and still measure
+     4.65:1. Label on card is 5.08:1, and the tint still reads as a block at
+     1.093:1 against --card-background.
+
+     Do not raise the label's lightness without lowering chroma with it. At the
+     old saturation L38 measures 4.10:1 on the tint, under the floor. */
+  --semantic-warning-quaternary: hsla(35, 55.0%, 93.0%, 1);
   --semantic-warning-quinary: hsla(35, 41.3%, 93.8%, 1);
-  --semantic-warning-label: hsla(30, 72.0%, 35.0%, 1);
+  --semantic-warning-label: hsla(30, 55.0%, 37.5%, 1);
   --semantic-warning-foreground: hsla(55, 100%, 98%, 1);
 
   --semantic-success: hsla(142, 72%, 27%, 1);
