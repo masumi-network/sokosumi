@@ -8,10 +8,13 @@ import SwiftUI
 struct SettingsView: View {
   @EnvironmentObject private var auth: AuthState
   @EnvironmentObject private var workspaces: WorkspaceState
+  @Environment(\.scenePhase) private var scenePhase
   @AppStorage(TimeFormatPreference.defaultsKey) private var timeFormat: TimeFormatPreference = .auto
   @State private var saveError: String?
   /// The tapped value until the coordinator's optimistic flip lands, so the switch never snaps back for a frame.
   @State private var pendingRoomUnreadCount: Bool?
+  @State private var notificationError: String?
+  @State private var notificationAuthorization = ChatNotificationCenter.shared.authorization
 
   var body: some View {
     Form {
@@ -32,6 +35,17 @@ struct SettingsView: View {
         saveError: saveError,
         timeFormat: $timeFormat
       )
+      NotificationSettingsSection(
+        kinds: workspaces.notificationPreferences.kinds,
+        preset: workspaces.notificationPreferences.preset,
+        reach: workspaces.notificationPreferences.reach(for:),
+        isSaving: workspaces.notificationPreferences.isSaving,
+        isAvailable: auth.isSignedIn && workspaces.notificationPreferences.isLoaded,
+        bannersBlocked: workspaces.notificationPreferences.wantsBanner && notificationAuthorization == .denied,
+        error: notificationError,
+        onPreset: { preset in saveNotifications { try await workspaces.setNotificationPreset(preset, auth: auth) } },
+        onReach: { kind, reach in saveNotifications { try await workspaces.setNotificationReach([kind: reach], auth: auth) } }
+      )
       Section("Core") {
         LabeledContent("Base URL") {
           Text(CoreSettings.baseURL.absoluteString)
@@ -51,8 +65,33 @@ struct SettingsView: View {
     .padding()
     .task(id: auth.isSignedIn) {
       saveError = nil
+      notificationError = nil
       guard auth.isSignedIn else { return }
       await workspaces.refreshChatDisplayPreferences(auth: auth)
+      if await !workspaces.refreshNotificationPreferences(auth: auth), !workspaces.notificationPreferences.isLoaded {
+        notificationError = "Your notification settings did not load. Reopen Settings to try again."
+      }
+      await ChatNotificationCenter.shared.refreshAuthorization()
+      notificationAuthorization = ChatNotificationCenter.shared.authorization
+    }
+    .task(id: scenePhase) {
+      // Coming back from System Settings: pick up a permission change without reopening this window.
+      guard scenePhase == .active else { return }
+      await ChatNotificationCenter.shared.refreshAuthorization()
+      notificationAuthorization = ChatNotificationCenter.shared.authorization
+    }
+  }
+
+  /// The pickers show the model's optimistic value; a failure rolls it back there and is explained here.
+  private func saveNotifications(_ write: @escaping @MainActor () async throws -> Void) {
+    Task { @MainActor in
+      notificationError = nil
+      do {
+        try await write()
+      } catch {
+        notificationError = "Could not save that change. Check your connection and try again."
+      }
+      notificationAuthorization = ChatNotificationCenter.shared.authorization
     }
   }
 
