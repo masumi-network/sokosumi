@@ -87,13 +87,34 @@ describe("AppSidebarFallback", () => {
     const rows =
       roomList?.querySelectorAll('[data-slot="sidebar-menu-item"]') ?? [];
 
-    // Each row is a leading mark plus a name, under a section header that is
-    // its own chevron and label — derived from the rows so adding one does
-    // not mean editing a total here.
+    // The two sections every reader has — Channels and Direct Messages —
+    // each a heading of chevron and title over its own menu of rooms.
+    expect(
+      roomList?.querySelectorAll('[data-slot="sidebar-menu"]'),
+    ).toHaveLength(2);
+    for (const header of roomList?.querySelectorAll(
+      '[data-slot="sidebar-group-content"] > div',
+    ) ?? []) {
+      expect(header.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(2);
+    }
+
+    // Each row is its leading mark plus one name. Asserted per row rather
+    // than as a total, because a Channel draws two marks (glyph and tile, one
+    // per state) and a group Direct draws a face per participant, so no one
+    // number covers them and adding a row would mean editing it.
     expect(rows.length).toBeGreaterThan(0);
-    expect(roomList?.querySelectorAll('[data-slot="skeleton"]').length).toBe(
-      rows.length * 2 + 2,
-    );
+    for (const row of rows) {
+      expect(
+        row.querySelectorAll(
+          '[data-slot="sidebar-row-slot"] [data-slot="skeleton"]',
+        ).length,
+      ).toBeGreaterThan(0);
+      expect(
+        row.querySelectorAll(
+          '[data-slot="sidebar-row-slot"] ~ [data-slot="skeleton"]',
+        ),
+      ).toHaveLength(1);
+    }
 
     // The account chip: an avatar over name and plan lines.
     expect(
@@ -186,7 +207,10 @@ describe("AppSidebarFallback", () => {
     const row = skeleton?.querySelector(
       '[data-slot="sidebar-menu-item"] > div',
     );
-    const name = row?.querySelectorAll('[data-slot="skeleton"]')[1];
+    // The name is the row's own child, not one of the marks inside the slot.
+    const name = row?.querySelector(
+      '[data-slot="sidebar-row-slot"] ~ [data-slot="skeleton"]',
+    );
     const headerName = header?.querySelectorAll('[data-slot="skeleton"]')[1];
 
     // Expanded: the same `px-2` + `gap-2` a real row uses, so the 24px slot
@@ -196,7 +220,7 @@ describe("AppSidebarFallback", () => {
         expect.arrayContaining(["px-2", "gap-2", "h-11", "md:h-8"]),
       );
     }
-    expect(tokens(headerName?.className ?? "")).toContain("w-20");
+    expect(tokens(headerName?.className ?? "")).toContain("w-16");
     expect(tokens(headerName?.className ?? "")).toContain(
       "group-data-[collapsible=icon]:max-w-0",
     );
@@ -209,6 +233,6 @@ describe("AppSidebarFallback", () => {
     expect(tokens(name?.className ?? "")).not.toContain(
       "group-data-[collapsible=icon]:hidden",
     );
-    expect(name?.className).toMatch(/\bw-(16|20|24|28|32)\b/);
+    expect(name?.className).toMatch(/\bw-(14|16|20|24|28|32)\b/);
   });
 });
