@@ -83,7 +83,7 @@ export default async function CalendarPage({
       scope: scope === "owned" ? "owned" : "workspace",
       status: calendarStatus,
     }),
-    taskService.getWorkspaceCalendarSources().catch(() => []),
+    taskService.getWorkspaceCalendarSources(),
     coworkerService.listCoworkers().catch(() => []),
     listTaskAssigneeMemberOptions(
       session?.session?.activeOrganizationId ?? null,
@@ -91,6 +91,15 @@ export default async function CalendarPage({
     getProjectFilterOptions(projectId),
   ]);
   const coworkerOptions = [...memberOptions, ...getCoworkerOptions(coworkers)];
+  const workspaceSource = sources.find(
+    (source) =>
+      source.sourceType === "WORKSPACE" &&
+      source.sourceId.startsWith("workspace:"),
+  );
+  if (!workspaceSource) {
+    throw new Error("Active Calendar workspace source is unavailable");
+  }
+  const workspaceId = workspaceSource.sourceId.slice("workspace:".length);
   const schedulableProjectIds = new Set(
     sources
       .filter(
@@ -107,11 +116,13 @@ export default async function CalendarPage({
       <div className="w-full">
         <WorkspaceCalendar
           activeOrganizationId={session?.session?.activeOrganizationId ?? null}
+          currentUserId={session?.user?.id ?? null}
           key={`${initialDate}-${projectId ?? "all"}-${sourceId ?? "all"}-${scope ?? "workspace"}-${assigneeId ?? "all"}-${calendarStatus ?? "all"}`}
           initialDate={initialDate}
           items={items}
           latestDate={format(latestCalendarDate, "yyyy-MM-dd")}
           sources={sources}
+          workspaceId={workspaceId}
           pagination={pagination}
           range={range}
           coworkers={coworkerOptions}

@@ -23,6 +23,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 
 const {
   createScheduledTaskInTransactionMock,
+  deliverCalendarInvalidationsNowMock,
   findScheduledTaskCreateOperationMock,
   mapTaskMock,
   memberFindFirstMock,
@@ -36,6 +37,7 @@ const {
   taskFindUniqueOrThrowMock,
 } = vi.hoisted(() => ({
   createScheduledTaskInTransactionMock: vi.fn(),
+  deliverCalendarInvalidationsNowMock: vi.fn(),
   findScheduledTaskCreateOperationMock: vi.fn(),
   mapTaskMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
@@ -47,6 +49,10 @@ const {
   requireAssignedOrganizationSeatMock: vi.fn(),
   requireScheduledTaskCreatorMock: vi.fn(),
   taskFindUniqueOrThrowMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/calendar-invalidation", () => ({
+  deliverCalendarInvalidationsNow: deliverCalendarInvalidationsNowMock,
 }));
 
 vi.mock("@/helpers/organization-assigned-seat", () => ({
@@ -318,6 +324,9 @@ describe("POST /tasks/scheduled", () => {
     });
 
     expect(response.status).toBe(201);
+    expect(deliverCalendarInvalidationsNowMock).toHaveBeenCalledWith(
+      WORKSPACE_ID,
+    );
     expect(createScheduledTaskInTransactionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         workspaceId: WORKSPACE_ID,

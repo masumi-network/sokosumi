@@ -122,6 +122,7 @@ export default async function ProjectCalendarPage({
             activeOrganizationId={
               session?.session?.activeOrganizationId ?? null
             }
+            currentUserId={session?.user?.id ?? null}
             initialDate={initialDate}
             items={items}
             key={`${project.id}-${initialDate}-${scope ?? "workspace"}-${assigneeId ?? "all"}-${calendarStatus ?? "all"}`}
@@ -130,6 +131,7 @@ export default async function ProjectCalendarPage({
             lockedProjectId={project.id}
             range={range}
             sources={projectSource ? [projectSource] : []}
+            workspaceId={project.workspaceId}
             coworkers={coworkerOptions}
           />
         </div>

@@ -5,6 +5,7 @@ import {
   requireTaskAssignableCoworker,
   requireTaskAssignableSokoBot,
 } from "@/helpers/access-control";
+import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import { badRequest, conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -63,7 +64,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const { organizationId: targetOrganizationId } = c.req.valid("json");
 
-    const task = await serializableTransaction(async (tx) => {
+    const result = await serializableTransaction(async (tx) => {
       const ownedTask = await requireMutableTaskOwnership(userContext, id, tx);
 
       const workspace = await tx.workspace.findUniqueOrThrow({
@@ -75,13 +76,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         targetOrganizationId !== workspace.organizationId;
 
       if (!workspaceChanged) {
-        return await tx.task.findUniqueOrThrow({
-          where: { id },
-          include: buildTaskIncludeForViewer(
-            authContext,
-            ownedTask.workspaceId,
-          ),
-        });
+        return {
+          deliveryWorkspaceIds: [] as string[],
+          task: await tx.task.findUniqueOrThrow({
+            where: { id },
+            include: buildTaskIncludeForViewer(
+              authContext,
+              ownedTask.workspaceId,
+            ),
+          }),
+        };
       }
 
       if (
@@ -195,12 +199,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         nextRunAt: ownedTask.nextRunAt,
       });
 
-      return await tx.task.findUniqueOrThrow({
-        where: { id },
-        include: buildTaskIncludeForViewer(authContext, targetWorkspace.id),
-      });
+      return {
+        deliveryWorkspaceIds: [ownedTask.workspaceId, targetWorkspace.id],
+        task: await tx.task.findUniqueOrThrow({
+          where: { id },
+          include: buildTaskIncludeForViewer(authContext, targetWorkspace.id),
+        }),
+      };
     }, "Task changed by a concurrent request. Please retry.");
+    await Promise.all(
+      result.deliveryWorkspaceIds.map((workspaceId) =>
+        deliverCalendarInvalidationsNow(workspaceId),
+      ),
+    );
 
-    return ok(c, taskSchema.parse(mapTask(task, authContext)));
+    return ok(c, taskSchema.parse(mapTask(result.task, authContext)));
   });
 }

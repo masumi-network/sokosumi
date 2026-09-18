@@ -55,6 +55,17 @@ globalThis.MESSAGES = {
       "The schedule for {taskName} was repaired",
     "Notifications.Task.scheduleRemovedByOperator":
       "The schedule for {taskName} was removed after review",
+    "Notifications.Task.scheduleUpdatedByMember":
+      "A teammate updated the schedule for {taskName}",
+    "Notifications.Task.scheduleRemovedByMember":
+      "A teammate removed the schedule for {taskName}",
+    "Notifications.Task.scheduleSourceChangedByMember":
+      "A teammate moved {taskName} to another calendar source",
+    "Notifications.Task.scheduleOccurrenceChangedByMember":
+      "A teammate changed an occurrence of {taskName}",
+    "Notifications.Project.closed": "{projectName} is now closed",
+    "Notifications.Project.closeFailed":
+      "{projectName} could not finish closing",
     "Notifications.Chat.mentioned": "{authorName} mentioned you in {roomName}",
     "Notifications.Chat.mentionedDirect":
       "{authorName} mentioned you in a direct message",
@@ -111,6 +122,17 @@ globalThis.MESSAGES = {
       "Der Zeitplan für {taskName} wurde repariert",
     "Notifications.Task.scheduleRemovedByOperator":
       "Der Zeitplan für {taskName} wurde nach der Prüfung entfernt",
+    "Notifications.Task.scheduleUpdatedByMember":
+      "Ein Teammitglied hat den Zeitplan für {taskName} aktualisiert",
+    "Notifications.Task.scheduleRemovedByMember":
+      "Ein Teammitglied hat den Zeitplan für {taskName} entfernt",
+    "Notifications.Task.scheduleSourceChangedByMember":
+      "Ein Teammitglied hat {taskName} in eine andere Kalenderquelle verschoben",
+    "Notifications.Task.scheduleOccurrenceChangedByMember":
+      "Ein Teammitglied hat einen Termin von {taskName} geändert",
+    "Notifications.Project.closed": "{projectName} ist jetzt geschlossen",
+    "Notifications.Project.closeFailed":
+      "{projectName} konnte nicht vollständig geschlossen werden",
     "Notifications.Chat.mentioned":
       "{authorName} hat dich in {roomName} erwähnt",
     "Notifications.Chat.mentionedDirect":
@@ -167,6 +189,17 @@ globalThis.MESSAGES = {
       "Se reparó la programación de {taskName}",
     "Notifications.Task.scheduleRemovedByOperator":
       "Se eliminó la programación de {taskName} después de revisarla",
+    "Notifications.Task.scheduleUpdatedByMember":
+      "Un miembro del equipo actualizó la programación de {taskName}",
+    "Notifications.Task.scheduleRemovedByMember":
+      "Un miembro del equipo eliminó la programación de {taskName}",
+    "Notifications.Task.scheduleSourceChangedByMember":
+      "Un miembro del equipo movió {taskName} a otra fuente de calendario",
+    "Notifications.Task.scheduleOccurrenceChangedByMember":
+      "Un miembro del equipo cambió una ocurrencia de {taskName}",
+    "Notifications.Project.closed": "{projectName} ya está cerrado",
+    "Notifications.Project.closeFailed":
+      "{projectName} no pudo terminar de cerrarse",
     "Notifications.Chat.mentioned": "{authorName} te mencionó en {roomName}",
     "Notifications.Chat.mentionedDirect":
       "{authorName} te mencionó en un mensaje directo",

@@ -50,6 +50,7 @@ import {
   getEnv,
   getWebAppBaseUrl,
 } from "@/config/env";
+import { deliverOrganizationCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import {
   evaluateUserDeletion,
   throwIfUserDeletionBlocked,
@@ -396,6 +397,16 @@ export const auth = betterAuth({
           throw new APIError("BAD_REQUEST", {
             code: "TERMS_NOT_ACCEPTED",
           });
+        }
+      }
+
+      if (ctx.path === "/organization/leave") {
+        const organizationId = ctx.body?.organizationId;
+        if (typeof organizationId === "string") {
+          await deliverOrganizationCalendarInvalidationsNow(
+            organizationId,
+            ctx.context.session?.user.id,
+          );
         }
       }
     }),

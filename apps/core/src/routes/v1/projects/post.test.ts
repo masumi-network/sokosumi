@@ -16,15 +16,21 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 const {
+  deliverCalendarInvalidationsNowMock,
   generateProjectFilesTokenMock,
   projectCreateMock,
   projectUpdateMock,
   uploadProjectBriefingFileMock,
 } = vi.hoisted(() => ({
+  deliverCalendarInvalidationsNowMock: vi.fn(),
   generateProjectFilesTokenMock: vi.fn(),
   projectCreateMock: vi.fn(),
   projectUpdateMock: vi.fn(),
   uploadProjectBriefingFileMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/calendar-invalidation", () => ({
+  deliverCalendarInvalidationsNow: deliverCalendarInvalidationsNowMock,
 }));
 
 vi.mock("@/lib/project-files-blob", () => ({
@@ -111,6 +117,9 @@ describe("POST /projects", () => {
     });
 
     expect(res.status).toBe(201);
+    expect(deliverCalendarInvalidationsNowMock).toHaveBeenCalledWith(
+      WORKSPACE_CONTEXT.workspaceId,
+    );
     const body = (await res.json()) as { data: { id: string; name: string } };
     expect(body.data.id).toBe("33333333-3333-4333-8333-333333333333");
     expect(body.data.name).toBe("Alpha");

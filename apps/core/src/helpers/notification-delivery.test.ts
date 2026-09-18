@@ -132,8 +132,16 @@ describe("toNotificationCategory", () => {
       "Notifications.Task.approvalRequired",
       "Notifications.Task.authenticationRequired",
       "Notifications.Task.outOfCredits",
-      "Notifications.Task.scheduleRemovedByOperator",
     ]);
+  });
+
+  it("keeps operator schedule removal on the quiet update row", () => {
+    const messageKey = "Notifications.Task.scheduleRemovedByOperator";
+
+    expect(TASK_ATTENTION_MESSAGE_KEYS).not.toContain(messageKey);
+    expect(toNotificationCategory(NotificationKind.TASK, messageKey)).toBe(
+      "TASK_UPDATE",
+    );
   });
 
   it("puts every listed attention key on the loud row", () => {
@@ -166,6 +174,15 @@ describe("toNotificationCategory", () => {
         "notifications.vendorGrant.pending",
       ),
     ).toBe("SYSTEM");
+  });
+
+  it("maps project lifecycle notifications to project updates", () => {
+    expect(
+      toNotificationCategory(
+        NotificationKind.PROJECT,
+        "Notifications.Project.closed",
+      ),
+    ).toBe("PROJECT_UPDATE");
   });
 
   it("splits chat by message key, because the reader chooses between them", () => {
@@ -211,6 +228,7 @@ describe("toNotificationCategory", () => {
       // answer with their quiet row.
       JOB: "JOB_UPDATE",
       TASK: "TASK_UPDATE",
+      PROJECT: "PROJECT_UPDATE",
       SYSTEM: "SYSTEM",
       CHAT: "CHAT_MENTION",
       BILLING: null,
