@@ -54,13 +54,26 @@ class RecordingResizeObserver implements ResizeObserver {
   disconnect() {}
 }
 
+/**
+ * The scroller is bottom-anchored: `scrollTop` is 0 at the live edge and
+ * negative above it. Tests speak in the reader's terms instead.
+ */
+function distanceFromEnd(scroller: HTMLElement): number {
+  return Math.abs(scroller.scrollTop);
+}
+
+/** How far the top edge is below the start of the list. */
+function topOffset(scroller: HTMLElement): number {
+  return scroller.scrollHeight - viewportHeight + scroller.scrollTop;
+}
+
+function scrollToTopOffset(scroller: HTMLElement, top: number) {
+  scroller.scrollTo({ top: top - (scroller.scrollHeight - viewportHeight) });
+}
+
 function resizeScroller(scroller: HTMLElement, height: number) {
+  // The browser keeps a bottom-anchored scroller's distance from the end.
   viewportHeight = height;
-  // Browser keeps the top edge still, then clamps scrollTop to the new max.
-  const max = Math.max(0, scroller.scrollHeight - height);
-  if (scroller.scrollTop > max) {
-    scroller.scrollTop = max;
-  }
   act(() => {
     for (const { target, callback } of resizeObservations) {
       if (target === scroller) {
@@ -195,7 +208,7 @@ beforeAll(() => {
     const rect = originalGetBoundingClientRect.call(this).toJSON();
     const scroller = this.closest<HTMLElement>('[data-testid="scroller"]');
     if (scroller && scroller !== this) {
-      rect.top = -scroller.scrollTop;
+      rect.top = -topOffset(scroller);
       rect.bottom = rect.top + rect.height;
     }
     return rect;
@@ -265,15 +278,15 @@ function mountedIds(container: HTMLElement): string[] {
 
 /**
  * happy-dom fires no scroll events, so the scroll the virtualizer makes to
- * reach a row is echoed back to it here.
+ * reach a row is echoed back to it here, and then reported as over.
  */
 async function settle(container: HTMLElement) {
   for (let round = 0; round < 3; round += 1) {
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 30));
-      container
-        .querySelector('[data-testid="scroller"]')
-        ?.dispatchEvent(new Event("scroll"));
+      const scroller = container.querySelector('[data-testid="scroller"]');
+      scroller?.dispatchEvent(new Event("scroll"));
+      scroller?.dispatchEvent(new Event("scrollend"));
     });
   }
 }
@@ -396,7 +409,7 @@ describe("TranscriptViewport", () => {
       );
 
     act(() => {
-      scroller.scrollTo({ top: 0 });
+      scrollToTopOffset(scroller, 0);
     });
     await settle(container);
     const control = jump();
@@ -408,8 +421,8 @@ describe("TranscriptViewport", () => {
     fireEvent.click(control);
     await settle(container);
 
-    expect(scroller.scrollTop).toBeGreaterThan(0);
-    expect(scroller.scrollTop).toBe(scroller.scrollHeight - VIEWPORT_HEIGHT);
+    expect(topOffset(scroller)).toBeGreaterThan(0);
+    expect(distanceFromEnd(scroller)).toBe(0);
     expect(jump()).toBeUndefined();
   });
 
@@ -428,7 +441,7 @@ describe("TranscriptViewport", () => {
       throw new Error("expected the scroller");
     }
     act(() => {
-      scroller.scrollTo({ top: 0 });
+      scrollToTopOffset(scroller, 0);
     });
     await settle(container);
     const first = mountedIds(container)[0];
@@ -440,15 +453,18 @@ describe("TranscriptViewport", () => {
         `[data-message-id="${id}"]`,
       )?.parentElement;
       const y = row?.style.transform.match(/,\s*(-?[\d.]+)px/)?.[1];
-      return y === undefined ? Number.NaN : Number(y) - scroller.scrollTop;
+      return y === undefined ? Number.NaN : Number(y) - topOffset(scroller);
     };
     const before = rowTop(first);
-    const scrollTopBefore = scroller.scrollTop;
+    const topOffsetBefore = topOffset(scroller);
+    const distanceBefore = distanceFromEnd(scroller);
 
     rerender(<Harness rows={[...older, ...newer]} handle={handle} />);
     await settle(container);
 
-    expect(scroller.scrollTop).toBeGreaterThan(scrollTopBefore);
+    expect(topOffset(scroller)).toBeGreaterThan(topOffsetBefore);
+    // The scroller was not written to: the browser held the view.
+    expect(distanceFromEnd(scroller)).toBe(distanceBefore);
     expect(rowTop(first)).toBe(before);
   });
 
@@ -474,14 +490,12 @@ describe("TranscriptViewport", () => {
     const { container } = render(<Harness rows={rows(100)} handle={handle} />);
     await settle(container);
     const scroller = scrollerOf(container);
-    expect(scroller.scrollTop).toBe(scroller.scrollHeight - VIEWPORT_HEIGHT);
+    expect(distanceFromEnd(scroller)).toBe(0);
 
     resizeScroller(scroller, VIEWPORT_HEIGHT - 48);
     await settle(container);
 
-    expect(scroller.scrollTop).toBe(
-      scroller.scrollHeight - (VIEWPORT_HEIGHT - 48),
-    );
+    expect(distanceFromEnd(scroller)).toBe(0);
   });
 
   it("keeps a reader near the live edge at their distance when the scroller shrinks", async () => {
@@ -490,16 +504,14 @@ describe("TranscriptViewport", () => {
     await settle(container);
     const scroller = scrollerOf(container);
     act(() => {
-      scroller.scrollTo({ top: scroller.scrollHeight - VIEWPORT_HEIGHT - 100 });
+      scroller.scrollTo({ top: -100 });
     });
     await settle(container);
 
     resizeScroller(scroller, VIEWPORT_HEIGHT - 48);
     await settle(container);
 
-    expect(
-      scroller.scrollHeight - (VIEWPORT_HEIGHT - 48) - scroller.scrollTop,
-    ).toBe(100);
+    expect(distanceFromEnd(scroller)).toBe(100);
   });
 
   it("keeps the live edge in view when the scroller grows under a shrinking composer", async () => {
@@ -507,14 +519,12 @@ describe("TranscriptViewport", () => {
     const { container } = render(<Harness rows={rows(100)} handle={handle} />);
     await settle(container);
     const scroller = scrollerOf(container);
-    expect(scroller.scrollTop).toBe(scroller.scrollHeight - VIEWPORT_HEIGHT);
+    expect(distanceFromEnd(scroller)).toBe(0);
 
     resizeScroller(scroller, VIEWPORT_HEIGHT + 48);
     await settle(container);
 
-    expect(scroller.scrollTop).toBe(
-      scroller.scrollHeight - (VIEWPORT_HEIGHT + 48),
-    );
+    expect(distanceFromEnd(scroller)).toBe(0);
   });
 
   it("keeps a reader near the live edge at their distance when the scroller grows", async () => {
@@ -523,16 +533,14 @@ describe("TranscriptViewport", () => {
     await settle(container);
     const scroller = scrollerOf(container);
     act(() => {
-      scroller.scrollTo({ top: scroller.scrollHeight - VIEWPORT_HEIGHT - 100 });
+      scroller.scrollTo({ top: -100 });
     });
     await settle(container);
 
     resizeScroller(scroller, VIEWPORT_HEIGHT + 48);
     await settle(container);
 
-    expect(
-      scroller.scrollHeight - (VIEWPORT_HEIGHT + 48) - scroller.scrollTop,
-    ).toBe(100);
+    expect(distanceFromEnd(scroller)).toBe(100);
   });
 
   it("leaves a reader a little above the live edge where they are when the rows are refreshed", async () => {
@@ -542,18 +550,17 @@ describe("TranscriptViewport", () => {
     );
     await settle(container);
     const scroller = scrollerOf(container);
-    const above = scroller.scrollHeight - VIEWPORT_HEIGHT - 100;
     act(() => {
-      scroller.scrollTo({ top: above });
+      scroller.scrollTo({ top: -100 });
     });
     await settle(container);
-    expect(scroller.scrollTop).toBe(above);
+    expect(distanceFromEnd(scroller)).toBe(100);
 
     // A poll returns the same messages as a new array.
     rerender(<Harness rows={rows(100)} handle={handle} />);
     await settle(container);
 
-    expect(scroller.scrollTop).toBe(above);
+    expect(distanceFromEnd(scroller)).toBe(100);
   });
 
   it("puts a view exactly at the live edge back there when the rows are refreshed", async () => {
@@ -563,12 +570,12 @@ describe("TranscriptViewport", () => {
     );
     await settle(container);
     const scroller = scrollerOf(container);
-    expect(scroller.scrollTop).toBe(scroller.scrollHeight - VIEWPORT_HEIGHT);
+    expect(distanceFromEnd(scroller)).toBe(0);
 
     rerender(<Harness rows={rows(100)} handle={handle} />);
     await settle(container);
 
-    expect(scroller.scrollTop).toBe(scroller.scrollHeight - VIEWPORT_HEIGHT);
+    expect(distanceFromEnd(scroller)).toBe(0);
   });
 
   it("pulls a reader near the live edge down when a new message arrives", async () => {
@@ -579,18 +586,71 @@ describe("TranscriptViewport", () => {
     await settle(container);
     const scroller = scrollerOf(container);
     act(() => {
-      scroller.scrollTo({
-        top: scroller.scrollHeight - VIEWPORT_HEIGHT - 100,
-      });
+      scroller.scrollTo({ top: -100 });
     });
     await settle(container);
 
     rerender(<Harness rows={rows(101)} handle={handle} />);
     await settle(container);
 
-    expect(
-      scroller.scrollHeight - VIEWPORT_HEIGHT - scroller.scrollTop,
-    ).toBeLessThan(1);
+    expect(distanceFromEnd(scroller)).toBeLessThan(1);
+  });
+
+  it("keeps the reader's row where it was when a new message arrives far below it", async () => {
+    // A bottom-anchored scroller keeps its distance from the end, so a row
+    // added at the end pushes the rows on screen up unless they are put back.
+    const handle = createRef<TranscriptViewportHandle>();
+    const { container, rerender } = render(
+      <Harness rows={rows(100)} handle={handle} />,
+    );
+    await settle(container);
+    const scroller = scrollerOf(container);
+    act(() => {
+      scroller.scrollTo({ top: -2000 });
+    });
+    await settle(container);
+    const before = topOffset(scroller);
+
+    rerender(<Harness rows={rows(101)} handle={handle} />);
+    await settle(container);
+
+    // The top edge is where it was; the distance from the end is what gave.
+    expect(topOffset(scroller)).toBe(before);
+  });
+
+  it("does not write to the scroller under a finger, and settles once it lifts", async () => {
+    // A scroll write ends the momentum of a touch scroll on iOS. Until the
+    // scroll is over the list is pulled down by a margin instead.
+    const handle = createRef<TranscriptViewportHandle>();
+    const { container, rerender } = render(
+      <Harness rows={rows(100)} handle={handle} />,
+    );
+    await settle(container);
+    const scroller = scrollerOf(container);
+    act(() => {
+      scroller.scrollTo({ top: -2000 });
+    });
+    await settle(container);
+    const before = topOffset(scroller);
+    const scrollTopBefore = scroller.scrollTop;
+    const list = container.querySelector<HTMLElement>(
+      `[${CHAT_MESSAGE_LIST_ATTRIBUTE}] > div`,
+    );
+
+    fireEvent.touchStart(scroller);
+    rerender(<Harness rows={rows(101)} handle={handle} />);
+    await settle(container);
+
+    expect(scroller.scrollTop).toBe(scrollTopBefore);
+    expect(list?.style.marginBottom).toMatch(/^-\d+px$/);
+
+    fireEvent.touchEnd(scroller);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    });
+
+    expect(list?.style.marginBottom).toBe("");
+    expect(topOffset(scroller)).toBe(before);
   });
 
   it("holds the first message when the boundary row above it is replaced by the page it loaded", async () => {
@@ -610,7 +670,7 @@ describe("TranscriptViewport", () => {
       throw new Error("expected the scroller");
     }
     act(() => {
-      scroller.scrollTo({ top: 0 });
+      scrollToTopOffset(scroller, 0);
     });
     await settle(container);
     const rowTop = (id: string) => {
@@ -618,7 +678,7 @@ describe("TranscriptViewport", () => {
         `[data-message-id="${id}"]`,
       )?.parentElement;
       const y = row?.style.transform.match(/,\s*(-?[\d.]+)px/)?.[1];
-      return y === undefined ? Number.NaN : Number(y) - scroller.scrollTop;
+      return y === undefined ? Number.NaN : Number(y) - topOffset(scroller);
     };
     expect(rowTop("msg-060")).toBe(ROW_HEIGHT);
     // Rows mount unmeasured while the virtualizer still counts the reader
@@ -635,9 +695,9 @@ describe("TranscriptViewport", () => {
     );
     await settle(container);
 
-    // At the edge, not 40 px below it: the boundary row the reader saw above
-    // it is gone, and the rows now above it are held whole.
-    expect(rowTop("msg-060")).toBe(0);
+    // Where it was: the page took the boundary row's place above it.
+    expect(rowTop("msg-060")).toBe(ROW_HEIGHT);
+    expect(mountedIds(container)).toContain("msg-059");
   });
 
   it("keeps row identity when an outbound shell is confirmed", async () => {
@@ -702,17 +762,17 @@ describe("rowHoldAfterRowsChange", () => {
     };
   };
 
-  it("leaves a message row under the top edge to the virtualizer", () => {
+  it("holds the message row under the top edge, where the edge cut it", () => {
     const previous = [boundary("msg-060"), ...newer];
     expect(
       rowHoldAfterRowsChange(source(previous, 60), previous, [
         ...older,
         ...newer,
       ]),
-    ).toBeNull();
+    ).toEqual({ key: "msg-060", offset: 20 });
   });
 
-  it("holds the first message below a boundary row that the page replaced, at the edge", () => {
+  it("holds the first message below a boundary row that the page replaced, where it sat", () => {
     const previous = [boundary("msg-060"), ...newer];
     expect(
       rowHoldAfterRowsChange(source(previous, 10), previous, [
@@ -720,7 +780,7 @@ describe("rowHoldAfterRowsChange", () => {
         ...older,
         ...newer,
       ]),
-    ).toEqual({ key: "msg-060", offset: 0 });
+    ).toEqual({ key: "msg-060", offset: 10 - ROW_HEIGHT });
   });
 
   it("holds nothing when no row below the edge survived", () => {
