@@ -9575,7 +9575,7 @@ export const ChatRoomMessageQuoteSchema = {
         roomId: {
             type: 'string',
             format: 'uuid',
-            description: 'Source room of a quote sent to the caller\'s Self Direct. Absent when the quoted message is in the same room.',
+            description: 'Source room of a message quoted from another room. Absent when the quoted message is in the same room.',
             example: '550e8400-e29b-41d4-a716-446655440000'
         }
     },
@@ -10218,8 +10218,8 @@ export const CreateChatRoomMessageRequestSchema = {
     properties: {
         content: {
             type: 'string',
-            minLength: 1,
             maxLength: 10000,
+            description: 'Message body. May be empty only when `quote` is set: a quote can be the whole message.',
             example: '@coworker:elena Can you summarize this launch risk?'
         },
         mentionedCoworkerIds: {
@@ -10267,12 +10267,18 @@ export const CreateChatRoomMessageRequestSchema = {
                     type: 'string',
                     format: 'uuid',
                     example: '550e8400-e29b-41d4-a716-446655440000'
+                },
+                roomId: {
+                    type: 'string',
+                    format: 'uuid',
+                    description: 'Room the quoted message is in, when it is not this room. User senders only. Allowed when the sender can read that room and every user member of this room is also a member of it; anything else is a 400.',
+                    example: '550e8400-e29b-41d4-a716-446655440001'
                 }
             },
             required: [
                 'messageId'
             ],
-            description: 'Quote another message in the same room. Snapshot is stored in metadata.quote; does not set parentMessageId.'
+            description: 'Quote another message. Snapshot is stored in metadata.quote; does not set parentMessageId.'
         },
         clientMessageId: {
             type: 'string',

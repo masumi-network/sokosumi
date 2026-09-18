@@ -229,10 +229,12 @@ struct ConversationActionsTests {
     let pinClient = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: pinTransport)
     let pinTask = Task { try await pinned.perform(.pin, roomId: peerRoomId, client: pinClient, organizationSlug: nil) }
     await pinTransport.waitForRequest()
-    #expect(pinned.partitioned.channels.map(\.id) == [peerRoomId, testRoomId])
+    #expect(pinned.partitioned.pinned.map(\.id) == [peerRoomId])
+    #expect(pinned.partitioned.channels.map(\.id) == [testRoomId])
     await pinTransport.release()
     try await pinTask.value
-    #expect(pinned.partitioned.channels.map(\.id) == [peerRoomId, testRoomId])
+    #expect(pinned.partitioned.pinned.map(\.id) == [peerRoomId])
+    #expect(pinned.partitioned.channels.map(\.id) == [testRoomId])
 
     let muted = try await twoRoomSidebar()
     let muteTransport = PausedSidebarTransport(response: actionBody(muted: true))

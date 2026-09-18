@@ -7,10 +7,13 @@ import {
 } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import {
+  type ClipboardEvent,
   type FormEvent,
   type Ref,
   useCallback,
+  useImperativeHandle,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { toast } from "sonner";
@@ -27,10 +30,15 @@ import type {
   ChatRoomSokoBotParticipant,
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
+import {
+  type ChatRoomMessageLink,
+  parseChatRoomMessageLink,
+} from "@/lib/utils/notification-href";
 
 import {
   RoomComposer,
   type RoomComposerAttachment,
+  type RoomComposerEditHandle,
   type RoomComposerHandle,
 } from "./room-composer";
 import {
@@ -47,7 +55,7 @@ export interface RoomSessionSendRequest {
   /** Chips at send time; content already carries their markdown links. */
   attachments: RoomComposerAttachment[];
   mentionedIds: string[];
-  quote?: { messageId: string };
+  quote?: { messageId: string; roomId?: string };
   clientMessageId: string;
 }
 
@@ -61,6 +69,13 @@ interface ComposerSnapshot {
   attachments: RoomComposerAttachment[];
   mentionedIds: string[];
   pendingQuote: PendingRoomQuote | null;
+  quotedLink: QuotedLink | null;
+}
+
+/** A pasted Message link that became the pending quote. */
+interface QuotedLink {
+  messageId: string;
+  linkText: string;
 }
 
 interface RoomSessionComposerProps {
@@ -78,7 +93,19 @@ interface RoomSessionComposerProps {
   placeholder: string;
   pendingQuote: PendingRoomQuote | null;
   onClearPendingQuote?: () => void;
-  onRestorePendingQuote?: (quote: PendingRoomQuote) => void;
+  onSetPendingQuote?: (quote: PendingRoomQuote) => void;
+  /**
+   * Resolve a pasted Message link into a quote the sender may send here, or
+   * null when it must stay a plain link.
+   */
+  onResolveMessageLink?: (
+    link: ChatRoomMessageLink,
+  ) => Promise<PendingRoomQuote | null>;
+  /**
+   * True where a quote cannot be the whole message: the coworker 1:1 stream
+   * needs words to answer.
+   */
+  requireBody?: boolean;
   isSending: boolean;
   showMentionShortcut?: boolean;
   allowAttachments?: boolean;
@@ -113,7 +140,9 @@ export function RoomSessionComposer({
   placeholder,
   pendingQuote,
   onClearPendingQuote,
-  onRestorePendingQuote,
+  onSetPendingQuote,
+  onResolveMessageLink,
+  requireBody = false,
   isSending,
   showMentionShortcut,
   allowAttachments,
@@ -163,17 +192,78 @@ export function RoomSessionComposer({
     },
   });
 
+  // The pasted link the pending quote replaced, so removing that quote can put
+  // the link back as plain text.
+  const [quotedLink, setQuotedLink] = useState<QuotedLink | null>(null);
+
   const restoreSnapshot = useCallback(
     (snapshot: ComposerSnapshot) => {
       setComposerValue(snapshot.value);
       setComposerAttachments(snapshot.attachments);
       setMentionedIds(snapshot.mentionedIds);
       if (snapshot.pendingQuote) {
-        onRestorePendingQuote?.(snapshot.pendingQuote);
+        onSetPendingQuote?.(snapshot.pendingQuote);
+        setQuotedLink(snapshot.quotedLink);
       }
     },
-    [onRestorePendingQuote],
+    [onSetPendingQuote],
   );
+
+  // What the sender is looking at now, for a quote that resolves after they
+  // edited the link away, pasted again, sent, or moved to another room.
+  const latest = useRef({ draftKey, pendingQuote, paste: 0 });
+  latest.current = { ...latest.current, draftKey, pendingQuote };
+
+  const composerRef = useRef<RoomComposerEditHandle | null>(null);
+  useImperativeHandle(
+    ref,
+    () => ({
+      attachFiles: (files) => composerRef.current?.attachFiles(files),
+      focus: () => composerRef.current?.focus(),
+    }),
+    [],
+  );
+
+  async function handlePaste(event: ClipboardEvent<HTMLDivElement>) {
+    latest.current.paste += 1;
+    const paste = latest.current.paste;
+    // One quote per message: never swap a quote the sender already chose.
+    if (!onResolveMessageLink || pendingQuote) return;
+
+    const linkText = event.clipboardData.getData("text/plain").trim();
+    const link = parseChatRoomMessageLink(linkText, window.location.origin);
+    if (!link) return;
+
+    const quote = await onResolveMessageLink(link).catch(() => null);
+    const now = latest.current;
+    if (
+      !quote ||
+      paste !== now.paste ||
+      now.draftKey !== draftKey ||
+      now.pendingQuote
+    ) {
+      return;
+    }
+
+    // Removed in the editor itself: a focused editor keeps its own text and
+    // caret, so the sender's words around the link stay as typed. Nothing to
+    // swap once the link was edited away.
+    if (!composerRef.current?.removeLastText(linkText)) return;
+    onSetPendingQuote?.(quote);
+    setQuotedLink({ messageId: quote.messageId, linkText });
+  }
+
+  function handleClearPendingQuote() {
+    if (quotedLink && quotedLink.messageId === pendingQuote?.messageId) {
+      composerRef.current?.insertText(
+        composerValue.trim().length === 0
+          ? quotedLink.linkText
+          : ` ${quotedLink.linkText}`,
+      );
+    }
+    setQuotedLink(null);
+    onClearPendingQuote?.();
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -182,7 +272,7 @@ export function RoomSessionComposer({
       composerAttachments,
       formatTaskAttachmentMarkdown,
     );
-    if (!content) return;
+    if (!content && (requireBody || !pendingQuote)) return;
     if (isRoomComposerContentOverLimit(content)) {
       toast.error(
         t("composerTooLong", {
@@ -194,7 +284,10 @@ export function RoomSessionComposer({
     }
 
     const quotePayload = pendingQuote
-      ? { messageId: pendingQuote.messageId }
+      ? {
+          messageId: pendingQuote.messageId,
+          ...(pendingQuote.roomId ? { roomId: pendingQuote.roomId } : {}),
+        }
       : undefined;
     const clientMessageId = crypto.randomUUID();
     if (onBeforeSend && !onBeforeSend(clientMessageId)) return;
@@ -204,6 +297,7 @@ export function RoomSessionComposer({
       attachments: composerAttachments,
       mentionedIds,
       pendingQuote,
+      quotedLink,
     };
     const sentDraftKey = draftKey;
 
@@ -211,6 +305,8 @@ export function RoomSessionComposer({
     setComposerAttachments([]);
     setMentionedIds([]);
     onClearPendingQuote?.();
+    latest.current.paste += 1;
+    setQuotedLink(null);
     clearDraft();
 
     const result = await onSend({
@@ -230,36 +326,44 @@ export function RoomSessionComposer({
   }
 
   return (
-    <RoomComposer
-      ref={ref}
-      roomId={roomId}
-      value={composerValue}
-      onValueChange={setComposerValue}
-      mentions={mentions}
-      usersById={usersById}
-      usersBySlug={usersBySlug}
-      coworkersById={coworkersById}
-      coworkersBySlug={coworkersBySlug}
-      sokoBotsById={sokoBotsById}
-      sokoBotsBySlug={sokoBotsBySlug}
-      channels={channels}
-      channelLinks={channelLinks}
-      onSelectedKeysChange={setMentionedIds}
-      placeholder={placeholder}
-      attachments={composerAttachments}
-      onAttachmentsChange={setComposerAttachments}
-      onSubmit={handleSubmit}
-      isSending={isSending}
-      sendDisabled={isRoomComposerEmpty(composerValue, composerAttachments)}
-      showMentionShortcut={showMentionShortcut}
-      allowAttachments={allowAttachments}
-      pendingQuote={pendingQuote}
-      onClearPendingQuote={onClearPendingQuote}
-      focusOnMount={focusOnMount}
-      currentUserId={currentUserId}
-      canOpenHumanDirect={canOpenHumanDirect}
-      onOpenDirectMessage={onOpenDirectMessage}
-      openingDirectParticipantKey={openingDirectParticipantKey}
-    />
+    // Text pastes bubble here after the editor inserted them as plain text.
+    <div className="contents" onPaste={(event) => void handlePaste(event)}>
+      <RoomComposer
+        ref={composerRef}
+        roomId={roomId}
+        value={composerValue}
+        onValueChange={setComposerValue}
+        mentions={mentions}
+        usersById={usersById}
+        usersBySlug={usersBySlug}
+        coworkersById={coworkersById}
+        coworkersBySlug={coworkersBySlug}
+        sokoBotsById={sokoBotsById}
+        sokoBotsBySlug={sokoBotsBySlug}
+        channels={channels}
+        channelLinks={channelLinks}
+        onSelectedKeysChange={setMentionedIds}
+        placeholder={placeholder}
+        attachments={composerAttachments}
+        onAttachmentsChange={setComposerAttachments}
+        onSubmit={handleSubmit}
+        isSending={isSending}
+        sendDisabled={
+          isRoomComposerEmpty(composerValue, composerAttachments) &&
+          (requireBody || !pendingQuote)
+        }
+        showMentionShortcut={showMentionShortcut}
+        allowAttachments={allowAttachments}
+        pendingQuote={pendingQuote}
+        onClearPendingQuote={
+          onClearPendingQuote ? handleClearPendingQuote : undefined
+        }
+        focusOnMount={focusOnMount}
+        currentUserId={currentUserId}
+        canOpenHumanDirect={canOpenHumanDirect}
+        onOpenDirectMessage={onOpenDirectMessage}
+        openingDirectParticipantKey={openingDirectParticipantKey}
+      />
+    </div>
   );
 }

@@ -418,6 +418,7 @@ describe("POST /chats/rooms/{id}/stream", () => {
     });
 
     expect(response.status).toBe(404);
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
     expect(streamTextMock).not.toHaveBeenCalled();
     expect(persistUserMessageToChatRoomMock).not.toHaveBeenCalled();
   });
@@ -535,6 +536,7 @@ describe("POST /chats/rooms/{id}/stream", () => {
     expect(ensureThreadProviderConversationMock).not.toHaveBeenCalled();
     expect(buildRoomStreamThreadModelMessagesMock).not.toHaveBeenCalled();
     expect(chatRoomUpdateManyMock).not.toHaveBeenCalled();
+    expect(prismaTransactionMock).toHaveBeenCalledOnce();
   });
 
   it("persists thread replies under parentMessageId with thread-scoped conversation", async () => {
