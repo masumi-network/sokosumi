@@ -126,6 +126,8 @@ function handler(_req, res) {
 
 Husky runs `pnpm precommit` (`pnpm check && pnpm typecheck`) before each commit. Expect roughly 10–15 seconds. Skip with `git commit --no-verify` or `HUSKY=0`.
 
+In a fresh worktree the hook fails with `Command "prisma" not found` until `pnpm install` has run there. Install (about 30 seconds) rather than committing past it with `--no-verify`: the failure is the worktree's `node_modules`, so every later check is blind too.
+
 ## Commands
 
 Full list is in root `package.json`. Agents typically need:
@@ -186,6 +188,7 @@ docs(readme): update setup instructions
 > | `feat(auth): add refresh token` | `Make FormSection title optional` |
 > | `chore(deps): pin biome version` | `Update deps` |
 
+- **Required status checks** on `main` (ruleset `Default Branch`): `Build`, `Validate PR Title`, `Biome`, `Test Core`, `Test Packages`, `Test Web`, `Typecheck`, `Swift lint and format`. Read the live list with `gh api repos/masumi-network/sokosumi/rulesets/3855070 --jq '.rules[] | select(.type=="required_status_checks") | .parameters.required_status_checks[].context'`. Deleting or renaming the job behind one of these blocks every PR on a check that never reports, so update the ruleset in the same change.
 - **Draft by default**: Open new PRs as **draft** unless the author explicitly asks for a ready-for-review PR. Mark it ready for review only once CI is green and the change is complete.
 - **Title**: Follow [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/) syntax (e.g. `feat(auth): add refresh token`)
 - **Description**: Explain user-facing impact
