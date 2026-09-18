@@ -8495,7 +8495,7 @@ export const ChatRoomSchema = {
             ],
             format: 'date-time',
             example: '2026-08-02T12:00:00.000Z',
-            description: 'When the current user starred this room. Null when not starred.'
+            description: 'Set while the current user has this room starred; null when not. A sort key, not the time of starring: starred rooms list oldest first, and `PUT /chats/rooms/starred` rewrites it.'
         },
         pinnedMessageCount: {
             type: 'integer',
@@ -9038,7 +9038,7 @@ export const ReorderStarredChatRoomsRequestSchema = {
                 format: 'uuid'
             },
             maxItems: 500,
-            description: 'Starred room ids in the wanted order. Ids the caller has not starred are ignored; starred rooms left out keep their relative order after the listed ones. Never stars or unstars a room.',
+            description: 'Starred room ids in the wanted order. Ids the caller has not starred in the active workspace are ignored; membership-visible starred rooms left out keep their relative order after the listed ones. Never stars or unstars a room.',
             example: [
                 '550e8400-e29b-41d4-a716-446655440000'
             ]

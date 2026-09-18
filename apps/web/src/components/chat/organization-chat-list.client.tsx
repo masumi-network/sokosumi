@@ -254,9 +254,14 @@ export function OrganizationChatList({
     [roomRows],
   );
   const pinnedRoomIds = pinned.map((room) => room.id);
-  // The mode needs its toggle on screen to leave it again.
-  const isReorderingPinned =
-    pinnedReorderMode && pinnedOpen && pinned.length > 1;
+  const canReorderPinned = pinnedOpen && pinned.length > 1;
+  // The mode ends with the toggle that leaves it (section closed, or fewer
+  // than two pins). Otherwise it would come back by itself, unasked, the
+  // next time a second room is pinned.
+  if (pinnedReorderMode && !canReorderPinned) {
+    setPinnedReorderMode(false);
+  }
+  const isReorderingPinned = pinnedReorderMode && canReorderPinned;
 
   /** Undefined past either end of the list, which is how a row knows. */
   function movePinnedTo(roomId: string, targetId: string | undefined) {
@@ -337,7 +342,7 @@ export function OrganizationChatList({
               railIcon={Pin}
               closedAttention={resolveSectionAttention(pinned)}
               createAction={
-                pinnedOpen && pinned.length > 1 ? (
+                canReorderPinned ? (
                   <button
                     type="button"
                     aria-pressed={isReorderingPinned}

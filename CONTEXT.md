@@ -289,7 +289,7 @@ _Avoid_: Soft demote to guest on org leave (retired for org exit), cascade-strip
 ### Chat pins
 
 **Pinned room**:
-The current user's personal sidebar pin of a membership-visible room. Not shared. Product UI: Pin / Unpin; a Pinned room of any kind lists under the sidebar's Pinned section only, in the reader's own order, and activity never moves it. The reader changes that order in the section's reorder mode (a handle per row: drag, or arrow keys); outside it a pinned row is an ordinary row. That order is the membership's `starredAt` ascending, which a reorder rewrites (`PUT /chats/rooms/starred`), so `starredAt` is a sort key, not the time of pinning. Distinct from a Pinned message.
+The current user's personal sidebar pin of a membership-visible room. Not shared. Product UI: Pin / Unpin; a Pinned room of any kind lists under the sidebar's Pinned section only, in the reader's own order, and activity never moves it. The reader changes that order in the section's reorder mode (a handle per row: drag, or arrow keys); outside it a pinned row is an ordinary row. That order is the membership's `starredAt` ascending, which a reorder rewrites (`PUT /chats/rooms/starred`) for the rooms of the sidebar it was made in only (a room in several sidebars, like a Personal Direct, has one key and moves in each), so `starredAt` is a sort key, not the time of pinning. Distinct from a Pinned message.
 _Avoid_: Starred room (API-only name), favorite, treating this as a Pinned message
 
 **Pinned message**:

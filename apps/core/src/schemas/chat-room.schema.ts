@@ -182,7 +182,7 @@ export const chatRoomSchema = z
     }),
     starredAt: dateTimeSchema.nullable().openapi({
       description:
-        "When the current user starred this room. Null when not starred.",
+        "Set while the current user has this room starred; null when not. A sort key, not the time of starring: starred rooms list oldest first, and `PUT /chats/rooms/starred` rewrites it.",
       example: "2026-08-02T12:00:00.000Z",
     }),
     pinnedMessageCount: z.number().int().min(0).default(0).openapi({

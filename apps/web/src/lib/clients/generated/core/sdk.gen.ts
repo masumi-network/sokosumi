@@ -792,7 +792,7 @@ export const getChatsRoomsChannelSlugAvailability = <ThrowOnError extends boolea
 });
 
 /**
- * Set the order of the current user's starred chat rooms. Rewrites `starredAt`, the sort key every client already lists starred rooms by (oldest first). Never stars or unstars a room.
+ * Set the order of the current user's starred chat rooms in the active workspace. Rewrites `starredAt` on membership-visible starred rooms only (same set as GET /chats/rooms), the sort key every client already lists starred rooms by (oldest first). Never stars or unstars a room, and never writes another workspace's exclusive pins.
  */
 export const putChatsRoomsStarred = <ThrowOnError extends boolean = false>(options?: Options<PutChatsRoomsStarredData, ThrowOnError>): RequestResult<PutChatsRoomsStarredResponses, PutChatsRoomsStarredErrors, ThrowOnError> => (options?.client ?? client).put<PutChatsRoomsStarredResponses, PutChatsRoomsStarredErrors, ThrowOnError>({
     responseTransformer: putChatsRoomsStarredResponseTransformer,

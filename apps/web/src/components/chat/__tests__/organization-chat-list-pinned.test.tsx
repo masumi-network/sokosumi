@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
+  createOrganizationChatList,
   emptyListResult,
   listRoomsMock,
   makeRoom,
@@ -79,6 +80,27 @@ describe("OrganizationChatList Pinned section", () => {
     expect(screen.getAllByRole("button", { name: HANDLE })).toHaveLength(2);
 
     await userEvent.click(screen.getByRole("button", { name: DONE }));
+    expect(screen.queryByRole("button", { name: HANDLE })).toBeNull();
+  });
+
+  it("ends reorder mode when the pins drop below two, and does not resume it", async () => {
+    const { rerender } = renderOrganizationChatList({
+      organizationId: "org-1",
+      rooms,
+    });
+    await enterReorderMode();
+
+    // Unpinned on another device: one pin left, so no toggle to leave with.
+    rerender(
+      createOrganizationChatList({
+        organizationId: "org-1",
+        rooms: [rooms[0], rooms[2]],
+      }),
+    );
+    expect(screen.queryByRole("button", { name: HANDLE })).toBeNull();
+
+    rerender(createOrganizationChatList({ organizationId: "org-1", rooms }));
+    expect(screen.getByRole("button", { name: TOGGLE })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: HANDLE })).toBeNull();
   });
 

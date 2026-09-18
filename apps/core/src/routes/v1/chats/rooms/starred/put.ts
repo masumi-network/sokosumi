@@ -3,69 +3,46 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withOrganizationSlugHeaderParameter,
+} from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import {
   reorderStarredChatRoomsRequestSchema,
   starredChatRoomOrderSchema,
 } from "@/schemas/chat-room.schema";
 
-const route = createRoute({
-  method: "put",
-  path: "/starred",
-  description:
-    "Set the order of the current user's starred chat rooms in the active workspace. Rewrites `starredAt` on membership-visible starred rooms only (same set as GET /chats/rooms), the sort key every client already lists starred rooms by (oldest first). Never stars or unstars a room, and never writes another workspace's exclusive pins.",
-  tags: ["Chat Rooms"],
-  request: {
-    body: {
-      content: {
-        "application/json": {
-          schema: reorderStarredChatRoomsRequestSchema,
+import { membershipVisibleActiveRoomWhere } from "../helpers";
+
+const route = withOrganizationSlugHeaderParameter(
+  createRoute({
+    method: "put",
+    path: "/starred",
+    description:
+      "Set the order of the current user's starred chat rooms in the active workspace. Rewrites `starredAt` on membership-visible starred rooms only (same set as GET /chats/rooms), the sort key every client already lists starred rooms by (oldest first). Never stars or unstars a room, and never writes another workspace's exclusive pins.",
+    tags: ["Chat Rooms"],
+    request: {
+      body: {
+        content: {
+          "application/json": {
+            schema: reorderStarredChatRoomsRequestSchema,
+          },
         },
       },
     },
-  },
-  responses: {
-    200: jsonSuccessResponse(
-      z.array(starredChatRoomOrderSchema),
-      "Starred rooms in their new order",
-    ),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    422: jsonErrorResponse("Unprocessable Entity"),
-    500: jsonErrorResponse("Internal Server Error"),
-  },
-});
-
-/** Same membership-visible active set as GET /chats/rooms. */
-function membershipVisibleActiveRoomWhere(
-  userId: string,
-  organizationId: string | null,
-) {
-  const guestRoom = {
-    userMembers: { some: { userId, access: "guest" as const } },
-  };
-  const matched = {
-    organizationId: null,
-    kind: "channel" as const,
-    discoverability: "matched" as const,
-  };
-  return {
-    archivedAt: null,
-    OR: organizationId
-      ? [
-          { organizationId },
-          guestRoom,
-          {
-            organizationId: null,
-            kind: "direct" as const,
-            coworkerMembers: { none: {} },
-          },
-          matched,
-        ]
-      : [{ organizationId: null, kind: "direct" as const }, guestRoom, matched],
-  };
-}
+    responses: {
+      200: jsonSuccessResponse(
+        z.array(starredChatRoomOrderSchema),
+        "Starred rooms in their new order",
+      ),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      422: jsonErrorResponse("Unprocessable Entity"),
+      500: jsonErrorResponse("Internal Server Error"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {

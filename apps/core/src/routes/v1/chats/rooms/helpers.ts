@@ -74,6 +74,42 @@ export function sokoBotCaption(bot: { user: { name: string } | null }): string {
 
 type ChatRoomPresence = "online" | "afk" | "offline";
 
+/**
+ * The active rooms one sidebar shows, as a `ChatRoom` filter: the active
+ * organization's rooms, or with no active organization the Personal ones,
+ * plus what shows in every sidebar (guest rooms, matched channels, Personal
+ * human Directs). The caller adds the membership check. One definition, so
+ * the list and whatever writes to "the rooms in this sidebar" cannot drift.
+ */
+export function membershipVisibleActiveRoomWhere(
+  userId: string,
+  organizationId: string | null | undefined,
+) {
+  const guestRoom = {
+    userMembers: { some: { userId, access: "guest" as const } },
+  };
+  const matched = {
+    organizationId: null,
+    kind: "channel" as const,
+    discoverability: "matched" as const,
+  };
+  return {
+    archivedAt: null,
+    OR: organizationId
+      ? [
+          { organizationId },
+          guestRoom,
+          {
+            organizationId: null,
+            kind: "direct" as const,
+            coworkerMembers: { none: {} },
+          },
+          matched,
+        ]
+      : [{ organizationId: null, kind: "direct" as const }, guestRoom, matched],
+  };
+}
+
 export const chatRoomInclude = {
   userMembers: {
     include: {

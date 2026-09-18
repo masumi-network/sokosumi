@@ -2303,7 +2303,7 @@ export type ChatRoom = {
      */
     unreadMentionCount: number;
     /**
-     * When the current user starred this room. Null when not starred.
+     * Set while the current user has this room starred; null when not. A sort key, not the time of starring: starred rooms list oldest first, and `PUT /chats/rooms/starred` rewrites it.
      */
     starredAt: Date | null;
     /**
@@ -2494,7 +2494,7 @@ export type StarredChatRoomOrder = {
 
 export type ReorderStarredChatRoomsRequest = {
     /**
-     * Starred room ids in the wanted order. Ids the caller has not starred are ignored; starred rooms left out keep their relative order after the listed ones. Never stars or unstars a room.
+     * Starred room ids in the wanted order. Ids the caller has not starred in the active workspace are ignored; membership-visible starred rooms left out keep their relative order after the listed ones. Never stars or unstars a room.
      */
     roomIds: Array<string>;
 };
@@ -15198,6 +15198,12 @@ export type GetChatsRoomsChannelSlugAvailabilityResponse = GetChatsRoomsChannelS
 
 export type PutChatsRoomsStarredData = {
     body?: ReorderStarredChatRoomsRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
     path?: never;
     query?: never;
     url: '/chats/rooms/starred';
