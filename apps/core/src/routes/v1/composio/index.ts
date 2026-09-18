@@ -5,9 +5,11 @@ import {
   ComposioApiError,
   ComposioConfigError,
 } from "@/clients/composio.client";
+import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
 import { badRequest, serviceUnavailable } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import prisma from "@/lib/db/prisma";
 import {
   OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -58,6 +60,7 @@ export function mountComposioCallback(
 ): void {
   app.openapi(route, async (c) => {
     const userContext = requireInteractiveUserAuthContext(c.var.authContext);
+    await requireCalendarBetaAccess(userContext.userId, prisma);
     const { connectionId, sessionUri } = c.req.valid("json");
 
     try {
