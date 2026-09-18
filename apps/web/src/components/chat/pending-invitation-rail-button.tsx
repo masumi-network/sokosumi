@@ -1,5 +1,6 @@
 "use client";
 
+import { flushSync } from "react-dom";
 import { SidebarMenuButton, useSidebar } from "@/components/ui/sidebar";
 import { ChannelRoomMark } from "./channel-room-mark";
 import { RailAttentionPill } from "./chat-room-sidebar-row";
@@ -8,6 +9,8 @@ interface PendingInvitationRailButtonProps {
   roomName: string;
   /** "Invitation to {name} from {organization}", the expanded row's own name. */
   label: string;
+  /** The expanded row's Accept button, which takes focus once it is on screen. */
+  acceptButtonId: string;
 }
 
 /**
@@ -17,10 +20,15 @@ interface PendingInvitationRailButtonProps {
  * mention-weight attention pill: an invitation is addressed to the reader.
  * Pressing it expands the sidebar, where the two answers live. Rendered
  * always and shown only collapsed, like the tile itself.
+ *
+ * Expanding hides this button, and a hidden button drops focus to the body,
+ * so a keyboard reader would land nowhere. Focus moves to Accept instead. The
+ * expand is flushed first because Accept is `display: none` until it commits.
  */
 export function PendingInvitationRailButton({
   roomName,
   label,
+  acceptButtonId,
 }: PendingInvitationRailButtonProps) {
   const { setOpen } = useSidebar();
 
@@ -30,7 +38,10 @@ export function PendingInvitationRailButton({
       <SidebarMenuButton
         type="button"
         tooltip={label}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          flushSync(() => setOpen(true));
+          document.getElementById(acceptButtonId)?.focus();
+        }}
         className="hidden overflow-visible group-data-[collapsible=icon]:flex"
       >
         <ChannelRoomMark

@@ -292,11 +292,13 @@ export function OrganizationChatList({
                     name: invitation.roomName,
                     organization: invitation.organizationName,
                   });
+                  const acceptButtonId = `invitation-accept-${invitation.id}`;
                   return (
                     <SidebarMenuItem key={invitation.id}>
                       <PendingInvitationRailButton
                         roomName={invitation.roomName}
                         label={invitationLabel}
+                        acceptButtonId={acceptButtonId}
                       />
                       <div
                         aria-label={invitationLabel}
@@ -315,6 +317,7 @@ export function OrganizationChatList({
                           </div>
                           <div className="mt-1.5 flex items-center gap-1.5">
                             <Button
+                              id={acceptButtonId}
                               type="button"
                               size="sm"
                               variant="default"

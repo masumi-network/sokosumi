@@ -80,7 +80,22 @@ vi.mock("../chat-room-sidebar-row", () => ({
 }));
 
 vi.mock("../pending-invitation-rail-button", () => ({
-  PendingInvitationRailButton: () => null,
+  PendingInvitationRailButton: ({
+    roomName,
+    label,
+    acceptButtonId,
+  }: {
+    roomName: string;
+    label: string;
+    acceptButtonId: string;
+  }) => (
+    <span
+      data-testid="rail-invitation"
+      data-room-name={roomName}
+      data-label={label}
+      data-accept-button-id={acceptButtonId}
+    />
+  ),
 }));
 
 vi.mock("../direct-room-avatar-stack", () => ({

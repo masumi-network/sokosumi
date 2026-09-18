@@ -26,7 +26,11 @@ function renderRail() {
               <PendingInvitationRailButton
                 roomName="Launch Plan"
                 label={LABEL}
+                acceptButtonId="accept"
               />
+              <button id="accept" type="button">
+                Accept
+              </button>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
@@ -65,5 +69,13 @@ describe("PendingInvitationRailButton", () => {
     fireEvent.click(screen.getByRole("button", { name: LABEL }));
 
     expect(sidebar?.getAttribute("data-state")).toBe("expanded");
+  });
+
+  it("hands focus to Accept, because expanding hides the rail button", () => {
+    renderRail();
+
+    fireEvent.click(screen.getByRole("button", { name: LABEL }));
+
+    expect(screen.getByRole("button", { name: "Accept" })).toHaveFocus();
   });
 });
