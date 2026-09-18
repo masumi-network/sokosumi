@@ -1309,7 +1309,10 @@ export class SokoBotRuntimeService {
     // Every other message-create site publishes; without this the bot's post
     // only appears after a refresh, which reads as the tool having failed.
     await publishChatRoomMessageRealtimeById(message.id, "create");
-    if (!message.replayed)
+    // Table publication retries may recover a commit that never scheduled effects.
+    // Direct-message notifications deduplicate by recipient/message in PostgreSQL;
+    // cache invalidation is safe to repeat. Do not replay mention dispatch.
+    if (!message.replayed || publication)
       await scheduleSokoBotChatMessageEffects(room, message.id, input.content);
     for (const mentionId of mentionIds) {
       const { dispatchChatRoomMention } = await import(
