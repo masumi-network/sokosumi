@@ -191,11 +191,13 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                 const content = (
                   <>
                     <Icon className="size-4" aria-hidden />
-                    <span className="flex-1 truncate">{label}</span>
+                    <span className="flex-1 truncate group-data-[collapsible=icon]:sr-only">
+                      {label}
+                    </span>
                     {badge ? (
                       <span
                         className={cn(
-                          "border-border text-tertiary-foreground dark:text-muted-foreground rounded border px-1 py-0 text-[0.625rem] font-medium uppercase tracking-wide leading-4",
+                          "border-border text-tertiary-foreground dark:text-muted-foreground rounded border px-1 py-0 text-[0.625rem] font-medium uppercase tracking-wide leading-4 group-data-[collapsible=icon]:hidden",
                           isActive &&
                             "border-sidebar-accent-foreground text-sidebar-accent-foreground",
                         )}
@@ -206,14 +208,14 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                     {showUnread ? (
                       <span
                         aria-label={`${unreadDisplay} unread`}
-                        className="bg-primary-solid text-primary-solid-foreground inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[0.625rem] font-semibold leading-4 tabular-nums"
+                        className="bg-primary-solid text-primary-solid-foreground inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[0.625rem] font-semibold leading-4 tabular-nums group-data-[collapsible=icon]:hidden"
                       >
                         {unreadDisplay}
                       </span>
                     ) : hasIndicator ? (
                       <span
                         aria-hidden
-                        className="bg-primary-iris size-2 shrink-0 rounded-full"
+                        className="bg-primary-iris size-2 shrink-0 rounded-full group-data-[collapsible=icon]:hidden"
                       />
                     ) : null}
                   </>
