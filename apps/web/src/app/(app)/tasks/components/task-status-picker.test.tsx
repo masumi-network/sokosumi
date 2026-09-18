@@ -1,8 +1,9 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { STATUS_ROLE_STYLES } from "@/components/ui/status-marker";
+import { getToneStyle } from "@/components/ui/status-marker";
 import { TaskStatus } from "@/lib/clients/generated/core";
+import { getTaskStatusMarker } from "./task-status-badge";
 
 import { TaskStatusPicker } from "./task-status-picker";
 
@@ -77,17 +78,27 @@ describe("TaskStatusPicker", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("uses the surface tone for an unfilled Failed menu marker", async () => {
+  /**
+   * A menu row is an option nobody has chosen, so it draws the dot rather than
+   * the glyph, and the dot sits on the popover surface with no fill under it.
+   * `FAILED` is the status where that matters: its badge paints a solid red
+   * fill and labels itself near-white, so a dot taking the badge's own mark
+   * colour would be near-white on a near-white popover.
+   */
+  it("draws the Failed menu marker as a dot in the on-card colour", async () => {
     const user = userEvent.setup();
     renderPicker({ options: [TaskStatus.FAILED] });
 
     await user.click(screen.getByRole("combobox", { name: "Status" }));
 
-    const marker = screen
-      .getByRole("option", { name: /Failed/ })
-      .querySelector("svg");
-    expect(marker).toHaveClass(STATUS_ROLE_STYLES.failure.onSurface);
-    expect(marker).not.toHaveClass(STATUS_ROLE_STYLES.failure.marker);
+    const row = screen.getByRole("option", { name: /Failed/ });
+    const style = getToneStyle(getTaskStatusMarker(TaskStatus.FAILED).tone);
+    expect(row.querySelector("svg")).toBeNull();
+    expect(row.querySelector("span[aria-hidden]")).toHaveClass(
+      "rounded-full",
+      style.dot,
+    );
+    expect(style.dot).not.toBe(style.mark);
   });
 
   it("picks an option with its number key while the list is open", async () => {
@@ -181,7 +192,7 @@ describe("TaskStatusPicker", () => {
  * assertion below would hold with the swap deleted.
  */
 describe("TaskStatusPicker pending spinner", () => {
-  const ROLE = STATUS_ROLE_STYLES.success;
+  const ROLE = getToneStyle(getTaskStatusMarker(TaskStatus.COMPLETED).tone);
 
   /** The glyph is the only element inside the pill that carries a role colour. */
   function glyphOfTrigger(): SVGElement {
@@ -197,7 +208,7 @@ describe("TaskStatusPicker pending spinner", () => {
 
     const glyph = glyphOfTrigger();
 
-    expect(glyph).toHaveClass(ROLE.marker);
+    expect(glyph).toHaveClass(ROLE.mark);
     expect(glyph).not.toHaveClass("animate-spin");
   });
 
@@ -215,7 +226,7 @@ describe("TaskStatusPicker pending spinner", () => {
       "size-3.5",
       "shrink-0",
       "animate-spin",
-      ROLE.marker,
+      ROLE.mark,
     );
     expect(spinner).toHaveAttribute("stroke-width", "2.25");
   });

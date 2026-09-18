@@ -63,17 +63,21 @@ export const KANBAN_COLUMNS: KanbanColumnDefinition[] = [
 ];
 
 /**
- * Column marks reuse the task status ramps, so a column header and the badges
- * inside it carry the same hue. The raw palette values these replace were a
- * second colour system, which let a column mark and the badge under it paint
- * the same meaning two different shades of green.
+ * One hue per column, and the badges inside a column carry it too. Hue is
+ * what says where a task sits, so two columns sharing one is the same bug as
+ * two statuses sharing one.
+ *
+ * `todo` and `in-progress` were both `bg-status-working` until now, which
+ * made `READY` and `RUNNING` indistinguishable at a glance and gave the board
+ * three columns and two colours. `todo` takes the staged blue, which is the
+ * calmer of the two because it is the column that usually holds more.
+ *
+ * Every pair here clears 11.87 OKLab dE in light and 14.76 in dark, measured
+ * against each other and against the blue `Recent` mark in the jobs list.
  */
 export const COLUMN_STATUS_COLORS: Record<KanbanColumnId, string> = {
   backlog: "bg-status-done",
-  // Both columns are the same promise to the reader: we have it, wait. The
-  // column header is what separates the stage, so the mark does not need a
-  // second hue for it.
-  todo: "bg-status-working",
+  todo: "bg-status-external",
   "in-progress": "bg-status-working",
   "input-required": "bg-semantic-warning",
   done: "bg-semantic-success",

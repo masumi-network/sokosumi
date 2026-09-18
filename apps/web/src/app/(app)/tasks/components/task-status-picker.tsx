@@ -17,8 +17,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
+  getToneStyle,
   MARKER_ICONS,
-  STATUS_ROLE_STYLES,
   StatusMarker,
 } from "@/components/ui/status-marker";
 import type { TaskStatus } from "@/lib/clients/generated/core";
@@ -118,7 +118,7 @@ export function TaskStatusPicker({
   }
 
   const marker = getTaskStatusMarker(value);
-  const role = STATUS_ROLE_STYLES[marker.role];
+  const style = getToneStyle(marker.tone);
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
@@ -133,16 +133,16 @@ export function TaskStatusPicker({
         >
           <span
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-medium",
-              role.bg,
-              role.text,
+              "inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-xs font-medium",
+              style.box,
+              style.label,
             )}
           >
             <StatusMarker
               spec={
                 isPending
                   ? {
-                      role: marker.role,
+                      tone: marker.tone,
                       icon: MARKER_ICONS.running,
                       spin: true,
                     }
@@ -188,12 +188,8 @@ export function TaskStatusPicker({
                   data-current={isCurrent || undefined}
                   onSelect={() => handleSelect(status)}
                 >
-                  <StatusMarker
-                    spec={rowMarker}
-                    tone={STATUS_ROLE_STYLES[rowMarker.role].onSurface}
-                    // A status you could pick, not one that is running.
-                    live={false}
-                  />
+                  {/* A status you could pick, not one that is running. */}
+                  <StatusMarker spec={rowMarker} live={false} />
                   <span className="flex-1 truncate">
                     {labels.statusLabels[status]}
                   </span>

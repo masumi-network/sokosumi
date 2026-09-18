@@ -127,6 +127,7 @@
   --color-status-working-quaternary: var(--status-working-quaternary);
   --color-status-working-label: var(--status-working-label);
   --color-status-external: var(--status-external);
+  --color-status-external-tertiary: var(--status-external-tertiary);
   --color-status-external-quaternary: var(--status-external-quaternary);
   --color-status-external-label: var(--status-external-label);
   --color-status-done: var(--status-done);
@@ -486,6 +487,10 @@
   --status-done-tertiary: hsla(0, 0.0%, 84.6%, 1);
   --status-working-tertiary: hsla(300, 41.2%, 81.5%, 1);
   --status-working-quaternary: hsla(300, 100.0%, 90.0%, 1);
+  /* The outline border for the staged column. Same S and L as
+     --status-working-tertiary, so the two column hues carry the same
+     weight and only the hue separates them. */
+  --status-external-tertiary: hsla(240, 41.2%, 81.5%, 1);
   --status-external-quaternary: hsla(240, 100.0%, 90.0%, 1);
   --status-working-label: hsla(300, 95.0%, 33.4%, 1);
   --status-external-label: hsla(240, 95.0%, 58.7%, 1);
@@ -630,6 +635,7 @@
   --status-done-tertiary: hsla(0, 0.0%, 28.0%, 1);
   --status-working-tertiary: hsla(300, 37.5%, 30.4%, 1);
   --status-working-quaternary: hsla(300, 35.0%, 21.2%, 1);
+  --status-external-tertiary: hsla(240, 37.5%, 30.4%, 1);
   --status-external-quaternary: hsla(240, 35.0%, 21.2%, 1);
   --status-working-label: hsla(300, 95.0%, 70.0%, 1);
   --status-external-label: hsla(240, 95.0%, 74.7%, 1);
