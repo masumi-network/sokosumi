@@ -7,7 +7,7 @@ import Foundation
 @MainActor
 public final class ConversationSidebar: ObservableObject {
   public enum Section: String, CaseIterable, Sendable {
-    case channels, external, archived, directs
+    case pinned, channels, external, archived, directs
 
     /// Web opens every section except Archived.
     static let initiallyCollapsed: Set<Section> = [.archived]
@@ -34,7 +34,13 @@ public final class ConversationSidebar: ObservableObject {
 
   @Published private var pendingActions: [String: PendingAction] = [:]
   @Published public private(set) var actionError: String?
-  @Published public var rooms: [Components.Schemas.ChatRoom] = []
+  @Published public var rooms: [Components.Schemas.ChatRoom] = [] {
+    didSet { endPinnedReorderModeIfUnavailable() }
+  }
+
+  /// The reader asked to reorder Pinned. Ends with the change that makes reordering unavailable, so it
+  /// cannot come back by itself the next time a second room is pinned.
+  @Published public private(set) var pinnedReorderMode = false
   @Published public var selectedRoomId: String?
   @Published public var isLoading = false
   @Published public private(set) var errorMessage: String?
@@ -43,6 +49,9 @@ public final class ConversationSidebar: ObservableObject {
   private let savedRoom: SavedRoomSelection
   private var generation = 0
   private var refreshInFlight = false
+  private var reorderRequest = 0
+  /// Sort keys of the newest reorder Core has not answered yet; a list read meanwhile keeps them.
+  private var pendingPinnedOrder: [String: Date] = [:]
 
   public init(savedRoom: SavedRoomSelection = SavedRoomSelection()) {
     self.savedRoom = savedRoom
@@ -57,6 +66,22 @@ public final class ConversationSidebar: ObservableObject {
       collapsedSections.remove(section)
     } else {
       collapsedSections.insert(section)
+    }
+    endPinnedReorderModeIfUnavailable()
+  }
+
+  /// Web's `canReorderPinned`: the section is open and holds at least two rooms.
+  public var canReorderPinned: Bool {
+    !collapsedSections.contains(.pinned) && rooms.count { $0.starredAt != nil } > 1
+  }
+
+  public func setPinnedReorderMode(_ enabled: Bool) {
+    pinnedReorderMode = enabled && canReorderPinned
+  }
+
+  private func endPinnedReorderModeIfUnavailable() {
+    if pinnedReorderMode, !canReorderPinned {
+      pinnedReorderMode = false
     }
   }
 
@@ -88,6 +113,9 @@ public final class ConversationSidebar: ObservableObject {
 
   /// Successful workspace switch: drop tokens so completions cannot patch the new list.
   public func dropPendingActions() {
+    reorderRequest += 1
+    pendingPinnedOrder = [:]
+    pinnedReorderMode = false
     pendingActions = [:]
     actionError = nil
   }
@@ -110,7 +138,7 @@ public final class ConversationSidebar: ObservableObject {
     let saved = savedRoom.load(userId: userId, organizationId: organizationId)
       .flatMap { id in rooms.contains { $0.id == id } ? id : nil }
     let sections = partitioned
-    return current ?? saved ?? (sections.channels + sections.external + sections.directMessages).first?.id
+    return current ?? saved ?? (sections.pinned + sections.channels + sections.external + sections.directMessages).first?.id
   }
 
   /// Refresh commits a complete list. Failed or stale pages never replace
@@ -137,6 +165,10 @@ public final class ConversationSidebar: ObservableObject {
         var room = room
         if let pending = pendingActions[room.id], let field = pending.action.dateField {
           room[keyPath: field] = pending.optimisticDate
+        }
+        // A room unpinned meanwhile stays unpinned.
+        if room.starredAt != nil, let starredAt = pendingPinnedOrder[room.id] {
+          room.starredAt = starredAt
         }
         return room
       }
@@ -196,6 +228,50 @@ public final class ConversationSidebar: ObservableObject {
       }
       throw error
     }
+  }
+
+  /// Web's `handleReorderPinned`: the order shows at once, the latest reorder wins, and a failure of the
+  /// latest one throws so the coordinator reloads the list, because an earlier overlapping reorder may
+  /// have landed and no local snapshot is safe to put back.
+  public func reorderPinned(_ roomIds: [String], client: Client, organizationSlug: String?) async throws {
+    reorderRequest += 1
+    let request = reorderRequest
+    // Local sort keys, one millisecond apart and all in the past like Core's, so a room pinned right
+    // after still lands at the end.
+    let base = Date().addingTimeInterval(-Double(roomIds.count) / 1000)
+    pendingPinnedOrder = Dictionary(
+      roomIds.enumerated().map { ($1, base.addingTimeInterval(Double($0) / 1000)) }, uniquingKeysWith: { first, _ in first }
+    )
+    actionError = nil
+    // A list read already in flight predates this order.
+    invalidateListResponse()
+    applyPinnedOrder(pendingPinnedOrder)
+    do {
+      let order = try await ChatService().reorderPinnedRooms(client: client, roomIds: roomIds, organizationSlug: organizationSlug)
+      // A newer reorder, or another workspace, owns the list now.
+      guard request == reorderRequest else { return }
+      pendingPinnedOrder = [:]
+      // A list requested before Core answered may still carry the old order.
+      invalidateListResponse()
+      applyPinnedOrder(Dictionary(order.map { ($0.roomId, $0.starredAt) }, uniquingKeysWith: { first, _ in first }))
+    } catch {
+      guard request == reorderRequest else { return }
+      pendingPinnedOrder = [:]
+      guard !Task.isCancelled else { return }
+      actionError = friendlyMessage(for: error)
+      throw error
+    }
+  }
+
+  /// Pin and unpin own their room's `starredAt` while they run.
+  private func applyPinnedOrder(_ starredAtByRoomId: [String: Date]) {
+    var next = rooms
+    for index in next.indices where next[index].starredAt != nil && pendingActions[next[index].id] == nil {
+      if let starredAt = starredAtByRoomId[next[index].id] {
+        next[index].starredAt = starredAt
+      }
+    }
+    rooms = next
   }
 
   private func performRequest(

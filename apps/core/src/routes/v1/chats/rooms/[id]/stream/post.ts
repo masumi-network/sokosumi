@@ -185,8 +185,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw unprocessableEntity(AI_SDK_CHAT_MESSAGES_REQUIREMENT);
     }
 
-    const room = await prisma.$transaction(async (tx) =>
-      requireChatRoomUserWriteAccess(roomId, userContext.userId, tx),
+    const room = await requireChatRoomUserWriteAccess(
+      roomId,
+      userContext.userId,
+      prisma,
     );
 
     // Match web `isCoworkerOnlyDirectRoom` and message-POST skip-mention:
