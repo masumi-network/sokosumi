@@ -205,16 +205,10 @@ function RoomComposerSendButton({
 }: RoomComposerSendButtonProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const lastPointerSubmitAtRef = useRef(Number.NEGATIVE_INFINITY);
-  // Handlers read these through refs: the listener below is bound once on
-  // mount, so it must not close over a stale render's values.
-  const sendBlockedRef = useRef(sendBlocked);
-  sendBlockedRef.current = sendBlocked;
-  const onPrepareSubmitRef = useRef(onPrepareSubmit);
-  onPrepareSubmitRef.current = onPrepareSubmit;
 
   function requestComposerSubmit(form: HTMLFormElement | null) {
-    if (!form || sendBlockedRef.current) return;
-    onPrepareSubmitRef.current?.();
+    if (!form || sendBlocked) return;
+    onPrepareSubmit?.();
     form.requestSubmit();
   }
 
