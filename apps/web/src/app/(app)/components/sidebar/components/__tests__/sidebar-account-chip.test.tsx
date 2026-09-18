@@ -23,7 +23,12 @@ const sidebarState = {
   state: "expanded",
 };
 
-vi.mock("@/components/ui/sidebar", () => ({
+// The real module under the override, so the chip's rail-square geometry is
+// the one the app ships rather than a constant this file invented.
+vi.mock("@/components/ui/sidebar", async () => ({
+  ...(await vi.importActual<typeof import("@/components/ui/sidebar")>(
+    "@/components/ui/sidebar",
+  )),
   useSidebar: () => ({ ...sidebarState }),
 }));
 

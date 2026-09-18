@@ -7,58 +7,37 @@ import PersonalAssistantNavClient, {
   type SidebarSokoBotAvatar,
 } from "./personal-assistant-nav.client";
 
-/** The workspace's Soko Bots, your own first, for the sidebar stack. */
-async function loadWorkspaceBots(): Promise<SidebarSokoBotAvatar[]> {
+/**
+ * The face the row shows: the workspace's first Soko Bot, yours when you have
+ * one. Null in a workspace with none, where the row falls back to the bot
+ * icon rather than borrowing a mascot that belongs to nobody.
+ */
+async function loadWorkspaceBot(): Promise<SidebarSokoBotAvatar | null> {
   try {
-    const team = await sokoBotService.getTeam();
-    return team.members
-      .flatMap((member) =>
-        member.bot
-          ? [
-              {
-                isYou: member.isYou,
-                id: member.bot.id,
-                imageUrl: member.bot.avatarImageUrl,
-                seed: member.bot.avatarSeed ?? defaultOrbSeed(member.userId),
-              },
-            ]
-          : [],
-      )
-      .sort((a, b) => Number(b.isYou) - Number(a.isYou))
-      .map(({ isYou: _isYou, ...bot }) => bot);
+    const { members } = await sokoBotService.getTeam();
+    const withBot = members.filter((member) => member.bot);
+    const member = withBot.find(({ isYou }) => isYou) ?? withBot[0];
+    if (!member?.bot) {
+      return null;
+    }
+    return {
+      id: member.bot.id,
+      imageUrl: member.bot.avatarImageUrl,
+      seed: member.bot.avatarSeed ?? defaultOrbSeed(member.userId),
+    };
   } catch {
-    return [];
+    return null;
   }
 }
 
-/** No bots yet: a few mascots from the pool, so the entry still shows faces. */
-async function loadPreviewAvatars(): Promise<SidebarSokoBotAvatar[]> {
-  try {
-    const avatars = await sokoBotService.listAvatars(12, []);
-    return avatars
-      .sort(() => Math.random() - 0.5)
-      .slice(0, 3)
-      .map((avatar) => ({
-        id: avatar.id,
-        imageUrl: avatar.imageUrl,
-        seed: "",
-      }));
-  } catch {
-    return [];
-  }
-}
-
-async function WithBots() {
-  const workspaceBots = await loadWorkspaceBots();
-  const bots =
-    workspaceBots.length > 0 ? workspaceBots : await loadPreviewAvatars();
-  return <PersonalAssistantNavClient bots={bots} />;
+async function WithBot() {
+  return <PersonalAssistantNavClient bot={await loadWorkspaceBot()} />;
 }
 
 /**
- * Sidebar entry for the Soko Bots page. Streams in the avatar stack so the
- * nav never waits on Core. Hidden without Soko Bot beta access: the route
- * 404s for everyone else, so an entry pointing at it would only be a dead end.
+ * Sidebar entry for the Soko Bots page. Streams in the face so the nav never
+ * waits on Core. Hidden without Soko Bot beta access: the route 404s for
+ * everyone else, so an entry pointing at it would only be a dead end.
  */
 export default function PersonalAssistantNav({
   enabled,
@@ -68,7 +47,7 @@ export default function PersonalAssistantNav({
   if (!enabled) return null;
   return (
     <Suspense fallback={<PersonalAssistantNavClient />}>
-      <WithBots />
+      <WithBot />
     </Suspense>
   );
 }
