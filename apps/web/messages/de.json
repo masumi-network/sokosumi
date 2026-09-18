@@ -295,7 +295,7 @@
       "docs": "Dokumentation",
       "drive": "Dateien",
       "soko-bots": "Soko Bots",
-      "calendar": "Zeitpläne"
+      "calendar": "Kalender"
     },
     "Jobs": {
       "StatusBadge": {
@@ -2358,7 +2358,7 @@
           "back": "Zurück",
           "chat": "Chat",
           "sokoBot": "Soko Bots",
-          "calendar": "Zeitpläne",
+          "calendar": "Kalender",
           "expandProjects": "Projekte ausklappen",
           "collapseProjects": "Projekte einklappen",
           "projectsLoading": "Projekte werden geladen…",
@@ -6218,7 +6218,7 @@
     },
     "Calendar": {
       "Metadata": {
-        "title": "Zeitpläne",
+        "title": "Kalender",
         "description": "Geplante Aufgabenfreigaben im Workspace durchsuchen."
       },
       "previous": "Vorheriger Zeitraum",
