@@ -295,7 +295,7 @@
       "docs": "Documentación",
       "drive": "Archivos",
       "soko-bots": "Soko Bots",
-      "calendar": "Programaciones"
+      "calendar": "Calendario"
     },
     "Jobs": {
       "StatusBadge": {
@@ -2358,7 +2358,7 @@
           "back": "Atrás",
           "chat": "Chat",
           "sokoBot": "Soko Bots",
-          "calendar": "Programaciones",
+          "calendar": "Calendario",
           "expandProjects": "Expandir Proyectos",
           "collapseProjects": "Contraer Proyectos",
           "projectsLoading": "Cargando proyectos…",
@@ -6218,7 +6218,7 @@
     },
     "Calendar": {
       "Metadata": {
-        "title": "Programaciones",
+        "title": "Calendario",
         "description": "Consulta las ejecuciones programadas de tareas en tu espacio de trabajo."
       },
       "previous": "Periodo anterior",

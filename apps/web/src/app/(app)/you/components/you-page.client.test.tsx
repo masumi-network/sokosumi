@@ -123,24 +123,24 @@ describe("YouPageClient", () => {
     expect(pushMock).toHaveBeenCalledWith("/billing?tab=credits");
   });
 
-  it("groups Schedules and Files in the first nav section", () => {
+  it("groups Calendar and Files in the first nav section", () => {
     renderYouPage({ calendarMenuEnabled: true });
 
-    const schedules = screen.getByTestId("you-schedules");
+    const calendar = screen.getByTestId("you-calendar");
     const files = screen.getByTestId("you-files");
 
-    expect(schedules).toHaveAttribute("href", "/calendar");
+    expect(calendar).toHaveAttribute("href", "/calendar");
     expect(files).toHaveAttribute("href", "/drive");
     expect(
-      schedules.compareDocumentPosition(files) &
+      calendar.compareDocumentPosition(files) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
 
-  it("hides Schedules when calendar menu is disabled", () => {
+  it("hides Calendar when calendar menu is disabled", () => {
     renderYouPage({ calendarMenuEnabled: false });
 
-    expect(screen.queryByTestId("you-schedules")).toBeNull();
+    expect(screen.queryByTestId("you-calendar")).toBeNull();
     expect(screen.getByTestId("you-files")).toHaveAttribute("href", "/drive");
   });
 
