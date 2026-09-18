@@ -157,7 +157,8 @@ struct GuestAccessSection: View {
           let name = guest.name.trimmingCharacters(in: .whitespacesAndNewlines)
           let label = name.isEmpty ? guest.email : name
           HStack(spacing: 4) {
-            (Text(label) + Text(name.isEmpty ? "" : " (\(guest.email))").foregroundStyle(.secondary)).lineLimit(1).truncationMode(.middle)
+            Text("\(Text(verbatim: label))\(Text(verbatim: name.isEmpty ? "" : " (\(guest.email))").foregroundStyle(.secondary))")
+              .lineLimit(1).truncationMode(.middle)
             Spacer(minLength: 0)
             revokeButton(busy: model.removingGuestId == guest.id, help: "Remove guest", label: "Remove guest \(label)") {
               Task { await model.removeGuest(guest.id, using: actions.removeGuest) }
