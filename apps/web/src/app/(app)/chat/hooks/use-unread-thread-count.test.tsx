@@ -76,6 +76,28 @@ describe("useUnreadThreadCount", () => {
     expect(screen.getByTestId("count")).toHaveTextContent("3");
   });
 
+  it("keeps the last count when the count rejects", async () => {
+    countUnreadThreadsAction.mockResolvedValue({ ok: true, value: 3 });
+    const view = render(<Probe roomId="room-1" refreshKey="0:false" />);
+    await waitFor(() => {
+      expect(screen.getByTestId("count")).toHaveTextContent("3");
+    });
+
+    // A server action rejects rather than answering with a result when the
+    // POST comes back as something other than RSC. Without a rejection
+    // handler it escapes as an unhandled rejection, which is what Sentry
+    // issue SOKOSUMI-E3 records.
+    countUnreadThreadsAction.mockRejectedValue(
+      new Error("An unexpected response was received from the server."),
+    );
+    view.rerender(<Probe roomId="room-1" refreshKey="1:false" />);
+
+    await waitFor(() => {
+      expect(countUnreadThreadsAction).toHaveBeenCalledTimes(2);
+    });
+    expect(screen.getByTestId("count")).toHaveTextContent("3");
+  });
+
   it("ignores a count that lands after the key already moved", async () => {
     let settleFirst: ((value: unknown) => void) | undefined;
     countUnreadThreadsAction.mockReturnValueOnce(
