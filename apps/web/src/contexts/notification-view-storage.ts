@@ -1,3 +1,7 @@
+import {
+  readStoredPreference,
+  writeStoredPreference,
+} from "@/lib/utils/preference-storage";
 import type { NotificationCenterView } from "./notification-state";
 
 /**
@@ -11,44 +15,23 @@ import type { NotificationCenterView } from "./notification-state";
 export const NOTIFICATION_VIEW_STORAGE_KEY =
   "sokosumi:notification-center-view:v1" as const;
 
-const VIEWS: readonly NotificationCenterView[] = [
-  "all",
-  "unread",
-  "needs-action",
-];
-
-function isView(value: string): value is NotificationCenterView {
-  return VIEWS.some((view) => view === value);
-}
+// A record, not a list: a fourth view has to be named here or the type check
+// fails, which is the only thing stopping a new view from silently failing
+// to restore.
+const VIEWS: Record<NotificationCenterView, true> = {
+  all: true,
+  unread: true,
+  "needs-action": true,
+};
 
 export function getNotificationViewPreference(): NotificationCenterView | null {
-  try {
-    if (typeof window === "undefined") {
-      return null;
-    }
-    const raw = window.localStorage.getItem(NOTIFICATION_VIEW_STORAGE_KEY);
-    if (raw === null) {
-      return null;
-    }
-    if (isView(raw)) {
-      return raw;
-    }
-    window.localStorage.removeItem(NOTIFICATION_VIEW_STORAGE_KEY);
-    return null;
-  } catch {
-    return null;
-  }
+  return readStoredPreference(NOTIFICATION_VIEW_STORAGE_KEY, (raw) =>
+    Object.hasOwn(VIEWS, raw) ? (raw as NotificationCenterView) : null,
+  );
 }
 
 export function setNotificationViewPreference(
   view: NotificationCenterView,
 ): void {
-  try {
-    if (typeof window === "undefined") {
-      return;
-    }
-    window.localStorage.setItem(NOTIFICATION_VIEW_STORAGE_KEY, view);
-  } catch {
-    // Best-effort: quota or private mode must not break the feed.
-  }
+  writeStoredPreference(NOTIFICATION_VIEW_STORAGE_KEY, view);
 }

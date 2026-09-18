@@ -1626,18 +1626,26 @@ describe("Notification Center remembered view", () => {
     window.localStorage.setItem(NOTIFICATION_VIEW_STORAGE_KEY, view);
   }
 
+  /** A row the Needs you view keeps: one that asked the reader something. */
+  function asking(id: string, createdAt?: Date) {
+    return row(id, {
+      kind: "TASK",
+      messageKey: TASK_ASK_KEY,
+      messageParams: { label: id },
+      isRead: false,
+      readAt: null,
+      ...(createdAt === undefined ? {} : { createdAt }),
+    });
+  }
+
   it.each(FRAMES)(
     "opens on the remembered Needs you view in the %s",
     async (_, mount) => {
       stored("needs-action");
-      const waiting = row("waiting", {
-        kind: "TASK",
-        messageKey: TASK_ASK_KEY,
-        messageParams: { label: "waiting" },
-        isRead: false,
-        readAt: null,
+      getNotificationsMock.mockResolvedValue(page([asking("waiting")]));
+      getNotificationsCountsMock.mockResolvedValue({
+        data: { unread: 1, needsAction: 1 },
       });
-      getNotificationsMock.mockResolvedValue(page([waiting]));
 
       await mount();
 
@@ -1647,8 +1655,10 @@ describe("Notification Center remembered view", () => {
         limit: 20,
         needsAction: "true",
       });
+      // The count is Core's, and it is the count of the whole view, so a
+      // restored view shows the same number a switched-to one would.
       for (const tab of screen.getAllByRole("tab", {
-        name: /^filterNeedsYou/,
+        name: "filterNeedsYou 1",
       })) {
         expect(tab.getAttribute("aria-selected")).toBe("true");
       }
@@ -1743,5 +1753,82 @@ describe("Notification Center remembered view", () => {
       limit: 20,
       isRead: "false",
     });
+  });
+  it("pages older rows under the remembered view", async () => {
+    stored("needs-action");
+    getNotificationsMock.mockResolvedValue(
+      page(
+        [
+          asking("newest", new Date("2026-06-18T09:00:00.000Z")),
+          asking("oldest-loaded", new Date("2026-06-17T09:00:00.000Z")),
+        ],
+        "oldest-loaded",
+      ),
+    );
+    // The boundary only arms while the view's own count says Core has more.
+    getNotificationsCountsMock.mockResolvedValue({
+      data: { unread: 2, needsAction: 2 },
+    });
+
+    await renderPage();
+
+    getNotificationsMock.mockResolvedValue(
+      page([asking("older", new Date("2026-06-16T09:00:00.000Z"))]),
+    );
+    await act(async () => {
+      intersect(screen.getByTestId("notification-older-boundary"));
+      await Promise.resolve();
+    });
+
+    // The older page asks under the remembered view, not under All.
+    expect(getNotificationsMock).toHaveBeenLastCalledWith({
+      limit: 20,
+      cursor: "oldest-loaded",
+      needsAction: "true",
+    });
+    expect(screen.getByText("older")).toBeTruthy();
+  });
+
+  it("shows the remembered view in both frames at once", async () => {
+    stored("needs-action");
+    getNotificationsMock.mockResolvedValue(page([asking("waiting")]));
+
+    render(
+      <NotificationProvider userId="user-1">
+        <HeaderNotificationBell />
+        <NotificationsPageContent />
+      </NotificationProvider>,
+    );
+    await settle();
+    await userEvent
+      .setup()
+      .click(
+        screen.getByRole("button", { name: /^notifications$|unreadBadge/ }),
+      );
+    await settle();
+
+    const tabs = screen.getAllByRole("tab", { name: /^filterNeedsYou/ });
+    expect(tabs.length).toBe(2);
+    for (const tab of tabs) {
+      expect(tab.getAttribute("aria-selected")).toBe("true");
+    }
+    expect(getNotificationsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens on All when localStorage throws", async () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    getNotificationsMock.mockResolvedValue(page([row("only")]));
+
+    await renderPage();
+
+    expect(getNotificationsMock).toHaveBeenCalledWith({ limit: 20 });
+    expect(screen.getByText("only")).toBeTruthy();
+    expect(
+      screen
+        .getByRole("tab", { name: "filterAll" })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
   });
 });
