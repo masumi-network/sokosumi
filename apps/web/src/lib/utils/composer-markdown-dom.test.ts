@@ -165,6 +165,32 @@ describe("htmlToMarkdown", () => {
     expect(fromHtml("<u> under </u>")).toBe(" <u>under</u> ");
   });
 
+  it("keeps code-block text contentEditable parked beside the code element", () => {
+    // Chrome drops the caret on the `pre` after inserting an empty block, so
+    // the next keystroke lands as a `pre` child next to the empty `code`.
+    expect(fromHtml("<pre>what about now.<code></code></pre>")).toBe(
+      "```\nwhat about now.\n```\n",
+    );
+  });
+
+  it("reads br inside a code block back as a newline", () => {
+    expect(fromHtml("<pre><code>first<br>second</code></pre>")).toBe(
+      "```\nfirst\nsecond\n```\n",
+    );
+  });
+
+  it("reads div-split code block lines back as newlines", () => {
+    expect(
+      fromHtml("<pre><code><div>line 1</div><div>line 2</div></code></pre>"),
+    ).toBe("```\nline 1\nline 2\n```\n");
+  });
+
+  it("drops the trailing contentEditable break from a code block", () => {
+    expect(fromHtml("<pre><code>only line<br></code></pre>")).toBe(
+      "```\nonly line\n```\n",
+    );
+  });
+
   it("serializes blockquote with > prefix", () => {
     expect(fromHtml("<blockquote>quoted</blockquote>").trim()).toBe("> quoted");
   });
