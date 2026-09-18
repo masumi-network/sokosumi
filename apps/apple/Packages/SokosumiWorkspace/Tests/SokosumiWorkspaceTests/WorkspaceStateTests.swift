@@ -2786,3 +2786,61 @@ extension WorkspaceStateTests {
     #expect(!state.isSendingSokoBotFeedback(forTurn: sokoBotTurnId))
   }
 }
+
+private let preferencesReadOperation = "get/users/{id}/preferences"
+private let preferencesWriteOperation = "patch/users/{id}/preferences"
+
+private func chatDisplayBody(showRoomUnreadCount: Bool) -> String {
+  envelope(#"{"marketingOptIn":false,"notificationsOptIn":false,"pushOptIn":false,"showRoomUnreadCount":\#(showRoomUnreadCount),"notificationPreferences":[]}"#)
+}
+
+private func chatDisplayError(status: String, message: String) -> String {
+  #"{"error":"\#(status)","message":"\#(message)","meta":{"timestamp":"\#(timestamp)","requestId":"req-1","path":"/users/me/preferences","method":"PATCH"}}"#
+}
+
+extension WorkspaceStateTests {
+  @Test func chatDisplayPreferenceLoadsWritesAndClearsOnReset() async throws {
+    let (state, auth, transport) = try await sokoBotFeedbackFixture([
+      (200, chatDisplayBody(showRoomUnreadCount: false)),
+      (200, chatDisplayBody(showRoomUnreadCount: true)),
+      (200, chatDisplayBody(showRoomUnreadCount: true))
+    ])
+    await state.refreshChatDisplayPreferences(auth: auth)
+    #expect(!state.chatDisplay.showsRoomUnreadCount)
+    try await state.setShowsRoomUnreadCount(true, auth: auth)
+    #expect(state.chatDisplay.showsRoomUnreadCount && !state.chatDisplay.isSaving)
+    let bodyIndex = try #require(transport.operationIDs.firstIndex(of: preferencesWriteOperation))
+    #expect(try JSONSerialization.jsonObject(with: transport.bodies[bodyIndex]) as? [String: Bool] == ["showRoomUnreadCount": true])
+    // A later read (room open, Settings) keeps following Core.
+    await state.refreshChatDisplayPreferences(auth: auth)
+    #expect(state.chatDisplay.showsRoomUnreadCount)
+    #expect(transport.operationIDs.filter { $0 == preferencesReadOperation }.count == 2)
+    #expect(transport.remainingStubs == 0)
+    state.reset()
+    #expect(!state.chatDisplay.showsRoomUnreadCount)
+  }
+
+  @Test func rejectedChatDisplayWriteRollsBackAndRethrows() async throws {
+    let (state, auth, transport) = try await sokoBotFeedbackFixture([
+      (200, chatDisplayBody(showRoomUnreadCount: true)),
+      (403, chatDisplayError(status: "Forbidden", message: "Not allowed"))
+    ])
+    await state.refreshChatDisplayPreferences(auth: auth)
+    let error = await #expect(throws: ChatServiceError.self) {
+      try await state.setShowsRoomUnreadCount(false, auth: auth)
+    }
+    #expect(error == .unprocessable(statusCode: 403, message: "Not allowed"))
+    #expect(state.chatDisplay.showsRoomUnreadCount && !state.chatDisplay.isSaving)
+    #expect(transport.remainingStubs == 0)
+  }
+
+  @Test func failedChatDisplayReadKeepsTheLastValue() async throws {
+    let (state, auth, _) = try await sokoBotFeedbackFixture([
+      (200, chatDisplayBody(showRoomUnreadCount: true)),
+      (500, chatDisplayError(status: "Internal Server Error", message: "Boom"))
+    ])
+    await state.refreshChatDisplayPreferences(auth: auth)
+    await state.refreshChatDisplayPreferences(auth: auth)
+    #expect(state.chatDisplay.showsRoomUnreadCount)
+  }
+}

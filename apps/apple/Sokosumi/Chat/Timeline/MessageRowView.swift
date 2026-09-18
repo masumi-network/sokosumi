@@ -6,19 +6,12 @@ import SwiftUI
 #if os(macOS)
   import AppKit
 
-  /// Wall-clock HH:mm in the local timezone, like web `formatMessageTime`.
-  private let messageTimeFormatter: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.timeStyle = .short
-    formatter.dateStyle = .none
-    return formatter
-  }()
-
   /// Delivery mark in the header or continuation gutter; retains the header clock until needed.
   private struct DeliveryFeedback: View {
     let pendingSince: Date?
     let sentAt: Date?
     var timestamp: Date?
+    @Environment(\.timeFormat) private var timeFormat
     @State private var showSending = false
 
     var body: some View {
@@ -32,7 +25,8 @@ import SwiftUI
             .accessibilityLabel("Sent")
             .help("Sent")
         } else if let timestamp {
-          Text(messageTimeFormatter.string(from: timestamp))
+          // Wall-clock time in the local timezone, like web `formatMessageTime`.
+          Text(timeFormat.time(timestamp))
         }
       }
       .font(.caption)
@@ -83,6 +77,7 @@ import SwiftUI
     var streamThinking = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.openURL) private var openURL
+    @Environment(\.timeFormat) private var timeFormat
     @State private var quickReactions = ReactionEmojiHistory.defaultQuickReactions
     @State private var showsReactionPicker = false
     @State private var pinError: String?
@@ -234,7 +229,7 @@ import SwiftUI
               DeliveryFeedback(pendingSince: pendingSince, sentAt: sentAt,
                                timestamp: message.createdAt)
               if message.editedAt != nil, message.deletedAt == nil {
-                Text("Edited").help(message.editedAt?.formatted(date: .abbreviated, time: .shortened) ?? "")
+                Text("Edited").help(message.editedAt.map { timeFormat.dateTime($0) } ?? "")
                   .font(.caption)
                   .foregroundStyle(.secondary)
               }
@@ -279,7 +274,7 @@ import SwiftUI
               }
             }
             if isContinuation, message.editedAt != nil {
-              Text("Edited").help(message.editedAt?.formatted(date: .abbreviated, time: .shortened) ?? "").font(.caption).foregroundStyle(.secondary)
+              Text("Edited").help(message.editedAt.map { timeFormat.dateTime($0) } ?? "").font(.caption).foregroundStyle(.secondary)
             }
           }
           if message.deletedAt == nil, outbound == nil, !message.reactions.isEmpty {
