@@ -32,6 +32,7 @@ struct ChatNotificationEventTests {
     #expect(event.id == "n1" && event.roomId == "room_1" && event.messageId == "m1" && event.workspaceId == "ws_1")
     #expect(!event.isRead && event.readAt == nil && event.osBanner && event.groupCount == nil)
     #expect(event.createdAt == Date(timeIntervalSince1970: 1_789_725_600))
+    #expect(event.bannerIdentifier == ChatNotificationEvent.bannerIdentifier(roomId: "room_1"))
     #expect(event.bannerIdentifier == "sokosumi-room:room_1")
     let read = try #require(ChatNotificationEvent(payload: payload([
       "isRead": true, "readAt": "2026-09-18T10:05:00Z", "osBanner": false, "groupCount": 3, "metadata": NSNull()

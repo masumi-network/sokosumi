@@ -57,8 +57,10 @@ public extension WorkspaceState {
   /// notification names another one. Navigation happens even if the read fails.
   @discardableResult
   func openNotification(_ target: ChatNotificationTarget, auth: AuthState) async throws -> MessageNavigationResult {
-    guard phase == .ready, let client = resolveClient(auth: auth) else { return .unavailable }
     notificationBanners.forget(roomId: target.roomId)
+    // Web closes the banner on click; forget alone cannot dismiss the OS item.
+    notificationPresenter?.dismiss(identifier: ChatNotificationEvent.bannerIdentifier(roomId: target.roomId))
+    guard phase == .ready, let client = resolveClient(auth: auth) else { return .unavailable }
     // Still open the link when mark-read fails. Awaited rather than detached so requests keep one order.
     try? await ChatService().markNotificationRead(client: client, id: target.id)
     guard phase == .ready else { return .unavailable }

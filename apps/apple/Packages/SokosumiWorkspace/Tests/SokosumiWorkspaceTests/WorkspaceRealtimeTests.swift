@@ -1052,18 +1052,29 @@ struct WorkspaceRealtimeTests {
   }
 
   @Test func openingANotificationNavigatesEvenWhenMarkReadFails() async throws {
+    let presenter = FakeNotificationPresenter()
     let (state, auth, transport) = try realtimeState(notificationLoadScript + [
       (500, realtimeErrorBody),
       (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomB))
     ])
+    state.notificationPresenter = presenter
     await state.reload(auth: auth)
     await waitForRealtimeIdle(state)
     #expect(state.selectedRoomId == roomA)
     let result = try await state.openNotification(.init(id: "n1", roomId: roomB), auth: auth)
     await waitForRealtimeIdle(state)
     #expect(result == .opened && state.selectedRoomId == roomB && state.transcriptRoomId == roomB)
+    #expect(presenter.dismissed == ["sokosumi-room:\(roomB)"])
     #expect(transport.operationIDs.contains("patch/notifications/{id}/read"))
     #expect(transport.requests.contains { $0.path == "/notifications/n1/read" })
+  }
+
+  @Test func openingANotificationDismissesEvenWhenUnavailable() async throws {
+    let presenter = FakeNotificationPresenter()
+    let (state, auth, _) = try realtimeState(notificationLoadScript)
+    state.notificationPresenter = presenter
+    let result = try await state.openNotification(.init(id: "n1", roomId: roomB), auth: auth)
+    #expect(result == .unavailable && presenter.dismissed == ["sokosumi-room:\(roomB)"])
   }
 
   @Test func openingANotificationSwitchesToItsWorkspace() async throws {

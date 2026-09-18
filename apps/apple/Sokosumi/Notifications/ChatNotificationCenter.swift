@@ -93,7 +93,11 @@ extension ChatNotificationCenter: UNUserNotificationCenterDelegate {
   nonisolated func userNotificationCenter(_: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
     guard response.actionIdentifier == UNNotificationDefaultActionIdentifier,
           let target = ChatNotificationTarget(userInfo: response.notification.request.content.userInfo) else { return }
-    await MainActor.run { onOpen?(target) }
+    let identifier = response.notification.request.identifier
+    await MainActor.run {
+      dismiss(identifier: identifier)
+      onOpen?(target)
+    }
   }
 }
 

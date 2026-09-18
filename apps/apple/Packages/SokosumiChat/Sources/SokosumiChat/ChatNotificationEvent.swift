@@ -115,8 +115,12 @@ public struct ChatNotificationEvent: Equatable, Sendable {
   }
 
   /// One banner holds a whole room (web `notificationGroupTag`): each arrival replaces the one standing.
-  public var bannerIdentifier: String {
+  public static func bannerIdentifier(roomId: String) -> String {
     "sokosumi-room:\(roomId)"
+  }
+
+  public var bannerIdentifier: String {
+    Self.bannerIdentifier(roomId: roomId)
   }
 
   public var target: ChatNotificationTarget {
