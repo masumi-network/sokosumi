@@ -51,10 +51,7 @@ export function JobStatusBadge({
         aria-label={label}
         className={cn("inline-flex shrink-0", className)}
       >
-        <StatusMarker
-          spec={marker}
-          tone={tone ?? style.onSurface}
-        />
+        <StatusMarker spec={marker} tone={tone ?? style.onSurface} />
       </span>
     );
   }

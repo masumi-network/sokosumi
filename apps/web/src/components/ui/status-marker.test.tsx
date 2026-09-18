@@ -313,9 +313,26 @@ describe("tone styles", () => {
     }
   });
 
-  it("covers every hue and weight the model declares", () => {
-    expect(HUES.every((hue) => typeof hue === "string")).toBe(true);
-    expect(WEIGHTS).toHaveLength(3);
+  /**
+   * A hue nothing paints is a hue nobody maintains, and the measurements above
+   * only reach the tones the two scales actually use. If a hue is retired, the
+   * type should lose it rather than sit here untested.
+   */
+  it("paints every hue the model declares", () => {
+    const painted = new Set(TONES_IN_USE.map((tone) => tone.hue));
+
+    for (const hue of HUES) {
+      expect(painted.has(hue), `no status uses the ${hue} hue`).toBe(true);
+    }
+  });
+
+  /** Same argument for weight: `solid` is rare, but it is not unused. */
+  it("paints every weight the model declares", () => {
+    const painted = new Set(TONES_IN_USE.map((tone) => tone.weight));
+
+    for (const weight of WEIGHTS) {
+      expect(painted.has(weight), `no status uses ${weight}`).toBe(true);
+    }
   });
 });
 
@@ -389,17 +406,21 @@ describe("StatusMarker", () => {
    * glyph means motion, so frozen it reads as a rendering fault. A marker that
    * is not live therefore drops the glyph rather than holding it still.
    */
-  it("draws a dot instead of a glyph when the status is not live", () => {
-    const spec = getTaskStatusMarker(TaskStatus.RUNNING);
-    const { container } = render(<StatusMarker spec={spec} live={false} />);
+  it.each([TaskStatus.RUNNING, TaskStatus.FAILED])(
+    "draws %s as a dot instead of a glyph when it is not live",
+    (status) => {
+      const spec = getTaskStatusMarker(status);
+      const { container } = render(<StatusMarker spec={spec} live={false} />);
 
-    expect(container.querySelector("svg")).toBeNull();
-    const dot = container.querySelector("span");
-    expect(dot).toHaveClass(
-      "rounded-full",
-      getToneStyle(spec.tone).mark.replace("text-", "bg-"),
-    );
-  });
+      expect(container.querySelector("svg")).toBeNull();
+      // `dot`, not `mark`. For FAILED they differ: the mark is the near-white
+      // label the solid fill carries, which measures 1.06:1 on the card.
+      expect(container.querySelector("span")).toHaveClass(
+        "rounded-full",
+        getToneStyle(spec.tone).dot,
+      );
+    },
+  );
 
   /**
    * A glyph override arrives as a text colour, because it is written for an
