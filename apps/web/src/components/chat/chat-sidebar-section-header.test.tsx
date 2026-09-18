@@ -213,6 +213,25 @@ describe("ChatSidebarSectionContent", () => {
     expect(classes).toContain("overflow-hidden");
   });
 
+  it("lets a caller drop the clip, which Pinned needs while its rows drag", () => {
+    // `cn` is `twMerge`, so the caller's `overflow-visible` has to win
+    // outright rather than land beside `overflow-hidden` and lose to it.
+    const { container } = render(
+      <Collapsible open>
+        <ChatSidebarSectionContent className="overflow-visible">
+          rooms
+        </ChatSidebarSectionContent>
+      </Collapsible>,
+    );
+    const classes =
+      container
+        .querySelector('[data-slot="collapsible-content"]')
+        ?.className.split(/\s+/) ?? [];
+
+    expect(classes).toContain("overflow-visible");
+    expect(classes).not.toContain("overflow-hidden");
+  });
+
   it("widens the clip box by the gutter a room's rail pill sits in", () => {
     const { container } = render(<Section />);
     const classes =

@@ -375,9 +375,12 @@ export function OrganizationChatList({
               {t("pinned")}
             </ChatSidebarSectionHeader>
             {/* A row being dragged translates past the section's box, and the
-                animation's `overflow-hidden` would cut it off. The section
-                cannot be mid-animation while its rows are being reordered:
-                the reorder toggle only exists on an open heading. */}
+                animation's `overflow-hidden` would cut it off. Dropping the
+                clip cannot cost the section its animation, because
+                `canReorderPinned` carries `pinnedOpen`: the render that
+                closes Pinned is already the render where `isReorderingPinned`
+                reads false, so the collapse clips as every other section
+                does. */}
             <ChatSidebarSectionContent
               className={cn(isReorderingPinned && "overflow-visible")}
             >
