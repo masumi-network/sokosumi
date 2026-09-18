@@ -37,7 +37,7 @@ Prerequisites: approve self-service registration and the runtime identity contra
 
 Acceptance cases:
 - Authorized registration creates a workspace-only Coworker; foreign Vendor ownership is rejected.
-- Runtime identity can access its permitted workspace and cannot borrow developer credentials.
+- Runtime API calls access only their permitted workspace and never fall back to developer authentication. Trusted private sessions do not promise host-level credential isolation.
 - Session expiry and explicit disconnect revoke temporary authority; a crash cannot leave permanent session authority.
 - Inactive identity and work history remain after expiry. No shared Task, Job, or message is deleted.
 - Reconnection requires authorization. Persistent mode is explicit, not an accidental result of storing a session token.

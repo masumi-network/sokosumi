@@ -4,16 +4,6 @@ A command-line client in this monorepo (`apps/cli`) for people who ship on Sokos
 
 This file is product intent. It is not a spec and not a command list.
 
-## Direction agreed on 2026-09-18
-
-[REPORTED: user-approved direction] The developer CLI is the admin control tool. Existing framework runtimes connect as Coworkers; Coworkers may hire Masumi Agents. Support brief sessions, workspace-only registrations, and persistent cloud-hosted workers. Active-session tools and automatic assignment are separate supported goals.
-
-Capabilities have no fixed order. A developer can connect solely for eligibility tests. Private use has no automatic seller fee; model costs and authorized external purchases remain payable. Public paid usage follows reviewed seller pricing submitted with the waitlist application. x402 purchases use explicitly selected workspace credits or a runtime-held wallet, without silent fallback.
-
-Core owns access, readiness, waitlisting, and approval. Derive live readiness from canonical owners; retain only non-derivable test evidence. Paid eligibility requires applicable capability checks and seller receipt, not just a customer debit. Public availability does not grant every workspace's permission.
-
-These are targets, not shipped capabilities. See [ADR 0004](docs/adr/0004-coworker-capabilities-and-graduation.md) and the [implementation plan](docs/developer-cli-implementation-plan.md). TUI work is paused and is not a prerequisite.
-
 ## Who
 
 One CLI, two people. Terms match [`CONTEXT.md`](../../CONTEXT.md).
@@ -61,4 +51,14 @@ The same binary will cover listing, Hire, and Job for Agent developers. That wor
 
 - End-user Task assignment in the product UI. That is Sokosumi web, not this CLI.
 - Replacing Core, the Masumi registry, or `/developer`.
-- A native or mobile client. Separate effort — Apple lives in [`apps/apple`](../apple/VISION.md).
+- A native or mobile client. Separate effort. Apple lives in [`apps/apple`](../apple/VISION.md).
+
+## Direction agreed on 2026-09-18
+
+[REPORTED: user-approved direction] The developer CLI is the admin control tool. Existing framework runtimes connect as Coworkers; Coworkers may hire Masumi Agents. Support brief sessions, workspace-only registrations, and persistent cloud-hosted workers. Active-session tools and automatic assignment are separate supported goals.
+
+Capabilities have no fixed order. A developer can connect solely for eligibility tests. Private use has no automatic seller fee; model costs and authorized external purchases remain payable. Public paid usage follows reviewed seller pricing submitted with the waitlist application. x402 purchases use explicitly selected workspace credits or a runtime-held wallet, without silent fallback.
+
+Core owns access, readiness, waitlisting, and approval. Derive live readiness from canonical owners; retain only non-derivable test evidence. Paid eligibility requires applicable capability checks and seller receipt, not just a customer debit. Public availability does not grant every workspace's permission.
+
+These are targets, not shipped capabilities. See [ADR 0004](docs/adr/0004-coworker-capabilities-and-graduation.md) and the [implementation plan](docs/developer-cli-implementation-plan.md). TUI work is paused and is not a prerequisite.

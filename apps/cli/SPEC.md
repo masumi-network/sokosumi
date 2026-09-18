@@ -4,8 +4,8 @@
 [REPORTED: user-approved direction, 2026-09-18] Single developer admin CLI; connect existing framework runtimes as Coworkers with optional capabilities, session/private/hosted lifetimes, and tested paid graduation. This amendment defines future requirements, not shipped features. TUI work paused; existing commands and auth guards preserved.
 
 ## §C CONSTRAINTS
-- live in monorepo `apps/cli`. ⊥ second CLI. ⊥ sibling `sokosumi-cli` edits. [VISION.md:43]
-- talk Core HTTP only. ⊥ Prisma, ⊥ `@sokosumi/database`, ⊥ Postgres from CLI. [VISION.md:44]
+- live in monorepo `apps/cli`. ⊥ second CLI. ⊥ sibling `sokosumi-cli` edits. [VISION.md constraints](VISION.md#constraints)
+- talk Core HTTP only. ⊥ Prisma, ⊥ `@sokosumi/database`, ⊥ Postgres from CLI. [VISION.md constraints](VISION.md#constraints)
 - package identity ∈ {private workspace name: `sokosumi`, package path: `apps/cli`, bin: `sokosumi`}; npm publication ⊥ current slice.
 - CLI source/tests ∈ TypeScript. Typecheck required.
 - OAuth tokens & user API keys ∈ OS vault. Linux persistent auth → Secret Service. ⊥ plaintext credential file.
@@ -19,7 +19,7 @@
 - TUI menus use arrows + Enter. Esc back. q quit. ⊥ letter/numeric aliases.
 - v1 visual source = external user-provided `I-Want-You-Desing-Tui-Sokosumi` bundle. Production TUI = Ink/React. ⊥ HTML/CSS runtime, copied prototype fixtures, browser `localStorage`.
 - Biome format. Conventional Commits. pinned deps (no semver ranges).
-- complements web `/developer`. ⊥ replace it. [VISION.md:45]
+- complements web `/developer`. ⊥ replace it. [VISION.md constraints](VISION.md#constraints)
 
 - direction authority: docs/adr/0004-coworker-capabilities-and-graduation.md; implementation dependencies: docs/developer-cli-implementation-plan.md. Core owns policy, grants, waitlisting, promotion, and payment authorization.
 - historical external-bundle design constraint above applies only to deferred T27; no redesign prerequisite for integration.
