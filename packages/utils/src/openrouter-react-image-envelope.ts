@@ -215,31 +215,3 @@ export function parseReactEnvelopeBuffer(
   const trailing = buffer.slice(jsonEnd);
   return parseReactEnvelopeJson(rawJson, trailing, buffer);
 }
-
-/**
- * Best-effort parse of full assistant text (e.g. on stream finish). Unlike
- * {@link parseReactEnvelopeBuffer}, incomplete input is treated as “no
- * envelope” and the original string is returned.
- */
-export function extractReactEnvelope(text: string): {
-  strippedText: string;
-  thought: string | null;
-  hadEnvelope: boolean;
-} {
-  const parsed = parseReactEnvelopeBuffer(text);
-  if (parsed.status === "incomplete") {
-    return { strippedText: text, thought: null, hadEnvelope: false };
-  }
-  if (!parsed.isReactEnvelope) {
-    return {
-      strippedText: parsed.trailing,
-      thought: null,
-      hadEnvelope: false,
-    };
-  }
-  return {
-    strippedText: normalizeReactEnvelopeTrailingText(parsed.trailing),
-    thought: parsed.thought.trim() ? parsed.thought.trim() : null,
-    hadEnvelope: true,
-  };
-}
