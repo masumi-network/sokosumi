@@ -127,6 +127,9 @@ describe("social post publisher service", () => {
       1,
       expect.objectContaining({
         where: {
+          scheduledByUser: {
+            members: { some: { organization: { slug: "utxo" } } },
+          },
           OR: [
             {
               status: "SCHEDULED",

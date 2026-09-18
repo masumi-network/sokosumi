@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Prisma, SocialPostStatus } from "@sokosumi/database";
 
 import { publishXPost } from "@/clients/composio.client";
+import { CALENDAR_BETA_USER_WHERE } from "@/helpers/calendar-beta-access";
 import { badRequest, conflict, notFound } from "@/helpers/error";
 import { classifyPublishError } from "@/helpers/social-post-publish-errors";
 import prisma from "@/lib/db/prisma";
@@ -277,11 +278,16 @@ type ClaimResult = { post: ClaimedPost } | "none" | "lost";
 /**
  * Optimistic claim of the earliest due post (or one whose lease expired): the
  * row must still carry the observed status and revision when the lease lands.
+ *
+ * Only posts scheduled by a current Calendar beta member are claimed. The
+ * routes gate what a person can schedule; this keeps the cron from publishing
+ * for someone who has since left the beta workspace.
  */
 async function claimDuePost(): Promise<ClaimResult> {
   const now = new Date();
   const candidate = await prisma.socialPost.findFirst({
     where: {
+      scheduledByUser: CALENDAR_BETA_USER_WHERE,
       OR: [
         {
           status: "SCHEDULED",
