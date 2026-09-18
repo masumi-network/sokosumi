@@ -50,6 +50,7 @@ import {
   useCoworkerDirectRoomStream,
 } from "@/app/chat/hooks/use-coworker-direct-room-stream";
 import { useEditChannelParam } from "@/app/chat/hooks/use-edit-channel-param";
+import { useQuietHoverWhileScrolling } from "@/app/chat/hooks/use-quiet-hover-while-scrolling";
 import { useRoomMessageJumps } from "@/app/chat/hooks/use-room-message-jumps";
 import { useRoomNotificationDeepLink } from "@/app/chat/hooks/use-room-notification-deep-link";
 import { useRoomReadAttention } from "@/app/chat/hooks/use-room-read-attention";
@@ -547,6 +548,7 @@ export function RoomsClient({
   // State, not a ref: the viewport needs the element as a prop, and the
   // shell attaches its ref after a same-commit child has already rendered.
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
+  useQuietHoverWhileScrolling(scroller);
   // The transcript viewport owns the live-edge pin and jump landings.
   // Reached through a ref so the callbacks handed to rows,
   // hooks and the composer keep one identity across the room's life.

@@ -374,7 +374,7 @@ export function ChatRoomSidebarRow({
     <Link
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-2 px-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:overflow-visible group-data-[collapsible=icon]:px-0!",
+        "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-3 px-3 md:gap-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:overflow-visible group-data-[collapsible=icon]:px-0!",
         // The collapsed rail's hover ring and the fill it replaces live on
         // `sidebarMenuButtonVariants`, so this row's own `hover:bg-` above is
         // expanded-only. Its `hover:` outranks nothing there: the variant's
@@ -390,7 +390,7 @@ export function ChatRoomSidebarRow({
     >
       <span
         data-slot="room-leading"
-        className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center group-data-[collapsible=icon]:h-6 group-data-[collapsible=icon]:min-w-6"
+        className="inline-flex h-7 min-w-7 shrink-0 items-center justify-center md:h-5 md:min-w-5 group-data-[collapsible=icon]:h-6 group-data-[collapsible=icon]:min-w-6"
       >
         {leading}
         {/* The pill's state, as text, where the link's accessible name can
@@ -474,7 +474,13 @@ export function ChatRoomSidebarRow({
       {/* Collapsed to icons the row is only its leading mark, so the name
           rides the button's tooltip, which the sidebar shows in that state
           alone. */}
-      <SidebarMenuButton asChild isActive={isActive} tooltip={label}>
+      <SidebarMenuButton
+        asChild
+        isActive={isActive}
+        tooltip={label}
+        // A thumb needs 44px; the desktop list keeps its 32px density.
+        className="h-11 md:h-8"
+      >
         {dismissSheetOnNavigate ? (
           <SheetClose asChild>{roomLink}</SheetClose>
         ) : (
@@ -493,7 +499,7 @@ export function ChatRoomSidebarRow({
                 )}
                 aria-hidden
               >
-                <BellOff className="size-3.5" />
+                <BellOff className="size-4 md:size-3.5" />
               </span>
             ) : null}
             <DropdownMenu>
@@ -504,7 +510,9 @@ export function ChatRoomSidebarRow({
                   size="icon"
                   disabled={isPending}
                   className={cn(
-                    "text-muted-foreground size-8 opacity-100 md:size-7 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
+                    // The box stays 32px so the `…` keeps its column under the section's
+                    // `+`; the pseudo-element carries the touch target out to 44px.
+                    "text-muted-foreground relative size-8 opacity-100 after:absolute after:-inset-1.5 md:size-7 md:after:hidden [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
                   )}
                   aria-label={tActions("roomMenu", { name: label })}
                 >
