@@ -15,9 +15,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -38,6 +40,7 @@ export function PasswordForm() {
       currentPassword: "",
       newPassword: "",
       confirmNewPassword: "",
+      revokeOtherSessions: true,
     },
   });
 
@@ -45,7 +48,7 @@ export function PasswordForm() {
     const changePasswordResult = await changePassword({
       currentPassword: values.currentPassword,
       newPassword: values.newPassword,
-      revokeOtherSessions: true,
+      revokeOtherSessions: values.revokeOtherSessions,
     });
 
     if (changePasswordResult.error) {
@@ -104,6 +107,33 @@ export function PasswordForm() {
                     <FormControl>
                       <Input type="password" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="revokeOtherSessions"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex items-start gap-3">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={(checked) => {
+                            field.onChange(checked === true);
+                          }}
+                        />
+                      </FormControl>
+                      <div className="space-y-1">
+                        <FormLabel className="font-normal">
+                          {t("revokeOtherSessionsLabel")}
+                        </FormLabel>
+                        <FormDescription>
+                          {t("revokeOtherSessionsHelp")}
+                        </FormDescription>
+                      </div>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
