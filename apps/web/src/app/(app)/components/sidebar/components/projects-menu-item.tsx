@@ -188,7 +188,7 @@ function ProjectLinks({
 
   return (
     <SidebarMenuSub
-      className="mx-0 max-h-64 translate-x-0 overflow-y-auto border-l-0 pl-8 pr-0"
+      className="mx-0 max-h-64 translate-x-0 overflow-y-auto border-l-0 pl-4 pr-0"
       onScroll={(event) => {
         const list = event.currentTarget;
         if (list.scrollHeight - list.scrollTop - list.clientHeight < 48)

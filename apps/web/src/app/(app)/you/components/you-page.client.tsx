@@ -163,7 +163,7 @@ export function YouPageClient({
                 href={CALENDAR_HREF}
                 icon={<Calendar className="size-4 shrink-0" aria-hidden />}
                 label={tMenu("calendar")}
-                testId="you-schedules"
+                testId="you-calendar"
               />
             ) : null}
             <MobileStackedMenuLink

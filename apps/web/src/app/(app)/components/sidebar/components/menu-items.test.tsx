@@ -226,7 +226,7 @@ describe("MenuItems search action", () => {
     expect(screen.queryByRole("link", { name: /drive/i })).toBeNull();
   });
 
-  it("shows Files after Schedules on desktop", () => {
+  it("shows Files after Calendar on desktop", () => {
     const { container } = renderMenu(true, true, false);
     const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
       (element) => element.textContent ?? "",
@@ -253,7 +253,7 @@ describe("MenuItems search action", () => {
     );
   });
 
-  it("orders primary destinations Search, Agents, Projects, Tasks, Schedules, History", () => {
+  it("orders primary destinations Search, Agents, Projects, Tasks, Calendar, History", () => {
     const { container } = renderMenu(true, true);
     const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
       (element) => element.textContent ?? "",
