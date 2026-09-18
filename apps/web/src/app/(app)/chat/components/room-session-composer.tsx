@@ -212,6 +212,8 @@ export function RoomSessionComposer({
     const linkText = event.clipboardData.getData("text/plain").trim();
     const link = parseChatRoomMessageLink(linkText, window.location.origin);
     if (!link) return;
+    // Already quoted: a second paste of the same link is just a link.
+    if (pendingQuote?.messageId === link.messageId) return;
 
     const quote = await onResolveMessageLink(link).catch(() => null);
     if (quote && generation === pasteGeneration.current) {

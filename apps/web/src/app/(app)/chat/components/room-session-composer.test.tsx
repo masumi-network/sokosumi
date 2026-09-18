@@ -400,6 +400,31 @@ describe("RoomSessionComposer pasted Message link", () => {
     expect(screen.getByText("Earlier point about launch risk")).toBeTruthy();
   });
 
+  it("does not offer a message that is already the pending quote", async () => {
+    const onResolveMessageLink = vi.fn().mockResolvedValue(quote);
+    render(
+      <Harness onSend={vi.fn()} onResolveMessageLink={onResolveMessageLink} />,
+    );
+
+    const editor = await screen.findByRole("textbox");
+    editor.focus();
+    pasteText(editor, link);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "pasteOffer.accept" }),
+    );
+    await screen.findByText("Earlier point about launch risk");
+
+    pasteText(editor, link);
+
+    await waitFor(() => {
+      expect(editor.textContent).toContain(link);
+    });
+    expect(onResolveMessageLink).toHaveBeenCalledTimes(1);
+    expect(
+      screen.queryByRole("button", { name: "pasteOffer.accept" }),
+    ).toBeNull();
+  });
+
   it("keeps the plain link when the offer is declined", async () => {
     const onSend = vi.fn().mockResolvedValue({ ok: true });
     render(
