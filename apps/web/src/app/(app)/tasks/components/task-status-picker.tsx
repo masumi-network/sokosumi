@@ -188,8 +188,16 @@ export function TaskStatusPicker({
                   data-current={isCurrent || undefined}
                   onSelect={() => handleSelect(status)}
                 >
-                  {/* A status you could pick, not one that is running. */}
-                  <StatusMarker spec={rowMarker} live={false} />
+                  <StatusMarker
+                    spec={rowMarker}
+                    // A menu row paints no fill, so the glyph sits on the
+                    // popover surface and takes the on-card colour. `mark` is
+                    // the colour of a mark on the tone's own box, which for
+                    // the solid fault tone is near-white: invisible here.
+                    tone={getToneStyle(rowMarker.tone).onSurface}
+                    // A status you could pick, not one that is running.
+                    live={false}
+                  />
                   <span className="flex-1 truncate">
                     {labels.statusLabels[status]}
                   </span>

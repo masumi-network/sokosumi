@@ -16,7 +16,9 @@ import { cn } from "@/lib/utils";
  * and there is nothing to do. A failed one is terminal for that file, which is
  * the solid fill.
  */
-const FILE_STATUS_MARKERS: Partial<Record<TaskFileStatus, StatusMarkerSpec>> = {
+export const FILE_STATUS_MARKERS: Partial<
+  Record<TaskFileStatus, StatusMarkerSpec>
+> = {
   [TaskFileStatus.PENDING]: {
     tone: { hue: "staged", weight: "filled" },
     icon: MARKER_ICONS.queued,

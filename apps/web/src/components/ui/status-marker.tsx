@@ -84,10 +84,18 @@ export type StatusHue =
  */
 export type StatusWeight = "filled" | "outline" | "solid";
 
-export interface StatusTone {
-  hue: StatusHue;
-  weight: StatusWeight;
-}
+/**
+ * A hue and the weight it is spent at.
+ *
+ * `solid` is paired with `fault` in the type, not merely by convention,
+ * because `getToneStyle` returns the solid classes before it ever reads the
+ * hue. A `{ hue: "resolved", weight: "solid" }` would therefore render a
+ * destructive-red badge for a success, and nothing at runtime would object.
+ * Written as a union, that combination does not compile.
+ */
+export type StatusTone =
+  | { hue: StatusHue; weight: "filled" | "outline" }
+  | { hue: "fault"; weight: "solid" };
 
 interface HueClasses {
   /** Badge fill for `filled`. */
@@ -96,7 +104,21 @@ interface HueClasses {
   border: string;
   /** Label colour. Clears 4.5:1 on both the fill and the card, both themes. */
   label: string;
-  /** Dot and glyph colour. Clears 3:1 on both, both themes. */
+  /**
+   * Dot and glyph colour. Clears 3:1 on the fill and on `--card-background`
+   * in both themes, with one exception carried over from before this scale.
+   *
+   * On `--muted`, the hover fill of the agent job list row
+   * (`jobs-list.tsx`), the dark `fault` mark measures 2.53:1, because
+   * `--semantic-destructive-solid` is darker than the tint base. The tint
+   * base would measure 3.99, but the two weights already paint the same dot
+   * in light mode, so moving it would erase the tint-to-solid escalation in
+   * dark as well. Left as it is and written down rather than rediscovered.
+   *
+   * The note this replaces put that figure at 2.78:1. Neither token has
+   * moved since it was written, so 2.78 was simply miscomputed; 2.53 is the
+   * ratio the shipped values give.
+   */
   mark: string;
 }
 
@@ -192,8 +214,9 @@ export interface ToneStyle {
  * 1.06:1, so they are resolved side by side here and the test file pins both.
  *
  * An `outline` tone paints no fill, so its mark sits on whatever surface the
- * caller provides. Every current caller uses `--card-background`, and each
- * outline mark clears 3:1 there in both themes.
+ * caller provides. At rest every current caller uses `--card-background`, and
+ * each outline mark clears 3:1 there in both themes. The job list row's
+ * `--muted` hover state is the exception; see the note on `mark` above.
  */
 export function getToneStyle(tone: StatusTone): ToneStyle {
   if (tone.weight === "solid") {
@@ -275,40 +298,22 @@ export function StatusMarker({
    */
   tone?: string;
   /**
-   * Whether the glyph stands for something happening right now.
+   * Whether the glyph stands for something happening right now. It gates the
+   * spin and nothing else.
    *
-   * A history row shows a value someone set hours ago and a menu row shows an
-   * option nobody has chosen. Neither is live, and both used to render the
-   * running glyph held still. A stopped `LoaderCircle` is an arc with a gap in
-   * it and nothing else: the whole glyph means motion, so at rest it reads as
-   * a rendering fault rather than as a status.
+   * A stopped `LoaderCircle` is an arc with a gap in it and nothing else: the
+   * whole glyph means motion, so at rest it reads as a rendering fault rather
+   * than as a status. That is a reason to keep the spinning glyph off surfaces
+   * that are not live, not a reason to drop every glyph there.
    *
-   * So a marker that is not live drops the glyph and draws the dot instead.
-   * The dot carries the hue, and every caller that passes `live={false}`
-   * renders the status word beside it, which is what names the status.
+   * A menu of statuses you could pick needs the glyph most of all: five of
+   * them share the `blocked` hue, so without it the rows differ by word alone
+   * and the marker column is five identical dots. A surface that genuinely
+   * wants a dot draws its own (`TaskStatusInline`) from `dot` below.
    */
   live?: boolean;
 }) {
   const style = getToneStyle(spec.tone);
-
-  if (!live) {
-    // `dot`, not `mark`: a dot has no fill under it, so it takes the on-card
-    // colour. For `solid` those differ, and `mark` there is the near-white
-    // label colour, which measures 1.06:1 on `--card-background`.
-    //
-    // An override arrives as a text colour, because it is written for a glyph.
-    // A `text-*` class paints nothing on a filled dot, so it is converted
-    // rather than passed through and silently dropped.
-    const dotClass = (tone ?? style.dot).replace(/(^|\s)text-/g, "$1bg-");
-
-    return (
-      <span
-        aria-hidden
-        className={cn("size-2 shrink-0 rounded-full", dotClass)}
-      />
-    );
-  }
-
   const Icon = spec.icon;
 
   return (
@@ -321,7 +326,7 @@ export function StatusMarker({
       className={cn(
         "size-3.5 shrink-0",
         tone ?? style.mark,
-        spec.spin && "animate-spin motion-reduce:animate-none",
+        spec.spin && live && "animate-spin motion-reduce:animate-none",
       )}
     />
   );

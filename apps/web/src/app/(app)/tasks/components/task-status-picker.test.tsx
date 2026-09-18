@@ -79,13 +79,12 @@ describe("TaskStatusPicker", () => {
   });
 
   /**
-   * A menu row is an option nobody has chosen, so it draws the dot rather than
-   * the glyph, and the dot sits on the popover surface with no fill under it.
+   * A menu row paints no fill, so the glyph sits on the popover surface.
    * `FAILED` is the status where that matters: its badge paints a solid red
-   * fill and labels itself near-white, so a dot taking the badge's own mark
+   * fill and labels itself near-white, so a glyph taking the badge's own mark
    * colour would be near-white on a near-white popover.
    */
-  it("draws the Failed menu marker as a dot in the on-card colour", async () => {
+  it("draws the Failed menu glyph in the on-card colour", async () => {
     const user = userEvent.setup();
     renderPicker({ options: [TaskStatus.FAILED] });
 
@@ -93,12 +92,39 @@ describe("TaskStatusPicker", () => {
 
     const row = screen.getByRole("option", { name: /Failed/ });
     const style = getToneStyle(getTaskStatusMarker(TaskStatus.FAILED).tone);
-    expect(row.querySelector("svg")).toBeNull();
-    expect(row.querySelector("span[aria-hidden]")).toHaveClass(
-      "rounded-full",
-      style.dot,
-    );
-    expect(style.dot).not.toBe(style.mark);
+    expect(row.querySelector("svg")).toHaveClass(style.onSurface);
+    expect(style.onSurface).not.toBe(style.mark);
+  });
+
+  /**
+   * The regression this test exists for: the menu briefly drew a dot instead
+   * of the glyph. Five statuses share the `blocked` hue, so the marker column
+   * became five identical dots and the word was the only thing left telling
+   * them apart, which is the single-channel failure SC 1.4.1 is about.
+   */
+  it("gives every same-hue option its own glyph", async () => {
+    const user = userEvent.setup();
+    const blocked = [
+      TaskStatus.GRANT_PENDING,
+      TaskStatus.INPUT_REQUIRED,
+      TaskStatus.APPROVAL_REQUIRED,
+      TaskStatus.AUTHENTICATION_REQUIRED,
+      TaskStatus.OUT_OF_CREDITS,
+    ];
+    renderPicker({ options: blocked });
+
+    await user.click(screen.getByRole("combobox", { name: "Status" }));
+
+    const paths = screen.getAllByRole("option").map((row) => {
+      const svg = row.querySelector("svg");
+      expect(svg, `${row.textContent} has no glyph`).not.toBeNull();
+      return svg?.innerHTML ?? "";
+    });
+
+    // The picker always keeps the current value in the list, so there is one
+    // row more than the five asked for. Every row still needs its own glyph.
+    expect(paths.length).toBeGreaterThanOrEqual(blocked.length);
+    expect(new Set(paths).size).toBe(paths.length);
   });
 
   it("picks an option with its number key while the list is open", async () => {

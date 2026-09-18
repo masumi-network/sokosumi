@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import { getTaskStatusMarker } from "@/app/tasks/components/task-status-badge";
 import { COLUMN_TASK_STATUSES } from "@/app/tasks/utils/task-column";
+import { FILE_STATUS_MARKERS } from "@/components/tasks/task-file-status-badge";
 import { getJobStatusMarker } from "@/components/jobs/job-status-styles";
 import {
   getToneStyle,
@@ -26,16 +27,25 @@ const HUES: StatusHue[] = [
 ];
 const WEIGHTS: StatusWeight[] = ["filled", "outline", "solid"];
 
-/** Every tone the two scales actually paint, so nothing untested ships. */
+/**
+ * Every tone the scales actually paint, so nothing untested ships.
+ *
+ * All three scales, not two. The file badge is the one that is easy to
+ * forget: it has no test of its own, and while it was left out, the contrast,
+ * bridge and dot guards below simply did not run on any tone only it paints.
+ */
 const TONES_IN_USE: StatusTone[] = (() => {
   const seen = new Map<string, StatusTone>();
+  const add = (tone: StatusTone) => seen.set(`${tone.hue}:${tone.weight}`, tone);
+
   for (const status of Object.values(TaskStatus)) {
-    const { tone } = getTaskStatusMarker(status);
-    seen.set(`${tone.hue}:${tone.weight}`, tone);
+    add(getTaskStatusMarker(status).tone);
   }
   for (const status of Object.values(SokosumiJobStatus)) {
-    const { tone } = getJobStatusMarker(status);
-    seen.set(`${tone.hue}:${tone.weight}`, tone);
+    add(getJobStatusMarker(status).tone);
+  }
+  for (const spec of Object.values(FILE_STATUS_MARKERS)) {
+    add(spec.tone);
   }
   return [...seen.values()];
 })();
@@ -160,6 +170,17 @@ describe("hue follows the board column", () => {
           status as TaskStatus,
         ),
       );
+
+      // `done` is not in COLUMN_HUE, so without this an exception listed for
+      // COMPLETED, FAILED or CANCELED would compare against undefined and
+      // pass unconditionally: the allowlist outliving what it excuses, which
+      // is the one thing this test exists to stop.
+      expect(columnId, `${status} is in no column`).toBeDefined();
+      expect(
+        COLUMN_HUE[columnId ?? ""],
+        `${columnId} has no hue to differ from; only a single-hue column can` +
+          ` carry an exception`,
+      ).toBeDefined();
 
       expect(getTaskStatusMarker(status as TaskStatus).tone.hue).toBe(hue);
       expect(hue, `${status} no longer differs from its column`).not.toBe(
@@ -437,31 +458,28 @@ describe("StatusMarker", () => {
 
   /**
    * A stopped `LoaderCircle` is an arc with a gap in it and nothing else: the
-   * glyph means motion, so frozen it reads as a rendering fault. A marker that
-   * is not live therefore drops the glyph rather than holding it still.
+   * glyph means motion, so frozen it reads as a rendering fault. That is a
+   * reason to stop the spin on a surface that is not live, and it was once
+   * taken as a reason to drop the glyph there and draw a dot instead.
+   *
+   * Dropping it broke the status picker, the only caller that passes
+   * `live={false}`: five statuses share the `blocked` hue, so its marker
+   * column became five identical dots. `live` now gates the spin and nothing
+   * else, and a surface that wants a dot draws its own.
    */
   it.each([TaskStatus.RUNNING, TaskStatus.FAILED])(
-    "draws %s as a dot instead of a glyph when it is not live",
+    "keeps the %s glyph when it is not live, and stops the spin",
     (status) => {
       const spec = getTaskStatusMarker(status);
       const { container } = render(<StatusMarker spec={spec} live={false} />);
+      const svg = container.querySelector("svg");
 
-      expect(container.querySelector("svg")).toBeNull();
-      // `dot`, not `mark`. For FAILED they differ: the mark is the near-white
-      // label the solid fill carries, which measures 1.06:1 on the card.
-      expect(container.querySelector("span")).toHaveClass(
-        "rounded-full",
-        getToneStyle(spec.tone).dot,
-      );
+      expect(svg).not.toBeNull();
+      expect(svg).not.toHaveClass("animate-spin");
     },
   );
 
-  /**
-   * A glyph override arrives as a text colour, because it is written for an
-   * svg. Passed through to a filled dot it would paint nothing, so the dot
-   * branch converts it.
-   */
-  it("converts a glyph colour override into a dot fill", () => {
+  it("paints a non-live glyph with the caller's colour override", () => {
     const { container } = render(
       <StatusMarker
         spec={getTaskStatusMarker(TaskStatus.RUNNING)}
@@ -470,8 +488,8 @@ describe("StatusMarker", () => {
       />,
     );
 
-    expect(container.querySelector("span")).toHaveClass(
-      "bg-primary-foreground",
+    expect(container.querySelector("svg")).toHaveClass(
+      "text-primary-foreground",
     );
   });
 });
