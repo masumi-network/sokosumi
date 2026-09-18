@@ -281,7 +281,7 @@ function HarnessWithComposer({
       >
         <div {...{ [CHAT_MESSAGE_LIST_ATTRIBUTE]: CHAT_MESSAGE_LIST_ROOM }}>
           <TranscriptViewport
-            ref={createRef<TranscriptViewportHandle>()}
+            ref={null}
             scroller={scroller}
             rows={rows}
             renderRow={renderRow}
@@ -377,6 +377,24 @@ describe("TranscriptViewport", () => {
     expect(document.activeElement).toBe(editor);
 
     fireEvent.touchMove(editor);
+
+    expect(document.activeElement).toBe(editor);
+  });
+
+  it("leaves an in-row editor focused when the drag is elsewhere in the transcript", async () => {
+    const { container } = render(
+      <HarnessWithComposer rows={rows(80)} editorInsideScroller />,
+    );
+    await settle(container);
+    const editor = container.querySelector<HTMLElement>(
+      '[data-testid="editor"]',
+    );
+    editor?.focus();
+    expect(document.activeElement).toBe(editor);
+
+    // Scrolling back to re-read the conversation mid-edit: the edit stays
+    // open, and `MessageEditComposer`'s blur does not cancel it.
+    fireEvent.touchMove(scrollerOf(container));
 
     expect(document.activeElement).toBe(editor);
   });

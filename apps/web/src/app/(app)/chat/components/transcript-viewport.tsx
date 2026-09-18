@@ -42,7 +42,8 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 const OVERSCAN_ROWS = { above: 30, below: 8 };
 
 /**
- * The composer's editor, blurred when the reader drags the transcript.
+ * A rich-text editor. The one below the transcript is blurred when the
+ * reader drags it; the ones inside it (in-row message edit) are left alone.
  * Matched by attribute rather than `isContentEditable` so the rule is the
  * markup React writes.
  */
@@ -474,19 +475,18 @@ export function TranscriptViewport({
     // gets out of the way. On `touchmove` rather than `scroll`: closing the
     // keyboard resizes the viewport, which scrolls a bottom-anchored
     // scroller, which would blur again on every keyboard open.
-    const onTouchMove = (event: TouchEvent) => {
+    const onTouchMove = () => {
       const active = document.activeElement;
+      // Only the composer below the transcript. An editor inside the
+      // scroller is an in-row message edit, and scrolling back through the
+      // conversation is part of writing that edit, not a reason to end it.
       if (
-        !(active instanceof HTMLElement) ||
-        !active.matches(EDITOR_SELECTOR)
+        active instanceof HTMLElement &&
+        active.matches(EDITOR_SELECTOR) &&
+        !scroller.contains(active)
       ) {
-        return;
+        active.blur();
       }
-      // Message edit lives in the scroller. A drag on the editor is typing.
-      if (event.target instanceof Node && active.contains(event.target)) {
-        return;
-      }
-      active.blur();
     };
     const onTouchEnd = () => {
       window.clearTimeout(grace);
