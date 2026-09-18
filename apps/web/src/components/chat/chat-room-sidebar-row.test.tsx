@@ -723,6 +723,9 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
   // the name 8px clear of the `…`. A row that shows something at rest holds it
   // open in every state; a plain row opens it with the button.
   const GLYPH_HOLE = "[@media(hover:hover)]:size-4";
+  // Touch shows the badge or the bell beside the menu, so the hole holds two
+  // 32px boxes. The badge rides the bell's box, so one width serves both.
+  const BADGE_AND_CONTROL_HOLE_TOUCH = "[@media(hover:none)]:w-16";
   const NO_HOLE = "[@media(hover:hover)]:size-0";
   const HOLE_ON_INTERACTION = [
     "[@media(hover:hover)]:group-hover/room-row:size-4",
@@ -766,6 +769,7 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
     },
   );
 
+  // The other half of the badge rule: no badge, no hole, full name width.
   it("keeps a plain row's full name width at rest and opens the hole with the button", () => {
     const { container } = render(
       <ChatRoomSidebarRow
@@ -823,11 +827,17 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
     );
   });
 
+  // The badge stands in the menu's column and is out of flow, so the hole is
+  // the only thing keeping the name off it. A badged row therefore holds the
+  // hole open in every state, like a muted row and the open room: the name is
+  // shortened once, by the hole the badge and the menu share, and it does not
+  // move when they swap. It fails if a badged row ever rests at `size-0`,
+  // which would run the name and its count under the badge.
   it.each([
     ["pinned", new Date("2026-09-01T00:00:00.000Z")],
     ["unpinned", null],
   ])(
-    "holds one spacer width on a %s row with a mention badge, so the badge sits beside the menu and never moves",
+    "shortens a %s row's name for its mention badge and holds it there",
     (_state, starredAt) => {
       const { container } = render(
         <ChatRoomSidebarRow
@@ -844,18 +854,143 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
         />,
       );
 
-      const tokens =
-        container
-          .querySelector('[data-slot="room-trailing-spacer"]')
-          ?.className.split(" ") ?? [];
-      expect(tokens).toContain("[@media(hover:hover)]:size-3");
-      expect(tokens).not.toContain(GLYPH_HOLE);
+      const tokens = spacerTokens(container);
+      expect(tokens).toContain(GLYPH_HOLE);
       expect(tokens).not.toContain(NO_HOLE);
+      // Nothing widens it further, so the crossfade moves no text.
       for (const token of HOLE_ON_INTERACTION) {
         expect(tokens).not.toContain(token);
       }
+      // Touch has no hover, so the badge stays in flow beside the menu there
+      // and the hole holds both.
+      expect(tokens).toContain(BADGE_AND_CONTROL_HOLE_TOUCH);
     },
   );
+
+  // Reorder mode's handle never fades, so there is nothing to crossfade with
+  // and the badge stays in flow beside it.
+  it("holds a badge and the reorder handle side by side", () => {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom({
+          starredAt: new Date("2026-09-01T00:00:00.000Z"),
+          unreadCount: 2,
+          unreadMentionCount: 2,
+        })}
+        href="/chat/rooms/room-1"
+        label="Patrick Tobler"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+        reorderHandle={<button type="button">grip</button>}
+      />,
+    );
+
+    const tokens = spacerTokens(container);
+    expect(tokens).toContain("[@media(hover:hover)]:w-16");
+    expect(tokens).not.toContain(GLYPH_HOLE);
+    expect(tokens).not.toContain(NO_HOLE);
+    expect(
+      container
+        .querySelector('[data-slot="room-mention-badge"]')
+        ?.className.split(" "),
+    ).not.toContain("[@media(hover:hover)]:absolute");
+  });
+});
+
+// The badge shares the room menu's column and fades out as the menu fades in,
+// which is what frees the width the name gets back. The number itself is
+// decoration outside the link; `MentionAnnouncement` carries it to the reader.
+describe("ChatRoomSidebarRow mention badge", () => {
+  function renderBadgedRow(props?: { reorderHandle?: React.ReactNode }) {
+    return render(
+      <ChatRoomSidebarRow
+        room={makeRoom({ unreadCount: 3, unreadMentionCount: 2 })}
+        href="/chat/rooms/room-1"
+        label="Patrick Tobler"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+        reorderHandle={props?.reorderHandle}
+      />,
+    );
+  }
+
+  it("draws the badge in the menu's column, not in the link", () => {
+    const { container } = renderBadgedRow();
+
+    const badge = container.querySelector('[data-slot="room-mention-badge"]');
+    expect(badge?.textContent).toBe("2");
+    expect(
+      container.querySelector('[data-slot="room-trailing"]')?.contains(badge),
+    ).toBe(true);
+    expect(screen.getByRole("link").contains(badge)).toBe(false);
+    // It never eats the menu button it covers at rest.
+    expect(badge?.className.split(" ")).toContain("pointer-events-none");
+  });
+
+  it("fades the badge out on hover, focus and menu-open", () => {
+    const { container } = renderBadgedRow();
+
+    const tokens =
+      container
+        .querySelector('[data-slot="room-mention-badge"]')
+        ?.className.split(" ") ?? [];
+    expect(tokens).toContain("[@media(hover:hover)]:absolute");
+    for (const token of [
+      "[@media(hover:hover)]:group-hover/room-row:opacity-0",
+      "[@media(hover:hover)]:group-focus-within/room-row:opacity-0",
+      "group-has-[[data-state=open]]/room-row:opacity-0",
+    ]) {
+      expect(tokens).toContain(token);
+    }
+    // The swap reads as one move, and stills for a reader who asked for that.
+    expect(tokens).toContain("motion-safe:transition-opacity");
+  });
+
+  it("fades the menu button in on the same terms", () => {
+    renderBadgedRow();
+
+    const tokens = screen
+      .getByRole("button", { name: "Chat actions for Patrick Tobler" })
+      .className.split(" ");
+    expect(tokens).toContain("motion-safe:transition-opacity");
+    expect(tokens).toContain("[@media(hover:hover)]:opacity-0");
+    for (const token of [
+      "[@media(hover:hover)]:group-hover/room-row:opacity-100",
+      // Tabbing to the row reveals the menu, so it stays a keyboard target on
+      // the same terms that fade the badge out.
+      "[@media(hover:hover)]:group-focus-within/room-row:opacity-100",
+      "data-[state=open]:opacity-100",
+    ]) {
+      expect(tokens).toContain(token);
+    }
+  });
+
+  // The pill's width is a count, so positioning it by its own edge centres `2`
+  // and leaves `99+` off-centre against the name. It rides the bell's box.
+  it("centres the pill in the same box the muted bell uses", () => {
+    const { container } = renderBadgedRow();
+
+    const badge = container.querySelector('[data-slot="room-mention-badge"]');
+    const tokens = badge?.className.split(" ") ?? [];
+    expect(tokens).toContain("size-8");
+    expect(tokens).toContain("md:size-7");
+    expect(tokens).toContain("[@media(hover:hover)]:right-0");
+    expect(tokens).not.toContain("[@media(hover:hover)]:right-1");
+    // The pill is the inner element, so the box's width is not its width.
+    expect(badge?.firstElementChild?.className).toContain("rounded-full");
+  });
+
+  // The badge is `aria-hidden` outside the link, so losing the announcement
+  // would leave a screen reader with no mention at all on the row.
+  it("keeps the mention in the link's accessible name", () => {
+    renderBadgedRow();
+
+    const announcement = screen.getByText("2 mentions");
+    expect(announcement.className).toContain("sr-only");
+    expect(screen.getByRole("link").contains(announcement)).toBe(true);
+  });
 });
 
 describe("ChatRoomSidebarRow reorder mode", () => {
@@ -1271,11 +1406,14 @@ describe("ChatRoomSidebarRow unread message count", () => {
   it("hides the count with the mention badge when the sidebar collapses", () => {
     renderRow(makeRoom({ unreadCount: 4, unreadMentionCount: 2 }));
 
-    for (const text of ["4 unread messages", "2 mentions"]) {
-      expect(screen.getByText(text).parentElement?.className).toContain(
-        "group-data-[collapsible=icon]:hidden",
-      );
-    }
+    // The count is a visible span wrapping its own announcement, so the rule
+    // sits on the parent there. The mention is announcement only.
+    expect(
+      screen.getByText("4 unread messages").parentElement?.className,
+    ).toContain("group-data-[collapsible=icon]:hidden");
+    expect(screen.getByText("2 mentions").className).toContain(
+      "group-data-[collapsible=icon]:hidden",
+    );
   });
 
   // The regression guard: a mention and unread messages on one row, each
@@ -1284,7 +1422,10 @@ describe("ChatRoomSidebarRow unread message count", () => {
     renderRow(makeRoom({ unreadCount: 9, unreadMentionCount: 2 }));
 
     expect(screen.getByText("2 mentions")).toBeInTheDocument();
-    expect(screen.getByText("2")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText("2").closest("[aria-hidden]")).toHaveAttribute(
+      "data-slot",
+      "room-mention-badge",
+    );
     expect(screen.getByText("9 unread messages")).toBeInTheDocument();
     expect(screen.getByText("· 9")).toHaveAttribute("aria-hidden", "true");
   });
@@ -1302,7 +1443,10 @@ describe("ChatRoomSidebarRow unread message count", () => {
   it("caps the mention badge at the same ceiling as the message count", () => {
     renderRow(makeRoom({ unreadCount: 1234, unreadMentionCount: 1234 }));
 
-    expect(screen.getByText("99+")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText("99+").closest("[aria-hidden]")).toHaveAttribute(
+      "data-slot",
+      "room-mention-badge",
+    );
     expect(screen.getByText("· 99+")).toHaveAttribute("aria-hidden", "true");
     expect(screen.getByText("More than 99 mentions")).toBeInTheDocument();
     expect(screen.getByText("More than 99 unread messages")).toBeVisible();
