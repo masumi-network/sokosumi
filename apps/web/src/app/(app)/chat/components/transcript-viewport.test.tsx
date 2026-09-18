@@ -263,10 +263,15 @@ function Harness({
 /** The shell's part plus a composer editor, to watch the keyboard close. */
 function HarnessWithComposer({
   rows,
+  editorInsideScroller = false,
 }: {
   rows: readonly RoomTranscriptRenderRow[];
+  editorInsideScroller?: boolean;
 }) {
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
+  const editor = (
+    <div contentEditable data-testid="editor" role="textbox" tabIndex={0} />
+  );
   return (
     <>
       <div
@@ -283,8 +288,9 @@ function HarnessWithComposer({
             holdOffBottom={false}
           />
         </div>
+        {editorInsideScroller ? editor : null}
       </div>
-      <div contentEditable data-testid="editor" role="textbox" tabIndex={0} />
+      {editorInsideScroller ? null : editor}
     </>
   );
 }
@@ -352,6 +358,25 @@ describe("TranscriptViewport", () => {
     const scroller = scrollerOf(container);
     fireEvent.touchStart(scroller);
     fireEvent.touchEnd(scroller);
+
+    expect(document.activeElement).toBe(editor);
+  });
+
+  it("leaves an in-row editor focused when the drag is on the editor", async () => {
+    const { container } = render(
+      <HarnessWithComposer rows={rows(80)} editorInsideScroller />,
+    );
+    await settle(container);
+    const editor = container.querySelector<HTMLElement>(
+      '[data-testid="editor"]',
+    );
+    if (!editor) {
+      throw new Error("expected the editor");
+    }
+    editor.focus();
+    expect(document.activeElement).toBe(editor);
+
+    fireEvent.touchMove(editor);
 
     expect(document.activeElement).toBe(editor);
   });

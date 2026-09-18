@@ -474,11 +474,19 @@ export function TranscriptViewport({
     // gets out of the way. On `touchmove` rather than `scroll`: closing the
     // keyboard resizes the viewport, which scrolls a bottom-anchored
     // scroller, which would blur again on every keyboard open.
-    const onTouchMove = () => {
+    const onTouchMove = (event: TouchEvent) => {
       const active = document.activeElement;
-      if (active instanceof HTMLElement && active.matches(EDITOR_SELECTOR)) {
-        active.blur();
+      if (
+        !(active instanceof HTMLElement) ||
+        !active.matches(EDITOR_SELECTOR)
+      ) {
+        return;
       }
+      // Message edit lives in the scroller. A drag on the editor is typing.
+      if (event.target instanceof Node && active.contains(event.target)) {
+        return;
+      }
+      active.blur();
     };
     const onTouchEnd = () => {
       window.clearTimeout(grace);
