@@ -10,6 +10,8 @@ struct SettingsView: View {
   @EnvironmentObject private var workspaces: WorkspaceState
   @AppStorage(TimeFormatPreference.defaultsKey) private var timeFormat: TimeFormatPreference = .auto
   @State private var saveError: String?
+  /// The tapped value until the coordinator's optimistic flip lands, so the switch never snaps back for a frame.
+  @State private var pendingRoomUnreadCount: Bool?
 
   var body: some View {
     Form {
@@ -58,9 +60,12 @@ struct SettingsView: View {
   /// value back when Core rejects the write (web `handleToggle`).
   private var showsRoomUnreadCount: Binding<Bool> {
     Binding {
-      workspaces.chatDisplay.showsRoomUnreadCount
+      pendingRoomUnreadCount ?? workspaces.chatDisplay.showsRoomUnreadCount
     } set: { enabled in
+      pendingRoomUnreadCount = enabled
       Task { @MainActor in
+        // From here the model holds the value: optimistic on success, rolled back on failure.
+        defer { pendingRoomUnreadCount = nil }
         saveError = nil
         do {
           try await workspaces.setShowsRoomUnreadCount(enabled, auth: auth)
