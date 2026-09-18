@@ -78,8 +78,10 @@ vi.mock("@/components/ui/sidebar", async () => ({
       </span>
     </>
   ),
-  SidebarMenuItem: ({ children }: { children: React.ReactNode }) => (
-    <li>{children}</li>
+  // Props ride through: the separator item states on its own `<li>` whether
+  // it survives the collapse to the rail.
+  SidebarMenuItem: ({ children, ...props }: { children: React.ReactNode }) => (
+    <li {...props}>{children}</li>
   ),
   // A marker, not the real bar: how it looks belongs to the primitive that
   // owns it, and `ui/__tests__/sidebar-rail-selection.test.tsx` pins that.
@@ -267,6 +269,23 @@ describe("MenuItems search action", () => {
 
     expect(positions.every((position) => position >= 0)).toBe(true);
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+  });
+
+  it("keeps the separator under New Task on the collapsed rail", () => {
+    const { container } = render(<MenuItems calendarMenuEnabled={false} />);
+    const separator = container.querySelector('li[aria-hidden="true"]');
+
+    // The one action set apart from the destinations under it. It used to be
+    // expanded-only, which made it 17px the rail did not have, so everything
+    // below New Task jumped on a toggle. It is not the hairline between chat
+    // sections that the Rail section header entry rules out (CONTEXT.md).
+    expect(separator).not.toBeNull();
+    expect(separator?.className.split(/\s+/)).not.toContain(
+      "group-data-[collapsible=icon]:hidden",
+    );
+    expect(separator?.firstElementChild?.className.split(/\s+/)).toContain(
+      "bg-sidebar-border",
+    );
   });
 
   it("leaves only the icon in the flow on the collapsed rail, so the square centres it", () => {

@@ -11,17 +11,20 @@ import { OrganizationChatList } from "../organization-chat-list.client";
 const {
   acceptInvitationMock,
   listRoomsMock,
+  listArchivedMock,
   listPendingMock,
   reorderPinnedMock,
 } = vi.hoisted(() => ({
   acceptInvitationMock: vi.fn(),
   listRoomsMock: vi.fn(),
+  listArchivedMock: vi.fn(),
   listPendingMock: vi.fn(),
   reorderPinnedMock: vi.fn(),
 }));
 
 export {
   acceptInvitationMock,
+  listArchivedMock,
   listPendingMock,
   listRoomsMock,
   reorderPinnedMock,
@@ -143,7 +146,10 @@ vi.mock("../fetch-sidebar-room-collection", () => ({
         ? await listRoomsMock()
         : collection === "invitations"
           ? await listPendingMock()
-          : { ok: true, value: { rooms: [], nextCursor: null } };
+          : ((await listArchivedMock()) ?? {
+              ok: true,
+              value: { rooms: [], nextCursor: null },
+            });
     return result.ok ? result.value : null;
   },
 }));
@@ -174,6 +180,9 @@ vi.mock("@/components/ui/sidebar", async () => ({
   SidebarMenuItem: ({ children }: { children: ReactNode }) => (
     <li>{children}</li>
   ),
+  // The list reads it to expand the sidebar from Archived's rail square;
+  // there is no provider around these renders.
+  useSidebar: () => ({ setOpen: vi.fn() }),
 }));
 
 vi.mock("@/components/ui/alert-dialog", () => ({
@@ -289,9 +298,11 @@ export function makeInvitation(
 export function resetOrganizationChatListMocks() {
   acceptInvitationMock.mockReset();
   listRoomsMock.mockReset();
+  listArchivedMock.mockReset();
   listPendingMock.mockReset();
   reorderPinnedMock.mockReset();
   listRoomsMock.mockResolvedValue(emptyListResult());
+  listArchivedMock.mockResolvedValue(emptyListResult());
   listPendingMock.mockResolvedValue({ ok: true, value: [] });
   acceptInvitationMock.mockResolvedValue({
     ok: true,

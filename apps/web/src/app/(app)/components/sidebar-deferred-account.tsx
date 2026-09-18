@@ -4,8 +4,10 @@ import { resolveAccountNotice } from "@/app/components/account-notice-state";
 import { mapAccountCreditsChrome } from "@/app/components/sidebar";
 import { SidebarAccountChip } from "@/app/components/sidebar/components/sidebar-account-chip.client";
 import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-vendor-admin-access";
+import { SIDEBAR_RAIL_SQUARE_CLASS } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getEnvPublicConfig } from "@/config/env.public";
+import { cn } from "@/lib/utils";
 import { resolvePlanName } from "@/lib/utils/plan-label";
 
 import {
@@ -81,7 +83,10 @@ export default async function SidebarDeferredAccount({
 export function SidebarAccountChipFallback() {
   return (
     <div
-      className="flex w-full items-center gap-2.5 p-2 pl-1 group-data-[collapsible=icon]:ml-1 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0"
+      className={cn(
+        SIDEBAR_RAIL_SQUARE_CLASS,
+        "flex w-full items-center gap-2.5 p-2 pl-1 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:p-0",
+      )}
       aria-hidden
     >
       {/* Rail size tracks SidebarAccountChip, so the avatar does not go

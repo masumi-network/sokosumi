@@ -134,7 +134,8 @@ describe("AppSidebarFallback", () => {
     // 28px leading axis (`ml-1`) every real row uses there.
     expect(tokens(header?.className ?? "")).toEqual(
       expect.arrayContaining([
-        "group-data-[collapsible=icon]:size-8",
+        "md:h-8",
+        "group-data-[collapsible=icon]:w-8!",
         "group-data-[collapsible=icon]:ml-1",
         "group-data-[collapsible=icon]:justify-center",
       ]),
@@ -150,7 +151,7 @@ describe("AppSidebarFallback", () => {
         "md:h-8",
         "px-2",
         "gap-2",
-        "group-data-[collapsible=icon]:w-8",
+        "group-data-[collapsible=icon]:w-8!",
         "group-data-[collapsible=icon]:ml-1",
         "group-data-[collapsible=icon]:justify-center",
         "group-data-[collapsible=icon]:px-0",

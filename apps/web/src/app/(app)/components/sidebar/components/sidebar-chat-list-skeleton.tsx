@@ -1,4 +1,6 @@
 import {
+  SIDEBAR_RAIL_SQUARE_CLASS,
+  SIDEBAR_ROW_CLASS,
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
@@ -31,7 +33,13 @@ export function SidebarChatListSkeleton() {
       <SidebarGroupContent className="space-y-2">
         {/* `ChatSidebarSectionHeader`'s box: a titled row expanded, the
             section's 32px icon square on the rail. */}
-        <div className="flex h-11 items-center gap-2 px-2 md:h-8 group-data-[collapsible=icon]:ml-1 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+        <div
+          className={cn(
+            SIDEBAR_ROW_CLASS,
+            SIDEBAR_RAIL_SQUARE_CLASS,
+            "group-data-[collapsible=icon]:px-0",
+          )}
+        >
           <SidebarRowSlot>
             <Skeleton className="size-4 md:size-3 group-data-[collapsible=icon]:size-4" />
           </SidebarRowSlot>
@@ -40,11 +48,15 @@ export function SidebarChatListSkeleton() {
         <SidebarMenu className="gap-0">
           {ROOM_NAME_WIDTHS.map((nameWidth) => (
             <SidebarMenuItem key={nameWidth}>
-              {/* `sidebarMenuButtonVariants`' geometry, by hand: a 44px row
-                  below `md`, 32px above it and on the rail alike, and the
-                  rail's `ml-1` rather than `mx-auto`, so the mark lands on
-                  the same 28px axis the real rows use in both states. */}
-              <div className="flex h-11 w-full items-center gap-2 px-2 md:h-8 group-data-[collapsible=icon]:ml-1 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+              {/* The row shape a real row takes from the primitive, so the
+                  skeleton cannot drift from the list it stands in for. */}
+              <div
+                className={cn(
+                  SIDEBAR_ROW_CLASS,
+                  SIDEBAR_RAIL_SQUARE_CLASS,
+                  "group-data-[collapsible=icon]:px-0",
+                )}
+              >
                 <SidebarRowSlot>
                   {/* The 24px Channel tile, which is what a room row's mark is
                       in both states. */}

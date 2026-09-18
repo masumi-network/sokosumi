@@ -53,8 +53,6 @@ export function ChannelDiscoverabilityIcon({
   className,
   ...props
 }: ChannelDiscoverabilityIconProps) {
-  const Icon = channelKindIcon(discoverability) ?? Hash;
-
   return (
     <span
       className={cn(
@@ -64,7 +62,11 @@ export function ChannelDiscoverabilityIcon({
       {...props}
       aria-hidden
     >
-      <Icon />
+      {/* The box sizes the glyph, so it brings no size of its own. */}
+      <ChannelKindGlyph
+        discoverability={discoverability}
+        className="size-auto"
+      />
     </span>
   );
 }

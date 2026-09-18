@@ -124,3 +124,79 @@ describe("ChatSidebarSectionHeader on the collapsed rail", () => {
     expect(railHeader(container)).toBeNull();
   });
 });
+
+/**
+ * Archived is the one section whose rows never reach the rail: they are
+ * static, and Restore and Delete live in a menu no 32px square has room for
+ * (Rail actions, CONTEXT.md). Its square still stands where its heading
+ * stands, so the Direct Messages under it keep their place on a toggle — and
+ * pressing it expands the sidebar to where those rows are, the way a pending
+ * invitation's tile does, rather than dimming a square over nothing.
+ */
+describe("ChatSidebarSectionHeader rail square that expands the sidebar", () => {
+  function ExpandingSection({ onRailPress }: { onRailPress: () => void }) {
+    const [open, setOpen] = useState(false);
+
+    return (
+      <SidebarProvider defaultOpen={false}>
+        <Sidebar collapsible="icon">
+          <SidebarContent>
+            <Collapsible open={open} onOpenChange={setOpen}>
+              <ChatSidebarSectionHeader
+                isOpen={open}
+                railIcon={Hash}
+                onRailPress={onRailPress}
+              >
+                Archived channels
+              </ChatSidebarSectionHeader>
+              <CollapsibleContent>rooms</CollapsibleContent>
+            </Collapsible>
+          </SidebarContent>
+        </Sidebar>
+      </SidebarProvider>
+    );
+  }
+
+  it("runs the caller's press instead of toggling the section in place", () => {
+    const onRailPress = vi.fn();
+    const { container } = render(
+      <ExpandingSection onRailPress={onRailPress} />,
+    );
+    const square = railHeader(container)?.querySelector("button");
+
+    expect(square).not.toBeNull();
+    // Not a `CollapsibleTrigger`: opening in place would dim the square and
+    // show nothing, because the rows are hidden on the rail either way. The
+    // `aria-controls` a trigger carries is how that shows; the `data-state`
+    // on this button is the tooltip trigger's, not the collapsible's.
+    expect(square?.getAttribute("aria-controls")).toBeNull();
+
+    fireEvent.click(square as HTMLButtonElement);
+    expect(onRailPress).toHaveBeenCalledTimes(1);
+    // The section is the caller's to open, not this button's.
+    expect(screen.queryByText("rooms")).toBeNull();
+  });
+
+  it("moves focus to the expanded heading, which the press has just revealed", () => {
+    const { container } = render(<ExpandingSection onRailPress={vi.fn()} />);
+    const square = railHeader(container)?.querySelector("button");
+
+    fireEvent.click(square as HTMLButtonElement);
+
+    // The square the reader pressed is `display: none` once the sidebar
+    // expands, and a hidden button drops a keyboard reader on the body.
+    expect(document.activeElement).toBe(
+      container.querySelector('[data-slot="collapsible-trigger"]'),
+    );
+  });
+
+  it("keeps the shared slot and the section's name on the square", () => {
+    const { container } = render(<ExpandingSection onRailPress={vi.fn()} />);
+    const square = railHeader(container)?.querySelector("button");
+
+    expect(
+      square?.querySelector('[data-slot="sidebar-row-slot"]'),
+    ).not.toBeNull();
+    expect(square?.textContent).toContain("Archived channels");
+  });
+});

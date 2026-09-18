@@ -14,24 +14,17 @@ import PersonalAssistantNavClient, {
  */
 async function loadWorkspaceBot(): Promise<SidebarSokoBotAvatar | null> {
   try {
-    const team = await sokoBotService.getTeam();
-    return (
-      team.members
-        .flatMap((member) =>
-          member.bot
-            ? [
-                {
-                  isYou: member.isYou,
-                  id: member.bot.id,
-                  imageUrl: member.bot.avatarImageUrl,
-                  seed: member.bot.avatarSeed ?? defaultOrbSeed(member.userId),
-                },
-              ]
-            : [],
-        )
-        .sort((a, b) => Number(b.isYou) - Number(a.isYou))
-        .map(({ isYou: _isYou, ...bot }) => bot)[0] ?? null
-    );
+    const { members } = await sokoBotService.getTeam();
+    const withBot = members.filter((member) => member.bot);
+    const member = withBot.find(({ isYou }) => isYou) ?? withBot[0];
+    if (!member?.bot) {
+      return null;
+    }
+    return {
+      id: member.bot.id,
+      imageUrl: member.bot.avatarImageUrl,
+      seed: member.bot.avatarSeed ?? defaultOrbSeed(member.userId),
+    };
   } catch {
     return null;
   }

@@ -450,23 +450,53 @@ function SidebarRowSlot({ className, ...props }: React.ComponentProps<"span">) {
 }
 
 /**
- * A **Sidebar row** (CONTEXT.md): one height in both states, its leading mark
- * in `SidebarRowSlot`, its label on the 48px column.
+ * The shape of a **Sidebar row** (CONTEXT.md), for the few places that cannot
+ * be a `SidebarMenuButton` — a section's titled heading, an archived room's
+ * static row, the loading skeleton. They are not buttons, but they stand in
+ * the same list, so the rule that keeps rows from moving has to reach them.
  *
- * `h-11 md:h-8` is the whole vertical rule. The row used to be a 40px
+ * `h-11 md:h-8` is the whole vertical half of it. The row used to be a 40px
  * minimum expanded and a 32px square on the rail, so every row above the
  * first Chat room pushed the list down when the sidebar toggled; the rail's
  * square is the size that stays. Below `md` the sidebar is a Sheet and never
  * the rail, so a thumb keeps its 44px target there.
  *
- * `px-2` is the horizontal half: it puts the 24px slot 16px in, centred on
- * the 28px axis, and the label at 48px. The rail drops it (`px-0!`) and the
- * 32px square's `ml-1` centres the same slot on the same line — 4px rather
- * than `mx-auto`, because the rail's 1px right border leaves its own centre
- * on a half pixel and the axis has to be a whole one for the panel's sake.
+ * `px-2` with `gap-2` is the horizontal half: it puts the 24px
+ * `SidebarRowSlot` 16px in, centred on the 28px axis, and the label at 48px.
+ */
+const SIDEBAR_ROW_CLASS = "flex h-11 w-full items-center gap-2 px-2 md:h-8";
+
+/**
+ * A rail item's 32px square, on the sidebar's 28px leading axis.
+ *
+ * 4px of its own rather than `mx-auto`: the rail's 1px right border leaves
+ * its own centre on a half pixel, and the axis has to be a whole one for the
+ * expanded panel's sake, so the square gives up half a pixel of its own
+ * symmetry instead. Padding is the caller's — a row drops `px` and keeps its
+ * height, the account chip drops all four.
+ */
+const SIDEBAR_RAIL_SQUARE_CLASS =
+  "group-data-[collapsible=icon]:ml-1 group-data-[collapsible=icon]:w-8! group-data-[collapsible=icon]:justify-center";
+
+/**
+ * Where a row's label starts, for text that carries no mark of its own — a
+ * section's empty line.
+ *
+ * 40px, not 48: measured from the row's own box, which already sits 8px in on
+ * the group's padding. Inside that box a row spends 8px of `px-2`, 24px of
+ * slot and 8px of `gap-2`, which is the same 40px — so the text lands on the
+ * 48px column from the sidebar's edge, where every label starts.
+ */
+const SIDEBAR_ROW_LABEL_INSET_CLASS = "pl-10";
+
+/**
+ * A pressable **Sidebar row** (CONTEXT.md): the row shape above, plus the
+ * rail square and the rest state, hover, focus and selection that go with
+ * being pressable. On the rail it drops its `px` and keeps its height, which
+ * is already the square's 32px at `md` — and the rail exists only at `md`.
  */
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button flex h-11 w-full items-center gap-2 overflow-hidden rounded-md px-2 text-left text-base outline-hidden ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:w-8! group-data-[collapsible=icon]:ml-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0! group-data-[collapsible=icon]:hover:bg-transparent group-data-[collapsible=icon]:hover:ring-sidebar-ring group-data-[collapsible=icon]:hover:ring-1 group-data-[collapsible=icon]:active:bg-transparent group-data-[collapsible=icon]:active:ring-sidebar-ring group-data-[collapsible=icon]:active:ring-2 group-data-[collapsible=icon]:data-[active=true]:bg-transparent md:h-8 md:text-sm [&>span:last-child]:truncate",
+  `peer/menu-button ${SIDEBAR_ROW_CLASS} ${SIDEBAR_RAIL_SQUARE_CLASS} overflow-hidden rounded-md text-left text-base outline-hidden ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:px-0! group-data-[collapsible=icon]:hover:bg-transparent group-data-[collapsible=icon]:hover:ring-sidebar-ring group-data-[collapsible=icon]:hover:ring-1 group-data-[collapsible=icon]:active:bg-transparent group-data-[collapsible=icon]:active:ring-sidebar-ring group-data-[collapsible=icon]:active:ring-2 group-data-[collapsible=icon]:data-[active=true]:bg-transparent md:text-sm [&>span:last-child]:truncate`,
   {
     variants: {
       variant: {
@@ -534,6 +564,9 @@ function SidebarMenuButton({
 }
 
 export {
+  SIDEBAR_RAIL_SQUARE_CLASS,
+  SIDEBAR_ROW_CLASS,
+  SIDEBAR_ROW_LABEL_INSET_CLASS,
   Sidebar,
   SidebarContent,
   SidebarFooter,

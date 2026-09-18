@@ -12,7 +12,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useSidebar } from "@/components/ui/sidebar";
+import { SIDEBAR_RAIL_SQUARE_CLASS, useSidebar } from "@/components/ui/sidebar";
 import {
   Tooltip,
   TooltipContent,
@@ -112,11 +112,16 @@ function SidebarAccountChipDesktop({
         // still sits on the 28px leading axis every row's mark uses, so it
         // shrinks in place when the sidebar collapses instead of sliding 4px.
         "group/chip focus-visible:ring-sidebar-ring hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent flex w-full cursor-pointer items-center gap-2.5 rounded-lg p-2 pl-1 transition-colors focus-visible:ring-2 focus-visible:outline-hidden",
+        // The rail square every item stands on, so the chip's face lands on
+        // the same axis a row's mark does. Its own `h-8!` because the chip is
+        // 48px expanded, and `p-0!` because a 24px face has no room for the
+        // expanded chip's 8px of padding inside a 32px square.
+        SIDEBAR_RAIL_SQUARE_CLASS,
         // Rail language matches `sidebarMenuButtonVariants`: rings on
         // transparent, not a fill. Classes live on the element (not behind
         // JS `isCollapsed`) so the boot-collapsed group and the Suspense
         // swap keep size-6 + rings without a 32px square flash.
-        "group-data-[collapsible=icon]:ring-sidebar-ring group-data-[collapsible=icon]:rounded-md group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:ml-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:hover:bg-transparent group-data-[collapsible=icon]:hover:ring-1 group-data-[collapsible=icon]:data-[state=open]:bg-transparent group-data-[collapsible=icon]:data-[state=open]:ring-2 group-data-[collapsible=icon]:data-[state=open]:hover:ring-2",
+        "group-data-[collapsible=icon]:ring-sidebar-ring group-data-[collapsible=icon]:rounded-md group-data-[collapsible=icon]:h-8! group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:hover:bg-transparent group-data-[collapsible=icon]:hover:ring-1 group-data-[collapsible=icon]:data-[state=open]:bg-transparent group-data-[collapsible=icon]:data-[state=open]:ring-2 group-data-[collapsible=icon]:data-[state=open]:hover:ring-2",
       )}
     >
       <span className="relative shrink-0">

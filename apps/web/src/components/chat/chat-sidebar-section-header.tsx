@@ -2,10 +2,20 @@
 
 import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { ComponentType, ReactNode, SVGProps } from "react";
+import {
+  type ComponentType,
+  type ReactNode,
+  type SVGProps,
+  useRef,
+} from "react";
+import { flushSync } from "react-dom";
 
 import { CollapsibleTrigger } from "@/components/ui/collapsible";
-import { SidebarMenuButton, SidebarRowSlot } from "@/components/ui/sidebar";
+import {
+  SIDEBAR_ROW_CLASS,
+  SidebarMenuButton,
+  SidebarRowSlot,
+} from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { RailAttentionPill } from "./chat-room-sidebar-row";
 import type { SectionAttention } from "./room-attention";
@@ -27,6 +37,14 @@ import type { SectionAttention } from "./room-attention";
  * section ends and the next begins. Both headings are rendered and CSS picks
  * one, the same way a Channel row carries its glyph and its tile.
  *
+ * `onRailPress` is for a section whose rows never reach the rail — Archived,
+ * whose rows are static and carry a Restore menu a 32px square has no room
+ * for. Opening it there would dim a square and show nothing, so its square
+ * expands the sidebar instead, the way a pending invitation's tile does, and
+ * the caller opens the section on the way. Focus follows to the expanded
+ * heading, because the square the reader pressed is gone by then and a
+ * hidden button drops a keyboard reader on the body.
+ *
  * A closed section hides its rooms, and with them whatever they held for the
  * reader. `closedAttention` says so on the heading: the row's own bold on the
  * expanded title, the Rail attention pill beside the rail square. The pill is
@@ -39,6 +57,7 @@ export function ChatSidebarSectionHeader({
   isOpen,
   railIcon: RailIcon,
   closedAttention = null,
+  onRailPress,
   createAction,
   secondaryAction,
 }: {
@@ -47,10 +66,13 @@ export function ChatSidebarSectionHeader({
   isOpen: boolean;
   railIcon?: ComponentType<SVGProps<SVGSVGElement>>;
   closedAttention?: SectionAttention;
+  /** Rail square expands the sidebar and runs this, instead of toggling. */
+  onRailPress?: () => void;
   createAction?: ReactNode;
   secondaryAction?: ReactNode;
 }) {
   const tChannels = useTranslations("App.Channels");
+  const expandedTriggerRef = useRef<HTMLButtonElement>(null);
   const trailingCount = (secondaryAction ? 1 : 0) + (createAction ? 1 : 0);
   const attention = isOpen ? null : closedAttention;
   const attentionLabel =
@@ -60,10 +82,28 @@ export function ChatSidebarSectionHeader({
         ? tChannels("RoomUnread.railUnread")
         : null;
 
+  const railContent = RailIcon ? (
+    <>
+      <SidebarRowSlot>
+        <RailIcon aria-hidden className="size-4" />
+      </SidebarRowSlot>
+      <span className="sr-only">{children}</span>
+      {attentionLabel ? (
+        <span className="sr-only">{attentionLabel}</span>
+      ) : null}
+    </>
+  ) : null;
+
   return (
     <>
-      <div className="group-data-[collapsible=icon]:hidden relative flex h-11 items-center px-2 md:h-8">
+      <div
+        className={cn(
+          SIDEBAR_ROW_CLASS,
+          "group-data-[collapsible=icon]:hidden relative",
+        )}
+      >
         <CollapsibleTrigger
+          ref={expandedTriggerRef}
           className={cn(
             "text-muted-foreground hover:text-foreground ring-sidebar-ring flex h-full min-w-0 flex-1 items-center gap-2 rounded-md text-left text-base font-medium outline-hidden transition-colors focus-visible:ring-2 md:text-xs",
             attention && "text-foreground font-semibold",
@@ -104,21 +144,29 @@ export function ChatSidebarSectionHeader({
         >
           {attention ? <RailAttentionPill variant={attention} /> : null}
           <SidebarMenuButton
-            asChild
+            asChild={!onRailPress}
+            type={onRailPress ? "button" : undefined}
             tooltip={children}
+            onClick={
+              onRailPress
+                ? () => {
+                    // The expanded heading is `display: none` until the
+                    // sidebar commits its new state, so it cannot take focus
+                    // before then.
+                    flushSync(onRailPress);
+                    expandedTriggerRef.current?.focus();
+                  }
+                : undefined
+            }
             // `isOpen`, not `data-[state=closed]`: the tooltip trigger writes
             // its own `data-state` onto this same button and wins.
             className={cn("text-muted-foreground", !isOpen && "opacity-60")}
           >
-            <CollapsibleTrigger>
-              <SidebarRowSlot>
-                <RailIcon aria-hidden className="size-4" />
-              </SidebarRowSlot>
-              <span className="sr-only">{children}</span>
-              {attentionLabel ? (
-                <span className="sr-only">{attentionLabel}</span>
-              ) : null}
-            </CollapsibleTrigger>
+            {onRailPress ? (
+              railContent
+            ) : (
+              <CollapsibleTrigger>{railContent}</CollapsibleTrigger>
+            )}
           </SidebarMenuButton>
         </div>
       ) : null}
