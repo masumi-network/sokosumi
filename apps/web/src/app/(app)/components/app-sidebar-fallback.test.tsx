@@ -84,16 +84,98 @@ describe("AppSidebarFallback", () => {
     const roomList = container.querySelector(
       '[data-slot="sidebar-group"][aria-hidden]',
     );
-    const rows =
-      roomList?.querySelectorAll('[data-slot="sidebar-menu-item"]') ?? [];
+    const menus = [
+      ...(roomList?.querySelectorAll('[data-slot="sidebar-menu"]') ?? []),
+    ];
+    const headers = [
+      ...(roomList?.querySelectorAll(
+        '[data-slot="sidebar-group-content"] > div',
+      ) ?? []),
+    ];
 
-    // Each row is a leading mark plus a name, under a section header that is
-    // its own chevron and label — derived from the rows so adding one does
-    // not mean editing a total here.
-    expect(rows.length).toBeGreaterThan(0);
-    expect(roomList?.querySelectorAll('[data-slot="skeleton"]').length).toBe(
-      rows.length * 2 + 2,
-    );
+    // The two sections every reader has — Channels and Direct Messages —
+    // each a heading of chevron and title over its own menu of rooms.
+    expect(menus).toHaveLength(2);
+    expect(headers).toHaveLength(2);
+    for (const header of headers) {
+      expect(header.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(2);
+    }
+    expect(
+      tokens(
+        headers[0]?.querySelectorAll('[data-slot="skeleton"]')[1]?.className ??
+          "",
+      ),
+    ).toContain("w-16");
+    expect(
+      tokens(
+        headers[1]?.querySelectorAll('[data-slot="skeleton"]')[1]?.className ??
+          "",
+      ),
+    ).toContain("w-24");
+
+    // Channel rows carry both of ChannelRoomMark's shapes. Direct rows carry
+    // one face, except the group row whose second face grows the slot right.
+    const channelRows = [
+      ...(menus[0]?.querySelectorAll('[data-slot="sidebar-menu-item"]') ?? []),
+    ];
+    expect(channelRows).toHaveLength(3);
+    for (const row of channelRows) {
+      const marks = row.querySelectorAll(
+        '[data-slot="sidebar-row-slot"] [data-slot="skeleton"]',
+      );
+      expect(marks).toHaveLength(2);
+      expect(tokens(marks[0]?.className ?? "")).toEqual(
+        expect.arrayContaining([
+          "size-4",
+          "group-data-[collapsible=icon]:hidden",
+        ]),
+      );
+      expect(tokens(marks[1]?.className ?? "")).toEqual(
+        expect.arrayContaining([
+          "size-6",
+          "hidden",
+          "group-data-[collapsible=icon]:block",
+        ]),
+      );
+      expect(
+        row.querySelectorAll(
+          '[data-slot="sidebar-row-slot"] ~ [data-slot="skeleton"]',
+        ),
+      ).toHaveLength(1);
+    }
+
+    const directRows = [
+      ...(menus[1]?.querySelectorAll('[data-slot="sidebar-menu-item"]') ?? []),
+    ];
+    expect(directRows).toHaveLength(3);
+    for (const [rowIndex, row] of directRows.entries()) {
+      const faces = [
+        ...row.querySelectorAll(
+          '[data-slot="sidebar-row-slot"] [data-slot="skeleton"]',
+        ),
+      ];
+      expect(faces).toHaveLength(rowIndex === 1 ? 2 : 1);
+      for (const [faceIndex, face] of faces.entries()) {
+        expect(tokens(face.className)).toEqual(
+          expect.arrayContaining(["size-6", "rounded-full"]),
+        );
+        if (faceIndex > 0) {
+          expect(tokens(face.className)).toEqual(
+            expect.arrayContaining([
+              "-ml-2",
+              "group-data-[collapsible=icon]:hidden",
+            ]),
+          );
+        } else {
+          expect(tokens(face.className)).not.toContain("-ml-2");
+        }
+      }
+      expect(
+        row.querySelectorAll(
+          '[data-slot="sidebar-row-slot"] ~ [data-slot="skeleton"]',
+        ),
+      ).toHaveLength(1);
+    }
 
     // The account chip: an avatar over name and plan lines.
     expect(
@@ -186,7 +268,10 @@ describe("AppSidebarFallback", () => {
     const row = skeleton?.querySelector(
       '[data-slot="sidebar-menu-item"] > div',
     );
-    const name = row?.querySelectorAll('[data-slot="skeleton"]')[1];
+    // The name is the row's own child, not one of the marks inside the slot.
+    const name = row?.querySelector(
+      '[data-slot="sidebar-row-slot"] ~ [data-slot="skeleton"]',
+    );
     const headerName = header?.querySelectorAll('[data-slot="skeleton"]')[1];
 
     // Expanded: the same `px-2` + `gap-2` a real row uses, so the 24px slot
@@ -196,7 +281,7 @@ describe("AppSidebarFallback", () => {
         expect.arrayContaining(["px-2", "gap-2", "h-11", "md:h-8"]),
       );
     }
-    expect(tokens(headerName?.className ?? "")).toContain("w-20");
+    expect(tokens(headerName?.className ?? "")).toContain("w-16");
     expect(tokens(headerName?.className ?? "")).toContain(
       "group-data-[collapsible=icon]:max-w-0",
     );
@@ -209,6 +294,6 @@ describe("AppSidebarFallback", () => {
     expect(tokens(name?.className ?? "")).not.toContain(
       "group-data-[collapsible=icon]:hidden",
     );
-    expect(name?.className).toMatch(/\bw-(16|20|24|28|32)\b/);
+    expect(name?.className).toMatch(/\bw-(14|16|20|24|28|32)\b/);
   });
 });
