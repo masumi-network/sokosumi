@@ -460,7 +460,7 @@ export const chatRoomMessageQuoteSchema = z
     attachment: chatRoomMessageQuoteAttachmentSchema.nullable().optional(),
     roomId: z.string().uuid().optional().openapi({
       description:
-        "Source room of a quote sent to the caller's Self Direct. Absent when the quoted message is in the same room.",
+        "Source room of a message quoted from another room. Absent when the quoted message is in the same room.",
       example: "550e8400-e29b-41d4-a716-446655440000",
     }),
   })
@@ -605,11 +605,16 @@ export const createChatRoomMessageRequestSchema = z
         messageId: z.string().uuid().openapi({
           example: "550e8400-e29b-41d4-a716-446655440000",
         }),
+        roomId: z.string().uuid().optional().openapi({
+          description:
+            "Room the quoted message is in, when it is not this room. User senders only. Allowed when the sender can read that room and every user member of this room is also a member of it; anything else is a 400.",
+          example: "550e8400-e29b-41d4-a716-446655440001",
+        }),
       })
       .optional()
       .openapi({
         description:
-          "Quote another message in the same room. Snapshot is stored in metadata.quote; does not set parentMessageId.",
+          "Quote another message. Snapshot is stored in metadata.quote; does not set parentMessageId.",
       }),
     clientMessageId: z.string().trim().min(1).max(128).optional().openapi({
       description:

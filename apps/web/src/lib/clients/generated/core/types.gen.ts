@@ -2603,7 +2603,7 @@ export type ChatRoomMessageQuote = {
     snippet: string;
     attachment?: ChatRoomMessageQuoteAttachment;
     /**
-     * Source room of a quote sent to the caller's Self Direct. Absent when the quoted message is in the same room.
+     * Source room of a message quoted from another room. Absent when the quoted message is in the same room.
      */
     roomId?: string;
 } | null;
@@ -2802,10 +2802,14 @@ export type CreateChatRoomMessageRequest = {
      */
     parentMessageId?: string;
     /**
-     * Quote another message in the same room. Snapshot is stored in metadata.quote; does not set parentMessageId.
+     * Quote another message. Snapshot is stored in metadata.quote; does not set parentMessageId.
      */
     quote?: {
         messageId: string;
+        /**
+         * Room the quoted message is in, when it is not this room. User senders only. Allowed when the sender can read that room and every user member of this room is also a member of it; anything else is a 400.
+         */
+        roomId?: string;
     };
     /**
      * Opaque client turn id. Retries of the same send reuse this so concurrent or replayed POSTs create at most one row per room (unique on roomId + clientMessageId).

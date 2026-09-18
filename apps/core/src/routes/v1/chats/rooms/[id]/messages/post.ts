@@ -7,7 +7,7 @@ import {
 import { emitChatMentionNotifications } from "@/helpers/chat-mention-notifications";
 import { emitChatRoomMessageCreatedEffects } from "@/helpers/chat-room-message-created-effects";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
-import { conflict } from "@/helpers/error";
+import { badRequest, conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
@@ -36,6 +36,7 @@ import {
   requireChatRoomCoworkerAccess,
   requireChatRoomSokoBotAccess,
   requireChatRoomUserWriteAccess,
+  resolveCrossRoomQuoteSnapshot,
   resolveMentionedCoworkerIds,
   resolveMentionedSokoBotIds,
   resolveMentionedUserIds,
@@ -103,6 +104,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           room.id,
           body.parentMessageId,
         );
+        if (body.quote?.roomId && body.quote.roomId !== room.id) {
+          throw badRequest("Quoted message not found");
+        }
         const quote = await resolveRoomQuoteSnapshot(
           tx,
           room.id,
@@ -279,11 +283,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           room.id,
           body.parentMessageId,
         );
-        const quote = await resolveRoomQuoteSnapshot(
-          tx,
-          room.id,
-          body.quote?.messageId,
-        );
+        const quote =
+          body.quote?.roomId && body.quote.roomId !== room.id
+            ? await resolveCrossRoomQuoteSnapshot(tx, {
+                sourceRoomId: body.quote.roomId,
+                quoteMessageId: body.quote.messageId,
+                senderUserId: userContext.userId,
+                targetMemberUserIds: room.userMembers.map(
+                  (member) => member.userId,
+                ),
+              })
+            : await resolveRoomQuoteSnapshot(
+                tx,
+                room.id,
+                body.quote?.messageId,
+              );
         const metadata = mergeChatRoomMessageMetadata(
           clientId ? { client_message_id: clientId } : null,
           quote,
