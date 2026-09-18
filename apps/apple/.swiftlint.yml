@@ -40,3 +40,16 @@ included:
 excluded:
   # SwiftPM build output and fetched dependencies, when present locally.
   - Packages/*/.build
+
+custom_rules:
+  # A test that reads its fixture from the source tree needs the checkout to sit
+  # at the compile-time path when it runs. Xcode Cloud's test machine does not,
+  # and neither `swift test` nor GitHub Actions can notice, so the failure only
+  # ever shows up eight minutes into CI. Declare the file under `resources:` in
+  # Package.swift and read it from `Bundle.module` instead.
+  source_relative_fixture:
+    name: "Source-relative fixture"
+    regex: 'URL\(fileURLWithPath:\s*#filePath\)'
+    message: "Read test fixtures from Bundle.module, not the source tree. Declare the file under resources: in Package.swift."
+    severity: error
+    included: ".*/Tests/.*\\.swift"
