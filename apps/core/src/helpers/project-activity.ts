@@ -108,7 +108,7 @@ export function projectActivityPageQuery({
       UNION ALL
       SELECT j."projectId", GREATEST(j."createdAt",
         (SELECT MAX(e."createdAt") FROM "jobEvent" e WHERE e."jobId" = j.id)) AS at
-      FROM job j LEFT JOIN task t ON t.id = j."taskId"
+      FROM "Job" j LEFT JOIN task t ON t.id = j."taskId"
       WHERE j."workspaceId" = ${workspaceId}::uuid AND j."projectId" IS NOT NULL
         AND (j."taskId" IS NULL OR (t."workspaceId" = ${workspaceId}::uuid AND t."archivedAt" IS NULL))
         ${visibility.job}

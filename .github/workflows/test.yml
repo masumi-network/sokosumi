@@ -68,7 +68,7 @@ jobs:
           - { name: CI config, command: "pnpm ci:test" }
     services:
       postgres:
-        image: ${{ matrix.target.name == 'Packages' && 'postgres:17' || '' }}
+        image: ${{ (matrix.target.name == 'Packages' || matrix.target.name == 'Core') && 'postgres:17' || '' }}
         env:
           POSTGRES_USER: user
           POSTGRES_PASSWORD: password
@@ -107,3 +107,14 @@ jobs:
         env:
           JOB_SYNC_TEST_DATABASE_URL: "postgresql://user:password@localhost:5432/job_sync_test"
         run: pnpm --filter @sokosumi/database exec vitest run src/helpers/job-sync.postgres.test.ts
+
+      # Exercise the real route against the schema Prisma deploys, not table
+      # definitions copied into a fixture (which can hide identifier drift).
+      - name: Test Projects API against PostgreSQL
+        if: matrix.target.name == 'Core' && (needs.changes.outputs.js == 'true' || github.event_name == 'workflow_dispatch')
+        env:
+          DATABASE_URL: "postgresql://user:password@localhost:5432/job_sync_test"
+          DATABASE_URL_UNPOOLED: "postgresql://user:password@localhost:5432/job_sync_test"
+        run: |
+          pnpm --filter @sokosumi/database exec prisma db push
+          RUN_DATABASE_INTEGRATION_TESTS=true pnpm --filter core test src/routes/v1/projects/get.postgres.test.ts src/helpers/project-activity.postgres.test.ts
