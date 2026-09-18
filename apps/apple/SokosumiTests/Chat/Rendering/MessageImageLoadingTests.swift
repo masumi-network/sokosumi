@@ -142,7 +142,7 @@
           host.layoutSubtreeIfNeeded()
           if let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
             host.cacheDisplay(in: host.bounds, to: bitmap)
-            // Saturated green is distinct from the loading chrome and the purple link accent.
+            // Saturated green is distinct from the loading chrome and the link accent.
             for row in stride(from: 0, to: bitmap.pixelsHigh, by: 20) {
               for column in stride(from: 0, to: bitmap.pixelsWide, by: 20) {
                 if let color = bitmap.colorAt(x: column, y: row),
