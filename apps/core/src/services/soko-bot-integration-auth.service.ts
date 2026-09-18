@@ -8,6 +8,8 @@ import {
 /** Composio's own default host; mirrors the SDK when no override is set. */
 const COMPOSIO_DEFAULT_BASE_URL = "https://backend.composio.dev";
 const COMPLETE_AUTH_PATH = "/api/v3.1/connected_accounts/complete_auth";
+/** A verifier redirect keeps the browser waiting, so fail fast. */
+const COMPLETE_AUTH_TIMEOUT_MS = 10_000;
 
 interface CompleteAuthResponse {
   connected_account_id: string;
@@ -43,13 +45,16 @@ export async function completeSokoBotIntegrationAuth(input: {
 }): Promise<{ provider: string; composioAccountId: string }> {
   const { apiKey, baseUrl } = requireComposioCredentials();
   const bot = await requireBot(input.userId, input.workspaceId);
-  const response = await fetch(new URL(COMPLETE_AUTH_PATH, baseUrl), {
+  // Keep any path prefix on the configured base; `new URL` would drop it.
+  const endpoint = `${baseUrl.replace(/\/+$/, "")}${COMPLETE_AUTH_PATH}`;
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: { "x-api-key": apiKey, "content-type": "application/json" },
     body: JSON.stringify({
       session_uri: input.sessionUri,
       user_id: composioEntityId(bot.id),
     }),
+    signal: AbortSignal.timeout(COMPLETE_AUTH_TIMEOUT_MS),
   });
   if (response.status === 400) {
     // Composio reports an identity mismatch here, and moves the connection to
@@ -70,7 +75,10 @@ export async function completeSokoBotIntegrationAuth(input: {
       `Composio (complete auth): request failed with ${response.status}`,
     );
   }
-  const completed = (await response.json()) as Partial<CompleteAuthResponse>;
+  const completed = await response
+    .json()
+    .then((body) => body as Partial<CompleteAuthResponse>)
+    .catch(() => ({}) as Partial<CompleteAuthResponse>);
   if (!completed.toolkit_slug || !completed.connected_account_id) {
     throw new SokoBotIntegrationError(
       "Composio (complete auth): response was missing the completed connection",
