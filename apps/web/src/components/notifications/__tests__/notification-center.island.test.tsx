@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HeaderNotificationBell } from "@/app/components/header/header-notification-bell.client";
 import { NotificationsPageContent } from "@/app/notifications/page-content";
 import { NotificationProvider } from "@/contexts/notification-provider";
+import { NOTIFICATION_VIEW_STORAGE_KEY } from "@/contexts/notification-view-storage";
 import type { NotificationEventData } from "@/lib/ably";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 
@@ -226,6 +227,7 @@ const FRAMES = [
 beforeEach(() => {
   vi.stubGlobal("IntersectionObserver", StubIntersectionObserver);
   observers.clear();
+  window.localStorage.clear();
   for (const mock of [
     getNotificationsMock,
     getNotificationsCountsMock,
@@ -248,6 +250,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  window.localStorage.clear();
   vi.unstubAllGlobals();
 });
 
@@ -1605,5 +1608,140 @@ describe("Notification Center Needs you view", () => {
     })) {
       expect(option.getAttribute("aria-selected")).toBe("true");
     }
+  });
+});
+
+/**
+ * The remembered view (SOK-1108). The view strip is a lens the reader picks,
+ * and the Notification Center keeps that pick per browser. What is checked
+ * here is what a reader meets: which tab reads as selected, and which query
+ * the *first* Core call carried. That first call is the point: a restore that
+ * lands after the list has already been fetched costs a second round trip and
+ * flashes All on the way.
+ */
+describe("Notification Center remembered view", () => {
+  const TASK_ASK_KEY = "Notifications.Task.inputRequired";
+
+  function stored(view: string) {
+    window.localStorage.setItem(NOTIFICATION_VIEW_STORAGE_KEY, view);
+  }
+
+  it.each(FRAMES)(
+    "opens on the remembered Needs you view in the %s",
+    async (_, mount) => {
+      stored("needs-action");
+      const waiting = row("waiting", {
+        kind: "TASK",
+        messageKey: TASK_ASK_KEY,
+        messageParams: { label: "waiting" },
+        isRead: false,
+        readAt: null,
+      });
+      getNotificationsMock.mockResolvedValue(page([waiting]));
+
+      await mount();
+
+      // The first call, not the eventual one: no All page was ever asked for.
+      expect(getNotificationsMock).toHaveBeenCalledTimes(1);
+      expect(getNotificationsMock).toHaveBeenCalledWith({
+        limit: 20,
+        needsAction: "true",
+      });
+      for (const tab of screen.getAllByRole("tab", {
+        name: /^filterNeedsYou/,
+      })) {
+        expect(tab.getAttribute("aria-selected")).toBe("true");
+      }
+      expect(screen.getAllByText("waiting").length).toBeGreaterThan(0);
+      // A remembered lens is still a lens.
+      expect(patchNotificationReadMock).not.toHaveBeenCalled();
+      expect(patchNotificationsReadAllMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("opens on the remembered Unread view", async () => {
+    stored("unread");
+
+    await renderPage();
+
+    expect(getNotificationsMock).toHaveBeenCalledTimes(1);
+    expect(getNotificationsMock).toHaveBeenCalledWith({
+      limit: 20,
+      isRead: "false",
+    });
+    expect(
+      screen
+        .getByRole("tab", { name: /^filterUnread/ })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
+  });
+
+  it("opens on All when nothing is stored", async () => {
+    await renderPage();
+
+    expect(getNotificationsMock).toHaveBeenCalledWith({ limit: 20 });
+    expect(
+      screen
+        .getByRole("tab", { name: "filterAll" })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
+  });
+
+  it("falls back to All on a value it does not recognise, and drops it", async () => {
+    stored("needsAction");
+
+    await renderPage();
+
+    expect(getNotificationsMock).toHaveBeenCalledWith({ limit: 20 });
+    expect(
+      screen
+        .getByRole("tab", { name: "filterAll" })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
+    expect(
+      window.localStorage.getItem(NOTIFICATION_VIEW_STORAGE_KEY),
+    ).toBeNull();
+  });
+
+  it.each(FRAMES)("remembers a switch made in the %s", async (_, mount) => {
+    await mount();
+    const user = userEvent.setup();
+
+    await user.click(
+      screen.getAllByRole("tab", { name: /^filterNeedsYou/ })[0] as HTMLElement,
+    );
+    await settle();
+
+    expect(window.localStorage.getItem(NOTIFICATION_VIEW_STORAGE_KEY)).toBe(
+      "needs-action",
+    );
+
+    await user.click(
+      screen.getAllByRole("tab", { name: /^filterUnread/ })[0] as HTMLElement,
+    );
+    await settle();
+
+    // The last switch wins.
+    expect(window.localStorage.getItem(NOTIFICATION_VIEW_STORAGE_KEY)).toBe(
+      "unread",
+    );
+  });
+
+  it("reads back the view a previous mount stored", async () => {
+    await renderPage();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
+    await settle();
+
+    cleanup();
+    getNotificationsMock.mockClear();
+
+    await renderPage();
+
+    expect(getNotificationsMock).toHaveBeenCalledTimes(1);
+    expect(getNotificationsMock).toHaveBeenCalledWith({
+      limit: 20,
+      isRead: "false",
+    });
   });
 });

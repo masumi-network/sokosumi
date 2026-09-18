@@ -34,6 +34,10 @@ import {
   type NotificationState,
   notificationReducer,
 } from "./notification-state";
+import {
+  getNotificationViewPreference,
+  setNotificationViewPreference,
+} from "./notification-view-storage";
 
 /**
  * Where the next page of older rows stands.
@@ -245,6 +249,18 @@ export function NotificationProvider({
   // The view the next request asks for. A ref so the fetch callbacks keep
   // their identity across switches: the switch itself starts the refetch.
   const viewRef = useRef<NotificationCenterView>(view);
+  // The view the reader last chose, restored before the first fetch below.
+  // A seed, not a switch: there is no loaded list to tear down yet, and the
+  // ref is what the first request reads, so that request already asks for
+  // the remembered view instead of fetching All and replacing it. The
+  // rendered value follows in this same commit, after hydration, so the
+  // server's markup and the first client render still agree on "all".
+  useEffect(() => {
+    const remembered = getNotificationViewPreference();
+    if (remembered === null || remembered === viewRef.current) return;
+    viewRef.current = remembered;
+    setViewState(remembered);
+  }, []);
   const [isLoading, setIsLoading] = useState(true);
   const [hasFetchError, setHasFetchError] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -370,6 +386,7 @@ export function NotificationProvider({
       if (viewRef.current === next) return;
       viewRef.current = next;
       setViewState(next);
+      setNotificationViewPreference(next);
       // A page in flight answers for the old view. Bumping both generations
       // drops its result when it lands, like a refresh that started over.
       fetchGenerationRef.current += 1;
