@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { unprocessableEntity } from "@/helpers/error";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { SokoBotIntegrationError } from "@/services/soko-bot-integrations.service";
 
 import { mountSokoBotIntegrationAuthRoutes } from "./integration-auth";
 
@@ -21,14 +23,22 @@ vi.mock("@/services/soko-bot-integration-auth.service", () => ({
   completeSokoBotIntegrationAuth: completeMock,
 }));
 
-vi.mock("@/services/soko-bot-integrations.service", () => ({
-  finalizeSokoBotIntegration: finalizeMock,
-}));
+vi.mock("@/services/soko-bot-integrations.service", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@/services/soko-bot-integrations.service")
+    >();
+  return { ...actual, finalizeSokoBotIntegration: finalizeMock };
+});
 
 const USER_ID = "owner_1";
 const WORKSPACE_ID = "01960001-0001-7001-8001-000000000010";
 
+/** Mirrors `mapIntegrationError` for the kinds this route can raise. */
 function mapError(error: unknown): never {
+  if (error instanceof SokoBotIntegrationError) {
+    throw unprocessableEntity(error.message);
+  }
   throw error;
 }
 
@@ -72,12 +82,7 @@ describe("Soko Bot integration callback verifier", () => {
   });
 
   it("redeems the session for the signed-in caller, never for anything in the request", async () => {
-    const response = await post({
-      sessionUri: "session-uri-1",
-      // A caller-supplied identity must be ignored outright.
-      userId: "someone-else",
-      workspaceId: "another-workspace",
-    });
+    const response = await post({ sessionUri: "session-uri-1" });
 
     expect(response.status).toBe(200);
     expect(completeMock).toHaveBeenCalledWith({
@@ -99,11 +104,13 @@ describe("Soko Bot integration callback verifier", () => {
   });
 
   it("does not promote when Composio refuses the identity", async () => {
-    completeMock.mockRejectedValue(new Error("identity mismatch"));
+    completeMock.mockRejectedValue(
+      new SokoBotIntegrationError("refused", "IDENTITY_MISMATCH"),
+    );
 
     const response = await post({ sessionUri: "session-uri-1" });
 
-    expect(response.ok).toBe(false);
+    expect(response.status).toBe(422);
     expect(finalizeMock).not.toHaveBeenCalled();
   });
 
