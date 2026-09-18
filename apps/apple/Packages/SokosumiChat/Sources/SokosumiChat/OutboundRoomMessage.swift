@@ -59,11 +59,13 @@ public func isOutboundLocalMessage(_ message: Components.Schemas.ChatRoomMessage
   message.id.hasPrefix(outboundLocalIdPrefix)
 }
 
+/// Persisted rows the transcript shows, then the local outbound shells. Web's
+/// display merge drops bodiless Soko Bot mention shells (`isHiddenSokoBotMentionShell`).
 public func displayedTranscript(
   messages: [Components.Schemas.ChatRoomMessage],
   shells: [OutboundShell]
 ) -> [Components.Schemas.ChatRoomMessage] {
-  messages + shells.map(chatRoomMessage(from:))
+  messages.filter { !isHiddenSokoBotMentionShell($0) } + shells.map(chatRoomMessage(from:))
 }
 
 public func chatRoomMessage(from shell: OutboundShell) -> Components.Schemas.ChatRoomMessage {

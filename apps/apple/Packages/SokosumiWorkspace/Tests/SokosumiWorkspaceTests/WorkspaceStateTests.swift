@@ -39,6 +39,7 @@ private final class ScriptedTransport: ClientTransport {
   var pauseReaction = false
   var pauseUnfurl = false
   var pauseMentionRetry = false
+  var pauseSokoBotFeedback = false
   private var pauseWaiter: CheckedContinuation<Void, Never>?
   /// Tests wait on `operationIDs` (appended before the body `await`). A
   /// release that arrives in that window must not be lost.
@@ -48,6 +49,20 @@ private final class ScriptedTransport: ClientTransport {
 
   init(_ responses: [(Int, String)]) {
     self.responses = responses
+  }
+
+  /// One pause flag per operation family; only message-scoped operations honour them.
+  private func pausesMessageOperation(_ operationID: String) -> Bool {
+    let pausedByFlag = (pauseGET && operationID.hasPrefix("get/"))
+      || (pauseDELETE && operationID.hasPrefix("delete/"))
+      || (pauseReaction && operationID.hasSuffix("/reactions/{emoji}"))
+      || (pauseUnfurl && operationID.hasSuffix("/unfurls/remove"))
+      || (pauseMentionRetry && operationID.hasSuffix("/mentions/{mentionId}/retry"))
+      || (pauseSokoBotFeedback && operationID == "sendMySokoBotTurnFeedback")
+    let pausableOperation = operationID.contains("/messages")
+      || operationID == "get/chats/rooms/{id}/threads/{parentMessageId}"
+      || operationID == "sendMySokoBotTurnFeedback"
+    return pausedByFlag && pausableOperation
   }
 
   func send(
@@ -93,7 +108,7 @@ private final class ScriptedTransport: ClientTransport {
       try Task.checkCancellation()
       return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
     }
-    if pauseGET && operationID.hasPrefix("get/") || pauseDELETE && operationID.hasPrefix("delete/") || pauseReaction && operationID.hasSuffix("/reactions/{emoji}") || pauseUnfurl && operationID.hasSuffix("/unfurls/remove") || pauseMentionRetry && operationID.hasSuffix("/mentions/{mentionId}/retry"), operationID.contains("/messages") || operationID == "get/chats/rooms/{id}/threads/{parentMessageId}" {
+    if pausesMessageOperation(operationID) {
       let next = responses.removeFirst()
       if !requestReleased {
         await withCheckedContinuation { pauseWaiter = $0 }
@@ -2692,4 +2707,82 @@ private func durableRoomMessage(roomId: String) -> Components.Schemas.ChatRoomMe
   ))
   message.id = "550e8400-e29b-41d4-a716-446655440123"
   return message
+}
+
+private let sokoBotFeedbackOperation = "sendMySokoBotTurnFeedback"
+private let sokoBotTurnId = "550e8400-e29b-41d4-a716-446655440777"
+
+/// Signed-in personal workspace with no rooms, plus the feedback replies.
+@MainActor
+private func sokoBotFeedbackFixture(_ responses: [(Int, String)]) async throws -> (WorkspaceState, AuthState, ScriptedTransport) { // swiftlint:disable:this large_tuple
+  let (state, auth, transport, _) = try ephemeralState([
+    (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+    (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+    (200, roomsBody(names: []))
+  ] + responses, visible: false)
+  await state.reload(auth: auth)
+  #expect(state.currentUserId == "user_1")
+  return (state, auth, transport)
+}
+
+extension WorkspaceStateTests {
+  @Test(arguments: [true, false])
+  func sokoBotFeedbackIsSentOncePerTurn(useful: Bool) async throws {
+    let (state, auth, transport) = try await sokoBotFeedbackFixture([(200, envelope(#"{"useful":\#(useful)}"#))])
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == nil)
+    transport.pauseSokoBotFeedback = true
+    let send = Task { try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: useful, auth: auth) }
+    while !transport.operationIDs.contains(sokoBotFeedbackOperation) {
+      await Task.yield()
+    }
+    #expect(state.isSendingSokoBotFeedback(forTurn: sokoBotTurnId))
+    // A second tap while the POST is in flight sends nothing.
+    try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: !useful, auth: auth)
+    #expect(transport.operationIDs.filter { $0 == sokoBotFeedbackOperation }.count == 1)
+    transport.releasePausedRequest()
+    try await send.value
+    let bodyIndex = try #require(transport.operationIDs.firstIndex(of: sokoBotFeedbackOperation))
+    #expect(try JSONSerialization.jsonObject(with: transport.bodies[bodyIndex]) as? [String: Bool] == ["useful": useful])
+    #expect(!state.isSendingSokoBotFeedback(forTurn: sokoBotTurnId))
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == useful)
+    // Rated turns stay rated: web hides the thumbs after one answer.
+    try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: !useful, auth: auth)
+    #expect(transport.operationIDs.filter { $0 == sokoBotFeedbackOperation }.count == 1)
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == useful)
+    #expect(transport.remainingStubs == 0)
+    state.reset()
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == nil)
+  }
+
+  @Test func rejectedSokoBotFeedbackLeavesTheTurnUnrated() async throws {
+    let (state, auth, transport) = try await sokoBotFeedbackFixture([
+      (404, #"{"error":"Not Found","message":"Turn not found","meta":{"timestamp":"\#(timestamp)","requestId":"req-1","path":"/soko-bots/me/turns/x/feedback","method":"POST"}}"#),
+      (200, envelope(#"{"useful":true}"#))
+    ])
+    let error = await #expect(throws: ChatServiceError.self) {
+      try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: true, auth: auth)
+    }
+    #expect(error == .unprocessable(statusCode: 404, message: "Turn not found"))
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == nil)
+    #expect(!state.isSendingSokoBotFeedback(forTurn: sokoBotTurnId))
+    // The thumbs come back, so the owner can try again.
+    try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: true, auth: auth)
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == true)
+    #expect(transport.operationIDs.filter { $0 == sokoBotFeedbackOperation }.count == 2)
+    #expect(transport.remainingStubs == 0)
+  }
+
+  @Test func sokoBotFeedbackResultAfterSignOutIsDropped() async throws {
+    let (state, auth, transport) = try await sokoBotFeedbackFixture([(200, envelope(#"{"useful":true}"#))])
+    transport.pauseSokoBotFeedback = true
+    let send = Task { try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: true, auth: auth) }
+    while !transport.operationIDs.contains(sokoBotFeedbackOperation) {
+      await Task.yield()
+    }
+    state.reset()
+    transport.releasePausedRequest()
+    try await send.value
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == nil)
+    #expect(!state.isSendingSokoBotFeedback(forTurn: sokoBotTurnId))
+  }
 }
