@@ -35,8 +35,10 @@ struct PresenceLifecycleModifier: ViewModifier {
     #if os(macOS)
       content
         .onAppear {
-          PresenceActivityMonitor.shared.start { [weak workspaces] in
-            workspaces?.recordPresenceActivity()
+          // The monitor outlives this view; hold the coordinator weakly through a local so the capture is explicit.
+          let coordinator = workspaces
+          PresenceActivityMonitor.shared.start { [weak coordinator] in
+            coordinator?.recordPresenceActivity()
           }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
