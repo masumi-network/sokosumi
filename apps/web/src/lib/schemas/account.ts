@@ -31,6 +31,7 @@ export const passwordFormSchema = (
       currentPassword: currentPasswordSchema(t),
       newPassword: passwordSchema(t),
       confirmNewPassword: confirmPasswordSchema(t),
+      revokeOtherSessions: z.boolean(),
     })
     .refine((data) => data.newPassword === data.confirmNewPassword, {
       path: ["confirmNewPassword"],

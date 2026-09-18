@@ -10,7 +10,6 @@ import mountPatchJobById from "./patch";
 
 const {
   authContextState,
-  prismaTransactionMock,
   jobUpdateMock,
   mapJobWithStatusMock,
   serializeJobDetailsMock,
@@ -29,7 +28,6 @@ const {
       role: string;
     } | null,
   },
-  prismaTransactionMock: vi.fn(),
   jobUpdateMock: vi.fn(),
   mapJobWithStatusMock: vi.fn(),
   serializeJobDetailsMock: vi.fn(),
@@ -120,7 +118,9 @@ vi.mock("@/lib/db/prisma", async () => ({
       findUnique: (await import("@/test-fixtures/organization-membership"))
         .stubMemberFindUnique,
     },
-    $transaction: (...args: unknown[]) => prismaTransactionMock(...args),
+    job: {
+      update: jobUpdateMock,
+    },
   },
 }));
 
@@ -245,14 +245,6 @@ describe("PATCH /jobs/{id}", () => {
       organizationId: "org_123",
       role: "user",
     };
-    prismaTransactionMock.mockImplementation(
-      async (callback: (tx: unknown) => Promise<unknown>) =>
-        await callback({
-          job: {
-            update: jobUpdateMock,
-          },
-        }),
-    );
     requireJobCollaborationMock.mockResolvedValue({
       id: "job_123",
       ownerId: "user_123",
@@ -276,6 +268,11 @@ describe("PATCH /jobs/{id}", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
+    expect(requireJobCollaborationMock).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "user_123" }),
+      "job_123",
+      expect.objectContaining({ job: { update: jobUpdateMock } }),
+    );
     expect(jobUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: "job_123" },

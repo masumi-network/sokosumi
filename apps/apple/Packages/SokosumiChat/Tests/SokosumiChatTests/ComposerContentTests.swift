@@ -17,4 +17,10 @@ struct ComposerContentTests {
     #expect(!ComposerContent(String(repeating: "a", count: 9499)).showsCounter)
     #expect(ComposerContent(String(repeating: "a", count: 9500)).showsCounter)
   }
+
+  @Test func aQuoteCanBeTheWholeMessageButNeverExceedTheLimit() {
+    #expect(ComposerContent(" \t\n").canSend(quoted: true))
+    #expect(!ComposerContent(" \t\n").canSend(quoted: false))
+    #expect(!ComposerContent(String(repeating: "a", count: 10001)).canSend(quoted: true))
+  }
 }

@@ -23,6 +23,8 @@
 
     var attachFiles: (([URL]) -> Void)?
     var attachImage: ((Data) -> Void)?
+    var onPaste: ((ComposerTextPaste) -> Void)?
+    var insertion: ComposerInsertion?
 
     func makeNSView(context: Context) -> NSScrollView {
       let scroll = InputScrollView(frame: NSRect(x: 0, y: 0, width: 200, height: 24))
@@ -56,6 +58,7 @@
       input.placeholder = placeholder
       input.attachFiles = attachFiles
       input.attachImage = attachImage
+      input.onPaste = onPaste
       input.mentions = mentions
       input.channels = channels
       commands?.refresh()
@@ -73,8 +76,14 @@
       input.placeholder = placeholder
       input.attachFiles = attachFiles
       input.attachImage = attachImage
+      input.onPaste = onPaste
       input.mentions = mentions
       input.channels = channels
+      if let insertion, context.coordinator.insertion != insertion.id {
+        context.coordinator.insertion = insertion.id
+        // Inserting publishes the draft, so hop it off this view update.
+        Task { @MainActor [weak input] in input?.insertAtCaret(insertion.text) }
+      }
       if context.coordinator.emojiPickerRequest != emojiPickerRequest {
         context.coordinator.emojiPickerRequest = emojiPickerRequest
         Task { @MainActor [weak input] in
@@ -133,6 +142,7 @@
 
     final class Coordinator: NSObject, NSTextViewDelegate {
       var emojiPickerRequest = 0
+      var insertion: UUID?
       var parent: MacComposerTextInput
 
       init(_ parent: MacComposerTextInput) {
@@ -168,6 +178,7 @@
       var channels: [ComposerChannel] = []
       var mentions: [ComposerMention] = []
       var suggestionKeyHandler: ((UInt16) -> Bool)?
+      var onPaste: ((ComposerTextPaste) -> Void)?
       var placeholder = "Message" {
         didSet { needsDisplay = true }
       }
@@ -337,6 +348,17 @@
         pasteText(from: .general)
       }
 
+      /// The composer has one paste: it already inserts plain text, attaches
+      /// files and images, and offers the paste as a quote. Paste and Match
+      /// Style must not slip past that.
+      override func pasteAsPlainText(_: Any?) {
+        pasteText(from: .general)
+      }
+
+      override func pasteAsRichText(_: Any?) {
+        pasteText(from: .general)
+      }
+
       func pasteText(from pasteboard: NSPasteboard) {
         if let attachFiles, let files = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !files.isEmpty {
           attachFiles(files)
@@ -356,6 +378,29 @@
         let text = plain.isEmpty ? ComposerPaste.plainText(html: pasteboard.string(forType: .html) ?? "") : plain
         guard !text.isEmpty else { return }
         insertText(text, replacementRange: selectedRange())
+        onPaste?(ComposerTextPaste(text: text, remove: { [weak self] in self?.removeLastText(text) ?? false }))
+      }
+
+      /// Removes the last occurrence of `text` in place, so the words and the
+      /// caret around it stay as typed. False once it has been edited away.
+      func removeLastText(_ text: String) -> Bool {
+        let range = (string as NSString).range(of: text, options: .backwards)
+        guard range.location != NSNotFound, shouldChangeText(in: range, replacementString: "") else { return false }
+        breakUndoCoalescing()
+        textStorage?.replaceCharacters(in: range, with: "")
+        didChangeText()
+        setSelectedRange(NSRange(location: range.location, length: 0))
+        breakUndoCoalescing()
+        return true
+      }
+
+      /// Puts text back where the caret is, focusing the editor first so the
+      /// insertion never lands at a stale selection.
+      func insertAtCaret(_ text: String) {
+        window?.makeFirstResponder(self)
+        breakUndoCoalescing()
+        insertText(text, replacementRange: selectedRange())
+        breakUndoCoalescing()
       }
 
       var emojiCompletionRange: NSRange? {

@@ -1350,6 +1350,22 @@ describe("core auth config", () => {
     expect(config.session.storeSessionInDatabase).toBe(true);
   });
 
+  it("revokes every existing session when a password is reset", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          emailAndPassword: {
+            revokeSessionsOnPasswordReset?: boolean;
+          };
+        },
+      ]
+    >;
+
+    expect(config.emailAndPassword.revokeSessionsOnPasswordReset).toBe(true);
+  });
+
   it("disables cross-subdomain cookies when no cookie domain is configured", async () => {
     getEnvMock.mockReturnValue({
       ...getDefaultEnv(),
