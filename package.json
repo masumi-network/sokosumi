@@ -3,6 +3,13 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@12.4.2",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.4.2",
+      "onFail": "warn"
+    }
+  },
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "web:dev": "pnpm --filter web dev",
@@ -62,6 +69,6 @@
     "lighthouse": "13.4.1",
     "portless": "0.15.6",
     "tsx": "4.23.13",
-    "turbo": "2.10.13"
+    "turbo": "2.11.1"
   }
 }
