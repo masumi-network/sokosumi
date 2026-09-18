@@ -2363,7 +2363,6 @@
           "collapseProjects": "Projekte einklappen",
           "projectsLoading": "Projekte werden geladen…",
           "projectsError": "Projekte konnten nicht geladen werden.",
-          "projectsEmpty": "Noch keine Projekte.",
           "retryProjects": "Erneut versuchen"
         },
         "ChatLists": {
