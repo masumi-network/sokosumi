@@ -113,7 +113,7 @@ A Project's authorization to publish through one Social account. A Project may h
 _Avoid_: Social account (when meaning the Project authorization), integration account
 
 **Social accounts**:
-The Project Settings section where Social connection managers view and manage a Project's Social connections. It is not a Calendar surface.
+The section of a Project's Social module page (`/projects/{id}/social`) where Social connection managers view and manage a Project's Social connections. It is not a Project settings surface and not a Calendar surface.
 _Avoid_: Social account (when meaning the external publishing identity), integrations page
 
 **Social connection manager**:

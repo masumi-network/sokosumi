@@ -281,6 +281,7 @@ export function ProjectSocialAccounts({
     <section
       className="bg-card-background border-border space-y-4 rounded-xl border p-4"
       data-testid="project-social-accounts"
+      id="social-accounts"
     >
       <div className="space-y-1">
         <h2 className="text-sm font-semibold">{t("title")}</h2>

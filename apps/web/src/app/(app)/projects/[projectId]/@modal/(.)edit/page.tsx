@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { ProjectEditModal } from "@/app/projects/components/project-edit-modal";
-import { hasCurrentUserCalendarBetaAccess } from "@/lib/calendar-beta-access.server";
 import { projectService } from "@/lib/services/project.service";
 
 export default async function ProjectEditModalPage({
@@ -10,29 +9,11 @@ export default async function ProjectEditModalPage({
 }: {
   params: Promise<{ projectId: string }>;
 }) {
-  const [socialBetaEnabled, { projectId }] = await Promise.all([
-    hasCurrentUserCalendarBetaAccess(),
-    params,
-  ]);
-  const [projectResult, socialConnectionsResult] = await Promise.allSettled([
-    projectService.getProjectById(projectId),
-    socialBetaEnabled
-      ? projectService.listSocialConnections(projectId)
-      : Promise.resolve(undefined),
-  ]);
-
-  if (projectResult.status === "rejected") {
-    throw projectResult.reason;
-  }
-
-  const project = projectResult.value;
+  const { projectId } = await params;
+  const project = await projectService.getProjectById(projectId);
 
   if (!project) {
     return notFound();
-  }
-
-  if (socialConnectionsResult.status === "rejected") {
-    throw socialConnectionsResult.reason;
   }
 
   const t = await getTranslations("App.Projects");
@@ -55,7 +36,6 @@ export default async function ProjectEditModalPage({
         briefing: project.briefing ?? "",
         websiteUrl: project.websiteUrl,
       }}
-      socialConnections={socialConnectionsResult.value}
     />
   );
 }

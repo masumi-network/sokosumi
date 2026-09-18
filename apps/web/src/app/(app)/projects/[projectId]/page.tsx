@@ -162,6 +162,11 @@ export default async function ProjectDetailPage({
                     ? `/projects/${project.id}/calendar`
                     : undefined
                 }
+                socialHref={
+                  calendarBetaEnabled
+                    ? `/projects/${project.id}/social`
+                    : undefined
+                }
                 projectId={project.id}
                 labels={{
                   calendar: {
