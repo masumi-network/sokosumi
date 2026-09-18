@@ -2251,7 +2251,7 @@
           "popupBlocked": "Dein Browser hat das X-Autorisierungsfenster blockiert. Erlaube Pop-ups und versuche es erneut.",
           "popupClosed": "Das X-Autorisierungsfenster wurde geschlossen, bevor die Einrichtung abgeschlossen war. Versuche es erneut.",
           "timeout": "Die X-Autorisierung hat zu lange gedauert. Versuche es erneut.",
-          "providerCallback": "Die X-Autorisierung wurde nicht abgeschlossen. Kehre zu den Projekteinstellungen zurück und versuche es erneut.",
+          "providerCallback": "Die X-Autorisierung wurde nicht abgeschlossen. Kehre zur Social-Seite des Projekts zurück und versuche es erneut.",
           "legacyCallback": "Dieser OAuth-Rückruf kann dein X-Konto nicht verifizieren. Aktualisiere die Composio-Rückrufkonfiguration und versuche es erneut.",
           "verifier": "Dein X-Konto konnte nicht verifiziert werden. Starte die Verbindung erneut.",
           "intent": "Diese Verbindungsanfrage ist abgelaufen oder nicht mehr gültig. Starte erneut.",

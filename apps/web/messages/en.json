@@ -2251,7 +2251,7 @@
           "popupBlocked": "Your browser blocked the X authorization window. Allow popups and try again.",
           "popupClosed": "The X authorization window was closed before setup finished. Try again.",
           "timeout": "X authorization took too long. Try again.",
-          "providerCallback": "X authorization did not complete. Return to Project settings and try again.",
+          "providerCallback": "X authorization did not complete. Return to the Project's Social page and try again.",
           "legacyCallback": "This OAuth callback cannot verify your X account. Update the Composio callback setup and try again.",
           "verifier": "We could not verify your X account. Start the connection again.",
           "intent": "This connection request expired or is no longer valid. Start again.",
