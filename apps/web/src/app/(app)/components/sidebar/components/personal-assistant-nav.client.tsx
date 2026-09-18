@@ -8,6 +8,7 @@ import { AuroraOrb } from "@/components/aurora-orb";
 import { publishPersonalAssistantChromeVisible } from "@/components/chat/personal-assistant-chrome-store";
 import { SheetClose } from "@/components/ui/sheet";
 import {
+  SIDEBAR_ROW_LABEL_CLASS,
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
@@ -84,7 +85,12 @@ export default function PersonalAssistantNav({
                       <Bot className="size-4" aria-hidden />
                     )}
                   </SidebarRowSlot>
-                  <span className="flex-1 truncate font-medium group-data-[collapsible=icon]:sr-only">
+                  <span
+                    className={cn(
+                      SIDEBAR_ROW_LABEL_CLASS,
+                      "truncate font-medium",
+                    )}
+                  >
                     {t("sokoBot")}
                   </span>
                 </Link>
