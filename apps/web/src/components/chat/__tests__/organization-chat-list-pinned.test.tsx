@@ -49,6 +49,38 @@ describe("OrganizationChatList Pinned section", () => {
     expect(screen.queryByText("App.Channels.pinned")).not.toBeInTheDocument();
   });
 
+  it("hides Pinned when rooms exist but none are pinned", () => {
+    renderOrganizationChatList({
+      organizationId: "org-1",
+      rooms: [rooms[2]],
+    });
+
+    expect(screen.queryByText("App.Channels.pinned")).not.toBeInTheDocument();
+    expect(rowLabels()).toEqual(["general"]);
+  });
+
+  it("drops the section when the last pin goes, and keeps the room listed", () => {
+    const { rerender } = renderOrganizationChatList({
+      organizationId: "org-1",
+      rooms: [rooms[0], rooms[2]],
+    });
+    expect(screen.getByText("App.Channels.pinned")).toBeInTheDocument();
+
+    rerender(
+      createOrganizationChatList({
+        organizationId: "org-1",
+        rooms: [
+          makeRoom({ id: "launch", kind: "channel", myAccess: "member" }),
+          rooms[2],
+        ],
+      }),
+    );
+
+    expect(screen.queryByText("App.Channels.pinned")).not.toBeInTheDocument();
+    // Back under Channels, where activity order decides the place.
+    expect(rowLabels().toSorted()).toEqual(["general", "launch"]);
+  });
+
   const TOGGLE = "App.Channels.reorderPinned";
   const DONE = "App.Channels.reorderPinnedDone";
   const HANDLE = "App.Channels.Actions.reorderHandle";
