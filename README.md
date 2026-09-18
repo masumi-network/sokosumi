@@ -37,7 +37,7 @@ sokosumi/
 ### Prerequisites
 
 - [Node.js](https://nodejs.org/) 24.x
-- [pnpm](https://pnpm.io/) 12 (monorepo package manager; pin is `devEngines.packageManager` in the root `package.json`)
+- [pnpm](https://pnpm.io/) 12 (monorepo package manager; pin is `packageManager` in the root `package.json`)
 
 ### Clone and Install
 
