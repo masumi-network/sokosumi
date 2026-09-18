@@ -120,8 +120,8 @@ export function createAgentClient(config?: AgentClientConfig) {
   }
 
   function getAgentApiBaseUrl(agent: Agent): URL {
-    // Validate the API base URL
-    const apiBaseUrl = new URL(agent.apiBaseUrl);
+    const usedUrl = agent.metadataOverride?.apiBaseUrl ?? agent.apiBaseUrl;
+    const apiBaseUrl = new URL(usedUrl);
     if (apiBaseUrl.protocol !== "https:" && apiBaseUrl.protocol !== "http:") {
       throw new Error("Agent API base URL must be HTTP or HTTPS");
     }
@@ -137,24 +137,7 @@ export function createAgentClient(config?: AgentClientConfig) {
     // at connect time by `ssrfSafeFetch` (which resolves and filters the host),
     // so it also covers public hostnames that resolve to internal IPs.
 
-    const usedUrl = agent.metadataOverride?.apiBaseUrl ?? agent.apiBaseUrl;
-    const overrideUrl = new URL(usedUrl);
-
-    // Also validate override URL if present
-    if (overrideUrl.protocol !== "https:" && overrideUrl.protocol !== "http:") {
-      throw new Error("Agent API base URL override must be HTTP or HTTPS");
-    }
-
-    if (overrideUrl.search !== "") {
-      throw new Error(
-        "Agent API base URL override must not have a query string",
-      );
-    }
-    if (overrideUrl.hash !== "") {
-      throw new Error("Agent API base URL override must not have a hash");
-    }
-
-    return overrideUrl;
+    return apiBaseUrl;
   }
 
   function logError(
