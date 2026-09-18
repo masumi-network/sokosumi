@@ -5,7 +5,10 @@ import { ChevronLeft, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type RefObject, useMemo, useRef, useState } from "react";
 import { CHAT_MESSAGE_LIST_THREAD } from "@/app/chat/chat-message-list";
-import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
+import {
+  CHAT_MESSAGE_LIST_CONTENT_CLASS,
+  CHAT_MESSAGE_LIST_SCROLLER_CLASS,
+} from "@/app/chat/chat-message-list-scroller";
 import {
   TranscriptBoundaryRow,
   type TranscriptBoundaryStatus,
@@ -25,6 +28,7 @@ import type {
   ChatRoomSokoBotParticipant,
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
+import { cn } from "@/lib/utils";
 import { MembershipStatusRow } from "./membership-status-row";
 import { type RoomComposerHandle } from "./room-composer";
 import { RoomFileDropZone } from "./room-file-drop-zone";
@@ -367,7 +371,10 @@ export function ThreadPanel({
             // Named so a room-scoped lookup does not find this copy of a
             // message id the transcript also renders.
             data-chat-message-list={CHAT_MESSAGE_LIST_THREAD}
-            className="flex min-h-full min-w-0 w-full shrink-0 flex-col justify-end px-4 pt-4 pb-2 md:pb-3"
+            className={cn(
+              CHAT_MESSAGE_LIST_CONTENT_CLASS,
+              "px-4 pt-4 pb-2 md:pb-3",
+            )}
           >
             <TranscriptViewport
               key={parentMessage.id}

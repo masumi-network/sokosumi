@@ -1,6 +1,12 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
-import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "../../chat-message-list-scroller";
+import {
+  CHAT_MESSAGE_LIST_CONTENT_CLASS,
+  CHAT_MESSAGE_LIST_SCROLLER_CLASS,
+} from "../../chat-message-list-scroller";
 import { ROOM_MESSAGE_LIST_CONTENT_CLASSNAME } from "../room-message-list-skeleton";
 import { ROOM_SHELL_SCROLLER_CLASSNAME } from "../room-shell-layout";
 
@@ -27,10 +33,17 @@ describe("room shell scroller overflow contract", () => {
     expect(classes).toContain("flex-col-reverse");
   });
 
-  it("content refuses to shrink to the scroller's height", () => {
+  it("content refuses to shrink to the scroller's height, in the room and the thread", () => {
+    // The thread panel builds its content class from the same base.
+    expect(CHAT_MESSAGE_LIST_CONTENT_CLASS.split(/\s+/)).toContain("shrink-0");
     expect(ROOM_MESSAGE_LIST_CONTENT_CLASSNAME.split(/\s+/)).toContain(
       "shrink-0",
     );
+    const threadPanel = readFileSync(
+      join(import.meta.dirname, "../thread-panel.tsx"),
+      "utf8",
+    );
+    expect(threadPanel).toContain("CHAT_MESSAGE_LIST_CONTENT_CLASS,");
   });
 
   it("content still uses min-h-full for short-transcript justify-end", () => {
