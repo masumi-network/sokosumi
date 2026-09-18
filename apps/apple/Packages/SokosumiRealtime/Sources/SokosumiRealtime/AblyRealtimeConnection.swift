@@ -4,8 +4,9 @@ import SokosumiChat
 
 /// ably-cocoa-backed `RealtimeConnection` (SOK-976).
 ///
-/// One socket: the user chat-control channel, membership room channels and
-/// the active organization's presence channel (ADR 0003). Auth tokens come
+/// One socket: the user chat-control channel, the user notifications channel
+/// (when the token grants it), membership room channels and the active
+/// organization's presence channel (ADR 0003). Auth tokens come
 /// from Core (`POST /v1/realtime/ably-token`) through the provider, so
 /// capabilities track membership; the coordinator remints after
 /// join/leave/revoke. Ably invokes callbacks off the main thread — events
@@ -15,6 +16,8 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
   private let lock = NSLock()
   private var realtime: ARTRealtime?
   private var controlChannel: ARTRealtimeChannel?
+  private var notificationsChannel: ARTRealtimeChannel?
+  private var notificationsListener: ARTEventListener?
   private var watchedRoomId: String?
   private var tokenSource: RealtimeTokenSource?
   private var membershipSubscriptions: RoomMembershipSubscriptions?
@@ -62,8 +65,15 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
     control.subscribe(chatMembershipRevokedEventName) { [weak self] message in
       self?.forward(channelName: controlName, message: message, generation: generation)
     }
+    // Core names the notifications channel per deployment, so it is read from
+    // the granted capability once a token exists rather than built here.
+    let notificationsListener = realtime.connection.on { [weak self, weak realtime] change in
+      guard change.current == .connected, let realtime else { return }
+      self?.subscribeNotifications(realtime: realtime, userId: userId, generation: generation)
+    }
     lock.withLock {
       self.realtime = realtime
+      self.notificationsListener = notificationsListener
       controlChannel = control
       membershipSubscriptions = RoomMembershipSubscriptions(realtime: realtime, onEvent: onEvent)
       presence = OrgPresenceChannel(realtime: realtime, onEvent: onEvent)
@@ -151,6 +161,18 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
       onEvent = nil
       return control
     }
+    let (notifications, listener) = lock.withLock {
+      defer {
+        notificationsChannel = nil
+        notificationsListener = nil
+      }
+      return (notificationsChannel, notificationsListener)
+    }
+    if let listener {
+      lock.withLock { realtime }?.connection.off(listener)
+    }
+    notifications?.unsubscribe()
+    notifications?.detach()
     presenceToStop?.stop()
     cleanup?()
     control?.unsubscribe()
@@ -161,6 +183,19 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
       return previous
     }
     previous?.close()
+  }
+
+  private func subscribeNotifications(realtime: ARTRealtime, userId: String, generation: UUID) {
+    guard let name = userNotificationsChannelName(grantedSubscribeIn: realtime.auth.tokenDetails?.capability, userId: userId) else { return }
+    let channel: ARTRealtimeChannel? = lock.withLock {
+      guard connectionGeneration == generation, notificationsChannel == nil else { return nil }
+      let channel = realtime.channels.get(name)
+      notificationsChannel = channel
+      return channel
+    }
+    channel?.subscribe(notificationCreatedEventName) { [weak self] message in
+      self?.forward(channelName: name, message: message, generation: generation)
+    }
   }
 
   private func updateHealth(roomId: String, generation: UUID, change: (inout RoomRealtimeHealth) -> Bool) {
