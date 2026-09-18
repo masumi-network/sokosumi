@@ -311,7 +311,7 @@
       "docs": "Documentation",
       "drive": "Files",
       "soko-bots": "Soko Bots",
-      "calendar": "Schedules"
+      "calendar": "Calendar"
     },
     "Jobs": {
       "StatusBadge": {
@@ -2358,7 +2358,7 @@
           "back": "Back",
           "chat": "Chat",
           "sokoBot": "Soko Bots",
-          "calendar": "Schedules",
+          "calendar": "Calendar",
           "expandProjects": "Expand Projects",
           "collapseProjects": "Collapse Projects",
           "projectsLoading": "Loading projects…",
@@ -6218,7 +6218,7 @@
     },
     "Calendar": {
       "Metadata": {
-        "title": "Schedules",
+        "title": "Calendar",
         "description": "Browse scheduled task releases in your workspace."
       },
       "previous": "Previous period",
