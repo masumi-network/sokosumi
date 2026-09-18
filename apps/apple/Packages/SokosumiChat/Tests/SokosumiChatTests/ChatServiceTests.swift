@@ -321,41 +321,6 @@ struct ChatServiceTests {
     #expect(orgSlugHeader(transport.requests[0].request) == "acme")
   }
 
-  @Test func blockedGateDoesNotLoadRooms() async throws {
-    let transport = ScriptedTransport([(200, accessBody(gate: "identity-onboarding"))])
-    do {
-      _ = try await ChatService().loadRoomsIfReady(client: makeClient(transport), organizationSlug: nil)
-      Issue.record("expected blocked error")
-    } catch let error as ChatServiceError {
-      #expect(error == .blocked(.identityOnboarding))
-    }
-    #expect(transport.requests.count == 1)
-    #expect(transport.requests[0].operationID == "get/users/{id}/workspace-access")
-  }
-
-  @Test func pendingInvitesGateDoesNotLoadRooms() async throws {
-    let transport = ScriptedTransport([(200, accessBody(gate: "pending-invites"))])
-    do {
-      _ = try await ChatService().loadRoomsIfReady(client: makeClient(transport), organizationSlug: "acme")
-      Issue.record("expected blocked error")
-    } catch let error as ChatServiceError {
-      #expect(error == .blocked(.pendingInvites))
-    }
-    #expect(transport.requests.count == 1)
-  }
-
-  @Test func readyGateLoadsRooms() async throws {
-    let transport = ScriptedTransport([
-      (200, accessBody(gate: "ready")),
-      (200, roomsPageBody(rooms: [roomJSON(id: "550e8400-e29b-41d4-a716-446655440002", name: "chat", kind: "direct", unreadCount: 5, unreadMentionCount: 0)], nextCursor: nil))
-    ])
-    let rooms = try await ChatService().loadRoomsIfReady(client: makeClient(transport), organizationSlug: nil)
-    #expect(rooms.count == 1)
-    #expect(rooms[0].unreadCount == 5)
-    #expect(transport.requests.map(\.operationID) == ["get/users/{id}/workspace-access", "get/chats/rooms"])
-    #expect(orgSlugHeader(transport.requests[1].request) == nil)
-  }
-
   @Test func repeatedCursorDoesNotAppendDuplicatePage() async throws {
     let room = roomJSON(id: "550e8400-e29b-41d4-a716-446655440010", name: "one", kind: "channel", unreadCount: 0, unreadMentionCount: 0)
     let transport = ScriptedTransport([

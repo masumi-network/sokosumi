@@ -13,9 +13,9 @@ import { cn } from "@/lib/utils";
  * rules apply to it for free.
  *
  * Both states are answered, because the rail is not a narrower version of the
- * panel: it drops the section header outright and keeps only each row's
- * leading mark, centred in the same 32px box every rail item is. A full-width
- * bar in a 56px rail is the shape nothing on this sidebar has.
+ * panel: the section header becomes one 32px square and each row keeps only
+ * its leading mark, centred in the same 32px box every rail item is. A
+ * full-width bar in a 56px rail is the shape nothing on this sidebar has.
  */
 
 /**
@@ -28,11 +28,11 @@ export function SidebarChatListSkeleton() {
   return (
     <SidebarGroup className="w-full" aria-hidden>
       <SidebarGroupContent className="space-y-2">
-        {/* `ChatSidebarSectionHeader`'s box: the rail hides it rather than
-            shrinking it, so the collapsed skeleton is rows alone. */}
-        <div className="group-data-[collapsible=icon]:hidden flex h-10 items-center gap-1 px-3 md:h-8">
-          <Skeleton className="size-4 shrink-0 md:size-3" />
-          <Skeleton className="h-3 w-20" />
+        {/* `ChatSidebarSectionHeader`'s box: a titled row expanded, the
+            section's 32px icon square on the rail. */}
+        <div className="flex h-10 items-center gap-1 px-3 md:h-8 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+          <Skeleton className="size-4 shrink-0 md:size-3 group-data-[collapsible=icon]:size-4" />
+          <Skeleton className="h-3 w-20 group-data-[collapsible=icon]:hidden" />
         </div>
         <SidebarMenu className="gap-0">
           {ROOM_NAME_WIDTHS.map((nameWidth) => (
