@@ -117,12 +117,11 @@ describe("DirectRoomAvatarStack", () => {
 
     // A group row's label already lists these people, so per-face states would
     // make the link speak every name twice. The roster panel reports there.
-    expect(
-      within(screen.getByTestId("dm-sidebar-avatar-alice")).queryByText(
-        "Online",
-      ),
-    ).toBeNull();
-    expect(screen.getByTestId("dm-sidebar-avatar-bob")).toBeInTheDocument();
+    // The dot goes with the text: one dot among three people reads as the
+    // room's state rather than Alice's.
+    const group = screen.getByTestId("dm-sidebar-avatar-alice");
+    expect(within(group).queryByText("Online")).toBeNull();
+    expect(group.querySelector("[title]")).toBeNull();
   });
 
   it("renders faces as plain marks with no hover card or button semantics", () => {
@@ -191,7 +190,7 @@ describe("DirectRoomAvatarStack", () => {
     expect(face?.className).not.toContain("group-data-[collapsible=icon]:");
   });
 
-  it("keeps only the first face when the sidebar collapses", () => {
+  it("shows one face however many people are in the room", () => {
     render(
       <DirectRoomAvatarStack
         room={makeDirectRoom({
@@ -205,22 +204,16 @@ describe("DirectRoomAvatarStack", () => {
       />,
     );
 
-    // At 20px Inter's widest pairs ("MA", "WM") touch the rim of a circle;
-    // 24px holds every pair at the same type size. A 32px rail square cannot
-    // hold a stack of those, so a group row shows its first face alone there
-    // and the button's tooltip names the rest.
-    for (const id of ["alice", "bob"]) {
-      const avatar = screen
-        .getByTestId(`dm-sidebar-avatar-${id}`)
-        .querySelector('[data-slot="avatar"]');
-      expect(avatar?.className.split(" ")).toContain("size-6");
+    // A **Sidebar row**'s mark is one 24px slot (CONTEXT.md), and a stack is
+    // not: three 24px faces overlapping run 56px, which spilled out of the
+    // slot and over the name beside it. Shrinking them to fit would turn a
+    // group into three coloured dots, which is why Soko Bots stopped stacking
+    // too. The room's label lists everyone in this same order.
+    expect(screen.getByTestId("dm-sidebar-avatar-alice")).toBeInTheDocument();
+    for (const id of ["bob", "me"]) {
+      expect(screen.queryByTestId(`dm-sidebar-avatar-${id}`)).toBeNull();
     }
-    expect(
-      screen.getByTestId("dm-sidebar-avatar-alice").className,
-    ).not.toContain("group-data-[collapsible=icon]:hidden");
-    expect(screen.getByTestId("dm-sidebar-avatar-bob").className).toContain(
-      "group-data-[collapsible=icon]:hidden",
-    );
+    expect(document.querySelectorAll('[data-slot="avatar"]')).toHaveLength(1);
   });
 
   it("renders a fallback mark when the DM has no other participants", () => {
