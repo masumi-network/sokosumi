@@ -103,6 +103,9 @@ function BrowserNotice({
               the hue rotation and measures 5.85:1 now in light, 9.15:1 in
               dark, so a paragraph in it would clear its floor.
 
+              The colour that does not clear it here is the muted grey; see
+              the note on the body paragraph below.
+
               What holds instead is that the tint and the mark already say
               "warning", so colouring the words as well spends one channel
               three times, and this half has a reason to explain under its
@@ -126,6 +129,22 @@ function BrowserNotice({
               {t(titleKey)}
             </p>
             {bodyKey ? (
+              // A known contrast miss, left alone deliberately.
+              //
+              // On the warning tint --muted-foreground measures 4.31:1, under
+              // the 4.5:1 SC 1.4.3 asks of text this size. It measured 4.37:1
+              // before the hue rotation in this change, so the miss predates
+              // the branch and the branch took 0.06 off it.
+              //
+              // Painting the warning half in the default foreground was tried
+              // and reverted. It measures 17.25:1, but the title above is the
+              // same size and the same colour and differs only by font-medium,
+              // so the two paragraphs read as one block and the reader loses
+              // the line that says what is wrong. Closing 0.19 of contrast is
+              // not worth the hierarchy.
+              //
+              // Whatever fixes this properly changes a colour, so it belongs
+              // in a change about colour rather than in this one.
               <p className="text-muted-foreground text-sm leading-5">
                 {t(bodyKey)}
               </p>

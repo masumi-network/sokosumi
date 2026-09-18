@@ -131,8 +131,10 @@ interface HueClasses {
  * staged column can draw an outline.
  *
  * `dormant` takes its label from `--foreground` because the grey ramp has no
- * `-label` step and does not need one: grey text on a grey tint measures
- * 15.83:1 in light and 12.28:1 in dark.
+ * `-label` step and does not need one. Nothing paints `dormant` filled today,
+ * so the measurement that matters is the label on the card, at 18.93:1 in
+ * light and 17.17:1 in dark. On the grey tint, were it ever filled, it would
+ * measure 15.81:1 and 12.28:1.
  */
 const HUE_CLASSES: Record<StatusHue, HueClasses> = {
   dormant: {

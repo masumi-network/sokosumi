@@ -414,12 +414,14 @@
 
   --semantic-warning: hsla(25, 92%, 31%, 1);
   --semantic-warning-tertiary: hsla(25, 41.3%, 80.7%, 1);
-  /* The whole light warning ramp is orange at hue 25, rotated from amber 35.
-     Dark stays at 43 and is not part of this change.
+  /* The light warning ramp is orange at hue 25. Four of its six steps were
+     amber 35; the label was already hue 26 and the foreground a hue-55
+     off-white, so "rotated from 35" describes the tint steps, not the ramp.
+     All six are hue 25 now. Dark stays at 43 and is not part of this change.
 
      The complaint this answers was that the input-required label reads too
-     dark, not that it fails a floor. It did not fail one: at hue 35 the label
-     measured 4.61:1 on its own tint. What it could not do was get lighter.
+     dark, not that it fails a floor. It did not fail one: the old hue-26
+     label measured 4.61:1 on the hue-35 tint. What it could not do was get lighter.
      At 12px it is normal text, so SC 1.4.3 asks 4.5:1 on the tint, and yellow
      carries more luminance than any other hue, which pinned the label near
      L35 at the old saturation whatever else was tuned.
