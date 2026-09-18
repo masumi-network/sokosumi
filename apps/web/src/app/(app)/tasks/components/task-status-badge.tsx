@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 
 const STATUS_LABELS: Partial<Record<TaskStatus, string>> = {
   [TaskStatus.DRAFT]: "Draft",
-  [TaskStatus.QUEUED]: "Queued",
+  [TaskStatus.QUEUED]: "Scheduled",
   [TaskStatus.READY]: "Ready",
   [TaskStatus.INPUT_REQUIRED]: "Input required",
   [TaskStatus.APPROVAL_REQUIRED]: "Approval required",
@@ -29,9 +29,13 @@ const STATUS_LABELS: Partial<Record<TaskStatus, string>> = {
  * Hue follows `task-column.ts`, which is the board's own grouping and the
  * only one the reader can see. Weight separates the statuses inside a column.
  *
- * `backlog` and `todo` each hold two, so each gets a filled state and an
- * outline one. `input-required` holds five, which no weight scale can carry,
- * so four of them are filled and the glyph separates them.
+ * `todo` holds two, so it gets a filled state and an outline one.
+ * `input-required` holds five, which no weight scale can carry, so four of
+ * them are filled and the glyph separates them.
+ *
+ * `backlog` holds two as well but is currently an exception to rule 1:
+ * `QUEUED` wears the `active` hue rather than the column's `dormant`. See the
+ * note on that entry.
  *
  * `GRANT_PENDING` takes the outline because it is blocked by something other
  * than the reader. The other four are the coworker asking this person for
@@ -42,18 +46,24 @@ const STATUS_LABELS: Partial<Record<TaskStatus, string>> = {
  * rather than through this task. Blocked, but not by anything the reader does
  * here, which is what `outline` says everywhere else in the scale.
  *
- * `done` is the exception to rule 1. Its three members are outcomes, and the
- * outcome is the whole point of that column, so they take three hues rather
- * than one.
+ * `done` is the other exception to rule 1. Its three members are outcomes,
+ * and the outcome is the whole point of that column, so they take three hues
+ * rather than one.
  */
 const TASK_STATUS_MARKERS: Record<TaskStatus, StatusMarkerSpec> = {
-  // backlog: nothing is moving yet.
+  // backlog: not picked up yet.
   [TaskStatus.DRAFT]: {
     tone: { hue: "dormant", weight: "outline" },
     icon: MARKER_ICONS.draft,
   },
+  // Exception to rule 1, and a deliberately temporary one. A scheduled task
+  // sits in `backlog` on the board but wears the `active` hue, because the
+  // thing a reader wants to know about it is that it will run by itself. The
+  // board is due to stop showing these rows at all and send the reader to
+  // the schedules surface instead (SOK-1112); until that lands, the hue says
+  // "this one moves on its own" while the column still says where the card is.
   [TaskStatus.QUEUED]: {
-    tone: { hue: "dormant", weight: "filled" },
+    tone: { hue: "active", weight: "filled" },
     icon: MARKER_ICONS.queued,
   },
 

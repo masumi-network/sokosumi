@@ -116,6 +116,21 @@ const COLUMN_HUE: Record<string, StatusHue> = {
   "input-required": "blocked",
 };
 
+/**
+ * The second exception, and unlike `done` a temporary one. `QUEUED` sits in
+ * `backlog` and wears the `active` hue, because a scheduled task runs by
+ * itself and that is the thing worth seeing. The board is due to stop showing
+ * these rows at all and point the reader at the schedules surface (SOK-1112);
+ * when that lands this entry goes with it.
+ *
+ * It is an allowlist rather than a loosened rule on purpose: every other
+ * status in `backlog` still has to take the column's hue, so a second drift
+ * fails here.
+ */
+const COLUMN_HUE_EXCEPTIONS: Partial<Record<TaskStatus, StatusHue>> = {
+  [TaskStatus.QUEUED]: "active",
+};
+
 describe("hue follows the board column", () => {
   it.each(Object.keys(COLUMN_HUE))(
     "paints every status in %s with that column's hue",
@@ -129,10 +144,29 @@ describe("hue follows the board column", () => {
         expect(
           getTaskStatusMarker(status).tone.hue,
           `${status} sits in ${columnId}`,
-        ).toBe(COLUMN_HUE[columnId]);
+        ).toBe(COLUMN_HUE_EXCEPTIONS[status] ?? COLUMN_HUE[columnId]);
       }
     },
   );
+
+  /**
+   * Without this the allowlist is free to outlive what it excuses: delete the
+   * exception from the table and this test still passes, silently.
+   */
+  it("keeps the exception list to statuses that actually differ", () => {
+    for (const [status, hue] of Object.entries(COLUMN_HUE_EXCEPTIONS)) {
+      const columnId = Object.keys(COLUMN_TASK_STATUSES).find((id) =>
+        COLUMN_TASK_STATUSES[id as keyof typeof COLUMN_TASK_STATUSES].includes(
+          status as TaskStatus,
+        ),
+      );
+
+      expect(getTaskStatusMarker(status as TaskStatus).tone.hue).toBe(hue);
+      expect(hue, `${status} no longer differs from its column`).not.toBe(
+        COLUMN_HUE[columnId ?? ""],
+      );
+    }
+  });
 
   /**
    * The bug this whole model exists to stop. Four statuses shared one hue
