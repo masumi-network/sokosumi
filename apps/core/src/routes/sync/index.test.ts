@@ -19,6 +19,7 @@ const {
   syncDueTaskSchedulesMock,
   reconcileScheduleHistoryMock,
   validateActiveSchedulesMock,
+  publishDueSocialPostsMock,
 } = vi.hoisted(() => ({
   acquireLockMock: vi.fn(),
   syncCardanoV2RailReadinessMock: vi.fn(),
@@ -37,6 +38,7 @@ const {
   syncDueTaskSchedulesMock: vi.fn(),
   reconcileScheduleHistoryMock: vi.fn(),
   validateActiveSchedulesMock: vi.fn(),
+  publishDueSocialPostsMock: vi.fn(),
 }));
 
 /** The mocked `LOCK_TIMEOUT`, which the env mock below hands the handler. */
@@ -146,6 +148,10 @@ vi.mock("@/services/task-schedule-validation.service", () => ({
   },
 }));
 
+vi.mock("@/services/social-post-publisher.service", () => ({
+  publishDueSocialPosts: publishDueSocialPostsMock,
+}));
+
 vi.mock("@vercel/functions", () => ({
   waitUntil: (promise: Promise<unknown>) => {
     void promise;
@@ -229,6 +235,67 @@ describe("sync routes", () => {
       quarantined: 0,
       passComplete: true,
     });
+    publishDueSocialPostsMock.mockResolvedValue({
+      claimed: 0,
+      published: 0,
+      retried: 0,
+      failed: 0,
+      missed: 0,
+      skipped: 0,
+    });
+  });
+
+  it("returns 401 for missing cron auth on social posts publish sync", async () => {
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/social-posts-publish",
+    );
+
+    expect(response.status).toBe(401);
+    expect(acquireLockMock).not.toHaveBeenCalled();
+    expect(publishDueSocialPostsMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when the social posts publish lock is already held", async () => {
+    acquireLockMock.mockRejectedValue(new Error("LOCK_IS_LOCKED"));
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/social-posts-publish",
+      { headers: { Authorization: "Bearer test-cron-secret" } },
+    );
+
+    expect(response.status).toBe(409);
+    expect(acquireLockMock).toHaveBeenCalledWith("social-posts-publish-sync");
+    expect(publishDueSocialPostsMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 and publishes due social posts exactly once in background", async () => {
+    const deferred = createDeferred();
+    publishDueSocialPostsMock.mockImplementation(() => deferred.promise);
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/social-posts-publish",
+      { headers: { Authorization: "Bearer test-cron-secret" } },
+    );
+
+    expect(response.status).toBe(200);
+    expect(acquireLockMock).toHaveBeenCalledWith("social-posts-publish-sync");
+
+    await flushMicrotasks();
+    expect(publishDueSocialPostsMock).toHaveBeenCalledTimes(1);
+    expect(publishDueSocialPostsMock).toHaveBeenCalledWith({
+      abortSignal: expect.any(AbortSignal),
+      deadlineMs: expect.any(Number),
+      shouldContinue: expect.any(Function),
+    });
+    expect(releaseLockMock).not.toHaveBeenCalled();
+
+    deferred.resolve();
+    await flushMicrotasks();
+    expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
   });
 
   it("returns 401 for missing cron auth", async () => {

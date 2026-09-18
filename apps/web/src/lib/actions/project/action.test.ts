@@ -23,6 +23,7 @@ const projectServiceMock = {
   getProjectContextMd: vi.fn(),
   initiateSocialConnection: vi.fn(),
   patchProject: vi.fn(),
+  publishSocialPost: vi.fn(),
   removeProjectDesignMd: vi.fn(),
   scheduleSocialPost: vi.fn(),
   updateSocialPost: vi.fn(),
@@ -560,6 +561,97 @@ describe("project actions", () => {
       );
       expect(canceled).toMatchObject({ ok: true, value: { revision: 2 } });
       expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1/social");
+    });
+
+    it("publishes a post now through the service and revalidates", async () => {
+      projectServiceMock.publishSocialPost.mockResolvedValue({
+        ...post,
+        status: "PUBLISHED",
+        revision: 3,
+      });
+
+      const { publishProjectSocialPost } = await import("./action");
+      const { revalidatePath } = await import("next/cache");
+      const result = await publishProjectSocialPost({
+        projectId: " project-1 ",
+        postId: " post-1 ",
+        revision: 2,
+      });
+
+      expect(projectServiceMock.publishSocialPost).toHaveBeenCalledWith(
+        "project-1",
+        "post-1",
+        { revision: 2 },
+      );
+      expect(result).toMatchObject({
+        ok: true,
+        value: { status: "PUBLISHED", revision: 3 },
+      });
+      expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1");
+      expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1/social");
+    });
+
+    it("rejects a negative revision before publishing", async () => {
+      const { publishProjectSocialPost } = await import("./action");
+      const result = await publishProjectSocialPost({
+        projectId: "project-1",
+        postId: "post-1",
+        revision: -1,
+      });
+
+      expect(result).toMatchObject({
+        ok: false,
+        error: { code: "BAD_INPUT" },
+      });
+      expect(projectServiceMock.publishSocialPost).not.toHaveBeenCalled();
+    });
+
+    it("returns a FAILED post as a success payload so the UI can show lastError", async () => {
+      projectServiceMock.publishSocialPost.mockResolvedValue({
+        ...post,
+        status: "FAILED",
+        lastError: "X rejected the post",
+        revision: 3,
+      });
+
+      const { publishProjectSocialPost } = await import("./action");
+      const result = await publishProjectSocialPost({
+        projectId: "project-1",
+        postId: "post-1",
+        revision: 2,
+      });
+
+      expect(result).toMatchObject({
+        ok: true,
+        value: { status: "FAILED", lastError: "X rejected the post" },
+      });
+    });
+
+    it("converts publish Core errors to a plain action error DTO", async () => {
+      projectServiceMock.publishSocialPost.mockRejectedValue(
+        new Error("Social post cannot be published now"),
+      );
+      toCoreApiActionErrorMock.mockReturnValue({
+        code: "BAD_INPUT",
+        message: "Social post cannot be published now",
+      });
+
+      const { publishProjectSocialPost } = await import("./action");
+      const { revalidatePath } = await import("next/cache");
+      const result = await publishProjectSocialPost({
+        projectId: "project-1",
+        postId: "post-1",
+        revision: 0,
+      });
+
+      expect(result).toEqual({
+        ok: false,
+        error: {
+          code: "BAD_INPUT",
+          message: "Social post cannot be published now",
+        },
+      });
+      expect(revalidatePath).not.toHaveBeenCalled();
     });
 
     it("converts social post Core errors to a plain action error DTO", async () => {

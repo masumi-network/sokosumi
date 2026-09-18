@@ -66,11 +66,17 @@ const draftPost = {
   publishedExternalId: null,
   publishedUrl: null,
   lastError: null,
+  attemptCount: 0,
+  nextAttemptAt: null,
+  leaseToken: null,
+  leaseExpiresAt: null,
+  lastAttemptAt: null,
   revision: 0,
   socialConnection: null,
   creatorUser: { id: USER_ID, name: "Ada Lovelace" },
   creatorCoworker: null,
   creatorSokoBot: null,
+  attempts: [],
 };
 
 const scheduledPost = {
@@ -155,6 +161,92 @@ describe("social posts service", () => {
         canCancel: true,
       }),
     ]);
+  });
+
+  it("loads the latest attempt with the post", async () => {
+    const { getSocialPost } = await loadService();
+
+    await getSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      postId: POST_ID,
+    });
+
+    expect(socialPostFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          attempts: expect.objectContaining({
+            orderBy: { attempt: "desc" },
+            take: 1,
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("derives publish-now, reconnect, and last-attempt fields", async () => {
+    const lastAttempt = {
+      attempt: 2,
+      trigger: "scheduler",
+      outcome: "failed_transient",
+      errorKind: "rate_limited",
+      providerOutcome: "publish X post failed (429)",
+      finishedAt: NOW,
+    };
+    socialPostFindManyMock.mockResolvedValue([
+      {
+        ...scheduledPost,
+        attemptCount: 2,
+        nextAttemptAt: FUTURE,
+        lastAttemptAt: NOW,
+        attempts: [lastAttempt],
+        socialConnection: {
+          ...scheduledPost.socialConnection,
+          status: "reauthorization_required",
+        },
+      },
+      { ...draftPost, status: "PUBLISHING" },
+      { ...scheduledPost, status: "FAILED" },
+      {
+        ...scheduledPost,
+        status: "PUBLISHED",
+        socialConnection: {
+          ...scheduledPost.socialConnection,
+          status: "reauthorization_required",
+        },
+      },
+    ]);
+    const { listSocialPosts } = await loadService();
+
+    const posts = await listSocialPosts({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+    });
+
+    expect(posts[0]).toMatchObject({
+      attemptCount: 2,
+      nextAttemptAt: FUTURE,
+      lastAttemptAt: NOW,
+      lastAttempt,
+      canPublishNow: true,
+      connectionNeedsReconnect: true,
+    });
+    expect(posts[1]).toMatchObject({
+      lastAttempt: null,
+      canEdit: false,
+      canCancel: false,
+      canSchedule: false,
+      canPublishNow: false,
+      connectionNeedsReconnect: false,
+    });
+    expect(posts[2]).toMatchObject({
+      canPublishNow: true,
+      connectionNeedsReconnect: false,
+    });
+    expect(posts[3]).toMatchObject({
+      canPublishNow: false,
+      connectionNeedsReconnect: false,
+    });
   });
 
   it("returns not found for a post in another Project", async () => {
@@ -452,6 +544,8 @@ describe("social posts service", () => {
         socialConnectionId: SOCIAL_CONNECTION_ID,
         scheduledByUserId: USER_ID,
         lastError: null,
+        attemptCount: 0,
+        nextAttemptAt: null,
         revision: { increment: 1 },
       },
     });

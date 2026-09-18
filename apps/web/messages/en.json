@@ -2239,6 +2239,16 @@
         "noAccount": "No account",
         "connectAccountFirst": "Connect an X account to this Project before scheduling posts.",
         "connectAccountLink": "Connect an account",
+        "needsReconnect": "Account needs reconnecting",
+        "needsReconnectLink": "Reconnect the account",
+        "viewOnX": "View on X",
+        "publishedAt": "Published {date}",
+        "failedAt": "Failed {date}",
+        "attempts": "{count, plural, one {# attempt} other {# attempts}}",
+        "actions": {
+          "publishNow": "Publish now",
+          "retry": "Retry"
+        },
         "sections": {
           "upcoming": "Upcoming",
           "drafts": "Drafts",
@@ -2252,7 +2262,7 @@
         "status": {
           "DRAFT": "Draft",
           "SCHEDULED": "Scheduled",
-          "PUBLISHING": "Publishing",
+          "PUBLISHING": "Publishing…",
           "PUBLISHED": "Published",
           "FAILED": "Failed",
           "MISSED": "Missed",
@@ -2289,13 +2299,20 @@
           "description": "The post will not be published. You can schedule it again later.",
           "confirm": "Cancel post"
         },
+        "publishDialog": {
+          "title": "Publish this post now?",
+          "description": "The post goes out to X right away instead of waiting for its scheduled time.",
+          "confirm": "Publish now"
+        },
         "toasts": {
           "created": "Draft saved.",
           "scheduled": "Post scheduled.",
           "updated": "Post updated.",
           "canceled": "Post canceled.",
           "conflict": "This post was changed elsewhere. Reloading the latest version.",
-          "failed": "Something went wrong. Try again."
+          "failed": "Something went wrong. Try again.",
+          "published": "Post published.",
+          "publishFailed": "Publishing failed: {error}"
         }
       },
       "Detail": {

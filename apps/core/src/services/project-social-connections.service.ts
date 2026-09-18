@@ -69,7 +69,8 @@ function projectConnectorUserId(userId: string): string {
   return `sokosumi:user:${userId}`;
 }
 
-function projectExecutorUserId(projectId: string): string {
+/** Composio user id under which a Project executes tools on its connected accounts. */
+export function projectExecutorUserId(projectId: string): string {
   return `sokosumi:project-executor:${projectId}`;
 }
 

@@ -17,6 +17,7 @@ import type {
   ProjectNeedsAttention,
   ProjectSocialConnection,
   ProjectStatsEntry,
+  PublishSocialPostRequest,
   ScheduleSocialPostRequest,
   SocialPost,
   TaskListItem,
@@ -277,6 +278,19 @@ export const projectService = (() => {
     return result.data;
   }
 
+  async function publishSocialPost(
+    projectId: string,
+    postId: string,
+    input: PublishSocialPostRequest,
+  ): Promise<SocialPost> {
+    const result = await coreClient.postProjectsByIdSocialPostsByPostIdPublish(
+      projectId,
+      postId,
+      input,
+    );
+    return result.data;
+  }
+
   async function listProjectJobs(
     projectId: string,
     params: ListProjectResourcesParams = {},
@@ -391,6 +405,7 @@ export const projectService = (() => {
     updateSocialPost,
     scheduleSocialPost,
     cancelSocialPost,
+    publishSocialPost,
     listProjectJobs,
     listProjectTasks,
     addJob,

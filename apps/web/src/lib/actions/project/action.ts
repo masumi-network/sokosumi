@@ -111,6 +111,12 @@ interface CancelProjectSocialPostParameters extends AuthenticatedRequest {
   revision: number;
 }
 
+interface PublishProjectSocialPostParameters extends AuthenticatedRequest {
+  projectId: string;
+  postId: string;
+  revision: number;
+}
+
 function normalizeProjectName(name: string): string {
   return name.trim();
 }
@@ -451,6 +457,12 @@ const cancelProjectSocialPostSchema = z.object({
   revision: revisionSchema,
 });
 
+const publishProjectSocialPostSchema = z.object({
+  projectId: trimmedId,
+  postId: trimmedId,
+  revision: revisionSchema,
+});
+
 function badSocialPostInput(
   parsed: z.ZodSafeParseError<unknown>,
 ): ActionResultDto<SocialPost, ActionError> {
@@ -589,6 +601,32 @@ export const cancelProjectSocialPost = withSession<
 
   try {
     const post = await projectService.cancelSocialPost(
+      parsed.data.projectId,
+      parsed.data.postId,
+      { revision: parsed.data.revision },
+    );
+    revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+    return toActionResult(ok(post));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const publishProjectSocialPost = withSession<
+  PublishProjectSocialPostParameters,
+  ActionResultDto<SocialPost, ActionError>
+>(async ({ projectId, postId, revision }) => {
+  const parsed = publishProjectSocialPostSchema.safeParse({
+    projectId,
+    postId,
+    revision,
+  });
+  if (!parsed.success) {
+    return badSocialPostInput(parsed);
+  }
+
+  try {
+    const post = await projectService.publishSocialPost(
       parsed.data.projectId,
       parsed.data.postId,
       { revision: parsed.data.revision },
