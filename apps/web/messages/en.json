@@ -101,9 +101,6 @@
         }
       },
       "AgentDetail": {
-        "Header": {
-          "pricing": "{credits, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
-        },
         "Stats": {
           "executedJobs": "Executed Jobs",
           "averageExecutionTime": "Average Execution Time",
@@ -314,7 +311,7 @@
       "docs": "Documentation",
       "drive": "Files",
       "soko-bots": "Soko Bots",
-      "calendar": "Schedules"
+      "calendar": "Calendar"
     },
     "Jobs": {
       "StatusBadge": {
@@ -1267,7 +1264,7 @@
         "description": "Enter your new password below",
         "Form": {
           "submit": "Reset password",
-          "success": "Password reset successfully",
+          "success": "Password reset. You have been signed out on all devices.",
           "error": "Password reset failed",
           "Fields": {
             "Password": {
@@ -1317,7 +1314,7 @@
         "statusOptions": {
           "archived": "Archived",
           "DRAFT": "Draft",
-          "QUEUED": "Queued",
+          "QUEUED": "Scheduled",
           "READY": "Ready",
           "GRANT_PENDING": "Grant pending",
           "INPUT_REQUIRED": "Input required",
@@ -1574,7 +1571,7 @@
         "statusLabel": "Status",
         "statusOptions": {
           "DRAFT": "Draft",
-          "QUEUED": "Queued",
+          "QUEUED": "Scheduled",
           "READY": "Ready",
           "GRANT_PENDING": "Grant pending",
           "INPUT_REQUIRED": "Input required",
@@ -1899,7 +1896,7 @@
         "status": "Status",
         "statusDescription": "Choose the initial status for this task",
         "statusDraft": "Draft",
-        "statusQueued": "Queued",
+        "statusQueued": "Scheduled",
         "statusReady": "Ready",
         "changeStatus": "Change status…",
         "noStatusMatches": "No status matches",
@@ -2361,7 +2358,13 @@
           "back": "Back",
           "chat": "Chat",
           "sokoBot": "Soko Bots",
-          "calendar": "Schedules"
+          "calendar": "Calendar",
+          "expandProjects": "Expand Projects",
+          "collapseProjects": "Collapse Projects",
+          "projectsLoading": "Loading projects…",
+          "projectsError": "Could not load projects.",
+          "projectsEmpty": "No projects yet.",
+          "retryProjects": "Retry"
         },
         "ChatLists": {
           "title": "Recent Chats",
@@ -4015,6 +4018,8 @@
         "currentPassword": "Current password",
         "newPassword": "New password",
         "confirmPassword": "Confirm new password",
+        "revokeOtherSessionsLabel": "Sign out of other devices",
+        "revokeOtherSessionsHelp": "Ends every other session. The device you are using now stays signed in.",
         "submit": "Update password",
         "success": "Password updated successfully",
         "error": "Failed to update password"
@@ -5238,6 +5243,7 @@
         "markUnread": "Mark as unread",
         "pin": "Pin",
         "unpin": "Unpin",
+        "reorderHandle": "Reorder {name}. Drag, or press the up and down arrow keys.",
         "mute": "Mute",
         "unmute": "Unmute",
         "roomMenu": "Chat actions for {name}",
@@ -5259,6 +5265,9 @@
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflowCount": "{count} more participants",
       "directMessages": "Direct Messages",
+      "pinned": "Pinned",
+      "reorderPinned": "Reorder pinned chats",
+      "reorderPinnedDone": "Done reordering",
       "loading": "Loading...",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "composerTooLong": "Message is too long ({count}/{max}). Shorten it to send.",
@@ -6210,7 +6219,7 @@
     },
     "Calendar": {
       "Metadata": {
-        "title": "Schedules",
+        "title": "Calendar",
         "description": "Browse scheduled task releases in your workspace."
       },
       "previous": "Previous period",
@@ -6263,7 +6272,7 @@
         "label": "Task status",
         "all": "All statuses",
         "DRAFT": "Draft",
-        "QUEUED": "Queued",
+        "QUEUED": "Scheduled",
         "READY": "Ready",
         "GRANT_PENDING": "Grant pending",
         "INPUT_REQUIRED": "Input required",

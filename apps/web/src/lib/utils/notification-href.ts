@@ -24,6 +24,41 @@ export function chatRoomMessageHref(roomId: string, messageId: string): string {
   return `${room}?${CHAT_MESSAGE_PARAM}=${encodeURIComponent(trimmedMessageId)}`;
 }
 
+export interface ChatRoomMessageLink {
+  roomId: string;
+  messageId: string;
+}
+
+const CHAT_ROOM_MESSAGE_PATHNAME_RE = /^\/chat\/rooms\/([^/]+)\/?$/;
+
+/**
+ * Inverse of `chatRoomMessageHref` for pasted text: matches only when the whole
+ * text is one absolute Message link on `origin`.
+ */
+export function parseChatRoomMessageLink(
+  text: string,
+  origin: string,
+): ChatRoomMessageLink | null {
+  const trimmed = text.trim();
+  if (/\s/.test(trimmed) || !URL.canParse(trimmed)) {
+    return null;
+  }
+  const url = new URL(trimmed);
+  if (url.origin !== origin || url.username || url.password) {
+    return null;
+  }
+  const roomId = CHAT_ROOM_MESSAGE_PATHNAME_RE.exec(url.pathname)?.[1];
+  const messageId = url.searchParams.get(CHAT_MESSAGE_PARAM)?.trim();
+  if (!roomId || !messageId) {
+    return null;
+  }
+  try {
+    return { roomId: decodeURIComponent(roomId), messageId };
+  } catch {
+    return null;
+  }
+}
+
 interface NotificationHrefItem {
   kind: NotificationKind;
   referenceId: string;

@@ -3,6 +3,7 @@ import Foundation
 
 /// Sidebar sections mirroring web's `partitionRoomsForSidebar`.
 public struct PartitionedSidebarRooms: Sendable {
+  public var pinned: [Components.Schemas.ChatRoom]
   public var channels: [Components.Schemas.ChatRoom]
   public var directMessages: [Components.Schemas.ChatRoom]
   public var external: [Components.Schemas.ChatRoom]
@@ -12,14 +13,34 @@ public struct PartitionedSidebarRooms: Sendable {
 /// and the active room suppress chrome — the active transcript has
 /// resolved and marks read via `RoomReadAttention` (ADR 0026). Bold
 /// covers any unread, including leftover thread unread (ADR 0013).
+/// `unreadTextCount` is the reader's opt-in Room unread count: a third field,
+/// because the badge keeps counting mentions only.
 public struct RoomAttention: Equatable, Sendable {
   public var bold: Bool
   public var badgeCount: Int
+  public var unreadTextCount: Int
 
-  public init(bold: Bool, badgeCount: Int) {
+  public init(bold: Bool, badgeCount: Int, unreadTextCount: Int = 0) {
     self.bold = bold
     self.badgeCount = badgeCount
+    self.unreadTextCount = unreadTextCount
   }
+}
+
+/// Web `ROOM_COUNT_CAP`: a very loud room cannot reflow its row.
+public let roomCountCap = 99
+
+/// Web `roomCountLabel`: the count, capped as "99+".
+public func roomCountLabel(_ count: Int) -> String {
+  count > roomCountCap ? "\(roomCountCap)+" : String(count)
+}
+
+/// Spoken form of the Room unread count (web `RoomUnread.unreadMessages*`).
+public func roomUnreadAccessibilityLabel(_ count: Int) -> String {
+  if count > roomCountCap {
+    return "More than \(roomCountCap) unread messages"
+  }
+  return count == 1 ? "1 unread message" : "\(count) unread messages"
 }
 
 /// One face in a Direct sidebar stack. Mirrors web's `DirectRoomAvatarStack`
@@ -128,52 +149,104 @@ public func resolveRoomAttention(
   unreadMentionCount: Int,
   markedUnread: Bool = false,
   isMuted: Bool = false,
-  isActive: Bool = false
+  isActive: Bool = false,
+  showUnreadCount: Bool = false
 ) -> RoomAttention {
   if isMuted || isActive {
     return .init(bold: false, badgeCount: 0)
   }
-  return .init(bold: unreadCount > 0 || markedUnread, badgeCount: unreadMentionCount)
+  return .init(
+    bold: unreadCount > 0 || markedUnread,
+    badgeCount: unreadMentionCount,
+    unreadTextCount: showUnreadCount ? max(0, unreadCount) : 0
+  )
 }
 
-/// Split the unified room list for the sidebar, mirroring web:
-/// external/matched channels and guest-access rooms live only under
-/// External (guest access is checked before kind, so even a guest Direct
-/// reads as External); remaining Directs list under Direct messages.
+/// Web's `SectionAttention`: what a closed section heading says for the rooms
+/// under it.
+public enum SectionAttention: Equatable, Sendable {
+  case unread, mention
+}
+
+/// Web's `resolveSectionAttention`: a section's attention is its loudest
+/// room's, by the same rules a row follows. Mention wins; a pending invitation
+/// is addressed to the reader, so it counts as a mention.
+public func resolveSectionAttention(
+  _ rooms: [Components.Schemas.ChatRoom],
+  hasPendingInvitation: Bool = false
+) -> SectionAttention? {
+  var unread = false
+  for room in rooms {
+    let attention = resolveRoomAttention(
+      unreadCount: room.unreadCount,
+      unreadMentionCount: room.unreadMentionCount,
+      markedUnread: room.markedUnread,
+      isMuted: room.mutedAt != nil
+    )
+    if attention.badgeCount > 0 {
+      return .mention
+    }
+    unread = unread || attention.bold
+  }
+  if hasPendingInvitation {
+    return .mention
+  }
+  return unread ? .unread : nil
+}
+
+/// Where a room lists when it is not pinned; a pinned row keeps this kind's leading mark.
+public enum SidebarRoomKind: Sendable {
+  case channel, external, direct
+}
+
+/// External/matched channels and guest-access rooms read as External (guest
+/// access is checked before kind, so even a guest Direct does); remaining
+/// Directs are Direct messages.
+public func sidebarRoomKind(_ room: Components.Schemas.ChatRoom) -> SidebarRoomKind {
+  if room.kind == .channel,
+     let discoverability = room.discoverability,
+     discoverability == .external || discoverability == .matched {
+    return .external
+  }
+  // Guests are always on external rooms (DB invariant); safety net.
+  if room.myAccess == .guest {
+    return .external
+  }
+  return room.kind == .channel ? .channel : .direct
+}
+
+/// Split the unified room list for the sidebar, mirroring web: a pinned room
+/// of any kind lists under Pinned only, in the reader's own order, and leaves
+/// the section it would otherwise sit in (`sidebarRoomKind`).
 public func partitionRoomsForSidebar(
   _ rooms: [Components.Schemas.ChatRoom]
 ) -> PartitionedSidebarRooms {
+  var pinned: [Components.Schemas.ChatRoom] = []
   var channels: [Components.Schemas.ChatRoom] = []
   var directMessages: [Components.Schemas.ChatRoom] = []
   var external: [Components.Schemas.ChatRoom] = []
   for room in rooms {
-    if room.kind == .channel,
-       let discoverability = room.discoverability,
-       discoverability == .external || discoverability == .matched {
-      external.append(room)
+    if room.starredAt != nil {
+      pinned.append(room)
       continue
     }
-    // Guests are always on external rooms (DB invariant); safety net.
-    if room.myAccess == .guest {
-      external.append(room)
-      continue
-    }
-    switch room.kind {
-    case .channel:
-      channels.append(room)
-    case .direct:
-      directMessages.append(room)
+    switch sidebarRoomKind(room) {
+    case .channel: channels.append(room)
+    case .external: external.append(room)
+    case .direct: directMessages.append(room)
     }
   }
+  pinned.sort(by: comparePinnedRooms)
   channels.sort(by: compareRoomsByRecentActivity)
   directMessages.sort(by: compareRoomsByRecentActivity)
   external.sort(by: compareRoomsByRecentActivity)
-  return .init(channels: channels, directMessages: directMessages, external: external)
+  return .init(pinned: pinned, channels: channels, directMessages: directMessages, external: external)
 }
 
-/// Web's `compareChatRoomsByRecentActivity`: unmuted before muted; pinned
-/// (starred) before unpinned; public before private; oldest-starred first
-/// among pins; newest activity; stable id tie-break.
+/// Web's `compareChatRoomsByRecentActivity`: unmuted before muted; public
+/// before private; newest activity; stable id tie-break. Pinned rooms never
+/// reach this: the sidebar lists them in their own section, ordered by
+/// `comparePinnedRooms`.
 public func compareRoomsByRecentActivity(
   _ lhs: Components.Schemas.ChatRoom,
   _ rhs: Components.Schemas.ChatRoom
@@ -182,23 +255,38 @@ public func compareRoomsByRecentActivity(
   if byMuted != 0 {
     return byMuted < 0
   }
-  let lhsPinned = lhs.starredAt != nil
-  let rhsPinned = rhs.starredAt != nil
-  if lhsPinned != rhsPinned {
-    return lhsPinned
-  }
   let byDiscoverability = discoverabilityRank(lhs.discoverability) - discoverabilityRank(rhs.discoverability)
   if byDiscoverability != 0 {
     return byDiscoverability < 0
-  }
-  if lhsPinned, let lhsStarred = lhs.starredAt, let rhsStarred = rhs.starredAt,
-     lhsStarred != rhsStarred {
-    return lhsStarred < rhsStarred
   }
   if lhs.updatedAt != rhs.updatedAt {
     return lhs.updatedAt > rhs.updatedAt
   }
   return lhs.id < rhs.id
+}
+
+/// Web's `comparePinnedChatRooms`, the reader's own order: oldest `starredAt`
+/// first, which a reorder rewrites (Core `PUT /chats/rooms/starred`). Activity
+/// never moves a pinned room.
+public func comparePinnedRooms(
+  _ lhs: Components.Schemas.ChatRoom,
+  _ rhs: Components.Schemas.ChatRoom
+) -> Bool {
+  let lhsStarred = lhs.starredAt ?? .distantPast
+  let rhsStarred = rhs.starredAt ?? .distantPast
+  if lhsStarred != rhsStarred {
+    return lhsStarred < rhsStarred
+  }
+  return lhs.id < rhs.id
+}
+
+/// Keyboard reorder: `ids` with `id` moved one slot up (`-1`) or down (`1`).
+/// Unchanged past either end of the list or for an unknown id.
+public func movingPinnedRoom(_ id: String, by offset: Int, in ids: [String]) -> [String] {
+  guard let from = ids.firstIndex(of: id), ids.indices.contains(from + offset) else { return ids }
+  var next = ids
+  next.swapAt(from, from + offset)
+  return next
 }
 
 private func mutedRank(_ value: Date?) -> Int {

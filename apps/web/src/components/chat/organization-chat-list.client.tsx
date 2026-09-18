@@ -1,9 +1,21 @@
 "use client";
 
-import { Ellipsis, Globe2, RotateCcw, Trash2 } from "lucide-react";
+import {
+  Archive,
+  ArrowUpDown,
+  Building2,
+  Check,
+  Ellipsis,
+  Globe2,
+  Hash,
+  MessageCircle,
+  Pin,
+  RotateCcw,
+  Trash2,
+} from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
   acceptChatRoomInvitationAction,
@@ -12,6 +24,7 @@ import {
   restoreRoomAction,
 } from "@/app/chat/actions";
 import { BrowseChannelsDialog } from "@/app/chat/components/browse-channels-dialog";
+import { CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME } from "@/app/chat/components/chat-compose-dialog";
 import { CreateChannelDialog } from "@/app/chat/components/create-channel-dialog";
 import { CreateDirectDialog } from "@/app/chat/components/create-direct-dialog";
 import { getRoomDisplayName } from "@/app/chat/components/room-helpers";
@@ -34,10 +47,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  SIDEBAR_ROW_CLASS,
+  SIDEBAR_ROW_LABEL_INSET_CLASS,
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
   SidebarMenuItem,
+  SidebarRowSlot,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import type {
   ChatRoom,
@@ -45,13 +62,26 @@ import type {
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getActiveRoomIdFromPathname } from "./active-room-id";
-import { ChannelDiscoverabilityIcon } from "./channel-discoverability-icon";
+import { ChannelKindGlyph } from "./channel-discoverability-icon";
 import { ChannelRoomMark } from "./channel-room-mark";
-import { ChatRoomSidebarRow } from "./chat-room-sidebar-row";
+import {
+  ChatRoomSidebarRow,
+  type ChatRoomSidebarRowProps,
+} from "./chat-room-sidebar-row";
 import { ChatSidebarSectionHeader } from "./chat-sidebar-section-header";
 import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
-import { listOrganizationChatRoomsAction } from "./organization-chat-list.actions";
+import {
+  listOrganizationChatRoomsAction,
+  reorderPinnedOrganizationChatRoomsAction,
+} from "./organization-chat-list.actions";
 import { partitionRoomsForSidebar } from "./partition-rooms-for-sidebar";
+import { PendingInvitationRailButton } from "./pending-invitation-rail-button";
+import {
+  movePinnedRoomId,
+  PinnedRoomsDndContext,
+  SortablePinnedRoomRow,
+} from "./pinned-rooms-dnd";
+import { resolveSectionAttention } from "./room-attention";
 import { beginRoomAttentionRefresh } from "./room-read-overlay";
 import { useOrganizationChatRooms } from "./use-organization-chat-rooms";
 
@@ -61,7 +91,7 @@ const EMPTY_PENDING_INVITATIONS: ChatRoomInvitation[] = [];
 
 /** Same absolute slot as live room rows so archived height matches Channels/DMs. */
 const ARCHIVED_TRAILING_CONTROL_CLASS =
-  "absolute top-1/2 right-1 z-10 flex size-8 -translate-y-1/2 items-center justify-center md:size-7";
+  "absolute top-1/2 right-1 z-10 flex size-8 -translate-y-1/2 items-center justify-center after:absolute after:-inset-1.5 md:size-7 md:after:hidden";
 
 interface OrganizationChatListProps {
   rooms: ChatRoom[];
@@ -97,6 +127,7 @@ export function OrganizationChatList({
   const tActions = useTranslations("App.Channels.Actions");
   const pathname = usePathname();
   const router = useRouter();
+  const { setOpen } = useSidebar();
   const hasOrganization = Boolean(organizationId);
   const {
     roomRows,
@@ -107,6 +138,7 @@ export function OrganizationChatList({
     upsertRoomToTop,
     replaceRoom,
     replaceAllRooms,
+    applyPinnedOrder,
   } = useOrganizationChatRooms({
     rooms,
     archivedRooms,
@@ -115,6 +147,9 @@ export function OrganizationChatList({
     organizationId,
     paintOnly,
   });
+  const [pinnedOpen, setPinnedOpen] = useState(true);
+  const [pinnedReorderMode, setPinnedReorderMode] = useState(false);
+  const reorderRequestRef = useRef(0);
   const [channelSectionOpen, setChannelSectionOpen] = useState(true);
   const [archivedSectionOpen, setArchivedSectionOpen] = useState(false);
   const [directOpen, setDirectOpen] = useState(true);
@@ -220,10 +255,82 @@ export function OrganizationChatList({
     });
   }
 
-  const { directMessages, namedChannels, externalJoined } = useMemo(
+  const { pinned, directMessages, namedChannels, externalJoined } = useMemo(
     () => partitionRoomsForSidebar(roomRows),
     [roomRows],
   );
+  const pinnedRoomIds = pinned.map((room) => room.id);
+  const canReorderPinned = pinnedOpen && pinned.length > 1;
+  // The mode ends with the toggle that leaves it (section closed, or fewer
+  // than two pins). Otherwise it would come back by itself, unasked, the
+  // next time a second room is pinned.
+  if (pinnedReorderMode && !canReorderPinned) {
+    setPinnedReorderMode(false);
+  }
+  const isReorderingPinned = pinnedReorderMode && canReorderPinned;
+
+  /** Undefined past either end of the list, which is how a row knows. */
+  function movePinnedTo(roomId: string, targetId: string | undefined) {
+    return targetId
+      ? () =>
+          handleReorderPinned(movePinnedRoomId(pinnedRoomIds, roomId, targetId))
+      : undefined;
+  }
+
+  function handleReorderPinned(roomIds: string[]) {
+    const request = ++reorderRequestRef.current;
+    // Local sort keys only; Core writes its own and the next list load
+    // brings them. The order is what matters, and it is the same.
+    const base = Date.now() - roomIds.length;
+    applyPinnedOrder(
+      roomIds.map((roomId, index) => ({
+        roomId,
+        starredAt: new Date(base + index),
+      })),
+    );
+
+    async function reloadAfterFailure() {
+      // A newer reorder owns the list now.
+      if (request !== reorderRequestRef.current) return;
+      toast.error(tActions("actionFailed"));
+      // What Core holds is the truth: an earlier overlapping reorder may
+      // have landed, so no local snapshot is safe to put back.
+      const requestRevision = beginRoomAttentionRefresh();
+      const roomsResult = await listOrganizationChatRoomsAction();
+      if (roomsResult.ok && request === reorderRequestRef.current) {
+        replaceAllRooms(roomsResult.value.rooms, requestRevision);
+      }
+    }
+
+    void reorderPinnedOrganizationChatRoomsAction(roomIds).then((result) => {
+      if (!result.ok) return reloadAfterFailure();
+    }, reloadAfterFailure);
+  }
+
+  function roomRowProps(room: ChatRoom): ChatRoomSidebarRowProps {
+    const isDirect = room.kind === "direct";
+    return {
+      room,
+      href: `/chat/rooms/${room.id}`,
+      label: isDirect
+        ? getRoomDisplayName(room, currentUserId, t("SelfDirect.you"))
+        : room.name,
+      subtitle:
+        room.myAccess === "guest" && room.organizationName
+          ? tExternal("hostOrganization", {
+              organization: room.organizationName,
+            })
+          : undefined,
+      isActive: activeRoomId === room.id,
+      leading: isDirect ? (
+        <DirectRoomAvatarStack room={room} currentUserId={currentUserId} />
+      ) : (
+        <ChannelRoomMark room={room} />
+      ),
+      onRoomUpdated: replaceRoom,
+      dismissSheetOnNavigate,
+    };
+  }
 
   const sortedArchivedChannels = useMemo(() => {
     return [...archivedRows].sort((a, b) =>
@@ -234,6 +341,71 @@ export function OrganizationChatList({
   return (
     <SidebarGroup className="w-full">
       <SidebarGroupContent className="space-y-2">
+        {pinned.length > 0 ? (
+          <Collapsible open={pinnedOpen} onOpenChange={setPinnedOpen}>
+            <ChatSidebarSectionHeader
+              isOpen={pinnedOpen}
+              railIcon={Pin}
+              closedAttention={resolveSectionAttention(pinned)}
+              createAction={
+                canReorderPinned ? (
+                  <button
+                    type="button"
+                    aria-pressed={isReorderingPinned}
+                    aria-label={t(
+                      isReorderingPinned
+                        ? "reorderPinnedDone"
+                        : "reorderPinned",
+                    )}
+                    className={CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME}
+                    onClick={() => setPinnedReorderMode((current) => !current)}
+                  >
+                    {isReorderingPinned ? (
+                      <Check className="size-4 md:size-3.5" aria-hidden />
+                    ) : (
+                      <ArrowUpDown className="size-4 md:size-3.5" aria-hidden />
+                    )}
+                  </button>
+                ) : undefined
+              }
+            >
+              {t("pinned")}
+            </ChatSidebarSectionHeader>
+            <CollapsibleContent>
+              {isReorderingPinned ? (
+                <PinnedRoomsDndContext
+                  roomIds={pinnedRoomIds}
+                  onReorder={handleReorderPinned}
+                >
+                  <SidebarMenu className="gap-0">
+                    {pinned.map((room, index) => (
+                      <SortablePinnedRoomRow
+                        key={room.id}
+                        index={index}
+                        {...roomRowProps(room)}
+                        onMoveUp={movePinnedTo(
+                          room.id,
+                          pinnedRoomIds[index - 1],
+                        )}
+                        onMoveDown={movePinnedTo(
+                          room.id,
+                          pinnedRoomIds[index + 1],
+                        )}
+                      />
+                    ))}
+                  </SidebarMenu>
+                </PinnedRoomsDndContext>
+              ) : (
+                <SidebarMenu className="gap-0">
+                  {pinned.map((room) => (
+                    <ChatRoomSidebarRow key={room.id} {...roomRowProps(room)} />
+                  ))}
+                </SidebarMenu>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
+        ) : null}
+
         {hasOrganization ? (
           <Collapsible
             open={channelSectionOpen}
@@ -241,6 +413,8 @@ export function OrganizationChatList({
           >
             <ChatSidebarSectionHeader
               isOpen={channelSectionOpen}
+              railIcon={Hash}
+              closedAttention={resolveSectionAttention(namedChannels)}
               createAction={<CreateChannelDialog />}
               secondaryAction={<BrowseChannelsDialog />}
             >
@@ -249,20 +423,16 @@ export function OrganizationChatList({
             <CollapsibleContent>
               <SidebarMenu className="gap-0">
                 {namedChannels.map((room) => (
-                  <ChatRoomSidebarRow
-                    key={room.id}
-                    room={room}
-                    href={`/chat/rooms/${room.id}`}
-                    label={room.name}
-                    isActive={activeRoomId === room.id}
-                    leading={<ChannelRoomMark room={room} />}
-                    onRoomUpdated={replaceRoom}
-                    dismissSheetOnNavigate={dismissSheetOnNavigate}
-                  />
+                  <ChatRoomSidebarRow key={room.id} {...roomRowProps(room)} />
                 ))}
                 {namedChannels.length === 0 ? (
                   <SidebarMenuItem>
-                    <div className="text-muted-foreground px-3 py-1.5 text-xs group-data-[collapsible=icon]:hidden">
+                    <div
+                      className={cn(
+                        SIDEBAR_ROW_LABEL_INSET_CLASS,
+                        "text-muted-foreground group-data-[collapsible=icon]:hidden py-1.5 pr-2 text-xs",
+                      )}
+                    >
                       {t("Empty.noChannels")}
                     </div>
                   </SidebarMenuItem>
@@ -274,7 +444,13 @@ export function OrganizationChatList({
 
         {pendingRows.length > 0 || externalJoined.length > 0 ? (
           <Collapsible open={externalOpen} onOpenChange={setExternalOpen}>
-            <ChatSidebarSectionHeader isOpen={externalOpen}>
+            <ChatSidebarSectionHeader
+              isOpen={externalOpen}
+              railIcon={Building2}
+              closedAttention={resolveSectionAttention(externalJoined, {
+                hasPendingInvitation: pendingRows.length > 0,
+              })}
+            >
               {tExternal("title")}
             </ChatSidebarSectionHeader>
             <CollapsibleContent>
@@ -287,19 +463,28 @@ export function OrganizationChatList({
                   const declineBusy =
                     respondingInvitation?.id === invitation.id &&
                     respondingInvitation.action === "decline";
+                  const invitationLabel = tExternal("pendingAria", {
+                    name: invitation.roomName,
+                    organization: invitation.organizationName,
+                  });
+                  const acceptButtonId = `invitation-accept-${invitation.id}`;
                   return (
                     <SidebarMenuItem key={invitation.id}>
+                      <PendingInvitationRailButton
+                        roomName={invitation.roomName}
+                        label={invitationLabel}
+                        acceptButtonId={acceptButtonId}
+                      />
                       <div
-                        aria-label={tExternal("pendingAria", {
-                          name: invitation.roomName,
-                          organization: invitation.organizationName,
-                        })}
-                        className="text-tertiary-foreground dark:text-muted-foreground flex min-h-auto w-full items-start gap-2 px-3 py-1.5 group-data-[collapsible=icon]:hidden"
+                        aria-label={invitationLabel}
+                        className="text-tertiary-foreground dark:text-muted-foreground group-data-[collapsible=icon]:hidden flex w-full items-start gap-2 px-2 py-1.5"
                       >
-                        <Globe2
-                          className="text-muted-foreground mt-0.5 size-3.5 shrink-0"
-                          aria-hidden
-                        />
+                        <SidebarRowSlot>
+                          <Globe2
+                            className="text-muted-foreground size-4"
+                            aria-hidden
+                          />
+                        </SidebarRowSlot>
                         <div className="min-w-0 flex-1">
                           <div className="truncate font-medium text-foreground">
                             {invitation.roomName}
@@ -309,6 +494,7 @@ export function OrganizationChatList({
                           </div>
                           <div className="mt-1.5 flex items-center gap-1.5">
                             <Button
+                              id={acceptButtonId}
                               type="button"
                               size="sm"
                               variant="default"
@@ -339,23 +525,7 @@ export function OrganizationChatList({
                   );
                 })}
                 {externalJoined.map((room) => (
-                  <ChatRoomSidebarRow
-                    key={room.id}
-                    room={room}
-                    href={`/chat/rooms/${room.id}`}
-                    label={room.name}
-                    subtitle={
-                      room.myAccess === "guest" && room.organizationName
-                        ? tExternal("hostOrganization", {
-                            organization: room.organizationName,
-                          })
-                        : undefined
-                    }
-                    isActive={activeRoomId === room.id}
-                    leading={<ChannelRoomMark room={room} />}
-                    onRoomUpdated={replaceRoom}
-                    dismissSheetOnNavigate={dismissSheetOnNavigate}
-                  />
+                  <ChatRoomSidebarRow key={room.id} {...roomRowProps(room)} />
                 ))}
               </SidebarMenu>
             </CollapsibleContent>
@@ -367,7 +537,23 @@ export function OrganizationChatList({
             open={archivedSectionOpen}
             onOpenChange={setArchivedSectionOpen}
           >
-            <ChatSidebarSectionHeader isOpen={archivedSectionOpen}>
+            {/*
+              Archived keeps its square on the rail so nothing under it — the
+              Direct Messages section — moves when the sidebar toggles. Its
+              rows do not follow it there: they are static, and Restore and
+              Delete live in a menu a 32px square has no room for (Rail
+              actions, CONTEXT.md). So the square expands the sidebar and
+              opens the section, the way a pending invitation's tile expands
+              to its Accept and Decline.
+            */}
+            <ChatSidebarSectionHeader
+              isOpen={archivedSectionOpen}
+              railIcon={Archive}
+              onRailPress={() => {
+                setArchivedSectionOpen(true);
+                setOpen(true);
+              }}
+            >
               {t("archivedChannels")}
             </ChatSidebarSectionHeader>
             <CollapsibleContent>
@@ -383,11 +569,18 @@ export function OrganizationChatList({
                       key={room.id}
                       className="group/room-row relative"
                     >
-                      <div className="text-tertiary-foreground dark:text-muted-foreground flex min-h-auto w-full items-center gap-2 px-3 py-1.5">
-                        <ChannelDiscoverabilityIcon
-                          className="opacity-60"
-                          discoverability={room.discoverability}
-                        />
+                      <div
+                        className={cn(
+                          SIDEBAR_ROW_CLASS,
+                          "text-tertiary-foreground dark:text-muted-foreground group-data-[collapsible=icon]:hidden",
+                        )}
+                      >
+                        <SidebarRowSlot>
+                          <ChannelKindGlyph
+                            className="opacity-60"
+                            discoverability={room.discoverability}
+                          />
+                        </SidebarRowSlot>
                         <span className="min-w-0 flex-1 truncate">
                           {room.name}
                         </span>
@@ -409,7 +602,7 @@ export function OrganizationChatList({
                                 "group-data-[collapsible=icon]:hidden text-muted-foreground",
                                 isRestoring || isDeleting
                                   ? "opacity-100"
-                                  : "opacity-0 group-focus-within/room-row:opacity-100 group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
+                                  : "[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
                               )}
                               aria-label={tActions("roomMenu", {
                                 name: room.name,
@@ -453,7 +646,7 @@ export function OrganizationChatList({
                             "group-data-[collapsible=icon]:hidden text-muted-foreground",
                             isRestoring
                               ? "opacity-100"
-                              : "opacity-0 group-focus-within/room-row:opacity-100 group-hover/room-row:opacity-100",
+                              : "[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100",
                           )}
                           disabled={actionBusy}
                           onClick={() => handleRestoreRoom(room)}
@@ -527,6 +720,8 @@ export function OrganizationChatList({
           */}
           <ChatSidebarSectionHeader
             isOpen={directOpen}
+            railIcon={MessageCircle}
+            closedAttention={resolveSectionAttention(directMessages)}
             createAction={<CreateDirectDialog />}
           >
             {t("directMessages")}
@@ -534,29 +729,16 @@ export function OrganizationChatList({
           <CollapsibleContent>
             <SidebarMenu className="gap-0">
               {directMessages.map((room) => (
-                <ChatRoomSidebarRow
-                  key={room.id}
-                  room={room}
-                  href={`/chat/rooms/${room.id}`}
-                  label={getRoomDisplayName(
-                    room,
-                    currentUserId,
-                    t("SelfDirect.you"),
-                  )}
-                  isActive={activeRoomId === room.id}
-                  leading={
-                    <DirectRoomAvatarStack
-                      room={room}
-                      currentUserId={currentUserId}
-                    />
-                  }
-                  onRoomUpdated={replaceRoom}
-                  dismissSheetOnNavigate={dismissSheetOnNavigate}
-                />
+                <ChatRoomSidebarRow key={room.id} {...roomRowProps(room)} />
               ))}
               {directMessages.length === 0 ? (
                 <SidebarMenuItem>
-                  <div className="text-muted-foreground px-3 py-1.5 text-xs group-data-[collapsible=icon]:hidden">
+                  <div
+                    className={cn(
+                      SIDEBAR_ROW_LABEL_INSET_CLASS,
+                      "text-muted-foreground group-data-[collapsible=icon]:hidden py-1.5 pr-2 text-xs",
+                    )}
+                  >
                     {t("Empty.noDirectMessages")}
                   </div>
                 </SidebarMenuItem>

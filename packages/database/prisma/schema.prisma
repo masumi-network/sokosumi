@@ -1744,19 +1744,21 @@ model SokoBotIntegration {
   sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
 
   /// Composio toolkit slug (any toolkit; known ones get mail/calendar ingest).
-  provider          String
+  provider                 String
   /// Display name and logo as Composio lists the toolkit.
-  name              String?
-  logoUrl           String?
+  name                     String?
+  logoUrl                  String?
   /// Composio connected_account id.
-  composioAccountId String                   @unique
-  status            SokoBotIntegrationStatus @default(PENDING)
-  connectedAt       DateTime?
-  lastError         String?
+  composioAccountId        String                   @unique
+  /// Latest replacement attempt; selected account remains usable until ACTIVE.
+  pendingComposioAccountId String?                  @unique
+  status                   SokoBotIntegrationStatus @default(PENDING)
+  connectedAt              DateTime?
+  lastError                String?
   /// Provider-specific ingest position (e.g. newest seen email timestamp).
-  cursor            Json?
-  lastIngestAt      DateTime?
-  lastErrorAt       DateTime?
+  cursor                   Json?
+  lastIngestAt             DateTime?
+  lastErrorAt              DateTime?
 
   @@unique([sokoBotId, provider])
   @@index([status])

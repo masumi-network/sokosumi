@@ -39,7 +39,10 @@ private final class ScriptedTransport: ClientTransport {
   var pauseReaction = false
   var pauseUnfurl = false
   var pauseMentionRetry = false
-  private var pauseWaiter: CheckedContinuation<Void, Never>?
+  var pauseSokoBotFeedback = false
+  var pauseStarredOrder = false
+  /// Oldest first: requests for different emoji can wait at the same time.
+  private var pauseWaiters: [CheckedContinuation<Void, Never>] = []
   /// Tests wait on `operationIDs` (appended before the body `await`). A
   /// release that arrives in that window must not be lost.
   private var requestReleased = false
@@ -48,6 +51,20 @@ private final class ScriptedTransport: ClientTransport {
 
   init(_ responses: [(Int, String)]) {
     self.responses = responses
+  }
+
+  /// One pause flag per operation family; only message-scoped operations honour them.
+  private func pausesMessageOperation(_ operationID: String) -> Bool {
+    let pausedByFlag = (pauseGET && operationID.hasPrefix("get/"))
+      || (pauseDELETE && operationID.hasPrefix("delete/"))
+      || (pauseReaction && operationID.hasSuffix("/reactions/{emoji}"))
+      || (pauseUnfurl && operationID.hasSuffix("/unfurls/remove"))
+      || (pauseMentionRetry && operationID.hasSuffix("/mentions/{mentionId}/retry"))
+      || (pauseSokoBotFeedback && operationID == "sendMySokoBotTurnFeedback")
+    let pausableOperation = operationID.contains("/messages")
+      || operationID == "get/chats/rooms/{id}/threads/{parentMessageId}"
+      || operationID == "sendMySokoBotTurnFeedback"
+    return pausedByFlag && pausableOperation
   }
 
   func send(
@@ -72,14 +89,14 @@ private final class ScriptedTransport: ClientTransport {
     if pauseDirect, ["post/chats/rooms", "post/chats/rooms/{id}/members/me", "post/chats/invitations/{id}/accept"].contains(operationID) {
       let next = responses.removeFirst()
       if !requestReleased {
-        await withCheckedContinuation { pauseWaiter = $0 }
+        await withCheckedContinuation { pauseWaiters.append($0) }
       }
       requestReleased = false
       return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
     }
     if pausePOST, operationID == "post/chats/rooms/{id}/messages" {
       if !requestReleased {
-        await withCheckedContinuation { pauseWaiter = $0 }
+        await withCheckedContinuation { pauseWaiters.append($0) }
       }
       requestReleased = false
       try Task.checkCancellation()
@@ -87,16 +104,16 @@ private final class ScriptedTransport: ClientTransport {
     if pauseStream, operationID == "post/chats/rooms/{id}/stream" || operationID == "get/chats/rooms/{id}/stream/active" {
       let next = responses.removeFirst()
       if !requestReleased {
-        await withCheckedContinuation { pauseWaiter = $0 }
+        await withCheckedContinuation { pauseWaiters.append($0) }
       }
       requestReleased = false
       try Task.checkCancellation()
       return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
     }
-    if pauseGET && operationID.hasPrefix("get/") || pauseDELETE && operationID.hasPrefix("delete/") || pauseReaction && operationID.hasSuffix("/reactions/{emoji}") || pauseUnfurl && operationID.hasSuffix("/unfurls/remove") || pauseMentionRetry && operationID.hasSuffix("/mentions/{mentionId}/retry"), operationID.contains("/messages") || operationID == "get/chats/rooms/{id}/threads/{parentMessageId}" {
+    if pausesMessageOperation(operationID) || (pauseStarredOrder && operationID == "put/chats/rooms/starred") {
       let next = responses.removeFirst()
       if !requestReleased {
-        await withCheckedContinuation { pauseWaiter = $0 }
+        await withCheckedContinuation { pauseWaiters.append($0) }
       }
       requestReleased = false
       try Task.checkCancellation()
@@ -107,9 +124,11 @@ private final class ScriptedTransport: ClientTransport {
   }
 
   func releasePausedRequest() {
-    requestReleased = true
-    pauseWaiter?.resume()
-    pauseWaiter = nil
+    if pauseWaiters.isEmpty {
+      requestReleased = true
+    } else {
+      pauseWaiters.removeFirst().resume()
+    }
   }
 
   func waitForPOSTCompletion() async {
@@ -134,10 +153,18 @@ private let userBody = """
 {"data":{"id":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
 """
 
-private func roomsBody(names: [String]) -> String {
+/// `pinned` stars every room one second apart, in the given order. `members`
+/// gives each room its roster by name, for tests that read one.
+private func roomsBody(names: [String], pinned: Bool = false, members: [String: [String]] = [:]) -> String {
   let rooms = names.enumerated().map { index, name in
-    """
-    {"id":"550e8400-e29b-41d4-a716-44665544000\(index)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
+    let starredAt = pinned ? "\"2026-01-01T00:00:0\(index).000Z\"" : "null"
+    let roster = (members[name] ?? []).map {
+      """
+      {"id":"\($0)","name":"\($0)","email":"\($0)@example.com","image":null,"presence":"offline"}
+      """
+    }.joined(separator: ",")
+    return """
+    {"id":"550e8400-e29b-41d4-a716-44665544000\(index)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":\(starredAt),"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[\(roster)],"coworkerMembers":[],"sokoBotMembers":[]}
     """
   }.joined(separator: ",")
   return """
@@ -489,6 +516,57 @@ struct WorkspaceStateTests {
     // First room is selected and persisted when nothing was saved.
     #expect(state.selectedRoomId == "550e8400-e29b-41d4-a716-446655440000")
     #expect(SavedRoomSelection(defaults: defaults).load(userId: "user_1", organizationId: nil) == "550e8400-e29b-41d4-a716-446655440000")
+  }
+
+  /// Pinned reorder at the transport boundary: `fail` answers the PUT with that status.
+  @Test(arguments: [nil, 500, 401] as [Int?])
+  func pinnedReorderShowsAtOnceAndAFailureReloadsFromCore(fail: Int?) async throws {
+    let ids = (0 ..< 3).map { "550e8400-e29b-41d4-a716-44665544000\($0)" }
+    let moved = [ids[2], ids[0], ids[1]]
+    let order = moved.enumerated().map { #"{"roomId":"\#($1)","starredAt":"2026-02-01T00:00:00.00\#($0)Z"}"# }.joined(separator: ",")
+    let put: (Int, String) = if let fail {
+      (fail, #"{"error":"Request failed","message":"Refused","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/chats/rooms/starred","method":"PUT"}}"#)
+    } else {
+      (200, #"{"data":[\#(order)],"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#)
+    }
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["a", "b", "c"], pinned: true)),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      put,
+      (200, roomsBody(names: ["a", "b", "c"], pinned: true))
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    #expect(state.sidebar.partitioned.pinned.map(\.id) == ids)
+    let selected = state.selectedRoomId
+    transport.pauseStarredOrder = true
+    let task = Task { await state.reorderPinnedRooms(moved, auth: auth) }
+    while transport.operationIDs.last != "put/chats/rooms/starred" {
+      await Task.yield()
+    }
+    #expect(state.sidebar.partitioned.pinned.map(\.id) == moved)
+    #expect(state.selectedRoomId == selected)
+    transport.releasePausedRequest()
+    await task.value
+    let sent = try #require(transport.bodies.last { !$0.isEmpty })
+    #expect(try JSONSerialization.jsonObject(with: sent) as? [String: [String]] == ["roomIds": moved])
+    switch fail {
+    case nil:
+      #expect(state.sidebar.partitioned.pinned.map(\.id) == moved)
+      #expect(state.sidebar.actionError == nil)
+      #expect(transport.operationIDs.last == "put/chats/rooms/starred")
+    case 500:
+      // What Core holds is the truth: the error shows and the list is read again.
+      #expect(state.sidebar.actionError == "Core rejected the request (500): Refused")
+      #expect(transport.operationIDs.suffix(2) == ["put/chats/rooms/starred", "get/chats/rooms"])
+      #expect(state.sidebar.partitioned.pinned.map(\.id) == ids)
+    default:
+      // The sign-in card takes over: no alert beside it and no reload with a dead session.
+      #expect(state.sidebar.actionError == nil)
+      #expect(transport.operationIDs.last == "put/chats/rooms/starred")
+    }
   }
 
   @Test func sidebarRefreshFailureThenRetryPreservesOpenTranscript() async throws {
@@ -1721,15 +1799,33 @@ extension WorkspaceStateTests {
 }
 
 extension WorkspaceStateTests {
-  @Test(arguments: [false, true])
-  func reactionsWaitForServerAndPreserveNewerContent(reply: Bool) async throws {
-    let response = createdMessageBody(id: "message", roomId: "room", content: "Old content")
-      .replacingOccurrences(of: "\"reactions\":[]", with: "\"reactions\":[{\"emoji\":\"👍\",\"count\":1,\"reactedByCurrentUser\":true,\"reactors\":[]}]")
+  private func reactionBody(_ reactions: String, reply: Bool = false) -> String {
+    createdMessageBody(id: "message", roomId: "room", content: "Old content")
+      .replacingOccurrences(of: "\"reactions\":[]", with: "\"reactions\":[\(reactions)]")
       .replacingOccurrences(of: "\"parentMessageId\":null", with: reply ? "\"parentMessageId\":\"parent\"" : "\"parentMessageId\":null")
-    let (state, auth, transport, _) = try ephemeralState([(200, response)], visible: false)
+  }
+
+  private var ownThumbs: String {
+    "{\"emoji\":\"👍\",\"count\":1,\"reactedByCurrentUser\":true,\"reactors\":[]}"
+  }
+
+  private func reactionSource() -> Components.Schemas.ChatRoomMessage {
     var source = chatRoomMessage(from: .init(clientTurnId: "reaction", roomId: "room", content: "New content",
                                              sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
     source.id = "message"
+    return source
+  }
+
+  private func waitForRequests(_ count: Int, _ transport: ScriptedTransport) async {
+    while transport.operationIDs.count < count {
+      await Task.yield()
+    }
+  }
+
+  @Test(arguments: [false, true])
+  func reactionShowsBeforeCoreAnswersAndPreservesNewerContent(reply: Bool) async throws {
+    let (state, auth, transport, _) = try ephemeralState([(200, reactionBody(ownThumbs, reply: reply))], visible: false)
+    var source = reactionSource()
     state.timeline.reset(roomId: "room")
     if reply {
       var parent = source
@@ -1744,75 +1840,137 @@ extension WorkspaceStateTests {
     }
     transport.pauseReaction = true
     let toggle = Task { try await state.toggleReaction(source, emoji: "👍", auth: auth) }
-    while transport.operationIDs.isEmpty {
-      await Task.yield()
-    }
-    #expect(state.pendingReactionEmoji(for: source.id) == ["👍"])
+    await waitForRequests(1, transport)
+    let shown = reply ? state.displayedThreadReplies.first : state.displayedTranscript.first
+    #expect(shown?.reactions.first?.count == 1)
+    #expect(shown?.reactions.first?.reactedByCurrentUser == true)
+    // Confirmed rows stay untouched until Core answers.
     #expect((reply ? state.thread.timeline.messages.first : state.timeline.messages.first)?.reactions.isEmpty == true)
-    try await state.toggleReaction(source, emoji: "👍", auth: auth)
-    #expect(transport.operationIDs.count == 1)
+    if !reply {
+      #expect(state.displayedThreadParent?.reactions.first?.reactedByCurrentUser == true)
+    }
     transport.releasePausedRequest()
-    try await toggle.value
+    #expect(try await toggle.value)
+    #expect(transport.operationIDs == ["put/chats/rooms/{id}/messages/{messageId}/reactions/{emoji}"])
     let updated = reply ? state.thread.timeline.messages.first : state.timeline.messages.first
     #expect(updated?.content == "New content")
     #expect(updated?.reactions.first?.count == 1)
     #expect(updated?.reactions.first?.reactedByCurrentUser == true)
-    #expect(state.pendingReactionEmoji(for: source.id).isEmpty)
+    #expect(state.pendingReactions.intents.isEmpty)
+    #expect((reply ? state.displayedThreadReplies.first : state.displayedTranscript.first) == updated)
     if !reply {
       #expect(state.thread.parent?.reactions.first?.count == 1)
     }
   }
 
-  @Test(arguments: [false, true])
-  func failedOrStaleReactionPreservesMessages(roomChanged: Bool) async throws {
-    let (state, auth, transport, _) = try ephemeralState([(403, "{\"message\":\"Denied\"}")], visible: false)
-    var source = chatRoomMessage(from: .init(clientTurnId: "reaction", roomId: "room", content: "Unchanged",
-                                             sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
-    source.id = "message"
+  @Test func lastReactionTapWinsWithOneRequestAtATime() async throws {
+    let (state, auth, transport, _) = try ephemeralState([(200, reactionBody(ownThumbs)), (200, reactionBody(""))], visible: false)
+    let source = reactionSource()
     state.timeline.reset(roomId: "room")
     state.timeline.messages = [source]
     transport.pauseReaction = true
     let toggle = Task { try await state.toggleReaction(source, emoji: "👍", auth: auth) }
-    while transport.operationIDs.isEmpty {
-      await Task.yield()
+    await waitForRequests(1, transport)
+    // On, off, on, off while the PUT is out: every tap shows at once and none sends.
+    for expected in [false, true, false] {
+      #expect(try await state.toggleReaction(source, emoji: "👍", auth: auth) == false)
+      #expect(state.displayedTranscript.first?.reactions.isEmpty == !expected)
     }
-    if roomChanged {
-      state.timeline.reset(roomId: "other")
-    }
+    #expect(transport.operationIDs.count == 1)
     transport.releasePausedRequest()
-    if roomChanged {
-      try await toggle.value
-      #expect(state.timeline.messages.isEmpty)
-    } else {
-      await #expect(throws: (any Error).self) { try await toggle.value }
-      #expect(state.timeline.messages.first?.content == "Unchanged")
-      #expect(state.timeline.messages.first?.reactions.isEmpty == true)
-    }
-    #expect(state.pendingReactions.isEmpty)
+    await waitForRequests(2, transport)
+    // The PUT is confirmed underneath, yet the row still shows the newest intent.
+    #expect(state.timeline.messages.first?.reactions.first?.reactedByCurrentUser == true)
+    #expect(state.displayedTranscript.first?.reactions.isEmpty == true)
+    transport.releasePausedRequest()
+    #expect(try await toggle.value == false)
+    #expect(transport.operationIDs == [
+      "put/chats/rooms/{id}/messages/{messageId}/reactions/{emoji}",
+      "delete/chats/rooms/{id}/messages/{messageId}/reactions/{emoji}"
+    ])
+    #expect(state.timeline.messages.first?.reactions.isEmpty == true)
+    #expect(state.pendingReactions.intents.isEmpty)
   }
 
-  @Test func newerSameEmojiReactionIsReconciled() async throws {
-    let base = createdMessageBody(id: "message", roomId: "room", content: "Old")
-    let first = base.replacingOccurrences(of: "\"reactions\":[]", with: "\"reactions\":[{\"emoji\":\"👍\",\"count\":1,\"reactedByCurrentUser\":true,\"reactors\":[]}]")
-    let latest = first.replacingOccurrences(of: "\"count\":1", with: "\"count\":2")
-    let (state, auth, transport, _) = try ephemeralState([(200, first), (200, latest)], visible: false)
-    var source = chatRoomMessage(from: .init(clientTurnId: "reaction", roomId: "room", content: "Current",
-                                             sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
-    source.id = "message"
+  @Test func reversedTapsEndingOnTheSentIntentSendNothingMore() async throws {
+    let (state, auth, transport, _) = try ephemeralState([(200, reactionBody(ownThumbs))], visible: false)
+    let source = reactionSource()
     state.timeline.reset(roomId: "room")
     state.timeline.messages = [source]
     transport.pauseReaction = true
     let toggle = Task { try await state.toggleReaction(source, emoji: "👍", auth: auth) }
-    while transport.operationIDs.isEmpty {
-      await Task.yield()
-    }
-    source.reactions = [.init(emoji: "👍", count: 2, reactedByCurrentUser: true, reactors: [])]
-    state.timeline.messages = [source]
+    await waitForRequests(1, transport)
+    try await state.toggleReaction(source, emoji: "👍", auth: auth)
+    try await state.toggleReaction(source, emoji: "👍", auth: auth)
     transport.releasePausedRequest()
-    try await toggle.value
-    #expect(transport.operationIDs.last == "get/chats/rooms/{id}/messages/{messageId}")
-    #expect(state.timeline.messages.first?.reactions.first?.count == 2)
-    #expect(state.timeline.messages.first?.content == "Current")
+    #expect(try await toggle.value)
+    #expect(transport.operationIDs.count == 1)
+    #expect(state.displayedTranscript.first?.reactions.first?.reactedByCurrentUser == true)
+  }
+
+  @Test func pendingReactionStaysOnTopOfRealtimePatchAndFailureRollsBackOnlyThatEmoji() async throws {
+    let (state, auth, transport, _) = try ephemeralState([(500, "{\"message\":\"Could not update reaction.\"}"), (200, reactionBody(""))], visible: false)
+    var source = reactionSource()
+    source.reactions = [.init(emoji: "🎉", count: 1, reactedByCurrentUser: true, reactors: [])]
+    state.timeline.reset(roomId: "room")
+    state.timeline.messages = [source]
+    transport.pauseReaction = true
+    let failing = Task { try await state.toggleReaction(source, emoji: "👍", auth: auth) }
+    await waitForRequests(1, transport)
+    // A second emoji on the same message has its own request.
+    let removing = Task { try await state.toggleReaction(source, emoji: "🎉", auth: auth) }
+    await waitForRequests(2, transport)
+    let heart = Components.Schemas.ChatRoomMessageReaction(emoji: "❤️", count: 1, reactedByCurrentUser: false, reactors: [.init(id: "user_2", name: "Ada")])
+    state.applyRealtimeMessagePatch(.init(roomId: "room", messageId: "message", parentMessageId: nil,
+                                          value: .reactions([heart, source.reactions[0]])))
+    #expect(state.timeline.messages.first?.reactions.map(\.emoji) == ["❤️", "🎉"])
+    #expect(state.displayedTranscript.first?.reactions.map(\.emoji) == ["❤️", "👍"])
+    transport.releasePausedRequest()
+    await #expect(throws: (any Error).self) { try await failing.value }
+    // Only 👍 rolled back: the 🎉 removal is still shown, and confirmed rows never moved.
+    #expect(state.pendingReactions.intents == [.init(messageId: "message", emoji: "🎉", reacted: false)])
+    #expect(state.displayedTranscript.first?.reactions == [heart])
+    #expect(state.timeline.messages.first?.reactions.map(\.emoji) == ["❤️", "🎉"])
+    #expect(state.timeline.messages.first?.content == "New content")
+    transport.releasePausedRequest()
+    #expect(try await removing.value == false)
+    #expect(state.timeline.messages.first?.reactions == [heart])
+    #expect(state.pendingReactions.intents.isEmpty)
+  }
+
+  @Test func reactionRequestOutlivesLeavingTheRoom() async throws {
+    let (state, auth, transport, _) = try ephemeralState([(200, reactionBody(ownThumbs))], visible: false)
+    let source = reactionSource()
+    state.timeline.reset(roomId: "room")
+    state.timeline.messages = [source]
+    transport.pauseReaction = true
+    let toggle = Task { try await state.toggleReaction(source, emoji: "👍", auth: auth) }
+    await waitForRequests(1, transport)
+    state.timeline.reset(roomId: "other")
+    #expect(state.displayedTranscript.isEmpty)
+    // Back mid-request: the refreshed page predates the reaction, the intent still shows.
+    state.timeline.reset(roomId: "room")
+    state.timeline.messages = [source]
+    #expect(state.displayedTranscript.first?.reactions.first?.reactedByCurrentUser == true)
+    transport.releasePausedRequest()
+    #expect(try await toggle.value)
+    #expect(state.pendingReactions.intents.isEmpty)
+    #expect(state.timeline.messages.first?.reactions.first?.reactedByCurrentUser == true)
+  }
+
+  @Test func failedReactionAfterLeavingTheRoomStillReportsAndClears() async throws {
+    let (state, auth, transport, _) = try ephemeralState([(403, "{\"message\":\"Denied\"}")], visible: false)
+    let source = reactionSource()
+    state.timeline.reset(roomId: "room")
+    state.timeline.messages = [source]
+    transport.pauseReaction = true
+    let toggle = Task { try await state.toggleReaction(source, emoji: "👍", auth: auth) }
+    await waitForRequests(1, transport)
+    state.timeline.reset(roomId: "other")
+    transport.releasePausedRequest()
+    await #expect(throws: (any Error).self) { try await toggle.value }
+    #expect(state.timeline.messages.isEmpty)
+    #expect(state.pendingReactions.intents.isEmpty)
   }
 }
 
@@ -2692,4 +2850,224 @@ private func durableRoomMessage(roomId: String) -> Components.Schemas.ChatRoomMe
   ))
   message.id = "550e8400-e29b-41d4-a716-446655440123"
   return message
+}
+
+private let sokoBotFeedbackOperation = "sendMySokoBotTurnFeedback"
+private let sokoBotTurnId = "550e8400-e29b-41d4-a716-446655440777"
+
+/// Signed-in personal workspace with no rooms, plus the feedback replies.
+@MainActor
+private func sokoBotFeedbackFixture(_ responses: [(Int, String)]) async throws -> (WorkspaceState, AuthState, ScriptedTransport) { // swiftlint:disable:this large_tuple
+  let (state, auth, transport, _) = try ephemeralState([
+    (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+    (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+    (200, roomsBody(names: []))
+  ] + responses, visible: false)
+  await state.reload(auth: auth)
+  #expect(state.currentUserId == "user_1")
+  return (state, auth, transport)
+}
+
+extension WorkspaceStateTests {
+  @Test(arguments: [true, false])
+  func sokoBotFeedbackIsSentOncePerTurn(useful: Bool) async throws {
+    let (state, auth, transport) = try await sokoBotFeedbackFixture([(200, envelope(#"{"useful":\#(useful)}"#))])
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == nil)
+    transport.pauseSokoBotFeedback = true
+    let send = Task { try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: useful, auth: auth) }
+    while !transport.operationIDs.contains(sokoBotFeedbackOperation) {
+      await Task.yield()
+    }
+    #expect(state.isSendingSokoBotFeedback(forTurn: sokoBotTurnId))
+    // A second tap while the POST is in flight sends nothing.
+    try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: !useful, auth: auth)
+    #expect(transport.operationIDs.filter { $0 == sokoBotFeedbackOperation }.count == 1)
+    transport.releasePausedRequest()
+    try await send.value
+    let bodyIndex = try #require(transport.operationIDs.firstIndex(of: sokoBotFeedbackOperation))
+    #expect(try JSONSerialization.jsonObject(with: transport.bodies[bodyIndex]) as? [String: Bool] == ["useful": useful])
+    #expect(!state.isSendingSokoBotFeedback(forTurn: sokoBotTurnId))
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == useful)
+    // Rated turns stay rated: web hides the thumbs after one answer.
+    try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: !useful, auth: auth)
+    #expect(transport.operationIDs.filter { $0 == sokoBotFeedbackOperation }.count == 1)
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == useful)
+    #expect(transport.remainingStubs == 0)
+    state.reset()
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == nil)
+  }
+
+  @Test func rejectedSokoBotFeedbackLeavesTheTurnUnrated() async throws {
+    let (state, auth, transport) = try await sokoBotFeedbackFixture([
+      (404, #"{"error":"Not Found","message":"Turn not found","meta":{"timestamp":"\#(timestamp)","requestId":"req-1","path":"/soko-bots/me/turns/x/feedback","method":"POST"}}"#),
+      (200, envelope(#"{"useful":true}"#))
+    ])
+    let error = await #expect(throws: ChatServiceError.self) {
+      try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: true, auth: auth)
+    }
+    #expect(error == .unprocessable(statusCode: 404, message: "Turn not found"))
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == nil)
+    #expect(!state.isSendingSokoBotFeedback(forTurn: sokoBotTurnId))
+    // The thumbs come back, so the owner can try again.
+    try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: true, auth: auth)
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == true)
+    #expect(transport.operationIDs.filter { $0 == sokoBotFeedbackOperation }.count == 2)
+    #expect(transport.remainingStubs == 0)
+  }
+
+  @Test func sokoBotFeedbackResultAfterSignOutIsDropped() async throws {
+    let (state, auth, transport) = try await sokoBotFeedbackFixture([(200, envelope(#"{"useful":true}"#))])
+    transport.pauseSokoBotFeedback = true
+    let send = Task { try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: true, auth: auth) }
+    while !transport.operationIDs.contains(sokoBotFeedbackOperation) {
+      await Task.yield()
+    }
+    state.reset()
+    transport.releasePausedRequest()
+    try await send.value
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == nil)
+    #expect(!state.isSendingSokoBotFeedback(forTurn: sokoBotTurnId))
+  }
+}
+
+private let preferencesReadOperation = "get/users/{id}/preferences"
+private let preferencesWriteOperation = "patch/users/{id}/preferences"
+
+private func chatDisplayBody(showRoomUnreadCount: Bool) -> String {
+  envelope(#"{"marketingOptIn":false,"notificationsOptIn":false,"pushOptIn":false,"showRoomUnreadCount":\#(showRoomUnreadCount),"notificationPreferences":[]}"#)
+}
+
+private func chatDisplayError(status: String, message: String) -> String {
+  #"{"error":"\#(status)","message":"\#(message)","meta":{"timestamp":"\#(timestamp)","requestId":"req-1","path":"/users/me/preferences","method":"PATCH"}}"#
+}
+
+extension WorkspaceStateTests {
+  @Test func chatDisplayPreferenceLoadsWritesAndClearsOnReset() async throws {
+    let (state, auth, transport) = try await sokoBotFeedbackFixture([
+      (200, chatDisplayBody(showRoomUnreadCount: false)),
+      (200, chatDisplayBody(showRoomUnreadCount: true)),
+      (200, chatDisplayBody(showRoomUnreadCount: true))
+    ])
+    await state.refreshChatDisplayPreferences(auth: auth)
+    #expect(!state.chatDisplay.showsRoomUnreadCount)
+    try await state.setShowsRoomUnreadCount(true, auth: auth)
+    #expect(state.chatDisplay.showsRoomUnreadCount && !state.chatDisplay.isSaving)
+    let bodyIndex = try #require(transport.operationIDs.firstIndex(of: preferencesWriteOperation))
+    #expect(try JSONSerialization.jsonObject(with: transport.bodies[bodyIndex]) as? [String: Bool] == ["showRoomUnreadCount": true])
+    // A later read (room open, Settings) keeps following Core.
+    await state.refreshChatDisplayPreferences(auth: auth)
+    #expect(state.chatDisplay.showsRoomUnreadCount)
+    #expect(transport.operationIDs.filter { $0 == preferencesReadOperation }.count == 2)
+    #expect(transport.remainingStubs == 0)
+    state.reset()
+    #expect(!state.chatDisplay.showsRoomUnreadCount)
+  }
+
+  @Test func rejectedChatDisplayWriteRollsBackAndRethrows() async throws {
+    let (state, auth, transport) = try await sokoBotFeedbackFixture([
+      (200, chatDisplayBody(showRoomUnreadCount: true)),
+      (403, chatDisplayError(status: "Forbidden", message: "Not allowed"))
+    ])
+    await state.refreshChatDisplayPreferences(auth: auth)
+    let error = await #expect(throws: ChatServiceError.self) {
+      try await state.setShowsRoomUnreadCount(false, auth: auth)
+    }
+    #expect(error == .unprocessable(statusCode: 403, message: "Not allowed"))
+    #expect(state.chatDisplay.showsRoomUnreadCount && !state.chatDisplay.isSaving)
+    #expect(transport.remainingStubs == 0)
+  }
+
+  @Test func failedChatDisplayReadKeepsTheLastValue() async throws {
+    let (state, auth, _) = try await sokoBotFeedbackFixture([
+      (200, chatDisplayBody(showRoomUnreadCount: true)),
+      (500, chatDisplayError(status: "Internal Server Error", message: "Boom"))
+    ])
+    await state.refreshChatDisplayPreferences(auth: auth)
+    await state.refreshChatDisplayPreferences(auth: auth)
+    #expect(state.chatDisplay.showsRoomUnreadCount)
+  }
+}
+
+extension WorkspaceStateTests {
+  /// A pasted Message link from another room becomes the quote, and the send
+  /// carries its source room with no body of its own.
+  @MainActor
+  @Test func pastedMessageLinkQuotesAcrossRoomsAndSendsWithoutABody() async throws {
+    let target = "550e8400-e29b-41d4-a716-446655440000"
+    let source = "550e8400-e29b-41d4-a716-446655440001"
+    let quoted = "550e8400-e29b-41d4-a716-446655440123"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")),
+      (200, orgsBody),
+      (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      // Everyone in the target room also reads the source room, so the quote
+      // may cross; "outsider" is in neither.
+      (200, roomsBody(names: ["general", "random"], members: ["general": ["user_1"], "random": ["user_1", "peer"]])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: target, unread: 0)),
+      (200, createdMessageBody(id: quoted, roomId: source, content: "Keep this")),
+      (201, createdMessageBody(id: "550e8400-e29b-41d4-a716-446655440505", roomId: target, content: ""))
+    ])
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    #expect(state.transcriptRoomId == target)
+
+    let base = try #require(URL(string: "https://app.sokosumi.com"))
+    let quote = try await #require(state.messageLinkQuote(
+      pasted: "https://app.sokosumi.com/chat/rooms/\(source)?message=\(quoted)", roomId: target, webBaseURL: base, auth: auth
+    ))
+    #expect(quote.roomId == source)
+    #expect(transport.operationIDs.contains("get/chats/rooms/{id}/messages/{messageId}"))
+
+    #expect(state.sendMessage("", quote: quote, auth: auth))
+    await waitForOutboundIdle(state)
+    let body = try #require(transport.bodies.last)
+    let json = try #require(try JSONSerialization.jsonObject(with: body) as? [String: Any])
+    #expect((json["content"] as? String)?.isEmpty == true)
+    #expect(json["quote"] as? [String: String] == ["messageId": quoted, "roomId": source])
+  }
+
+  /// The same link stays plain when the target room holds a reader who cannot
+  /// follow it, so nothing is read and no quote is offered.
+  @MainActor
+  @Test func pastedMessageLinkStaysPlainForAReaderOutsideTheSourceRoom() async throws {
+    let target = "550e8400-e29b-41d4-a716-446655440000"
+    let source = "550e8400-e29b-41d4-a716-446655440001"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")),
+      (200, orgsBody),
+      (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general", "random"], members: ["general": ["user_1", "outsider"], "random": ["user_1", "peer"]])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: target, unread: 0))
+    ])
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    let base = try #require(URL(string: "https://app.sokosumi.com"))
+    let link = "https://app.sokosumi.com/chat/rooms/\(source)?message=550e8400-e29b-41d4-a716-446655440123"
+    #expect(await state.messageLinkQuote(pasted: link, roomId: target, webBaseURL: base, auth: auth) == nil)
+    #expect(!transport.operationIDs.contains("get/chats/rooms/{id}/messages/{messageId}"))
+  }
+
+  /// Plain text is not a link, so nothing is read and the paste stays as typed.
+  @MainActor
+  @Test func plainTextPasteNeverReadsAMessage() async throws {
+    let target = "550e8400-e29b-41d4-a716-446655440000"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")),
+      (200, orgsBody),
+      (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: target, unread: 0))
+    ])
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    let base = try #require(URL(string: "https://app.sokosumi.com"))
+    #expect(await state.messageLinkQuote(pasted: "just words", roomId: target, webBaseURL: base, auth: auth) == nil)
+    #expect(!transport.operationIDs.contains("get/chats/rooms/{id}/messages/{messageId}"))
+  }
 }

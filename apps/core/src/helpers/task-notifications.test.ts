@@ -236,7 +236,6 @@ describe("notifyTaskHumanAssignee", () => {
       assigneeUserId: "user_assignee",
       project: null,
     });
-    prismaUserFindUniqueMock.mockResolvedValue({ notificationsOptIn: true });
   });
 
   it("notifies the user when they become the assignee", async () => {
@@ -265,12 +264,23 @@ describe("notifyTaskHumanAssignee", () => {
     expect(createNotificationMock).not.toHaveBeenCalled();
   });
 
-  it("does nothing when the user opted out", async () => {
+  /**
+   * The account-wide field is the email gate, and this row sends no email.
+   * Reading it here silenced a notification whose `TASK_ATTENTION` row the
+   * reader had switched on, and no setting could bring it back.
+   */
+  it("notifies even when the account-wide email opt-in is off", async () => {
     prismaUserFindUniqueMock.mockResolvedValue({ notificationsOptIn: false });
 
     await notifyTaskHumanAssignee("tsk_123", "user_assignee");
 
-    expect(createNotificationMock).not.toHaveBeenCalled();
+    expect(prismaUserFindUniqueMock).not.toHaveBeenCalled();
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user_assignee",
+        messageKey: "Notifications.Task.assigned",
+      }),
+    );
   });
 });
 

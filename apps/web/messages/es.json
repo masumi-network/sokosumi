@@ -101,9 +101,6 @@
         }
       },
       "AgentDetail": {
-        "Header": {
-          "pricing": "{credits, plural, =0 {Gratis} =1 {1 Credit} other {# Credits}}"
-        },
         "Stats": {
           "executedJobs": "Jobs ejecutados",
           "averageExecutionTime": "Tiempo medio de ejecución",
@@ -298,7 +295,7 @@
       "docs": "Documentación",
       "drive": "Archivos",
       "soko-bots": "Soko Bots",
-      "calendar": "Programaciones"
+      "calendar": "Calendario"
     },
     "Jobs": {
       "StatusBadge": {
@@ -1267,7 +1264,7 @@
         "description": "Introduce tu nueva contraseña",
         "Form": {
           "submit": "Restablecer contraseña",
-          "success": "Contraseña restablecida correctamente",
+          "success": "Contraseña restablecida. Se ha cerrado tu sesión en todos los dispositivos.",
           "error": "Error al restablecer la contraseña",
           "Fields": {
             "Password": {
@@ -1317,7 +1314,7 @@
         "statusOptions": {
           "archived": "Archivado",
           "DRAFT": "Borrador",
-          "QUEUED": "En cola",
+          "QUEUED": "Programado",
           "READY": "Listo",
           "GRANT_PENDING": "Aprobación pendiente",
           "INPUT_REQUIRED": "Entrada requerida",
@@ -1574,7 +1571,7 @@
         "statusLabel": "Estado",
         "statusOptions": {
           "DRAFT": "Borrador",
-          "QUEUED": "En cola",
+          "QUEUED": "Programado",
           "READY": "Listo",
           "GRANT_PENDING": "Aprobación pendiente",
           "INPUT_REQUIRED": "Entrada requerida",
@@ -1888,7 +1885,7 @@
         "status": "Estado",
         "statusDescription": "Elige el estado inicial de este Task",
         "statusDraft": "Borrador",
-        "statusQueued": "En cola",
+        "statusQueued": "Programado",
         "statusReady": "Listo",
         "changeStatus": "Cambiar estado…",
         "noStatusMatches": "Ningún estado coincide",
@@ -2361,7 +2358,13 @@
           "back": "Atrás",
           "chat": "Chat",
           "sokoBot": "Soko Bots",
-          "calendar": "Programaciones"
+          "calendar": "Calendario",
+          "expandProjects": "Expandir Proyectos",
+          "collapseProjects": "Contraer Proyectos",
+          "projectsLoading": "Cargando proyectos…",
+          "projectsError": "No se pudieron cargar los proyectos.",
+          "projectsEmpty": "Aún no hay proyectos.",
+          "retryProjects": "Reintentar"
         },
         "ChatLists": {
           "title": "Chats Recientes",
@@ -3979,6 +3982,8 @@
         "currentPassword": "Contraseña actual",
         "newPassword": "Nueva contraseña",
         "confirmPassword": "Confirmar nueva contraseña",
+        "revokeOtherSessionsLabel": "Cerrar sesión en otros dispositivos",
+        "revokeOtherSessionsHelp": "Finaliza todas las demás sesiones. Este dispositivo permanece conectado.",
         "submit": "Actualizar contraseña",
         "success": "Contraseña actualizada correctamente",
         "error": "No se pudo actualizar la contraseña"
@@ -5238,6 +5243,7 @@
         "markUnread": "Marcar como no leído",
         "pin": "Fijar",
         "unpin": "Desfijar",
+        "reorderHandle": "Reordenar {name}. Arrastra o pulsa las flechas arriba y abajo.",
         "mute": "Silenciar",
         "unmute": "Dejar de silenciar",
         "roomMenu": "Acciones del chat para {name}",
@@ -5259,6 +5265,9 @@
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflowCount": "{count} participantes más",
       "directMessages": "Direct Messages",
+      "pinned": "Fijados",
+      "reorderPinned": "Reordenar chats fijados",
+      "reorderPinnedDone": "Terminar de reordenar",
       "loading": "Cargando...",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "composerTooLong": "El mensaje es demasiado largo ({count}/{max}). Acórtalo para enviarlo.",
@@ -6210,7 +6219,7 @@
     },
     "Calendar": {
       "Metadata": {
-        "title": "Programaciones",
+        "title": "Calendario",
         "description": "Consulta las ejecuciones programadas de tareas en tu espacio de trabajo."
       },
       "previous": "Periodo anterior",
@@ -6263,7 +6272,7 @@
         "label": "Estado de la tarea",
         "all": "Todos los estados",
         "DRAFT": "Borrador",
-        "QUEUED": "En cola",
+        "QUEUED": "Programado",
         "READY": "Listo",
         "GRANT_PENDING": "Aprobación pendiente",
         "INPUT_REQUIRED": "Entrada requerida",

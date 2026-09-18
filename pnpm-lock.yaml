@@ -347,8 +347,8 @@ importers:
         specifier: 14.0.2
         version: 14.0.2
       viem:
-        specifier: 2.56.6
-        version: 2.56.6(typescript@7.0.2)(zod@4.6.5)
+        specifier: 2.56.7
+        version: 2.56.7(typescript@7.0.2)(zod@4.6.5)
       zod:
         specifier: 4.6.5
         version: 4.6.5
@@ -522,8 +522,8 @@ importers:
         specifier: 3.35.0
         version: 3.35.0
       lucide-react:
-        specifier: 1.46.0
-        version: 1.46.0(react@19.3.0)
+        specifier: 1.47.0
+        version: 1.47.0(react@19.3.0)
       marked:
         specifier: 18.0.13
         version: 18.0.13
@@ -1244,9 +1244,6 @@ packages:
 
   '@better-auth/utils@0.5.0':
     resolution: {integrity: sha512-BL8W4EfIZFwlu0r54m3v1ztjDhu6dDe/amLTm0xybmbZaNgYUqhD3SjpAsnq0q8YD6/ki4iwIgxJNLP/N3TxiA==}
-
-  '@better-fetch/fetch@1.3.1':
-    resolution: {integrity: sha512-ABkD1WhyfPZprKRQI3bhATjeiFuNWC9PXhfGWqL+sg/gKrM977oFrYkdb4msM3hgUGonr7KlOsOFT5TU2rht9g==}
 
   '@better-fetch/fetch@1.3.2':
     resolution: {integrity: sha512-Gs7n99b5tqUC6cQAPbV0uED3IraHB6xQbHLQ/C3l7ZFafHScOx9pQ+DYmP5blbLFShVWLqxNUlI9wi4xU/X+ow==}
@@ -5293,9 +5290,6 @@ packages:
   '@types/react-file-icon@1.0.5':
     resolution: {integrity: sha512-2QkghuxsQhwJ7J1QdkFxMEciPyh/H/fX/ShAHAje1iuwcOnCI3AwnMZ3LHYvNv/3XYArV5KCbMHOtqiHIYJg0Q==}
 
-  '@types/react@19.2.18':
-    resolution: {integrity: sha512-AnzbBERsrLKtk2XSfTbYRLjQPdy116Sty4q+T+Bp3IC4l6jNBvreVPAHmpq9qhXQM7CXZPjLVmGMw9sy+hxQ3w==}
-
   '@types/react@19.3.0':
     resolution: {integrity: sha512-N0rFCuH9YoxG9/m61l9MfpJKfmLOVU0em7ipIz6TRgSSkvReLB9vL85GB+yr8Bs5leqpvg96JSwF4ZS1s4viQg==}
 
@@ -7915,8 +7909,8 @@ packages:
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
-  lucide-react@1.46.0:
-    resolution: {integrity: sha512-Bv+FZXgZPrxc/NCl1e7JJVQFLdiCxYgxNVhqoV7X0p6I8ADJo8DxBnK1auH0fZz4AmqOJ3jgneL4f1i8LJQRAA==}
+  lucide-react@1.47.0:
+    resolution: {integrity: sha512-o8C23aXpNQypRY73W7fW02EyvWJinEMXgKeGjFoKym0zj3Q73hD97A1IQps1g8C14HTGsOpZL0Am+xjfgFZAbg==}
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
@@ -8494,8 +8488,8 @@ packages:
     resolution: {integrity: sha512-wrAwOeXp1RRMFfQY8Sy7VaGVmPocaLwSFOYCGKSyo8qmJ+/yaafCl5BCA1IQZWqFSRBrKDYFeR9d/VyQzfH/jg==}
     engines: {node: '>= 6.0'}
 
-  ox@0.14.44:
-    resolution: {integrity: sha512-O54qXXHEk4ySamMSyBpI0AeBegS5frxU6+LA6Jb9Sf6kMOxcTNaxYmwZfpOu22DIQsdKfgQxHq8EsAGaoBQScA==}
+  ox@0.14.45:
+    resolution: {integrity: sha512-jpsQ+p0JZh9mKCxxzxz0d5qFHZZg2/O9xW18IpEC/dNXXPVqmDJ0c//9RMz0CILkbSGPA42+cbU0fC/ghwJ03w==}
     peerDependencies:
       typescript: '>=5.4.0'
     peerDependenciesMeta:
@@ -10047,8 +10041,8 @@ packages:
   vfile@6.0.3:
     resolution: {integrity: sha512-KzIbH/9tXat2u30jf+smMwFCsno4wHVdNmzFyL+T/L3UGqqk6JKfVqOFOZEpZSHADH1k40ab6NUIXZq422ov3Q==}
 
-  viem@2.56.6:
-    resolution: {integrity: sha512-wa7bJ8CiYE4iYUFUNWn5RrjV2qhrkye0wKeqp4vDW6WsJZ0lGDvoPB6Hb1p7Q+DGR+8uK+QLAE8eC+iQTkONHg==}
+  viem@2.56.7:
+    resolution: {integrity: sha512-8YXhttIOKikDnTLj4byvGQmF43Gi0FtEfxUWd6OqSJiuz9bxNYNGmzlS8ZaNiYSKUEfs5vmNprvwPIki9Lk4YA==}
     peerDependencies:
       typescript: '>=5.0.4'
     peerDependenciesMeta:
@@ -10829,8 +10823,6 @@ snapshots:
     dependencies:
       '@noble/hashes': 2.3.0
 
-  '@better-fetch/fetch@1.3.1': {}
-
   '@better-fetch/fetch@1.3.2': {}
 
   '@biomejs/biome@2.5.14':
@@ -11594,7 +11586,7 @@ snapshots:
       immer: 11.1.8
       katex: 0.16.47
       leva: 0.10.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      lucide-react: 1.46.0(react@19.3.0)
+      lucide-react: 1.47.0(react@19.3.0)
       marked: 17.0.6
       mermaid: 11.15.0
       motion: 13.4.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -14966,10 +14958,6 @@ snapshots:
     dependencies:
       '@types/react': 19.3.0
 
-  '@types/react@19.2.18':
-    dependencies:
-      csstype: 3.2.3
-
   '@types/react@19.3.0':
     dependencies:
       csstype: 3.2.3
@@ -15143,12 +15131,12 @@ snapshots:
 
   '@visx/event@4.0.1-alpha.0':
     dependencies:
-      '@types/react': 19.2.18
+      '@types/react': 19.3.0
       '@visx/point': 4.0.1-alpha.0
 
   '@visx/grid@4.0.1-alpha.0(react@19.2.8)':
     dependencies:
-      '@types/react': 19.2.18
+      '@types/react': 19.3.0
       '@visx/curve': 4.0.1-alpha.0
       '@visx/group': 4.0.1-alpha.0(react@19.2.8)
       '@visx/point': 4.0.1-alpha.0
@@ -15160,7 +15148,7 @@ snapshots:
 
   '@visx/grid@4.0.1-alpha.0(react@19.3.0)':
     dependencies:
-      '@types/react': 19.2.18
+      '@types/react': 19.3.0
       '@visx/curve': 4.0.1-alpha.0
       '@visx/group': 4.0.1-alpha.0(react@19.3.0)
       '@visx/point': 4.0.1-alpha.0
@@ -15171,14 +15159,14 @@ snapshots:
 
   '@visx/group@4.0.1-alpha.0(react@19.2.8)':
     dependencies:
-      '@types/react': 19.2.18
+      '@types/react': 19.3.0
       classnames: 2.5.1
       react: 19.2.8
     optional: true
 
   '@visx/group@4.0.1-alpha.0(react@19.3.0)':
     dependencies:
-      '@types/react': 19.2.18
+      '@types/react': 19.3.0
       classnames: 2.5.1
       react: 19.3.0
 
@@ -15187,7 +15175,7 @@ snapshots:
   '@visx/responsive@4.0.1-alpha.0(react@19.2.8)':
     dependencies:
       '@types/lodash': 4.17.24
-      '@types/react': 19.2.18
+      '@types/react': 19.3.0
       lodash: 4.18.1
       react: 19.2.8
     optional: true
@@ -15195,7 +15183,7 @@ snapshots:
   '@visx/responsive@4.0.1-alpha.0(react@19.3.0)':
     dependencies:
       '@types/lodash': 4.17.24
-      '@types/react': 19.2.18
+      '@types/react': 19.3.0
       lodash: 4.18.1
       react: 19.3.0
 
@@ -15206,7 +15194,7 @@ snapshots:
   '@visx/shape@4.0.1-alpha.0(react@19.2.8)':
     dependencies:
       '@types/lodash': 4.17.24
-      '@types/react': 19.2.18
+      '@types/react': 19.3.0
       '@visx/curve': 4.0.1-alpha.0
       '@visx/group': 4.0.1-alpha.0(react@19.2.8)
       '@visx/scale': 4.0.1-alpha.0
@@ -15219,7 +15207,7 @@ snapshots:
   '@visx/shape@4.0.1-alpha.0(react@19.3.0)':
     dependencies:
       '@types/lodash': 4.17.24
-      '@types/react': 19.2.18
+      '@types/react': 19.3.0
       '@visx/curve': 4.0.1-alpha.0
       '@visx/group': 4.0.1-alpha.0(react@19.3.0)
       '@visx/scale': 4.0.1-alpha.0
@@ -15810,7 +15798,7 @@ snapshots:
   better-call@1.4.0(zod@4.6.5):
     dependencies:
       '@better-auth/utils': 0.5.0
-      '@better-fetch/fetch': 1.3.1
+      '@better-fetch/fetch': 1.3.2
       rou3: 0.9.2
       set-cookie-parser: 3.1.2
     optionalDependencies:
@@ -17709,7 +17697,7 @@ snapshots:
     dependencies:
       react: 19.3.0
 
-  lucide-react@1.46.0(react@19.3.0):
+  lucide-react@1.47.0(react@19.3.0):
     dependencies:
       react: 19.3.0
 
@@ -18584,7 +18572,7 @@ snapshots:
 
   os-paths@4.4.0: {}
 
-  ox@0.14.44(typescript@7.0.2)(zod@4.6.5):
+  ox@0.14.45(typescript@7.0.2)(zod@4.6.5):
     dependencies:
       '@adraffy/ens-normalize': 1.11.1
       '@noble/ciphers': 1.3.0
@@ -20484,7 +20472,7 @@ snapshots:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
 
-  viem@2.56.6(typescript@7.0.2)(zod@4.6.5):
+  viem@2.56.7(typescript@7.0.2)(zod@4.6.5):
     dependencies:
       '@noble/curves': 1.9.1
       '@noble/hashes': 1.8.0
@@ -20492,7 +20480,7 @@ snapshots:
       '@scure/bip39': 1.6.0
       abitype: 1.2.3(typescript@7.0.2)(zod@4.6.5)
       isows: 1.0.7(ws@8.21.0)
-      ox: 0.14.44(typescript@7.0.2)(zod@4.6.5)
+      ox: 0.14.45(typescript@7.0.2)(zod@4.6.5)
       ws: 8.21.0
     optionalDependencies:
       typescript: 7.0.2

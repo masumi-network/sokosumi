@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   acceptInvitationMock,
   emptyListResult,
+  listArchivedMock,
   listPendingMock,
   listRoomsMock,
   makeInvitation,
@@ -36,6 +37,28 @@ describe("OrganizationChatList section visibility", () => {
       screen.getByText("App.Channels.Empty.noChannels"),
     ).toBeInTheDocument();
     expect(screen.getByText("App.Channels.directMessages")).toBeInTheDocument();
+  });
+
+  it("keeps archived rows off the collapsed rail, like every other non-row element", () => {
+    renderOrganizationChatList({
+      organizationId: "org-1",
+      archivedRooms: [
+        makeRoom({
+          id: "old-launch",
+          kind: "channel",
+          myAccess: "member",
+          name: "old-launch",
+        }),
+      ],
+    });
+
+    // An archived row is a plain div, not a `SidebarMenuButton`, so the
+    // rail's icon rules do not reach it: without this it rendered a glyph
+    // and a clipped name into the 56px rail whenever the section was open.
+    const row = screen.getByText("old-launch").parentElement;
+    expect(row?.className.split(/\s+/)).toContain(
+      "group-data-[collapsible=icon]:hidden",
+    );
   });
 
   it("hides External when there are no joined rooms and no pending invitations", () => {
@@ -92,6 +115,47 @@ describe("OrganizationChatList section visibility", () => {
     expect(screen.queryByText("App.Channels.title")).not.toBeInTheDocument();
   });
 
+  it("gives every section a rail header, Archived included", async () => {
+    const external = makeRoom({
+      id: "ext-1",
+      kind: "channel",
+      myAccess: "guest",
+      discoverability: "external",
+      name: "Partners",
+    });
+    const archived = makeRoom({
+      id: "old-launch",
+      kind: "channel",
+      myAccess: "member",
+      name: "old-launch",
+    });
+    listRoomsMock.mockResolvedValue(emptyListResult([external]));
+    // The list refreshes every collection on mount, so an archived room has
+    // to survive that refresh or the section unmounts before the assertion.
+    listArchivedMock.mockResolvedValue(emptyListResult([archived]));
+
+    renderOrganizationChatList({
+      organizationId: "org-1",
+      rooms: [external],
+      archivedRooms: [archived],
+    });
+
+    await screen.findByText("App.Channels.External.title");
+    // Archived's square holds its heading's place so the Direct Messages
+    // under it do not jump when the sidebar toggles. Its rows still stay off
+    // the rail; the square expands the sidebar to reach them instead.
+    expect(
+      screen
+        .getAllByTestId("section-rail-button")
+        .map((button) => button.dataset.tooltip),
+    ).toEqual([
+      "App.Channels.title",
+      "App.Channels.External.title",
+      "App.Channels.archivedChannels",
+      "App.Channels.directMessages",
+    ]);
+  });
+
   it("shows External when a pending invitation exists", async () => {
     const invitation = makeInvitation();
     listPendingMock.mockResolvedValue({ ok: true, value: [invitation] });
@@ -106,6 +170,23 @@ describe("OrganizationChatList section visibility", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Partners")).toBeInTheDocument();
     expect(screen.getByText("Acme")).toBeInTheDocument();
+  });
+
+  it("gives the collapsed rail a mark for a pending invitation, aimed at its Accept", async () => {
+    const invitation = makeInvitation();
+    listPendingMock.mockResolvedValue({ ok: true, value: [invitation] });
+
+    renderOrganizationChatList({
+      organizationId: "org-1",
+      pendingInvitations: [invitation],
+    });
+
+    const railMark = await screen.findByTestId("rail-invitation");
+    expect(railMark.dataset.roomName).toBe("Partners");
+    expect(railMark.dataset.label).toBe("App.Channels.External.pendingAria");
+    expect(
+      screen.getByRole("button", { name: "App.Channels.External.accept" }).id,
+    ).toBe(railMark.dataset.acceptButtonId);
   });
 
   it("keeps External visible while the last pending invite is accepted", async () => {

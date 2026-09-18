@@ -6,19 +6,12 @@ import SwiftUI
 #if os(macOS)
   import AppKit
 
-  /// Wall-clock HH:mm in the local timezone, like web `formatMessageTime`.
-  private let messageTimeFormatter: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.timeStyle = .short
-    formatter.dateStyle = .none
-    return formatter
-  }()
-
   /// Delivery mark in the header or continuation gutter; retains the header clock until needed.
   private struct DeliveryFeedback: View {
     let pendingSince: Date?
     let sentAt: Date?
     var timestamp: Date?
+    @Environment(\.timeFormat) private var timeFormat
     @State private var showSending = false
 
     var body: some View {
@@ -32,7 +25,8 @@ import SwiftUI
             .accessibilityLabel("Sent")
             .help("Sent")
         } else if let timestamp {
-          Text(messageTimeFormatter.string(from: timestamp))
+          // Wall-clock time in the local timezone, like web `formatMessageTime`.
+          Text(timeFormat.time(timestamp))
         }
       }
       .font(.caption)
@@ -72,8 +66,8 @@ import SwiftUI
     var onTogglePin: (() async throws -> Void)?
     var onDelete: (() async throws -> Void)?
     var onRemoveUnfurl: ((String) async throws -> Void)?
-    var onToggleReaction: ((String) async throws -> Void)?
-    var pendingReactionEmoji: Set<String> = []
+    /// Returns whether the requests this tap started left the viewer's reaction on the message.
+    var onToggleReaction: ((String) async throws -> Bool)?
     var editing: MessageEditing?
     var onQuoteJump: ((String) -> Void)?
     /// Send to yourself. Absent inside the Self Direct and for rows that are not durable.
@@ -83,6 +77,7 @@ import SwiftUI
     var streamThinking = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.openURL) private var openURL
+    @Environment(\.timeFormat) private var timeFormat
     @State private var quickReactions = ReactionEmojiHistory.defaultQuickReactions
     @State private var showsReactionPicker = false
     @State private var pinError: String?
@@ -128,11 +123,16 @@ import SwiftUI
         && mentionShell?.isThinking != true
     }
 
+    /// Hop badge on a message one assistant wrote to another; web shows it in the hover pill.
+    private var sokoBotChain: SokoBotChainMetadata? {
+      SokoBotChainMetadata(message: message)
+    }
+
     private var showsActionChrome: Bool {
       message.deletedAt == nil
         && mentionShell?.isThinking != true
         && (onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil
-          || onTogglePin != nil || onToggleReaction != nil || canCopyMessageLink || onSendToSelf != nil)
+          || onTogglePin != nil || onToggleReaction != nil || canCopyMessageLink || onSendToSelf != nil || sokoBotChain != nil)
     }
 
     private var reactionAction: ((String) -> Void)? {
@@ -142,12 +142,11 @@ import SwiftUI
 
     private func toggleReaction(_ emoji: String) {
       guard let onToggleReaction else { return }
-      // Match web: adding teaches quick reactions; removing does not.
-      let isAdding = !message.reactions.contains { $0.emoji == emoji && $0.reactedByCurrentUser }
       Task { @MainActor in
         do {
-          try await onToggleReaction(emoji)
-          if isAdding {
+          // Match web: adding teaches quick reactions; removing does not. Taps
+          // absorbed by a running request answer false, so on/off/on counts once.
+          if try await onToggleReaction(emoji) {
             ReactionEmojiHistory().record(emoji)
           }
         } catch {
@@ -229,7 +228,7 @@ import SwiftUI
               DeliveryFeedback(pendingSince: pendingSince, sentAt: sentAt,
                                timestamp: message.createdAt)
               if message.editedAt != nil, message.deletedAt == nil {
-                Text("Edited").help(message.editedAt?.formatted(date: .abbreviated, time: .shortened) ?? "")
+                Text("Edited").help(message.editedAt.map { timeFormat.dateTime($0) } ?? "")
                   .font(.caption)
                   .foregroundStyle(.secondary)
               }
@@ -268,13 +267,17 @@ import SwiftUI
                 MessageUnfurlView(preview: preview, remove: onRemoveUnfurl.map { action in { try await action(preview.url) } })
                   .id(preview.url + (preview.imageUrl ?? ""))
               }
+              // Web renders the Soko Bot footer only once the turn's answer is in the row.
+              if let turn = SokoBotTurnMetadata(message: message) {
+                SokoBotMessageFooterView(turn: turn)
+              }
             }
             if isContinuation, message.editedAt != nil {
-              Text("Edited").help(message.editedAt?.formatted(date: .abbreviated, time: .shortened) ?? "").font(.caption).foregroundStyle(.secondary)
+              Text("Edited").help(message.editedAt.map { timeFormat.dateTime($0) } ?? "").font(.caption).foregroundStyle(.secondary)
             }
           }
           if message.deletedAt == nil, outbound == nil, !message.reactions.isEmpty {
-            MessageReactionsView(reactions: message.reactions, pendingEmoji: pendingReactionEmoji, toggle: reactionAction)
+            MessageReactionsView(reactions: message.reactions, toggle: reactionAction)
           }
           if let onReply, message.threadReplyCount > 0 {
             Button("^[\(message.threadReplyCount) reply](inflect: true)", action: onReply)
@@ -449,6 +452,10 @@ import SwiftUI
 
     private func actionControls(compact: Bool) -> some View {
       HStack(spacing: 2) {
+        if let sokoBotChain {
+          SokoBotChainBadge(chain: sokoBotChain)
+            .padding(.horizontal, 4)
+        }
         if onToggleReaction != nil {
           ForEach(Array(quickReactions.enumerated()), id: \.element.id) { index, emoji in
             quickReactionButton(emoji, position: index)
@@ -522,7 +529,6 @@ import SwiftUI
           .contentShape(.rect)
       }
       .buttonStyle(.plain)
-      .disabled(pendingReactionEmoji.contains(emoji.emoji))
       .onHover { hoveredAction = $0 ? focus : nil }
       .focused($focusedAction, equals: focus)
       .help(":\(emoji.name):")

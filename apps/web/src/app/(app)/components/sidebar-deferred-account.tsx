@@ -4,7 +4,10 @@ import { resolveAccountNotice } from "@/app/components/account-notice-state";
 import { mapAccountCreditsChrome } from "@/app/components/sidebar";
 import { SidebarAccountChip } from "@/app/components/sidebar/components/sidebar-account-chip.client";
 import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-vendor-admin-access";
+import { SIDEBAR_RAIL_SQUARE_CLASS } from "@/components/ui/sidebar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getEnvPublicConfig } from "@/config/env.public";
+import { cn } from "@/lib/utils";
 import { resolvePlanName } from "@/lib/utils/plan-label";
 
 import {
@@ -80,16 +83,20 @@ export default async function SidebarDeferredAccount({
 export function SidebarAccountChipFallback() {
   return (
     <div
-      className="flex w-full items-center gap-2.5 p-2 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0"
+      className={cn(
+        SIDEBAR_RAIL_SQUARE_CLASS,
+        "flex w-full items-center gap-2.5 p-2 pl-1 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:p-0",
+      )}
       aria-hidden
     >
-      {/* Shape and rail size track SidebarAccountChip, so the avatar does not
-          morph from circle to square (and 32px to 24px collapsed) when credits
-          stream in behind this. */}
-      <div className="bg-muted size-8 shrink-0 animate-pulse rounded-md group-data-[collapsible=icon]:size-6" />
+      {/* Rail size tracks SidebarAccountChip, so the avatar does not go
+          32px to 24px collapsed when credits stream in behind this. The
+          square corner comes from `Skeleton` itself, and is what tells the
+          account apart from a DM's round face. */}
+      <Skeleton className="size-8 shrink-0 group-data-[collapsible=icon]:size-6" />
       <div className="flex min-w-0 flex-1 flex-col gap-1 group-data-[collapsible=icon]:hidden">
-        <div className="bg-muted h-3 w-24 animate-pulse rounded-md" />
-        <div className="bg-muted h-3 w-16 animate-pulse rounded-md" />
+        <Skeleton className="h-3 w-24" />
+        <Skeleton className="h-3 w-16" />
       </div>
     </div>
   );

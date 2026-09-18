@@ -46,6 +46,10 @@ struct ConversationSidebarView: View {
           // Nil is structural (collapsed section / missing tag), not a
           // user deselect — skip it so the open transcript stays.
           guard let newValue else { return }
+          // Reorder mode: a press moves the room, so Pinned rows stop navigating (web).
+          if workspaces.sidebar.pinnedReorderMode, partitioned.pinned.contains(where: { $0.id == newValue }) {
+            return
+          }
           Task { @MainActor in
             workspaces.selectRoom(newValue, auth: auth)
           }
@@ -55,10 +59,22 @@ struct ConversationSidebarView: View {
         if workspaces.roomsLoading, workspaces.rooms.isEmpty {
           ProgressView("Loading rooms…")
         } else {
+          // Web: every pinned room of any kind, in the reader's own order; hidden when nothing is pinned.
+          if !partitioned.pinned.isEmpty {
+            Section {
+              sectionHeader("Pinned", section: .pinned, closedAttention: resolveSectionAttention(partitioned.pinned))
+              if !workspaces.sidebar.collapsedSections.contains(.pinned) {
+                ForEach(partitioned.pinned, id: \.id) { room in
+                  pinnedRow(room, in: partitioned.pinned)
+                }
+                .onMove(perform: workspaces.sidebar.pinnedReorderMode ? { movePinned(partitioned.pinned, from: $0, to: $1) } : nil)
+              }
+            }
+          }
           // Channels section only for organization workspaces, mirroring web.
           if workspaces.selection?.workspace.organizationId != nil {
             Section {
-              sectionHeader("Channels", section: .channels)
+              sectionHeader("Channels", section: .channels, closedAttention: resolveSectionAttention(partitioned.channels))
               if !workspaces.sidebar.collapsedSections.contains(.channels) {
                 if partitioned.channels.isEmpty {
                   Text("No channels yet.")
@@ -72,7 +88,7 @@ struct ConversationSidebarView: View {
           }
           if !partitioned.external.isEmpty || !invitations.isEmpty {
             Section {
-              sectionHeader("External", section: .external)
+              sectionHeader("External", section: .external, closedAttention: resolveSectionAttention(partitioned.external, hasPendingInvitation: !invitations.isEmpty))
               if !workspaces.sidebar.collapsedSections.contains(.external) {
                 ForEach(invitations, id: \.id) { invitation in
                   PendingInvitationRow(
@@ -103,7 +119,7 @@ struct ConversationSidebarView: View {
             }
           }
           Section {
-            sectionHeader("Directs", section: .directs)
+            sectionHeader("Directs", section: .directs, closedAttention: resolveSectionAttention(partitioned.directMessages))
             if !workspaces.sidebar.collapsedSections.contains(.directs) {
               if partitioned.directMessages.isEmpty {
                 Text("No direct messages yet.")
@@ -244,8 +260,12 @@ struct ConversationSidebarView: View {
     }
   }
 
-  private func sectionHeader(_ title: String, section: ConversationSidebar.Section) -> some View {
-    HStack {
+  /// Web's `closedAttention`: a closed section hides the rows that carry its rooms' attention, so the
+  /// heading says it, in the row's own bold. An open section's rooms speak for themselves.
+  private func sectionHeader(_ title: String, section: ConversationSidebar.Section, closedAttention: SectionAttention? = nil) -> some View {
+    let collapsed = workspaces.sidebar.collapsedSections.contains(section)
+    let attention = collapsed ? closedAttention : nil
+    return HStack {
       Button {
         workspaces.sidebar.setExpanded(
           workspaces.sidebar.collapsedSections.contains(section), section: section
@@ -253,16 +273,29 @@ struct ConversationSidebarView: View {
       } label: {
         HStack(spacing: 4) {
           Text(title)
-          Image(systemName: workspaces.sidebar.collapsedSections.contains(section) ? "chevron.right" : "chevron.down")
+            .fontWeight(attention == nil ? .semibold : .bold)
+            .foregroundStyle(attention == nil ? .secondary : .primary)
+          Image(systemName: collapsed ? "chevron.right" : "chevron.down")
             .font(.caption)
         }
       }
       .buttonStyle(.plain)
       .accessibilityLabel(title)
       .accessibilityAddTraits(.isHeader)
-      .accessibilityValue(workspaces.sidebar.collapsedSections.contains(section) ? "Collapsed" : "Expanded")
-      .help(workspaces.sidebar.collapsedSections.contains(section) ? "Expand \(title)" : "Collapse \(title)")
+      .accessibilityValue(sectionAccessibilityValue(collapsed: collapsed, attention: attention))
+      .help(collapsed ? "Expand \(title)" : "Collapse \(title)")
       Spacer()
+      if section == .pinned, workspaces.sidebar.canReorderPinned {
+        let reordering = workspaces.sidebar.pinnedReorderMode
+        Button(reordering ? "Done reordering" : "Reorder pinned chats", systemImage: reordering ? "checkmark" : "arrow.up.arrow.down") {
+          workspaces.sidebar.setPinnedReorderMode(!reordering)
+        }
+        .labelStyle(.iconOnly)
+        .buttonStyle(.borderless)
+        .frame(width: 20)
+        .accessibilityAddTraits(reordering ? .isSelected : [])
+        .help(reordering ? "Done reordering" : "Reorder pinned chats")
+      }
       if section == .channels {
         Button("Browse channels", systemImage: "list.bullet") {
           browseChannels = .init(id: workspaces.compositionContext, hasOrganization: true)
@@ -278,6 +311,37 @@ struct ConversationSidebarView: View {
     .foregroundStyle(.secondary)
     .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
     .selectionDisabled()
+  }
+
+  /// Web reads the row's rail strings into the closed heading's accessible name.
+  private func sectionAccessibilityValue(collapsed: Bool, attention: SectionAttention?) -> String {
+    switch attention {
+    case .mention: "Collapsed, mentions you"
+    case .unread: "Collapsed, unread"
+    case nil: collapsed ? "Collapsed" : "Expanded"
+    }
+  }
+
+  /// A pinned row keeps the leading mark of the section it left.
+  private func pinnedRow(_ room: Components.Schemas.ChatRoom, in pinned: [Components.Schemas.ChatRoom]) -> some View {
+    let reorderingIn = workspaces.sidebar.pinnedReorderMode ? pinned : nil
+    return switch sidebarRoomKind(room) {
+    case .channel: roomRow(room, icon: room.discoverability == ._private ? "lock" : "number", reorderingIn: reorderingIn)
+    case .external: roomRow(room, icon: "globe", reorderingIn: reorderingIn)
+    case .direct: roomRow(room, icon: "person", showsDirectAvatars: true, reorderingIn: reorderingIn)
+    }
+  }
+
+  /// `List` reports the drop during its own update; hop before publishing the optimistic order.
+  private func movePinned(_ pinned: [Components.Schemas.ChatRoom], from source: IndexSet, to destination: Int) {
+    var roomIds = pinned.map(\.id)
+    roomIds.move(fromOffsets: source, toOffset: destination)
+    reorderPinned(roomIds, current: pinned)
+  }
+
+  private func reorderPinned(_ roomIds: [String], current: [Components.Schemas.ChatRoom]) {
+    guard roomIds != current.map(\.id) else { return }
+    Task { @MainActor in await workspaces.reorderPinnedRooms(roomIds, auth: auth) }
   }
 
   /// Workspace switcher pinned to the top of the sidebar.
@@ -313,22 +377,30 @@ struct ConversationSidebarView: View {
   private func roomRow(
     _ room: Components.Schemas.ChatRoom,
     icon: String,
-    showsDirectAvatars: Bool = false
+    showsDirectAvatars: Bool = false,
+    reorderingIn pinned: [Components.Schemas.ChatRoom]? = nil
   ) -> some View {
     let attention = resolveRoomAttention(
       unreadCount: room.unreadCount,
       unreadMentionCount: room.unreadMentionCount,
       markedUnread: room.markedUnread,
       isMuted: room.mutedAt != nil,
-      isActive: room.id == workspaces.selectedRoomId
+      isActive: room.id == workspaces.selectedRoomId,
+      showUnreadCount: workspaces.chatDisplay.showsRoomUnreadCount
     )
     return Label {
       HStack(spacing: 6) {
         VStack(alignment: .leading, spacing: 2) {
-          Text(roomDisplayName(room, currentUserId: workspaces.currentUserId))
-            .lineLimit(1)
-            .fontWeight(attention.bold ? .bold : .regular)
-            .foregroundStyle(room.mutedAt != nil && room.id != workspaces.selectedRoomId ? .secondary : .primary)
+          // Web: the count rides the end of the name, the name truncates first.
+          HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(roomDisplayName(room, currentUserId: workspaces.currentUserId))
+              .lineLimit(1)
+              .fontWeight(attention.bold ? .bold : .regular)
+              .foregroundStyle(room.mutedAt != nil && room.id != workspaces.selectedRoomId ? .secondary : .primary)
+            if attention.unreadTextCount > 0 {
+              RoomUnreadCountLabel(count: attention.unreadTextCount)
+            }
+          }
           if room.myAccess == .guest, let organization = room.organizationName, !organization.isEmpty {
             Text(organization)
               .font(.caption)
@@ -337,7 +409,7 @@ struct ConversationSidebarView: View {
           }
         }
         Spacer(minLength: 0)
-        roomStatus(room)
+        roomStatus(room, reorderingIn: pinned)
           .frame(width: 20)
       }
     } icon: {
@@ -354,7 +426,39 @@ struct ConversationSidebarView: View {
     .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
     .tag(room.id)
     .badge(attention.badgeCount)
-    .contextMenu { roomActions(room) }
+    .contextMenu {
+      // Reorder mode: the handle stands where the status does and the row menu is not offered.
+      if pinned == nil {
+        roomActions(room)
+      }
+    }
+  }
+
+  /// Web's handle takes the drag and the Up/Down keys. `List` drags the whole row natively, so the
+  /// handle is the pointer, keyboard and VoiceOver path to the same moves.
+  private func reorderHandle(_ room: Components.Schemas.ChatRoom, in pinned: [Components.Schemas.ChatRoom]) -> some View {
+    let roomIds = pinned.map(\.id)
+    return Menu {
+      Button("Move up", systemImage: "arrow.up") {
+        reorderPinned(movingPinnedRoom(room.id, by: -1, in: roomIds), current: pinned)
+      }
+      .disabled(roomIds.first == room.id)
+      Button("Move down", systemImage: "arrow.down") {
+        reorderPinned(movingPinnedRoom(room.id, by: 1, in: roomIds), current: pinned)
+      }
+      .disabled(roomIds.last == room.id)
+    } label: {
+      Image(systemName: "line.3.horizontal")
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .frame(width: 20, height: 20)
+        .contentShape(Rectangle())
+    }
+    .menuStyle(.button)
+    .buttonStyle(.plain)
+    .menuIndicator(.hidden)
+    .accessibilityLabel("Reorder \(roomDisplayName(room, currentUserId: workspaces.currentUserId))")
+    .help("Drag to reorder, or choose Move up or Move down")
   }
 
   /// Web's 1:1 Direct row announces its one peer's availability; group rows
@@ -367,8 +471,10 @@ struct ConversationSidebarView: View {
   }
 
   @ViewBuilder
-  private func roomStatus(_ room: Components.Schemas.ChatRoom) -> some View {
-    if workspaces.sidebar.isPending(roomId: room.id) || workspaces.channelLifecycle?.roomId == room.id {
+  private func roomStatus(_ room: Components.Schemas.ChatRoom, reorderingIn pinned: [Components.Schemas.ChatRoom]?) -> some View {
+    if let pinned {
+      reorderHandle(room, in: pinned)
+    } else if workspaces.sidebar.isPending(roomId: room.id) || workspaces.channelLifecycle?.roomId == room.id {
       ProgressView()
         .controlSize(.mini)
         .accessibilityLabel("Updating conversation")
@@ -377,11 +483,6 @@ struct ConversationSidebarView: View {
         .font(.caption)
         .foregroundStyle(.secondary)
         .accessibilityLabel("Muted")
-    } else if room.starredAt != nil {
-      Image(systemName: "pin")
-        .font(.caption)
-        .foregroundStyle(.secondary)
-        .accessibilityLabel("Pinned")
     }
   }
 
@@ -458,6 +559,22 @@ struct ConversationSidebarView: View {
     }
     .buttonStyle(.plain)
     .accessibilityValue(presenceLabel(workspaces.presence.selfPresence))
+  }
+}
+
+/// The reader's opt-in Room unread count (web `RoomUnreadCount`): text, not a
+/// pill, so it cannot be mistaken for the mention badge beside it.
+struct RoomUnreadCountLabel: View {
+  let count: Int
+
+  var body: some View {
+    Text("· \(roomCountLabel(count))")
+      .fontWeight(.bold)
+      .monospacedDigit()
+      .lineLimit(1)
+      .fixedSize()
+      .layoutPriority(1)
+      .accessibilityLabel(roomUnreadAccessibilityLabel(count))
   }
 }
 

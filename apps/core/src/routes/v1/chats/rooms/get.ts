@@ -31,6 +31,7 @@ import {
   getPeerInActiveOrganizationFlags,
   isOrganizationOwnerOrAdmin,
   mapChatRoom,
+  membershipVisibleActiveRoomWhere,
 } from "./helpers";
 import {
   getChatRoomUnreadCounts,
@@ -146,43 +147,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             organizationId: organizationId as string,
           }
         : {
-            archivedAt: null,
             ...(kind ? { kind } : {}),
             userMembers: {
               some: { userId },
             },
-            OR: organizationId
-              ? [
-                  { organizationId },
-                  {
-                    userMembers: {
-                      some: { userId, access: "guest" as const },
-                    },
-                  },
-                  {
-                    organizationId: null,
-                    kind: "direct" as const,
-                    coworkerMembers: { none: {} },
-                  },
-                  {
-                    organizationId: null,
-                    kind: "channel" as const,
-                    discoverability: "matched" as const,
-                  },
-                ]
-              : [
-                  { organizationId: null, kind: "direct" as const },
-                  {
-                    userMembers: {
-                      some: { userId, access: "guest" as const },
-                    },
-                  },
-                  {
-                    organizationId: null,
-                    kind: "channel" as const,
-                    discoverability: "matched" as const,
-                  },
-                ],
+            ...membershipVisibleActiveRoomWhere(userId, organizationId),
           };
 
     const [rows, count] = await Promise.all([

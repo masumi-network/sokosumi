@@ -101,9 +101,6 @@
         }
       },
       "AgentDetail": {
-        "Header": {
-          "pricing": "{credits, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}"
-        },
         "Stats": {
           "executedJobs": "Ausgeführte Jobs",
           "averageExecutionTime": "Durchschnittliche Ausführungszeit",
@@ -298,7 +295,7 @@
       "docs": "Dokumentation",
       "drive": "Dateien",
       "soko-bots": "Soko Bots",
-      "calendar": "Zeitpläne"
+      "calendar": "Kalender"
     },
     "Jobs": {
       "StatusBadge": {
@@ -1267,7 +1264,7 @@
         "description": "Gib dein neues Passwort ein",
         "Form": {
           "submit": "Passwort zurücksetzen",
-          "success": "Passwort erfolgreich zurückgesetzt",
+          "success": "Passwort zurückgesetzt. Du wurdest auf allen Geräten abgemeldet.",
           "error": "Passwort-Reset fehlgeschlagen",
           "Fields": {
             "Password": {
@@ -1317,7 +1314,7 @@
         "statusOptions": {
           "archived": "Archiviert",
           "DRAFT": "Entwurf",
-          "QUEUED": "In Warteschlange",
+          "QUEUED": "Geplant",
           "READY": "Bereit",
           "GRANT_PENDING": "Freigabe ausstehend",
           "INPUT_REQUIRED": "Eingabe erforderlich",
@@ -1574,7 +1571,7 @@
         "statusLabel": "Status",
         "statusOptions": {
           "DRAFT": "Entwurf",
-          "QUEUED": "In Warteschlange",
+          "QUEUED": "Geplant",
           "READY": "Bereit",
           "GRANT_PENDING": "Freigabe ausstehend",
           "INPUT_REQUIRED": "Eingabe erforderlich",
@@ -1888,7 +1885,7 @@
         "status": "Status",
         "statusDescription": "Wähle den Anfangsstatus für diesen Task",
         "statusDraft": "Entwurf",
-        "statusQueued": "In Warteschlange",
+        "statusQueued": "Geplant",
         "statusReady": "Bereit",
         "changeStatus": "Status ändern…",
         "noStatusMatches": "Kein Status passt",
@@ -2361,7 +2358,13 @@
           "back": "Zurück",
           "chat": "Chat",
           "sokoBot": "Soko Bots",
-          "calendar": "Zeitpläne"
+          "calendar": "Kalender",
+          "expandProjects": "Projekte ausklappen",
+          "collapseProjects": "Projekte einklappen",
+          "projectsLoading": "Projekte werden geladen…",
+          "projectsError": "Projekte konnten nicht geladen werden.",
+          "projectsEmpty": "Noch keine Projekte.",
+          "retryProjects": "Erneut versuchen"
         },
         "ChatLists": {
           "title": "Letzte Chats",
@@ -3979,6 +3982,8 @@
         "currentPassword": "Aktuelles Passwort",
         "newPassword": "Neues Passwort",
         "confirmPassword": "Neues Passwort bestätigen",
+        "revokeOtherSessionsLabel": "Von anderen Geräten abmelden",
+        "revokeOtherSessionsHelp": "Beendet alle anderen Sitzungen. Dieses Gerät bleibt angemeldet.",
         "submit": "Passwort aktualisieren",
         "success": "Passwort erfolgreich aktualisiert",
         "error": "Passwort konnte nicht aktualisiert werden"
@@ -5238,6 +5243,7 @@
         "markUnread": "Als ungelesen markieren",
         "pin": "Anheften",
         "unpin": "Lösen",
+        "reorderHandle": "{name} verschieben. Ziehen oder Pfeiltasten nach oben und unten drücken.",
         "mute": "Stummschalten",
         "unmute": "Stummschaltung aufheben",
         "roomMenu": "Chat-Aktionen für {name}",
@@ -5259,6 +5265,9 @@
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflowCount": "{count} weitere Teilnehmer",
       "directMessages": "Direct Messages",
+      "pinned": "Angeheftet",
+      "reorderPinned": "Angeheftete Chats sortieren",
+      "reorderPinnedDone": "Sortieren beenden",
       "loading": "Wird geladen...",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "composerTooLong": "Die Nachricht ist zu lang ({count}/{max}). Kürze sie, um sie zu senden.",
@@ -6210,7 +6219,7 @@
     },
     "Calendar": {
       "Metadata": {
-        "title": "Zeitpläne",
+        "title": "Kalender",
         "description": "Geplante Aufgabenfreigaben im Workspace durchsuchen."
       },
       "previous": "Vorheriger Zeitraum",
@@ -6263,7 +6272,7 @@
         "label": "Aufgabenstatus",
         "all": "Alle Status",
         "DRAFT": "Entwurf",
-        "QUEUED": "In Warteschlange",
+        "QUEUED": "Geplant",
         "READY": "Bereit",
         "GRANT_PENDING": "Freigabe ausstehend",
         "INPUT_REQUIRED": "Eingabe erforderlich",

@@ -93,7 +93,7 @@ function parentMessage(
 function renderThreadPanel(
   overrides: {
     onQuote?: (message: ChatRoomMessage) => void;
-    onRestorePendingQuote?: (quote: PendingRoomQuote) => void;
+    onSetPendingQuote?: (quote: PendingRoomQuote) => void;
   } = {},
 ) {
   return render(
@@ -112,7 +112,7 @@ function renderThreadPanel(
       onClose={() => undefined}
       onToggleReaction={() => undefined}
       onQuote={overrides.onQuote}
-      onRestorePendingQuote={overrides.onRestorePendingQuote}
+      onSetPendingQuote={overrides.onSetPendingQuote}
       roomId="room-1"
     />,
   );
@@ -145,12 +145,12 @@ describe("ThreadPanel composer focus", () => {
     expect(composerFocus).toHaveBeenCalledTimes(1);
   });
 
-  it("does not focus when onRestorePendingQuote runs", async () => {
+  it("does not focus when onSetPendingQuote runs", async () => {
     composerFocus.mockClear();
-    const onRestorePendingQuote = vi.fn();
-    renderThreadPanel({ onRestorePendingQuote });
+    const onSetPendingQuote = vi.fn();
+    renderThreadPanel({ onSetPendingQuote });
 
-    onRestorePendingQuote({
+    onSetPendingQuote({
       messageId: "quoted-1",
       authorName: "Ada",
       snippet: "quoted",

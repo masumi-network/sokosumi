@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { isValidElement, type ReactNode } from "react";
+import { cloneElement, isValidElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next-intl", () => ({
@@ -29,35 +29,18 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+// Radix `Slot` hands the button's props to its immediate child, which is this
+// one, so a mock that drops them would take the row's whole class list with it.
 vi.mock("@/components/ui/sheet", () => ({
-  SheetClose: ({ children }: { children: ReactNode }) => <>{children}</>,
-}));
-
-vi.mock("@/components/ui/sidebar", () => ({
-  SidebarGroup: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
-  ),
-  SidebarGroupContent: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
-  ),
-  SidebarMenu: ({ children }: { children: ReactNode }) => <ul>{children}</ul>,
-  SidebarMenuButton: ({
+  SheetClose: ({
     children,
-    asChild,
-    tooltip,
+    asChild: _asChild,
+    ...props
   }: {
     children: ReactNode;
     asChild?: boolean;
-    tooltip?: string;
-  }) => (
-    <div data-testid="sidebar-menu-button" data-tooltip={tooltip}>
-      {asChild && isValidElement(children) ? children : <div>{children}</div>}
-    </div>
-  ),
-  SidebarMenuItem: ({ children }: { children: ReactNode }) => (
-    <li>{children}</li>
-  ),
-  SidebarRailSelectionBar: () => <span data-testid="rail-selection-bar" />,
+  }) =>
+    isValidElement(children) ? cloneElement(children, props) : <>{children}</>,
 }));
 
 vi.mock("@/components/chat/personal-assistant-chrome-store", () => ({
@@ -70,84 +53,84 @@ vi.mock("@/components/aurora-orb", () => ({
   ),
 }));
 
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 
 import PersonalAssistantNav from "./personal-assistant-nav.client";
 
-const bots = [
-  { id: "bot-1", imageUrl: "https://example.com/1.png", seed: "a" },
-  { id: "bot-2", imageUrl: "https://example.com/2.png", seed: "b" },
-  { id: "bot-3", imageUrl: "https://example.com/3.png", seed: "c" },
-];
+const bot = { id: "bot-1", imageUrl: "https://example.com/1.png", seed: "a" };
 
 function tokens(className: string): string[] {
   return className.split(/\s+/).filter(Boolean);
 }
 
-describe("PersonalAssistantNav collapsed stack", () => {
+function renderNav(props: Parameters<typeof PersonalAssistantNav>[0] = {}) {
+  return render(
+    <SidebarProvider defaultOpen>
+      <PersonalAssistantNav {...props} />
+    </SidebarProvider>,
+  );
+}
+
+/**
+ * Soko Bots is an ordinary Sidebar row (CONTEXT.md), not the 48px bordered
+ * card it used to be: it takes the row primitive's height and the shared slot,
+ * so it neither pushes the list down nor resizes its mark when the sidebar
+ * toggles.
+ */
+describe("PersonalAssistantNav as an ordinary Sidebar row", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     pathnameRef.current = "/";
   });
 
-  it("packs the faces into a size-8 glyph for the icon rail", () => {
-    const { container } = render(<PersonalAssistantNav bots={bots} />);
-    const stack = container.querySelector('[data-slot="soko-bot-stack"]');
-    expect(stack).not.toBeNull();
-    expect(tokens(stack?.className ?? "")).toEqual(
-      expect.arrayContaining([
-        "-space-x-1.5",
-        "group-data-[collapsible=icon]:size-8",
-        "group-data-[collapsible=icon]:items-center",
-        "group-data-[collapsible=icon]:justify-center",
-        "group-data-[collapsible=icon]:-space-x-2",
-      ]),
-    );
+  it("takes the row primitive's height rather than a card's", () => {
+    renderNav({ bot });
+    const button = screen.getByRole("link", { name: "sokoBot" });
 
-    const faces = stack?.querySelectorAll("img") ?? [];
-    expect(faces).toHaveLength(3);
-    for (const face of faces) {
-      expect(tokens(face.className)).toEqual(
-        expect.arrayContaining([
-          "size-5",
-          "group-data-[collapsible=icon]:size-3",
-          "group-data-[collapsible=icon]:border",
-          "group-data-[collapsible=icon]:border-sidebar",
-        ]),
-      );
-      expect(tokens(face.className)).not.toContain(
-        "group-data-[collapsible=icon]:size-4",
-      );
-    }
+    expect(tokens(button?.className ?? "")).toEqual(
+      expect.arrayContaining(["h-11", "md:h-8"]),
+    );
+    // The card that is gone: its own border, radius and rail hover exception.
+    expect(tokens(button?.className ?? "")).not.toContain("border");
+    expect(tokens(button?.className ?? "")).not.toContain("rounded-lg");
+    expect(button?.className).not.toContain(
+      "group-data-[collapsible=icon]:hover:ring-0!",
+    );
   });
 
-  it("keeps a lone collapsed face at the same size as the empty Bot icon", () => {
-    const { container } = render(
-      <PersonalAssistantNav bots={bots.slice(0, 1)} />,
-    );
-    const face = container.querySelector('[data-slot="soko-bot-stack"] img');
+  it("shows one 24px face in the shared slot, the same in both states", () => {
+    const { container } = renderNav({ bot });
+    const slot = container.querySelector('[data-slot="sidebar-row-slot"]');
+    const face = slot?.querySelector("img");
+
+    expect(slot).not.toBeNull();
+    expect(tokens(slot?.className ?? "")).toContain("min-w-6");
     expect(face).not.toBeNull();
-    expect(tokens(face?.className ?? "")).toEqual(
-      expect.arrayContaining([
-        "group-data-[collapsible=icon]:size-4",
-        "group-data-[collapsible=icon]:border",
-      ]),
-    );
-    expect(tokens(face?.className ?? "")).not.toContain(
-      "group-data-[collapsible=icon]:size-3",
-    );
+    expect(tokens(face?.className ?? "")).toContain("size-6");
+    // No state-dependent size: the face cannot resize on a toggle.
+    expect(face?.className).not.toContain("group-data-[collapsible=icon]:");
+  });
+
+  it("falls back to the bot icon in the same slot when there is no bot", () => {
+    const { container } = renderNav();
+    const slot = container.querySelector('[data-slot="sidebar-row-slot"]');
+
+    expect(slot).not.toBeNull();
+    expect(slot?.querySelector("img")).toBeNull();
+    expect(slot?.querySelector("svg")).not.toBeNull();
   });
 
   it("names the row on the sidebar button so the collapsed rail can show it", () => {
-    render(<PersonalAssistantNav bots={bots} />);
-    expect(screen.getByTestId("sidebar-menu-button")).toHaveAttribute(
-      "data-tooltip",
-      "sokoBot",
+    renderNav({ bot });
+    expect(screen.getByRole("link", { name: "sokoBot" })).toHaveAttribute(
+      "href",
+      SOKO_BOTS_ROUTE,
     );
   });
 
   it("keeps the label in the accessibility tree when the rail collapses", () => {
-    render(<PersonalAssistantNav bots={bots} />);
+    renderNav({ bot });
     const label = screen.getByText("sokoBot");
     expect(tokens(label.className)).toContain(
       "group-data-[collapsible=icon]:sr-only",
@@ -167,20 +150,21 @@ describe("PersonalAssistantNav rail selection bar", () => {
     pathnameRef.current = "/";
   });
 
+  function railSelection(container: HTMLElement) {
+    return container.querySelector('[data-slot="sidebar-rail-selection"]');
+  }
+
   it("marks the row when the reader is on Soko Bots", () => {
     pathnameRef.current = SOKO_BOTS_ROUTE;
-    render(<PersonalAssistantNav bots={bots} />);
-    expect(screen.getByTestId("rail-selection-bar")).toBeInTheDocument();
+    expect(railSelection(renderNav({ bot }).container)).not.toBeNull();
   });
 
   it("marks the row from a personal-assistant page too", () => {
     pathnameRef.current = `${SOKO_BOT_ROUTE}/bot-1`;
-    render(<PersonalAssistantNav bots={bots} />);
-    expect(screen.getByTestId("rail-selection-bar")).toBeInTheDocument();
+    expect(railSelection(renderNav({ bot }).container)).not.toBeNull();
   });
 
   it("shows no selection mark on a route it does not own", () => {
-    render(<PersonalAssistantNav bots={bots} />);
-    expect(screen.queryByTestId("rail-selection-bar")).toBeNull();
+    expect(railSelection(renderNav({ bot }).container)).toBeNull();
   });
 });

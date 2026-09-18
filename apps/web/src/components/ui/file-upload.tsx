@@ -1234,6 +1234,4 @@ export {
   FileUploadItemPreview,
   FileUploadItemMetadata,
   FileUploadItemDelete,
-  useStore as useFileUpload,
-  type FileUploadRootProps as FileUploadProps,
 };

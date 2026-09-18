@@ -127,6 +127,7 @@
   --color-status-working-quaternary: var(--status-working-quaternary);
   --color-status-working-label: var(--status-working-label);
   --color-status-external: var(--status-external);
+  --color-status-external-tertiary: var(--status-external-tertiary);
   --color-status-external-quaternary: var(--status-external-quaternary);
   --color-status-external-label: var(--status-external-label);
   --color-status-done: var(--status-done);
@@ -411,12 +412,55 @@
      under the threshold without the guard seeing it. */
   --semantic-destructive-label: hsla(0, 95.0%, 38.1%, 1);
 
-  --semantic-warning: hsla(35, 92%, 31%, 1);
-  --semantic-warning-tertiary: hsla(35, 41.3%, 80.7%, 1);
-  --semantic-warning-quaternary: hsla(35, 100.0%, 90.0%, 1);
-  --semantic-warning-quinary: hsla(35, 41.3%, 93.8%, 1);
-  --semantic-warning-label: hsla(26, 95.0%, 34.9%, 1);
-  --semantic-warning-foreground: hsla(55, 100%, 98%, 1);
+  --semantic-warning: hsla(25, 92%, 31%, 1);
+  --semantic-warning-tertiary: hsla(25, 41.3%, 80.7%, 1);
+  /* The light warning ramp is orange at hue 25. Four of its six steps were
+     amber 35; the label was already hue 26 and the foreground a hue-55
+     off-white, so "rotated from 35" describes the tint steps, not the ramp.
+     All six are hue 25 now. Dark stays at 43 and is not part of this change.
+
+     The complaint this answers was that the input-required label reads too
+     dark, not that it fails a floor. It did not fail one: the old hue-26
+     label measured 4.61:1 on the hue-35 tint. What it could not do was get lighter.
+     At 12px it is normal text, so SC 1.4.3 asks 4.5:1 on the tint, and yellow
+     carries more luminance than any other hue, which pinned the label near
+     L35 at the old saturation whatever else was tuned.
+
+     So two things moved together, and only one of them is the hue. Dropping
+     the label from S95 to S55 is what bought the lightness; rotating to hue
+     25 is what let the ramp around it stay legible while that happened. The
+     label ends at L38.0 and 4.53:1, so it is 3 lightness steps lighter at
+     essentially unchanged contrast (4.61 to 4.53, a 0.08 loss). That is the
+     honest summary: the reader gets the lighter text they asked for, and the
+     ratio is held, not improved.
+
+     Everything else on the ramp did improve, because those surfaces are not
+     bound by the tint: notice text on the quinary 4.84 to 5.85, on the page
+     5.47 to 6.70, the indicator's label on the solid 5.41 to 6.42, the glyph
+     on the tint 4.66 to 5.40, and the tint reads as a block more clearly,
+     1.13:1 to 1.19:1 against the card.
+
+     The cost is separation from the fault red, and it is larger than the
+     marks alone. Measured in OKLab dE x100, amber to orange:
+
+       mark   (--semantic-warning vs --semantic-destructive-solid)  12.52 to 8.58
+       fill   (both -quaternary, the badge's largest area)           7.60 to 5.42
+       border (both -tertiary, the outline weight)                   5.03 to 3.42
+
+     Only the mark stays above the 6.0 this model calls comfortably separate.
+     The fill drops under it and the border was already under it and got
+     worse. All three stay well above the 2.0 just-noticeable threshold, and
+     warning and fault never share a board column, but they do stack in one
+     list on the history rows, the needs-attention section and the status
+     picker menu. What keeps them apart there is the glyph and the word, which
+     rule 3 of the status model says carry the status anyway. Recorded here so
+     the next person retuning either ramp starts from the real numbers.
+
+     Hue 25 was chosen from a measured sheet of ten. */
+  --semantic-warning-quaternary: hsla(25, 100.0%, 90.0%, 1);
+  --semantic-warning-quinary: hsla(25, 41.3%, 93.8%, 1);
+  --semantic-warning-label: hsla(25, 55.0%, 38.0%, 1);
+  --semantic-warning-foreground: hsla(25, 100%, 98%, 1);
 
   --semantic-success: hsla(142, 72%, 27%, 1);
   --semantic-success-tertiary: hsla(142, 26.6%, 79.6%, 1);
@@ -427,8 +471,11 @@
 
   /* Online and afk now come straight from --semantic-success and
      --semantic-warning. Those forked here because the old warning reached only
-     2.25:1 on white; the corrected ramps measure 5.07 and 4.95, well past the
-     3:1 that a small non-text mark needs (WCAG 2.2 SC 1.4.11).
+     2.25:1 on white; the corrected ramps measure 5.68 and 6.70 on the light
+     background, well past the 3:1 that a small non-text mark needs (WCAG 2.2
+     SC 1.4.11). The pair read 5.07 and 4.95 when this comment was written and
+     both ramps have moved since: success was retuned, and warning rotated
+     from hue 35 to hue 25, which raised it from 5.47 to 6.70.
      Offline stays its own token: "no signal" is not a semantic state, and
      --muted-foreground is a text role. Measured: 4.85 on white. */
   --presence-offline: hsla(220, 9%, 46%, 1);
@@ -486,6 +533,10 @@
   --status-done-tertiary: hsla(0, 0.0%, 84.6%, 1);
   --status-working-tertiary: hsla(300, 41.2%, 81.5%, 1);
   --status-working-quaternary: hsla(300, 100.0%, 90.0%, 1);
+  /* The outline border for the staged column. Same S and L as
+     --status-working-tertiary, so the two column hues carry the same
+     weight and only the hue separates them. */
+  --status-external-tertiary: hsla(240, 41.2%, 81.5%, 1);
   --status-external-quaternary: hsla(240, 100.0%, 90.0%, 1);
   --status-working-label: hsla(300, 95.0%, 33.4%, 1);
   --status-external-label: hsla(240, 95.0%, 58.7%, 1);
@@ -630,6 +681,7 @@
   --status-done-tertiary: hsla(0, 0.0%, 28.0%, 1);
   --status-working-tertiary: hsla(300, 37.5%, 30.4%, 1);
   --status-working-quaternary: hsla(300, 35.0%, 21.2%, 1);
+  --status-external-tertiary: hsla(240, 37.5%, 30.4%, 1);
   --status-external-quaternary: hsla(240, 35.0%, 21.2%, 1);
   --status-working-label: hsla(300, 95.0%, 70.0%, 1);
   --status-external-label: hsla(240, 95.0%, 74.7%, 1);
@@ -1120,4 +1172,22 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
     opacity: 1;
     filter: none;
   }
+}
+
+/* Scroll quiets the hover action pill. A stationary pointer crosses row after
+   row while the transcript moves under it, and each row it passes would flash
+   its pill in and out. The scroller carries data-chat-scrolling for as long as
+   the scroll runs (use-quiet-hover-while-scrolling). Unlayered, so it wins over
+   the pill's own Tailwind utilities; the zero delay drops the pill at once,
+   while coming back still waits out the pill's reveal delay. That same weight
+   means the exceptions have to live here too: a pill the keyboard is on, and
+   one whose menu or emoji picker is open — that focus sits in a portal, and a
+   live message can scroll the transcript out from under an open menu. */
+[data-chat-scrolling]
+[data-message-actions="hover"]:not(:focus-within):not(
+  :has([aria-expanded="true"])
+) {
+  opacity: 0;
+  pointer-events: none;
+  transition-delay: 0ms;
 }

@@ -20,6 +20,7 @@ import type {
   CreateChatRoomRequest,
   DiscoverableChatRoom,
   ResolveChatRoomGuestInviteLink,
+  StarredChatRoomOrder,
   UpdateChatRoomRequest,
 } from "@/lib/clients/generated/core";
 
@@ -298,6 +299,13 @@ export const chatRoomService = (() => {
 
   async function unpinRoom(id: string): Promise<ChatRoom> {
     const response = await coreClient.unpinChatRoom(id);
+    return response.data;
+  }
+
+  async function reorderPinnedRooms(
+    roomIds: string[],
+  ): Promise<StarredChatRoomOrder[]> {
+    const response = await coreClient.reorderPinnedChatRooms(roomIds);
     return response.data;
   }
 
@@ -602,6 +610,7 @@ export const chatRoomService = (() => {
     pinMessage,
     sendMessageToSelf,
     pinRoom,
+    reorderPinnedRooms,
     listPinnedMessages,
     removeUnfurl,
     resolveRoomGuestInviteLink,

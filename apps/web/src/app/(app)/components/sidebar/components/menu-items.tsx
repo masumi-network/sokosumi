@@ -24,19 +24,19 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRailSelectionBar,
+  SidebarRowSlot,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
 import { cn } from "@/lib/utils";
+
+import { ProjectsMenuItem } from "./projects-menu-item";
 
 interface MenuItemConfig {
   key: string;
   href?: string;
   label: string;
   Icon: ComponentType<SVGProps<SVGSVGElement>>;
-  hasIndicator?: boolean;
-  badge?: string;
-  unreadCount?: number;
   onClick?: () => void;
   shortcutLabel?: string;
   ariaKeyshortcuts?: string;
@@ -148,7 +148,7 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
   return (
     <>
       {/* `px-2` here rather than on the item, so a nav row's
-          `SidebarMenuItem` is the same 40px box a Chat row's is and the rail
+          `SidebarMenuItem` is the same box a Chat row's is and the rail
           selection bar's `-right-2` lands on the rail's edge in both. The
           separator spans the rail rather than the row, so it takes that
           padding back with `-mx-2`. */}
@@ -161,18 +161,15 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                 href,
                 label,
                 Icon,
-                hasIndicator,
-                badge,
-                unreadCount,
                 onClick,
                 shortcutLabel,
                 ariaKeyshortcuts,
                 separatorAfter,
               }) => {
+                if (key === "projects") {
+                  return <ProjectsMenuItem key={key} />;
+                }
                 const isActive = href ? isPathActive(href) : false;
-                const showUnread = (unreadCount ?? 0) > 0;
-                const unreadDisplay =
-                  (unreadCount ?? 0) > 99 ? "99+" : String(unreadCount ?? 0);
 
                 // Collapsed rail hides the label, so every item needs the hint.
                 const tooltip = shortcutLabel
@@ -190,32 +187,12 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
 
                 const content = (
                   <>
-                    <Icon className="size-4" aria-hidden />
-                    <span className="flex-1 truncate">{label}</span>
-                    {badge ? (
-                      <span
-                        className={cn(
-                          "border-border text-tertiary-foreground dark:text-muted-foreground rounded border px-1 py-0 text-[0.625rem] font-medium uppercase tracking-wide leading-4",
-                          isActive &&
-                            "border-sidebar-accent-foreground text-sidebar-accent-foreground",
-                        )}
-                      >
-                        {badge}
-                      </span>
-                    ) : null}
-                    {showUnread ? (
-                      <span
-                        aria-label={`${unreadDisplay} unread`}
-                        className="bg-primary-solid text-primary-solid-foreground inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[0.625rem] font-semibold leading-4 tabular-nums"
-                      >
-                        {unreadDisplay}
-                      </span>
-                    ) : hasIndicator ? (
-                      <span
-                        aria-hidden
-                        className="bg-primary-iris size-2 shrink-0 rounded-full"
-                      />
-                    ) : null}
+                    <SidebarRowSlot>
+                      <Icon className="size-4" aria-hidden />
+                    </SidebarRowSlot>
+                    <span className="flex-1 truncate group-data-[collapsible=icon]:sr-only">
+                      {label}
+                    </span>
                   </>
                 );
 
@@ -233,7 +210,6 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                               href={href}
                               aria-current={isActive ? "page" : undefined}
                               className={cn(
-                                "flex min-h-auto w-full items-center gap-2 px-3",
                                 isActive
                                   ? "text-sidebar-accent-foreground"
                                   : "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
@@ -250,7 +226,6 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                           aria-keyshortcuts={ariaKeyshortcuts}
                           tooltip={tooltip}
                           className={cn(
-                            "flex min-h-auto w-full items-center gap-2 px-3",
                             "text-tertiary-foreground dark:text-muted-foreground",
                             "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                           )}
@@ -272,10 +247,7 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                       {isActive ? <SidebarRailSelectionBar /> : null}
                     </SidebarMenuItem>
                     {separatorAfter ? (
-                      <SidebarMenuItem
-                        aria-hidden
-                        className="group-data-[collapsible=icon]:hidden -mx-2 py-2"
-                      >
+                      <SidebarMenuItem aria-hidden className="-mx-2 py-2">
                         <div className="bg-sidebar-border h-px w-full" />
                       </SidebarMenuItem>
                     ) : null}

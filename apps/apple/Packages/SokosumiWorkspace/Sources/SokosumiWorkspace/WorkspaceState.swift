@@ -100,9 +100,19 @@ public final class WorkspaceState: ObservableObject {
     workspaceSession.currentUser?.image
   }
 
-  @Published var pendingReactions: Set<ReactionRequest> = []
+  /// The viewer's unconfirmed reaction taps (ADR 0032); see `WorkspaceState+Reactions`.
+  @Published var pendingReactions = PendingReactions()
   /// Failed mention shells whose retry POST is in flight; see `WorkspaceState+Mentions`.
   @Published var pendingMentionRetries: Set<MentionRetryRequest> = []
+  /// Soko Bot turns rated in this session, by turn id; see `WorkspaceState+SokoBot`.
+  @Published public internal(set) var sokoBotFeedback: [String: Bool] = [:]
+  @Published var pendingSokoBotFeedback: Set<String> = []
+  /// Account-synced chat display preferences; see `WorkspaceState+DisplayPreferences`.
+  public let chatDisplay = ChatDisplayPreferences()
+  public let notificationPreferences = ChatNotificationPreferences()
+  /// App-side OS notification adapter; without it events raise no banner.
+  public var notificationPresenter: (any ChatNotificationPresenting)?
+  var notificationBanners = ChatNotificationBanners()
   public let timeline = RoomTimeline()
   public let pins = PinnedMessages()
   @Published var pendingPins: Set<String> = []
@@ -174,9 +184,10 @@ public final class WorkspaceState: ObservableObject {
   /// that a launch would flash offline while the first token mints.
   var realtimeEverConnected = false
 
-  /// Confirmed history plus unresolved outbound shells (sticky at the end).
+  /// Confirmed history plus unresolved outbound shells (sticky at the end), with Pending reactions on top.
   public var displayedTranscript: [Components.Schemas.ChatRoomMessage] {
-    directStream.displayedMessages(persisted: SokosumiChat.displayedTranscript(messages: transcriptMessages, shells: outboundShells))
+    let messages = directStream.displayedMessages(persisted: SokosumiChat.displayedTranscript(messages: transcriptMessages, shells: outboundShells))
+    return pendingReactions.overlaying(messages, viewer: reactionViewer)
   }
 
   var transcriptCursor: String? {
@@ -215,7 +226,7 @@ public final class WorkspaceState: ObservableObject {
     self.clientProvider = clientProvider
     sidebar = ConversationSidebar(savedRoom: savedRoom)
     ablyClientInstanceId = getOrCreateAblyClientInstanceId(store: instanceStore)
-    for publisher in [archivedChannels.objectWillChange, pendingInvitations.objectWillChange, threadOverview.objectWillChange, pins.objectWillChange, thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange, presence.objectWillChange] {
+    for publisher in [archivedChannels.objectWillChange, pendingInvitations.objectWillChange, threadOverview.objectWillChange, chatDisplay.objectWillChange, pins.objectWillChange, thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange, presence.objectWillChange] {
       publisher.sink { [weak self] in self?.objectWillChange.send() }.store(in: &threadObservations)
     }
     // Rows need editor identity changes; draft and save state are observed by the editor itself.
@@ -277,6 +288,12 @@ public final class WorkspaceState: ObservableObject {
     updatingChannel = false
     channelLifecycle = nil
     invitationResponse = nil
+    pendingReactions = PendingReactions()
+    sokoBotFeedback = [:]
+    pendingSokoBotFeedback = []
+    chatDisplay.reset()
+    notificationPreferences.reset()
+    clearNotificationBanners()
     archivedChannels.reset()
     pendingInvitations.reset()
     workspaceSession.reset()
@@ -660,8 +677,11 @@ public final class WorkspaceState: ObservableObject {
   @discardableResult
   public func sendMessage(_ content: String, attachments: [ComposeAttachment] = [], quote: Components.Schemas.ChatRoomMessageQuote? = nil, auth: AuthState) -> Bool {
     let draft = ComposerContent(content)
-    guard let roomId = transcriptRoomId, draft.canSend, !transcriptLoading,
+    guard let roomId = transcriptRoomId, !transcriptLoading,
           let client = resolveClient(auth: auth) else { return false }
+    // A quote can be the whole message, except in the coworker 1:1 stream,
+    // which needs words to answer.
+    guard draft.canSend(quoted: quote != nil && directStream.roomId != roomId) else { return false }
     timeline.followLatest()
     if directStream.roomId == roomId {
       let generation = transcriptGeneration
@@ -681,7 +701,7 @@ public final class WorkspaceState: ObservableObject {
     outbox.enqueue(shell, send: { [service] in
       try await service.createMessage(
         client: client, roomId: roomId, content: draft.text,
-        clientMessageId: id, mentions: mentions, quoteMessageId: quote?.messageId, organizationSlug: slug
+        clientMessageId: id, mentions: mentions, quote: quote, organizationSlug: slug
       )
     }, confirmed: { [weak self] message in
       guard let self else { return }
@@ -770,9 +790,7 @@ public final class WorkspaceState: ObservableObject {
     case let .message(roomId, eventType, message):
       applyRealtimeMessage(roomId: roomId, eventType: eventType, message: message)
     case let .patch(patch):
-      thread.apply(patch)
-      guard patch.roomId == transcriptRoomId else { return }
-      transcriptMessages = applyRealtimePatch(patch, messages: transcriptMessages)
+      applyRealtimeMessagePatch(patch)
     case let .pin(roomId, messageId, isPinned, count):
       applyRealtimePin(roomId: roomId, messageId: messageId, isPinned: isPinned, count: count)
     case let .roomHealth(roomId, healthy, continuityLost):
@@ -785,11 +803,19 @@ public final class WorkspaceState: ObservableObject {
       applyPresenceRoster(organizationId: organizationId, members: members)
     case let .envelope(envelope):
       applyRealtimeEnvelope(envelope)
+    case let .notification(notification):
+      applyRealtimeNotification(notification)
     case let .revoked(roomId):
       applyMembershipRevoked(roomId: roomId)
     case .ignored:
       break
     }
+  }
+
+  func applyRealtimeMessagePatch(_ patch: RealtimeMessagePatch) {
+    thread.apply(patch)
+    guard patch.roomId == transcriptRoomId else { return }
+    transcriptMessages = applyRealtimePatch(patch, messages: transcriptMessages)
   }
 
   private func applyRealtimePin(roomId: String, messageId: String, isPinned: Bool, count: Int) {
@@ -1061,6 +1087,22 @@ public final class WorkspaceState: ObservableObject {
         readAttention.clearError()
         sidebar.clearActionError()
       }
+    }
+  }
+
+  /// Reorder Pinned. A failure of the latest reorder reloads the list: what Core holds is the truth.
+  public func reorderPinnedRooms(_ roomIds: [String], auth: AuthState) async {
+    guard let client = resolveClient(auth: auth) else { return }
+    do {
+      try await sidebar.reorderPinned(roomIds, client: client, organizationSlug: selection?.workspace.organizationSlug)
+    } catch {
+      if let error = error as? ChatServiceError, signOutIfUnauthorized(error, auth: auth) {
+        sidebar.clearActionError()
+        return
+      }
+      // A read that started before the failure may already be running; it must not stand in for the reload.
+      await roomsRefreshTask?.value
+      await refreshRooms(auth: auth)
     }
   }
 
