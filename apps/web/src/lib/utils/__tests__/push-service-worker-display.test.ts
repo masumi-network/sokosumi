@@ -110,6 +110,7 @@ interface ShownNotification {
     tag?: string;
     icon?: string;
     data?: Record<string, unknown> | null;
+    renotify?: boolean;
   };
 }
 
@@ -121,6 +122,8 @@ function loadServiceWorker({
   appUrl,
   locale,
   browserLanguages,
+  displayed = [],
+  getNotificationsThrows = false,
 }: {
   isChromium: boolean;
   windows?: WindowClientStub[];
@@ -129,9 +132,13 @@ function loadServiceWorker({
   appUrl?: string;
   locale?: string;
   browserLanguages?: string[];
+  /** Banners already on screen, as `getNotifications` would return them. */
+  displayed?: { data?: unknown }[];
+  getNotificationsThrows?: boolean;
 }) {
   const listeners = new Map<string, (event: unknown) => void>();
   const shown: ShownNotification[] = [];
+  const notificationLookups: { tag?: string }[] = [];
   const openedWindows: string[] = [];
   const skipWaiting = vi.fn();
   // The sandbox gets its own `console`, so a spy on this realm's would never
@@ -188,6 +195,16 @@ function loadServiceWorker({
         options: { tag?: string },
       ): Promise<void> => {
         shown.push({ title, options });
+      },
+      // The test supplies what stands at the tag, so this records the query
+      // and answers with it rather than re-implementing the grouping the
+      // worker is being tested on.
+      getNotifications: async (filter: { tag?: string }) => {
+        notificationLookups.push(filter);
+        if (getNotificationsThrows) {
+          throw new Error("notifications unavailable");
+        }
+        return displayed;
       },
     },
   };
@@ -254,6 +271,7 @@ function loadServiceWorker({
     dispatchInstall,
     skipWaiting,
     shown,
+    notificationLookups,
     openedWindows,
     reported,
     warned,
@@ -764,6 +782,66 @@ describe("ably-push-sw display", () => {
       ...MENTION_TARGET,
       metadata: { workspaceId: "workspace-1" },
     });
+  });
+
+  /**
+   * A room is one tag, so the second message replaces the first one's banner.
+   * Without `renotify` that replacement is silent, which is why a busy room
+   * only ever made one sound.
+   */
+  it("asks to re-alert when it replaces a banner for a different notification", async () => {
+    const worker = loadServiceWorker({
+      isChromium: false,
+      displayed: [{ data: { ...MENTION_PUSH, id: "older-message" } }],
+    });
+
+    await worker.dispatchPush(MENTION_PUSH);
+
+    expect(worker.notificationLookups).toEqual([
+      { tag: "sokosumi-room:room-1" },
+    ]);
+    expect(worker.shown[0]?.options.renotify).toBe(true);
+  });
+
+  /**
+   * The same notification from the other transport. An open tab drew this
+   * banner from its Ably event and the push replaces it by tag on purpose, so
+   * re-alerting here would sound twice for one message.
+   */
+  it("stays silent when it replaces the banner for the same notification", async () => {
+    const worker = loadServiceWorker({
+      isChromium: false,
+      displayed: [{ data: MENTION_PUSH }],
+    });
+
+    await worker.dispatchPush(MENTION_PUSH);
+
+    expect(worker.shown[0]?.options.renotify).toBeUndefined();
+  });
+
+  it("asks for no re-alert when the tag shows nothing yet", async () => {
+    const worker = loadServiceWorker({ isChromium: false });
+
+    await worker.dispatchPush(MENTION_PUSH);
+
+    expect(worker.shown[0]?.options.renotify).toBeUndefined();
+  });
+
+  /**
+   * `userVisibleOnly` means this push must still end in a banner. A lookup
+   * that throws must not cost the reader that banner, and must not guess
+   * `true`: a missed sound is recoverable, a doubled one is not.
+   */
+  it("still displays when the lookup fails, without re-alerting", async () => {
+    const worker = loadServiceWorker({
+      isChromium: false,
+      getNotificationsThrows: true,
+    });
+
+    await worker.dispatchPush(MENTION_PUSH);
+
+    expect(worker.shown).toHaveLength(1);
+    expect(worker.shown[0]?.options.renotify).toBeUndefined();
   });
 
   it("always displays off Chromium, where skipping revokes the subscription", async () => {
