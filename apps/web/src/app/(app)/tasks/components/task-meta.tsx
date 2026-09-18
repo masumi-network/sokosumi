@@ -77,22 +77,20 @@ export function TaskMetaDetails({
     <div className="border-border flex items-center justify-between gap-2 border-t pt-2">
       <div className="flex items-center gap-1.5">
         {project ? <TaskProjectMark project={project} /> : null}
-        {assignee ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span
-                className="inline-flex shrink-0"
-                role="img"
-                aria-label={assigneeName}
-              >
-                <AssigneeAvatar assignee={assignee} />
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="top" sideOffset={6}>
-              {assigneeName}
-            </TooltipContent>
-          </Tooltip>
-        ) : null}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              className="inline-flex shrink-0"
+              role="img"
+              aria-label={assigneeName}
+            >
+              <AssigneeAvatar assignee={assignee} />
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top" sideOffset={6}>
+            {assigneeName}
+          </TooltipContent>
+        </Tooltip>
       </div>
       <div className="text-muted-foreground flex items-center gap-2">
         {commentsCount > 0 && (

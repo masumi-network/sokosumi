@@ -94,6 +94,34 @@ describe("TaskMetaDetails", () => {
     expect(container.textContent).not.toContain("Owner");
   });
 
+  it("shows a question-mark avatar and em dash label when unassigned on cards", () => {
+    render(
+      <TaskMetaDetails
+        {...buildMetaProps({
+          assignee: null,
+          variant: "card",
+        })}
+      />,
+    );
+
+    expect(screen.getByText("?")).toBeInTheDocument();
+    expect(screen.getByLabelText("—")).toBeInTheDocument();
+  });
+
+  it("shows a question-mark avatar and em dash name when unassigned on list rows", () => {
+    render(
+      <TaskMetaDetails
+        {...buildMetaProps({
+          assignee: null,
+          variant: "list",
+        })}
+      />,
+    );
+
+    expect(screen.getByText("?")).toBeInTheDocument();
+    expect(screen.getByText("—")).toBeInTheDocument();
+  });
+
   it("uses an em dash label for blank project names", () => {
     render(
       <TaskMetaDetails
@@ -109,9 +137,10 @@ describe("TaskMetaDetails", () => {
     );
 
     expect(screen.getByTestId("project-avatar")).toBeInTheDocument();
-    expect(screen.getByLabelText("—")).toBeInTheDocument();
-    expect(
-      within(screen.getByLabelText("—")).getByText("P"),
-    ).toBeInTheDocument();
+    const projectLabel = screen
+      .getAllByLabelText("—")
+      .find((element) => within(element).queryByTestId("project-avatar"));
+    expect(projectLabel).toBeDefined();
+    expect(within(projectLabel!).getByText("P")).toBeInTheDocument();
   });
 });
