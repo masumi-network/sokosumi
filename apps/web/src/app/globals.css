@@ -1127,8 +1127,10 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
    its pill in and out. The scroller carries data-chat-scrolling for as long as
    the scroll runs (use-quiet-hover-while-scrolling). Unlayered, so it wins over
    the pill's own Tailwind utilities; the zero delay drops the pill at once,
-   while coming back still waits out the pill's reveal delay. */
-[data-chat-scrolling] [data-message-actions="hover"] {
+   while coming back still waits out the pill's reveal delay. Skip :focus-within
+   — this rule would otherwise hide a keyboard-focused pill (the utilities'
+   focus-within:opacity-100 cannot beat unlayered CSS). */
+[data-chat-scrolling] [data-message-actions="hover"]:not(:focus-within) {
   opacity: 0;
   pointer-events: none;
   transition-delay: 0ms;

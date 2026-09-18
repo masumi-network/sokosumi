@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -88,5 +91,21 @@ describe("useQuietHoverWhileScrolling", () => {
     rerender({ node: scroller });
     scrollOnce(scroller);
     expect(scroller.hasAttribute(CHAT_SCROLLING_ATTRIBUTE)).toBe(true);
+  });
+
+  it("does not hide a keyboard-focused pill while the scroller is marked", () => {
+    const css = readFileSync(
+      resolve(process.cwd(), "src/app/globals.css"),
+      "utf8",
+    ).replace(/\/\*[\s\S]*?\*\//g, "");
+
+    expect(css).toContain(
+      `[${CHAT_SCROLLING_ATTRIBUTE}] [data-message-actions="hover"]:not(:focus-within)`,
+    );
+    expect(css).not.toMatch(
+      new RegExp(
+        `\\[${CHAT_SCROLLING_ATTRIBUTE}\\]\\s+\\[data-message-actions="hover"\\]\\s*\\{`,
+      ),
+    );
   });
 });
