@@ -1121,3 +1121,15 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
     filter: none;
   }
 }
+
+/* Scroll quiets the hover action pill. A stationary pointer crosses row after
+   row while the transcript moves under it, and each row it passes would flash
+   its pill in and out. The scroller carries data-chat-scrolling for as long as
+   the scroll runs (use-quiet-hover-while-scrolling). Unlayered, so it wins over
+   the pill's own Tailwind utilities; the zero delay drops the pill at once,
+   while coming back still waits out the pill's reveal delay. */
+[data-chat-scrolling] [data-message-actions="hover"] {
+  opacity: 0;
+  pointer-events: none;
+  transition-delay: 0ms;
+}
