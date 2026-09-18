@@ -30,5 +30,9 @@ describe("organization-chat-list create actions", () => {
     expect(source).toMatch(
       /relative flex size-7 items-center justify-center rounded-md/,
     );
+    // Same `md` floor as the list (`md:hidden` chats page, MOBILE_BREAKPOINT).
+    // `sm:before:hidden` dropped the 44px target from 640–767, still mobile.
+    expect(source).toContain("md:before:hidden");
+    expect(source).not.toContain("sm:before:hidden");
   });
 });
