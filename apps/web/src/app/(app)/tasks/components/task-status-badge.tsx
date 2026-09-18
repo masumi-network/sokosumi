@@ -34,8 +34,8 @@ const STATUS_LABELS: Partial<Record<TaskStatus, string>> = {
  * them are filled and the glyph separates them.
  *
  * `backlog` holds two as well but is currently an exception to rule 1:
- * `QUEUED` wears the `active` hue rather than the column's `dormant`. See the
- * note on that entry.
+ * `QUEUED` wears `staged` rather than the column's `dormant`. See the note on
+ * that entry.
  *
  * `GRANT_PENDING` takes the outline because it is blocked by something other
  * than the reader. The other four are the coworker asking this person for
@@ -57,13 +57,17 @@ const TASK_STATUS_MARKERS: Record<TaskStatus, StatusMarkerSpec> = {
     icon: MARKER_ICONS.draft,
   },
   // Exception to rule 1, and a deliberately temporary one. A scheduled task
-  // sits in `backlog` on the board but wears the `active` hue, because the
-  // thing a reader wants to know about it is that it will run by itself. The
-  // board is due to stop showing these rows at all and send the reader to
-  // the schedules surface instead (SOK-1112); until that lands, the hue says
-  // "this one moves on its own" while the column still says where the card is.
+  // sits in `backlog` on the board but wears `staged`, the Ready hue, because
+  // that is what it is: waiting to start, with the start already arranged.
+  // Nothing in the backlog column is waiting to start, which is why the
+  // column's own hue says the wrong thing about it.
+  //
+  // It shares the tone with READY and separates by glyph, the way the five
+  // `blocked` statuses do. The board is due to stop showing these rows at all
+  // and send the reader to the schedules surface instead (SOK-1112); the
+  // exception goes when that lands.
   [TaskStatus.QUEUED]: {
-    tone: { hue: "active", weight: "filled" },
+    tone: { hue: "staged", weight: "filled" },
     icon: MARKER_ICONS.queued,
   },
 

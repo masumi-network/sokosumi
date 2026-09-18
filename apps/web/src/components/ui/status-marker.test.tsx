@@ -128,17 +128,18 @@ const COLUMN_HUE: Record<string, StatusHue> = {
 
 /**
  * The second exception, and unlike `done` a temporary one. `QUEUED` sits in
- * `backlog` and wears the `active` hue, because a scheduled task runs by
- * itself and that is the thing worth seeing. The board is due to stop showing
- * these rows at all and point the reader at the schedules surface (SOK-1112);
- * when that lands this entry goes with it.
+ * `backlog` and wears `staged`, the hue of the todo column, because a
+ * scheduled task is waiting to start with the start already arranged and
+ * nothing else in backlog is. The board is due to stop showing these rows at
+ * all and point the reader at the schedules surface (SOK-1112); when that
+ * lands this entry goes with it.
  *
  * It is an allowlist rather than a loosened rule on purpose: every other
  * status in `backlog` still has to take the column's hue, so a second drift
  * fails here.
  */
 const COLUMN_HUE_EXCEPTIONS: Partial<Record<TaskStatus, StatusHue>> = {
-  [TaskStatus.QUEUED]: "active",
+  [TaskStatus.QUEUED]: "staged",
 };
 
 describe("hue follows the board column", () => {
