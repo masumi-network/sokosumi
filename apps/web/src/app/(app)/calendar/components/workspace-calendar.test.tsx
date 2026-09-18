@@ -313,7 +313,7 @@ describe("WorkspaceCalendar", () => {
     expect(refreshMock).not.toHaveBeenCalled();
   });
 
-  it("places the schedule action at the right edge of the toolbar", () => {
+  it("pushes filters and the schedule action to the right edge of the toolbar", () => {
     render(
       <NuqsTestingAdapter searchParams="?timezone=UTC">
         <WorkspaceCalendar
@@ -324,9 +324,8 @@ describe("WorkspaceCalendar", () => {
       </NuqsTestingAdapter>,
     );
 
-    expect(screen.getByRole("button", { name: "create.title" })).toHaveClass(
-      "ml-auto",
-    );
+    const createButton = screen.getByRole("button", { name: "create.title" });
+    expect(createButton.previousElementSibling).toHaveClass("md:ml-auto");
   });
 
   it("shows a plus icon before the schedule action label", () => {
