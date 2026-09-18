@@ -4,7 +4,7 @@ export function ApplePwaHead() {
       <meta name="apple-mobile-web-app-capable" content="yes" />
       <link
         rel="apple-touch-icon"
-        href="public/images/app-icons/apple-icon-180.png"
+        href="/images/app-icons/apple-icon-180.png"
       />
       <meta
         name="theme-color"
