@@ -12,6 +12,9 @@ const {
   coworkerFindFirstMock,
   taskFindFirstMock,
   memberFindUniqueMock,
+  setActiveOrganizationMock,
+  getSessionMock,
+  observedOrganizationIds,
 } = vi.hoisted(() => ({
   authContextState: {
     current: {
@@ -38,9 +41,28 @@ const {
   coworkerFindFirstMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
+  setActiveOrganizationMock: vi.fn(),
+  getSessionMock: vi.fn(),
+  observedOrganizationIds: { current: [] as (string | null)[] },
+}));
+
+vi.mock("@/lib/auth", () => ({
+  auth: {
+    api: {
+      setActiveOrganization: setActiveOrganizationMock,
+      getSession: getSessionMock,
+    },
+  },
 }));
 
 vi.mock("@/middleware/auth", () => ({
+  setAuthContext: (
+    c: { set: (key: string, value: unknown) => void },
+    context: { isAuthenticated: boolean; authContext: unknown },
+  ) => {
+    c.set("isAuthenticated", context.isAuthenticated);
+    c.set("authContext", context.authContext);
+  },
   authMiddleware: async (
     c: {
       json: (body: unknown, status: number) => unknown;
@@ -109,16 +131,46 @@ vi.mock("@/middleware/auth", () => ({
   },
 }));
 
+const ORGANIZATION_WORKSPACE_ID = "11111111-1111-7111-8111-111111111111";
+const PERSONAL_WORKSPACE_ID = "22222222-2222-7222-8222-222222222222";
+
+// Mirrors the real resolution: the workspace follows the organization on the
+// auth context, so a request stripped of its organization reads the personal
+// workspace instead of the organization one.
 vi.mock("@/middleware/workspace", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@/middleware/workspace")>();
   return {
     ...actual,
-    requireWorkspaceContext: () => ({
-      workspaceId: "11111111-1111-7111-8111-111111111111",
-      userId: null,
-      organizationId: "org_123",
-    }),
+    workspaceMiddleware:
+      () =>
+      async (
+        c: {
+          set: (key: string, value: unknown) => void;
+          var: { authContext?: { organizationId?: string | null } };
+        },
+        next: () => Promise<unknown>,
+      ) => {
+        const organizationId = c.var.authContext?.organizationId ?? null;
+        // Record what the route actually saw, so a test can assert the
+        // organization was stripped rather than trust this branch.
+        observedOrganizationIds.current.push(organizationId);
+        c.set(
+          "workspaceContext",
+          organizationId
+            ? {
+                workspaceId: ORGANIZATION_WORKSPACE_ID,
+                userId: null,
+                organizationId,
+              }
+            : {
+                workspaceId: PERSONAL_WORKSPACE_ID,
+                userId: "user_123",
+                organizationId: null,
+              },
+        );
+        return await next();
+      },
   };
 });
 
@@ -279,9 +331,18 @@ describe("GET /jobs/{id}", () => {
     coworkerFindFirstMock.mockReset();
     taskFindFirstMock.mockReset();
     memberFindUniqueMock.mockResolvedValue({ id: "member_123" });
+    setActiveOrganizationMock.mockResolvedValue({
+      headers: new Headers(),
+      response: null,
+    });
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: "org_123" },
+      user: { id: "user_123" },
+    });
+    observedOrganizationIds.current = [];
   });
 
-  it("rejects a session whose organization membership was removed", async () => {
+  it("reads the personal workspace when the organization membership was removed", async () => {
     // This route carries no seat gate, so the membership check in
     // organizationContextMiddleware is the only thing standing between a
     // removed member and the organization's data.
@@ -290,7 +351,6 @@ describe("GET /jobs/{id}", () => {
     const app = createApp();
     const response = await app.request("http://localhost/job_123");
 
-    expect(response.status).toBe(403);
     expect(memberFindUniqueMock).toHaveBeenCalledWith({
       where: {
         userId_organizationId: {
@@ -300,7 +360,20 @@ describe("GET /jobs/{id}", () => {
       },
       select: { id: true },
     });
-    expect(jobFindFirstMock).not.toHaveBeenCalled();
+    expect(setActiveOrganizationMock).toHaveBeenCalledWith({
+      body: { organizationId: null },
+      headers: expect.any(Headers),
+      returnHeaders: true,
+    });
+    expect(observedOrganizationIds.current).toEqual([null]);
+    expect(jobFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        id: "job_123",
+        workspaceId: PERSONAL_WORKSPACE_ID,
+      },
+      include: expect.any(Object),
+    });
+    expect(response.status).toBe(200);
   });
 
   it("returns a rich job details payload", async () => {
@@ -313,7 +386,7 @@ describe("GET /jobs/{id}", () => {
     expect(jobFindFirstMock).toHaveBeenCalledWith({
       where: {
         id: "job_123",
-        workspaceId: "11111111-1111-7111-8111-111111111111",
+        workspaceId: ORGANIZATION_WORKSPACE_ID,
       },
       include: expect.any(Object),
     });
@@ -366,7 +439,7 @@ describe("GET /jobs/{id}", () => {
       expect.objectContaining({
         where: {
           id: "job_123",
-          workspaceId: "11111111-1111-7111-8111-111111111111",
+          workspaceId: ORGANIZATION_WORKSPACE_ID,
         },
       }),
     );
@@ -427,7 +500,7 @@ describe("GET /jobs/{id}", () => {
         taskId: "tsk_123",
         coworkerId: "cow_123",
         vendorId: TEST_VENDOR_ID,
-        workspaceId: "11111111-1111-7111-8111-111111111111",
+        workspaceId: ORGANIZATION_WORKSPACE_ID,
       }),
     });
   });
