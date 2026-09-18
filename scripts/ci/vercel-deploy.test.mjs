@@ -36,6 +36,20 @@ const GIT_DEPLOYMENT_ENABLED = {
 
 const repoRoot = path.resolve(import.meta.dirname, "../..");
 
+function jobBlock(yaml, jobId) {
+  const match = yaml.match(
+    new RegExp(`(?:^|\\n)  ${jobId}:\\n([\\s\\S]*?)(?=\\n  [a-zA-Z]|$)`),
+  );
+  assert.ok(match, `missing job ${jobId}`);
+  return match[0];
+}
+
+function checkoutStep(jobYaml, jobId) {
+  const afterName = jobYaml.split(/- name: Checkout repository\n/)[1];
+  assert.ok(afterName, `${jobId} missing Checkout repository step`);
+  return afterName.split(/\n      - name:/)[0];
+}
+
 describe("parseDeployComment", () => {
   it("ignores comments that are not a leading /deploy command", () => {
     assert.deepEqual(parseDeployComment("please deploy this"), {
@@ -1188,17 +1202,26 @@ describe("git preview policy", () => {
     );
     assert.match(workflow, /node scripts\/ci\/vercel-deploy\.mjs preview/);
     assert.match(workflow, /persist-credentials:\s*false/);
-    assert.match(workflow, /github\.event\.repository\.default_branch/);
     assert.doesNotMatch(workflow, /pull_request\.base\.sha/);
     assert.doesNotMatch(workflow, /pull_request\.head\.sha/);
     assert.doesNotMatch(workflow, /pull_request\.head\.ref/);
+    for (const jobId of ["comment", "opened"]) {
+      const checkout = checkoutStep(jobBlock(workflow, jobId), jobId);
+      assert.match(
+        checkout,
+        /ref:\s*\$\{\{\s*github\.event\.repository\.default_branch\s*\}\}/,
+        `${jobId} checkout must pin github.event.repository.default_branch`,
+      );
+      assert.doesNotMatch(checkout, /pull_request\.base\.sha/);
+      assert.doesNotMatch(checkout, /pull_request\.head\.sha/);
+      assert.doesNotMatch(checkout, /pull_request\.head\.ref/);
+    }
     assert.match(workflow, /secrets\.VERCEL_TOKEN/);
     assert.match(workflow, /vars\.VERCEL_TEAM_ID/);
     assert.match(workflow, /secrets\.GITHUB_TOKEN/);
     assert.match(workflow, /issues:\s*write/);
     assert.match(workflow, /pull-requests:\s*write/);
-    const openedJob = workflow.split(/opened:\s*\n/)[1];
-    assert.ok(openedJob);
+    const openedJob = jobBlock(workflow, "opened");
     assert.doesNotMatch(openedJob, /GITHUB_TOKEN/);
     assert.doesNotMatch(openedJob, /issues:\s*write/);
     assert.doesNotMatch(openedJob, /pull-requests:\s*write/);
