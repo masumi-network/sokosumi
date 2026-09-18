@@ -114,6 +114,41 @@ describe("OrganizationChatList section visibility", () => {
     expect(screen.queryByText("App.Channels.title")).not.toBeInTheDocument();
   });
 
+  it("gives Channels, External and Direct Messages a rail header, and Archived none", async () => {
+    const external = makeRoom({
+      id: "ext-1",
+      kind: "channel",
+      myAccess: "guest",
+      discoverability: "external",
+      name: "Partners",
+    });
+    listRoomsMock.mockResolvedValue(emptyListResult([external]));
+
+    renderOrganizationChatList({
+      organizationId: "org-1",
+      rooms: [external],
+      archivedRooms: [
+        makeRoom({
+          id: "old-launch",
+          kind: "channel",
+          myAccess: "member",
+          name: "old-launch",
+        }),
+      ],
+    });
+
+    await screen.findByText("App.Channels.External.title");
+    expect(
+      screen
+        .getAllByTestId("section-rail-button")
+        .map((button) => button.dataset.tooltip),
+    ).toEqual([
+      "App.Channels.title",
+      "App.Channels.External.title",
+      "App.Channels.directMessages",
+    ]);
+  });
+
   it("shows External when a pending invitation exists", async () => {
     const invitation = makeInvitation();
     listPendingMock.mockResolvedValue({ ok: true, value: [invitation] });
