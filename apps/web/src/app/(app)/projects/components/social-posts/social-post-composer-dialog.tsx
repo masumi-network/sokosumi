@@ -238,7 +238,7 @@ export function SocialPostComposerDialog({
           }}
         >
           {isScheduleOnly ? (
-            <p className="bg-muted/40 rounded-md border p-3 text-sm whitespace-pre-wrap">
+            <p className="bg-card-background rounded-md border p-3 text-sm whitespace-pre-wrap">
               {post?.text}
             </p>
           ) : (
