@@ -300,6 +300,7 @@ describe("Sidebar row label", () => {
     expect(tokens).toContain("transition-[max-width]");
     expect(tokens).toContain("duration-200");
     expect(tokens).toContain("ease-linear");
+    expect(tokens).toContain("motion-reduce:transition-none");
     expect(tokens).toContain("group-data-[collapsible=icon]:max-w-0");
     expect(tokens).not.toContain("group-data-[collapsible=icon]:absolute");
     expect(tokens).not.toContain("group-data-[collapsible=icon]:sr-only");

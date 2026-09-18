@@ -1,6 +1,7 @@
 import {
   SIDEBAR_RAIL_SQUARE_CLASS,
   SIDEBAR_ROW_CLASS,
+  SIDEBAR_ROW_LABEL_CLASS,
   SIDEBAR_ROW_RAIL_PAD_CLASS,
   SidebarGroup,
   SidebarGroupContent,
@@ -45,7 +46,9 @@ export function SidebarChatListSkeleton() {
           <SidebarRowSlot>
             <Skeleton className="size-4 md:size-3 group-data-[collapsible=icon]:size-4" />
           </SidebarRowSlot>
-          <Skeleton className="h-3 w-20 group-data-[collapsible=icon]:hidden" />
+          <Skeleton
+            className={cn(SIDEBAR_ROW_LABEL_CLASS, "h-3 w-20 flex-none")}
+          />
         </div>
         <SidebarMenu className="gap-0">
           {ROOM_NAME_WIDTHS.map((nameWidth) => (
@@ -66,7 +69,8 @@ export function SidebarChatListSkeleton() {
                 </SidebarRowSlot>
                 <Skeleton
                   className={cn(
-                    "group-data-[collapsible=icon]:hidden h-3",
+                    SIDEBAR_ROW_LABEL_CLASS,
+                    "h-3 flex-none",
                     nameWidth,
                   )}
                 />

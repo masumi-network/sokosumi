@@ -193,10 +193,16 @@ describe("AppSidebarFallback", () => {
     }
     expect(tokens(headerName?.className ?? "")).toContain("w-20");
     expect(tokens(headerName?.className ?? "")).toContain(
+      "group-data-[collapsible=icon]:max-w-0",
+    );
+    expect(tokens(headerName?.className ?? "")).not.toContain(
       "group-data-[collapsible=icon]:hidden",
     );
     expect(tokens(name?.className ?? "")).toEqual(
-      expect.arrayContaining(["h-3", "group-data-[collapsible=icon]:hidden"]),
+      expect.arrayContaining(["h-3", "group-data-[collapsible=icon]:max-w-0"]),
+    );
+    expect(tokens(name?.className ?? "")).not.toContain(
+      "group-data-[collapsible=icon]:hidden",
     );
     expect(name?.className).toMatch(/\bw-(16|20|24|28|32)\b/);
   });
