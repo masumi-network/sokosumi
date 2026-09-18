@@ -108,12 +108,15 @@ function SidebarAccountChipDesktop({
         summary,
       })}
       className={cn(
-        "group/chip focus-visible:ring-sidebar-ring hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent flex w-full cursor-pointer items-center gap-2.5 rounded-lg p-2 transition-colors focus-visible:ring-2 focus-visible:outline-hidden",
+        // `pl-1` rather than `p-2`: footer chrome it may be, but its face
+        // still sits on the 28px leading axis every row's mark uses, so it
+        // shrinks in place when the sidebar collapses instead of sliding 4px.
+        "group/chip focus-visible:ring-sidebar-ring hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent flex w-full cursor-pointer items-center gap-2.5 rounded-lg p-2 pl-1 transition-colors focus-visible:ring-2 focus-visible:outline-hidden",
         // Rail language matches `sidebarMenuButtonVariants`: rings on
         // transparent, not a fill. Classes live on the element (not behind
         // JS `isCollapsed`) so the boot-collapsed group and the Suspense
         // swap keep size-6 + rings without a 32px square flash.
-        "group-data-[collapsible=icon]:ring-sidebar-ring group-data-[collapsible=icon]:rounded-md group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:hover:bg-transparent group-data-[collapsible=icon]:hover:ring-1 group-data-[collapsible=icon]:data-[state=open]:bg-transparent group-data-[collapsible=icon]:data-[state=open]:ring-2 group-data-[collapsible=icon]:data-[state=open]:hover:ring-2",
+        "group-data-[collapsible=icon]:ring-sidebar-ring group-data-[collapsible=icon]:rounded-md group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:ml-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:hover:bg-transparent group-data-[collapsible=icon]:hover:ring-1 group-data-[collapsible=icon]:data-[state=open]:bg-transparent group-data-[collapsible=icon]:data-[state=open]:ring-2 group-data-[collapsible=icon]:data-[state=open]:hover:ring-2",
       )}
     >
       <span className="relative shrink-0">
@@ -210,7 +213,10 @@ function SidebarAccountChipDesktop({
   }
 
   return (
-    <div className="flex w-full justify-center">
+    // No `justify-center`: the chip's own `ml-1` puts its face on the
+    // sidebar's 28px leading axis, and centring it here would split the 3px
+    // left over and land the face 1.5px right of every row's mark.
+    <div className="flex w-full">
       <Tooltip open={isOpen ? false : undefined}>
         <Popover open={isOpen} onOpenChange={handleOpenChange}>
           <TooltipTrigger asChild>

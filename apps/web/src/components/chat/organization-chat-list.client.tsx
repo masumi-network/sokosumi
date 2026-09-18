@@ -50,6 +50,7 @@ import {
   SidebarGroupContent,
   SidebarMenu,
   SidebarMenuItem,
+  SidebarRowSlot,
 } from "@/components/ui/sidebar";
 import type {
   ChatRoom,
@@ -57,7 +58,7 @@ import type {
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getActiveRoomIdFromPathname } from "./active-room-id";
-import { ChannelDiscoverabilityIcon } from "./channel-discoverability-icon";
+import { ChannelKindGlyph } from "./channel-discoverability-icon";
 import { ChannelRoomMark } from "./channel-room-mark";
 import {
   ChatRoomSidebarRow,
@@ -421,7 +422,7 @@ export function OrganizationChatList({
                 ))}
                 {namedChannels.length === 0 ? (
                   <SidebarMenuItem>
-                    <div className="text-muted-foreground px-3 py-1.5 text-xs group-data-[collapsible=icon]:hidden">
+                    <div className="text-muted-foreground group-data-[collapsible=icon]:hidden py-1.5 pr-2 pl-12 text-xs">
                       {t("Empty.noChannels")}
                     </div>
                   </SidebarMenuItem>
@@ -466,12 +467,14 @@ export function OrganizationChatList({
                       />
                       <div
                         aria-label={invitationLabel}
-                        className="text-tertiary-foreground dark:text-muted-foreground flex min-h-auto w-full items-start gap-2 px-3 py-1.5 group-data-[collapsible=icon]:hidden"
+                        className="text-tertiary-foreground dark:text-muted-foreground group-data-[collapsible=icon]:hidden flex w-full items-start gap-2 px-2 py-1.5"
                       >
-                        <Globe2
-                          className="text-muted-foreground mt-0.5 size-3.5 shrink-0"
-                          aria-hidden
-                        />
+                        <SidebarRowSlot>
+                          <Globe2
+                            className="text-muted-foreground size-4"
+                            aria-hidden
+                          />
+                        </SidebarRowSlot>
                         <div className="min-w-0 flex-1">
                           <div className="truncate font-medium text-foreground">
                             {invitation.roomName}
@@ -540,11 +543,13 @@ export function OrganizationChatList({
                       key={room.id}
                       className="group/room-row relative"
                     >
-                      <div className="text-tertiary-foreground dark:text-muted-foreground flex min-h-11 w-full items-center gap-3 px-3 py-1.5 md:gap-2 group-data-[collapsible=icon]:hidden md:min-h-auto">
-                        <ChannelDiscoverabilityIcon
-                          className="opacity-60"
-                          discoverability={room.discoverability}
-                        />
+                      <div className="text-tertiary-foreground dark:text-muted-foreground group-data-[collapsible=icon]:hidden flex h-11 w-full items-center gap-2 px-2 md:h-8">
+                        <SidebarRowSlot>
+                          <ChannelKindGlyph
+                            className="opacity-60"
+                            discoverability={room.discoverability}
+                          />
+                        </SidebarRowSlot>
                         <span className="min-w-0 flex-1 truncate">
                           {room.name}
                         </span>
@@ -697,7 +702,7 @@ export function OrganizationChatList({
               ))}
               {directMessages.length === 0 ? (
                 <SidebarMenuItem>
-                  <div className="text-muted-foreground px-3 py-1.5 text-xs group-data-[collapsible=icon]:hidden">
+                  <div className="text-muted-foreground group-data-[collapsible=icon]:hidden py-1.5 pr-2 pl-12 text-xs">
                     {t("Empty.noDirectMessages")}
                   </div>
                 </SidebarMenuItem>

@@ -40,7 +40,12 @@ vi.mock("@/components/ui/sheet", () => ({
   SheetClose: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-vi.mock("@/components/ui/sidebar", () => ({
+// The real module under the overrides, so `SidebarRowSlot` — the shared
+// leading slot every row sits its mark in — is the one the app ships.
+vi.mock("@/components/ui/sidebar", async () => ({
+  ...(await vi.importActual<typeof import("@/components/ui/sidebar")>(
+    "@/components/ui/sidebar",
+  )),
   SidebarGroup: ({ children }: { children: React.ReactNode }) => (
     <div>{children}</div>
   ),
@@ -266,9 +271,12 @@ describe("MenuItems search action", () => {
 
   it("leaves only the icon in the flow on the collapsed rail, so the square centres it", () => {
     render(<MenuItems calendarMenuEnabled={false} />);
-    const label = screen
-      .getByRole("link", { name: "exploreAgents" })
-      .querySelector("span");
+    const link = screen.getByRole("link", { name: "exploreAgents" });
+    // The icon rides the shared 24px slot, so a nav mark sits on the same
+    // axis a room's mark does — and the label after it on the same column.
+    const slot = link.querySelector('[data-slot="sidebar-row-slot"]');
+    expect(slot?.querySelector("svg")).not.toBeNull();
+    const label = slot?.nextElementSibling;
     expect(label).not.toBeNull();
     expect(label?.className.split(/\s+/)).toContain(
       "group-data-[collapsible=icon]:sr-only",

@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import type { ComponentType, ReactNode, SVGProps } from "react";
 
 import { CollapsibleTrigger } from "@/components/ui/collapsible";
-import { SidebarMenuButton } from "@/components/ui/sidebar";
+import { SidebarMenuButton, SidebarRowSlot } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { RailAttentionPill } from "./chat-room-sidebar-row";
 import type { SectionAttention } from "./room-attention";
@@ -62,10 +62,10 @@ export function ChatSidebarSectionHeader({
 
   return (
     <>
-      <div className="group-data-[collapsible=icon]:hidden relative flex h-11 items-center gap-1 px-3 md:h-8">
+      <div className="group-data-[collapsible=icon]:hidden relative flex h-11 items-center px-2 md:h-8">
         <CollapsibleTrigger
           className={cn(
-            "text-muted-foreground hover:text-foreground ring-sidebar-ring flex h-full min-w-0 flex-1 items-center gap-3 rounded-md md:gap-1 text-left text-base font-medium outline-hidden transition-colors focus-visible:ring-2 md:text-xs",
+            "text-muted-foreground hover:text-foreground ring-sidebar-ring flex h-full min-w-0 flex-1 items-center gap-2 rounded-md text-left text-base font-medium outline-hidden transition-colors focus-visible:ring-2 md:text-xs",
             attention && "text-foreground font-semibold",
             trailingCount === 1 && "pr-9",
             trailingCount >= 2 && "pr-20",
@@ -74,15 +74,17 @@ export function ChatSidebarSectionHeader({
             trailingCount >= 2 && "md:pr-14",
           )}
         >
-          <ChevronDown
-            aria-hidden
-            className={cn(
-              // Centred in the rooms' 28px leading column below `md`, so the
-              // title starts where the room names do.
-              "mx-1.5 size-4 shrink-0 transition-transform md:mx-0 md:size-3",
-              !isOpen && "-rotate-90",
-            )}
-          />
+          {/* In the shared slot, so the chevron sits where the section's rail
+              icon sits and the title starts on the rooms' 48px column. */}
+          <SidebarRowSlot>
+            <ChevronDown
+              aria-hidden
+              className={cn(
+                "size-4 shrink-0 transition-transform md:size-3",
+                !isOpen && "-rotate-90",
+              )}
+            />
+          </SidebarRowSlot>
           <span className="truncate">{children}</span>
           {attentionLabel ? (
             <span className="sr-only">{attentionLabel}</span>
@@ -109,7 +111,9 @@ export function ChatSidebarSectionHeader({
             className={cn("text-muted-foreground", !isOpen && "opacity-60")}
           >
             <CollapsibleTrigger>
-              <RailIcon aria-hidden />
+              <SidebarRowSlot>
+                <RailIcon aria-hidden className="size-4" />
+              </SidebarRowSlot>
               <span className="sr-only">{children}</span>
               {attentionLabel ? (
                 <span className="sr-only">{attentionLabel}</span>

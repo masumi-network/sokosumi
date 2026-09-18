@@ -152,7 +152,12 @@ vi.mock("@/components/ui/sheet", () => ({
   SheetClose: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
-vi.mock("@/components/ui/sidebar", () => ({
+// The real module under the overrides, so `SidebarRowSlot` — the shared
+// leading slot every row sits its mark in — is the one the app ships.
+vi.mock("@/components/ui/sidebar", async () => ({
+  ...(await vi.importActual<typeof import("@/components/ui/sidebar")>(
+    "@/components/ui/sidebar",
+  )),
   // The section header's rail square, as a bare marker: its children repeat
   // the title the expanded heading already renders, which would double every
   // `getByText`. `chat-sidebar-section-header.test.tsx` covers the square.

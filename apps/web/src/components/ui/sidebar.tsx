@@ -422,8 +422,51 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
   );
 }
 
+/**
+ * The leading slot of a **Sidebar row** (CONTEXT.md).
+ *
+ * One 24px box, centred on the sidebar's leading axis 28px from its left
+ * edge, in both states: expanded the button's `px-2` puts it there, and on
+ * the rail the 32px square's own `ml-1` lands its centred content on the same
+ * line. Every mark a row can carry fits inside it — a 16px nav glyph, a 20px
+ * kind glyph, a 24px avatar or Channel tile — so none of them has to know the
+ * axis, and the label after it starts on one column at 48px.
+ *
+ * It lives here rather than in each list because each list building its own
+ * box by hand is exactly how a room's mark drifted 2px off the nav icons'
+ * line and the account face 4px off both.
+ */
+function SidebarRowSlot({ className, ...props }: React.ComponentProps<"span">) {
+  return (
+    <span
+      data-slot="sidebar-row-slot"
+      className={cn(
+        "inline-flex size-6 shrink-0 items-center justify-center",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+/**
+ * A **Sidebar row** (CONTEXT.md): one height in both states, its leading mark
+ * in `SidebarRowSlot`, its label on the 48px column.
+ *
+ * `h-11 md:h-8` is the whole vertical rule. The row used to be a 40px
+ * minimum expanded and a 32px square on the rail, so every row above the
+ * first Chat room pushed the list down when the sidebar toggled; the rail's
+ * square is the size that stays. Below `md` the sidebar is a Sheet and never
+ * the rail, so a thumb keeps its 44px target there.
+ *
+ * `px-2` is the horizontal half: it puts the 24px slot 16px in, centred on
+ * the 28px axis, and the label at 48px. The rail drops it (`px-0!`) and the
+ * 32px square's `ml-1` centres the same slot on the same line — 4px rather
+ * than `mx-auto`, because the rail's 1px right border leaves its own centre
+ * on a half pixel and the axis has to be a whole one for the panel's sake.
+ */
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 min-h-10 text-left text-base outline-hidden ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:min-h-8! group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:hover:bg-transparent group-data-[collapsible=icon]:hover:ring-sidebar-ring group-data-[collapsible=icon]:hover:ring-1 group-data-[collapsible=icon]:active:bg-transparent group-data-[collapsible=icon]:active:ring-sidebar-ring group-data-[collapsible=icon]:active:ring-2 group-data-[collapsible=icon]:data-[active=true]:bg-transparent md:text-sm [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
+  "peer/menu-button flex h-11 w-full items-center gap-2 overflow-hidden rounded-md px-2 text-left text-base outline-hidden ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:w-8! group-data-[collapsible=icon]:ml-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0! group-data-[collapsible=icon]:hover:bg-transparent group-data-[collapsible=icon]:hover:ring-sidebar-ring group-data-[collapsible=icon]:hover:ring-1 group-data-[collapsible=icon]:active:bg-transparent group-data-[collapsible=icon]:active:ring-sidebar-ring group-data-[collapsible=icon]:active:ring-2 group-data-[collapsible=icon]:data-[active=true]:bg-transparent md:h-8 md:text-sm [&>span:last-child]:truncate",
   {
     variants: {
       variant: {
@@ -435,15 +478,9 @@ const sidebarMenuButtonVariants = cva(
         outline:
           "bg-background ring-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:ring-sidebar-accent ring-1",
       },
-      size: {
-        default: "h-8 text-base md:text-sm",
-        sm: "h-7 text-xs",
-        lg: "h-12 text-base md:text-sm",
-      },
     },
     defaultVariants: {
       variant: "default",
-      size: "default",
     },
   },
 );
@@ -452,7 +489,6 @@ function SidebarMenuButton({
   asChild = false,
   isActive = false,
   variant = "default",
-  size = "default",
   tooltip,
   className,
   ...props
@@ -468,9 +504,8 @@ function SidebarMenuButton({
     <Comp
       data-slot="sidebar-menu-button"
       data-sidebar="menu-button"
-      data-size={size}
       data-active={isActive}
-      className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
+      className={cn(sidebarMenuButtonVariants({ variant }), className)}
       {...props}
     />
   );
@@ -509,6 +544,7 @@ export {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRailSelectionBar,
+  SidebarRowSlot,
   SidebarProvider,
   SidebarSeparator,
   useSidebar,

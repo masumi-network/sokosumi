@@ -72,6 +72,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRailSelectionBar,
+  SidebarRowSlot,
 } from "@/components/ui/sidebar";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
@@ -374,7 +375,7 @@ export function ChatRoomSidebarRow({
     <Link
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-3 px-3 md:gap-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:overflow-visible group-data-[collapsible=icon]:px-0!",
+        "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:overflow-visible",
         // The collapsed rail's hover ring and the fill it replaces live on
         // `sidebarMenuButtonVariants`, so this row's own `hover:bg-` above is
         // expanded-only. Its `hover:` outranks nothing there: the variant's
@@ -388,10 +389,7 @@ export function ChatRoomSidebarRow({
       href={href}
       tabIndex={reorderHandle ? -1 : undefined}
     >
-      <span
-        data-slot="room-leading"
-        className="inline-flex h-7 min-w-7 shrink-0 items-center justify-center md:h-5 md:min-w-5 group-data-[collapsible=icon]:h-6 group-data-[collapsible=icon]:min-w-6"
-      >
+      <SidebarRowSlot>
         {leading}
         {/* The pill's state, as text, where the link's accessible name can
             pick it up. `hidden` keeps it out of the expanded announcement;
@@ -403,7 +401,7 @@ export function ChatRoomSidebarRow({
               : tChannels("RoomUnread.railUnread")}
           </span>
         ) : null}
-      </span>
+      </SidebarRowSlot>
       <span className="group-data-[collapsible=icon]:sr-only min-w-0 flex-1">
         {/* The count rides the end of the name, not the row's right rail, so it
             reads as belonging to this room rather than to the row's controls.
@@ -478,8 +476,11 @@ export function ChatRoomSidebarRow({
         asChild
         isActive={isActive}
         tooltip={label}
-        // A thumb needs 44px; the desktop list keeps its 32px density.
-        className="h-11 md:h-8"
+        // A guest row is one of the three items allowed to differ between
+        // states (CONTEXT.md, "Sidebar row"): its host organisation line is
+        // the second line a 32px row has no room for, so this row alone grows
+        // to hold it. Its mark still sits in the shared slot.
+        className={cn(subtitle && "h-auto min-h-11 py-1 md:h-auto md:min-h-8")}
       >
         {dismissSheetOnNavigate ? (
           <SheetClose asChild>{roomLink}</SheetClose>

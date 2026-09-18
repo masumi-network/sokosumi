@@ -81,7 +81,7 @@ export default async function SidebarDeferredAccount({
 export function SidebarAccountChipFallback() {
   return (
     <div
-      className="flex w-full items-center gap-2.5 p-2 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0"
+      className="flex w-full items-center gap-2.5 p-2 pl-1 group-data-[collapsible=icon]:ml-1 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0"
       aria-hidden
     >
       {/* Rail size tracks SidebarAccountChip, so the avatar does not go

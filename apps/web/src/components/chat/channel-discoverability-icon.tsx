@@ -22,11 +22,31 @@ export function channelKindIcon(discoverability?: Discoverability) {
 }
 
 /**
- * Slack-like: `#` for public, lock for private, globe for external/matched.
- * The outer box matches DM avatars so every room row shares one leading column:
- * 28px below `md`, where the row is 44px tall and a 20px mark left it looking
- * empty, and 20px from `md` up. The wrapper blocks the sidebar's
- * `[&>svg]:size-4` override.
+ * The kind glyph on its own, for a caller that already owns the box around it
+ * — a sidebar row, where the box is the row's `SidebarRowSlot`.
+ */
+export function ChannelKindGlyph({
+  discoverability,
+  className,
+}: {
+  discoverability?: Discoverability;
+  className?: string;
+}) {
+  const Icon = channelKindIcon(discoverability) ?? Hash;
+
+  return (
+    <Icon
+      data-slot="channel-glyph"
+      className={cn("size-4 shrink-0", className)}
+      aria-hidden
+    />
+  );
+}
+
+/**
+ * Slack-like: `#` for public, lock for private, globe for external/matched,
+ * in a box of its own. Used where there is no sidebar row slot to sit in: the
+ * room header and the Browse channels list.
  */
 export function ChannelDiscoverabilityIcon({
   discoverability,

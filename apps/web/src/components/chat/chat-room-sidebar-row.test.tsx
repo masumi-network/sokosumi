@@ -143,17 +143,31 @@ vi.mock("@/components/ui/sheet", () => ({
   }) => (asChild && isValidElement(children) ? children : <>{children}</>),
 }));
 
-vi.mock("@/components/ui/sidebar", () => ({
+// The real module under the overrides, so `SidebarRowSlot` — the shared
+// leading slot every row sits its mark in — is the one the app ships.
+vi.mock("@/components/ui/sidebar", async () => ({
+  ...(await vi.importActual<typeof import("@/components/ui/sidebar")>(
+    "@/components/ui/sidebar",
+  )),
+  // `className` rides the wrapper: the row's height is what this component
+  // decides and the real primitive merges, so a mock that swallowed it would
+  // leave the one exception to the row height rule untested.
   SidebarMenuButton: ({
     children,
     asChild,
     tooltip,
+    className,
   }: {
     children: ReactNode;
     asChild?: boolean;
     tooltip?: string;
+    className?: string;
   }) => (
-    <div data-testid="sidebar-menu-button" data-tooltip={tooltip}>
+    <div
+      data-testid="sidebar-menu-button"
+      data-tooltip={tooltip}
+      className={className}
+    >
       {asChild && isValidElement(children) ? children : <div>{children}</div>}
     </div>
   ),
@@ -366,7 +380,7 @@ describe("ChatRoomSidebarRow tooltip", () => {
 });
 
 describe("ChatRoomSidebarRow leading slot", () => {
-  it("wraps any room leading icon in a min-w-7 / h-7 alignment slot below md", () => {
+  it("wraps any room leading icon in the shared 24px slot", () => {
     const { container } = render(
       <ChatRoomSidebarRow
         room={makeRoom()}
@@ -381,21 +395,64 @@ describe("ChatRoomSidebarRow leading slot", () => {
     const leading = screen.getByTestId("custom-leading");
     const slot = leading.parentElement;
     expect(slot).not.toBeNull();
-    expect(slot?.getAttribute("data-slot")).toBe("room-leading");
-    // Split tokens: `md:min-w-5` contains the substring `min-w-5`.
+    // The slot the sidebar primitive owns, not a box this row builds: one
+    // size in both states, so the mark cannot resize or slide on a toggle.
+    expect(slot?.getAttribute("data-slot")).toBe("sidebar-row-slot");
     const tokens = slot?.className.split(" ") ?? [];
-    // min-w-7 aligns single icons below md; width may grow for multi-avatar stacks.
-    expect(tokens).toContain("min-w-7");
-    expect(tokens).toContain("h-7");
-    expect(tokens).toContain("md:min-w-5");
-    expect(tokens).toContain("md:h-5");
+    expect(tokens).toContain("size-6");
     expect(tokens).toContain("shrink-0");
     expect(tokens).toContain("items-center");
     expect(tokens).toContain("justify-center");
+    expect(slot?.className).not.toContain("group-data-[collapsible=icon]:");
 
     // Slot is a direct child of the room link so every room type shares the same column.
     const link = container.querySelector('a[href="/chat/rooms/room-1"]');
     expect(link?.firstElementChild).toBe(slot);
+  });
+});
+
+describe("ChatRoomSidebarRow row height", () => {
+  function heightTokens(props: { subtitle?: string }) {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span data-testid="custom-leading">#</span>}
+        onRoomUpdated={vi.fn()}
+        {...props}
+      />,
+    );
+    // The primitive merges this onto the row's own classes; the mock keeps it
+    // on the wrapper so the row's own decision is what is asserted.
+    return (
+      container
+        .querySelector('[data-testid="sidebar-menu-button"]')
+        ?.className.split(/\s+/)
+        .filter(Boolean) ?? []
+    );
+  }
+
+  it("adds nothing to the row primitive's height on an ordinary room", () => {
+    // `h-11 md:h-8` lives on `sidebarMenuButtonVariants`, pinned by
+    // `ui/__tests__/sidebar-rail-selection.test.tsx`. A room row used to
+    // restate it here, which is how the two could drift apart.
+    expect(heightTokens({})).toEqual([]);
+  });
+
+  it("lets a guest row grow for its host organisation line, at both sizes", () => {
+    const tokens = heightTokens({ subtitle: "Hosted by Acme" });
+    // One of the three items allowed to differ between states. `md:h-auto`
+    // matters as much as `h-auto`: the row primitive's height is `h-11
+    // md:h-8`, and lifting only the unprefixed one leaves the desktop row
+    // pinned at 32px with the second line clipped by its `overflow-hidden`.
+    expect(tokens).toContain("h-auto");
+    expect(tokens).toContain("md:h-auto");
+    expect(tokens).toContain("min-h-11");
+    expect(tokens).toContain("md:min-h-8");
+    expect(tokens).not.toContain("h-11");
+    expect(tokens).not.toContain("md:h-8");
   });
 });
 
@@ -413,22 +470,18 @@ describe("ChatRoomSidebarRow collapsed rail", () => {
     );
 
     const link = container.querySelector('a[href="/chat/rooms/room-1"]');
-    // Padding drops and the mark centres: the collapsed button keeps its own
-    // `p-3!`, which `px-0!` outranks because Tailwind orders it later.
-    expect(link?.className).toContain(
-      "group-data-[collapsible=icon]:justify-center",
-    );
-    expect(link?.className).toContain("group-data-[collapsible=icon]:px-0!");
     // The menu button clips its content for name truncation. Collapsed, the
     // 24px tile's corner mark hangs 6px below it inside a 32px button, so the
     // clip has to lift there or the lock and globe lose their bottom.
     expect(link?.className).toContain(
       "group-data-[collapsible=icon]:overflow-visible",
     );
+    // Dropping the padding and centring the mark is the row primitive's job
+    // now; `ui/__tests__/sidebar-rail-selection.test.tsx` pins it there.
+    expect(link?.className).not.toContain("px-3");
 
     const slot = screen.getByTestId("custom-leading").parentElement;
-    expect(slot?.className).toContain("group-data-[collapsible=icon]:h-6");
-    expect(slot?.className).toContain("group-data-[collapsible=icon]:min-w-6");
+    expect(slot?.className).toContain("size-6");
 
     // The name must stay in the accessible name (the tooltip adds none) while
     // taking no flex space, so `sr-only`, never `hidden`. The spacer would
