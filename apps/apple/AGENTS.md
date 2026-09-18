@@ -91,7 +91,7 @@ No ad-hoc signing assets live in CI: every `xcodebuild` invocation overrides wit
 
 Stop each agent-launched app after its interactive check and before launching another variant. After tests, verify no test-host app remains running; close only instances launched by this task. Do not leave multiple test builds open.
 
-For interactive launches use the configured Apple Development identity and team `Y3ZJFLUYRB`, with a separate derived-data directory such as `/tmp/sokosumi-interactive-signing`. Pass `DEVELOPMENT_TEAM=Y3ZJFLUYRB CODE_SIGN_IDENTITY='Apple Development'` to Xcode. Keep ad-hoc builds for CI/tests separate from interactive launches so rebuilding does not repeatedly change the identity used to access the saved Keychain session.
+For interactive launches use the configured Apple Development identity and team `GVWN7HXYJB`, with a separate derived-data directory such as `/tmp/sokosumi-interactive-signing`. Pass `DEVELOPMENT_TEAM=GVWN7HXYJB CODE_SIGN_IDENTITY='Apple Development'` to Xcode. Keep ad-hoc builds for CI/tests separate from interactive launches so rebuilding does not repeatedly change the identity used to access the saved Keychain session.
 
 ### OAuth and Core setup
 
