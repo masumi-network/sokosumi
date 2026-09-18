@@ -15,7 +15,13 @@ public struct ComposerContent: Equatable, Sendable {
   }
 
   public var canSend: Bool {
-    !text.isEmpty && !isTooLong
+    canSend(quoted: false)
+  }
+
+  /// A quote can be the whole message, so a quote-only draft sends with an
+  /// empty body. Editing and the coworker 1:1 stream still need words.
+  public func canSend(quoted: Bool) -> Bool {
+    (!text.isEmpty || quoted) && !isTooLong
   }
 
   public var showsCounter: Bool {

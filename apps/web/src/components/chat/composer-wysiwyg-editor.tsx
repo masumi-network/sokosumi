@@ -68,6 +68,7 @@ import {
   toggleComposerBlockquote,
   tryExitComposerBlockquoteOnEmptyLine,
 } from "@/lib/utils/composer-wysiwyg-blockquote";
+import { toggleComposerCodeBlock } from "@/lib/utils/composer-wysiwyg-code-block";
 import { toggleComposerInlineCode } from "@/lib/utils/composer-wysiwyg-code-format";
 import {
   replaceComposerTextRange,
@@ -911,12 +912,13 @@ export function ComposerWysiwygEditor<TData = unknown>({
           return;
         }
         case "codeBlock": {
-          const text = window.getSelection()?.toString() ?? "";
-          const escapedText = text
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;");
-          insertHtml(`<pre><code>${escapedText}</code></pre>`);
+          if (!editorRef.current) return;
+          editorRef.current.focus();
+          toggleComposerCodeBlock(editorRef.current);
+          handleInput();
+          requestAnimationFrame(() => {
+            publishActiveFormats();
+          });
           return;
         }
         case "quote": {
@@ -941,7 +943,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
         }
       }
     },
-    [execCommand, handleInput, insertHtml, publishActiveFormats],
+    [execCommand, handleInput, publishActiveFormats],
   );
 
   const openMentions = useCallback(() => {

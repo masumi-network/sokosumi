@@ -1314,7 +1314,7 @@
         "statusOptions": {
           "archived": "Archivado",
           "DRAFT": "Borrador",
-          "QUEUED": "En cola",
+          "QUEUED": "Programado",
           "READY": "Listo",
           "GRANT_PENDING": "Aprobación pendiente",
           "INPUT_REQUIRED": "Entrada requerida",
@@ -1571,7 +1571,7 @@
         "statusLabel": "Estado",
         "statusOptions": {
           "DRAFT": "Borrador",
-          "QUEUED": "En cola",
+          "QUEUED": "Programado",
           "READY": "Listo",
           "GRANT_PENDING": "Aprobación pendiente",
           "INPUT_REQUIRED": "Entrada requerida",
@@ -1885,7 +1885,7 @@
         "status": "Estado",
         "statusDescription": "Elige el estado inicial de este Task",
         "statusDraft": "Borrador",
-        "statusQueued": "En cola",
+        "statusQueued": "Programado",
         "statusReady": "Listo",
         "changeStatus": "Cambiar estado…",
         "noStatusMatches": "Ningún estado coincide",
@@ -2358,7 +2358,13 @@
           "back": "Atrás",
           "chat": "Chat",
           "sokoBot": "Soko Bots",
-          "calendar": "Programaciones"
+          "calendar": "Programaciones",
+          "expandProjects": "Expandir Proyectos",
+          "collapseProjects": "Contraer Proyectos",
+          "projectsLoading": "Cargando proyectos…",
+          "projectsError": "No se pudieron cargar los proyectos.",
+          "projectsEmpty": "Aún no hay proyectos.",
+          "retryProjects": "Reintentar"
         },
         "ChatLists": {
           "title": "Chats Recientes",
@@ -6265,7 +6271,7 @@
         "label": "Estado de la tarea",
         "all": "Todos los estados",
         "DRAFT": "Borrador",
-        "QUEUED": "En cola",
+        "QUEUED": "Programado",
         "READY": "Listo",
         "GRANT_PENDING": "Aprobación pendiente",
         "INPUT_REQUIRED": "Entrada requerida",

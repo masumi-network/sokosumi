@@ -1314,7 +1314,7 @@
         "statusOptions": {
           "archived": "Archiviert",
           "DRAFT": "Entwurf",
-          "QUEUED": "In Warteschlange",
+          "QUEUED": "Geplant",
           "READY": "Bereit",
           "GRANT_PENDING": "Freigabe ausstehend",
           "INPUT_REQUIRED": "Eingabe erforderlich",
@@ -1571,7 +1571,7 @@
         "statusLabel": "Status",
         "statusOptions": {
           "DRAFT": "Entwurf",
-          "QUEUED": "In Warteschlange",
+          "QUEUED": "Geplant",
           "READY": "Bereit",
           "GRANT_PENDING": "Freigabe ausstehend",
           "INPUT_REQUIRED": "Eingabe erforderlich",
@@ -1885,7 +1885,7 @@
         "status": "Status",
         "statusDescription": "Wähle den Anfangsstatus für diesen Task",
         "statusDraft": "Entwurf",
-        "statusQueued": "In Warteschlange",
+        "statusQueued": "Geplant",
         "statusReady": "Bereit",
         "changeStatus": "Status ändern…",
         "noStatusMatches": "Kein Status passt",
@@ -2358,7 +2358,13 @@
           "back": "Zurück",
           "chat": "Chat",
           "sokoBot": "Soko Bots",
-          "calendar": "Zeitpläne"
+          "calendar": "Zeitpläne",
+          "expandProjects": "Projekte ausklappen",
+          "collapseProjects": "Projekte einklappen",
+          "projectsLoading": "Projekte werden geladen…",
+          "projectsError": "Projekte konnten nicht geladen werden.",
+          "projectsEmpty": "Noch keine Projekte.",
+          "retryProjects": "Erneut versuchen"
         },
         "ChatLists": {
           "title": "Letzte Chats",
@@ -6265,7 +6271,7 @@
         "label": "Aufgabenstatus",
         "all": "Alle Status",
         "DRAFT": "Entwurf",
-        "QUEUED": "In Warteschlange",
+        "QUEUED": "Geplant",
         "READY": "Bereit",
         "GRANT_PENDING": "Freigabe ausstehend",
         "INPUT_REQUIRED": "Eingabe erforderlich",

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Archive,
   ArrowUpDown,
   Building2,
   Check,
@@ -46,10 +47,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  SIDEBAR_ROW_CLASS,
+  SIDEBAR_ROW_LABEL_INSET_CLASS,
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
   SidebarMenuItem,
+  SidebarRowSlot,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import type {
   ChatRoom,
@@ -57,7 +62,7 @@ import type {
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getActiveRoomIdFromPathname } from "./active-room-id";
-import { ChannelDiscoverabilityIcon } from "./channel-discoverability-icon";
+import { ChannelKindGlyph } from "./channel-discoverability-icon";
 import { ChannelRoomMark } from "./channel-room-mark";
 import {
   ChatRoomSidebarRow,
@@ -122,6 +127,7 @@ export function OrganizationChatList({
   const tActions = useTranslations("App.Channels.Actions");
   const pathname = usePathname();
   const router = useRouter();
+  const { setOpen } = useSidebar();
   const hasOrganization = Boolean(organizationId);
   const {
     roomRows,
@@ -421,7 +427,12 @@ export function OrganizationChatList({
                 ))}
                 {namedChannels.length === 0 ? (
                   <SidebarMenuItem>
-                    <div className="text-muted-foreground px-3 py-1.5 text-xs group-data-[collapsible=icon]:hidden">
+                    <div
+                      className={cn(
+                        SIDEBAR_ROW_LABEL_INSET_CLASS,
+                        "text-muted-foreground group-data-[collapsible=icon]:hidden py-1.5 pr-2 text-xs",
+                      )}
+                    >
                       {t("Empty.noChannels")}
                     </div>
                   </SidebarMenuItem>
@@ -466,12 +477,14 @@ export function OrganizationChatList({
                       />
                       <div
                         aria-label={invitationLabel}
-                        className="text-tertiary-foreground dark:text-muted-foreground flex min-h-auto w-full items-start gap-2 px-3 py-1.5 group-data-[collapsible=icon]:hidden"
+                        className="text-tertiary-foreground dark:text-muted-foreground group-data-[collapsible=icon]:hidden flex w-full items-start gap-2 px-2 py-1.5"
                       >
-                        <Globe2
-                          className="text-muted-foreground mt-0.5 size-3.5 shrink-0"
-                          aria-hidden
-                        />
+                        <SidebarRowSlot>
+                          <Globe2
+                            className="text-muted-foreground size-4"
+                            aria-hidden
+                          />
+                        </SidebarRowSlot>
                         <div className="min-w-0 flex-1">
                           <div className="truncate font-medium text-foreground">
                             {invitation.roomName}
@@ -524,7 +537,23 @@ export function OrganizationChatList({
             open={archivedSectionOpen}
             onOpenChange={setArchivedSectionOpen}
           >
-            <ChatSidebarSectionHeader isOpen={archivedSectionOpen}>
+            {/*
+              Archived keeps its square on the rail so nothing under it — the
+              Direct Messages section — moves when the sidebar toggles. Its
+              rows do not follow it there: they are static, and Restore and
+              Delete live in a menu a 32px square has no room for (Rail
+              actions, CONTEXT.md). So the square expands the sidebar and
+              opens the section, the way a pending invitation's tile expands
+              to its Accept and Decline.
+            */}
+            <ChatSidebarSectionHeader
+              isOpen={archivedSectionOpen}
+              railIcon={Archive}
+              onRailPress={() => {
+                setArchivedSectionOpen(true);
+                setOpen(true);
+              }}
+            >
               {t("archivedChannels")}
             </ChatSidebarSectionHeader>
             <CollapsibleContent>
@@ -540,11 +569,18 @@ export function OrganizationChatList({
                       key={room.id}
                       className="group/room-row relative"
                     >
-                      <div className="text-tertiary-foreground dark:text-muted-foreground flex min-h-11 w-full items-center gap-3 px-3 py-1.5 md:gap-2 group-data-[collapsible=icon]:hidden md:min-h-auto">
-                        <ChannelDiscoverabilityIcon
-                          className="opacity-60"
-                          discoverability={room.discoverability}
-                        />
+                      <div
+                        className={cn(
+                          SIDEBAR_ROW_CLASS,
+                          "text-tertiary-foreground dark:text-muted-foreground group-data-[collapsible=icon]:hidden",
+                        )}
+                      >
+                        <SidebarRowSlot>
+                          <ChannelKindGlyph
+                            className="opacity-60"
+                            discoverability={room.discoverability}
+                          />
+                        </SidebarRowSlot>
                         <span className="min-w-0 flex-1 truncate">
                           {room.name}
                         </span>
@@ -697,7 +733,12 @@ export function OrganizationChatList({
               ))}
               {directMessages.length === 0 ? (
                 <SidebarMenuItem>
-                  <div className="text-muted-foreground px-3 py-1.5 text-xs group-data-[collapsible=icon]:hidden">
+                  <div
+                    className={cn(
+                      SIDEBAR_ROW_LABEL_INSET_CLASS,
+                      "text-muted-foreground group-data-[collapsible=icon]:hidden py-1.5 pr-2 text-xs",
+                    )}
+                  >
                     {t("Empty.noDirectMessages")}
                   </div>
                 </SidebarMenuItem>

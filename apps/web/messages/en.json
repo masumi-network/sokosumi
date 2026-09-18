@@ -1314,7 +1314,7 @@
         "statusOptions": {
           "archived": "Archived",
           "DRAFT": "Draft",
-          "QUEUED": "Queued",
+          "QUEUED": "Scheduled",
           "READY": "Ready",
           "GRANT_PENDING": "Grant pending",
           "INPUT_REQUIRED": "Input required",
@@ -1571,7 +1571,7 @@
         "statusLabel": "Status",
         "statusOptions": {
           "DRAFT": "Draft",
-          "QUEUED": "Queued",
+          "QUEUED": "Scheduled",
           "READY": "Ready",
           "GRANT_PENDING": "Grant pending",
           "INPUT_REQUIRED": "Input required",
@@ -1896,7 +1896,7 @@
         "status": "Status",
         "statusDescription": "Choose the initial status for this task",
         "statusDraft": "Draft",
-        "statusQueued": "Queued",
+        "statusQueued": "Scheduled",
         "statusReady": "Ready",
         "changeStatus": "Change status…",
         "noStatusMatches": "No status matches",
@@ -2358,7 +2358,13 @@
           "back": "Back",
           "chat": "Chat",
           "sokoBot": "Soko Bots",
-          "calendar": "Schedules"
+          "calendar": "Schedules",
+          "expandProjects": "Expand Projects",
+          "collapseProjects": "Collapse Projects",
+          "projectsLoading": "Loading projects…",
+          "projectsError": "Could not load projects.",
+          "projectsEmpty": "No projects yet.",
+          "retryProjects": "Retry"
         },
         "ChatLists": {
           "title": "Recent Chats",
@@ -6265,7 +6271,7 @@
         "label": "Task status",
         "all": "All statuses",
         "DRAFT": "Draft",
-        "QUEUED": "Queued",
+        "QUEUED": "Scheduled",
         "READY": "Ready",
         "GRANT_PENDING": "Grant pending",
         "INPUT_REQUIRED": "Input required",
