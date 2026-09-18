@@ -604,6 +604,26 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
     );
   });
 
+  it("gives the room menu a 44px touch target below md", () => {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    // The box stays 32px; the pseudo-element carries it out to 44px.
+    const menuTokens =
+      container.querySelector("button")?.className.split(" ") ?? [];
+    expect(menuTokens).toContain("size-8");
+    expect(menuTokens).toContain("after:-inset-1.5");
+    expect(menuTokens).toContain("md:after:hidden");
+  });
+
   it("keeps the pin in the same size slot as the room menu", () => {
     const { container } = render(
       <ChatRoomSidebarRow

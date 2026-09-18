@@ -16,7 +16,8 @@ import type { SectionAttention } from "./room-attention";
  *
  * The trailing padding steps with how many action controls sit in the
  * absolutely-positioned trailing slot, so a long section title truncates
- * before it runs under them.
+ * before it runs under them. Below `md` each control reaches 44px through a
+ * pseudo-element, and the slot's gap keeps those two targets from overlapping.
  *
  * A section with a `railIcon` keeps its heading on the collapsed rail, as the
  * same 32px square every rail item is: the icon names the section, the
@@ -61,13 +62,13 @@ export function ChatSidebarSectionHeader({
 
   return (
     <>
-      <div className="group-data-[collapsible=icon]:hidden relative flex h-10 items-center gap-1 px-3 md:h-8">
+      <div className="group-data-[collapsible=icon]:hidden relative flex h-11 items-center gap-1 px-3 md:h-8">
         <CollapsibleTrigger
           className={cn(
-            "text-muted-foreground hover:text-foreground ring-sidebar-ring flex min-w-0 flex-1 items-center gap-1 rounded-md text-left text-base font-medium outline-hidden transition-colors focus-visible:ring-2 md:text-xs",
+            "text-muted-foreground hover:text-foreground ring-sidebar-ring flex h-full min-w-0 flex-1 items-center gap-1 rounded-md text-left text-base font-medium outline-hidden transition-colors focus-visible:ring-2 md:text-xs",
             attention && "text-foreground font-semibold",
             trailingCount === 1 && "pr-9",
-            trailingCount >= 2 && "pr-16",
+            trailingCount >= 2 && "pr-20",
             trailingCount === 0 && "md:pr-0",
             trailingCount === 1 && "md:pr-8",
             trailingCount >= 2 && "md:pr-14",
@@ -86,7 +87,7 @@ export function ChatSidebarSectionHeader({
           ) : null}
         </CollapsibleTrigger>
         {trailingCount > 0 ? (
-          <div className="absolute top-1/2 right-1 flex -translate-y-1/2 items-center">
+          <div className="absolute top-1/2 right-1 flex -translate-y-1/2 items-center gap-3.5 md:gap-0">
             {secondaryAction}
             {createAction}
           </div>

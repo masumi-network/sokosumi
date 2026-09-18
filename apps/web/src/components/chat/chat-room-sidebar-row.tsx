@@ -452,7 +452,13 @@ export function ChatRoomSidebarRow({
       {/* Collapsed to icons the row is only its leading mark, so the name
           rides the button's tooltip, which the sidebar shows in that state
           alone. */}
-      <SidebarMenuButton asChild isActive={isActive} tooltip={label}>
+      <SidebarMenuButton
+        asChild
+        isActive={isActive}
+        tooltip={label}
+        // A thumb needs 44px; the desktop list keeps its 32px density.
+        className="h-11 md:h-8"
+      >
         {dismissSheetOnNavigate ? (
           <SheetClose asChild>{roomLink}</SheetClose>
         ) : (
@@ -484,7 +490,9 @@ export function ChatRoomSidebarRow({
               size="icon"
               disabled={isPending}
               className={cn(
-                "text-muted-foreground size-8 opacity-100 md:size-7 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
+                // The box stays 32px so the `…` keeps its column under the section's
+                // `+`; the pseudo-element carries the touch target out to 44px.
+                "text-muted-foreground relative size-8 opacity-100 after:absolute after:-inset-1.5 md:size-7 md:after:hidden [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
               )}
               aria-label={tActions("roomMenu", { name: label })}
             >
