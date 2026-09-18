@@ -1293,12 +1293,19 @@ describe("WorkspaceCalendar", () => {
           items={[]}
           initialDate="2026-08-18"
           scheduledTasks={[
-            buildScheduledTask(),
+            buildScheduledTask({
+              assignee: {
+                type: "user",
+                id: "user-2",
+                user: { id: "user-2", name: "Grace Hopper", image: null },
+              },
+            }),
             buildScheduledTask({
               id: "task-2",
               metadata: ONCE_SCHEDULE_METADATA,
               name: "Publish two weeks out",
               nextRunAt: new Date("2026-09-01T09:00:00.000Z"),
+              projectId: "project-1",
             }),
           ]}
           sources={SOURCES}
@@ -1312,6 +1319,10 @@ describe("WorkspaceCalendar", () => {
     expect(screen.getAllByTestId("calendar-schedule-row")).toHaveLength(2);
     expect(screen.getByText("Scheduled task")).toBeInTheDocument();
     expect(screen.getByText("Publish two weeks out")).toBeInTheDocument();
+    expect(screen.getByText("Release planning")).toBeInTheDocument();
+    expect(screen.getAllByTestId("calendar-source-marker")).toHaveLength(2);
+    expect(screen.getAllByTestId("calendar-schedule-people")).toHaveLength(2);
+    expect(screen.getByTitle("Grace Hopper, Ada")).toBeInTheDocument();
     expect(screen.queryByTestId("calendar-week")).not.toBeInTheDocument();
   });
 

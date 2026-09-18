@@ -67,7 +67,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -120,6 +119,7 @@ import {
   taskScheduleSeriesFeedbackKey,
 } from "@/lib/utils/task-schedule-feedback";
 import { CalendarScheduleList } from "./calendar-schedule-list";
+import { SourceMarker } from "./source-marker";
 
 const CALENDAR_VIEWS = ["month", "week", "agenda", "schedules"] as const;
 type CalendarView = (typeof CALENDAR_VIEWS)[number];
@@ -130,11 +130,6 @@ const NO_SCHEDULED_TASKS: TaskListItem[] = [];
 function isCalendarStatus(value: string | null): value is TaskStatusValue {
   return value !== null && CALENDAR_STATUSES.some((status) => status === value);
 }
-const SOURCE_PALETTE_CLASSES = {
-  blue: "bg-chart-1",
-  violet: "bg-chart-2",
-  amber: "bg-chart-4",
-} as const;
 
 interface CalendarCoworker {
   id: string;
@@ -284,43 +279,6 @@ function getRangeLabel(
   }
 
   return formatDate(date, { month: "long", year: "numeric" });
-}
-
-function SourceMarker({
-  decorative = false,
-  size = "size-4",
-  source,
-  sourceName,
-}: {
-  decorative?: boolean;
-  size?: string;
-  source: WorkspaceCalendarSource | undefined;
-  sourceName: string;
-}) {
-  if (source?.logoUrl) {
-    return (
-      <Avatar
-        className={`${size} shrink-0 rounded-sm`}
-        data-testid="calendar-source-marker"
-      >
-        <AvatarImage alt={decorative ? "" : sourceName} src={source.logoUrl} />
-        <AvatarFallback aria-hidden={decorative} className="rounded-sm text-xs">
-          {sourceName.slice(0, 1).toUpperCase()}
-        </AvatarFallback>
-      </Avatar>
-    );
-  }
-
-  return (
-    <span
-      aria-hidden={decorative}
-      aria-label={decorative ? undefined : sourceName}
-      className={`${size} shrink-0 rounded-full ${
-        source ? SOURCE_PALETTE_CLASSES[source.paletteToken] : "bg-primary"
-      }`}
-      data-testid="calendar-source-marker"
-    />
-  );
 }
 
 /**

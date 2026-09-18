@@ -3,18 +3,22 @@
 import { parseTaskScheduleMetadata } from "@sokosumi/utils";
 import { Pencil } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
+import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import { TaskDetailLink } from "@/app/tasks/components/task-detail-link";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
+import type { TaskAssigneeView } from "@/app/tasks/types/task-board";
 import {
   computeScheduleTitleInfo,
   formatScheduleTitle,
   type ScheduleTitleTranslateFn,
 } from "@/components/schedules/format";
 import { Button } from "@/components/ui/button";
+import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
 import type {
   TaskListItem,
   WorkspaceCalendarSource,
 } from "@/lib/clients/generated/core";
+import { SourceMarker } from "./source-marker";
 
 interface CalendarScheduleListProps {
   currentUserId: string | null;
@@ -51,17 +55,51 @@ function getRecurrenceLabel(
   );
 }
 
-function getSourceName(
+function findSource(
   task: TaskListItem,
   sources: WorkspaceCalendarSource[],
-): string | null {
+): WorkspaceCalendarSource | undefined {
   const sourceId = task.projectId
     ? `project:${task.projectId}`
     : `workspace:${task.workspace.id}`;
 
-  return (
-    sources.find((source) => source.sourceId === sourceId)?.displayName ?? null
-  );
+  return sources.find((source) => source.sourceId === sourceId);
+}
+
+function toAssigneeView(
+  assignee: TaskListItem["assignee"],
+  fallbackName: string,
+): TaskAssigneeView | null {
+  if (!assignee) {
+    return null;
+  }
+
+  if (assignee.type === "sokoBot") {
+    return {
+      id: assignee.id,
+      name: assignee.sokoBot.name?.trim() || fallbackName,
+      image: assignee.sokoBot.avatarImageUrl,
+      kind: "sokoBot",
+      avatarSeed: assignee.sokoBot.avatarSeed,
+    };
+  }
+
+  if (assignee.type === "user") {
+    return {
+      id: assignee.id,
+      name: assignee.user.name,
+      image: assignee.user.image,
+      kind: "user",
+    };
+  }
+
+  return {
+    id: assignee.id,
+    name: assignee.coworker.name,
+    image: assignee.coworker.image,
+    slug: assignee.coworker.slug,
+    kind: "coworker",
+  };
 }
 
 export function CalendarScheduleList({
@@ -77,6 +115,7 @@ export function CalendarScheduleList({
 }: CalendarScheduleListProps) {
   const t = useTranslations("App.Calendar");
   const tSchedule = useTranslations("App.Tasks.Schedule");
+  const tTasks = useTranslations("App.Tasks");
   const formatter = useFormatter();
 
   return (
@@ -91,7 +130,15 @@ export function CalendarScheduleList({
             const nextRunLabel = task.nextRunAt
               ? formatter.dateTime(task.nextRunAt, "dateTime", { timeZone })
               : null;
-            const sourceName = getSourceName(task, sources);
+            const source = findSource(task, sources);
+            const sourceName = source?.displayName ?? t("source.WORKSPACE");
+            const assignee = toAssigneeView(
+              task.assignee,
+              tTasks("personalAssistant"),
+            );
+            const peopleNames = [assignee?.name, task.owner.name]
+              .filter((name): name is string => Boolean(name?.trim()))
+              .join(", ");
 
             return (
               <div
@@ -125,10 +172,36 @@ export function CalendarScheduleList({
                         ? `${t("schedules.nextRun")}: ${nextRunLabel}`
                         : t("schedules.noNextRun")}
                     </span>
-                    <span className="text-muted-foreground line-clamp-1">
-                      {sourceName ?? t("source.WORKSPACE")}
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <SourceMarker
+                        decorative
+                        size="size-4"
+                        source={source}
+                        sourceName={sourceName}
+                      />
+                      <span className="line-clamp-1">{sourceName}</span>
                     </span>
                   </div>
+                  {peopleNames ? (
+                    <>
+                      <span
+                        aria-hidden
+                        className="-space-x-1 flex shrink-0 items-center"
+                        data-testid="calendar-schedule-people"
+                        title={peopleNames}
+                      >
+                        {assignee ? (
+                          <AssigneeAvatar assignee={assignee} />
+                        ) : null}
+                        <UserProfileAvatar
+                          className="z-10"
+                          image={task.owner.image}
+                          name={task.owner.name}
+                        />
+                      </span>
+                      <span className="sr-only">{peopleNames}</span>
+                    </>
+                  ) : null}
                   {task.ownerId === currentUserId ? (
                     <Button
                       aria-label={t("schedules.edit")}
