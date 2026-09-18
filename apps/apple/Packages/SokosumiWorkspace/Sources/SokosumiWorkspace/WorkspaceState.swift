@@ -100,7 +100,8 @@ public final class WorkspaceState: ObservableObject {
     workspaceSession.currentUser?.image
   }
 
-  @Published var pendingReactions: Set<ReactionRequest> = []
+  /// The viewer's unconfirmed reaction taps (ADR 0032); see `WorkspaceState+Reactions`.
+  @Published var pendingReactions = PendingReactions()
   /// Failed mention shells whose retry POST is in flight; see `WorkspaceState+Mentions`.
   @Published var pendingMentionRetries: Set<MentionRetryRequest> = []
   /// Soko Bot turns rated in this session, by turn id; see `WorkspaceState+SokoBot`.
@@ -183,9 +184,10 @@ public final class WorkspaceState: ObservableObject {
   /// that a launch would flash offline while the first token mints.
   var realtimeEverConnected = false
 
-  /// Confirmed history plus unresolved outbound shells (sticky at the end).
+  /// Confirmed history plus unresolved outbound shells (sticky at the end), with Pending reactions on top.
   public var displayedTranscript: [Components.Schemas.ChatRoomMessage] {
-    directStream.displayedMessages(persisted: SokosumiChat.displayedTranscript(messages: transcriptMessages, shells: outboundShells))
+    let messages = directStream.displayedMessages(persisted: SokosumiChat.displayedTranscript(messages: transcriptMessages, shells: outboundShells))
+    return pendingReactions.overlaying(messages, viewer: reactionViewer)
   }
 
   var transcriptCursor: String? {
@@ -286,6 +288,7 @@ public final class WorkspaceState: ObservableObject {
     updatingChannel = false
     channelLifecycle = nil
     invitationResponse = nil
+    pendingReactions = PendingReactions()
     sokoBotFeedback = [:]
     pendingSokoBotFeedback = []
     chatDisplay.reset()
@@ -806,7 +809,7 @@ public final class WorkspaceState: ObservableObject {
     }
   }
 
-  private func applyRealtimeMessagePatch(_ patch: RealtimeMessagePatch) {
+  func applyRealtimeMessagePatch(_ patch: RealtimeMessagePatch) {
     thread.apply(patch)
     guard patch.roomId == transcriptRoomId else { return }
     transcriptMessages = applyRealtimePatch(patch, messages: transcriptMessages)

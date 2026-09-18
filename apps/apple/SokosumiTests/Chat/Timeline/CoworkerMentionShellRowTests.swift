@@ -50,7 +50,7 @@
         MessageRowView(message: thinking, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil)
         MessageRowView(message: beating, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil)
         MessageRowView(message: failed, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil, onRetryMention: {})
-        MessageRowView(message: failed, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil, onQuote: {}, onToggleReaction: { _ in })
+        MessageRowView(message: failed, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil, onQuote: {}, onToggleReaction: { _ in false })
       }
       .padding(20)
       .frame(width: 520, alignment: .leading)

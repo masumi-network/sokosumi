@@ -33,7 +33,8 @@ public extension WorkspaceState {
   }
 
   var displayedThreadReplies: [Components.Schemas.ChatRoomMessage] {
-    directStream.displayedMessages(persisted: thread.displayedReplies, parentMessageId: thread.parent?.id)
+    let replies = directStream.displayedMessages(persisted: thread.displayedReplies, parentMessageId: thread.parent?.id)
+    return pendingReactions.overlaying(replies, viewer: reactionViewer)
   }
 
   func loadThreadPage(_ page: RoomTimeline.Page, auth: AuthState) {
