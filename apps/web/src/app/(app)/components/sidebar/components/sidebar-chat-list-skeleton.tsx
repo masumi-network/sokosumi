@@ -24,12 +24,18 @@ import { cn } from "@/lib/utils";
  * `justify-center`, so a shrinking name cannot drag the mark). A full-width
  * bar in a 56px rail is the shape nothing on this sidebar has.
  *
- * It stands in for the two sections every reader has — Channels and Direct
- * Messages — rather than one anonymous stack, because those two are the only
- * ones that are always there: Pinned, External and Archived each depend on
- * data this frame has not loaded, and a section that appeared and then went
- * away would move every row under it. Two headings also put the list's one
- * landmark, the break between sections, where it will really land.
+ * It stands in for the two sections a reader in an organization has — Channels
+ * and Direct Messages — rather than one anonymous stack, because those two are
+ * the only ones the real list always draws: Pinned, External and Archived each
+ * depend on data this frame has not loaded, and a section that appeared and
+ * then went away would move every row under it. Two headings also put the
+ * list's one landmark, the break between sections, where it will really land.
+ *
+ * Channels is the one section that is not always there: the real list gates it
+ * on `hasOrganization`, so a personal workspace has Directs alone. A caller
+ * that knows which it is says so, and then the swap moves nothing there
+ * either. The boot shell has no session yet and so cannot know, which is what
+ * the default answers — the same call the row counts make.
  *
  * The marks are the two a room row actually draws, and they differ by state
  * exactly as the real ones do (Channel tile, CONTEXT.md): a Channel is a 16px
@@ -137,20 +143,29 @@ function DirectMarkSkeleton({ faces }: { faces: number }) {
   );
 }
 
-export function SidebarChatListSkeleton() {
+export function SidebarChatListSkeleton({
+  /** False for a personal workspace, whose real list has no Channels. */
+  hasOrganization = true,
+}: {
+  hasOrganization?: boolean;
+} = {}) {
   return (
     <SidebarGroup className="w-full" aria-hidden>
       <SidebarGroupContent className="space-y-2">
-        <SectionHeaderSkeleton titleWidth="w-16" />
-        <SidebarMenu className="gap-0">
-          {CHANNEL_NAME_WIDTHS.map((nameWidth) => (
-            <RoomRowSkeleton
-              key={nameWidth}
-              mark={<ChannelMarkSkeleton />}
-              nameWidth={nameWidth}
-            />
-          ))}
-        </SidebarMenu>
+        {hasOrganization ? (
+          <>
+            <SectionHeaderSkeleton titleWidth="w-16" />
+            <SidebarMenu className="gap-0">
+              {CHANNEL_NAME_WIDTHS.map((nameWidth) => (
+                <RoomRowSkeleton
+                  key={nameWidth}
+                  mark={<ChannelMarkSkeleton />}
+                  nameWidth={nameWidth}
+                />
+              ))}
+            </SidebarMenu>
+          </>
+        ) : null}
         <SectionHeaderSkeleton titleWidth="w-24" />
         <SidebarMenu className="gap-0">
           {DIRECT_ROWS.map(({ nameWidth, faces }) => (
