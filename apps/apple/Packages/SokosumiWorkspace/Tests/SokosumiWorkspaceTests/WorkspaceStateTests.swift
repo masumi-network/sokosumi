@@ -2981,3 +2981,62 @@ extension WorkspaceStateTests {
     #expect(state.chatDisplay.showsRoomUnreadCount)
   }
 }
+
+extension WorkspaceStateTests {
+  /// A pasted Message link from another room becomes the quote, and the send
+  /// carries its source room with no body of its own.
+  @MainActor
+  @Test func pastedMessageLinkQuotesAcrossRoomsAndSendsWithoutABody() async throws {
+    let target = "550e8400-e29b-41d4-a716-446655440000"
+    let source = "550e8400-e29b-41d4-a716-446655440001"
+    let quoted = "550e8400-e29b-41d4-a716-446655440123"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")),
+      (200, orgsBody),
+      (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general", "random"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: target, unread: 0)),
+      (200, createdMessageBody(id: quoted, roomId: source, content: "Keep this")),
+      (201, createdMessageBody(id: "550e8400-e29b-41d4-a716-446655440505", roomId: target, content: ""))
+    ])
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    #expect(state.transcriptRoomId == target)
+
+    let base = try #require(URL(string: "https://app.sokosumi.com"))
+    let quote = try await #require(state.messageLinkQuote(
+      pasted: "https://app.sokosumi.com/chat/rooms/\(source)?message=\(quoted)", roomId: target, webBaseURL: base, auth: auth
+    ))
+    #expect(quote.roomId == source)
+    #expect(transport.operationIDs.contains("get/chats/rooms/{id}/messages/{messageId}"))
+
+    #expect(state.sendMessage("", quote: quote, auth: auth))
+    await waitForOutboundIdle(state)
+    let body = try #require(transport.bodies.last)
+    let json = try #require(try JSONSerialization.jsonObject(with: body) as? [String: Any])
+    #expect((json["content"] as? String)?.isEmpty == true)
+    #expect(json["quote"] as? [String: String] == ["messageId": quoted, "roomId": source])
+  }
+
+  /// Plain text is not a link, so nothing is read and the paste stays as typed.
+  @MainActor
+  @Test func plainTextPasteNeverReadsAMessage() async throws {
+    let target = "550e8400-e29b-41d4-a716-446655440000"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")),
+      (200, orgsBody),
+      (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: target, unread: 0))
+    ])
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    let base = try #require(URL(string: "https://app.sokosumi.com"))
+    #expect(await state.messageLinkQuote(pasted: "just words", roomId: target, webBaseURL: base, auth: auth) == nil)
+    #expect(!transport.operationIDs.contains("get/chats/rooms/{id}/messages/{messageId}"))
+  }
+}
