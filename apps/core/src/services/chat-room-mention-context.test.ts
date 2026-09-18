@@ -1,7 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { findMany } = vi.hoisted(() => ({
+  findMany: vi.fn(),
+}));
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    chatRoomMessage: { findMany },
+  },
+}));
 
 import {
   buildRoomMentionPrompt,
+  loadRoomContextMessages,
   roomMessagePromptText,
 } from "./chat-room-mention-context";
 
@@ -115,5 +126,45 @@ describe("roomMessagePromptText", () => {
     expect(roomMessagePromptText("  ", quote)).toBe(
       "> Alice: Launch risk is the vendor.",
     );
+  });
+});
+
+describe("loadRoomContextMessages", () => {
+  beforeEach(() => {
+    findMany.mockReset();
+  });
+
+  it("puts a quote-only message in context as the quoted text", async () => {
+    findMany.mockResolvedValue([
+      {
+        content: "",
+        metadata: {
+          quote: {
+            messageId: "quoted-a",
+            authorName: "Alice",
+            snippet: "Launch risk is the vendor.",
+          },
+        },
+        senderUser: { name: "Bob" },
+        senderCoworker: null,
+        senderSokoBot: null,
+      },
+    ]);
+
+    const rows = await loadRoomContextMessages({
+      roomId: "room-a",
+      messageId: "mention-a",
+      createdAt: new Date("2026-09-18T12:00:00.000Z"),
+      threadRootId: null,
+    });
+
+    expect(rows).toEqual([
+      {
+        senderName: "Bob",
+        isCoworker: false,
+        isSokoBot: false,
+        content: "> Alice: Launch risk is the vendor.",
+      },
+    ]);
   });
 });

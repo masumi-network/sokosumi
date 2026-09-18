@@ -1,4 +1,5 @@
 import prisma from "@/lib/db/prisma";
+import { readQuoteFromMetadata } from "@/routes/v1/chats/rooms/helpers";
 
 /** How many prior messages the coworker sees as conversation context. */
 const ROOM_CONTEXT_MESSAGE_LIMIT = 10;
@@ -93,6 +94,7 @@ export async function loadRoomContextMessages(params: {
     take: ROOM_CONTEXT_MESSAGE_LIMIT,
     select: {
       content: true,
+      metadata: true,
       senderUser: { select: { name: true } },
       senderCoworker: { select: { name: true } },
       senderSokoBot: { select: { name: true } },
@@ -106,6 +108,9 @@ export async function loadRoomContextMessages(params: {
       "Unknown sender",
     isCoworker: row.senderCoworker != null,
     isSokoBot: row.senderSokoBot != null,
-    content: row.content,
+    content: roomMessagePromptText(
+      row.content,
+      readQuoteFromMetadata(row.metadata),
+    ),
   }));
 }
