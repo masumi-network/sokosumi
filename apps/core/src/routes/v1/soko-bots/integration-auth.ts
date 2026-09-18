@@ -56,6 +56,7 @@ export function mountSokoBotIntegrationAuthRoutes(
         userId: auth.userId,
         workspaceId: workspace.workspaceId,
         provider: completed.provider,
+        expectedComposioAccountId: completed.composioAccountId,
       });
       return ok(
         c,

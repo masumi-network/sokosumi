@@ -61,6 +61,9 @@ describe("completeSokoBotIntegrationAuth", () => {
       composioAccountId: "ca_1",
     });
 
+    // The bot must be resolved from the signed-in caller, so an implementation
+    // that took the entity from the request or the session URI would fail here.
+    expect(requireBot).toHaveBeenCalledWith("user-1", "workspace-1");
     const [url, init] = fetchMock.mock.calls[0] ?? [];
     expect(String(url)).toBe(
       "https://composio.test/api/v3.1/connected_accounts/complete_auth",
@@ -72,6 +75,21 @@ describe("completeSokoBotIntegrationAuth", () => {
       session_uri: "session-uri-1",
       user_id: "sokobot:bot-1",
     });
+  });
+
+  it("keeps a configured base path on the endpoint", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(200, {
+        connected_account_id: "ca_1",
+        toolkit_slug: "gmail",
+      }),
+    );
+
+    await completeSokoBotIntegrationAuth(input);
+
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
+      "https://composio.test/api/v3.1/connected_accounts/complete_auth",
+    );
   });
 
   it("refuses a session started by a different account", async () => {

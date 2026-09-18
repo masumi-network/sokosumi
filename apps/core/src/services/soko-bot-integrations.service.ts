@@ -383,6 +383,12 @@ export async function finalizeSokoBotIntegration(input: {
   userId: string;
   workspaceId: string;
   provider: string;
+  /**
+   * The account Composio just verified for this caller. When set, only that
+   * account may be promoted, so a connect attempt that raced in after the
+   * verification cannot be promoted on its behalf.
+   */
+  expectedComposioAccountId?: string;
 }): Promise<SokoBotIntegrationView["status"]> {
   const provider = resolveProvider(input.provider);
   const bot = await requireBot(input.userId, input.workspaceId);
@@ -397,6 +403,14 @@ export async function finalizeSokoBotIntegration(input: {
   if (!row) throw new SokoBotIntegrationError("Not connected", "NOT_FOUND");
   const composio = requireComposio();
   const accountId = row.pendingComposioAccountId ?? row.composioAccountId;
+  if (
+    input.expectedComposioAccountId &&
+    input.expectedComposioAccountId !== accountId
+  ) {
+    throw new SokoBotIntegrationError(
+      "Connection changed; retry finalizing OAuth",
+    );
+  }
   const account = await withComposio("account status", () =>
     composio.connectedAccounts.get(accountId),
   );

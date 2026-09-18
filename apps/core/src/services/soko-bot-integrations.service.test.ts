@@ -138,6 +138,21 @@ describe("Soko Bot OAuth replacement", () => {
     expect(mocks.remove).toHaveBeenCalledExactlyOnceWith("replacement");
   });
 
+  it("refuses to promote an account other than the one Composio verified", async () => {
+    mocks.find.mockResolvedValue({
+      ...existing,
+      pendingComposioAccountId: "raced-in",
+    });
+    await expect(
+      finalizeSokoBotIntegration({
+        ...input,
+        expectedComposioAccountId: "verified",
+      }),
+    ).rejects.toThrow("changed");
+    expect(mocks.get).not.toHaveBeenCalled();
+    expect(mocks.updateMany).not.toHaveBeenCalled();
+  });
+
   it("switches only to the pending ID after verification and resets mailbox ingest state", async () => {
     mocks.find.mockResolvedValue({
       ...existing,
