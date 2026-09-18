@@ -33,9 +33,11 @@ import {
   chatRoomMessageInclude,
   mapChatRoomMessage,
   mergeChatRoomMessageMetadata,
+  quotedMessageNotFound,
   requireChatRoomCoworkerAccess,
   requireChatRoomSokoBotAccess,
   requireChatRoomUserWriteAccess,
+  resolveCrossRoomQuoteSnapshot,
   resolveMentionedCoworkerIds,
   resolveMentionedSokoBotIds,
   resolveMentionedUserIds,
@@ -103,6 +105,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           room.id,
           body.parentMessageId,
         );
+        if (body.quote?.roomId && body.quote.roomId !== room.id) {
+          throw quotedMessageNotFound();
+        }
         const quote = await resolveRoomQuoteSnapshot(
           tx,
           room.id,
@@ -279,11 +284,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           room.id,
           body.parentMessageId,
         );
-        const quote = await resolveRoomQuoteSnapshot(
-          tx,
-          room.id,
-          body.quote?.messageId,
-        );
+        const quote =
+          body.quote?.roomId && body.quote.roomId !== room.id
+            ? await resolveCrossRoomQuoteSnapshot(tx, {
+                sourceRoomId: body.quote.roomId,
+                quoteMessageId: body.quote.messageId,
+                senderUserId: userContext.userId,
+                targetMemberUserIds: room.userMembers.map(
+                  (member) => member.userId,
+                ),
+              })
+            : await resolveRoomQuoteSnapshot(
+                tx,
+                room.id,
+                body.quote?.messageId,
+              );
         const metadata = mergeChatRoomMessageMetadata(
           clientId ? { client_message_id: clientId } : null,
           quote,

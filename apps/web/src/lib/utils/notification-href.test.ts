@@ -9,6 +9,7 @@ import { COWORKER_ACCESS_PENDING_MESSAGE_KEY } from "@/lib/utils/coworker-access
 import {
   chatRoomMessageHref,
   getNotificationHref,
+  parseChatRoomMessageLink,
 } from "@/lib/utils/notification-href";
 import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@/lib/utils/vendor-grant-notification";
 
@@ -33,6 +34,52 @@ describe("chatRoomMessageHref", () => {
     expect(chatRoomMessageHref("room/with spaces", "a b")).toBe(
       "/chat/rooms/room%2Fwith%20spaces?message=a%20b",
     );
+  });
+});
+
+describe("parseChatRoomMessageLink", () => {
+  const ORIGIN = "https://app.sokosumi.com";
+
+  it("reads back the link Copy link produces", () => {
+    const link = `${ORIGIN}${chatRoomMessageHref("room/1", "msg 1")}`;
+    expect(parseChatRoomMessageLink(link, ORIGIN)).toEqual({
+      roomId: "room/1",
+      messageId: "msg 1",
+    });
+  });
+
+  it("ignores whitespace around the pasted link", () => {
+    expect(
+      parseChatRoomMessageLink(
+        `  ${ORIGIN}/chat/rooms/room-1?message=msg-1\n`,
+        ORIGIN,
+      ),
+    ).toEqual({ roomId: "room-1", messageId: "msg-1" });
+  });
+
+  it.each([
+    ["another origin", "https://evil.example/chat/rooms/room-1?message=msg-1"],
+    ["a relative path", "/chat/rooms/room-1?message=msg-1"],
+    ["a room link without a message", `${ORIGIN}/chat/rooms/room-1`],
+    ["a blank message param", `${ORIGIN}/chat/rooms/room-1?message=%20`],
+    ["a deeper path", `${ORIGIN}/chat/rooms/room-1/files?message=msg-1`],
+    ["an invitation link", `${ORIGIN}/chat/invites/inv-1?message=msg-1`],
+    [
+      "a link inside longer text",
+      `look at ${ORIGIN}/chat/rooms/room-1?message=msg-1`,
+    ],
+    [
+      "two links",
+      `${ORIGIN}/chat/rooms/room-1?message=a ${ORIGIN}/chat/rooms/room-1?message=b`,
+    ],
+    [
+      "credentials in the link",
+      "https://u:p@app.sokosumi.com/chat/rooms/r?message=m",
+    ],
+    ["a malformed room id", `${ORIGIN}/chat/rooms/%E0%A4%A?message=msg-1`],
+    ["plain text", "hello"],
+  ])("does not match %s", (_label, text) => {
+    expect(parseChatRoomMessageLink(text, ORIGIN)).toBeNull();
   });
 });
 
