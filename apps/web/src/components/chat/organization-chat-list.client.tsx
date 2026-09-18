@@ -39,7 +39,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
+import { Collapsible } from "@/components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,7 +68,10 @@ import {
   ChatRoomSidebarRow,
   type ChatRoomSidebarRowProps,
 } from "./chat-room-sidebar-row";
-import { ChatSidebarSectionHeader } from "./chat-sidebar-section-header";
+import {
+  ChatSidebarSectionContent,
+  ChatSidebarSectionHeader,
+} from "./chat-sidebar-section-header";
 import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
 import {
   listOrganizationChatRoomsAction,
@@ -371,7 +374,13 @@ export function OrganizationChatList({
             >
               {t("pinned")}
             </ChatSidebarSectionHeader>
-            <CollapsibleContent>
+            {/* A row being dragged translates past the section's box, and the
+                animation's `overflow-hidden` would cut it off. The section
+                cannot be mid-animation while its rows are being reordered:
+                the reorder toggle only exists on an open heading. */}
+            <ChatSidebarSectionContent
+              className={cn(isReorderingPinned && "overflow-visible")}
+            >
               {isReorderingPinned ? (
                 <PinnedRoomsDndContext
                   roomIds={pinnedRoomIds}
@@ -402,7 +411,7 @@ export function OrganizationChatList({
                   ))}
                 </SidebarMenu>
               )}
-            </CollapsibleContent>
+            </ChatSidebarSectionContent>
           </Collapsible>
         ) : null}
 
@@ -420,7 +429,7 @@ export function OrganizationChatList({
             >
               {t("title")}
             </ChatSidebarSectionHeader>
-            <CollapsibleContent>
+            <ChatSidebarSectionContent>
               <SidebarMenu className="gap-0">
                 {namedChannels.map((room) => (
                   <ChatRoomSidebarRow key={room.id} {...roomRowProps(room)} />
@@ -438,7 +447,7 @@ export function OrganizationChatList({
                   </SidebarMenuItem>
                 ) : null}
               </SidebarMenu>
-            </CollapsibleContent>
+            </ChatSidebarSectionContent>
           </Collapsible>
         ) : null}
 
@@ -453,7 +462,7 @@ export function OrganizationChatList({
             >
               {tExternal("title")}
             </ChatSidebarSectionHeader>
-            <CollapsibleContent>
+            <ChatSidebarSectionContent>
               <SidebarMenu className="gap-0">
                 {pendingRows.map((invitation) => {
                   const anyBusy = respondingInvitation !== null;
@@ -528,7 +537,7 @@ export function OrganizationChatList({
                   <ChatRoomSidebarRow key={room.id} {...roomRowProps(room)} />
                 ))}
               </SidebarMenu>
-            </CollapsibleContent>
+            </ChatSidebarSectionContent>
           </Collapsible>
         ) : null}
 
@@ -556,7 +565,7 @@ export function OrganizationChatList({
             >
               {t("archivedChannels")}
             </ChatSidebarSectionHeader>
-            <CollapsibleContent>
+            <ChatSidebarSectionContent>
               <SidebarMenu className="gap-0">
                 {sortedArchivedChannels.map((room) => {
                   const isRestoring = restoringRoomId === room.id;
@@ -665,7 +674,7 @@ export function OrganizationChatList({
                   );
                 })}
               </SidebarMenu>
-            </CollapsibleContent>
+            </ChatSidebarSectionContent>
           </Collapsible>
         ) : null}
 
@@ -726,7 +735,7 @@ export function OrganizationChatList({
           >
             {t("directMessages")}
           </ChatSidebarSectionHeader>
-          <CollapsibleContent>
+          <ChatSidebarSectionContent>
             <SidebarMenu className="gap-0">
               {directMessages.map((room) => (
                 <ChatRoomSidebarRow key={room.id} {...roomRowProps(room)} />
@@ -744,7 +753,7 @@ export function OrganizationChatList({
                 </SidebarMenuItem>
               ) : null}
             </SidebarMenu>
-          </CollapsibleContent>
+          </ChatSidebarSectionContent>
         </Collapsible>
       </SidebarGroupContent>
     </SidebarGroup>
