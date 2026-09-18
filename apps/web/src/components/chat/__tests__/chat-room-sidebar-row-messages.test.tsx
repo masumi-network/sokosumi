@@ -28,7 +28,12 @@ vi.mock("@/components/chat/use-show-room-unread-count", () => ({
   useShowRoomUnreadCount: () => true,
 }));
 
-vi.mock("@/components/ui/sidebar", () => ({
+// The real module under the overrides, so `SidebarRowSlot` — the shared
+// leading slot every row sits its mark in — is the one the app ships.
+vi.mock("@/components/ui/sidebar", async () => ({
+  ...(await vi.importActual<typeof import("@/components/ui/sidebar")>(
+    "@/components/ui/sidebar",
+  )),
   SidebarMenuButton: ({
     children,
     asChild,
