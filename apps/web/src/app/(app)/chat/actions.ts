@@ -731,8 +731,11 @@ export async function sendRoomMessageAction(
     mentionedUserIds?: string[];
     mentionedSokoBotIds?: string[];
     parentMessageId?: string;
-    /** Same-room quote target; does not set parentMessageId. */
-    quote?: { messageId: string };
+    /**
+     * Quote target; `roomId` names the source room when it is not this room.
+     * Does not set parentMessageId.
+     */
+    quote?: { messageId: string; roomId?: string };
     /**
      * Opaque client turn id. Retries of the same send reuse this so Core
      * creates at most one row (unique on roomId + clientMessageId).
@@ -755,7 +758,10 @@ export async function sendRoomMessageAction(
         parentMessageId: options.parentMessageId,
       }),
       ...(options?.quote?.messageId && {
-        quote: { messageId: options.quote.messageId },
+        quote: {
+          messageId: options.quote.messageId,
+          ...(options.quote.roomId && { roomId: options.quote.roomId }),
+        },
       }),
       ...(options?.clientMessageId && {
         clientMessageId: options.clientMessageId,

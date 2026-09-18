@@ -5435,7 +5435,12 @@
         "previewLabel": "Zitiere {author}",
         "jump": "Zur Nachricht von {author} springen",
         "showMore": "Mehr",
-        "showLess": "Weniger"
+        "showLess": "Weniger",
+        "pasteOffer": {
+          "label": "Nachricht von {author} zitieren statt den Link zu senden?",
+          "accept": "Nachricht zitieren",
+          "decline": "Link behalten"
+        }
       },
       "Unfurl": {
         "openLink": "Linkvorschau öffnen: {title}",

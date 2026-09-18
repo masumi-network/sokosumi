@@ -230,6 +230,33 @@ function mentionLookupMapsFromCatalog(
   };
 }
 
+/** A pasted Message link the sender may send as a quote instead. */
+export interface RoomComposerQuoteOffer {
+  authorName: string;
+  onAccept: () => void;
+  onDecline: () => void;
+}
+
+function PastedLinkQuoteOffer({ offer }: { offer: RoomComposerQuoteOffer }) {
+  const t = useTranslations("App.Channels.Quote");
+  return (
+    <div
+      className="border-border bg-card-background flex flex-wrap items-center gap-2 border-b px-3 py-2"
+      role="status"
+    >
+      <span className="text-muted-foreground min-w-0 flex-1 text-xs">
+        {t("pasteOffer.label", { author: offer.authorName })}
+      </span>
+      <Button type="button" size="sm" onClick={offer.onAccept}>
+        {t("pasteOffer.accept")}
+      </Button>
+      <Button type="button" size="sm" variant="ghost" onClick={offer.onDecline}>
+        {t("pasteOffer.decline")}
+      </Button>
+    </div>
+  );
+}
+
 function PendingQuotePreview({
   quote,
   onDismiss,
@@ -360,6 +387,7 @@ export function RoomComposer({
   allowAttachments = true,
   pendingQuote = null,
   onClearPendingQuote,
+  quoteOffer,
   focusOnMount = false,
   currentUserId,
   canOpenHumanDirect = false,
@@ -395,6 +423,7 @@ export function RoomComposer({
   /** Slack-like dismissible quote chip above the editor. */
   pendingQuote?: PendingRoomQuote | null;
   onClearPendingQuote?: () => void;
+  quoteOffer?: RoomComposerQuoteOffer | null;
   /** Focus the editor after mount (room/thread open). */
   focusOnMount?: boolean;
   currentUserId?: string;
@@ -701,6 +730,7 @@ export function RoomComposer({
         onPrepareSubmit={() => editorRef.current?.flushTrailingEmoticon()}
         aboveEditor={
           <>
+            {quoteOffer ? <PastedLinkQuoteOffer offer={quoteOffer} /> : null}
             {pendingQuote && onClearPendingQuote ? (
               <PendingQuotePreview
                 quote={pendingQuote}

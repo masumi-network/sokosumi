@@ -367,6 +367,8 @@ export interface PendingRoomQuote {
   authorName: string;
   snippet: string;
   attachment: ChatRoomQuoteAttachment | null;
+  /** Source room when the quoted message is not in the room being composed in. */
+  roomId?: string;
 }
 
 export function pendingQuoteFromMessage(
