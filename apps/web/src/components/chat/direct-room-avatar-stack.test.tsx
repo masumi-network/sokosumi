@@ -163,7 +163,7 @@ describe("DirectRoomAvatarStack", () => {
     expect(face.querySelector("[title]")?.getAttribute("title")).toBe("Online");
   });
 
-  it("fits empty and 1:1 DM leadings in a min-w-7 / h-7 box matching channel icons below md", () => {
+  it("draws one 24px face in every state, so the row's mark never resizes", () => {
     const { container: emptyContainer, unmount } = render(
       <DirectRoomAvatarStack
         room={makeDirectRoom({ userMembers: [makeUser("me", "Me")] })}
@@ -171,32 +171,28 @@ describe("DirectRoomAvatarStack", () => {
       />,
     );
 
+    // An empty direct's mark is a face like any other, and the row's own
+    // `SidebarRowSlot` is the box around it — nothing here sizes with state.
     const emptyTokens =
       emptyContainer.firstElementChild?.className.split(" ") ?? [];
-    expect(emptyTokens).toContain("size-7");
-    expect(emptyTokens).toContain("md:size-5");
+    expect(emptyTokens).toContain("size-6");
     expect(emptyTokens).toContain("shrink-0");
-    // Grows with the faces when collapsed, so an empty direct is not the one
-    // 20px mark in a rail of 24px ones.
-    expect(emptyTokens).toContain("group-data-[collapsible=icon]:size-6");
+    expect(emptyContainer.firstElementChild?.className).not.toContain(
+      "group-data-[collapsible=icon]:",
+    );
     unmount();
 
     const { container } = render(
       <DirectRoomAvatarStack room={makeDirectRoom()} currentUserId="me" />,
     );
 
-    // min-w-7 / h-7 matches the channel icon column below md; stacks may grow wider.
-    const stackTokens = container.firstElementChild?.className.split(" ") ?? [];
-    expect(stackTokens).toContain("min-w-7");
-    expect(stackTokens).toContain("h-7");
-    expect(stackTokens).toContain("md:min-w-5");
-    expect(stackTokens).toContain("md:h-5");
-    expect(stackTokens).toContain("shrink-0");
-    expect(stackTokens).toContain("items-center");
+    const face = container.querySelector('[data-slot="avatar"]');
+    expect(face?.className.split(" ")).toContain("size-6");
+    expect(face?.className).not.toContain("group-data-[collapsible=icon]:");
   });
 
-  it("grows each face to 24px and keeps only the first when the sidebar collapses", () => {
-    const { container } = render(
+  it("stacks up to three faces and keeps only the first on the rail", () => {
+    render(
       <DirectRoomAvatarStack
         room={makeDirectRoom({
           userMembers: [
@@ -209,24 +205,24 @@ describe("DirectRoomAvatarStack", () => {
       />,
     );
 
-    // At 20px Inter's widest pairs ("MA", "WM") touch the rim of a circle;
-    // 24px holds every pair at the same type size. The collapsed button cannot
-    // hold a stack of those, so a group row shows its first face alone there
-    // and the button's tooltip names the rest.
-    const stackRoot = container.firstElementChild;
-    expect(stackRoot?.className).toContain("group-data-[collapsible=icon]:h-6");
-    for (const id of ["alice", "bob"]) {
-      const avatar = screen
-        .getByTestId(`dm-sidebar-avatar-${id}`)
-        .querySelector('[data-slot="avatar"]');
-      expect(avatar?.className).toContain(
-        "group-data-[collapsible=icon]:size-6",
-      );
-    }
-    expect(
-      screen.getByTestId("dm-sidebar-avatar-alice").className,
-    ).not.toContain("group-data-[collapsible=icon]:hidden");
-    expect(screen.getByTestId("dm-sidebar-avatar-bob").className).toContain(
+    // One face cannot say "several people are in here" — it reads as a direct
+    // with whoever that is. The stack grows the row's slot to the right off a
+    // fixed left edge, so the first face stays on the 28px axis and only this
+    // row's name starts later.
+    const first = screen.getByTestId("dm-sidebar-avatar-alice");
+    const second = screen.getByTestId("dm-sidebar-avatar-bob");
+    expect(first.className.split(/\s+/)).not.toContain("-ml-2");
+    expect(second.className.split(/\s+/)).toContain("-ml-2");
+    // The first face on top, so its presence dot is not buried under the
+    // one beside it.
+    expect(Number(first.style.zIndex)).toBeGreaterThan(
+      Number(second.style.zIndex),
+    );
+
+    // A 32px rail square cannot hold three of them, and the row's tooltip
+    // already names everyone.
+    expect(first.className).not.toContain("group-data-[collapsible=icon]:");
+    expect(second.className.split(/\s+/)).toContain(
       "group-data-[collapsible=icon]:hidden",
     );
   });
