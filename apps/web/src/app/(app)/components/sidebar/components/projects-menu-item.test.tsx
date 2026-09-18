@@ -79,6 +79,14 @@ function setup(open = true) {
   return { ...render(<Tree />), refresh: () => <Tree /> };
 }
 
+/** Hrefs of the disclosure's project rows, in render order. */
+function projectHrefs(): string[] {
+  return screen
+    .getAllByRole("link")
+    .map((el) => el.getAttribute("href") ?? "")
+    .filter((href) => href.startsWith("/projects/"));
+}
+
 function expand() {
   fireEvent.click(screen.getByRole("button", { name: "expandProjects" }));
 }
@@ -283,115 +291,66 @@ describe("Projects sidebar", () => {
     expect(screen.queryByText("Personal project")).not.toBeInTheDocument();
   });
 
-  it("loads every page on scroll or keyboard focus, preserving API order and long names", async () => {
+  it("caps the disclosure at whole rows instead of scrolling inside itself", async () => {
     const name = "A long project name ".repeat(20).trim();
-    mocks.load
-      .mockResolvedValueOnce({
-        projects: Array.from({ length: 20 }, (_, i) => ({
-          id: String(i),
-          name: i === 0 ? name : `Project ${i}`,
-        })),
-        nextCursor: "page-2",
-      })
-      .mockResolvedValueOnce({
-        projects: [{ id: "20", name: "Page two" }],
-        nextCursor: "page-3",
-      })
-      .mockResolvedValueOnce({
-        projects: [{ id: "21", name: "Last project" }],
-        nextCursor: null,
-      });
+    mocks.load.mockResolvedValue({
+      projects: Array.from({ length: 12 }, (_, i) => ({
+        id: String(i),
+        name: i === 0 ? name : `Project ${i}`,
+      })),
+      nextCursor: "page-2",
+    });
     setup();
     expand();
-    const link = await screen.findByTitle(name);
-    expect(link).toHaveAttribute("href", "/projects/0");
-    expect(screen.getAllByRole("link")).toHaveLength(21);
+    const first = await screen.findByTitle(name);
+    expect(first).toHaveAttribute("href", "/projects/0");
+    expect(projectHrefs()).toEqual([
+      "/projects/0",
+      "/projects/1",
+      "/projects/2",
+      "/projects/3",
+      "/projects/4",
+    ]);
+    // One page is enough for five rows, and the list no longer nests a scroller.
     expect(mocks.load).toHaveBeenCalledTimes(1);
-    fireEvent.scroll(link.closest("ul")!);
-    const second = await screen.findByRole("link", { name: "Page two" });
-    fireEvent.focus(second);
-    await screen.findByRole("link", { name: "Last project" });
-    expect(
-      screen
-        .getAllByRole("link")
-        .slice(-2)
-        .map((el) => el.textContent),
-    ).toEqual(["PPage two", "LLast project"]);
-    expect(mocks.load.mock.calls.map(([args]) => args.cursor)).toEqual([
-      null,
-      "page-2",
-      "page-3",
-    ]);
-    expect(screen.queryByText("viewAllProjects")).not.toBeInTheDocument();
+    expect(first.closest("ul")?.className ?? "").not.toMatch(
+      /overflow-y-auto|max-h-/,
+    );
   });
 
-  it("hides stale pages after a page failure and retries the failed cursor", async () => {
-    mocks.load
-      .mockResolvedValueOnce({
-        projects: [{ id: "1", name: "First" }],
-        nextCursor: "next",
-      })
-      .mockRejectedValueOnce(new Error("Forbidden"))
-      .mockResolvedValueOnce({
-        projects: [{ id: "2", name: "Second" }],
-        nextCursor: null,
-      });
-    setup();
-    expand();
-    fireEvent.focus(await screen.findByRole("link", { name: "First" }));
-    const retry = await screen.findByRole("button", { name: "retryProjects" });
-    expect(
-      screen.queryByRole("link", { name: "First" }),
-    ).not.toBeInTheDocument();
-    fireEvent.click(retry);
-    expect(
-      await screen.findByRole("link", { name: "Second" }),
-    ).toBeInTheDocument();
-    expect(mocks.load.mock.calls.map(([args]) => args.cursor)).toEqual([
-      null,
-      "next",
-      "next",
-    ]);
-  });
-
-  it("ignores a late next page when switching workspaces", async () => {
-    let finish: (value: {
-      projects: { id: string; name: string }[];
-      nextCursor: null;
-    }) => void = () => {};
-    mocks.load
-      .mockResolvedValueOnce({
-        projects: [{ id: "old", name: "Old workspace" }],
-        nextCursor: "next",
-      })
-      .mockImplementationOnce(
-        () =>
-          new Promise((resolve) => {
-            finish = resolve;
-          }),
-      );
-    const view = setup();
-    expand();
-    fireEvent.focus(await screen.findByRole("link", { name: "Old workspace" }));
-    await waitFor(() => expect(mocks.load).toHaveBeenCalledTimes(2));
-    mocks.load.mockResolvedValueOnce({
-      projects: [{ id: "new", name: "New workspace" }],
+  it("ranks the reader's last visits ahead of Core's activity order", async () => {
+    localStorage.setItem(
+      "sokosumi.sidebar.recent-projects.v1",
+      JSON.stringify(["7", "9"]),
+    );
+    mocks.load.mockResolvedValue({
+      projects: Array.from({ length: 12 }, (_, i) => ({
+        id: String(i),
+        name: `Project ${i}`,
+      })),
       nextCursor: null,
     });
-    mocks.organizationId = null;
-    view.rerender(view.refresh());
-    await act(async () =>
-      finish({
-        projects: [{ id: "secret", name: "Late private project" }],
-        nextCursor: null,
-      }),
-    );
-    expect(screen.queryByText("Old workspace")).not.toBeInTheDocument();
-    expect(screen.queryByText("Late private project")).not.toBeInTheDocument();
+    setup();
+    expand();
+    await screen.findByRole("link", { name: "Project 7" });
+    expect(projectHrefs()).toEqual([
+      "/projects/7",
+      "/projects/9",
+      "/projects/0",
+      "/projects/1",
+      "/projects/2",
+    ]);
+  });
 
-    expect(
-      await screen.findByRole("link", { name: "New workspace" }),
-    ).toBeInTheDocument();
+  it("ignores a visit log entry the workspace no longer carries", async () => {
+    localStorage.setItem(
+      "sokosumi.sidebar.recent-projects.v1",
+      JSON.stringify(["from-another-workspace", "project-1"]),
+    );
+    setup();
+    expand();
+    await screen.findByRole("link", { name: "Launch plan" });
+    expect(projectHrefs()).toEqual(["/projects/project-1"]);
   });
 
   it("renders the established avatar fallback without changing the accessible link name", async () => {
