@@ -343,9 +343,8 @@ describe("GET /jobs/{id}", () => {
   });
 
   it("reads the personal workspace when the organization membership was removed", async () => {
-    // This route carries no seat gate, so the membership check in
-    // organizationContextMiddleware is the only thing standing between a
-    // removed member and the organization's data.
+    // Production jobs router also sets requireOrganizationProductSeat.
+    // This harness does not, so membership is the only control here.
     memberFindUniqueMock.mockResolvedValue(null);
 
     const app = createApp();

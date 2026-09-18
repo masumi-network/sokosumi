@@ -51,7 +51,7 @@ export type EnvVariables = {
  *
  * Auth middleware is automatically applied - all routes are protected
  * Coworker context middleware runs after auth to attach optional workspace scope from headers.
- * Organization header middleware is also applied to set organizationId from X-Organization-Slug header
+ * Organization context middleware verifies session membership, or sets organizationId from X-Organization-Slug
  * For mixed public/private routes, use standard OpenAPIHono class instead
  *
  * @example

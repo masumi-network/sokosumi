@@ -219,6 +219,12 @@ describe("organizationContextMiddleware", () => {
     const response = await app.request("http://localhost/");
 
     expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      actor: "user",
+      userId: "user_123",
+      organizationId: null,
+      role: "user",
+    });
     expect(setActiveOrganizationMock).not.toHaveBeenCalled();
   });
 
@@ -233,6 +239,12 @@ describe("organizationContextMiddleware", () => {
     const response = await app.request("http://localhost/");
 
     expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      actor: "user",
+      userId: "user_123",
+      organizationId: null,
+      role: "user",
+    });
     expect(setActiveOrganizationMock).not.toHaveBeenCalled();
   });
 
