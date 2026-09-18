@@ -40,6 +40,56 @@
                ReferencedContainer = "container:Sokosumi.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "CoreAPITests"
+               BuildableName = "CoreAPITests"
+               BlueprintName = "CoreAPITests"
+               ReferencedContainer = "container:Packages/CoreAPI">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "SokosumiAuthTests"
+               BuildableName = "SokosumiAuthTests"
+               BlueprintName = "SokosumiAuthTests"
+               ReferencedContainer = "container:Packages/SokosumiAuth">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "SokosumiChatTests"
+               BuildableName = "SokosumiChatTests"
+               BlueprintName = "SokosumiChatTests"
+               ReferencedContainer = "container:Packages/SokosumiChat">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "SokosumiRealtimeTests"
+               BuildableName = "SokosumiRealtimeTests"
+               BlueprintName = "SokosumiRealtimeTests"
+               ReferencedContainer = "container:Packages/SokosumiRealtime">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "SokosumiWorkspaceTests"
+               BuildableName = "SokosumiWorkspaceTests"
+               BlueprintName = "SokosumiWorkspaceTests"
+               ReferencedContainer = "container:Packages/SokosumiWorkspace">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction
