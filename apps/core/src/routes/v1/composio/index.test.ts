@@ -1,12 +1,17 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { forbidden } from "@/helpers/error";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 
 import app, { mountComposioCallback } from "./index";
 
-const completeComposioCallbackMock = vi.hoisted(() => vi.fn());
+const { completeComposioCallbackMock, requireCalendarBetaAccessMock } =
+  vi.hoisted(() => ({
+    completeComposioCallbackMock: vi.fn(),
+    requireCalendarBetaAccessMock: vi.fn(),
+  }));
 
 const SESSION_AUTH: AuthenticationContext = {
   actor: "user",
@@ -30,6 +35,12 @@ vi.mock("@/services/composio-callback-completion.service", () => ({
   completeComposioCallback: completeComposioCallbackMock,
 }));
 
+vi.mock("@/helpers/calendar-beta-access", () => ({
+  requireCalendarBetaAccess: requireCalendarBetaAccessMock,
+}));
+
+vi.mock("@/lib/db/prisma", () => ({ default: {} }));
+
 function createApp(authContext: AuthenticationContext) {
   const route = new OpenAPIHono<EnvVariables>({
     defaultHook: defaultValidationHook,
@@ -46,6 +57,7 @@ function createApp(authContext: AuthenticationContext) {
 describe("POST /composio/callback/complete", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    requireCalendarBetaAccessMock.mockResolvedValue(undefined);
   });
 
   it("rejects a callback completion request with no JSON body", async () => {
@@ -89,6 +101,31 @@ describe("POST /composio/callback/complete", () => {
     );
 
     expect(response.status).toBe(403);
+    expect(requireCalendarBetaAccessMock).not.toHaveBeenCalled();
+    expect(completeComposioCallbackMock).not.toHaveBeenCalled();
+  });
+
+  it("gates callback redemption behind Calendar beta access", async () => {
+    requireCalendarBetaAccessMock.mockRejectedValue(
+      forbidden("Calendar is only available to utxo AG workspace members"),
+    );
+    const response = await createApp(SESSION_AUTH).request(
+      "http://localhost/callback/complete",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          connectionId: "ca_123",
+          sessionUri: "https://backend.composio.dev/session/single-use",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(403);
+    expect(requireCalendarBetaAccessMock).toHaveBeenCalledWith(
+      "user_123",
+      expect.anything(),
+    );
     expect(completeComposioCallbackMock).not.toHaveBeenCalled();
   });
 

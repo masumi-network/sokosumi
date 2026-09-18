@@ -18,7 +18,8 @@ interface ProjectEditModalProps {
     websiteUrl?: string | null;
   };
   labels: ProjectFormLabels;
-  socialConnections: ProjectSocialConnection[];
+  /** Omitted outside the Calendar beta, which hides the social accounts section. */
+  socialConnections?: ProjectSocialConnection[];
 }
 
 export function ProjectEditModal({
@@ -59,10 +60,12 @@ export function ProjectEditModal({
         onSubmittingChange={setIsDismissDisabled}
         onSuccess={handleClose}
       >
-        <ProjectSocialAccounts
-          projectId={projectId}
-          connections={socialConnections}
-        />
+        {socialConnections ? (
+          <ProjectSocialAccounts
+            projectId={projectId}
+            connections={socialConnections}
+          />
+        ) : null}
       </ProjectForm>
     </TaskFormModal>
   );

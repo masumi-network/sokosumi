@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { ProjectEditModal } from "@/app/projects/components/project-edit-modal";
+import { hasCurrentUserCalendarBetaAccess } from "@/lib/calendar-beta-access.server";
 import { projectService } from "@/lib/services/project.service";
 
 export const metadata: Metadata = {
@@ -14,10 +15,15 @@ export default async function EditProjectPage({
 }: {
   params: Promise<{ projectId: string }>;
 }) {
-  const { projectId } = await params;
+  const [socialBetaEnabled, { projectId }] = await Promise.all([
+    hasCurrentUserCalendarBetaAccess(),
+    params,
+  ]);
   const [projectResult, socialConnectionsResult] = await Promise.allSettled([
     projectService.getProjectById(projectId),
-    projectService.listSocialConnections(projectId),
+    socialBetaEnabled
+      ? projectService.listSocialConnections(projectId)
+      : Promise.resolve(undefined),
   ]);
 
   if (projectResult.status === "rejected") {
