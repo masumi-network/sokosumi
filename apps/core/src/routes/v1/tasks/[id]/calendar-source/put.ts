@@ -116,10 +116,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const response = await serializableTransaction(async (tx) => {
       if (
-        !(await lockCalendarScope(tx, existingTask.workspaceId, [
-          existingTask.projectId,
-          targetProjectId,
-        ])) ||
+        !(await lockCalendarScope(
+          tx,
+          existingTask.workspaceId,
+          [existingTask.projectId, targetProjectId],
+          userContext?.userId,
+        )) ||
         !(await lockTaskRows(tx, [id]))
       ) {
         throw conflict("Task Calendar source changed during source move");

@@ -25,6 +25,10 @@ const {
   projectFindFirstMock,
   projectUpdateManyMock,
   projectDeleteManyMock,
+  projectDeletionTombstoneFindUniqueMock,
+  projectDeletionTombstoneCreateMock,
+  taskFindFirstMock,
+  taskLinkFindFirstMock,
   taskScheduleOccurrenceFindFirstMock,
   transactionMock,
   queryRawMock,
@@ -40,6 +44,10 @@ const {
   projectFindFirstMock: vi.fn(),
   projectUpdateManyMock: vi.fn(),
   projectDeleteManyMock: vi.fn(),
+  projectDeletionTombstoneFindUniqueMock: vi.fn(),
+  projectDeletionTombstoneCreateMock: vi.fn(),
+  taskFindFirstMock: vi.fn(),
+  taskLinkFindFirstMock: vi.fn(),
   taskScheduleOccurrenceFindFirstMock: vi.fn(),
   transactionMock: vi.fn(),
   queryRawMock: vi.fn(),
@@ -80,6 +88,16 @@ vi.mock("@/lib/db/prisma", () => ({
     taskScheduleOccurrence: {
       findFirst: taskScheduleOccurrenceFindFirstMock,
     },
+    task: {
+      findFirst: taskFindFirstMock,
+    },
+    taskLink: {
+      findFirst: taskLinkFindFirstMock,
+    },
+    projectDeletionTombstone: {
+      findUnique: projectDeletionTombstoneFindUniqueMock,
+      create: projectDeletionTombstoneCreateMock,
+    },
   },
 }));
 
@@ -95,6 +113,7 @@ const WORKSPACE_ID = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
 const PROJECT_ID = "22222222-2222-4222-8222-222222222222";
 
 const UNKNOWN_PROJECT_ID = "55555555-5555-4555-8555-555555555555";
+const OPERATION_ID = "77777777-7777-4777-8777-777777777777";
 
 const WORKSPACE_CONTEXT = {
   workspaceId: WORKSPACE_ID,
@@ -450,10 +469,22 @@ describe("PATCH /projects/{id}", () => {
 describe("DELETE /projects/{id}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    taskFindFirstMock.mockResolvedValue(null);
+    taskLinkFindFirstMock.mockResolvedValue(null);
+    taskScheduleOccurrenceFindFirstMock.mockResolvedValue(null);
+    projectDeletionTombstoneFindUniqueMock.mockResolvedValue(null);
+    projectDeletionTombstoneCreateMock.mockResolvedValue({});
+    queryRawMock.mockResolvedValue([{ id: "locked" }]);
     transactionMock.mockImplementation(async (callback) =>
       callback({
         $queryRaw: queryRawMock,
         project: { deleteMany: projectDeleteManyMock },
+        projectDeletionTombstone: {
+          findUnique: projectDeletionTombstoneFindUniqueMock,
+          create: projectDeletionTombstoneCreateMock,
+        },
+        task: { findFirst: taskFindFirstMock },
+        taskLink: { findFirst: taskLinkFindFirstMock },
         taskScheduleOccurrence: {
           findFirst: taskScheduleOccurrenceFindFirstMock,
         },
@@ -461,25 +492,50 @@ describe("DELETE /projects/{id}", () => {
     );
   });
 
+  it("requires a UUID Idempotency-Key before opening a transaction", async () => {
+    const app = createApp();
+    mountDeleteProject(app);
+
+    const missing = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "DELETE",
+    });
+    const malformed = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "DELETE",
+      headers: { "Idempotency-Key": "delete-once" },
+    });
+
+    expect(missing.status).toBe(422);
+    expect(malformed.status).toBe(422);
+    expect(transactionMock).not.toHaveBeenCalled();
+  });
+
   it("distinguishes a missing Project from a guarded Project", async () => {
     projectDeleteManyMock.mockResolvedValue({ count: 0 });
     queryRawMock
+      .mockResolvedValueOnce([{ id: "user_123" }])
+      .mockResolvedValueOnce([{ id: WORKSPACE_ID }])
       .mockResolvedValueOnce([{ id: WORKSPACE_ID }])
       .mockResolvedValueOnce([]);
     const app = createApp();
     mountDeleteProject(app);
     const res = await app.request(`http://localhost/${PROJECT_ID}`, {
       method: "DELETE",
+      headers: { "Idempotency-Key": OPERATION_ID },
     });
     expect(res.status).toBe(404);
     expect(deleteProjectBlobsMock).not.toHaveBeenCalled();
 
     queryRawMock
+      .mockResolvedValueOnce([{ id: "user_123" }])
+      .mockResolvedValueOnce([{ id: WORKSPACE_ID }])
       .mockResolvedValueOnce([{ id: WORKSPACE_ID }])
       .mockResolvedValueOnce([{ id: PROJECT_ID }]);
     const guardedResponse = await app.request(
       `http://localhost/${PROJECT_ID}`,
-      { method: "DELETE" },
+      {
+        method: "DELETE",
+        headers: { "Idempotency-Key": OPERATION_ID },
+      },
     );
     const guardedBody = (await guardedResponse.json()) as { kind?: string };
 
@@ -499,13 +555,11 @@ describe("DELETE /projects/{id}", () => {
 
   it("returns deleted payload", async () => {
     projectDeleteManyMock.mockResolvedValue({ count: 1 });
-    queryRawMock
-      .mockResolvedValueOnce([{ id: WORKSPACE_ID }])
-      .mockResolvedValueOnce([{ id: PROJECT_ID }]);
     const app = createApp();
     mountDeleteProject(app);
     const res = await app.request(`http://localhost/${PROJECT_ID}`, {
       method: "DELETE",
+      headers: { "Idempotency-Key": OPERATION_ID },
     });
     expect(res.status).toBe(200);
     expect(deliverCalendarInvalidationsNowMock).toHaveBeenCalledWith(
@@ -513,27 +567,109 @@ describe("DELETE /projects/{id}", () => {
     );
     const body = (await res.json()) as { data: { deleted: boolean } };
     expect(body.data.deleted).toBe(true);
-    expect(queryRawMock).toHaveBeenCalledTimes(2);
+    expect(queryRawMock).toHaveBeenCalledTimes(4);
     expect(transactionMock).toHaveBeenCalledOnce();
+    expect(projectDeletionTombstoneCreateMock).toHaveBeenCalledWith({
+      data: {
+        workspaceId: WORKSPACE_ID,
+        projectId: PROJECT_ID,
+        operationId: OPERATION_ID,
+        actorUserId: "user_123",
+      },
+    });
     expect(deleteProjectBlobsMock).toHaveBeenCalledWith(PROJECT_ID);
+
+    const lockStatements = queryRawMock.mock.calls.map((call) =>
+      (call[0] as TemplateStringsArray).join("?"),
+    );
+    expect(lockStatements[0]).toMatch(/FROM "user"[\s\S]*FOR KEY SHARE/);
+    expect(lockStatements[1]).toMatch(/FROM "workspace"[\s\S]*FOR UPDATE/);
+    expect(lockStatements[3]).toMatch(/FROM "project"[\s\S]*FOR UPDATE/);
   });
 
-  it("returns calendar-history conflict before deleting a project with occurrences", async () => {
-    taskScheduleOccurrenceFindFirstMock.mockResolvedValue({ id: "occ_123" });
-    queryRawMock
-      .mockResolvedValueOnce([{ id: WORKSPACE_ID }])
-      .mockResolvedValueOnce([{ id: PROJECT_ID }]);
+  it("replays an exact deletion after the Project row is gone", async () => {
+    projectDeletionTombstoneFindUniqueMock.mockResolvedValue({
+      actorUserId: "user_123",
+      projectId: PROJECT_ID,
+    });
     const app = createApp();
     mountDeleteProject(app);
 
     const response = await app.request(`http://localhost/${PROJECT_ID}`, {
       method: "DELETE",
+      headers: { "Idempotency-Key": OPERATION_ID },
+    });
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).data).toEqual({
+      id: PROJECT_ID,
+      deleted: true,
+    });
+    expect(queryRawMock).toHaveBeenCalledTimes(2);
+    expect(projectDeleteManyMock).not.toHaveBeenCalled();
+    expect(projectDeletionTombstoneCreateMock).not.toHaveBeenCalled();
+    expect(deleteProjectBlobsMock).toHaveBeenCalledWith(PROJECT_ID);
+  });
+
+  it.each([
+    {
+      replay: { actorUserId: "user_123", projectId: UNKNOWN_PROJECT_ID },
+      label: "another Project",
+    },
+    {
+      replay: { actorUserId: "another_user", projectId: PROJECT_ID },
+      label: "another actor",
+    },
+  ])("rejects an idempotency key used by $label", async ({ replay }) => {
+    projectDeletionTombstoneFindUniqueMock.mockResolvedValue(replay);
+    const app = createApp();
+    mountDeleteProject(app);
+
+    const response = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "DELETE",
+      headers: { "Idempotency-Key": OPERATION_ID },
+    });
+
+    expect(response.status).toBe(409);
+    expect((await response.json()).kind).toBe("idempotency_conflict");
+    expect(projectDeleteManyMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["active projection", taskFindFirstMock],
+    ["schedule link", taskLinkFindFirstMock],
+    ["occurrence history", taskScheduleOccurrenceFindFirstMock],
+  ])("blocks Project deletion with %s", async (_label, guardedFindMock) => {
+    guardedFindMock.mockResolvedValue({ id: "calendar-child" });
+    const app = createApp();
+    mountDeleteProject(app);
+
+    const response = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "DELETE",
+      headers: { "Idempotency-Key": OPERATION_ID },
+    });
+
+    expect(response.status).toBe(409);
+    expect((await response.json()).kind).toBe("project_has_calendar_history");
+    expect(projectDeleteManyMock).not.toHaveBeenCalled();
+    expect(projectDeletionTombstoneCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns calendar-history conflict before deleting a project with occurrences", async () => {
+    taskScheduleOccurrenceFindFirstMock.mockResolvedValue({ id: "occ_123" });
+    const app = createApp();
+    mountDeleteProject(app);
+
+    const response = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "DELETE",
+      headers: { "Idempotency-Key": OPERATION_ID },
     });
     const body = (await response.json()) as { kind?: string };
 
     expect(response.status).toBe(409);
     expect(body.kind).toBe("project_has_calendar_history");
     expect(projectDeleteManyMock).not.toHaveBeenCalled();
+    expect(projectDeletionTombstoneCreateMock).not.toHaveBeenCalled();
     expect(deleteProjectBlobsMock).not.toHaveBeenCalled();
   });
 
@@ -542,6 +678,7 @@ describe("DELETE /projects/{id}", () => {
     mountDeleteProject(app);
     const res = await app.request(`http://localhost/${PROJECT_ID}`, {
       method: "DELETE",
+      headers: { "Idempotency-Key": OPERATION_ID },
     });
     expect(res.status).toBe(403);
     expect(projectDeleteManyMock).not.toHaveBeenCalled();

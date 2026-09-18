@@ -6,7 +6,12 @@ import {
 import type { createPrismaClient } from "@sokosumi/database/client";
 import { APIError } from "better-auth/api";
 
+import {
+  CalendarErasureBlockedError,
+  eraseWorkspaceCalendarData,
+} from "@/helpers/calendar-erasure";
 import { isPrismaTransactionConflict } from "@/helpers/prisma";
+import { SWEEPABLE_X402_STATUSES } from "@/helpers/task-deletion-payments";
 import { deleteTaskFileIfOwned } from "@/lib/blob";
 
 type PrismaClient = ReturnType<typeof createPrismaClient>;
@@ -20,12 +25,6 @@ type PrismaClient = ReturnType<typeof createPrismaClient>;
  * instead of being silently destroyed while it may still represent money in
  * flight, or leaking past the sweep into a raw RESTRICT-FK 500.
  */
-export const SWEEPABLE_X402_STATUSES = [
-  TaskX402PaymentStatus.VERIFIED,
-  TaskX402PaymentStatus.FAILED,
-  TaskX402PaymentStatus.REFUNDED,
-];
-
 /**
  * Clear creator RESTRICT blockers and delete the user in one transaction.
  *
@@ -91,6 +90,42 @@ export async function prepareTasksForUserDeletion(
           WHERE "id" = ${userId}
           FOR UPDATE
         `;
+        const affectedWorkspaces = await tx.$queryRaw<
+          Array<{ id: string; userId: string | null }>
+        >`
+          SELECT workspace.id, workspace."userId"
+          FROM "workspace" AS workspace
+          WHERE workspace."userId" = ${userId}
+            OR EXISTS (
+              SELECT 1
+              FROM "task"
+              WHERE "task"."workspaceId" = workspace.id
+                AND "task"."ownerId" = ${userId}
+            )
+          ORDER BY workspace.id ASC
+          FOR UPDATE OF workspace
+        `;
+        await tx.$queryRaw`
+          SELECT project.id
+          FROM "project" AS project
+          JOIN "workspace" AS workspace ON workspace.id = project."workspaceId"
+          WHERE workspace."userId" = ${userId}
+            OR EXISTS (
+              SELECT 1
+              FROM "task"
+              WHERE "task"."projectId" = project.id
+                AND "task"."ownerId" = ${userId}
+            )
+          ORDER BY project.id ASC
+          FOR UPDATE OF project
+        `;
+
+        for (const workspace of affectedWorkspaces) {
+          if (workspace.userId === userId) {
+            await eraseWorkspaceCalendarData(tx, workspace.id);
+          }
+        }
+
         await tx.$queryRaw`
           SELECT "id"
           FROM "task"
@@ -485,6 +520,11 @@ export async function prepareTasksForUserDeletion(
         // no-op. Keeping this delete inside the lock/sweep transaction closes
         // the otherwise-unprotected gap after beforeDelete returns.
         await tx.user.deleteMany({ where: { id: userId } });
+        await tx.calendarInvalidationOutbox.deleteMany({
+          where: {
+            payload: { path: ["userId"], equals: userId },
+          },
+        });
 
         return ownedFiles;
       },
@@ -499,6 +539,21 @@ export async function prepareTasksForUserDeletion(
       { maxWait: 5_000, timeout: 30_000 },
     );
   } catch (error) {
+    // Personal-workspace erasure runs before the payment guards below, so it
+    // is the first to see a blocking payment. Surface the same codes they use.
+    if (error instanceof CalendarErasureBlockedError) {
+      throw error.blocker === "task_payment_authorization_live"
+        ? new APIError("BAD_REQUEST", {
+            code: "TASK_X402_PAYMENT_AUTHORIZATION_LIVE",
+            message:
+              "A signed task payment authorization is still live. Retry account deletion after it expires, or contact support.",
+          })
+        : new APIError("BAD_REQUEST", {
+            code: "TASK_X402_PAYMENT_UNRESOLVED",
+            message:
+              "A task payment is in a state that blocks account deletion. Contact support, then delete your account again.",
+          });
+    }
     if (isPrismaTransactionConflict(error)) {
       // Deliberately NOT an x402-specific code: this catch wraps the whole
       // transaction, and a write conflict or deadlock can just as well come

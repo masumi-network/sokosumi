@@ -227,10 +227,14 @@ describe("project actions", () => {
     const { deleteProject } = await import("./action");
     const { revalidatePath } = await import("next/cache");
     const result = await deleteProject({
-      projectId: "project-1",
+      projectId: " project-1 ",
+      operationId: "123e4567-e89b-42d3-a456-426614174001",
     });
 
-    expect(projectServiceMock.deleteProject).toHaveBeenCalledWith("project-1");
+    expect(projectServiceMock.deleteProject).toHaveBeenCalledWith(
+      "project-1",
+      "123e4567-e89b-42d3-a456-426614174001",
+    );
     expect(revalidatePath).toHaveBeenCalledWith("/projects");
     expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1");
     expect(result).toEqual({ projectId: "project-1" });

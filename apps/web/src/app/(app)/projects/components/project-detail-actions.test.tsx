@@ -4,11 +4,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProjectDetailActions } from "@/app/projects/components/project-detail-actions";
 
-const { closeProjectMock, refreshMock, toastErrorMock } = vi.hoisted(() => ({
-  closeProjectMock: vi.fn(),
-  refreshMock: vi.fn(),
-  toastErrorMock: vi.fn(),
-}));
+const { closeProjectMock, deleteProjectMock, refreshMock, toastErrorMock } =
+  vi.hoisted(() => ({
+    closeProjectMock: vi.fn(),
+    deleteProjectMock: vi.fn(),
+    refreshMock: vi.fn(),
+    toastErrorMock: vi.fn(),
+  }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -26,7 +28,7 @@ vi.mock("sonner", () => ({
 
 vi.mock("@/lib/actions/project/action", () => ({
   closeProject: closeProjectMock,
-  deleteProject: vi.fn(),
+  deleteProject: deleteProjectMock,
 }));
 
 const LABELS = {
@@ -56,6 +58,7 @@ const LABELS = {
 describe("ProjectDetailActions", () => {
   beforeEach(() => {
     closeProjectMock.mockReset();
+    deleteProjectMock.mockReset();
     refreshMock.mockReset();
     toastErrorMock.mockReset();
   });
@@ -112,6 +115,35 @@ describe("ProjectDetailActions", () => {
       expectedProjectRevision: 3,
       reason: "Campaign complete",
     });
+  });
+
+  it("reuses the Project deletion identity only while retrying one intent", async () => {
+    const user = userEvent.setup();
+    deleteProjectMock.mockRejectedValue(new Error("delete failed"));
+    render(<ProjectDetailActions projectId="project-1" labels={LABELS} />);
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Delete" }));
+    const deleteButton = screen.getByRole("button", { name: "Delete" });
+    await user.click(deleteButton);
+    await waitFor(() => expect(deleteProjectMock).toHaveBeenCalledTimes(1));
+    await user.click(deleteButton);
+    await waitFor(() => expect(deleteProjectMock).toHaveBeenCalledTimes(2));
+
+    const firstOperationId = deleteProjectMock.mock.calls[0]?.[0].operationId;
+    expect(firstOperationId).toMatch(/[0-9a-f-]{36}/);
+    expect(deleteProjectMock.mock.calls[1]?.[0]).toEqual({
+      projectId: "project-1",
+      operationId: firstOperationId,
+    });
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await user.click(screen.getByRole("menuitem", { name: "Delete" }));
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+    await waitFor(() => expect(deleteProjectMock).toHaveBeenCalledTimes(3));
+    expect(deleteProjectMock.mock.calls[2]?.[0].operationId).not.toBe(
+      firstOperationId,
+    );
   });
 
   it("does not offer close after closing has started", async () => {

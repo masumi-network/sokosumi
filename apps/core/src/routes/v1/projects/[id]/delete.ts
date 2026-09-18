@@ -2,11 +2,11 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
-import { lockCalendarScope } from "@/helpers/calendar-locks";
+import { lockCalendarActor, lockCalendarScope } from "@/helpers/calendar-locks";
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -32,6 +32,17 @@ const deleteResponseSchema = z
   })
   .openapi("ProjectDeleted");
 
+const headersSchema = z.object({
+  "idempotency-key": z
+    .string()
+    .uuid()
+    .openapi({
+      param: { in: "header" },
+      description: "Idempotency identity for this Project deletion",
+      example: "123e4567-e89b-42d3-a456-426614174000",
+    }),
+});
+
 const route = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "delete",
@@ -41,6 +52,7 @@ const route = withOrganizationSlugHeaderParameter(
     tags: ["Projects"],
     request: {
       params: paramsSchema,
+      headers: headersSchema,
     },
     responses: {
       200: jsonSuccessResponse(deleteResponseSchema, "Project deleted"),
@@ -48,29 +60,77 @@ const route = withOrganizationSlugHeaderParameter(
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
       409: jsonErrorResponse("Conflict"),
+      422: jsonErrorResponse("Unprocessable Entity"),
     },
   }),
 );
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    requireOwnerUserContext(c.var.authContext);
+    const userContext = requireOwnerUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id } = c.req.valid("param");
+    const { "idempotency-key": operationId } = c.req.valid("header");
 
-    const deleteOutcome = await prisma.$transaction(async (tx) => {
-      const locked = await lockCalendarScope(tx, workspaceContext.workspaceId, [
-        id,
-      ]);
-      if (!locked) {
+    const deleteOutcome = await serializableTransaction(async (tx) => {
+      if (!(await lockCalendarActor(tx, userContext.userId))) {
         return "missing" as const;
       }
 
+      if (!(await lockCalendarScope(tx, workspaceContext.workspaceId, []))) {
+        return "missing" as const;
+      }
+
+      const replay = await tx.projectDeletionTombstone.findUnique({
+        where: {
+          workspaceId_operationId: {
+            workspaceId: workspaceContext.workspaceId,
+            operationId,
+          },
+        },
+        select: { actorUserId: true, projectId: true },
+      });
+      if (replay) {
+        if (
+          replay.projectId !== id ||
+          replay.actorUserId !== userContext.userId
+        ) {
+          throw conflict(
+            "This idempotency identity was already used for another Project deletion",
+            { kind: CORE_API_ERROR_KINDS.IDEMPOTENCY_CONFLICT },
+          );
+        }
+        return "replayed" as const;
+      }
+
+      if (!(await lockCalendarScope(tx, workspaceContext.workspaceId, [id]))) {
+        return "missing" as const;
+      }
+
+      const scheduledTask = await tx.task.findFirst({
+        where: {
+          projectId: id,
+          archivedAt: null,
+          OR: [
+            { metadata: { not: null } },
+            { nextRunAt: { not: null } },
+            { scheduleQuarantine: { isNot: null } },
+          ],
+        },
+        select: { id: true },
+      });
+      const scheduleLink = await tx.taskLink.findFirst({
+        where: {
+          type: "SCHEDULE",
+          OR: [{ fromTask: { projectId: id } }, { toTask: { projectId: id } }],
+        },
+        select: { id: true },
+      });
       const occurrence = await tx.taskScheduleOccurrence.findFirst({
         where: { sourceProjectId: id },
         select: { id: true },
       });
-      if (occurrence) {
+      if (scheduledTask || scheduleLink || occurrence) {
         return "guarded" as const;
       }
 
@@ -83,10 +143,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           closeOperation: { is: null },
         },
       });
-      return deleteResult.count === 1
-        ? ("deleted" as const)
-        : ("guarded" as const);
-    });
+      if (deleteResult.count !== 1) {
+        return "guarded" as const;
+      }
+
+      await tx.projectDeletionTombstone.create({
+        data: {
+          workspaceId: workspaceContext.workspaceId,
+          projectId: id,
+          operationId,
+          actorUserId: userContext.userId,
+        },
+      });
+
+      return "deleted" as const;
+    }, "Project changed during deletion");
 
     if (deleteOutcome === "missing") {
       throw notFound("Project not found");
