@@ -108,6 +108,7 @@ vi.mock("../chat-room-sidebar-row", () => ({
       ) : null}
     </li>
   ),
+  RailAttentionPill: () => null,
 }));
 
 vi.mock("../pending-invitation-rail-button", () => ({
@@ -163,6 +164,12 @@ vi.mock("@/components/ui/sheet", () => ({
 }));
 
 vi.mock("@/components/ui/sidebar", () => ({
+  // The section header's rail square, as a bare marker: its children repeat
+  // the title the expanded heading already renders, which would double every
+  // `getByText`. `chat-sidebar-section-header.test.tsx` covers the square.
+  SidebarMenuButton: ({ tooltip }: { tooltip?: string }) => (
+    <span data-testid="section-rail-button" data-tooltip={tooltip} />
+  ),
   SidebarGroup: ({ children }: { children: ReactNode }) => (
     <div>{children}</div>
   ),

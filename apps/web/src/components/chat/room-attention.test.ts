@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveRoomAttention } from "./room-attention";
+import {
+  resolveRoomAttention,
+  resolveSectionAttention,
+} from "./room-attention";
 
 describe("resolveRoomAttention", () => {
   it("bolds unread rooms without a mention badge", () => {
@@ -127,5 +130,42 @@ describe("resolveRoomAttention", () => {
         }
       }
     }
+  });
+});
+
+describe("resolveSectionAttention", () => {
+  const read = { unreadCount: 0, unreadMentionCount: 0 };
+  const unread = { unreadCount: 3, unreadMentionCount: 0 };
+  const mentioned = { unreadCount: 1, unreadMentionCount: 1 };
+
+  it("holds nothing when every room is read, or there are none", () => {
+    expect(resolveSectionAttention([])).toBeNull();
+    expect(resolveSectionAttention([read, read])).toBeNull();
+  });
+
+  it("is unread when a room is unread or marked unread", () => {
+    expect(resolveSectionAttention([read, unread])).toBe("unread");
+    expect(resolveSectionAttention([{ ...read, markedUnread: true }])).toBe(
+      "unread",
+    );
+  });
+
+  it("lets a mention win over unread, wherever it sits", () => {
+    expect(resolveSectionAttention([unread, mentioned, read])).toBe("mention");
+  });
+
+  it("stays quiet for a muted room, as the room's own row does", () => {
+    expect(
+      resolveSectionAttention([{ ...mentioned, mutedAt: new Date() }]),
+    ).toBeNull();
+  });
+
+  it("counts a pending invitation as a mention", () => {
+    expect(resolveSectionAttention([], { hasPendingInvitation: true })).toBe(
+      "mention",
+    );
+    expect(
+      resolveSectionAttention([unread], { hasPendingInvitation: true }),
+    ).toBe("mention");
   });
 });

@@ -1,6 +1,15 @@
 "use client";
 
-import { Ellipsis, Globe2, RotateCcw, Trash2 } from "lucide-react";
+import {
+  Building2,
+  Ellipsis,
+  Globe2,
+  Hash,
+  MessageCircle,
+  Pin,
+  RotateCcw,
+  Trash2,
+} from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useMemo, useRef, useState, useTransition } from "react";
@@ -64,6 +73,7 @@ import {
   PinnedRoomsDndContext,
   SortablePinnedRoomRow,
 } from "./pinned-rooms-dnd";
+import { resolveSectionAttention } from "./room-attention";
 import { beginRoomAttentionRefresh } from "./room-read-overlay";
 import { useOrganizationChatRooms } from "./use-organization-chat-rooms";
 
@@ -307,7 +317,11 @@ export function OrganizationChatList({
       <SidebarGroupContent className="space-y-2">
         {pinned.length > 0 ? (
           <Collapsible open={pinnedOpen} onOpenChange={setPinnedOpen}>
-            <ChatSidebarSectionHeader isOpen={pinnedOpen}>
+            <ChatSidebarSectionHeader
+              isOpen={pinnedOpen}
+              railIcon={Pin}
+              closedAttention={resolveSectionAttention(pinned)}
+            >
               {t("pinned")}
             </ChatSidebarSectionHeader>
             <CollapsibleContent>
@@ -364,6 +378,8 @@ export function OrganizationChatList({
           >
             <ChatSidebarSectionHeader
               isOpen={channelSectionOpen}
+              railIcon={Hash}
+              closedAttention={resolveSectionAttention(namedChannels)}
               createAction={<CreateChannelDialog />}
               secondaryAction={<BrowseChannelsDialog />}
             >
@@ -388,7 +404,13 @@ export function OrganizationChatList({
 
         {pendingRows.length > 0 || externalJoined.length > 0 ? (
           <Collapsible open={externalOpen} onOpenChange={setExternalOpen}>
-            <ChatSidebarSectionHeader isOpen={externalOpen}>
+            <ChatSidebarSectionHeader
+              isOpen={externalOpen}
+              railIcon={Building2}
+              closedAttention={resolveSectionAttention(externalJoined, {
+                hasPendingInvitation: pendingRows.length > 0,
+              })}
+            >
               {tExternal("title")}
             </ChatSidebarSectionHeader>
             <CollapsibleContent>
@@ -633,6 +655,8 @@ export function OrganizationChatList({
           */}
           <ChatSidebarSectionHeader
             isOpen={directOpen}
+            railIcon={MessageCircle}
+            closedAttention={resolveSectionAttention(directMessages)}
             createAction={<CreateDirectDialog />}
           >
             {t("directMessages")}
