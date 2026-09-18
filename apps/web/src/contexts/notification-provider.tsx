@@ -7,6 +7,7 @@ import {
   use,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -252,10 +253,14 @@ export function NotificationProvider({
   // The view the reader last chose, restored before the first fetch below.
   // A seed, not a switch: there is no loaded list to tear down yet, and the
   // ref is what the first request reads, so that request already asks for
-  // the remembered view instead of fetching All and replacing it. The
-  // rendered value follows in this same commit, after hydration, so the
-  // server's markup and the first client render still agree on "all".
-  useEffect(() => {
+  // the remembered view instead of fetching All and replacing it.
+  //
+  // Before paint, not after, or the strip underlines All for one frame and
+  // then jumps. The server's markup and the first client render still agree
+  // on "all", so hydration is unaffected; only the commit that follows it
+  // carries the remembered view. Same seam, and the same reason, as the
+  // chat composer's own restore in RoomOpenLoadingView.
+  useLayoutEffect(() => {
     const remembered = getNotificationViewPreference();
     if (remembered === null || remembered === viewRef.current) return;
     viewRef.current = remembered;
