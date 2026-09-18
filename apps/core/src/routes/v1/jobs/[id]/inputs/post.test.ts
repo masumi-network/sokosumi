@@ -105,12 +105,8 @@ vi.mock("@sokosumi/masumi", () => ({
   }),
 }));
 
-vi.mock("@/lib/db/prisma", async () => ({
+vi.mock("@/lib/db/prisma", () => ({
   default: {
-    member: {
-      findUnique: (await import("@/test-fixtures/organization-membership"))
-        .stubMemberFindUnique,
-    },
     $transaction: (...args: unknown[]) => prismaTransactionMock(...args),
     jobInput: {
       create: (...args: unknown[]) => jobInputCreateMock(...args),
