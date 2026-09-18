@@ -4,7 +4,7 @@ Glossary: `CONTEXT.md`. Decision: `docs/adr/0018-core-owned-project-social-conne
 
 ## Requirement
 
-Sokosumi Projects can connect multiple X accounts through `Project settings > Social accounts`. A Social account may be deliberately connected to more than one Project, but each Project social connection is independently authorized, managed, disconnected, and audited. The connection grants the Project's future scheduler permission to publish through that account until disconnected.
+Sokosumi Projects can connect multiple X accounts through the `Social accounts` section of the Project's Social module page. A Social account may be deliberately connected to more than one Project, but each Project social connection is independently authorized, managed, disconnected, and audited. The connection grants the Project's future scheduler permission to publish through that account until disconnected.
 
 ## Problem Statement
 
@@ -12,13 +12,13 @@ Sokosumi has no native, Project-scoped way to connect an external publishing ide
 
 ## Solution
 
-Add a provider-agnostic Project social connection resource in Core, exposing X as the first and only supported provider. Core validates the interactive human's Workspace access, brokers X OAuth with Composio, records the Project association and non-executable audit history, and never exposes provider credentials to Web. Web adds a Social accounts section to Project settings where Workspace humans can connect, view, reconnect, replace, or disconnect X accounts.
+Add a provider-agnostic Project social connection resource in Core, exposing X as the first and only supported provider. Core validates the interactive human's Workspace access, brokers X OAuth with Composio, records the Project association and non-executable audit history, and never exposes provider credentials to Web. Web adds a Social accounts section to the Project's Social module page where Workspace humans can connect, view, reconnect, replace, or disconnect X accounts.
 
 The initial release creates the foundation only. It does not compose, post, upload media, schedule, or display social history. Connecting explicitly grants the Project's future scheduler authority to publish as that account; future scheduling will be a Core capability rather than an X or Composio delayed-post feature.
 
 ## User Stories
 
-1. As a human in a Project's Workspace, I want to open Social accounts in Project settings, so that I can prepare the Project for social publishing.
+1. As a human in a Project's Workspace, I want to open Social accounts on the Project's Social page, so that I can prepare the Project for social publishing.
 2. As a Social connection manager, I want to connect an X account from a specific Project, so that the Project gains only an explicitly granted publishing authorization.
 3. As a Social connection manager, I want the X OAuth flow to open only after Core has authorized my Workspace access, so that a copied Project ID cannot start a connection.
 4. As a Social connection manager, I want to return from X OAuth to the same Project and see the connection result, so that I know whether the account is ready.
@@ -41,7 +41,7 @@ The initial release creates the foundation only. It does not compose, post, uplo
 
 ## Implementation Decisions
 
-- **Single seam: Project social connections.** A Core Project resource owns Project authorization, connection intents, Composio calls, state transitions, provider references, and audit records. Web's Project settings service/action layer is its only product client. The existing OAuth popup transport is reusable, but the Project lifecycle is independent from Hermes connections.
+- **Single seam: Project social connections.** A Core Project resource owns Project authorization, connection intents, Composio calls, state transitions, provider references, and audit records. Web's Project service/action layer is its only product client. The existing OAuth popup transport is reusable, but the Project lifecycle is independent from Hermes connections.
 - **Provider-agnostic persistence, X-only behavior.** Persist a provider discriminator and a normalized external Social account identity so other providers can be added without a schema redesign. The API, UI, and Composio configuration accept only X in this release. Do not build a plugin framework or generic provider catalogue.
 - **Cardinality.** A Project has multiple Project social connections. One external Social account can be associated with multiple Projects only by a new OAuth flow begun from each Project. Do not surface an account picker or connection inventory outside the current Project. Only one active X connection for the same external account may exist within a Project.
 - **Human management policy.** A Social connection manager is an interactive, logged-in human in the Project's Workspace. User API keys, coworkers, orchestrators, and other automation actors are rejected. This is intentionally broader than owner-only Project editing: every eligible Workspace human can view and manage these connections.

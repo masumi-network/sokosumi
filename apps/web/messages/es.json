@@ -2254,7 +2254,7 @@
           "popupBlocked": "Tu navegador bloqueó la ventana de autorización de X. Permite las ventanas emergentes e inténtalo de nuevo.",
           "popupClosed": "La ventana de autorización de X se cerró antes de terminar la configuración. Inténtalo de nuevo.",
           "timeout": "La autorización de X tardó demasiado. Inténtalo de nuevo.",
-          "providerCallback": "La autorización de X no se completó. Vuelve a Configuración del proyecto e inténtalo de nuevo.",
+          "providerCallback": "La autorización de X no se completó. Vuelve a la página Social del proyecto e inténtalo de nuevo.",
           "legacyCallback": "Esta devolución de OAuth no puede verificar tu cuenta de X. Actualiza la configuración de devolución de Composio e inténtalo de nuevo.",
           "verifier": "No pudimos verificar tu cuenta de X. Inicia la conexión de nuevo.",
           "intent": "Esta solicitud de conexión caducó o ya no es válida. Iníciala de nuevo.",

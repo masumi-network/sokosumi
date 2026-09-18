@@ -5,7 +5,7 @@ import { track } from "@vercel/analytics";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type FormEvent, type ReactNode, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 
 import { ProjectBrandSetup } from "@/app/projects/components/project-brand-setup";
@@ -35,7 +35,6 @@ interface ProjectFormInitialValues {
 }
 
 interface ProjectFormProps {
-  children?: ReactNode;
   mode: "create" | "edit";
   labels: ProjectFormLabels;
   projectId?: string;
@@ -49,7 +48,6 @@ interface ProjectFormProps {
 }
 
 export function ProjectForm({
-  children,
   mode,
   labels,
   projectId,
@@ -212,7 +210,6 @@ export function ProjectForm({
               />
             </>
           )}
-          {children}
         </div>
 
         <div

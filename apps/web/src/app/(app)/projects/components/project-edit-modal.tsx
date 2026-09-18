@@ -4,10 +4,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 
 import { TaskFormModal } from "@/app/tasks/components/task-form-modal";
-import type { ProjectSocialConnection } from "@/lib/clients/generated/core/types.gen";
 
 import { ProjectForm, type ProjectFormLabels } from "./project-form";
-import { ProjectSocialAccounts } from "./project-social-accounts";
 
 interface ProjectEditModalProps {
   projectId: string;
@@ -18,8 +16,6 @@ interface ProjectEditModalProps {
     websiteUrl?: string | null;
   };
   labels: ProjectFormLabels;
-  /** Omitted outside the Calendar beta, which hides the social accounts section. */
-  socialConnections?: ProjectSocialConnection[];
 }
 
 export function ProjectEditModal({
@@ -27,7 +23,6 @@ export function ProjectEditModal({
   title,
   initialValues,
   labels,
-  socialConnections,
 }: ProjectEditModalProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -59,14 +54,7 @@ export function ProjectEditModal({
         onCancel={handleClose}
         onSubmittingChange={setIsDismissDisabled}
         onSuccess={handleClose}
-      >
-        {socialConnections ? (
-          <ProjectSocialAccounts
-            projectId={projectId}
-            connections={socialConnections}
-          />
-        ) : null}
-      </ProjectForm>
+      />
     </TaskFormModal>
   );
 }
