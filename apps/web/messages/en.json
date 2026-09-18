@@ -1264,7 +1264,7 @@
         "description": "Enter your new password below",
         "Form": {
           "submit": "Reset password",
-          "success": "Password reset successfully",
+          "success": "Password reset. You have been signed out on all devices.",
           "error": "Password reset failed",
           "Fields": {
             "Password": {
@@ -4018,6 +4018,8 @@
         "currentPassword": "Current password",
         "newPassword": "New password",
         "confirmPassword": "Confirm new password",
+        "revokeOtherSessionsLabel": "Sign out of other devices",
+        "revokeOtherSessionsHelp": "Ends every other session. The device you are using now stays signed in.",
         "submit": "Update password",
         "success": "Password updated successfully",
         "error": "Failed to update password"
