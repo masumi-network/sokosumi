@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { ComponentType, ReactNode, SVGProps } from "react";
 
 import { CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -27,8 +28,10 @@ import type { SectionAttention } from "./room-attention";
  *
  * A closed section hides its rooms, and with them whatever they held for the
  * reader. `closedAttention` says so on the heading: the row's own bold on the
- * expanded title, the Rail attention pill beside the rail square. An open
- * section passes none, because its rooms speak for themselves.
+ * expanded title, the Rail attention pill beside the rail square. The pill is
+ * decorative, so the heading also carries the room row's rail unread/mention
+ * strings in its accessible name. An open section passes none, because its
+ * rooms speak for themselves.
  */
 export function ChatSidebarSectionHeader({
   children,
@@ -45,8 +48,15 @@ export function ChatSidebarSectionHeader({
   createAction?: ReactNode;
   secondaryAction?: ReactNode;
 }) {
+  const tChannels = useTranslations("App.Channels");
   const trailingCount = (secondaryAction ? 1 : 0) + (createAction ? 1 : 0);
   const attention = isOpen ? null : closedAttention;
+  const attentionLabel =
+    attention === "mention"
+      ? tChannels("RoomMentions.railMention")
+      : attention === "unread"
+        ? tChannels("RoomUnread.railUnread")
+        : null;
 
   return (
     <>
@@ -70,6 +80,9 @@ export function ChatSidebarSectionHeader({
             )}
           />
           <span className="truncate">{children}</span>
+          {attentionLabel ? (
+            <span className="sr-only">{attentionLabel}</span>
+          ) : null}
         </CollapsibleTrigger>
         {trailingCount > 0 ? (
           <div className="absolute top-1/2 right-1 flex -translate-y-1/2 items-center">
@@ -94,6 +107,9 @@ export function ChatSidebarSectionHeader({
             <CollapsibleTrigger>
               <RailIcon aria-hidden />
               <span className="sr-only">{children}</span>
+              {attentionLabel ? (
+                <span className="sr-only">{attentionLabel}</span>
+              ) : null}
             </CollapsibleTrigger>
           </SidebarMenuButton>
         </div>

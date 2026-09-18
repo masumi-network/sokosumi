@@ -7,6 +7,16 @@ vi.mock("@/hooks/use-mobile", () => ({
   useIsMobile: () => false,
 }));
 
+vi.mock("next-intl", () => ({
+  useTranslations: (namespace?: string) => (key: string) => {
+    const catalog: Record<string, string> = {
+      "App.Channels.RoomUnread.railUnread": "Unread",
+      "App.Channels.RoomMentions.railMention": "Mentions you",
+    };
+    return catalog[`${namespace ?? ""}.${key}`] ?? key;
+  },
+}));
+
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import {
   Sidebar,
@@ -85,11 +95,27 @@ describe("ChatSidebarSectionHeader on the collapsed rail", () => {
         .querySelector('[data-slot="room-rail-attention"]')
         ?.getAttribute("data-variant"),
     ).toBe("mention");
+    // The pill is decorative; the heading name carries the room row's string.
+    expect(
+      screen.getAllByRole("button", { name: "Channels Mentions you" }),
+    ).toHaveLength(2);
 
     rerender(<Section key="open" closedAttention="mention" />);
     expect(
       container.querySelector('[data-slot="room-rail-attention"]'),
     ).toBeNull();
+    expect(screen.getAllByRole("button", { name: "Channels" })).toHaveLength(2);
+    expect(
+      screen.queryByRole("button", { name: "Channels Mentions you" }),
+    ).toBeNull();
+  });
+
+  it("announces unread on a closed heading the same way", () => {
+    render(<Section defaultOpen={false} closedAttention="unread" />);
+
+    expect(
+      screen.getAllByRole("button", { name: "Channels Unread" }),
+    ).toHaveLength(2);
   });
 
   it("stays off the rail without an icon, as Archived does", () => {
