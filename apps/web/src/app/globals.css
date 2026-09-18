@@ -419,7 +419,7 @@
 
      The complaint this answers was that the input-required label reads too
      dark, not that it fails a floor. It did not fail one: at hue 35 the label
-     measured 4.60:1 on its own tint. What it could not do was get lighter.
+     measured 4.61:1 on its own tint. What it could not do was get lighter.
      At 12px it is normal text, so SC 1.4.3 asks 4.5:1 on the tint, and yellow
      carries more luminance than any other hue, which pinned the label near
      L35 at the old saturation whatever else was tuned.
@@ -428,7 +428,7 @@
      the label from S95 to S55 is what bought the lightness; rotating to hue
      25 is what let the ramp around it stay legible while that happened. The
      label ends at L38.0 and 4.53:1, so it is 3 lightness steps lighter at
-     essentially unchanged contrast (4.60 to 4.53, a 0.07 loss). That is the
+     essentially unchanged contrast (4.61 to 4.53, a 0.08 loss). That is the
      honest summary: the reader gets the lighter text they asked for, and the
      ratio is held, not improved.
 
@@ -441,9 +441,9 @@
      The cost is separation from the fault red, and it is larger than the
      marks alone. Measured in OKLab dE x100, amber to orange:
 
-       mark   (--semantic-warning vs --semantic-destructive-solid)  12.45 to 8.51
-       fill   (both -quaternary, the badge's largest area)           7.67 to 5.36
-       border (both -tertiary, the outline weight)                   4.95 to 3.32
+       mark   (--semantic-warning vs --semantic-destructive-solid)  12.52 to 8.58
+       fill   (both -quaternary, the badge's largest area)           7.60 to 5.42
+       border (both -tertiary, the outline weight)                   5.03 to 3.42
 
      Only the mark stays above the 6.0 this model calls comfortably separate.
      The fill drops under it and the border was already under it and got

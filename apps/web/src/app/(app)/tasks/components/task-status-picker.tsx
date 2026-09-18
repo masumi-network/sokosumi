@@ -190,11 +190,20 @@ export function TaskStatusPicker({
                 >
                   <StatusMarker
                     spec={rowMarker}
-                    // A menu row paints no fill, so the glyph sits on the
-                    // popover surface and takes the on-card colour. `mark` is
-                    // the colour of a mark on the tone's own box, which for
-                    // the solid fault tone is near-white: invisible here.
-                    tone={getToneStyle(rowMarker.tone).onSurface}
+                    // A menu row paints no fill, so the glyph reads with the
+                    // word rather than on a box, and takes the same colour.
+                    //
+                    // Not `mark`, which is the colour of a mark on the tone's
+                    // own box: for the solid fault tone that is the near-white
+                    // label, invisible here. Not `onSurface` either. That is
+                    // measured against --card-background, and cmdk paints the
+                    // selected row --accent, which in dark is lighter; the
+                    // fault glyph measures 2.53:1 there, under the 3:1 SC
+                    // 1.4.11 asks. Selection is a resting state, reached by
+                    // arrow key, not a hover garnish. `labelOnSurface` is the
+                    // readable form of the same hue and measures 4.72 on that
+                    // row in dark, 6.01 in light.
+                    tone={getToneStyle(rowMarker.tone).labelOnSurface}
                     // A status you could pick, not one that is running.
                     live={false}
                   />

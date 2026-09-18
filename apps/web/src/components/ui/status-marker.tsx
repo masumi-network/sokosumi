@@ -44,15 +44,16 @@ import { cn } from "@/lib/utils";
  * 1. Hue is the column. `task-column.ts` owns that grouping and this table
  *    follows it.
  * 2. Weight is the status inside the column. `filled` is the column's
- *    ordinary state, `outline` the variant. The two measure 5.99 to 11.14
- *    OKLab dE apart, and a box with a hole in it is a second, structural cue
+ *    ordinary state, `outline` the variant. Across the tones in use the two
+ *    measure 7.04 to 15.96 OKLab dE apart, the floor being `blocked` in
+ *    light after the hue rotation; a box with a hole in it is a second cue
  *    on top of that. The cue is the shape, not the border's contrast: every
  *    `-tertiary` border measures 1.37 to 2.42 against --card-background, under
  *    the 3:1 SC 1.4.11 asks of a boundary, which is a property of the whole
  *    ramp rather than of this scale (--border itself is 1.24). Nothing rests
  *    on it: the glyph and the word carry the status, and both clear their
  *    floors. Two tints of one hue were tried first and rejected: warning
- *    quaternary against quinary came to 3.58, under the 6.0 that reads as
+ *    quaternary against quinary came to 4.06, under the 6.0 that reads as
  *    comfortably separate.
  * 3. A fault leaves its column. Anything wrong is `fault`, wherever the board
  *    files it, so a failing job does not go quiet because it happens to sit
@@ -94,8 +95,8 @@ export type StatusWeight = "filled" | "outline" | "solid";
  * Written as a union, that combination does not compile.
  */
 export type StatusTone =
-  | { hue: StatusHue; weight: "filled" | "outline" }
-  | { hue: "fault"; weight: "solid" };
+  | { hue: StatusHue; weight: Exclude<StatusWeight, "solid"> }
+  | { hue: "fault"; weight: Extract<StatusWeight, "solid"> };
 
 interface HueClasses {
   /** Badge fill for `filled`. */
@@ -108,8 +109,10 @@ interface HueClasses {
    * Dot and glyph colour. Clears 3:1 on the fill and on `--card-background`
    * in both themes, with one exception carried over from before this scale.
    *
-   * On `--muted`, the hover fill of the agent job list row
-   * (`jobs-list.tsx`), the dark `fault` mark measures 2.53:1, because
+   * Two surfaces in dark are lighter than the card and take it under: the
+   * agent job list row's `--muted` hover (`jobs-list.tsx`) and cmdk's
+   * `--accent` selected row, which hold the same value. There the dark
+   * `fault` mark measures 2.53:1, because
    * `--semantic-destructive-solid` is darker than the tint base. The tint
    * base would measure 3.99, but the two weights already paint the same dot
    * in light mode, so moving it would erase the tint-to-solid escalation in
@@ -214,9 +217,12 @@ export interface ToneStyle {
  * 1.06:1, so they are resolved side by side here and the test file pins both.
  *
  * An `outline` tone paints no fill, so its mark sits on whatever surface the
- * caller provides. At rest every current caller uses `--card-background`, and
- * each outline mark clears 3:1 there in both themes. The job list row's
- * `--muted` hover state is the exception; see the note on `mark` above.
+ * caller provides, and `--card-background` is what the marks are measured
+ * against. A caller that paints a different surface has to check its own: the
+ * job list row's `--muted` hover and the command menu's `--accent` selected
+ * row are both lighter than the card in dark, and the fault mark measures
+ * 2.53:1 on either. See the note on `mark` above. The status picker passes
+ * `labelOnSurface` for exactly that reason.
  */
 export function getToneStyle(tone: StatusTone): ToneStyle {
   if (tone.weight === "solid") {

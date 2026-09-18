@@ -72,8 +72,10 @@ export const KANBAN_COLUMNS: KanbanColumnDefinition[] = [
  * three columns and two colours. `todo` takes the staged blue, which is the
  * calmer of the two because it is the column that usually holds more.
  *
- * Every pair here clears 11.87 OKLab dE in light and 14.76 in dark, measured
+ * Every pair here clears 12.27 OKLab dE in light and 14.76 in dark, measured
  * against each other and against the blue `Recent` mark in the jobs list.
+ * Both floors are that mark against `backlog`; the column colours alone sit
+ * further apart, at 14.13 and 19.21.
  */
 export const COLUMN_STATUS_COLORS: Record<KanbanColumnId, string> = {
   backlog: "bg-status-done",

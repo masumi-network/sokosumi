@@ -337,7 +337,7 @@ describe("tone styles", () => {
   /**
    * The bare dot is painted on a surface, not on a tone's fill, so the test
    * above cannot see it for filled tones. List rows use --muted on hover,
-   * where the dark fault mark reaches only 2.78; that exception is recorded on
+   * where the dark fault mark reaches only 2.53; that exception is recorded on
    * the model and is not measured here.
    */
   it.each(TONES_IN_USE.map((tone) => [toneName(tone), tone] as const))(
@@ -362,10 +362,16 @@ describe("tone styles", () => {
    * another hue would paint that hue's status destructive red, because the
    * solid branch ignores the hue entirely.
    */
-  it("uses solid only for fault", () => {
-    for (const tone of TONES_IN_USE) {
-      if (tone.weight === "solid") expect(tone.hue).toBe("fault");
-    }
+  /**
+   * `solid` belonging to `fault` alone used to be asserted here. `StatusTone`
+   * is now a union that pairs them in the type, so inside this branch `tone`
+   * narrows to `{ hue: "fault" }` and the assertion cannot fail. A test that
+   * cannot fail is not a guard, so what remains is the part the type does not
+   * carry: that something still paints `solid` at all, and that the scales
+   * have not quietly dropped the escalation.
+   */
+  it("still paints the solid escalation somewhere", () => {
+    expect(TONES_IN_USE.some((tone) => tone.weight === "solid")).toBe(true);
   });
 
   /**
