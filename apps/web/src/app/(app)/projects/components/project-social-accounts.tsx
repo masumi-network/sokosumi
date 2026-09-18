@@ -279,7 +279,7 @@ export function ProjectSocialAccounts({
 
   return (
     <section
-      className="bg-muted/30 border-border/50 space-y-4 rounded-xl border p-4"
+      className="bg-card-background border-border space-y-4 rounded-xl border p-4"
       data-testid="project-social-accounts"
     >
       <div className="space-y-1">
