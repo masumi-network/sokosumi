@@ -5439,12 +5439,7 @@
         "previewLabel": "Citando a {author}",
         "jump": "Ir al mensaje de {author}",
         "showMore": "Más",
-        "showLess": "Menos",
-        "pasteOffer": {
-          "label": "¿Citar el mensaje de {author} en lugar del enlace?",
-          "accept": "Citar mensaje",
-          "decline": "Mantener enlace"
-        }
+        "showLess": "Menos"
       },
       "Unfurl": {
         "openLink": "Abrir vista previa del enlace: {title}",

@@ -11,6 +11,7 @@ import {
   type FormEvent,
   type Ref,
   useCallback,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
@@ -37,6 +38,7 @@ import {
 import {
   RoomComposer,
   type RoomComposerAttachment,
+  type RoomComposerEditHandle,
   type RoomComposerHandle,
 } from "./room-composer";
 import {
@@ -69,12 +71,9 @@ interface ComposerSnapshot {
   pendingQuote: PendingRoomQuote | null;
 }
 
-/** A resolved pasted Message link, waiting for the sender to accept or decline. */
-interface ResolvedQuoteOffer {
-  quote: PendingRoomQuote;
-  /** Room or thread the link was pasted into; the offer does not follow the sender elsewhere. */
-  draftKey: string;
-  /** Pasted text to remove from the body when the sender accepts. */
+/** A pasted Message link that became the pending quote. */
+interface QuotedLink {
+  messageId: string;
   linkText: string;
 }
 
@@ -198,43 +197,63 @@ export function RoomSessionComposer({
     [onSetPendingQuote],
   );
 
-  const [quoteOffer, setQuoteOffer] = useState<ResolvedQuoteOffer | null>(null);
-  // Bumped on every paste and send so a slow resolve of an older paste never
-  // raises a stale offer.
-  const pasteGeneration = useRef(0);
+  // The pasted link the pending quote replaced, so removing that quote can put
+  // the link back as plain text.
+  const [quotedLink, setQuotedLink] = useState<QuotedLink | null>(null);
+  // What the sender is looking at now, for a quote that resolves after they
+  // edited the link away, pasted again, sent, or moved to another room.
+  const latest = useRef({ draftKey, pendingQuote, paste: 0 });
+  latest.current = { ...latest.current, draftKey, pendingQuote };
+
+  const composerRef = useRef<RoomComposerEditHandle | null>(null);
+  useImperativeHandle(
+    ref,
+    () => ({
+      attachFiles: (files) => composerRef.current?.attachFiles(files),
+      focus: () => composerRef.current?.focus(),
+    }),
+    [],
+  );
 
   async function handlePaste(event: ClipboardEvent<HTMLDivElement>) {
-    pasteGeneration.current += 1;
-    const generation = pasteGeneration.current;
-    setQuoteOffer(null);
-    if (!onResolveMessageLink) return;
+    latest.current.paste += 1;
+    const paste = latest.current.paste;
+    // One quote per message: never swap a quote the sender already chose.
+    if (!onResolveMessageLink || pendingQuote) return;
 
     const linkText = event.clipboardData.getData("text/plain").trim();
     const link = parseChatRoomMessageLink(linkText, window.location.origin);
     if (!link) return;
-    // Already quoted: a second paste of the same link is just a link.
-    if (pendingQuote?.messageId === link.messageId) return;
 
     const quote = await onResolveMessageLink(link).catch(() => null);
-    if (quote && generation === pasteGeneration.current) {
-      setQuoteOffer({ quote, draftKey, linkText });
+    const now = latest.current;
+    if (
+      !quote ||
+      paste !== now.paste ||
+      now.draftKey !== draftKey ||
+      now.pendingQuote
+    ) {
+      return;
     }
+
+    // Removed in the editor itself: a focused editor keeps its own text and
+    // caret, so the sender's words around the link stay as typed. Nothing to
+    // swap once the link was edited away.
+    if (!composerRef.current?.removeLastText(linkText)) return;
+    onSetPendingQuote?.(quote);
+    setQuotedLink({ messageId: quote.messageId, linkText });
   }
 
-  function handleAcceptQuoteOffer() {
-    if (!quoteOffer) return;
-    // The paste is the latest copy of the link in the body; the sender's own
-    // text around it stays as typed.
-    setComposerValue((current) => {
-      const start = current.lastIndexOf(quoteOffer.linkText);
-      if (start < 0) return current;
-      const rest =
-        current.slice(0, start) +
-        current.slice(start + quoteOffer.linkText.length);
-      return rest.trim().length === 0 ? "" : rest;
-    });
-    onSetPendingQuote?.(quoteOffer.quote);
-    setQuoteOffer(null);
+  function handleClearPendingQuote() {
+    if (quotedLink && quotedLink.messageId === pendingQuote?.messageId) {
+      composerRef.current?.insertText(
+        composerValue.trim().length === 0
+          ? quotedLink.linkText
+          : ` ${quotedLink.linkText}`,
+      );
+    }
+    setQuotedLink(null);
+    onClearPendingQuote?.();
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -244,7 +263,7 @@ export function RoomSessionComposer({
       composerAttachments,
       formatTaskAttachmentMarkdown,
     );
-    if (!content) return;
+    if (!content && !pendingQuote) return;
     if (isRoomComposerContentOverLimit(content)) {
       toast.error(
         t("composerTooLong", {
@@ -276,8 +295,8 @@ export function RoomSessionComposer({
     setComposerAttachments([]);
     setMentionedIds([]);
     onClearPendingQuote?.();
-    pasteGeneration.current += 1;
-    setQuoteOffer(null);
+    latest.current.paste += 1;
+    setQuotedLink(null);
     clearDraft();
 
     const result = await onSend({
@@ -300,7 +319,7 @@ export function RoomSessionComposer({
     // Text pastes bubble here after the editor inserted them as plain text.
     <div className="contents" onPaste={(event) => void handlePaste(event)}>
       <RoomComposer
-        ref={ref}
+        ref={composerRef}
         roomId={roomId}
         value={composerValue}
         onValueChange={setComposerValue}
@@ -319,22 +338,15 @@ export function RoomSessionComposer({
         onAttachmentsChange={setComposerAttachments}
         onSubmit={handleSubmit}
         isSending={isSending}
-        sendDisabled={isRoomComposerEmpty(composerValue, composerAttachments)}
+        sendDisabled={
+          isRoomComposerEmpty(composerValue, composerAttachments) &&
+          !pendingQuote
+        }
         showMentionShortcut={showMentionShortcut}
         allowAttachments={allowAttachments}
         pendingQuote={pendingQuote}
-        onClearPendingQuote={onClearPendingQuote}
-        quoteOffer={
-          // Nothing left to swap once the sender edits the link away.
-          quoteOffer &&
-          quoteOffer.draftKey === draftKey &&
-          composerValue.includes(quoteOffer.linkText)
-            ? {
-                authorName: quoteOffer.quote.authorName,
-                onAccept: handleAcceptQuoteOffer,
-                onDecline: () => setQuoteOffer(null),
-              }
-            : null
+        onClearPendingQuote={
+          onClearPendingQuote ? handleClearPendingQuote : undefined
         }
         focusOnMount={focusOnMount}
         currentUserId={currentUserId}

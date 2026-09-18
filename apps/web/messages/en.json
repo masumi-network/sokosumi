@@ -5439,12 +5439,7 @@
         "previewLabel": "Quoting {author}",
         "jump": "Jump to message from {author}",
         "showMore": "More",
-        "showLess": "Less",
-        "pasteOffer": {
-          "label": "Quote {author}'s message instead of the link?",
-          "accept": "Quote message",
-          "decline": "Keep link"
-        }
+        "showLess": "Less"
       },
       "Unfurl": {
         "openLink": "Open link preview: {title}",

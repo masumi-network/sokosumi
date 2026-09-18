@@ -328,7 +328,12 @@ describe("RoomSessionComposer pasted Message link", () => {
     );
   }
 
-  it("offers a quote, and accepting sends the quote instead of the link", async () => {
+  async function pasteAndAwaitQuote(editor: HTMLElement) {
+    pasteText(editor, link);
+    await screen.findByText("Earlier point about launch risk");
+  }
+
+  it("turns the pasted link into the pending quote and sends it without a body", async () => {
     const onSend = vi.fn().mockResolvedValue({ ok: true });
     const onResolveMessageLink = vi.fn().mockResolvedValue(quote);
     render(
@@ -337,37 +342,101 @@ describe("RoomSessionComposer pasted Message link", () => {
 
     const editor = await screen.findByRole("textbox");
     editor.focus();
-    pasteText(editor, link);
+    await pasteAndAwaitQuote(editor);
 
     expect(onResolveMessageLink).toHaveBeenCalledWith({
       roomId: "room-source",
       messageId: "msg-1",
     });
-    fireEvent.click(
-      await screen.findByRole("button", { name: "pasteOffer.accept" }),
-    );
-
     await waitFor(() => {
       expect(editor.textContent ?? "").not.toContain("/chat/rooms/");
     });
-    expect(screen.getByText("Earlier point about launch risk")).toBeTruthy();
-    expect(
-      screen.queryByRole("button", { name: "pasteOffer.accept" }),
-    ).toBeNull();
 
-    await act(async () => {
-      editor.innerHTML = "see this";
-      fireEvent.input(editor);
-    });
     fireEvent.submit(editor.closest("form")!);
 
     await waitFor(() => {
       expect(onSend).toHaveBeenCalledTimes(1);
     });
     expect(onSend.mock.calls[0]?.[0]).toMatchObject({
-      content: "see this",
+      content: "",
       quote: { messageId: "msg-1", roomId: "room-source" },
     });
+  });
+
+  it("keeps the sender's own text around the pasted link", async () => {
+    const onSend = vi.fn().mockResolvedValue({ ok: true });
+    // Resolving takes a server round trip; the editor has painted the paste
+    // by the time the quote comes back.
+    const onResolveMessageLink = vi.fn(
+      () =>
+        new Promise<typeof quote>((resolve) => {
+          setTimeout(() => resolve(quote), 10);
+        }),
+    );
+    render(
+      <Harness onSend={onSend} onResolveMessageLink={onResolveMessageLink} />,
+    );
+
+    const editor = await screen.findByRole("textbox");
+    await act(async () => {
+      editor.focus();
+      editor.innerHTML = "see this ";
+      fireEvent.input(editor);
+    });
+    await pasteAndAwaitQuote(editor);
+
+    await waitFor(() => {
+      expect(editor.textContent ?? "").not.toContain("/chat/rooms/");
+    });
+    expect(editor.textContent).toContain("see this");
+  });
+
+  it("puts the link back as plain text when the quote is removed", async () => {
+    const onSend = vi.fn().mockResolvedValue({ ok: true });
+    render(
+      <Harness
+        onSend={onSend}
+        onResolveMessageLink={vi.fn().mockResolvedValue(quote)}
+      />,
+    );
+
+    const editor = await screen.findByRole("textbox");
+    editor.focus();
+    await pasteAndAwaitQuote(editor);
+    fireEvent.click(screen.getByRole("button", { name: "dismiss" }));
+
+    await waitFor(() => {
+      expect(editor.textContent).toContain(link);
+    });
+    expect(screen.queryByText("Earlier point about launch risk")).toBeNull();
+
+    fireEvent.submit(editor.closest("form")!);
+    await waitFor(() => {
+      expect(onSend).toHaveBeenCalledTimes(1);
+    });
+    expect(onSend.mock.calls[0]?.[0].content).toContain(link);
+    expect(onSend.mock.calls[0]?.[0].quote).toBeUndefined();
+  });
+
+  it("leaves a pasted link alone while another quote is pending", async () => {
+    const onResolveMessageLink = vi.fn().mockResolvedValue(quote);
+    render(
+      <Harness onSend={vi.fn()} onResolveMessageLink={onResolveMessageLink} />,
+    );
+
+    const editor = await screen.findByRole("textbox");
+    editor.focus();
+    await pasteAndAwaitQuote(editor);
+
+    pasteText(
+      editor,
+      `${window.location.origin}/chat/rooms/room-source?message=msg-2`,
+    );
+
+    await waitFor(() => {
+      expect(editor.textContent).toContain("message=msg-2");
+    });
+    expect(onResolveMessageLink).toHaveBeenCalledTimes(1);
   });
 
   it("restores the text and the quote when the send fails", async () => {
@@ -381,10 +450,7 @@ describe("RoomSessionComposer pasted Message link", () => {
 
     const editor = await screen.findByRole("textbox");
     editor.focus();
-    pasteText(editor, link);
-    fireEvent.click(
-      await screen.findByRole("button", { name: "pasteOffer.accept" }),
-    );
+    await pasteAndAwaitQuote(editor);
     await act(async () => {
       editor.innerHTML = "see this";
       fireEvent.input(editor);
@@ -400,8 +466,14 @@ describe("RoomSessionComposer pasted Message link", () => {
     expect(screen.getByText("Earlier point about launch risk")).toBeTruthy();
   });
 
-  it("does not offer a message that is already the pending quote", async () => {
-    const onResolveMessageLink = vi.fn().mockResolvedValue(quote);
+  it("leaves the link alone once it was edited out before the quote resolved", async () => {
+    let resolveQuote: (value: typeof quote) => void = () => {};
+    const onResolveMessageLink = vi.fn(
+      () =>
+        new Promise<typeof quote>((resolve) => {
+          resolveQuote = resolve;
+        }),
+    );
     render(
       <Harness onSend={vi.fn()} onResolveMessageLink={onResolveMessageLink} />,
     );
@@ -409,95 +481,43 @@ describe("RoomSessionComposer pasted Message link", () => {
     const editor = await screen.findByRole("textbox");
     editor.focus();
     pasteText(editor, link);
-    fireEvent.click(
-      await screen.findByRole("button", { name: "pasteOffer.accept" }),
-    );
-    await screen.findByText("Earlier point about launch risk");
-
-    pasteText(editor, link);
-
-    await waitFor(() => {
-      expect(editor.textContent).toContain(link);
-    });
-    expect(onResolveMessageLink).toHaveBeenCalledTimes(1);
-    expect(
-      screen.queryByRole("button", { name: "pasteOffer.accept" }),
-    ).toBeNull();
-  });
-
-  it("keeps the plain link when the offer is declined", async () => {
-    const onSend = vi.fn().mockResolvedValue({ ok: true });
-    render(
-      <Harness
-        onSend={onSend}
-        onResolveMessageLink={vi.fn().mockResolvedValue(quote)}
-      />,
-    );
-
-    const editor = await screen.findByRole("textbox");
-    editor.focus();
-    pasteText(editor, link);
-    fireEvent.click(
-      await screen.findByRole("button", { name: "pasteOffer.decline" }),
-    );
-
-    expect(
-      screen.queryByRole("button", { name: "pasteOffer.accept" }),
-    ).toBeNull();
-    fireEvent.submit(editor.closest("form")!);
-
-    await waitFor(() => {
-      expect(onSend).toHaveBeenCalledTimes(1);
-    });
-    expect(onSend.mock.calls[0]?.[0].content).toContain(link);
-    expect(onSend.mock.calls[0]?.[0].quote).toBeUndefined();
-  });
-
-  it("withdraws the offer once the link is no longer in the body", async () => {
-    render(
-      <Harness
-        onSend={vi.fn()}
-        onResolveMessageLink={vi.fn().mockResolvedValue(quote)}
-      />,
-    );
-
-    const editor = await screen.findByRole("textbox");
-    editor.focus();
-    pasteText(editor, link);
-    await screen.findByRole("button", { name: "pasteOffer.accept" });
-
     await act(async () => {
       editor.innerHTML = "never mind";
       fireEvent.input(editor);
     });
-
-    await waitFor(() => {
-      expect(
-        screen.queryByRole("button", { name: "pasteOffer.accept" }),
-      ).toBeNull();
+    await act(async () => {
+      resolveQuote(quote);
     });
+
+    expect(screen.queryByText("Earlier point about launch risk")).toBeNull();
+    expect(editor.textContent).toBe("never mind");
   });
 
-  it("does not carry the offer into another room or thread", async () => {
+  it("does not quote into another room or thread the sender moved to", async () => {
+    let resolveQuote: (value: typeof quote) => void = () => {};
     const props = {
       onSend: vi.fn(),
-      onResolveMessageLink: vi.fn().mockResolvedValue(quote),
+      onResolveMessageLink: vi.fn(
+        () =>
+          new Promise<typeof quote>((resolve) => {
+            resolveQuote = resolve;
+          }),
+      ),
     };
     const { rerender } = render(<Harness {...props} />);
 
     const editor = await screen.findByRole("textbox");
     editor.focus();
     pasteText(editor, link);
-    await screen.findByRole("button", { name: "pasteOffer.accept" });
-
     rerender(<Harness {...props} draftKey={composeDraftKey.room("other")} />);
+    await act(async () => {
+      resolveQuote(quote);
+    });
 
-    expect(
-      screen.queryByRole("button", { name: "pasteOffer.accept" }),
-    ).toBeNull();
+    expect(screen.queryByText("Earlier point about launch risk")).toBeNull();
   });
 
-  it("shows no offer when the link cannot become a quote", async () => {
+  it("keeps the plain link when it cannot become a quote", async () => {
     const onResolveMessageLink = vi.fn().mockResolvedValue(null);
     render(
       <Harness onSend={vi.fn()} onResolveMessageLink={onResolveMessageLink} />,
@@ -510,9 +530,6 @@ describe("RoomSessionComposer pasted Message link", () => {
     await waitFor(() => {
       expect(onResolveMessageLink).toHaveBeenCalledTimes(1);
     });
-    expect(
-      screen.queryByRole("button", { name: "pasteOffer.accept" }),
-    ).toBeNull();
     expect(editor.textContent).toContain(link);
   });
 
