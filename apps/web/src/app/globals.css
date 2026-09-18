@@ -414,24 +414,23 @@
 
   --semantic-warning: hsla(35, 92%, 31%, 1);
   --semantic-warning-tertiary: hsla(35, 41.3%, 80.7%, 1);
-  /* Light mode only. The amber tint was the loudest fill in the set and its
-     label a red-brown on a yellow ground, so the pair read muddy and heavy.
-     Both are lighter and much calmer now: the tint drops from OKLCh chroma 4.5
-     to 1.8 and the label from 14.4 to 9.6, with the label's hue moving from 26
-     to 30, toward the tint's own 35.
+  /* The tint is the shipped amber, unchanged. Desaturating it was tried and
+     reverted: at OKLCh chroma 1.8 it stopped reading as amber at all.
 
-     Chroma is what buys the lightness. At 12px the label is normal text, so
+     The label is as light as this tint allows. At 12px it is normal text, so
      WCAG 2.2 SC 1.4.3 asks 4.5:1 on the tint, which is the binding surface,
-     and the old vivid pair was pinned at L34.9 by that floor. Taking the
-     saturation out of both lets the label rise to L37.5 and still measure
-     4.65:1. Label on card is 5.08:1, and the tint still reads as a block at
-     1.093:1 against --card-background.
+     and hsla(30, 60%, 36.8%) measures 4.55:1 there and 5.13:1 on the card.
+     Against the original hsla(26, 95%, 34.9%) it is 1.9 lightness steps up and
+     down from OKLCh chroma 14.4 to 10.2, with the hue moved from 26 to 30 so
+     it stops reading brown against the tint's own 35.
 
-     Do not raise the label's lightness without lowering chroma with it. At the
-     old saturation L38 measures 4.10:1 on the tint, under the floor. */
-  --semantic-warning-quaternary: hsla(35, 55.0%, 93.0%, 1);
+     There is no more room. A visibly light label on a pale amber tint is not
+     reachable: L50 measures 2.34:1 here, and even near-white on a solid amber
+     fill reaches only 3.90:1, because yellow carries too much luminance. A
+     lighter label needs a different hue for this column, not a retune. */
+  --semantic-warning-quaternary: hsla(35, 100.0%, 90.0%, 1);
   --semantic-warning-quinary: hsla(35, 41.3%, 93.8%, 1);
-  --semantic-warning-label: hsla(30, 55.0%, 37.5%, 1);
+  --semantic-warning-label: hsla(30, 60.0%, 36.8%, 1);
   --semantic-warning-foreground: hsla(55, 100%, 98%, 1);
 
   --semantic-success: hsla(142, 72%, 27%, 1);
