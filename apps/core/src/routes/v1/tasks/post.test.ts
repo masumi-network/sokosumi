@@ -81,6 +81,7 @@ function buildMapTaskResponse(task: {
     ownerId: "user_123",
     organizationId,
     projectId: null,
+    project: null,
     owner: {
       id: "user_123",
       name: "Ada Lovelace",

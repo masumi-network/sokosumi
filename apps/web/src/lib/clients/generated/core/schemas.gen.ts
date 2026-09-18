@@ -4471,6 +4471,18 @@ export const TaskSchema = {
             format: 'uuid',
             example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
         },
+        project: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectSummary'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: null,
+            description: 'Linked project name and logo. Null when the task has no project.'
+        },
         assigneeId: {
             type: [
                 'string',
@@ -4702,6 +4714,7 @@ export const TaskSchema = {
         'organizationId',
         'organization',
         'projectId',
+        'project',
         'assigneeId',
         'assigneeSokoBotId',
         'assigneeUserId',
@@ -4778,6 +4791,34 @@ export const OrganizationSummarySchema = {
         'id',
         'name',
         'slug'
+    ]
+} as const;
+
+export const ProjectSummarySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        name: {
+            type: 'string',
+            example: 'Q1 research'
+        },
+        logo: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri',
+            example: 'https://example.public.blob.vercel-storage.com/projects/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa/logos/logo.png'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'logo'
     ]
 } as const;
 
@@ -19560,6 +19601,18 @@ export const TaskListItemSchema = {
             format: 'uuid',
             example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
         },
+        project: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectSummary'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: null,
+            description: 'Linked project name and logo. Null when the task has no project.'
+        },
         assigneeId: {
             type: [
                 'string',
@@ -19745,6 +19798,7 @@ export const TaskListItemSchema = {
         'organizationId',
         'organization',
         'projectId',
+        'project',
         'assigneeId',
         'assigneeSokoBotId',
         'assigneeUserId',
