@@ -9,7 +9,6 @@ public final class RoomThreadOverview: ObservableObject {
   @Published public private(set) var previews: [String: String] = [:]
   @Published public private(set) var nextCursor: String?
   @Published public private(set) var unreadCount = 0
-  @Published public private(set) var showsUnreadCount = false
   @Published public private(set) var isLoading = false
   @Published public private(set) var isMarkingRead = false
   @Published public private(set) var failure: (any Error)?
@@ -27,17 +26,9 @@ public final class RoomThreadOverview: ObservableObject {
     previews = [:]
     nextCursor = nil
     unreadCount = 0
-    showsUnreadCount = false
     isLoading = false
     isMarkingRead = false
     failure = nil
-  }
-
-  public func refreshDisplayPreference(client: Client) async throws {
-    let request = generation
-    let value = try await ChatService().showRoomUnreadCount(client: client)
-    guard request == generation, !Task.isCancelled else { return }
-    showsUnreadCount = value
   }
 
   public func refreshCount(client: Client, roomId: String, organizationSlug: String?) async throws {

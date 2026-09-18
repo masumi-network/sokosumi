@@ -1,18 +1,6 @@
 import CoreAPI
 
 public extension ChatService {
-  func showRoomUnreadCount(client: Client) async throws -> Bool {
-    let response = try await client.getUsersIdPreferences(.init(path: .init(id: "me")))
-    switch response {
-    case let .ok(value): return try value.body.json.data.showRoomUnreadCount
-    case let .unauthorized(value): throw try ChatServiceError.unauthorized(value.body.json.message)
-    case let .forbidden(value): throw try ChatServiceError.unprocessable(statusCode: 403, message: value.body.json.message)
-    case let .notFound(value): throw try ChatServiceError.unprocessable(statusCode: 404, message: value.body.json.message)
-    case let .internalServerError(value): throw try ChatServiceError.unprocessable(statusCode: 500, message: value.body.json.message)
-    case let .undocumented(statusCode, payload): throw await unprocessableError(statusCode: statusCode, payload: payload)
-    }
-  }
-
   func listThreads(client: Client, roomId: String, cursor: String? = nil, organizationSlug: String?) async throws -> (items: [Components.Schemas.ChatRoomThread], nextCursor: String?) {
     let response = try await client.getChatsRoomsIdThreads(.init(path: .init(id: roomId), query: .init(cursor: cursor), headers: .init(xOrganizationSlug: organizationSlug)))
     switch response {

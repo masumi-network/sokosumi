@@ -8,6 +8,8 @@ import SwiftUI
 struct SokosumiApp: App {
   @StateObject private var auth = AuthState()
   @StateObject private var workspaces: WorkspaceState
+  /// Device-local clock preference; every window's timestamps read it from the environment.
+  @AppStorage(TimeFormatPreference.defaultsKey) private var timeFormat: TimeFormatPreference = .auto
 
   init() {
     let cooldown = ChatReadCooldown()
@@ -23,6 +25,7 @@ struct SokosumiApp: App {
       ChatRootView()
         .environmentObject(auth)
         .environmentObject(workspaces)
+        .environment(\.timeFormat, timeFormat)
     }
     Settings {
       SettingsView()
