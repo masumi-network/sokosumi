@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX } from "@/components/ui/mention-textarea-utils";
 import { recordEmojiUse } from "@/hooks/use-frequently-used-emojis";
 import { useKeyboardOpen } from "@/hooks/use-keyboard-open";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 
@@ -122,38 +123,6 @@ export function RoomMessageComposer({
 }: RoomMessageComposerProps) {
   const keyboardOpen = useKeyboardOpen();
   const sendBlocked = isSending || sendDisabled;
-  const lastPointerSubmitAtRef = useRef(Number.NEGATIVE_INFINITY);
-
-  function requestComposerSubmit(form: HTMLFormElement | null) {
-    if (!form || sendBlocked) return;
-    onPrepareSubmit?.();
-    form.requestSubmit();
-  }
-
-  function handleSendPointerDown(event: PointerEvent<HTMLButtonElement>) {
-    // Keep editor focus through the tap so iOS does not blur+jump before click.
-    if (event.button !== 0) return;
-    event.preventDefault();
-    if (sendBlocked) return;
-    lastPointerSubmitAtRef.current = performance.now();
-    requestComposerSubmit(event.currentTarget.form);
-  }
-
-  function handleSendClick(event: MouseEvent<HTMLButtonElement>) {
-    event.preventDefault();
-    // Same-gesture leftover click after pointerdown already submitted.
-    // A later click-only first tap (pointerdown missed Send) must still submit.
-    const sincePointerSubmit =
-      performance.now() - lastPointerSubmitAtRef.current;
-    if (
-      event.detail > 0 &&
-      sincePointerSubmit < POINTER_SUBMIT_CLICK_GUARD_MS
-    ) {
-      return;
-    }
-    requestComposerSubmit(event.currentTarget.form);
-  }
-
   return (
     <form
       ref={formRef}
@@ -198,29 +167,112 @@ export function RoomMessageComposer({
             <div className="flex shrink-0 items-center gap-2">
               {toolbarEnd}
               {submitControl ?? (
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="icon"
-                  className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
-                  disabled={sendBlocked}
-                  aria-label={sendAriaLabel}
-                  data-testid={sendButtonTestId}
-                  onPointerDown={handleSendPointerDown}
-                  onClick={handleSendClick}
-                >
-                  {isSending ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                  ) : (
-                    <ArrowUp className="size-4" aria-hidden />
-                  )}
-                </Button>
+                <RoomComposerSendButton
+                  sendBlocked={sendBlocked}
+                  isSending={isSending}
+                  ariaLabel={sendAriaLabel}
+                  testId={sendButtonTestId}
+                  onPrepareSubmit={onPrepareSubmit}
+                />
               )}
             </div>
           </div>
         </div>
       </div>
     </form>
+  );
+}
+
+interface RoomComposerSendButtonProps {
+  sendBlocked: boolean;
+  isSending: boolean;
+  ariaLabel: string;
+  testId?: string;
+  onPrepareSubmit?: () => void;
+}
+
+/**
+ * Send control, mounted only when the composer has no `submitControl` of its
+ * own. Owns every guard that keeps the editor focused through the tap, so the
+ * touchstart listener lives and dies with the button it belongs to.
+ */
+function RoomComposerSendButton({
+  sendBlocked,
+  isSending,
+  ariaLabel,
+  testId,
+  onPrepareSubmit,
+}: RoomComposerSendButtonProps) {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const lastPointerSubmitAtRef = useRef(Number.NEGATIVE_INFINITY);
+
+  function requestComposerSubmit(form: HTMLFormElement | null) {
+    if (!form || sendBlocked) return;
+    onPrepareSubmit?.();
+    form.requestSubmit();
+  }
+
+  // iOS moves focus off the editor on the touch itself, and preventDefault on
+  // pointerdown does not stop it: the editor blurs a beat after Send and the
+  // keyboard slides away. Only touchstart holds it (checked on iOS 27 WebKit:
+  // pointerdown alone blurs and the visual viewport grows back, touchstart
+  // alone keeps both). React registers `onTouchStart` passively, where
+  // preventDefault is a silent no-op, so this has to be a native listener.
+  useMountEffect(() => {
+    const button = buttonRef.current;
+    if (!button) return;
+    const keepEditorFocus = (event: globalThis.TouchEvent) => {
+      event.preventDefault();
+    };
+    button.addEventListener("touchstart", keepEditorFocus, { passive: false });
+    return () => {
+      button.removeEventListener("touchstart", keepEditorFocus);
+    };
+  });
+
+  function handleSendPointerDown(event: PointerEvent<HTMLButtonElement>) {
+    // Covers pointer/mouse; touchstart above is what holds focus on iOS.
+    if (event.button !== 0) return;
+    event.preventDefault();
+    if (sendBlocked) return;
+    lastPointerSubmitAtRef.current = performance.now();
+    requestComposerSubmit(event.currentTarget.form);
+  }
+
+  function handleSendClick(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    // Same-gesture leftover click after pointerdown already submitted.
+    // A later click-only first tap (pointerdown missed Send) must still submit.
+    const sincePointerSubmit =
+      performance.now() - lastPointerSubmitAtRef.current;
+    if (
+      event.detail > 0 &&
+      sincePointerSubmit < POINTER_SUBMIT_CLICK_GUARD_MS
+    ) {
+      return;
+    }
+    requestComposerSubmit(event.currentTarget.form);
+  }
+
+  return (
+    <Button
+      ref={buttonRef}
+      type="button"
+      variant="primary"
+      size="icon"
+      className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+      disabled={sendBlocked}
+      aria-label={ariaLabel}
+      data-testid={testId}
+      onPointerDown={handleSendPointerDown}
+      onClick={handleSendClick}
+    >
+      {isSending ? (
+        <Loader2 className="size-4 animate-spin" aria-hidden />
+      ) : (
+        <ArrowUp className="size-4" aria-hidden />
+      )}
+    </Button>
   );
 }
 
