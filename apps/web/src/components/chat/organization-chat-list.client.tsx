@@ -52,6 +52,7 @@ import { ChatSidebarSectionHeader } from "./chat-sidebar-section-header";
 import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
 import { listOrganizationChatRoomsAction } from "./organization-chat-list.actions";
 import { partitionRoomsForSidebar } from "./partition-rooms-for-sidebar";
+import { PendingInvitationRailButton } from "./pending-invitation-rail-button";
 import { beginRoomAttentionRefresh } from "./room-read-overlay";
 import { useOrganizationChatRooms } from "./use-organization-chat-rooms";
 
@@ -287,13 +288,20 @@ export function OrganizationChatList({
                   const declineBusy =
                     respondingInvitation?.id === invitation.id &&
                     respondingInvitation.action === "decline";
+                  const invitationLabel = tExternal("pendingAria", {
+                    name: invitation.roomName,
+                    organization: invitation.organizationName,
+                  });
+                  const acceptButtonId = `invitation-accept-${invitation.id}`;
                   return (
                     <SidebarMenuItem key={invitation.id}>
+                      <PendingInvitationRailButton
+                        roomName={invitation.roomName}
+                        label={invitationLabel}
+                        acceptButtonId={acceptButtonId}
+                      />
                       <div
-                        aria-label={tExternal("pendingAria", {
-                          name: invitation.roomName,
-                          organization: invitation.organizationName,
-                        })}
+                        aria-label={invitationLabel}
                         className="text-tertiary-foreground dark:text-muted-foreground flex min-h-auto w-full items-start gap-2 px-3 py-1.5 group-data-[collapsible=icon]:hidden"
                       >
                         <Globe2
@@ -309,6 +317,7 @@ export function OrganizationChatList({
                           </div>
                           <div className="mt-1.5 flex items-center gap-1.5">
                             <Button
+                              id={acceptButtonId}
                               type="button"
                               size="sm"
                               variant="default"

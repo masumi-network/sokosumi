@@ -192,7 +192,11 @@ function MentionBadge({ count }: { count: number }) {
  * text inside the link, so the collapsed link announces it with the name.
  * `-left-2` lands it flush on the sidebar's edge, inside the group's `p-2`.
  */
-function RailAttentionPill({ variant }: { variant: "unread" | "mention" }) {
+export function RailAttentionPill({
+  variant,
+}: {
+  variant: "unread" | "mention";
+}) {
   return (
     <span
       data-slot="room-rail-attention"
