@@ -68,21 +68,6 @@ export async function fetchCoworkers(
   return { response, coworkers: response.data.map(parseCoworker) };
 }
 
-export async function fetchCoworker(
-  client: CoreHttpClient,
-  coworkerId: string,
-  signal?: AbortSignal,
-): Promise<{ response: ApiResponse<unknown>; coworker: Coworker }> {
-  requireId(coworkerId, "coworkerId");
-  const response = parseApiResponse(
-    await client.get<unknown>(
-      `${COWORKERS_PATH}/${encodeURIComponent(coworkerId)}`,
-      signal,
-    ),
-  );
-  return { response, coworker: parseCoworker(response.data) };
-}
-
 export async function fetchCurrentCoworker(
   client: CoreHttpClient,
   signal?: AbortSignal,
