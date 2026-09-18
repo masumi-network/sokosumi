@@ -51,10 +51,6 @@ export function parseSokosumiProviderOptions(
     typeof raw.onResponseCompleted === "function"
       ? (raw.onResponseCompleted as (id: string) => void | Promise<void>)
       : undefined;
-  const onInvalidPreviousResponseId =
-    typeof raw.onInvalidPreviousResponseId === "function"
-      ? (raw.onInvalidPreviousResponseId as () => void | Promise<void>)
-      : undefined;
   const onInvalidProviderConversationId =
     typeof raw.onInvalidProviderConversationId === "function"
       ? (raw.onInvalidProviderConversationId as () => void | Promise<void>)
@@ -110,7 +106,6 @@ export function parseSokosumiProviderOptions(
     webSearchParameters,
     onResponseStarted,
     onResponseCompleted,
-    onInvalidPreviousResponseId,
     onInvalidProviderConversationId,
   };
 }

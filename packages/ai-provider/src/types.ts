@@ -13,7 +13,6 @@ export interface SokosumiProviderCallOptions {
   webSearchParameters?: OpenRouterWebSearchParameters | null;
   onResponseStarted?: (responseId: string) => void | Promise<void>;
   onResponseCompleted?: (responseId: string) => void | Promise<void>;
-  onInvalidPreviousResponseId?: () => void | Promise<void>;
   onInvalidProviderConversationId?: () => void | Promise<void>;
 }
 
