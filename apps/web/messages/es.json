@@ -2364,8 +2364,7 @@
           "projectsLoading": "Cargando proyectos…",
           "projectsError": "No se pudieron cargar los proyectos.",
           "projectsEmpty": "Aún no hay proyectos.",
-          "retryProjects": "Reintentar",
-          "viewAllProjects": "Ver todos los proyectos"
+          "retryProjects": "Reintentar"
         },
         "ChatLists": {
           "title": "Chats Recientes",

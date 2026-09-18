@@ -19,16 +19,17 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { projectCountMock, projectFindManyMock, prismaTransactionMock } =
-  vi.hoisted(() => ({
+const { projectCountMock, projectFindManyMock, queryRawMock } = vi.hoisted(
+  () => ({
     projectCountMock: vi.fn(),
     projectFindManyMock: vi.fn(),
-    prismaTransactionMock: vi.fn(),
-  }));
+    queryRawMock: vi.fn(),
+  }),
+);
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    $transaction: prismaTransactionMock,
+    $queryRaw: queryRawMock,
     project: {
       findMany: projectFindManyMock,
       count: projectCountMock,
@@ -75,10 +76,7 @@ describe("GET /projects", () => {
     vi.clearAllMocks();
     projectFindManyMock.mockResolvedValue([]);
     projectCountMock.mockResolvedValue(0);
-    prismaTransactionMock.mockImplementation(
-      async (arg: [Promise<unknown>, Promise<unknown>]) =>
-        await Promise.all(arg),
-    );
+    queryRawMock.mockResolvedValue([]);
   });
 
   it("returns projects for the active workspace with pagination metadata", async () => {
@@ -108,6 +106,7 @@ describe("GET /projects", () => {
       },
     };
     projectFindManyMock.mockResolvedValue([sample]);
+    queryRawMock.mockResolvedValue([{ id: sample.id }]);
     projectCountMock.mockResolvedValue(1);
 
     const app = createApp();
@@ -141,15 +140,14 @@ describe("GET /projects", () => {
     expect(body.meta.pagination.cursor).toBeNull();
 
     expect(projectFindManyMock).toHaveBeenCalledWith({
-      where: { workspaceId: WORKSPACE_CONTEXT.workspaceId },
+      where: {
+        workspaceId: WORKSPACE_CONTEXT.workspaceId,
+        id: { in: [sample.id] },
+      },
       include: createProjectListCountsInclude(
         WORKSPACE_CONTEXT.workspaceId,
         humanProjectReaderVisibility(USER_AUTH_CONTEXT.userId),
       ),
-      take: LIMITS.DEFAULT_PAGINATION_LIMIT + 1,
-      skip: undefined,
-      cursor: undefined,
-      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
     });
     expect(projectCountMock).toHaveBeenCalledWith({
       where: { workspaceId: WORKSPACE_CONTEXT.workspaceId },
@@ -185,7 +183,8 @@ describe("GET /projects", () => {
         },
       }),
     );
-    projectFindManyMock.mockResolvedValue(rows);
+    projectFindManyMock.mockResolvedValue([...rows].reverse());
+    queryRawMock.mockResolvedValue(rows.map(({ id }) => ({ id })));
     projectCountMock.mockResolvedValue(50);
 
     const app = createApp();
@@ -197,12 +196,15 @@ describe("GET /projects", () => {
       meta: { pagination: { nextCursor: string | null } };
     };
     expect(body.data).toHaveLength(LIMITS.DEFAULT_PAGINATION_LIMIT);
+    expect(body.data.map(({ id }) => id)).toEqual(
+      rows.slice(0, LIMITS.DEFAULT_PAGINATION_LIMIT).map(({ id }) => id),
+    );
     expect(body.meta.pagination.nextCursor).toBe(
       body.data[LIMITS.DEFAULT_PAGINATION_LIMIT - 1]?.id ?? null,
     );
   });
 
-  it("passes cursor and skip when requesting the next page", async () => {
+  it("passes a bounded cursor query for the next globally ordered page", async () => {
     const cursorId = "11111111-1111-4111-8111-111111111111";
     projectFindManyMock.mockResolvedValue([]);
     projectCountMock.mockResolvedValue(0);
@@ -213,23 +215,17 @@ describe("GET /projects", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(projectFindManyMock).toHaveBeenCalledWith({
-      where: { workspaceId: WORKSPACE_CONTEXT.workspaceId },
-      include: createProjectListCountsInclude(
-        WORKSPACE_CONTEXT.workspaceId,
-        humanProjectReaderVisibility(USER_AUTH_CONTEXT.userId),
-      ),
-      take: 11,
-      skip: 1,
-      cursor: { id: cursorId },
-      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-    });
+    expect(queryRawMock).toHaveBeenCalledOnce();
+    expect(queryRawMock.mock.calls[0][0].values).toEqual(
+      expect.arrayContaining([cursorId, 11, WORKSPACE_CONTEXT.workspaceId]),
+    );
   });
 
   it("returns 403 when workspace context is missing", async () => {
     const app = createApp(USER_AUTH_CONTEXT, null);
     const res = await app.request("http://localhost/");
     expect(res.status).toBe(403);
+    expect(queryRawMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 for coworker without delegation", async () => {
@@ -239,5 +235,6 @@ describe("GET /projects", () => {
     );
     const res = await app.request("http://localhost/");
     expect(res.status).toBe(403);
+    expect(queryRawMock).not.toHaveBeenCalled();
   });
 });

@@ -105,6 +105,7 @@ describe("ProjectsPage", () => {
     });
     expect(projectsViewMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        projects,
         initialCreateProjectOpen: true,
         nextCursor: "project-3",
         labels: expect.objectContaining({

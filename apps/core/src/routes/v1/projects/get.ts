@@ -8,6 +8,10 @@ import {
   createPaginationMeta,
   parseCursorPagination,
 } from "@/helpers/pagination";
+import {
+  projectActivityPageQuery,
+  projectActivityVisibility,
+} from "@/helpers/project-activity";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
@@ -31,7 +35,8 @@ const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "get",
     path: "/",
-    description: "List projects in the active workspace (paginated)",
+    description:
+      "List workspace projects by latest visible task/job event, ready task output or project lifecycle activity (creation fallback; ID descending breaks ties), paginated globally",
     tags: ["Projects"],
     request: {
       query,
@@ -53,7 +58,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     await requireAuthorizedUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const queryParams = c.req.valid("query");
-    const { cursor, take, skip } = parseCursorPagination(queryParams);
+    const { cursor, take } = parseCursorPagination(queryParams);
 
     const where = { workspaceId: workspaceContext.workspaceId };
     const takePlusOne = take + 1;
@@ -66,17 +71,32 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       visibility,
     );
 
-    const [projects, count] = await prisma.$transaction([
-      prisma.project.findMany({
-        where,
-        include: projectListCountsInclude,
+    const activityVisibility = await projectActivityVisibility(
+      c.var.authContext,
+      workspaceContext.workspaceId,
+    );
+    const ranked = await prisma.$queryRaw<
+      Array<{ id: string; lastActivityAt: Date }>
+    >(
+      projectActivityPageQuery({
+        workspaceId: workspaceContext.workspaceId,
+        cursor,
         take: takePlusOne,
-        skip,
-        cursor: cursor ? { id: cursor } : undefined,
-        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        visibility: activityVisibility,
+      }),
+    );
+    const [rows, count] = await Promise.all([
+      prisma.project.findMany({
+        where: { ...where, id: { in: ranked.map((row) => row.id) } },
+        include: projectListCountsInclude,
       }),
       prisma.project.count({ where }),
     ]);
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    const projects = ranked.flatMap(({ id }) => {
+      const project = byId.get(id);
+      return project ? [project] : [];
+    });
 
     const hasMore = projects.length === takePlusOne;
     const pagedProjects = projects.slice(0, take);

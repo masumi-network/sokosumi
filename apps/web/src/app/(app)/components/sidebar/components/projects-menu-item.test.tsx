@@ -144,8 +144,8 @@ describe("Projects sidebar", () => {
       expect(screen.getByRole("status")).toHaveTextContent("projectsEmpty"),
     );
     expect(
-      screen.getByRole("link", { name: "viewAllProjects" }),
-    ).toHaveAttribute("href", "/projects");
+      screen.queryByRole("link", { name: "viewAllProjects" }),
+    ).not.toBeInTheDocument();
   });
 
   it("drops old workspace rows and ignores an old in-flight response", async () => {
@@ -190,24 +190,125 @@ describe("Projects sidebar", () => {
     expect(screen.queryByText("Personal project")).not.toBeInTheDocument();
   });
 
-  it("does not paginate automatically and keeps long project names available", async () => {
+  it("loads every page on scroll or keyboard focus, preserving API order and long names", async () => {
     const name = "A long project name ".repeat(20).trim();
-    mocks.load.mockResolvedValue({
-      projects: Array.from({ length: 20 }, (_, i) => ({
-        id: String(i),
-        name: i === 0 ? name : `Project ${i}`,
-      })),
-      nextCursor: "more",
-    });
+    mocks.load
+      .mockResolvedValueOnce({
+        projects: Array.from({ length: 20 }, (_, i) => ({
+          id: String(i),
+          name: i === 0 ? name : `Project ${i}`,
+        })),
+        nextCursor: "page-2",
+      })
+      .mockResolvedValueOnce({
+        projects: [{ id: "20", name: "Page two" }],
+        nextCursor: "page-3",
+      })
+      .mockResolvedValueOnce({
+        projects: [{ id: "21", name: "Last project" }],
+        nextCursor: null,
+      });
     setup();
     expand();
     const link = await screen.findByTitle(name);
     expect(link).toHaveAttribute("href", "/projects/0");
-    expect(screen.getAllByRole("link")).toHaveLength(22);
+    expect(screen.getAllByRole("link")).toHaveLength(21);
     expect(mocks.load).toHaveBeenCalledTimes(1);
+    fireEvent.scroll(link.closest("ul")!);
+    const second = await screen.findByRole("link", { name: "Page two" });
+    fireEvent.focus(second);
+    await screen.findByRole("link", { name: "Last project" });
     expect(
-      screen.getByRole("link", { name: "viewAllProjects" }),
+      screen
+        .getAllByRole("link")
+        .slice(-2)
+        .map((el) => el.textContent),
+    ).toEqual(["PPage two", "LLast project"]);
+    expect(mocks.load.mock.calls.map(([args]) => args.cursor)).toEqual([
+      null,
+      "page-2",
+      "page-3",
+    ]);
+    expect(screen.queryByText("viewAllProjects")).not.toBeInTheDocument();
+  });
+
+  it("hides stale pages after a page failure and retries the failed cursor", async () => {
+    mocks.load
+      .mockResolvedValueOnce({
+        projects: [{ id: "1", name: "First" }],
+        nextCursor: "next",
+      })
+      .mockRejectedValueOnce(new Error("Forbidden"))
+      .mockResolvedValueOnce({
+        projects: [{ id: "2", name: "Second" }],
+        nextCursor: null,
+      });
+    setup();
+    expand();
+    fireEvent.focus(await screen.findByRole("link", { name: "First" }));
+    const retry = await screen.findByRole("button", { name: "retryProjects" });
+    expect(
+      screen.queryByRole("link", { name: "First" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(retry);
+    expect(
+      await screen.findByRole("link", { name: "Second" }),
     ).toBeInTheDocument();
+    expect(mocks.load.mock.calls.map(([args]) => args.cursor)).toEqual([
+      null,
+      "next",
+      "next",
+    ]);
+  });
+
+  it("ignores a late next page when switching workspaces", async () => {
+    let finish: (value: {
+      projects: { id: string; name: string }[];
+      nextCursor: null;
+    }) => void = () => {};
+    mocks.load
+      .mockResolvedValueOnce({
+        projects: [{ id: "old", name: "Old workspace" }],
+        nextCursor: "next",
+      })
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      );
+    const view = setup();
+    expand();
+    fireEvent.focus(await screen.findByRole("link", { name: "Old workspace" }));
+    await waitFor(() => expect(mocks.load).toHaveBeenCalledTimes(2));
+    mocks.organizationId = null;
+    view.rerender(view.refresh());
+    await act(async () =>
+      finish({
+        projects: [{ id: "secret", name: "Late private project" }],
+        nextCursor: null,
+      }),
+    );
+    expect(screen.queryByText("Old workspace")).not.toBeInTheDocument();
+    expect(screen.queryByText("Late private project")).not.toBeInTheDocument();
+    mocks.load.mockResolvedValueOnce({
+      projects: [{ id: "new", name: "New workspace" }],
+      nextCursor: null,
+    });
+    expand();
+    expect(
+      await screen.findByRole("link", { name: "New workspace" }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders the established avatar fallback without changing the accessible link name", async () => {
+    setup();
+    expand();
+    const link = await screen.findByRole("link", { name: "Launch plan" });
+    expect(link.querySelector('[data-slot="avatar"]')).toBeInTheDocument();
+    expect(
+      link.querySelector('[data-slot="avatar-fallback"]'),
+    ).toHaveTextContent("L");
   });
 
   it("keeps the collapsed rail as an overview link without fetching", () => {
@@ -248,7 +349,6 @@ it.each([en, de, es])(
       "projectsError",
       "projectsEmpty",
       "retryProjects",
-      "viewAllProjects",
     ] as const) {
       expect(labels[key]).toEqual(expect.any(String));
       expect(labels[key].length).toBeGreaterThan(0);
