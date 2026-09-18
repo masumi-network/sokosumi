@@ -31,6 +31,9 @@ const SIDEBAR_WIDTH = "14rem";
 const SIDEBAR_WIDTH_MOBILE = "18rem";
 const SIDEBAR_WIDTH_ICON = "3.5rem";
 const SIDEBAR_KEYBOARD_SHORTCUT = "b";
+/** Gap, panel and row share this so the collapse is one movement. */
+const SIDEBAR_COLLAPSE_TRANSITION =
+  "duration-200 ease-linear motion-reduce:transition-none";
 
 type SidebarContextProps = {
   state: "expanded" | "collapsed";
@@ -254,7 +257,7 @@ function Sidebar({
             // The panel's width is the collapse animation. A reader who asks
             // for less motion gets the end state on the next frame instead —
             // the geometry is identical either way, only the travel goes.
-            "relative w-(--sidebar-width) bg-transparent transition-[width] duration-200 ease-linear motion-reduce:transition-none",
+            `relative w-(--sidebar-width) bg-transparent transition-[width] ${SIDEBAR_COLLAPSE_TRANSITION}`,
             "group-data-[collapsible=offcanvas]:w-0",
             "group-data-[side=right]:rotate-180",
             variant === "floating" || variant === "inset"
@@ -265,7 +268,7 @@ function Sidebar({
         <div
           data-slot="sidebar-container"
           className={cn(
-            "fixed inset-y-0 z-10 hidden h-dvh w-(--sidebar-width) overflow-x-hidden transition-[left,right,width] duration-200 ease-linear motion-reduce:transition-none md:flex",
+            `fixed inset-y-0 z-10 hidden h-dvh w-(--sidebar-width) overflow-x-hidden transition-[left,right,width] ${SIDEBAR_COLLAPSE_TRANSITION} md:flex`,
             side === "left"
               ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
               : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
@@ -489,6 +492,15 @@ const SIDEBAR_RAIL_SQUARE_CLASS =
   "group-data-[collapsible=icon]:ml-1 group-data-[collapsible=icon]:w-8! group-data-[collapsible=icon]:justify-center";
 
 /**
+ * Collapsed padding that keeps a row's mark on the 28px axis while a name
+ * is still in the flex flow. Same 4px as centering a 24px slot in a 32px
+ * square, without `justify-center` dragging the mark toward the label.
+ * The account chip does not use this — it drops all four paddings.
+ */
+const SIDEBAR_ROW_RAIL_PAD_CLASS =
+  "group-data-[collapsible=icon]:pr-0! group-data-[collapsible=icon]:pl-1! group-data-[collapsible=icon]:justify-start!";
+
+/**
  * Where a row's label starts, for text that carries no mark of its own — a
  * section's empty line.
  *
@@ -500,13 +512,23 @@ const SIDEBAR_RAIL_SQUARE_CLASS =
 const SIDEBAR_ROW_LABEL_INSET_CLASS = "pl-10";
 
 /**
+ * A row's name on collapse. `sr-only` clipped it to 1px on the first frame.
+ * `absolute` then painted it on top of the mark while the panel narrowed.
+ * It stays in the flex flow at the 48px column; max-width eases to 0 on the
+ * same 200ms linear clock as the panel, so the name clips from the right
+ * instead of covering the icon. Reduced motion jumps to the end state.
+ */
+const SIDEBAR_ROW_LABEL_CLASS =
+  `min-w-0 flex-1 max-w-full overflow-hidden transition-[max-width] ${SIDEBAR_COLLAPSE_TRANSITION} group-data-[collapsible=icon]:max-w-0`;
+
+/**
  * A pressable **Sidebar row** (CONTEXT.md): the row shape above, plus the
  * rail square and the rest state, hover, focus and selection that go with
  * being pressable. On the rail it drops its `px` and keeps its height, which
  * is already the square's 32px at `md` — and the rail exists only at `md`.
  */
 const sidebarMenuButtonVariants = cva(
-  `peer/menu-button ${SIDEBAR_ROW_CLASS} ${SIDEBAR_RAIL_SQUARE_CLASS} overflow-hidden rounded-md text-left text-base outline-hidden ring-sidebar-ring transition-[width,padding] motion-reduce:transition-none hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:px-0! group-data-[collapsible=icon]:hover:bg-transparent group-data-[collapsible=icon]:hover:ring-sidebar-ring group-data-[collapsible=icon]:hover:ring-1 group-data-[collapsible=icon]:active:bg-transparent group-data-[collapsible=icon]:active:ring-sidebar-ring group-data-[collapsible=icon]:active:ring-2 group-data-[collapsible=icon]:data-[active=true]:bg-transparent md:text-sm [&>span:last-child]:truncate`,
+  `peer/menu-button ${SIDEBAR_ROW_CLASS} ${SIDEBAR_RAIL_SQUARE_CLASS} ${SIDEBAR_ROW_RAIL_PAD_CLASS} overflow-hidden rounded-md text-left text-base outline-hidden ring-sidebar-ring transition-[width,padding,margin] ${SIDEBAR_COLLAPSE_TRANSITION} hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:hover:bg-transparent group-data-[collapsible=icon]:hover:ring-sidebar-ring group-data-[collapsible=icon]:hover:ring-1 group-data-[collapsible=icon]:active:bg-transparent group-data-[collapsible=icon]:active:ring-sidebar-ring group-data-[collapsible=icon]:active:ring-2 group-data-[collapsible=icon]:data-[active=true]:bg-transparent md:text-sm [&>span:last-child]:truncate`,
   {
     variants: {
       variant: {
@@ -637,7 +659,9 @@ function SidebarMenuSubButton({
 export {
   SIDEBAR_RAIL_SQUARE_CLASS,
   SIDEBAR_ROW_CLASS,
+  SIDEBAR_ROW_LABEL_CLASS,
   SIDEBAR_ROW_LABEL_INSET_CLASS,
+  SIDEBAR_ROW_RAIL_PAD_CLASS,
   Sidebar,
   SidebarContent,
   SidebarFooter,

@@ -168,6 +168,23 @@ describe("Projects sidebar", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("keeps the label in the accessibility tree when the rail collapses", () => {
+    setup();
+    const slot = screen
+      .getByRole("link", { name: "projects" })
+      .querySelector('[data-slot="sidebar-row-slot"]');
+    const label = slot?.nextElementSibling;
+    expect(label?.className.split(/\s+/)).toContain(
+      "group-data-[collapsible=icon]:max-w-0",
+    );
+    expect(label?.className.split(/\s+/)).not.toContain(
+      "group-data-[collapsible=icon]:sr-only",
+    );
+    expect(label?.className.split(/\s+/)).not.toContain(
+      "group-data-[collapsible=icon]:hidden",
+    );
+  });
+
   it("keeps overview navigation and loads only after disclosure, with current-project semantics", async () => {
     setup();
     expect(screen.getByRole("link", { name: "projects" })).toHaveAttribute(
