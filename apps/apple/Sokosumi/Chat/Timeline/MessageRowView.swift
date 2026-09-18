@@ -128,11 +128,16 @@ import SwiftUI
         && mentionShell?.isThinking != true
     }
 
+    /// Hop badge on a message one assistant wrote to another; web shows it in the hover pill.
+    private var sokoBotChain: SokoBotChainMetadata? {
+      SokoBotChainMetadata(message: message)
+    }
+
     private var showsActionChrome: Bool {
       message.deletedAt == nil
         && mentionShell?.isThinking != true
         && (onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil
-          || onTogglePin != nil || onToggleReaction != nil || canCopyMessageLink || onSendToSelf != nil)
+          || onTogglePin != nil || onToggleReaction != nil || canCopyMessageLink || onSendToSelf != nil || sokoBotChain != nil)
     }
 
     private var reactionAction: ((String) -> Void)? {
@@ -267,6 +272,10 @@ import SwiftUI
               ForEach(message.unfurls ?? [], id: \.url) { preview in
                 MessageUnfurlView(preview: preview, remove: onRemoveUnfurl.map { action in { try await action(preview.url) } })
                   .id(preview.url + (preview.imageUrl ?? ""))
+              }
+              // Web renders the Soko Bot footer only once the turn's answer is in the row.
+              if let turn = SokoBotTurnMetadata(message: message) {
+                SokoBotMessageFooterView(turn: turn)
               }
             }
             if isContinuation, message.editedAt != nil {
@@ -449,6 +458,10 @@ import SwiftUI
 
     private func actionControls(compact: Bool) -> some View {
       HStack(spacing: 2) {
+        if let sokoBotChain {
+          SokoBotChainBadge(chain: sokoBotChain)
+            .padding(.horizontal, 4)
+        }
         if onToggleReaction != nil {
           ForEach(Array(quickReactions.enumerated()), id: \.element.id) { index, emoji in
             quickReactionButton(emoji, position: index)
