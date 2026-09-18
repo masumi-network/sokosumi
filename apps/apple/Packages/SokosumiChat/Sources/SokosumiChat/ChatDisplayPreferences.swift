@@ -23,7 +23,9 @@ public final class ChatDisplayPreferences: ObservableObject {
   }
 
   /// A refresh that lands during or after a newer write is dropped, so it
-  /// cannot overwrite the optimistic value with a stale read.
+  /// cannot overwrite the optimistic value with a stale read. Finishing a
+  /// write also bumps `refreshGeneration`, because a GET that started while
+  /// `isSaving` can answer after the PATCH and would otherwise apply.
   public func refresh(client: Client) async throws {
     refreshGeneration += 1
     let request = refreshGeneration
@@ -48,10 +50,12 @@ public final class ChatDisplayPreferences: ObservableObject {
       guard request == generation else { return }
       showsRoomUnreadCount = stored
       isSaving = false
+      refreshGeneration += 1
     } catch {
       guard request == generation else { return }
       showsRoomUnreadCount = previous
       isSaving = false
+      refreshGeneration += 1
       throw error
     }
   }

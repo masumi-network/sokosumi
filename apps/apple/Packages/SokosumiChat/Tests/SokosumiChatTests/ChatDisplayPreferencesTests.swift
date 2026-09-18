@@ -84,6 +84,24 @@ struct ChatDisplayPreferencesTests {
     #expect(!preferences.showsRoomUnreadCount && !preferences.isSaving)
   }
 
+  @Test func writeCompletionDropsARefreshThatStartedDuringTheWrite() async throws {
+    let writeGate = GatedPreferencesTransport(status: 200, body: preferencesBody(showRoomUnreadCount: true))
+    let readGate = GatedPreferencesTransport(status: 200, body: preferencesBody(showRoomUnreadCount: false))
+    let writeClient = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: writeGate)
+    let readClient = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: readGate)
+    let preferences = ChatDisplayPreferences()
+    let write = Task { try await preferences.setShowsRoomUnreadCount(true, client: writeClient) }
+    await writeGate.waitForRequest()
+    let read = Task { try await preferences.refresh(client: readClient) }
+    await readGate.waitForRequest()
+    await writeGate.release()
+    try await write.value
+    #expect(preferences.showsRoomUnreadCount && !preferences.isSaving)
+    await readGate.release()
+    try await read.value
+    #expect(preferences.showsRoomUnreadCount)
+  }
+
   @Test func resetDropsALateWriteResult() async throws {
     let gate = GatedPreferencesTransport(status: 200, body: preferencesBody(showRoomUnreadCount: true))
     let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: gate)
