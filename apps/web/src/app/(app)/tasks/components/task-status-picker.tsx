@@ -17,8 +17,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
+  getToneStyle,
   MARKER_ICONS,
-  STATUS_ROLE_STYLES,
   StatusMarker,
 } from "@/components/ui/status-marker";
 import type { TaskStatus } from "@/lib/clients/generated/core";
@@ -118,7 +118,7 @@ export function TaskStatusPicker({
   }
 
   const marker = getTaskStatusMarker(value);
-  const role = STATUS_ROLE_STYLES[marker.role];
+  const style = getToneStyle(marker.tone);
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
@@ -133,16 +133,16 @@ export function TaskStatusPicker({
         >
           <span
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-medium",
-              role.bg,
-              role.text,
+              "inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-xs font-medium",
+              style.box,
+              style.label,
             )}
           >
             <StatusMarker
               spec={
                 isPending
                   ? {
-                      role: marker.role,
+                      tone: marker.tone,
                       icon: MARKER_ICONS.running,
                       spin: true,
                     }
@@ -190,7 +190,20 @@ export function TaskStatusPicker({
                 >
                   <StatusMarker
                     spec={rowMarker}
-                    tone={STATUS_ROLE_STYLES[rowMarker.role].onSurface}
+                    // A menu row paints no fill, so the glyph reads with the
+                    // word rather than on a box, and takes the same colour.
+                    //
+                    // Not `mark`, which is the colour of a mark on the tone's
+                    // own box: for the solid fault tone that is the near-white
+                    // label, invisible here. Not `onSurface` either. That is
+                    // measured against --card-background, and cmdk paints the
+                    // selected row --accent, which in dark is lighter; the
+                    // fault glyph measures 2.53:1 there, under the 3:1 SC
+                    // 1.4.11 asks. Selection is a resting state, reached by
+                    // arrow key, not a hover garnish. `labelOnSurface` is the
+                    // readable form of the same hue and measures 4.72 on that
+                    // row in dark, 6.01 in light.
+                    tone={getToneStyle(rowMarker.tone).labelOnSurface}
                     // A status you could pick, not one that is running.
                     live={false}
                   />

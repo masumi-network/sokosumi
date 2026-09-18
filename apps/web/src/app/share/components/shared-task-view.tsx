@@ -13,6 +13,7 @@ import {
   getTaskStatusBorderColorClass,
   getTaskStatusDotColorClass,
   TaskStatusBadge,
+  TaskStatusInline,
 } from "@/app/tasks/components/task-status-badge";
 import {
   TASK_DETAIL_GRID_CLASS,
@@ -360,13 +361,9 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                               </span>
                               {event.status ? (
                                 <>
-                                  <TaskStatusBadge
+                                  <TaskStatusInline
                                     status={event.status}
                                     label={statusLabels[event.status]}
-                                    // The share page carries the same history
-                                    // as the activity feed: a status someone
-                                    // set hours ago, since superseded.
-                                    live={false}
                                   />
                                   <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
                                     <span>{originFromLabel}</span>
