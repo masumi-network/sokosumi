@@ -101,6 +101,11 @@ async function expand() {
   fireEvent.click(trigger);
 }
 
+/** Placeholder rows standing in for the names that have not arrived. */
+function skeletonRowCount(): number {
+  return document.querySelectorAll('li[aria-hidden="true"]').length;
+}
+
 beforeEach(() => {
   vi.restoreAllMocks();
   vi.clearAllMocks();
@@ -283,6 +288,38 @@ describe("Projects sidebar", () => {
     expect(
       screen.getByRole("button", { name: "collapseProjects" }),
     ).toBeInTheDocument();
+  });
+
+  it("stands in at the height the reader's own history predicts", async () => {
+    localStorage.setItem(EXPANDED_KEY, "true");
+    localStorage.setItem(
+      recentProjectsStorageKey({ userId: "user-1", organizationId: "org-1" }),
+      JSON.stringify(["a", "b", "c", "d"]),
+    );
+    mocks.load.mockImplementation(() => new Promise(() => {}));
+    setup();
+    await screen.findByRole("status");
+    expect(skeletonRowCount()).toBe(4);
+  });
+
+  it("caps the stand-in at the row cap however long the log is", async () => {
+    localStorage.setItem(EXPANDED_KEY, "true");
+    localStorage.setItem(
+      recentProjectsStorageKey({ userId: "user-1", organizationId: "org-1" }),
+      JSON.stringify(["a", "b", "c", "d", "e", "f", "g", "h"]),
+    );
+    mocks.load.mockImplementation(() => new Promise(() => {}));
+    setup();
+    await screen.findByRole("status");
+    expect(skeletonRowCount()).toBe(5);
+  });
+
+  it("stands in with a floor for a reader who has opened nothing yet", async () => {
+    localStorage.setItem(EXPANDED_KEY, "true");
+    mocks.load.mockImplementation(() => new Promise(() => {}));
+    setup();
+    await screen.findByRole("status");
+    expect(skeletonRowCount()).toBe(3);
   });
 
   it("shows failure and retries", async () => {

@@ -34,7 +34,10 @@ import {
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 
-import { orderSidebarProjects } from "./order-sidebar-projects";
+import {
+  orderSidebarProjects,
+  SIDEBAR_PROJECT_ROW_CAP,
+} from "./order-sidebar-projects";
 
 const PROJECTS_EXPANDED_STORAGE_KEY = "sokosumi.sidebar.projects-expanded";
 
@@ -97,7 +100,13 @@ function useSidebarProjects(scope: ProjectsNavigationProps["scope"]) {
 
   // A session that has not resolved yet reads as pending, which is what the
   // disclosure should show for it.
-  return { rows, isPending: isPending || scope == null, isError, refetch };
+  return {
+    rows,
+    visitedCount: visitedIds.length,
+    isPending: isPending || scope == null,
+    isError,
+    refetch,
+  };
 }
 
 function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
@@ -122,7 +131,8 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
     }
   }
 
-  const { rows, isPending, isError, refetch } = useSidebarProjects(scope);
+  const { rows, visitedCount, isPending, isError, refetch } =
+    useSidebarProjects(scope);
   const active = pathname === "/projects" || pathname.startsWith("/projects/");
   const expandedSidebar = isMobile || state !== "collapsed";
 
@@ -195,7 +205,10 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
             same motion instead of jumping. */}
         <CollapsibleContent className="motion-safe:data-[state=closed]:animate-collapsible-up motion-safe:data-[state=open]:animate-collapsible-down overflow-hidden">
           {isPending ? (
-            <ProjectLinksSkeleton label={t("projectsLoading")} />
+            <ProjectLinksSkeleton
+              label={t("projectsLoading")}
+              rows={skeletonRows(visitedCount)}
+            />
           ) : isError ? (
             <SidebarMenuSub className="mx-0 translate-x-0 border-l-0 pl-4 pr-0">
               <SidebarMenuSubItem>
@@ -222,18 +235,43 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
 }
 
 /**
- * Stands in for the rows on a first paint the reader opened into, at the same
- * geometry, so the disclosure does not resize once the names arrive.
+ * Ragged widths, so the placeholder reads as a list of names rather than a
+ * stack of identical bars — the trick `SidebarChatListSkeleton` uses. Enough
+ * of them to cover a full disclosure.
  */
-const SKELETON_NAME_WIDTHS = ["w-24", "w-16", "w-20"] as const;
+const SKELETON_NAME_WIDTHS = ["w-24", "w-16", "w-28", "w-20", "w-14"] as const;
 
-function ProjectLinksSkeleton({ label }: { label: string }) {
+/** What to stand in with before the reader has opened a project. */
+const SKELETON_FALLBACK_ROWS = 3;
+
+/**
+ * How tall to stand in for the rows that are coming.
+ *
+ * Only a reader who left the disclosure open ever sees this, and their own
+ * visit log is the closest thing to a count we hold before the page lands, so
+ * the height is an estimate from their history rather than a constant. It can
+ * still be short of what arrives; the cap bounds how far off it can be.
+ */
+function skeletonRows(visitedCount: number): number {
+  return Math.min(
+    Math.max(visitedCount, SKELETON_FALLBACK_ROWS),
+    SIDEBAR_PROJECT_ROW_CAP,
+  );
+}
+
+function ProjectLinksSkeleton({
+  label,
+  rows,
+}: {
+  label: string;
+  rows: number;
+}) {
   return (
     <SidebarMenuSub className="mx-0 translate-x-0 border-l-0 pl-4 pr-0">
       <p role="status" className="sr-only">
         {label}
       </p>
-      {SKELETON_NAME_WIDTHS.map((nameWidth) => (
+      {SKELETON_NAME_WIDTHS.slice(0, rows).map((nameWidth) => (
         <SidebarMenuSubItem key={nameWidth} aria-hidden>
           <div className="flex min-h-9 items-center gap-2 py-2">
             <Skeleton className="size-5 shrink-0 rounded-md" />
