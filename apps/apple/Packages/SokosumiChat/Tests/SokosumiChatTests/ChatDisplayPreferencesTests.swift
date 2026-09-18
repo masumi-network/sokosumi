@@ -115,7 +115,7 @@ struct ChatDisplayPreferencesTests {
   }
 }
 
-private actor GatedPreferencesTransport: ClientTransport {
+actor GatedPreferencesTransport: ClientTransport {
   let status: Int
   let body: String
   private var waiter: CheckedContinuation<Void, Never>?
