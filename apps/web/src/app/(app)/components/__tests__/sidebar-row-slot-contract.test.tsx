@@ -147,7 +147,8 @@ describe("every sidebar row uses the shared leading slot", () => {
     // Soko Bots, eight nav rows, four section headings (Pinned, Channels,
     // External, Direct Messages) twice over — the titled row and its rail
     // square — Archived's titled row, five rooms, the archived row, the
-    // invitation's card and its rail button, and six skeleton slots. Counting
+    // invitation's card and its rail button, and eight skeleton slots — two
+    // section headings and six rooms. Counting
     // by row type rather than by total, so adding a nav item does not edit a
     // number here.
     expect(container.querySelectorAll(SLOT).length).toBeGreaterThan(20);
