@@ -95,7 +95,14 @@ describe("PUT /chats/rooms/starred", () => {
     expect(response.status).toBe(200);
     expect(membershipFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { userId: USER_ID, starredAt: { not: null } },
+        where: {
+          userId: USER_ID,
+          starredAt: { not: null },
+          room: expect.objectContaining({
+            archivedAt: null,
+            OR: expect.arrayContaining([{ organizationId: "org_1" }]),
+          }),
+        },
       }),
     );
     expect(writtenOrder()).toEqual([ROOM_C, ROOM_A, ROOM_B]);
@@ -163,6 +170,38 @@ describe("PUT /chats/rooms/starred", () => {
 
     expect(response.status).toBe(422);
     expect(prismaTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it("does not load starred rooms from another workspace", async () => {
+    await put({ roomIds: [ROOM_C, ROOM_A, ROOM_B] });
+
+    const where = membershipFindManyMock.mock.calls[0]?.[0]?.where as {
+      room: { OR: unknown[] };
+    };
+    expect(where.room.OR).toContainEqual({ organizationId: "org_1" });
+    expect(where.room.OR).not.toContainEqual({
+      organizationId: "org_other",
+    });
+  });
+
+  it("scopes personal workspace to org-less rooms, not an org", async () => {
+    await createApp({
+      ...userAuthContext,
+      organizationId: null,
+    }).request("/starred", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ roomIds: [ROOM_A, ROOM_B] }),
+    });
+
+    const where = membershipFindManyMock.mock.calls[0]?.[0]?.where as {
+      room: { OR: unknown[] };
+    };
+    expect(where.room.OR).toContainEqual({
+      organizationId: null,
+      kind: "direct",
+    });
+    expect(where.room.OR).not.toContainEqual({ organizationId: "org_1" });
   });
 
   it("rejects a non-user actor", async () => {

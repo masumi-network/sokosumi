@@ -239,7 +239,7 @@ export const reorderStarredChatRoomsRequestSchema = z
       .max(MAX_STARRED_ROOMS)
       .openapi({
         description:
-          "Starred room ids in the wanted order. Ids the caller has not starred are ignored; starred rooms left out keep their relative order after the listed ones. Never stars or unstars a room.",
+          "Starred room ids in the wanted order. Ids the caller has not starred in the active workspace are ignored; membership-visible starred rooms left out keep their relative order after the listed ones. Never stars or unstars a room.",
         example: ["550e8400-e29b-41d4-a716-446655440000"],
       }),
   })

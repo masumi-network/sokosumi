@@ -14,7 +14,7 @@ const route = createRoute({
   method: "put",
   path: "/starred",
   description:
-    "Set the order of the current user's starred chat rooms. Rewrites `starredAt`, the sort key every client already lists starred rooms by (oldest first). Never stars or unstars a room.",
+    "Set the order of the current user's starred chat rooms in the active workspace. Rewrites `starredAt` on membership-visible starred rooms only (same set as GET /chats/rooms), the sort key every client already lists starred rooms by (oldest first). Never stars or unstars a room, and never writes another workspace's exclusive pins.",
   tags: ["Chat Rooms"],
   request: {
     body: {
@@ -37,14 +37,50 @@ const route = createRoute({
   },
 });
 
+/** Same membership-visible active set as GET /chats/rooms. */
+function membershipVisibleActiveRoomWhere(
+  userId: string,
+  organizationId: string | null,
+) {
+  const guestRoom = {
+    userMembers: { some: { userId, access: "guest" as const } },
+  };
+  const matched = {
+    organizationId: null,
+    kind: "channel" as const,
+    discoverability: "matched" as const,
+  };
+  return {
+    archivedAt: null,
+    OR: organizationId
+      ? [
+          { organizationId },
+          guestRoom,
+          {
+            organizationId: null,
+            kind: "direct" as const,
+            coworkerMembers: { none: {} },
+          },
+          matched,
+        ]
+      : [{ organizationId: null, kind: "direct" as const }, guestRoom, matched],
+  };
+}
+
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { userId } = requireUserAuthContext(c.var.authContext);
+    const { userId, organizationId } = requireUserAuthContext(
+      c.var.authContext,
+    );
     const { roomIds } = c.req.valid("json");
 
     const order = await prisma.$transaction(async (tx) => {
       const starred = await tx.chatRoomUserMember.findMany({
-        where: { userId, starredAt: { not: null } },
+        where: {
+          userId,
+          starredAt: { not: null },
+          room: membershipVisibleActiveRoomWhere(userId, organizationId),
+        },
         orderBy: [{ starredAt: "asc" }, { roomId: "asc" }],
         select: { roomId: true, starredAt: true },
       });
