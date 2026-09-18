@@ -103,6 +103,9 @@ public final class WorkspaceState: ObservableObject {
   @Published var pendingReactions: Set<ReactionRequest> = []
   /// Failed mention shells whose retry POST is in flight; see `WorkspaceState+Mentions`.
   @Published var pendingMentionRetries: Set<MentionRetryRequest> = []
+  /// Soko Bot turns rated in this session, by turn id; see `WorkspaceState+SokoBot`.
+  @Published public internal(set) var sokoBotFeedback: [String: Bool] = [:]
+  @Published var pendingSokoBotFeedback: Set<String> = []
   public let timeline = RoomTimeline()
   public let pins = PinnedMessages()
   @Published var pendingPins: Set<String> = []
@@ -277,6 +280,8 @@ public final class WorkspaceState: ObservableObject {
     updatingChannel = false
     channelLifecycle = nil
     invitationResponse = nil
+    sokoBotFeedback = [:]
+    pendingSokoBotFeedback = []
     archivedChannels.reset()
     pendingInvitations.reset()
     workspaceSession.reset()

@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  extractReactEnvelope,
   normalizeReactEnvelopeTrailingText,
   parseReactEnvelopeBuffer,
 } from "./openrouter-react-image-envelope.js";
@@ -70,30 +69,5 @@ describe("normalizeReactEnvelopeTrailingText", () => {
   it("handles long runs of tabs before newlines in linear time", () => {
     const tabs = "\t".repeat(50_000);
     expect(normalizeReactEnvelopeTrailingText(`${tabs}\nok`)).toBe("ok");
-  });
-});
-
-describe("extractReactEnvelope", () => {
-  it("matches parseReactEnvelopeBuffer for a complete envelope", () => {
-    const inner = JSON.stringify({
-      action: "openrouter_image_generation",
-      action_input: '{"prompt":"x"}',
-      thought: "Reason",
-    });
-    const text = `\`\`\`json ${inner}\`\`\`\n\nDone`;
-    expect(extractReactEnvelope(text)).toEqual({
-      strippedText: "Done",
-      thought: "Reason",
-      hadEnvelope: true,
-    });
-  });
-
-  it("returns original text when the buffer parse is incomplete", () => {
-    const text = "```json\n{";
-    expect(extractReactEnvelope(text)).toEqual({
-      strippedText: text,
-      thought: null,
-      hadEnvelope: false,
-    });
   });
 });
