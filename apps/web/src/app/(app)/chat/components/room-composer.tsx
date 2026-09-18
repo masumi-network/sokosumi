@@ -98,6 +98,13 @@ export interface RoomComposerHandle {
   focus: () => void;
 }
 
+/** Edits made in the editor itself, so a focused editor shows them. */
+export interface RoomComposerEditHandle extends RoomComposerHandle {
+  insertText: (text: string) => void;
+  /** Remove the last occurrence of `text`; false when it is not in the editor. */
+  removeLastText: (text: string) => boolean;
+}
+
 function RoomMentionSuggestion({
   mention,
 }: {
@@ -366,7 +373,7 @@ export function RoomComposer({
   onOpenDirectMessage,
   openingDirectParticipantKey = null,
 }: {
-  ref?: Ref<RoomComposerHandle>;
+  ref?: Ref<RoomComposerEditHandle>;
   /** When set, attaches mint via room chat file endpoint. */
   roomId?: string;
   value: string;
@@ -586,6 +593,11 @@ export function RoomComposer({
       focus: () => {
         editorRef.current?.focus();
       },
+      insertText: (text) => {
+        editorRef.current?.insertText(text);
+      },
+      removeLastText: (text) =>
+        editorRef.current?.removeLastText(text) ?? false,
     }),
     [handleFilesSelected],
   );

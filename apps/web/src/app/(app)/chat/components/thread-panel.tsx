@@ -30,6 +30,7 @@ import type {
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
+import type { ChatRoomMessageLink } from "@/lib/utils/notification-href";
 import { MembershipStatusRow } from "./membership-status-row";
 import { type RoomComposerHandle } from "./room-composer";
 import { RoomFileDropZone } from "./room-file-drop-zone";
@@ -124,7 +125,9 @@ export function ThreadPanel({
   isSavingEdit = false,
   pendingQuote = null,
   onClearPendingQuote,
-  onRestorePendingQuote,
+  onSetPendingQuote,
+  onResolveMessageLink,
+  requireBody,
   showMentionShortcut = true,
   allowAttachments = true,
   roomId,
@@ -178,7 +181,11 @@ export function ThreadPanel({
   isSavingEdit?: boolean;
   pendingQuote?: PendingRoomQuote | null;
   onClearPendingQuote?: () => void;
-  onRestorePendingQuote?: (quote: PendingRoomQuote) => void;
+  onSetPendingQuote?: (quote: PendingRoomQuote) => void;
+  onResolveMessageLink?: (
+    link: ChatRoomMessageLink,
+  ) => Promise<PendingRoomQuote | null>;
+  requireBody?: boolean;
   showMentionShortcut?: boolean;
   allowAttachments?: boolean;
   roomId: string;
@@ -424,7 +431,9 @@ export function ThreadPanel({
             allowAttachments={allowAttachments}
             pendingQuote={pendingQuote}
             onClearPendingQuote={onClearPendingQuote}
-            onRestorePendingQuote={onRestorePendingQuote}
+            onSetPendingQuote={onSetPendingQuote}
+            onResolveMessageLink={onResolveMessageLink}
+            requireBody={requireBody}
             onBeforeSend={onBeforeSendReply}
             onSend={handleSendReply}
             currentUserId={currentUserId}
