@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { unprocessableEntity } from "@/helpers/error";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { SokoBotIntegrationError } from "@/services/soko-bot-integrations.service";
 
@@ -34,14 +33,6 @@ vi.mock("@/services/soko-bot-integrations.service", async (importOriginal) => {
 const USER_ID = "owner_1";
 const WORKSPACE_ID = "01960001-0001-7001-8001-000000000010";
 
-/** Mirrors `mapIntegrationError` for the kinds this route can raise. */
-function mapError(error: unknown): never {
-  if (error instanceof SokoBotIntegrationError) {
-    throw unprocessableEntity(error.message);
-  }
-  throw error;
-}
-
 function createApp() {
   const app = new OpenAPIHonoWithAuth();
   app.use("*", async (c, next) => {
@@ -59,7 +50,7 @@ function createApp() {
     });
     return await next();
   });
-  mountSokoBotIntegrationAuthRoutes(app, mapError);
+  mountSokoBotIntegrationAuthRoutes(app);
   return app;
 }
 
@@ -82,7 +73,13 @@ describe("Soko Bot integration callback verifier", () => {
   });
 
   it("redeems the session for the signed-in caller, never for anything in the request", async () => {
-    const response = await post({ sessionUri: "session-uri-1" });
+    const response = await post({
+      sessionUri: "session-uri-1",
+      // Zod strips these, but a handler that read the raw body would see them,
+      // and that is exactly the bug this route exists to prevent.
+      userId: "someone-else",
+      workspaceId: "another-workspace",
+    });
 
     expect(response.status).toBe(200);
     expect(completeMock).toHaveBeenCalledWith({
@@ -111,6 +108,17 @@ describe("Soko Bot integration callback verifier", () => {
     const response = await post({ sessionUri: "session-uri-1" });
 
     expect(response.status).toBe(422);
+    expect(finalizeMock).not.toHaveBeenCalled();
+  });
+
+  it("answers a spent or expired session with 404", async () => {
+    completeMock.mockRejectedValue(
+      new SokoBotIntegrationError("expired", "NOT_FOUND"),
+    );
+
+    const response = await post({ sessionUri: "session-uri-1" });
+
+    expect(response.status).toBe(404);
     expect(finalizeMock).not.toHaveBeenCalled();
   });
 

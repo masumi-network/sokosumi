@@ -11,10 +11,10 @@ import {
 } from "@/schemas/soko-bot-integration-auth.schema";
 import { completeSokoBotIntegrationAuth } from "@/services/soko-bot-integration-auth.service";
 import { finalizeSokoBotIntegration } from "@/services/soko-bot-integrations.service";
+import { mapIntegrationError } from "./integration-error.js";
 
 export function mountSokoBotIntegrationAuthRoutes(
   app: OpenAPIHonoWithAuth,
-  mapError: (error: unknown) => never,
 ): void {
   const completeAuthRoute = createRoute({
     method: "post",
@@ -66,7 +66,7 @@ export function mountSokoBotIntegrationAuthRoutes(
         }),
       );
     } catch (error) {
-      mapError(error);
+      mapIntegrationError(error);
     }
   });
 }
