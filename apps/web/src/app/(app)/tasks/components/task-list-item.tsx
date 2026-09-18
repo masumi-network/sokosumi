@@ -73,7 +73,7 @@ export function TaskListItem({
             <TaskPrivateIndicator visibility={task.visibility} />
           </div>
           <TaskMetaDetails
-            owner={task.owner}
+            project={task.project}
             assignee={task.assignee}
             commentsCount={task.commentsCount}
             createdAt={task.createdAt}
