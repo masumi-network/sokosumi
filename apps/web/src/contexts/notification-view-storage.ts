@@ -24,9 +24,13 @@ const VIEWS: Record<NotificationCenterView, true> = {
   "needs-action": true,
 };
 
+function isView(raw: string): raw is NotificationCenterView {
+  return Object.hasOwn(VIEWS, raw);
+}
+
 export function getNotificationViewPreference(): NotificationCenterView | null {
   return readStoredPreference(NOTIFICATION_VIEW_STORAGE_KEY, (raw) =>
-    Object.hasOwn(VIEWS, raw) ? (raw as NotificationCenterView) : null,
+    isView(raw) ? raw : null,
   );
 }
 
