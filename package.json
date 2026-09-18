@@ -3,13 +3,6 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@12.4.2",
-  "devEngines": {
-    "packageManager": {
-      "name": "pnpm",
-      "version": "12.4.2",
-      "onFail": "warn"
-    }
-  },
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "web:dev": "pnpm --filter web dev",
