@@ -2231,6 +2231,73 @@
           "disconnect": "Dieses X-Konto konnte nicht getrennt werden. Versuche es erneut."
         }
       },
+      "SocialPosts": {
+        "title": "Social-Media-Beiträge",
+        "description": "Entwirf Textbeiträge für X und plane sie aus diesem Projekt heraus.",
+        "newPost": "Neuer Beitrag",
+        "moreActions": "Beitragsaktionen",
+        "noAccount": "Kein Konto",
+        "connectAccountFirst": "Verbinde ein X-Konto mit diesem Projekt, bevor du Beiträge planst.",
+        "connectAccountLink": "Konto verbinden",
+        "sections": {
+          "upcoming": "Anstehend",
+          "drafts": "Entwürfe",
+          "history": "Verlauf"
+        },
+        "empty": {
+          "upcoming": "Noch keine geplanten Beiträge.",
+          "drafts": "Noch keine Entwürfe.",
+          "history": "Noch keine veröffentlichten, fehlgeschlagenen oder abgebrochenen Beiträge."
+        },
+        "status": {
+          "DRAFT": "Entwurf",
+          "SCHEDULED": "Geplant",
+          "PUBLISHING": "Wird veröffentlicht",
+          "PUBLISHED": "Veröffentlicht",
+          "FAILED": "Fehlgeschlagen",
+          "MISSED": "Verpasst",
+          "CANCELED": "Abgebrochen"
+        },
+        "creator": {
+          "user": "Nutzer",
+          "coworker": "Coworker",
+          "sokoBot": "Soko Bot"
+        },
+        "composer": {
+          "newTitle": "Neuer Beitrag",
+          "editTitle": "Beitrag bearbeiten",
+          "scheduleTitle": "Beitrag planen",
+          "rescheduleTitle": "Beitrag neu planen",
+          "description": "Schreibe den Text, wähle das Konto und lege fest, wann er erscheint.",
+          "text": "Text",
+          "textPlaceholder": "Was möchtest du posten?",
+          "characters": "{count} / {limit}",
+          "account": "Konto",
+          "noAccount": "Konto auswählen",
+          "unknownHandle": "Unbekanntes X-Konto",
+          "scheduledAt": "Geplanter Zeitpunkt",
+          "saveDraft": "Entwurf speichern",
+          "save": "Speichern",
+          "schedule": "Planen",
+          "reschedule": "Neu planen",
+          "cancel": "Beitrag abbrechen",
+          "edit": "Bearbeiten",
+          "close": "Schließen"
+        },
+        "cancelDialog": {
+          "title": "Diesen Beitrag abbrechen?",
+          "description": "Der Beitrag wird nicht veröffentlicht. Du kannst ihn später erneut planen.",
+          "confirm": "Beitrag abbrechen"
+        },
+        "toasts": {
+          "created": "Entwurf gespeichert.",
+          "scheduled": "Beitrag geplant.",
+          "updated": "Beitrag aktualisiert.",
+          "canceled": "Beitrag abgebrochen.",
+          "conflict": "Dieser Beitrag wurde an anderer Stelle geändert. Die neueste Version wird geladen.",
+          "failed": "Etwas ist schiefgelaufen. Versuche es erneut."
+        }
+      },
       "Detail": {
         "back": "Zurück zu Projekten",
         "header": {

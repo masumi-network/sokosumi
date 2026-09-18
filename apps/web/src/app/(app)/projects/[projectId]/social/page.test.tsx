@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const hasCurrentUserCalendarBetaAccessMock = vi.fn();
 const getProjectByIdMock = vi.fn();
+const listSocialPostsMock = vi.fn();
 const listSocialConnectionsMock = vi.fn();
+const projectSocialPostsMock = vi.fn();
 const projectSocialAccountsMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
@@ -32,8 +34,16 @@ vi.mock("@/lib/calendar-beta-access.server", () => ({
 vi.mock("@/lib/services/project.service", () => ({
   projectService: {
     getProjectById: (projectId: string) => getProjectByIdMock(projectId),
+    listSocialPosts: (projectId: string) => listSocialPostsMock(projectId),
     listSocialConnections: (projectId: string) =>
       listSocialConnectionsMock(projectId),
+  },
+}));
+
+vi.mock("@/app/projects/components/social-posts/project-social-posts", () => ({
+  ProjectSocialPosts: (props: unknown) => {
+    projectSocialPostsMock(props);
+    return <div data-testid="project-social-posts" />;
   },
 }));
 
@@ -55,20 +65,23 @@ const PROJECT = {
   updatedAt: new Date("2026-06-02T00:00:00.000Z"),
 };
 
-const CONNECTION = {
-  id: "connection-1",
-  provider: "x" as const,
-  externalHandle: "sokosumi",
-  status: "active" as const,
-  connectedAt: new Date("2026-09-03T10:00:00.000Z"),
-  disconnectedAt: null,
-};
+function buildConnection(status: "active" | "disconnected", id: string) {
+  return {
+    id,
+    provider: "x" as const,
+    externalHandle: "sokosumi",
+    status,
+    connectedAt: new Date("2026-09-03T10:00:00.000Z"),
+    disconnectedAt: null,
+  };
+}
 
 describe("ProjectSocialPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(true);
     getProjectByIdMock.mockResolvedValue(PROJECT);
+    listSocialPostsMock.mockResolvedValue([]);
     listSocialConnectionsMock.mockResolvedValue([]);
   });
 
@@ -80,6 +93,7 @@ describe("ProjectSocialPage", () => {
     ).rejects.toThrow("NEXT_NOT_FOUND");
 
     expect(getProjectByIdMock).not.toHaveBeenCalled();
+    expect(listSocialPostsMock).not.toHaveBeenCalled();
     expect(listSocialConnectionsMock).not.toHaveBeenCalled();
   });
 
@@ -90,11 +104,16 @@ describe("ProjectSocialPage", () => {
       ProjectSocialPage({ params: Promise.resolve({ projectId: "missing" }) }),
     ).rejects.toThrow("NEXT_NOT_FOUND");
 
+    expect(listSocialPostsMock).not.toHaveBeenCalled();
     expect(listSocialConnectionsMock).not.toHaveBeenCalled();
   });
 
-  it("renders the Project header and the social accounts section", async () => {
-    listSocialConnectionsMock.mockResolvedValue([CONNECTION]);
+  it("renders the header, posts with active connections only, and every connection for the accounts section", async () => {
+    const posts = [{ id: "post-1" }];
+    const active = buildConnection("active", "connection-1");
+    const disconnected = buildConnection("disconnected", "connection-2");
+    listSocialPostsMock.mockResolvedValue(posts);
+    listSocialConnectionsMock.mockResolvedValue([active, disconnected]);
 
     render(
       await ProjectSocialPage({
@@ -103,16 +122,25 @@ describe("ProjectSocialPage", () => {
     );
 
     expect(getProjectByIdMock).toHaveBeenCalledWith(PROJECT.id);
+    expect(listSocialPostsMock).toHaveBeenCalledWith(PROJECT.id);
     expect(listSocialConnectionsMock).toHaveBeenCalledWith(PROJECT.id);
     expect(screen.getByRole("link", { name: "backToProject" })).toHaveAttribute(
       "href",
       "/projects/project-1",
     );
+    expect(screen.getByTestId("project-social-posts")).toBeInTheDocument();
+    expect(projectSocialPostsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: PROJECT.id,
+        posts,
+        connections: [expect.objectContaining({ id: "connection-1" })],
+      }),
+    );
     expect(screen.getByTestId("project-social-accounts")).toBeInTheDocument();
     expect(projectSocialAccountsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         projectId: PROJECT.id,
-        connections: [CONNECTION],
+        connections: [active, disconnected],
       }),
     );
   });
