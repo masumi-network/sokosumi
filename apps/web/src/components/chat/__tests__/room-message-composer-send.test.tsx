@@ -24,6 +24,82 @@ describe("RoomMessageComposer send pointer path", () => {
     vi.restoreAllMocks();
   });
 
+  function SendHarness({ withSubmitControl }: { withSubmitControl: boolean }) {
+    return (
+      <RoomMessageComposer
+        onSubmit={(event: FormEvent<HTMLFormElement>) => event.preventDefault()}
+        attachments={[]}
+        onRemoveAttachment={() => undefined}
+        removeAttachmentLabel={(name) => name}
+        isSending={false}
+        sendDisabled={false}
+        sendAriaLabel="Send"
+        submitControl={
+          withSubmitControl ? <button type="button">Stop</button> : undefined
+        }
+      >
+        <div role="textbox" contentEditable tabIndex={0} />
+      </RoomMessageComposer>
+    );
+  }
+
+  it("preventDefaults touchstart on Send so iOS keeps the editor focused", () => {
+    render(<SendHarness withSubmitControl={false} />);
+
+    const send = screen.getByRole("button", { name: "Send" });
+
+    // iOS blurs the editor on the touch, not on the compatibility mouse event,
+    // so pointerdown's preventDefault cannot hold it. fireEvent returns false
+    // when the listener called preventDefault.
+    expect(fireEvent.touchStart(send)).toBe(false);
+  });
+
+  it("still submits exactly once on a full touch gesture", () => {
+    const onSubmit = vi.fn((event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+    });
+
+    render(
+      <RoomMessageComposer
+        onSubmit={onSubmit}
+        attachments={[]}
+        onRemoveAttachment={() => undefined}
+        removeAttachmentLabel={(name) => name}
+        isSending={false}
+        sendDisabled={false}
+        sendAriaLabel="Send"
+      >
+        <div role="textbox" contentEditable tabIndex={0} />
+      </RoomMessageComposer>,
+    );
+
+    const send = screen.getByRole("button", { name: "Send" });
+
+    // The touchstart guard suppresses the synthesized click on iOS, so the
+    // whole send path rests on pointerdown. One tap must still post once.
+    fireEvent.touchStart(send);
+    fireEvent.pointerDown(send, { button: 0 });
+    fireEvent.touchEnd(send);
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+
+    // Should a browser still synthesize the click, it must not post twice.
+    fireEvent.click(send, { detail: 1 });
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the touchstart guard when Send replaces a submitControl", () => {
+    // Coworker DMs swap in a stop control while streaming. Send mounts fresh
+    // when it clears, and the guard has to come back with it.
+    const { rerender } = render(<SendHarness withSubmitControl={true} />);
+    expect(screen.queryByRole("button", { name: "Send" })).toBeNull();
+
+    rerender(<SendHarness withSubmitControl={false} />);
+
+    const send = screen.getByRole("button", { name: "Send" });
+    expect(fireEvent.touchStart(send)).toBe(false);
+  });
+
   it("submits on pointerdown without blurring the editor", () => {
     const onSubmit = vi.fn((event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
