@@ -25,14 +25,24 @@ symlinks = {"Applications": "/Applications"}
 badge_icon = None
 icon = os.path.join(app, "Contents", "Resources", "AppIcon.icns")
 
-# dmgbuild ships builtin-arrow.tiff at 640x240, so the window is sized to it
-# exactly and the icons sit on the arrow's endpoints.
-background = "builtin-arrow"
-window_rect = ((200, 200), (640, 240))
+# No background image, deliberately. A background is baked in and static, so
+# it cannot follow the system appearance: any image we ship is a bright panel
+# for every dark-mode reader, or a dark one for every light-mode reader.
+# Leaving it unset lets Finder draw its own, which adapts. It also means no
+# PNG to commit at 1x and 2x and keep in sync with the brand colour.
+#
+# dmgbuild's bundled `builtin-arrow` was tried and rejected: it is a chunky
+# 2005-era blue arrow that fights the flat app icon. The Applications alias
+# badge already communicates the drag without one.
+#
+# 640x400, not 640x240: a 128px icon plus its label does not fit in 240, and
+# Finder silently grows the window to about 704x323 when it does not. At 400
+# the window opens at exactly the size set here.
+window_rect = ((200, 200), (640, 400))
 icon_size = 128
 icon_locations = {
-    app_name: (160, 120),
-    "Applications": (480, 120),
+    app_name: (160, 170),
+    "Applications": (480, 170),
 }
 
 default_view = "icon-view"
