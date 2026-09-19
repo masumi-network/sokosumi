@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { runDiscoverCommand } from "../../../src/cli/commands/discover.js";
+import {
+  CLI_COMMANDS,
+  runDiscoverCommand,
+} from "../../../src/cli/commands/discover.js";
 
 const config = {
   target: "mainnet" as const,
@@ -25,8 +28,7 @@ test("discover JSON lists the current command catalog", async () => {
   };
   assert.equal(result.apiUrl, config.apiUrl);
   assert.equal(result.environment, "mainnet");
-  assert.ok(result.commands.includes("agents list"));
-  assert.ok(result.commands.includes("jobs input"));
+  assert.deepEqual(result.commands, [...CLI_COMMANDS]);
 });
 
 test("TestV55 discover sanitizes the API URL in JSON and text output", async () => {
