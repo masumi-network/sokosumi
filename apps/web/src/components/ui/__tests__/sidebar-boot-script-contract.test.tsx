@@ -9,7 +9,7 @@ import { Sidebar, SidebarProvider } from "@/components/ui/sidebar";
 import {
   SIDEBAR_BOOT_SCRIPT,
   SIDEBAR_BOOT_STOP_GLOBAL,
-  SIDEBAR_COMPACT_BREAKPOINT,
+  SIDEBAR_COMPACT_MEDIA_QUERY,
 } from "@/lib/ui-preferences/sidebar-state";
 
 /**
@@ -19,7 +19,7 @@ import {
  * drives the real component.
  */
 describe("sidebar boot script contract", () => {
-  const originalInnerWidth = window.innerWidth;
+  const originalMatchMedia = window.matchMedia;
 
   beforeEach(() => {
     document.cookie =
@@ -27,18 +27,24 @@ describe("sidebar boot script contract", () => {
   });
 
   afterEach(() => {
-    setWindowWidth(originalInnerWidth);
+    window.matchMedia = originalMatchMedia;
     (
       window as typeof window & { [SIDEBAR_BOOT_STOP_GLOBAL]?: () => void }
     )[SIDEBAR_BOOT_STOP_GLOBAL]?.();
   });
 
-  function setWindowWidth(width: number) {
-    Object.defineProperty(window, "innerWidth", {
-      configurable: true,
-      value: width,
-      writable: true,
-    });
+  /** Answers only the compact query, so a wrong query string fails the test. */
+  function setCompactWindow(compact: boolean) {
+    window.matchMedia = vi.fn().mockImplementation((media: string) => ({
+      matches: media === SIDEBAR_COMPACT_MEDIA_QUERY ? compact : false,
+      media,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })) as typeof window.matchMedia;
   }
 
   function renderExpandedSidebar() {
@@ -70,6 +76,7 @@ describe("sidebar boot script contract", () => {
 
   it("collapses that markup before React hydrates", () => {
     document.cookie = "sidebar_state=false; path=/";
+    setCompactWindow(false);
     const sidebar = renderExpandedSidebar();
 
     new Function(SIDEBAR_BOOT_SCRIPT)();
@@ -79,7 +86,7 @@ describe("sidebar boot script contract", () => {
   });
 
   it("collapses a narrow window with no stored preference", () => {
-    setWindowWidth(SIDEBAR_COMPACT_BREAKPOINT - 1);
+    setCompactWindow(true);
     const sidebar = renderExpandedSidebar();
 
     new Function(SIDEBAR_BOOT_SCRIPT)();
@@ -91,11 +98,22 @@ describe("sidebar boot script contract", () => {
   });
 
   it("leaves a wide window expanded with no stored preference", () => {
-    setWindowWidth(SIDEBAR_COMPACT_BREAKPOINT);
+    setCompactWindow(false);
     const sidebar = renderExpandedSidebar();
 
     new Function(SIDEBAR_BOOT_SCRIPT)();
 
     expect(sidebar.getAttribute("data-state")).toBe("expanded");
+  });
+
+  it("evaluates the same query string the provider subscribes to", () => {
+    // The script and `useIsSidebarCompact` used to run the same number through
+    // two different APIs. A media query that is merely equivalent is not good
+    // enough — at a fractional viewport width the two can disagree, and the
+    // disagreement is the flash this script exists to prevent.
+    expect(SIDEBAR_BOOT_SCRIPT).toContain(
+      JSON.stringify(SIDEBAR_COMPACT_MEDIA_QUERY),
+    );
+    expect(SIDEBAR_BOOT_SCRIPT).not.toContain("innerWidth");
   });
 });

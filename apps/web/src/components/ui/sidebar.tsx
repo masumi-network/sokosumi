@@ -7,7 +7,7 @@ import { VariantProps, cva } from "class-variance-authority";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   SIDEBAR_BOOT_STOP_GLOBAL,
-  SIDEBAR_COMPACT_BREAKPOINT,
+  SIDEBAR_COMPACT_MEDIA_QUERY,
   parseSidebarStateCookieHeader,
   serializeSidebarStateCookie,
 } from "@/lib/ui-preferences/sidebar-state";
@@ -63,9 +63,9 @@ function useIsSidebarCompact() {
 
   // Effect is necessary: subscribes to an external system (media query).
   React.useLayoutEffect(() => {
-    const mql = window.matchMedia(
-      `(max-width: ${SIDEBAR_COMPACT_BREAKPOINT - 1}px)`,
-    );
+    // Same string the boot script evaluates, so the pre-paint pass and React
+    // cannot land on opposite sides of the breakpoint.
+    const mql = window.matchMedia(SIDEBAR_COMPACT_MEDIA_QUERY);
     const onChange = () => setIsCompact(mql.matches);
 
     onChange();

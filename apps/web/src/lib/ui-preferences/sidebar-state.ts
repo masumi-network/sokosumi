@@ -12,6 +12,19 @@ export const SIDEBAR_STATE_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 export const SIDEBAR_COMPACT_BREAKPOINT = 1024;
 
 /**
+ * The one predicate for 'this window is too narrow for the sidebar'.
+ *
+ * The boot script and `SidebarProvider` must agree exactly. They ran the
+ * same number through two different APIs before — `window.innerWidth` in the
+ * script, `matchMedia` in React — and at a fractional or rounded viewport
+ * width those can land on opposite sides of the edge, which shows up as the
+ * one-frame flash the boot script exists to prevent.
+ */
+export const SIDEBAR_COMPACT_MEDIA_QUERY = `(max-width: ${
+  SIDEBAR_COMPACT_BREAKPOINT - 1
+}px)`;
+
+/**
  * Global the boot script installs so `SidebarProvider` can retire it once React
  * owns the sidebar attributes.
  */
@@ -60,7 +73,8 @@ export function serializeSidebarStateCookie(open: boolean): string {
  */
 export const SIDEBAR_BOOT_SCRIPT = `(function(){try{
 if(window.${SIDEBAR_BOOT_STOP_GLOBAL})window.${SIDEBAR_BOOT_STOP_GLOBAL}();
-if(window.innerWidth>=${SIDEBAR_COMPACT_BREAKPOINT}&&!/(?:^|;\\s*)${SIDEBAR_STATE_COOKIE_NAME}=false(?:;|$)/.test(document.cookie))return;
+var compact=window.matchMedia(${JSON.stringify(SIDEBAR_COMPACT_MEDIA_QUERY)}).matches;
+if(!compact&&!/(?:^|;\\s*)${SIDEBAR_STATE_COOKIE_NAME}=false(?:;|$)/.test(document.cookie))return;
 var sync=function(){
 var nodes=document.querySelectorAll('[data-slot="sidebar"][data-state="expanded"][data-collapsible-mode]');
 for(var i=0;i<nodes.length;i++){var node=nodes[i];var mode=node.getAttribute('data-collapsible-mode');
