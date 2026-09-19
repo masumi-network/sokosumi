@@ -1,16 +1,13 @@
 import type { NotificationKind } from "@sokosumi/database";
 import {
-  type JobFollowUpReason,
   renderChatDirectMessageFollowUpEmail,
   renderChatMentionFollowUpEmail,
-  renderJobFollowUpEmail,
   renderTaskFollowUpEmail,
   type TaskFollowUpReason,
 } from "@sokosumi/email";
 import {
   CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
   CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
-  JOB_FOLLOW_UP_MESSAGE_KEY,
   TASK_FOLLOW_UP_MESSAGE_KEY,
 } from "@sokosumi/utils";
 
@@ -55,7 +52,7 @@ export interface FollowUpEmailInput {
 }
 
 /**
- * Why the task or job is waiting, or null when this key has no sentence.
+ * Why the task is waiting, or null when this key has no sentence.
  *
  * Read off the end of the message key, because every attention key Core writes
  * ends in the word the catalogs use: `Notifications.Task.inputRequired` and
@@ -70,11 +67,6 @@ const TASK_REASONS: readonly TaskFollowUpReason[] = [
   "inputRequired",
   "outOfCredits",
   "scheduleRemovedByOperator",
-];
-
-const JOB_REASONS: readonly JobFollowUpReason[] = [
-  "inputRequired",
-  "paymentFailed",
 ];
 
 function reasonIn<T extends string>(
@@ -110,10 +102,7 @@ function readString(
  * Where the reminder opens, absolute so it works from an inbox.
  *
  * Deliberately the same destinations web sends a clicked notification to, so
- * the email and the Notification Center land in the same place. That includes
- * the job fallback: a job whose row carries no agent id has no job URL to
- * build, and web sends the reader to the task list rather than nowhere, so
- * this does too.
+ * the email and the Notification Center land in the same place.
  */
 function followUpLink(input: FollowUpEmailInput): string {
   const base = getWebAppBaseUrl();
@@ -122,16 +111,6 @@ function followUpLink(input: FollowUpEmailInput): string {
   switch (input.kind) {
     case "TASK":
       return `${base}/tasks/${reference}`;
-
-    case "JOB": {
-      const agentId = readString(input.metadata, "agentId");
-
-      if (!agentId) {
-        return `${base}/tasks`;
-      }
-
-      return `${base}/agents/${encodeURIComponent(agentId)}/jobs/${reference}`;
-    }
 
     default: {
       const room = `${base}/chat/rooms/${reference}`;
@@ -215,23 +194,12 @@ export async function buildFollowUpEmail(
         }),
       );
 
-    case JOB_FOLLOW_UP_MESSAGE_KEY:
-      return withRecipient(
-        input,
-        await renderJobFollowUpEmail({
-          ...shared,
-          agentName: readString(input.messageParams, "agentName"),
-          jobName: readString(input.messageParams, "jobName"),
-          reason: reasonIn(JOB_REASONS, input.sourceMessageKey),
-        }),
-      );
-
     default:
       return null;
   }
 }
 
-/** One tag for all four, so a reminder send is one thing to look for in Resend. */
+/** One tag for all three, so a reminder send is one thing to look for in Resend. */
 function withRecipient(
   input: FollowUpEmailInput,
   rendered: { html: string; subject: string },

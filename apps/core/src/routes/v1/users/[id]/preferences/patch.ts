@@ -35,7 +35,8 @@ const requestBodySchema = z
       example: true,
     }),
     notificationsOptIn: z.boolean().optional().openapi({
-      description: "Whether the user wants to receive job status notifications",
+      description:
+        "Legacy switch for the job status emails SOK-930 removed. Stored, but nothing reads it.",
       example: true,
     }),
     pushOptIn: z.boolean().optional().openapi({
@@ -108,7 +109,7 @@ const route = createRoute({
           notificationsOptIn: true,
           pushOptIn: false,
           notificationPreferences: [
-            { category: "JOB_ATTENTION", channel: "IN_APP", enabled: true },
+            { category: "TASK_ATTENTION", channel: "IN_APP", enabled: true },
             { category: "CHAT_MENTION", channel: "OS_BANNER", enabled: false },
           ],
         },

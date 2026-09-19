@@ -170,7 +170,8 @@ export const userPreferencesResponseSchema = z.object({
     example: true,
   }),
   notificationsOptIn: z.boolean().openapi({
-    description: "Whether the user wants to receive job status notifications",
+    description:
+      "Legacy switch for the job status emails SOK-930 removed. Stored, but nothing reads it.",
     example: true,
   }),
   pushOptIn: z.boolean().openapi({

@@ -38,7 +38,15 @@ export const CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY =
 /** A task that is still waiting on the reader. */
 export const TASK_FOLLOW_UP_MESSAGE_KEY = "Notifications.Task.followUp";
 
-/** A job that is still waiting on the reader. */
+/**
+ * A job that is still waiting on the reader.
+ *
+ * Kept though nothing writes it any more. SOK-930 removed every job
+ * notification, and a reminder stored before that has to go on classifying as
+ * `FOLLOW_UP`. Dropped from this list it would classify as nothing at all:
+ * the `JOB` arm of `toNotificationCategory` went with the removal, so the row
+ * would fall to the defaults rather than to the reader's own answer.
+ */
 export const JOB_FOLLOW_UP_MESSAGE_KEY = "Notifications.Job.followUp";
 
 /**

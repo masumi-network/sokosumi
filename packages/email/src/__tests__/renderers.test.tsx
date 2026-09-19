@@ -3,8 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   renderChatRoomInvitationEmail,
   renderJobFailureNotificationEmail,
-  renderJobFinalStatusEmail,
-  renderJobInputRequiredEmail,
   renderMagicLinkEmail,
   renderOrganizationInvitationEmail,
   renderResetPasswordEmail,
@@ -100,61 +98,6 @@ describe("email renderers", () => {
     expect(rendered.html).toContain(
       "https://example.com/chat/invites/invite-1",
     );
-  });
-
-  it("renders job final status emails with fallback job names in a localized locale", async () => {
-    const rendered = await renderJobFinalStatusEmail({
-      agentName: "Planner",
-      jobLink: "https://example.com/job",
-      jobStatus: "completed",
-      locale: "es",
-      recipientName: "Andreas",
-    });
-
-    expect(rendered.subject).toBe("Sokosumi - Job completado de Planner");
-    expect(rendered.html).toContain("Tu job");
-    expect(rendered.html).toContain("Planner");
-  });
-
-  it("falls back to a generic job greeting for blank recipient names", async () => {
-    const rendered = await renderJobFinalStatusEmail({
-      agentName: "Planner",
-      jobLink: "https://example.com/job",
-      jobStatus: "completed",
-      locale: "en",
-      recipientName: "   ",
-    });
-
-    expect(rendered.html).toContain("Hi");
-    expect(rendered.html).not.toContain("Hi   ");
-  });
-
-  it("renders job input required emails", async () => {
-    const rendered = await renderJobInputRequiredEmail({
-      agentName: "Planner",
-      jobLink: "https://example.com/job",
-      jobName: "Quarterly review",
-      locale: "en",
-      recipientName: "Andreas",
-    });
-
-    expect(rendered.subject).toBe("Sokosumi - Planner needs your input");
-    expect(rendered.html).toContain("Quarterly review");
-    expect(rendered.html).toContain("Provide input");
-  });
-
-  it("renders job input required fallback copy without duplicating the fallback job name", async () => {
-    const rendered = await renderJobInputRequiredEmail({
-      agentName: "Planner",
-      jobLink: "https://example.com/job",
-      locale: "en",
-      recipientName: "Andreas",
-    });
-
-    expect(rendered.html).toContain(
-      "Your job for Planner is waiting for your input to continue.",
-    );
-    expect(rendered.html).not.toContain("Your job Your job");
   });
 
   it("renders job failure notification emails with formatted output", async () => {

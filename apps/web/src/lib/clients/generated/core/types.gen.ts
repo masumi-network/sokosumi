@@ -3862,7 +3862,7 @@ export type NotificationPreference = {
     /**
      * What the notification is about
      */
-    category: 'JOB_ATTENTION' | 'JOB_COMPLETED' | 'JOB_UPDATE' | 'TASK_ATTENTION' | 'TASK_COMPLETED' | 'TASK_UPDATE' | 'CHAT_ROOM_MESSAGE' | 'CHAT_MENTION' | 'CHAT_DIRECT_MESSAGE' | 'SYSTEM' | 'FOLLOW_UP';
+    category: 'TASK_ATTENTION' | 'TASK_COMPLETED' | 'TASK_UPDATE' | 'CHAT_ROOM_MESSAGE' | 'CHAT_MENTION' | 'CHAT_DIRECT_MESSAGE' | 'SYSTEM' | 'FOLLOW_UP';
     /**
      * Where it is delivered: in the app, as an OS banner (which also needs pushOptIn), or by email (offered only on the categories that mail)
      */
@@ -4869,7 +4869,7 @@ export type NotificationItem = {
      */
     eventId: string;
     /**
-     * i18n message key for translation (e.g. Notifications.Job.completed)
+     * i18n message key for translation (e.g. Notifications.Task.completed)
      */
     messageKey: string;
     /**
@@ -24776,7 +24776,7 @@ export type GetUsersByIdPreferencesResponses = {
              */
             marketingOptIn: boolean;
             /**
-             * Whether the user wants to receive job status notifications
+             * Legacy switch for the job status emails SOK-930 removed. Stored, but nothing reads it.
              */
             notificationsOptIn: boolean;
             /**
@@ -24809,7 +24809,7 @@ export type PatchUsersByIdPreferencesData = {
          */
         marketingOptIn?: boolean;
         /**
-         * Whether the user wants to receive job status notifications
+         * Legacy switch for the job status emails SOK-930 removed. Stored, but nothing reads it.
          */
         notificationsOptIn?: boolean;
         /**
@@ -24911,7 +24911,7 @@ export type PatchUsersByIdPreferencesResponses = {
              */
             marketingOptIn: boolean;
             /**
-             * Whether the user wants to receive job status notifications
+             * Legacy switch for the job status emails SOK-930 removed. Stored, but nothing reads it.
              */
             notificationsOptIn: boolean;
             /**
