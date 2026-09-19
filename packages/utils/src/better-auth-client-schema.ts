@@ -13,11 +13,6 @@ export const betterAuthUserAdditionalFields = {
     required: true,
     defaultValue: true,
   },
-  notificationsOptIn: {
-    type: "boolean",
-    required: false,
-    defaultValue: true,
-  },
   showRoomUnreadCount: {
     type: "boolean",
     required: false,

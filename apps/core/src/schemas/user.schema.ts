@@ -171,7 +171,8 @@ export const userPreferencesResponseSchema = z.object({
   }),
   notificationsOptIn: z.boolean().openapi({
     description:
-      "Legacy switch for the job status emails SOK-930 removed. Stored, but nothing reads it.",
+      "Deprecated compatibility field for existing v1 clients. Does not control notification delivery",
+    deprecated: true,
     example: true,
   }),
   pushOptIn: z.boolean().openapi({

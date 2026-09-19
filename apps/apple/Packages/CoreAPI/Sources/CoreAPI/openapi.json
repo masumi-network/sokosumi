@@ -12217,7 +12217,7 @@
                     "pushOptIn": false,
                     "notificationPreferences": [
                       {
-                        "category": "JOB_ATTENTION",
+                        "category": "TASK_ATTENTION",
                         "channel": "IN_APP",
                         "enabled": true
                       },
@@ -12246,7 +12246,8 @@
                         },
                         "notificationsOptIn": {
                           "type": "boolean",
-                          "description": "Whether the user wants to receive job status notifications",
+                          "description": "Deprecated compatibility field for existing v1 clients. Does not control notification delivery",
+                          "deprecated": true,
                           "example": true
                         },
                         "pushOptIn": {
@@ -12584,11 +12585,6 @@
                     "description": "Whether the user wants to receive marketing emails",
                     "example": true
                   },
-                  "notificationsOptIn": {
-                    "type": "boolean",
-                    "description": "Whether the user wants to receive job status notifications",
-                    "example": true
-                  },
                   "pushOptIn": {
                     "type": "boolean",
                     "description": "Whether the user wants OS banners while Sokosumi is closed (push)",
@@ -12604,7 +12600,7 @@
                     "items": {
                       "$ref": "#/components/schemas/NotificationPreference"
                     },
-                    "maxItems": 33,
+                    "maxItems": 24,
                     "description": "The matrix cells the reader changed. A cell left out keeps its current answer."
                   }
                 }
@@ -12624,7 +12620,7 @@
                     "pushOptIn": false,
                     "notificationPreferences": [
                       {
-                        "category": "JOB_ATTENTION",
+                        "category": "TASK_ATTENTION",
                         "channel": "IN_APP",
                         "enabled": true
                       },
@@ -12653,7 +12649,8 @@
                         },
                         "notificationsOptIn": {
                           "type": "boolean",
-                          "description": "Whether the user wants to receive job status notifications",
+                          "description": "Deprecated compatibility field for existing v1 clients. Does not control notification delivery",
+                          "deprecated": true,
                           "example": true
                         },
                         "pushOptIn": {
@@ -25256,13 +25253,13 @@
                   "data": {
                     "id": "cm123456789abcdefghij",
                     "userId": "cm123456789abcdefghij",
-                    "kind": "JOB",
+                    "kind": "TASK",
                     "referenceId": "cm123456789abcdefghij",
                     "eventId": "cm123456789abcdefghij",
-                    "messageKey": "Notifications.Job.completed",
+                    "messageKey": "Notifications.Task.completed",
                     "messageParams": {
-                      "agentName": "Research Agent",
-                      "jobName": "Market Analysis"
+                      "coworkerName": "Ada",
+                      "taskName": "Market Analysis"
                     },
                     "metadata": {
                       "agentId": "agent_123",
@@ -28236,9 +28233,6 @@
           "category": {
             "type": "string",
             "enum": [
-              "JOB_ATTENTION",
-              "JOB_COMPLETED",
-              "JOB_UPDATE",
               "TASK_ATTENTION",
               "TASK_COMPLETED",
               "TASK_UPDATE",
@@ -29618,16 +29612,16 @@
           },
           "messageKey": {
             "type": "string",
-            "description": "i18n message key for translation (e.g. Notifications.Job.completed)",
-            "example": "Notifications.Job.completed"
+            "description": "i18n message key for translation (e.g. Notifications.Task.completed)",
+            "example": "Notifications.Task.completed"
           },
           "messageParams": {
             "type": "object",
             "additionalProperties": {},
             "description": "ICU interpolation parameters for the message",
             "example": {
-              "agentName": "Research Agent",
-              "jobName": "Market Analysis"
+              "coworkerName": "Ada",
+              "taskName": "Market Analysis"
             }
           },
           "metadata": {
@@ -29687,7 +29681,7 @@
           "CHAT"
         ],
         "description": "Notification source domain",
-        "example": "JOB"
+        "example": "TASK"
       },
       "WorkspaceOrganization": {
         "type": "object",

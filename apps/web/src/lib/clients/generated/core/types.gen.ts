@@ -24776,7 +24776,9 @@ export type GetUsersByIdPreferencesResponses = {
              */
             marketingOptIn: boolean;
             /**
-             * Legacy switch for the job status emails SOK-930 removed. Stored, but nothing reads it.
+             * Deprecated compatibility field for existing v1 clients. Does not control notification delivery
+             *
+             * @deprecated
              */
             notificationsOptIn: boolean;
             /**
@@ -24808,10 +24810,6 @@ export type PatchUsersByIdPreferencesData = {
          * Whether the user wants to receive marketing emails
          */
         marketingOptIn?: boolean;
-        /**
-         * Legacy switch for the job status emails SOK-930 removed. Stored, but nothing reads it.
-         */
-        notificationsOptIn?: boolean;
         /**
          * Whether the user wants OS banners while Sokosumi is closed (push)
          */
@@ -24911,7 +24909,9 @@ export type PatchUsersByIdPreferencesResponses = {
              */
             marketingOptIn: boolean;
             /**
-             * Legacy switch for the job status emails SOK-930 removed. Stored, but nothing reads it.
+             * Deprecated compatibility field for existing v1 clients. Does not control notification delivery
+             *
+             * @deprecated
              */
             notificationsOptIn: boolean;
             /**
