@@ -132,7 +132,7 @@ describe("AppSidebarFallback", () => {
       );
       expect(tokens(marks[1]?.className ?? "")).toEqual(
         expect.arrayContaining([
-          "size-6",
+          "size-5",
           "hidden",
           "group-data-[collapsible=icon]:block",
         ]),
@@ -157,17 +157,17 @@ describe("AppSidebarFallback", () => {
       expect(faces).toHaveLength(rowIndex === 1 ? 2 : 1);
       for (const [faceIndex, face] of faces.entries()) {
         expect(tokens(face.className)).toEqual(
-          expect.arrayContaining(["size-6", "rounded-full"]),
+          expect.arrayContaining(["size-5", "rounded-full"]),
         );
         if (faceIndex > 0) {
           expect(tokens(face.className)).toEqual(
             expect.arrayContaining([
-              "-ml-2",
+              "-ml-1.5",
               "group-data-[collapsible=icon]:hidden",
             ]),
           );
         } else {
-          expect(tokens(face.className)).not.toContain("-ml-2");
+          expect(tokens(face.className)).not.toContain("-ml-1.5");
         }
       }
       expect(

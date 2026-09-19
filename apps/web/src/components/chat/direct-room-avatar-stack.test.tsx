@@ -163,7 +163,7 @@ describe("DirectRoomAvatarStack", () => {
     expect(face.querySelector("[title]")?.getAttribute("title")).toBe("Online");
   });
 
-  it("draws one 24px face in every state, so the row's mark never resizes", () => {
+  it("draws one 20px face in every state, so the row's mark never resizes", () => {
     const { container: emptyContainer, unmount } = render(
       <DirectRoomAvatarStack
         room={makeDirectRoom({ userMembers: [makeUser("me", "Me")] })}
@@ -175,7 +175,7 @@ describe("DirectRoomAvatarStack", () => {
     // `SidebarRowSlot` is the box around it — nothing here sizes with state.
     const emptyTokens =
       emptyContainer.firstElementChild?.className.split(" ") ?? [];
-    expect(emptyTokens).toContain("size-6");
+    expect(emptyTokens).toContain("size-5");
     expect(emptyTokens).toContain("shrink-0");
     expect(emptyContainer.firstElementChild?.className).not.toContain(
       "group-data-[collapsible=icon]:",
@@ -187,7 +187,7 @@ describe("DirectRoomAvatarStack", () => {
     );
 
     const face = container.querySelector('[data-slot="avatar"]');
-    expect(face?.className.split(" ")).toContain("size-6");
+    expect(face?.className.split(" ")).toContain("size-5");
     expect(face?.className).not.toContain("group-data-[collapsible=icon]:");
   });
 
@@ -211,8 +211,8 @@ describe("DirectRoomAvatarStack", () => {
     // row's name starts later.
     const first = screen.getByTestId("dm-sidebar-avatar-alice");
     const second = screen.getByTestId("dm-sidebar-avatar-bob");
-    expect(first.className.split(/\s+/)).not.toContain("-ml-2");
-    expect(second.className.split(/\s+/)).toContain("-ml-2");
+    expect(first.className.split(/\s+/)).not.toContain("-ml-1.5");
+    expect(second.className.split(/\s+/)).toContain("-ml-1.5");
     // The first face on top, so its presence dot is not buried under the
     // one beside it.
     expect(Number(first.style.zIndex)).toBeGreaterThan(
@@ -224,6 +224,36 @@ describe("DirectRoomAvatarStack", () => {
     expect(first.className).not.toContain("group-data-[collapsible=icon]:");
     expect(second.className.split(/\s+/)).toContain(
       "group-data-[collapsible=icon]:hidden",
+    );
+  });
+
+  it("pads a stack so its first face lands where a lone face does", () => {
+    // The slot centres a mark narrower than itself, so a lone 20px face sits
+    // 2px in while a stack — wider than the slot — starts flush at its edge.
+    // Without the padding a group row's first face would sit 2px left of
+    // every 1:1 face under it, and those are the same shape in one column.
+    const { container: single, unmount } = render(
+      <DirectRoomAvatarStack room={makeDirectRoom()} currentUserId="me" />,
+    );
+    expect(single.firstElementChild?.className.split(/\s+/)).not.toContain(
+      "pl-0.5",
+    );
+    unmount();
+
+    const { container: stacked } = render(
+      <DirectRoomAvatarStack
+        room={makeDirectRoom({
+          userMembers: [
+            makeUser("me", "Me"),
+            makeUser("alice", "Alice"),
+            makeUser("bob", "Bob"),
+          ],
+        })}
+        currentUserId="me"
+      />,
+    );
+    expect(stacked.firstElementChild?.className.split(/\s+/)).toContain(
+      "pl-0.5",
     );
   });
 

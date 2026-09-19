@@ -104,9 +104,15 @@ export default function PersonalAssistantNav({
   );
 }
 
-/** The workspace's first Soko Bot — yours when you have one. */
+/**
+ * The workspace's first Soko Bot — yours when you have one.
+ *
+ * 20px, the size every face in this sidebar is: this row stands directly
+ * above the chat lists, so a face here and a Direct's face below it are read
+ * as one column. One size in both states, so the toggle cannot resize it.
+ */
 function BotFace({ bot }: { bot: SidebarSokoBotAvatar }) {
-  const className = "size-6 shrink-0 rounded-full object-cover";
+  const className = "size-5 shrink-0 rounded-full object-cover";
 
   if (bot.imageUrl) {
     return <img src={bot.imageUrl} alt="" className={className} aria-hidden />;
