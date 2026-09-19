@@ -10,6 +10,7 @@ import {
   DEFAULT_BETTER_AUTH_SECRET,
   isPlaceholderValue,
   parsePrimaryWorktreePath,
+  readEnvValue,
   resolvePrimaryEnvRoot,
   sanitizeEnvContents,
   shouldReusePrimaryEnv,
@@ -404,6 +405,30 @@ describe("sanitizeEnvContents turnstile", () => {
     assert.match(
       out,
       /^TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA$/m,
+    );
+  });
+
+  it("enables only the key each committed example reads", async () => {
+    const root = path.join(import.meta.dirname, "..", "..");
+    const web = sanitizeEnvContents(
+      await readFile(path.join(root, "apps", "web", ".env.example"), "utf8"),
+    );
+    const core = sanitizeEnvContents(
+      await readFile(path.join(root, "apps", "core", ".env.example"), "utf8"),
+    );
+
+    assert.equal(
+      readEnvValue(web, "NEXT_PUBLIC_TURNSTILE_SITE_KEY"),
+      "1x00000000000000000000AA",
+    );
+    assert.equal(readEnvValue(web, "TURNSTILE_SECRET_KEY"), undefined);
+    assert.equal(
+      readEnvValue(core, "TURNSTILE_SECRET_KEY"),
+      "1x0000000000000000000000000000000AA",
+    );
+    assert.equal(
+      readEnvValue(core, "NEXT_PUBLIC_TURNSTILE_SITE_KEY"),
+      undefined,
     );
   });
 });

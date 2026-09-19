@@ -3,7 +3,10 @@ import { betterAuth } from "better-auth/minimal";
 import { magicLink } from "better-auth/plugins/magic-link";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createAuthCaptchaPlugin } from "./auth-captcha.js";
+import {
+  createAuthCaptchaPlugin,
+  TURNSTILE_ALWAYS_PASS_SECRET,
+} from "./auth-captcha.js";
 
 function createTestAuth(
   { secretKey }: { secretKey?: string } = { secretKey: "test-secret" },
@@ -50,6 +53,31 @@ function createTestAuth(
 afterEach(() => vi.unstubAllGlobals());
 
 describe("auth email abuse protection", () => {
+  it("still blocks missing tokens when the dummy always-pass secret is set", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const { post, sendEmail } = createTestAuth({
+      secretKey: TURNSTILE_ALWAYS_PASS_SECRET,
+    });
+    expect((await post("/sign-in/email")).status).toBe(400);
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts Cloudflare's dummy secret when siteverify omits action", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(Response.json({ success: true })),
+    );
+    const { post, sendEmail } = createTestAuth({
+      secretKey: TURNSTILE_ALWAYS_PASS_SECRET,
+    });
+    expect((await post("/sign-up/email", "XXXX.DUMMY.TOKEN.XXXX")).status).toBe(
+      200,
+    );
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
+
   it("allows signup without a challenge when no secret is configured", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -132,6 +160,16 @@ describe("auth email abuse protection", () => {
     );
     expect((await auth.handler(verifiedRequest)).status).toBe(200);
     expect(sendEmail).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects a real secret when siteverify omits action", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(Response.json({ success: true })),
+    );
+    const { post, sendEmail } = createTestAuth();
+    expect((await post("/sign-up/email", "token")).status).toBe(403);
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 
   it("rejects a valid token from a different action", async () => {

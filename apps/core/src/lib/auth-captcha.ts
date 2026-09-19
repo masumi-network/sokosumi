@@ -1,13 +1,21 @@
 import { AUTH_CAPTCHA_ACTION } from "@sokosumi/utils";
 import { captcha } from "better-auth/plugins";
 
+/** Cloudflare's published always-passes testing secret. Dummy siteverify omits `action`. */
+export const TURNSTILE_ALWAYS_PASS_SECRET =
+  "1x0000000000000000000000000000000AA";
+
 export function createAuthCaptchaPlugin(secretKey: string | undefined) {
   // Omitting the secret disables server-side verification in any environment.
   if (!secretKey) return { id: "captcha-disabled" };
   return captcha({
     provider: "cloudflare-turnstile",
     secretKey,
-    expectedAction: AUTH_CAPTCHA_ACTION,
+    // Dummy siteverify succeeds with no `action`; expectedAction would 403 every local token.
+    expectedAction:
+      secretKey === TURNSTILE_ALWAYS_PASS_SECRET
+        ? undefined
+        : AUTH_CAPTCHA_ACTION,
     // Custom endpoints replace Better Auth's defaults. Include every public
     // account-email entry point, including resends and address changes.
     endpoints: [
