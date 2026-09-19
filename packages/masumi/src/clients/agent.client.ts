@@ -122,30 +122,36 @@ export function createAgentClient(config?: AgentClientConfig) {
   function getAgentUrlWithPathComponent(
     agent: Agent,
     pathComponent: string,
-  ): URL {
-    const baseUrl = getAgentApiBaseUrl(agent);
-    return safeAddPathComponent(baseUrl, pathComponent);
+  ): Result<URL, string> {
+    return getAgentApiBaseUrl(agent).andThen((baseUrl) =>
+      safeAddPathComponent(baseUrl, pathComponent),
+    );
   }
 
-  function getAgentApiBaseUrl(agent: Agent): URL {
+  function getAgentApiBaseUrl(agent: Agent): Result<URL, string> {
     const usedUrl = agent.metadataOverride?.apiBaseUrl ?? agent.apiBaseUrl;
-    const apiBaseUrl = new URL(usedUrl);
+    let apiBaseUrl: URL;
+    try {
+      apiBaseUrl = new URL(usedUrl);
+    } catch (error) {
+      return err(String(error));
+    }
     if (apiBaseUrl.protocol !== "https:" && apiBaseUrl.protocol !== "http:") {
-      throw new Error("Agent API base URL must be HTTP or HTTPS");
+      return err("Agent API base URL must be HTTP or HTTPS");
     }
 
     if (apiBaseUrl.search !== "") {
-      throw new Error("Agent API base URL must not have a query string");
+      return err("Agent API base URL must not have a query string");
     }
     if (apiBaseUrl.hash !== "") {
-      throw new Error("Agent API base URL must not have a hash");
+      return err("Agent API base URL must not have a hash");
     }
 
     // SSRF protection against private/loopback/link-local addresses is enforced
     // at connect time by `ssrfSafeFetch` (which resolves and filters the host),
     // so it also covers public hostnames that resolve to internal IPs.
 
-    return apiBaseUrl;
+    return ok(apiBaseUrl);
   }
 
   function logError(
@@ -179,12 +185,14 @@ export function createAgentClient(config?: AgentClientConfig) {
       identifierFromPurchaser: string,
       inputData: InputSchemaType,
     ): Promise<Result<StartPaidJobResponseSchemaType, AgentJobStartFailure>> {
-      let startJobUrl: URL;
-      try {
-        startJobUrl = getAgentUrlWithPathComponent(agent, "start_job");
-      } catch (error) {
-        return err(unreachable(String(error)));
+      const startJobUrlResult = getAgentUrlWithPathComponent(
+        agent,
+        "start_job",
+      );
+      if (startJobUrlResult.isErr()) {
+        return err(unreachable(startJobUrlResult.error));
       }
+      const startJobUrl = startJobUrlResult.value;
 
       let startJobResponse: Response;
       try {
@@ -240,12 +248,14 @@ export function createAgentClient(config?: AgentClientConfig) {
       agent: Agent,
       inputData: InputSchemaType,
     ): Promise<Result<StartFreeJobResponseSchemaType, AgentJobStartFailure>> {
-      let startJobUrl: URL;
-      try {
-        startJobUrl = getAgentUrlWithPathComponent(agent, "start_job");
-      } catch (error) {
-        return err(unreachable(String(error)));
+      const startJobUrlResult = getAgentUrlWithPathComponent(
+        agent,
+        "start_job",
+      );
+      if (startJobUrlResult.isErr()) {
+        return err(unreachable(startJobUrlResult.error));
       }
+      const startJobUrl = startJobUrlResult.value;
 
       let startJobResponse: Response;
       try {
@@ -303,8 +313,13 @@ export function createAgentClient(config?: AgentClientConfig) {
     ): Promise<
       Result<JobStatusResponseSchemaType & { statusHash: string }, string>
     > {
+      const jobStatusUrlResult = getAgentUrlWithPathComponent(agent, "status");
+      if (jobStatusUrlResult.isErr()) {
+        return err(jobStatusUrlResult.error);
+      }
+      const jobStatusUrl = jobStatusUrlResult.value;
+
       try {
-        const jobStatusUrl = getAgentUrlWithPathComponent(agent, "status");
         jobStatusUrl.searchParams.set("job_id", jobId);
         const jobStatusResponse = await ssrfSafeFetch(jobStatusUrl, {
           method: "GET",
@@ -341,12 +356,14 @@ export function createAgentClient(config?: AgentClientConfig) {
       inputSchema: string,
       inputData: InputSchemaType,
     ): Promise<Result<ProvideInputResponseSchemaType, AgentJobInputFailure>> {
-      let provideInputUrl: URL;
-      try {
-        provideInputUrl = getAgentUrlWithPathComponent(agent, "provide_input");
-      } catch (error) {
-        return err(unreachable(String(error)));
+      const provideInputUrlResult = getAgentUrlWithPathComponent(
+        agent,
+        "provide_input",
+      );
+      if (provideInputUrlResult.isErr()) {
+        return err(unreachable(provideInputUrlResult.error));
       }
+      const provideInputUrl = provideInputUrlResult.value;
 
       const inputSchemaHash = hashInputSchema(inputSchema);
       if (!inputSchemaHash) {
@@ -421,12 +438,16 @@ export function createAgentClient(config?: AgentClientConfig) {
     async fetchAgentInputSchema(
       agent: Agent,
     ): Promise<Result<InputSchemaResponseSchemaType, string>> {
-      try {
-        const inputSchemaUrl = getAgentUrlWithPathComponent(
-          agent,
-          "input_schema",
-        );
+      const inputSchemaUrlResult = getAgentUrlWithPathComponent(
+        agent,
+        "input_schema",
+      );
+      if (inputSchemaUrlResult.isErr()) {
+        return err(inputSchemaUrlResult.error);
+      }
+      const inputSchemaUrl = inputSchemaUrlResult.value;
 
+      try {
         const response = await ssrfSafeFetch(inputSchemaUrl, {
           maxResponseBytes: MAX_AGENT_RESPONSE_BYTES,
         });
