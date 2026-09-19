@@ -420,14 +420,15 @@ describe("createNotification push gating", () => {
   ] as const;
 
   /**
-   * The row each kind lands on with this input's message key. Billing has
-   * none: the matrix holds no row for it, so it keeps both channels and there
-   * is nothing for a reader to ask for. Jobs have none either, since SOK-930
-   * retired their rows along with the notifications that used them.
+   * The row each kind lands on with this input's message key. A billing key
+   * the delivery module does not list as attention is an update (SOK-932).
+   * Jobs have no row, since SOK-930 retired theirs along with the
+   * notifications that used them.
    */
   const KIND_CATEGORY: Partial<Record<NotificationKind, string>> = {
     [NotificationKind.TASK]: "TASK_COMPLETED",
     [NotificationKind.SYSTEM]: "SYSTEM",
+    [NotificationKind.BILLING]: "BILLING_UPDATE",
   };
 
   for (const kind of NON_CHAT_KINDS) {

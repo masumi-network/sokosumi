@@ -1,5 +1,7 @@
 import type { NotificationKind } from "@sokosumi/database";
 import {
+  BILLING_LOW_BALANCE_MESSAGE_KEY,
+  BILLING_PAYMENT_FAILED_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_MENTION_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
@@ -88,6 +90,21 @@ export const TASK_TERMINAL_MESSAGE_KEYS: readonly string[] = [
 ];
 
 /**
+ * The billing keys that wait on the reader (SOK-932).
+ *
+ * A wallet that ran low stops work once it runs out, and a failed payment
+ * ends the subscription once Stripe gives up retrying. Both are questions
+ * only the reader can answer, so they share the loud row. A receipt for a
+ * top-up and the notice that a subscription ends at period end are read
+ * later or never, and they take the quiet one. As with tasks, a key added
+ * later is an update until it is listed here.
+ */
+export const BILLING_ATTENTION_MESSAGE_KEYS: readonly string[] = [
+  BILLING_LOW_BALANCE_MESSAGE_KEY,
+  BILLING_PAYMENT_FAILED_MESSAGE_KEY,
+];
+
+/**
  * One stored choice, as the database holds it: strings rather than the unions,
  * because a row written by an older build can name a category or a channel this
  * build no longer knows.
@@ -142,9 +159,8 @@ export interface NotificationDelivery {
  * producer happens to emit.
  *
  * Null means the defaults apply and nothing is stored against it: a chat key
- * added later that nobody mapped, BILLING, which no producer emits yet, and
- * JOB, which no producer emits any more (SOK-930). A row would be a switch
- * that controls nothing, so there is none.
+ * added later that nobody mapped, and JOB, which no producer emits any more
+ * (SOK-930). A row would be a switch that controls nothing, so there is none.
  *
  * Follow-ups are the one exception to the split-by-key rule, and they break it
  * in the other direction: every follow-up key, whatever its kind, answers to
@@ -169,6 +185,10 @@ export function toNotificationCategory(
       return messageKey === TASK_COMPLETED_MESSAGE_KEY
         ? "TASK_COMPLETED"
         : "TASK_UPDATE";
+    case "BILLING":
+      return BILLING_ATTENTION_MESSAGE_KEYS.includes(messageKey)
+        ? "BILLING_ATTENTION"
+        : "BILLING_UPDATE";
     case "SYSTEM":
       return "SYSTEM";
     case "CHAT":

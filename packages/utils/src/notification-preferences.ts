@@ -9,6 +9,9 @@ export const NOTIFICATION_CATEGORIES = [
   "CHAT_ROOM_MESSAGE",
   "CHAT_MENTION",
   "CHAT_DIRECT_MESSAGE",
+  // Billing is split like tasks: a wallet that waits on the reader, and news.
+  "BILLING_ATTENTION",
+  "BILLING_UPDATE",
   "SYSTEM",
   "FOLLOW_UP",
 ] as const;
