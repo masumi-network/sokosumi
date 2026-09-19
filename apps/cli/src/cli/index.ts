@@ -117,7 +117,6 @@ interface CliOptions {
   "vendor-id"?: string;
   "api-key-stdin"?: boolean;
   "create-api-key"?: boolean;
-  "with-api-key"?: boolean;
   details?: boolean;
 }
 
@@ -226,7 +225,7 @@ const REPEATED_VALUE_OPTIONS = new Set<ValueOptionName>([
   "status",
 ]);
 
-const BOOLEAN_OPTIONS = new Set(["create-api-key", "with-api-key", "details"]);
+const BOOLEAN_OPTIONS = new Set(["create-api-key", "details"]);
 const CORE_COMMAND_SECTIONS = new Set([
   "discover",
   "agents",
@@ -310,7 +309,7 @@ export function parseArgv(argv: string[]): ParsedArgv {
   return { positionals, options };
 }
 
-export function applyGlobalEnv(
+function applyGlobalEnv(
   env: AuthEnvironment,
   options: CliOptions,
 ): AuthEnvironment {
@@ -451,6 +450,10 @@ export async function runCli(
           options["oauth-port"] === undefined
             ? undefined
             : Number(options["oauth-port"]),
+        oauthTimeoutMs:
+          options["oauth-timeout-ms"] === undefined
+            ? undefined
+            : Number(options["oauth-timeout-ms"]),
       });
     }
 

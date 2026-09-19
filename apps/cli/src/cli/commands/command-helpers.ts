@@ -42,7 +42,7 @@ export function optionBoolean(
   return value === true || value === "true";
 }
 
-export function asArray(value: CommandOption): string[] {
+function asArray(value: CommandOption): string[] {
   if (value === undefined || typeof value === "boolean") return [];
   return (Array.isArray(value) ? value : [value]).map(String);
 }
