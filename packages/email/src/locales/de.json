@@ -50,35 +50,6 @@
     }
   },
   "jobs": {
-    "finalStatus": {
-      "subject": "Sokosumi - {agentName}-Job {status}",
-      "preview": "Dein Job für {agentName} ist jetzt {status}.",
-      "title": "Job {status}",
-      "greeting": "Hallo {name}",
-      "body": "{jobName} für {agentName} ist jetzt {status}.",
-      "button": "Job ansehen",
-      "linkInstructions": "Oder kopiere diese URL und füge sie in deinen Browser ein:",
-      "footer": "Du erhältst diese E-Mail, weil Job-Benachrichtigungen für deinen Account aktiviert sind.",
-      "fallbackJobName": "Dein Job",
-      "status": {
-        "completed": "abgeschlossen",
-        "failed": "fehlgeschlagen",
-        "payment_failed": "Zahlung fehlgeschlagen",
-        "refund_resolved": "erstattet",
-        "dispute_resolved": "Einspruch gelöst"
-      }
-    },
-    "inputRequired": {
-      "subject": "Sokosumi - {agentName} benötigt deinen Input",
-      "preview": "Dein Job für {agentName} benötigt Input, um fortzufahren.",
-      "title": "Aktion erforderlich",
-      "greeting": "Hallo {name}",
-      "body": "Dein Job {jobName} für {agentName} wartet auf deinen Input, um fortzufahren.",
-      "bodyWithoutJobName": "Dein Job für {agentName} wartet auf deinen Input, um fortzufahren.",
-      "button": "Input bereitstellen",
-      "linkInstructions": "Oder kopiere diese URL und füge sie in deinen Browser ein:",
-      "footer": "Du erhältst diese E-Mail, weil Job-Benachrichtigungen für deinen Account aktiviert sind."
-    },
     "failureNotification": {
       "subject": "Job-Fehlerbenachrichtigung - {jobId}",
       "preview": "Job {jobId} ist fehlgeschlagen",
@@ -106,7 +77,6 @@
       "fallbackAuthorName": "Jemand",
       "fallbackRoomName": "einer Unterhaltung",
       "fallbackTaskName": "Deine Aufgabe",
-      "fallbackJobName": "Dein Auftrag",
       "mention": {
         "subject": "Sokosumi - {authorName} wartet weiterhin auf dich in {roomName}",
         "preview": "{authorName} hat dich vor einem Tag in {roomName} erwähnt.",
@@ -137,20 +107,7 @@
           "scheduleRemovedByOperator": "Der Zeitplan für {taskName} wurde vor einem Tag nach einer Prüfung entfernt, und du hast den Hinweis noch nicht geöffnet."
         }
       },
-      "job": {
-        "subject": "Sokosumi - {jobName} wartet weiterhin auf dich",
-        "preview": "{jobName} hat vor einem Tag angehalten und braucht dich.",
-        "title": "Wartet weiterhin auf dich",
-        "body": "{jobName} hat vor einem Tag angehalten, weil der Auftrag dich braucht. Er wartet immer noch.",
-        "button": "Auftrag öffnen",
-        "agentLabel": "Agent",
-        "reasons": {
-          "inputRequired": "{jobName} hat vor einem Tag angehalten, weil {agentName} deine Eingabe braucht. Der Auftrag wartet weiterhin.",
-          "paymentFailed": "Die Zahlung für {jobName} ist vor einem Tag fehlgeschlagen, und du hast den Auftrag noch nicht geöffnet."
-        }
-      },
-      "fallbackCoworkerName": "ein Coworker",
-      "fallbackAgentName": "der Agent"
+      "fallbackCoworkerName": "ein Coworker"
     }
   }
 }

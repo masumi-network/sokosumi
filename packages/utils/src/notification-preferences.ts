@@ -6,12 +6,16 @@
  * than a schema migration. Core validates an incoming value against these
  * lists.
  *
- * Jobs and tasks are three rows each. Something that waits on you and
- * something that merely happened are the same kind to the producer and
- * different things to the reader, and one row for both meant silencing the ones
- * that need you to be rid of the ones that do not. Finishing is the third row:
- * it is the answer the reader was waiting for, and it read as noise only while
- * it sat with the failures and the cancellations.
+ * Tasks are three rows. Something that waits on you and something that merely
+ * happened are the same kind to the producer and different things to the
+ * reader, and one row for both meant silencing the ones that need you to be
+ * rid of the ones that do not. Finishing is the third row: it is the answer
+ * the reader was waiting for, and it read as noise only while it sat with the
+ * failures and the cancellations.
+ *
+ * Jobs had the same three rows until SOK-930. An agent job is started through
+ * the API and read there, so its rows were switches over notifications nobody
+ * writes any more.
  *
  * Chat is three rows: every message in a room you belong to, the messages that
  * name you, and your direct messages. The first is the only one that is off
@@ -28,9 +32,6 @@
  * the Core DTO boundary keeps domain values out of web's direct imports.
  */
 export const NOTIFICATION_CATEGORIES = [
-  "JOB_ATTENTION",
-  "JOB_COMPLETED",
-  "JOB_UPDATE",
   "TASK_ATTENTION",
   "TASK_COMPLETED",
   "TASK_UPDATE",
@@ -72,10 +73,9 @@ export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
  * is shown a switch that controls nothing. A category joins the list in the
  * same change that teaches it to send an email, never before.
  *
- * Deliberately not here: the two job emails the product already sends
- * (`renderJobFinalStatusEmail`, `renderJobInputRequiredEmail`). They answer to
- * the account-wide `notificationsOptIn` rather than to this matrix. Moving
- * them onto it is worth doing and is not this feature.
+ * Deliberately not here: the job failure alert the product still sends. It
+ * goes to the agent's author and the stakeholder list rather than to a reader
+ * with a settings page, so no row of this matrix speaks for it (SOK-24).
  */
 export const NOTIFICATION_EMAIL_CATEGORIES: readonly NotificationCategory[] = [
   "FOLLOW_UP",

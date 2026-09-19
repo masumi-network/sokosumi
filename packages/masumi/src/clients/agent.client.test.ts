@@ -598,6 +598,7 @@ describe("createAgentClient fetchAgentJobStatus", () => {
       expect.objectContaining({
         method: "GET",
         signal: abortSignal,
+        maxResponseBytes: 100 * 1024 * 1024,
       }),
     );
   });

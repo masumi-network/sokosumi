@@ -28,7 +28,8 @@ vi.mock("@/lib/utils/browser-notification", () => ({
     getBrowserNotificationPermissionMock(),
 }));
 
-vi.mock("./release-push-device.client", () => ({
+vi.mock("./release-push-device.client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./release-push-device.client")>()),
   hasAblyPushRegistration: () => hasAblyPushRegistrationMock(),
   hasUnfinishedPushTeardown: () => hasUnfinishedPushTeardownMock(),
 }));
@@ -57,6 +58,7 @@ function repairable() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
   repairable();
   activatePushMock.mockResolvedValue(true);
 });
@@ -184,4 +186,21 @@ describe("healPushSubscription after an interrupted teardown", () => {
 it("returns false when teardown cancels activation", async () => {
   activatePushMock.mockResolvedValueOnce(false);
   await expect(healPushSubscription(USER_ID)).resolves.toBe(false);
+});
+
+/**
+ * The repair's own answer must survive writing it down. Recording sits in a
+ * `finally`, so a throw from the browser read, the storage write, or a
+ * listener would replace the boolean with a rejection, and the only caller
+ * runs this as `void healPushSubscription(userId)`.
+ */
+it("keeps its answer when recording the outcome throws", async () => {
+  repairable();
+  const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+  hasWebPushSubscriptionMock.mockRejectedValue(new Error("storage is blocked"));
+
+  await expect(healPushSubscription(USER_ID)).resolves.toBe(false);
+
+  expect(consoleError).toHaveBeenCalled();
+  consoleError.mockRestore();
 });

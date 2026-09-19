@@ -174,16 +174,14 @@ export function UnusedChannelCells({ kind }: { kind: string }) {
 /**
  * Email on one row.
  *
- * What it writes is an account switch rather than a cell of the matrix, so one
- * value can sit on more than one row: both job rows hold the job emails and
- * move together. The Email head over the column says so, once for the card,
- * rather than every cell in it saying so again.
+ * What it writes is an account switch rather than a cell of the matrix. The
+ * marketing row is the one that carries it.
  *
  * It does not speak what it wrote. The write behind it raises a toast, and the
- * toast names the account switch that moved, which is the fact a reader on a
- * shared value needs. Said here as well, one press would be announced twice in
- * two wordings. The channel cells still speak, because a press there moves the
- * sibling cell beside it, and no toast reports where the kind arrives now.
+ * toast names the account switch that moved. Said here as well, one press
+ * would be announced twice in two wordings. The channel cells still speak,
+ * because a press there moves the sibling cell beside it, and no toast reports
+ * where the kind arrives now.
  */
 export function EmailCell({
   name,
@@ -251,12 +249,10 @@ export function EmailCell({
  */
 function KindCells({
   kind,
-  email,
   pushBlock,
   onToggle,
 }: {
   kind: KindChoice;
-  email: EmailChoice;
   pushBlock: PushBlock | null;
   onToggle: (channel: StoredChannel, on: boolean) => void;
 }) {
@@ -346,28 +342,15 @@ function KindCells({
   }, [arrival, awaiting, saving, cellSpecs, channels, label, t]);
 
   /**
-   * The email column on this row, which is one of three different things.
+   * The email column on this row, which is one of two different things.
    *
-   * `ACCOUNT` writes the account switch that the job rows share. `NONE` has
-   * nothing behind it and says so. `CHANNEL` is already drawn, by the loop
-   * over `cellSpecs`, because that one is a cell of the matrix like the two
-   * beside it and is written by the same path (SOK-916).
+   * `NONE` has nothing behind it and says so. `CHANNEL` is already drawn, by
+   * the loop over `cellSpecs`, because that one is a cell of the matrix like
+   * the two beside it and is written by the same path (SOK-916).
    */
   function emailCell() {
     if (kind.spec.email === "CHANNEL") {
       return null;
-    }
-
-    if (kind.spec.email === "ACCOUNT") {
-      return (
-        <EmailCell
-          name={t("channelCellLabel", {
-            channel: t("channelEmail"),
-            kind: label,
-          })}
-          email={email}
-        />
-      );
     }
 
     return (
@@ -452,14 +435,12 @@ function KindCells({
  */
 export function ChannelGrid({
   kinds,
-  email,
   pushBlock,
   showNames,
   heads,
   onToggle,
 }: {
   kinds: readonly KindChoice[];
-  email: EmailChoice;
   pushBlock: PushBlock | null;
   showNames: boolean;
   /** The column names, drawn once above the rows. */
@@ -493,7 +474,6 @@ export function ChannelGrid({
           ) : null}
           <KindCells
             kind={kind}
-            email={email}
             pushBlock={pushBlock}
             onToggle={(channel, on) => {
               onToggle(kind, channel, on);
