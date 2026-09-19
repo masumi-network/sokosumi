@@ -428,7 +428,7 @@ export function ChatRoomSidebarRow({
   // rest, and the spacer hides so neither can push the mark off centre. The
   // button's `overflow-hidden` exists for name truncation, which the
   // collapsed rail has none of, and it clipped the tile's kind corner mark,
-  // which hangs 6px below a 24px tile inside a 32px button. So the clip
+  // which hangs 4px below a 20px tile inside a 32px button. So the clip
   // lifts there.
   const roomLink = (
     <Link
