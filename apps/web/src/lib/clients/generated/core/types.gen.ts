@@ -44080,6 +44080,21 @@ export type RemoveVendorMemberErrors = {
             method: string;
         };
     };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type RemoveVendorMemberError = RemoveVendorMemberErrors[keyof RemoveVendorMemberErrors];
@@ -44159,6 +44174,21 @@ export type PatchVendorMemberRoleErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
