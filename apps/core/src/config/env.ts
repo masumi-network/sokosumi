@@ -1,5 +1,8 @@
 import { z } from "@hono/zod-openapi";
-import { resolveBetterAuthPublicBaseUrl } from "@sokosumi/utils";
+import {
+  resolveBetterAuthPublicBaseUrl,
+  TURNSTILE_ALWAYS_PASS_SECRET,
+} from "@sokosumi/utils";
 import { withRelatedProject } from "@vercel/related-projects";
 import { v4 as uuidv4 } from "uuid";
 
@@ -342,6 +345,19 @@ export function validateEnv(): EnvConfig {
   if (!result.data.TURNSTILE_SECRET_KEY && isDeployedEnvironment(result.data)) {
     console.warn(
       "TURNSTILE_SECRET_KEY is unset in a deployed environment; Turnstile captcha verification is disabled and auth email endpoints are unprotected from spam",
+    );
+  }
+
+  // Worse than unset, and quieter about it: siteverify succeeds for ANY token,
+  // forged ones included, so the endpoints look protected while they are not.
+  // Every local checkout now carries this secret, which is exactly how it ends
+  // up pasted into a deployment.
+  if (
+    result.data.TURNSTILE_SECRET_KEY === TURNSTILE_ALWAYS_PASS_SECRET &&
+    isDeployedEnvironment(result.data)
+  ) {
+    console.warn(
+      "TURNSTILE_SECRET_KEY is Cloudflare's published always-passes testing secret in a deployed environment; captcha verification accepts every token, including forged ones. Set a real secret from the Turnstile dashboard.",
     );
   }
 

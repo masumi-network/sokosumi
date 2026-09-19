@@ -1,3 +1,4 @@
+import { TURNSTILE_ALWAYS_PASS_SECRET } from "@sokosumi/utils";
 import type { MockInstance } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -156,6 +157,34 @@ describe("Turnstile deployment configuration", () => {
 
     expect(consoleWarn).toHaveBeenCalledWith(
       expect.stringContaining("TURNSTILE_SECRET_KEY is unset"),
+    );
+  });
+
+  it.each(["production", "preview"])(
+    "warns when a deployment holds the always-passes test secret on Vercel %s",
+    (vercelEnv) => {
+      // Quieter than an unset secret and worse: siteverify accepts every token,
+      // so the endpoints look protected. Every local checkout carries this
+      // value, which is how it reaches a deployment in the first place.
+      vi.stubEnv("VERCEL_ENV", vercelEnv);
+      vi.stubEnv("TURNSTILE_SECRET_KEY", TURNSTILE_ALWAYS_PASS_SECRET);
+
+      validateEnv();
+
+      expect(consoleWarn).toHaveBeenCalledWith(
+        expect.stringContaining("always-passes testing secret"),
+      );
+    },
+  );
+
+  it("stays quiet about the test secret on a local machine", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("TURNSTILE_SECRET_KEY", TURNSTILE_ALWAYS_PASS_SECRET);
+
+    validateEnv();
+
+    expect(consoleWarn).not.toHaveBeenCalledWith(
+      expect.stringContaining("always-passes testing secret"),
     );
   });
 

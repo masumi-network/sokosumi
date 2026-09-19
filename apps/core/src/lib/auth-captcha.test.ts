@@ -1,12 +1,10 @@
+import { TURNSTILE_ALWAYS_PASS_SECRET } from "@sokosumi/utils";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { betterAuth } from "better-auth/minimal";
 import { magicLink } from "better-auth/plugins/magic-link";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  createAuthCaptchaPlugin,
-  TURNSTILE_ALWAYS_PASS_SECRET,
-} from "./auth-captcha.js";
+import { createAuthCaptchaPlugin } from "./auth-captcha.js";
 
 function createTestAuth(
   { secretKey }: { secretKey?: string } = { secretKey: "test-secret" },

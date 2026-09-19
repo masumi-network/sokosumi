@@ -1,9 +1,8 @@
-import { AUTH_CAPTCHA_ACTION } from "@sokosumi/utils";
+import {
+  AUTH_CAPTCHA_ACTION,
+  TURNSTILE_ALWAYS_PASS_SECRET,
+} from "@sokosumi/utils";
 import { captcha } from "better-auth/plugins";
-
-/** Cloudflare's published always-passes testing secret. Dummy siteverify omits `action`. */
-export const TURNSTILE_ALWAYS_PASS_SECRET =
-  "1x0000000000000000000000000000000AA";
 
 export function createAuthCaptchaPlugin(secretKey: string | undefined) {
   // Omitting the secret disables server-side verification in any environment.

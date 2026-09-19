@@ -256,51 +256,77 @@ function run_dev_web() {
   run_dev web
 }
 
-function turnstile_status() {
-  # Report which Turnstile key the web app is holding. fixture_auth calls Core's
-  # sign-in endpoint directly and passes straight through a captcha, so it says
-  # "ok" while the browser form is still blocked behind a challenge — this line
-  # is what tells the two apart.
-  local env_file="$REPO_ROOT/apps/web/.env"
-  if [[ ! -f "$env_file" ]]; then
-    echo "turnstile=off (no apps/web/.env)"
-    return 0
-  fi
-  local line value
-  line="$(
-    grep -E '^[[:space:]]*NEXT_PUBLIC_TURNSTILE_SITE_KEY=' "$env_file" | tail -n 1 || true
-  )"
+function read_env_value() {
+  # Last assigned value for a key in an env file, unquoted and space-stripped.
+  local env_file="$1" key="$2" line value
+  [[ -f "$env_file" ]] || return 1
+  line="$(grep -E "^[[:space:]]*${key}=" "$env_file" | tail -n 1 || true)"
+  [[ -n "$line" ]] || return 1
   value="${line#*=}"
   value="${value%\"}"
   value="${value#\"}"
   value="${value%\'}"
   value="${value#\'}"
   value="$(echo "$value" | tr -d '[:space:]')"
-  if [[ -z "$value" ]]; then
-    echo "turnstile=off (no site key; the auth security check is skipped)"
-    return 0
-  fi
+  [[ -n "$value" ]] || return 1
+  printf '%s' "$value"
+}
+
+function turnstile_status() {
+  # Two keys, because the widget and the server check fail differently and an
+  # agent needs to tell them apart:
+  #
+  #   turnstile_site   — what the browser renders on /signin
+  #   turnstile_secret — whether Core verifies the token it sends
+  #
+  # Neither is covered by fixture_auth: that calls Core's sign-in endpoint with
+  # a dummy token, so it passes while the browser form is still blocked.
+  local site secret
+  site="$(read_env_value "$REPO_ROOT/apps/web/.env" NEXT_PUBLIC_TURNSTILE_SITE_KEY || true)"
+  secret="$(read_env_value "$REPO_ROOT/apps/core/.env" TURNSTILE_SECRET_KEY || true)"
+
   # Cloudflare's documented testing prefixes: 1x always passes, 2x always
-  # blocks, 3x forces an interactive challenge.
-  case "$value" in
-    1x*) echo "turnstile=test (always passes)" ;;
+  # blocks, 3x forces an interactive challenge. Only 1x is drivable.
+  case "$site" in
+    "") echo "turnstile_site=off (no site key; the form shows no widget)" ;;
+    1x*) echo "turnstile_site=test-pass" ;;
+    2x*) echo "turnstile_site=test-block" ;;
+    3x*) echo "turnstile_site=test-interactive" ;;
+    *) echo "turnstile_site=live" ;;
+  esac
+
+  case "$secret" in
+    "") echo "turnstile_secret=off (Core does not verify the token)" ;;
+    1x*) echo "turnstile_secret=test-pass" ;;
+    *) echo "turnstile_secret=live" ;;
+  esac
+
+  case "$site" in
+    1x* | "") ;;
     2x*)
-      echo "turnstile=test (always blocks — sign-in fails by design)"
-      echo "warn: a 2x test key rejects every sign-in. Swap in the 1x always-passes key in apps/web/.env."
-      echo "warn: env:bootstrap will not overwrite a key that is already set."
+      echo "warn: turnstile_site=test-block rejects every sign-in by design."
       ;;
     3x*)
-      echo "turnstile=test (forces an interactive challenge)"
-      echo "warn: a 3x test key still shows a human check an agent must not answer."
-      echo "warn: swap in the 1x always-passes key in apps/web/.env. env:bootstrap will not overwrite a set key."
+      echo "warn: turnstile_site=test-interactive shows a human check an agent must not answer."
       ;;
     *)
-      echo "turnstile=live"
-      echo "warn: a real Turnstile key is set; browser sign-in will hit a human check."
-      echo "warn: replace NEXT_PUBLIC_TURNSTILE_SITE_KEY in apps/web/.env with 1x00000000000000000000AA (and TURNSTILE_SECRET_KEY in apps/core/.env with the matching 1x secret)."
+      echo "warn: turnstile_site=live shows a human check an agent must not answer."
+      ;;
+  esac
+  case "$site" in
+    1x* | "") ;;
+    *)
+      echo "warn: set NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA in apps/web/.env."
       echo "warn: env:bootstrap will not overwrite a key that is already set."
       ;;
   esac
+
+  # The mismatch worth naming on its own: the widget solves itself, then Core
+  # rejects the dummy token it produced. Looks like a broken app, not a config.
+  if [[ "$site" == 1x* && "$secret" != 1x* && -n "$secret" ]]; then
+    echo "warn: site key passes but TURNSTILE_SECRET_KEY in apps/core/.env is live — Core will reject the dummy token (API 403), not the widget."
+    echo "warn: set the matching 1x secret in apps/core/.env."
+  fi
 }
 
 function cookie_domain_trap() {
