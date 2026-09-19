@@ -3,7 +3,7 @@ import {
   renderChatDirectMessageFollowUpEmail,
   renderChatMentionFollowUpEmail,
   renderTaskFollowUpEmail,
-  type TaskFollowUpReason,
+  type TaskAttentionReason,
 } from "@sokosumi/email";
 import {
   CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
@@ -60,7 +60,7 @@ export interface FollowUpEmailInput {
  * later falls through to the family's own body rather than asking the catalog
  * for a sentence nobody has written.
  */
-const TASK_REASONS: readonly TaskFollowUpReason[] = [
+const TASK_REASONS: readonly TaskAttentionReason[] = [
   "approvalRequired",
   "assigned",
   "authenticationRequired",
