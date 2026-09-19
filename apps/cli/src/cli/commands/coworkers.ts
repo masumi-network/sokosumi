@@ -182,7 +182,7 @@ export async function runCoworkersCommand({
       signal,
     );
     let apiKey: unknown = null;
-    if (optionBoolean(options, "create-api-key", "with-api-key")) {
+    if (optionBoolean(options, "create-api-key")) {
       const result = await createCoworkerApiKey(
         client,
         String(record(coworker).id),
