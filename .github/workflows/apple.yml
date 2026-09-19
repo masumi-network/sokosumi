@@ -197,9 +197,14 @@ jobs:
   # The rolling download. Every Apple change that reaches main replaces the
   # single `apple-latest` prerelease, so
   # https://github.com/masumi-network/sokosumi/releases/download/apple-latest/Sokosumi.dmg
-  # is a permanent link to the newest build. Needs `test` and `lint` green
-  # first: a rolling download that ships a broken build is worse than no
-  # download.
+  # is a permanent link to the newest build. Needs `test` green first: a
+  # rolling download that ships a broken build is worse than no download.
+  #
+  # Deliberately NOT gated on `lint`. SwiftLint and SwiftFormat are style
+  # checks and cannot make a binary broken, so withholding a working,
+  # notarized download over indentation is a false coupling. `needs: test`
+  # also covers `changes`, which `test` already depends on and which this job
+  # never reads.
   #
   # The app is sandboxed with the hardened runtime on, so it must be signed
   # with a Developer ID Application certificate and notarized by Apple, or
@@ -207,7 +212,7 @@ jobs:
   # secrets below are set by `apps/apple/scripts/setup-release-signing.sh`.
   publish:
     name: Publish macOS DMG
-    needs: [changes, test, lint]
+    needs: test
     # `workflow_dispatch` runs everything except the release step, so the disk
     # image can be built, notarized and downloaded from the run's artifacts
     # without rewriting `apple-latest`. That is the way to test a change to
