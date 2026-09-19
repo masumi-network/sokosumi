@@ -322,22 +322,6 @@ async function postStream(
 
 beforeEach(() => {
   vi.clearAllMocks();
-  prismaTransactionMock.mockImplementation(async (callback) =>
-    callback({
-      chatRoom: {
-        findFirst: roomFindFirstMock,
-      },
-      chatRoomMessage: {
-        findFirst: chatRoomMessageFindFirstMock,
-      },
-      organization: {
-        findUnique: organizationFindUniqueMock,
-      },
-      member: {
-        findUnique: memberFindUniqueMock,
-      },
-    }),
-  );
   organizationFindUniqueMock.mockResolvedValue({ id: "org_1" });
   memberFindUniqueMock.mockResolvedValue({ role: "member" });
   convertToModelMessagesMock.mockResolvedValue([]);
@@ -540,7 +524,7 @@ describe("POST /chats/rooms/{id}/stream", () => {
     expect(ensureThreadProviderConversationMock).not.toHaveBeenCalled();
     expect(buildRoomStreamThreadModelMessagesMock).not.toHaveBeenCalled();
     expect(chatRoomUpdateManyMock).not.toHaveBeenCalled();
-    expect(prismaTransactionMock).toHaveBeenCalledOnce();
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
   it("persists thread replies under parentMessageId with thread-scoped conversation", async () => {
