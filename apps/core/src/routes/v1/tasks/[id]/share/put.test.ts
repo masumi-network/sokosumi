@@ -4,37 +4,32 @@ import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountPutTaskShareById from "./put";
 
-const {
-  authContextState,
-  prismaTransactionMock,
-  requireMutableTaskOwnershipMock,
-  upsertForTaskMock,
-} = vi.hoisted(() => ({
-  authContextState: {
-    current: {
-      actor: "user",
-      userId: "user_123",
-      organizationId: "org_123",
-      role: "user",
-    } as
-      | {
-          actor: "user";
-          userId: string;
-          organizationId: string | null;
-          role: string;
-        }
-      | {
-          actor: "coworker";
-          coworkerId: string;
-          vendorId: string;
-          context: { userId: string; organizationId: string | null };
-        }
-      | null,
-  },
-  prismaTransactionMock: vi.fn(),
-  requireMutableTaskOwnershipMock: vi.fn(),
-  upsertForTaskMock: vi.fn(),
-}));
+const { authContextState, requireMutableTaskOwnershipMock, upsertForTaskMock } =
+  vi.hoisted(() => ({
+    authContextState: {
+      current: {
+        actor: "user",
+        userId: "user_123",
+        organizationId: "org_123",
+        role: "user",
+      } as
+        | {
+            actor: "user";
+            userId: string;
+            organizationId: string | null;
+            role: string;
+          }
+        | {
+            actor: "coworker";
+            coworkerId: string;
+            vendorId: string;
+            context: { userId: string; organizationId: string | null };
+          }
+        | null,
+    },
+    requireMutableTaskOwnershipMock: vi.fn(),
+    upsertForTaskMock: vi.fn(),
+  }));
 
 vi.mock("@/helpers/access-control", () => ({
   requireMutableTaskOwnership: (...args: unknown[]) =>
@@ -88,7 +83,6 @@ vi.mock("@/lib/db/prisma", async () => ({
       findUnique: (await import("@/test-fixtures/organization-membership"))
         .stubMemberFindUnique,
     },
-    $transaction: (...args: unknown[]) => prismaTransactionMock(...args),
   },
 }));
 
@@ -107,9 +101,6 @@ describe("PUT /tasks/{id}/share", () => {
       organizationId: "org_123",
       role: "user",
     };
-    prismaTransactionMock.mockImplementation(
-      async (callback: (tx: unknown) => Promise<unknown>) => await callback({}),
-    );
     requireMutableTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
       ownerId: "user_123",
