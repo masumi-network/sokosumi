@@ -337,8 +337,9 @@ describe("MenuItems search action", () => {
       "newTask",
       "searchCtrl+K",
       "exploreAgents",
-      // Projects answers hover with its flyout, headed by the same label, so
-      // it passes no tooltip that would race the panel to the same spot.
+      // Projects answers hover with its flyout, so it passes no tooltip that
+      // would race the panel to the same spot; the panel's own heading names
+      // it there.
       "",
       "taskManager",
       "calendar",
