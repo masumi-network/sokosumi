@@ -2,6 +2,20 @@
 
 Native SwiftUI chat for macOS 26. iOS 17+ is planned; there is no iOS app target yet. Feature coverage and remaining work live in [PARITY.md](PARITY.md), and product intent in [VISION.md](VISION.md).
 
+
+## Install the latest build
+
+Every change to `main` publishes a signed, notarized disk image to the
+`apple-latest` prerelease. The URL never changes:
+
+**<https://github.com/masumi-network/sokosumi/releases/download/apple-latest/Sokosumi.dmg>**
+
+Open it and drag Sokosumi to Applications. It is a rolling build of `main`,
+not a stable release.
+
+Maintainers: the signing credentials behind that job are set up once by
+[`scripts/setup-release-signing.sh`](scripts/setup-release-signing.sh).
+
 ## Build and run
 
 Open `Sokosumi.xcworkspace` (not the bare project — the workspace is what makes the package tests reachable from the `Sokosumi` scheme), select the `Sokosumi` scheme and My Mac, then run with the configured Apple Development signing identity. Xcode 27+ is required. Use a stable signing identity for interactive builds so the saved Keychain session remains accessible. See [AGENTS.md](AGENTS.md#interactive-signing) for signing and OAuth setup.
