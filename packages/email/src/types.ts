@@ -35,21 +35,6 @@ export interface ChatRoomInvitationEmailProps extends LocalizedEmailProps {
   channelName: string;
 }
 
-export interface JobFinalStatusEmailProps extends LocalizedEmailProps {
-  agentName: string;
-  jobLink: string;
-  jobName?: null | string;
-  jobStatus: string;
-  recipientName: string;
-}
-
-export interface JobInputRequiredEmailProps extends LocalizedEmailProps {
-  agentName: string;
-  jobLink: string;
-  jobName?: null | string;
-  recipientName: string;
-}
-
 export interface JobFailureNotificationEmailProps extends LocalizedEmailProps {
   agentBlockchainIdentifier: string;
   agentId: string;
@@ -116,19 +101,10 @@ export type TaskFollowUpReason =
   | "outOfCredits"
   | "scheduleRemovedByOperator";
 
-/** Why a job is waiting. The two keys Core calls job attention. */
-export type JobFollowUpReason = "inputRequired" | "paymentFailed";
-
 export interface TaskFollowUpEmailProps extends NotificationFollowUpEmailProps {
   /** Whoever the task is waiting on the reader for. */
   coworkerName?: null | string;
   projectName?: null | string;
   reason?: null | TaskFollowUpReason;
   taskName?: null | string;
-}
-
-export interface JobFollowUpEmailProps extends NotificationFollowUpEmailProps {
-  agentName?: null | string;
-  jobName?: null | string;
-  reason?: null | JobFollowUpReason;
 }

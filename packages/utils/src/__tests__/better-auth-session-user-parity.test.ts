@@ -26,7 +26,6 @@ function buildSessionUserWithSchemaFields(
     updatedAt: "2025-01-01T00:00:00.000Z",
     termsAccepted: true,
     marketingOptIn: true,
-    notificationsOptIn: true,
     showRoomUnreadCount: false,
     logo: null,
     metadata: null,

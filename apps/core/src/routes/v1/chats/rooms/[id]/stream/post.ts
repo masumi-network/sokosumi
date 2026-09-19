@@ -176,7 +176,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id: roomId } = c.req.valid("param");
     const {
       messages,
-      model,
       parentMessageId: requestedParentMessageId,
       quote: requestedQuote,
     } = c.req.valid("json");
@@ -518,7 +517,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       };
 
       const result = streamText({
-        model: getSokosumiProvider()(model ?? null),
+        model: getSokosumiProvider()(null),
         messages: modelMessages,
         allowSystemInMessages: true,
         maxRetries: 0,

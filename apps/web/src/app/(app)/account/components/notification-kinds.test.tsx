@@ -20,7 +20,6 @@ const patchMyPreferences = vi.fn();
 const getMyPreferences = vi.fn();
 const setAccountEnabled = vi.fn();
 const setDeviceEnabled = vi.fn();
-const setJobEmails = vi.fn();
 const setMarketing = vi.fn();
 let isAccountEnabled = true;
 let isDeviceEnabled = true;
@@ -31,8 +30,9 @@ let isSupported: boolean | null = true;
 let isBlocked = false;
 /** A push write of any kind is already running. */
 let isSaving = false;
-let jobEmails = true;
 let marketing = false;
+/** A marketing write is already in flight when the row is drawn. */
+let marketingSaving = false;
 let session: { user: { id: string } } | null = { user: { id: "user_1" } };
 let sessionPending = false;
 let vercelEnv: "production" | "preview" = "production";
@@ -85,18 +85,12 @@ vi.mock("sonner", () => ({
 }));
 
 /**
- * Jobs push what waits on the reader, keep finished jobs in the app and stop
- * the rest, which is no situation the presets write, so that group reads
- * Custom. Tasks are on Results and chat on Essential. Access requests is a
- * single kind, so it is drawn as a plain row with its channel cells.
+ * Tasks push what waits on the reader, keep finished tasks in the app and
+ * stop the rest, which is what Most writes, so that group reads Most. Chat is
+ * on Essential. Access requests is a single kind, so it is drawn as a plain
+ * row with its channel cells.
  */
 const MATRIX = [
-  { category: "JOB_ATTENTION", channel: "IN_APP", enabled: true },
-  { category: "JOB_ATTENTION", channel: "OS_BANNER", enabled: true },
-  { category: "JOB_COMPLETED", channel: "IN_APP", enabled: true },
-  { category: "JOB_COMPLETED", channel: "OS_BANNER", enabled: false },
-  { category: "JOB_UPDATE", channel: "IN_APP", enabled: false },
-  { category: "JOB_UPDATE", channel: "OS_BANNER", enabled: false },
   { category: "TASK_ATTENTION", channel: "IN_APP", enabled: true },
   { category: "TASK_ATTENTION", channel: "OS_BANNER", enabled: true },
   { category: "TASK_COMPLETED", channel: "IN_APP", enabled: true },
@@ -135,43 +129,19 @@ function response(notificationPreferences = current) {
 /** Held so a test can write into the same cache the page reads. */
 let queryClient: QueryClient;
 
-/** Set before a press to make the write this host models fail. */
-let emailWriteFails = false;
-/** Settles the write the last press started, the way Core answering does. */
-let finishEmailWrite: () => void = () => {};
-
 /**
- * The two account switches live above this component, and the page hands their
- * values back down. This host writes the way the account page writes: it
- * paints the new value, marks itself busy, and on a failure puts the value
- * back before it stops being busy.
+ * The marketing switch lives above this component, and the page hands its
+ * value back down. This host writes the way the account page writes: it
+ * paints the new value and reports it to the caller.
  */
 function AccountHost() {
-  const [enabled, setEnabled] = useState(jobEmails);
-  const [saving, setSaving] = useState(false);
   const [news, setNews] = useState(marketing);
 
   return (
     <NotificationKinds
-      email={{
-        enabled,
-        saving,
-        onChange: (next: boolean) => {
-          setJobEmails(next);
-          setEnabled(next);
-          setSaving(true);
-          finishEmailWrite = () => {
-            if (emailWriteFails) {
-              setEnabled(!next);
-            }
-
-            setSaving(false);
-          };
-        },
-      }}
       news={{
         enabled: news,
-        saving: false,
+        saving: marketingSaving,
         onChange: (next: boolean) => {
           setMarketing(next);
           setNews(next);
@@ -338,17 +308,6 @@ function newsRow() {
   return screen.getByRole("group", { name: "newsDeliveryAriaLabel" });
 }
 
-/** The account switch on a row of its own, when no kind row carries it. */
-function fallbackEmailCell() {
-  const name = "channelEmailLabel";
-
-  if (!screen.queryByRole("button", { name })) {
-    openFolds();
-  }
-
-  return screen.getByRole("button", { name });
-}
-
 /** What a screen reader reads out after the control's own name. */
 function describedBy(element: HTMLElement) {
   const id = element.getAttribute("aria-describedby");
@@ -357,9 +316,9 @@ function describedBy(element: HTMLElement) {
 }
 
 /**
- * A job row carries two regions, one for the channels and one for email. Read
- * together, so an assertion says the row spoke once and says what it said,
- * whichever of them holds the sentence.
+ * A row can carry more than one region. Read together, so an assertion says
+ * the row spoke once and says what it said, whichever of them holds the
+ * sentence.
  */
 function spoken(row: HTMLElement) {
   return within(row)
@@ -407,10 +366,8 @@ describe("NotificationKinds", () => {
     isSupported = true;
     isBlocked = false;
     isSaving = false;
-    jobEmails = true;
     marketing = false;
-    emailWriteFails = false;
-    finishEmailWrite = () => {};
+    marketingSaving = false;
     session = { user: { id: "user_1" } };
     sessionPending = false;
     vercelEnv = "production";
@@ -446,10 +403,6 @@ describe("NotificationKinds", () => {
     expect(groupTrigger("groupChat")).toHaveAttribute("aria-expanded", "false");
     expect(presetButton("groupTask")).toHaveTextContent("presetMost");
     expect(presetButton("groupChat")).toHaveTextContent("presetEssential");
-    // The jobs waiting on the reader push, the finished ones stay in the app,
-    // and what a job merely reports is off. No situation writes that, so the
-    // group says the reader set it by hand.
-    expect(presetButton("groupJob")).toHaveTextContent("presetCustom");
 
     expect(cellFor("kindSystem", "channelInApp")).toHaveAttribute(
       "aria-pressed",
@@ -480,7 +433,7 @@ describe("NotificationKinds", () => {
   it("offers a group the situations it can be in", async () => {
     renderKinds();
 
-    const menu = await openPresets("groupJob");
+    const menu = await openPresets("groupTask");
 
     // The same elements in the same order, loudest first: the list reads down
     // from the device to Sokosumi to nothing.
@@ -510,7 +463,6 @@ describe("NotificationKinds", () => {
       })),
     );
 
-    expect(presetButton("groupJob")).toHaveTextContent("presetAppOnly");
     expect(presetButton("groupTask")).toHaveTextContent("presetAppOnly");
     expect(presetButton("groupChat")).toHaveTextContent("presetAppOnly");
   });
@@ -601,21 +553,21 @@ describe("NotificationKinds", () => {
   it("explains every situation it offers, and names the kinds it stops", async () => {
     renderKinds();
 
-    await openPresets("groupJob");
+    await openPresets("groupTask");
 
-    expect(presetItem("presetMost")).toHaveTextContent("presetJobMostHint");
+    expect(presetItem("presetMost")).toHaveTextContent("presetTaskMostHint");
     // Which kinds this group sends to the device, named here rather than left
     // to a sentence every group shares.
     expect(presetItem("presetMost")).toHaveTextContent(
-      "presetPushesLine kindJobAttention and kindJobCompleted",
+      "presetPushesLine kindTaskAttention and kindTaskCompleted",
     );
     // It stops none of them, so it names none.
     expect(presetItem("presetMost")).not.toHaveTextContent("presetStopsLine");
     expect(presetItem("presetEssential")).toHaveTextContent(
-      "presetJobEssentialHint",
+      "presetTaskEssentialHint",
     );
     expect(presetItem("presetEssential")).toHaveTextContent(
-      "presetPushesLine kindJobAttention",
+      "presetPushesLine kindTaskAttention",
     );
     // It pushes none of them, and its own word says where they land instead.
     expect(presetItem("presetAppOnly")).not.toHaveTextContent(
@@ -651,22 +603,22 @@ describe("NotificationKinds", () => {
    */
   it("opens the group from the Custom item", async () => {
     const user = userEvent.setup();
-    // The one job kind that waits on the reader is off and the other is on,
-    // which is no situation the presets write.
+    // The one task kind that waits on the reader is off and the others are
+    // on, which is no situation the presets write.
     renderKinds(
       MATRIX.map((cell) =>
-        cell.category === "JOB_ATTENTION" ? { ...cell, enabled: false } : cell,
+        cell.category === "TASK_ATTENTION" ? { ...cell, enabled: false } : cell,
       ),
     );
 
-    expect(presetButton("groupJob")).toHaveTextContent("presetCustom");
-    expect(groupTrigger("groupJob")).toHaveAttribute("aria-expanded", "false");
+    expect(presetButton("groupTask")).toHaveTextContent("presetCustom");
+    expect(groupTrigger("groupTask")).toHaveAttribute("aria-expanded", "false");
 
-    await openPresets("groupJob");
+    await openPresets("groupTask");
     await user.click(customItem());
 
-    expect(groupTrigger("groupJob")).toHaveAttribute("aria-expanded", "true");
-    expect(cellFor("kindJobCompleted", "channelInApp")).toHaveAttribute(
+    expect(groupTrigger("groupTask")).toHaveAttribute("aria-expanded", "true");
+    expect(cellFor("kindTaskCompleted", "channelInApp")).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -796,56 +748,14 @@ describe("NotificationKinds", () => {
     const user = userEvent.setup();
     renderKinds();
 
-    await user.click(screen.getByRole("button", { name: /^groupJob/ }));
-    await toggle("kindJobAttention", "channelInApp");
+    await user.click(screen.getByRole("button", { name: /^groupTask/ }));
+    await toggle("kindTaskAttention", "channelInApp");
 
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
     });
-    expect(written("JOB_ATTENTION", "IN_APP")).toBe(false);
-    expect(written("JOB_ATTENTION", "OS_BANNER")).toBe(false);
-  });
-
-  /**
-   * Email is one account switch covering every job email, and the row draws it
-   * where a reader looks for it. What it writes is still that one switch, so
-   * both job rows read the same value and a press on either moves both.
-   */
-  it("carries the account's job emails on every job row", async () => {
-    const user = userEvent.setup();
-    renderKinds();
-
-    await openGroup("groupJob");
-
-    expect(emailCell("kindJobAttention")).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    expect(emailCell("kindJobCompleted")).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    expect(emailCell("kindJobUpdate")).toHaveAttribute("aria-pressed", "true");
-    // One value behind three rows is the thing a reader cannot see, and the
-    // Email head over the column is where the card says it, once.
-    expect(describedBy(emailCell("kindJobUpdate"))).toBeUndefined();
-    // On is filled and off is outlined, so the answer survives without colour.
-    expect(emailCell("kindJobUpdate")).toHaveClass("bg-primary-solid");
-
-    await user.click(emailCell("kindJobAttention"));
-
-    // The account switch, and nothing in the matrix: email is not a cell Core
-    // stores per kind.
-    expect(setJobEmails).toHaveBeenCalledWith(false);
-    expect(patchMyPreferences).not.toHaveBeenCalled();
-
-    // The row nobody pressed reads the same value, which is the whole claim.
-    // Two cells each holding their own copy would pass everything above.
-    expect(emailCell("kindJobUpdate")).toHaveAttribute("aria-pressed", "false");
-    expect(emailCell("kindJobAttention")).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
+    expect(written("TASK_ATTENTION", "IN_APP")).toBe(false);
+    expect(written("TASK_ATTENTION", "OS_BANNER")).toBe(false);
   });
 
   /** Every kind answers the same three questions, in the same three places. */
@@ -857,9 +767,9 @@ describe("NotificationKinds", () => {
   it("names every kind of an opened group, and says what it is", async () => {
     renderKinds();
 
-    await openGroup("groupJob");
+    await openGroup("groupTask");
 
-    for (const kind of ["kindJobAttention", "kindJobUpdate"]) {
+    for (const kind of ["kindTaskAttention", "kindTaskUpdate"]) {
       expect(screen.getByText(kind)).toBeInTheDocument();
       expect(screen.getByText(`${kind}Hint`)).toBeInTheDocument();
     }
@@ -891,16 +801,16 @@ describe("NotificationKinds", () => {
    */
   it("gives a column name the width of the cells it names", async () => {
     renderKinds();
-    await openGroup("groupJob");
+    await openGroup("groupTask");
 
     const widths = (element: Element | null | undefined) =>
       [...(element?.classList ?? [])].filter((name) => /(^|:)w-/.test(name));
 
     for (const [channel, kind] of [
-      ["channelInApp", "kindJobAttention"],
-      ["channelPush", "kindJobAttention"],
+      ["channelInApp", "kindTaskAttention"],
+      ["channelPush", "kindTaskAttention"],
     ]) {
-      const head = within(fold("groupJob")).getByRole("button", {
+      const head = within(fold("groupTask")).getByRole("button", {
         name: channel,
       });
       const track = cellFor(kind, channel).parentElement;
@@ -932,7 +842,7 @@ describe("NotificationKinds", () => {
     const user = userEvent.setup();
     renderKinds();
 
-    await openGroup("groupJob");
+    await openGroup("groupTask");
 
     const name = screen.getByRole("button", { name: "channelPush" });
 
@@ -961,7 +871,7 @@ describe("NotificationKinds", () => {
     const user = userEvent.setup();
     renderKinds();
 
-    await openGroup("groupJob");
+    await openGroup("groupTask");
 
     await user.hover(screen.getByRole("button", { name: "channelPush" }));
     await screen.findByText("channelPushHint");
@@ -983,7 +893,7 @@ describe("NotificationKinds", () => {
     const user = userEvent.setup();
     renderKinds();
 
-    await openGroup("groupJob");
+    await openGroup("groupTask");
 
     const name = screen.getByRole("button", { name: "channelPush" });
 
@@ -1014,7 +924,7 @@ describe("NotificationKinds", () => {
     const user = userEvent.setup();
     renderKinds();
 
-    await openGroup("groupJob");
+    await openGroup("groupTask");
 
     await user.hover(screen.getByRole("button", { name: "channelInApp" }));
     await screen.findByText("channelInAppHint");
@@ -1031,7 +941,7 @@ describe("NotificationKinds", () => {
     const user = userEvent.setup();
     renderKinds();
 
-    await openGroup("groupJob");
+    await openGroup("groupTask");
 
     const inApp = screen.getByRole("button", { name: "channelInApp" });
     const push = screen.getByRole("button", { name: "channelPush" });
@@ -1057,7 +967,7 @@ describe("NotificationKinds", () => {
     const user = userEvent.setup();
     renderKinds();
 
-    await openGroup("groupJob");
+    await openGroup("groupTask");
 
     screen.getByRole("button", { name: "channelInApp" }).focus();
     await user.keyboard("{Enter}");
@@ -1082,7 +992,7 @@ describe("NotificationKinds", () => {
     const user = userEvent.setup();
     renderKinds();
 
-    await openGroup("groupJob");
+    await openGroup("groupTask");
 
     const name = screen.getByRole("button", { name: "channelPush" });
 
@@ -1106,7 +1016,7 @@ describe("NotificationKinds", () => {
     const user = userEvent.setup();
     renderKinds();
 
-    await openGroup("groupJob");
+    await openGroup("groupTask");
 
     const name = screen.getByRole("button", { name: "channelPush" });
 
@@ -1132,7 +1042,7 @@ describe("NotificationKinds", () => {
     const user = userEvent.setup();
     renderKinds();
 
-    await openGroup("groupJob");
+    await openGroup("groupTask");
 
     const name = screen.getByRole("button", { name: "channelPush" });
 
@@ -1161,8 +1071,8 @@ describe("NotificationKinds", () => {
     const user = userEvent.setup();
     renderKinds();
 
-    await openGroup("groupJob");
     await openGroup("groupTask");
+    await openGroup("groupChat");
 
     const names = screen.getAllByRole("button", { name: "channelPush" });
     expect(names).toHaveLength(2);
@@ -1181,7 +1091,7 @@ describe("NotificationKinds", () => {
       screen.queryByRole("group", { name: "channelsLegendLabel" }),
     ).toBeNull();
 
-    for (const group of ["groupJob", "groupTask", "groupChat"]) {
+    for (const group of ["groupTask", "groupChat"]) {
       await openGroup(group);
       expect(
         within(fold(group)).getByRole("group", {
@@ -1191,11 +1101,6 @@ describe("NotificationKinds", () => {
     }
   });
 
-  /**
-   * Sokosumi mails job status and nothing else. The cell stays where the eye
-   * expects it and loses the press, so the column has no hole in it and the
-   * row still says what email would mean here.
-   */
   /**
    * Every cell names its own channel, so a column's name is said once, by the
    * control that explains it. Read out again as loose text, the group would
@@ -1207,7 +1112,7 @@ describe("NotificationKinds", () => {
     isBlocked = true;
     renderKinds();
 
-    await openGroup("groupJob");
+    await openGroup("groupTask");
 
     // Every column, not just the first: a head that went missing entirely
     // would leave the eye a nameless column and read as nothing at all.
@@ -1247,7 +1152,7 @@ describe("NotificationKinds", () => {
   it("presses without submitting anything", async () => {
     renderKinds();
 
-    await openGroup("groupJob");
+    await openGroup("groupTask");
 
     const cells = screen
       .getAllByRole("button")
@@ -1324,7 +1229,7 @@ describe("NotificationKinds", () => {
   it("speaks its sentences politely", async () => {
     renderKinds();
 
-    await openGroup("groupJob");
+    await openGroup("groupTask");
 
     const regions = screen.getAllByRole("status");
 
@@ -1376,7 +1281,6 @@ describe("NotificationKinds", () => {
 
     await user.click(dead);
 
-    expect(setJobEmails).not.toHaveBeenCalled();
     expect(patchMyPreferences).not.toHaveBeenCalled();
   });
 
@@ -1516,27 +1420,6 @@ describe("NotificationKinds", () => {
     });
   });
 
-  it("splits a job that needs you from one that merely happened", async () => {
-    const user = userEvent.setup();
-    renderKinds();
-
-    await user.click(screen.getByRole("button", { name: /^groupJob/ }));
-    await toggle("kindJobUpdate", "channelInApp");
-
-    await waitFor(() => {
-      expect(patchMyPreferences).toHaveBeenCalledTimes(1);
-    });
-    // The quiet row comes back on its own while the loud one keeps its push,
-    // which is the split this vocabulary exists for.
-    expect(lastWrite()).toHaveLength(2);
-    expect(written("JOB_UPDATE", "IN_APP")).toBe(true);
-    expect(written("JOB_ATTENTION", "OS_BANNER")).toBeUndefined();
-    expect(cellFor("kindJobAttention", "channelPush")).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-  });
-
   it("sets every kind in a group from the group's own control", async () => {
     renderKinds();
 
@@ -1587,37 +1470,6 @@ describe("NotificationKinds", () => {
     expect(written("TASK_COMPLETED", "IN_APP")).toBe(true);
     expect(written("TASK_COMPLETED", "OS_BANNER")).toBe(false);
     expect(written("TASK_UPDATE", "OS_BANNER")).toBe(false);
-  });
-
-  /** The same split, on the kind that also carries the email switch. */
-  it("keeps a finished job in the app when the jobs group quiets down", async () => {
-    renderKinds();
-
-    await pickPreset("groupJob", "presetEssential");
-
-    await waitFor(() => {
-      expect(patchMyPreferences).toHaveBeenCalledTimes(1);
-    });
-    expect(written("JOB_ATTENTION", "OS_BANNER")).toBe(true);
-    expect(written("JOB_COMPLETED", "IN_APP")).toBe(true);
-    expect(written("JOB_COMPLETED", "OS_BANNER")).toBe(false);
-    expect(written("JOB_UPDATE", "OS_BANNER")).toBe(false);
-  });
-
-  it("draws the finished jobs as their own row", async () => {
-    renderKinds();
-
-    await openGroup("groupJob");
-
-    expect(
-      screen
-        .getAllByRole("group", { name: /^deliveryAriaLabel kindJob/ })
-        .map((row) => row.getAttribute("aria-label")),
-    ).toEqual([
-      "deliveryAriaLabel kindJobAttention",
-      "deliveryAriaLabel kindJobCompleted",
-      "deliveryAriaLabel kindJobUpdate",
-    ]);
   });
 
   /** Between the row that waits on the reader and everything else. */
@@ -2029,8 +1881,8 @@ describe("NotificationKinds", () => {
     // Two kinds whose push is stored off, so each press is a kind asking for
     // one. A press that turned a push off would ask for nothing and prove
     // nothing.
-    await openGroup("groupJob");
-    await toggle("kindJobUpdate", "channelPush");
+    await openGroup("groupTask");
+    await toggle("kindTaskUpdate", "channelPush");
 
     await waitFor(() => {
       expect(setAccountEnabled).toHaveBeenCalledTimes(1);
@@ -2201,7 +2053,7 @@ describe("NotificationKinds", () => {
     );
 
     await toggle("kindSystem", "channelPush");
-    await toggle("kindJobUpdate", "channelPush");
+    await toggle("kindTaskUpdate", "channelPush");
 
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(2);
@@ -2398,13 +2250,13 @@ describe("NotificationKinds", () => {
   });
 
   it("keeps both choices when parallel writes resolve out of order", async () => {
-    let resolveJob: (value: ReturnType<typeof response>) => void;
+    let resolveChat: (value: ReturnType<typeof response>) => void;
     let resolveTask: (value: ReturnType<typeof response>) => void;
     patchMyPreferences
       .mockImplementationOnce(
         () =>
           new Promise<ReturnType<typeof response>>((resolve) => {
-            resolveJob = resolve;
+            resolveChat = resolve;
           }),
       )
       .mockImplementationOnce(
@@ -2415,7 +2267,7 @@ describe("NotificationKinds", () => {
       );
     renderKinds();
 
-    await toggle("kindJobAttention", "channelInApp");
+    await toggle("kindChatMention", "channelInApp");
     await toggle("kindTaskUpdate", "channelPush");
 
     await waitFor(() => {
@@ -2429,10 +2281,10 @@ describe("NotificationKinds", () => {
         ),
       ),
     );
-    resolveJob!(
+    resolveChat!(
       response(
         MATRIX.map((cell) =>
-          cell.category === "JOB_ATTENTION" && cell.channel === "IN_APP"
+          cell.category === "CHAT_MENTION" && cell.channel === "IN_APP"
             ? { ...cell, enabled: false }
             : cell,
         ),
@@ -2440,7 +2292,7 @@ describe("NotificationKinds", () => {
     );
 
     await waitFor(() => {
-      expect(cellFor("kindJobAttention", "channelInApp")).toHaveAttribute(
+      expect(cellFor("kindChatMention", "channelInApp")).toHaveAttribute(
         "aria-pressed",
         "false",
       );
@@ -2457,57 +2309,7 @@ describe("NotificationKinds", () => {
     expect(
       screen.queryByRole("group", { name: "deliveryAriaLabel kindSystem" }),
     ).toBeNull();
-    expect(presetButton("groupJob")).toBeInTheDocument();
-  });
-
-  /**
-   * One value behind both job rows, and only one voice for it. The write
-   * raises a toast that names the account switch, so a sentence here as well
-   * would announce one press twice, in two wordings, on a row the reader may
-   * not have pressed. The channel cells raise no toast and still speak.
-   */
-  it("leaves the job email cells to the toast behind them", async () => {
-    const user = userEvent.setup();
-    renderKinds();
-
-    await openGroup("groupJob");
-
-    const pressed = stops("kindJobAttention");
-
-    await user.click(emailCell("kindJobAttention"));
-    act(finishEmailWrite);
-
-    await waitFor(() => {
-      expect(emailCell("kindJobAttention")).toHaveAttribute(
-        "aria-pressed",
-        "false",
-      );
-    });
-    expect(spoken(pressed)).toBe("");
-    expect(spoken(stops("kindJobUpdate"))).toBe("");
-  });
-
-  /**
-   * The cells stay reachable while a write is in flight, so the guard is what
-   * stops a second press landing on top of the first. Written for both kinds
-   * of cell: they hold their own guards, and each also arms the row's live
-   * region, so a press that got through would speak about a write nobody made.
-   */
-  it("takes no second press on the email cell while its write is in flight", async () => {
-    const user = userEvent.setup();
-    renderKinds();
-
-    await openGroup("groupJob");
-    await user.click(emailCell("kindJobAttention"));
-
-    expect(emailCell("kindJobAttention")).toHaveAttribute(
-      "aria-disabled",
-      "true",
-    );
-
-    await user.click(emailCell("kindJobAttention"));
-
-    expect(setJobEmails).toHaveBeenCalledTimes(1);
+    expect(presetButton("groupTask")).toBeInTheDocument();
   });
 
   it("takes no second press on a channel cell while its write is in flight", async () => {
@@ -2524,29 +2326,6 @@ describe("NotificationKinds", () => {
     await toggle("kindSystem", "channelInApp");
 
     expect(patchMyPreferences).toHaveBeenCalledTimes(1);
-  });
-
-  /**
-   * A failed write leaves the row where it started. The cell reads from the
-   * account switch above it, so a cell that kept the press would be reporting
-   * a setting the card knows it failed to store.
-   */
-  it("puts the email cell back when the write fails", async () => {
-    const user = userEvent.setup();
-    emailWriteFails = true;
-    renderKinds();
-
-    await openGroup("groupJob");
-    await user.click(emailCell("kindJobAttention"));
-
-    act(finishEmailWrite);
-
-    await waitFor(() => {
-      expect(emailCell("kindJobAttention")).toHaveAttribute(
-        "aria-pressed",
-        "true",
-      );
-    });
   });
 
   /**
@@ -2572,9 +2351,6 @@ describe("NotificationKinds", () => {
     expect(newsRow()).toBeInTheDocument();
     expect(
       screen.queryByRole("group", { name: /^deliveryAriaLabel/ }),
-    ).toBeNull();
-    expect(
-      screen.queryByRole("button", { name: "channelEmailLabel" }),
     ).toBeNull();
   });
 
@@ -2638,61 +2414,12 @@ describe("NotificationKinds", () => {
     expect(
       screen.queryByRole("group", { name: /^deliveryAriaLabel/ }),
     ).toBeNull();
-    // The job emails wait too: whether they need a row of their own is
-    // something only the matrix can say.
-    expect(
-      screen.queryByRole("button", {
-        name: "channelEmailLabel",
-      }),
-    ).toBeNull();
   });
 
   /**
-   * A session that fails is an answer. The preferences read cannot even run
-   * then, so waiting on it would wait forever, and the job emails Core keeps
-   * sending would have no control on the page at all.
-   */
-  it("keeps the job emails reachable when the session read fails", () => {
-    session = null;
-
-    renderKinds();
-
-    expect(fallbackEmailCell()).toHaveAttribute("aria-pressed", "true");
-  });
-
-  /**
-   * The fallback row exists for a matrix with no job rows in it. Drawn beside
-   * them, it is a second control on the same value, and the two would answer
-   * the same question in two places on one card.
-   */
-  it("draws no row of its own while the job rows carry the emails", async () => {
-    const user = userEvent.setup();
-    renderKinds();
-
-    expect(
-      screen.queryByRole("button", {
-        name: "channelEmailLabel",
-      }),
-    ).toBeNull();
-
-    await openGroup("groupJob");
-
-    expect(emailCell("kindJobAttention")).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", {
-        name: "channelEmailLabel",
-      }),
-    ).toBeNull();
-
-    // Proving the query above can find it at all.
-    await user.click(emailCell("kindJobAttention"));
-    expect(setJobEmails).toHaveBeenCalledWith(false);
-  });
-
-  /**
-   * The reminder row's email is a cell of the matrix, not the account switch.
-   * Core mails a reminder when this cell says so, the same way it raises an
-   * entry when the cell beside it does (SOK-916).
+   * The reminder row's email is a cell of the matrix like any other. Core
+   * mails a reminder when this cell says so, the same way it raises an entry
+   * when the cell beside it does (SOK-916).
    */
   it("writes the reminder emails into the matrix", async () => {
     const user = userEvent.setup();
@@ -2703,8 +2430,6 @@ describe("NotificationKinds", () => {
     await user.click(emailCell("kindFollowUp"));
 
     expect(written("FOLLOW_UP", "EMAIL")).toBe(false);
-    // And nothing of the account's, which is the job rows' control.
-    expect(setJobEmails).not.toHaveBeenCalled();
 
     await waitFor(() => {
       expect(emailCell("kindFollowUp")).toHaveAttribute(
@@ -2750,55 +2475,6 @@ describe("NotificationKinds", () => {
         "channelsAnnounce kindFollowUp channelInApp, channelEmail",
       );
     });
-  });
-
-  /**
-   * Core stops sending a kind and the row for it disappears from the matrix,
-   * by design. The job rows are the only ones that carry the account switch,
-   * so a matrix that comes back without them leaves rows on screen and no
-   * control for the emails Core keeps sending.
-   */
-  it("keeps the job emails reachable when the matrix drops the job kinds", async () => {
-    const user = userEvent.setup();
-    renderKinds(MATRIX.filter((cell) => !cell.category.startsWith("JOB_")));
-
-    // The rows Core did send are still drawn.
-    expect(presetButton("groupChat")).toBeInTheDocument();
-
-    const email = fallbackEmailCell();
-
-    expect(email).toHaveAttribute("aria-pressed", "true");
-    // Described by the row's own line, like the marketing cell under it.
-    expect(describedBy(email)).toBe("channelEmailFallbackHint");
-    // And a row of the same box. Outside it, this row draws unpadded and out
-    // of column, directly below a marketing row that is neither.
-    expect(newsRow().closest("div.divide-y")).toContainElement(email);
-
-    await user.click(email);
-
-    expect(setJobEmails).toHaveBeenCalledWith(false);
-  });
-
-  /**
-   * The matrix comes from a read that can still be out, or can fail. Core goes
-   * on mailing either way, and email is the one control here that the matrix
-   * does not carry, so it cannot wait on it.
-   */
-  it("keeps the job emails reachable with no matrix at all", async () => {
-    const user = userEvent.setup();
-    renderKinds([]);
-
-    expect(
-      screen.queryByRole("button", { description: /^presetAriaLabel/ }),
-    ).toBeNull();
-
-    const email = fallbackEmailCell();
-
-    expect(email).toHaveAttribute("aria-pressed", "true");
-
-    await user.click(email);
-
-    expect(setJobEmails).toHaveBeenCalledWith(false);
   });
 
   /**
@@ -2860,6 +2536,30 @@ describe("NotificationKinds", () => {
       expect(setMarketing).toHaveBeenCalledWith(true);
     });
     expect(within(row).queryAllByRole("status")).toHaveLength(0);
+  });
+
+  /**
+   * The email cell holds its own guard, so a second press cannot land on top
+   * of the first while the card is still writing. The cell stays in the tree
+   * and says it is busy rather than dropping out of the tab order under the
+   * reader's finger.
+   */
+  it("takes no press on the email cell while its write is in flight", async () => {
+    const user = userEvent.setup();
+    marketingSaving = true;
+    renderKinds();
+
+    const email = within(newsRow()).getByRole("button", {
+      name: "marketingEmailsTitle",
+    });
+
+    expect(email).toBeEnabled();
+    expect(email).toHaveAttribute("aria-disabled", "true");
+    expect(email.className).toContain("opacity-50");
+
+    await user.click(email);
+
+    expect(setMarketing).not.toHaveBeenCalled();
   });
 
   /**

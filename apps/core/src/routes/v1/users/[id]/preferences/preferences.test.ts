@@ -55,7 +55,6 @@ const PREFERENCES = {
 /** The flags a client reads, without the matrix the response resolves. */
 const PREFERENCE_FLAGS = {
   marketingOptIn: PREFERENCES.marketingOptIn,
-  notificationsOptIn: PREFERENCES.notificationsOptIn,
   pushOptIn: PREFERENCES.pushOptIn,
   showRoomUnreadCount: PREFERENCES.showRoomUnreadCount,
 };
@@ -134,6 +133,47 @@ describe("user preferences routes", () => {
     );
   });
 
+  it.each([false, true])(
+    "keeps the legacy response field for native clients when stored as %s",
+    async (notificationsOptIn) => {
+      const preferences = { ...PREFERENCES, notificationsOptIn };
+      userFindUniqueMock.mockResolvedValue(preferences);
+      userUpdateMock.mockResolvedValue(preferences);
+      txUserFindUniqueMock.mockResolvedValue(preferences);
+      const app = createPreferencesApp(SESSION_USER);
+
+      const requests = [
+        "http://localhost/me/preferences",
+        patchRequest("/me/preferences", { pushOptIn: true }),
+        patchRequest("/me/preferences", {
+          notificationPreferences: [
+            { category: "TASK_ATTENTION", channel: "IN_APP", enabled: false },
+          ],
+        }),
+      ];
+      for (const request of requests) {
+        const response = await app.request(request);
+        expect(response.status).toBe(200);
+        const body = await response.json();
+        expect(body.data.notificationsOptIn).toBe(notificationsOptIn);
+      }
+    },
+  );
+
+  it("does not write the retired flag from a PATCH body", async () => {
+    userUpdateMock.mockResolvedValue(PREFERENCES);
+    const app = createPreferencesApp(SESSION_USER);
+    const response = await app.request(
+      patchRequest("/me/preferences", {
+        pushOptIn: true,
+        notificationsOptIn: true,
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(userUpdateMock.mock.calls[0]?.[0].data).toEqual({ pushOptIn: true });
+  });
+
   it("returns pushOptIn on GET", async () => {
     const app = createPreferencesApp(SESSION_USER);
     const response = await app.request("http://localhost/me/preferences");
@@ -194,7 +234,6 @@ describe("user preferences routes", () => {
 
     const data = userUpdateMock.mock.calls[0]?.[0].data;
     expect(data).not.toHaveProperty("marketingOptIn");
-    expect(data).not.toHaveProperty("notificationsOptIn");
   });
 
   it("writes showRoomUnreadCount on PATCH and returns the stored value", async () => {
@@ -231,7 +270,6 @@ describe("user preferences routes", () => {
 
     const data = userUpdateMock.mock.calls[0]?.[0].data;
     expect(data).not.toHaveProperty("marketingOptIn");
-    expect(data).not.toHaveProperty("notificationsOptIn");
     expect(data).not.toHaveProperty("pushOptIn");
     expect(prismaTransactionMock).toHaveBeenCalledTimes(1);
   });
@@ -306,7 +344,7 @@ describe("user preferences routes", () => {
     const response = await app.request(
       patchRequest("/me/preferences", {
         notificationPreferences: [
-          { category: "JOB_ATTENTION", channel: "OS_BANNER", enabled: false },
+          { category: "TASK_ATTENTION", channel: "OS_BANNER", enabled: false },
         ],
       }),
     );
@@ -316,13 +354,13 @@ describe("user preferences routes", () => {
       where: {
         userId_category_channel: {
           userId: "user_123",
-          category: "JOB_ATTENTION",
+          category: "TASK_ATTENTION",
           channel: "OS_BANNER",
         },
       },
       create: {
         userId: "user_123",
-        category: "JOB_ATTENTION",
+        category: "TASK_ATTENTION",
         channel: "OS_BANNER",
         enabled: false,
       },
@@ -362,7 +400,7 @@ describe("user preferences routes", () => {
               NOTIFICATION_CATEGORIES.length * NOTIFICATION_CHANNELS.length + 1,
           },
           () => ({
-            category: "JOB_ATTENTION",
+            category: "TASK_ATTENTION",
             channel: "IN_APP",
             enabled: false,
           }),

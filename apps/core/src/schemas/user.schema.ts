@@ -170,7 +170,9 @@ export const userPreferencesResponseSchema = z.object({
     example: true,
   }),
   notificationsOptIn: z.boolean().openapi({
-    description: "Whether the user wants to receive job status notifications",
+    description:
+      "Deprecated compatibility field for existing v1 clients. Does not control notification delivery",
+    deprecated: true,
     example: true,
   }),
   pushOptIn: z.boolean().openapi({
