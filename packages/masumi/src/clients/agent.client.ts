@@ -52,6 +52,14 @@ interface AgentClientRequestOptions {
 }
 
 /**
+ * Cap on any agent API response body. Agent endpoints return JSON (job status,
+ * input schema, start/provide-input acks); a body past this is buffered no
+ * further and the request fails. Matches the 100 MB the Core import path
+ * allows for a single external file.
+ */
+const MAX_AGENT_RESPONSE_BYTES = 100 * 1024 * 1024;
+
+/**
  * Why a `start_job` call failed, and — crucially — whether the seller is now
  * working on a job the caller will never record.
  *
@@ -189,6 +197,7 @@ export function createAgentClient(config?: AgentClientConfig) {
             identifier_from_purchaser: identifierFromPurchaser,
             input_data: inputData,
           }),
+          maxResponseBytes: MAX_AGENT_RESPONSE_BYTES,
         });
       } catch (error) {
         return err(ambiguous(String(error)));
@@ -248,6 +257,7 @@ export function createAgentClient(config?: AgentClientConfig) {
           body: JSON.stringify({
             input_data: inputData,
           }),
+          maxResponseBytes: MAX_AGENT_RESPONSE_BYTES,
         });
       } catch (error) {
         return err(ambiguous(String(error)));
@@ -299,6 +309,7 @@ export function createAgentClient(config?: AgentClientConfig) {
         const jobStatusResponse = await ssrfSafeFetch(jobStatusUrl, {
           method: "GET",
           signal: options.signal,
+          maxResponseBytes: MAX_AGENT_RESPONSE_BYTES,
         });
 
         if (!jobStatusResponse.ok) {
@@ -367,6 +378,7 @@ export function createAgentClient(config?: AgentClientConfig) {
             "Content-Type": "application/json",
           },
           body,
+          maxResponseBytes: MAX_AGENT_RESPONSE_BYTES,
         });
       } catch (error) {
         return err(ambiguous(String(error)));
@@ -415,7 +427,9 @@ export function createAgentClient(config?: AgentClientConfig) {
           "input_schema",
         );
 
-        const response = await ssrfSafeFetch(inputSchemaUrl);
+        const response = await ssrfSafeFetch(inputSchemaUrl, {
+          maxResponseBytes: MAX_AGENT_RESPONSE_BYTES,
+        });
 
         if (!response.ok) {
           // Log HTTP errors (4xx/5xx)
