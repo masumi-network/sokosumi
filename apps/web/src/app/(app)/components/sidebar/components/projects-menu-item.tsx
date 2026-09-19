@@ -211,7 +211,7 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
             <Link
               href="/projects"
               onClick={handleNavigate}
-              className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground block rounded-md px-2 py-1.5 text-sm"
+              className="text-muted-foreground ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground block rounded-md px-2 py-1.5 text-sm outline-hidden focus-visible:ring-2"
             >
               {t("allProjects")}
             </Link>
