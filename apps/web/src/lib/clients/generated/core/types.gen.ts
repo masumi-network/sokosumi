@@ -15634,7 +15634,6 @@ export type PostChatsRoomsByIdStreamData = {
         messageId?: string;
         conversationId?: string;
         previousResponseId?: string;
-        model?: string | null;
         imageGeneration?: boolean;
     } & {
         parentMessageId?: string;
