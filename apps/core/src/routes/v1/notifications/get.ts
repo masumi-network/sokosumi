@@ -95,13 +95,13 @@ const route = withOrganizationSlugHeaderParameter(
             {
               id: "cm123456789abcdefghij",
               userId: "cm123456789abcdefghij",
-              kind: "JOB",
+              kind: "TASK",
               referenceId: "cm123456789abcdefghij",
               eventId: "cm123456789abcdefghij",
-              messageKey: "Notifications.Job.completed",
+              messageKey: "Notifications.Task.completed",
               messageParams: {
-                agentName: "Research Agent",
-                jobName: "Market Analysis",
+                coworkerName: "Ada",
+                taskName: "Market Analysis",
               },
               metadata: { agentId: "agent_123", projectId: "proj_456" },
               isRead: false,

@@ -9,7 +9,6 @@ import {
   type LanguageModelV4StreamResult,
   type SharedV4Warning,
 } from "@ai-sdk/provider";
-import { getModelIdentifier } from "@sokosumi/chat";
 import { parseSokosumiProviderOptions } from "./parse-provider-options.js";
 import {
   buildResponsesApiWarnings,
@@ -25,6 +24,7 @@ import {
 import type { CreateSokosumiOptions } from "./types.js";
 
 const OPENROUTER_RESPONSES_URL = "https://openrouter.ai/api/v1/responses";
+const DEFAULT_OPENROUTER_MODEL_ID = "openai/gpt-5.4";
 const SOKOSUMI_SUPPORTED_URL_PATTERNS: Record<string, RegExp[]> = {
   // The Responses API mapping forwards these as image_url/file_url or inline data.
   "*": [/^https?:\/\//i, /^data:/i],
@@ -34,18 +34,14 @@ export type SokosumiLanguageModel = LanguageModelV4 & {
   readonly provider: "sokosumi";
 };
 
-function resolveModelIdForLanguageModel(modelId: string | null): string {
-  if (typeof modelId === "string" && modelId.trim().length > 0) {
-    return modelId;
-  }
-  return getModelIdentifier(null);
-}
-
 export function createSokosumiLanguageModel(
   modelId: string | null,
   config: CreateSokosumiOptions,
 ): SokosumiLanguageModel {
-  const modelIdForLanguageModel = resolveModelIdForLanguageModel(modelId);
+  const modelIdForLanguageModel =
+    typeof modelId === "string" && modelId.trim().length > 0
+      ? modelId
+      : DEFAULT_OPENROUTER_MODEL_ID;
   async function doGenerate(
     options: LanguageModelV4CallOptions,
   ): Promise<LanguageModelV4GenerateResult> {
@@ -195,7 +191,7 @@ async function streamOpenRouter(
     });
   }
 
-  const modelIdentifier = getModelIdentifier(modelId);
+  const modelIdentifier = modelId || DEFAULT_OPENROUTER_MODEL_ID;
   const tools: Array<Record<string, unknown>> = [];
   if (sokosumiOpts.webSearchEnabled) {
     tools.push({

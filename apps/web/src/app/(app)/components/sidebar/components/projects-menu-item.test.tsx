@@ -1,14 +1,13 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
+  createEvent,
   fireEvent,
   render,
   screen,
   waitFor,
 } from "@testing-library/react";
 import type { ComponentProps } from "react";
-import { hydrateRoot } from "react-dom/client";
-import { renderToString } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   SidebarMenu,
@@ -52,7 +51,6 @@ import en from "@/messages/en.json";
 import es from "@/messages/es.json";
 import { ProjectsMenuItem } from "./projects-menu-item";
 
-const EXPANDED_KEY = "sokosumi.sidebar.projects-expanded";
 const VISITS_KEY = recentProjectsStorageKey({
   userId: "user-1",
   organizationId: "org-1",
@@ -86,7 +84,7 @@ function setup(open = true) {
   return { ...render(<Tree />), refresh: () => <Tree /> };
 }
 
-/** Hrefs of the disclosure's project rows, in render order. */
+/** Hrefs of the flyout's project rows, in render order. */
 function projectHrefs(): string[] {
   return screen
     .getAllByRole("link")
@@ -94,11 +92,14 @@ function projectHrefs(): string[] {
     .filter((href) => href.startsWith("/projects/"));
 }
 
-/** The control holds its place from the first paint, so wait for it to turn on. */
-async function expand() {
-  const trigger = await screen.findByRole("button", { name: "expandProjects" });
-  await waitFor(() => expect(trigger).toBeEnabled());
-  fireEvent.click(trigger);
+/**
+ * The keyboard open: no delay to wait out, and it is the path that has to keep
+ * working, since a pointer-only panel puts the rows out of reach entirely.
+ */
+function openFlyout() {
+  fireEvent.keyDown(screen.getByRole("link", { name: "projects" }), {
+    key: "ArrowRight",
+  });
 }
 
 /** Placeholder rows standing in for the names that have not arrived. */
@@ -123,85 +124,6 @@ beforeEach(() => {
 });
 
 describe("Projects sidebar", () => {
-  it("hydrates the server default before restoring a saved expanded choice", async () => {
-    // Its own client, and rows that never arrive, so the server string and the
-    // first client render agree on having nothing yet.
-    mocks.load.mockImplementation(() => new Promise(() => {}));
-    const client = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
-    });
-    const tree = (
-      <QueryClientProvider client={client}>
-        <SidebarProvider open>
-          <SidebarMenu>
-            <ProjectsMenuItem />
-          </SidebarMenu>
-        </SidebarProvider>
-      </QueryClientProvider>
-    );
-    localStorage.setItem(EXPANDED_KEY, "true");
-    const container = document.createElement("div");
-    container.innerHTML = renderToString(tree);
-    document.body.append(container);
-    // The control is on the server markup already, off until rows exist, so
-    // the row does not change shape at hydration. No rows are given away.
-    const serverTrigger = container.querySelector("button[aria-expanded]");
-    expect(serverTrigger).toHaveAttribute("aria-expanded", "false");
-    expect(serverTrigger).toBeDisabled();
-    expect(container.querySelectorAll('a[href^="/projects/"]')).toHaveLength(0);
-    const onRecoverableError = vi.fn();
-    let root: ReturnType<typeof hydrateRoot>;
-    await act(async () => {
-      root = hydrateRoot(container, tree, { onRecoverableError });
-    });
-    // The saved choice comes back after hydration, standing on the skeleton
-    // until the rows land.
-    await waitFor(() =>
-      expect(container.querySelector("button[aria-expanded]")).toHaveAttribute(
-        "aria-expanded",
-        "true",
-      ),
-    );
-    expect(onRecoverableError).not.toHaveBeenCalled();
-    await act(async () => root.unmount());
-    container.remove();
-  });
-
-  it("restores both disclosure choices after remount without persisting project data", async () => {
-    const first = setup();
-    await expand();
-    await screen.findByRole("link", { name: "Launch plan" });
-    expect(localStorage.getItem(EXPANDED_KEY)).toBe("true");
-    // Only the reader's disclosure choice is written here; the rows are not.
-    expect(localStorage.length).toBe(1);
-    first.unmount();
-    const second = setup();
-    await screen.findByRole("link", { name: "Launch plan" });
-    fireEvent.click(screen.getByRole("button", { name: "collapseProjects" }));
-    expect(localStorage.getItem(EXPANDED_KEY)).toBe("false");
-    second.unmount();
-    setup();
-    expect(
-      await screen.findByRole("button", { name: "expandProjects" }),
-    ).toHaveAttribute("aria-expanded", "false");
-  });
-
-  it("keeps disclosure usable when browser storage is unavailable", async () => {
-    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
-      throw new Error("Blocked");
-    });
-    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-      throw new Error("Blocked");
-    });
-    setup();
-    await expand();
-    await screen.findByRole("link", { name: "Launch plan" });
-    fireEvent.click(screen.getByRole("button", { name: "collapseProjects" }));
-    expect(
-      screen.queryByRole("link", { name: "Launch plan" }),
-    ).not.toBeInTheDocument();
-  });
-
   it("keeps the label in the accessibility tree when the rail collapses", () => {
     setup();
     const slot = screen
@@ -219,13 +141,21 @@ describe("Projects sidebar", () => {
     );
   });
 
-  it("loads the rows before the reader opens the disclosure", async () => {
+  it("writes nothing to browser storage of its own", async () => {
+    setup();
+    openFlyout();
+    await screen.findByRole("link", { name: "Launch plan" });
+    // No disclosure choice to persist, and the rows are never cached here.
+    expect(localStorage.length).toBe(0);
+  });
+
+  it("loads the rows before the pointer arrives", async () => {
     setup();
     expect(screen.getByRole("link", { name: "projects" })).toHaveAttribute(
       "href",
       "/projects",
     );
-    // The fetch is already in flight while the disclosure is still shut.
+    // The fetch is already in flight while the panel is still shut.
     expect(mocks.load).toHaveBeenCalledWith({
       cursor: null,
       expectedScope: { userId: "user-1", organizationId: "org-1" },
@@ -233,7 +163,7 @@ describe("Projects sidebar", () => {
     expect(
       screen.queryByRole("link", { name: "Launch plan" }),
     ).not.toBeInTheDocument();
-    await expand();
+    openFlyout();
     expect(
       await screen.findByRole("link", { name: "Launch plan" }),
     ).toHaveAttribute("aria-current", "page");
@@ -244,86 +174,133 @@ describe("Projects sidebar", () => {
 
   it("opens without a loading state and does not refetch when the reader comes back", async () => {
     setup();
-    await expand();
+    openFlyout();
     await screen.findByRole("link", { name: "Launch plan" });
-    fireEvent.click(screen.getByRole("button", { name: "collapseProjects" }));
-    fireEvent.click(screen.getByRole("button", { name: "expandProjects" }));
-    // Same frame: the rows are already there, with no loading status between.
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: "Escape",
+    });
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("link", { name: "Launch plan" }),
+      ).not.toBeInTheDocument(),
+    );
+    openFlyout();
+    // The rows are already there, so the panel never stands on a skeleton and
+    // the page is not asked for again.
     expect(
-      screen.getByRole("link", { name: "Launch plan" }),
+      await screen.findByRole("link", { name: "Launch plan" }),
     ).toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(mocks.load).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps the disclosure in place but off for a workspace without projects", async () => {
+  it("offers no flyout for a workspace without projects", async () => {
     mocks.load.mockResolvedValue({ projects: [], nextCursor: null });
     setup();
+    // The row keeps its link and drops the affordance that promises a panel.
+    const row = screen.getByRole("link", { name: "projects" });
+    await waitFor(() =>
+      expect(
+        row.querySelector(".lucide-chevron-right"),
+      ).not.toBeInTheDocument(),
+    );
+    openFlyout();
+    expect(projectHrefs()).toEqual([]);
+  });
+
+  it("never promises a panel it will have to retract", async () => {
+    mocks.load.mockResolvedValue({ projects: [], nextCursor: null });
+    setup();
+    const row = screen.getByRole("link", { name: "projects" });
+    // Not on the first paint, while the page is still in flight…
+    expect(row.querySelector(".lucide-chevron-right")).not.toBeInTheDocument();
     await waitFor(() => expect(mocks.load).toHaveBeenCalled());
-    // Present, so the row never loses a control it briefly had…
-    const trigger = screen.getByRole("button", { name: "expandProjects" });
-    expect(trigger).toBeDisabled();
-    // …and it cannot be opened onto nothing.
-    fireEvent.click(trigger);
-    expect(projectHrefs()).toEqual([]);
+    // …and not once an empty workspace comes back, so the row never changes
+    // shape under the reader.
+    expect(row.querySelector(".lucide-chevron-right")).not.toBeInTheDocument();
   });
 
-  it("holds the disclosure off until the rows arrive", async () => {
-    mocks.load.mockImplementation(() => new Promise(() => {}));
+  it("opens to the keyboard and puts focus in the panel", async () => {
     setup();
+    const row = screen.getByRole("link", { name: "projects" });
+    // Nothing opens on focus alone: a panel that appears and cannot be entered
+    // is worse than one that never opened.
+    fireEvent.focus(row);
     expect(
-      screen.getByRole("button", { name: "expandProjects" }),
-    ).toBeDisabled();
+      screen.queryByRole("link", { name: "Launch plan" }),
+    ).not.toBeInTheDocument();
+    expect(row).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.keyDown(row, { key: "ArrowRight" });
+    const first = await screen.findByRole("link", { name: "Launch plan" });
+    expect(row).toHaveAttribute("aria-expanded", "true");
+    // The rows are reachable, which is what the hover card could not do.
+    await waitFor(() =>
+      expect(first.closest('[data-slot="popover-content"]')).toContainElement(
+        document.activeElement as HTMLElement,
+      ),
+    );
   });
 
-  it("stands the rows in with a skeleton for a reader who left it open", async () => {
-    localStorage.setItem(EXPANDED_KEY, "true");
-    mocks.load.mockImplementation(() => new Promise(() => {}));
+  it("returns focus to the row when the panel is dismissed", async () => {
     setup();
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      "projectsLoading",
+    const row = screen.getByRole("link", { name: "projects" });
+    fireEvent.keyDown(row, { key: "ArrowRight" });
+    await screen.findByRole("link", { name: "Launch plan" });
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: "Escape",
+    });
+    await waitFor(() => expect(document.activeElement).toBe(row));
+  });
+
+  it("leaves focus where the reader went when they leave the panel", async () => {
+    setup();
+    const row = screen.getByRole("link", { name: "projects" });
+    fireEvent.keyDown(row, { key: "ArrowRight" });
+    await screen.findByRole("link", { name: "Launch plan" });
+    const elsewhere = screen.getByRole("button", { name: "mobile-closed" });
+    // Focus leaving the portaled panel is an outside interaction, not Escape.
+    elsewhere.focus();
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("link", { name: "Launch plan" }),
+      ).not.toBeInTheDocument(),
     );
-    expect(projectHrefs()).toEqual([]);
-    // Still closable while it waits, so the skeleton is never trapped open.
+    expect(document.activeElement).toBe(elsewhere);
+  });
+
+  it("leaves Enter to the link so the row still navigates", async () => {
+    setup();
+    const row = screen.getByRole("link", { name: "projects" });
+    const enter = createEvent.keyDown(row, { key: "Enter" });
+    fireEvent(row, enter);
+    // Not swallowed into opening a menu, so the browser follows the href.
+    expect(enter.defaultPrevented).toBe(false);
     expect(
-      screen.getByRole("button", { name: "collapseProjects" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("link", { name: "Launch plan" }),
+    ).not.toBeInTheDocument();
   });
 
-  it("stands in at the height the reader's own history predicts", async () => {
-    localStorage.setItem(EXPANDED_KEY, "true");
-    localStorage.setItem(
-      recentProjectsStorageKey({ userId: "user-1", organizationId: "org-1" }),
-      JSON.stringify(["a", "b", "c", "d"]),
-    );
-    mocks.load.mockImplementation(() => new Promise(() => {}));
+  it("opens to the pointer without taking focus away", async () => {
     setup();
-    await screen.findByRole("status");
-    expect(skeletonRowCount()).toBe(4);
+    const row = screen.getByRole("link", { name: "projects" });
+    const elsewhere = screen.getByRole("button", { name: "mobile-closed" });
+    elsewhere.focus();
+    fireEvent.pointerEnter(row);
+    await screen.findByRole("link", { name: "Launch plan" });
+    expect(document.activeElement).toBe(elsewhere);
   });
 
-  it("caps the stand-in at the row cap however long the log is", async () => {
-    localStorage.setItem(EXPANDED_KEY, "true");
-    localStorage.setItem(
-      recentProjectsStorageKey({ userId: "user-1", organizationId: "org-1" }),
-      JSON.stringify(["a", "b", "c", "d", "e", "f", "g", "h"]),
-    );
+  it("stands the rows in with a skeleton while they load", async () => {
     mocks.load.mockImplementation(() => new Promise(() => {}));
     setup();
+    openFlyout();
     await screen.findByRole("status");
+    // The panel floats, so the count is a constant rather than an estimate.
     expect(skeletonRowCount()).toBe(5);
   });
 
-  it("stands in with a floor for a reader who has opened nothing yet", async () => {
-    localStorage.setItem(EXPANDED_KEY, "true");
-    mocks.load.mockImplementation(() => new Promise(() => {}));
-    setup();
-    await screen.findByRole("status");
-    expect(skeletonRowCount()).toBe(3);
-  });
-
   it("shows failure and retries", async () => {
-    localStorage.setItem(EXPANDED_KEY, "true");
     mocks.load
       .mockRejectedValueOnce(new Error("Forbidden"))
       .mockResolvedValueOnce({
@@ -331,27 +308,13 @@ describe("Projects sidebar", () => {
         nextCursor: null,
       });
     setup();
+    openFlyout();
     const retry = await screen.findByRole("button", { name: "retryProjects" });
     expect(screen.getByRole("status")).toHaveTextContent("projectsError");
     fireEvent.click(retry);
     expect(
       await screen.findByRole("link", { name: "Launch plan" }),
     ).toBeInTheDocument();
-  });
-
-  it("animates the disclosure open and closed", async () => {
-    setup();
-    await expand();
-    await screen.findByRole("link", { name: "Launch plan" });
-    const content = document.querySelector('[data-slot="collapsible-content"]');
-    const classes = content?.className.split(/\s+/) ?? [];
-    expect(classes).toContain(
-      "motion-safe:data-[state=open]:animate-collapsible-down",
-    );
-    expect(classes).toContain(
-      "motion-safe:data-[state=closed]:animate-collapsible-up",
-    );
-    expect(classes).toContain("overflow-hidden");
   });
 
   it("drops old workspace rows and ignores an old in-flight response", async () => {
@@ -365,14 +328,15 @@ describe("Projects sidebar", () => {
           finish = resolve;
         }),
     );
-    localStorage.setItem(EXPANDED_KEY, "true");
     const view = setup();
+    openFlyout();
     mocks.load.mockResolvedValueOnce({
       projects: [{ id: "personal", name: "Personal project" }],
       nextCursor: null,
     });
     mocks.organizationId = null;
     view.rerender(view.refresh());
+    openFlyout();
     await act(async () =>
       finish({
         projects: [{ id: "private", name: "Old org secret" }],
@@ -392,7 +356,7 @@ describe("Projects sidebar", () => {
     expect(screen.queryByText("Personal project")).not.toBeInTheDocument();
   });
 
-  it("caps the disclosure at whole rows instead of scrolling inside itself", async () => {
+  it("caps the flyout at whole rows instead of scrolling inside itself", async () => {
     const name = "A long project name ".repeat(20).trim();
     mocks.load.mockResolvedValue({
       projects: Array.from({ length: 12 }, (_, i) => ({
@@ -402,7 +366,7 @@ describe("Projects sidebar", () => {
       nextCursor: "page-2",
     });
     setup();
-    await expand();
+    openFlyout();
     const first = await screen.findByTitle(name);
     expect(first).toHaveAttribute("href", "/projects/0");
     expect(projectHrefs()).toEqual([
@@ -412,7 +376,7 @@ describe("Projects sidebar", () => {
       "/projects/3",
       "/projects/4",
     ]);
-    // One page is enough for five rows, and the list no longer nests a scroller.
+    // One page is enough for five rows, and the list never nests a scroller.
     expect(mocks.load).toHaveBeenCalledTimes(1);
     expect(first.closest("ul")?.className ?? "").not.toMatch(
       /overflow-y-auto|max-h-/,
@@ -435,7 +399,7 @@ describe("Projects sidebar", () => {
       nextCursor: null,
     });
     setup();
-    await expand();
+    openFlyout();
     await screen.findByRole("link", { name: "Project 0" });
     expect(projectHrefs()).toEqual([
       "/projects/0",
@@ -462,7 +426,7 @@ describe("Projects sidebar", () => {
       nextCursor: null,
     });
     setup();
-    await expand();
+    openFlyout();
     await screen.findByRole("link", { name: "Project 0" });
     expect(projectHrefs()).toEqual([
       "/projects/0",
@@ -483,7 +447,7 @@ describe("Projects sidebar", () => {
       nextCursor: null,
     });
     setup();
-    await expand();
+    openFlyout();
     await screen.findByRole("link", { name: "Project 7" });
     expect(projectHrefs()).toEqual([
       "/projects/7",
@@ -500,14 +464,38 @@ describe("Projects sidebar", () => {
       JSON.stringify(["from-another-workspace", "project-1"]),
     );
     setup();
-    await expand();
+    openFlyout();
     await screen.findByRole("link", { name: "Launch plan" });
+    expect(projectHrefs()).toEqual(["/projects/project-1"]);
+  });
+
+  it("names the panel by its own heading, not the row it hangs off", async () => {
+    setup();
+    openFlyout();
+    const row = await screen.findByRole("link", { name: "Launch plan" });
+    const panel = row.closest('[data-slot="popover-content"]');
+    // The heading says what the rows are, so it is not the row label echoed
+    // back — and it is what a screen reader announces for the panel.
+    const heading = screen.getByText("recentProjects");
+    expect(panel).toHaveAttribute("aria-labelledby", heading.id);
+    expect(heading.id).not.toBe("");
+  });
+
+  it("offers a way to the full list from inside the panel", async () => {
+    setup();
+    openFlyout();
+    await screen.findByRole("link", { name: "Launch plan" });
+    const all = screen.getByRole("link", { name: "allProjects" });
+    expect(all).toHaveAttribute("href", "/projects");
+    // No avatar: a placeholder square read as a project with a broken logo.
+    expect(all.querySelector('[data-slot="avatar"]')).not.toBeInTheDocument();
+    // Still reachable when the rows themselves could not be had.
     expect(projectHrefs()).toEqual(["/projects/project-1"]);
   });
 
   it("renders the established avatar fallback without changing the accessible link name", async () => {
     setup();
-    await expand();
+    openFlyout();
     const link = await screen.findByRole("link", { name: "Launch plan" });
     expect(link.querySelector('[data-slot="avatar"]')).toBeInTheDocument();
     expect(link.querySelector(".lucide-check")).not.toBeInTheDocument();
@@ -518,26 +506,24 @@ describe("Projects sidebar", () => {
     ).toHaveTextContent("L");
   });
 
-  it("preloads behind the collapsed rail but offers no disclosure there", async () => {
+  it("reaches the rows from the collapsed rail, where they used to be unreachable", async () => {
     setup(false);
     expect(screen.getByRole("link", { name: "projects" })).toHaveAttribute(
       "href",
       "/projects",
     );
-    // Warm for the moment the reader widens the sidebar…
     await waitFor(() => expect(mocks.load).toHaveBeenCalled());
-    // …but a 56px rail has nowhere to put the rows.
-    expect(
-      screen.queryByRole("button", { name: "expandProjects" }),
-    ).not.toBeInTheDocument();
-    expect(projectHrefs()).toEqual([]);
+    // A 56px rail has nowhere to put rows, but the panel floats clear of it.
+    openFlyout();
+    await screen.findByRole("link", { name: "Launch plan" });
+    expect(projectHrefs()).toEqual(["/projects/project-1"]);
   });
 
-  it("allows disclosure on mobile even when desktop is collapsed, then dismisses on navigation", async () => {
+  it("dismisses the mobile sheet on navigation", async () => {
     mocks.mobile = true;
     setup(false);
     fireEvent.click(screen.getByRole("button", { name: "mobile-closed" }));
-    await expand();
+    openFlyout();
     expect(
       screen.getByRole("button", { name: "mobile-open" }),
     ).toBeInTheDocument();
@@ -549,12 +535,13 @@ describe("Projects sidebar", () => {
 });
 
 it.each([en, de, es])(
-  "ships disclosure and status strings in the sidebar message namespace",
+  "ships flyout and status strings in the sidebar message namespace",
   (messages) => {
     const labels = messages.App.Sidebar.Content.MenuItems;
     for (const key of [
-      "expandProjects",
-      "collapseProjects",
+      "projects",
+      "recentProjects",
+      "allProjects",
       "projectsLoading",
       "projectsError",
       "retryProjects",

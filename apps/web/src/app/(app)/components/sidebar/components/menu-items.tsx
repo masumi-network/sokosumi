@@ -18,7 +18,6 @@ import { useOptionalHistorySearch } from "@/app/components/history-search-dialog
 import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
 import { SheetClose } from "@/components/ui/sheet";
 import {
-  SIDEBAR_ROW_LABEL_CLASS,
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
@@ -28,6 +27,7 @@ import {
   SidebarRowSlot,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
 import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
 import { cn } from "@/lib/utils";
 

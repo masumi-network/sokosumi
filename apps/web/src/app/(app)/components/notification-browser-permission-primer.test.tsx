@@ -8,6 +8,49 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({ data: { user: { id: SESSION_USER_ID } } }),
+}));
+
+const { activatePushMock, recordPushRepairOutcomeMock } = vi.hoisted(() => ({
+  activatePushMock: vi.fn(),
+  recordPushRepairOutcomeMock: vi.fn(),
+}));
+
+/** What the app-open repair left this browser in, per test. */
+let repairOutcome: "pending" | "quiet" | "healthy" = "pending";
+
+vi.mock("@/lib/ably/push-repair-outcome.client", () => ({
+  getPushRepairOutcome: () => repairOutcome,
+  getServerPushRepairOutcome: () => "pending",
+  subscribePushRepairOutcome: () => () => {},
+  // The press chains onto what this returns, and its chain can settle after
+  // the test that started it, once the mock has been cleared. The real module
+  // always returns a promise, so the stand-in does too.
+  recordPushRepairOutcome: (...args: unknown[]) =>
+    recordPushRepairOutcomeMock(...args) ?? Promise.resolve(),
+}));
+
+vi.mock("@/lib/ably/push-activation.client", () => ({
+  activatePush: (...args: unknown[]) => activatePushMock(...args),
+}));
+
+let preferences:
+  | {
+      data: {
+        pushOptIn: boolean;
+        notificationPreferences: { channel: string; enabled: boolean }[];
+      };
+    }
+  | undefined;
+
+vi.mock("@tanstack/react-query", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tanstack/react-query")>()),
+  useQuery: () => ({ data: preferences }),
+}));
+
+const SESSION_USER_ID = "user_alice";
+
 const requestPermissionMock = vi.fn();
 
 function setNotificationPermission(permission: NotificationPermission): void {
@@ -50,6 +93,14 @@ describe("NotificationBrowserPermissionPrimer", () => {
   beforeEach(() => {
     setPushSupported(true);
     setServiceWorkerSupported(true);
+    repairOutcome = "pending";
+    preferences = {
+      data: {
+        pushOptIn: true,
+        notificationPreferences: [{ channel: "OS_BANNER", enabled: true }],
+      },
+    };
+    activatePushMock.mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -138,6 +189,128 @@ describe("NotificationBrowserPermissionPrimer", () => {
 
   it("stays out of the way once notifications are allowed", () => {
     setNotificationPermission("granted");
+    repairOutcome = "healthy";
+    const { container } = render(<NotificationBrowserPermissionPrimer />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  /**
+   * The state SOK-929 names. The reader set this browser up for push, it lost
+   * its subscription, and the app-open repair could not bring one back. The
+   * permission is granted, so there is nothing left to ask for: the card says
+   * what happened and offers the one press that fixes it.
+   */
+  it.each(["opted out", "no push deliveries", "unknown"])(
+    "hides the repair notice when preferences are %s",
+    (state) => {
+      setNotificationPermission("granted");
+      repairOutcome = "quiet";
+      preferences =
+        state === "unknown"
+          ? undefined
+          : {
+              data: {
+                pushOptIn: state !== "opted out",
+                notificationPreferences: [
+                  {
+                    channel: "OS_BANNER",
+                    enabled: state !== "no push deliveries",
+                  },
+                ],
+              },
+            };
+      const { container } = render(<NotificationBrowserPermissionPrimer />);
+      expect(container).toBeEmptyDOMElement();
+    },
+  );
+
+  it("tells the reader when this browser stopped receiving push", async () => {
+    setNotificationPermission("granted");
+    repairOutcome = "quiet";
+    render(<NotificationBrowserPermissionPrimer />);
+
+    expect(screen.getByText("pushQuietDescription")).toBeInTheDocument();
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "pushQuietRestore" }),
+    );
+
+    expect(activatePushMock).toHaveBeenCalledWith(SESSION_USER_ID);
+    // Read again rather than assumed: a repair that failed leaves the card
+    // where it was instead of reporting a success it did not get.
+    expect(recordPushRepairOutcomeMock).toHaveBeenCalled();
+  });
+
+  /**
+   * The press is not over until the outcome is written down. Releasing the
+   * button first leaves it live over a card that still says push is off, so a
+   * second press would start another activation against the first one's
+   * answer. A recording that fails still releases it: a reader whose browser
+   * could not be written down gets to try again.
+   */
+  it("holds the button until the outcome is recorded, and frees it on failure", async () => {
+    setNotificationPermission("granted");
+    repairOutcome = "quiet";
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    recordPushRepairOutcomeMock.mockRejectedValue(
+      new Error("storage is blocked"),
+    );
+    render(<NotificationBrowserPermissionPrimer />);
+
+    const restore = screen.getByRole("button", { name: "pushQuietRestore" });
+    await userEvent.click(restore);
+
+    expect(consoleError).toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "pushQuietRestore" }),
+    ).toBeEnabled();
+    consoleError.mockRestore();
+  });
+
+  /**
+   * The press can destroy the registration it would be read back from: the
+   * activation clears Ably's stored state halfway through its round. Reading
+   * it again after a failed press would find none, call this browser healthy,
+   * and take the card away as though the press had worked.
+   */
+  it("carries the registration past a press that fails", async () => {
+    setNotificationPermission("granted");
+    repairOutcome = "quiet";
+    activatePushMock.mockRejectedValue(
+      new Error("The browser created no push subscription"),
+    );
+    render(<NotificationBrowserPermissionPrimer />);
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "pushQuietRestore" }),
+    );
+
+    expect(recordPushRepairOutcomeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        hadRegistration: true,
+        teardownVersion: expect.any(String),
+      }),
+    );
+    expect(screen.getByText("pushQuietDescription")).toBeInTheDocument();
+  });
+
+  /**
+   * The repair runs in the notification provider and answers after this card
+   * has painted. Saying push stopped before it answers would show the notice
+   * on every browser the repair is about to fix.
+   */
+  it("says nothing until the repair has answered", () => {
+    setNotificationPermission("granted");
+    repairOutcome = "pending";
+    preferences = {
+      data: {
+        pushOptIn: true,
+        notificationPreferences: [{ channel: "OS_BANNER", enabled: true }],
+      },
+    };
     const { container } = render(<NotificationBrowserPermissionPrimer />);
 
     expect(container).toBeEmptyDOMElement();

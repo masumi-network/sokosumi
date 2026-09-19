@@ -274,7 +274,6 @@ describe("coworker user route allowlist", () => {
     const body = await response.json();
     expect(body.data).toMatchObject({
       marketingOptIn: true,
-      notificationsOptIn: false,
       pushOptIn: false,
     });
   });

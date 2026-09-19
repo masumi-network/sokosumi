@@ -12994,9 +12994,6 @@ export const NotificationPreferenceSchema = {
         category: {
             type: 'string',
             enum: [
-                'JOB_ATTENTION',
-                'JOB_COMPLETED',
-                'JOB_UPDATE',
                 'TASK_ATTENTION',
                 'TASK_COMPLETED',
                 'TASK_UPDATE',
@@ -16270,16 +16267,16 @@ export const NotificationItemSchema = {
         },
         messageKey: {
             type: 'string',
-            description: 'i18n message key for translation (e.g. Notifications.Job.completed)',
-            example: 'Notifications.Job.completed'
+            description: 'i18n message key for translation (e.g. Notifications.Task.completed)',
+            example: 'Notifications.Task.completed'
         },
         messageParams: {
             type: 'object',
             additionalProperties: {},
             description: 'ICU interpolation parameters for the message',
             example: {
-                agentName: 'Research Agent',
-                jobName: 'Market Analysis'
+                coworkerName: 'Ada',
+                taskName: 'Market Analysis'
             }
         },
         metadata: {
@@ -16340,7 +16337,7 @@ export const NotificationKindSchema = {
         'CHAT'
     ],
     description: 'Notification source domain',
-    example: 'JOB'
+    example: 'TASK'
 } as const;
 
 export const NotificationCountsSchema = {

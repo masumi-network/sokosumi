@@ -138,7 +138,12 @@ describe("buildFollowUpEmail", () => {
     expect(linkIn(email?.html ?? "")).toBe(`${BASE}/tasks/task-1`);
   });
 
-  it("sends a job reminder to the job, under its agent", async () => {
+  /**
+   * SOK-930 removed the job reminder with the job notifications it reminded
+   * of. A row stored before that still reads in the Notification Center; it
+   * is no longer mailed.
+   */
+  it("sends nothing for a job reminder", async () => {
     const email = await buildFollowUpEmail(
       input({
         kind: NotificationKind.JOB,
@@ -149,25 +154,7 @@ describe("buildFollowUpEmail", () => {
       }),
     );
 
-    expect(email?.subject).toBe(
-      "Sokosumi - Nightly report is still waiting for you",
-    );
-    expect(linkIn(email?.html ?? "")).toBe(`${BASE}/agents/agent-1/jobs/job-1`);
-  });
-
-  /** No agent id, no job URL. Web sends the reader to the list rather than nowhere. */
-  it("falls back to the task list for a job with no agent", async () => {
-    const email = await buildFollowUpEmail(
-      input({
-        kind: NotificationKind.JOB,
-        referenceId: "job-1",
-        messageKey: JOB_FOLLOW_UP_MESSAGE_KEY,
-        messageParams: { jobName: "Nightly report" },
-        metadata: null,
-      }),
-    );
-
-    expect(linkIn(email?.html ?? "")).toBe(`${BASE}/tasks`);
+    expect(email).toBeNull();
   });
 
   it("names the thing generically when the row does not name it", async () => {
@@ -268,24 +255,6 @@ describe("buildFollowUpEmail", () => {
       "Invoice run stopped a day ago because Ada needs your approval",
     );
     expect(text).toContain("Project: Billing");
-  });
-
-  it("says what the job stopped for, and which agent it is", async () => {
-    const email = await buildFollowUpEmail(
-      input({
-        kind: NotificationKind.JOB,
-        referenceId: "job-1",
-        messageKey: JOB_FOLLOW_UP_MESSAGE_KEY,
-        sourceMessageKey: "Notifications.Job.paymentFailed",
-        messageParams: { agentName: "Reporter", jobName: "Nightly report" },
-        metadata: { agentId: "agent-1" },
-      }),
-    );
-
-    const text = textIn(email?.html ?? "");
-
-    expect(text).toContain("The payment for Nightly report failed a day ago");
-    expect(text).toContain("Agent: Reporter");
   });
 
   /**
