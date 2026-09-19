@@ -1425,7 +1425,6 @@
         "waitForResponses": "Bitte warte, bis die anderen Antworten abgeschlossen sind (max. 3 gleichzeitig).",
         "imageAttachment": "Ein Bild-Anhang",
         "fileLabel": "Datei",
-        "modelAlt": "Modell",
         "coworkerAlt": "Coworker",
         "userAvatarAlt": "Nutzer-Avatar",
         "downloadGeneratedImage": "Generiertes Bild herunterladen",
@@ -2373,7 +2372,6 @@
           "title": "Letzte Chats",
           "noChats": "Noch keine Chats",
           "untitledChat": "Unbenannter Chat",
-          "modelAlt": "Modell",
           "coworkerAlt": "Mitarbeiter"
         },
         "SeatRequired": {

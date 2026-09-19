@@ -216,6 +216,20 @@ describe("createAgentClient URL validation", () => {
     }
   });
 
+  it("rejects malformed API base URLs as unreachable without throwing", async () => {
+    const client = createAgentClient();
+    const result = await client.startFreeAgentJob(
+      createAgent({ apiBaseUrl: "not a url" }),
+      { prompt: "hello" },
+    );
+
+    expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.kind).toBe("unreachable");
+    }
+  });
+
   it("defers private/internal-address blocking to connect time via ssrfSafeFetch", async () => {
     // Internal addresses are no longer rejected at URL-validation time; the
     // request reaches ssrfSafeFetch, which refuses the connection (covered by
