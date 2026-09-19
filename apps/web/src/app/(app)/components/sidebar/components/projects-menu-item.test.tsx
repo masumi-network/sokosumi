@@ -204,6 +204,18 @@ describe("Projects sidebar", () => {
     expect(projectHrefs()).toEqual([]);
   });
 
+  it("never promises a panel it will have to retract", async () => {
+    mocks.load.mockResolvedValue({ projects: [], nextCursor: null });
+    setup();
+    const row = screen.getByRole("link", { name: "projects" });
+    // Not on the first paint, while the page is still in flight…
+    expect(row.querySelector(".lucide-chevron-right")).not.toBeInTheDocument();
+    await waitFor(() => expect(mocks.load).toHaveBeenCalled());
+    // …and not once an empty workspace comes back, so the row never changes
+    // shape under the reader.
+    expect(row.querySelector(".lucide-chevron-right")).not.toBeInTheDocument();
+  });
+
   it("stands the rows in with a skeleton while they load", async () => {
     mocks.load.mockImplementation(() => new Promise(() => {}));
     setup();

@@ -117,9 +117,14 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
   const { rows, isPending, isError, refetch } = useSidebarProjects(scope);
   const active = pathname === "/projects" || pathname.startsWith("/projects/");
 
-  // Nothing to fly out over: the row stays a plain link rather than opening an
-  // empty panel, and loses the affordance that promises one.
-  const hasFlyout = rows.length > 0 || isPending || isError;
+  // Mounted while the page is still in flight so an early pointer lands on the
+  // skeleton rather than on nothing.
+  const mountsPanel = rows.length > 0 || isPending || isError;
+  // Held back until there is a panel behind it. Promising one on the first
+  // paint means retracting it on a workspace that turns out to have no
+  // projects, and a row that changes shape under the reader is the twitch this
+  // whole change exists to remove.
+  const showsChevron = rows.length > 0 || isError;
 
   function handleNavigate() {
     if (isMobile) setOpenMobile(false);
@@ -132,7 +137,7 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
     <SidebarMenuButton
       asChild
       isActive={active}
-      tooltip={hasFlyout ? undefined : t("projects")}
+      tooltip={mountsPanel ? undefined : t("projects")}
     >
       <Link
         href="/projects"
@@ -151,7 +156,7 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
         <span className={cn(SIDEBAR_ROW_LABEL_CLASS, "truncate")}>
           {t("projects")}
         </span>
-        {hasFlyout ? (
+        {showsChevron ? (
           // Points at the panel rather than at an open/closed state, so it
           // needs no state of its own and never animates the row.
           <ChevronRight
@@ -165,7 +170,7 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
 
   return (
     <SidebarMenuItem>
-      {hasFlyout ? (
+      {mountsPanel ? (
         <HoverCard
           openDelay={FLYOUT_OPEN_DELAY_MS}
           closeDelay={FLYOUT_CLOSE_DELAY_MS}
