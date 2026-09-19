@@ -20,10 +20,9 @@ interface ChannelSpec {
  * means the kind does not arrive. The one pairing the row does not offer is a
  * push with no entry behind it: see `withChannel`.
  *
- * Email is drawn beside these and is not one of them, because the two rows
- * that offer it write different things. The job rows write one switch for the
- * whole account. The reminder row writes a cell of this matrix like any other,
- * on the `EMAIL` channel. Neither belongs in a column every row draws, because
+ * Email is drawn beside these and is not one of them. The one row that offers
+ * it, the reminder row, writes a cell of this matrix like any other, on the
+ * `EMAIL` channel. It does not belong in a column every row draws, because
  * most rows have no email behind them at all. See `KindSpec.email`.
  *
  * A channel Core adds later needs a cell here. Without one it is drawn
@@ -92,12 +91,13 @@ export const PUSH_BLOCK_HINT_KEY: Record<PushBlock, string> = {
 };
 
 /**
- * Where a row's email answer is kept: the account, this matrix, or nowhere.
+ * Where a row's email answer is kept: this matrix, or nowhere.
  *
- * Three rather than a boolean, because the two rows that offer email write to
- * different places and a cell has to know which before it can be pressed.
+ * Two rather than a boolean, so a cell knows whether it can be pressed at all.
+ * A third value stood for the job rows, which wrote one account-wide switch.
+ * SOK-930 took the job notifications away, and the switch with them.
  */
-export type EmailControl = "ACCOUNT" | "CHANNEL" | "NONE";
+export type EmailControl = "CHANNEL" | "NONE";
 
 export interface KindSpec {
   category: NotificationCategory;
@@ -106,9 +106,6 @@ export interface KindSpec {
   hintKey: string;
   /**
    * What this row's email cell writes, if anything.
-   *
-   * `ACCOUNT` is the job rows. Job status is mailed under one account-wide
-   * switch, so those three hold one value and move together.
    *
    * `CHANNEL` is the reminder row (SOK-916). Its email is a cell of the same
    * matrix as In app and Push, on the `EMAIL` channel, so it is the reader's
@@ -134,12 +131,12 @@ type Reach = "NONE" | "IN_APP" | "PUSH";
  *
  * One press, and the group is set: which of its notifications the reader gets,
  * and which of them reach the device. The two questions are one decision here,
- * because they are one decision in life. A reader watching a job run wants the
- * phone to say so; the same reader on a Monday wants the list in Sokosumi and
- * a quiet phone.
+ * because they are one decision in life. A reader waiting on a task wants the
+ * phone to say when it moves; the same reader on a Monday wants the list in
+ * Sokosumi and a quiet phone.
  *
- * Written per group rather than shared. What a reader wants from Jobs and what
- * they want from Chat are different shapes: a job update is traffic to be
+ * Written per group rather than shared. What a reader wants from Tasks and what
+ * they want from Chat are different shapes: a task update is traffic to be
  * turned down, and every message in a room is a thing to opt into. A shared
  * list would have to name both in one word, and did.
  *
@@ -172,9 +169,9 @@ export interface PresetSpec {
  * is none of it. What Most reaches differs by group, because what a reader opts
  * into differs; the word does not, because the amount it means does not.
  *
- * None of them touches email, which is one switch for the account rather than
- * a cell per kind. So the loudest of these is loud in Sokosumi and on the
- * device, and a reader who picks it is not signing up for a mailbox as well.
+ * None of them touches email, which only the reminder row offers. So the
+ * loudest of these is loud in Sokosumi and on the device, and a reader who
+ * picks it is not signing up for a mailbox as well.
  */
 export type Preset = "MOST" | "ESSENTIAL" | "APP_ONLY" | "OFF";
 
@@ -210,72 +207,6 @@ export interface GroupSpec {
  */
 export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
   {
-    id: "JOB",
-    labelKey: "groupJob",
-    descriptionKey: "groupJobDescription",
-    kinds: [
-      {
-        category: "JOB_ATTENTION",
-        labelKey: "kindJobAttention",
-        hintKey: "kindJobAttentionHint",
-        email: "ACCOUNT",
-      },
-      {
-        category: "JOB_COMPLETED",
-        labelKey: "kindJobCompleted",
-        hintKey: "kindJobCompletedHint",
-        email: "ACCOUNT",
-      },
-      {
-        category: "JOB_UPDATE",
-        labelKey: "kindJobUpdate",
-        hintKey: "kindJobUpdateHint",
-        email: "ACCOUNT",
-      },
-    ],
-    // A job is work the reader started and is waiting on, so the loudest thing
-    // worth offering is the answer arriving. What a job reports on the way
-    // there asks nothing of them, and no stop here pushes it.
-    presets: [
-      {
-        id: "MOST",
-        hintKey: "presetJobMostHint",
-        reach: {
-          JOB_ATTENTION: "PUSH",
-          JOB_COMPLETED: "PUSH",
-          JOB_UPDATE: "IN_APP",
-        },
-      },
-      {
-        id: "ESSENTIAL",
-        hintKey: "presetJobEssentialHint",
-        reach: {
-          JOB_ATTENTION: "PUSH",
-          JOB_COMPLETED: "IN_APP",
-          JOB_UPDATE: "IN_APP",
-        },
-      },
-      {
-        id: "APP_ONLY",
-        hintKey: "presetJobAppOnlyHint",
-        reach: {
-          JOB_ATTENTION: "IN_APP",
-          JOB_COMPLETED: "IN_APP",
-          JOB_UPDATE: "IN_APP",
-        },
-      },
-      {
-        id: "OFF",
-        hintKey: "presetJobOffHint",
-        reach: {
-          JOB_ATTENTION: "NONE",
-          JOB_COMPLETED: "NONE",
-          JOB_UPDATE: "NONE",
-        },
-      },
-    ],
-  },
-  {
     id: "TASK",
     labelKey: "groupTask",
     descriptionKey: "groupTaskDescription",
@@ -299,9 +230,9 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         email: "NONE",
       },
     ],
-    // The same four as Jobs, and deliberately: a task is work of the same
-    // shape, and a reader who has just answered this question one row above
-    // should not have to read a different set of words to answer it again.
+    // The same four ids every other group offers, and deliberately: a reader
+    // who answers this question once should not have to read a different set
+    // of words to answer it again further down the panel.
     presets: [
       {
         id: "MOST",
@@ -637,7 +568,7 @@ function presetKinds(
 /**
  * The kinds a preset sends to the device, in the order the group holds them.
  *
- * "What is essential" is two named things in Jobs and two different ones in
+ * "What is essential" is two named things in Tasks and two different ones in
  * Chat, and no sentence shared by every group can say which. The panel names
  * them under the word instead. A situation that pushes all of them says
  * nothing here, and neither does one that pushes none: its own word already

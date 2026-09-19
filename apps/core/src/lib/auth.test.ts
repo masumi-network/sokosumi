@@ -1254,7 +1254,6 @@ describe("core auth config", () => {
       expect.arrayContaining([
         "termsAccepted",
         "marketingOptIn",
-        "notificationsOptIn",
         "logo",
         "metadata",
         "stripeCustomerId",
@@ -1262,6 +1261,11 @@ describe("core auth config", () => {
     );
     expect(Object.keys(config.user.additionalFields)).not.toContain(
       "onboardingCompleted",
+    );
+    // The job status emails went in SOK-930 and left this switch with no
+    // reader, so SOK-934 stopped the session carrying it.
+    expect(Object.keys(config.user.additionalFields)).not.toContain(
+      "notificationsOptIn",
     );
     expect(config.user.additionalFields.stripeCustomerId).toEqual({
       type: "string",

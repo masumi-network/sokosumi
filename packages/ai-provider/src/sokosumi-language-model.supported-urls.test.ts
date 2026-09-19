@@ -11,6 +11,17 @@ describe("SokosumiLanguageModel supportedUrls", () => {
     expect(model.specificationVersion).toBe("v4");
   });
 
+  it("stamps openai/gpt-5.4 when modelId is null or empty", () => {
+    const nullModel = createSokosumiLanguageModel(null, {
+      openRouterApiKey: "sk-or-test",
+    });
+    const emptyModel = createSokosumiLanguageModel("", {
+      openRouterApiKey: "sk-or-test",
+    });
+    expect(nullModel.modelId).toBe("openai/gpt-5.4");
+    expect(emptyModel.modelId).toBe("openai/gpt-5.4");
+  });
+
   it("passes through public file and image URLs without SDK pre-downloads", async () => {
     const model = createSokosumiLanguageModel("openai/gpt-5.4", {
       openRouterApiKey: "sk-or-test",

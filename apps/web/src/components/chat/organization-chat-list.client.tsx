@@ -47,8 +47,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  SIDEBAR_ROW_CLASS,
-  SIDEBAR_ROW_LABEL_INSET_CLASS,
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
@@ -56,6 +54,10 @@ import {
   SidebarRowSlot,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  SIDEBAR_ROW_CLASS,
+  SIDEBAR_ROW_LABEL_INSET_CLASS,
+} from "@/components/ui/sidebar-classes";
 import type {
   ChatRoom,
   ChatRoomInvitation,

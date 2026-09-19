@@ -5,10 +5,7 @@ import {
 } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  JOB_ATTENTION_MESSAGE_KEYS,
-  TASK_ATTENTION_MESSAGE_KEYS,
-} from "@/helpers/notification-delivery";
+import { TASK_ATTENTION_MESSAGE_KEYS } from "@/helpers/notification-delivery";
 import { notificationFeedWhere } from "@/helpers/notification-feed";
 
 import {
@@ -146,25 +143,22 @@ describe("markSettledAttentionRead", () => {
     );
   });
 
-  /** Story 16, the job half. */
+  /**
+   * Story 16, the job half. A job settles nothing here since SOK-930: no job notification is written,
+   * so no job attention row is left to clear.
+   */
   it.each(["Notifications.Job.completed", "Notifications.Job.failed"])(
-    "clears a job's attention rows when it settles as %s",
+    "writes nothing when a job settles as %s",
     async (key) => {
-      await markSettledAttentionRead(
+      const count = await markSettledAttentionRead(
         "user_123",
         NotificationKind.JOB,
         "job_123",
         key,
       );
 
-      expect(notificationUpdateManyAndReturnMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            referenceId: "job_123",
-            messageKey: { in: JOB_ATTENTION_MESSAGE_KEYS },
-          }),
-        }),
-      );
+      expect(count).toBe(0);
+      expect(notificationUpdateManyAndReturnMock).not.toHaveBeenCalled();
     },
   );
 
@@ -178,9 +172,6 @@ describe("markSettledAttentionRead", () => {
    */
   it.each([
     ...TASK_ATTENTION_MESSAGE_KEYS,
-    ...JOB_ATTENTION_MESSAGE_KEYS,
-    "Notifications.Job.refundResolved",
-    "Notifications.Job.disputeResolved",
     "Notifications.Task.somethingAddedLater",
   ])("writes nothing for %s, which does not settle anything", async (key) => {
     const count = await markSettledAttentionRead(

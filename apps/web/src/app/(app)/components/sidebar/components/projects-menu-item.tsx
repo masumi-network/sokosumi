@@ -5,17 +5,21 @@ import { ChevronRight, FolderKanban } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { loadMoreProjects } from "@/app/projects/actions";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { Button } from "@/components/ui/button";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
+} from "@/components/ui/popover";
 import {
-  SIDEBAR_ROW_LABEL_CLASS,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
@@ -25,6 +29,7 @@ import {
   SidebarRowSlot,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
@@ -34,12 +39,23 @@ import {
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 
-import {
-  orderSidebarProjects,
-  SIDEBAR_PROJECT_ROW_CAP,
-} from "./order-sidebar-projects";
+import { orderSidebarProjects } from "./order-sidebar-projects";
 
-const PROJECTS_EXPANDED_STORAGE_KEY = "sokosumi.sidebar.projects-expanded";
+/**
+ * Long enough that sweeping the pointer up the sidebar towards the logo does
+ * not flash the panel open, short enough that aiming at the row feels direct.
+ * Matches the chat participant hover card so both flyouts in the app answer
+ * the pointer on the same beat.
+ */
+const FLYOUT_OPEN_DELAY_MS = 200;
+const FLYOUT_CLOSE_DELAY_MS = 100;
+
+/**
+ * Opening the panel from the row, for a reader who is not holding a pointer.
+ * Right matches the chevron and the side the panel comes out on; down is what
+ * a menu button answers to, and costs nothing to accept as well.
+ */
+const FLYOUT_OPEN_KEYS = new Set(["ArrowRight", "ArrowDown"]);
 
 export function ProjectsMenuItem() {
   const { data: session, isPending, isRefetching, error } = useSession();
@@ -63,12 +79,12 @@ type SidebarProject = Awaited<
 >["projects"][number];
 
 /**
- * The reader's sidebar rows, fetched as soon as the sidebar mounts rather than
- * when the disclosure opens, so opening it never lands on a spinner.
+ * The reader's flyout rows, fetched as soon as the sidebar mounts rather than
+ * when the pointer arrives, so the panel never opens onto a spinner.
  *
  * Caching is the app default (`get-query-client.ts`): one page stays fresh for
  * a minute and the observer here keeps it subscribed for as long as the
- * sidebar lives, so collapsing and coming back is instant.
+ * sidebar lives, so leaving and coming back is instant.
  */
 function useSidebarProjects(scope: ProjectsNavigationProps["scope"]) {
   const visitedIds = useRecentProjectIds(scope);
@@ -99,10 +115,9 @@ function useSidebarProjects(scope: ProjectsNavigationProps["scope"]) {
   });
 
   // A session that has not resolved yet reads as pending, which is what the
-  // disclosure should show for it.
+  // flyout should show for it.
   return {
     rows,
-    visitedCount: visitedIds.length,
     isPending: isPending || scope == null,
     isError,
     refetch,
@@ -112,107 +127,160 @@ function useSidebarProjects(scope: ProjectsNavigationProps["scope"]) {
 function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
-  const { isMobile, state, setOpenMobile } = useSidebar();
+  const { isMobile, setOpenMobile } = useSidebar();
+  const { rows, isPending, isError, refetch } = useSidebarProjects(scope);
+  const active = pathname === "/projects" || pathname.startsWith("/projects/");
   const [open, setOpen] = useState(false);
-  useMountEffect(() => {
-    try {
-      setOpen(localStorage.getItem(PROJECTS_EXPANDED_STORAGE_KEY) === "true");
-    } catch {
-      // Keep disclosure usable when browser storage is blocked.
-    }
-  });
+  const headingId = useId();
+  const rowRef = useRef<HTMLAnchorElement>(null);
+  const openTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const closeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const openedByPointer = useRef(false);
+  const interactedOutside = useRef(false);
 
-  function handleOpenChange(nextOpen: boolean) {
-    setOpen(nextOpen);
-    try {
-      localStorage.setItem(PROJECTS_EXPANDED_STORAGE_KEY, String(nextOpen));
-    } catch {
-      // Persistence is optional; the in-memory choice still works.
-    }
+  function clearPending() {
+    clearTimeout(openTimer.current);
+    clearTimeout(closeTimer.current);
   }
 
-  const { rows, visitedCount, isPending, isError, refetch } =
-    useSidebarProjects(scope);
-  const active = pathname === "/projects" || pathname.startsWith("/projects/");
-  const expandedSidebar = isMobile || state !== "collapsed";
+  // The pointer can leave with a timer still owing; unmounting behind it would
+  // otherwise set state on a component that is gone.
+  useMountEffect(() => clearPending);
 
-  // The control holds its place from the first paint and turns on once there
-  // is something behind it, so the row never changes shape under the reader.
-  // A workspace with no projects keeps a disabled chevron rather than losing
-  // one. A reader who left it open gets it live while their rows load, so the
-  // skeleton and the retry are never trapped open.
-  const disclosable = rows.length > 0 || isError || (open && isPending);
+  // Mounted while the page is still in flight so an early pointer lands on the
+  // skeleton rather than on nothing.
+  const mountsPanel = rows.length > 0 || isPending || isError;
+  // Held back until there is a panel behind it. Promising one on the first
+  // paint means retracting it on a workspace that turns out to have no
+  // projects, and a row that changes shape under the reader is the twitch this
+  // whole change exists to remove.
+  const showsChevron = rows.length > 0 || isError;
 
   function handleNavigate() {
     if (isMobile) setOpenMobile(false);
   }
 
+  // Which way the panel was opened decides who owns focus: a pointer must not
+  // pull it off whatever the reader was typing in, and a keyboard open is
+  // worthless unless focus follows into the rows.
+  function openForPointer() {
+    clearPending();
+    openTimer.current = setTimeout(() => {
+      openedByPointer.current = true;
+      setOpen(true);
+    }, FLYOUT_OPEN_DELAY_MS);
+  }
+
+  function closeForPointer() {
+    clearPending();
+    closeTimer.current = setTimeout(
+      () => setOpen(false),
+      FLYOUT_CLOSE_DELAY_MS,
+    );
+  }
+
+  function handleRowKeyDown(event: ReactKeyboardEvent<HTMLAnchorElement>) {
+    if (!mountsPanel || !FLYOUT_OPEN_KEYS.has(event.key)) return;
+    // Enter is left alone, so the row still navigates the way a link should.
+    event.preventDefault();
+    clearPending();
+    openedByPointer.current = false;
+    interactedOutside.current = false;
+    setOpen(true);
+  }
+
+  const row = (
+    // On the rail the panel is the hover hint, so a tooltip would race it to
+    // the same spot. Without a panel there is nothing else to name the icon,
+    // so the tooltip stays.
+    <SidebarMenuButton
+      asChild
+      isActive={active}
+      tooltip={mountsPanel ? undefined : t("projects")}
+    >
+      <Link
+        ref={rowRef}
+        href="/projects"
+        onClick={handleNavigate}
+        onPointerEnter={mountsPanel ? openForPointer : undefined}
+        onPointerLeave={mountsPanel ? closeForPointer : undefined}
+        onKeyDown={handleRowKeyDown}
+        aria-expanded={mountsPanel ? open : undefined}
+        aria-current={pathname === "/projects" ? "page" : undefined}
+        className={cn(
+          "min-w-0",
+          active
+            ? "text-sidebar-accent-foreground"
+            : "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+        )}
+      >
+        <SidebarRowSlot>
+          <FolderKanban className="size-4" aria-hidden />
+        </SidebarRowSlot>
+        <span className={cn(SIDEBAR_ROW_LABEL_CLASS, "truncate")}>
+          {t("projects")}
+        </span>
+        {showsChevron ? (
+          // Points at the panel rather than at an open/closed state, so it
+          // needs no state of its own and never animates the row.
+          <ChevronRight
+            className="size-4 shrink-0 group-data-[collapsible=icon]:hidden"
+            aria-hidden
+          />
+        ) : null}
+      </Link>
+    </SidebarMenuButton>
+  );
+
   return (
     <SidebarMenuItem>
-      <Collapsible
-        open={open && expandedSidebar && disclosable}
-        onOpenChange={handleOpenChange}
-      >
-        <div
-          className={cn(
-            "flex items-center rounded-md",
-            active && expandedSidebar && "bg-sidebar-accent",
-          )}
-        >
-          <SidebarMenuButton asChild isActive={active} tooltip={t("projects")}>
-            <Link
-              href="/projects"
-              onClick={handleNavigate}
-              aria-current={pathname === "/projects" ? "page" : undefined}
-              className={cn(
-                "min-w-0",
-                active
-                  ? "text-sidebar-accent-foreground"
-                  : "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-              )}
+      {mountsPanel ? (
+        <Popover open={open} onOpenChange={setOpen} modal={false}>
+          <PopoverAnchor asChild>{row}</PopoverAnchor>
+          <PopoverContent
+            side="right"
+            align="start"
+            sideOffset={8}
+            className="w-56 p-1"
+            aria-labelledby={headingId}
+            // A pointer open leaves focus where it was; a keyboard open sends
+            // it into the rows, which is the whole point of opening that way.
+            onOpenAutoFocus={(event) => {
+              if (openedByPointer.current) event.preventDefault();
+            }}
+            // Radix would restore to a trigger we do not have. Escape should
+            // land back on the row; a click or focus outside should not —
+            // there is no trigger, so Radix also no longer withholds that
+            // restore after an outside interaction.
+            onInteractOutside={() => {
+              interactedOutside.current = true;
+            }}
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              if (interactedOutside.current) {
+                interactedOutside.current = false;
+                return;
+              }
+              if (!openedByPointer.current) rowRef.current?.focus();
+            }}
+            onPointerEnter={clearPending}
+            onPointerLeave={closeForPointer}
+          >
+            {/* Not the row's own label repeated back: on the rail this is the
+                only thing naming the panel, and at full width it is what says
+                why a project can be missing from five rows — which is what the
+                `All projects` footer below answers. */}
+            <p
+              id={headingId}
+              className="text-muted-foreground px-2 py-1.5 text-xs font-medium"
             >
-              <SidebarRowSlot>
-                <FolderKanban className="size-4" aria-hidden />
-              </SidebarRowSlot>
-              <span className={cn(SIDEBAR_ROW_LABEL_CLASS, "truncate")}>
-                {t("projects")}
-              </span>
-            </Link>
-          </SidebarMenuButton>
-          {expandedSidebar ? (
-            <CollapsibleTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                disabled={!disclosable}
-                className="size-10 shrink-0 md:size-8 text-tertiary-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground dark:text-muted-foreground"
-                aria-label={t(open ? "collapseProjects" : "expandProjects")}
-              >
-                <ChevronRight
-                  className={cn(
-                    "size-4 transition-transform duration-200 ease-out",
-                    open && "rotate-90",
-                  )}
-                  aria-hidden
-                />
-              </Button>
-            </CollapsibleTrigger>
-          ) : null}
-        </div>
-        {active ? <SidebarRailSelectionBar /> : null}
-        {/* Height travels with the rows, so everything below slides in the
-            same motion instead of jumping. */}
-        <CollapsibleContent className="motion-safe:data-[state=closed]:animate-collapsible-up motion-safe:data-[state=open]:animate-collapsible-down overflow-hidden">
-          {isPending ? (
-            <ProjectLinksSkeleton
-              label={t("projectsLoading")}
-              rows={skeletonRows(visitedCount)}
-            />
-          ) : isError ? (
-            <SidebarMenuSub className="mx-0 translate-x-0 border-l-0 pl-4 pr-0">
-              <SidebarMenuSubItem>
-                <p role="status" className="text-muted-foreground px-2 text-sm">
+              {t("recentProjects")}
+            </p>
+            {isPending ? (
+              <ProjectLinksSkeleton label={t("projectsLoading")} />
+            ) : isError ? (
+              <div className="px-2 py-1.5">
+                <p role="status" className="text-muted-foreground text-sm">
                   {t("projectsError")}
                 </p>
                 <Button
@@ -223,57 +291,48 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
                 >
                   {t("retryProjects")}
                 </Button>
-              </SidebarMenuSubItem>
-            </SidebarMenuSub>
-          ) : (
-            <ProjectLinks rows={rows} onNavigate={handleNavigate} />
-          )}
-        </CollapsibleContent>
-      </Collapsible>
+              </div>
+            ) : (
+              <ProjectLinks rows={rows} onNavigate={handleNavigate} />
+            )}
+            {/* A way out of the panel without aiming back at the row behind
+                it. No avatar: the placeholder square only read as a project
+                whose logo had failed to load. */}
+            <div className="bg-border my-1 h-px" />
+            <Link
+              href="/projects"
+              onClick={handleNavigate}
+              className="text-muted-foreground ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground block rounded-md px-2 py-1.5 text-sm outline-hidden focus-visible:ring-2"
+            >
+              {t("allProjects")}
+            </Link>
+          </PopoverContent>
+        </Popover>
+      ) : (
+        row
+      )}
+      {active ? <SidebarRailSelectionBar /> : null}
     </SidebarMenuItem>
   );
 }
 
 /**
  * Ragged widths, so the placeholder reads as a list of names rather than a
- * stack of identical bars — the trick `SidebarChatListSkeleton` uses. Enough
- * of them to cover a full disclosure.
+ * stack of identical bars — the trick `SidebarChatListSkeleton` uses. The
+ * panel floats, so its height costs the sidebar nothing and the count is a
+ * constant rather than an estimate of what is coming.
  */
 const SKELETON_NAME_WIDTHS = ["w-24", "w-16", "w-28", "w-20", "w-14"] as const;
 
-/** What to stand in with before the reader has opened a project. */
-const SKELETON_FALLBACK_ROWS = 3;
-
-/**
- * How tall to stand in for the rows that are coming.
- *
- * Only a reader who left the disclosure open ever sees this, and their own
- * visit log is the closest thing to a count we hold before the page lands, so
- * the height is an estimate from their history rather than a constant. It can
- * still be short of what arrives; the cap bounds how far off it can be.
- */
-function skeletonRows(visitedCount: number): number {
-  return Math.min(
-    Math.max(visitedCount, SKELETON_FALLBACK_ROWS),
-    SIDEBAR_PROJECT_ROW_CAP,
-  );
-}
-
-function ProjectLinksSkeleton({
-  label,
-  rows,
-}: {
-  label: string;
-  rows: number;
-}) {
+function ProjectLinksSkeleton({ label }: { label: string }) {
   return (
-    <SidebarMenuSub className="mx-0 translate-x-0 border-l-0 pl-4 pr-0">
+    <SidebarMenuSub className="mx-0 translate-x-0 gap-0 border-l-0 p-0">
       <p role="status" className="sr-only">
         {label}
       </p>
-      {SKELETON_NAME_WIDTHS.slice(0, rows).map((nameWidth) => (
+      {SKELETON_NAME_WIDTHS.map((nameWidth) => (
         <SidebarMenuSubItem key={nameWidth} aria-hidden>
-          <div className="flex min-h-9 items-center gap-2 py-2">
+          <div className="flex min-h-9 items-center gap-2 px-2 py-2">
             <Skeleton className="size-5 shrink-0 rounded-md" />
             <Skeleton className={cn("h-3", nameWidth)} />
           </div>
@@ -293,7 +352,7 @@ function ProjectLinks({
   const pathname = usePathname();
 
   return (
-    <SidebarMenuSub className="mx-0 translate-x-0 border-l-0 pl-4 pr-0">
+    <SidebarMenuSub className="mx-0 translate-x-0 gap-0 border-l-0 p-0">
       {rows.map((project) => {
         const href = `/projects/${encodeURIComponent(project.id)}`;
         const selected = pathname === href || pathname.startsWith(`${href}/`);
@@ -303,7 +362,7 @@ function ProjectLinks({
               asChild
               isActive={selected}
               className={cn(
-                "min-h-9 h-auto translate-x-0 py-2",
+                "min-h-9 h-auto translate-x-0 px-2 py-2",
                 selected
                   ? "text-sidebar-accent-foreground"
                   : "text-tertiary-foreground dark:text-muted-foreground hover:text-sidebar-accent-foreground dark:hover:text-sidebar-accent-foreground",

@@ -99,7 +99,7 @@ describe("PersonalAssistantNav as an ordinary Sidebar row", () => {
     );
   });
 
-  it("shows one 24px face in the shared slot, the same in both states", () => {
+  it("shows one 20px face in the shared slot, the same in both states", () => {
     const { container } = renderNav({ bot });
     const slot = container.querySelector('[data-slot="sidebar-row-slot"]');
     const face = slot?.querySelector("img");
@@ -107,7 +107,7 @@ describe("PersonalAssistantNav as an ordinary Sidebar row", () => {
     expect(slot).not.toBeNull();
     expect(tokens(slot?.className ?? "")).toContain("min-w-6");
     expect(face).not.toBeNull();
-    expect(tokens(face?.className ?? "")).toContain("size-6");
+    expect(tokens(face?.className ?? "")).toContain("size-5");
     // No state-dependent size: the face cannot resize on a toggle.
     expect(face?.className).not.toContain("group-data-[collapsible=icon]:");
   });

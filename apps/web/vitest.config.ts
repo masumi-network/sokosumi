@@ -20,14 +20,6 @@ export default defineConfig({
         replacement: resolvePath("./src/test/empty-module.ts"),
       },
       {
-        find: /^@sokosumi\/chat$/,
-        replacement: resolvePath("../../packages/chat/src/index.ts"),
-      },
-      {
-        find: /^@sokosumi\/chat\/(.*)$/,
-        replacement: resolvePath("../../packages/chat/src/$1"),
-      },
-      {
         find: /^@sokosumi\/database$/,
         replacement: resolvePath("../../packages/database/src/index.ts"),
       },

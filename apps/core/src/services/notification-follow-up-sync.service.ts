@@ -94,7 +94,7 @@ export interface SendFollowUpsResult {
    * Follow-ups this run actually wrote.
    *
    * Lower than `examined` without anything being wrong, and by more than one
-   * cause. Several rows about the same room, task or job on one day share one
+   * cause. Several rows about the same room or task on one day share one
    * reminder, so all but the first are refused as duplicates. A source row
    * also stays unread after its follow-up, so while it remains in the window a
    * later run reads it again and is refused the same way. Readers who silenced
@@ -320,8 +320,8 @@ async function flushFollowUpEmails(pending: SendEmailInput[]): Promise<number> {
  *
  * A notification that waits on the reader and is still unread a day later gets
  * exactly one follow-up. Unread is the whole of the signal: opening the room,
- * the notification, the task or the job all mark it read, so a row still unread
- * is one nothing has happened to.
+ * the notification or the task all mark it read, so a row still unread is one
+ * nothing has happened to.
  *
  * Only rows that were delivered in the app are eligible. A notification the
  * reader's preferences silenced was stored with that decision on it, and

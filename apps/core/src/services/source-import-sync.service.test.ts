@@ -1,4 +1,6 @@
 import { BlobStatus } from "@sokosumi/database";
+import type { SsrfSafeFetchInit } from "@sokosumi/net";
+import { FILE_UPLOAD_MAX_SIZE_BYTES } from "@sokosumi/utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -53,7 +55,8 @@ vi.mock("@vercel/blob", () => ({
 // delegate straight to the mocked `global.fetch` so these orchestration tests
 // keep exercising the worker's scheduling/cancellation behavior.
 vi.mock("@sokosumi/net", () => ({
-  ssrfSafeFetch: (url: string, init?: RequestInit) => global.fetch(url, init),
+  ssrfSafeFetch: (url: string, init: SsrfSafeFetchInit) =>
+    global.fetch(url, init),
 }));
 
 vi.mock("./source-import.service", () => ({
@@ -99,6 +102,13 @@ function createPendingBlob(index: number): PendingBlobStub {
     createdAt: new Date(`2026-02-25T10:00:0${index}.000Z`),
     event: { jobId: "job-1" },
   };
+}
+
+/** Mirrors the `SsrfError` `ssrfSafeFetch` throws once a body passes the cap. */
+function createSizeRejection(): Error {
+  const error = new Error("Response body exceeds maxResponseBytes (1)");
+  error.name = "SsrfError";
+  return error;
 }
 
 async function waitFor(assertion: () => void, timeoutMs = 500): Promise<void> {
@@ -214,19 +224,24 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
     blobFindManyMock.mockResolvedValue([pendingBlob]);
     blobFindUniqueMock.mockResolvedValue(pendingBlob);
 
-    global.fetch = vi.fn(async () => {
+    const fetchMock = vi.fn(async () => {
       return new Response("hello", {
         status: 200,
         headers: {
           "content-type": "text/plain",
         },
       });
-    }) as unknown as typeof fetch;
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
 
     await sourceImportSyncService.importPendingResultBlobs(
       createImportOptions(),
     );
 
+    expect(fetchMock).toHaveBeenCalledWith(
+      pendingBlob.sourceUrl,
+      expect.objectContaining({ maxResponseBytes: FILE_UPLOAD_MAX_SIZE_BYTES }),
+    );
     expect(blobPutMock).toHaveBeenCalledOnce();
     const [pathname] = blobPutMock.mock.calls[0] ?? [];
     expect(pathname).toMatch(/^jobs\/job-1\//);
@@ -237,6 +252,27 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
         status: BlobStatus.READY,
         fileUrl: expect.stringContaining("jobs/job-1/"),
       }),
+    });
+  });
+
+  it("marks blob FAILED when the fetch rejects the body size", async () => {
+    const sourceImportSyncService = await getSourceImportSyncService();
+    const pendingBlob = createPendingBlob(1);
+
+    blobFindManyMock.mockResolvedValue([pendingBlob]);
+    blobFindUniqueMock.mockResolvedValue(pendingBlob);
+    global.fetch = vi
+      .fn()
+      .mockRejectedValue(createSizeRejection()) as unknown as typeof fetch;
+
+    await sourceImportSyncService.importPendingResultBlobs(
+      createImportOptions(),
+    );
+
+    expect(blobPutMock).not.toHaveBeenCalled();
+    expect(blobUpdateMock).toHaveBeenCalledWith({
+      where: { id: pendingBlob.id },
+      data: { status: BlobStatus.FAILED },
     });
   });
 
@@ -369,7 +405,12 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
         createImportOptions(),
       );
 
-      expect(fetchMock).toHaveBeenCalledWith(sourceUrl, expect.anything());
+      expect(fetchMock).toHaveBeenCalledWith(
+        sourceUrl,
+        expect.objectContaining({
+          maxResponseBytes: FILE_UPLOAD_MAX_SIZE_BYTES,
+        }),
+      );
       expect(blobPutMock).toHaveBeenCalledWith(
         `tasks/${taskId}/report.pdf`,
         expect.any(Blob),
@@ -430,6 +471,42 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
         data: {
           status: "FAILED",
         },
+      });
+    });
+
+    it("marks TaskFile FAILED when the fetch rejects the body size", async () => {
+      const taskFileId = "tfile_125";
+      const taskId = "tsk_125";
+      const pendingTaskFile = {
+        id: taskFileId,
+        taskId,
+        sourceUrl: "https://example.com/huge.pdf",
+        fileUrl: null,
+        name: "huge.pdf",
+        status: "PENDING",
+        origin: "TASK_OUTPUT",
+        createdAt: new Date("2026-02-25T10:00:00.000Z"),
+      };
+
+      taskFileFindManyMock.mockResolvedValue([pendingTaskFile]);
+      taskFileFindUniqueMock.mockResolvedValue({
+        ...pendingTaskFile,
+        task: { id: taskId },
+      });
+      blobFindManyMock.mockResolvedValue([]);
+      global.fetch = vi
+        .fn()
+        .mockRejectedValue(createSizeRejection()) as unknown as typeof fetch;
+
+      const sourceImportSyncService = await getSourceImportSyncService();
+      await sourceImportSyncService.importPendingResultBlobs(
+        createImportOptions(),
+      );
+
+      expect(blobPutMock).not.toHaveBeenCalled();
+      expect(taskFileUpdateMock).toHaveBeenCalledWith({
+        where: { id: taskFileId },
+        data: { status: "FAILED" },
       });
     });
 
