@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import {
   getPushRepairOutcome,
   recordPushRepairOutcome,
+  subscribePushRepairOutcome,
 } from "./push-repair-outcome.client";
 import { usePushPreference } from "./use-push-preference";
 
@@ -116,6 +117,43 @@ describe("usePushPreference", () => {
 
     expect(result.current.isDeviceEnabled).toBe(true);
     expect(getPushRepairOutcome()).toBe("healthy");
+  });
+
+  /**
+   * The note taken after a save is not the save. Writing it walks the
+   * subscribers of the repair store, and a throw from any of them would
+   * otherwise reject a save that worked: the reader would meet the failure
+   * toast over a browser that now receives push.
+   */
+  it("keeps a successful save when the repair note cannot be written", async () => {
+    setAccountOptIn(true);
+    localStorage.setItem("ably.push.deviceIdentityToken", "registered-device");
+    onTestFinished(() =>
+      localStorage.removeItem("ably.push.deviceIdentityToken"),
+    );
+    await recordPushRepairOutcome();
+    expect(getPushRepairOutcome()).toBe("quiet");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const unsubscribe = subscribePushRepairOutcome(() => {
+      throw new Error("a listener gave up");
+    });
+    onTestFinished(unsubscribe);
+    const { result } = renderHook(() => usePushPreference("user_1"), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.canToggleDevice).toBe(true));
+
+    await act(async () => {
+      await expect(
+        result.current.setDeviceEnabled(true),
+      ).resolves.toBeUndefined();
+    });
+
+    expect(result.current.isDeviceEnabled).toBe(true);
+    expect(consoleError).toHaveBeenCalled();
+    consoleError.mockRestore();
   });
 
   it("reports cancelled device activation as unsuccessful", async () => {

@@ -269,7 +269,16 @@ export function usePushPreference(userId: string | undefined): PushPreference {
       saveOwnsSubscriptionRow.current = true;
       try {
         const result = await work(userId);
-        await recordPushRepairOutcome();
+        // The save's own answer is what the view reports, and this is a note
+        // taken after it. It reads the browser and writes to storage, so it
+        // can throw where either is blocked, and an unguarded throw here would
+        // reject a save that worked: the reader would get the failure toast
+        // over a browser that now receives push.
+        try {
+          await recordPushRepairOutcome();
+        } catch (error) {
+          console.error("Failed to record the push repair outcome", error);
+        }
         return result;
       } finally {
         saveOwnsSubscriptionRow.current = false;
