@@ -1,5 +1,5 @@
 /**
- * Ordering rule for the sidebar's Projects disclosure.
+ * Ordering rule for the rows in the sidebar's Projects flyout.
  *
  * Pins claim slots, they do not add rows: every pinned project renders in the
  * reader's own order, and last-visited projects fill whatever is left up to
@@ -7,13 +7,13 @@
  * A pinned project never lists twice, matching the Pinned rule the chat
  * sidebar already uses (`partition-rooms-for-sidebar.ts`).
  *
- * Returns the rows to render; the `Projects` row above the disclosure is what
+ * Returns the rows to render; the panel's `All projects` footer is what
  * reaches the projects the cap leaves out.
  *
  * Pure — no storage, no fetching.
  */
 
-/** Whole rows only; the disclosure never scrolls inside itself. */
+/** Whole rows only; the panel never scrolls inside itself. */
 export const SIDEBAR_PROJECT_ROW_CAP = 5;
 
 interface Identified {

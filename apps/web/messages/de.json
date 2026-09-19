@@ -2351,6 +2351,8 @@
           "filesAndOutputs": "Dateien und Outputs",
           "taskManager": "Aufgaben",
           "projects": "Projekte",
+          "allProjects": "Alle Projekte",
+          "recentProjects": "Zuletzt verwendete Projekte",
           "history": "Verlauf",
           "drive": "Dateien",
           "admin": "Administration",
@@ -2359,8 +2361,6 @@
           "chat": "Chat",
           "sokoBot": "Soko Bots",
           "calendar": "Kalender",
-          "expandProjects": "Projekte ausklappen",
-          "collapseProjects": "Projekte einklappen",
           "projectsLoading": "Projekte werden geladen…",
           "projectsError": "Projekte konnten nicht geladen werden.",
           "retryProjects": "Erneut versuchen"

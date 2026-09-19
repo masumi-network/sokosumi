@@ -472,7 +472,7 @@ describe("ChatRoomSidebarRow collapsed rail", () => {
 
     const link = container.querySelector('a[href="/chat/rooms/room-1"]');
     // The menu button clips its content for name truncation. Collapsed, the
-    // 24px tile's corner mark hangs 6px below it inside a 32px button, so the
+    // 20px tile's corner mark hangs 4px below it inside a 32px button, so the
     // clip has to lift there or the lock and globe lose their bottom.
     expect(link?.className).toContain(
       "group-data-[collapsible=icon]:overflow-visible",
