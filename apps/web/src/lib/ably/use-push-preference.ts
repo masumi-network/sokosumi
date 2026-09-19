@@ -20,6 +20,8 @@ import {
   getMyPreferencesQueryOptions,
 } from "@/queries/preferences";
 
+import { recordPushRepairOutcome } from "./push-repair-outcome.client";
+
 /**
  * Loads the activation module on the click that needs it. That module pulls in
  * the Ably SDK, and the account page must not carry the SDK for every reader
@@ -266,7 +268,18 @@ export function usePushPreference(userId: string | undefined): PushPreference {
       setIsSaving(true);
       saveOwnsSubscriptionRow.current = true;
       try {
-        return await work(userId);
+        const result = await work(userId);
+        // The save's own answer is what the view reports, and this is a note
+        // taken after it. It reads the browser and writes to storage, so it
+        // can throw where either is blocked, and an unguarded throw here would
+        // reject a save that worked: the reader would get the failure toast
+        // over a browser that now receives push.
+        try {
+          await recordPushRepairOutcome();
+        } catch (error) {
+          console.error("Failed to record the push repair outcome", error);
+        }
+        return result;
       } finally {
         saveOwnsSubscriptionRow.current = false;
         setIsSaving(false);

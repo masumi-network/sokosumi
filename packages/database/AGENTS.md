@@ -112,13 +112,12 @@ export const userRepository = {
 - Migration files are in `prisma/migrations/`
 - Use descriptive migration names
 - **Timestamps must be unique.** Prisma applies folders by the 14-digit prefix (`YYYYMMDDHHMMSS`), then the rest of the name. Do not reuse a nearby `YYYYMMDD120000` noon stamp from another PR — bump from the current tip. Two historical collisions are allowlisted in `src/helpers/migration-prefix-uniqueness.ts` (already applied in production); do not add a third folder with those prefixes, and do not rename the existing folders.
-- **Vercel (Core):** `pnpm vercel-build` runs this package’s `prisma:generate`, then this package’s `build`, then Core `tsup`, then `prisma migrate deploy` (Production and Preview). Order is generate-and-compile then migrate (do not migrate if the app fails to compile). Prisma CLI prefers `DATABASE_URL_UNPOOLED` (injected by the Vercel Neon integration), then `DATABASE_URL`. `prisma.config.ts` runs `checkMigrateDeployEnv` only for DB-mutating CLI commands (`migrate …`, `db …`): Preview without `DATABASE_URL_UNPOOLED` fails closed (including raw `prisma migrate deploy`); other Vercel envs warn if unpooled is missing. `prisma generate` skips the preflight. Web Vercel installs use `pnpm install --frozen-lockfile --filter web...` and never install this package. Keep migrations backward-compatible with the previous Core release for the brief window before the new deployment activates.
+- **Vercel (Core):** `pnpm vercel-build` runs this package’s `prisma:generate`, then Core `tsup`, then `prisma migrate deploy` (Production and Preview). Order is generate-and-compile then migrate (do not migrate if the app fails to compile). Core’s `tsup` inlines this package from source (`noExternal`) and keeps `pg` / `@prisma/client` / `@prisma/adapter-pg` external. Prisma CLI prefers `DATABASE_URL_UNPOOLED` (injected by the Vercel Neon integration), then `DATABASE_URL`. `prisma.config.ts` runs `checkMigrateDeployEnv` only for DB-mutating CLI commands (`migrate …`, `db …`): Preview without `DATABASE_URL_UNPOOLED` fails closed (including raw `prisma migrate deploy`); other Vercel envs warn if unpooled is missing. `prisma generate` skips the preflight. Web Vercel installs use `pnpm install --frozen-lockfile --filter web...` and never install this package. Keep migrations backward-compatible with the previous Core release for the brief window before the new deployment activates.
 
 ## Package-Specific Commands
 
 | Command                      | Purpose                       |
 | ---------------------------- | ----------------------------- |
-| `pnpm database:build`        | Build TypeScript to JS        |
 | `pnpm --filter @sokosumi/database lint` | Lint package code             |
 | `pnpm --filter @sokosumi/database format` | Format code with Biome        |
 | `pnpm prisma:generate`       | Generate Prisma client        |
@@ -160,10 +159,13 @@ export default prisma;
 
 ### Build Issues
 
+This package has no build. Core consumes its TypeScript source directly and
+bundles it ([ADR 0035](../../docs/adr/0035-database-consumed-from-source.md)),
+so there is no `dist` to go stale and nothing to clean. A type error here is a
+real type error — do not look for a missing rebuild.
+
 ```bash
-# Clean build cache and dist folder
-pnpm --filter @sokosumi/database clean
-pnpm --filter @sokosumi/database build
+pnpm --filter @sokosumi/database typecheck
 ```
 
 ### Prisma Client Not Found
@@ -175,8 +177,7 @@ pnpm prisma:generate
 ### Type Errors After Schema Changes
 
 1. Regenerate Prisma client: `pnpm prisma:generate`
-2. Rebuild the package: `pnpm database:build`
-3. Restart TypeScript server
+2. Restart TypeScript server
 
 ## Additional Rules
 

@@ -1,12 +1,17 @@
+import type { ReactNode } from "react";
 import {
-  SIDEBAR_RAIL_SQUARE_CLASS,
-  SIDEBAR_ROW_CLASS,
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
   SidebarMenuItem,
   SidebarRowSlot,
 } from "@/components/ui/sidebar";
+import {
+  SIDEBAR_RAIL_SQUARE_CLASS,
+  SIDEBAR_ROW_CLASS,
+  SIDEBAR_ROW_LABEL_CLASS,
+  SIDEBAR_ROW_RAIL_PAD_CLASS,
+} from "@/components/ui/sidebar-classes";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -17,59 +22,167 @@ import { cn } from "@/lib/utils";
  *
  * Both states are answered, because the rail is not a narrower version of the
  * panel: the section header becomes one 32px square and each row keeps only
- * its leading mark, centred in the same 32px box every rail item is. A
- * full-width bar in a 56px rail is the shape nothing on this sidebar has.
+ * its leading mark, on the same 28px axis every rail item uses (`pl-1`, not
+ * `justify-center`, so a shrinking name cannot drag the mark). A full-width
+ * bar in a 56px rail is the shape nothing on this sidebar has.
+ *
+ * It stands in for the two sections a reader in an organization has — Channels
+ * and Direct Messages — rather than one anonymous stack, because those two are
+ * the only ones the real list always draws: Pinned, External and Archived each
+ * depend on data this frame has not loaded, and a section that appeared and
+ * then went away would move every row under it. Two headings also put the
+ * list's one landmark, the break between sections, where it will really land.
+ *
+ * Channels is the one section that is not always there: the real list gates it
+ * on `hasOrganization`, so a personal workspace has Directs alone. A caller
+ * that knows which it is says so, and then the swap moves nothing there
+ * either. The boot shell has no session yet and so cannot know, which is what
+ * the default answers — the same call the row counts make.
+ *
+ * The marks are the two a room row actually draws, and they differ by state
+ * exactly as the real ones do (Channel tile, CONTEXT.md): a Channel is a 16px
+ * kind glyph beside its name and a 20px tile on the rail, a Direct is a 20px
+ * face in both, with a group Direct's second face growing its slot to the
+ * right and dropping off the rail. A 24px square in the expanded panel — what
+ * this used to draw for every row — is a mark no expanded row has.
  */
 
 /**
  * Ragged name lengths, so the panel reads as a list of rooms rather than a
- * stack of identical bars. Doubles as the key: the widths are distinct.
+ * stack of identical bars. Doubles as the key: the widths are distinct within
+ * each section.
  */
-const ROOM_NAME_WIDTHS = ["w-28", "w-20", "w-32", "w-24", "w-16"] as const;
+const CHANNEL_NAME_WIDTHS = ["w-24", "w-16", "w-32"] as const;
 
-export function SidebarChatListSkeleton() {
+/**
+ * One group Direct among the 1:1s, which is the mix a reader's list has and
+ * the only row whose slot is wider than 24px.
+ */
+const DIRECT_ROWS = [
+  { nameWidth: "w-20", faces: 1 },
+  { nameWidth: "w-28", faces: 2 },
+  { nameWidth: "w-14", faces: 1 },
+] as const;
+
+/**
+ * A section heading's box: a titled row expanded, the section's 32px icon
+ * square on the rail. Its create and browse controls are left out — they are
+ * chrome that arrives with the real heading, and a grey square standing in
+ * for a `+` reads as content that never comes.
+ */
+function SectionHeaderSkeleton({ titleWidth }: { titleWidth: string }) {
+  return (
+    <div
+      className={cn(
+        SIDEBAR_ROW_CLASS,
+        SIDEBAR_RAIL_SQUARE_CLASS,
+        SIDEBAR_ROW_RAIL_PAD_CLASS,
+      )}
+    >
+      <SidebarRowSlot>
+        <Skeleton className="size-4 md:size-3 group-data-[collapsible=icon]:size-4" />
+      </SidebarRowSlot>
+      <Skeleton
+        className={cn(SIDEBAR_ROW_LABEL_CLASS, "h-3 flex-none", titleWidth)}
+      />
+    </div>
+  );
+}
+
+/**
+ * The row shape a real row takes from the primitive, so the skeleton cannot
+ * drift from the list it stands in for.
+ */
+function RoomRowSkeleton({
+  mark,
+  nameWidth,
+}: {
+  mark: ReactNode;
+  nameWidth: string;
+}) {
+  return (
+    <SidebarMenuItem>
+      <div
+        className={cn(
+          SIDEBAR_ROW_CLASS,
+          SIDEBAR_RAIL_SQUARE_CLASS,
+          SIDEBAR_ROW_RAIL_PAD_CLASS,
+        )}
+      >
+        <SidebarRowSlot>{mark}</SidebarRowSlot>
+        <Skeleton
+          className={cn(SIDEBAR_ROW_LABEL_CLASS, "h-3 flex-none", nameWidth)}
+        />
+      </div>
+    </SidebarMenuItem>
+  );
+}
+
+/** `ChannelRoomMark`'s two shapes: the kind glyph, then the Channel tile. */
+function ChannelMarkSkeleton() {
+  return (
+    <>
+      <Skeleton className="group-data-[collapsible=icon]:hidden size-4" />
+      <Skeleton className="hidden size-5 group-data-[collapsible=icon]:block" />
+    </>
+  );
+}
+
+/** `DirectRoomAvatarStack`: round faces, the first alone on the rail. */
+function DirectMarkSkeleton({ faces }: { faces: number }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center",
+        // The stack's 2px axis padding, same as the real mark's — and the
+        // rail drop, because extra faces are gone there.
+        faces > 1 && "pl-0.5 group-data-[collapsible=icon]:pl-0",
+      )}
+    >
+      {Array.from({ length: faces }, (_, index) => (
+        <Skeleton
+          key={index}
+          className={cn(
+            "border-sidebar size-5 shrink-0 rounded-full border",
+            index > 0 && "group-data-[collapsible=icon]:hidden -ml-1.5",
+          )}
+        />
+      ))}
+    </span>
+  );
+}
+
+export function SidebarChatListSkeleton({
+  /** False for a personal workspace, whose real list has no Channels. */
+  hasOrganization = true,
+}: {
+  hasOrganization?: boolean;
+} = {}) {
   return (
     <SidebarGroup className="w-full" aria-hidden>
       <SidebarGroupContent className="space-y-2">
-        {/* `ChatSidebarSectionHeader`'s box: a titled row expanded, the
-            section's 32px icon square on the rail. */}
-        <div
-          className={cn(
-            SIDEBAR_ROW_CLASS,
-            SIDEBAR_RAIL_SQUARE_CLASS,
-            "group-data-[collapsible=icon]:px-0",
-          )}
-        >
-          <SidebarRowSlot>
-            <Skeleton className="size-4 md:size-3 group-data-[collapsible=icon]:size-4" />
-          </SidebarRowSlot>
-          <Skeleton className="h-3 w-20 group-data-[collapsible=icon]:hidden" />
-        </div>
-        <SidebarMenu className="gap-0">
-          {ROOM_NAME_WIDTHS.map((nameWidth) => (
-            <SidebarMenuItem key={nameWidth}>
-              {/* The row shape a real row takes from the primitive, so the
-                  skeleton cannot drift from the list it stands in for. */}
-              <div
-                className={cn(
-                  SIDEBAR_ROW_CLASS,
-                  SIDEBAR_RAIL_SQUARE_CLASS,
-                  "group-data-[collapsible=icon]:px-0",
-                )}
-              >
-                <SidebarRowSlot>
-                  {/* The 24px Channel tile, which is what a room row's mark is
-                      in both states. */}
-                  <Skeleton className="size-6" />
-                </SidebarRowSlot>
-                <Skeleton
-                  className={cn(
-                    "group-data-[collapsible=icon]:hidden h-3",
-                    nameWidth,
-                  )}
+        {hasOrganization ? (
+          <>
+            <SectionHeaderSkeleton titleWidth="w-16" />
+            <SidebarMenu className="gap-0">
+              {CHANNEL_NAME_WIDTHS.map((nameWidth) => (
+                <RoomRowSkeleton
+                  key={nameWidth}
+                  mark={<ChannelMarkSkeleton />}
+                  nameWidth={nameWidth}
                 />
-              </div>
-            </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </>
+        ) : null}
+        <SectionHeaderSkeleton titleWidth="w-24" />
+        <SidebarMenu className="gap-0">
+          {DIRECT_ROWS.map(({ nameWidth, faces }) => (
+            <RoomRowSkeleton
+              key={nameWidth}
+              mark={<DirectMarkSkeleton faces={faces} />}
+              nameWidth={nameWidth}
+            />
           ))}
         </SidebarMenu>
       </SidebarGroupContent>

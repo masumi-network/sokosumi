@@ -17,6 +17,7 @@ function buildTask(
     ownerId: "user-1",
     organizationId: null,
     projectId: null,
+    project: null,
     owner: { id: "user-1", name: "Test User", image: null },
     userId: "user-1",
     user: { id: "user-1", name: "Test User", image: null },
@@ -183,6 +184,23 @@ describe("mapTaskToTaskWithCoworker", () => {
 
     expect(mapped.owner).toEqual(task.owner);
     expect(mapped.ownerId).toBe("user-2");
+  });
+
+  it("copies project summary from the API task", () => {
+    const project = {
+      id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+      name: "Autumn",
+      logo: "https://example.com/logo.png",
+    };
+    const task = buildTask(TaskStatus.READY, { project });
+
+    expect(map(task).project).toEqual(project);
+  });
+
+  it("keeps project null when the API task has no project", () => {
+    const task = buildTask(TaskStatus.READY, { project: null });
+
+    expect(map(task).project).toBeNull();
   });
 
   it("maps a soko bot assignee without looking it up in coworkers", () => {

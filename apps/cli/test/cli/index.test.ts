@@ -11,7 +11,14 @@ import {
   type OAuthCredentials,
 } from "../../src/auth/auth-manager.js";
 import type { BrowserLoginOptions } from "../../src/auth/oauth.js";
-import { parseArgv, runCli } from "../../src/cli/index.js";
+import { CLI_COMMANDS } from "../../src/cli/commands/discover.js";
+import {
+  BOOLEAN_OPTION_NAMES,
+  GLOBAL_BOOLEAN_FLAG_BY_TOKEN,
+  GLOBAL_VALUE_OPTIONS,
+  parseArgv,
+  runCli,
+} from "../../src/cli/index.js";
 
 function createTestAuthManager(): AuthManager {
   return new AuthManager({
@@ -189,6 +196,59 @@ test("strips a lone -- so pnpm extra-args work", async () => {
   });
   assert.equal(result.help, true);
   assert.match(output.join(""), /sokosumi auth login/);
+});
+
+test("help lists CLI_COMMANDS and every parseArgv global flag", async () => {
+  const output: string[] = [];
+  const result = await runCli(["-h"], {
+    stdout: { write: (value) => output.push(value) },
+    tuiFn: async () => {
+      throw new Error("TUI should not launch");
+    },
+  });
+  assert.equal(result.help, true);
+  const help = output.join("");
+  const escape = (value: string) =>
+    value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  for (const command of CLI_COMMANDS) {
+    assert.match(help, new RegExp(`^  sokosumi ${escape(command)}`, "m"));
+  }
+  for (const token of Object.keys(GLOBAL_BOOLEAN_FLAG_BY_TOKEN)) {
+    assert.match(help, new RegExp(escape(token)));
+  }
+  for (const name of GLOBAL_VALUE_OPTIONS) {
+    assert.match(help, new RegExp(`--${escape(name)}\\b`));
+  }
+  for (const name of BOOLEAN_OPTION_NAMES) {
+    assert.match(help, new RegExp(`--${escape(name)}\\b`));
+  }
+
+  const parsed = parseArgv([
+    "--preprod",
+    "--api-key-stdin",
+    "--json",
+    "--api-url",
+    "https://api.example.test",
+    "--auth-url",
+    "https://auth.example.test",
+    "--client-id",
+    "client",
+    "--oauth-port",
+    "53682",
+    "--oauth-timeout-ms",
+    "180000",
+    "--create-api-key",
+  ]);
+  assert.equal(parsed.options.preprod, true);
+  assert.equal(parsed.options["api-key-stdin"], true);
+  assert.equal(parsed.options.json, true);
+  assert.equal(parsed.options["api-url"], "https://api.example.test");
+  assert.equal(parsed.options["auth-url"], "https://auth.example.test");
+  assert.equal(parsed.options["client-id"], "client");
+  assert.equal(parsed.options["oauth-port"], "53682");
+  assert.equal(parsed.options["oauth-timeout-ms"], "180000");
+  assert.equal(parsed.options["create-api-key"], true);
 });
 
 test("parses coworker registration vendor ID", () => {

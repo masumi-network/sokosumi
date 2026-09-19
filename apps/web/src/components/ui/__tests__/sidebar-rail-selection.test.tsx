@@ -15,6 +15,9 @@ import {
   SidebarRailSelectionBar,
   SidebarRowSlot,
 } from "@/components/ui/sidebar";
+import {
+  SIDEBAR_ROW_LABEL_CLASS,
+} from "@/components/ui/sidebar-classes";
 
 /**
  * Collapsed to icons, rest, hover and selection all used to render the same
@@ -76,12 +79,13 @@ describe("SidebarMenuButton in the collapsed icon rail", () => {
     // rail only exists at `md` — so the rail sets width alone.
     expect(button?.className).toContain("group-data-[collapsible=icon]:w-8!");
     expect(button?.className).not.toContain("min-w-10");
-    // And centres what it holds: a 12px left pad only centred a 16px icon
-    // while the box was 40px wide.
+    // 4px left pad, flex-start: same 28px axis as `justify-center` in a
+    // 32px square, but the shrinking name cannot drag the mark to the
+    // centre of a still-wide row.
     expect(button?.className).toContain(
-      "group-data-[collapsible=icon]:justify-center",
+      "group-data-[collapsible=icon]:justify-start!",
     );
-    expect(button?.className).toContain("group-data-[collapsible=icon]:px-0!");
+    expect(button?.className).toContain("group-data-[collapsible=icon]:pl-1!");
     expect(button?.className).not.toContain("p-3!");
     // Expanded, the fill still carries all three, so those rules stay.
     expect(button?.className).toContain("hover:bg-sidebar-accent");
@@ -217,8 +221,8 @@ describe("Sidebar row geometry", () => {
  * nothing but the travel is lost.
  */
 describe("Sidebar collapse under prefers-reduced-motion", () => {
-  it("drops the travel from everything the collapse moves", () => {
-    const { container } = render(
+  function renderCollapse() {
+    return render(
       <SidebarProvider defaultOpen>
         <Sidebar collapsible="icon">
           <SidebarContent>
@@ -231,6 +235,10 @@ describe("Sidebar collapse under prefers-reduced-motion", () => {
         </Sidebar>
       </SidebarProvider>,
     );
+  }
+
+  it("drops the travel from everything the collapse moves", () => {
+    const { container } = renderCollapse();
 
     // The gap that reserves the panel's width in the page, the fixed panel
     // itself, and the row box inside it — every part of the one animation.
@@ -248,24 +256,56 @@ describe("Sidebar collapse under prefers-reduced-motion", () => {
     }
   });
 
+  it("moves the gap, the panel and the row on one clock", () => {
+    const { container } = renderCollapse();
+
+    // Rows used Tailwind's 150ms ease-in-out default, so they settled 50ms
+    // before the panel they sit in. One duration and one easing, shared.
+    for (const selector of [
+      '[data-slot="sidebar-gap"]',
+      '[data-slot="sidebar-container"]',
+      '[data-slot="sidebar-menu-button"]',
+    ]) {
+      const tokens = (container.querySelector(selector)?.className ?? "").split(
+        /\s+/,
+      );
+      expect(tokens, selector).toContain("duration-200");
+      expect(tokens, selector).toContain("ease-linear");
+    }
+  });
+
   it("does not offer to animate a height that no longer changes", () => {
-    const { container } = render(
-      <SidebarProvider defaultOpen>
-        <Sidebar collapsible="icon">
-          <SidebarContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton>Tasks</SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarContent>
-        </Sidebar>
-      </SidebarProvider>,
-    );
+    const { container } = renderCollapse();
     const button = container.querySelector('[data-slot="sidebar-menu-button"]');
 
     // A row is `h-11 md:h-8` in both states now, so `height` in the
-    // transition list could never fire.
-    expect(button?.className).toContain("transition-[width,padding]");
+    // transition list could never fire. Margin is in it because the rail
+    // square's 4px offset (`ml-1`) used to snap while width and padding eased.
+    expect(button?.className).toContain("transition-[width,padding,margin]");
+  });
+});
+
+/**
+ * A row's name used `sr-only` on collapse, which clips to 1px on the first
+ * frame — gone long before the width that made room for it. Absolute
+ * positioning then painted the name on top of the mark. The name stays in
+ * the flex flow at the 48px column and its max-width eases to 0 on the same
+ * clock as the panel, so it clips from the right instead of covering the
+ * icon. Reduced motion jumps to the end state.
+ */
+describe("Sidebar row label", () => {
+  it("leaves with the narrowing edge instead of covering the mark", () => {
+    const tokens = SIDEBAR_ROW_LABEL_CLASS.split(/\s+/);
+
+    expect(tokens).toContain("max-w-full");
+    expect(tokens).toContain("overflow-hidden");
+    expect(tokens).toContain("transition-[max-width]");
+    expect(tokens).toContain("duration-200");
+    expect(tokens).toContain("ease-linear");
+    expect(tokens).toContain("motion-reduce:transition-none");
+    expect(tokens).toContain("group-data-[collapsible=icon]:max-w-0");
+    expect(tokens).not.toContain("group-data-[collapsible=icon]:absolute");
+    expect(tokens).not.toContain("group-data-[collapsible=icon]:sr-only");
+    expect(tokens).not.toContain("group-data-[collapsible=icon]:hidden");
   });
 });

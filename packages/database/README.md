@@ -41,7 +41,6 @@ packages/database/
 ├── prisma/
 │   ├── schema.prisma          # Database schema
 │   └── migrations/            # Migration history
-├── dist/                      # Compiled output (gitignored)
 └── package.json
 ```
 
@@ -187,12 +186,13 @@ Job include/payload types (`JobWithEvents`, `jobWithEvents`, …) are also re-ex
 
 ### Building
 
-```bash
-# Build TypeScript to JavaScript
-pnpm run build
+This package has no build. Core consumes its TypeScript source directly and
+bundles it — see [ADR 0035](../../docs/adr/0035-database-consumed-from-source.md).
+There is no `dist`, so nothing can go stale and there is nothing to clean.
 
-# Clean build artifacts
-pnpm run clean
+```bash
+# Check types
+pnpm run typecheck
 ```
 
 ### Database Operations
@@ -280,27 +280,14 @@ export const userRepository = {
 
 ## Troubleshooting
 
-### Build Issues
+### Type Errors Here
 
-If the build fails or the `dist` folder isn't created:
+There is no build step and no `dist`, so a type error in this package is a real
+type error — do not go looking for a missing or stale rebuild.
 
 ```bash
-# Clean build cache and dist folder
-pnpm run clean
-pnpm run build
+pnpm run typecheck
 ```
-
-**Common cause**: Corrupted incremental build cache (`tsconfig.tsbuildinfo`). The `clean` script removes this automatically.
-
-### No Output Files Generated
-
-If `pnpm run build` succeeds but creates no files:
-
-1. The incremental build cache may be corrupted
-2. Delete `tsconfig.tsbuildinfo` and `dist/`
-3. Run `pnpm run build` again
-
-This is automatically handled by the `clean` script.
 
 ### Prisma Client Not Found
 
@@ -310,15 +297,14 @@ Generate the Prisma client with turbo (`build` / `typecheck` / `test` depend on 
 pnpm run prisma:generate
 ```
 
-Core Vercel runs the same `prisma:generate` script from `vercel-build` before `tsc` and `tsup`.
+Core Vercel runs the same `prisma:generate` script from `vercel-build` before `tsup`.
 
 ### Type Errors
 
 If you see type errors after schema changes:
 
 1. Regenerate Prisma client: `pnpm run prisma:generate`
-2. Rebuild the package: `pnpm run build`
-3. Restart your TypeScript server
+2. Restart your TypeScript server
 
 ### Import Errors
 

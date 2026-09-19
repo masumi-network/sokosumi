@@ -28,6 +28,7 @@ import {
   publishChatRoomMentionStatuses,
 } from "@/helpers/chat-room-mention-status";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import { jsonInput } from "@/helpers/prisma-json";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
@@ -347,10 +348,6 @@ function safeMemoryRevision<T extends { hash: string; markdown: string }>(
 ): T {
   const markdown = sanitizeSokoBotMemoryMarkdown(revision.markdown);
   return { ...revision, markdown, hash: memoryHash(markdown) };
-}
-
-function jsonInput(value: unknown): Prisma.InputJsonValue {
-  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
 function safeRuntimeDiagnostic(

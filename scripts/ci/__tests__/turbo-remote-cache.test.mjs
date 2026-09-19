@@ -208,18 +208,16 @@ describe("Vercel web turbo build command", () => {
     const generateAt = script.indexOf(
       "pnpm --filter @sokosumi/database prisma:generate",
     );
-    const databaseBuildAt = script.indexOf(
-      "pnpm --filter @sokosumi/database run build",
-    );
     const tsupAt = script.lastIndexOf("pnpm run build");
     const migrateAt = script.indexOf("prisma:migrate:deploy");
     assert.ok(generateAt >= 0, "Core vercel-build must run prisma:generate");
-    assert.ok(
-      databaseBuildAt > generateAt,
-      "database tsc must follow prisma:generate",
-    );
-    assert.ok(tsupAt > databaseBuildAt, "Core tsup must follow database build");
+    assert.ok(tsupAt > generateAt, "Core tsup must follow prisma:generate");
     assert.ok(migrateAt > tsupAt, "migrate deploy must follow Core tsup");
+    assert.doesNotMatch(
+      script,
+      /@sokosumi\/database run build/,
+      "the database tsc step is gone (ADR 0035)",
+    );
   });
 
   it("runs turbo --filter=web and forces production only", async () => {

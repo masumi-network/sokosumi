@@ -2,9 +2,24 @@
 
 Native SwiftUI chat for macOS 26. iOS 17+ is planned; there is no iOS app target yet. Feature coverage and remaining work live in [PARITY.md](PARITY.md), and product intent in [VISION.md](VISION.md).
 
+
+## Install the latest build
+
+Every change to `apps/apple/**` (or the workflow itself) that reaches `main`
+publishes a signed, notarized disk image to the `apple-latest` prerelease. The
+URL never changes:
+
+**<https://github.com/masumi-network/sokosumi/releases/download/apple-latest/Sokosumi.dmg>**
+
+Open it and drag Sokosumi to Applications. It is a rolling build of `main`,
+not a stable release.
+
+Maintainers: the signing credentials behind that job are set up once by
+[`scripts/setup-release-signing.sh`](scripts/setup-release-signing.sh).
+
 ## Build and run
 
-Open `Sokosumi.xcodeproj`, select the `Sokosumi` scheme and My Mac, then run with the configured Apple Development signing identity. Xcode 27+ is required. Use a stable signing identity for interactive builds so the saved Keychain session remains accessible. See [AGENTS.md](AGENTS.md#interactive-signing) for signing and OAuth setup.
+Open `Sokosumi.xcworkspace` (not the bare project — the workspace is what makes the package tests reachable from the `Sokosumi` scheme), select the `Sokosumi` scheme and My Mac, then run with the configured Apple Development signing identity. Xcode 27+ is required. Use a stable signing identity for interactive builds so the saved Keychain session remains accessible. See [AGENTS.md](AGENTS.md#interactive-signing) for signing and OAuth setup.
 
 Configuration resolves environment variables before the corresponding Info.plist keys:
 
@@ -68,9 +83,9 @@ Run from `apps/apple`:
 mint bootstrap
 mint run swiftformat --lint .
 mint run swiftlint lint --strict
-xcodebuild -project Sokosumi.xcodeproj -scheme Sokosumi -configuration Debug \
+xcodebuild -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug \
   -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation \
-  DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- test -only-testing:SokosumiTests
+  DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- test -enableCodeCoverage NO
 ```
 
-Run affected package suites with `swift test --package-path Packages/<package>`. CI runs all five package suites and app tests. Keep ad-hoc test builds separate from signed interactive builds. For structural changes, run the same tests before and after; also check navigation, composer focus, scrolling and hover actions in an interactive build when those views change.
+That one command runs the app tests and all five package suites. Narrow it with `-only-testing:<target>`, or rerun a single package quickly with `swift test --package-path Packages/<package>`. Keep ad-hoc test builds separate from signed interactive builds. For structural changes, run the same tests before and after; also check navigation, composer focus, scrolling and hover actions in an interactive build when those views change.

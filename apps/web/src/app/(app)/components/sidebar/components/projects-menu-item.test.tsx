@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
+  createEvent,
   fireEvent,
   render,
   screen,
@@ -44,10 +45,16 @@ vi.mock("next/link", () => ({
   }: ComponentProps<"a"> & { prefetch?: boolean }) => <a {...props} />,
 }));
 
+import { recentProjectsStorageKey } from "@/hooks/use-recent-projects";
 import de from "@/messages/de.json";
 import en from "@/messages/en.json";
 import es from "@/messages/es.json";
 import { ProjectsMenuItem } from "./projects-menu-item";
+
+const VISITS_KEY = recentProjectsStorageKey({
+  userId: "user-1",
+  organizationId: "org-1",
+});
 
 function MobileState() {
   const { openMobile, setOpenMobile } = useSidebar();
@@ -77,12 +84,33 @@ function setup(open = true) {
   return { ...render(<Tree />), refresh: () => <Tree /> };
 }
 
-function expand() {
-  fireEvent.click(screen.getByRole("button", { name: "expandProjects" }));
+/** Hrefs of the flyout's project rows, in render order. */
+function projectHrefs(): string[] {
+  return screen
+    .getAllByRole("link")
+    .map((el) => el.getAttribute("href") ?? "")
+    .filter((href) => href.startsWith("/projects/"));
+}
+
+/**
+ * The keyboard open: no delay to wait out, and it is the path that has to keep
+ * working, since a pointer-only panel puts the rows out of reach entirely.
+ */
+function openFlyout() {
+  fireEvent.keyDown(screen.getByRole("link", { name: "projects" }), {
+    key: "ArrowRight",
+  });
+}
+
+/** Placeholder rows standing in for the names that have not arrived. */
+function skeletonRowCount(): number {
+  return document.querySelectorAll('li[aria-hidden="true"]').length;
 }
 
 beforeEach(() => {
+  vi.restoreAllMocks();
   vi.clearAllMocks();
+  localStorage.clear();
   mocks.organizationId = "org-1";
   mocks.userId = "user-1";
   mocks.pending = false;
@@ -96,60 +124,197 @@ beforeEach(() => {
 });
 
 describe("Projects sidebar", () => {
-  it("keeps overview navigation and loads only after disclosure, with current-project semantics", async () => {
+  it("keeps the label in the accessibility tree when the rail collapses", () => {
+    setup();
+    const slot = screen
+      .getByRole("link", { name: "projects" })
+      .querySelector('[data-slot="sidebar-row-slot"]');
+    const label = slot?.nextElementSibling;
+    expect(label?.className.split(/\s+/)).toContain(
+      "group-data-[collapsible=icon]:max-w-0",
+    );
+    expect(label?.className.split(/\s+/)).not.toContain(
+      "group-data-[collapsible=icon]:sr-only",
+    );
+    expect(label?.className.split(/\s+/)).not.toContain(
+      "group-data-[collapsible=icon]:hidden",
+    );
+  });
+
+  it("writes nothing to browser storage of its own", async () => {
+    setup();
+    openFlyout();
+    await screen.findByRole("link", { name: "Launch plan" });
+    // No disclosure choice to persist, and the rows are never cached here.
+    expect(localStorage.length).toBe(0);
+  });
+
+  it("loads the rows before the pointer arrives", async () => {
     setup();
     expect(screen.getByRole("link", { name: "projects" })).toHaveAttribute(
       "href",
       "/projects",
     );
+    // The fetch is already in flight while the panel is still shut.
+    expect(mocks.load).toHaveBeenCalledWith({
+      cursor: null,
+      expectedScope: { userId: "user-1", organizationId: "org-1" },
+    });
     expect(
-      screen
-        .getByRole("link", { name: "projects" })
-        .querySelector('[data-slot="sidebar-row-slot"]'),
-    ).toBeInTheDocument();
-    const trigger = screen.getByRole("button", { name: "expandProjects" });
-    expect(trigger).toHaveAttribute("aria-expanded", "false");
-    expect(
-      document.getElementById(trigger.getAttribute("aria-controls") ?? ""),
-    ).toHaveAttribute("hidden");
-    expand();
+      screen.queryByRole("link", { name: "Launch plan" }),
+    ).not.toBeInTheDocument();
+    openFlyout();
     expect(
       await screen.findByRole("link", { name: "Launch plan" }),
     ).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "projects" })).not.toHaveAttribute(
       "aria-current",
     );
-    expect(mocks.load).toHaveBeenCalledWith({
-      cursor: null,
-      expectedScope: { userId: "user-1", organizationId: "org-1" },
+  });
+
+  it("opens without a loading state and does not refetch when the reader comes back", async () => {
+    setup();
+    openFlyout();
+    await screen.findByRole("link", { name: "Launch plan" });
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: "Escape",
     });
-    fireEvent.click(screen.getByRole("button", { name: "collapseProjects" }));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("link", { name: "Launch plan" }),
+      ).not.toBeInTheDocument(),
+    );
+    openFlyout();
+    // The rows are already there, so the panel never stands on a skeleton and
+    // the page is not asked for again.
+    expect(
+      await screen.findByRole("link", { name: "Launch plan" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(mocks.load).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers no flyout for a workspace without projects", async () => {
+    mocks.load.mockResolvedValue({ projects: [], nextCursor: null });
+    setup();
+    // The row keeps its link and drops the affordance that promises a panel.
+    const row = screen.getByRole("link", { name: "projects" });
+    await waitFor(() =>
+      expect(
+        row.querySelector(".lucide-chevron-right"),
+      ).not.toBeInTheDocument(),
+    );
+    openFlyout();
+    expect(projectHrefs()).toEqual([]);
+  });
+
+  it("never promises a panel it will have to retract", async () => {
+    mocks.load.mockResolvedValue({ projects: [], nextCursor: null });
+    setup();
+    const row = screen.getByRole("link", { name: "projects" });
+    // Not on the first paint, while the page is still in flight…
+    expect(row.querySelector(".lucide-chevron-right")).not.toBeInTheDocument();
+    await waitFor(() => expect(mocks.load).toHaveBeenCalled());
+    // …and not once an empty workspace comes back, so the row never changes
+    // shape under the reader.
+    expect(row.querySelector(".lucide-chevron-right")).not.toBeInTheDocument();
+  });
+
+  it("opens to the keyboard and puts focus in the panel", async () => {
+    setup();
+    const row = screen.getByRole("link", { name: "projects" });
+    // Nothing opens on focus alone: a panel that appears and cannot be entered
+    // is worse than one that never opened.
+    fireEvent.focus(row);
     expect(
       screen.queryByRole("link", { name: "Launch plan" }),
     ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "expandProjects" }),
-    ).toHaveAttribute("aria-expanded", "false");
+    expect(row).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.keyDown(row, { key: "ArrowRight" });
+    const first = await screen.findByRole("link", { name: "Launch plan" });
+    expect(row).toHaveAttribute("aria-expanded", "true");
+    // The rows are reachable, which is what the hover card could not do.
+    await waitFor(() =>
+      expect(first.closest('[data-slot="popover-content"]')).toContainElement(
+        document.activeElement as HTMLElement,
+      ),
+    );
   });
 
-  it("shows loading, failure, retry and empty states", async () => {
+  it("returns focus to the row when the panel is dismissed", async () => {
+    setup();
+    const row = screen.getByRole("link", { name: "projects" });
+    fireEvent.keyDown(row, { key: "ArrowRight" });
+    await screen.findByRole("link", { name: "Launch plan" });
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: "Escape",
+    });
+    await waitFor(() => expect(document.activeElement).toBe(row));
+  });
+
+  it("leaves focus where the reader went when they leave the panel", async () => {
+    setup();
+    const row = screen.getByRole("link", { name: "projects" });
+    fireEvent.keyDown(row, { key: "ArrowRight" });
+    await screen.findByRole("link", { name: "Launch plan" });
+    const elsewhere = screen.getByRole("button", { name: "mobile-closed" });
+    // Focus leaving the portaled panel is an outside interaction, not Escape.
+    elsewhere.focus();
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("link", { name: "Launch plan" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(document.activeElement).toBe(elsewhere);
+  });
+
+  it("leaves Enter to the link so the row still navigates", async () => {
+    setup();
+    const row = screen.getByRole("link", { name: "projects" });
+    const enter = createEvent.keyDown(row, { key: "Enter" });
+    fireEvent(row, enter);
+    // Not swallowed into opening a menu, so the browser follows the href.
+    expect(enter.defaultPrevented).toBe(false);
+    expect(
+      screen.queryByRole("link", { name: "Launch plan" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("opens to the pointer without taking focus away", async () => {
+    setup();
+    const row = screen.getByRole("link", { name: "projects" });
+    const elsewhere = screen.getByRole("button", { name: "mobile-closed" });
+    elsewhere.focus();
+    fireEvent.pointerEnter(row);
+    await screen.findByRole("link", { name: "Launch plan" });
+    expect(document.activeElement).toBe(elsewhere);
+  });
+
+  it("stands the rows in with a skeleton while they load", async () => {
+    mocks.load.mockImplementation(() => new Promise(() => {}));
+    setup();
+    openFlyout();
+    await screen.findByRole("status");
+    // The panel floats, so the count is a constant rather than an estimate.
+    expect(skeletonRowCount()).toBe(5);
+  });
+
+  it("shows failure and retries", async () => {
     mocks.load
       .mockRejectedValueOnce(new Error("Forbidden"))
-      .mockResolvedValueOnce({ projects: [], nextCursor: null });
+      .mockResolvedValueOnce({
+        projects: [{ id: "project-1", name: "Launch plan" }],
+        nextCursor: null,
+      });
     setup();
-    expand();
-    expect(screen.getByRole("status")).toHaveTextContent("projectsLoading");
-    expect(
-      await screen.findByRole("button", { name: "retryProjects" }),
-    ).toBeInTheDocument();
+    openFlyout();
+    const retry = await screen.findByRole("button", { name: "retryProjects" });
     expect(screen.getByRole("status")).toHaveTextContent("projectsError");
-    fireEvent.click(screen.getByRole("button", { name: "retryProjects" }));
-    await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent("projectsEmpty"),
-    );
+    fireEvent.click(retry);
     expect(
-      screen.queryByRole("link", { name: "viewAllProjects" }),
-    ).not.toBeInTheDocument();
+      await screen.findByRole("link", { name: "Launch plan" }),
+    ).toBeInTheDocument();
   });
 
   it("drops old workspace rows and ignores an old in-flight response", async () => {
@@ -164,12 +329,14 @@ describe("Projects sidebar", () => {
         }),
     );
     const view = setup();
-    expand();
+    openFlyout();
+    mocks.load.mockResolvedValueOnce({
+      projects: [{ id: "personal", name: "Personal project" }],
+      nextCursor: null,
+    });
     mocks.organizationId = null;
     view.rerender(view.refresh());
-    expect(
-      screen.getByRole("button", { name: "expandProjects" }),
-    ).toHaveAttribute("aria-expanded", "false");
+    openFlyout();
     await act(async () =>
       finish({
         projects: [{ id: "private", name: "Old org secret" }],
@@ -177,11 +344,6 @@ describe("Projects sidebar", () => {
       }),
     );
     expect(screen.queryByText("Old org secret")).not.toBeInTheDocument();
-    mocks.load.mockResolvedValueOnce({
-      projects: [{ id: "personal", name: "Personal project" }],
-      nextCursor: null,
-    });
-    expand();
     expect(
       await screen.findByRole("link", { name: "Personal project" }),
     ).toBeInTheDocument();
@@ -194,144 +356,174 @@ describe("Projects sidebar", () => {
     expect(screen.queryByText("Personal project")).not.toBeInTheDocument();
   });
 
-  it("loads every page on scroll or keyboard focus, preserving API order and long names", async () => {
+  it("caps the flyout at whole rows instead of scrolling inside itself", async () => {
     const name = "A long project name ".repeat(20).trim();
-    mocks.load
-      .mockResolvedValueOnce({
-        projects: Array.from({ length: 20 }, (_, i) => ({
-          id: String(i),
-          name: i === 0 ? name : `Project ${i}`,
-        })),
-        nextCursor: "page-2",
-      })
-      .mockResolvedValueOnce({
-        projects: [{ id: "20", name: "Page two" }],
-        nextCursor: "page-3",
-      })
-      .mockResolvedValueOnce({
-        projects: [{ id: "21", name: "Last project" }],
-        nextCursor: null,
-      });
+    mocks.load.mockResolvedValue({
+      projects: Array.from({ length: 12 }, (_, i) => ({
+        id: String(i),
+        name: i === 0 ? name : `Project ${i}`,
+      })),
+      nextCursor: "page-2",
+    });
     setup();
-    expand();
-    const link = await screen.findByTitle(name);
-    expect(link).toHaveAttribute("href", "/projects/0");
-    expect(screen.getAllByRole("link")).toHaveLength(21);
+    openFlyout();
+    const first = await screen.findByTitle(name);
+    expect(first).toHaveAttribute("href", "/projects/0");
+    expect(projectHrefs()).toEqual([
+      "/projects/0",
+      "/projects/1",
+      "/projects/2",
+      "/projects/3",
+      "/projects/4",
+    ]);
+    // One page is enough for five rows, and the list never nests a scroller.
     expect(mocks.load).toHaveBeenCalledTimes(1);
-    fireEvent.scroll(link.closest("ul")!);
-    const second = await screen.findByRole("link", { name: "Page two" });
-    fireEvent.focus(second);
-    await screen.findByRole("link", { name: "Last project" });
-    expect(
-      screen
-        .getAllByRole("link")
-        .slice(-2)
-        .map((el) => el.textContent),
-    ).toEqual(["PPage two", "LLast project"]);
-    expect(mocks.load.mock.calls.map(([args]) => args.cursor)).toEqual([
-      null,
-      "page-2",
-      "page-3",
-    ]);
-    expect(screen.queryByText("viewAllProjects")).not.toBeInTheDocument();
-  });
-
-  it("hides stale pages after a page failure and retries the failed cursor", async () => {
-    mocks.load
-      .mockResolvedValueOnce({
-        projects: [{ id: "1", name: "First" }],
-        nextCursor: "next",
-      })
-      .mockRejectedValueOnce(new Error("Forbidden"))
-      .mockResolvedValueOnce({
-        projects: [{ id: "2", name: "Second" }],
-        nextCursor: null,
-      });
-    setup();
-    expand();
-    fireEvent.focus(await screen.findByRole("link", { name: "First" }));
-    const retry = await screen.findByRole("button", { name: "retryProjects" });
-    expect(
-      screen.queryByRole("link", { name: "First" }),
-    ).not.toBeInTheDocument();
-    fireEvent.click(retry);
-    expect(
-      await screen.findByRole("link", { name: "Second" }),
-    ).toBeInTheDocument();
-    expect(mocks.load.mock.calls.map(([args]) => args.cursor)).toEqual([
-      null,
-      "next",
-      "next",
-    ]);
-  });
-
-  it("ignores a late next page when switching workspaces", async () => {
-    let finish: (value: {
-      projects: { id: string; name: string }[];
-      nextCursor: null;
-    }) => void = () => {};
-    mocks.load
-      .mockResolvedValueOnce({
-        projects: [{ id: "old", name: "Old workspace" }],
-        nextCursor: "next",
-      })
-      .mockImplementationOnce(
-        () =>
-          new Promise((resolve) => {
-            finish = resolve;
-          }),
-      );
-    const view = setup();
-    expand();
-    fireEvent.focus(await screen.findByRole("link", { name: "Old workspace" }));
-    await waitFor(() => expect(mocks.load).toHaveBeenCalledTimes(2));
-    mocks.organizationId = null;
-    view.rerender(view.refresh());
-    await act(async () =>
-      finish({
-        projects: [{ id: "secret", name: "Late private project" }],
-        nextCursor: null,
-      }),
+    expect(first.closest("ul")?.className ?? "").not.toMatch(
+      /overflow-y-auto|max-h-/,
     );
-    expect(screen.queryByText("Old workspace")).not.toBeInTheDocument();
-    expect(screen.queryByText("Late private project")).not.toBeInTheDocument();
-    mocks.load.mockResolvedValueOnce({
-      projects: [{ id: "new", name: "New workspace" }],
+  });
+
+  it("does not rank another user's visits in the same workspace", async () => {
+    localStorage.setItem(
+      recentProjectsStorageKey({
+        userId: "user-2",
+        organizationId: "org-1",
+      }),
+      JSON.stringify(["7", "9"]),
+    );
+    mocks.load.mockResolvedValue({
+      projects: Array.from({ length: 12 }, (_, i) => ({
+        id: String(i),
+        name: `Project ${i}`,
+      })),
       nextCursor: null,
     });
-    expand();
-    expect(
-      await screen.findByRole("link", { name: "New workspace" }),
-    ).toBeInTheDocument();
+    setup();
+    openFlyout();
+    await screen.findByRole("link", { name: "Project 0" });
+    expect(projectHrefs()).toEqual([
+      "/projects/0",
+      "/projects/1",
+      "/projects/2",
+      "/projects/3",
+      "/projects/4",
+    ]);
+  });
+
+  it("does not rank the same user's visits from another workspace", async () => {
+    localStorage.setItem(
+      recentProjectsStorageKey({
+        userId: "user-1",
+        organizationId: "org-2",
+      }),
+      JSON.stringify(["7", "9"]),
+    );
+    mocks.load.mockResolvedValue({
+      projects: Array.from({ length: 12 }, (_, i) => ({
+        id: String(i),
+        name: `Project ${i}`,
+      })),
+      nextCursor: null,
+    });
+    setup();
+    openFlyout();
+    await screen.findByRole("link", { name: "Project 0" });
+    expect(projectHrefs()).toEqual([
+      "/projects/0",
+      "/projects/1",
+      "/projects/2",
+      "/projects/3",
+      "/projects/4",
+    ]);
+  });
+
+  it("ranks the reader's last visits ahead of Core's activity order", async () => {
+    localStorage.setItem(VISITS_KEY, JSON.stringify(["7", "9"]));
+    mocks.load.mockResolvedValue({
+      projects: Array.from({ length: 12 }, (_, i) => ({
+        id: String(i),
+        name: `Project ${i}`,
+      })),
+      nextCursor: null,
+    });
+    setup();
+    openFlyout();
+    await screen.findByRole("link", { name: "Project 7" });
+    expect(projectHrefs()).toEqual([
+      "/projects/7",
+      "/projects/9",
+      "/projects/0",
+      "/projects/1",
+      "/projects/2",
+    ]);
+  });
+
+  it("ignores a visit log entry the workspace no longer carries", async () => {
+    localStorage.setItem(
+      VISITS_KEY,
+      JSON.stringify(["from-another-workspace", "project-1"]),
+    );
+    setup();
+    openFlyout();
+    await screen.findByRole("link", { name: "Launch plan" });
+    expect(projectHrefs()).toEqual(["/projects/project-1"]);
+  });
+
+  it("names the panel by its own heading, not the row it hangs off", async () => {
+    setup();
+    openFlyout();
+    const row = await screen.findByRole("link", { name: "Launch plan" });
+    const panel = row.closest('[data-slot="popover-content"]');
+    // The heading says what the rows are, so it is not the row label echoed
+    // back — and it is what a screen reader announces for the panel.
+    const heading = screen.getByText("recentProjects");
+    expect(panel).toHaveAttribute("aria-labelledby", heading.id);
+    expect(heading.id).not.toBe("");
+  });
+
+  it("offers a way to the full list from inside the panel", async () => {
+    setup();
+    openFlyout();
+    await screen.findByRole("link", { name: "Launch plan" });
+    const all = screen.getByRole("link", { name: "allProjects" });
+    expect(all).toHaveAttribute("href", "/projects");
+    // No avatar: a placeholder square read as a project with a broken logo.
+    expect(all.querySelector('[data-slot="avatar"]')).not.toBeInTheDocument();
+    // Still reachable when the rows themselves could not be had.
+    expect(projectHrefs()).toEqual(["/projects/project-1"]);
   });
 
   it("renders the established avatar fallback without changing the accessible link name", async () => {
     setup();
-    expand();
+    openFlyout();
     const link = await screen.findByRole("link", { name: "Launch plan" });
     expect(link.querySelector('[data-slot="avatar"]')).toBeInTheDocument();
+    expect(link.querySelector(".lucide-check")).not.toBeInTheDocument();
+    expect(link).toHaveAttribute("data-active", "true");
+    expect(link).toHaveAttribute("aria-current", "page");
     expect(
       link.querySelector('[data-slot="avatar-fallback"]'),
     ).toHaveTextContent("L");
   });
 
-  it("keeps the collapsed rail as an overview link without fetching", () => {
+  it("reaches the rows from the collapsed rail, where they used to be unreachable", async () => {
     setup(false);
     expect(screen.getByRole("link", { name: "projects" })).toHaveAttribute(
       "href",
       "/projects",
     );
-    expect(
-      screen.queryByRole("button", { name: "expandProjects" }),
-    ).not.toBeInTheDocument();
-    expect(mocks.load).not.toHaveBeenCalled();
+    await waitFor(() => expect(mocks.load).toHaveBeenCalled());
+    // A 56px rail has nowhere to put rows, but the panel floats clear of it.
+    openFlyout();
+    await screen.findByRole("link", { name: "Launch plan" });
+    expect(projectHrefs()).toEqual(["/projects/project-1"]);
   });
 
-  it("allows disclosure on mobile even when desktop is collapsed, then dismisses on navigation", async () => {
+  it("dismisses the mobile sheet on navigation", async () => {
     mocks.mobile = true;
     setup(false);
     fireEvent.click(screen.getByRole("button", { name: "mobile-closed" }));
-    expand();
+    openFlyout();
     expect(
       screen.getByRole("button", { name: "mobile-open" }),
     ).toBeInTheDocument();
@@ -343,15 +535,15 @@ describe("Projects sidebar", () => {
 });
 
 it.each([en, de, es])(
-  "ships disclosure and status strings in the sidebar message namespace",
+  "ships flyout and status strings in the sidebar message namespace",
   (messages) => {
     const labels = messages.App.Sidebar.Content.MenuItems;
     for (const key of [
-      "expandProjects",
-      "collapseProjects",
+      "projects",
+      "recentProjects",
+      "allProjects",
       "projectsLoading",
       "projectsError",
-      "projectsEmpty",
       "retryProjects",
     ] as const) {
       expect(labels[key]).toEqual(expect.any(String));

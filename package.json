@@ -16,7 +16,6 @@
     "build": "turbo run build",
     "web:build": "pnpm --filter web build",
     "core:build": "pnpm --filter core build",
-    "database:build": "pnpm --filter @sokosumi/database build",
     "masumi:build": "pnpm --filter @sokosumi/masumi build",
     "packages:build": "pnpm --filter \"./packages/*\" run build",
     "typecheck": "turbo run typecheck",
@@ -62,6 +61,6 @@
     "lighthouse": "13.4.1",
     "portless": "0.15.6",
     "tsx": "4.23.13",
-    "turbo": "2.10.13"
+    "turbo": "2.11.1"
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { Calendar, MessageSquare } from "lucide-react";
+import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import {
@@ -8,34 +9,52 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
+import type { ProjectSummary } from "@/lib/clients/generated/core/types.gen";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 interface TaskMetaDetailsProps {
-  owner: TaskWithCoworker["owner"];
+  project: TaskWithCoworker["project"];
   assignee: TaskWithCoworker["assignee"];
   commentsCount: TaskWithCoworker["commentsCount"];
   createdAt: TaskWithCoworker["createdAt"];
   variant?: "card" | "list";
 }
 
+function TaskProjectMark({ project }: { project: ProjectSummary }) {
+  const label = project.name.trim() || "—";
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex shrink-0" role="img" aria-label={label}>
+          <ProjectAvatar
+            name={project.name}
+            logo={project.logo}
+            className="size-5 rounded-lg"
+          />
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="top" sideOffset={6}>
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 export function TaskMetaDetails({
-  owner,
+  project,
   assignee,
   commentsCount,
   createdAt,
   variant = "card",
 }: TaskMetaDetailsProps) {
   const { formatShortDate } = useLocalizedDateTime();
-  const ownerName = owner.name.trim() || "—";
   const assigneeName = assignee?.name?.trim() || "—";
-  const participantNames = assignee?.name?.trim()
-    ? `${assigneeName}, ${ownerName}`
-    : ownerName;
 
   if (variant === "list") {
     return (
       <>
+        {project ? <TaskProjectMark project={project} /> : null}
         <div className="text-muted-foreground xs:w-auto flex w-24 items-center gap-1.5 truncate text-xs">
           <AssigneeAvatar assignee={assignee} />
           <span className="truncate">{assignee?.name ?? "—"}</span>
@@ -56,31 +75,20 @@ export function TaskMetaDetails({
 
   return (
     <div className="border-border flex items-center justify-between gap-2 border-t pt-2">
-      <div
-        className="flex items-center -space-x-1"
-        aria-label={participantNames}
-        role="img"
-      >
-        {assignee ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="z-10 inline-flex">
-                <AssigneeAvatar assignee={assignee} />
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="top" sideOffset={6}>
-              {assigneeName}
-            </TooltipContent>
-          </Tooltip>
-        ) : null}
+      <div className="flex items-center gap-1.5">
+        {project ? <TaskProjectMark project={project} /> : null}
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className="z-20 inline-flex">
-              <UserProfileAvatar name={owner.name} image={owner.image} />
+            <span
+              className="inline-flex shrink-0"
+              role="img"
+              aria-label={assigneeName}
+            >
+              <AssigneeAvatar assignee={assignee} />
             </span>
           </TooltipTrigger>
           <TooltipContent side="top" sideOffset={6}>
-            {ownerName}
+            {assigneeName}
           </TooltipContent>
         </Tooltip>
       </div>

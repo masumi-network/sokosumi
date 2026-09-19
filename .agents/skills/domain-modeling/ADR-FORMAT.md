@@ -26,6 +26,23 @@ Only include these when they add genuine value. Most ADRs won't need them.
 
 Scan `docs/adr/` for the highest existing number and increment by one.
 
+## Superseding an ADR
+
+When a new ADR reverses an old one, the old file moves to
+`docs/adr/superseded/<slug>.md` — same slug, **number prefix dropped**, so the
+live directory only ever lists current decisions. Rewrite its body down to a
+short summary of what it decided and which claim turned out wrong, then point
+forward:
+
+```md
+- Status: Superseded by [ADR-0035](../0035-database-consumed-from-source.md)
+- Archived: live number 0034 is retired; do not reuse it
+```
+
+The `Archived:` line says what happened to the number: retired, or which live
+ADR now holds it. The new ADR carries the matching `Supersedes:` line, so the
+pair reads correctly from either end.
+
 ## When to offer an ADR
 
 All three of these must be true:

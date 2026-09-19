@@ -3,11 +3,11 @@
 import { ArrowLeft, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { useSyncExternalStore } from "react";
 import { ShareButton } from "@/components/share-button";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
+import useIsClient from "@/hooks/use-is-client";
 import type { CoreAgentDto } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 
@@ -32,15 +32,8 @@ function AgentActionButtons({
 }: AgentActionButtonsProps) {
   const router = useRouter();
   const { isMobile } = useSidebar();
+  const isClient = useIsClient();
 
-  // Detect client-side rendering without setState in useEffect
-  const isClient = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false,
-  );
-
-  // Compute URL only on client to avoid hydration mismatch
   const url = isClient
     ? new URL(`${window.location.origin}/agents/${agent.id}`)
     : undefined;

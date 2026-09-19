@@ -37,11 +37,16 @@ export function useUnreadThreadCount(
     }
     let active = true;
     const timeoutId = window.setTimeout(() => {
-      void countUnreadThreadsAction(roomId).then((result) => {
-        if (active && result.ok) {
-          setCounted({ roomId, count: result.value });
-        }
-      });
+      void countUnreadThreadsAction(roomId)
+        .then((result) => {
+          if (active && result.ok) {
+            setCounted({ roomId, count: result.value });
+          }
+        })
+        // A server action rejects instead of answering with a result when the
+        // POST comes back as something other than RSC. That is the same
+        // outcome as a failed count, so keep the last number.
+        .catch(() => {});
     }, COUNT_DEBOUNCE_MS);
     return () => {
       active = false;

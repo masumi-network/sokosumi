@@ -7,7 +7,6 @@ import mountDeleteJobShareById from "./delete";
 
 const {
   authContextState,
-  prismaTransactionMock,
   deleteByJobIdMock,
   requireJobShareCollaborationMock,
 } = vi.hoisted(() => ({
@@ -24,7 +23,6 @@ const {
       role: string;
     } | null,
   },
-  prismaTransactionMock: vi.fn(),
   deleteByJobIdMock: vi.fn(),
   requireJobShareCollaborationMock: vi.fn(),
 }));
@@ -100,9 +98,12 @@ vi.mock("@sokosumi/database/repositories", () => ({
   },
 }));
 
-vi.mock("@/lib/db/prisma", () => ({
+vi.mock("@/lib/db/prisma", async () => ({
   default: {
-    $transaction: (...args: unknown[]) => prismaTransactionMock(...args),
+    member: {
+      findUnique: (await import("@/test-fixtures/organization-membership"))
+        .stubMemberFindUnique,
+    },
   },
 }));
 
@@ -121,9 +122,6 @@ describe("DELETE /jobs/{id}/share", () => {
       organizationId: "org_123",
       role: "user",
     };
-    prismaTransactionMock.mockImplementation(
-      async (callback: (tx: unknown) => Promise<unknown>) => await callback({}),
-    );
     requireJobShareCollaborationMock.mockResolvedValue({
       id: "job_123",
       userId: "user_123",

@@ -9,6 +9,12 @@ import { getEnv } from "@/config/env";
 import { getNotificationChannelEnvironment } from "./notification-channel-environment";
 import { buildAblyClientCapability } from "./subscribe-capability";
 
+/**
+ * Capabilities are a snapshot of membership at mint time and nothing revokes
+ * them (SOK-1023). A short ttl bounds how long a removed member keeps access.
+ */
+export const ABLY_CLIENT_TOKEN_TTL_MS = 5 * 60 * 1000;
+
 let subscribeRestClient: Rest | null = null;
 
 function getSubscribeRestClient(): Rest {
@@ -49,5 +55,6 @@ export async function createAblyClientTokenRequest({
   return client.auth.createTokenRequest({
     clientId: buildAblyPresenceClientId(userId, clientInstanceId),
     capability,
+    ttl: ABLY_CLIENT_TOKEN_TTL_MS,
   }) as Promise<TokenRequest>;
 }

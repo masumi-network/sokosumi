@@ -10,16 +10,9 @@
 		E172F750304F3FBD00C517E4 /* CoreAPI in Frameworks */ = {isa = PBXBuildFile; productRef = E172F751304F3FBD00C517E4 /* CoreAPI */; };
 		E172F755304F3FBD00C517E4 /* SokosumiAuth in Frameworks */ = {isa = PBXBuildFile; productRef = E172F754304F3FBD00C517E4 /* SokosumiAuth */; };
 		E173A001304F3FBD00C517E4 /* SokosumiChat in Frameworks */ = {isa = PBXBuildFile; productRef = E173A002304F3FBD00C517E4 /* SokosumiChat */; };
-		E174B022304F3FBD00C517E4 /* CoreAPI in Frameworks */ = {isa = PBXBuildFile; productRef = E172F751304F3FBD00C517E4 /* CoreAPI */; };
-		E174B023304F3FBD00C517E4 /* SokosumiAuth in Frameworks */ = {isa = PBXBuildFile; productRef = E172F754304F3FBD00C517E4 /* SokosumiAuth */; };
-		E174B024304F3FBD00C517E4 /* SokosumiChat in Frameworks */ = {isa = PBXBuildFile; productRef = E173A002304F3FBD00C517E4 /* SokosumiChat */; };
-		E174B025304F3FBD00C517E4 /* OpenAPIRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = E174B052304F3FBD00C517E4 /* OpenAPIRuntime */; };
-		E174B026304F3FBD00C517E4 /* HTTPTypes in Frameworks */ = {isa = PBXBuildFile; productRef = E174B053304F3FBD00C517E4 /* HTTPTypes */; };
 		E174B027304F3FBD00C517E4 /* OpenAPIRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = E174B052304F3FBD00C517E4 /* OpenAPIRuntime */; };
 		E176D030304F3FBD00C517E4 /* SokosumiRealtime in Frameworks */ = {isa = PBXBuildFile; productRef = E176D031304F3FBD00C517E4 /* SokosumiRealtime */; };
-		E176D032304F3FBD00C517E4 /* SokosumiRealtime in Frameworks */ = {isa = PBXBuildFile; productRef = E176D031304F3FBD00C517E4 /* SokosumiRealtime */; };
 		E179D030304F3FBD00C517E4 /* SokosumiWorkspace in Frameworks */ = {isa = PBXBuildFile; productRef = E179D031304F3FBD00C517E4 /* SokosumiWorkspace */; };
-		E179D032304F3FBD00C517E4 /* SokosumiWorkspace in Frameworks */ = {isa = PBXBuildFile; productRef = E179D031304F3FBD00C517E4 /* SokosumiWorkspace */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -68,13 +61,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E174B022304F3FBD00C517E4 /* CoreAPI in Frameworks */,
-				E174B023304F3FBD00C517E4 /* SokosumiAuth in Frameworks */,
-				E174B024304F3FBD00C517E4 /* SokosumiChat in Frameworks */,
-				E176D032304F3FBD00C517E4 /* SokosumiRealtime in Frameworks */,
-				E179D032304F3FBD00C517E4 /* SokosumiWorkspace in Frameworks */,
-				E174B025304F3FBD00C517E4 /* OpenAPIRuntime in Frameworks */,
-				E174B026304F3FBD00C517E4 /* HTTPTypes in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -147,13 +133,6 @@
 			);
 			name = SokosumiTests;
 			packageProductDependencies = (
-				E172F751304F3FBD00C517E4 /* CoreAPI */,
-				E172F754304F3FBD00C517E4 /* SokosumiAuth */,
-				E173A002304F3FBD00C517E4 /* SokosumiChat */,
-				E176D031304F3FBD00C517E4 /* SokosumiRealtime */,
-				E179D031304F3FBD00C517E4 /* SokosumiWorkspace */,
-				E174B052304F3FBD00C517E4 /* OpenAPIRuntime */,
-				E174B053304F3FBD00C517E4 /* HTTPTypes */,
 			);
 			productName = SokosumiTests;
 			productReference = E174B010304F3FBD00C517E4 /* SokosumiTests.xctest */;

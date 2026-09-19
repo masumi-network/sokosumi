@@ -16,6 +16,7 @@ import {
   SidebarRailSelectionBar,
   SidebarRowSlot,
 } from "@/components/ui/sidebar";
+import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
@@ -58,7 +59,7 @@ export default function PersonalAssistantNav({
               stack of up to three faces that shrank as the stack grew — so
               the entry above every other row was the one that moved the list
               furthest on a toggle, and its mark changed size with the number
-              of bots in the workspace. One face at 24px in the shared slot
+              of bots in the workspace. One face at 20px in the shared slot
               says the same thing and lines up with the nav under it; the
               divider below still marks it as the entry it is.
             */}
@@ -84,7 +85,12 @@ export default function PersonalAssistantNav({
                       <Bot className="size-4" aria-hidden />
                     )}
                   </SidebarRowSlot>
-                  <span className="flex-1 truncate font-medium group-data-[collapsible=icon]:sr-only">
+                  <span
+                    className={cn(
+                      SIDEBAR_ROW_LABEL_CLASS,
+                      "truncate font-medium",
+                    )}
+                  >
                     {t("sokoBot")}
                   </span>
                 </Link>
@@ -98,9 +104,15 @@ export default function PersonalAssistantNav({
   );
 }
 
-/** The workspace's first Soko Bot — yours when you have one. */
+/**
+ * The workspace's first Soko Bot — yours when you have one.
+ *
+ * 20px, the size every face in this sidebar is: this row stands directly
+ * above the chat lists, so a face here and a Direct's face below it are read
+ * as one column. One size in both states, so the toggle cannot resize it.
+ */
 function BotFace({ bot }: { bot: SidebarSokoBotAvatar }) {
-  const className = "size-6 shrink-0 rounded-full object-cover";
+  const className = "size-5 shrink-0 rounded-full object-cover";
 
   if (bot.imageUrl) {
     return <img src={bot.imageUrl} alt="" className={className} aria-hidden />;

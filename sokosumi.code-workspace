@@ -33,10 +33,6 @@
       "path": "packages/email"
     },
     {
-      "name": "Package: Chat",
-      "path": "packages/chat"
-    },
-    {
       "name": "Package: Soko Bot",
       "path": "packages/soko-bot"
     },

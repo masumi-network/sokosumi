@@ -2,7 +2,10 @@ import { err, ok, type Result } from "neverthrow";
 import * as z from "zod";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
-import { COWORKER_IMAGE_ALLOWED_MIME_TYPES } from "@/lib/constants/coworker-image";
+import {
+  COWORKER_IMAGE_ALLOWED_MIME_TYPES,
+  COWORKER_IMAGE_MAX_SIZE_BYTES,
+} from "@/lib/constants/coworker-image";
 import type { CoworkerImageIntent } from "@/lib/services/coworker-display.service";
 
 const coworkerIdSchema = z.string().trim().min(1);
@@ -52,6 +55,10 @@ export function validateCoworkerDisplayImageFile(
   if (imageIntent === "upload") {
     if (!(imageFile instanceof File) && !(imageFile instanceof Blob)) {
       return err(badInput("Image file is required for upload"));
+    }
+
+    if (imageFile.size > COWORKER_IMAGE_MAX_SIZE_BYTES) {
+      return err(badInput("Image file is too large"));
     }
 
     const mimeType = imageFile.type;

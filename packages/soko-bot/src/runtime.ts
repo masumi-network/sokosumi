@@ -72,9 +72,21 @@ export interface RuntimeTurnRef extends RuntimeSessionRef {
   acceptedAt: string;
 }
 
+/**
+ * A JSON value. Event payloads are persisted verbatim into a Json column, so
+ * the contract says so rather than leaving them `unknown` — see ADR 0035.
+ */
+export type RuntimeJsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | RuntimeJsonValue[]
+  | { [key: string]: RuntimeJsonValue };
+
 export interface RuntimeEvent {
   type: string;
-  data: Record<string, unknown>;
+  data: Record<string, RuntimeJsonValue>;
   meta: { id: string; at: string };
 }
 

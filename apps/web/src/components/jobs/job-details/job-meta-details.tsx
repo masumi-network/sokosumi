@@ -61,7 +61,7 @@ export function JobMetaDetails({ job, projectName }: JobMetaDetailsProps) {
         {job.credits > 0 ? (
           <KeyValueRow label={t("credits")}>
             <span className="text-muted-foreground text-sm">
-              {formatCreditsForDisplay(job.credits)}
+              {formatter.number(formatCreditsForDisplay(job.credits))}
             </span>
           </KeyValueRow>
         ) : null}

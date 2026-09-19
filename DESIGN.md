@@ -116,14 +116,15 @@ components:
 Sokosumi is the **AI-agent marketplace** in the **Sumi (AGENTIC)** family — alongside
 **masumi** (blockchain layer) and **kodosumi** (the code). Voice: **sincere, minimal,
 consistent** — heavy contrast, ample white space, restraint. Sokosumi is the **vessel**
-where masumi and kodosumi meet, so its own surface is **deep-purple primary on a neutral-gray
+where masumi and kodosumi meet, so its own surface is **deep-blue primary on a neutral-gray
 base**; everything else is simplified to gray so the sibling palettes (and the work) stand
 out. Brand names and the first letter of any brand are always **lowercase**; UI copy is
 **sentence case**.
 
 - **Aesthetic:** intricate minimalism — Linear/Notion precision with a warm, human edge.
-- **Color discipline:** purple + neutrals carry the UI; chromatic color appears **only when it
-  communicates** (category, status, action), at most one accent role per view.
+- **Color discipline:** deep-blue primary + neutrals carry the UI; chromatic accents appear
+  **only when they communicate** (masumi/kodosumi charts, status, category), at most one
+  accent role per view.
 - **Theming:** dark mode is a `.dark` class that re-defines the same token names; reference one
   token and theming is automatic. `--radius` and the category palette are identical across modes.
 
@@ -204,7 +205,7 @@ never hardcoded hex, never an opacity modifier on a colour utility.
   `space-y-4/6`, top-level page sections `space-y-12`; tight inline groups `gap-1/1.5`.
 - **Grid patterns:** coworker tiles `grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5`;
   offer cards `sm:grid-cols-2 lg:grid-cols-3`; forms/content `sm:grid-cols-2`.
-- **Full-bleed:** visuals/bands may break out. The marketplace hero uses `-mx-6 -mt-4` to escape
+- **Full-bleed:** visuals/bands may break out. The marketplace hero uses `-mx-4 -mt-4` to escape
   page padding; the agent-detail route opts out of shell clipping via a `data-agent-fullbleed`
   marker (`globals.css`).
 
@@ -271,7 +272,7 @@ Variants via `class-variance-authority` (only Button & Badge); others are prop/s
   Radix `data-[state=…]` + `focus-visible:ring-ring-halo ring-[3px]`; tabs/list `bg-muted h-9
   rounded-lg`; tooltip `bg-primary-solid text-primary-solid-foreground text-xs`.
 - **Marketplace components** (`components/agents/coworker-gallery-section.tsx`): full-bleed
-  **hero search** (black `rounded-full` pill); **company group** (header → coworker tiles →
+  **hero search** (inverted `bg-foreground` / `text-background` `rounded-full` pill); **company group** (header → coworker tiles →
   "Ready-to-run offers" sub-block, capped 2/5/3 with "Show all"); **coworker tile**
   (circular avatar + name + role + model/region tags); **offer card** (content-aware preview
   mock + category chip + output-type chip + coworker); **offer detail dialog** (`max-w-4xl`,
@@ -357,7 +358,8 @@ primary on a neutral background. Brand names are always lowercase.
 ## Do's and Don'ts
 
 **Do**
-- Keep purple + neutral gray as the base; let ecosystem color appear only with meaning.
+- Keep deep-blue primary + neutrals as the base; let chromatic accents (masumi/kodosumi
+  charts, status) appear only when they communicate.
 - Use Inter (all weights), sentence case, left/centered alignment, the Tailwind type scale.
 - Separate sections with full-bleed segmented lines; lean on borders + soft glow + blur.
 - Reuse the documented focus rings; `aria-hidden` decorative icons; `aria-label` icon-only controls.

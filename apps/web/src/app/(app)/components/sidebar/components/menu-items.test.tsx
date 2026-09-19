@@ -108,6 +108,7 @@ vi.mock("next/link", () => ({
 
 import MenuItems from "@/app/components/sidebar/components/menu-items";
 import { OrganizationSeatProvider } from "@/contexts/organization-seat-context";
+import { TestQueryProvider } from "@/test/query-provider";
 
 let sidebarIsMobile = true;
 
@@ -118,9 +119,11 @@ function renderMenu(
 ) {
   sidebarIsMobile = isMobile;
   return render(
-    <OrganizationSeatProvider hasAssignedSeat={hasAssignedSeat}>
-      <MenuItems calendarMenuEnabled={calendarMenuEnabled} />
-    </OrganizationSeatProvider>,
+    <TestQueryProvider>
+      <OrganizationSeatProvider hasAssignedSeat={hasAssignedSeat}>
+        <MenuItems calendarMenuEnabled={calendarMenuEnabled} />
+      </OrganizationSeatProvider>
+    </TestQueryProvider>,
   );
 }
 
@@ -209,9 +212,11 @@ describe("MenuItems search action", () => {
 
     sidebarIsMobile = true;
     rerender(
-      <OrganizationSeatProvider hasAssignedSeat>
-        <MenuItems calendarMenuEnabled />
-      </OrganizationSeatProvider>,
+      <TestQueryProvider>
+        <OrganizationSeatProvider hasAssignedSeat>
+          <MenuItems calendarMenuEnabled />
+        </OrganizationSeatProvider>
+      </TestQueryProvider>,
     );
 
     expect(screen.getByRole("link", { name: /calendar/i })).toHaveAttribute(
@@ -226,7 +231,7 @@ describe("MenuItems search action", () => {
     expect(screen.queryByRole("link", { name: /drive/i })).toBeNull();
   });
 
-  it("shows Files after Schedules on desktop", () => {
+  it("shows Files after Calendar on desktop", () => {
     const { container } = renderMenu(true, true, false);
     const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
       (element) => element.textContent ?? "",
@@ -253,7 +258,7 @@ describe("MenuItems search action", () => {
     );
   });
 
-  it("orders primary destinations Search, Agents, Projects, Tasks, Schedules, History", () => {
+  it("orders primary destinations Search, Agents, Projects, Tasks, Calendar, History", () => {
     const { container } = renderMenu(true, true);
     const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
       (element) => element.textContent ?? "",
@@ -276,7 +281,11 @@ describe("MenuItems search action", () => {
   });
 
   it("keeps the separator under New Task on the collapsed rail", () => {
-    const { container } = render(<MenuItems calendarMenuEnabled={false} />);
+    const { container } = render(
+      <TestQueryProvider>
+        <MenuItems calendarMenuEnabled={false} />
+      </TestQueryProvider>,
+    );
     const separator = container.querySelector('li[aria-hidden="true"]');
 
     // The one action set apart from the destinations under it. It used to be
@@ -293,7 +302,11 @@ describe("MenuItems search action", () => {
   });
 
   it("leaves only the icon in the flow on the collapsed rail, so the square centres it", () => {
-    render(<MenuItems calendarMenuEnabled={false} />);
+    render(
+      <TestQueryProvider>
+        <MenuItems calendarMenuEnabled={false} />
+      </TestQueryProvider>,
+    );
     const link = screen.getByRole("link", { name: "exploreAgents" });
     // The icon rides the shared 24px slot, so a nav mark sits on the same
     // axis a room's mark does — and the label after it on the same column.
@@ -301,7 +314,13 @@ describe("MenuItems search action", () => {
     expect(slot?.querySelector("svg")).not.toBeNull();
     const label = slot?.nextElementSibling;
     expect(label).not.toBeNull();
+    // Shared label class: still in the flow and the accessibility tree.
+    // `absolute` painted the name on the mark; `sr-only` clipped it on
+    // frame one. max-width eases to 0 instead.
     expect(label?.className.split(/\s+/)).toContain(
+      "group-data-[collapsible=icon]:max-w-0",
+    );
+    expect(label?.className.split(/\s+/)).not.toContain(
       "group-data-[collapsible=icon]:sr-only",
     );
     expect(label?.className.split(/\s+/)).not.toContain(
@@ -318,7 +337,10 @@ describe("MenuItems search action", () => {
       "newTask",
       "searchCtrl+K",
       "exploreAgents",
-      "projects",
+      // Projects answers hover with its flyout, so it passes no tooltip that
+      // would race the panel to the same spot; the panel's own heading names
+      // it there.
+      "",
       "taskManager",
       "calendar",
       "drive",

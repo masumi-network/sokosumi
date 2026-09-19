@@ -74,6 +74,7 @@ import {
   SidebarRailSelectionBar,
   SidebarRowSlot,
 } from "@/components/ui/sidebar";
+import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
@@ -421,13 +422,14 @@ export function ChatRoomSidebarRow({
     </DropdownMenuItem>
   );
 
-  // Collapsed to icons the row is its leading mark, centred in the button.
-  // The name goes `sr-only` rather than `hidden` so the link keeps its
-  // accessible name (the tooltip adds none) while taking no flex space, and
-  // the spacer hides so neither can push the mark off centre. The button's
-  // `overflow-hidden` exists for name truncation, which the collapsed rail
-  // has none of, and it clipped the tile's kind corner mark, which hangs 6px
-  // below a 24px tile inside a 32px button. So the clip lifts there.
+  // Collapsed to icons the row is its leading mark. The name uses the
+  // shared label class rather than `hidden` so the link keeps its
+  // accessible name (the tooltip adds none) while taking no flex space at
+  // rest, and the spacer hides so neither can push the mark off centre. The
+  // button's `overflow-hidden` exists for name truncation, which the
+  // collapsed rail has none of, and it clipped the tile's kind corner mark,
+  // which hangs 4px below a 20px tile inside a 32px button. So the clip
+  // lifts there.
   const roomLink = (
     <Link
       aria-current={isActive ? "page" : undefined}
@@ -459,7 +461,7 @@ export function ChatRoomSidebarRow({
           </span>
         ) : null}
       </SidebarRowSlot>
-      <span className="group-data-[collapsible=icon]:sr-only min-w-0 flex-1">
+      <span className={SIDEBAR_ROW_LABEL_CLASS}>
         {/* The count rides the end of the name, not the row's right rail, so it
             reads as belonging to this room rather than to the row's controls.
             The name keeps `min-w-0` so it truncates first and the count stays.
