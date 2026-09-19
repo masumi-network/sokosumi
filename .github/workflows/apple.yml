@@ -277,24 +277,29 @@ jobs:
             -exportPath "$RUNNER_TEMP/export"
 
       - name: Build the disk image
-        # `diskutil` ships with macOS, so no third-party packaging dependency.
-        # It replaces `hdiutil create`, which warns that it is deprecated.
-        # The Applications symlink is what makes the window a drag-to-install.
+        working-directory: apps/apple
+        # dmgbuild, not a hand-rolled `diskutil image create from`. The look of
+        # a disk image lives in files inside the volume -- `.DS_Store` (window
+        # size, icon positions, view mode), `.background.tiff` and
+        # `.VolumeIcon.icns` -- and `diskutil image create from` STRIPS
+        # `.DS_Store` when it packages a folder, so a styled image is
+        # impossible that way. Verified, not assumed.
         #
-        # ULFO (LZFSE) rather than UDZO (zlib): it is the tool's default and
-        # compresses noticeably better, and LZFSE needs macOS 10.11 against an
-        # app that already requires macOS 26.
+        # dmgbuild writes `.DS_Store` through the ds_store and mac_alias
+        # modules rather than driving Finder with AppleScript, which is what
+        # makes it work on a headless runner. It does shell out to `hdiutil`
+        # internally, so expect that tool's deprecation warnings in this log;
+        # they come from dmgbuild, not from us.
         #
-        # `diskutil` has no equivalent of `hdiutil -ov`, so clear the
-        # destination first and the step stays re-runnable.
+        # Layout, icon and ULFO compression are all in `dmg-settings.py`.
         run: |
-          STAGE="$RUNNER_TEMP/dmg"
-          rm -rf "$STAGE" "$RUNNER_TEMP/Sokosumi.dmg"
-          mkdir -p "$STAGE"
-          cp -R "$RUNNER_TEMP/export/Sokosumi.app" "$STAGE/"
-          ln -s /Applications "$STAGE/Applications"
-          diskutil image create from --format ULFO --volumeName Sokosumi \
-            "$STAGE" "$RUNNER_TEMP/Sokosumi.dmg"
+          rm -f "$RUNNER_TEMP/Sokosumi.dmg"
+          python3 -m venv "$RUNNER_TEMP/dmgenv"
+          "$RUNNER_TEMP/dmgenv/bin/pip" install --quiet dmgbuild==1.6.7
+          "$RUNNER_TEMP/dmgenv/bin/dmgbuild" \
+            -s dmg-settings.py \
+            -D app="$RUNNER_TEMP/export/Sokosumi.app" \
+            Sokosumi "$RUNNER_TEMP/Sokosumi.dmg"
 
       - name: Notarize and staple
         env:
