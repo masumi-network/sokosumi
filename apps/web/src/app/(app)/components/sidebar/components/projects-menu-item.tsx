@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   type KeyboardEvent as ReactKeyboardEvent,
+  useId,
   useRef,
   useState,
 } from "react";
@@ -130,6 +131,7 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
   const { rows, isPending, isError, refetch } = useSidebarProjects(scope);
   const active = pathname === "/projects" || pathname.startsWith("/projects/");
   const [open, setOpen] = useState(false);
+  const headingId = useId();
   const rowRef = useRef<HTMLAnchorElement>(null);
   const openTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const closeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -238,6 +240,7 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
             align="start"
             sideOffset={8}
             className="w-56 p-1"
+            aria-labelledby={headingId}
             // A pointer open leaves focus where it was; a keyboard open sends
             // it into the rows, which is the whole point of opening that way.
             onOpenAutoFocus={(event) => {
@@ -253,8 +256,15 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
             onPointerEnter={clearPending}
             onPointerLeave={closeForPointer}
           >
-            <p className="text-muted-foreground px-2 py-1.5 text-xs font-medium">
-              {t("projects")}
+            {/* Not the row's own label repeated back: on the rail this is the
+                only thing naming the panel, and at full width it is what says
+                why a project can be missing from five rows — which is what the
+                `All projects` footer below answers. */}
+            <p
+              id={headingId}
+              className="text-muted-foreground px-2 py-1.5 text-xs font-medium"
+            >
+              {t("recentProjects")}
             </p>
             {isPending ? (
               <ProjectLinksSkeleton label={t("projectsLoading")} />

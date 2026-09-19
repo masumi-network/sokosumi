@@ -2352,6 +2352,7 @@
           "taskManager": "Tasks",
           "projects": "Projects",
           "allProjects": "All projects",
+          "recentProjects": "Recent projects",
           "history": "History",
           "drive": "Files",
           "admin": "Admin",

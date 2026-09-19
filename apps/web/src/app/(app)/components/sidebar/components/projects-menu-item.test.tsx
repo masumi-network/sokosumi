@@ -453,6 +453,18 @@ describe("Projects sidebar", () => {
     expect(projectHrefs()).toEqual(["/projects/project-1"]);
   });
 
+  it("names the panel by its own heading, not the row it hangs off", async () => {
+    setup();
+    openFlyout();
+    const row = await screen.findByRole("link", { name: "Launch plan" });
+    const panel = row.closest('[data-slot="popover-content"]');
+    // The heading says what the rows are, so it is not the row label echoed
+    // back — and it is what a screen reader announces for the panel.
+    const heading = screen.getByText("recentProjects");
+    expect(panel).toHaveAttribute("aria-labelledby", heading.id);
+    expect(heading.id).not.toBe("");
+  });
+
   it("offers a way to the full list from inside the panel", async () => {
     setup();
     openFlyout();
@@ -512,6 +524,7 @@ it.each([en, de, es])(
     const labels = messages.App.Sidebar.Content.MenuItems;
     for (const key of [
       "projects",
+      "recentProjects",
       "allProjects",
       "projectsLoading",
       "projectsError",

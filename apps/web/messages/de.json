@@ -2352,6 +2352,7 @@
           "taskManager": "Aufgaben",
           "projects": "Projekte",
           "allProjects": "Alle Projekte",
+          "recentProjects": "Zuletzt verwendete Projekte",
           "history": "Verlauf",
           "drive": "Dateien",
           "admin": "Administration",
