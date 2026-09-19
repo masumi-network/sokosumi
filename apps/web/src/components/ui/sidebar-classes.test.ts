@@ -1,8 +1,23 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-const UI_DIR = join(process.cwd(), "src/components/ui");
+const UI_DIR = dirname(fileURLToPath(import.meta.url));
+
+const CLASS_NAMES = [
+  "SIDEBAR_COLLAPSE_TRANSITION",
+  "SIDEBAR_RAIL_SQUARE_CLASS",
+  "SIDEBAR_ROW_CLASS",
+  "SIDEBAR_ROW_LABEL_CLASS",
+  "SIDEBAR_ROW_LABEL_INSET_CLASS",
+  "SIDEBAR_ROW_RAIL_PAD_CLASS",
+] as const;
+
+/** Drop comments so the file's `"use client"` docs do not false-positive. */
+function stripComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+}
 
 /**
  * The row-shape constants are plain strings, and Server Components
@@ -14,25 +29,27 @@ const UI_DIR = join(process.cwd(), "src/components/ui");
  */
 describe("sidebar class constants", () => {
   it("are not behind a client boundary", () => {
-    const source = readFileSync(join(UI_DIR, "sidebar-classes.ts"), "utf8");
-    const firstStatement = source.split("\n").find((line) => line.trim() !== "");
+    const source = stripComments(
+      readFileSync(join(UI_DIR, "sidebar-classes.ts"), "utf8"),
+    );
 
-    expect(firstStatement).not.toMatch(/use client/);
+    expect(source).not.toMatch(/["']use client["']/);
   });
 
   it("are not re-exported from the client sidebar module", () => {
-    const source = readFileSync(join(UI_DIR, "sidebar.tsx"), "utf8");
-    const exportBlock = source.slice(source.lastIndexOf("export {"));
+    const source = stripComments(
+      readFileSync(join(UI_DIR, "sidebar.tsx"), "utf8"),
+    );
+    const exportLists = [...source.matchAll(/export\s*\{([^}]+)\}/g)].map(
+      (match) => match[1],
+    );
 
-    for (const name of [
-      "SIDEBAR_COLLAPSE_TRANSITION",
-      "SIDEBAR_RAIL_SQUARE_CLASS",
-      "SIDEBAR_ROW_CLASS",
-      "SIDEBAR_ROW_LABEL_CLASS",
-      "SIDEBAR_ROW_LABEL_INSET_CLASS",
-      "SIDEBAR_ROW_RAIL_PAD_CLASS",
-    ]) {
-      expect(exportBlock).not.toContain(name);
+    expect(source).not.toMatch(
+      /export\s+\*\s+from\s+["'][^"']*sidebar-classes["']/,
+    );
+    for (const name of CLASS_NAMES) {
+      expect(exportLists.some((block) => block.includes(name))).toBe(false);
+      expect(source).not.toMatch(new RegExp(`export\\s+const\\s+${name}\\b`));
     }
   });
 });
