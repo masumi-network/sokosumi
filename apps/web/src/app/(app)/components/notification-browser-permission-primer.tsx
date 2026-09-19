@@ -14,6 +14,7 @@ import {
   recordPushRepairOutcome,
   subscribePushRepairOutcome,
 } from "@/lib/ably/push-repair-outcome.client";
+import { getPushTeardownVersion } from "@/lib/ably/push-work-queue.client";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 import {
@@ -103,12 +104,18 @@ export function NotificationBrowserPermissionPrimer({
       return;
     }
 
+    const teardownVersion = getPushTeardownVersion();
     setIsRequesting(true);
     // Loaded on the press that needs it. The Ably SDK stays off the app shell
     // for every reader whose browser is not quiet, the same boundary the
     // account page and the app-open repair keep.
     void import("@/lib/ably/push-activation.client")
-      .then(({ activatePush }) => activatePush(sessionUserId))
+      .then(({ activatePush }) => {
+        if (getPushTeardownVersion() !== teardownVersion) {
+          return false;
+        }
+        return activatePush(sessionUserId);
+      })
       .catch((error: unknown) => {
         console.error("Failed to restore the push subscription", error);
       })
@@ -120,7 +127,10 @@ export function NotificationBrowserPermissionPrimer({
         // a failed press that read it afterwards would find none, record this
         // browser as healthy, and take the card away as though the press had
         // worked.
-        void recordPushRepairOutcome({ hadRegistration: true });
+        void recordPushRepairOutcome({
+          hadRegistration: true,
+          teardownVersion,
+        });
       });
   };
 

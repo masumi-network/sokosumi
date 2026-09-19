@@ -57,6 +57,7 @@ export async function healPushSubscription(userId: string): Promise<boolean> {
   // point leaves no registration behind: read again afterwards, the browser
   // this ran for would look like one that never turned push on, and the
   // notice meant for exactly that reader would never appear.
+  const teardownVersion = getPushTeardownVersion();
   const hadRegistration = hasAblyPushRegistration();
 
   try {
@@ -65,7 +66,7 @@ export async function healPushSubscription(userId: string): Promise<boolean> {
     // Whichever way the repair went, this is the moment the answer is worth
     // reading: a browser still quiet here is one the reader has to be told
     // about, and nothing else in the app knows the repair has settled.
-    await recordPushRepairOutcome({ hadRegistration });
+    await recordPushRepairOutcome({ hadRegistration, teardownVersion });
   }
 }
 

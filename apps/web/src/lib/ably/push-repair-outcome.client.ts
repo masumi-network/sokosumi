@@ -6,9 +6,12 @@ import {
   isPushSupported,
 } from "@/lib/utils/notification-service-worker";
 
+import { getPushTeardownVersion } from "./push-work-queue.client";
 import {
   hasAblyPushRegistration,
   hasUnfinishedPushTeardown,
+  hasUnresolvedPushRepair,
+  setUnresolvedPushRepair,
 } from "./release-push-device.client";
 
 /**
@@ -68,6 +71,8 @@ interface RecordPushRepairOutcomeOptions {
    * then say nothing to.
    */
   hadRegistration?: boolean;
+  /** Captured before activation, so a later sign-out invalidates its result. */
+  teardownVersion?: string;
 }
 
 /**
@@ -80,7 +85,15 @@ interface RecordPushRepairOutcomeOptions {
 export async function recordPushRepairOutcome(
   options?: RecordPushRepairOutcomeOptions,
 ): Promise<void> {
+  const teardownVersion = options?.teardownVersion ?? getPushTeardownVersion();
+  if (teardownVersion !== getPushTeardownVersion()) {
+    return;
+  }
   const next = await readPushRepairOutcome(options?.hadRegistration === true);
+  if (teardownVersion !== getPushTeardownVersion()) {
+    return;
+  }
+  setUnresolvedPushRepair(next === "quiet");
   if (next === outcome) {
     return;
   }
@@ -102,7 +115,11 @@ async function readPushRepairOutcome(
     // and a reader who never asked for push is not owed a notice about it.
     // The caller's own read of it comes first, because a repair can destroy
     // the registration on its way past.
-    !(hadRegistration || hasAblyPushRegistration()) ||
+    !(
+      hadRegistration ||
+      hasAblyPushRegistration() ||
+      hasUnresolvedPushRepair()
+    ) ||
     // A sign-out in flight takes the subscription with it. That browser is
     // quiet because the reader is leaving, which is not a fault to report.
     hasUnfinishedPushTeardown()

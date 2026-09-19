@@ -28,7 +28,8 @@ vi.mock("@/lib/utils/browser-notification", () => ({
     getBrowserNotificationPermissionMock(),
 }));
 
-vi.mock("./release-push-device.client", () => ({
+vi.mock("./release-push-device.client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./release-push-device.client")>()),
   hasAblyPushRegistration: () => hasAblyPushRegistrationMock(),
   hasUnfinishedPushTeardown: () => hasUnfinishedPushTeardownMock(),
 }));
@@ -57,6 +58,7 @@ function repairable() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
   repairable();
   activatePushMock.mockResolvedValue(true);
 });

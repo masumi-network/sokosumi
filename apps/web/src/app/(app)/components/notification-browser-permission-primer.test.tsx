@@ -257,9 +257,12 @@ describe("NotificationBrowserPermissionPrimer", () => {
       screen.getByRole("button", { name: "pushQuietRestore" }),
     );
 
-    expect(recordPushRepairOutcomeMock).toHaveBeenCalledWith({
-      hadRegistration: true,
-    });
+    expect(recordPushRepairOutcomeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        hadRegistration: true,
+        teardownVersion: expect.any(String),
+      }),
+    );
     expect(screen.getByText("pushQuietDescription")).toBeInTheDocument();
   });
 

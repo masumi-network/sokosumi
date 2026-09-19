@@ -24,7 +24,8 @@ vi.mock("@/lib/utils/browser-notification", () => ({
     getBrowserNotificationPermissionMock(),
 }));
 
-vi.mock("./release-push-device.client", () => ({
+vi.mock("./release-push-device.client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./release-push-device.client")>()),
   hasAblyPushRegistration: () => hasAblyPushRegistrationMock(),
   hasUnfinishedPushTeardown: () => hasUnfinishedPushTeardownMock(),
 }));
@@ -50,6 +51,7 @@ function quietBrowser() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
   quietBrowser();
 });
 
@@ -166,4 +168,87 @@ describe("push repair outcome", () => {
     expect(listener).toHaveBeenCalledTimes(1);
     expect(store.getPushRepairOutcome()).toBe("healthy");
   });
+});
+
+it("keeps an unresolved repair notice after reload", async () => {
+  hasAblyPushRegistrationMock.mockReturnValue(false);
+  const firstPage = await loadStore();
+  await firstPage.recordPushRepairOutcome({ hadRegistration: true });
+  expect(firstPage.getPushRepairOutcome()).toBe("quiet");
+  const nextPage = await loadStore();
+  await nextPage.recordPushRepairOutcome();
+  expect(nextPage.getPushRepairOutcome()).toBe("quiet");
+});
+
+it("forgets a resolved repair after reload", async () => {
+  hasAblyPushRegistrationMock.mockReturnValue(false);
+  const store = await loadStore();
+  await store.recordPushRepairOutcome({ hadRegistration: true });
+  hasWebPushSubscriptionMock.mockResolvedValue(true);
+  await store.recordPushRepairOutcome();
+  expect(store.getPushRepairOutcome()).toBe("healthy");
+  hasWebPushSubscriptionMock.mockResolvedValue(false);
+  const nextPage = await loadStore();
+  await nextPage.recordPushRepairOutcome();
+  expect(nextPage.getPushRepairOutcome()).toBe("healthy");
+});
+
+it.each(["disable", "sign out", "delete account"])(
+  "forgets unresolved repair after %s",
+  async (action) => {
+    hasAblyPushRegistrationMock.mockReturnValue(false);
+    const store = await loadStore();
+    await store.recordPushRepairOutcome({ hadRegistration: true });
+    const release = await import("./release-push-device.client");
+    expect(release.hasUnresolvedPushRepair()).toBe(true);
+
+    if (action === "disable") {
+      release.notePushTeardownStarted();
+    } else if (action === "sign out") {
+      await release.releasePushDeviceOnSignOut("user_alice");
+    } else {
+      await release.dropBrowserPushSubscriptionOnAccountDeletion();
+    }
+    expect(release.hasUnresolvedPushRepair()).toBe(false);
+    const nextPage = await loadStore();
+    await nextPage.recordPushRepairOutcome();
+    expect(nextPage.getPushRepairOutcome()).toBe("healthy");
+  },
+);
+
+it("does not persist a repair overtaken by teardown during the subscription read", async () => {
+  const store = await loadStore();
+  const { notePushTeardown } = await import("./push-work-queue.client");
+  let finishRead = (_subscribed: boolean) => {};
+  hasWebPushSubscriptionMock.mockImplementationOnce(
+    () =>
+      new Promise<boolean>((resolve) => {
+        finishRead = resolve;
+      }),
+  );
+  const recording = store.recordPushRepairOutcome({ hadRegistration: true });
+  notePushTeardown();
+  finishRead(false);
+  await recording;
+  const { hasUnresolvedPushRepair } = await import(
+    "./release-push-device.client"
+  );
+  expect(hasUnresolvedPushRepair()).toBe(false);
+});
+
+it("does not persist a repair that settled after teardown", async () => {
+  const store = await loadStore();
+  const { getPushTeardownVersion, notePushTeardown } = await import(
+    "./push-work-queue.client"
+  );
+  const teardownVersion = getPushTeardownVersion();
+  notePushTeardown();
+  await store.recordPushRepairOutcome({
+    hadRegistration: true,
+    teardownVersion,
+  });
+  const { hasUnresolvedPushRepair } = await import(
+    "./release-push-device.client"
+  );
+  expect(hasUnresolvedPushRepair()).toBe(false);
 });
