@@ -243,6 +243,7 @@ test("TestV56 OAuth Escape returns to confirm and allows retry", async () => {
   const loginResolvers: Array<(credentials: OAuthCredentials) => void> = [];
   const cliPromise = runCli([], {
     env: {},
+    authManager,
     loginFn: async () => {
       loginCalls += 1;
       const deferred = createDeferred<OAuthCredentials>();
