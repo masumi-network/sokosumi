@@ -128,7 +128,7 @@ function membershipStatusContent(change: ChannelMembershipChange): string {
 
 function membershipMetadata(
   change: ChannelMembershipChange,
-): Record<string, unknown> {
+): Prisma.InputJsonObject {
   return {
     membership: {
       action: change.action,

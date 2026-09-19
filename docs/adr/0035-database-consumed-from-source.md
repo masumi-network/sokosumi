@@ -35,6 +35,13 @@ external: ["pg", "@prisma/client", "@prisma/adapter-pg"],
 3. The just-in-time switch: package `exports` → `./src`, the `tsup` config above, `build`/`clean` scripts removed. Two files.
 4. Fold the package into `apps/core`: 279 non-test import sites (519 with tests), `prisma/schema.prisma`, `prisma.config.ts`, six `data-migration:*` scripts, the vitest project, `turbo.json`, and Core's `vercel-build`.
 
+**Status:** steps 1–3 landed together in SOK-1126. Step 1's temporary
+`tsconfig` was not needed: once the package's `exports` point at source, Core's
+ordinary `typecheck` already resolves from source and is itself the gate. The
+31 errors and the zero `dist` resolutions were both reproduced, and the bundled
+probe was re-run against a dead port (`P1001` on the model query, `P2010` on the
+raw one) to confirm the wasm query compiler still loads. Step 4 is untouched.
+
 Steps 1–3 carry the whole type-safety benefit. Step 4 is organisational — one fewer workspace, one fewer build exception — and by then it is mechanical, because source resolution is already green in CI.
 
 ## Considered options
@@ -47,6 +54,6 @@ Steps 1–3 carry the whole type-safety benefit. Step 4 is organisational — on
 ## Consequences
 
 - Core's program grows by ~129 files from `packages/database/src`, and `skipLibCheck` no longer shields them. Today they compile clean under Core's tsconfig. A future `prisma generate` emitting source Core's config rejects would block Core's typecheck instead of being absorbed into a `.d.ts` — that is the price of the checking, and it is worth paying.
-- [ADR 0008](./0008-turbo-task-runner-on-pnpm.md) describes a `vercel-build` that runs `prisma:generate`, the database `tsc`, `tsup`, then `migrate`. The `tsc` step disappears at step 3; update that ADR and the three `AGENTS.md` files that document `pnpm database:build` in the same change.
+- [ADR 0008](./0008-turbo-task-runner-on-pnpm.md) described a `vercel-build` that ran `prisma:generate`, the database `tsc`, `tsup`, then `migrate`. The `tsc` step disappeared at step 3; that ADR and the three `AGENTS.md` files that documented `pnpm database:build` were updated in the same change (SOK-1126).
 - `packages/database` keeps `prisma:generate`. Generating the client is unrelated to compiling it, and remains required everywhere.
 - The `prepare` asymmetry across the seven packages ends. The other six keep their `prepare` scripts; nothing about this decision applies to them, and four are consumed by web's Next.js build, which would need `transpilePackages` on top.
