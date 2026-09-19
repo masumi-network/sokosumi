@@ -272,14 +272,24 @@ jobs:
             -exportPath "$RUNNER_TEMP/export"
 
       - name: Build the disk image
-        # `hdiutil` ships with macOS, so no third-party packaging dependency.
+        # `diskutil` ships with macOS, so no third-party packaging dependency.
+        # It replaces `hdiutil create`, which warns that it is deprecated.
         # The Applications symlink is what makes the window a drag-to-install.
+        #
+        # ULFO (LZFSE) rather than UDZO (zlib): it is the tool's default and
+        # compresses noticeably better, and LZFSE needs macOS 10.11 against an
+        # app that already requires macOS 26.
+        #
+        # `diskutil` has no equivalent of `hdiutil -ov`, so clear the
+        # destination first and the step stays re-runnable.
         run: |
           STAGE="$RUNNER_TEMP/dmg"
+          rm -rf "$STAGE" "$RUNNER_TEMP/Sokosumi.dmg"
           mkdir -p "$STAGE"
           cp -R "$RUNNER_TEMP/export/Sokosumi.app" "$STAGE/"
           ln -s /Applications "$STAGE/Applications"
-          hdiutil create -volname Sokosumi -srcfolder "$STAGE" -ov -format UDZO "$RUNNER_TEMP/Sokosumi.dmg"
+          diskutil image create from --format ULFO --volumeName Sokosumi \
+            "$STAGE" "$RUNNER_TEMP/Sokosumi.dmg"
 
       - name: Notarize and staple
         env:
