@@ -5809,12 +5809,6 @@
                       "previousResponseId": {
                         "type": "string"
                       },
-                      "model": {
-                        "type": [
-                          "string",
-                          "null"
-                        ]
-                      },
                       "imageGeneration": {
                         "type": "boolean"
                       }

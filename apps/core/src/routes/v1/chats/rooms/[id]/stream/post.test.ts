@@ -40,6 +40,7 @@ const {
   convertToModelMessagesMock,
   validateUIMessagesMock,
   getSokosumiProviderMock,
+  sokosumiProviderCallMock,
   persistUserMessageToChatRoomMock,
   persistAssistantToChatRoomMock,
   isUiStreamResumptionConfiguredMock,
@@ -76,6 +77,7 @@ const {
   convertToModelMessagesMock: vi.fn(),
   validateUIMessagesMock: vi.fn(),
   getSokosumiProviderMock: vi.fn(),
+  sokosumiProviderCallMock: vi.fn(),
   persistUserMessageToChatRoomMock: vi.fn(),
   persistAssistantToChatRoomMock: vi.fn(),
   isUiStreamResumptionConfiguredMock: vi.fn(),
@@ -342,7 +344,8 @@ beforeEach(() => {
   validateUIMessagesMock.mockImplementation(
     async ({ messages }: { messages: unknown[] }) => messages,
   );
-  getSokosumiProviderMock.mockReturnValue(() => ({}));
+  sokosumiProviderCallMock.mockReturnValue({});
+  getSokosumiProviderMock.mockReturnValue(sokosumiProviderCallMock);
   workspaceFindUniqueMock.mockResolvedValue({ id: "ws_org_1" });
   requireCoworkerChatCapabilityInWorkspaceMock.mockResolvedValue({
     id: COWORKER_ID,
@@ -517,6 +520,7 @@ describe("POST /chats/rooms/{id}/stream", () => {
     );
 
     expect(streamTextMock).toHaveBeenCalledOnce();
+    expect(sokosumiProviderCallMock).toHaveBeenCalledWith(null);
     const streamArgs = streamTextMock.mock.calls[0]![0] as {
       providerOptions: {
         sokosumi: {
