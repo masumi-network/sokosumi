@@ -1433,7 +1433,6 @@
         "waitForResponses": "Please wait for other responses to finish (max 3 at a time).",
         "imageAttachment": "An image attachment",
         "fileLabel": "File",
-        "modelAlt": "Model",
         "coworkerAlt": "Coworker",
         "userAvatarAlt": "User avatar",
         "downloadGeneratedImage": "Download generated image",
@@ -2373,7 +2372,6 @@
           "title": "Recent Chats",
           "noChats": "No chats yet",
           "untitledChat": "Untitled Chat",
-          "modelAlt": "Model",
           "coworkerAlt": "Coworker"
         },
         "SeatRequired": {
