@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Export options for the notarized rolling DMG (`publish` in
+  .github/workflows/apple.yml). `developer-id` is distribution outside the Mac
+  App Store, which is what a downloadable disk image is.
+
+  `signingStyle` is manual and no provisioningProfiles key is present on
+  purpose: the app's entitlements are sandbox, outgoing network and
+  user-selected files, none of which require a provisioning profile for
+  Developer ID. Automatic signing would make xcodebuild reach App Store
+  Connect for profiles mid-build, which needs an interactive account CI has
+  no way to supply.
+-->
+<plist version="1.0">
+<dict>
+	<key>method</key>
+	<string>developer-id</string>
+	<key>teamID</key>
+	<string>GVWN7HXYJB</string>
+	<key>signingStyle</key>
+	<string>manual</string>
+	<key>destination</key>
+	<string>export</string>
+</dict>
+</plist>

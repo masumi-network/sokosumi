@@ -110,15 +110,15 @@ jobs:
   # whole-module-optimization, `@inlinable` access or dead-stripping break
   # would otherwise surface on the archive that is meant to ship.
   #
-  # Same gate as `test` and `lint`, so it blocks the pull request that breaks
+  # Pull requests and dispatch only, so it blocks the pull request that breaks
   # Release rather than reddening main afterwards. It runs in parallel with
   # `test`, so an Apple pull request gains runner minutes but no wall-clock
-  # time. The `push` leg still earns its keep: a merge commit is not the head
-  # the pull request tested.
+  # time. Deliberately not on `push`: `publish` below archives Release on the
+  # merge commit, and compiling Release twice per Apple merge is waste.
   release-build:
     name: Xcode release build
     needs: changes
-    if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+    if: (github.event_name == 'pull_request' && needs.changes.outputs.apple == 'true') || github.event_name == 'workflow_dispatch'
     runs-on: xcode-27
     steps:
       - name: Checkout repository
@@ -181,3 +181,140 @@ jobs:
       - name: Lint Swift
         working-directory: apps/apple
         run: mint run swiftlint lint --strict
+
+  # The rolling download. Every Apple change that reaches main replaces the
+  # single `apple-latest` prerelease, so
+  # https://github.com/masumi-network/sokosumi/releases/download/apple-latest/Sokosumi.dmg
+  # is a permanent link to the newest build. Needs `test` and `lint` green
+  # first: a rolling download that ships a broken build is worse than no
+  # download.
+  #
+  # The app is sandboxed with the hardened runtime on, so it must be signed
+  # with a Developer ID Application certificate and notarized by Apple, or
+  # Gatekeeper refuses it on every machine that did not build it. All five
+  # secrets below are set by `apps/apple/scripts/setup-release-signing.sh`.
+  publish:
+    name: Publish rolling DMG
+    needs: [changes, test, lint]
+    # `workflow_dispatch` runs everything except the release step, so the disk
+    # image can be built, notarized and downloaded from the run's artifacts
+    # without rewriting `apple-latest`. That is the way to test a change to
+    # this job.
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: xcode-27
+    permissions:
+      # `gh release` rewrites the apple-latest tag and its assets.
+      contents: write
+    env:
+      TEAM_ID: GVWN7HXYJB
+      RELEASE_TAG: apple-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Select Xcode 27 toolchain
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Import Developer ID certificate
+        env:
+          CERT_P12: ${{ secrets.APPLE_DEVELOPER_ID_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_CERT_PASSWORD }}
+        # A throwaway keychain, unlocked for this job only. The runner is
+        # ephemeral, but an explicit keychain keeps the key out of the login
+        # keychain and lets `security set-key-partition-list` grant codesign
+        # non-interactive access -- without it codesign blocks on a UI prompt
+        # no CI machine can answer.
+        run: |
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
+          echo "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN_PATH" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" > /dev/null
+          security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain-db
+          rm -f "$RUNNER_TEMP/cert.p12"
+
+      - name: Archive Sokosumi for Developer ID
+        working-directory: apps/apple
+        # CFBundleVersion must rise for every published build. The run number
+        # is monotonic per workflow, which is exactly that guarantee.
+        run: |
+          xcodebuild -workspace Sokosumi.xcworkspace -scheme Sokosumi \
+            -configuration Release -destination 'platform=macOS,arch=arm64' \
+            -skipPackagePluginValidation -archivePath "$RUNNER_TEMP/Sokosumi.xcarchive" \
+            DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Developer ID Application" \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            archive
+
+      - name: Export a Developer ID app
+        working-directory: apps/apple
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Sokosumi.xcarchive" \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath "$RUNNER_TEMP/export"
+
+      - name: Build the disk image
+        # `hdiutil` ships with macOS, so no third-party packaging dependency.
+        # The Applications symlink is what makes the window a drag-to-install.
+        run: |
+          STAGE="$RUNNER_TEMP/dmg"
+          mkdir -p "$STAGE"
+          cp -R "$RUNNER_TEMP/export/Sokosumi.app" "$STAGE/"
+          ln -s /Applications "$STAGE/Applications"
+          hdiutil create -volname Sokosumi -srcfolder "$STAGE" -ov -format UDZO "$RUNNER_TEMP/Sokosumi.dmg"
+
+      - name: Notarize and staple
+        env:
+          NOTARY_KEY_P8: ${{ secrets.APPLE_NOTARY_KEY_P8 }}
+          NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+        # Notarizing the disk image covers the app inside it. `--wait` blocks
+        # until Apple answers, so a rejection fails the job here rather than
+        # shipping a build Gatekeeper will refuse. Stapling writes the ticket
+        # into the image so it opens without a network round trip.
+        run: |
+          echo "$NOTARY_KEY_P8" | base64 --decode > "$RUNNER_TEMP/notary.p8"
+          xcrun notarytool submit "$RUNNER_TEMP/Sokosumi.dmg" \
+            --key "$RUNNER_TEMP/notary.p8" \
+            --key-id "$NOTARY_KEY_ID" \
+            --issuer "$NOTARY_ISSUER_ID" \
+            --wait
+          rm -f "$RUNNER_TEMP/notary.p8"
+          xcrun stapler staple "$RUNNER_TEMP/Sokosumi.dmg"
+          xcrun stapler validate "$RUNNER_TEMP/Sokosumi.dmg"
+
+      - name: Upload the disk image as a run artifact
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: Sokosumi-dmg
+          path: ${{ runner.temp }}/Sokosumi.dmg
+          # Short: the current build always lives at the apple-latest URL, so
+          # this exists to grab one specific run, not to archive history.
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Replace the rolling prerelease
+        # Never on a manual run: a test build must not rewrite the link people
+        # have already been given.
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # One tag, rewritten each time, so the download URL never changes.
+        # `--clobber` replaces the asset in place; recreating the release
+        # would hand out a new URL and break every link already shared.
+        run: |
+          if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" --target "$GITHUB_SHA" \
+              --notes "Newest macOS build from \`main\` ($GITHUB_SHA). Signed and notarized. Not a stable release."
+          else
+            gh release create "$RELEASE_TAG" --prerelease --target "$GITHUB_SHA" \
+              --title "Sokosumi for macOS (latest)" \
+              --notes "Newest macOS build from \`main\` ($GITHUB_SHA). Signed and notarized. Not a stable release."
+          fi
+          gh release upload "$RELEASE_TAG" "$RUNNER_TEMP/Sokosumi.dmg" --clobber
