@@ -1,3 +1,5 @@
+import { err, ok, type Result } from "neverthrow";
+
 function trimSlashes(value: string): string {
   let start = 0;
   let end = value.length;
@@ -13,13 +15,16 @@ function trimSlashes(value: string): string {
   return value.slice(start, end);
 }
 
-export function safeAddPathComponent(url: URL, pathComponent: string): URL {
+export function safeAddPathComponent(
+  url: URL,
+  pathComponent: string,
+): Result<URL, string> {
   try {
     // Handle empty or whitespace-only path components
     const cleanPath = trimSlashes(pathComponent.trim());
 
     if (!cleanPath) {
-      return new URL(url.href); // Return a new URL if nothing to add
+      return ok(new URL(url.href)); // Return a new URL if nothing to add
     }
 
     // Preserve existing pathname and append new component
@@ -28,8 +33,8 @@ export function safeAddPathComponent(url: URL, pathComponent: string): URL {
     const newUrl = new URL(url.href);
     newUrl.pathname = currentPath ? newPath : `/${encodeURI(cleanPath)}`;
 
-    return newUrl;
+    return ok(newUrl);
   } catch {
-    throw new Error(`Invalid URL: ${url.href}`);
+    return err(`Invalid URL: ${url.href}`);
   }
 }
