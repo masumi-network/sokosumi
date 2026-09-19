@@ -19,15 +19,14 @@ import {
   type JobWithTransaction,
   type PaidJobWithStatus,
 } from "../types/job.js";
-
-const TEN_MINUTES_TIMESTAMP = 1000 * 60 * 10; // 10min
+import { JOB_SYNC_PAYMENT_GRACE_MS } from "./job-sync.js";
 
 function hasPaymentWindowExpired(
   job: Pick<Job, "createdAt" | "payByTime">,
   now: Date,
 ): boolean {
   const paymentDeadline = job.payByTime ?? job.createdAt;
-  return paymentDeadline.getTime() < now.getTime() - TEN_MINUTES_TIMESTAMP;
+  return paymentDeadline.getTime() < now.getTime() - JOB_SYNC_PAYMENT_GRACE_MS;
 }
 
 /**
@@ -147,7 +146,7 @@ function getFundsLockedJobStatus(
       if (
         job.externalDisputeUnlockTime &&
         job.externalDisputeUnlockTime.getTime() <
-          now.getTime() - TEN_MINUTES_TIMESTAMP
+          now.getTime() - JOB_SYNC_PAYMENT_GRACE_MS
       ) {
         return SokosumiJobStatus.FAILED;
       }
@@ -155,7 +154,8 @@ function getFundsLockedJobStatus(
       // Check for RESULT_PENDING status (after submit result time with 10min grace period)
       if (
         job.submitResultTime &&
-        job.submitResultTime.getTime() < now.getTime() - TEN_MINUTES_TIMESTAMP
+        job.submitResultTime.getTime() <
+          now.getTime() - JOB_SYNC_PAYMENT_GRACE_MS
       ) {
         return SokosumiJobStatus.RESULT_PENDING;
       }
