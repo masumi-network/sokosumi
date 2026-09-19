@@ -107,17 +107,6 @@ describe("workspaceMiddleware", () => {
       userId: "user_123",
       organizationId: null,
     });
-
-    prismaTransactionMock.mockImplementation(async (callback) => {
-      return await callback({
-        oauthAccessToken: {
-          findUnique: vi.fn(),
-        },
-        oauthConsent: {
-          findFirst: vi.fn(),
-        },
-      });
-    });
   });
 
   it("keeps workspaceContext null when the middleware is not included", async () => {
