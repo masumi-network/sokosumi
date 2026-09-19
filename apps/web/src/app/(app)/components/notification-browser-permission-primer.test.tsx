@@ -24,8 +24,11 @@ vi.mock("@/lib/ably/push-repair-outcome.client", () => ({
   getPushRepairOutcome: () => repairOutcome,
   getServerPushRepairOutcome: () => "pending",
   subscribePushRepairOutcome: () => () => {},
+  // The press chains onto what this returns, and its chain can settle after
+  // the test that started it, once the mock has been cleared. The real module
+  // always returns a promise, so the stand-in does too.
   recordPushRepairOutcome: (...args: unknown[]) =>
-    recordPushRepairOutcomeMock(...args),
+    recordPushRepairOutcomeMock(...args) ?? Promise.resolve(),
 }));
 
 vi.mock("@/lib/ably/push-activation.client", () => ({
@@ -237,6 +240,34 @@ describe("NotificationBrowserPermissionPrimer", () => {
     // Read again rather than assumed: a repair that failed leaves the card
     // where it was instead of reporting a success it did not get.
     expect(recordPushRepairOutcomeMock).toHaveBeenCalled();
+  });
+
+  /**
+   * The press is not over until the outcome is written down. Releasing the
+   * button first leaves it live over a card that still says push is off, so a
+   * second press would start another activation against the first one's
+   * answer. A recording that fails still releases it: a reader whose browser
+   * could not be written down gets to try again.
+   */
+  it("holds the button until the outcome is recorded, and frees it on failure", async () => {
+    setNotificationPermission("granted");
+    repairOutcome = "quiet";
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    recordPushRepairOutcomeMock.mockRejectedValue(
+      new Error("storage is blocked"),
+    );
+    render(<NotificationBrowserPermissionPrimer />);
+
+    const restore = screen.getByRole("button", { name: "pushQuietRestore" });
+    await userEvent.click(restore);
+
+    expect(consoleError).toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "pushQuietRestore" }),
+    ).toBeEnabled();
+    consoleError.mockRestore();
   });
 
   /**

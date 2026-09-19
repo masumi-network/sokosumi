@@ -119,19 +119,31 @@ export function NotificationBrowserPermissionPrimer({
       .catch((error: unknown) => {
         console.error("Failed to restore the push subscription", error);
       })
-      .finally(() => {
-        setIsRequesting(false);
+      .finally(() =>
         // This card is only drawn for a browser Ably held a registration for,
         // so the press knows that without reading it again. It has to: the
         // activation clears that registration halfway through its round, and
         // a failed press that read it afterwards would find none, record this
         // browser as healthy, and take the card away as though the press had
         // worked.
-        void recordPushRepairOutcome({
+        //
+        // The press is not over until this lands. Releasing the button first
+        // leaves it live over a card that still says push is off, so a reader
+        // who presses again starts a second activation against the answer of
+        // the first. Its own failure is caught rather than left to reject into
+        // nothing, and the button comes back either way: a reader whose
+        // browser could not be written down still gets to try again.
+        recordPushRepairOutcome({
           hadRegistration: true,
           teardownVersion,
-        });
-      });
+        })
+          .catch((error: unknown) => {
+            console.error("Failed to record the push repair outcome", error);
+          })
+          .finally(() => {
+            setIsRequesting(false);
+          }),
+      );
   };
 
   useMountEffect(() => {

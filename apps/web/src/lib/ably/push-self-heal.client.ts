@@ -66,7 +66,17 @@ export async function healPushSubscription(userId: string): Promise<boolean> {
     // Whichever way the repair went, this is the moment the answer is worth
     // reading: a browser still quiet here is one the reader has to be told
     // about, and nothing else in the app knows the repair has settled.
-    await recordPushRepairOutcome({ hadRegistration, teardownVersion });
+    //
+    // Caught here as well, because this sits in a `finally`: a throw from the
+    // browser read, the storage write, or any listener would replace the
+    // repair's own answer with a rejection, and the only caller runs this as
+    // `void healPushSubscription(userId)`. The repair still happened; failing
+    // to write down what it left is not a reason to lose that.
+    try {
+      await recordPushRepairOutcome({ hadRegistration, teardownVersion });
+    } catch (error) {
+      console.error("Failed to record the push repair outcome", error);
+    }
   }
 }
 
