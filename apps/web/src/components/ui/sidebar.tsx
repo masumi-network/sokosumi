@@ -7,6 +7,7 @@ import { VariantProps, cva } from "class-variance-authority";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   SIDEBAR_BOOT_STOP_GLOBAL,
+  SIDEBAR_COMPACT_BREAKPOINT,
   parseSidebarStateCookieHeader,
   serializeSidebarStateCookie,
 } from "@/lib/ui-preferences/sidebar-state";
@@ -50,6 +51,31 @@ type SidebarContextProps = {
 
 const SidebarContext = React.createContext<SidebarContextProps | null>(null);
 
+/**
+ * Whether the window is too narrow to spend 14rem on the sidebar.
+ *
+ * `useLayoutEffect`, not `useEffect`: the boot script has already collapsed the
+ * streamed markup, and React must agree before paint or the sidebar expands for
+ * a frame on the way past.
+ */
+function useIsSidebarCompact() {
+  const [isCompact, setIsCompact] = React.useState(false);
+
+  // Effect is necessary: subscribes to an external system (media query).
+  React.useLayoutEffect(() => {
+    const mql = window.matchMedia(
+      `(max-width: ${SIDEBAR_COMPACT_BREAKPOINT - 1}px)`,
+    );
+    const onChange = () => setIsCompact(mql.matches);
+
+    onChange();
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+
+  return isCompact;
+}
+
 function useSidebar() {
   const context = React.useContext(SidebarContext);
   if (!context) {
@@ -82,10 +108,21 @@ function SidebarProvider({
   // applies the persisted preference to the streamed markup before paint; this
   // `useLayoutEffect` hands the same value to React once it hydrates.
   const [_open, _setOpen] = React.useState(defaultOpen);
-  const open = openProp ?? _open;
+  // Opening the sidebar on a narrow window is a look at it, not a change of
+  // preference: it lasts until the window grows again and never reaches the
+  // cookie, so a laptop is not left collapsed by a detour through a small one.
+  const [compactOpen, setCompactOpen] = React.useState(false);
+  const isCompact = useIsSidebarCompact();
+  const open = openProp ?? (isCompact ? compactOpen : _open);
   const setOpen = React.useCallback(
     (value: boolean | ((value: boolean) => boolean)) => {
       const openState = typeof value === "function" ? value(open) : value;
+
+      if (isCompact && !setOpenProp) {
+        setCompactOpen(openState);
+        return;
+      }
+
       if (setOpenProp) {
         setOpenProp(openState);
       } else {
@@ -95,8 +132,15 @@ function SidebarProvider({
       // This sets the cookie to keep the sidebar state.
       document.cookie = serializeSidebarStateCookie(openState);
     },
-    [setOpenProp, open],
+    [setOpenProp, open, isCompact],
   );
+
+  // Effect is necessary: the next narrow window starts from the rail again.
+  React.useEffect(() => {
+    if (!isCompact) {
+      setCompactOpen(false);
+    }
+  }, [isCompact]);
 
   React.useLayoutEffect(() => {
     // React now owns the sidebar attributes, so retire the boot observer —
@@ -143,7 +187,8 @@ function SidebarProvider({
   }, [toggleSidebar]);
 
   // We add a state so that we can do data-state="expanded" or "collapsed".
-  // Desktop sidebar state is strictly controlled by `open`.
+  // Desktop sidebar state is strictly controlled by `open`, which already
+  // folds in the compact-window default.
   const state = open ? "expanded" : "collapsed";
 
   const contextValue = React.useMemo<SidebarContextProps>(

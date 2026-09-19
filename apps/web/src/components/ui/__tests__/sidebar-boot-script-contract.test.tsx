@@ -1,5 +1,5 @@
 import { render } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/hooks/use-mobile", () => ({
   useIsMobile: () => false,
@@ -9,6 +9,7 @@ import { Sidebar, SidebarProvider } from "@/components/ui/sidebar";
 import {
   SIDEBAR_BOOT_SCRIPT,
   SIDEBAR_BOOT_STOP_GLOBAL,
+  SIDEBAR_COMPACT_BREAKPOINT,
 } from "@/lib/ui-preferences/sidebar-state";
 
 /**
@@ -18,10 +19,27 @@ import {
  * drives the real component.
  */
 describe("sidebar boot script contract", () => {
+  const originalInnerWidth = window.innerWidth;
+
   beforeEach(() => {
     document.cookie =
       "sidebar_state=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
   });
+
+  afterEach(() => {
+    setWindowWidth(originalInnerWidth);
+    (
+      window as typeof window & { [SIDEBAR_BOOT_STOP_GLOBAL]?: () => void }
+    )[SIDEBAR_BOOT_STOP_GLOBAL]?.();
+  });
+
+  function setWindowWidth(width: number) {
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: width,
+      writable: true,
+    });
+  }
 
   function renderExpandedSidebar() {
     // `open` is controlled so the provider's own cookie restore cannot collapse
@@ -58,9 +76,26 @@ describe("sidebar boot script contract", () => {
 
     expect(sidebar.getAttribute("data-state")).toBe("collapsed");
     expect(sidebar.getAttribute("data-collapsible")).toBe("icon");
+  });
 
-    (
-      window as typeof window & { [SIDEBAR_BOOT_STOP_GLOBAL]?: () => void }
-    )[SIDEBAR_BOOT_STOP_GLOBAL]?.();
+  it("collapses a narrow window with no stored preference", () => {
+    setWindowWidth(SIDEBAR_COMPACT_BREAKPOINT - 1);
+    const sidebar = renderExpandedSidebar();
+
+    new Function(SIDEBAR_BOOT_SCRIPT)();
+
+    // Otherwise the rail the provider settles on arrives a frame late, which is
+    // the expanded-then-collapse flash this script exists to prevent.
+    expect(sidebar.getAttribute("data-state")).toBe("collapsed");
+    expect(sidebar.getAttribute("data-collapsible")).toBe("icon");
+  });
+
+  it("leaves a wide window expanded with no stored preference", () => {
+    setWindowWidth(SIDEBAR_COMPACT_BREAKPOINT);
+    const sidebar = renderExpandedSidebar();
+
+    new Function(SIDEBAR_BOOT_SCRIPT)();
+
+    expect(sidebar.getAttribute("data-state")).toBe("expanded");
   });
 });
