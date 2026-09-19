@@ -107,17 +107,18 @@ jobs:
 
   # Release is the one configuration nothing else compiles. `Xcode test` builds
   # Debug; Xcode Cloud builds Release but only when a release is cut, so a
-  # whole-module-optimization or dead-stripping break would surface on the
-  # archive that is meant to ship. This job moves that discovery to the merge
-  # that caused it.
+  # whole-module-optimization, `@inlinable` access or dead-stripping break
+  # would otherwise surface on the archive that is meant to ship.
   #
-  # Main pushes only -- no `needs: changes`, because `on.push.paths` above
-  # already restricts main pushes to Apple changes, and Apple pull requests
-  # already pay for a full `xcodebuild test`. Not a required status check: it
-  # never runs on a pull request, so it has nothing to report there.
+  # Same gate as `test` and `lint`, so it blocks the pull request that breaks
+  # Release rather than reddening main afterwards. It runs in parallel with
+  # `test`, so an Apple pull request gains runner minutes but no wall-clock
+  # time. The `push` leg still earns its keep: a merge commit is not the head
+  # the pull request tested.
   release-build:
     name: Xcode release build
-    if: github.event_name == 'push'
+    needs: changes
+    if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     runs-on: xcode-27
     steps:
       - name: Checkout repository
