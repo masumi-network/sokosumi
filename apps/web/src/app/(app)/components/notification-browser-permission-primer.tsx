@@ -3,10 +3,17 @@
 import { BellRing } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
+import {
+  getPushRepairOutcome,
+  getServerPushRepairOutcome,
+  recordPushRepairOutcome,
+  subscribePushRepairOutcome,
+} from "@/lib/ably/push-repair-outcome.client";
+import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 import {
   type BrowserNotificationPermission,
@@ -57,6 +64,54 @@ export function NotificationBrowserPermissionPrimer({
     useState<BrowserNotificationPermission | null>(null);
   const [capability, setCapability] = useState<PrimerCapability>("none");
   const [isRequesting, setIsRequesting] = useState(false);
+  const { data: session } = useSession();
+  /**
+   * What the app-open repair left this browser in. An external store rather
+   * than a read of this browser here: the repair runs once per reader in the
+   * notification provider, and a card that read the subscription for itself
+   * would answer while that repair was still in flight and say push is off on
+   * every browser it is about to fix.
+   */
+  const repairOutcome = useSyncExternalStore(
+    subscribePushRepairOutcome,
+    getPushRepairOutcome,
+    getServerPushRepairOutcome,
+  );
+  const sessionUserId = session?.user.id;
+
+  /**
+   * Subscribes this browser again, from wherever the reader met the card.
+   *
+   * The permission is already granted in the state this runs in, so there is
+   * no prompt and no gesture to preserve: the one press is the whole of it.
+   * The outcome is read again when it settles, so a repair that fails leaves
+   * the card where it was rather than reporting a success it did not get.
+   */
+  const handleRestorePush = () => {
+    if (isRequesting || !sessionUserId) {
+      return;
+    }
+
+    setIsRequesting(true);
+    // Loaded on the press that needs it. The Ably SDK stays off the app shell
+    // for every reader whose browser is not quiet, the same boundary the
+    // account page and the app-open repair keep.
+    void import("@/lib/ably/push-activation.client")
+      .then(({ activatePush }) => activatePush(sessionUserId))
+      .catch((error: unknown) => {
+        console.error("Failed to restore the push subscription", error);
+      })
+      .finally(() => {
+        setIsRequesting(false);
+        // This card is only drawn for a browser Ably held a registration for,
+        // so the press knows that without reading it again. It has to: the
+        // activation clears that registration halfway through its round, and
+        // a failed press that read it afterwards would find none, record this
+        // browser as healthy, and take the card away as though the press had
+        // worked.
+        void recordPushRepairOutcome({ hadRegistration: true });
+      });
+  };
 
   useMountEffect(() => {
     // Both reads need `window`, and they land together, so the `permission`
@@ -68,7 +123,6 @@ export function NotificationBrowserPermissionPrimer({
 
   if (
     permission === null ||
-    permission === "granted" ||
     permission === "unsupported" ||
     // Nothing here can show a banner, so there is nothing to offer or explain.
     capability === "none"
@@ -104,6 +158,45 @@ export function NotificationBrowserPermissionPrimer({
       {action}
     </div>
   );
+
+  /**
+   * A browser the reader set up for push, that stopped receiving it.
+   *
+   * With the permission granted there is nothing left to ask for, so this is
+   * the only thing this card has to say to such a reader, and it says it only
+   * when the app-open repair has already tried and failed. A browser that
+   * never turned push on has no registration to repair from and reads as
+   * `healthy` here, which is what keeps this from nagging a reader who wants
+   * push on their phone alone.
+   */
+  if (permission === "granted") {
+    if (repairOutcome !== "quiet" || !sessionUserId) {
+      return null;
+    }
+
+    return card({
+      title: t("pushQuietTitle"),
+      description: t("pushQuietDescription"),
+      action: (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="shrink-0 self-start sm:self-center"
+          onPointerDown={(event) => {
+            // Keep the panel open while the subscription is being restored.
+            if (variant === "panel") {
+              event.preventDefault();
+            }
+          }}
+          onClick={handleRestorePush}
+          disabled={isRequesting}
+        >
+          {isRequesting ? t("pushQuietRestoring") : t("pushQuietRestore")}
+        </Button>
+      ),
+    });
+  }
 
   // The account page cannot lift a block either, so this state gets no link
   // to it: only the browser's own settings can, and the copy says so.

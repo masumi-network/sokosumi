@@ -8,6 +8,32 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({ data: { user: { id: SESSION_USER_ID } } }),
+}));
+
+const { activatePushMock, recordPushRepairOutcomeMock } = vi.hoisted(() => ({
+  activatePushMock: vi.fn(),
+  recordPushRepairOutcomeMock: vi.fn(),
+}));
+
+/** What the app-open repair left this browser in, per test. */
+let repairOutcome: "pending" | "quiet" | "healthy" = "pending";
+
+vi.mock("@/lib/ably/push-repair-outcome.client", () => ({
+  getPushRepairOutcome: () => repairOutcome,
+  getServerPushRepairOutcome: () => "pending",
+  subscribePushRepairOutcome: () => () => {},
+  recordPushRepairOutcome: (...args: unknown[]) =>
+    recordPushRepairOutcomeMock(...args),
+}));
+
+vi.mock("@/lib/ably/push-activation.client", () => ({
+  activatePush: (...args: unknown[]) => activatePushMock(...args),
+}));
+
+const SESSION_USER_ID = "user_alice";
+
 const requestPermissionMock = vi.fn();
 
 function setNotificationPermission(permission: NotificationPermission): void {
@@ -50,6 +76,8 @@ describe("NotificationBrowserPermissionPrimer", () => {
   beforeEach(() => {
     setPushSupported(true);
     setServiceWorkerSupported(true);
+    repairOutcome = "pending";
+    activatePushMock.mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -138,6 +166,67 @@ describe("NotificationBrowserPermissionPrimer", () => {
 
   it("stays out of the way once notifications are allowed", () => {
     setNotificationPermission("granted");
+    repairOutcome = "healthy";
+    const { container } = render(<NotificationBrowserPermissionPrimer />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  /**
+   * The state SOK-929 names. The reader set this browser up for push, it lost
+   * its subscription, and the app-open repair could not bring one back. The
+   * permission is granted, so there is nothing left to ask for: the card says
+   * what happened and offers the one press that fixes it.
+   */
+  it("tells the reader when this browser stopped receiving push", async () => {
+    setNotificationPermission("granted");
+    repairOutcome = "quiet";
+    render(<NotificationBrowserPermissionPrimer />);
+
+    expect(screen.getByText("pushQuietDescription")).toBeInTheDocument();
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "pushQuietRestore" }),
+    );
+
+    expect(activatePushMock).toHaveBeenCalledWith(SESSION_USER_ID);
+    // Read again rather than assumed: a repair that failed leaves the card
+    // where it was instead of reporting a success it did not get.
+    expect(recordPushRepairOutcomeMock).toHaveBeenCalled();
+  });
+
+  /**
+   * The press can destroy the registration it would be read back from: the
+   * activation clears Ably's stored state halfway through its round. Reading
+   * it again after a failed press would find none, call this browser healthy,
+   * and take the card away as though the press had worked.
+   */
+  it("carries the registration past a press that fails", async () => {
+    setNotificationPermission("granted");
+    repairOutcome = "quiet";
+    activatePushMock.mockRejectedValue(
+      new Error("The browser created no push subscription"),
+    );
+    render(<NotificationBrowserPermissionPrimer />);
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "pushQuietRestore" }),
+    );
+
+    expect(recordPushRepairOutcomeMock).toHaveBeenCalledWith({
+      hadRegistration: true,
+    });
+    expect(screen.getByText("pushQuietDescription")).toBeInTheDocument();
+  });
+
+  /**
+   * The repair runs in the notification provider and answers after this card
+   * has painted. Saying push stopped before it answers would show the notice
+   * on every browser the repair is about to fix.
+   */
+  it("says nothing until the repair has answered", () => {
+    setNotificationPermission("granted");
+    repairOutcome = "pending";
     const { container } = render(<NotificationBrowserPermissionPrimer />);
 
     expect(container).toBeEmptyDOMElement();
