@@ -169,6 +169,12 @@ export const userPreferencesResponseSchema = z.object({
     description: "Whether the user wants to receive marketing emails",
     example: true,
   }),
+  notificationsOptIn: z.boolean().openapi({
+    description:
+      "Deprecated compatibility field for existing v1 clients. Does not control notification delivery",
+    deprecated: true,
+    example: true,
+  }),
   pushOptIn: z.boolean().openapi({
     description:
       "Whether the user wants OS banners while Sokosumi is closed (push)",

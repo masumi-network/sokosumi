@@ -119,6 +119,7 @@ function response(notificationPreferences = current) {
   return {
     data: {
       marketingOptIn: true,
+      notificationsOptIn: true,
       pushOptIn: isAccountEnabled,
       notificationPreferences,
     },

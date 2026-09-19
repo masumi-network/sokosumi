@@ -12213,6 +12213,7 @@
                 "example": {
                   "data": {
                     "marketingOptIn": true,
+                    "notificationsOptIn": true,
                     "pushOptIn": false,
                     "notificationPreferences": [
                       {
@@ -12243,6 +12244,12 @@
                           "description": "Whether the user wants to receive marketing emails",
                           "example": true
                         },
+                        "notificationsOptIn": {
+                          "type": "boolean",
+                          "description": "Deprecated compatibility field for existing v1 clients. Does not control notification delivery",
+                          "deprecated": true,
+                          "example": true
+                        },
                         "pushOptIn": {
                           "type": "boolean",
                           "description": "Whether the user wants OS banners while Sokosumi is closed (push)",
@@ -12263,6 +12270,7 @@
                       },
                       "required": [
                         "marketingOptIn",
+                        "notificationsOptIn",
                         "pushOptIn",
                         "showRoomUnreadCount",
                         "notificationPreferences"
@@ -12608,6 +12616,7 @@
                 "example": {
                   "data": {
                     "marketingOptIn": true,
+                    "notificationsOptIn": true,
                     "pushOptIn": false,
                     "notificationPreferences": [
                       {
@@ -12638,6 +12647,12 @@
                           "description": "Whether the user wants to receive marketing emails",
                           "example": true
                         },
+                        "notificationsOptIn": {
+                          "type": "boolean",
+                          "description": "Deprecated compatibility field for existing v1 clients. Does not control notification delivery",
+                          "deprecated": true,
+                          "example": true
+                        },
                         "pushOptIn": {
                           "type": "boolean",
                           "description": "Whether the user wants OS banners while Sokosumi is closed (push)",
@@ -12658,6 +12673,7 @@
                       },
                       "required": [
                         "marketingOptIn",
+                        "notificationsOptIn",
                         "pushOptIn",
                         "showRoomUnreadCount",
                         "notificationPreferences"

@@ -13,6 +13,7 @@ import { userPreferencesResponseSchema } from "@/schemas/user.schema";
  */
 export const USER_PREFERENCES_SELECT = {
   marketingOptIn: true,
+  notificationsOptIn: true,
   pushOptIn: true,
   showRoomUnreadCount: true,
   notificationPreferences: {
@@ -22,6 +23,7 @@ export const USER_PREFERENCES_SELECT = {
 
 interface UserPreferencesRow {
   marketingOptIn: boolean;
+  notificationsOptIn: boolean;
   pushOptIn: boolean;
   showRoomUnreadCount: boolean;
   notificationPreferences: StoredNotificationPreference[];
@@ -36,6 +38,7 @@ interface UserPreferencesRow {
 export function toUserPreferencesResponse(user: UserPreferencesRow) {
   return userPreferencesResponseSchema.parse({
     marketingOptIn: user.marketingOptIn,
+    notificationsOptIn: user.notificationsOptIn,
     pushOptIn: user.pushOptIn,
     showRoomUnreadCount: user.showRoomUnreadCount,
     notificationPreferences: resolveNotificationMatrix(

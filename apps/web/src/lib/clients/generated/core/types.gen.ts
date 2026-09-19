@@ -24776,6 +24776,12 @@ export type GetUsersByIdPreferencesResponses = {
              */
             marketingOptIn: boolean;
             /**
+             * Deprecated compatibility field for existing v1 clients. Does not control notification delivery
+             *
+             * @deprecated
+             */
+            notificationsOptIn: boolean;
+            /**
              * Whether the user wants OS banners while Sokosumi is closed (push)
              */
             pushOptIn: boolean;
@@ -24902,6 +24908,12 @@ export type PatchUsersByIdPreferencesResponses = {
              * Whether the user wants to receive marketing emails
              */
             marketingOptIn: boolean;
+            /**
+             * Deprecated compatibility field for existing v1 clients. Does not control notification delivery
+             *
+             * @deprecated
+             */
+            notificationsOptIn: boolean;
             /**
              * Whether the user wants OS banners while Sokosumi is closed (push)
              */

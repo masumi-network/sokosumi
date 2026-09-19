@@ -2934,7 +2934,7 @@ private let preferencesReadOperation = "get/users/{id}/preferences"
 private let preferencesWriteOperation = "patch/users/{id}/preferences"
 
 private func chatDisplayBody(showRoomUnreadCount: Bool) -> String {
-  envelope(#"{"marketingOptIn":false,"pushOptIn":false,"showRoomUnreadCount":\#(showRoomUnreadCount),"notificationPreferences":[]}"#)
+  envelope(#"{"marketingOptIn":false,"notificationsOptIn":false,"pushOptIn":false,"showRoomUnreadCount":\#(showRoomUnreadCount),"notificationPreferences":[]}"#)
 }
 
 private func chatDisplayError(status: String, message: String) -> String {

@@ -20,6 +20,7 @@ vi.mock("@/lib/clients/generated/core/client", async (importOriginal) => ({
 const PREFERENCES_DTO = {
   data: {
     marketingOptIn: false,
+    notificationsOptIn: true,
     pushOptIn: true,
   },
   meta: {

@@ -42,6 +42,7 @@ vi.mock("@/lib/db/prisma", () => ({
 
 const PREFERENCES = {
   marketingOptIn: true,
+  notificationsOptIn: false,
   pushOptIn: false,
   showRoomUnreadCount: false,
   notificationPreferences: [] as {
@@ -132,6 +133,47 @@ describe("user preferences routes", () => {
     );
   });
 
+  it.each([false, true])(
+    "keeps the legacy response field for native clients when stored as %s",
+    async (notificationsOptIn) => {
+      const preferences = { ...PREFERENCES, notificationsOptIn };
+      userFindUniqueMock.mockResolvedValue(preferences);
+      userUpdateMock.mockResolvedValue(preferences);
+      txUserFindUniqueMock.mockResolvedValue(preferences);
+      const app = createPreferencesApp(SESSION_USER);
+
+      const requests = [
+        "http://localhost/me/preferences",
+        patchRequest("/me/preferences", { pushOptIn: true }),
+        patchRequest("/me/preferences", {
+          notificationPreferences: [
+            { category: "TASK_ATTENTION", channel: "IN_APP", enabled: false },
+          ],
+        }),
+      ];
+      for (const request of requests) {
+        const response = await app.request(request);
+        expect(response.status).toBe(200);
+        const body = await response.json();
+        expect(body.data.notificationsOptIn).toBe(notificationsOptIn);
+      }
+    },
+  );
+
+  it("does not write the retired flag from a PATCH body", async () => {
+    userUpdateMock.mockResolvedValue(PREFERENCES);
+    const app = createPreferencesApp(SESSION_USER);
+    const response = await app.request(
+      patchRequest("/me/preferences", {
+        pushOptIn: true,
+        notificationsOptIn: true,
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(userUpdateMock.mock.calls[0]?.[0].data).toEqual({ pushOptIn: true });
+  });
+
   it("returns pushOptIn on GET", async () => {
     const app = createPreferencesApp(SESSION_USER);
     const response = await app.request("http://localhost/me/preferences");
@@ -147,6 +189,7 @@ describe("user preferences routes", () => {
       where: { id: "user_123" },
       select: {
         marketingOptIn: true,
+        notificationsOptIn: true,
         pushOptIn: true,
         showRoomUnreadCount: true,
         notificationPreferences: {
@@ -173,6 +216,7 @@ describe("user preferences routes", () => {
       data: { pushOptIn: true },
       select: {
         marketingOptIn: true,
+        notificationsOptIn: true,
         pushOptIn: true,
         showRoomUnreadCount: true,
         notificationPreferences: {

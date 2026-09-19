@@ -35,6 +35,7 @@ const route = createRoute({
       {
         data: {
           marketingOptIn: true,
+          notificationsOptIn: true,
           pushOptIn: false,
           notificationPreferences: [
             { category: "TASK_ATTENTION", channel: "IN_APP", enabled: true },
