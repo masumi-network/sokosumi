@@ -34,13 +34,9 @@
 ### TypeScript Usage
 
 - **Mandatory**: Use TypeScript for all code
-- **Interfaces**: Prefer interfaces over types, with one carve-out: a shape that
-  is written verbatim into a Prisma `Json` column must be an object **type
-  alias**. Only an alias carries TypeScript's implicit index signature, which is
-  what lets the compiler check it against `Prisma.InputJsonValue`; an interface
-  silently fails that check. Do not "fix" such an alias back to an interface —
-  it breaks Core's typecheck (see
-  [ADR 0035](./docs/adr/0035-database-consumed-from-source.md)).
+- **Interfaces**: Prefer interfaces over types. One exception: a shape written
+  verbatim into a Prisma `Json` column must be an object type alias — see
+  [Prisma JSON columns](.cursor/rules/prisma-json-columns.mdc)
 - **Enums**: Avoid enums; use maps instead
 - **Components**: Use functional components with TypeScript interfaces
 - **Inference**: Leverage Prisma type inference when possible

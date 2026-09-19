@@ -36,6 +36,24 @@ A cast at the call site — `as Prisma.InputJsonObject`, `as any`, or a
 double cast — silences one error and keeps the mismatch. It also violates the
 repo's TypeScript conventions, which rule out `as unknown as X` and `as any`.
 
+### Declare persisted shapes as type aliases, not interfaces
+
+A shape written verbatim into a `Json` column must be an object **type alias**:
+
+```typescript
+// ✅ assignable to Prisma.InputJsonValue
+export type PersistedPart = { type: "text"; text: string };
+
+// ❌ an interface is not
+export interface PersistedPart { type: "text"; text: string }
+```
+
+Only a type alias carries TypeScript's implicit index signature, which is what
+lets the compiler check the shape against `InputJsonValue`; an interface fails
+that check no matter how JSON-shaped its fields are. This is the one documented
+exception to the repo's "prefer interfaces over types" convention, so do not
+"fix" such an alias back to an interface — it breaks Core's typecheck.
+
 ### Why a wrong shape cascades
 
 Prisma computes a call's result type from its arguments. When `data` fails to
