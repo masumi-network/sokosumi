@@ -677,8 +677,11 @@ public final class WorkspaceState: ObservableObject {
   @discardableResult
   public func sendMessage(_ content: String, attachments: [ComposeAttachment] = [], quote: Components.Schemas.ChatRoomMessageQuote? = nil, auth: AuthState) -> Bool {
     let draft = ComposerContent(content)
-    guard let roomId = transcriptRoomId, draft.canSend, !transcriptLoading,
+    guard let roomId = transcriptRoomId, !transcriptLoading,
           let client = resolveClient(auth: auth) else { return false }
+    // A quote can be the whole message, except in the coworker 1:1 stream,
+    // which needs words to answer.
+    guard draft.canSend(quoted: quote != nil && directStream.roomId != roomId) else { return false }
     timeline.followLatest()
     if directStream.roomId == roomId {
       let generation = transcriptGeneration
@@ -698,7 +701,7 @@ public final class WorkspaceState: ObservableObject {
     outbox.enqueue(shell, send: { [service] in
       try await service.createMessage(
         client: client, roomId: roomId, content: draft.text,
-        clientMessageId: id, mentions: mentions, quoteMessageId: quote?.messageId, organizationSlug: slug
+        clientMessageId: id, mentions: mentions, quote: quote, organizationSlug: slug
       )
     }, confirmed: { [weak self] message in
       guard let self else { return }
@@ -1084,6 +1087,22 @@ public final class WorkspaceState: ObservableObject {
         readAttention.clearError()
         sidebar.clearActionError()
       }
+    }
+  }
+
+  /// Reorder Pinned. A failure of the latest reorder reloads the list: what Core holds is the truth.
+  public func reorderPinnedRooms(_ roomIds: [String], auth: AuthState) async {
+    guard let client = resolveClient(auth: auth) else { return }
+    do {
+      try await sidebar.reorderPinned(roomIds, client: client, organizationSlug: selection?.workspace.organizationSlug)
+    } catch {
+      if let error = error as? ChatServiceError, signOutIfUnauthorized(error, auth: auth) {
+        sidebar.clearActionError()
+        return
+      }
+      // A read that started before the failure may already be running; it must not stand in for the reload.
+      await roomsRefreshTask?.value
+      await refreshRooms(auth: auth)
     }
   }
 

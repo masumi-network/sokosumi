@@ -25826,6 +25826,321 @@
           }
         }
       }
+    },
+    "/chats/rooms/starred": {
+      "put": {
+        "description": "Set the order of the current user's starred chat rooms in the active workspace. Rewrites `starredAt` on membership-visible starred rooms only (same set as GET /chats/rooms), the sort key every client already lists starred rooms by (oldest first). Never stars or unstars a room, and never writes another workspace's exclusive pins.",
+        "tags": [
+          "Chat Rooms"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationSlug"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderStarredChatRoomsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Starred rooms in their new order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/StarredChatRoomOrder"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "pagination": {
+                          "$ref": "#/components/schemas/PaginationMetadata"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -26015,7 +26330,7 @@
             ],
             "format": "date-time",
             "example": "2026-08-02T12:00:00.000Z",
-            "description": "When the current user starred this room. Null when not starred."
+            "description": "Set while the current user has this room starred; null when not. A sort key, not the time of starring: starred rooms list oldest first, and `PUT /chats/rooms/starred` rewrites it."
           },
           "pinnedMessageCount": {
             "type": "integer",
@@ -26449,7 +26764,7 @@
           "roomId": {
             "type": "string",
             "format": "uuid",
-            "description": "Source room of a quote sent to the caller's Self Direct. Absent when the quoted message is in the same room.",
+            "description": "Source room of a message quoted from another room. Absent when the quoted message is in the same room.",
             "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         },
@@ -26765,8 +27080,8 @@
         "properties": {
           "content": {
             "type": "string",
-            "minLength": 1,
             "maxLength": 10000,
+            "description": "Message body. May be empty only when `quote` is set: a quote can be the whole message.",
             "example": "@coworker:elena Can you summarize this launch risk?"
           },
           "mentionedCoworkerIds": {
@@ -26814,12 +27129,18 @@
                 "type": "string",
                 "format": "uuid",
                 "example": "550e8400-e29b-41d4-a716-446655440000"
+              },
+              "roomId": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Room the quoted message is in, when it is not this room. User senders only. Allowed when the sender can read that room and every user member of this room is also a member of it; anything else is a 400.",
+                "example": "550e8400-e29b-41d4-a716-446655440001"
               }
             },
             "required": [
               "messageId"
             ],
-            "description": "Quote another message in the same room. Snapshot is stored in metadata.quote; does not set parentMessageId."
+            "description": "Quote another message. Snapshot is stored in metadata.quote; does not set parentMessageId."
           },
           "clientMessageId": {
             "type": "string",
@@ -29388,6 +29709,46 @@
         },
         "required": [
           "organizationId"
+        ]
+      },
+      "ReorderStarredChatRoomsRequest": {
+        "type": "object",
+        "properties": {
+          "roomIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 500,
+            "description": "Starred room ids in the wanted order. Ids the caller has not starred in the active workspace are ignored; membership-visible starred rooms left out keep their relative order after the listed ones. Never stars or unstars a room.",
+            "example": [
+              "550e8400-e29b-41d4-a716-446655440000"
+            ]
+          }
+        },
+        "required": [
+          "roomIds"
+        ]
+      },
+      "StarredChatRoomOrder": {
+        "type": "object",
+        "properties": {
+          "roomId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "starredAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2021-01-01T00:00:00.000Z",
+            "description": "Sort key: starred rooms list oldest `starredAt` first."
+          }
+        },
+        "required": [
+          "roomId",
+          "starredAt"
         ]
       }
     }

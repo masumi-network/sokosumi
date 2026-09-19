@@ -126,6 +126,8 @@ function handler(_req, res) {
 
 Husky runs `pnpm precommit` (`pnpm check && pnpm typecheck`) before each commit. Expect roughly 10–15 seconds. Skip with `git commit --no-verify` or `HUSKY=0`.
 
+In a fresh worktree the hook fails with `Command "prisma" not found` until `pnpm install` has run there. Install (about 30 seconds) rather than committing past it with `--no-verify`: the failure is the worktree's `node_modules`, so every later check is blind too.
+
 ## Commands
 
 Full list is in root `package.json`. Agents typically need:
@@ -186,6 +188,7 @@ docs(readme): update setup instructions
 > | `feat(auth): add refresh token` | `Make FormSection title optional` |
 > | `chore(deps): pin biome version` | `Update deps` |
 
+- **Required status checks** on `main` (ruleset `Default Branch`): `Build`, `Validate PR Title`, `Biome`, `Test Core`, `Test Packages`, `Test Web`, `Typecheck`, `Swift lint and format`. Read the live list with `gh api repos/masumi-network/sokosumi/rulesets/3855070 --jq '.rules[] | select(.type=="required_status_checks") | .parameters.required_status_checks[].context'`. Deleting or renaming the job behind one of these blocks every PR on a check that never reports, so update the ruleset in the same change.
 - **Draft by default**: Open new PRs as **draft** unless the author explicitly asks for a ready-for-review PR. Mark it ready for review only once CI is green and the change is complete.
 - **Title**: Follow [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/) syntax (e.g. `feat(auth): add refresh token`)
 - **Description**: Explain user-facing impact
@@ -341,7 +344,7 @@ These notes cover non-obvious, durable facts about running this repo in the Curs
 ### Runtime versions
 
 - **Node 24 is the required runtime** (root `.nvmrc` = `lts/krypton`; apps and packages pin `"engines": { "node": "24.x" }` — root `package.json` has no `engines` field). The base image's `/exec-daemon/node` is Node 22 and is early in `PATH`, so Node 24 (installed via nvm) is symlinked into `/usr/local/cargo/bin` (which is first in `PATH`) as `node`/`npm`/`npx`/`corepack`/`pnpm`. This makes `node -v` report Node 24 in **every** shell (login or not). If a future run somehow sees Node 22, recreate those symlinks from `~/.nvm/versions/node/v24*/bin`.
-- **pnpm via Corepack:** Environment `install`/`start` call `scripts/cloud-agent-db/ensure-pnpm.sh`, which `corepack prepare`s the pin in root `package.json` `packageManager` and deletes `~/.local/share/pnpm/.tools/pnpm`. A leftover pnpm 12 standalone placeholder there is not a valid shell script and fails builds with `Syntax error: ")" unexpected`. Read `packageManager` for the version — do not remember a `pnpm -v` number here.
+- **pnpm via Corepack:** Environment `install`/`start` call `scripts/cloud-agent-db/ensure-pnpm.sh`, which `corepack prepare`s the pin in root `package.json` `packageManager` and deletes `~/.local/share/pnpm/.tools/pnpm`. A leftover pnpm 12 standalone placeholder there is not a valid shell script and fails builds with `Syntax error: ")" unexpected`. Read `packageManager` for the version — do not remember a `pnpm -v` number here. Do **not** re-add a `devEngines.packageManager` block: npm reads it on every `npm`/`npx` invocation in the tree and emits `EBADDEVENGINES` warnings (with `onFail: "error"` it refuses to run at all, breaking `npx` at the repo root and from `apps/apple`). `packageManager` alone is what Corepack — locally and on Vercel — actually uses.
 
 ### Database (Cloud agent Neon branch)
 

@@ -406,6 +406,9 @@ export const auth = betterAuth({
     minPasswordLength: LIMITS.PASSWORD_MIN_LENGTH,
     requireEmailVerification: false,
     autoSignIn: true,
+    // A password reset is what someone does when they suspect their account is
+    // compromised, so every existing session has to go with the old password.
+    revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ user, url }, request) => {
       const email = await renderResetPasswordEmail({
         locale: getEmailLocale(request),

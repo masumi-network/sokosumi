@@ -10,6 +10,7 @@ import { PROJECTS_PAGE_LIMIT } from "./constants";
 
 interface LoadMoreProjectsParams extends AuthenticatedRequest {
   cursor: string | null;
+  expectedScope?: { userId: string; organizationId: string | null };
 }
 
 export const loadMoreProjects = withSession<
@@ -20,7 +21,15 @@ export const loadMoreProjects = withSession<
     >["projects"];
     nextCursor: string | null;
   }
->(async ({ cursor }) => {
+>(async ({ cursor, expectedScope, session }) => {
+  if (
+    expectedScope &&
+    (expectedScope.userId !== session.user.id ||
+      expectedScope.organizationId !==
+        (session.session.activeOrganizationId ?? null))
+  ) {
+    throw new Error("Project workspace changed");
+  }
   const page = await projectService.listProjects({
     cursor,
     limit: PROJECTS_PAGE_LIMIT,

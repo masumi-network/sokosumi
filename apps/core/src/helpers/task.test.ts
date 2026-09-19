@@ -453,6 +453,8 @@ describe("mapTask", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       ownerId: "user_123",
       organizationId: null,
+      projectId: null,
+      project: null,
       owner: defaultTaskUser,
       organization: null,
       assigneeId: "cow_123",
@@ -492,6 +494,8 @@ describe("mapTask", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       ownerId: "user_123",
       organizationId: null,
+      projectId: null,
+      project: null,
       owner: defaultTaskUser,
       organization: null,
       assigneeId: "cow_123",
@@ -555,6 +559,8 @@ describe("mapTask", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       ownerId: "user_123",
       organizationId: null,
+      projectId: null,
+      project: null,
       owner: defaultTaskUser,
       organization: null,
       assigneeId: null,
@@ -616,6 +622,8 @@ describe("mapTask", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       ownerId: "user_123",
       organizationId: null,
+      projectId: null,
+      project: null,
       owner: defaultTaskUser,
       organization: null,
       assigneeId: "cow_123",
@@ -673,6 +681,8 @@ describe("mapTask", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       ownerId: "user_123",
       organizationId: null,
+      projectId: null,
+      project: null,
       owner: defaultTaskUser,
       organization: null,
       assigneeId: "cow_123",
@@ -746,6 +756,8 @@ describe("mapTask", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       ownerId: "user_123",
       organizationId: null,
+      projectId: null,
+      project: null,
       owner: defaultTaskUser,
       organization: null,
       assigneeId: "cow_123",
@@ -843,6 +855,8 @@ describe("mapTask", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       ownerId: "user_123",
       organizationId: null,
+      projectId: null,
+      project: null,
       owner: defaultTaskUser,
       organization: null,
       assigneeId: "cow_123",
@@ -918,6 +932,8 @@ describe("mapTask", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       ownerId: "user_123",
       organizationId: null,
+      projectId: null,
+      project: null,
       owner: defaultTaskUser,
       organization: null,
       assigneeId: "cow_123",
@@ -995,6 +1011,8 @@ describe("mapTask", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       ownerId: "user_123",
       organizationId: null,
+      projectId: null,
+      project: null,
       owner: defaultTaskUser,
       organization: null,
       assigneeId: "cow_123",
@@ -1045,6 +1063,93 @@ describe("mapTask", () => {
 
     expect(result.credits).toBe(2);
     expect(result.events[0]?.credits).toBe(5);
+  });
+
+  it("maps project summary from a loaded project relation", () => {
+    const project = {
+      id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+      name: "Autumn",
+      logo: "https://example.com/logo.png",
+    };
+    const task = {
+      id: "tsk_project",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      ownerId: "user_123",
+      organizationId: null,
+      projectId: project.id,
+      project,
+      owner: defaultTaskUser,
+      organization: null,
+      assigneeId: "cow_123",
+      assignee: defaultTaskCoworker,
+      creatorUserId: "user_123",
+      creatorUser: defaultTaskUser,
+      creatorCoworkerId: null,
+      creatorCoworker: null,
+      creatorSokoBotId: null,
+      creatorSokoBot: null,
+      name: "Task with project",
+      description: null,
+      status: TaskStatus.READY,
+      share: null,
+      jobs: [],
+      files: [],
+      linksFrom: [],
+      linksTo: [],
+      events: [],
+      workspace: {
+        id: "11111111-1111-7111-8111-111111111111",
+        organizationId: null,
+        organization: null,
+      },
+    } as unknown as TaskWithIncludes;
+
+    expect(mapTask(task, TEST_USER_AUTH)).toMatchObject({
+      projectId: project.id,
+      project,
+    });
+  });
+
+  it("maps project to null when projectId is null", () => {
+    const task = {
+      id: "tsk_no_project",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      ownerId: "user_123",
+      organizationId: null,
+      projectId: null,
+      project: null,
+      owner: defaultTaskUser,
+      organization: null,
+      assigneeId: "cow_123",
+      assignee: defaultTaskCoworker,
+      creatorUserId: "user_123",
+      creatorUser: defaultTaskUser,
+      creatorCoworkerId: null,
+      creatorCoworker: null,
+      creatorSokoBotId: null,
+      creatorSokoBot: null,
+      name: "Task without project",
+      description: null,
+      status: TaskStatus.READY,
+      share: null,
+      jobs: [],
+      files: [],
+      linksFrom: [],
+      linksTo: [],
+      events: [],
+      workspace: {
+        id: "11111111-1111-7111-8111-111111111111",
+        organizationId: null,
+        organization: null,
+      },
+    } as unknown as TaskWithIncludes;
+
+    expect(mapTask(task, TEST_USER_AUTH)).toMatchObject({
+      projectId: null,
+      project: null,
+    });
   });
 });
 

@@ -1087,6 +1087,10 @@ export type Task = {
     organization: OrganizationSummary;
     projectId: string | null;
     /**
+     * Linked project name and logo. Null when the task has no project.
+     */
+    project: ProjectSummary | null;
+    /**
      * Marketplace coworker assignee. Null when assigned to a user, a Soko Bot, or unset. Prefer `assignee`.
      */
     assigneeId: string | null;
@@ -1178,6 +1182,12 @@ export type OrganizationSummary = {
     name: string;
     slug: string;
 } | null;
+
+export type ProjectSummary = {
+    id: string;
+    name: string;
+    logo: string | null;
+};
 
 export type TaskAssigneeCoworker = {
     type: 'coworker';
@@ -2618,7 +2628,7 @@ export type ChatRoomMessageQuote = {
     snippet: string;
     attachment?: ChatRoomMessageQuoteAttachment;
     /**
-     * Source room of a quote sent to the caller's Self Direct. Absent when the quoted message is in the same room.
+     * Source room of a message quoted from another room. Absent when the quoted message is in the same room.
      */
     roomId?: string;
 } | null;
@@ -2802,6 +2812,9 @@ export type ChatRoomThreadReadState = {
 };
 
 export type CreateChatRoomMessageRequest = {
+    /**
+     * Message body. May be empty only when `quote` is set: a quote can be the whole message.
+     */
     content: string;
     mentionedCoworkerIds?: Array<string>;
     /**
@@ -2817,10 +2830,14 @@ export type CreateChatRoomMessageRequest = {
      */
     parentMessageId?: string;
     /**
-     * Quote another message in the same room. Snapshot is stored in metadata.quote; does not set parentMessageId.
+     * Quote another message. Snapshot is stored in metadata.quote; does not set parentMessageId.
      */
     quote?: {
         messageId: string;
+        /**
+         * Room the quoted message is in, when it is not this room. User senders only. Allowed when the sender can read that room and every user member of this room is also a member of it; anything else is a 400.
+         */
+        roomId?: string;
     };
     /**
      * Opaque client turn id. Retries of the same send reuse this so concurrent or replayed POSTs create at most one row per room (unique on roomId + clientMessageId).
@@ -5561,6 +5578,10 @@ export type TaskListItem = {
     organizationId: string | null;
     organization: OrganizationSummary;
     projectId: string | null;
+    /**
+     * Linked project name and logo. Null when the task has no project.
+     */
+    project: ProjectSummary | null;
     /**
      * Marketplace coworker assignee. Null when assigned to a user, a Soko Bot, or unset. Prefer `assignee`.
      */
@@ -31040,7 +31061,7 @@ export type GetProjectsData = {
     path?: never;
     query?: {
         /**
-         * Cursor for pagination (ID of the last item from previous page)
+         * Opaque activity cursor returned in nextCursor by the previous page
          */
         cursor?: string;
         /**
@@ -31052,6 +31073,21 @@ export type GetProjectsData = {
 };
 
 export type GetProjectsErrors = {
+    /**
+     * Invalid pagination cursor
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */

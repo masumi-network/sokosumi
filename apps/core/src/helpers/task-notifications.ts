@@ -230,6 +230,12 @@ const TASK_ASSIGNED_MESSAGE_KEY = "Notifications.Task.assigned";
 /**
  * Notify a workspace member when they become the Task assignee.
  * Does not run for unassign or assign-to-agent. Best-effort.
+ *
+ * No account-wide opt-in read here. That field is the email gate, and this
+ * row has no email behind it, so reading it silenced a notification the
+ * reader could not switch back on. The `TASK_ATTENTION` row of the
+ * preference matrix answers for it instead, resolved inside
+ * `createNotification`.
  */
 export async function notifyTaskHumanAssignee(
   taskId: string,
@@ -251,15 +257,6 @@ export async function notifyTaskHumanAssignee(
     });
 
     if (!task || task.assigneeUserId !== assigneeUserId) {
-      return;
-    }
-
-    const assignee = await prisma.user.findUnique({
-      where: { id: assigneeUserId },
-      select: { notificationsOptIn: true },
-    });
-
-    if (!assignee?.notificationsOptIn) {
       return;
     }
 
