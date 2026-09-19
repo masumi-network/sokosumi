@@ -59,7 +59,7 @@ export default function PersonalAssistantNav({
               stack of up to three faces that shrank as the stack grew — so
               the entry above every other row was the one that moved the list
               furthest on a toggle, and its mark changed size with the number
-              of bots in the workspace. One face at 24px in the shared slot
+              of bots in the workspace. One face at 20px in the shared slot
               says the same thing and lines up with the nav under it; the
               divider below still marks it as the entry it is.
             */}

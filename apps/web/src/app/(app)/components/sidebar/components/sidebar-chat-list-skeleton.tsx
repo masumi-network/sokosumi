@@ -134,8 +134,9 @@ function DirectMarkSkeleton({ faces }: { faces: number }) {
     <span
       className={cn(
         "inline-flex shrink-0 items-center",
-        // The stack's 2px axis padding, same as the real mark's.
-        faces > 1 && "pl-0.5",
+        // The stack's 2px axis padding, same as the real mark's — and the
+        // rail drop, because extra faces are gone there.
+        faces > 1 && "pl-0.5 group-data-[collapsible=icon]:pl-0",
       )}
     >
       {Array.from({ length: faces }, (_, index) => (

@@ -255,6 +255,12 @@ describe("DirectRoomAvatarStack", () => {
     expect(stacked.firstElementChild?.className.split(/\s+/)).toContain(
       "pl-0.5",
     );
+    // Extra faces are `display: none` on the rail, so the stack is one 20px
+    // face again. Leaving the pad would centre a 22px mark and sit 1px off
+    // every 1:1 face in that column.
+    expect(stacked.firstElementChild?.className.split(/\s+/)).toContain(
+      "group-data-[collapsible=icon]:pl-0",
+    );
   });
 
   it("renders a fallback mark when the DM has no other participants", () => {

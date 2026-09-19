@@ -155,6 +155,18 @@ describe("AppSidebarFallback", () => {
         ),
       ];
       expect(faces).toHaveLength(rowIndex === 1 ? 2 : 1);
+      if (rowIndex === 1) {
+        expect(tokens(faces[0]?.parentElement?.className ?? "")).toEqual(
+          expect.arrayContaining([
+            "pl-0.5",
+            "group-data-[collapsible=icon]:pl-0",
+          ]),
+        );
+      } else {
+        expect(tokens(faces[0]?.parentElement?.className ?? "")).not.toContain(
+          "pl-0.5",
+        );
+      }
       for (const [faceIndex, face] of faces.entries()) {
         expect(tokens(face.className)).toEqual(
           expect.arrayContaining(["size-5", "rounded-full"]),

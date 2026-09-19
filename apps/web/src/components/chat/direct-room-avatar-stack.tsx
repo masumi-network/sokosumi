@@ -68,7 +68,9 @@ function getDirectParticipants(
  * slot centres a mark narrower than itself, which puts a lone 20px face 2px
  * in; a stack is wider than the slot and so starts flush at its edge. Without
  * the padding a group row's first face would sit 2px left of every 1:1 face
- * under it, and those faces are the same shape in the same column.
+ * under it, and those faces are the same shape in the same column. On the
+ * rail the extra faces are `display: none`, so the stack is one 20px face
+ * again and the pad would shove it 1px off that column — drop it there.
  *
  * A 1:1 row states availability as hidden text, because it is the only surface
  * that can: `shouldShowRoomRosterControl` gives a two-person direct no roster
@@ -99,7 +101,7 @@ export function DirectRoomAvatarStack({
     <span
       className={cn(
         "inline-flex shrink-0 items-center",
-        participants.length > 1 && "pl-0.5",
+        participants.length > 1 && "pl-0.5 group-data-[collapsible=icon]:pl-0",
       )}
     >
       {participants.map((participant, index) => {
