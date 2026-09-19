@@ -16,7 +16,6 @@
     "build": "turbo run build",
     "web:build": "pnpm --filter web build",
     "core:build": "pnpm --filter core build",
-    "database:build": "pnpm --filter @sokosumi/database build",
     "masumi:build": "pnpm --filter @sokosumi/masumi build",
     "packages:build": "pnpm --filter \"./packages/*\" run build",
     "typecheck": "turbo run typecheck",
