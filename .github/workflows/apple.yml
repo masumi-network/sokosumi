@@ -196,7 +196,11 @@ jobs:
   publish:
     name: Publish rolling DMG
     needs: [changes, test, lint]
-    if: github.event_name == 'push'
+    # `workflow_dispatch` runs everything except the release step, so the disk
+    # image can be built, notarized and downloaded from the run's artifacts
+    # without rewriting `apple-latest`. That is the way to test a change to
+    # this job.
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: xcode-27
     permissions:
       # `gh release` rewrites the apple-latest tag and its assets.
@@ -285,7 +289,20 @@ jobs:
           xcrun stapler staple "$RUNNER_TEMP/Sokosumi.dmg"
           xcrun stapler validate "$RUNNER_TEMP/Sokosumi.dmg"
 
+      - name: Upload the disk image as a run artifact
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: Sokosumi-dmg
+          path: ${{ runner.temp }}/Sokosumi.dmg
+          # Short: the current build always lives at the apple-latest URL, so
+          # this exists to grab one specific run, not to archive history.
+          retention-days: 7
+          if-no-files-found: error
+
       - name: Replace the rolling prerelease
+        # Never on a manual run: a test build must not rewrite the link people
+        # have already been given.
+        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         # One tag, rewritten each time, so the download URL never changes.
