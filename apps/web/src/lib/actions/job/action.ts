@@ -3,7 +3,7 @@
 import * as Sentry from "@sentry/nextjs";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
-import { type ActionError, CommonErrorCode } from "@/lib/actions";
+import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import {
   type ActionResultDto,
   toActionResult,
