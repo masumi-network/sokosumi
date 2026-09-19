@@ -199,6 +199,17 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
             ) : (
               <ProjectLinks rows={rows} onNavigate={handleNavigate} />
             )}
+            {/* A way out of the panel without aiming back at the row behind
+                it. No avatar: the placeholder square only read as a project
+                whose logo had failed to load. */}
+            <div className="bg-border my-1 h-px" />
+            <Link
+              href="/projects"
+              onClick={handleNavigate}
+              className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground block rounded-md px-2 py-1.5 text-sm"
+            >
+              {t("allProjects")}
+            </Link>
           </HoverCardContent>
         </HoverCard>
       ) : (

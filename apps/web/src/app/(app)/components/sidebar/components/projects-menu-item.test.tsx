@@ -382,6 +382,18 @@ describe("Projects sidebar", () => {
     expect(projectHrefs()).toEqual(["/projects/project-1"]);
   });
 
+  it("offers a way to the full list from inside the panel", async () => {
+    setup();
+    openFlyout();
+    await screen.findByRole("link", { name: "Launch plan" });
+    const all = screen.getByRole("link", { name: "allProjects" });
+    expect(all).toHaveAttribute("href", "/projects");
+    // No avatar: a placeholder square read as a project with a broken logo.
+    expect(all.querySelector('[data-slot="avatar"]')).not.toBeInTheDocument();
+    // Still reachable when the rows themselves could not be had.
+    expect(projectHrefs()).toEqual(["/projects/project-1"]);
+  });
+
   it("renders the established avatar fallback without changing the accessible link name", async () => {
     setup();
     openFlyout();
@@ -429,6 +441,7 @@ it.each([en, de, es])(
     const labels = messages.App.Sidebar.Content.MenuItems;
     for (const key of [
       "projects",
+      "allProjects",
       "projectsLoading",
       "projectsError",
       "retryProjects",
