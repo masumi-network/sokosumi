@@ -53,6 +53,7 @@ import { hasAssignedOrganizationSeat } from "@/lib/services/organization-assigne
 import { projectService } from "@/lib/services/project.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { userService } from "@/lib/services/user.service";
+import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import {
   buildVendorGrantReviewHref,
   canApproveVendorGrants,
@@ -488,6 +489,7 @@ async function TaskMetadataSection({
       project={project ? { id: project.id, name: project.name } : null}
       createdAtLabel={formatter.dateTime(task.createdAt, "dateTime")}
       updatedAtLabel={formatter.dateTime(task.updatedAt, "dateTime")}
+      creditsDisplay={formatter.number(formatCreditsForDisplay(task.credits))}
       labels={{
         visibility: t("visibility"),
         privateBadge: t("privateBadge"),
