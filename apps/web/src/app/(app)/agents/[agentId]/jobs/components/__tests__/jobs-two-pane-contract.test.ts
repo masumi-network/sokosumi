@@ -27,6 +27,18 @@ describe("jobs two-pane threshold", () => {
     expect(read("layout.tsx")).toContain("@4xl/jobs-panes:flex-row");
   });
 
+  it("puts flex-row on a descendant of the query container", () => {
+    // An element cannot query its own containment context. `@4xl/jobs-panes:flex-row`
+    // on the `@container/jobs-panes` node would never match, so the panes would
+    // stay stacked after the list/detail slots had already switched.
+    const layout = read("layout.tsx");
+    expect(layout).toContain("@container/jobs-panes");
+    expect(layout).toContain("@4xl/jobs-panes:flex-row");
+    expect(layout).not.toMatch(
+      /@container\/jobs-panes[^"'`\n]*@4xl\/jobs-panes:flex-row/,
+    );
+  });
+
   it("marks the row the hook measures", () => {
     expect(read("layout.tsx")).toContain(JOBS_PANES_ATTRIBUTE);
   });
@@ -35,6 +47,13 @@ describe("jobs two-pane threshold", () => {
     // Without `@container` on the row the `@4xl/jobs-panes` variants never
     // match and the layout is stuck in one column.
     expect(read("layout.tsx")).toContain("@container/jobs-panes");
+  });
+
+  it("does not size the list from the viewport", () => {
+    // `lg:w-72` would pin the list to 18rem whenever the window is 1024px,
+    // including the stacked case this PR exists to keep full-width.
+    expect(read("components/jobs-list.tsx")).not.toContain("lg:w-72");
+    expect(read("layout.tsx")).toContain("@4xl/jobs-panes:w-72");
   });
 
   it("keeps the panes free of fixed positioning at md and up", () => {
