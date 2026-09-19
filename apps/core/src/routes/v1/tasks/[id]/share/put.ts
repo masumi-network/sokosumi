@@ -50,19 +50,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const { allowSearchIndexing } = c.req.valid("json");
 
-    const share = await prisma.$transaction(async (tx) => {
-      const task = await requireMutableTaskOwnership(userContext, id, tx);
+    const task = await requireMutableTaskOwnership(userContext, id, prisma);
 
-      if (task.visibility === TaskVisibility.PRIVATE) {
-        throw badRequest("Private tasks cannot be shared publicly");
-      }
+    if (task.visibility === TaskVisibility.PRIVATE) {
+      throw badRequest("Private tasks cannot be shared publicly");
+    }
 
-      return await publicShareRepository.upsertForTask(
-        id,
-        allowSearchIndexing,
-        tx,
-      );
-    });
+    const share = await publicShareRepository.upsertForTask(
+      id,
+      allowSearchIndexing,
+      prisma,
+    );
 
     return ok(c, taskShareSchema.parse(share));
   });

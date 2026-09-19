@@ -42,10 +42,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireOwnerUserContext(authContext);
     const { id } = c.req.valid("param");
 
-    await prisma.$transaction(async (tx) => {
-      await requireMutableTaskOwnership(userContext, id, tx);
-      await publicShareRepository.deleteByTaskId(id, tx);
-    });
+    await requireMutableTaskOwnership(userContext, id, prisma);
+    await publicShareRepository.deleteByTaskId(id, prisma);
 
     return ok(c, deleteTaskShareResponseSchema.parse({}));
   });

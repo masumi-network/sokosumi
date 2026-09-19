@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Globe, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import useIsClient from "@/hooks/use-is-client";
 import {
   CoreApiRequestError,
   coreClient,
@@ -40,18 +41,11 @@ export default function JobShareModal({
   const router = useRouter();
   const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(false);
-
-  // Detect client-side rendering without setState in useEffect
-  const isClient = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false,
-  );
+  const isClient = useIsClient();
 
   // Derive share state from job data - these will be reset via handleOnOpenChange
   const [jobShare, setJobShare] = useState<JobShare | null>(job.share ?? null);
 
-  // Compute link on client only - derived from jobShare state
   const link =
     isClient && jobShare?.token
       ? new URL(`/share/${jobShare.token}`, window.location.origin)
