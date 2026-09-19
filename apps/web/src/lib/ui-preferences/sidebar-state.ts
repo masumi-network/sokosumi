@@ -2,6 +2,29 @@ export const SIDEBAR_STATE_COOKIE_NAME = "sidebar_state";
 export const SIDEBAR_STATE_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 
 /**
+ * Window width below which the sidebar shows as the rail whatever the stored
+ * preference says: a 14rem panel takes too much of a narrow window, and the
+ * content beside it is the reason the window is open.
+ *
+ * The preference is untouched while the window is this narrow — it is restored
+ * as soon as the window grows past this again.
+ */
+export const SIDEBAR_COMPACT_BREAKPOINT = 1024;
+
+/**
+ * The one predicate for 'this window is too narrow for the sidebar'.
+ *
+ * The boot script and `SidebarProvider` must agree exactly. They ran the
+ * same number through two different APIs before — `window.innerWidth` in the
+ * script, `matchMedia` in React — and at a fractional or rounded viewport
+ * width those can land on opposite sides of the edge, which shows up as the
+ * one-frame flash the boot script exists to prevent.
+ */
+export const SIDEBAR_COMPACT_MEDIA_QUERY = `(max-width: ${
+  SIDEBAR_COMPACT_BREAKPOINT - 1
+}px)`;
+
+/**
  * Global the boot script installs so `SidebarProvider` can retire it once React
  * owns the sidebar attributes.
  */
@@ -38,18 +61,20 @@ export function serializeSidebarStateCookie(open: boolean): string {
  * the preference in `useLayoutEffect`, but that only runs after hydration —
  * seconds after the shell paints — which is the expanded-then-collapse flash.
  *
- * This runs before paint instead: when the cookie says collapsed it rewrites
- * `data-state` / `data-collapsible` on each sidebar as it streams in, so the
- * first frame is already the rail. Hydration lands on the same values, so React
- * never has to correct anything. Only the cookie's own value is read; nothing
- * is persisted here.
+ * This runs before paint instead: when the cookie says collapsed — or the
+ * window is below `SIDEBAR_COMPACT_BREAKPOINT`, where the rail is the default
+ * whatever the cookie says — it rewrites `data-state` / `data-collapsible` on
+ * each sidebar as it streams in, so the first frame is already the rail.
+ * Hydration lands on the same values, so React never has to correct anything.
+ * Only the cookie's own value is read; nothing is persisted here.
  *
  * Idempotent: a second run retires the previous observer before attaching its
  * own, so nothing is left observing the document.
  */
 export const SIDEBAR_BOOT_SCRIPT = `(function(){try{
 if(window.${SIDEBAR_BOOT_STOP_GLOBAL})window.${SIDEBAR_BOOT_STOP_GLOBAL}();
-if(!/(?:^|;\\s*)${SIDEBAR_STATE_COOKIE_NAME}=false(?:;|$)/.test(document.cookie))return;
+var compact=window.matchMedia(${JSON.stringify(SIDEBAR_COMPACT_MEDIA_QUERY)}).matches;
+if(!compact&&!/(?:^|;\\s*)${SIDEBAR_STATE_COOKIE_NAME}=false(?:;|$)/.test(document.cookie))return;
 var sync=function(){
 var nodes=document.querySelectorAll('[data-slot="sidebar"][data-state="expanded"][data-collapsible-mode]');
 for(var i=0;i<nodes.length;i++){var node=nodes[i];var mode=node.getAttribute('data-collapsible-mode');

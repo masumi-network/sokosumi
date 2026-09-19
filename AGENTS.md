@@ -342,6 +342,7 @@ Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily). Se
 - [Shared packages and deduplication](.cursor/rules/shared-packages.mdc) – when moving logic to `packages/utils` or refactoring duplicated code
 - [Avoid re-exports](.cursor/rules/avoid-re-exports.mdc) – import from the canonical owner; no passthrough barrels between packages or apps
 - [Utils vs database helpers](.cursor/rules/utils-vs-database.mdc) – client-safe shared code in `@sokosumi/utils`; Prisma-backed logic in `@sokosumi/database`
+- [Prisma JSON columns](.cursor/rules/prisma-json-columns.mdc) – `Prisma.InputJsonObject` / `InputJsonValue` at the producing helper, not a cast at the call site
 
 ## Cursor Cloud specific instructions
 
