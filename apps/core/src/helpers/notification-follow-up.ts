@@ -3,14 +3,10 @@ import {
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
   CHAT_MENTION_MESSAGE_KEY,
-  JOB_FOLLOW_UP_MESSAGE_KEY,
   TASK_FOLLOW_UP_MESSAGE_KEY,
 } from "@sokosumi/utils";
 
-import {
-  JOB_ATTENTION_MESSAGE_KEYS,
-  TASK_ATTENTION_MESSAGE_KEYS,
-} from "@/helpers/notification-delivery";
+import { TASK_ATTENTION_MESSAGE_KEYS } from "@/helpers/notification-delivery";
 
 /**
  * Which notifications get a follow-up, and what the follow-up is stored as
@@ -22,15 +18,18 @@ import {
  * added to a family later is silent until someone decides what its reminder
  * says.
  *
- * Every source key is one that waits on the reader. The task and job halves are
- * the attention lists the delivery module already keeps, so this adds no second
- * list to hold in step with them. The chat half is the pair the room badge
+ * Every source key is one that waits on the reader. The task half is the
+ * attention list the delivery module already keeps, so this adds no second
+ * list to hold in step with it. The chat half is the pair the room badge
  * already counts, on the same stated grounds: they are the chat notifications
  * addressed to the reader rather than merely near them.
  *
+ * Jobs are absent since SOK-930: a job writes no notification for a reminder
+ * to follow.
+ *
  * Deliberately not here: everything a reader can read later without anyone
- * waiting. A completed task, a canceled one, a failed job, every message in a
- * room. A reminder about those is noise about work that is already done.
+ * waiting. A completed task, a canceled one, every message in a room. A
+ * reminder about those is noise about work that is already done.
  *
  * No follow-up key is a source key, which is what makes "one reminder, never
  * two" true by construction rather than by counting.
@@ -41,10 +40,6 @@ const FOLLOW_UP_KEY_BY_SOURCE_KEY = new Map<string, string>([
   ...TASK_ATTENTION_MESSAGE_KEYS.map((key): [string, string] => [
     key,
     TASK_FOLLOW_UP_MESSAGE_KEY,
-  ]),
-  ...JOB_ATTENTION_MESSAGE_KEYS.map((key): [string, string] => [
-    key,
-    JOB_FOLLOW_UP_MESSAGE_KEY,
   ]),
 ]);
 
@@ -77,7 +72,7 @@ export function followUpMessageKeyFor(sourceMessageKey: string): string | null {
  * mentions in one room are twenty rows, and a per-row id would be twenty
  * reminders. The table is unique on
  * `(userId, kind, referenceId, eventId, messageKey)`, so with the reference in
- * here the reader gets one reminder per room, per task or per job.
+ * here the reader gets one reminder per room or per task.
  *
  * The day is what stops that from muting the room for good. A follow-up row is
  * never cleaned up: a reader can only mark a row read, and the sole deletes in

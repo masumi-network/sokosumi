@@ -21,6 +21,28 @@ import { isPushWorkPending, notePushTeardown } from "./push-work-queue.client";
  * (`build/push.js:155-159`).
  */
 const ABLY_DEVICE_IDENTITY_TOKEN_KEY = "ably.push.deviceIdentityToken";
+const UNRESOLVED_PUSH_REPAIR_KEY = "sokosumi.push.unresolvedRepair";
+
+/** A failed repair may remove Ably's token before it restores the subscription. */
+export function hasUnresolvedPushRepair(): boolean {
+  try {
+    return localStorage.getItem(UNRESOLVED_PUSH_REPAIR_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function setUnresolvedPushRepair(unresolved: boolean): void {
+  try {
+    if (unresolved) {
+      localStorage.setItem(UNRESOLVED_PUSH_REPAIR_KEY, "1");
+    } else {
+      localStorage.removeItem(UNRESOLVED_PUSH_REPAIR_KEY);
+    }
+  } catch {
+    // The current page can still show the notice when storage is unavailable.
+  }
+}
 
 /**
  * Whether Ably still holds a registration for this browser.
@@ -54,6 +76,7 @@ export function hasAblyPushRegistration(): boolean {
  * on Ably, which its own delivery prunes once the endpoint stops answering.
  */
 export function forgetAblyPushRegistration(): void {
+  setUnresolvedPushRepair(false);
   try {
     localStorage.removeItem(ABLY_DEVICE_IDENTITY_TOKEN_KEY);
     localStorage.removeItem(PUSH_TEARDOWN_STARTED_KEY);
@@ -92,6 +115,7 @@ const PUSH_TEARDOWN_STARTED_KEY = "sokosumi.push.teardownStarted";
  * in any case.
  */
 export function notePushTeardownStarted(): void {
+  setUnresolvedPushRepair(false);
   try {
     localStorage.setItem(PUSH_TEARDOWN_STARTED_KEY, "1");
   } catch {

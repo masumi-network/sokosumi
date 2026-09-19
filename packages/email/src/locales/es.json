@@ -50,35 +50,6 @@
     }
   },
   "jobs": {
-    "finalStatus": {
-      "subject": "Sokosumi - Job {status} de {agentName}",
-      "preview": "Tu job para {agentName} está {status}.",
-      "title": "Job {status}",
-      "greeting": "Hola {name}",
-      "body": "{jobName} para {agentName} está {status}.",
-      "button": "Ver job",
-      "linkInstructions": "O copia esta URL y pégala en tu navegador:",
-      "footer": "Recibes este email porque las notificaciones de jobs están activadas en tu cuenta.",
-      "fallbackJobName": "Tu job",
-      "status": {
-        "completed": "completado",
-        "failed": "fallido",
-        "payment_failed": "pago fallido",
-        "refund_resolved": "reembolsado",
-        "dispute_resolved": "disputa resuelta"
-      }
-    },
-    "inputRequired": {
-      "subject": "Sokosumi - {agentName} necesita tu Input",
-      "preview": "Tu job para {agentName} necesita Input para continuar.",
-      "title": "Acción requerida",
-      "greeting": "Hola {name}",
-      "body": "Tu job {jobName} para {agentName} está esperando tu Input para continuar.",
-      "bodyWithoutJobName": "Tu job para {agentName} está esperando tu Input para continuar.",
-      "button": "Proporcionar Input",
-      "linkInstructions": "O copia esta URL y pégala en tu navegador:",
-      "footer": "Recibes este email porque las notificaciones de jobs están activadas en tu cuenta."
-    },
     "failureNotification": {
       "subject": "Notificación de error de job - {jobId}",
       "preview": "El job {jobId} ha fallado",
@@ -106,7 +77,6 @@
       "fallbackAuthorName": "Alguien",
       "fallbackRoomName": "una conversación",
       "fallbackTaskName": "Tu tarea",
-      "fallbackJobName": "Tu trabajo",
       "mention": {
         "subject": "Sokosumi - {authorName} sigue esperándote en {roomName}",
         "preview": "{authorName} te mencionó en {roomName} hace un día.",
@@ -137,20 +107,7 @@
           "scheduleRemovedByOperator": "La programación de {taskName} se eliminó tras una revisión hace un día y todavía no has abierto el aviso."
         }
       },
-      "job": {
-        "subject": "Sokosumi - {jobName} sigue esperándote",
-        "preview": "{jobName} se detuvo y te necesita desde hace un día.",
-        "title": "Sigue esperándote",
-        "body": "{jobName} se detuvo hace un día porque te necesita. Sigue esperando.",
-        "button": "Abrir el trabajo",
-        "agentLabel": "Agente",
-        "reasons": {
-          "inputRequired": "{jobName} se detuvo hace un día porque {agentName} necesita tu input. Sigue esperando.",
-          "paymentFailed": "El pago de {jobName} falló hace un día y todavía no lo has abierto."
-        }
-      },
-      "fallbackCoworkerName": "un coworker",
-      "fallbackAgentName": "el agente"
+      "fallbackCoworkerName": "un coworker"
     }
   }
 }

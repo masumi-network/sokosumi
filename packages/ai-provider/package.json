@@ -35,7 +35,6 @@
   },
   "dependencies": {
     "@ai-sdk/provider": "4.0.17",
-    "@sokosumi/chat": "workspace:*",
     "@sokosumi/utils": "workspace:*"
   },
   "devDependencies": {

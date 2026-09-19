@@ -1,15 +1,17 @@
 import type { ReactNode } from "react";
 import {
-  SIDEBAR_RAIL_SQUARE_CLASS,
-  SIDEBAR_ROW_CLASS,
-  SIDEBAR_ROW_LABEL_CLASS,
-  SIDEBAR_ROW_RAIL_PAD_CLASS,
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
   SidebarMenuItem,
   SidebarRowSlot,
 } from "@/components/ui/sidebar";
+import {
+  SIDEBAR_RAIL_SQUARE_CLASS,
+  SIDEBAR_ROW_CLASS,
+  SIDEBAR_ROW_LABEL_CLASS,
+  SIDEBAR_ROW_RAIL_PAD_CLASS,
+} from "@/components/ui/sidebar-classes";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -39,7 +41,7 @@ import { cn } from "@/lib/utils";
  *
  * The marks are the two a room row actually draws, and they differ by state
  * exactly as the real ones do (Channel tile, CONTEXT.md): a Channel is a 16px
- * kind glyph beside its name and a 24px tile on the rail, a Direct is a 24px
+ * kind glyph beside its name and a 20px tile on the rail, a Direct is a 20px
  * face in both, with a group Direct's second face growing its slot to the
  * right and dropping off the rail. A 24px square in the expanded panel — what
  * this used to draw for every row — is a mark no expanded row has.
@@ -121,7 +123,7 @@ function ChannelMarkSkeleton() {
   return (
     <>
       <Skeleton className="group-data-[collapsible=icon]:hidden size-4" />
-      <Skeleton className="hidden size-6 group-data-[collapsible=icon]:block" />
+      <Skeleton className="hidden size-5 group-data-[collapsible=icon]:block" />
     </>
   );
 }
@@ -129,13 +131,20 @@ function ChannelMarkSkeleton() {
 /** `DirectRoomAvatarStack`: round faces, the first alone on the rail. */
 function DirectMarkSkeleton({ faces }: { faces: number }) {
   return (
-    <span className="inline-flex shrink-0 items-center">
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center",
+        // The stack's 2px axis padding, same as the real mark's — and the
+        // rail drop, because extra faces are gone there.
+        faces > 1 && "pl-0.5 group-data-[collapsible=icon]:pl-0",
+      )}
+    >
       {Array.from({ length: faces }, (_, index) => (
         <Skeleton
           key={index}
           className={cn(
-            "border-sidebar size-6 shrink-0 rounded-full border",
-            index > 0 && "group-data-[collapsible=icon]:hidden -ml-2",
+            "border-sidebar size-5 shrink-0 rounded-full border",
+            index > 0 && "group-data-[collapsible=icon]:hidden -ml-1.5",
           )}
         />
       ))}

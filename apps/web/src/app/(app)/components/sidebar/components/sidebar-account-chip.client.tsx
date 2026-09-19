@@ -12,7 +12,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { SIDEBAR_RAIL_SQUARE_CLASS, useSidebar } from "@/components/ui/sidebar";
+import { useSidebar } from "@/components/ui/sidebar";
+import { SIDEBAR_RAIL_SQUARE_CLASS } from "@/components/ui/sidebar-classes";
 import {
   Tooltip,
   TooltipContent,

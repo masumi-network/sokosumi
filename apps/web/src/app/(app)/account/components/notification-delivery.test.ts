@@ -72,10 +72,10 @@ describe("categoryChannels", () => {
     expect(
       categoryChannels(
         cells(
-          ["JOB_ATTENTION", "IN_APP", false],
-          ["JOB_ATTENTION", "OS_BANNER", true],
+          ["TASK_ATTENTION", "IN_APP", false],
+          ["TASK_ATTENTION", "OS_BANNER", true],
         ),
-        "JOB_ATTENTION",
+        "TASK_ATTENTION",
       ),
     ).toEqual(["OS_BANNER"]);
   });
@@ -84,10 +84,10 @@ describe("categoryChannels", () => {
     expect(
       categoryChannels(
         cells(
-          ["JOB_UPDATE", "IN_APP", false],
-          ["JOB_UPDATE", "OS_BANNER", false],
+          ["TASK_UPDATE", "IN_APP", false],
+          ["TASK_UPDATE", "OS_BANNER", false],
         ),
-        "JOB_UPDATE",
+        "TASK_UPDATE",
       ),
     ).toEqual([]);
   });
@@ -129,21 +129,21 @@ describe("cellsFor", () => {
     expect(
       cellsFor(
         cells(
-          ["JOB_ATTENTION", "IN_APP", false],
-          ["JOB_ATTENTION", "OS_BANNER", false],
-          ["JOB_UPDATE", "IN_APP", true],
-          ["JOB_UPDATE", "OS_BANNER", true],
+          ["TASK_ATTENTION", "IN_APP", false],
+          ["TASK_ATTENTION", "OS_BANNER", false],
+          ["TASK_UPDATE", "IN_APP", true],
+          ["TASK_UPDATE", "OS_BANNER", true],
         ),
         [
-          { category: "JOB_ATTENTION", channels: ["IN_APP"] },
-          { category: "JOB_UPDATE", channels: [] },
+          { category: "TASK_ATTENTION", channels: ["IN_APP"] },
+          { category: "TASK_UPDATE", channels: [] },
         ],
       ),
     ).toEqual([
-      { category: "JOB_ATTENTION", channel: "IN_APP", enabled: true },
-      { category: "JOB_ATTENTION", channel: "OS_BANNER", enabled: false },
-      { category: "JOB_UPDATE", channel: "IN_APP", enabled: false },
-      { category: "JOB_UPDATE", channel: "OS_BANNER", enabled: false },
+      { category: "TASK_ATTENTION", channel: "IN_APP", enabled: true },
+      { category: "TASK_ATTENTION", channel: "OS_BANNER", enabled: false },
+      { category: "TASK_UPDATE", channel: "IN_APP", enabled: false },
+      { category: "TASK_UPDATE", channel: "OS_BANNER", enabled: false },
     ]);
   });
 
@@ -151,13 +151,13 @@ describe("cellsFor", () => {
     expect(
       cellsFor(
         cells(
-          ["JOB_ATTENTION", "IN_APP", false],
+          ["TASK_ATTENTION", "IN_APP", false],
           ["CHAT_MENTION", "IN_APP", true],
         ),
-        [{ category: "JOB_ATTENTION", channels: ["IN_APP", "OS_BANNER"] }],
+        [{ category: "TASK_ATTENTION", channels: ["IN_APP", "OS_BANNER"] }],
       ),
     ).toEqual([
-      { category: "JOB_ATTENTION", channel: "IN_APP", enabled: true },
+      { category: "TASK_ATTENTION", channel: "IN_APP", enabled: true },
     ]);
   });
 });
@@ -246,25 +246,32 @@ describe("NOTIFICATION_GROUPS", () => {
   });
 
   /**
-   * A task is work of the same shape as a job, and a reader who has just
+   * The answer reads the same across the card: every group that offers
+   * situations offers the same four, in the same order. A reader who has just
    * answered this question one row above should not have to read a different
    * set of words to answer it again.
    */
-  it("offers the same situations for tasks as for jobs", () => {
-    expect(group("TASK").presets.map((one) => one.id)).toEqual(
-      group("JOB").presets.map((one) => one.id),
-    );
+  it("offers every group the same situations, in the same order", () => {
+    const offered = NOTIFICATION_GROUPS.filter(
+      (one) => one.presets.length > 0,
+    ).map((one) => one.presets.map((preset) => preset.id));
+
+    // Two groups at least, or the loop below compares nothing.
+    expect(offered.length).toBeGreaterThan(1);
+    for (const ids of offered) {
+      expect(ids).toEqual(["MOST", "ESSENTIAL", "APP_ONLY", "OFF"]);
+    }
   });
 
   /**
    * The traffic a reader turns down first is the traffic no press should put
-   * on their phone: what a job reports on its way to an answer, and every
+   * on their phone: what a task reports on its way to an answer, and every
    * message in a room they happen to be in.
    */
   it("sends the traffic a reader turns down first to no device", () => {
     const pushed = NOTIFICATION_GROUPS.flatMap((spec) =>
       spec.presets.flatMap((one) =>
-        (["JOB_UPDATE", "TASK_UPDATE", "CHAT_ROOM_MESSAGE"] as const)
+        (["TASK_UPDATE", "CHAT_ROOM_MESSAGE"] as const)
           .filter((category) => one.reach[category] === "PUSH")
           .map((category) => `${spec.id} ${one.id} ${category}`),
       ),
@@ -279,15 +286,15 @@ describe("groupPreset", () => {
     expect(
       groupPreset(
         cells(
-          ["JOB_ATTENTION", "IN_APP", true],
-          ["JOB_ATTENTION", "OS_BANNER", true],
-          ["JOB_COMPLETED", "IN_APP", true],
-          ["JOB_COMPLETED", "OS_BANNER", true],
-          ["JOB_UPDATE", "IN_APP", true],
-          ["JOB_UPDATE", "OS_BANNER", false],
+          ["TASK_ATTENTION", "IN_APP", true],
+          ["TASK_ATTENTION", "OS_BANNER", true],
+          ["TASK_COMPLETED", "IN_APP", true],
+          ["TASK_COMPLETED", "OS_BANNER", true],
+          ["TASK_UPDATE", "IN_APP", true],
+          ["TASK_UPDATE", "OS_BANNER", false],
         ),
-        group("JOB").presets,
-        group("JOB").kinds,
+        group("TASK").presets,
+        group("TASK").kinds,
       ),
     ).toBe("MOST");
   });
@@ -297,15 +304,15 @@ describe("groupPreset", () => {
     expect(
       groupPreset(
         cells(
-          ["JOB_ATTENTION", "IN_APP", true],
-          ["JOB_ATTENTION", "OS_BANNER", true],
-          ["JOB_COMPLETED", "IN_APP", true],
-          ["JOB_COMPLETED", "OS_BANNER", false],
-          ["JOB_UPDATE", "IN_APP", true],
-          ["JOB_UPDATE", "OS_BANNER", false],
+          ["TASK_ATTENTION", "IN_APP", true],
+          ["TASK_ATTENTION", "OS_BANNER", true],
+          ["TASK_COMPLETED", "IN_APP", true],
+          ["TASK_COMPLETED", "OS_BANNER", false],
+          ["TASK_UPDATE", "IN_APP", true],
+          ["TASK_UPDATE", "OS_BANNER", false],
         ),
-        group("JOB").presets,
-        group("JOB").kinds,
+        group("TASK").presets,
+        group("TASK").kinds,
       ),
     ).toBe("ESSENTIAL");
   });
@@ -337,15 +344,15 @@ describe("groupPreset", () => {
     expect(
       groupPreset(
         cells(
-          ["JOB_ATTENTION", "IN_APP", false],
-          ["JOB_ATTENTION", "OS_BANNER", true],
-          ["JOB_COMPLETED", "IN_APP", false],
-          ["JOB_COMPLETED", "OS_BANNER", true],
-          ["JOB_UPDATE", "IN_APP", false],
-          ["JOB_UPDATE", "OS_BANNER", true],
+          ["TASK_ATTENTION", "IN_APP", false],
+          ["TASK_ATTENTION", "OS_BANNER", true],
+          ["TASK_COMPLETED", "IN_APP", false],
+          ["TASK_COMPLETED", "OS_BANNER", true],
+          ["TASK_UPDATE", "IN_APP", false],
+          ["TASK_UPDATE", "OS_BANNER", true],
         ),
-        group("JOB").presets,
-        group("JOB").kinds,
+        group("TASK").presets,
+        group("TASK").kinds,
       ),
     ).toBe("CUSTOM");
   });
@@ -359,15 +366,15 @@ describe("groupPreset", () => {
     expect(
       groupPreset(
         cells(
-          ["JOB_ATTENTION", "IN_APP", false],
-          ["JOB_ATTENTION", "OS_BANNER", false],
-          ["JOB_COMPLETED", "IN_APP", false],
-          ["JOB_COMPLETED", "OS_BANNER", false],
-          ["JOB_UPDATE", "IN_APP", false],
-          ["JOB_UPDATE", "OS_BANNER", false],
+          ["TASK_ATTENTION", "IN_APP", false],
+          ["TASK_ATTENTION", "OS_BANNER", false],
+          ["TASK_COMPLETED", "IN_APP", false],
+          ["TASK_COMPLETED", "OS_BANNER", false],
+          ["TASK_UPDATE", "IN_APP", false],
+          ["TASK_UPDATE", "OS_BANNER", false],
         ),
-        [{ id: "OFF", hintKey: "presetJobOffHint", reach: {} }],
-        group("JOB").kinds,
+        [{ id: "OFF", hintKey: "presetTaskOffHint", reach: {} }],
+        group("TASK").kinds,
       ),
     ).toBe("CUSTOM");
   });
@@ -401,10 +408,10 @@ describe("presetChanges", () => {
    * that is what lets the rail name the situation the group is in.
    */
   it("writes the situation on every kind of the group", () => {
-    expect(presetChanges(preset("JOB", "MOST"), group("JOB").kinds)).toEqual([
-      { category: "JOB_ATTENTION", channels: ["IN_APP", "OS_BANNER"] },
-      { category: "JOB_COMPLETED", channels: ["IN_APP", "OS_BANNER"] },
-      { category: "JOB_UPDATE", channels: ["IN_APP"] },
+    expect(presetChanges(preset("TASK", "MOST"), group("TASK").kinds)).toEqual([
+      { category: "TASK_ATTENTION", channels: ["IN_APP", "OS_BANNER"] },
+      { category: "TASK_COMPLETED", channels: ["IN_APP", "OS_BANNER"] },
+      { category: "TASK_UPDATE", channels: ["IN_APP"] },
     ]);
   });
 
@@ -419,18 +426,19 @@ describe("presetChanges", () => {
   /** A press says nothing about a kind its situation never named. */
   it("leaves a kind the situation does not name alone", () => {
     expect(
-      presetChanges(preset("JOB", "OFF"), [...group("JOB").kinds, MENTION]).map(
-        (change) => change.category,
-      ),
-    ).toEqual(["JOB_ATTENTION", "JOB_COMPLETED", "JOB_UPDATE"]);
+      presetChanges(preset("TASK", "OFF"), [
+        ...group("TASK").kinds,
+        MENTION,
+      ]).map((change) => change.category),
+    ).toEqual(["TASK_ATTENTION", "TASK_COMPLETED", "TASK_UPDATE"]);
   });
 });
 
 describe("presetPushes", () => {
   it("names the kinds a situation sends to the device", () => {
     expect(
-      categories(presetPushes(preset("JOB", "MOST"), group("JOB").kinds)),
-    ).toEqual(["JOB_ATTENTION", "JOB_COMPLETED"]);
+      categories(presetPushes(preset("TASK", "MOST"), group("TASK").kinds)),
+    ).toEqual(["TASK_ATTENTION", "TASK_COMPLETED"]);
   });
 
   /** Its own word says so, and a list of the whole group under it is noise. */
@@ -460,12 +468,14 @@ describe("presetStops", () => {
   });
 
   it("names none where the situation keeps them all", () => {
-    expect(presetStops(preset("JOB", "MOST"), group("JOB").kinds)).toEqual([]);
+    expect(presetStops(preset("TASK", "MOST"), group("TASK").kinds)).toEqual(
+      [],
+    );
   });
 
   /** Off stops every kind, and the word Off already says that. */
   it("names none where the situation stops them all", () => {
-    expect(presetStops(preset("JOB", "OFF"), group("JOB").kinds)).toEqual([]);
+    expect(presetStops(preset("TASK", "OFF"), group("TASK").kinds)).toEqual([]);
   });
 });
 
