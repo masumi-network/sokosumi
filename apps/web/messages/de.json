@@ -6495,6 +6495,12 @@
         "assigned": "Dir wurde {taskName} zugewiesen",
         "followUp": "{taskName} wartet weiterhin auf dich"
       },
+      "Billing": {
+        "lowBalance": "Deine Credits werden knapp: noch {credits}",
+        "paymentFailed": "Eine Abo-Zahlung ist fehlgeschlagen",
+        "creditsAdded": "{credits} Credits wurden deinem Guthaben gutgeschrieben",
+        "subscriptionEnding": "Dein Abo endet mit der aktuellen Laufzeit"
+      },
       "Chat": {
         "mentioned": "{authorName} hat dich in {roomName} erwähnt",
         "mentionedDirect": "{authorName} hat dich in einer Direktnachricht erwähnt",

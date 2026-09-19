@@ -6495,6 +6495,12 @@
         "assigned": "Se te asignó {taskName}",
         "followUp": "{taskName} sigue esperándote"
       },
+      "Billing": {
+        "lowBalance": "Tus créditos se están agotando: quedan {credits}",
+        "paymentFailed": "Un pago de la suscripción no se completó",
+        "creditsAdded": "Se añadieron {credits} créditos a tu saldo",
+        "subscriptionEnding": "Tu suscripción termina al final del periodo actual"
+      },
       "Chat": {
         "mentioned": "{authorName} te mencionó en {roomName}",
         "mentionedDirect": "{authorName} te mencionó en un mensaje directo",
