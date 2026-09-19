@@ -24,7 +24,7 @@ import { runAuthLogout } from "./auth-logout.js";
 import { runAuthStatus } from "./auth-status.js";
 import { runAgentsCommand } from "./commands/agents.js";
 import { runCoworkersCommand } from "./commands/coworkers.js";
-import { runDiscoverCommand } from "./commands/discover.js";
+import { CLI_COMMANDS, runDiscoverCommand } from "./commands/discover.js";
 import { runJobsCommand } from "./commands/jobs.js";
 import { runTasksCommand } from "./commands/tasks.js";
 import { CLI_VERSION } from "./metadata.js";
@@ -142,50 +142,102 @@ export interface CliResult {
   tui?: boolean;
 }
 
-const HELP_TEXT = `Sokosumi CLI v${CLI_VERSION}
+const COMMAND_USAGE: Record<(typeof CLI_COMMANDS)[number], string> = {
+  discover: "[--json]",
+  "auth login": "[--json]",
+  "auth status": "[--json]",
+  "auth logout": "[--json]",
+  "agents list": "[--search TEXT] [--limit N] [--json]",
+  "agents hire": "AGENT_ID --input-json JSON [--max-credits N]",
+  "coworkers list": "[--scope SCOPE] [--capability CAPABILITY]",
+  "coworkers register": "[--vendor-id ID] [--create-api-key] [options]",
+  "coworkers update": "COWORKER_ID [options]",
+  "coworkers api-key": "COWORKER_ID [options]",
+  "coworkers me": "",
+  "tasks list": "[options]",
+  "tasks create": "--coworker-id ID --description TEXT",
+  "tasks get": "TASK_ID",
+  "tasks events": "TASK_ID",
+  "tasks jobs": "TASK_ID",
+  "tasks comment": "TASK_ID [--comment TEXT] [--status STATUS]",
+  "jobs list": "[--search TEXT] [--limit N]",
+  "jobs get": "JOB_ID [--details]",
+  "jobs input":
+    "JOB_ID --event-id EVENT_ID [--input-json JSON|--input-file FILE]",
+};
+
+export const GLOBAL_VALUE_OPTIONS = [
+  "api-url",
+  "auth-url",
+  "client-id",
+  "oauth-port",
+  "oauth-timeout-ms",
+] as const satisfies readonly ValueOptionName[];
+
+const GLOBAL_VALUE_PLACEHOLDERS: Record<
+  (typeof GLOBAL_VALUE_OPTIONS)[number],
+  string
+> = {
+  "api-url": "URL",
+  "auth-url": "URL",
+  "client-id": "ID",
+  "oauth-port": "PORT",
+  "oauth-timeout-ms": "MS",
+};
+
+export const GLOBAL_BOOLEAN_FLAG_BY_TOKEN = {
+  "--preprod": "preprod",
+  "--api-key-stdin": "api-key-stdin",
+  "--json": "json",
+  "-h": "help",
+  "--help": "help",
+  "-v": "version",
+  "--version": "version",
+} as const satisfies Record<string, keyof CliOptions>;
+
+export const BOOLEAN_OPTION_NAMES = ["create-api-key", "details"] as const;
+
+function formatGlobalOptionHelp(): string[] {
+  const booleanLines: string[] = [];
+  const seen = new Set<string>();
+  for (const [token, option] of Object.entries(GLOBAL_BOOLEAN_FLAG_BY_TOKEN)) {
+    if (seen.has(option)) {
+      booleanLines[booleanLines.length - 1] += `, ${token}`;
+      continue;
+    }
+    seen.add(option);
+    booleanLines.push(token);
+  }
+  return [
+    ...GLOBAL_VALUE_OPTIONS.map(
+      (name) => `--${name} ${GLOBAL_VALUE_PLACEHOLDERS[name]}`,
+    ),
+    ...booleanLines,
+  ];
+}
+
+function formatHelpText(): string {
+  const usage = CLI_COMMANDS.map((command) => {
+    const extra = COMMAND_USAGE[command];
+    return extra ? `  sokosumi ${command} ${extra}` : `  sokosumi ${command}`;
+  }).join("\n");
+  return `Sokosumi CLI v${CLI_VERSION}
 
 Usage:
   sokosumi
-  sokosumi discover [--json]
-  sokosumi auth login [--json]
-  sokosumi auth status [--json]
-  sokosumi auth logout [--json]
-  sokosumi agents list [--search TEXT] [--limit N] [--json]
-  sokosumi agents hire AGENT_ID --input-json JSON [--max-credits N]
-  sokosumi coworkers list [--scope SCOPE] [--capability CAPABILITY]
-  sokosumi coworkers register [--vendor-id ID] [options]
-  sokosumi coworkers update COWORKER_ID [options]
-  sokosumi coworkers api-key COWORKER_ID [options]
-  sokosumi coworkers me
-  sokosumi tasks list [options]
-  sokosumi tasks create --coworker-id ID --description TEXT
-  sokosumi tasks get TASK_ID
-  sokosumi tasks events TASK_ID
-  sokosumi tasks jobs TASK_ID
-  sokosumi tasks comment TASK_ID [--comment TEXT] [--status STATUS]
-  sokosumi jobs list [--search TEXT] [--limit N]
-  sokosumi jobs get JOB_ID [--details]
-  sokosumi jobs input JOB_ID --event-id EVENT_ID [--input-json JSON|--input-file FILE]
+${usage}
 
 Empty argv opens the TUI. Use arrows, then Enter. Press Esc to go back.
 
 Global options:
-  --api-url URL
-  --auth-url URL
-  --client-id ID
-  --preprod
-  --api-key-stdin
-  --json
-  -h, --help
-  -v, --version
+${formatGlobalOptionHelp()
+  .map((line) => `  ${line}`)
+  .join("\n")}
 `;
+}
 
 const VALUE_OPTIONS = new Set<ValueOptionName>([
-  "auth-url",
-  "api-url",
-  "client-id",
-  "oauth-port",
-  "oauth-timeout-ms",
+  ...GLOBAL_VALUE_OPTIONS,
   "search",
   "limit",
   "scope",
@@ -225,7 +277,7 @@ const REPEATED_VALUE_OPTIONS = new Set<ValueOptionName>([
   "status",
 ]);
 
-const BOOLEAN_OPTIONS = new Set(["create-api-key", "details"]);
+const BOOLEAN_OPTIONS = new Set<string>(BOOLEAN_OPTION_NAMES);
 const CORE_COMMAND_SECTIONS = new Set([
   "discover",
   "agents",
@@ -243,24 +295,12 @@ export function parseArgv(argv: string[]): ParsedArgv {
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (token === "--") continue;
-    if (token === "--json") {
-      options.json = true;
-      continue;
-    }
-    if (token === "--api-key-stdin") {
-      options["api-key-stdin"] = true;
-      continue;
-    }
-    if (token === "--preprod") {
-      options.preprod = true;
-      continue;
-    }
-    if (token === "-h" || token === "--help") {
-      options.help = true;
-      continue;
-    }
-    if (token === "-v" || token === "--version") {
-      options.version = true;
+    if (Object.hasOwn(GLOBAL_BOOLEAN_FLAG_BY_TOKEN, token)) {
+      const optionName =
+        GLOBAL_BOOLEAN_FLAG_BY_TOKEN[
+          token as keyof typeof GLOBAL_BOOLEAN_FLAG_BY_TOKEN
+        ];
+      options[optionName] = true;
       continue;
     }
     if (!token.startsWith("--")) {
@@ -406,7 +446,7 @@ export async function runCli(
   const { positionals, options } = parsed;
 
   if (options.help) {
-    stdout.write(HELP_TEXT);
+    stdout.write(formatHelpText());
     return { help: true };
   }
   if (options.version) {
