@@ -1,15 +1,17 @@
 import type { ReactNode } from "react";
 import {
-  SIDEBAR_RAIL_SQUARE_CLASS,
-  SIDEBAR_ROW_CLASS,
-  SIDEBAR_ROW_LABEL_CLASS,
-  SIDEBAR_ROW_RAIL_PAD_CLASS,
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
   SidebarMenuItem,
   SidebarRowSlot,
 } from "@/components/ui/sidebar";
+import {
+  SIDEBAR_RAIL_SQUARE_CLASS,
+  SIDEBAR_ROW_CLASS,
+  SIDEBAR_ROW_LABEL_CLASS,
+  SIDEBAR_ROW_RAIL_PAD_CLASS,
+} from "@/components/ui/sidebar-classes";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 

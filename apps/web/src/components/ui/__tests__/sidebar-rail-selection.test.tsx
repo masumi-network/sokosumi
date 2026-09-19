@@ -6,7 +6,6 @@ vi.mock("@/hooks/use-mobile", () => ({
 }));
 
 import {
-  SIDEBAR_ROW_LABEL_CLASS,
   Sidebar,
   SidebarContent,
   SidebarMenu,
@@ -16,6 +15,9 @@ import {
   SidebarRailSelectionBar,
   SidebarRowSlot,
 } from "@/components/ui/sidebar";
+import {
+  SIDEBAR_ROW_LABEL_CLASS,
+} from "@/components/ui/sidebar-classes";
 
 /**
  * Collapsed to icons, rest, hover and selection all used to render the same

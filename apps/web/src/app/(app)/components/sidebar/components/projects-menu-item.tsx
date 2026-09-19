@@ -19,7 +19,6 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 import {
-  SIDEBAR_ROW_LABEL_CLASS,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
@@ -29,6 +28,7 @@ import {
   SidebarRowSlot,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {

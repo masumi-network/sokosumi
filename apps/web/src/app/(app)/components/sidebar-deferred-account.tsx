@@ -4,7 +4,7 @@ import { resolveAccountNotice } from "@/app/components/account-notice-state";
 import { mapAccountCreditsChrome } from "@/app/components/sidebar";
 import { SidebarAccountChip } from "@/app/components/sidebar/components/sidebar-account-chip.client";
 import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-vendor-admin-access";
-import { SIDEBAR_RAIL_SQUARE_CLASS } from "@/components/ui/sidebar";
+import { SIDEBAR_RAIL_SQUARE_CLASS } from "@/components/ui/sidebar-classes";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { cn } from "@/lib/utils";

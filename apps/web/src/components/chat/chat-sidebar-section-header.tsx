@@ -14,11 +14,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import {
-  SIDEBAR_ROW_CLASS,
-  SidebarMenuButton,
-  SidebarRowSlot,
-} from "@/components/ui/sidebar";
+import { SidebarMenuButton, SidebarRowSlot } from "@/components/ui/sidebar";
+import { SIDEBAR_ROW_CLASS } from "@/components/ui/sidebar-classes";
 import { cn } from "@/lib/utils";
 import { RailAttentionPill } from "./chat-room-sidebar-row";
 import type { SectionAttention } from "./room-attention";
