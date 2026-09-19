@@ -249,6 +249,19 @@ function isDeployedEnvironment(value: z.infer<typeof baseEnvSchema>): boolean {
   );
 }
 
+/**
+ * A deployed environment serving real users, as opposed to a preview.
+ *
+ * Previews are throwaway and are the one deployment where Cloudflare's test
+ * keys are a reasonable choice — they let an agent drive the sign-in form
+ * without answering a human check. Production has no such excuse.
+ */
+function isProductionEnvironment(
+  value: z.infer<typeof baseEnvSchema>,
+): boolean {
+  return value.NODE_ENV === "production" || value.VERCEL_ENV === "production";
+}
+
 const envSchema = baseEnvSchema.superRefine((value, context) => {
   if (!value.SOKO_BOT_ENABLED) return;
   // The agent runs inside Core, so enabling it needs no runtime deployment,
@@ -352,13 +365,25 @@ export function validateEnv(): EnvConfig {
   // forged ones included, so the endpoints look protected while they are not.
   // Every local checkout now carries this secret, which is exactly how it ends
   // up pasted into a deployment.
-  if (
-    result.data.TURNSTILE_SECRET_KEY === TURNSTILE_ALWAYS_PASS_SECRET &&
-    isDeployedEnvironment(result.data)
-  ) {
-    console.warn(
-      "TURNSTILE_SECRET_KEY is Cloudflare's published always-passes testing secret in a deployed environment; captcha verification accepts every token, including forged ones. Set a real secret from the Turnstile dashboard.",
-    );
+  //
+  // Production refuses to boot rather than warn. An unset secret is honestly
+  // off and its warning is proportionate; this one serves a captcha that
+  // passes everything, and a warning in a build log is not read by anyone.
+  // Previews keep the warning: a test key is a defensible choice there, since
+  // it lets an agent drive sign-in without answering a human check.
+  if (result.data.TURNSTILE_SECRET_KEY === TURNSTILE_ALWAYS_PASS_SECRET) {
+    if (isProductionEnvironment(result.data)) {
+      console.error(
+        "❌ TURNSTILE_SECRET_KEY is Cloudflare's published always-passes testing secret. In production this accepts every captcha token, including forged ones, while the auth endpoints appear protected. Set a real secret from the Turnstile dashboard.",
+      );
+      process.exit(1);
+    }
+
+    if (isDeployedEnvironment(result.data)) {
+      console.warn(
+        "TURNSTILE_SECRET_KEY is Cloudflare's published always-passes testing secret in a preview environment; captcha verification accepts every token, including forged ones. Intended only for driving sign-in without a human check.",
+      );
+    }
   }
 
   return result.data;
