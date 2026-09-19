@@ -1,8 +1,10 @@
 # Why Xcode Cloud is not a required check
 
 Researched 2026-09-19, when Apple tests moved back to GitHub Actions
-(`Xcode test` in `.github/workflows/apple.yml`) and Xcode Cloud was reduced to
-building releases.
+(`Xcode test` in `.github/workflows/apple.yml`) and Xcode Cloud was narrowed to
+App Store and TestFlight builds. The direct-download disk image is GitHub
+Actions too (`Publish macOS DMG`), so nothing Xcode Cloud does needs to
+report on a pull request.
 
 Read this before proposing that the Xcode Cloud result become a required status
 check on `main`. It cannot, and the reason is not written down by Apple.

@@ -3,10 +3,6 @@ import { err, ok, type Result } from "neverthrow";
 
 import { hashCanonicalJsonValue, hashInputSchema } from "../hash/hash.js";
 import {
-  type InputSchemaResponseSchemaType,
-  inputSchemaResponseSchema,
-} from "../schemas/agent/input_schema.schema.js";
-import {
   type ProvideInputRequestSchemaType,
   type ProvideInputResponseSchemaType,
   provideInputRequestSchema,
@@ -22,7 +18,11 @@ import {
   type JobStatusResponseSchemaType,
   jobStatusResponseSchema,
 } from "../schemas/agent/status.schema.js";
-import type { InputSchemaType } from "../schemas/input/input.schema.js";
+import {
+  type InputSchemaSchemaType,
+  type InputSchemaType,
+  inputSchemaSchema,
+} from "../schemas/input/input.schema.js";
 import type { Agent } from "../types/agent.js";
 import { safeAddPathComponent } from "../utils/url.js";
 
@@ -437,7 +437,7 @@ export function createAgentClient(config?: AgentClientConfig) {
 
     async fetchAgentInputSchema(
       agent: Agent,
-    ): Promise<Result<InputSchemaResponseSchemaType, string>> {
+    ): Promise<Result<InputSchemaSchemaType, string>> {
       const inputSchemaUrlResult = getAgentUrlWithPathComponent(
         agent,
         "input_schema",
@@ -496,7 +496,7 @@ export function createAgentClient(config?: AgentClientConfig) {
           return err("Failed to parse JSON response");
         }
 
-        const parsedResult = inputSchemaResponseSchema.safeParse(responseData);
+        const parsedResult = inputSchemaSchema.safeParse(responseData);
 
         if (!parsedResult.success) {
           // Log schema validation errors
