@@ -38,7 +38,7 @@ type ChatModelId = (typeof CHAT_MODELS)[number]["id"];
 
 const DEFAULT_CHAT_MODEL_ID: ChatModelId = "gpt-5-4";
 
-export const CHAT_MODEL_MAP = new Map<string, string>([
+const CHAT_MODEL_MAP = new Map<string, string>([
   ...CHAT_MODELS.map((model) => [model.id, model.openRouterId] as const),
   // Keep persisted selections working after model upgrades.
   ["kimi-k2-5", "moonshotai/kimi-k2.6"],
