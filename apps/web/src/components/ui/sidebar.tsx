@@ -438,9 +438,11 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
  * sidebar's leading axis 28px from its left edge, in both states: expanded
  * the button's `px-2` puts it there, and on the rail the 32px square's own
  * `ml-1` lands its centred content on the same line. Every mark a row can
- * carry fits inside it — a 16px nav glyph, a 20px kind glyph, a 24px avatar
- * or Channel tile — so none of them has to know the axis, and the label after
- * it starts on one column at 48px.
+ * carry fits inside it with room to spare — a 16px nav or Channel kind glyph,
+ * a 20px avatar or Channel tile — so none of them has to know the axis, and
+ * the label after it starts on one column at 48px. The box stays 24px though
+ * nothing fills it: it is the column the label is measured from, and marks
+ * are free to change size inside it without moving the names.
  *
  * `min-w-6` rather than a hard `size-6`, because one mark says something a
  * single face cannot: a group Direct's stack of up to three faces. It grows
