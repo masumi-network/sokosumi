@@ -472,7 +472,7 @@ describe("ChatRoomSidebarRow collapsed rail", () => {
 
     const link = container.querySelector('a[href="/chat/rooms/room-1"]');
     // The menu button clips its content for name truncation. Collapsed, the
-    // 24px tile's corner mark hangs 6px below it inside a 32px button, so the
+    // 20px tile's corner mark hangs 4px below it inside a 32px button, so the
     // clip has to lift there or the lock and globe lose their bottom.
     expect(link?.className).toContain(
       "group-data-[collapsible=icon]:overflow-visible",
@@ -485,12 +485,15 @@ describe("ChatRoomSidebarRow collapsed rail", () => {
     expect(slot?.className).toContain("min-w-6");
 
     // The name must stay in the accessible name (the tooltip adds none) while
-    // taking no flex space, so `sr-only`, never `hidden`. The spacer would
-    // otherwise pull the mark off centre on touch.
+    // taking no flex space at rest, so the shared label class, never `hidden`.
+    // The spacer would otherwise pull the mark off centre on touch.
     const name = screen.getByText("general");
-    expect(name.parentElement?.parentElement?.className).toContain(
-      "group-data-[collapsible=icon]:sr-only",
+    expect(name.parentElement?.parentElement?.className.split(/\s+/)).toContain(
+      "group-data-[collapsible=icon]:max-w-0",
     );
+    expect(
+      name.parentElement?.parentElement?.className.split(/\s+/),
+    ).not.toContain("group-data-[collapsible=icon]:sr-only");
     expect(
       container.querySelector('[data-slot="room-trailing-spacer"]')?.className,
     ).toContain("group-data-[collapsible=icon]:hidden");

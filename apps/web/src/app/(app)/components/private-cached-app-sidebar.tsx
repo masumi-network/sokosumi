@@ -36,7 +36,13 @@ export default function PrivateCachedAppSidebar({
       sokoBotMenuEnabled={sokoBotMenuEnabled}
       calendarMenuEnabled={calendarMenuEnabled}
       chatList={
-        <Suspense fallback={<SidebarChatListSkeleton />}>
+        <Suspense
+          fallback={
+            <SidebarChatListSkeleton
+              hasOrganization={activeOrganizationId !== null}
+            />
+          }
+        >
           <PrivateCachedSidebarRooms
             userId={sessionUser.id}
             activeOrganizationId={activeOrganizationId}

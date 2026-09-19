@@ -39,6 +39,12 @@ const {
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: (...args: unknown[]) => transactionMock(...args),
+    organization: {
+      findUnique: (...args: unknown[]) => organizationFindUniqueMock(...args),
+    },
+    member: {
+      findUnique: memberFindUniqueMock,
+    },
     subscription: {
       update: (...args: unknown[]) => subscriptionUpdateMock(...args),
     },
@@ -163,6 +169,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     organizationFindUniqueMock.mockResolvedValue(null);
     const response = await updateSeats("missing", 3);
     expect(response.status).toBe(404);
+    expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -170,6 +177,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     setMembership(null);
     const response = await updateSeats("org_123", 3);
     expect(response.status).toBe(403);
+    expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -177,6 +185,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     setMembership("member");
     const response = await updateSeats("org_123", 3);
     expect(response.status).toBe(403);
+    expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -195,6 +204,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
 
     expect(response.status).toBe(400);
     expect(await response.text()).toContain("active enterprise contract");
+    expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -208,6 +218,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     expect(await response.text()).toContain(
       "An active organization subscription is required before updating seats.",
     );
+    expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -287,7 +298,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
             update: (...args: unknown[]) => subscriptionUpdateMock(...args),
           },
         };
-        if (transactionCalls === 2 || transactionCalls === 3) {
+        if (transactionCalls === 1 || transactionCalls === 2) {
           throw new Error("local seat write failed");
         }
         return callback(tx);
@@ -338,7 +349,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
             update: (...args: unknown[]) => subscriptionUpdateMock(...args),
           },
         };
-        if (transactionCalls === 2) {
+        if (transactionCalls === 1) {
           throw new Error("local seat write failed");
         }
         return callback(tx);
@@ -375,6 +386,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     expect(body.data).toEqual({ seats: 4 });
     expect(retrieveSubscriptionWithItemsMock).not.toHaveBeenCalled();
     expect(updateSubscriptionItemQuantityMock).not.toHaveBeenCalled();
+    expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -386,6 +398,23 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
 
     expect(response.status).toBe(200);
     expect(body.data).toEqual({ seats: 6 });
+    expect(
+      assertOrganizationSubscriptionChangeAllowedMock,
+    ).toHaveBeenCalledWith(
+      "org_123",
+      expect.objectContaining({
+        $transaction: expect.any(Function),
+        organization: expect.objectContaining({
+          findUnique: expect.any(Function),
+        }),
+      }),
+    );
+    expect(resolveActiveSubscriptionByReferenceIdMock).toHaveBeenCalledWith(
+      "org_123",
+      expect.objectContaining({
+        $transaction: expect.any(Function),
+      }),
+    );
     expect(retrieveSubscriptionWithItemsMock).toHaveBeenCalledWith(
       "sub_stripe_1",
     );
@@ -410,6 +439,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
 
     expect(response.status).toBe(500);
     expect(updateSubscriptionItemQuantityMock).not.toHaveBeenCalled();
+    expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -429,6 +459,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     expect(body.data).toEqual({ seats: 2 });
     expect(retrieveSubscriptionWithItemsMock).not.toHaveBeenCalled();
     expect(updateSubscriptionItemQuantityMock).not.toHaveBeenCalled();
+    expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -444,6 +475,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
 
     expect(response.status).toBe(403);
     expect(organizationFindUniqueMock).not.toHaveBeenCalled();
+    expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 });

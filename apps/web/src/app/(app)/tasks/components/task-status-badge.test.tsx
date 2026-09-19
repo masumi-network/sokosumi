@@ -1,6 +1,9 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
+import {
+  TaskStatusBadge,
+  TaskStatusInline,
+} from "@/app/tasks/components/task-status-badge";
 import { TaskStatus } from "@/lib/clients/generated/core";
 
 describe("TaskStatusBadge", () => {
@@ -17,15 +20,23 @@ describe("TaskStatusBadge", () => {
     expect(container.querySelector("svg")).toHaveClass("animate-spin");
   });
 
-  it("holds the running glyph still when the badge is not live", () => {
+  /**
+   * The badge used to take a `live={false}` and hold the glyph still. A
+   * stopped `LoaderCircle` is an arc with a gap in it, so at rest it read as a
+   * rendering fault rather than as a status. A history row draws the inline
+   * form instead: a dot, which was never moving, and the status word.
+   */
+  it("draws the historic form as a dot and a word, with no glyph", () => {
     const { container } = render(
-      <TaskStatusBadge status={TaskStatus.RUNNING} live={false} />,
+      <TaskStatusInline status={TaskStatus.RUNNING} />,
     );
 
-    const glyph = container.querySelector("svg");
-    expect(glyph).not.toHaveClass("animate-spin");
-    // Same glyph, same box, same colour. Only the motion is gone.
-    expect(glyph).toHaveClass("size-3.5", "text-status-working");
+    expect(container.querySelector("svg")).toBeNull();
+    expect(container.textContent).toBe("Running");
+    expect(container.querySelector("span[aria-hidden]")).toHaveClass(
+      "rounded-full",
+      "bg-status-working",
+    );
   });
 
   it("applies the warning ramp to the approval-required icon", () => {

@@ -39,7 +39,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
+import { Collapsible } from "@/components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,8 +47,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  SIDEBAR_ROW_CLASS,
-  SIDEBAR_ROW_LABEL_INSET_CLASS,
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
@@ -56,6 +54,10 @@ import {
   SidebarRowSlot,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  SIDEBAR_ROW_CLASS,
+  SIDEBAR_ROW_LABEL_INSET_CLASS,
+} from "@/components/ui/sidebar-classes";
 import type {
   ChatRoom,
   ChatRoomInvitation,
@@ -68,7 +70,10 @@ import {
   ChatRoomSidebarRow,
   type ChatRoomSidebarRowProps,
 } from "./chat-room-sidebar-row";
-import { ChatSidebarSectionHeader } from "./chat-sidebar-section-header";
+import {
+  ChatSidebarSectionContent,
+  ChatSidebarSectionHeader,
+} from "./chat-sidebar-section-header";
 import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
 import {
   listOrganizationChatRoomsAction,
@@ -371,7 +376,16 @@ export function OrganizationChatList({
             >
               {t("pinned")}
             </ChatSidebarSectionHeader>
-            <CollapsibleContent>
+            {/* A row being dragged translates past the section's box, and the
+                animation's `overflow-hidden` would cut it off. Dropping the
+                clip cannot cost the section its animation, because
+                `canReorderPinned` carries `pinnedOpen`: the render that
+                closes Pinned is already the render where `isReorderingPinned`
+                reads false, so the collapse clips as every other section
+                does. */}
+            <ChatSidebarSectionContent
+              className={cn(isReorderingPinned && "overflow-visible")}
+            >
               {isReorderingPinned ? (
                 <PinnedRoomsDndContext
                   roomIds={pinnedRoomIds}
@@ -402,7 +416,7 @@ export function OrganizationChatList({
                   ))}
                 </SidebarMenu>
               )}
-            </CollapsibleContent>
+            </ChatSidebarSectionContent>
           </Collapsible>
         ) : null}
 
@@ -420,7 +434,7 @@ export function OrganizationChatList({
             >
               {t("title")}
             </ChatSidebarSectionHeader>
-            <CollapsibleContent>
+            <ChatSidebarSectionContent>
               <SidebarMenu className="gap-0">
                 {namedChannels.map((room) => (
                   <ChatRoomSidebarRow key={room.id} {...roomRowProps(room)} />
@@ -438,7 +452,7 @@ export function OrganizationChatList({
                   </SidebarMenuItem>
                 ) : null}
               </SidebarMenu>
-            </CollapsibleContent>
+            </ChatSidebarSectionContent>
           </Collapsible>
         ) : null}
 
@@ -453,7 +467,7 @@ export function OrganizationChatList({
             >
               {tExternal("title")}
             </ChatSidebarSectionHeader>
-            <CollapsibleContent>
+            <ChatSidebarSectionContent>
               <SidebarMenu className="gap-0">
                 {pendingRows.map((invitation) => {
                   const anyBusy = respondingInvitation !== null;
@@ -528,7 +542,7 @@ export function OrganizationChatList({
                   <ChatRoomSidebarRow key={room.id} {...roomRowProps(room)} />
                 ))}
               </SidebarMenu>
-            </CollapsibleContent>
+            </ChatSidebarSectionContent>
           </Collapsible>
         ) : null}
 
@@ -556,7 +570,7 @@ export function OrganizationChatList({
             >
               {t("archivedChannels")}
             </ChatSidebarSectionHeader>
-            <CollapsibleContent>
+            <ChatSidebarSectionContent>
               <SidebarMenu className="gap-0">
                 {sortedArchivedChannels.map((room) => {
                   const isRestoring = restoringRoomId === room.id;
@@ -665,7 +679,7 @@ export function OrganizationChatList({
                   );
                 })}
               </SidebarMenu>
-            </CollapsibleContent>
+            </ChatSidebarSectionContent>
           </Collapsible>
         ) : null}
 
@@ -726,7 +740,7 @@ export function OrganizationChatList({
           >
             {t("directMessages")}
           </ChatSidebarSectionHeader>
-          <CollapsibleContent>
+          <ChatSidebarSectionContent>
             <SidebarMenu className="gap-0">
               {directMessages.map((room) => (
                 <ChatRoomSidebarRow key={room.id} {...roomRowProps(room)} />
@@ -744,7 +758,7 @@ export function OrganizationChatList({
                 </SidebarMenuItem>
               ) : null}
             </SidebarMenu>
-          </CollapsibleContent>
+          </ChatSidebarSectionContent>
         </Collapsible>
       </SidebarGroupContent>
     </SidebarGroup>

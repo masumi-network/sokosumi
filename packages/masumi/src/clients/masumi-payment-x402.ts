@@ -726,11 +726,6 @@ export function createX402PaymentMethods(
             X402_NODE_REFUSAL_STATUSES.has(status) &&
             nodeMessage !== null
           ) {
-            console.error(`${logLabel} refused`, {
-              network,
-              status,
-              error: response.error,
-            });
             return err({
               kind: "refused",
               status,
@@ -738,11 +733,6 @@ export function createX402PaymentMethods(
               nodeMessage,
             });
           }
-          console.error(`${logLabel} unusable response`, {
-            network,
-            status,
-            error: response.error,
-          });
           return err({
             kind: "ambiguous",
             status,
@@ -757,11 +747,6 @@ export function createX402PaymentMethods(
         // SIGNED: finalizing a partial 200 corrupts the record irrecoverably.
         const missingField = firstMissingSignedField(data);
         if (missingField) {
-          console.error(`${logLabel} incomplete 200`, {
-            network,
-            status,
-            missingField,
-          });
           return err({
             kind: "ambiguous",
             status,
@@ -777,7 +762,6 @@ export function createX402PaymentMethods(
       } catch (error) {
         // Thrown fetch/abort: the request may or may not have reached the
         // node — outcome unknown, never a refusal.
-        console.error(`${logLabel} unexpected error`, { network, error });
         return err({
           kind: "ambiguous",
           message: String(error) || "Failed to sign x402 payment",
