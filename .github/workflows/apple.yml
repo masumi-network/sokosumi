@@ -206,7 +206,7 @@ jobs:
   # Gatekeeper refuses it on every machine that did not build it. All five
   # secrets below are set by `apps/apple/scripts/setup-release-signing.sh`.
   publish:
-    name: Publish rolling DMG
+    name: Publish macOS DMG
     needs: [changes, test, lint]
     # `workflow_dispatch` runs everything except the release step, so the disk
     # image can be built, notarized and downloaded from the run's artifacts
@@ -311,7 +311,7 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
-      - name: Replace the rolling prerelease
+      - name: Replace the apple-latest prerelease
         # Never on a manual run: a test build must not rewrite the link people
         # have already been given.
         if: github.event_name == 'push'

@@ -3,7 +3,7 @@
 Researched 2026-09-19, when Apple tests moved back to GitHub Actions
 (`Xcode test` in `.github/workflows/apple.yml`) and Xcode Cloud was narrowed to
 App Store and TestFlight builds. The direct-download disk image is GitHub
-Actions too (`Publish rolling DMG`), so nothing Xcode Cloud does needs to
+Actions too (`Publish macOS DMG`), so nothing Xcode Cloud does needs to
 report on a pull request.
 
 Read this before proposing that the Xcode Cloud result become a required status

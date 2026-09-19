@@ -343,7 +343,7 @@ if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
     | sed 's/^/    /' || warn "none of the five are set yet"
 fi
 printf '\n'
-say "Next: merge an Apple change to main. The 'Publish rolling DMG' job builds,"
+say "Next: merge an Apple change to main. The 'Publish macOS DMG' job builds,"
 say "notarizes and attaches the disk image to the apple-latest prerelease."
 pause "Press Enter to finish."
 
