@@ -2359,8 +2359,6 @@
           "chat": "Chat",
           "sokoBot": "Soko Bots",
           "calendar": "Kalender",
-          "expandProjects": "Projekte ausklappen",
-          "collapseProjects": "Projekte einklappen",
           "projectsLoading": "Projekte werden geladen…",
           "projectsError": "Projekte konnten nicht geladen werden.",
           "retryProjects": "Erneut versuchen"
