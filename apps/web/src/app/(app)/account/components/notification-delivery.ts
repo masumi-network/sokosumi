@@ -347,6 +347,63 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
     ],
   },
   {
+    id: "BILLING",
+    labelKey: "groupBilling",
+    descriptionKey: "groupBillingDescription",
+    kinds: [
+      {
+        category: "BILLING_ATTENTION",
+        labelKey: "kindBillingAttention",
+        hintKey: "kindBillingAttentionHint",
+        email: "NONE",
+      },
+      {
+        category: "BILLING_UPDATE",
+        labelKey: "kindBillingUpdate",
+        hintKey: "kindBillingUpdateHint",
+        email: "NONE",
+      },
+    ],
+    // The task ladder with one rung fewer: two rows, so Most and Essential
+    // differ only in whether a top-up or a plan that ends reaches the device.
+    // A wallet that ran low or a payment that failed is the one billing
+    // notice worth interrupting for, and every stop but Off keeps it in-app.
+    presets: [
+      {
+        id: "MOST",
+        hintKey: "presetBillingMostHint",
+        reach: {
+          BILLING_ATTENTION: "PUSH",
+          BILLING_UPDATE: "PUSH",
+        },
+      },
+      {
+        id: "ESSENTIAL",
+        hintKey: "presetBillingEssentialHint",
+        reach: {
+          BILLING_ATTENTION: "PUSH",
+          BILLING_UPDATE: "IN_APP",
+        },
+      },
+      {
+        id: "APP_ONLY",
+        hintKey: "presetBillingAppOnlyHint",
+        reach: {
+          BILLING_ATTENTION: "IN_APP",
+          BILLING_UPDATE: "IN_APP",
+        },
+      },
+      {
+        id: "OFF",
+        hintKey: "presetBillingOffHint",
+        reach: {
+          BILLING_ATTENTION: "NONE",
+          BILLING_UPDATE: "NONE",
+        },
+      },
+    ],
+  },
+  {
     id: "SYSTEM",
     labelKey: "kindSystem",
     kinds: [

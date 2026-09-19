@@ -289,6 +289,24 @@ describe("NOTIFICATION_GROUPS", () => {
 
     expect(pushed).toEqual([]);
   });
+
+  /**
+   * The one billing notice worth interrupting for is also the one a reader
+   * must not lose: a wallet that runs out stops their work. So every stop but
+   * Off keeps it in the app, and the two loud stops put it on the device.
+   */
+  it("keeps billing that waits on the reader at every stop but Off", () => {
+    const reach = group("BILLING").presets.map(
+      (one) => `${one.id} ${one.reach.BILLING_ATTENTION}`,
+    );
+
+    expect(reach).toEqual([
+      "MOST PUSH",
+      "ESSENTIAL PUSH",
+      "APP_ONLY IN_APP",
+      "OFF NONE",
+    ]);
+  });
 });
 
 describe("groupPreset", () => {
