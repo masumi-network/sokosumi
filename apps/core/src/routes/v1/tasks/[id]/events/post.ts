@@ -23,6 +23,7 @@ import {
   isCardanoV2SourceReady,
 } from "@/helpers/agent";
 import { calculateCentsFromMasumiAmountStrings } from "@/helpers/agent-cost";
+import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
 import {
   conflict,
   errorResponseWithExtensionsSchema,
@@ -504,10 +505,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return {
         event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
         userId: task.ownerId,
+        organizationId: task.organizationId,
         projectId: task.projectId,
         masumiPayment: payment,
         taskPaymentClaimId,
         pausedForInsufficientBalance,
+        charged: transactionId !== null,
       };
     }, "Task changed by a concurrent request. Please retry.").catch((error) => {
       if (
@@ -523,10 +526,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const {
       event,
       userId,
+      organizationId,
       projectId,
       masumiPayment,
       taskPaymentClaimId,
       pausedForInsufficientBalance,
+      charged,
     } = transactionResult;
 
     if (event.status === TaskStatus.COMPLETED && projectId) {
@@ -549,6 +554,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     if (event.status) {
       waitUntil(notifyTaskStatusEvent(taskId, event.id, event.status));
+    }
+
+    if (charged) {
+      waitUntil(notifyLowBalanceAfterCharge({ userId, organizationId }));
     }
 
     // Unreachable by construction (a charged payment always writes its claim

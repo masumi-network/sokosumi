@@ -36,6 +36,12 @@ const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) =>
   }),
 );
 
+const notifyInvoicePaidMock = vi.fn();
+
+vi.mock("@/helpers/billing-notifications", () => ({
+  notifyInvoicePaid: (...args: unknown[]) => notifyInvoicePaidMock(...args),
+}));
+
 vi.mock("@/config/env", () => ({
   getEnv: () => ({
     STRIPE_CREDIT_PRODUCT_ID: "prod_credit",
@@ -302,6 +308,11 @@ describe("handleInvoicePaidEvent", () => {
 
     expect(getSubscriptionCatalogMock).not.toHaveBeenCalled();
     expect(transactionMock).not.toHaveBeenCalled();
+    // A paid invoice that granted nothing still settles a failed payment.
+    expect(notifyInvoicePaidMock).toHaveBeenCalledWith(
+      { userId: "user-1", organizationId: null },
+      { invoiceId: "in_sub_update", topUpCredits: 0, creditsGranted: false },
+    );
   });
 
   it("does not grant subscription credits for legacy Stripe free product lines on personal subscription_update", async () => {
@@ -447,6 +458,12 @@ describe("handleInvoicePaidEvent", () => {
       }) as never,
     );
 
+    // The retry granted nothing new, but the credits landed on the first
+    // attempt, so the warnings they answer are still settled.
+    expect(notifyInvoicePaidMock).toHaveBeenCalledWith(
+      expect.objectContaining({ organizationId: "org-1" }),
+      expect.objectContaining({ creditsGranted: true }),
+    );
     expect(
       findExistingOrganizationInvoiceSubscriptionBucketMock,
     ).toHaveBeenCalledWith({
@@ -1254,6 +1271,69 @@ describe("handleInvoicePaidEvent", () => {
     expect(createCall.data.sourceCreditBucket.create.amount).toBe(
       BigInt("30000000000"),
     );
+    // The receipt carries the top-up, and it is written after the commit.
+    expect(notifyInvoicePaidMock).toHaveBeenCalledTimes(1);
+    expect(notifyInvoicePaidMock).toHaveBeenCalledWith(
+      { userId: "user-1", organizationId: null },
+      { invoiceId: "in_topup", topUpCredits: 3, creditsGranted: true },
+    );
+  });
+
+  /**
+   * A crash between the grant's commit and the notification leaves the retry
+   * with nothing to grant. The credits landed all the same, so the warnings
+   * they answer are still settled.
+   */
+  it("settles the warnings on a retry whose top-up already landed", async () => {
+    const { handleInvoicePaidEvent } = await import(
+      "./stripe-invoice-credit.service"
+    );
+    findExistingBucketMock.mockResolvedValue({ id: "bucket-from-first-try" });
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        billingReason: "manual",
+        id: "in_topup",
+        lines: [{ productId: "prod_credit", quantity: 3 }],
+      }) as never,
+    );
+
+    expect(createTransactionMock).not.toHaveBeenCalled();
+    expect(notifyInvoicePaidMock).toHaveBeenCalledWith(
+      { userId: "user-1", organizationId: null },
+      { invoiceId: "in_topup", topUpCredits: 3, creditsGranted: true },
+    );
+  });
+
+  /** The commit and the notification are one call apart; keep them that way. */
+  it("writes the receipt only once the grant has committed", async () => {
+    const { handleInvoicePaidEvent } = await import(
+      "./stripe-invoice-credit.service"
+    );
+    const runTransaction = transactionMock.getMockImplementation();
+    let insideTransaction = false;
+    let notifiedInsideTransaction: boolean | null = null;
+    transactionMock.mockImplementationOnce(async (callback) => {
+      insideTransaction = true;
+      try {
+        return await runTransaction?.(callback);
+      } finally {
+        insideTransaction = false;
+      }
+    });
+    notifyInvoicePaidMock.mockImplementationOnce(async () => {
+      notifiedInsideTransaction = insideTransaction;
+    });
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        billingReason: "manual",
+        id: "in_topup",
+        lines: [{ productId: "prod_credit", quantity: 3 }],
+      }) as never,
+    );
+
+    expect(notifiedInsideTransaction).toBe(false);
   });
 
   it("classifies free top-up invoices as STRIPE_FREE with no expiry when ttl_days is omitted", async () => {
