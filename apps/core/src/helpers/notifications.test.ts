@@ -84,6 +84,8 @@ function createNotificationRecord(
     readAt: null,
     createdAt: CREATED_AT,
     inApp: true,
+    emailId: null,
+    emailScheduledAt: null,
     ...overrides,
   };
 }
