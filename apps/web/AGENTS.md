@@ -20,6 +20,15 @@ The live tree is `src/app/`. `(app)` is protected. `(auth)` is public auth. `(fl
 - Use `'use client'` only when accessing browser APIs
 - Leverage server actions for mutations instead of client-side state
 
+**Never import a plain value (a string, array, or object constant) from a `'use client'`
+module into a Server Component.** Components cross that boundary; values do not — the
+import resolves to a client reference, not the value, and fails silently. The sidebar's
+row-shape classes lost this way: `cn(SIDEBAR_ROW_CLASS, …)` returned `""` in the shell
+skeleton, so every placeholder row rendered as a bare block with no flex, height or
+padding, while the same constants worked in the client list beside it. Shared constants
+belong in their own non-client module (`src/components/ui/sidebar-classes.ts` beside
+`sidebar.tsx`), imported by both sides.
+
 ### Server actions vs Route Handlers
 
 Next.js serializes concurrent **server actions** per session. A long action started in the background (for example catalog pre-warm on mount) can delay unrelated user actions on the same page (for example OAuth start).

@@ -8,7 +8,6 @@ import { AuroraOrb } from "@/components/aurora-orb";
 import { publishPersonalAssistantChromeVisible } from "@/components/chat/personal-assistant-chrome-store";
 import { SheetClose } from "@/components/ui/sheet";
 import {
-  SIDEBAR_ROW_LABEL_CLASS,
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
@@ -17,6 +16,7 @@ import {
   SidebarRailSelectionBar,
   SidebarRowSlot,
 } from "@/components/ui/sidebar";
+import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
