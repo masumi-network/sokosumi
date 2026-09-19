@@ -5,14 +5,19 @@ import { ChevronRight, FolderKanban } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  useRef,
+  useState,
+} from "react";
 import { loadMoreProjects } from "@/app/projects/actions";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { Button } from "@/components/ui/button";
 import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
+} from "@/components/ui/popover";
 import {
   SIDEBAR_ROW_LABEL_CLASS,
   SidebarMenuButton,
@@ -25,6 +30,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   type RecentProjectsScope,
   useRecentProjectIds,
@@ -42,6 +48,13 @@ import { orderSidebarProjects } from "./order-sidebar-projects";
  */
 const FLYOUT_OPEN_DELAY_MS = 200;
 const FLYOUT_CLOSE_DELAY_MS = 100;
+
+/**
+ * Opening the panel from the row, for a reader who is not holding a pointer.
+ * Right matches the chevron and the side the panel comes out on; down is what
+ * a menu button answers to, and costs nothing to accept as well.
+ */
+const FLYOUT_OPEN_KEYS = new Set(["ArrowRight", "ArrowDown"]);
 
 export function ProjectsMenuItem() {
   const { data: session, isPending, isRefetching, error } = useSession();
@@ -116,6 +129,20 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
   const { isMobile, setOpenMobile } = useSidebar();
   const { rows, isPending, isError, refetch } = useSidebarProjects(scope);
   const active = pathname === "/projects" || pathname.startsWith("/projects/");
+  const [open, setOpen] = useState(false);
+  const rowRef = useRef<HTMLAnchorElement>(null);
+  const openTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const closeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const openedByPointer = useRef(false);
+
+  function clearPending() {
+    clearTimeout(openTimer.current);
+    clearTimeout(closeTimer.current);
+  }
+
+  // The pointer can leave with a timer still owing; unmounting behind it would
+  // otherwise set state on a component that is gone.
+  useMountEffect(() => clearPending);
 
   // Mounted while the page is still in flight so an early pointer lands on the
   // skeleton rather than on nothing.
@@ -130,6 +157,34 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
     if (isMobile) setOpenMobile(false);
   }
 
+  // Which way the panel was opened decides who owns focus: a pointer must not
+  // pull it off whatever the reader was typing in, and a keyboard open is
+  // worthless unless focus follows into the rows.
+  function openForPointer() {
+    clearPending();
+    openTimer.current = setTimeout(() => {
+      openedByPointer.current = true;
+      setOpen(true);
+    }, FLYOUT_OPEN_DELAY_MS);
+  }
+
+  function closeForPointer() {
+    clearPending();
+    closeTimer.current = setTimeout(
+      () => setOpen(false),
+      FLYOUT_CLOSE_DELAY_MS,
+    );
+  }
+
+  function handleRowKeyDown(event: ReactKeyboardEvent<HTMLAnchorElement>) {
+    if (!mountsPanel || !FLYOUT_OPEN_KEYS.has(event.key)) return;
+    // Enter is left alone, so the row still navigates the way a link should.
+    event.preventDefault();
+    clearPending();
+    openedByPointer.current = false;
+    setOpen(true);
+  }
+
   const row = (
     // On the rail the panel is the hover hint, headed with the same label, so
     // a tooltip would only race it to the same spot. Without a panel there is
@@ -140,8 +195,13 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
       tooltip={mountsPanel ? undefined : t("projects")}
     >
       <Link
+        ref={rowRef}
         href="/projects"
         onClick={handleNavigate}
+        onPointerEnter={mountsPanel ? openForPointer : undefined}
+        onPointerLeave={mountsPanel ? closeForPointer : undefined}
+        onKeyDown={handleRowKeyDown}
+        aria-expanded={mountsPanel ? open : undefined}
         aria-current={pathname === "/projects" ? "page" : undefined}
         className={cn(
           "min-w-0",
@@ -171,16 +231,27 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
   return (
     <SidebarMenuItem>
       {mountsPanel ? (
-        <HoverCard
-          openDelay={FLYOUT_OPEN_DELAY_MS}
-          closeDelay={FLYOUT_CLOSE_DELAY_MS}
-        >
-          <HoverCardTrigger asChild>{row}</HoverCardTrigger>
-          <HoverCardContent
+        <Popover open={open} onOpenChange={setOpen} modal={false}>
+          <PopoverAnchor asChild>{row}</PopoverAnchor>
+          <PopoverContent
             side="right"
             align="start"
             sideOffset={8}
             className="w-56 p-1"
+            // A pointer open leaves focus where it was; a keyboard open sends
+            // it into the rows, which is the whole point of opening that way.
+            onOpenAutoFocus={(event) => {
+              if (openedByPointer.current) event.preventDefault();
+            }}
+            // Radix hands focus back to a trigger; there is only an anchor
+            // here, so Escape returns it to the row by hand — and a pointer
+            // leaving must not yank focus back at all.
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              if (!openedByPointer.current) rowRef.current?.focus();
+            }}
+            onPointerEnter={clearPending}
+            onPointerLeave={closeForPointer}
           >
             <p className="text-muted-foreground px-2 py-1.5 text-xs font-medium">
               {t("projects")}
@@ -215,8 +286,8 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
             >
               {t("allProjects")}
             </Link>
-          </HoverCardContent>
-        </HoverCard>
+          </PopoverContent>
+        </Popover>
       ) : (
         row
       )}

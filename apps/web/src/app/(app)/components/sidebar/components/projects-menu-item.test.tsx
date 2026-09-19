@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
+  createEvent,
   fireEvent,
   render,
   screen,
@@ -92,12 +93,13 @@ function projectHrefs(): string[] {
 }
 
 /**
- * Focus, not hover: Radix opens the card on either, and the keyboard path has
- * no delay to wait out. Reaching the rows by tabbing to the row is also the
- * behaviour worth holding, since the pointer path cannot be the only one.
+ * The keyboard open: no delay to wait out, and it is the path that has to keep
+ * working, since a pointer-only panel puts the rows out of reach entirely.
  */
 function openFlyout() {
-  fireEvent.focus(screen.getByRole("link", { name: "projects" }));
+  fireEvent.keyDown(screen.getByRole("link", { name: "projects" }), {
+    key: "ArrowRight",
+  });
 }
 
 /** Placeholder rows standing in for the names that have not arrived. */
@@ -174,7 +176,9 @@ describe("Projects sidebar", () => {
     setup();
     openFlyout();
     await screen.findByRole("link", { name: "Launch plan" });
-    fireEvent.blur(screen.getByRole("link", { name: "projects" }));
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: "Escape",
+    });
     await waitFor(() =>
       expect(
         screen.queryByRole("link", { name: "Launch plan" }),
@@ -214,6 +218,61 @@ describe("Projects sidebar", () => {
     // …and not once an empty workspace comes back, so the row never changes
     // shape under the reader.
     expect(row.querySelector(".lucide-chevron-right")).not.toBeInTheDocument();
+  });
+
+  it("opens to the keyboard and puts focus in the panel", async () => {
+    setup();
+    const row = screen.getByRole("link", { name: "projects" });
+    // Nothing opens on focus alone: a panel that appears and cannot be entered
+    // is worse than one that never opened.
+    fireEvent.focus(row);
+    expect(
+      screen.queryByRole("link", { name: "Launch plan" }),
+    ).not.toBeInTheDocument();
+    expect(row).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.keyDown(row, { key: "ArrowRight" });
+    const first = await screen.findByRole("link", { name: "Launch plan" });
+    expect(row).toHaveAttribute("aria-expanded", "true");
+    // The rows are reachable, which is what the hover card could not do.
+    await waitFor(() =>
+      expect(first.closest('[data-slot="popover-content"]')).toContainElement(
+        document.activeElement as HTMLElement,
+      ),
+    );
+  });
+
+  it("returns focus to the row when the panel is dismissed", async () => {
+    setup();
+    const row = screen.getByRole("link", { name: "projects" });
+    fireEvent.keyDown(row, { key: "ArrowRight" });
+    await screen.findByRole("link", { name: "Launch plan" });
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: "Escape",
+    });
+    await waitFor(() => expect(document.activeElement).toBe(row));
+  });
+
+  it("leaves Enter to the link so the row still navigates", async () => {
+    setup();
+    const row = screen.getByRole("link", { name: "projects" });
+    const enter = createEvent.keyDown(row, { key: "Enter" });
+    fireEvent(row, enter);
+    // Not swallowed into opening a menu, so the browser follows the href.
+    expect(enter.defaultPrevented).toBe(false);
+    expect(
+      screen.queryByRole("link", { name: "Launch plan" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("opens to the pointer without taking focus away", async () => {
+    setup();
+    const row = screen.getByRole("link", { name: "projects" });
+    const elsewhere = screen.getByRole("button", { name: "mobile-closed" });
+    elsewhere.focus();
+    fireEvent.pointerEnter(row);
+    await screen.findByRole("link", { name: "Launch plan" });
+    expect(document.activeElement).toBe(elsewhere);
   });
 
   it("stands the rows in with a skeleton while they load", async () => {
