@@ -89,7 +89,12 @@ No ad-hoc signing assets live in CI: every `xcodebuild` invocation overrides wit
   `https://github.com/masumi-network/sokosumi/releases/download/apple-latest/Sokosumi.dmg`
   It is **not** a required status check — it never runs on a pull request, so it would never report there.
 - **Signing is mandatory, not decoration.** The app is `ENABLE_APP_SANDBOX = YES` and `ENABLE_HARDENED_RUNTIME = YES`, so an ad-hoc-signed build that a user downloads is quarantined and Gatekeeper refuses it outright. Notarization is what makes the disk image open on a machine that did not build it. The five secrets this needs are set by [`scripts/setup-release-signing.sh`](scripts/setup-release-signing.sh); do not hand-roll them.
-- **Xcode Cloud builds releases only.** It does not run on pull requests, and it cannot be a required status check: a start condition filtered to `apps/apple/**` reports nothing at all on a change it excludes, so a required context would hang every non-Apple PR forever. See [docs/xcode-cloud-required-check.md](docs/xcode-cloud-required-check.md). `ci_scripts/ci_post_clone.sh` exists for those release builds.
+- **Two distribution channels, one owner each. Do not blur them.**
+  - **Direct download** (the `apple-latest` disk image) is built by `Publish rolling DMG` in GitHub Actions, signed with Developer ID and notarized. This is the link anyone can click.
+  - **App Store and TestFlight** are built by **Xcode Cloud**, which holds the distribution certificates and uploads to App Store Connect. `ci_scripts/ci_post_clone.sh` exists for those builds.
+
+  Neither is a fallback for the other: Developer ID and App Store are different certificates and different review paths, and Actions cannot upload to App Store Connect the way Xcode Cloud does. Do not add an App Store leg to Actions, and do not add a Developer ID DMG to Xcode Cloud.
+- **Xcode Cloud does not run on pull requests, and cannot be a required status check.** A start condition filtered to `apps/apple/**` reports nothing at all on a change it excludes, so a required context would hang every non-Apple PR forever. See [docs/xcode-cloud-required-check.md](docs/xcode-cloud-required-check.md).
 
 ## App-Specific Gotchas
 
