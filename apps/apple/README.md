@@ -5,8 +5,9 @@ Native SwiftUI chat for macOS 26. iOS 17+ is planned; there is no iOS app target
 
 ## Install the latest build
 
-Every change to `main` publishes a signed, notarized disk image to the
-`apple-latest` prerelease. The URL never changes:
+Every change to `apps/apple/**` (or the workflow itself) that reaches `main`
+publishes a signed, notarized disk image to the `apple-latest` prerelease. The
+URL never changes:
 
 **<https://github.com/masumi-network/sokosumi/releases/download/apple-latest/Sokosumi.dmg>**
 
