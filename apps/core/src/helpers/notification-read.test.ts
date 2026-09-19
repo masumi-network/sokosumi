@@ -31,6 +31,24 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+const { cancelNotificationEmailsMock } = vi.hoisted(() => ({
+  cancelNotificationEmailsMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/notification-email-dispatch", () => ({
+  EMAILED_NOTIFICATION_COLUMNS: {
+    id: true,
+    emailId: true,
+    emailScheduledAt: true,
+  },
+  cancelNotificationEmails: (...args: unknown[]) =>
+    cancelNotificationEmailsMock(...args),
+}));
+
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (promise: Promise<unknown>) => promise,
+}));
+
 describe("markNotificationsRead", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -47,7 +65,13 @@ describe("markNotificationsRead", () => {
         ...notificationFeedWhere(),
       },
       data: { isRead: true, readAt: expect.any(Date) },
-      select: { id: true, kind: true, messageKey: true },
+      select: {
+        id: true,
+        emailId: true,
+        emailScheduledAt: true,
+        kind: true,
+        messageKey: true,
+      },
     });
   });
 
@@ -94,6 +118,31 @@ describe("markNotificationsRead", () => {
 
     expect(result.count).toBe(3);
     expect(result.clearedRoomIds).toEqual(["notif_room"]);
+  });
+
+  it("hands every cleared row to the email cancel, whatever its kind", async () => {
+    const scheduledAt = new Date("2026-09-19T10:10:00.000Z");
+    const cleared = [
+      {
+        id: "notif_task",
+        kind: NotificationKind.TASK,
+        messageKey: "Notifications.Task.inputRequired",
+        emailId: "email_task",
+        emailScheduledAt: scheduledAt,
+      },
+      {
+        id: "notif_mention",
+        kind: NotificationKind.CHAT,
+        messageKey: CHAT_MENTION_MESSAGE_KEY,
+        emailId: null,
+        emailScheduledAt: null,
+      },
+    ];
+    notificationUpdateManyAndReturnMock.mockResolvedValue(cleared);
+
+    await markNotificationsRead("user_123");
+
+    expect(cancelNotificationEmailsMock).toHaveBeenCalledWith(cleared);
   });
 });
 
@@ -183,6 +232,35 @@ describe("markSettledAttentionRead", () => {
 
     expect(count).toBe(0);
     expect(notificationUpdateManyAndReturnMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The feed rule stays out of this write on purpose. A reader with In app
+   * off and Email on has an email waiting on a row the feed would never show,
+   * and that email is their only delivery. Leaving it to arrive asks them to
+   * answer a question that has stopped being asked, which is the outcome this
+   * function exists to prevent.
+   */
+  it("clears a row the feed would never show, and takes its email back", async () => {
+    const hidden = {
+      id: "notif_hidden",
+      emailId: "email_hidden",
+      emailScheduledAt: new Date("2026-09-19T10:10:00.000Z"),
+    };
+    notificationUpdateManyAndReturnMock.mockResolvedValue([hidden]);
+
+    const count = await markSettledAttentionRead(
+      "user_123",
+      NotificationKind.TASK,
+      "task_123",
+      "Notifications.Task.canceled",
+    );
+
+    expect(count).toBe(1);
+    const where = notificationUpdateManyAndReturnMock.mock.calls[0]?.[0].where;
+    expect(where).not.toHaveProperty("inApp");
+    expect(where).not.toHaveProperty("OR");
+    expect(cancelNotificationEmailsMock).toHaveBeenCalledWith([hidden]);
   });
 
   it("reports a failed write and does not throw at the caller", async () => {

@@ -111,11 +111,11 @@ export interface NotificationDelivery {
   inApp: boolean;
   osBanner: boolean;
   /**
-   * The reader's inbox (SOK-916).
+   * The reader's inbox (SOK-916, SOK-1090).
    *
-   * Only ever true for a category that sends email at all, which today is
-   * follow-ups alone (`NOTIFICATION_EMAIL_CATEGORIES`). Every other category
-   * has no email to send, so the answer here is no rather than unasked.
+   * Only ever true for a category that sends email at all
+   * (`NOTIFICATION_EMAIL_CATEGORIES`). Every other category has no email to
+   * send, so the answer here is no rather than unasked.
    *
    * Unlike the banner there is no account-wide consent gating this. The
    * address is already the one the account signs in with, and the row in the

@@ -23,24 +23,24 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 
 const {
   publishClearedNotificationsMock,
+  cancelNotificationEmailsMock,
   waitUntilPromises,
   notificationCountMock,
   notificationFindManyMock,
   notificationFindUniqueMock,
   notificationUpdateManyMock,
   notificationUpdateManyAndReturnMock,
-  notificationUpdateMock,
   vendorGrantFindManyMock,
   coworkerWorkspaceAccessFindManyMock,
 } = vi.hoisted(() => ({
   publishClearedNotificationsMock: vi.fn(),
+  cancelNotificationEmailsMock: vi.fn(),
   waitUntilPromises: [] as Promise<unknown>[],
   notificationCountMock: vi.fn(),
   notificationFindManyMock: vi.fn(),
   notificationFindUniqueMock: vi.fn(),
   notificationUpdateManyMock: vi.fn(),
   notificationUpdateManyAndReturnMock: vi.fn(),
-  notificationUpdateMock: vi.fn(),
   vendorGrantFindManyMock: vi.fn(),
   coworkerWorkspaceAccessFindManyMock: vi.fn(),
 }));
@@ -57,13 +57,20 @@ vi.mock("@/helpers/notifications", async (importOriginal) => ({
     publishClearedNotificationsMock(...args),
 }));
 
+vi.mock("@/helpers/notification-email-dispatch", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/helpers/notification-email-dispatch")
+  >()),
+  cancelNotificationEmails: (...args: unknown[]) =>
+    cancelNotificationEmailsMock(...args),
+}));
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     notification: {
       count: notificationCountMock,
       findMany: notificationFindManyMock,
       findUnique: notificationFindUniqueMock,
-      update: notificationUpdateMock,
       updateMany: notificationUpdateManyMock,
       updateManyAndReturn: notificationUpdateManyAndReturnMock,
     },
@@ -126,6 +133,7 @@ describe("PATCH /notifications/{id}/read", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     waitUntilPromises.length = 0;
+    notificationUpdateManyMock.mockResolvedValue({ count: 1 });
   });
 
   /**
@@ -140,12 +148,13 @@ describe("PATCH /notifications/{id}/read", () => {
       referenceId: "room_123",
       messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
     });
-    notificationFindUniqueMock.mockResolvedValue(existing);
-    notificationUpdateMock.mockResolvedValue({
-      ...existing,
-      isRead: true,
-      readAt: new Date("2026-06-16T15:00:00.000Z"),
-    });
+    notificationFindUniqueMock
+      .mockResolvedValueOnce(existing)
+      .mockResolvedValueOnce({
+        ...existing,
+        isRead: true,
+        readAt: new Date("2026-06-16T15:00:00.000Z"),
+      });
 
     const app = createApp(mountMarkNotificationRead);
     const response = await app.request("http://localhost/notif_123/read", {
@@ -155,6 +164,85 @@ describe("PATCH /notifications/{id}/read", () => {
 
     expect(response.status).toBe(200);
     expect(publishClearedNotificationsMock).toHaveBeenCalledWith(["notif_123"]);
+  });
+
+  /**
+   * The email is taken back by the row as written, not as first read: an
+   * email handed over between the two is on the written row only, and a
+   * cancel by the earlier row would find nothing to cancel.
+   */
+  it("takes back the email scheduled for the row it read", async () => {
+    const existing = createNotificationRow({
+      kind: NotificationKind.TASK,
+      referenceId: "task_123",
+    });
+    const scheduled = {
+      ...existing,
+      isRead: true,
+      readAt: new Date("2026-06-16T15:00:00.000Z"),
+      emailId: "email_1",
+      emailScheduledAt: new Date("2026-06-16T15:10:00.000Z"),
+    };
+    notificationFindUniqueMock
+      .mockResolvedValueOnce(existing)
+      .mockResolvedValueOnce(scheduled);
+
+    const app = createApp(mountMarkNotificationRead);
+    const response = await app.request("http://localhost/notif_123/read", {
+      method: "PATCH",
+    });
+    await Promise.all(waitUntilPromises);
+
+    expect(response.status).toBe(200);
+    expect(cancelNotificationEmailsMock).toHaveBeenCalledWith([scheduled]);
+  });
+
+  it("cancels nothing for a row that was already read", async () => {
+    notificationFindUniqueMock.mockResolvedValue(
+      createNotificationRow({ isRead: true, emailId: "email_1" }),
+    );
+
+    const app = createApp(mountMarkNotificationRead);
+    const response = await app.request("http://localhost/notif_123/read", {
+      method: "PATCH",
+    });
+    await Promise.all(waitUntilPromises);
+
+    expect(response.status).toBe(200);
+    expect(notificationUpdateManyMock).not.toHaveBeenCalled();
+    expect(cancelNotificationEmailsMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Two requests can read the same row at once: both see it unread, and both
+   * would ask Resend to drop the one email. The second ask is refused and
+   * reported for nothing, so only the request whose write moved the row
+   * cancels.
+   */
+  it("cancels nothing when another request claimed the read first", async () => {
+    const existing = createNotificationRow({
+      kind: NotificationKind.TASK,
+      referenceId: "task_123",
+    });
+    notificationFindUniqueMock
+      .mockResolvedValueOnce(existing)
+      .mockResolvedValueOnce({
+        ...existing,
+        isRead: true,
+        readAt: new Date("2026-06-16T15:00:00.000Z"),
+        emailId: "email_1",
+        emailScheduledAt: new Date("2026-06-16T15:10:00.000Z"),
+      });
+    notificationUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    const app = createApp(mountMarkNotificationRead);
+    const response = await app.request("http://localhost/notif_123/read", {
+      method: "PATCH",
+    });
+    await Promise.all(waitUntilPromises);
+
+    expect(response.status).toBe(200);
+    expect(cancelNotificationEmailsMock).not.toHaveBeenCalled();
   });
 
   /**
@@ -193,11 +281,6 @@ describe("PATCH /notifications/{id}/read", () => {
       messageKey: CHAT_MENTION_MESSAGE_KEY,
     });
     notificationFindUniqueMock.mockResolvedValue(existing);
-    notificationUpdateMock.mockResolvedValue({
-      ...existing,
-      isRead: true,
-      readAt: new Date("2026-06-16T15:00:00.000Z"),
-    });
 
     const app = createApp(mountMarkNotificationRead);
     await app.request("http://localhost/notif_123/read", { method: "PATCH" });
@@ -213,11 +296,6 @@ describe("PATCH /notifications/{id}/read", () => {
   it("publishes nothing for a row outside chat", async () => {
     const existing = createNotificationRow();
     notificationFindUniqueMock.mockResolvedValue(existing);
-    notificationUpdateMock.mockResolvedValue({
-      ...existing,
-      isRead: true,
-      readAt: new Date("2026-06-16T15:00:00.000Z"),
-    });
 
     const app = createApp(mountMarkNotificationRead);
     await app.request("http://localhost/notif_123/read", { method: "PATCH" });
@@ -250,12 +328,9 @@ describe("PATCH /notifications/{id}/read", () => {
   it("marks an owned unread notification as read", async () => {
     const existing = createNotificationRow();
     const readAt = new Date("2026-06-16T15:00:00.000Z");
-    notificationFindUniqueMock.mockResolvedValue(existing);
-    notificationUpdateMock.mockResolvedValue({
-      ...existing,
-      isRead: true,
-      readAt,
-    });
+    notificationFindUniqueMock
+      .mockResolvedValueOnce(existing)
+      .mockResolvedValueOnce({ ...existing, isRead: true, readAt });
 
     const app = createApp(mountMarkNotificationRead);
     const response = await app.request("http://localhost/notif_123/read", {
@@ -263,8 +338,8 @@ describe("PATCH /notifications/{id}/read", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(notificationUpdateMock).toHaveBeenCalledWith({
-      where: { id: "notif_123" },
+    expect(notificationUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: "notif_123", isRead: false },
       data: {
         isRead: true,
         readAt: expect.any(Date),
@@ -292,7 +367,7 @@ describe("PATCH /notifications/{id}/read", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(notificationUpdateMock).not.toHaveBeenCalled();
+    expect(notificationUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 when marking another user's notification", async () => {
@@ -306,7 +381,7 @@ describe("PATCH /notifications/{id}/read", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(notificationUpdateMock).not.toHaveBeenCalled();
+    expect(notificationUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the notification does not exist", async () => {
@@ -351,7 +426,13 @@ describe("PATCH /notifications/read-all", () => {
         isRead: true,
         readAt: expect.any(Date),
       },
-      select: { id: true, kind: true, messageKey: true },
+      select: {
+        id: true,
+        emailId: true,
+        emailScheduledAt: true,
+        kind: true,
+        messageKey: true,
+      },
     });
 
     const body = (await response.json()) as { data: { count: number } };

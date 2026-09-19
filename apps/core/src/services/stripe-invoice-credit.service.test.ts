@@ -26,7 +26,8 @@ const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) =>
       create: (...args: unknown[]) => createTransactionMock(...args),
     },
     notification: {
-      updateMany: (...args: unknown[]) => updateNotificationsMock(...args),
+      updateManyAndReturn: (...args: unknown[]) =>
+        updateNotificationsMock(...args),
     },
     task: {
       findMany: (...args: unknown[]) => findOutOfCreditsTasksMock(...args),
@@ -243,6 +244,7 @@ function createInvoice(params: {
 describe("handleInvoicePaidEvent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    updateNotificationsMock.mockResolvedValue([]);
     getUserByStripeCustomerIdMock.mockResolvedValue({
       id: "user-1",
     });
@@ -1492,6 +1494,7 @@ describe("handleInvoicePaidEvent", () => {
           isRead: false,
         },
         data: { isRead: true, readAt: expect.any(Date) },
+        select: { id: true, emailId: true, emailScheduledAt: true },
       });
     }
     expect(updateTaskMock).toHaveBeenCalledTimes(2);

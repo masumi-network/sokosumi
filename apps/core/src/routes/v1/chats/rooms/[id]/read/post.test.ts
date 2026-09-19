@@ -20,9 +20,9 @@ const {
   organizationFindUniqueMock,
   memberFindUniqueMock,
   readStateUpsertMock,
-  notificationUpdateManyMock,
-  notificationFindManyMock,
+  notificationUpdateManyAndReturnMock,
   publishClearedNotificationsMock,
+  cancelNotificationEmailsMock,
   membershipFindManyMock,
   readStateFindManyMock,
   threadReadUpsertMock,
@@ -35,9 +35,9 @@ const {
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   readStateUpsertMock: vi.fn(),
-  notificationUpdateManyMock: vi.fn(),
-  notificationFindManyMock: vi.fn(),
+  notificationUpdateManyAndReturnMock: vi.fn(),
   publishClearedNotificationsMock: vi.fn(),
+  cancelNotificationEmailsMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
   readStateFindManyMock: vi.fn(),
   threadReadUpsertMock: vi.fn(),
@@ -62,6 +62,14 @@ vi.mock("@/helpers/notifications", () => ({
     publishClearedNotificationsMock(...args),
 }));
 
+vi.mock("@/helpers/notification-email-dispatch", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/helpers/notification-email-dispatch")
+  >()),
+  cancelNotificationEmails: (...args: unknown[]) =>
+    cancelNotificationEmailsMock(...args),
+}));
+
 vi.mock("@vercel/functions", () => ({
   waitUntil: (promise: Promise<unknown>) => promise,
 }));
@@ -76,8 +84,7 @@ const tx = {
   member: { findUnique: memberFindUniqueMock },
   chatRoomReadState: { upsert: readStateUpsertMock },
   notification: {
-    findMany: notificationFindManyMock,
-    updateMany: notificationUpdateManyMock,
+    updateManyAndReturn: notificationUpdateManyAndReturnMock,
   },
   chatRoomThreadReadState: {
     upsert: threadReadUpsertMock,
@@ -144,8 +151,7 @@ beforeEach(() => {
   organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
   readStateUpsertMock.mockResolvedValue({});
-  notificationFindManyMock.mockResolvedValue([]);
-  notificationUpdateManyMock.mockResolvedValue({ count: 0 });
+  notificationUpdateManyAndReturnMock.mockResolvedValue([]);
   membershipFindManyMock.mockResolvedValue([]);
   readStateFindManyMock.mockResolvedValue([]);
   // Dual-baseline unread: room mark-read leaves unlooked thread replies.
@@ -175,21 +181,18 @@ describe("POST /chats/rooms/{id}/read", () => {
         }),
       }),
     );
-    expect(notificationFindManyMock).toHaveBeenCalledWith({
+    expect(notificationUpdateManyAndReturnMock).toHaveBeenCalledWith({
       where: {
         userId: USER_ID,
         kind: NotificationKind.CHAT,
         referenceId: ROOM_ID,
         isRead: false,
       },
-      select: { id: true },
-    });
-    expect(notificationUpdateManyMock).toHaveBeenCalledWith({
-      where: { id: { in: [] } },
       data: expect.objectContaining({
         isRead: true,
         readAt: expect.any(Date),
       }),
+      select: { id: true, emailId: true, emailScheduledAt: true },
     });
 
     const body = await response.json();
@@ -215,12 +218,16 @@ describe("POST /chats/rooms/{id}/read", () => {
    * `publishClearedNotifications` sends; what it sends is covered where it
    * lives, in `helpers/notifications.test.ts`.
    */
-  it("hands the cleared rows to the publisher", async () => {
-    notificationFindManyMock.mockResolvedValue([
-      { id: "notification_1" },
-      { id: "notification_2" },
-    ]);
-    notificationUpdateManyMock.mockResolvedValue({ count: 2 });
+  it("hands the cleared rows to the publisher and to the email cancel", async () => {
+    const cleared = [
+      { id: "notification_1", emailId: null, emailScheduledAt: null },
+      {
+        id: "notification_2",
+        emailId: "email_2",
+        emailScheduledAt: new Date("2026-01-01T00:10:00.000Z"),
+      },
+    ];
+    notificationUpdateManyAndReturnMock.mockResolvedValue(cleared);
 
     const response = await createApp(userAuthContext).request(
       `/${ROOM_ID}/read`,
@@ -228,14 +235,12 @@ describe("POST /chats/rooms/{id}/read", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(notificationUpdateManyMock).toHaveBeenCalledWith({
-      where: { id: { in: ["notification_1", "notification_2"] } },
-      data: expect.objectContaining({ isRead: true, readAt: expect.any(Date) }),
-    });
     expect(publishClearedNotificationsMock).toHaveBeenCalledWith([
       "notification_1",
       "notification_2",
     ]);
+    // The reader is in the room, so the email about it is no longer needed.
+    expect(cancelNotificationEmailsMock).toHaveBeenCalledWith(cleared);
   });
 
   it("hands over an empty list when the room had no unread rows", async () => {
