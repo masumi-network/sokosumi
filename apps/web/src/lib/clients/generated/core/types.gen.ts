@@ -24776,10 +24776,6 @@ export type GetUsersByIdPreferencesResponses = {
              */
             marketingOptIn: boolean;
             /**
-             * Legacy switch for the job status emails SOK-930 removed. Stored, but nothing reads it.
-             */
-            notificationsOptIn: boolean;
-            /**
              * Whether the user wants OS banners while Sokosumi is closed (push)
              */
             pushOptIn: boolean;
@@ -24808,10 +24804,6 @@ export type PatchUsersByIdPreferencesData = {
          * Whether the user wants to receive marketing emails
          */
         marketingOptIn?: boolean;
-        /**
-         * Legacy switch for the job status emails SOK-930 removed. Stored, but nothing reads it.
-         */
-        notificationsOptIn?: boolean;
         /**
          * Whether the user wants OS banners while Sokosumi is closed (push)
          */
@@ -24910,10 +24902,6 @@ export type PatchUsersByIdPreferencesResponses = {
              * Whether the user wants to receive marketing emails
              */
             marketingOptIn: boolean;
-            /**
-             * Legacy switch for the job status emails SOK-930 removed. Stored, but nothing reads it.
-             */
-            notificationsOptIn: boolean;
             /**
              * Whether the user wants OS banners while Sokosumi is closed (push)
              */

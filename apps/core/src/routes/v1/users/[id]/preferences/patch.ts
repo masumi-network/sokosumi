@@ -34,11 +34,6 @@ const requestBodySchema = z
       description: "Whether the user wants to receive marketing emails",
       example: true,
     }),
-    notificationsOptIn: z.boolean().optional().openapi({
-      description:
-        "Legacy switch for the job status emails SOK-930 removed. Stored, but nothing reads it.",
-      example: true,
-    }),
     pushOptIn: z.boolean().optional().openapi({
       description:
         "Whether the user wants OS banners while Sokosumi is closed (push)",
@@ -64,7 +59,6 @@ const requestBodySchema = z
     (data) => {
       return (
         data.marketingOptIn !== undefined ||
-        data.notificationsOptIn !== undefined ||
         data.pushOptIn !== undefined ||
         data.showRoomUnreadCount !== undefined ||
         (data.notificationPreferences !== undefined &&
@@ -75,7 +69,6 @@ const requestBodySchema = z
       message: "At least one field must be provided",
       path: [
         "marketingOptIn",
-        "notificationsOptIn",
         "pushOptIn",
         "showRoomUnreadCount",
         "notificationPreferences",
@@ -106,7 +99,6 @@ const route = createRoute({
       {
         data: {
           marketingOptIn: true,
-          notificationsOptIn: true,
           pushOptIn: false,
           notificationPreferences: [
             { category: "TASK_ATTENTION", channel: "IN_APP", enabled: true },
@@ -135,9 +127,6 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     const userFlags = {
       ...(body.marketingOptIn !== undefined && {
         marketingOptIn: body.marketingOptIn,
-      }),
-      ...(body.notificationsOptIn !== undefined && {
-        notificationsOptIn: body.notificationsOptIn,
       }),
       ...(body.pushOptIn !== undefined && {
         pushOptIn: body.pushOptIn,

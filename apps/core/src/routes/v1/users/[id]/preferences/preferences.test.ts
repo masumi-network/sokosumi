@@ -42,7 +42,6 @@ vi.mock("@/lib/db/prisma", () => ({
 
 const PREFERENCES = {
   marketingOptIn: true,
-  notificationsOptIn: false,
   pushOptIn: false,
   showRoomUnreadCount: false,
   notificationPreferences: [] as {
@@ -55,7 +54,6 @@ const PREFERENCES = {
 /** The flags a client reads, without the matrix the response resolves. */
 const PREFERENCE_FLAGS = {
   marketingOptIn: PREFERENCES.marketingOptIn,
-  notificationsOptIn: PREFERENCES.notificationsOptIn,
   pushOptIn: PREFERENCES.pushOptIn,
   showRoomUnreadCount: PREFERENCES.showRoomUnreadCount,
 };
@@ -149,7 +147,6 @@ describe("user preferences routes", () => {
       where: { id: "user_123" },
       select: {
         marketingOptIn: true,
-        notificationsOptIn: true,
         pushOptIn: true,
         showRoomUnreadCount: true,
         notificationPreferences: {
@@ -176,7 +173,6 @@ describe("user preferences routes", () => {
       data: { pushOptIn: true },
       select: {
         marketingOptIn: true,
-        notificationsOptIn: true,
         pushOptIn: true,
         showRoomUnreadCount: true,
         notificationPreferences: {
@@ -194,7 +190,6 @@ describe("user preferences routes", () => {
 
     const data = userUpdateMock.mock.calls[0]?.[0].data;
     expect(data).not.toHaveProperty("marketingOptIn");
-    expect(data).not.toHaveProperty("notificationsOptIn");
   });
 
   it("writes showRoomUnreadCount on PATCH and returns the stored value", async () => {
@@ -231,7 +226,6 @@ describe("user preferences routes", () => {
 
     const data = userUpdateMock.mock.calls[0]?.[0].data;
     expect(data).not.toHaveProperty("marketingOptIn");
-    expect(data).not.toHaveProperty("notificationsOptIn");
     expect(data).not.toHaveProperty("pushOptIn");
     expect(prismaTransactionMock).toHaveBeenCalledTimes(1);
   });

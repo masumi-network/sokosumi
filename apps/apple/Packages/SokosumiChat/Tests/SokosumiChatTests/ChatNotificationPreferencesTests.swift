@@ -20,7 +20,7 @@ private func matrixBody(
     cell("FOLLOW_UP", "EMAIL", true)
   ].joined(separator: ",")
   return """
-  {"data":{"marketingOptIn":false,"notificationsOptIn":false,"pushOptIn":\(pushOptIn),"showRoomUnreadCount":false,"notificationPreferences":[\(cells)]},"meta":{"timestamp":"\(testTimestamp)","requestId":"test"}}
+  {"data":{"marketingOptIn":false,"pushOptIn":\(pushOptIn),"showRoomUnreadCount":false,"notificationPreferences":[\(cells)]},"meta":{"timestamp":"\(testTimestamp)","requestId":"test"}}
   """
 }
 

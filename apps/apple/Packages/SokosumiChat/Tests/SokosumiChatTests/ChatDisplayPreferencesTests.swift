@@ -7,7 +7,7 @@ import Testing
 
 private func preferencesBody(showRoomUnreadCount: Bool) -> String {
   """
-  {"data":{"marketingOptIn":false,"notificationsOptIn":false,"pushOptIn":false,"showRoomUnreadCount":\(showRoomUnreadCount),"notificationPreferences":[]},"meta":{"timestamp":"\(testTimestamp)","requestId":"test"}}
+  {"data":{"marketingOptIn":false,"pushOptIn":false,"showRoomUnreadCount":\(showRoomUnreadCount),"notificationPreferences":[]},"meta":{"timestamp":"\(testTimestamp)","requestId":"test"}}
   """
 }
 
