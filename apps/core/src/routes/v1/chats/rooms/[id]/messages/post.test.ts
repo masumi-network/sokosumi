@@ -89,6 +89,22 @@ vi.mock("@/helpers/chat-mention-notifications", () => ({
     emitChatMentionNotificationsMock(...args),
 }));
 
+const { persistChatHumanMentionsMock, emitChatHumanMentionNotificationsMock } =
+  vi.hoisted(() => ({
+    persistChatHumanMentionsMock: vi.fn().mockResolvedValue([]),
+    emitChatHumanMentionNotificationsMock: vi.fn().mockResolvedValue(undefined),
+  }));
+
+// The human route keeps the real room-shape rule; only the assistant seams
+// are stubbed, and they have tests of their own.
+vi.mock("@/helpers/chat-human-mentions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/helpers/chat-human-mentions")>()),
+  persistChatHumanMentions: (...args: unknown[]) =>
+    persistChatHumanMentionsMock(...args),
+  emitChatHumanMentionNotifications: (...args: unknown[]) =>
+    emitChatHumanMentionNotificationsMock(...args),
+}));
+
 vi.mock(
   "@/helpers/chat-direct-message-notifications",
   async (importOriginal) => {
@@ -687,6 +703,73 @@ describe("POST /chats/rooms/{id}/messages", () => {
       expect(waitUntilMock).toHaveBeenCalledTimes(3);
     });
 
+    it("sends a named human a mention and the other human the direct row", async () => {
+      roomFindFirstMock.mockResolvedValue({
+        id: ROOM_ID,
+        name: "Hannah",
+        kind: "direct",
+        organizationId: "org_1",
+      });
+      membershipFindManyMock.mockResolvedValue([
+        { userId: ALICE_ID },
+        { userId: BOB_ID },
+      ]);
+      persistChatHumanMentionsMock.mockResolvedValueOnce([ALICE_ID]);
+      messageCreateMock.mockResolvedValue(
+        createdMessage({
+          content: `@${ALICE_ID} please check`,
+          senderCoworkerId: COWORKER_ID,
+        }),
+      );
+
+      const app = createApp(coworkerAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ content: `@${ALICE_ID} please check` }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(persistChatHumanMentionsMock).toHaveBeenCalledWith(tx, {
+        messageId: MESSAGE_ID,
+        roomId: ROOM_ID,
+        content: `@${ALICE_ID} please check`,
+      });
+      expect(emitChatHumanMentionNotificationsMock).toHaveBeenCalledWith({
+        messageId: MESSAGE_ID,
+        mentionedUserIds: [ALICE_ID],
+      });
+      expect(emitChatDirectMessageNotificationsMock).toHaveBeenCalledWith(
+        expect.objectContaining({ recipientUserIds: [BOB_ID] }),
+      );
+      expect(emitChatRoomMessageCreatedEffectsMock).toHaveBeenCalledWith(
+        expect.objectContaining({ mentionedUserIds: [ALICE_ID] }),
+      );
+    });
+
+    it("notifies nobody of a mention when a coworker post names no member", async () => {
+      roomFindFirstMock.mockResolvedValue({
+        id: ROOM_ID,
+        name: "general",
+        kind: "channel",
+        organizationId: "org_1",
+      });
+      messageCreateMock.mockResolvedValue(
+        createdMessage({ senderCoworkerId: COWORKER_ID }),
+      );
+
+      const app = createApp(coworkerAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ content: "hello" }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(persistChatHumanMentionsMock).toHaveBeenCalledOnce();
+      expect(emitChatHumanMentionNotificationsMock).not.toHaveBeenCalled();
+    });
+
     /**
      * The direct-message row stops at two humans, so a direct room of three
      * belongs to the room-message emitter alone. Both decisions read the same
@@ -759,6 +842,8 @@ describe("POST /chats/rooms/{id}/messages", () => {
         authorUserId: null,
         authorName: "Hannah",
         parentMessageId: null,
+        memberUserIds: undefined,
+        mentionedUserIds: [],
       });
       expect(waitUntilMock).toHaveBeenCalledTimes(2);
     });

@@ -339,6 +339,15 @@ vi.mock("@/helpers/chat-direct-message-notifications", () => ({
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtimeById: publishChatRoomMessageRealtimeByIdMock,
 }));
+const { persistChatHumanMentionsMock, emitChatHumanMentionNotificationsMock } =
+  vi.hoisted(() => ({
+    persistChatHumanMentionsMock: vi.fn().mockResolvedValue([]),
+    emitChatHumanMentionNotificationsMock: vi.fn().mockResolvedValue(undefined),
+  }));
+vi.mock("@/helpers/chat-human-mentions", () => ({
+  persistChatHumanMentions: persistChatHumanMentionsMock,
+  emitChatHumanMentionNotifications: emitChatHumanMentionNotificationsMock,
+}));
 vi.mock("@/helpers/task-link", () => ({
   mapTaskLinkRelationToWriteData: vi.fn(),
 }));
@@ -2937,6 +2946,44 @@ describe("post_chat chain depth", () => {
     // Writing the row is not enough: reclaim only rescues `sent`, so a row
     // nobody dispatches stays `pending` for ever and the target never wakes.
     expect(dispatchChatRoomMentionMock).toHaveBeenCalledWith("mention_1");
+  });
+
+  it("writes the human mention rows with the post and notifies who it named", async () => {
+    const authorized = armPostChat(0);
+    chatRoomUserMemberFindManyMock.mockResolvedValue([
+      { userId: "user_owner" },
+    ]);
+    persistChatHumanMentionsMock.mockResolvedValueOnce(["user_owner"]);
+
+    await new SokoBotRuntimeService()["postChat"](authorized, {
+      roomId: "room_1",
+      content: "@user_owner the date is confirmed",
+    });
+
+    expect(persistChatHumanMentionsMock).toHaveBeenCalledWith(
+      expect.anything(),
+      {
+        messageId: "msg_1",
+        roomId: "room_1",
+        content: "@user_owner the date is confirmed",
+      },
+    );
+    expect(emitChatHumanMentionNotificationsMock).toHaveBeenCalledWith({
+      messageId: "msg_1",
+      mentionedUserIds: ["user_owner"],
+    });
+  });
+
+  it("notifies nobody of a mention when the post names no member", async () => {
+    const authorized = armPostChat(0);
+
+    await new SokoBotRuntimeService()["postChat"](authorized, {
+      roomId: "room_1",
+      content: "the date is confirmed",
+    });
+
+    expect(persistChatHumanMentionsMock).toHaveBeenCalledOnce();
+    expect(emitChatHumanMentionNotificationsMock).not.toHaveBeenCalled();
   });
 
   it("stops summoning once the chain reaches its ceiling", async () => {

@@ -1,5 +1,10 @@
 import type { Prisma } from "@sokosumi/database";
+import { waitUntil } from "@vercel/functions";
 
+import {
+  emitChatHumanMentionNotifications,
+  persistChatHumanMentions,
+} from "@/helpers/chat-human-mentions";
 import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
@@ -174,17 +179,30 @@ export async function persistAssistantToChatRoom(params: {
         },
         select: { id: true },
       });
+      const mentionedUserIds = await persistChatHumanMentions(tx, {
+        messageId: message.id,
+        roomId,
+        content: contentText,
+      });
       // Sidebar / room list order by activity — keep in sync with stream writes.
       await tx.chatRoom.update({
         where: { id: roomId },
         data: { updatedAt: new Date() },
       });
-      return message;
+      return { id: message.id, mentionedUserIds };
     });
     await Promise.all([
       invalidateChatRoomMessageReaders({ roomId }),
       publishChatRoomMessageRealtimeById(created.id, "create"),
     ]);
+    if (created.mentionedUserIds.length > 0) {
+      waitUntil(
+        emitChatHumanMentionNotifications({
+          messageId: created.id,
+          mentionedUserIds: created.mentionedUserIds,
+        }),
+      );
+    }
     return { id: created.id };
   } catch (error) {
     if (!responseId || !isPrismaUniqueViolation(error)) {

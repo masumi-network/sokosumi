@@ -2,6 +2,10 @@ import type { SokosumiProviderCallOptions } from "@sokosumi/ai-provider";
 import { coworkerTextLooksLikeAgentError } from "@sokosumi/ai-provider";
 import { streamText } from "ai";
 import { findUsableCoworkerByCapabilityInWorkspace } from "@/helpers/access-control";
+import {
+  emitChatHumanMentionNotifications,
+  persistChatHumanMentions,
+} from "@/helpers/chat-human-mentions";
 import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import {
@@ -594,6 +598,12 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
           });
         }
 
+        const mentionedUserIds = await persistChatHumanMentions(tx, {
+          messageId: responseMessage.id,
+          roomId: mention.message.roomId,
+          content: responseText,
+        });
+
         await tx.chatRoom.update({
           where: { id: mention.message.roomId },
           data: { updatedAt: new Date() },
@@ -603,6 +613,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
           kind: "published" as const,
           responseMessageId: responseMessage.id,
           sourceMessageId: mention.message.id,
+          mentionedUserIds,
         };
       });
 
@@ -633,6 +644,12 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
         publishedMessageIds.sourceMessageId,
         "mention_status",
       );
+      if (publishedMessageIds.mentionedUserIds.length > 0) {
+        await emitChatHumanMentionNotifications({
+          messageId: publishedMessageIds.responseMessageId,
+          mentionedUserIds: publishedMessageIds.mentionedUserIds,
+        });
+      }
     } catch (error) {
       keepFailedPlaceholder = true;
       throw error;
