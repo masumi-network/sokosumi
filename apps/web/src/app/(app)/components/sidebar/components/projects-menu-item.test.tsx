@@ -253,6 +253,22 @@ describe("Projects sidebar", () => {
     await waitFor(() => expect(document.activeElement).toBe(row));
   });
 
+  it("leaves focus where the reader went when they leave the panel", async () => {
+    setup();
+    const row = screen.getByRole("link", { name: "projects" });
+    fireEvent.keyDown(row, { key: "ArrowRight" });
+    await screen.findByRole("link", { name: "Launch plan" });
+    const elsewhere = screen.getByRole("button", { name: "mobile-closed" });
+    // Focus leaving the portaled panel is an outside interaction, not Escape.
+    elsewhere.focus();
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("link", { name: "Launch plan" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(document.activeElement).toBe(elsewhere);
+  });
+
   it("leaves Enter to the link so the row still navigates", async () => {
     setup();
     const row = screen.getByRole("link", { name: "projects" });

@@ -136,6 +136,7 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
   const openTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const closeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const openedByPointer = useRef(false);
+  const interactedOutside = useRef(false);
 
   function clearPending() {
     clearTimeout(openTimer.current);
@@ -184,13 +185,14 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
     event.preventDefault();
     clearPending();
     openedByPointer.current = false;
+    interactedOutside.current = false;
     setOpen(true);
   }
 
   const row = (
-    // On the rail the panel is the hover hint, headed with the same label, so
-    // a tooltip would only race it to the same spot. Without a panel there is
-    // nothing else to name the icon, so the tooltip stays.
+    // On the rail the panel is the hover hint, so a tooltip would race it to
+    // the same spot. Without a panel there is nothing else to name the icon,
+    // so the tooltip stays.
     <SidebarMenuButton
       asChild
       isActive={active}
@@ -246,11 +248,19 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
             onOpenAutoFocus={(event) => {
               if (openedByPointer.current) event.preventDefault();
             }}
-            // Radix hands focus back to a trigger; there is only an anchor
-            // here, so Escape returns it to the row by hand — and a pointer
-            // leaving must not yank focus back at all.
+            // Radix would restore to a trigger we do not have. Escape should
+            // land back on the row; a click or focus outside should not —
+            // there is no trigger, so Radix also no longer withholds that
+            // restore after an outside interaction.
+            onInteractOutside={() => {
+              interactedOutside.current = true;
+            }}
             onCloseAutoFocus={(event) => {
               event.preventDefault();
+              if (interactedOutside.current) {
+                interactedOutside.current = false;
+                return;
+              }
               if (!openedByPointer.current) rowRef.current?.focus();
             }}
             onPointerEnter={clearPending}
