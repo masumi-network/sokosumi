@@ -53,20 +53,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
-    const room = await prisma.$transaction(async (tx) => {
-      const room = await requireChatRoomUserAccess(id, userContext.userId, tx);
+    const room = await requireChatRoomUserAccess(
+      id,
+      userContext.userId,
+      prisma,
+    );
 
-      await tx.chatRoomUserMember.update({
-        where: {
-          roomId_userId: {
-            roomId: room.id,
-            userId: userContext.userId,
-          },
+    await prisma.chatRoomUserMember.update({
+      where: {
+        roomId_userId: {
+          roomId: room.id,
+          userId: userContext.userId,
         },
-        data: { starredAt: null },
-      });
-
-      return room;
+      },
+      data: { starredAt: null },
     });
 
     const [unreadCounts, unreadMentionCounts] = await Promise.all([
