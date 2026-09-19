@@ -253,6 +253,44 @@ function run_dev_web() {
   run_dev web
 }
 
+function turnstile_status() {
+  # Report which Turnstile key the web app is holding. fixture_auth calls Core's
+  # sign-in endpoint directly and passes straight through a captcha, so it says
+  # "ok" while the browser form is still blocked behind a challenge — this line
+  # is what tells the two apart.
+  local env_file="$REPO_ROOT/apps/web/.env"
+  if [[ ! -f "$env_file" ]]; then
+    echo "turnstile=off (no apps/web/.env)"
+    return 0
+  fi
+  local line value
+  line="$(
+    grep -E '^[[:space:]]*NEXT_PUBLIC_TURNSTILE_SITE_KEY=' "$env_file" | tail -n 1 || true
+  )"
+  value="${line#*=}"
+  value="${value%\"}"
+  value="${value#\"}"
+  value="${value%\'}"
+  value="${value#\'}"
+  value="$(echo "$value" | tr -d '[:space:]')"
+  if [[ -z "$value" ]]; then
+    echo "turnstile=off (no site key; the auth security check is skipped)"
+    return 0
+  fi
+  # Cloudflare's documented testing prefixes: 1x always passes, 2x always
+  # blocks, 3x forces an interactive challenge.
+  case "$value" in
+    1x*) echo "turnstile=test (always passes)" ;;
+    2x*) echo "turnstile=test (always blocks — sign-in fails by design)" ;;
+    3x*) echo "turnstile=test (forces an interactive challenge)" ;;
+    *)
+      echo "turnstile=live"
+      echo "warn: a real Turnstile key is set; browser sign-in will hit a human check."
+      echo "warn: for local work use Cloudflare's test keys — see apps/web/.env.example, or rerun pnpm env:bootstrap."
+      ;;
+  esac
+}
+
 function cookie_domain_trap() {
   # Fail doctor when Core local .env scopes cookies to a production host.
   # Matches assigned values only; comments and empty assignments are OK.
@@ -869,6 +907,8 @@ function doctor() {
     echo "owned_by_verify=no"
     echo "warn: no pid file — do not mutate a foreign instance; read-only checks only"
   fi
+
+  turnstile_status
 
   # Always report VERIFY_* presence so computer-use agents stop inventing users.
   credentials_status

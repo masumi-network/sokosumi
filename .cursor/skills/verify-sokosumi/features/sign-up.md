@@ -44,6 +44,7 @@ Require HTTP 200 and a `user.email` in the body. Do **not** count API signup alo
 
 ## Gotchas
 
+- A real Turnstile site key leaves the form behind a human check. Doctor reports `turnstile=live` and warns. Solving that challenge is not something an agent should do — swap in Cloudflare's always-passes test key and retry. Symptom: credentials are filled correctly, submit no-ops, and the snapshot shows an unchecked `Bestätigen Sie, dass Sie ein Mensch sind` checkbox inside a Cloudflare iframe.
 - Already-authenticated sessions redirect `/signup` into the app (Welcome `/`). Clear cookies or sign out before driving the form.
 - New signups without a personal workspace often hit `/setup` after leaving `/` — that is auth success, not a failed landing.
 - Email verification is off in local/core config — do not wait for a verification email. A “confirm email” banner after login is OK.

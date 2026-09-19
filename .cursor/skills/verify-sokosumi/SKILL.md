@@ -67,7 +67,7 @@ For Cursor background shells, kill those shell PIDs (or stop the terminal jobs) 
 
 Require `doctor ok`. If `owned_by_verify=no`, do **read-only** checks only — never mutate a foreign instance. If ports already answer before `launch`, the helper refuses (no double-drive).
 
-Doctor also prints `fixture_auth=ok|fail` (Core `POST /auth/sign-in/email` for `alice@sokosumi.test`), `vault_profile=…` when `agent-browser auth list` has the coworker profile, and whether `agent-browser` is on `PATH`. Fixture failure is a **warn** (local/shared DB may lack seeds) — not a doctor fail. On cloud-agent Neon branches, expect `fixture_auth=ok` before driving. On a coworker machine or shared Neon, expect `fixture_auth=fail` and use the vault — do **not** seed Alice onto that database.
+Doctor also prints `turnstile=off|test|live` (which Cloudflare key `apps/web/.env` holds — `live` means the sign-in form shows a human check an agent must not answer, and `fixture_auth` will not catch it because it calls Core directly), `fixture_auth=ok|fail` (Core `POST /auth/sign-in/email` for `alice@sokosumi.test`), `vault_profile=…` when `agent-browser auth list` has the coworker profile, and whether `agent-browser` is on `PATH`. Fixture failure is a **warn** (local/shared DB may lack seeds) — not a doctor fail. On cloud-agent Neon branches, expect `fixture_auth=ok` before driving. On a coworker machine or shared Neon, expect `fixture_auth=fail` and use the vault — do **not** seed Alice onto that database.
 
 Optional Core-only smoke:
 
