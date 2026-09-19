@@ -20,6 +20,8 @@ import {
   getMyPreferencesQueryOptions,
 } from "@/queries/preferences";
 
+import { recordPushRepairOutcome } from "./push-repair-outcome.client";
+
 /**
  * Loads the activation module on the click that needs it. That module pulls in
  * the Ably SDK, and the account page must not carry the SDK for every reader
@@ -266,7 +268,9 @@ export function usePushPreference(userId: string | undefined): PushPreference {
       setIsSaving(true);
       saveOwnsSubscriptionRow.current = true;
       try {
-        return await work(userId);
+        const result = await work(userId);
+        await recordPushRepairOutcome();
+        return result;
       } finally {
         saveOwnsSubscriptionRow.current = false;
         setIsSaving(false);

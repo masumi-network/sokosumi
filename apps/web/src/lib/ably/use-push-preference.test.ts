@@ -1,8 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
+import {
+  getPushRepairOutcome,
+  recordPushRepairOutcome,
+} from "./push-repair-outcome.client";
 import { usePushPreference } from "./use-push-preference";
 
 let queryClient: QueryClient;
@@ -91,6 +95,27 @@ describe("usePushPreference", () => {
     });
     setAccountWriteResult(true);
     setAccountOptIn(false);
+  });
+
+  it("clears the repair notice after account settings restore this browser", async () => {
+    setAccountOptIn(true);
+    localStorage.setItem("ably.push.deviceIdentityToken", "registered-device");
+    onTestFinished(() =>
+      localStorage.removeItem("ably.push.deviceIdentityToken"),
+    );
+    await recordPushRepairOutcome();
+    expect(getPushRepairOutcome()).toBe("quiet");
+    const { result } = renderHook(() => usePushPreference("user_1"), {
+      wrapper,
+    });
+    await waitFor(() => expect(result.current.canToggleDevice).toBe(true));
+
+    await act(async () => {
+      await result.current.setDeviceEnabled(true);
+    });
+
+    expect(result.current.isDeviceEnabled).toBe(true);
+    expect(getPushRepairOutcome()).toBe("healthy");
   });
 
   it("reports cancelled device activation as unsuccessful", async () => {

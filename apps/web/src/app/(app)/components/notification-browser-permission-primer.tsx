@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { BellRing } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -25,6 +26,7 @@ import {
   isPushSupported,
   isServiceWorkerSupported,
 } from "@/lib/utils/notification-service-worker";
+import { getMyPreferencesQueryOptions } from "@/queries/preferences";
 import { NOTIFICATION_PREFERENCES_HREF } from "../account/constants";
 
 /**
@@ -78,6 +80,15 @@ export function NotificationBrowserPermissionPrimer({
     getServerPushRepairOutcome,
   );
   const sessionUserId = session?.user.id;
+  const { data: preferences } = useQuery({
+    ...getMyPreferencesQueryOptions(sessionUserId),
+    enabled: Boolean(sessionUserId) && repairOutcome === "quiet",
+  });
+  const pushWanted =
+    preferences?.data.pushOptIn === true &&
+    preferences.data.notificationPreferences.some(
+      (cell) => cell.channel === "OS_BANNER" && cell.enabled,
+    );
 
   /**
    * Subscribes this browser again, from wherever the reader met the card.
@@ -170,7 +181,7 @@ export function NotificationBrowserPermissionPrimer({
    * push on their phone alone.
    */
   if (permission === "granted") {
-    if (repairOutcome !== "quiet" || !sessionUserId) {
+    if (repairOutcome !== "quiet" || !sessionUserId || !pushWanted) {
       return null;
     }
 

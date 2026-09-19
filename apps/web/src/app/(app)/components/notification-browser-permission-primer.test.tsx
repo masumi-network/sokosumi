@@ -32,6 +32,20 @@ vi.mock("@/lib/ably/push-activation.client", () => ({
   activatePush: (...args: unknown[]) => activatePushMock(...args),
 }));
 
+let preferences:
+  | {
+      data: {
+        pushOptIn: boolean;
+        notificationPreferences: { channel: string; enabled: boolean }[];
+      };
+    }
+  | undefined;
+
+vi.mock("@tanstack/react-query", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tanstack/react-query")>()),
+  useQuery: () => ({ data: preferences }),
+}));
+
 const SESSION_USER_ID = "user_alice";
 
 const requestPermissionMock = vi.fn();
@@ -77,6 +91,12 @@ describe("NotificationBrowserPermissionPrimer", () => {
     setPushSupported(true);
     setServiceWorkerSupported(true);
     repairOutcome = "pending";
+    preferences = {
+      data: {
+        pushOptIn: true,
+        notificationPreferences: [{ channel: "OS_BANNER", enabled: true }],
+      },
+    };
     activatePushMock.mockResolvedValue(true);
   });
 
@@ -178,6 +198,30 @@ describe("NotificationBrowserPermissionPrimer", () => {
    * permission is granted, so there is nothing left to ask for: the card says
    * what happened and offers the one press that fixes it.
    */
+  it.each(["opted out", "no push deliveries", "unknown"])(
+    "hides the repair notice when preferences are %s",
+    (state) => {
+      setNotificationPermission("granted");
+      repairOutcome = "quiet";
+      preferences =
+        state === "unknown"
+          ? undefined
+          : {
+              data: {
+                pushOptIn: state !== "opted out",
+                notificationPreferences: [
+                  {
+                    channel: "OS_BANNER",
+                    enabled: state !== "no push deliveries",
+                  },
+                ],
+              },
+            };
+      const { container } = render(<NotificationBrowserPermissionPrimer />);
+      expect(container).toBeEmptyDOMElement();
+    },
+  );
+
   it("tells the reader when this browser stopped receiving push", async () => {
     setNotificationPermission("granted");
     repairOutcome = "quiet";
@@ -227,6 +271,12 @@ describe("NotificationBrowserPermissionPrimer", () => {
   it("says nothing until the repair has answered", () => {
     setNotificationPermission("granted");
     repairOutcome = "pending";
+    preferences = {
+      data: {
+        pushOptIn: true,
+        notificationPreferences: [{ channel: "OS_BANNER", enabled: true }],
+      },
+    };
     const { container } = render(<NotificationBrowserPermissionPrimer />);
 
     expect(container).toBeEmptyDOMElement();
