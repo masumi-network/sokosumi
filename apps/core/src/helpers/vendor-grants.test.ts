@@ -19,7 +19,6 @@ import {
   requestWorkspaceGrant,
   requireTaskNotParked,
   throwGrantAccessError,
-  toApiVendorPermission,
   unparkTasksForGrant,
   VendorPermissionApi,
 } from "./vendor-grants";
@@ -79,12 +78,6 @@ describe("vendor-grants helpers", () => {
     queryRawMock.mockResolvedValue([]);
     executeRawMock.mockResolvedValue(undefined);
     deletePendingVendorGrantNotificationsMock.mockResolvedValue(0);
-  });
-
-  it("maps Prisma workspace permission to API string", () => {
-    expect(toApiVendorPermission(VendorPermission.workspace)).toBe(
-      VendorPermissionApi.WORKSPACE,
-    );
   });
 
   it("treats DENIED and REVOKED as terminal denies", () => {

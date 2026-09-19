@@ -32,12 +32,6 @@ export const VendorPermissionApi = {
 export type VendorPermissionApiValue =
   (typeof VendorPermissionApi)[keyof typeof VendorPermissionApi];
 
-export function toApiVendorPermission(
-  _permission: VendorPermission,
-): VendorPermissionApiValue {
-  return VendorPermissionApi.WORKSPACE;
-}
-
 function workspaceGrantUniqueWhere(vendorId: string, workspaceId: string) {
   return {
     vendorId_workspaceId: {
@@ -487,7 +481,7 @@ export function toVendorGrantApiShape(grant: VendorGrantWithVendor) {
     vendorName: grant.vendor.name,
     vendorSlug: grant.vendor.slug,
     workspaceId: grant.workspaceId,
-    permission: toApiVendorPermission(grant.permission),
+    permission: VendorPermissionApi.WORKSPACE,
     status: grant.status,
     requestedByUserId: grant.requestedByUserId,
     resolvedAt: grant.resolvedAt,
