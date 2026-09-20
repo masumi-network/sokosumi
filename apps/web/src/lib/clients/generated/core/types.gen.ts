@@ -3862,7 +3862,7 @@ export type NotificationPreference = {
     /**
      * What the notification is about
      */
-    category: 'TASK_ATTENTION' | 'TASK_COMPLETED' | 'TASK_UPDATE' | 'CHAT_ROOM_MESSAGE' | 'CHAT_MENTION' | 'CHAT_DIRECT_MESSAGE' | 'SYSTEM' | 'FOLLOW_UP';
+    category: 'TASK_ATTENTION' | 'TASK_COMPLETED' | 'TASK_UPDATE' | 'CHAT_ROOM_MESSAGE' | 'CHAT_MENTION' | 'CHAT_DIRECT_MESSAGE' | 'BILLING_ATTENTION' | 'BILLING_UPDATE' | 'SYSTEM' | 'FOLLOW_UP';
     /**
      * Where it is delivered: in the app, as an OS banner (which also needs pushOptIn), or by email (offered only on the categories that mail)
      */

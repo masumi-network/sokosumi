@@ -424,7 +424,33 @@ describe("resolveNotificationDelivery for a reminder", () => {
 
     expect(delivery.inApp).toBe(true);
   });
+});
 
+describe("resolveNotificationDelivery for billing", () => {
+  it("emails billing that waits on the reader when they have set nothing", () => {
+    expect(
+      resolveNotificationDelivery({
+        category: "BILLING_ATTENTION",
+        preferences: [],
+        pushOptIn: false,
+      }),
+    ).toEqual({ inApp: true, osBanner: false, email: true });
+  });
+
+  it("does not email billing news, which Stripe already mails", () => {
+    expect(
+      resolveNotificationDelivery({
+        category: "BILLING_UPDATE",
+        preferences: [
+          { category: "BILLING_UPDATE", channel: "EMAIL", enabled: true },
+        ],
+        pushOptIn: false,
+      }).email,
+    ).toBe(false);
+  });
+});
+
+describe("resolveNotificationDelivery email gate", () => {
   it("sends no email for a category that has no email to send", () => {
     // Even with the row switched on. Nothing emails a task update, so a
     // stored row saying otherwise decides nothing.
