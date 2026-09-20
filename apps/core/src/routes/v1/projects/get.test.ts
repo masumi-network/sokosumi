@@ -20,13 +20,17 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { projectCountMock, projectFindManyMock, queryRawMock } = vi.hoisted(
-  () => ({
-    projectCountMock: vi.fn(),
-    projectFindManyMock: vi.fn(),
-    queryRawMock: vi.fn(),
-  }),
-);
+const {
+  projectCountMock,
+  projectFindManyMock,
+  projectStarFindManyMock,
+  queryRawMock,
+} = vi.hoisted(() => ({
+  projectCountMock: vi.fn(),
+  projectFindManyMock: vi.fn(),
+  projectStarFindManyMock: vi.fn(),
+  queryRawMock: vi.fn(),
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -34,6 +38,9 @@ vi.mock("@/lib/db/prisma", () => ({
     project: {
       findMany: projectFindManyMock,
       count: projectCountMock,
+    },
+    projectStar: {
+      findMany: projectStarFindManyMock,
     },
   },
 }));
@@ -104,7 +111,49 @@ describe("GET /projects", () => {
     vi.clearAllMocks();
     projectFindManyMock.mockResolvedValue([]);
     projectCountMock.mockResolvedValue(0);
+    projectStarFindManyMock.mockResolvedValue([]);
     queryRawMock.mockResolvedValue([]);
+  });
+
+  it("reports the reader's own Pin on each row", async () => {
+    const sample = createProjectRow({ _count: { tasks: 0, jobs: 0 } });
+    const starredAt = new Date("2026-09-20T10:00:00.000Z");
+    projectFindManyMock.mockResolvedValue([sample]);
+    queryRawMock.mockResolvedValue([
+      { id: sample.id, lastActivityAt: sample.updatedAt },
+    ]);
+    projectCountMock.mockResolvedValue(1);
+    projectStarFindManyMock.mockResolvedValue([
+      { projectId: sample.id, starredAt },
+    ]);
+
+    const res = await createApp().request("http://localhost/");
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data[0]?.starredAt).toBe(starredAt.toISOString());
+    expect(projectStarFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId: USER_AUTH_CONTEXT.userId,
+          projectId: { in: [sample.id] },
+        },
+      }),
+    );
+  });
+
+  it("leaves starredAt null for a project this reader has not Pinned", async () => {
+    const sample = createProjectRow({ _count: { tasks: 0, jobs: 0 } });
+    projectFindManyMock.mockResolvedValue([sample]);
+    queryRawMock.mockResolvedValue([
+      { id: sample.id, lastActivityAt: sample.updatedAt },
+    ]);
+    projectCountMock.mockResolvedValue(1);
+
+    const res = await createApp().request("http://localhost/");
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).data[0]?.starredAt).toBeNull();
   });
 
   it("returns projects for the active workspace with pagination metadata", async () => {

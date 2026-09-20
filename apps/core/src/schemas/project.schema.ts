@@ -200,8 +200,27 @@ export const projectListItemSchema = projectSchema
       description:
         "Latest visible task/job event, ready task output or project lifecycle event. Equals createdAt when the project has no activity yet, which is also the list ordering key.",
     }),
+    starredAt: dateTimeSchema.nullable().openapi({
+      description:
+        "When the reader Pinned this project, or null when they have not. Always resolved for the acting user, so null means unpinned rather than unknown; it is null for every non-user actor, since a Pin belongs to a person. Never an ordering key here — the list stays in activity order and the sidebar flyout is what puts Pins first.",
+    }),
   })
   .openapi("ProjectListItem");
+
+/**
+ * The reader's Pin on one project, after starring or unstarring it. Null
+ * `starredAt` means the Pin is gone. The API and database say star (ADR 0017);
+ * product UI says Pin.
+ */
+export const projectStarSchema = z
+  .object({
+    projectId: z
+      .string()
+      .uuid()
+      .openapi({ example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa" }),
+    starredAt: dateTimeSchema.nullable(),
+  })
+  .openapi("ProjectStar");
 
 export const PROJECT_NEEDS_ATTENTION_LIMIT = 5 as const;
 

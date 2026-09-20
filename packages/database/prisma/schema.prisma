@@ -108,6 +108,7 @@ model User {
   chatRoomGuestInvitationsAccepted ChatRoomGuestInvitation[] @relation("ChatRoomGuestInvitationAcceptedBy")
   chatRoomGuestInviteLinksCreated  ChatRoomGuestInviteLink[] @relation("ChatRoomGuestInviteLinkCreator")
   noticeAcknowledgments            NoticeAcknowledgment[]
+  projectStars                     ProjectStar[]
 
   // Legacy personal-assistant storage. Retained read-only through rollback window.
   hermesMessages           HermesMessage[]
@@ -557,9 +558,33 @@ model Project {
   closeOperation        ProjectCloseOperation?
   events                ProjectEvent[]
   calendarInvalidations CalendarInvalidationOutbox[]
+  stars                 ProjectStar[]
 
   @@index([workspaceId])
   @@map("project")
+}
+
+/// One user's Pin on one project: personal, private, and not shared with the
+/// workspace. The sidebar's Projects flyout renders these before any
+/// recently-visited row. API and database name is star (ADR 0017); product UI
+/// stays Pin. Ascending `starredAt` is the order they render in — unlike a
+/// Pinned room there is no reorder mode, so here it really is the pin time.
+/// Closing a project keeps the row; reads filter closed projects out, so
+/// reopening restores the Pin.
+model ProjectStar {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  starredAt DateTime @default(now())
+
+  @@unique([userId, projectId])
+  @@index([userId, starredAt])
+  @@map("project_star")
 }
 
 model Member {

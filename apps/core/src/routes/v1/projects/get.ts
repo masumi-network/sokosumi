@@ -115,7 +115,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const page = ranked.slice(0, take);
     // Prisma `contains` compiles to unescaped ILIKE, so `%` / `_` in `q`
     // would inflate the total relative to the escaped ranked query.
-    const [rows, count] = await Promise.all([
+    // A Pin belongs to a person (ADR 0036), so only a user context resolves
+    // one. A coworker or vendor reading the same list sees every row unpinned
+    // rather than seeing the bound user's Pins as its own.
+    const readerUserId =
+      c.var.authContext.actor === "user" ? c.var.authContext.userId : null;
+    const [rows, count, stars] = await Promise.all([
       prisma.project.findMany({
         where: { workspaceId, id: { in: page.map((row) => row.id) } },
         include: projectListCountsInclude,
@@ -127,8 +132,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             )
             .then((result) => Number(result[0]?.count ?? 0n))
         : prisma.project.count({ where: { workspaceId } }),
+      // Bounded by the page, and served by the (userId, projectId) unique
+      // index, so this never grows with how much the reader has Pinned.
+      readerUserId
+        ? prisma.projectStar.findMany({
+            where: {
+              userId: readerUserId,
+              projectId: { in: page.map((row) => row.id) },
+            },
+            select: { projectId: true, starredAt: true },
+          })
+        : Promise.resolve([]),
     ]);
     const byId = new Map(rows.map((row) => [row.id, row]));
+    const starredAtByProjectId = new Map(
+      stars.map((star) => [star.projectId, star.starredAt]),
+    );
     const projectsWithCounts = page.flatMap(({ id, lastActivityAt }) => {
       const row = byId.get(id);
       if (!row) return [];
@@ -140,6 +159,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           taskCount: _count.tasks,
           jobCount: _count.jobs,
           lastActivityAt,
+          starredAt: starredAtByProjectId.get(id) ?? null,
         },
       ];
     });
