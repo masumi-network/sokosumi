@@ -53,6 +53,7 @@ export const NOTIFICATION_EMAIL_CATEGORIES: readonly NotificationCategory[] = [
   "CHAT_MENTION",
   "CHAT_DIRECT_MESSAGE",
   "SYSTEM",
+  "BILLING_ATTENTION",
   "FOLLOW_UP",
 ];
 

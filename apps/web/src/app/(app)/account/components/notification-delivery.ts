@@ -22,7 +22,7 @@ interface ChannelSpec {
  *
  * Email is drawn beside these and is not one of them. A row that offers it
  * writes a cell of this matrix like any other, on the `EMAIL` channel. It does
- * not belong in a column every row draws, because two rows have no email
+ * not belong in a column every row draws, because some rows have no email
  * behind them at all. See `KindSpec.email`.
  *
  * A channel Core adds later needs a cell here. Without one it is drawn
@@ -107,16 +107,19 @@ export interface KindSpec {
   /**
    * What this row's email cell writes, if anything.
    *
-   * `CHANNEL` is a row Sokosumi mails: what is addressed to the reader, and
-   * the reminders about it (SOK-1090, SOK-916). Its email is a cell of the
-   * same matrix as In app and Push, on the `EMAIL` channel, so it is the
-   * reader's answer for that row alone and nothing else moves with it.
+   * `CHANNEL` is a row Sokosumi mails: what is addressed to the reader, the
+   * reminders about it (SOK-1090, SOK-916), and billing that waits on the
+   * reader (SOK-932). Its email is a cell of the same matrix as In app and
+   * Push, on the `EMAIL` channel, so it is the reader's answer for that row
+   * alone and nothing else moves with it.
    *
-   * `NONE` is every message in a room and the other task updates. Nothing
-   * mails them, and the row says so rather than offering a control that would
-   * reach nothing. Core's `NOTIFICATION_EMAIL_CATEGORIES` is the list this
-   * has to agree with: a row marked `CHANNEL` there and `NONE` here hides a
-   * cell Core reads, and the other way round draws a cell Core ignores.
+   * `NONE` is every message in a room, the other task updates, and billing
+   * news. Nothing mails them, and the row says so rather than offering a
+   * control that would reach nothing. Stripe already writes those receipts
+   * and cancellations. Core's `NOTIFICATION_EMAIL_CATEGORIES` is the list
+   * this has to agree with: a row marked `CHANNEL` there and `NONE` here
+   * hides a cell Core reads, and the other way round draws a cell Core
+   * ignores.
    */
   email: EmailControl;
 }
@@ -355,7 +358,7 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         category: "BILLING_ATTENTION",
         labelKey: "kindBillingAttention",
         hintKey: "kindBillingAttentionHint",
-        email: "NONE",
+        email: "CHANNEL",
       },
       {
         category: "BILLING_UPDATE",

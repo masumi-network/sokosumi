@@ -132,7 +132,9 @@ export interface NotificationDelivery {
    *
    * Only ever true for a category that sends email at all
    * (`NOTIFICATION_EMAIL_CATEGORIES`). Every other category has no email to
-   * send, so the answer here is no rather than unasked.
+   * send, so the answer here is no rather than unasked. Billing news stays
+   * off this list because Stripe already mails those receipts and
+   * cancellations.
    *
    * Unlike the banner there is no account-wide consent gating this. The
    * address is already the one the account signs in with, and the row in the
