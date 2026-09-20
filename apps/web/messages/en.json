@@ -6495,6 +6495,12 @@
         "assigned": "You were assigned {taskName}",
         "followUp": "{taskName} is still waiting for you"
       },
+      "Billing": {
+        "lowBalance": "Your credits are running low: {credits} left",
+        "paymentFailed": "A subscription payment failed",
+        "creditsAdded": "{credits} credits were added to your balance",
+        "subscriptionEnding": "Your subscription ends when the current period does"
+      },
       "Chat": {
         "mentioned": "{authorName} mentioned you in {roomName}",
         "mentionedDirect": "{authorName} mentioned you in a direct message",
