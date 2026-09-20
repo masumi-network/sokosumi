@@ -5,7 +5,6 @@ import {
   CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
   CHAT_MENTION_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
-  JOB_FOLLOW_UP_MESSAGE_KEY,
   TASK_FOLLOW_UP_MESSAGE_KEY,
 } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -495,7 +494,11 @@ describe("NotificationFollowUpSyncService", () => {
     expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 
-  it("reminds a reader of a job still waiting on them", async () => {
+  /**
+   * SOK-930 removed the job notifications, so a job row stored before that has
+   * no reminder to earn: the reader cannot act on an agent job in the app.
+   */
+  it("says nothing more about a job", async () => {
     seed([
       row({
         kind: NotificationKind.JOB,
@@ -506,9 +509,7 @@ describe("NotificationFollowUpSyncService", () => {
 
     await notificationFollowUpSyncService.sendFollowUps({ now });
 
-    expect(written.map((one) => one.messageKey)).toEqual([
-      JOB_FOLLOW_UP_MESSAGE_KEY,
-    ]);
+    expect(written).toEqual([]);
   });
 
   it("says nothing more about a notification the reader opened", async () => {
@@ -545,14 +546,6 @@ describe("NotificationFollowUpSyncService", () => {
         messageKey: "Notifications.Task.inputRequired",
         messageParams: { coworkerName: "Ada", taskName: "Invoice run" },
         metadata: null,
-      },
-    ],
-    [
-      "job",
-      {
-        kind: NotificationKind.JOB,
-        messageKey: "Notifications.Job.paymentFailed",
-        messageParams: { agentName: "Scribe", jobName: "Weekly digest" },
       },
     ],
   ])(
@@ -721,8 +714,8 @@ describe("NotificationFollowUpSyncService", () => {
       }),
       row({
         id: "notification-2",
-        kind: NotificationKind.JOB,
-        messageKey: "Notifications.Job.completed",
+        kind: NotificationKind.TASK,
+        messageKey: "Notifications.Task.canceled",
       }),
     ]);
 

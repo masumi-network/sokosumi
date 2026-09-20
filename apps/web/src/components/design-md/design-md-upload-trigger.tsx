@@ -16,7 +16,7 @@ import {
   FileUploadList,
   FileUploadTrigger,
 } from "@/components/ui/file-upload";
-import { saveDesignMdUpload } from "@/lib/actions/design-md";
+import { saveDesignMdUpload } from "@/lib/actions/design-md/action";
 import type { PersistedDesignMd } from "@/lib/services/design-md.service";
 import { formatBytes } from "@/lib/utils/format-bytes";
 

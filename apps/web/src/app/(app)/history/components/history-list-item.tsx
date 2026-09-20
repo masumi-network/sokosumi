@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useFormatter } from "next-intl";
 import {
   HistoryMetaTime,
   HistoryOwnerAvatar,
@@ -42,8 +43,9 @@ export function HistoryListItem({
   activeOrganizationId,
 }: HistoryListItemProps) {
   const { formatTimeAgo } = useLocalizedDateTime();
+  const formatter = useFormatter();
   const description = getHistoryRowSubtitle(item, labels);
-  const credits = formatHistoryCredits(item.credits, labels);
+  const credits = formatHistoryCredits(item.credits, labels, formatter.number);
   const showOwner = activeOrganizationId !== null;
   const rowClassName = cn(
     "group grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 rounded-lg px-4 py-3 transition-colors",
@@ -195,11 +197,12 @@ function formatHistoryCredits(
     HistoryListItemLabels,
     "credit" | "credits" | "creditsUnavailable"
   >,
+  formatNumber: (value: number) => string,
 ): string {
   if (credits === null) return labels.creditsUnavailable;
 
   const formattedCredits = formatCreditsForDisplay(credits);
   const unit = formattedCredits === 1 ? labels.credit : labels.credits;
 
-  return `${formattedCredits} ${unit}`;
+  return `${formatNumber(formattedCredits)} ${unit}`;
 }

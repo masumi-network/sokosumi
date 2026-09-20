@@ -93,7 +93,7 @@ vi.mock("next-intl/server", () => ({
   }),
 }));
 
-vi.mock("@/lib/services", () => ({
+vi.mock("@/lib/services/share.service", () => ({
   shareService: {
     getPubliclySharedResource: getPubliclySharedResourceMock,
   },

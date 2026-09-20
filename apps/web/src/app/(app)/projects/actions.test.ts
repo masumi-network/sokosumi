@@ -96,4 +96,39 @@ describe("loadMoreProjects", () => {
     );
     expect(projectServiceMock.listProjects).not.toHaveBeenCalled();
   });
+  it.each([
+    { userId: "user-1", organizationId: "org-2" },
+    { userId: "user-2", organizationId: "org-1" },
+    { userId: "user-1", organizationId: null },
+  ])(
+    "rejects a stale sidebar scope before reading projects: %j",
+    async (expectedScope) => {
+      const { loadMoreProjects } = await import("./actions");
+      await expect(
+        loadMoreProjects({ cursor: null, expectedScope }),
+      ).rejects.toThrow("Project workspace changed");
+      expect(projectServiceMock.listProjects).not.toHaveBeenCalled();
+    },
+  );
+
+  it("accepts the current personal workspace with a bounded page", async () => {
+    getSessionResultMock.mockResolvedValue(
+      ok({ user: { id: "user-1" }, session: { activeOrganizationId: null } }),
+    );
+    projectServiceMock.listProjects.mockResolvedValue({
+      projects: [],
+      pagination: null,
+    });
+    const { loadMoreProjects } = await import("./actions");
+    await expect(
+      loadMoreProjects({
+        cursor: null,
+        expectedScope: { userId: "user-1", organizationId: null },
+      }),
+    ).resolves.toEqual({ projects: [], nextCursor: null });
+    expect(projectServiceMock.listProjects).toHaveBeenCalledWith({
+      cursor: null,
+      limit: 20,
+    });
+  });
 });

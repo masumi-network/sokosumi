@@ -4471,6 +4471,18 @@ export const TaskSchema = {
             format: 'uuid',
             example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
         },
+        project: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectSummary'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: null,
+            description: 'Linked project name and logo. Null when the task has no project.'
+        },
         assigneeId: {
             type: [
                 'string',
@@ -4702,6 +4714,7 @@ export const TaskSchema = {
         'organizationId',
         'organization',
         'projectId',
+        'project',
         'assigneeId',
         'assigneeSokoBotId',
         'assigneeUserId',
@@ -4778,6 +4791,34 @@ export const OrganizationSummarySchema = {
         'id',
         'name',
         'slug'
+    ]
+} as const;
+
+export const ProjectSummarySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        name: {
+            type: 'string',
+            example: 'Q1 research'
+        },
+        logo: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri',
+            example: 'https://example.public.blob.vercel-storage.com/projects/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa/logos/logo.png'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'logo'
     ]
 } as const;
 
@@ -9575,7 +9616,7 @@ export const ChatRoomMessageQuoteSchema = {
         roomId: {
             type: 'string',
             format: 'uuid',
-            description: 'Source room of a quote sent to the caller\'s Self Direct. Absent when the quoted message is in the same room.',
+            description: 'Source room of a message quoted from another room. Absent when the quoted message is in the same room.',
             example: '550e8400-e29b-41d4-a716-446655440000'
         }
     },
@@ -10218,8 +10259,8 @@ export const CreateChatRoomMessageRequestSchema = {
     properties: {
         content: {
             type: 'string',
-            minLength: 1,
             maxLength: 10000,
+            description: 'Message body. May be empty only when `quote` is set: a quote can be the whole message.',
             example: '@coworker:elena Can you summarize this launch risk?'
         },
         mentionedCoworkerIds: {
@@ -10267,12 +10308,18 @@ export const CreateChatRoomMessageRequestSchema = {
                     type: 'string',
                     format: 'uuid',
                     example: '550e8400-e29b-41d4-a716-446655440000'
+                },
+                roomId: {
+                    type: 'string',
+                    format: 'uuid',
+                    description: 'Room the quoted message is in, when it is not this room. User senders only. Allowed when the sender can read that room and every user member of this room is also a member of it; anything else is a 400.',
+                    example: '550e8400-e29b-41d4-a716-446655440001'
                 }
             },
             required: [
                 'messageId'
             ],
-            description: 'Quote another message in the same room. Snapshot is stored in metadata.quote; does not set parentMessageId.'
+            description: 'Quote another message. Snapshot is stored in metadata.quote; does not set parentMessageId.'
         },
         clientMessageId: {
             type: 'string',
@@ -12947,9 +12994,6 @@ export const NotificationPreferenceSchema = {
         category: {
             type: 'string',
             enum: [
-                'JOB_ATTENTION',
-                'JOB_COMPLETED',
-                'JOB_UPDATE',
                 'TASK_ATTENTION',
                 'TASK_COMPLETED',
                 'TASK_UPDATE',
@@ -16223,16 +16267,16 @@ export const NotificationItemSchema = {
         },
         messageKey: {
             type: 'string',
-            description: 'i18n message key for translation (e.g. Notifications.Job.completed)',
-            example: 'Notifications.Job.completed'
+            description: 'i18n message key for translation (e.g. Notifications.Task.completed)',
+            example: 'Notifications.Task.completed'
         },
         messageParams: {
             type: 'object',
             additionalProperties: {},
             description: 'ICU interpolation parameters for the message',
             example: {
-                agentName: 'Research Agent',
-                jobName: 'Market Analysis'
+                coworkerName: 'Ada',
+                taskName: 'Market Analysis'
             }
         },
         metadata: {
@@ -16293,7 +16337,7 @@ export const NotificationKindSchema = {
         'CHAT'
     ],
     description: 'Notification source domain',
-    example: 'JOB'
+    example: 'TASK'
 } as const;
 
 export const NotificationCountsSchema = {
@@ -19113,6 +19157,18 @@ export const TaskListItemSchema = {
             format: 'uuid',
             example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
         },
+        project: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectSummary'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: null,
+            description: 'Linked project name and logo. Null when the task has no project.'
+        },
         assigneeId: {
             type: [
                 'string',
@@ -19298,6 +19354,7 @@ export const TaskListItemSchema = {
         'organizationId',
         'organization',
         'projectId',
+        'project',
         'assigneeId',
         'assigneeSokoBotId',
         'assigneeUserId',

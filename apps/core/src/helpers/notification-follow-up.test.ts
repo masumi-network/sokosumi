@@ -9,10 +9,7 @@ import {
 } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
-import {
-  JOB_ATTENTION_MESSAGE_KEYS,
-  TASK_ATTENTION_MESSAGE_KEYS,
-} from "./notification-delivery";
+import { TASK_ATTENTION_MESSAGE_KEYS } from "./notification-delivery";
 import {
   FOLLOW_UP_SOURCE_MESSAGE_KEYS,
   followUpEventId,
@@ -34,13 +31,23 @@ describe("followUpMessageKeyFor", () => {
    * the same list. `notification-delivery.test` writes both out by name, so a
    * key dropped from either is still caught somewhere.
    */
-  it("answers for every task and job key that waits on the reader", () => {
+  it("answers for every task key that waits on the reader", () => {
     for (const key of TASK_ATTENTION_MESSAGE_KEYS) {
       expect(followUpMessageKeyFor(key)).toBe(TASK_FOLLOW_UP_MESSAGE_KEY);
     }
-    for (const key of JOB_ATTENTION_MESSAGE_KEYS) {
-      expect(followUpMessageKeyFor(key)).toBe(JOB_FOLLOW_UP_MESSAGE_KEY);
-    }
+  });
+
+  /**
+   * SOK-930 stopped Core writing a job notification, so there is nothing left
+   * for a job reminder to remind anyone of. The key itself stays a follow-up
+   * key, because a reminder stored before that is still one.
+   */
+  it("answers for no job key at all", () => {
+    expect(followUpMessageKeyFor("Notifications.Job.inputRequired")).toBeNull();
+    expect(followUpMessageKeyFor("Notifications.Job.paymentFailed")).toBeNull();
+    expect(FOLLOW_UP_SOURCE_MESSAGE_KEYS).not.toContain(
+      "Notifications.Job.inputRequired",
+    );
   });
 
   it("answers for nothing a reader merely opted into", () => {

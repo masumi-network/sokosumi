@@ -1087,6 +1087,10 @@ export type Task = {
     organization: OrganizationSummary;
     projectId: string | null;
     /**
+     * Linked project name and logo. Null when the task has no project.
+     */
+    project: ProjectSummary | null;
+    /**
      * Marketplace coworker assignee. Null when assigned to a user, a Soko Bot, or unset. Prefer `assignee`.
      */
     assigneeId: string | null;
@@ -1178,6 +1182,12 @@ export type OrganizationSummary = {
     name: string;
     slug: string;
 } | null;
+
+export type ProjectSummary = {
+    id: string;
+    name: string;
+    logo: string | null;
+};
 
 export type TaskAssigneeCoworker = {
     type: 'coworker';
@@ -2618,7 +2628,7 @@ export type ChatRoomMessageQuote = {
     snippet: string;
     attachment?: ChatRoomMessageQuoteAttachment;
     /**
-     * Source room of a quote sent to the caller's Self Direct. Absent when the quoted message is in the same room.
+     * Source room of a message quoted from another room. Absent when the quoted message is in the same room.
      */
     roomId?: string;
 } | null;
@@ -2802,6 +2812,9 @@ export type ChatRoomThreadReadState = {
 };
 
 export type CreateChatRoomMessageRequest = {
+    /**
+     * Message body. May be empty only when `quote` is set: a quote can be the whole message.
+     */
     content: string;
     mentionedCoworkerIds?: Array<string>;
     /**
@@ -2817,10 +2830,14 @@ export type CreateChatRoomMessageRequest = {
      */
     parentMessageId?: string;
     /**
-     * Quote another message in the same room. Snapshot is stored in metadata.quote; does not set parentMessageId.
+     * Quote another message. Snapshot is stored in metadata.quote; does not set parentMessageId.
      */
     quote?: {
         messageId: string;
+        /**
+         * Room the quoted message is in, when it is not this room. User senders only. Allowed when the sender can read that room and every user member of this room is also a member of it; anything else is a 400.
+         */
+        roomId?: string;
     };
     /**
      * Opaque client turn id. Retries of the same send reuse this so concurrent or replayed POSTs create at most one row per room (unique on roomId + clientMessageId).
@@ -3845,7 +3862,7 @@ export type NotificationPreference = {
     /**
      * What the notification is about
      */
-    category: 'JOB_ATTENTION' | 'JOB_COMPLETED' | 'JOB_UPDATE' | 'TASK_ATTENTION' | 'TASK_COMPLETED' | 'TASK_UPDATE' | 'CHAT_ROOM_MESSAGE' | 'CHAT_MENTION' | 'CHAT_DIRECT_MESSAGE' | 'SYSTEM' | 'FOLLOW_UP';
+    category: 'TASK_ATTENTION' | 'TASK_COMPLETED' | 'TASK_UPDATE' | 'CHAT_ROOM_MESSAGE' | 'CHAT_MENTION' | 'CHAT_DIRECT_MESSAGE' | 'SYSTEM' | 'FOLLOW_UP';
     /**
      * Where it is delivered: in the app, as an OS banner (which also needs pushOptIn), or by email (offered only on the categories that mail)
      */
@@ -4852,7 +4869,7 @@ export type NotificationItem = {
      */
     eventId: string;
     /**
-     * i18n message key for translation (e.g. Notifications.Job.completed)
+     * i18n message key for translation (e.g. Notifications.Task.completed)
      */
     messageKey: string;
     /**
@@ -5561,6 +5578,10 @@ export type TaskListItem = {
     organizationId: string | null;
     organization: OrganizationSummary;
     projectId: string | null;
+    /**
+     * Linked project name and logo. Null when the task has no project.
+     */
+    project: ProjectSummary | null;
     /**
      * Marketplace coworker assignee. Null when assigned to a user, a Soko Bot, or unset. Prefer `assignee`.
      */
@@ -15613,7 +15634,6 @@ export type PostChatsRoomsByIdStreamData = {
         messageId?: string;
         conversationId?: string;
         previousResponseId?: string;
-        model?: string | null;
         imageGeneration?: boolean;
     } & {
         parentMessageId?: string;
@@ -23957,99 +23977,6 @@ export type GetUsersByIdDeletionResponses = {
 
 export type GetUsersByIdDeletionResponse = GetUsersByIdDeletionResponses[keyof GetUsersByIdDeletionResponses];
 
-export type GetUsersByIdDesignMdData = {
-    body?: never;
-    path: {
-        /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/users/{id}/design-md';
-};
-
-export type GetUsersByIdDesignMdErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetUsersByIdDesignMdError = GetUsersByIdDesignMdErrors[keyof GetUsersByIdDesignMdErrors];
-
-export type GetUsersByIdDesignMdResponses = {
-    /**
-     * The user's stored DESIGN.md (null when none)
-     */
-    200: {
-        data: PersistedDesignMd;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetUsersByIdDesignMdResponse = GetUsersByIdDesignMdResponses[keyof GetUsersByIdDesignMdResponses];
-
 export type PutUsersByIdDesignMdData = {
     body?: DesignMdWrite;
     path: {
@@ -24756,7 +24683,9 @@ export type GetUsersByIdPreferencesResponses = {
              */
             marketingOptIn: boolean;
             /**
-             * Whether the user wants to receive job status notifications
+             * Deprecated compatibility field for existing v1 clients. Does not control notification delivery
+             *
+             * @deprecated
              */
             notificationsOptIn: boolean;
             /**
@@ -24788,10 +24717,6 @@ export type PatchUsersByIdPreferencesData = {
          * Whether the user wants to receive marketing emails
          */
         marketingOptIn?: boolean;
-        /**
-         * Whether the user wants to receive job status notifications
-         */
-        notificationsOptIn?: boolean;
         /**
          * Whether the user wants OS banners while Sokosumi is closed (push)
          */
@@ -24891,7 +24816,9 @@ export type PatchUsersByIdPreferencesResponses = {
              */
             marketingOptIn: boolean;
             /**
-             * Whether the user wants to receive job status notifications
+             * Deprecated compatibility field for existing v1 clients. Does not control notification delivery
+             *
+             * @deprecated
              */
             notificationsOptIn: boolean;
             /**
@@ -30226,99 +30153,6 @@ export type PutOrganizationsByIdSubscriptionSeatsResponses = {
 
 export type PutOrganizationsByIdSubscriptionSeatsResponse = PutOrganizationsByIdSubscriptionSeatsResponses[keyof PutOrganizationsByIdSubscriptionSeatsResponses];
 
-export type GetOrganizationsByIdDesignMdData = {
-    body?: never;
-    path: {
-        /**
-         * Organization ID
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/organizations/{id}/design-md';
-};
-
-export type GetOrganizationsByIdDesignMdErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden - You are not a member of this organization
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found - Organization not found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetOrganizationsByIdDesignMdError = GetOrganizationsByIdDesignMdErrors[keyof GetOrganizationsByIdDesignMdErrors];
-
-export type GetOrganizationsByIdDesignMdResponses = {
-    /**
-     * The organization's stored DESIGN.md (null when none)
-     */
-    200: {
-        data: PersistedDesignMd;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetOrganizationsByIdDesignMdResponse = GetOrganizationsByIdDesignMdResponses[keyof GetOrganizationsByIdDesignMdResponses];
-
 export type PutOrganizationsByIdDesignMdData = {
     body?: DesignMdWrite;
     path: {
@@ -31040,7 +30874,7 @@ export type GetProjectsData = {
     path?: never;
     query?: {
         /**
-         * Cursor for pagination (ID of the last item from previous page)
+         * Opaque activity cursor returned in nextCursor by the previous page
          */
         cursor?: string;
         /**
@@ -31052,6 +30886,21 @@ export type GetProjectsData = {
 };
 
 export type GetProjectsErrors = {
+    /**
+     * Invalid pagination cursor
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -44045,6 +43894,21 @@ export type RemoveVendorMemberErrors = {
             method: string;
         };
     };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type RemoveVendorMemberError = RemoveVendorMemberErrors[keyof RemoveVendorMemberErrors];
@@ -44124,6 +43988,21 @@ export type PatchVendorMemberRoleErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -45179,152 +45058,6 @@ export type GetWorkspacesCalendarSourcesResponses = {
 };
 
 export type GetWorkspacesCalendarSourcesResponse = GetWorkspacesCalendarSourcesResponses[keyof GetWorkspacesCalendarSourcesResponses];
-
-export type GetWorkspacesByIdCalendarData = {
-    body?: never;
-    path: {
-        id: string;
-    };
-    query: {
-        /**
-         * Inclusive start of the calendar range
-         */
-        from: Date;
-        /**
-         * Exclusive end of the calendar range, at most 90 days after from
-         */
-        to: Date;
-        /**
-         * Whether to show only the caller's tasks or the workspace
-         */
-        scope?: 'owned' | 'workspace';
-        /**
-         * Only occurrences whose planned-series or released-snapshot task has this coworker
-         */
-        assigneeId?: string;
-        /**
-         * Only occurrences assigned to this workspace member
-         */
-        assigneeUserId?: string;
-        /**
-         * Only occurrences captured with this Project as their Calendar source
-         */
-        projectId?: string;
-        /**
-         * Only occurrences captured with this non-Project Calendar source in the current workspace
-         */
-        sourceId?: string;
-        /**
-         * Only occurrences whose planned-series or released-snapshot task has this status
-         */
-        status?: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
-        /**
-         * Opaque cursor for the next merged calendar page
-         */
-        cursor?: string;
-        /**
-         * Number of items to return (max 100)
-         */
-        limit?: number;
-    };
-    url: '/workspaces/{id}/calendar';
-};
-
-export type GetWorkspacesByIdCalendarErrors = {
-    /**
-     * Bad Request
-     */
-    400: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetWorkspacesByIdCalendarError = GetWorkspacesByIdCalendarErrors[keyof GetWorkspacesByIdCalendarErrors];
-
-export type GetWorkspacesByIdCalendarResponses = {
-    /**
-     * Workspace Calendar items
-     */
-    200: {
-        data: Array<WorkspaceCalendarItem>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination: PaginationMetadata;
-        };
-    };
-};
-
-export type GetWorkspacesByIdCalendarResponse = GetWorkspacesByIdCalendarResponses[keyof GetWorkspacesByIdCalendarResponses];
 
 export type GetWorkspacesByIdData = {
     body?: never;

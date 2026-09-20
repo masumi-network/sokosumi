@@ -3,11 +3,11 @@
 import * as Sentry from "@sentry/nextjs";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
-import { type ActionError, CommonErrorCode } from "@/lib/actions";
 import {
   type ActionResultDto,
   toActionResult,
 } from "@/lib/actions/action-result";
+import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { toCoreJobInputData } from "@/lib/actions/job/core-job-input";
 import {
@@ -22,7 +22,7 @@ import {
   type ProvideJobInputSchemaType,
   provideJobInputSchema,
 } from "@/lib/schemas";
-import { jobService } from "@/lib/services";
+import { jobService } from "@/lib/services/job.service";
 import {
   type AuthenticatedRequest,
   withSession,

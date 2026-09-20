@@ -4,6 +4,11 @@ import {
   emitChatDirectMessageNotifications,
   shouldEmitChatDirectMessageNotifications,
 } from "@/helpers/chat-direct-message-notifications";
+import {
+  chatMentionRoomShape,
+  emitChatHumanMentionNotifications,
+  persistChatHumanMentions,
+} from "@/helpers/chat-human-mentions";
 import { emitChatMentionNotifications } from "@/helpers/chat-mention-notifications";
 import { emitChatRoomMessageCreatedEffects } from "@/helpers/chat-room-message-created-effects";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
@@ -33,9 +38,11 @@ import {
   chatRoomMessageInclude,
   mapChatRoomMessage,
   mergeChatRoomMessageMetadata,
+  quotedMessageNotFound,
   requireChatRoomCoworkerAccess,
   requireChatRoomSokoBotAccess,
   requireChatRoomUserWriteAccess,
+  resolveCrossRoomQuoteSnapshot,
   resolveMentionedCoworkerIds,
   resolveMentionedSokoBotIds,
   resolveMentionedUserIds,
@@ -103,6 +110,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           room.id,
           body.parentMessageId,
         );
+        if (body.quote?.roomId && body.quote.roomId !== room.id) {
+          throw quotedMessageNotFound();
+        }
         const quote = await resolveRoomQuoteSnapshot(
           tx,
           room.id,
@@ -125,16 +135,30 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
           include: chatRoomMessageInclude,
         });
+        const mentionedUserIds = await persistChatHumanMentions(tx, {
+          messageId: message.id,
+          roomId: room.id,
+          content: body.content,
+        });
 
         await tx.chatRoom.update({
           where: { id: room.id },
           data: { updatedAt: new Date() },
         });
 
-        return { message, room };
+        return { message, room, mentionedUserIds };
       });
 
-      const { message, room } = persisted;
+      const { message, room, mentionedUserIds } = persisted;
+
+      if (mentionedUserIds.length > 0) {
+        waitUntil(
+          emitChatHumanMentionNotifications({
+            messageId: message.id,
+            mentionedUserIds,
+          }),
+        );
+      }
 
       await publishChatRoomMessageRealtime(message, "create");
 
@@ -166,19 +190,26 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           memberUserIds,
         })
       ) {
-        waitUntil(
-          emitChatDirectMessageNotifications({
-            roomId: room.id,
-            roomName: room.name,
-            organizationId: room.organizationId,
-            messageId: message.id,
-            parentMessageId: message.parentMessageId,
-            content: message.content,
-            authorUserId: null,
-            authorName,
-            recipientUserIds: memberUserIds,
-          }),
+        // A member the message named was sent a mention of their own.
+        const mentionedUserIdSet = new Set(mentionedUserIds);
+        const recipientUserIds = memberUserIds.filter(
+          (userId) => !mentionedUserIdSet.has(userId),
         );
+        if (recipientUserIds.length > 0) {
+          waitUntil(
+            emitChatDirectMessageNotifications({
+              roomId: room.id,
+              roomName: room.name,
+              organizationId: room.organizationId,
+              messageId: message.id,
+              parentMessageId: message.parentMessageId,
+              content: message.content,
+              authorUserId: null,
+              authorName,
+              recipientUserIds,
+            }),
+          );
+        }
       }
 
       waitUntil(
@@ -195,6 +226,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           // Already read for the direct-message decision, so the emitter is
           // not asked to read the same roster again.
           memberUserIds,
+          mentionedUserIds,
         }),
       );
 
@@ -279,11 +311,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           room.id,
           body.parentMessageId,
         );
-        const quote = await resolveRoomQuoteSnapshot(
-          tx,
-          room.id,
-          body.quote?.messageId,
-        );
+        const quote =
+          body.quote?.roomId && body.quote.roomId !== room.id
+            ? await resolveCrossRoomQuoteSnapshot(tx, {
+                sourceRoomId: body.quote.roomId,
+                quoteMessageId: body.quote.messageId,
+                senderUserId: userContext.userId,
+                targetMemberUserIds: room.userMembers.map(
+                  (member) => member.userId,
+                ),
+              })
+            : await resolveRoomQuoteSnapshot(
+                tx,
+                room.id,
+                body.quote?.messageId,
+              );
         const metadata = mergeChatRoomMessageMetadata(
           clientId ? { client_message_id: clientId } : null,
           quote,
@@ -476,30 +518,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         waitUntil(dispatchChatRoomMention(mentionId));
       }
 
-      // The same rule the direct-message row is written by, asked once here so
-      // a mention and a message in the same room cannot disagree about whether
-      // that room is a pair.
+      // The same rule the direct-message row is written by, so a mention and
+      // a message in the same room cannot disagree about whether that room is
+      // a pair.
       const isDirectPair = shouldEmitChatDirectMessageNotifications({
         kind: room.kind,
         memberUserIds: room.memberUserIds,
       });
-      // That rule counts humans, because a coworker and a bot are not sent a
-      // direct-message row. A name has to count them: a room of two humans and
-      // a bot is named after both the other two on the reader's own screen, so
-      // it has a name worth saying and is not a pair here.
-      const namesOnePerson = isDirectPair && room.nonHumanMemberCount === 0;
-
       if (mentionedUserIds.length > 0) {
         waitUntil(
           emitChatMentionNotifications({
             roomId: room.id,
             roomName: room.name,
-            roomShape:
-              room.kind !== "direct"
-                ? "channel"
-                : namesOnePerson
-                  ? "pair"
-                  : "group",
+            roomShape: chatMentionRoomShape({
+              kind: room.kind,
+              memberUserIds: room.memberUserIds,
+              nonHumanMemberCount: room.nonHumanMemberCount,
+            }),
             organizationId: room.organizationId,
             messageId: message.id,
             content: message.content,

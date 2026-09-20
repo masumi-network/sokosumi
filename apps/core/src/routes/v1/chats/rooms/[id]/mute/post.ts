@@ -57,37 +57,37 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const mutedAt = new Date();
 
-    const room = await prisma.$transaction(async (tx) => {
-      const room = await requireChatRoomUserAccess(id, userContext.userId, tx);
+    const room = await requireChatRoomUserAccess(
+      id,
+      userContext.userId,
+      prisma,
+    );
 
-      const updated = await tx.chatRoomUserMember.updateMany({
-        where: {
-          roomId: room.id,
-          userId: userContext.userId,
-          starredAt: null,
-        },
-        data: { mutedAt },
-      });
-      if (updated.count === 0) {
-        const membership = await tx.chatRoomUserMember.findUnique({
-          where: {
-            roomId_userId: {
-              roomId: room.id,
-              userId: userContext.userId,
-            },
-          },
-          select: { starredAt: true },
-        });
-        if (membership?.starredAt != null) {
-          throw unprocessableEntity(
-            "Cannot mute a starred room. Unstar it first.",
-          );
-        }
-        throw notFound("Room not found");
-      }
-
-      return room;
+    const updated = await prisma.chatRoomUserMember.updateMany({
+      where: {
+        roomId: room.id,
+        userId: userContext.userId,
+        starredAt: null,
+      },
+      data: { mutedAt },
     });
+    if (updated.count === 0) {
+      const membership = await prisma.chatRoomUserMember.findUnique({
+        where: {
+          roomId_userId: {
+            roomId: room.id,
+            userId: userContext.userId,
+          },
+        },
+        select: { starredAt: true },
+      });
+      if (membership?.starredAt != null) {
+        throw unprocessableEntity(
+          "Cannot mute a starred room. Unstar it first.",
+        );
+      }
+      throw notFound("Room not found");
+    }
 
     const [unreadCounts, unreadMentionCounts] = await Promise.all([
       getChatRoomUnreadCounts([room.id], userContext.userId, prisma),

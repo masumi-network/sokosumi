@@ -9,7 +9,7 @@ import {
   requireVendorAdminMembership,
   resolveUserIdFromUserIdOrEmail,
 } from "@/helpers/vendor-membership";
-import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import {
@@ -64,6 +64,7 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("Conflict"),
   },
 });
 
@@ -77,43 +78,48 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const targetUserId = await resolveUserIdFromUserIdOrEmail(userIdOrEmail);
 
-    const existing = await prisma.vendorMember.findUnique({
-      where: {
-        vendorId_userId: {
-          vendorId: id,
-          userId: targetUserId,
-        },
-      },
-      select: { role: true },
-    });
-    if (!existing) {
-      throw notFound("Vendor member not found");
-    }
-
-    if (existing.role === "admin" && body.role !== "admin") {
-      await assertCanRemoveOrDemoteVendorAdmin(id, targetUserId);
-    }
-
-    const member = await prisma.vendorMember.update({
-      where: {
-        vendorId_userId: {
-          vendorId: id,
-          userId: targetUserId,
-        },
-      },
-      data: {
-        role: body.role,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
+    // Serializable so the role read, the last-admin check and the update
+    // commit as one unit (SOK-1024): a concurrent demote/remove cannot both
+    // pass the guard.
+    const member = await serializableTransaction(async (tx) => {
+      const existing = await tx.vendorMember.findUnique({
+        where: {
+          vendorId_userId: {
+            vendorId: id,
+            userId: targetUserId,
           },
         },
-      },
-    });
+        select: { role: true },
+      });
+      if (!existing) {
+        throw notFound("Vendor member not found");
+      }
+
+      if (existing.role === "admin" && body.role !== "admin") {
+        await assertCanRemoveOrDemoteVendorAdmin(id, targetUserId, tx);
+      }
+
+      return tx.vendorMember.update({
+        where: {
+          vendorId_userId: {
+            vendorId: id,
+            userId: targetUserId,
+          },
+        },
+        data: {
+          role: body.role,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+            },
+          },
+        },
+      });
+    }, "Vendor membership changed concurrently; retry the request");
 
     return ok(c, mapVendorMember(member));
   });

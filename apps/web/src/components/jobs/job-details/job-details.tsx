@@ -8,7 +8,7 @@ import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { jobStatusDataSchema } from "@/lib/ably";
 import { useSession } from "@/lib/auth/auth.client";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
-import { getJobQueryKey, getJobQueryOptions } from "@/queries";
+import { getJobQueryKey, getJobQueryOptions } from "@/queries/jobs";
 import JobDetailsView, { type JobDetailsViewProps } from "./job-details-view";
 
 const JOB_STATUS_EVENT_NAME = "job_status_data";

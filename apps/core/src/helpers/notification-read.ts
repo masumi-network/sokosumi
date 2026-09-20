@@ -3,8 +3,6 @@ import { NotificationKind, type Prisma } from "@sokosumi/database";
 import { CHAT_ROOM_MESSAGE_MESSAGE_KEY } from "@sokosumi/utils";
 
 import {
-  JOB_ATTENTION_MESSAGE_KEYS,
-  JOB_TERMINAL_MESSAGE_KEYS,
   TASK_ATTENTION_MESSAGE_KEYS,
   TASK_SCHEDULE_REMOVED_MESSAGE_KEY,
   TASK_TERMINAL_MESSAGE_KEYS,
@@ -85,10 +83,6 @@ const ATTENTION_KEYS_CLEARED_BY = new Map<string, readonly string[]>([
     key,
     TASK_RUN_ATTENTION_MESSAGE_KEYS,
   ]),
-  ...JOB_TERMINAL_MESSAGE_KEYS.map((key): [string, readonly string[]] => [
-    key,
-    JOB_ATTENTION_MESSAGE_KEYS,
-  ]),
 ]);
 
 /**
@@ -96,11 +90,10 @@ const ATTENTION_KEYS_CLEARED_BY = new Map<string, readonly string[]>([
  *
  * Marking a notification read is how this product records that the thing it
  * was about has been dealt with. Until now only the reader could do that, by
- * opening the notification, the room, the task or the job. A task canceled by
- * a teammate, or a job that failed on its own, was dealt with by nobody, so
- * its attention row stayed unread for ever and the follow-up sync would remind
- * the reader a day later to answer a question that is no longer being asked
- * (SOK-916 user stories 14, 15 and 16).
+ * opening the notification, the room or the task. A task canceled by a
+ * teammate was dealt with by nobody, so its attention row stayed unread for
+ * ever and the follow-up sync would remind the reader a day later to answer a
+ * question that is no longer being asked (SOK-916 user stories 14 and 15).
  *
  * Done here rather than by the follow-up sync re-checking the record's status.
  * A re-check there would be a second, weaker copy of "this is no longer

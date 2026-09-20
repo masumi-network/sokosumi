@@ -142,6 +142,7 @@ const SCHEDULED_TASK: TaskWithCoworker = {
   visibility: "PUBLIC",
   ownerId: "user-1",
   owner: { id: "user-1", name: "Ada", email: "ada@example.com" },
+  project: null,
   createdAt: "2026-06-01T08:00:00.000Z",
   updatedAt: "2026-06-01T08:00:00.000Z",
   jobsCount: 0,

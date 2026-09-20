@@ -10,6 +10,8 @@ import { AdminSokoBotDangerZone } from "@/components/admin/soko-bots/admin-soko-
 import { AdminSokoBotHeader } from "@/components/admin/soko-bots/admin-soko-bot-header";
 import { adminSokoBotService } from "@/lib/services/admin-soko-bot.service";
 
+export const instant = false;
+
 export const metadata: Metadata = {
   title: "Soko Bot · Advanced",
   description: "Soko Bot operator controls",

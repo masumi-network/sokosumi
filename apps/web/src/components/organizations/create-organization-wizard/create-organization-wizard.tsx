@@ -66,11 +66,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  createOrganizationInviteLink,
   generateOrganizationSlug,
   inviteOrganizationMembersBulk,
-  resolveOrganizationSiteIcon,
-} from "@/lib/actions";
+} from "@/lib/actions/organization/action";
+import { createOrganizationInviteLink } from "@/lib/actions/organization/invite-link-action";
+import { resolveOrganizationSiteIcon } from "@/lib/actions/organization/site-icon-action";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   ORGANIZATION_LOGO_ACCEPT,

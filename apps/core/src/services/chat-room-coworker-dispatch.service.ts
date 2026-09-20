@@ -2,6 +2,10 @@ import type { SokosumiProviderCallOptions } from "@sokosumi/ai-provider";
 import { coworkerTextLooksLikeAgentError } from "@sokosumi/ai-provider";
 import { streamText } from "ai";
 import { findUsableCoworkerByCapabilityInWorkspace } from "@/helpers/access-control";
+import {
+  emitChatHumanMentionNotifications,
+  persistChatHumanMentions,
+} from "@/helpers/chat-human-mentions";
 import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import {
@@ -11,12 +15,16 @@ import {
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
 import { getSokosumiProvider } from "@/lib/sokosumi-ai-provider";
-import { resolveWorkspaceIdForChatRoom } from "@/routes/v1/chats/rooms/helpers";
+import {
+  readQuoteFromMetadata,
+  resolveWorkspaceIdForChatRoom,
+} from "@/routes/v1/chats/rooms/helpers";
 import { createCoworkerConversation } from "@/routes/v1/chats/stream/coworker-conversation";
 
 import {
   buildRoomMentionPrompt,
   loadRoomContextMessages,
+  roomMessagePromptText,
 } from "./chat-room-mention-context";
 import {
   claimMentionForDispatch,
@@ -414,7 +422,10 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     const prompt = buildRoomMentionPrompt({
       roomName: mention.message.room.name,
       senderName,
-      content: mention.message.content,
+      content: roomMessagePromptText(
+        mention.message.content,
+        readQuoteFromMetadata(mention.message.metadata),
+      ),
       isThreadReply: threadRootId != null,
       contextMessages,
     });
@@ -587,6 +598,12 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
           });
         }
 
+        const mentionedUserIds = await persistChatHumanMentions(tx, {
+          messageId: responseMessage.id,
+          roomId: mention.message.roomId,
+          content: responseText,
+        });
+
         await tx.chatRoom.update({
           where: { id: mention.message.roomId },
           data: { updatedAt: new Date() },
@@ -596,6 +613,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
           kind: "published" as const,
           responseMessageId: responseMessage.id,
           sourceMessageId: mention.message.id,
+          mentionedUserIds,
         };
       });
 
@@ -626,6 +644,12 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
         publishedMessageIds.sourceMessageId,
         "mention_status",
       );
+      if (publishedMessageIds.mentionedUserIds.length > 0) {
+        await emitChatHumanMentionNotifications({
+          messageId: publishedMessageIds.responseMessageId,
+          mentionedUserIds: publishedMessageIds.mentionedUserIds,
+        });
+      }
     } catch (error) {
       keepFailedPlaceholder = true;
       throw error;

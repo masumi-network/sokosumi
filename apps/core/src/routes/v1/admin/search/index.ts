@@ -1,9 +1,9 @@
-import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { createNestedOpenAPIHono } from "@/lib/hono";
 
 import mountSearchAdminOrganizations from "./organizations/get.js";
 import mountSearchAdminUsers from "./users/get.js";
 
-const app = new OpenAPIHonoWithAuth();
+const app = createNestedOpenAPIHono();
 
 mountSearchAdminUsers(app);
 mountSearchAdminOrganizations(app);

@@ -5809,12 +5809,6 @@
                       "previousResponseId": {
                         "type": "string"
                       },
-                      "model": {
-                        "type": [
-                          "string",
-                          "null"
-                        ]
-                      },
                       "imageGeneration": {
                         "type": "boolean"
                       }
@@ -7094,560 +7088,6 @@
       }
     },
     "/drive/files": {
-      "post": {
-        "description": "Mint a direct upload session for a drive file (personal or organization).\nBytes go client → Vercel Blob (not through this API).\nDrive uses exact pathnames (addRandomSuffix: false).\n409 if target pathname already exists.\n\nAgent / REST:\n1. POST this endpoint with `filename`, `contentType`, `size`, and `scope` (+ `organizationId` if scope=org).\n2. PUT raw bytes to `uploadUrl` with `Content-Type` from `headers`.\n3. Done — file is immediately available via pathname.\n\nMax size: 104857600 bytes. MIME allowlist matches user uploads (including SVG for drive).",
-        "tags": [
-          "Drive"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateDriveFileUploadSessionRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Drive file upload session created",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/DriveFileUploadSession"
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "pagination": {
-                          "$ref": "#/components/schemas/PaginationMetadata"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "data",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "example": "Unauthorized"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "example": "organization_not_found"
-                    },
-                    "retryAfterSeconds": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "example": 7
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "path": {
-                          "type": "string",
-                          "example": "/v1/agents"
-                        },
-                        "method": {
-                          "type": "string",
-                          "example": "GET"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId",
-                        "path",
-                        "method"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error",
-                    "message",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "example": "Unauthorized"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "example": "organization_not_found"
-                    },
-                    "retryAfterSeconds": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "example": 7
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "path": {
-                          "type": "string",
-                          "example": "/v1/agents"
-                        },
-                        "method": {
-                          "type": "string",
-                          "example": "GET"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId",
-                        "path",
-                        "method"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error",
-                    "message",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "example": "Unauthorized"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "example": "organization_not_found"
-                    },
-                    "retryAfterSeconds": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "example": 7
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "path": {
-                          "type": "string",
-                          "example": "/v1/agents"
-                        },
-                        "method": {
-                          "type": "string",
-                          "example": "GET"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId",
-                        "path",
-                        "method"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error",
-                    "message",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "example": "Unauthorized"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "example": "organization_not_found"
-                    },
-                    "retryAfterSeconds": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "example": 7
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "path": {
-                          "type": "string",
-                          "example": "/v1/agents"
-                        },
-                        "method": {
-                          "type": "string",
-                          "example": "GET"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId",
-                        "path",
-                        "method"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error",
-                    "message",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict - target pathname already exists",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "example": "Unauthorized"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "example": "organization_not_found"
-                    },
-                    "retryAfterSeconds": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "example": 7
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "path": {
-                          "type": "string",
-                          "example": "/v1/agents"
-                        },
-                        "method": {
-                          "type": "string",
-                          "example": "GET"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId",
-                        "path",
-                        "method"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error",
-                    "message",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Payload Too Large",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "example": "Unauthorized"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "example": "organization_not_found"
-                    },
-                    "retryAfterSeconds": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "example": 7
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "path": {
-                          "type": "string",
-                          "example": "/v1/agents"
-                        },
-                        "method": {
-                          "type": "string",
-                          "example": "GET"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId",
-                        "path",
-                        "method"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error",
-                    "message",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Unprocessable Entity",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "example": "Unauthorized"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "example": "organization_not_found"
-                    },
-                    "retryAfterSeconds": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "example": 7
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "path": {
-                          "type": "string",
-                          "example": "/v1/agents"
-                        },
-                        "method": {
-                          "type": "string",
-                          "example": "GET"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId",
-                        "path",
-                        "method"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error",
-                    "message",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Service Unavailable",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "example": "Unauthorized"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "example": "organization_not_found"
-                    },
-                    "retryAfterSeconds": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "example": 7
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "path": {
-                          "type": "string",
-                          "example": "/v1/agents"
-                        },
-                        "method": {
-                          "type": "string",
-                          "example": "GET"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId",
-                        "path",
-                        "method"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error",
-                    "message",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      },
       "get": {
         "description": "List drive items (folders and files) at the current folder level.\nPersonal or organization scope.\nOmit sortBy/sortOrder for today's default: folders then files, each name ascending (Blob page-local).\nWith sortBy/sortOrder (name|date|type, asc|desc): folders stay a leading bucket;\nfiles sort by display name, uploadedAt, or mime/extension type family.\nExplicit sort drains the current folder on the server and paginates with a signed cursor\nso order stays correct across pages (no client full drain).\nSearch (q) still filters the current folder; sort applies to the filtered set.",
         "tags": [
@@ -12223,7 +11663,7 @@
                     "pushOptIn": false,
                     "notificationPreferences": [
                       {
-                        "category": "JOB_ATTENTION",
+                        "category": "TASK_ATTENTION",
                         "channel": "IN_APP",
                         "enabled": true
                       },
@@ -12252,7 +11692,8 @@
                         },
                         "notificationsOptIn": {
                           "type": "boolean",
-                          "description": "Whether the user wants to receive job status notifications",
+                          "description": "Deprecated compatibility field for existing v1 clients. Does not control notification delivery",
+                          "deprecated": true,
                           "example": true
                         },
                         "pushOptIn": {
@@ -12590,11 +12031,6 @@
                     "description": "Whether the user wants to receive marketing emails",
                     "example": true
                   },
-                  "notificationsOptIn": {
-                    "type": "boolean",
-                    "description": "Whether the user wants to receive job status notifications",
-                    "example": true
-                  },
                   "pushOptIn": {
                     "type": "boolean",
                     "description": "Whether the user wants OS banners while Sokosumi is closed (push)",
@@ -12610,7 +12046,7 @@
                     "items": {
                       "$ref": "#/components/schemas/NotificationPreference"
                     },
-                    "maxItems": 33,
+                    "maxItems": 24,
                     "description": "The matrix cells the reader changed. A cell left out keeps its current answer."
                   }
                 }
@@ -12630,7 +12066,7 @@
                     "pushOptIn": false,
                     "notificationPreferences": [
                       {
-                        "category": "JOB_ATTENTION",
+                        "category": "TASK_ATTENTION",
                         "channel": "IN_APP",
                         "enabled": true
                       },
@@ -12659,7 +12095,8 @@
                         },
                         "notificationsOptIn": {
                           "type": "boolean",
-                          "description": "Whether the user wants to receive job status notifications",
+                          "description": "Deprecated compatibility field for existing v1 clients. Does not control notification delivery",
+                          "deprecated": true,
                           "example": true
                         },
                         "pushOptIn": {
@@ -25262,13 +24699,13 @@
                   "data": {
                     "id": "cm123456789abcdefghij",
                     "userId": "cm123456789abcdefghij",
-                    "kind": "JOB",
+                    "kind": "TASK",
                     "referenceId": "cm123456789abcdefghij",
                     "eventId": "cm123456789abcdefghij",
-                    "messageKey": "Notifications.Job.completed",
+                    "messageKey": "Notifications.Task.completed",
                     "messageParams": {
-                      "agentName": "Research Agent",
-                      "jobName": "Market Analysis"
+                      "coworkerName": "Ada",
+                      "taskName": "Market Analysis"
                     },
                     "metadata": {
                       "agentId": "agent_123",
@@ -25826,6 +25263,321 @@
           }
         }
       }
+    },
+    "/chats/rooms/starred": {
+      "put": {
+        "description": "Set the order of the current user's starred chat rooms in the active workspace. Rewrites `starredAt` on membership-visible starred rooms only (same set as GET /chats/rooms), the sort key every client already lists starred rooms by (oldest first). Never stars or unstars a room, and never writes another workspace's exclusive pins.",
+        "tags": [
+          "Chat Rooms"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationSlug"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderStarredChatRoomsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Starred rooms in their new order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/StarredChatRoomOrder"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "pagination": {
+                          "$ref": "#/components/schemas/PaginationMetadata"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -26015,7 +25767,7 @@
             ],
             "format": "date-time",
             "example": "2026-08-02T12:00:00.000Z",
-            "description": "When the current user starred this room. Null when not starred."
+            "description": "Set while the current user has this room starred; null when not. A sort key, not the time of starring: starred rooms list oldest first, and `PUT /chats/rooms/starred` rewrites it."
           },
           "pinnedMessageCount": {
             "type": "integer",
@@ -26449,7 +26201,7 @@
           "roomId": {
             "type": "string",
             "format": "uuid",
-            "description": "Source room of a quote sent to the caller's Self Direct. Absent when the quoted message is in the same room.",
+            "description": "Source room of a message quoted from another room. Absent when the quoted message is in the same room.",
             "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         },
@@ -26765,8 +26517,8 @@
         "properties": {
           "content": {
             "type": "string",
-            "minLength": 1,
             "maxLength": 10000,
+            "description": "Message body. May be empty only when `quote` is set: a quote can be the whole message.",
             "example": "@coworker:elena Can you summarize this launch risk?"
           },
           "mentionedCoworkerIds": {
@@ -26814,12 +26566,18 @@
                 "type": "string",
                 "format": "uuid",
                 "example": "550e8400-e29b-41d4-a716-446655440000"
+              },
+              "roomId": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Room the quoted message is in, when it is not this room. User senders only. Allowed when the sender can read that room and every user member of this room is also a member of it; anything else is a 400.",
+                "example": "550e8400-e29b-41d4-a716-446655440001"
               }
             },
             "required": [
               "messageId"
             ],
-            "description": "Quote another message in the same room. Snapshot is stored in metadata.quote; does not set parentMessageId."
+            "description": "Quote another message. Snapshot is stored in metadata.quote; does not set parentMessageId."
           },
           "clientMessageId": {
             "type": "string",
@@ -27349,129 +27107,6 @@
           "addRandomSuffix"
         ]
       },
-      "CreateDriveFileUploadSessionRequest": {
-        "type": "object",
-        "properties": {
-          "filename": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 255,
-            "example": "report.pdf",
-            "description": "File name (becomes part of the blob pathname)"
-          },
-          "contentType": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 255,
-            "example": "application/pdf",
-            "description": "MIME type of the file"
-          },
-          "size": {
-            "type": "integer",
-            "exclusiveMinimum": 0,
-            "example": 1024000,
-            "description": "File size in bytes"
-          },
-          "scope": {
-            "type": "string",
-            "enum": [
-              "me",
-              "org"
-            ],
-            "example": "me",
-            "description": "Owner scope: 'me' for personal drive, 'org' for organization drive"
-          },
-          "organizationId": {
-            "type": "string",
-            "example": "org_123",
-            "description": "Organization ID (required when scope=org)"
-          },
-          "folder": {
-            "type": "string",
-            "maxLength": 1000,
-            "example": "Projects/2026",
-            "description": "Target folder path relative to scope root (empty/omit for root)"
-          }
-        },
-        "required": [
-          "filename",
-          "contentType",
-          "size",
-          "scope"
-        ]
-      },
-      "DriveFileUploadSession": {
-        "type": "object",
-        "properties": {
-          "uploadUrl": {
-            "type": "string",
-            "format": "uri",
-            "example": "https://store.public.blob.vercel-storage.com/drive/users/user_123/report.pdf?vercel-blob-delegation=…",
-            "description": "Presigned Blob PUT URL (time-scoped, path-scoped)"
-          },
-          "pathname": {
-            "type": "string",
-            "example": "drive/users/user_123/report.pdf",
-            "description": "Server-generated upload pathname (no random suffix for Drive)"
-          },
-          "access": {
-            "type": "string",
-            "enum": [
-              "public"
-            ],
-            "example": "public",
-            "description": "Blob access level for the upload"
-          },
-          "method": {
-            "type": "string",
-            "enum": [
-              "PUT"
-            ],
-            "example": "PUT",
-            "description": "HTTP method for the client upload request"
-          },
-          "headers": {
-            "type": "object",
-            "properties": {
-              "Content-Type": {
-                "type": "string",
-                "example": "application/pdf"
-              }
-            },
-            "required": [
-              "Content-Type"
-            ],
-            "description": "Headers the client must send on the PUT"
-          },
-          "expiresAt": {
-            "type": "string",
-            "format": "date-time",
-            "example": "2026-08-18T12:00:00.000Z",
-            "description": "When the presigned upload URL expires (ISO-8601)"
-          },
-          "maxSizeBytes": {
-            "type": "integer",
-            "exclusiveMinimum": 0,
-            "example": 104857600,
-            "description": "Maximum supported file size for this upload policy"
-          },
-          "addRandomSuffix": {
-            "type": "boolean",
-            "example": false,
-            "description": "Drive files use exact pathnames (no random suffix)"
-          }
-        },
-        "required": [
-          "uploadUrl",
-          "pathname",
-          "access",
-          "method",
-          "headers",
-          "expiresAt",
-          "maxSizeBytes",
-          "addRandomSuffix"
-        ]
-      },
       "DriveItems": {
         "type": "array",
         "items": {
@@ -27921,9 +27556,6 @@
           "category": {
             "type": "string",
             "enum": [
-              "JOB_ATTENTION",
-              "JOB_COMPLETED",
-              "JOB_UPDATE",
               "TASK_ATTENTION",
               "TASK_COMPLETED",
               "TASK_UPDATE",
@@ -29303,16 +28935,16 @@
           },
           "messageKey": {
             "type": "string",
-            "description": "i18n message key for translation (e.g. Notifications.Job.completed)",
-            "example": "Notifications.Job.completed"
+            "description": "i18n message key for translation (e.g. Notifications.Task.completed)",
+            "example": "Notifications.Task.completed"
           },
           "messageParams": {
             "type": "object",
             "additionalProperties": {},
             "description": "ICU interpolation parameters for the message",
             "example": {
-              "agentName": "Research Agent",
-              "jobName": "Market Analysis"
+              "coworkerName": "Ada",
+              "taskName": "Market Analysis"
             }
           },
           "metadata": {
@@ -29372,7 +29004,7 @@
           "CHAT"
         ],
         "description": "Notification source domain",
-        "example": "JOB"
+        "example": "TASK"
       },
       "WorkspaceOrganization": {
         "type": "object",
@@ -29388,6 +29020,46 @@
         },
         "required": [
           "organizationId"
+        ]
+      },
+      "ReorderStarredChatRoomsRequest": {
+        "type": "object",
+        "properties": {
+          "roomIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 500,
+            "description": "Starred room ids in the wanted order. Ids the caller has not starred in the active workspace are ignored; membership-visible starred rooms left out keep their relative order after the listed ones. Never stars or unstars a room.",
+            "example": [
+              "550e8400-e29b-41d4-a716-446655440000"
+            ]
+          }
+        },
+        "required": [
+          "roomIds"
+        ]
+      },
+      "StarredChatRoomOrder": {
+        "type": "object",
+        "properties": {
+          "roomId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "starredAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2021-01-01T00:00:00.000Z",
+            "description": "Sort key: starred rooms list oldest `starredAt` first."
+          }
+        },
+        "required": [
+          "roomId",
+          "starredAt"
         ]
       }
     }

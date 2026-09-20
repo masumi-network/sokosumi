@@ -1,4 +1,4 @@
-import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { createNestedOpenAPIHono } from "@/lib/hono";
 
 import mountDelete from "./[id]/delete.js";
 import mountPatch from "./[id]/patch.js";
@@ -6,7 +6,7 @@ import mountGet from "./get.js";
 import mountMove from "./move.js";
 import mountPost from "./post.js";
 
-const app = new OpenAPIHonoWithAuth();
+const app = createNestedOpenAPIHono();
 
 mountPost(app);
 mountGet(app);

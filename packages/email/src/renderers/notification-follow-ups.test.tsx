@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   renderChatDirectMessageFollowUpEmail,
   renderChatMentionFollowUpEmail,
-  renderJobFollowUpEmail,
   renderTaskFollowUpEmail,
 } from "../index.js";
 
@@ -30,8 +29,6 @@ describe("reminder emails", () => {
   });
 
   it("names only the author for a direct message, never the room", async () => {
-    // A room of two is named after the other person, so naming it as well
-    // would name Andreas twice.
     const rendered = await renderChatDirectMessageFollowUpEmail({
       actionUrl: ROOM_URL,
       authorName: "Andreas",
@@ -60,21 +57,7 @@ describe("reminder emails", () => {
     expect(rendered.html).toContain(TASK_URL);
   });
 
-  it("names the job that stopped", async () => {
-    const rendered = await renderJobFollowUpEmail({
-      actionUrl: "https://app.sokosumi.com/agents/a_1/jobs/j_1",
-      jobName: "Market scan",
-      locale: "en",
-      recipientName: "Sandro",
-    });
-
-    expect(rendered.subject).toBe(
-      "Sokosumi - Market scan is still waiting for you",
-    );
-  });
-
   it("stands in for a name the notification did not carry", async () => {
-    // Rather than a subject line with a hole where the name should be.
     const rendered = await renderTaskFollowUpEmail({
       actionUrl: TASK_URL,
       locale: "en",
@@ -102,7 +85,6 @@ describe("reminder emails", () => {
 
     expect(withName.html).toContain("Hi Sandro");
     expect(withoutName.html).not.toContain("Hi Sandro");
-    // The greeting is still there, and it is not the one with a hole in it.
     expect(withoutName.html).toContain(">Hi<");
   });
 
@@ -128,13 +110,6 @@ describe("reminder emails", () => {
     );
   });
 
-  /**
-   * The message itself (SOK-916).
-   *
-   * A reminder saying only that somebody is waiting makes the reader open the
-   * app to find out whether it can wait. The words they were sent answer that
-   * in the inbox.
-   */
   it("quotes the message a mention is about", async () => {
     const rendered = await renderChatMentionFollowUpEmail({
       actionUrl: ROOM_URL,
@@ -160,7 +135,6 @@ describe("reminder emails", () => {
     expect(rendered.html).toContain("Are you free at four?");
   });
 
-  /** A message that cleans to nothing is quoted as nothing, not as an empty box. */
   it("quotes nothing when the preview is blank", async () => {
     const rendered = await renderChatMentionFollowUpEmail({
       actionUrl: ROOM_URL,
@@ -192,7 +166,6 @@ describe("reminder emails", () => {
     expect(rendered.html).toContain("Billing");
   });
 
-  /** No reason given is the family's own body, which names no cause. */
   it("keeps the plain wording when no reason is given", async () => {
     const rendered = await renderTaskFollowUpEmail({
       actionUrl: TASK_URL,
@@ -215,7 +188,7 @@ describe("reminder emails", () => {
       taskName: "Quarterly report",
     });
 
-    // Lower case: the fallback only ever lands mid-sentence.
+    // Fallback only lands mid-sentence, so it is lower case.
     expect(rendered.html).toContain("because a coworker needs your approval");
   });
 
@@ -232,22 +205,6 @@ describe("reminder emails", () => {
     // assigned task did neither, so the reason has to reach the preheader too.
     expect(rendered.html).toContain("was assigned to you a day ago");
     expect(rendered.html).not.toContain("stopped and asked for you");
-  });
-
-  it("names the agent a job is waiting on", async () => {
-    const rendered = await renderJobFollowUpEmail({
-      actionUrl: TASK_URL,
-      agentName: "Reporter",
-      jobName: "Nightly report",
-      locale: "en",
-      reason: "inputRequired",
-      recipientName: "Sandro",
-    });
-
-    expect(rendered.html).toContain(
-      "Nightly report stopped a day ago because Reporter needs your input",
-    );
-    expect(rendered.html).toContain("Agent");
   });
 
   it("says the reason in German too", async () => {

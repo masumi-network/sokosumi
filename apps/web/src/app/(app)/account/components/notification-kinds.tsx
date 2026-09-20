@@ -131,12 +131,10 @@ function FoldRow({
  */
 function GroupRows({
   group,
-  email,
   pushBlock,
   choices,
 }: {
   group: GroupChoice;
-  email: EmailChoice;
   pushBlock: PushBlock | null;
   choices: NotificationDelivery;
 }) {
@@ -183,7 +181,6 @@ function GroupRows({
     >
       <ChannelGrid
         kinds={group.kinds}
-        email={email}
         pushBlock={pushBlock}
         showNames={!alone}
         heads={<ChannelLegend pushBlock={pushBlock} named={!alone} />}
@@ -249,42 +246,11 @@ function NewsRow({ news }: { news: EmailChoice }) {
   );
 }
 
-/** The account switch on a row of its own, for when no kind row carries it. */
-function EmailRow({ email }: { email: EmailChoice }) {
-  const t = useTranslations("App.Account.Notifications");
-  const [open, setOpen] = useState(false);
-  const hintId = useId();
-
-  return (
-    <FoldRow
-      name={t("channelEmailLabel")}
-      // No rows to be shared with here, so this one says what the emails are
-      // rather than which rows hold the same switch.
-      description={t("channelEmailFallbackHint")}
-      descriptionId={hintId}
-      open={open}
-      onOpenChange={setOpen}
-    >
-      <div className="flex items-center justify-end gap-2 py-2">
-        <EmailCell
-          // Named for the row, like the marketing row below it. Composed, it
-          // would read "Email for Job status emails".
-          name={t("channelEmailLabel")}
-          describedById={hintId}
-          email={email}
-        />
-      </div>
-    </FoldRow>
-  );
-}
-
 /** The groups the matrix carries, as rows of the box around them. */
 function KindGroups({
-  email,
   pushBlock,
   choices,
 }: {
-  email: EmailChoice;
   pushBlock: PushBlock | null;
   choices: NotificationDelivery;
 }) {
@@ -294,7 +260,6 @@ function KindGroups({
         <GroupRows
           key={group.spec.id}
           group={group}
-          email={email}
           pushBlock={pushBlock}
           choices={choices}
         />
@@ -317,35 +282,14 @@ function KindGroups({
  * one in a cell asks the browser, and a browser that cannot show one says so
  * in a banner over the rows rather than in a row about the browser.
  */
-export function NotificationKinds({
-  email,
-  news,
-}: {
-  email: EmailChoice;
-  news: EmailChoice;
-}) {
+export function NotificationKinds({ news }: { news: EmailChoice }) {
   const t = useTranslations("App.Account.Notifications");
   const choices = useNotificationDelivery();
 
-  // The account switch, which the matrix does not carry, and Core keeps
-  // mailing whatever the matrix says. A read that failed leaves no rows at
-  // all, and a matrix that comes back without the job kinds leaves rows that
-  // all mail nothing. Either way the switch stands on a row of its own rather
-  // than disappearing with them.
-  //
-  // `ACCOUNT` rather than any email cell: the reminder row draws one too, and
-  // that one writes the matrix. A row that writes the matrix does not stand in
-  // for the switch, so counting it here would drop the switch off the card.
-  const mailedByARow = choices.groups.some((group) =>
-    group.kinds.some((kind) => kind.spec.email === "ACCOUNT"),
-  );
-
-  // The two account switches are server props, and the matrix is a read that
-  // has to land. So the marketing row is drawn while the read is in flight,
-  // and the rows that come from the matrix are not: an empty card for the
-  // length of a round trip loses a control that never needed the answer.
-  // The job emails wait, because whether they need a row of their own is
-  // something only the matrix can say.
+  // The marketing switch is a server prop, and the matrix is a read that has
+  // to land. So the marketing row is drawn while the read is in flight, and
+  // the rows that come from the matrix are not: an empty card for the length
+  // of a round trip loses a control that never needed the answer.
   //
   // Only a read with no answer yet holds the kinds back. A refetch over a
   // warm cache reports success, so the rows it already has stay on screen
@@ -427,17 +371,12 @@ export function NotificationKinds({
       <ChannelLegendScope>
         <div className="divide-y rounded-lg border">
           {showKinds ? (
-            <KindGroups
-              email={email}
-              pushBlock={choices.pushBlock}
-              choices={choices}
-            />
+            <KindGroups pushBlock={choices.pushBlock} choices={choices} />
           ) : null}
           {/* Last, because it is the one row that is not about the reader's own
             work, and the only one Sokosumi sends rather than reports. It is
             also the row that does not come from the matrix, so it stands
             whether or not the read landed. */}
-          {choices.loading || mailedByARow ? null : <EmailRow email={email} />}
           <NewsRow news={news} />
         </div>
       </ChannelLegendScope>

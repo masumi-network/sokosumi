@@ -216,6 +216,20 @@ describe("createAgentClient URL validation", () => {
     }
   });
 
+  it("rejects malformed API base URLs as unreachable without throwing", async () => {
+    const client = createAgentClient();
+    const result = await client.startFreeAgentJob(
+      createAgent({ apiBaseUrl: "not a url" }),
+      { prompt: "hello" },
+    );
+
+    expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.kind).toBe("unreachable");
+    }
+  });
+
   it("defers private/internal-address blocking to connect time via ssrfSafeFetch", async () => {
     // Internal addresses are no longer rejected at URL-validation time; the
     // request reaches ssrfSafeFetch, which refuses the connection (covered by
@@ -235,6 +249,51 @@ describe("createAgentClient URL validation", () => {
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {
       expect(result.error.kind).toBe("ambiguous");
+    }
+  });
+
+  it("validates the override URL once, even when the stored base URL is invalid", async () => {
+    ssrfSafeFetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ id: "job-1" }),
+    });
+
+    const client = createAgentClient();
+    const result = await client.startFreeAgentJob(
+      createAgent({
+        apiBaseUrl: "ftp://stale.example.com",
+        metadataOverride: { apiBaseUrl: "https://agent.example.com" },
+      }),
+      { prompt: "hello" },
+    );
+
+    expect(ssrfSafeFetchMock).toHaveBeenCalledTimes(1);
+    expect(String(ssrfSafeFetchMock.mock.calls[0]?.[0])).toBe(
+      "https://agent.example.com/start_job",
+    );
+    expect(result.isOk()).toBe(true);
+  });
+
+  it("rejects an invalid override even when the stored base URL is valid", async () => {
+    const client = createAgentClient();
+    const result = await client.startFreeAgentJob(
+      createAgent({
+        apiBaseUrl: "https://agent.example.com",
+        metadataOverride: {
+          apiBaseUrl: "https://agent.example.com?token=abc",
+        },
+      }),
+      { prompt: "hello" },
+    );
+
+    expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.kind).toBe("unreachable");
+      expect(result.error.message).toContain(
+        "Agent API base URL must not have a query string",
+      );
     }
   });
 });
@@ -553,6 +612,7 @@ describe("createAgentClient fetchAgentJobStatus", () => {
       expect.objectContaining({
         method: "GET",
         signal: abortSignal,
+        maxResponseBytes: 100 * 1024 * 1024,
       }),
     );
   });

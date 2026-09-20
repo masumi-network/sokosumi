@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { getEnterpriseContractAction } from "@/lib/actions/enterprise-contract/action";
 import { CommonErrorCode } from "@/lib/actions/errors";
 
+export const instant = false;
+
 export const metadata: Metadata = {
   title: "Enterprise contract",
   description: "Enterprise contract detail",

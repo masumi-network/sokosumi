@@ -13,18 +13,7 @@ function buildUserSearchWhere(trimmed: string): Prisma.UserWhereInput {
   };
 }
 
-/**
- * Repository for user-related database operations.
- * Provides methods to retrieve and update user records using Prisma.
- */
 export const userRepository = {
-  /**
-   * Retrieves a user by their unique ID.
-   *
-   * @param id - The unique identifier of the user.
-   * @param tx - The Prisma transaction client to use.
-   * @returns A promise that resolves to the User object if found, or null otherwise.
-   */
   getUserById: async (
     id: string,
     tx: Prisma.TransactionClient,
@@ -32,13 +21,6 @@ export const userRepository = {
     return tx.user.findUnique({ where: { id } });
   },
 
-  /**
-   * Get a user by their Stripe customer ID.
-   *
-   * @param stripeCustomerId - The Stripe customer ID.
-   * @param tx - The Prisma transaction client to use.
-   * @returns The user if found, null otherwise.
-   */
   getUserByStripeCustomerId: async (
     stripeCustomerId: string,
     tx: Prisma.TransactionClient,
@@ -49,13 +31,7 @@ export const userRepository = {
   },
 
   /**
-   * Searches users by name or email using a case-insensitive partial match.
-   *
-   * @param query - The search term to match against user name and email.
-   * @param limit - The maximum number of users to return.
-   * @param tx - The Prisma transaction client to use.
-   * @returns A promise that resolves to matching users (id, name, email). An
-   *   empty or whitespace-only query resolves to an empty array without querying.
+   * Empty or whitespace-only query returns [] without querying.
    */
   searchUsers: async (
     query: string,
@@ -75,13 +51,8 @@ export const userRepository = {
   },
 
   /**
-   * Paginated user listing for the admin user overview. An empty or missing
-   * query lists all users (unlike `searchUsers`, which is a picker and returns
-   * nothing for blank queries). Ordered newest-first.
-   *
-   * @param params - Optional case-insensitive name/email filter plus cursor pagination arguments.
-   * @param tx - The Prisma transaction client to use.
-   * @returns A promise that resolves to the page of users and the total count for the filter.
+   * Admin overview listing. Unlike `searchUsers`, an empty query lists all
+   * users. Ordered newest-first.
    */
   listUsersForAdminOverview: async (
     params: {
@@ -121,14 +92,6 @@ export const userRepository = {
     return { users, total };
   },
 
-  /**
-   * Updates the preferred organization for a user.
-   *
-   * @param userId - The unique identifier of the user.
-   * @param preferredOrganizationId - The preferred organization ID, or null for the personal workspace.
-   * @param tx - The Prisma transaction client to use.
-   * @returns A promise that resolves to the updated User object.
-   */
   updatePreferredOrganizationId: async (
     userId: string,
     preferredOrganizationId: string | null,
@@ -140,14 +103,6 @@ export const userRepository = {
     });
   },
 
-  /**
-   * Updates the metadata JSON string for a user.
-   *
-   * @param userId - The unique identifier of the user.
-   * @param metadata - Serialized metadata JSON, or null to clear.
-   * @param tx - The Prisma transaction client to use.
-   * @returns A promise that resolves to the updated User object.
-   */
   updateUserMetadata: async (
     userId: string,
     metadata: string | null,

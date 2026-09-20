@@ -57,8 +57,10 @@ import { list, put } from "@vercel/blob";
 import { waitUntil } from "@vercel/functions";
 import { getEnv } from "@/config/env";
 import { getAgentApiBaseUrl, toMasumiAgent } from "@/helpers/agent";
+import { persistChatHumanMentions } from "@/helpers/chat-human-mentions";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { createAgentJobForUser } from "@/helpers/job";
+import { jsonInput } from "@/helpers/prisma-json";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
@@ -329,10 +331,6 @@ async function runScheduleTool<T>(run: () => Promise<T>): Promise<T> {
     }
     throw error;
   }
-}
-
-function jsonInput(value: unknown): Prisma.InputJsonValue {
-  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
 function truncateUtf8(value: string, maxBytes: number): string {
@@ -1190,6 +1188,7 @@ export class SokoBotRuntimeService {
     // handoff the human message route performs. Without it the rows sit
     // `pending` for ever: reclaim only rescues `sent`, so nobody ever wakes.
     const mentionIds: string[] = [];
+    let mentionedUserIds: string[] = [];
     const message = await serializableTransaction(async (tx) => {
       // Counted inside the transaction: read outside it, two bots posting at
       // once both see room for one more and the room takes both.
@@ -1229,6 +1228,11 @@ export class SokoBotRuntimeService {
         },
         select: { id: true, createdAt: true },
       });
+      mentionedUserIds = await persistChatHumanMentions(tx, {
+        messageId: created.id,
+        roomId: room.id,
+        content: input.content,
+      });
       if (mentionedCoworkerIds.length > 0 || mentionedSokoBotIds.length > 0) {
         await tx.chatRoomMention.createMany({
           data: [
@@ -1265,7 +1269,12 @@ export class SokoBotRuntimeService {
     // Every other message-create site publishes; without this the bot's post
     // only appears after a refresh, which reads as the tool having failed.
     await publishChatRoomMessageRealtimeById(message.id, "create");
-    await scheduleSokoBotChatMessageEffects(room, message.id, input.content);
+    await scheduleSokoBotChatMessageEffects(
+      room,
+      message.id,
+      input.content,
+      mentionedUserIds,
+    );
     for (const mentionId of mentionIds) {
       const { dispatchChatRoomMention } = await import(
         "@/services/chat-room-coworker-dispatch.service"

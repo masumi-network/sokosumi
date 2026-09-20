@@ -4,7 +4,7 @@ vi.mock("server-only", () => ({}));
 
 const getMyMembersWithOrganizationsMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/services", () => ({
+vi.mock("@/lib/services/user.service", () => ({
   userService: {
     getMyMembersWithOrganizations: getMyMembersWithOrganizationsMock,
   },

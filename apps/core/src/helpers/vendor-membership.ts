@@ -189,13 +189,16 @@ export async function resolveUserIdFromUserIdOrEmail(
 }
 
 /**
- * Block removing or demoting the last vendor admin.
+ * Block removing or demoting the last vendor admin. `tx` is required and must
+ * be the caller's Serializable write transaction: on the default client two
+ * concurrent requests can both see two admins and leave the vendor with none.
  */
 export async function assertCanRemoveOrDemoteVendorAdmin(
   vendorId: string,
   targetUserId: string,
+  tx: Prisma.TransactionClient,
 ): Promise<void> {
-  const membership = await prisma.vendorMember.findFirst({
+  const membership = await tx.vendorMember.findFirst({
     where: { vendorId, userId: targetUserId },
     select: { role: true },
   });
@@ -208,7 +211,7 @@ export async function assertCanRemoveOrDemoteVendorAdmin(
     return;
   }
 
-  const adminCount = await prisma.vendorMember.count({
+  const adminCount = await tx.vendorMember.count({
     where: { vendorId, role: "admin" },
   });
 

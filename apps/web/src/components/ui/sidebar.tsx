@@ -7,6 +7,7 @@ import { VariantProps, cva } from "class-variance-authority";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   SIDEBAR_BOOT_STOP_GLOBAL,
+  SIDEBAR_COMPACT_MEDIA_QUERY,
   parseSidebarStateCookieHeader,
   serializeSidebarStateCookie,
 } from "@/lib/ui-preferences/sidebar-state";
@@ -26,6 +27,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  SIDEBAR_COLLAPSE_TRANSITION,
+  SIDEBAR_RAIL_SQUARE_CLASS,
+  SIDEBAR_ROW_CLASS,
+  SIDEBAR_ROW_RAIL_PAD_CLASS,
+} from "@/components/ui/sidebar-classes";
 
 const SIDEBAR_WIDTH = "14rem";
 const SIDEBAR_WIDTH_MOBILE = "18rem";
@@ -43,6 +50,31 @@ type SidebarContextProps = {
 };
 
 const SidebarContext = React.createContext<SidebarContextProps | null>(null);
+
+/**
+ * Whether the window is too narrow to spend 14rem on the sidebar.
+ *
+ * `useLayoutEffect`, not `useEffect`: the boot script has already collapsed the
+ * streamed markup, and React must agree before paint or the sidebar expands for
+ * a frame on the way past.
+ */
+function useIsSidebarCompact() {
+  const [isCompact, setIsCompact] = React.useState(false);
+
+  // Effect is necessary: subscribes to an external system (media query).
+  React.useLayoutEffect(() => {
+    // Same string the boot script evaluates, so the pre-paint pass and React
+    // cannot land on opposite sides of the breakpoint.
+    const mql = window.matchMedia(SIDEBAR_COMPACT_MEDIA_QUERY);
+    const onChange = () => setIsCompact(mql.matches);
+
+    onChange();
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+
+  return isCompact;
+}
 
 function useSidebar() {
   const context = React.useContext(SidebarContext);
@@ -76,10 +108,21 @@ function SidebarProvider({
   // applies the persisted preference to the streamed markup before paint; this
   // `useLayoutEffect` hands the same value to React once it hydrates.
   const [_open, _setOpen] = React.useState(defaultOpen);
-  const open = openProp ?? _open;
+  // Opening the sidebar on a narrow window is a look at it, not a change of
+  // preference: it lasts until the window grows again and never reaches the
+  // cookie, so a laptop is not left collapsed by a detour through a small one.
+  const [compactOpen, setCompactOpen] = React.useState(false);
+  const isCompact = useIsSidebarCompact();
+  const open = openProp ?? (isCompact ? compactOpen : _open);
   const setOpen = React.useCallback(
     (value: boolean | ((value: boolean) => boolean)) => {
       const openState = typeof value === "function" ? value(open) : value;
+
+      if (isCompact && !setOpenProp) {
+        setCompactOpen(openState);
+        return;
+      }
+
       if (setOpenProp) {
         setOpenProp(openState);
       } else {
@@ -89,8 +132,15 @@ function SidebarProvider({
       // This sets the cookie to keep the sidebar state.
       document.cookie = serializeSidebarStateCookie(openState);
     },
-    [setOpenProp, open],
+    [setOpenProp, open, isCompact],
   );
+
+  // Effect is necessary: the next narrow window starts from the rail again.
+  React.useEffect(() => {
+    if (!isCompact) {
+      setCompactOpen(false);
+    }
+  }, [isCompact]);
 
   React.useLayoutEffect(() => {
     // React now owns the sidebar attributes, so retire the boot observer —
@@ -137,7 +187,8 @@ function SidebarProvider({
   }, [toggleSidebar]);
 
   // We add a state so that we can do data-state="expanded" or "collapsed".
-  // Desktop sidebar state is strictly controlled by `open`.
+  // Desktop sidebar state is strictly controlled by `open`, which already
+  // folds in the compact-window default.
   const state = open ? "expanded" : "collapsed";
 
   const contextValue = React.useMemo<SidebarContextProps>(
@@ -251,7 +302,10 @@ function Sidebar({
         <div
           data-slot="sidebar-gap"
           className={cn(
-            "relative w-(--sidebar-width) bg-transparent transition-[width] duration-200 ease-linear",
+            // The panel's width is the collapse animation. A reader who asks
+            // for less motion gets the end state on the next frame instead —
+            // the geometry is identical either way, only the travel goes.
+            `relative w-(--sidebar-width) bg-transparent transition-[width] ${SIDEBAR_COLLAPSE_TRANSITION}`,
             "group-data-[collapsible=offcanvas]:w-0",
             "group-data-[side=right]:rotate-180",
             variant === "floating" || variant === "inset"
@@ -262,7 +316,7 @@ function Sidebar({
         <div
           data-slot="sidebar-container"
           className={cn(
-            "fixed inset-y-0 z-10 hidden h-dvh w-(--sidebar-width) overflow-x-hidden transition-[left,right,width] duration-200 ease-linear md:flex",
+            `fixed inset-y-0 z-10 hidden h-dvh w-(--sidebar-width) overflow-x-hidden transition-[left,right,width] ${SIDEBAR_COLLAPSE_TRANSITION} md:flex`,
             side === "left"
               ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
               : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
@@ -422,8 +476,51 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
   );
 }
 
+/**
+ * The leading slot of a **Sidebar row** (CONTEXT.md).
+ *
+ * A 24px box whose left edge is fixed, so whatever it holds starts on the
+ * sidebar's leading axis 28px from its left edge, in both states: expanded
+ * the button's `px-2` puts it there, and on the rail the 32px square's own
+ * `ml-1` lands its centred content on the same line. Every mark a row can
+ * carry fits inside it with room to spare — a 16px nav or Channel kind glyph,
+ * a 20px avatar or Channel tile — so none of them has to know the axis, and
+ * the label after it starts on one column at 48px. The box stays 24px though
+ * nothing fills it: it is the column the label is measured from, and marks
+ * are free to change size inside it without moving the names.
+ *
+ * `min-w-6` rather than a hard `size-6`, because one mark says something a
+ * single face cannot: a group Direct's stack of up to three faces. It grows
+ * the box to the right, off the same left edge, so the first face still sits
+ * on the axis and only that row's name starts later. A hard box clipped
+ * nothing — the stack simply ran out of it and over the name beside it.
+ *
+ * It lives here rather than in each list because each list building its own
+ * box by hand is exactly how a room's mark drifted 2px off the nav icons'
+ * line and the account face 4px off both.
+ */
+function SidebarRowSlot({ className, ...props }: React.ComponentProps<"span">) {
+  return (
+    <span
+      data-slot="sidebar-row-slot"
+      className={cn(
+        "inline-flex h-6 min-w-6 shrink-0 items-center justify-center",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+/**
+ * A pressable **Sidebar row** (CONTEXT.md): the row shape from
+ * `sidebar-classes.ts`, plus the rail square and the rest state, hover, focus
+ * and selection that go with being pressable. On the rail it drops its `px`
+ * and keeps its height, which is already the square's 32px at `md` — and the
+ * rail exists only at `md`.
+ */
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 min-h-10 text-left text-base outline-hidden ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:min-h-8! group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:hover:bg-transparent group-data-[collapsible=icon]:hover:ring-sidebar-ring group-data-[collapsible=icon]:hover:ring-1 group-data-[collapsible=icon]:active:bg-transparent group-data-[collapsible=icon]:active:ring-sidebar-ring group-data-[collapsible=icon]:active:ring-2 group-data-[collapsible=icon]:data-[active=true]:bg-transparent md:text-sm [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
+  `peer/menu-button ${SIDEBAR_ROW_CLASS} ${SIDEBAR_RAIL_SQUARE_CLASS} ${SIDEBAR_ROW_RAIL_PAD_CLASS} overflow-hidden rounded-md text-left text-base outline-hidden ring-sidebar-ring transition-[width,padding,margin] ${SIDEBAR_COLLAPSE_TRANSITION} hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:hover:bg-transparent group-data-[collapsible=icon]:hover:ring-sidebar-ring group-data-[collapsible=icon]:hover:ring-1 group-data-[collapsible=icon]:active:bg-transparent group-data-[collapsible=icon]:active:ring-sidebar-ring group-data-[collapsible=icon]:active:ring-2 group-data-[collapsible=icon]:data-[active=true]:bg-transparent md:text-sm [&>span:last-child]:truncate`,
   {
     variants: {
       variant: {
@@ -435,15 +532,9 @@ const sidebarMenuButtonVariants = cva(
         outline:
           "bg-background ring-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:ring-sidebar-accent ring-1",
       },
-      size: {
-        default: "h-8 text-base md:text-sm",
-        sm: "h-7 text-xs",
-        lg: "h-12 text-base md:text-sm",
-      },
     },
     defaultVariants: {
       variant: "default",
-      size: "default",
     },
   },
 );
@@ -452,7 +543,6 @@ function SidebarMenuButton({
   asChild = false,
   isActive = false,
   variant = "default",
-  size = "default",
   tooltip,
   className,
   ...props
@@ -468,9 +558,8 @@ function SidebarMenuButton({
     <Comp
       data-slot="sidebar-menu-button"
       data-sidebar="menu-button"
-      data-size={size}
       data-active={isActive}
-      className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
+      className={cn(sidebarMenuButtonVariants({ variant }), className)}
       {...props}
     />
   );
@@ -498,6 +587,67 @@ function SidebarMenuButton({
   );
 }
 
+function SidebarMenuSub({ className, ...props }: React.ComponentProps<"ul">) {
+  return (
+    <ul
+      data-slot="sidebar-menu-sub"
+      data-sidebar="menu-sub"
+      className={cn(
+        "border-sidebar-border mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l px-2.5 py-0.5",
+        "group-data-[collapsible=icon]:hidden",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+function SidebarMenuSubItem({
+  className,
+  ...props
+}: React.ComponentProps<"li">) {
+  return (
+    <li
+      data-slot="sidebar-menu-sub-item"
+      data-sidebar="menu-sub-item"
+      className={cn("group/menu-sub-item relative", className)}
+      {...props}
+    />
+  );
+}
+
+function SidebarMenuSubButton({
+  asChild = false,
+  size = "md",
+  isActive = false,
+  className,
+  ...props
+}: React.ComponentProps<"a"> & {
+  asChild?: boolean;
+  size?: "sm" | "md";
+  isActive?: boolean;
+}) {
+  const Comp = asChild ? SlotPrimitive.Slot : "a";
+
+  return (
+    <Comp
+      data-slot="sidebar-menu-sub-button"
+      data-sidebar="menu-sub-button"
+      data-size={size}
+      data-active={isActive}
+      className={cn(
+        "text-sidebar-foreground ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:bg-sidebar-accent active:text-sidebar-accent-foreground [&>svg]:text-sidebar-accent-foreground flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 outline-hidden focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
+        "data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground",
+        size === "sm" && "text-xs",
+        size === "md" && "text-sm",
+        "group-data-[collapsible=icon]:hidden",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
 export {
   Sidebar,
   SidebarContent,
@@ -508,7 +658,11 @@ export {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
   SidebarRailSelectionBar,
+  SidebarRowSlot,
   SidebarProvider,
   SidebarSeparator,
   useSidebar,

@@ -46,13 +46,14 @@ import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
 import { getSession } from "@/lib/auth/auth.server";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
-import { agentService } from "@/lib/services";
+import { agentService } from "@/lib/services/agent.service";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
 import { hasAssignedOrganizationSeat } from "@/lib/services/organization-assigned-seat.service";
 import { projectService } from "@/lib/services/project.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { userService } from "@/lib/services/user.service";
+import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import {
   buildVendorGrantReviewHref,
   canApproveVendorGrants,
@@ -488,6 +489,7 @@ async function TaskMetadataSection({
       project={project ? { id: project.id, name: project.name } : null}
       createdAtLabel={formatter.dateTime(task.createdAt, "dateTime")}
       updatedAtLabel={formatter.dateTime(task.updatedAt, "dateTime")}
+      creditsDisplay={formatter.number(formatCreditsForDisplay(task.credits))}
       labels={{
         visibility: t("visibility"),
         privateBadge: t("privateBadge"),

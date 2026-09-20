@@ -13,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { revokeOAuthClientAccess } from "@/lib/actions";
+import { revokeOAuthClientAccess } from "@/lib/actions/oauth/action";
 import { authClient } from "@/lib/auth/auth.client";
 
 interface AuthorizedClientWithDetails extends OAuthConsent<Scope[]> {

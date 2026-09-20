@@ -1,3 +1,10 @@
+import type { Prisma } from "@sokosumi/database";
+import { waitUntil } from "@vercel/functions";
+
+import {
+  emitChatHumanMentionNotifications,
+  persistChatHumanMentions,
+} from "@/helpers/chat-human-mentions";
 import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
@@ -29,8 +36,8 @@ export function reasoningPartsToMetadata(
 export function thoughtMetadataFields(
   reasoning: unknown,
   thoughtTiming?: { startedAtMs: number; endedAtMs: number },
-): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
+): Record<string, Prisma.InputJsonValue> {
+  const out: Record<string, Prisma.InputJsonValue> = {};
   const reasoningSteps = reasoningPartsToMetadata(reasoning);
   if (reasoningSteps && reasoningSteps.length > 0) {
     out.reasoning = reasoningSteps;
@@ -53,8 +60,8 @@ function buildAssistantMessageMetadata(
   thoughtTiming: { startedAtMs: number; endedAtMs: number } | undefined,
   uiParts: PersistedChatUiPart[] | undefined,
   responsesApiResponseId: string | null | undefined,
-): Record<string, unknown> | undefined {
-  const out: Record<string, unknown> = {
+): Prisma.InputJsonObject | undefined {
+  const out: Record<string, Prisma.InputJsonValue> = {
     ...thoughtMetadataFields(reasoningSteps, thoughtTiming),
   };
   if (uiParts && uiParts.length > 0) {
@@ -172,17 +179,30 @@ export async function persistAssistantToChatRoom(params: {
         },
         select: { id: true },
       });
+      const mentionedUserIds = await persistChatHumanMentions(tx, {
+        messageId: message.id,
+        roomId,
+        content: contentText,
+      });
       // Sidebar / room list order by activity — keep in sync with stream writes.
       await tx.chatRoom.update({
         where: { id: roomId },
         data: { updatedAt: new Date() },
       });
-      return message;
+      return { id: message.id, mentionedUserIds };
     });
     await Promise.all([
       invalidateChatRoomMessageReaders({ roomId }),
       publishChatRoomMessageRealtimeById(created.id, "create"),
     ]);
+    if (created.mentionedUserIds.length > 0) {
+      waitUntil(
+        emitChatHumanMentionNotifications({
+          messageId: created.id,
+          mentionedUserIds: created.mentionedUserIds,
+        }),
+      );
+    }
     return { id: created.id };
   } catch (error) {
     if (!responseId || !isPrismaUniqueViolation(error)) {
@@ -216,7 +236,7 @@ export async function persistUserMessageToChatRoom(params: {
   roomId: string;
   senderUserId: string;
   contentText: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Prisma.InputJsonObject;
   /**
    * AI SDK / client message id. Retries of the same stream turn reuse this so
    * we do not insert duplicate user rows after a failed/aborted stream.
@@ -246,7 +266,7 @@ export async function persistUserMessageToChatRoom(params: {
     }
   }
 
-  const mergedMetadata: Record<string, unknown> = {
+  const mergedMetadata: Record<string, Prisma.InputJsonValue | null> = {
     ...(metadata ?? {}),
     ...(clientId ? { client_message_id: clientId } : {}),
   };

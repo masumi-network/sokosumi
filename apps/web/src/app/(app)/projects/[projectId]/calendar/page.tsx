@@ -4,22 +4,16 @@ import { connection } from "next/server";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { CalendarCreateTaskModal } from "@/app/calendar/components/calendar-create-task-modal";
 import { WorkspaceCalendar } from "@/app/calendar/components/workspace-calendar";
+import {
+  loadCalendarPageContext,
+  resolveCalendarPageQuery,
+} from "@/app/calendar/load-calendar-page";
 import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
 import { PROJECTS_CALENDAR_SHELL_CLASS } from "@/app/projects/constants";
 import { CreateTaskModalProvider } from "@/app/tasks/components/create-task-modal";
-import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
-import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-members";
 import { getSession } from "@/lib/auth/auth.server";
 import { hasCurrentUserCalendarBetaAccess } from "@/lib/calendar-beta-access.server";
-import { TaskStatus } from "@/lib/clients/generated/core";
-import {
-  getCalendarRange,
-  getLatestCalendarDate,
-  resolveCalendarDate,
-} from "@/lib/schedules/calendar-range";
-import { coworkerService } from "@/lib/services/coworker.service";
 import { projectService } from "@/lib/services/project.service";
-import { taskService } from "@/lib/services/task.service";
 
 interface ProjectCalendarPageProps {
   params: Promise<{ projectId: string }>;
@@ -50,40 +44,24 @@ export default async function ProjectCalendarPage({
 
   const { assigneeId, assigneeUserId, date, scope, status } =
     await searchParams;
-  const calendarStatus = Object.values(TaskStatus).find(
-    (taskStatus) => taskStatus === status,
-  );
-  const now = new Date();
-  const initialDate = resolveCalendarDate(date, now);
-  const latestCalendarDate = getLatestCalendarDate(now);
-  const range = getCalendarRange(initialDate);
-  const [
-    { items, pagination },
-    sources,
-    coworkers,
-    memberOptions,
-    t,
-    formatter,
-  ] = await Promise.all([
-    projectService.getProjectCalendar(project.id, {
-      ...range,
-      assigneeId,
-      assigneeUserId,
-      limit: 100,
-      scope: scope === "owned" ? "owned" : "workspace",
-      status: calendarStatus,
-    }),
-    taskService.getWorkspaceCalendarSources().catch(() => []),
-    coworkerService.listCoworkers().catch(() => []),
-    listTaskAssigneeMemberOptions(
-      session?.session?.activeOrganizationId ?? null,
-    ),
-    getTranslations("App.Projects.Detail"),
-    getFormatter(),
-  ]);
+  const { calendarStatus, latestCalendarDate, initialDate, range } =
+    resolveCalendarPageQuery(date, status);
+  const [{ items, pagination }, { sources, coworkerOptions }, t, formatter] =
+    await Promise.all([
+      projectService.getProjectCalendar(project.id, {
+        ...range,
+        assigneeId,
+        assigneeUserId,
+        limit: 100,
+        scope: scope === "owned" ? "owned" : "workspace",
+        status: calendarStatus,
+      }),
+      loadCalendarPageContext(session?.session?.activeOrganizationId ?? null),
+      getTranslations("App.Projects.Detail"),
+      getFormatter(),
+    ]);
   const sourceId = `project:${project.id}`;
   const projectSource = sources.find((source) => source.sourceId === sourceId);
-  const coworkerOptions = [...memberOptions, ...getCoworkerOptions(coworkers)];
   const projectOptions = [
     {
       id: project.id,

@@ -10,7 +10,11 @@ export {
   parseChatRoomIdFromChannelName,
   parseOrganizationIdFromPresenceChannelName,
 } from "./ably-channel.js";
-export { AUTH_CAPTCHA_ACTION, AUTH_CAPTCHA_HEADER } from "./auth-captcha.js";
+export {
+  AUTH_CAPTCHA_ACTION,
+  AUTH_CAPTCHA_HEADER,
+  TURNSTILE_ALWAYS_PASS_SECRET,
+} from "./auth-captcha.js";
 export {
   betterAuthOrganizationAdditionalFields,
   betterAuthUserAdditionalFields,
@@ -96,6 +100,7 @@ export {
   CHAT_ROOM_PINNED_MESSAGE_EVENT_NAME,
   type ChatRoomPinnedMessageAction,
 } from "./chat-room-pinned-message-event.js";
+export { canQuoteIntoRoom } from "./chat-room-quote-audience.js";
 export {
   buildRoomQuoteSnippetParts,
   type ChatRoomQuoteAttachment,

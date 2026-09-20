@@ -26,12 +26,6 @@ import {
   unassignSeatsOverPurchasedCapacity,
 } from "./organization-paid-subscribe-seats.js";
 
-export {
-  EnterpriseContractActivationError,
-  EnterpriseContractLifecycleError,
-  EnterpriseContractNotFoundError,
-} from "./enterprise-contract-errors.js";
-
 export interface ActivateEnterpriseContractParams {
   activatedAt: Date;
   paymentReference?: string | null;

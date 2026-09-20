@@ -1,7 +1,6 @@
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
-import { chatRoomService } from "@/lib/services";
-
+import { chatRoomService } from "@/lib/services/chat-room.service";
 export async function loadRoomMessages(roomId: string | null): Promise<{
   messages: ChatRoomMessage[];
   nextCursor: string | null;

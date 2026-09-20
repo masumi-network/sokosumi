@@ -45,12 +45,15 @@ describe("DOM Context Setup", () => {
   });
 
   describe("DOM setup and cleanup", () => {
-    it("is no-op when document exists", async () => {
-      expect(typeof document).toBe("object");
+    it("installs its own document even when one already exists", async () => {
       const beforeDoc = (global as Record<string, unknown>).document;
+      expect(beforeDoc).toBeDefined();
+
       const cleanup = await setupDomContext();
-      expect((global as Record<string, unknown>).document).toBe(beforeDoc);
+      expect((global as Record<string, unknown>).document).not.toBe(beforeDoc);
+
       cleanup();
+      expect((global as Record<string, unknown>).document).toBe(beforeDoc);
     });
   });
 
@@ -88,15 +91,19 @@ describe("DOM Context Setup", () => {
   });
 
   describe("Multiple context handling", () => {
-    it("handles repeated no-op calls when document exists", async () => {
+    it("gives every call its own window and unwinds in order", async () => {
+      const original = (global as Record<string, unknown>).window;
+
       const cleanup1 = await setupDomContext();
       const win1 = (global as Record<string, unknown>).window;
       const cleanup2 = await setupDomContext();
       const win2 = (global as Record<string, unknown>).window;
-      expect(win2).toBe(win1);
+      expect(win2).not.toBe(win1);
+
       cleanup2();
-      cleanup1();
       expect((global as Record<string, unknown>).window).toBe(win1);
+      cleanup1();
+      expect((global as Record<string, unknown>).window).toBe(original);
     });
   });
 

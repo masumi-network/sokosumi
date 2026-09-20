@@ -89,6 +89,22 @@ vi.mock("@/helpers/chat-mention-notifications", () => ({
     emitChatMentionNotificationsMock(...args),
 }));
 
+const { persistChatHumanMentionsMock, emitChatHumanMentionNotificationsMock } =
+  vi.hoisted(() => ({
+    persistChatHumanMentionsMock: vi.fn().mockResolvedValue([]),
+    emitChatHumanMentionNotificationsMock: vi.fn().mockResolvedValue(undefined),
+  }));
+
+// The human route keeps the real room-shape rule; only the assistant seams
+// are stubbed, and they have tests of their own.
+vi.mock("@/helpers/chat-human-mentions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/helpers/chat-human-mentions")>()),
+  persistChatHumanMentions: (...args: unknown[]) =>
+    persistChatHumanMentionsMock(...args),
+  emitChatHumanMentionNotifications: (...args: unknown[]) =>
+    emitChatHumanMentionNotificationsMock(...args),
+}));
+
 vi.mock(
   "@/helpers/chat-direct-message-notifications",
   async (importOriginal) => {
@@ -138,6 +154,7 @@ const PARENT_MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440001";
 const MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440002";
 const MENTION_ID = "550e8400-e29b-41d4-a716-446655440003";
 const QUOTE_MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440004";
+const SOURCE_ROOM_ID = "550e8400-e29b-41d4-a716-446655440005";
 const COWORKER_ID = "coworker_1";
 const SOKO_BOT_ID = "01960001-0001-7001-8001-000000000099";
 const USER_ID = "user_123";
@@ -180,6 +197,9 @@ const tx = {
   },
   chatRoomThreadReadState: {
     upsert: threadReadUpsertMock,
+  },
+  chatRoomUserMember: {
+    findMany: membershipFindManyMock,
   },
   organization: {
     findUnique: organizationFindUniqueMock,
@@ -683,6 +703,73 @@ describe("POST /chats/rooms/{id}/messages", () => {
       expect(waitUntilMock).toHaveBeenCalledTimes(3);
     });
 
+    it("sends a named human a mention and the other human the direct row", async () => {
+      roomFindFirstMock.mockResolvedValue({
+        id: ROOM_ID,
+        name: "Hannah",
+        kind: "direct",
+        organizationId: "org_1",
+      });
+      membershipFindManyMock.mockResolvedValue([
+        { userId: ALICE_ID },
+        { userId: BOB_ID },
+      ]);
+      persistChatHumanMentionsMock.mockResolvedValueOnce([ALICE_ID]);
+      messageCreateMock.mockResolvedValue(
+        createdMessage({
+          content: `@${ALICE_ID} please check`,
+          senderCoworkerId: COWORKER_ID,
+        }),
+      );
+
+      const app = createApp(coworkerAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ content: `@${ALICE_ID} please check` }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(persistChatHumanMentionsMock).toHaveBeenCalledWith(tx, {
+        messageId: MESSAGE_ID,
+        roomId: ROOM_ID,
+        content: `@${ALICE_ID} please check`,
+      });
+      expect(emitChatHumanMentionNotificationsMock).toHaveBeenCalledWith({
+        messageId: MESSAGE_ID,
+        mentionedUserIds: [ALICE_ID],
+      });
+      expect(emitChatDirectMessageNotificationsMock).toHaveBeenCalledWith(
+        expect.objectContaining({ recipientUserIds: [BOB_ID] }),
+      );
+      expect(emitChatRoomMessageCreatedEffectsMock).toHaveBeenCalledWith(
+        expect.objectContaining({ mentionedUserIds: [ALICE_ID] }),
+      );
+    });
+
+    it("notifies nobody of a mention when a coworker post names no member", async () => {
+      roomFindFirstMock.mockResolvedValue({
+        id: ROOM_ID,
+        name: "general",
+        kind: "channel",
+        organizationId: "org_1",
+      });
+      messageCreateMock.mockResolvedValue(
+        createdMessage({ senderCoworkerId: COWORKER_ID }),
+      );
+
+      const app = createApp(coworkerAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ content: "hello" }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(persistChatHumanMentionsMock).toHaveBeenCalledOnce();
+      expect(emitChatHumanMentionNotificationsMock).not.toHaveBeenCalled();
+    });
+
     /**
      * The direct-message row stops at two humans, so a direct room of three
      * belongs to the room-message emitter alone. Both decisions read the same
@@ -755,6 +842,8 @@ describe("POST /chats/rooms/{id}/messages", () => {
         authorUserId: null,
         authorName: "Hannah",
         parentMessageId: null,
+        memberUserIds: undefined,
+        mentionedUserIds: [],
       });
       expect(waitUntilMock).toHaveBeenCalledTimes(2);
     });
@@ -1730,6 +1819,57 @@ describe("POST /chats/rooms/{id}/messages", () => {
       );
     });
 
+    it("accepts an empty body when the message is a quote", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithMembers());
+      messageFindFirstMock.mockResolvedValue(quotedSourceMessage());
+      messageCreateMock.mockResolvedValue(
+        createdMessage({
+          senderUserId: USER_ID,
+          content: "",
+          metadata: { quote: quoteSnapshot },
+        }),
+      );
+
+      const response = await createApp(userAuthContext).request(
+        `/${ROOM_ID}/messages`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            content: "  ",
+            quote: { messageId: QUOTE_MESSAGE_ID },
+          }),
+        },
+      );
+
+      expect(response.status).toBe(201);
+      expect(messageCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            content: "",
+            metadata: { quote: quoteSnapshot },
+          }),
+        }),
+      );
+    });
+
+    it("still refuses an empty body without a quote", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithMembers());
+
+      const response = await createApp(userAuthContext).request(
+        `/${ROOM_ID}/messages`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ content: "  " }),
+        },
+      );
+
+      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(response.status).toBeLessThan(500);
+      expect(messageCreateMock).not.toHaveBeenCalled();
+    });
+
     it("returns 400 when quoted message is missing or in another room", async () => {
       roomFindFirstMock.mockResolvedValue(roomWithMembers());
       messageFindFirstMock.mockResolvedValue(null);
@@ -1747,6 +1887,254 @@ describe("POST /chats/rooms/{id}/messages", () => {
       expect(response.status).toBe(400);
       expect(messageCreateMock).not.toHaveBeenCalled();
       expect(publishChatRoomsChangedMock).not.toHaveBeenCalled();
+    });
+
+    describe("from another room", () => {
+      const crossRoomSnapshot = { ...quoteSnapshot, roomId: SOURCE_ROOM_ID };
+
+      function roomMembers(userIds: string[]) {
+        return userIds.map((userId) => ({ userId, user: { name: userId } }));
+      }
+
+      /** The sender reads the source room; `userIds` is its roster. */
+      function sourceRoom(userIds: string[]) {
+        membershipFindManyMock.mockResolvedValue(
+          userIds.map((userId) => ({ userId })),
+        );
+        return {
+          id: SOURCE_ROOM_ID,
+          organizationId: "org_1",
+          kind: "channel",
+          userMembers: [{ access: "member" }],
+        };
+      }
+
+      async function postCrossRoomQuote(
+        authContext: AuthVariables["authContext"] = userAuthContext,
+      ) {
+        return await createApp(authContext).request(`/${ROOM_ID}/messages`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            content: "see this",
+            quote: { messageId: QUOTE_MESSAGE_ID, roomId: SOURCE_ROOM_ID },
+          }),
+        });
+      }
+
+      it("stores the quote with its source room when every reader can follow", async () => {
+        roomFindFirstMock
+          .mockResolvedValueOnce(
+            roomWithMembers({ userMembers: roomMembers([USER_ID, ALICE_ID]) }),
+          )
+          .mockResolvedValueOnce(sourceRoom([USER_ID, ALICE_ID, BOB_ID]));
+        messageFindFirstMock.mockResolvedValue(quotedSourceMessage());
+        messageCreateMock.mockResolvedValue(
+          createdMessage({
+            senderUserId: USER_ID,
+            metadata: { quote: crossRoomSnapshot },
+          }),
+        );
+
+        const response = await postCrossRoomQuote();
+
+        expect(response.status).toBe(201);
+        const body = await response.json();
+        expect(body.data.quote).toEqual(crossRoomSnapshot);
+        expect(messageFindFirstMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: {
+              id: QUOTE_MESSAGE_ID,
+              roomId: SOURCE_ROOM_ID,
+              deletedAt: null,
+            },
+          }),
+        );
+        expect(messageCreateMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              roomId: ROOM_ID,
+              metadata: { quote: crossRoomSnapshot },
+            }),
+          }),
+        );
+      });
+
+      it("returns 400 when a target reader cannot read the source room", async () => {
+        roomFindFirstMock
+          .mockResolvedValueOnce(
+            roomWithMembers({ userMembers: roomMembers([USER_ID, ALICE_ID]) }),
+          )
+          .mockResolvedValueOnce(sourceRoom([USER_ID, BOB_ID]));
+        messageFindFirstMock.mockResolvedValue(quotedSourceMessage());
+
+        const response = await postCrossRoomQuote();
+
+        expect(response.status).toBe(400);
+        expect(messageCreateMock).not.toHaveBeenCalled();
+      });
+
+      it("returns 400 when the sender cannot read the source room", async () => {
+        roomFindFirstMock
+          .mockResolvedValueOnce(
+            roomWithMembers({ userMembers: roomMembers([USER_ID]) }),
+          )
+          .mockResolvedValueOnce(null);
+        messageFindFirstMock.mockResolvedValue(quotedSourceMessage());
+
+        const response = await postCrossRoomQuote();
+
+        expect(response.status).toBe(400);
+        expect(messageCreateMock).not.toHaveBeenCalled();
+      });
+
+      it("returns 400 when the sender left the source room's organization", async () => {
+        roomFindFirstMock
+          .mockResolvedValueOnce(
+            roomWithMembers({ userMembers: roomMembers([USER_ID]) }),
+          )
+          .mockResolvedValueOnce({
+            ...sourceRoom([USER_ID]),
+            organizationId: "org_2",
+          });
+        memberFindUniqueMock
+          .mockResolvedValueOnce({ role: "member" })
+          .mockResolvedValueOnce(null);
+        messageFindFirstMock.mockResolvedValue(quotedSourceMessage());
+
+        const response = await postCrossRoomQuote();
+
+        expect(response.status).toBe(400);
+        expect(messageCreateMock).not.toHaveBeenCalled();
+      });
+
+      it("returns 400 when the quoted message is deleted or missing", async () => {
+        roomFindFirstMock
+          .mockResolvedValueOnce(
+            roomWithMembers({ userMembers: roomMembers([USER_ID]) }),
+          )
+          .mockResolvedValueOnce(sourceRoom([USER_ID]));
+        messageFindFirstMock.mockResolvedValue(null);
+
+        const response = await postCrossRoomQuote();
+
+        expect(response.status).toBe(400);
+        expect(messageCreateMock).not.toHaveBeenCalled();
+      });
+
+      it("returns 400 when the quoted message is a membership status message", async () => {
+        roomFindFirstMock
+          .mockResolvedValueOnce(
+            roomWithMembers({ userMembers: roomMembers([USER_ID]) }),
+          )
+          .mockResolvedValueOnce(sourceRoom([USER_ID]));
+        messageFindFirstMock.mockResolvedValue({
+          ...quotedSourceMessage(),
+          metadata: {
+            membership: {
+              action: "joined",
+              subject: { type: "user", id: ALICE_ID, name: "Alice" },
+            },
+          },
+        });
+
+        const response = await postCrossRoomQuote();
+
+        expect(response.status).toBe(400);
+        expect(await response.text()).toContain("Quoted message not found");
+        expect(messageCreateMock).not.toHaveBeenCalled();
+      });
+
+      it("accepts a quote into the sender's Self Direct", async () => {
+        roomFindFirstMock
+          .mockResolvedValueOnce({
+            ...roomWithMembers({
+              kind: "direct",
+              userMembers: roomMembers([USER_ID]),
+              coworkerMembers: [],
+            }),
+            organizationId: null,
+            directKey: `direct:self:${USER_ID}`,
+          })
+          .mockResolvedValueOnce(sourceRoom([USER_ID, ALICE_ID, BOB_ID]));
+        messageFindFirstMock.mockResolvedValue(quotedSourceMessage());
+        messageCreateMock.mockResolvedValue(
+          createdMessage({
+            senderUserId: USER_ID,
+            metadata: { quote: crossRoomSnapshot },
+          }),
+        );
+
+        const response = await postCrossRoomQuote();
+
+        expect(response.status).toBe(201);
+        expect((await response.json()).data.quote).toEqual(crossRoomSnapshot);
+      });
+
+      it("treats a source room equal to the target as a same-room quote", async () => {
+        roomFindFirstMock.mockResolvedValue(roomWithMembers());
+        messageFindFirstMock.mockResolvedValue(quotedSourceMessage());
+        messageCreateMock.mockResolvedValue(
+          createdMessage({
+            senderUserId: USER_ID,
+            metadata: { quote: quoteSnapshot },
+          }),
+        );
+
+        const response = await createApp(userAuthContext).request(
+          `/${ROOM_ID}/messages`,
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              content: "same room",
+              quote: { messageId: QUOTE_MESSAGE_ID, roomId: ROOM_ID },
+            }),
+          },
+        );
+
+        expect(response.status).toBe(201);
+        expect(roomFindFirstMock).toHaveBeenCalledTimes(1);
+        expect(messageCreateMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              metadata: { quote: quoteSnapshot },
+            }),
+          }),
+        );
+      });
+
+      it("refuses a cross-room quote from a Soko Bot", async () => {
+        roomFindFirstMock.mockResolvedValue({
+          id: ROOM_ID,
+          name: "general",
+          kind: "channel",
+          organizationId: "org_1",
+          userMembers: [],
+        });
+        messageFindFirstMock.mockResolvedValue(quotedSourceMessage());
+
+        const response = await postCrossRoomQuote(sokoBotAuthContext);
+
+        expect(response.status).toBe(400);
+        expect(messageCreateMock).not.toHaveBeenCalled();
+      });
+
+      it("refuses a cross-room quote from a coworker", async () => {
+        roomFindFirstMock.mockResolvedValue({
+          id: ROOM_ID,
+          name: "general",
+          kind: "channel",
+          organizationId: "org_1",
+          userMembers: [],
+        });
+        messageFindFirstMock.mockResolvedValue(quotedSourceMessage());
+
+        const response = await postCrossRoomQuote(coworkerAuthContext);
+
+        expect(response.status).toBe(400);
+        expect(messageCreateMock).not.toHaveBeenCalled();
+      });
     });
 
     it("keeps quote independent of parentMessageId", async () => {

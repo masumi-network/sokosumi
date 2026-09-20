@@ -21,8 +21,8 @@ Ready when:
 Preconditions before launch:
 
 - Node **24.x** on `PATH` (`node -v`)
-- `pnpm install` already done (`portless` is a root devDependency)
-- Workspace packages built at least once (`pnpm packages:build`) — Core imports compiled `@sokosumi/utils` / `@sokosumi/database` exports
+- `pnpm install` already done (`portless` is a root devDependency). Utils `dist` comes from package `prepare` on install; `@sokosumi/database` has no build (ADR 0035 — Core consumes it from source)
+- Prisma client generated (`pnpm prisma:generate`)
 - `apps/web/.env` and `apps/core/.env` present. **`verify-sokosumi launch` (and `pnpm env:bootstrap`) copy `.env.example` and sanitize placeholders.** **Do not leave angle-bracket placeholders** (`<your-…>`) — Zod rejects them. Use non-empty dummies that pass validation (see AGENTS.md cloud notes): `RESEND_API_KEY` = any non-empty string; `RESEND_FROM_EMAIL` optional (defaults to `noreply@sokosumi.com`); Ably keys any non-empty string; Blob/Resend/OAuth secrets any non-empty dummy. **Optional URL fields** (`AGENT_HIRED_WEBHOOK`, Sentry DSN, etc.) must be omitted/commented out or set to a real URL — a bare `dummy` string fails `z.url()` and crashes Web after Ready.
 - **`COMPOSIO_API_KEY`**: Core Zod allows omitting it, but if set it **must start with `ak_`**. A dummy like `dummy-composio-api-key` fails boot (`Invalid string: must start with "ak_"`). Use `ak_…` dummy or comment/remove the key
 - Web `APP_SIGNING_SECRET` is independent of Core `BETTER_AUTH_SECRET` (e.g. web uses `dummy-app-signing-secret`)
@@ -67,7 +67,7 @@ For Cursor background shells, kill those shell PIDs (or stop the terminal jobs) 
 
 Require `doctor ok`. If `owned_by_verify=no`, do **read-only** checks only — never mutate a foreign instance. If ports already answer before `launch`, the helper refuses (no double-drive).
 
-Doctor also prints `fixture_auth=ok|fail` (Core `POST /auth/sign-in/email` for `alice@sokosumi.test`), `vault_profile=…` when `agent-browser auth list` has the coworker profile, and whether `agent-browser` is on `PATH`. Fixture failure is a **warn** (local/shared DB may lack seeds) — not a doctor fail. On cloud-agent Neon branches, expect `fixture_auth=ok` before driving. On a coworker machine or shared Neon, expect `fixture_auth=fail` and use the vault — do **not** seed Alice onto that database.
+Doctor also prints `turnstile_site=` (what the browser renders) and `turnstile_secret=` (whether Core verifies the token). Proceed only when `turnstile_site` is `test-pass` or `off`; `test-block`, `test-interactive` and `live` each stop browser sign-in, the last two behind a human check an agent must not answer. A `live` secret under a `test-pass` site key is the confusing one — the widget solves itself and Core then 403s the dummy token, which reads as a broken app rather than a config. `fixture_auth` POSTs Core with a dummy `x-captcha-response` so it can stay `ok` under the local 1x secret; it still will not catch a live **widget**. Also prints `fixture_auth=ok|fail` (Core `POST /auth/sign-in/email` for `alice@sokosumi.test`), `vault_profile=…` when `agent-browser auth list` has the coworker profile, and whether `agent-browser` is on `PATH`. Fixture failure is a **warn** (local/shared DB may lack seeds) — not a doctor fail. On cloud-agent Neon branches, expect `fixture_auth=ok` before driving. On a coworker machine or shared Neon, expect `fixture_auth=fail` and use the vault — do **not** seed Alice onto that database.
 
 Optional Core-only smoke:
 

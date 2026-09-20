@@ -39,6 +39,7 @@ function buildTask(visibility: TaskVisibility): TaskWithCoworker {
     descriptionPlain: null,
     ownerId: "user-1",
     owner: { id: "user-1", name: "Owner", image: null },
+    project: null,
     assignee: null,
     commentsCount: 0,
     createdAt: "2026-03-01T00:00:00.000Z",

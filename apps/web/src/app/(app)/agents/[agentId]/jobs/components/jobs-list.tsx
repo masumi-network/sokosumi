@@ -230,14 +230,14 @@ export function JobsList({
           />
         </ChannelProvider>
       </LazyAblyProvider>
-      <aside className="lg:border-border flex h-full min-h-0 w-full flex-col py-4 lg:w-72 lg:border-r">
+      <aside className="@4xl/jobs-panes:border-border flex h-full min-h-0 w-full flex-col py-4 @4xl/jobs-panes:border-r">
         <JobsSearch
           jobs={localJobs}
           hasMoreHistory={Boolean(nextCursor)}
           onFilteredChange={(nextJobs) => setFilteredJobs(nextJobs)}
         />
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-24 md:p-2 md:pr-4 md:pl-0 lg:pb-2">
+        <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-24 md:p-2 md:pr-4 md:pl-0 @4xl/jobs-panes:pb-2">
           {dayGroups.length > 0 ? (
             dayGroups.map((group) => (
               <section key={group.key} className="mb-4">

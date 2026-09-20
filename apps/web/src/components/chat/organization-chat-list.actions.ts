@@ -12,8 +12,10 @@ import type {
   ChatRoom,
   StarredChatRoomOrder,
 } from "@/lib/clients/generated/core";
-import { type ChatRoomsPage, chatRoomService } from "@/lib/services";
-
+import {
+  type ChatRoomsPage,
+  chatRoomService,
+} from "@/lib/services/chat-room.service";
 /** Org sidebar / chat list wire shape — ActionResultDto (neverthrow at boundary). */
 export type OrganizationChatListActionResult<T> = ActionResultDto<
   T,
