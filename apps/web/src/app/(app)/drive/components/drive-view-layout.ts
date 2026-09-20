@@ -36,7 +36,7 @@ export function driveItemArticleClass(viewMode: FilesViewMode): string {
         // own would round the hover fill between straight dividers. Its px-2
         // plus the body's px-2 keep content at the same 16px inset the
         // container's padding used to provide.
-        "relative flex items-center gap-1 rounded-none px-2 hover:bg-background",
+        "relative flex items-center gap-1 rounded-none px-2 hover:bg-card-background-hover",
         PROJECTS_LIST_ROW_LAYOUT_CLASS,
       );
 }
