@@ -25,6 +25,11 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
   private var presence: OrgPresenceChannel?
   private var frontPresence = NotificationFrontPresence()
   private var frontPresenceRetry: Task<Void, Never>?
+  /// How many times a current answer was handed to the channel. A retry
+  /// carries the number it was armed with, so a later `setInFront` or
+  /// restore can drop it before it undoes that answer.
+  private var frontPresenceAsks = 0
+  private let frontPresenceDispatch = DispatchQueue(label: "sokosumi.notification-front-presence")
   private var onEvent: RealtimeEventHandler?
   private var roomGeneration = UUID()
   private var connectionGeneration = UUID()
@@ -95,7 +100,14 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
   /// The answer is sent when it changes and again whenever Ably restores
   /// the members it holds.
   public func setInFront(_ inFront: Bool) {
-    send(lock.withLock { frontPresence.setInFront(inFront) })
+    let action = lock.withLock { () -> NotificationFrontPresence.Action in
+      let next = frontPresence.setInFront(inFront)
+      if next != .none {
+        invalidateFrontPresenceLocked()
+      }
+      return next
+    }
+    send(action)
   }
 
   public func setMembershipRooms(_ roomIds: Set<String>) {
@@ -177,8 +189,7 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
         notificationsListener = nil
         notificationsAttachListener = nil
         frontPresence.reset()
-        frontPresenceRetry?.cancel()
-        frontPresenceRetry = nil
+        invalidateFrontPresenceLocked()
       }
       return (notificationsChannel, notificationsListener, notificationsAttachListener)
     }
@@ -227,9 +238,12 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
       guard let self else { return }
       switch change.event {
       case .attached, .update:
-        send(lock.withLock { frontPresence.restored })
+        sendRestored()
       case .detached, .failed:
-        lock.withLock { frontPresence.channelLost() }
+        lock.withLock {
+          frontPresence.channelLost()
+          invalidateFrontPresenceLocked()
+        }
       default:
         break
       }
@@ -239,7 +253,7 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
       self?.forward(channelName: name, message: message, generation: generation)
     }
     if channel.state == .attached {
-      send(lock.withLock { frontPresence.restored })
+      sendRestored()
     }
   }
 
@@ -251,33 +265,67 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
   /// looking for as long as it does, and every email then waits out its
   /// category's delay, so that one is tried again.
   ///
-  /// The call itself is made outside the lock, because ably-cocoa answers on
-  /// a queue of its own. A retry that reads its action here while the reader
-  /// brings the app forward can therefore reach the channel after the enter
-  /// that followed it. The next restore puts that right. Coming forward
-  /// again does not: the app is already in front, and `setInFront` answers
-  /// nothing for the value it holds. Until one of those, the reader's emails
-  /// arrive without their delay, which is the direction that still reaches
-  /// them.
-  private func send(_ action: NotificationFrontPresence.Action) {
-    guard action != .none, let channel = lock.withLock({ notificationsChannel }) else { return }
+  /// The Ably call itself is made outside the lock, because ably-cocoa
+  /// answers on a queue of its own. Each send is numbered and dispatched
+  /// in order, and a retry that was numbered before a later answer is
+  /// dropped rather than left to undo it. The web client does the same
+  /// with `asks`.
+  private func send(
+    _ action: NotificationFrontPresence.Action,
+    asked: Int? = nil,
+  ) {
+    guard action != .none else { return }
+    let token = lock.withLock { asked ?? frontPresenceAsks }
+    frontPresenceDispatch.async { [weak self] in
+      self?.dispatchFrontPresence(asked: token)
+    }
+  }
+
+  private func sendRestored() {
+    let action = lock.withLock { () -> NotificationFrontPresence.Action in
+      invalidateFrontPresenceLocked()
+      return frontPresence.restored
+    }
+    send(action)
+  }
+
+  private func invalidateFrontPresenceLocked() {
+    frontPresenceRetry?.cancel()
+    frontPresenceRetry = nil
+    frontPresenceAsks += 1
+  }
+
+  private func dispatchFrontPresence(asked: Int) {
+    let snapshot = lock.withLock { () -> (NotificationFrontPresence.Action, ARTRealtimeChannel?)? in
+      guard asked == frontPresenceAsks else { return nil }
+      return (frontPresence.restored, notificationsChannel)
+    }
+    guard let (action, channel) = snapshot, action != .none, let channel else { return }
     switch action {
     case .enter:
       channel.presence.enter(nil)
     case .leave:
       channel.presence.leave(nil) { [weak self] error in
         guard let self else { return }
-        guard error != nil else {
-          lock.withLock { frontPresence.leaveAccepted() }
-          return
+        let shouldRetry = lock.withLock { () -> Bool? in
+          guard asked == frontPresenceAsks else { return nil }
+          if error == nil {
+            frontPresence.leaveAccepted()
+            return false
+          }
+          return true
         }
+        guard shouldRetry == true else { return }
         let attached = lock.withLock { notificationsChannel }?.state == .attached
         armFrontPresenceRetry(channelAttached: attached)
       }
     case .none:
       return
     }
-    lock.withLock { frontPresence.sent(action) }
+    lock.withLock {
+      guard asked == frontPresenceAsks else { return }
+      frontPresence.sent(action)
+    }
   }
 
   /// One retry in flight at a time. A refusal that arrives while one is
@@ -285,20 +333,33 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
   /// flight sends the same answer, so counting the second would empty the
   /// budget on refusals that arm nothing.
   private func armFrontPresenceRetry(channelAttached: Bool) {
+    let asked = lock.withLock { () -> Int? in
+      guard frontPresenceRetry == nil, notificationsChannel != nil,
+            frontPresence.leaveRefused(channelAttached: channelAttached)
+      else { return nil }
+      return frontPresenceAsks
+    }
+    guard let asked else { return }
     let task = Task { [weak self] in
       do { try await Task.sleep(for: .seconds(frontPresenceRetryDelay)) } catch { return }
       guard let self else { return }
-      lock.withLock { frontPresenceRetry = nil }
-      send(lock.withLock { frontPresence.restored })
+      let action = lock.withLock { () -> NotificationFrontPresence.Action? in
+        frontPresenceRetry = nil
+        guard asked == frontPresenceAsks else { return nil }
+        return frontPresence.restored
+      }
+      if let action {
+        send(action, asked: asked)
+      }
     }
-    let armed = lock.withLock { () -> Bool in
-      guard frontPresenceRetry == nil, notificationsChannel != nil,
-            frontPresence.leaveRefused(channelAttached: channelAttached)
-      else { return false }
+    let kept = lock.withLock { () -> Bool in
+      guard frontPresenceRetry == nil, asked == frontPresenceAsks, notificationsChannel != nil else {
+        return false
+      }
       frontPresenceRetry = task
       return true
     }
-    if !armed {
+    if !kept {
       task.cancel()
     }
   }
