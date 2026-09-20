@@ -3,6 +3,8 @@ import { coreClient } from "@/lib/clients/core.client";
 
 import { JoinCard, JoinInvalidCard } from "./components/join-card";
 
+export const instant = false;
+
 export default async function JoinPage({
   params,
 }: {
