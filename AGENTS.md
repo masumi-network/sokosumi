@@ -126,7 +126,9 @@ function handler(_req, res) {
 
 ### Git hooks
 
-Husky runs `pnpm precommit` (`pnpm check && pnpm typecheck`) before each commit. Expect roughly 10–15 seconds. Skip with `git commit --no-verify` or `HUSKY=0`.
+Husky runs `pnpm precommit` (`pnpm check && pnpm typecheck`) before each commit. Expect roughly 10–15 seconds. Let it run: it is the same pair CI gates on, so a commit that passes it is a commit that passes `Biome` and `Typecheck`.
+
+`git commit --no-verify` and `HUSKY=0` exist for the case where the hook itself is broken — a missing binary, a worktree without `node_modules`. Fix the cause and commit normally. Passing the checks by hand first is not a reason to bypass the hook: the bypass is indistinguishable from hiding a failure, and only the hook's own run proves the tree is green.
 
 In a fresh worktree the hook fails with `Command "prisma" not found` until `pnpm install` has run there. Install (about 30 seconds) rather than committing past it with `--no-verify`: the failure is the worktree's `node_modules`, so every later check is blind too.
 
@@ -146,6 +148,8 @@ Full list is in root `package.json`. Agents typically need:
 | `pnpm prisma:generate` | Generate Prisma clients |
 | `pnpm prisma:migrate:dev` | Dev migrations |
 | `pnpm prisma:migrate:deploy` | Apply migrations |
+
+Prefer the turbo entry points above over `pnpm --filter <workspace> <task>`. A filter-run invokes the package script directly and skips turbo's graph, so `prisma:generate` never fires. On a checkout where the client has not been generated that surfaces as a wall of `Module '"@sokosumi/database"' has no exported member 'Job'` — a missing client, not a broken change. Run `pnpm prisma:generate` first when you do need a filter-run.
 
 ## Testing Guidelines
 
