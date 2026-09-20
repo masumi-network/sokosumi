@@ -173,6 +173,10 @@ describe("dispatchNotificationEmail", () => {
       where: { id: "notification_1", isRead: false },
       data: { emailId: "email_1", emailScheduledAt: TEN_MINUTES_LATER },
     });
+    // The write took the row, so the email waits. Cancelling it here would
+    // take back every delayed email the moment it was scheduled, and the
+    // reader who is looking at the app would get none of them at all.
+    expect(cancelEmailMock).not.toHaveBeenCalled();
   });
 
   it("takes the email back when the row went read while it was being handed over", async () => {

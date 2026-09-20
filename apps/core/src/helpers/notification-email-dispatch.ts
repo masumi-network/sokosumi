@@ -152,8 +152,8 @@ function sameEmailScope(
  * reader can open (`notificationFeedWhere` keeps it out of every read there).
  * A banner click reaches it, and so does the write that clears a task's
  * attention rows when the run settles or its credits come back, and the one
- * that clears a request that was resolved. A finished task's row is reached
- * by the click alone, and so is the one about a schedule an operator removed:
+ * that clears a request that was resolved, and archiving a task clears every
+ * attention row it has. A finished task's row is reached by the click alone:
  * a reader who never clicks would otherwise have every later email about that
  * task held back for good. The cost: a reader with In app off and Email on is
  * mailed per event rather than per unread thing.
