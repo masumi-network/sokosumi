@@ -253,12 +253,14 @@ function quietFrame({
   authMethod,
   children,
   showBackHint = false,
+  showNavigationHint = true,
 }: {
   route: "boot" | "auth" | "signed-in";
   target: string | null;
   authMethod: InitialAuthState["authMethod"];
   children: React.ReactNode;
   showBackHint?: boolean;
+  showNavigationHint?: boolean;
 }): React.ReactElement {
   return React.createElement(
     Box,
@@ -294,7 +296,7 @@ function quietFrame({
     route === "signed-in" && authMethod && target
       ? signedInIdentityLine(target, authMethod)
       : null,
-    navigationHint({ back: showBackHint }),
+    showNavigationHint ? navigationHint({ back: showBackHint }) : null,
   );
 }
 
@@ -794,6 +796,7 @@ function StatusApp({
       route,
       target: null,
       authMethod: null,
+      showNavigationHint: false,
       children: centeredScreen(
         React.createElement(Text, { color: TUI_THEME.accent }, LOGO),
         React.createElement(Text, { bold: true }, "sokosumi · developer CLI"),
@@ -827,7 +830,6 @@ function StatusApp({
             setMessage("");
           }),
         }),
-        navigationHint({ back: true }),
         messageLine(message, phase),
       );
     } else if (screen === "oauth-confirm") {
@@ -847,7 +849,6 @@ function StatusApp({
           onSelect: () => startOAuthLogin(selectedConfig),
           listen: !busy,
         }),
-        navigationHint({ back: true }),
         messageLine(message, phase),
       );
     } else if (screen === "api-key-input") {
@@ -899,7 +900,6 @@ function StatusApp({
               startApiKeyLogin(pendingApiKey, nextConfig, true);
           }),
         }),
-        navigationHint({ back: true }),
         messageLine(message, phase),
       );
     } else if (screen === "oauth-wait" || screen === "api-key-wait") {
@@ -954,7 +954,6 @@ function StatusApp({
             setMessage("");
           },
         }),
-        navigationHint({ back: true }),
       );
     } else {
       const selectedNetwork = resolveSelectedHostedTarget(selectedConfig);
@@ -974,14 +973,26 @@ function StatusApp({
           onSelect: adaptSelectHandler<SignInAction>(handleSignInAction),
           listen: !busy,
         }),
-        navigationHint(),
         messageLine(message, phase),
       );
     }
+    const authScreensWithBack = new Set<AuthScreen>([
+      "oauth-target",
+      "oauth-confirm",
+      "api-key-target",
+      "error",
+    ]);
+    const authScreensWithCustomHint = new Set<AuthScreen>([
+      "api-key-input",
+      "oauth-wait",
+      "api-key-wait",
+    ]);
     return quietFrame({
       route,
       target: targetLabel,
       authMethod: null,
+      showBackHint: authScreensWithBack.has(screen),
+      showNavigationHint: !authScreensWithCustomHint.has(screen),
       children: content,
     });
   }
