@@ -435,3 +435,13 @@ _Avoid_: Chain-of-thought (unless product means hidden provider CoT never sent t
 **Thought disclosure**:
 The collapsed control on a coworker assistant message that reveals Thought (and duration when known) after the answer is available or when reloading a message that already stored Thought.
 _Avoid_: Reasoning accordion, steps panel (Hermes-specific layout names)
+
+### Chat typing
+
+**Typing**:
+A human room member is composing a message to a room's main transcript right now. Live and ephemeral: never stored, never replayed, and it lapses on its own when the person stops, so a closed tab or a dropped connection clears itself without anyone sending a stop. Every room, Channels and Directs alike. Humans only — a coworker's turn is announced by Thought. Per person, not per device: the same person typing on two devices is typing once.
+_Avoid_: Presence (reachability in the organization, not activity in one room), Draft (a saved composer string that outlives the session and is restored on open — restoring one is not Typing), Thought (a coworker's reasoning), Online, treating an attachment or an emoji picker as Typing (the signal is about text, so that it never lies)
+
+**Typing line**:
+How a room says who is Typing, above the composer: one name, two names, or the fact that there are more than two. Named in the order people started, so a new typist joins the end rather than resorting the line. Holds its space whether or not anyone is Typing, because the composer must not move under someone mid-sentence. The open room only — Typing never reaches the sidebar, where bold, the mention badge and the Rail attention pill already compete for a row.
+_Avoid_: "N users are typing" (rooms hold people, and a count is not what the reader wants), an animated indicator (it reads as a coworker thinking), a Typing dot on a sidebar row, spelling out three or more names (they truncate, and a truncated name is worse than none)

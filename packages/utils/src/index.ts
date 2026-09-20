@@ -1,6 +1,7 @@
 export {
   makeAgentJobsChannelName,
   makeChatRoomChannelName,
+  makeChatTypingChannelName,
   makeOrgPresenceChannelName,
   makeUserChatControlChannelName,
   makeUserNotificationsChannelName,

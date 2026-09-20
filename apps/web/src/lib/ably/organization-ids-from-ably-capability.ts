@@ -1,5 +1,7 @@
 import { parseOrganizationIdFromPresenceChannelName } from "@sokosumi/utils";
 
+import { parseAblyCapabilityMap } from "./ably-capability-map";
+
 /**
  * Extract organization ids granted presence on `presence:org_*` channels.
  * Returns null when capability is missing or unparseable.
@@ -7,27 +9,8 @@ import { parseOrganizationIdFromPresenceChannelName } from "@sokosumi/utils";
 export function organizationIdsFromAblyCapability(
   capability: unknown,
 ): string[] | null {
-  let map: Record<string, unknown>;
-  if (capability == null) {
-    return null;
-  }
-  if (typeof capability === "string") {
-    try {
-      const parsed: unknown = JSON.parse(capability);
-      if (
-        parsed == null ||
-        typeof parsed !== "object" ||
-        Array.isArray(parsed)
-      ) {
-        return null;
-      }
-      map = parsed as Record<string, unknown>;
-    } catch {
-      return null;
-    }
-  } else if (typeof capability === "object" && !Array.isArray(capability)) {
-    map = capability as Record<string, unknown>;
-  } else {
+  const map = parseAblyCapabilityMap(capability);
+  if (map == null) {
     return null;
   }
 

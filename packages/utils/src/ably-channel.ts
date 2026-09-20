@@ -72,6 +72,18 @@ export function parseChatRoomIdFromChannelName(
   return roomId.length > 0 ? roomId : null;
 }
 
+/**
+ * Room-scoped channel carrying Typing only (ADR-0033). Separate from
+ * {@link makeChatRoomChannelName} because Ably capabilities are per channel and
+ * operation, never per event name: clients publish Typing here so the message
+ * channel can stay subscribe-only and a room message cannot be forged.
+ */
+const CHAT_TYPING_CHANNEL_PREFIX = "chat_typing:room_";
+
+export function makeChatTypingChannelName(roomId: string): string {
+  return `${CHAT_TYPING_CHANNEL_PREFIX}${roomId}`;
+}
+
 /** Org-scoped Ably Presence channel (ADR-0003). */
 const ORG_PRESENCE_CHANNEL_PREFIX = "presence:org_";
 

@@ -7,10 +7,13 @@ import {
 } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import {
+  type Dispatch,
   type FormEvent,
   type Ref,
+  type SetStateAction,
   useCallback,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { toast } from "sonner";
@@ -41,6 +44,8 @@ import {
   type PendingRoomQuote,
   type RoomMentionParticipant,
 } from "./room-helpers";
+import { RoomTypingLine } from "./room-typing-line";
+import { useRoomTypingContext } from "./room-typing-provider";
 
 export interface RoomSessionSendRequest {
   content: string;
@@ -127,11 +132,21 @@ export function RoomSessionComposer({
   openingDirectParticipantKey,
 }: RoomSessionComposerProps) {
   const t = useTranslations("App.Channels");
+  // Inert unless a RoomTypingProvider is mounted around this composer, which
+  // is how the Thread composer stays silent (ADR-0033).
+  const {
+    enabled: typingEnabled,
+    typistIds,
+    handleComposerChange,
+    handleStopTyping,
+  } = useRoomTypingContext();
   const [composerValue, setComposerValue] = useState("");
   const [composerAttachments, setComposerAttachments] = useState<
     RoomComposerAttachment[]
   >([]);
   const [mentionedIds, setMentionedIds] = useState<string[]>([]);
+  /** Set while a toolbar control inserts text, so it is not read as typing. */
+  const toolbarInsertRef = useRef(false);
 
   const composeDraft = useMemo<ComposeDraft>(
     () => ({
@@ -162,6 +177,34 @@ export function RoomSessionComposer({
       }
     },
   });
+
+  /**
+   * Genuine composer input only. Draft hydrate and failed-send restore set
+   * `composerValue` directly, so neither announces Typing — which is what
+   * keeps opening a room you abandoned a Draft in silent.
+   */
+  const handleComposerValueChange = useCallback<
+    Dispatch<SetStateAction<string>>
+  >(
+    (action) => {
+      setComposerValue(action);
+      if (typeof action !== "string") {
+        return;
+      }
+      // An emoji the toolbar dropped in is not text the person typed, so it
+      // must not announce Typing (ADR-0033).
+      if (toolbarInsertRef.current) {
+        toolbarInsertRef.current = false;
+        return;
+      }
+      handleComposerChange(action.trim().length > 0);
+    },
+    [handleComposerChange],
+  );
+
+  const handleToolbarInsert = useCallback(() => {
+    toolbarInsertRef.current = true;
+  }, []);
 
   const restoreSnapshot = useCallback(
     (snapshot: ComposerSnapshot) => {
@@ -212,6 +255,8 @@ export function RoomSessionComposer({
     setMentionedIds([]);
     onClearPendingQuote?.();
     clearDraft();
+    // The message has arrived, so the line must not outlive what it promised.
+    handleStopTyping();
 
     const result = await onSend({
       content,
@@ -230,36 +275,43 @@ export function RoomSessionComposer({
   }
 
   return (
-    <RoomComposer
-      ref={ref}
-      roomId={roomId}
-      value={composerValue}
-      onValueChange={setComposerValue}
-      mentions={mentions}
-      usersById={usersById}
-      usersBySlug={usersBySlug}
-      coworkersById={coworkersById}
-      coworkersBySlug={coworkersBySlug}
-      sokoBotsById={sokoBotsById}
-      sokoBotsBySlug={sokoBotsBySlug}
-      channels={channels}
-      channelLinks={channelLinks}
-      onSelectedKeysChange={setMentionedIds}
-      placeholder={placeholder}
-      attachments={composerAttachments}
-      onAttachmentsChange={setComposerAttachments}
-      onSubmit={handleSubmit}
-      isSending={isSending}
-      sendDisabled={isRoomComposerEmpty(composerValue, composerAttachments)}
-      showMentionShortcut={showMentionShortcut}
-      allowAttachments={allowAttachments}
-      pendingQuote={pendingQuote}
-      onClearPendingQuote={onClearPendingQuote}
-      focusOnMount={focusOnMount}
-      currentUserId={currentUserId}
-      canOpenHumanDirect={canOpenHumanDirect}
-      onOpenDirectMessage={onOpenDirectMessage}
-      openingDirectParticipantKey={openingDirectParticipantKey}
-    />
+    <>
+      {typingEnabled ? (
+        <RoomTypingLine typistIds={typistIds} usersById={usersById} />
+      ) : null}
+      <RoomComposer
+        ref={ref}
+        roomId={roomId}
+        value={composerValue}
+        onValueChange={handleComposerValueChange}
+        onEditorBlur={handleStopTyping}
+        onToolbarInsert={handleToolbarInsert}
+        mentions={mentions}
+        usersById={usersById}
+        usersBySlug={usersBySlug}
+        coworkersById={coworkersById}
+        coworkersBySlug={coworkersBySlug}
+        sokoBotsById={sokoBotsById}
+        sokoBotsBySlug={sokoBotsBySlug}
+        channels={channels}
+        channelLinks={channelLinks}
+        onSelectedKeysChange={setMentionedIds}
+        placeholder={placeholder}
+        attachments={composerAttachments}
+        onAttachmentsChange={setComposerAttachments}
+        onSubmit={handleSubmit}
+        isSending={isSending}
+        sendDisabled={isRoomComposerEmpty(composerValue, composerAttachments)}
+        showMentionShortcut={showMentionShortcut}
+        allowAttachments={allowAttachments}
+        pendingQuote={pendingQuote}
+        onClearPendingQuote={onClearPendingQuote}
+        focusOnMount={focusOnMount}
+        currentUserId={currentUserId}
+        canOpenHumanDirect={canOpenHumanDirect}
+        onOpenDirectMessage={onOpenDirectMessage}
+        openingDirectParticipantKey={openingDirectParticipantKey}
+      />
+    </>
   );
 }

@@ -340,6 +340,8 @@ export function RoomComposer({
   roomId,
   value,
   onValueChange,
+  onEditorBlur,
+  onToolbarInsert,
   mentions,
   usersById,
   usersBySlug,
@@ -371,6 +373,14 @@ export function RoomComposer({
   roomId?: string;
   value: string;
   onValueChange: Dispatch<SetStateAction<string>>;
+  /** Editor lost focus — one of the four Typing stops (ADR-0033). */
+  onEditorBlur?: () => void;
+  /**
+   * A toolbar control put text in the editor rather than the person typing it.
+   * Fires just before the insertion, so the resulting change can be told apart
+   * from a keystroke — Typing is about text the person typed (ADR-0033).
+   */
+  onToolbarInsert?: () => void;
   mentions: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
   /** Room roster lookups for quote preview / hydrate chips (includes you). */
   usersById?: Map<string, UserMentionLookup>;
@@ -797,7 +807,10 @@ export function RoomComposer({
             <RoomComposerEmojiPicker
               title={t("Toolbar.emoji")}
               ariaLabel={t("Toolbar.emoji")}
-              onPick={(emoji) => editorRef.current?.insertText(emoji)}
+              onPick={(emoji) => {
+                onToolbarInsert?.();
+                editorRef.current?.insertText(emoji);
+              }}
             />
             {showMentionShortcut ? (
               <Button
@@ -820,6 +833,7 @@ export function RoomComposer({
           ref={editorRef}
           value={value}
           onChange={onValueChange}
+          onBlur={onEditorBlur}
           onSelectedKeysChange={handleSelectedKeysChange}
           mentions={composerMentions}
           mentionDisplayByKey={mentionDisplay.byKey}
