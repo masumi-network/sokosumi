@@ -4,9 +4,9 @@
 
 ## App-Specific Architecture
 
-**Stack**: One Xcode workspace (`Sokosumi.xcworkspace`) holding `Sokosumi.xcodeproj` (product `Sokosumi`) and the five local packages as root packages, so the `Sokosumi` scheme runs the app tests and every package suite in one command. Build and test through the workspace, not the project — `-project` cannot reach the package test targets. macOS target first, shared Swift packages under `Packages/` (first: `CoreAPI`, generated via Swift OpenAPI Generator). No iOS target yet; packages must stay free of AppKit/SwiftUI so iOS can link them later. No `package.json`. Xcode is outside turbo and Biome. Swift tooling (SwiftLint, SwiftFormat) installs via Mint with exact pins in `Mintfile`, not Homebrew directly.
+**Stack**: One Xcode workspace (`Sokosumi.xcworkspace`) holding `Sokosumi.xcodeproj` (product `Sokosumi`) and the five local packages as root packages, so the `Sokosumi` scheme runs the app tests and every package suite in one command. Build and test through the workspace, not the project — `-project` cannot reach the package test targets. macOS target first, shared Swift packages under `Packages/` (first: `CoreAPI`, generated via Swift OpenAPI Generator). No iOS target yet; packages must stay free of AppKit/SwiftUI so their domain behavior remains extractable for future native clients. No `package.json`. Xcode is outside turbo and Biome. Swift tooling (SwiftLint, SwiftFormat) installs via Mint with exact pins in `Mintfile`, not Homebrew directly.
 
-**Key directories**: `Sokosumi/` (thin SwiftUI app: auth composition/browser adapter, workspace/chat composition, views), `Packages/CoreAPI/` (generated Core HTTP client), `Packages/SokosumiAuth/` (portable auth state, OAuth session and Keychain persistence), `Packages/SokosumiChat/` (portable WorkspaceSession/ConversationSidebar/RoomTimeline, avatar loading, scoped room/draft persistence, rooms/chat flows), `Packages/SokosumiRealtime/` (portable Ably connection, token source, room subscriptions, org presence), `Packages/SokosumiWorkspace/` (portable cross-package coordinator and integration tests), `SokosumiTests/` (app-target tests).
+**Key directories**: `Sokosumi/` (thin SwiftUI app: auth composition/browser adapter, workspace/chat composition, views), `Packages/CoreAPI/` (generated Core HTTP client), `Packages/SokosumiAuth/` (portable auth state, OAuth session and the TokenStore port), `Packages/SokosumiChat/` (portable WorkspaceSession/ConversationSidebar/RoomTimeline, avatar loading, scoped room/draft persistence, rooms/chat flows), `Packages/SokosumiRealtime/` (Ably transport adapter, domain event delivery, room subscriptions and org presence), `Packages/SokosumiWorkspace/` (portable cross-package coordinator and integration tests), `SokosumiTests/` (app-target tests).
 
 ## Source navigation
 
@@ -40,6 +40,19 @@ Read [README.md](README.md#architecture-and-navigation) for the dependency map a
 - Keep cancellation and generation guards with the operation they protect. Do not widen private access merely to split an extension into another file.
 - Package code must never import the app target or UI frameworks. Parsing produces portable models; SwiftUI rendering consumes them.
 - For structural changes, run the same app/affected-package tests before and after. Verify the diff for changed defaults, state lifetime, async ordering, access control and generated/project configuration.
+
+## Portable domain / future clients
+
+- Packages own the domain, not only preparation for iOS. Public domain models must not mention Keychain, `UNUserNotificationCenter`, `ASWebAuthenticationSession`, `NSWorkspace`, or `ably-cocoa` types.
+- Token persistence uses the `TokenStore` port. Keychain belongs in the app target or an Apple adapter, never in domain types. Auth package tests use in-memory stores.
+- `SokosumiRealtime` translates transport deliveries into domain events (`ResolvedRealtimeDelivery`); `SokosumiChat` applies message, thread and presence rules. Chat/Workspace public domain APIs must not expose SDK connection objects or Ably types. Keep the transport-neutral `RealtimeConnection` factory at the composition boundary only.
+- Every new domain rule needs a UI-free test: given state + event → new state. Golden fixtures live in `SokosumiChatTests/Fixtures/Golden`; use fixed time and IDs. A slice changing domain behavior is incomplete if it only adds app/UI tests.
+- Do not grow `WorkspaceState` into a god object. New behavior belongs in Chat/Auth/Realtime first; Workspace composes their lifecycles.
+- Inject a `Clock` or time provider and ID generation into domain code. No hidden `Date()` or UUID generation inside reducers.
+- Local persistence schemas are versioned contracts with one migration site per schema. Do not add ad-hoc `UserDefaults` access in views.
+- Core OpenAPI remains the only DTO source. Do not hand-copy “almost Core” structs.
+- Keep `#if os(macOS)` out of packages except a documented, tiny compatibility shim.
+- Keep the SwiftUI Apple client. Do not add UniFFI, a Rust core, `apps/windows`, or `apps/linux` for this work. Starting a second native client requires a separate ADR and directory; shared-core extraction waits until that client is committed.
 
 ## App-Specific Conventions
 
