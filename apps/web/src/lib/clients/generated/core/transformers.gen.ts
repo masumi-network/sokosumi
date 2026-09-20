@@ -2053,6 +2053,7 @@ const projectSchemaResponseTransformer = (data: any) => {
 
 const projectListItemSchemaResponseTransformer = (data: any) => {
     data = projectSchemaResponseTransformer(data);
+    data.lastActivityAt = new Date(data.lastActivityAt);
     return data;
 };
 

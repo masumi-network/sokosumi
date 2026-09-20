@@ -4461,6 +4461,10 @@ export type AcceptChatRoomGuestInviteLink = {
 export type ProjectListItem = Project & {
     taskCount: number;
     jobCount: number;
+    /**
+     * Latest visible task/job event, ready task output or project lifecycle event. Equals createdAt when the project has no activity yet, which is also the list ordering key.
+     */
+    lastActivityAt: Date;
 };
 
 export type ProjectLatestUpdate = {
@@ -30881,6 +30885,10 @@ export type GetProjectsData = {
          * Number of items to return (max 100)
          */
         limit?: number;
+        /**
+         * Case-insensitive substring match on the project name, applied across the whole workspace before pagination
+         */
+        q?: string;
     };
     url: '/projects';
 };
