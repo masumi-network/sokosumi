@@ -12,21 +12,7 @@ import {
 } from "../types/member.js";
 import { MemberRole } from "../types/organization.js";
 
-/**
- * Repository for managing Member entities and related queries.
- * Provides methods for creating members, retrieving member lists,
- * and fetching membership information with related user or organization data.
- */
 export const memberRepository = (() => {
-  /**
-   * Creates a new member in the specified organization with the given role.
-   *
-   * @param userId - The ID of the user to add as a member.
-   * @param organizationId - The ID of the organization.
-   * @param role - The role to assign to the member (e.g., ADMIN, MEMBER).
-   * @param tx - The Prisma transaction client to use.
-   * @returns The created Member object.
-   */
   async function createMember(
     userId: string,
     organizationId: string,
@@ -50,13 +36,6 @@ export const memberRepository = (() => {
     });
   }
 
-  /**
-   * Retrieves all memberships for a user, including organization details.
-   *
-   * @param userId - The ID of the user.
-   * @param tx - The Prisma transaction client to use.
-   * @returns An array of MemberWithOrganization objects.
-   */
   async function getMembersWithOrganizationByUserId(
     userId: string,
     tx: Prisma.TransactionClient,
@@ -70,13 +49,6 @@ export const memberRepository = (() => {
     });
   }
 
-  /**
-   * Retrieves all organization IDs for which the user is a member.
-   *
-   * @param userId - The ID of the user.
-   * @param tx - The Prisma transaction client to use.
-   * @returns An array of organization IDs.
-   */
   async function getMembersOrganizationIdsByUserId(
     userId: string,
     tx: Prisma.TransactionClient,
@@ -88,14 +60,6 @@ export const memberRepository = (() => {
     return userMemberships.map((m) => m.organizationId);
   }
 
-  /**
-   * Retrieves a member by user ID and organization ID.
-   *
-   * @param userId - The ID of the user.
-   * @param organizationId - The ID of the organization.
-   * @param tx - The Prisma transaction client to use.
-   * @returns The Member object if found, otherwise null.
-   */
   async function getMemberByUserIdAndOrganizationId(
     userId: string,
     organizationId: string,
@@ -123,13 +87,7 @@ export const memberRepository = (() => {
   }
 
   /**
-   * Retrieves all members of an organization, including user details and a
-   * session-derived `lastSeenAt` timestamp (the most recent
-   * `Session.updatedAt` per user, or `null` if the user has no sessions).
-   *
-   * @param organizationId - The ID of the organization.
-   * @param tx - Prisma transaction client.
-   * @returns An array of MemberWithUserAndLastSeen objects.
+   * `lastSeenAt` is the most recent `Session.updatedAt` per user, or null.
    */
   async function getMembersWithUserAndLastSeen(
     organizationId: string,
@@ -160,13 +118,6 @@ export const memberRepository = (() => {
     }));
   }
 
-  /**
-   * Retrieves all members of a given organization.
-   *
-   * @param organizationId - The ID of the organization.
-   * @param tx - The Prisma transaction client to use.
-   * @returns An array of Member objects.
-   */
   async function getMembersByOrganizationId(
     organizationId: string,
     tx: Prisma.TransactionClient,
@@ -297,10 +248,7 @@ export const memberRepository = (() => {
     });
   }
 
-  /**
-   * Paginated member listing for the admin organization detail view. Ordered by
-   * role, then user name, with member id as a stable cursor tiebreaker.
-   */
+  /** Ordered by role, then user name, with member id as a stable cursor tiebreaker. */
   async function listMembersForAdminOverview(
     params: {
       organizationId: string;

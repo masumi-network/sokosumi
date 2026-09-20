@@ -24,9 +24,7 @@ export interface SokoBotSystemSchedule {
   name: string;
   /** Cron in the bot's timezone. */
   cronExpression: string;
-  /** Owner-facing one-liner. */
   description: string;
-  /** What the bot is asked to do; Core appends the live packet. */
   prompt: string;
 }
 
@@ -105,7 +103,6 @@ export const SOKO_BOT_PROACTIVE_RULES: readonly SokoBotProactiveRule[] = [
 
 export interface SokoBotDueFollowUp {
   text: string;
-  /** YYYY-MM-DD found in the entry. */
   date: string;
   overdue: boolean;
 }

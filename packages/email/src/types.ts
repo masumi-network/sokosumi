@@ -48,27 +48,11 @@ export interface JobFailureNotificationEmailProps extends LocalizedEmailProps {
   resultHash: null | string;
 }
 
-/**
- * What every reminder email needs (SOK-916).
- *
- * `actionUrl` is the same destination the in-app reminder opens, so the two
- * surfaces cannot disagree about where the thing lives. The name is optional
- * because the account may not carry one, and each renderer greets without it
- * rather than greeting a blank.
- */
 export interface NotificationFollowUpEmailProps extends LocalizedEmailProps {
   actionUrl: string;
   recipientName?: null | string;
 }
 
-/**
- * The message itself, as the notification stored it.
- *
- * Core keeps a preview on the chat notification row and takes it back when the
- * message is edited or deleted, so this is what the reader's Notification
- * Center says too. Absent when there is nothing to show: a deleted message, or
- * a body that cleans to nothing once an unnamed mention is taken out of it.
- */
 interface QuotedChatMessage {
   messagePreview?: null | string;
 }
@@ -86,13 +70,7 @@ export interface ChatDirectMessageFollowUpEmailProps
   authorName?: null | string;
 }
 
-/**
- * Why a task is waiting, in the words of the notification that said so.
- *
- * The same six keys Core calls task attention. A union rather than a string,
- * because each one names a sentence in the catalogs and a key with no sentence
- * must not be able to reach them.
- */
+/** Catalog sentence keys; a string would let an unknown key fail to resolve. */
 export type TaskFollowUpReason =
   | "approvalRequired"
   | "assigned"
@@ -102,7 +80,6 @@ export type TaskFollowUpReason =
   | "scheduleRemovedByOperator";
 
 export interface TaskFollowUpEmailProps extends NotificationFollowUpEmailProps {
-  /** Whoever the task is waiting on the reader for. */
   coworkerName?: null | string;
   projectName?: null | string;
   reason?: null | TaskFollowUpReason;
