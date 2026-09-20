@@ -26,14 +26,7 @@ import {
 import type { Agent } from "../types/agent.js";
 import { safeAddPathComponent } from "../utils/url.js";
 
-/**
- * Configuration for the agent client.
- */
 export interface AgentClientConfig {
-  /**
-   * Optional error tracking function.
-   * Called when errors occur during agent API operations.
-   */
   onError?: (error: {
     type:
       | "http_error"
@@ -115,9 +108,6 @@ function classifyStartJobHttpFailure(
   return ambiguous(detailedMessage);
 }
 
-/**
- * Creates an agent client with the provided configuration.
- */
 export function createAgentClient(config?: AgentClientConfig) {
   function getAgentUrlWithPathComponent(
     agent: Agent,
@@ -499,7 +489,6 @@ export function createAgentClient(config?: AgentClientConfig) {
         const parsedResult = inputSchemaSchema.safeParse(responseData);
 
         if (!parsedResult.success) {
-          // Log schema validation errors
           logError(
             "schema_validation_error",
             "fetchInputSchema",
@@ -507,7 +496,7 @@ export function createAgentClient(config?: AgentClientConfig) {
             "Agent returned invalid input schema format",
             {
               issues: parsedResult.error.issues,
-              // Sanitize the response data to avoid logging sensitive information
+              // Keys only: avoid logging the schema body.
               responseDataKeys:
                 responseData && typeof responseData === "object"
                   ? Object.keys(responseData)
@@ -521,7 +510,6 @@ export function createAgentClient(config?: AgentClientConfig) {
         const inputSchema = parsedResult.data;
         return ok(inputSchema);
       } catch (error) {
-        // Log network errors and other unexpected errors
         const errorMessage =
           error instanceof Error ? error.message : String(error);
         const isNetworkError =
