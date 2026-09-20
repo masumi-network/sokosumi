@@ -37,8 +37,12 @@ import { Prisma, Agent, User, Job } from "@sokosumi/database";
 ### Client Export (`@sokosumi/database/client`)
 
 - **Purpose**: Factory function to create Prisma client instances
-- **Includes**: `createPrismaClient(databaseUrl: string)` and `PrismaRaw` (client Prisma namespace for tagged SQL)
+- **Includes**: `createPrismaClient(poolOrUrl: string | Pool, options?: PrismaClientPoolOptions)` and `PrismaRaw` (client Prisma namespace for tagged SQL)
 - **Use in**: Server-side code only
+
+Connection-string callers receive TCP keepalive with a 10-second initial delay.
+Supplied pools retain caller-owned configuration and lifetime: Prisma disconnect
+does not close them. Options expose `onPoolError` and `onConnectionError` callbacks.
 
 ```typescript
 import { createPrismaClient } from "@sokosumi/database/client";
@@ -130,12 +134,12 @@ export const userRepository = {
 
 **Only Core** creates a Prisma client (`apps/core/src/lib/db/prisma.ts`). Web must not import `@sokosumi/database` or create a client — it reaches data through the Core API.
 
-```typescript
-// apps/core/src/lib/db/prisma.ts
-import { createPrismaClient } from "@sokosumi/database/client";
+Core's singleton owns a `pg.Pool`, preserves TCP keepalive, attaches Vercel's idle
+connection cleanup, and reports adapter errors to Sentry. Import that singleton
+in routes and services; do not construct additional pools there.
 
-const prisma = createPrismaClient(process.env.DATABASE_URL!);
-export default prisma;
+```typescript
+import prisma from "@/lib/db/prisma";
 ```
 
 ## Best Practices

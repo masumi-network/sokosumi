@@ -1,4 +1,4 @@
-import { Pool } from "pg";
+import { Client, Pool } from "pg";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createPrismaClient } from "./client.js";
@@ -75,6 +75,29 @@ describe("createPrismaClient", () => {
       await expect(prisma.$queryRaw`SELECT 42 AS value`).rejects.toThrow(
         "Connection terminated unexpectedly",
       );
+    } finally {
+      await prisma.$disconnect();
+      await pool.end();
+    }
+  });
+
+  it("reports errors from a connection checked out by a transaction", async () => {
+    const pool = new Pool({ connectionString: DATABASE_URL });
+    const connection = Object.assign(new Client(), { release: vi.fn() });
+    vi.spyOn(pool, "connect").mockImplementation(() =>
+      Promise.resolve(connection),
+    );
+    vi.spyOn(connection, "query").mockImplementation(() =>
+      Promise.resolve(QUERY_RESULT),
+    );
+    const onConnectionError = vi.fn();
+    const prisma = createPrismaClient(pool, { onConnectionError });
+    const error = new Error("Transaction connection terminated unexpectedly");
+    try {
+      await prisma.$transaction(async () => {
+        connection.emit("error", error);
+        expect(onConnectionError).toHaveBeenCalledWith(error);
+      });
     } finally {
       await prisma.$disconnect();
       await pool.end();
