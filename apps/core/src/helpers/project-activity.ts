@@ -79,6 +79,17 @@ interface ProjectActivityPageParams {
   cursor?: string;
   take: number;
   visibility: { task: PrismaRaw.Sql; job: PrismaRaw.Sql };
+  search?: string;
+}
+
+/**
+ * ILIKE treats `%` and `_` as wildcards, so a name search for "50%" would
+ * otherwise match everything after "50". Escaping them (and the escape
+ * character itself) keeps the query a literal substring match.
+ */
+export function projectNameSearchPattern(search: string): string {
+  const escaped = search.replace(/[\\%_]/g, (match) => `\\${match}`);
+  return `%${escaped}%`;
 }
 
 /** Global database ordering, before LIMIT. Metadata/report refreshes do not
@@ -91,6 +102,7 @@ export function projectActivityPageQuery({
   cursor,
   take,
   visibility,
+  search,
 }: ProjectActivityPageParams) {
   const boundary = cursor
     ? decodeProjectActivityCursor(cursor, workspaceId)
@@ -120,6 +132,11 @@ export function projectActivityPageQuery({
       SELECT p.id, GREATEST(p."createdAt", MAX(a.at)) AS "lastActivityAt"
       FROM project p LEFT JOIN activity a ON a."projectId" = p.id
       WHERE p."workspaceId" = ${workspaceId}::uuid
+      ${
+        search
+          ? PrismaRaw.sql`AND p.name ILIKE ${projectNameSearchPattern(search)} ESCAPE '\\'`
+          : PrismaRaw.empty
+      }
       GROUP BY p.id, p."createdAt"
     )
     SELECT r.id, r."lastActivityAt" FROM ranked r

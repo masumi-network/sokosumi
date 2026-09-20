@@ -42,6 +42,17 @@ const query = cursorPaginationQuerySchema
         description:
           "Opaque activity cursor returned in nextCursor by the previous page",
       }),
+    q: z
+      .string()
+      .trim()
+      .min(1)
+      .max(200)
+      .optional()
+      .openapi({
+        param: { name: "q", in: "query" },
+        description:
+          "Case-insensitive substring match on the project name, applied across the whole workspace before pagination",
+      }),
   })
   .openapi("ProjectPaginationQuery");
 
@@ -75,7 +86,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const queryParams = c.req.valid("query");
     const { cursor, take } = parseCursorPagination(queryParams);
 
-    const where = { workspaceId: workspaceContext.workspaceId };
+    const search = queryParams.q;
+    // The count has to carry the same filter as the ranked query, or the
+    // pagination total describes a different set than the rows do.
+    const where = {
+      workspaceId: workspaceContext.workspaceId,
+      ...(search
+        ? { name: { contains: search, mode: "insensitive" as const } }
+        : {}),
+    };
     const takePlusOne = take + 1;
     const visibility = await resolveProjectReaderVisibility(
       c.var.authContext,
@@ -96,6 +115,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         cursor,
         take: takePlusOne,
         visibility: activityVisibility,
+        search,
       }),
     );
     const page = ranked.slice(0, take);

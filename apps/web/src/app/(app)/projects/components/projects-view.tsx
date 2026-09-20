@@ -24,6 +24,7 @@ import {
   useCreateProjectModal,
 } from "./create-project-modal";
 import { ProjectListItem } from "./project-list-item";
+import { ProjectsFilter, type ProjectsFilterLabels } from "./projects-filter";
 
 export interface ProjectsViewLabels {
   newProject: string;
@@ -41,11 +42,15 @@ export interface ProjectsViewLabels {
   };
   lastActivity: string;
   created: string;
+  filter: ProjectsFilterLabels;
+  sortedBy: string;
+  noMatches: string;
 }
 
 interface ProjectsViewProps {
   projects: ProjectListItemType[];
   nextCursor: string | null;
+  query: string;
   initialCreateProjectOpen: boolean;
   createProjectModalResetKey: string;
   labels: ProjectsViewLabels;
@@ -66,6 +71,7 @@ function ProjectsMobileCreateFabSlot() {
 export function ProjectsView({
   projects,
   nextCursor,
+  query,
   initialCreateProjectOpen,
   createProjectModalResetKey,
   labels,
@@ -74,6 +80,7 @@ export function ProjectsView({
   const [cursor, setCursor] = useState(nextCursor);
   const [isPending, startTransition] = useTransition();
   const hasLoadedProjects = items.length > 0;
+  const isFiltering = query.length > 0;
   const showEmptyState = !hasLoadedProjects && cursor === null;
 
   function handleLoadMore() {
@@ -81,7 +88,7 @@ export function ProjectsView({
 
     startTransition(async () => {
       try {
-        const result = await loadMoreProjects({ cursor });
+        const result = await loadMoreProjects({ cursor, query });
         setItems((prev) => appendUniqueProjects(prev, result.projects));
         setCursor(result.nextCursor);
       } catch {
@@ -100,6 +107,16 @@ export function ProjectsView({
       >
         <div className="hidden justify-end md:flex">
           <AddProjectButton label={labels.newProject} className="self-start" />
+        </div>
+
+        <div className="flex items-center gap-3">
+          <ProjectsFilter labels={labels.filter} />
+          {/* Plain text, not a control: the Core route has one fixed
+              ordering, so a chip here would promise a menu that cannot
+              exist yet. */}
+          <span className="text-muted-foreground shrink-0 text-xs whitespace-nowrap">
+            {labels.sortedBy}
+          </span>
         </div>
 
         {hasLoadedProjects ? (
@@ -125,7 +142,11 @@ export function ProjectsView({
             </div>
           </div>
         ) : showEmptyState ? (
-          <ProjectsEmptyState labels={labels.empty} />
+          isFiltering ? (
+            <ProjectsNoMatches message={labels.noMatches} />
+          ) : (
+            <ProjectsEmptyState labels={labels.empty} />
+          )
         ) : null}
 
         {cursor ? (
@@ -150,6 +171,20 @@ export function ProjectsView({
       <ProjectsMobileCreateFabSlot />
       <CreateProjectModal />
     </CreateProjectModalProvider>
+  );
+}
+
+function ProjectsNoMatches({ message }: { message: string }) {
+  return (
+    <div
+      data-testid="projects-no-matches"
+      className={cn(
+        "bg-card-background border-border flex flex-col items-center justify-center rounded-xl border px-6 py-12 text-center",
+        PROJECTS_LIST_CARD_MIN_H_CLASS,
+      )}
+    >
+      <p className="text-muted-foreground text-sm">{message}</p>
+    </div>
   );
 }
 

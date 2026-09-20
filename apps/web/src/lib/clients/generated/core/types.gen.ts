@@ -30885,6 +30885,10 @@ export type GetProjectsData = {
          * Number of items to return (max 100)
          */
         limit?: number;
+        /**
+         * Case-insensitive substring match on the project name, applied across the whole workspace before pagination
+         */
+        q?: string;
     };
     url: '/projects';
 };

@@ -164,6 +164,46 @@ describe("GET /projects", () => {
     });
   });
 
+  it("filters the ranked query and the total by the q parameter", async () => {
+    const project = createProjectRow({ name: "Autumn Launch" });
+    projectFindManyMock.mockResolvedValue([project]);
+    queryRawMock.mockResolvedValue([
+      { id: project.id, lastActivityAt: project.updatedAt },
+    ]);
+    projectCountMock.mockResolvedValue(1);
+
+    const res = await createApp().request("http://localhost/?q=autumn");
+
+    expect(res.status).toBe(200);
+    expect(queryRawMock.mock.calls[0][0].values).toEqual(
+      expect.arrayContaining(["%autumn%"]),
+    );
+    expect(projectCountMock).toHaveBeenCalledWith({
+      where: {
+        workspaceId: WORKSPACE_CONTEXT.workspaceId,
+        name: { contains: "autumn", mode: "insensitive" },
+      },
+    });
+  });
+
+  it("escapes ILIKE wildcards so a search stays a literal substring", async () => {
+    const res = await createApp().request("http://localhost/?q=50%25_off");
+
+    expect(res.status).toBe(200);
+    expect(queryRawMock.mock.calls[0][0].values).toEqual(
+      expect.arrayContaining(["%50\\%\\_off%"]),
+    );
+  });
+
+  it("leaves the query unfiltered when q is absent", async () => {
+    const res = await createApp().request("http://localhost/");
+
+    expect(res.status).toBe(200);
+    expect(projectCountMock).toHaveBeenCalledWith({
+      where: { workspaceId: WORKSPACE_CONTEXT.workspaceId },
+    });
+  });
+
   it("returns each project's lastActivityAt from its ranked row", async () => {
     const project = createProjectRow();
     const lastActivityAt = new Date("2026-04-09T08:30:00.000Z");
