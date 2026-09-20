@@ -28,7 +28,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import useModal from "@/hooks/use-modal";
 import { WorkspaceGateErrorCode } from "@/lib/actions/errors";
-import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate";
+import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate/action";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 

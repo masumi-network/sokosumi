@@ -1,9 +1,9 @@
 import { headers } from "next/headers";
 import { getMessages } from "next-intl/server";
 import { Suspense } from "react";
-import { userService } from "@/lib/services";
 import { adminOrganizationService } from "@/lib/services/admin-organization.service";
 import { developerCoworkerService } from "@/lib/services/developer-coworker.service";
+import { userService } from "@/lib/services/user.service";
 import { vendorService } from "@/lib/services/vendor.service";
 import type { OrganizationWithLimitedInfo } from "@/lib/types/core-dto";
 

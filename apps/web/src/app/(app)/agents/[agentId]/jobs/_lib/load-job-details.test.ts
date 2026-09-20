@@ -24,7 +24,7 @@ vi.mock("@/lib/auth/auth.server", () => ({
   getSession: getSessionMock,
 }));
 
-vi.mock("@/lib/services", () => ({
+vi.mock("@/lib/services/user.service", () => ({
   userService: {
     getWorkspaceAccess: (...args: unknown[]) => getWorkspaceAccessMock(...args),
   },
@@ -52,8 +52,10 @@ vi.mock("@/lib/services/project.service", () => ({
   },
 }));
 
-vi.mock("@/queries", () => ({
+vi.mock("@/queries/jobs", () => ({
   getJobQueryKey: (jobId: string) => ["jobs", jobId],
+}));
+vi.mock("@/queries/get-query-client", () => ({
   getQueryClient: () => ({
     setQueryData: setQueryDataMock,
   }),

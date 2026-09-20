@@ -209,12 +209,6 @@ Map your file to the canonical kind instead:
 | Markdown / plain text | `text` |
 | Web page / interactive HTML | `html` |
 
-> ⚠️ Extensions like `docx`/`xlsx`/`pptx` are accepted **only as a fallback on the
-> latest deployment** (normalized to `doc`/`sheet`/`slides`). On an older
-> deployment they are **rejected**, and an invalid `type` **breaks the entire
-> coworker list** (the page won't load). The canonical names are always correct,
-> so use them. Any value outside the canonical list (e.g. `zip`) is rejected.
-
 ### `url` vs `text`
 
 - **`url`** — a hosted file. Must be **publicly reachable**.
@@ -357,20 +351,3 @@ shown first. Note the canonical types: a Word file is `doc` and a spreadsheet is
 - **Hosted files must be public** and (for `html`) embeddable in an iframe.
 - **`email`/`whatsapp` are plain strings** — not Markdown links.
 - `outputs` has no "folder" concept — list each file as its own entry.
-
-### Deployment / compatibility (read this)
-
-Not every type is live everywhere yet. Pick by where you're editing:
-
-| Type | Availability |
-| --- | --- |
-| `pdf`, `image`, `slides`, `doc`, `text` | **Safe everywhere** |
-| `html` | Needs a recent deployment |
-| `sheet` | Newest — needs the latest deployment |
-| extension aliases (`docx`, `xlsx`, `pptx`, …) | Latest only — **avoid; use canonical types** |
-
-Using a type the target environment doesn't have yet is rejected and **breaks the
-whole page**. On the **current mainnet** the safe set is
-`pdf · image · slides · doc · text · html`. If unsure, confirm the environment is
-up to date (or use `pdf`, which works everywhere) before using `sheet`. Never use
-extension aliases.

@@ -17,7 +17,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { CommonErrorCode, JobErrorCode, updateJobName } from "@/lib/actions";
+import { CommonErrorCode, JobErrorCode } from "@/lib/actions/errors";
+import { updateJobName } from "@/lib/actions/job/action";
 import type { Job } from "@/lib/clients/generated/core";
 import {
   type JobDetailsNameFormSchemaType,

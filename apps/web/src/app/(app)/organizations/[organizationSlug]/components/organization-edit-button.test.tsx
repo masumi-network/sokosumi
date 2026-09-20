@@ -37,8 +37,9 @@ vi.mock("next-intl", () => ({
       segments.join("."),
 }));
 
-vi.mock("@/lib/actions/organization", () => ({
+vi.mock("@/lib/actions/organization/action", () => ({
   updatePreferredOrganization: vi.fn(),
+  generateOrganizationSlug: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/auth.client", () => ({
@@ -48,10 +49,6 @@ vi.mock("@/lib/auth/auth.client", () => ({
       update: vi.fn(),
     },
   },
-}));
-
-vi.mock("@/lib/actions", () => ({
-  generateOrganizationSlug: vi.fn(),
 }));
 
 vi.mock("@/lib/utils/organization-logo-upload.client", () => ({

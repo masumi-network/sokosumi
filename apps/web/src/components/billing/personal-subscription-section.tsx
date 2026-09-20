@@ -10,7 +10,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CommonErrorCode } from "@/lib/actions/errors";
-import { upgradePersonalSubscription } from "@/lib/actions/subscription";
+import { upgradePersonalSubscription } from "@/lib/actions/subscription/action";
 import { fireGTMEvent } from "@/lib/gtm-events";
 
 import { SubscriptionFreePlanRow } from "./subscription-free-plan-row";

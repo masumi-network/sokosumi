@@ -9,7 +9,7 @@ import { createModalContext } from "@/components/common/modal-context";
 import type {
   BetterAuthClientError,
   BetterAuthClientResult,
-} from "@/lib/actions";
+} from "@/lib/actions/errors";
 import { authClient } from "@/lib/auth/auth.client";
 import type { PendingInvitation } from "@/lib/clients/generated/core";
 

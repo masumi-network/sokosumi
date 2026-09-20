@@ -7,8 +7,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useCollectUserName } from "@/components/auth/collect-user-name";
 import { Button } from "@/components/ui/button";
-import { acceptOrganizationInviteLink } from "@/lib/actions";
-import { clearPendingOrganizationJoinCookieAction } from "@/lib/actions/workspace-gate";
+import { acceptOrganizationInviteLink } from "@/lib/actions/organization/invite-link-action";
+import { clearPendingOrganizationJoinCookieAction } from "@/lib/actions/workspace-gate/action";
 import { activateOrganizationWorkspaceWithRetry } from "@/lib/activate-organization-workspace";
 import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
 

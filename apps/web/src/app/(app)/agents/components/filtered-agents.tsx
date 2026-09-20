@@ -7,7 +7,7 @@ import {
   Agents,
   AgentsNotAvailable,
   AgentsNotFound,
-} from "@/components/agents";
+} from "@/components/agents/agents";
 import useGalleryFilter from "@/hooks/use-gallery-filter";
 import type { CatalogBrowseAgent } from "@/lib/agents/catalog-browse-agent";
 import type { GalleryFilterState } from "@/lib/agents/gallery-filter";

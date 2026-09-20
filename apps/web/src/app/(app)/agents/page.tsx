@@ -8,7 +8,7 @@ import {
   CreateTaskModalProvider,
 } from "@/app/tasks/components/create-task-modal";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
-import { AgentsNotAvailable, AgentsSkeleton } from "@/components/agents";
+import { AgentsNotAvailable, AgentsSkeleton } from "@/components/agents/agents";
 import { CoworkerGallerySection } from "@/components/agents/coworker-gallery-section";
 import { Skeleton } from "@/components/ui/skeleton";
 import { mapAgentListItemToCatalogBrowseAgent } from "@/lib/agents/catalog-browse-agent";

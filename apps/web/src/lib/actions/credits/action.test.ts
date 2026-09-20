@@ -16,7 +16,7 @@ vi.mock("@/middleware/auth-middleware", () => ({
       await handler(params),
 }));
 
-vi.mock("@/lib/services", () => ({
+vi.mock("@/lib/services/user.service", () => ({
   userService: {
     getMyMemberInOrganization: (...args: unknown[]) =>
       getMyMemberInOrganizationMock(...args),

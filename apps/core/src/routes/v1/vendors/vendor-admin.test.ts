@@ -38,6 +38,12 @@ const {
   userFindUniqueMock,
   userFindFirstMock,
   transactionMock,
+  txVendorMemberFindFirstMock,
+  txVendorMemberCountMock,
+  txVendorMemberFindUniqueMock,
+  txVendorMemberUpdateMock,
+  txVendorMemberDeleteMock,
+  txCoworkerAssignmentDeleteManyMock,
 } = vi.hoisted(() => ({
   vendorFindUniqueMock: vi.fn(),
   vendorUpdateMock: vi.fn(),
@@ -55,6 +61,12 @@ const {
   userFindUniqueMock: vi.fn(),
   userFindFirstMock: vi.fn(),
   transactionMock: vi.fn(),
+  txVendorMemberFindFirstMock: vi.fn(),
+  txVendorMemberCountMock: vi.fn(),
+  txVendorMemberFindUniqueMock: vi.fn(),
+  txVendorMemberUpdateMock: vi.fn(),
+  txVendorMemberDeleteMock: vi.fn(),
+  txCoworkerAssignmentDeleteManyMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -143,18 +155,36 @@ describe("vendor admin APIs", () => {
     vendorFindUniqueMock.mockResolvedValue({ id: testVendor.id });
     vendorMemberFindFirstMock.mockResolvedValue(null);
     vendorMemberFindUniqueMock.mockResolvedValue(null);
-    vendorMemberCountMock.mockResolvedValue(2);
     coworkerFindFirstMock.mockResolvedValue({ id: "cow_123" });
     userFindUniqueMock.mockResolvedValue({ id: "dev_user" });
     userFindFirstMock.mockResolvedValue({ id: "dev_user" });
+    txVendorMemberFindFirstMock.mockResolvedValue(null);
+    txVendorMemberCountMock.mockResolvedValue(2);
+    txVendorMemberFindUniqueMock.mockResolvedValue(null);
+    txVendorMemberUpdateMock.mockResolvedValue({
+      role: "admin",
+      user: {
+        id: "dev_user",
+        email: "dev@example.com",
+        name: "Dev User",
+      },
+    });
+    txVendorMemberDeleteMock.mockResolvedValue({ id: "vm_dev" });
+    txCoworkerAssignmentDeleteManyMock.mockResolvedValue({ count: 1 });
+    // The tx double uses its own spies so a write that slips back onto the
+    // top-level client fails the SOK-1024 assertions below.
     transactionMock.mockImplementation(
       async (callback: (tx: unknown) => Promise<unknown>) =>
         callback({
           coworkerAssignment: {
-            deleteMany: coworkerAssignmentDeleteManyMock,
+            deleteMany: txCoworkerAssignmentDeleteManyMock,
           },
           vendorMember: {
-            delete: vendorMemberDeleteMock,
+            findFirst: txVendorMemberFindFirstMock,
+            count: txVendorMemberCountMock,
+            findUnique: txVendorMemberFindUniqueMock,
+            update: txVendorMemberUpdateMock,
+            delete: txVendorMemberDeleteMock,
           },
         }),
     );
@@ -170,14 +200,6 @@ describe("vendor admin APIs", () => {
     ]);
     vendorMemberCreateMock.mockResolvedValue({
       role: "developer",
-      user: {
-        id: "dev_user",
-        email: "dev@example.com",
-        name: "Dev User",
-      },
-    });
-    vendorMemberUpdateMock.mockResolvedValue({
-      role: "admin",
       user: {
         id: "dev_user",
         email: "dev@example.com",
@@ -205,7 +227,6 @@ describe("vendor admin APIs", () => {
       },
     ]);
     coworkerAssignmentDeleteManyMock.mockResolvedValue({ count: 1 });
-    vendorMemberDeleteMock.mockResolvedValue({ id: "vm_dev" });
   });
 
   it("lists vendor memberships for the authenticated user", async () => {
@@ -384,7 +405,7 @@ describe("vendor admin APIs", () => {
   it("patches vendor member role by user id", async () => {
     mockVendorAdmin();
     userFindUniqueMock.mockResolvedValue({ id: "dev_user" });
-    vendorMemberFindUniqueMock.mockResolvedValue({ role: "developer" });
+    txVendorMemberFindUniqueMock.mockResolvedValue({ role: "developer" });
 
     const app = createApp(userAuth);
     const response = await app.request(
@@ -397,7 +418,7 @@ describe("vendor admin APIs", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(vendorMemberUpdateMock).toHaveBeenCalledWith({
+    expect(txVendorMemberUpdateMock).toHaveBeenCalledWith({
       where: {
         vendorId_userId: {
           vendorId: testVendor.id,
@@ -414,14 +435,12 @@ describe("vendor admin APIs", () => {
   });
 
   it("demotes an admin to developer when another admin remains", async () => {
-    vendorFindUniqueMock.mockResolvedValue({ id: testVendor.id });
+    mockVendorAdmin();
     userFindUniqueMock.mockResolvedValue({ id: "other_admin" });
-    vendorMemberFindUniqueMock.mockResolvedValue({ role: "admin" });
-    vendorMemberFindFirstMock
-      .mockResolvedValueOnce({ id: "vm_admin" })
-      .mockResolvedValueOnce({ role: "admin" });
-    vendorMemberCountMock.mockResolvedValue(2);
-    vendorMemberUpdateMock.mockResolvedValue({
+    txVendorMemberFindUniqueMock.mockResolvedValue({ role: "admin" });
+    txVendorMemberFindFirstMock.mockResolvedValue({ role: "admin" });
+    txVendorMemberCountMock.mockResolvedValue(2);
+    txVendorMemberUpdateMock.mockResolvedValue({
       role: "developer",
       user: {
         id: "other_admin",
@@ -441,21 +460,95 @@ describe("vendor admin APIs", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(vendorMemberCountMock).toHaveBeenCalled();
-    expect(vendorMemberUpdateMock).toHaveBeenCalledWith(
+    // SOK-1024: the last-admin check and the write share one Serializable
+    // transaction, so a concurrent demote/remove cannot both pass the guard.
+    expect(transactionMock).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: "Serializable",
+    });
+    expect(txVendorMemberCountMock).toHaveBeenCalled();
+    expect(vendorMemberCountMock).not.toHaveBeenCalled();
+    expect(txVendorMemberUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: { role: "developer" },
       }),
     );
+    expect(vendorMemberUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when patching a member the vendor does not have", async () => {
+    mockVendorAdmin();
+    userFindUniqueMock.mockResolvedValue({ id: "stranger" });
+    txVendorMemberFindUniqueMock.mockResolvedValue(null);
+
+    const app = createApp(userAuth);
+    const response = await app.request(
+      `http://localhost/${testVendor.id}/members/stranger`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: "developer" }),
+      },
+    );
+
+    expect(response.status).toBe(404);
+    expect(txVendorMemberUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when the role patch keeps losing the serialization race", async () => {
+    mockVendorAdmin();
+    userFindUniqueMock.mockResolvedValue({ id: "other_admin" });
+    transactionMock.mockRejectedValue(
+      Object.assign(new Error("Transaction failed"), { code: "P2034" }),
+    );
+    vi.useFakeTimers();
+    try {
+      const app = createApp(userAuth);
+      const pending = app.request(
+        `http://localhost/${testVendor.id}/members/other_admin`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ role: "developer" }),
+        },
+      );
+      await vi.runAllTimersAsync();
+      const response = await pending;
+
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({
+        kind: "concurrency_conflict",
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("blocks demoting the last admin inside the transaction", async () => {
+    mockVendorAdmin();
+    userFindUniqueMock.mockResolvedValue({ id: "other_admin" });
+    txVendorMemberFindUniqueMock.mockResolvedValue({ role: "admin" });
+    txVendorMemberFindFirstMock.mockResolvedValue({ role: "admin" });
+    txVendorMemberCountMock.mockResolvedValue(1);
+
+    const app = createApp(userAuth);
+    const response = await app.request(
+      `http://localhost/${testVendor.id}/members/other_admin`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: "developer" }),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    expect(transactionMock).toHaveBeenCalledOnce();
+    expect(txVendorMemberUpdateMock).not.toHaveBeenCalled();
   });
 
   it("removes a vendor member and clears coworker assignments", async () => {
     mockVendorAdmin();
     userFindUniqueMock.mockResolvedValue({ id: "dev_user" });
-    vendorMemberFindFirstMock
-      .mockResolvedValueOnce({ id: "vm_admin" })
-      .mockResolvedValueOnce({ role: "developer" });
-    vendorMemberFindUniqueMock.mockResolvedValue({ id: "vm_dev" });
+    txVendorMemberFindFirstMock.mockResolvedValue({ role: "developer" });
 
     const app = createApp(userAuth);
     const response = await app.request(
@@ -464,13 +557,13 @@ describe("vendor admin APIs", () => {
     );
 
     expect(response.status).toBe(204);
-    expect(coworkerAssignmentDeleteManyMock).toHaveBeenCalledWith({
+    expect(txCoworkerAssignmentDeleteManyMock).toHaveBeenCalledWith({
       where: {
         userId: "dev_user",
         coworker: { vendorId: testVendor.id },
       },
     });
-    expect(vendorMemberDeleteMock).toHaveBeenCalledWith({
+    expect(txVendorMemberDeleteMock).toHaveBeenCalledWith({
       where: {
         vendorId_userId: {
           vendorId: testVendor.id,
@@ -478,6 +571,70 @@ describe("vendor admin APIs", () => {
         },
       },
     });
+    expect(transactionMock).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: "Serializable",
+    });
+    expect(coworkerAssignmentDeleteManyMock).not.toHaveBeenCalled();
+    expect(vendorMemberDeleteMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when removing a member the vendor does not have", async () => {
+    mockVendorAdmin();
+    userFindUniqueMock.mockResolvedValue({ id: "stranger" });
+    txVendorMemberFindFirstMock.mockResolvedValue(null);
+
+    const app = createApp(userAuth);
+    const response = await app.request(
+      `http://localhost/${testVendor.id}/members/stranger`,
+      { method: "DELETE" },
+    );
+
+    expect(response.status).toBe(404);
+    expect(txCoworkerAssignmentDeleteManyMock).not.toHaveBeenCalled();
+    expect(txVendorMemberDeleteMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when the removal keeps losing the serialization race", async () => {
+    mockVendorAdmin();
+    userFindUniqueMock.mockResolvedValue({ id: "other_admin" });
+    transactionMock.mockRejectedValue(
+      Object.assign(new Error("Transaction failed"), { code: "P2034" }),
+    );
+    vi.useFakeTimers();
+    try {
+      const app = createApp(userAuth);
+      const pending = app.request(
+        `http://localhost/${testVendor.id}/members/other_admin`,
+        { method: "DELETE" },
+      );
+      await vi.runAllTimersAsync();
+      const response = await pending;
+
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({
+        kind: "concurrency_conflict",
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("blocks removing the last admin inside the transaction", async () => {
+    mockVendorAdmin();
+    userFindUniqueMock.mockResolvedValue({ id: "other_admin" });
+    txVendorMemberFindFirstMock.mockResolvedValue({ role: "admin" });
+    txVendorMemberCountMock.mockResolvedValue(1);
+
+    const app = createApp(userAuth);
+    const response = await app.request(
+      `http://localhost/${testVendor.id}/members/other_admin`,
+      { method: "DELETE" },
+    );
+
+    expect(response.status).toBe(400);
+    expect(transactionMock).toHaveBeenCalledOnce();
+    expect(txCoworkerAssignmentDeleteManyMock).not.toHaveBeenCalled();
+    expect(txVendorMemberDeleteMock).not.toHaveBeenCalled();
   });
 
   it("assigns a developer member to a vendor coworker", async () => {

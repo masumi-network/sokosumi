@@ -1,13 +1,12 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { notFound } from "@/helpers/error";
 import { jsonErrorResponse } from "@/helpers/openapi";
 import {
   assertCanRemoveOrDemoteVendorAdmin,
   requireVendorAdminMembership,
   resolveUserIdFromUserIdOrEmail,
 } from "@/helpers/vendor-membership";
-import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 
@@ -42,6 +41,7 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("Conflict"),
   },
 });
 
@@ -54,22 +54,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const targetUserId = await resolveUserIdFromUserIdOrEmail(userIdOrEmail);
 
-    await assertCanRemoveOrDemoteVendorAdmin(id, targetUserId);
-
-    const existing = await prisma.vendorMember.findUnique({
-      where: {
-        vendorId_userId: {
-          vendorId: id,
-          userId: targetUserId,
-        },
-      },
-      select: { id: true },
-    });
-    if (!existing) {
-      throw notFound("Vendor member not found");
-    }
-
-    await prisma.$transaction(async (tx) => {
+    // Serializable so the last-admin check (which also 404s a missing member)
+    // and the delete commit as one unit (SOK-1024): a concurrent demote/remove
+    // cannot both pass the guard.
+    await serializableTransaction(async (tx) => {
+      await assertCanRemoveOrDemoteVendorAdmin(id, targetUserId, tx);
       await tx.coworkerAssignment.deleteMany({
         where: {
           userId: targetUserId,
@@ -84,7 +73,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
         },
       });
-    });
+    }, "Vendor membership changed concurrently; retry the request");
 
     return c.body(null, 204);
   });

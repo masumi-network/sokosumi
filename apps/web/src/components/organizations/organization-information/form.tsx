@@ -32,7 +32,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { generateOrganizationSlug } from "@/lib/actions";
+import { generateOrganizationSlug } from "@/lib/actions/organization/action";
 import { authClient } from "@/lib/auth/auth.client";
 import type { OrganizationRecord } from "@/lib/clients/generated/core";
 import {

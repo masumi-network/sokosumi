@@ -64,13 +64,13 @@ vi.mock("sonner", () => ({
   },
 }));
 
-vi.mock("@/lib/actions", () => ({
+vi.mock("@/lib/actions/errors", () => ({
   AuthErrorCode: {
     TERMS_NOT_ACCEPTED: "TERMS_NOT_ACCEPTED",
   },
 }));
 
-vi.mock("@/lib/actions/auth", () => ({}));
+vi.mock("@/lib/actions/auth/action", () => ({}));
 
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
