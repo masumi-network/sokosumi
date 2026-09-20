@@ -175,6 +175,19 @@
           "scheduleRemovedByOperator": "La programación de {taskName} se eliminó tras una revisión hace un día y todavía no has abierto el aviso."
         }
       }
+    },
+    "billing": {
+      "linkInstructions": "O copia y pega esta URL en tu navegador:",
+      "footer": "Recibes este correo porque los avisos de facturación están activados en tus preferencias de notificaciones.",
+      "greeting": "Hola {name}",
+      "greetingWithoutName": "Hola",
+      "lowBalance": {
+        "subject": "Sokosumi - Tus créditos se están agotando",
+        "preview": "Te quedan {credits} créditos.",
+        "title": "Créditos agotándose",
+        "body": "Tus créditos se están agotando. Te quedan {credits}. El trabajo se detiene cuando se acaban.",
+        "button": "Añadir créditos"
+      }
     }
   }
 }

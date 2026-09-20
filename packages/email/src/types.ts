@@ -138,3 +138,8 @@ export type ChatDirectMessageFollowUpEmailProps = ChatDirectMessageEmailProps;
 export interface TaskFollowUpEmailProps extends TaskEmailProps {
   reason?: null | TaskAttentionReason;
 }
+
+/** A wallet that ran low. Stripe has no email for Sokosumi credits. */
+export interface BillingLowBalanceEmailProps extends NotificationEmailProps {
+  credits: number;
+}

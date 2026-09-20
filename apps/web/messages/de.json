@@ -4145,6 +4145,16 @@
         "presetTaskEssentialHint": "Nur Aufgaben, die auf dich warten, kommen als Push an. Abgeschlossene Aufgaben und andere Updates kommen nur in der App an.",
         "presetTaskAppOnlyHint": "Jede Aufgaben-Benachrichtigung kommt in der App an. Keine davon kommt als Push an.",
         "presetTaskOffHint": "Keine Aufgaben-Benachrichtigung kommt an, weder in der App noch als Push. Öffne die Gruppe, um eine einzelne wieder einzuschalten.",
+        "groupBilling": "Abrechnung",
+        "groupBillingDescription": "Knappe Credits, Zahlungen und Aufladungen.",
+        "kindBillingAttention": "Abrechnung, die auf dich wartet",
+        "kindBillingAttentionHint": "Deine Credits werden knapp, oder eine Zahlung ist fehlgeschlagen. Die Arbeit stoppt, wenn sich nichts ändert.",
+        "kindBillingUpdate": "Andere Abrechnungs-Updates",
+        "kindBillingUpdateHint": "Eine Aufladung ist angekommen, oder dein Abo endet zum Ende der Laufzeit. Für dich gibt es nichts zu tun.",
+        "presetBillingMostHint": "Abrechnung, die auf dich wartet, und andere Abrechnungs-Updates kommen in der App und als Push an.",
+        "presetBillingEssentialHint": "Nur Abrechnung, die auf dich wartet, kommt als Push an. Andere Abrechnungs-Updates kommen nur in der App an.",
+        "presetBillingAppOnlyHint": "Jede Abrechnungs-Benachrichtigung kommt in der App an. Keine davon kommt als Push an.",
+        "presetBillingOffHint": "Keine Abrechnungs-Benachrichtigung kommt an, weder in der App noch als Push. Öffne die Gruppe, um eine einzelne wieder einzuschalten.",
         "presetChatMostHint": "Jede Nachricht in deinen Räumen kommt in der App an. Erwähnungen und Direktnachrichten kommen zusätzlich als Push an.",
         "presetChatEssentialHint": "Erwähnungen und Direktnachrichten kommen als Push an. Jede Nachricht in deinen Räumen ist aus.",
         "presetChatAppOnlyHint": "Erwähnungen und Direktnachrichten kommen in der App an. Jede Nachricht in deinen Räumen ist aus, und nichts kommt als Push an.",
@@ -6489,6 +6499,12 @@
         "scheduleRemovedByOperator": "Der Zeitplan für {taskName} wurde nach der Prüfung entfernt",
         "assigned": "Dir wurde {taskName} zugewiesen",
         "followUp": "{taskName} wartet weiterhin auf dich"
+      },
+      "Billing": {
+        "lowBalance": "Deine Credits werden knapp: noch {credits}",
+        "paymentFailed": "Eine Abo-Zahlung ist fehlgeschlagen",
+        "creditsAdded": "{credits} Credits wurden deinem Guthaben gutgeschrieben",
+        "subscriptionEnding": "Dein Abo endet mit der aktuellen Laufzeit"
       },
       "Chat": {
         "mentioned": "{authorName} hat dich in {roomName} erwähnt",

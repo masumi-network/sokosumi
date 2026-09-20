@@ -175,6 +175,19 @@
           "scheduleRemovedByOperator": "Der Zeitplan für {taskName} wurde vor einem Tag nach einer Prüfung entfernt, und du hast den Hinweis noch nicht geöffnet."
         }
       }
+    },
+    "billing": {
+      "linkInstructions": "Oder kopiere diese URL in deinen Browser:",
+      "footer": "Du erhältst diese E-Mail, weil Abrechnungshinweise in deinen Benachrichtigungseinstellungen aktiviert sind.",
+      "greeting": "Hallo {name}",
+      "greetingWithoutName": "Hallo",
+      "lowBalance": {
+        "subject": "Sokosumi - Deine Credits werden knapp",
+        "preview": "Du hast noch {credits} Credits.",
+        "title": "Credits werden knapp",
+        "body": "Deine Credits werden knapp. Es sind noch {credits} übrig. Die Arbeit stoppt, wenn sie aufgebraucht sind.",
+        "button": "Credits aufladen"
+      }
     }
   }
 }

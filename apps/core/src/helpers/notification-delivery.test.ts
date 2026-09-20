@@ -1,5 +1,9 @@
 import { NotificationKind } from "@sokosumi/database";
 import {
+  BILLING_CREDITS_ADDED_MESSAGE_KEY,
+  BILLING_LOW_BALANCE_MESSAGE_KEY,
+  BILLING_PAYMENT_FAILED_MESSAGE_KEY,
+  BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
@@ -178,10 +182,45 @@ describe("toNotificationCategory", () => {
     ).toBeNull();
   });
 
-  it("has no category for billing, which nothing emits yet", () => {
+  /**
+   * Written out rather than read from the constant, so moving a key between
+   * the two lists is a test change and not a silent one.
+   */
+  it("splits billing into what waits on the reader and what does not", () => {
     expect(
-      toNotificationCategory(NotificationKind.BILLING, "whatever"),
-    ).toBeNull();
+      toNotificationCategory(
+        NotificationKind.BILLING,
+        BILLING_LOW_BALANCE_MESSAGE_KEY,
+      ),
+    ).toBe("BILLING_ATTENTION");
+    expect(
+      toNotificationCategory(
+        NotificationKind.BILLING,
+        BILLING_PAYMENT_FAILED_MESSAGE_KEY,
+      ),
+    ).toBe("BILLING_ATTENTION");
+    expect(
+      toNotificationCategory(
+        NotificationKind.BILLING,
+        BILLING_CREDITS_ADDED_MESSAGE_KEY,
+      ),
+    ).toBe("BILLING_UPDATE");
+    expect(
+      toNotificationCategory(
+        NotificationKind.BILLING,
+        BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY,
+      ),
+    ).toBe("BILLING_UPDATE");
+  });
+
+  /** The safe way round: an unknown key is never louder than the reader asked for. */
+  it("files a billing key it does not know under the quiet row", () => {
+    expect(
+      toNotificationCategory(
+        NotificationKind.BILLING,
+        "Notifications.Billing.wat",
+      ),
+    ).toBe("BILLING_UPDATE");
   });
 
   /**
@@ -190,13 +229,14 @@ describe("toNotificationCategory", () => {
    */
   it("has an answer for every kind Core can store", () => {
     const EXPECTED: Record<NotificationKind, NotificationCategory | null> = {
-      // Read with the mention key, which is no task key, so that one answers
-      // with its quiet row. A job answers with nothing at all (SOK-930).
+      // Read with the mention key, which is no task key and no billing key,
+      // so those two answer with their quiet rows. A job answers with nothing
+      // at all (SOK-930).
       JOB: null,
       TASK: "TASK_UPDATE",
       SYSTEM: "SYSTEM",
       CHAT: "CHAT_MENTION",
-      BILLING: null,
+      BILLING: "BILLING_UPDATE",
     };
 
     for (const kind of Object.values(NotificationKind)) {
@@ -384,7 +424,33 @@ describe("resolveNotificationDelivery for a reminder", () => {
 
     expect(delivery.inApp).toBe(true);
   });
+});
 
+describe("resolveNotificationDelivery for billing", () => {
+  it("emails billing that waits on the reader when they have set nothing", () => {
+    expect(
+      resolveNotificationDelivery({
+        category: "BILLING_ATTENTION",
+        preferences: [],
+        pushOptIn: false,
+      }),
+    ).toEqual({ inApp: true, osBanner: false, email: true });
+  });
+
+  it("does not email billing news, which Stripe already mails", () => {
+    expect(
+      resolveNotificationDelivery({
+        category: "BILLING_UPDATE",
+        preferences: [
+          { category: "BILLING_UPDATE", channel: "EMAIL", enabled: true },
+        ],
+        pushOptIn: false,
+      }).email,
+    ).toBe(false);
+  });
+});
+
+describe("resolveNotificationDelivery email gate", () => {
   it("sends no email for a category that has no email to send", () => {
     // Even with the row switched on. Nothing emails a task update, so a
     // stored row saying otherwise decides nothing.

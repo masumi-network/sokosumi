@@ -85,6 +85,21 @@ vi.mock("@sentry/node", () => ({
   captureException: sentryCaptureExceptionMock,
 }));
 
+const notifyLowBalanceAfterChargeMock = vi.fn().mockResolvedValue(undefined);
+const registerJobPurchaseMock = vi.fn();
+const actualPurchaseRegistration = await vi.importActual<
+  typeof import("@/helpers/job-purchase-registration")
+>("@/helpers/job-purchase-registration");
+
+vi.mock("@/helpers/job-purchase-registration", () => ({
+  registerJobPurchase: (...args: unknown[]) => registerJobPurchaseMock(...args),
+}));
+
+vi.mock("@/helpers/billing-notifications", () => ({
+  notifyLowBalanceAfterCharge: (...args: unknown[]) =>
+    notifyLowBalanceAfterChargeMock(...args),
+}));
+
 vi.mock("@/clients/openrouter.client", () => ({
   openrouterClient: {
     generateJobName: generateJobNameMock,
@@ -246,6 +261,9 @@ function createInput(overrides: Record<string, unknown> = {}) {
 describe("createAgentJobForUser schedule/max-cents behavior", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    registerJobPurchaseMock.mockImplementation(
+      actualPurchaseRegistration.registerJobPurchase,
+    );
     getCreditCostsOrThrowMock.mockResolvedValue([{ unit: "lovelace" }]);
     getCentsMock.mockResolvedValue(BigInt(1_000_000));
     getAgentCostMock.mockReturnValue({ cents: BigInt(0) });
@@ -318,6 +336,60 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     );
 
     expect(callOrder).toEqual(["fence", "seller"]);
+    // A free job takes no credits, so it never checks the balance.
+    expect(notifyLowBalanceAfterChargeMock).not.toHaveBeenCalled();
+  });
+
+  it("checks the wallet for a low balance only after a paid job committed", async () => {
+    getAgentCostMock.mockReturnValue({ cents: BigInt(5) });
+    const transactionClient = {
+      job: { create: txJobCreateMock },
+      agent: { update: txAgentUpdateMock },
+    };
+    let insideTransaction = false;
+    let notifiedInsideTransaction: boolean | null = null;
+    prismaTransactionMock.mockImplementation(async (operation: unknown) => {
+      if (Array.isArray(operation)) {
+        return await Promise.all(operation);
+      }
+      insideTransaction = true;
+      try {
+        return await (
+          operation as (tx: typeof transactionClient) => Promise<unknown>
+        )(transactionClient);
+      } finally {
+        insideTransaction = false;
+      }
+    });
+    notifyLowBalanceAfterChargeMock.mockImplementationOnce(async () => {
+      notifiedInsideTransaction = insideTransaction;
+    });
+
+    await createAgentJobForUser(createInput());
+
+    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledTimes(1);
+    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
+      userId: "user_1",
+      organizationId: "org_1",
+    });
+    expect(txJobCreateMock).toHaveBeenCalledOnce();
+    expect(notifiedInsideTransaction).toBe(false);
+  });
+
+  it("checks the wallet before purchase registration can throw the charge away", async () => {
+    agentFindFirstMock.mockResolvedValue(createPaidV1AgentRecord());
+    getAgentCostMock.mockReturnValue({ cents: BigInt(5) });
+    createAgentClientMock.mockReturnValue({
+      startPaidAgentJob: sellerResponding(paidV1JobResponse),
+    });
+    registerJobPurchaseMock.mockRejectedValue(new Error("payment node down"));
+
+    await expect(createAgentJobForUser(createInput())).rejects.toThrow(
+      "payment node down",
+    );
+
+    expect(txJobCreateMock).toHaveBeenCalledOnce();
+    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledTimes(1);
   });
 
   it("runs the local Job callback inside its creation transaction", async () => {

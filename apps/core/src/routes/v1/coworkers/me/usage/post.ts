@@ -5,8 +5,10 @@ import {
   creditBucketRepository,
 } from "@sokosumi/database/repositories";
 import { convertCentsToCredits, convertCreditsToCents } from "@sokosumi/utils";
+import { waitUntil } from "@vercel/functions";
 
 import { requireCoworkerCapability } from "@/helpers/access-control";
+import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
 import { badRequest, conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
@@ -202,6 +204,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const response = serializeUsage(result.usage);
 
     if (result.created) {
+      waitUntil(
+        notifyLowBalanceAfterCharge({
+          userId,
+          organizationId: organizationId ?? null,
+        }),
+      );
       return created(c, coworkerUsageSchema.parse(response));
     }
 

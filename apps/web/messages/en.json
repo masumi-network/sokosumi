@@ -4181,6 +4181,16 @@
         "presetTaskEssentialHint": "Only tasks waiting on you arrive as a push. Completed tasks and other updates arrive in the app only.",
         "presetTaskAppOnlyHint": "Every task notification arrives in the app. None of them arrive as a push.",
         "presetTaskOffHint": "No task notification arrives, in the app or as a push. Open the group to turn a single one back on.",
+        "groupBilling": "Billing",
+        "groupBillingDescription": "Credits running low, payments, and top-ups.",
+        "kindBillingAttention": "Billing waiting on you",
+        "kindBillingAttentionHint": "Your credits are running low, or a payment did not go through. Work stops if nothing changes.",
+        "kindBillingUpdate": "Other billing updates",
+        "kindBillingUpdateHint": "A top-up landed, or your subscription is set to end. Nothing for you to do.",
+        "presetBillingMostHint": "Billing waiting on you and other billing updates arrive in the app and as a push.",
+        "presetBillingEssentialHint": "Only billing waiting on you arrives as a push. Other billing updates arrive in the app only.",
+        "presetBillingAppOnlyHint": "Every billing notification arrives in the app. None of them arrive as a push.",
+        "presetBillingOffHint": "No billing notification arrives, in the app or as a push. Open the group to turn a single one back on.",
         "presetChatMostHint": "Every message in your rooms arrives in the app. Mentions and direct messages arrive as a push as well.",
         "presetChatEssentialHint": "Mentions and direct messages arrive as a push. Every message in your rooms is off.",
         "presetChatAppOnlyHint": "Mentions and direct messages arrive in the app. Every message in your rooms is off, and nothing arrives as a push.",
@@ -6489,6 +6499,12 @@
         "scheduleRemovedByOperator": "The schedule for {taskName} was removed after review",
         "assigned": "You were assigned {taskName}",
         "followUp": "{taskName} is still waiting for you"
+      },
+      "Billing": {
+        "lowBalance": "Your credits are running low: {credits} left",
+        "paymentFailed": "A subscription payment failed",
+        "creditsAdded": "{credits} credits were added to your balance",
+        "subscriptionEnding": "Your subscription ends when the current period does"
       },
       "Chat": {
         "mentioned": "{authorName} mentioned you in {roomName}",

@@ -22,7 +22,7 @@ interface ChannelSpec {
  *
  * Email is drawn beside these and is not one of them. A row that offers it
  * writes a cell of this matrix like any other, on the `EMAIL` channel. It does
- * not belong in a column every row draws, because two rows have no email
+ * not belong in a column every row draws, because some rows have no email
  * behind them at all. See `KindSpec.email`.
  *
  * A channel Core adds later needs a cell here. Without one it is drawn
@@ -107,16 +107,19 @@ export interface KindSpec {
   /**
    * What this row's email cell writes, if anything.
    *
-   * `CHANNEL` is a row Sokosumi mails: what is addressed to the reader, and
-   * the reminders about it (SOK-1090, SOK-916). Its email is a cell of the
-   * same matrix as In app and Push, on the `EMAIL` channel, so it is the
-   * reader's answer for that row alone and nothing else moves with it.
+   * `CHANNEL` is a row Sokosumi mails: what is addressed to the reader, the
+   * reminders about it (SOK-1090, SOK-916), and billing that waits on the
+   * reader (SOK-932). Its email is a cell of the same matrix as In app and
+   * Push, on the `EMAIL` channel, so it is the reader's answer for that row
+   * alone and nothing else moves with it.
    *
-   * `NONE` is every message in a room and the other task updates. Nothing
-   * mails them, and the row says so rather than offering a control that would
-   * reach nothing. Core's `NOTIFICATION_EMAIL_CATEGORIES` is the list this
-   * has to agree with: a row marked `CHANNEL` there and `NONE` here hides a
-   * cell Core reads, and the other way round draws a cell Core ignores.
+   * `NONE` is every message in a room, the other task updates, and billing
+   * news. Nothing mails them, and the row says so rather than offering a
+   * control that would reach nothing. Stripe already writes those receipts
+   * and cancellations. Core's `NOTIFICATION_EMAIL_CATEGORIES` is the list
+   * this has to agree with: a row marked `CHANNEL` there and `NONE` here
+   * hides a cell Core reads, and the other way round draws a cell Core
+   * ignores.
    */
   email: EmailControl;
 }
@@ -342,6 +345,63 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
           CHAT_ROOM_MESSAGE: "NONE",
           CHAT_MENTION: "NONE",
           CHAT_DIRECT_MESSAGE: "NONE",
+        },
+      },
+    ],
+  },
+  {
+    id: "BILLING",
+    labelKey: "groupBilling",
+    descriptionKey: "groupBillingDescription",
+    kinds: [
+      {
+        category: "BILLING_ATTENTION",
+        labelKey: "kindBillingAttention",
+        hintKey: "kindBillingAttentionHint",
+        email: "CHANNEL",
+      },
+      {
+        category: "BILLING_UPDATE",
+        labelKey: "kindBillingUpdate",
+        hintKey: "kindBillingUpdateHint",
+        email: "NONE",
+      },
+    ],
+    // The task ladder with one rung fewer: two rows, so Most and Essential
+    // differ only in whether a top-up or a plan that ends reaches the device.
+    // A wallet that ran low or a payment that failed is the one billing
+    // notice worth interrupting for, and every stop but Off keeps it in-app.
+    presets: [
+      {
+        id: "MOST",
+        hintKey: "presetBillingMostHint",
+        reach: {
+          BILLING_ATTENTION: "PUSH",
+          BILLING_UPDATE: "PUSH",
+        },
+      },
+      {
+        id: "ESSENTIAL",
+        hintKey: "presetBillingEssentialHint",
+        reach: {
+          BILLING_ATTENTION: "PUSH",
+          BILLING_UPDATE: "IN_APP",
+        },
+      },
+      {
+        id: "APP_ONLY",
+        hintKey: "presetBillingAppOnlyHint",
+        reach: {
+          BILLING_ATTENTION: "IN_APP",
+          BILLING_UPDATE: "IN_APP",
+        },
+      },
+      {
+        id: "OFF",
+        hintKey: "presetBillingOffHint",
+        reach: {
+          BILLING_ATTENTION: "NONE",
+          BILLING_UPDATE: "NONE",
         },
       },
     ],

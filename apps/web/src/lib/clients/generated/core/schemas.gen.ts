@@ -13000,6 +13000,8 @@ export const NotificationPreferenceSchema = {
                 'CHAT_ROOM_MESSAGE',
                 'CHAT_MENTION',
                 'CHAT_DIRECT_MESSAGE',
+                'BILLING_ATTENTION',
+                'BILLING_UPDATE',
                 'SYSTEM',
                 'FOLLOW_UP'
             ],
