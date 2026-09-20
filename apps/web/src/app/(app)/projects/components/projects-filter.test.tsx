@@ -4,16 +4,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProjectsFilter } from "@/app/projects/components/projects-filter";
 
-const { setQueryStateMock, queryStateRef } = vi.hoisted(() => ({
-  setQueryStateMock: vi.fn(),
-  queryStateRef: { current: "" },
-}));
+const { setQueryStateMock, queryStateRef, useQueryStateMock } = vi.hoisted(
+  () => ({
+    setQueryStateMock: vi.fn(),
+    queryStateRef: { current: "" },
+    useQueryStateMock: vi.fn((_key: string, _options?: unknown) => [
+      queryStateRef.current,
+      setQueryStateMock,
+    ]),
+  }),
+);
 
 vi.mock("nuqs", () => ({
-  useQueryState: (_key: string, _options?: unknown) => [
-    queryStateRef.current,
-    setQueryStateMock,
-  ],
+  useQueryState: (key: string, options?: unknown) =>
+    useQueryStateMock(key, options),
 }));
 
 // The real hook debounces against an env-configured delay; the component's
@@ -34,9 +38,22 @@ describe("ProjectsFilter", () => {
   it("writes what the user types to the q search param", async () => {
     render(<ProjectsFilter labels={labels} />);
 
-    await userEvent.type(screen.getByPlaceholderText("Filter projects"), "aut");
+    await userEvent.type(screen.getByLabelText("Filter projects"), "aut");
 
     expect(setQueryStateMock).toHaveBeenLastCalledWith("aut");
+  });
+
+  it("refetches in a transition so the field is not replaced by the page skeleton", () => {
+    render(<ProjectsFilter labels={labels} />);
+
+    expect(useQueryStateMock).toHaveBeenCalledWith(
+      "q",
+      expect.objectContaining({
+        shallow: false,
+        clearOnDefault: true,
+        startTransition: expect.any(Function),
+      }),
+    );
   });
 
   it("offers no clear button until something is typed", () => {
@@ -60,10 +77,7 @@ describe("ProjectsFilter", () => {
     queryStateRef.current = "autumn";
     render(<ProjectsFilter labels={labels} />);
 
-    await userEvent.type(
-      screen.getByPlaceholderText("Filter projects"),
-      "{Escape}",
-    );
+    await userEvent.type(screen.getByLabelText("Filter projects"), "{Escape}");
 
     expect(setQueryStateMock).toHaveBeenLastCalledWith("");
   });

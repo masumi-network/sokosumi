@@ -2,7 +2,7 @@
 
 import { Search, X } from "lucide-react";
 import { useQueryState } from "nuqs";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useDebouncedCallback } from "use-debounce";
 
 import { Input } from "@/components/ui/input";
@@ -25,12 +25,16 @@ interface ProjectsFilterProps {
  * list pages with "Load more", so filtering client-side would only ever
  * search the pages already fetched — a name on a later page would look like
  * no match at all. `shallow: false` is what makes the server refetch.
+ * `startTransition` keeps the current tree (and this field) visible instead
+ * of swapping the page Suspense fallback in while Core runs.
  */
 export function ProjectsFilter({ labels }: ProjectsFilterProps) {
+  const [, startTransition] = useTransition();
   const [queryParam, setQueryParam] = useQueryState("q", {
     defaultValue: "",
     shallow: false,
     clearOnDefault: true,
+    startTransition,
   });
   const [value, setValue] = useState(queryParam);
 
@@ -63,6 +67,7 @@ export function ProjectsFilter({ labels }: ProjectsFilterProps) {
       />
       <Input
         className="h-8 pr-8 pl-8"
+        aria-label={labels.placeholder}
         placeholder={labels.placeholder}
         value={value}
         onChange={(event) => handleChange(event.target.value)}

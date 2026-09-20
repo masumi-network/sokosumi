@@ -178,21 +178,21 @@ describe("GET /projects", () => {
     expect(queryRawMock.mock.calls[0][0].values).toEqual(
       expect.arrayContaining(["%autumn%"]),
     );
-    expect(projectCountMock).toHaveBeenCalledWith({
-      where: {
-        workspaceId: WORKSPACE_CONTEXT.workspaceId,
-        name: { contains: "autumn", mode: "insensitive" },
-      },
-    });
+    expect(queryRawMock.mock.calls[1][0].values).toEqual(
+      expect.arrayContaining(["%autumn%"]),
+    );
+    expect(projectCountMock).not.toHaveBeenCalled();
   });
 
   it("escapes ILIKE wildcards so a search stays a literal substring", async () => {
     const res = await createApp().request("http://localhost/?q=50%25_off");
 
     expect(res.status).toBe(200);
-    expect(queryRawMock.mock.calls[0][0].values).toEqual(
-      expect.arrayContaining(["%50\\%\\_off%"]),
-    );
+    expect(queryRawMock.mock.calls).toHaveLength(2);
+    for (const [sql] of queryRawMock.mock.calls) {
+      expect(sql.values).toEqual(expect.arrayContaining(["%50\\%\\_off%"]));
+    }
+    expect(projectCountMock).not.toHaveBeenCalled();
   });
 
   it("leaves the query unfiltered when q is absent", async () => {

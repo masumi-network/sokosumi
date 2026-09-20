@@ -92,6 +92,20 @@ export function projectNameSearchPattern(search: string): string {
   return `%${escaped}%`;
 }
 
+export function projectNameSearchClause(search: string) {
+  return PrismaRaw.sql`AND p.name ILIKE ${projectNameSearchPattern(search)} ESCAPE '\\'`;
+}
+
+/** Same predicate as the ranked page query, so pagination.total cannot drift. */
+export function projectNameCountQuery(workspaceId: string, search: string) {
+  return PrismaRaw.sql`
+    SELECT COUNT(*)::bigint AS count
+    FROM project p
+    WHERE p."workspaceId" = ${workspaceId}::uuid
+      ${projectNameSearchClause(search)}
+  `;
+}
+
 /** Global database ordering, before LIMIT. Metadata/report refreshes do not
  * count as activity. Creation is the floor; task/job events, ready task outputs,
  * and project lifecycle events advance it. Reader-invisible work cannot do so.
@@ -132,11 +146,7 @@ export function projectActivityPageQuery({
       SELECT p.id, GREATEST(p."createdAt", MAX(a.at)) AS "lastActivityAt"
       FROM project p LEFT JOIN activity a ON a."projectId" = p.id
       WHERE p."workspaceId" = ${workspaceId}::uuid
-      ${
-        search
-          ? PrismaRaw.sql`AND p.name ILIKE ${projectNameSearchPattern(search)} ESCAPE '\\'`
-          : PrismaRaw.empty
-      }
+      ${search ? projectNameSearchClause(search) : PrismaRaw.empty}
       GROUP BY p.id, p."createdAt"
     )
     SELECT r.id, r."lastActivityAt" FROM ranked r

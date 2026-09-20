@@ -50,9 +50,6 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
   return (
     <div className={PROJECTS_PAGE_SHELL_CLASS}>
       <ProjectsView
-        key={`${query}|${projectsPage.projects
-          .map((project) => `${project.id}:${project.updatedAt}`)
-          .join("|")}`}
         projects={projectsPage.projects}
         nextCursor={projectsPage.pagination?.nextCursor ?? null}
         query={query}

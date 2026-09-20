@@ -13,6 +13,7 @@ import {
   type ProjectActivityRow,
   projectActivityPageQuery,
   projectActivityVisibility,
+  projectNameCountQuery,
 } from "@/helpers/project-activity";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -87,14 +88,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { cursor, take } = parseCursorPagination(queryParams);
 
     const search = queryParams.q;
-    // The count has to carry the same filter as the ranked query, or the
-    // pagination total describes a different set than the rows do.
-    const where = {
-      workspaceId: workspaceContext.workspaceId,
-      ...(search
-        ? { name: { contains: search, mode: "insensitive" as const } }
-        : {}),
-    };
+    const workspaceId = workspaceContext.workspaceId;
     const takePlusOne = take + 1;
     const visibility = await resolveProjectReaderVisibility(
       c.var.authContext,
@@ -111,7 +105,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     );
     const ranked = await prisma.$queryRaw<ProjectActivityRow[]>(
       projectActivityPageQuery({
-        workspaceId: workspaceContext.workspaceId,
+        workspaceId,
         cursor,
         take: takePlusOne,
         visibility: activityVisibility,
@@ -119,12 +113,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }),
     );
     const page = ranked.slice(0, take);
+    // Prisma `contains` compiles to unescaped ILIKE, so `%` / `_` in `q`
+    // would inflate the total relative to the escaped ranked query.
     const [rows, count] = await Promise.all([
       prisma.project.findMany({
-        where: { ...where, id: { in: page.map((row) => row.id) } },
+        where: { workspaceId, id: { in: page.map((row) => row.id) } },
         include: projectListCountsInclude,
       }),
-      prisma.project.count({ where }),
+      search
+        ? prisma
+            .$queryRaw<Array<{ count: bigint }>>(
+              projectNameCountQuery(workspaceId, search),
+            )
+            .then((result) => Number(result[0]?.count ?? 0n))
+        : prisma.project.count({ where: { workspaceId } }),
     ]);
     const byId = new Map(rows.map((row) => [row.id, row]));
     const projectsWithCounts = page.flatMap(({ id, lastActivityAt }) => {

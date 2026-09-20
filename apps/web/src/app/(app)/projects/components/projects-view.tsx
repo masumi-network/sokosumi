@@ -68,6 +68,12 @@ function ProjectsMobileCreateFabSlot() {
   );
 }
 
+function browseListKey(query: string, projects: ProjectListItemType[]) {
+  return `${query}|${projects
+    .map((project) => `${project.id}:${project.updatedAt}`)
+    .join("|")}`;
+}
+
 export function ProjectsView({
   projects,
   nextCursor,
@@ -76,9 +82,18 @@ export function ProjectsView({
   createProjectModalResetKey,
   labels,
 }: ProjectsViewProps) {
+  const listKey = browseListKey(query, projects);
   const [items, setItems] = useState(projects);
   const [cursor, setCursor] = useState(nextCursor);
+  const [itemsKey, setItemsKey] = useState(listKey);
   const [isPending, startTransition] = useTransition();
+  // Reset appended pages when the server list changes, without remounting
+  // the filter (a `key` on this view was stealing focus after every `q`).
+  if (itemsKey !== listKey) {
+    setItemsKey(listKey);
+    setItems(projects);
+    setCursor(nextCursor);
+  }
   const hasLoadedProjects = items.length > 0;
   const isFiltering = query.length > 0;
   const showEmptyState = !hasLoadedProjects && cursor === null;
