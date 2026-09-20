@@ -145,6 +145,63 @@ describe("GitHub OIDC remote cache wiring", () => {
     assert.match(workflow, /secrets\.NEON_API_KEY/);
   });
 
+  it("required JS jobs gate at step level so docs-only PRs still report", async () => {
+    const build = await readRepoFile(".github", "workflows", "build.yml");
+    const lint = await readRepoFile(".github", "workflows", "lint.yml");
+    const test = await readRepoFile(".github", "workflows", "test.yml");
+
+    for (const [file, yaml, jobId] of [
+      ["build.yml", build, "build"],
+      ["lint.yml", lint, "biome"],
+      ["lint.yml", lint, "typecheck"],
+      ["test.yml", test, "test"],
+    ]) {
+      const block = jobBlock(yaml, jobId);
+      const header = block.split(/\n    steps:\n/)[0];
+      assert.doesNotMatch(
+        header,
+        /^\s{4}if:/m,
+        `${file} job ${jobId} must not use job-level if (required checks skip)`,
+      );
+      assert.match(
+        block,
+        /if: needs\.changes\.outputs\.js == 'true'/,
+        `${file} job ${jobId} must gate work steps on the JS path filter`,
+      );
+    }
+  });
+
+  it("shares one JS path-filter file across test/build/lint", async () => {
+    const filter = await readRepoFile(".github", "js-paths-filter.yml");
+    assert.match(filter, /^js:\s*$/m);
+    assert.match(filter, /!\*\*\/\*\.md/);
+
+    for (const file of ["test.yml", "build.yml", "lint.yml"]) {
+      const yaml = await readRepoFile(".github", "workflows", file);
+      assert.match(
+        yaml,
+        /filters:\s*\.github\/js-paths-filter\.yml/,
+        `${file} must use the shared JS path filter`,
+      );
+      assert.doesNotMatch(
+        yaml,
+        /filters:\s*\|/,
+        `${file} must not inline a duplicate paths-filter`,
+      );
+    }
+  });
+
+  it("setup action reads Node from .nvmrc", async () => {
+    const setup = await readRepoFile(
+      ".github",
+      "actions",
+      "setup",
+      "action.yml",
+    );
+    assert.match(setup, /node-version-file:\s*\.nvmrc/);
+    assert.doesNotMatch(setup, /node-version:\s*["']?\d+/);
+  });
+
   it("does not use actions/cache on .turbo", async () => {
     const workflowsDir = path.join(repoRoot, ".github", "workflows");
     const files = await readdir(workflowsDir);
