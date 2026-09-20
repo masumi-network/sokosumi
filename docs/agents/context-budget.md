@@ -152,3 +152,8 @@ the rules remain in the root contract and [Delivery](delivery.md). This saves ab
 400 tokens per Claude Code session. Sessions that cannot read `AGENTS.md` directly
 (older versions, third-party providers, disabled telemetry) need a local
 `CLAUDE.md` containing `@AGENTS.md`.
+
+The six app and package `CLAUDE.md` files held only the `@AGENTS.md` import and were
+removed as well. A `CLAUDE.md` in the working directory disables direct `AGENTS.md`
+reading, so keeping them would have hidden the root contract from sessions started
+inside those directories.
