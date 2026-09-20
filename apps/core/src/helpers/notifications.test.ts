@@ -679,6 +679,47 @@ describe("createNotification email", () => {
     expect(dispatchNotificationEmailMock).not.toHaveBeenCalled();
   });
 
+  /**
+   * A finished task emails by default (SOK-1090), so a reader who stored
+   * nothing gets the email, and one who turned that cell off does not.
+   */
+  it("mails a finished task to a reader who stored nothing", async () => {
+    userFindUniqueMock.mockResolvedValue({
+      pushOptIn: false,
+      notificationPreferences: [],
+    });
+    const notification = createNotificationRecord();
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(notification);
+
+    await createNotification(
+      notificationInput,
+      prismaMock as unknown as typeof prisma,
+    );
+
+    expect(dispatchNotificationEmailMock).toHaveBeenCalledWith(notification);
+  });
+
+  it("dispatches no email when the reader turned that cell off", async () => {
+    userFindUniqueMock.mockResolvedValue({
+      pushOptIn: false,
+      notificationPreferences: [
+        { category: "TASK_COMPLETED", channel: "EMAIL", enabled: false },
+      ],
+    });
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(
+      createNotificationRecord(),
+    );
+
+    await createNotification(
+      notificationInput,
+      prismaMock as unknown as typeof prisma,
+    );
+
+    expect(dispatchNotificationEmailMock).not.toHaveBeenCalled();
+  });
+
   it("dispatches no email for a duplicate emit, since the first one was mailed", async () => {
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockRejectedValue(createUniqueViolation());
