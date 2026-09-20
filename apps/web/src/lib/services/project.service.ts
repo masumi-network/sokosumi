@@ -17,6 +17,8 @@ import type {
 interface ListProjectsParams {
   cursor?: string | null;
   limit?: number;
+  /** Case-insensitive project-name filter, applied by Core before paging. */
+  query?: string;
 }
 
 interface ListProjectResourcesParams {
@@ -45,6 +47,7 @@ export const projectService = (() => {
     const result = await coreClient.getProjects({
       cursor: params.cursor ?? undefined,
       limit: params.limit,
+      q: params.query || undefined,
     });
 
     return {

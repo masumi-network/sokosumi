@@ -44,6 +44,14 @@ export function ProjectsLoadingView() {
           PROJECTS_LIST_CARD_MIN_H_CLASS,
         )}
       >
+        {/* Mirrors the live header row geometry (px-4 py-2.5 around an h-8
+            input) so the Instant swap does not drop the rows by its height.
+            Skeletons only: no copy, so no locale flash. */}
+        <div className="border-border flex items-center gap-3 border-b px-4 py-2.5">
+          <Skeleton className="h-8 flex-1 rounded-lg" />
+          <Skeleton className="h-3 w-32 shrink-0" />
+        </div>
+
         <div className={PROJECTS_BROWSE_DIVIDE_CLASS}>
           {Array.from({ length: 4 }, (_, index) => (
             <ProjectListItemSkeleton key={index} />
@@ -61,7 +69,7 @@ export function ProjectsLoadingView() {
 function ProjectListItemSkeleton() {
   return (
     <article className={PROJECTS_LIST_ROW_LAYOUT_CLASS}>
-      <div className="flex min-w-0 flex-row items-center gap-4 rounded-none px-2 py-3 md:rounded-lg">
+      <div className="flex min-w-0 flex-row items-center gap-4 rounded-none px-4 py-3">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <Skeleton className="size-8 shrink-0 rounded-lg" />
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -70,9 +78,11 @@ function ProjectListItemSkeleton() {
           </div>
         </div>
 
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+        {/* One pill, not two: the jobs pill is dropped at zero, so most rows
+            carry a single count plus the activity stamp. */}
+        <div className="flex shrink-0 items-center gap-2">
           <Skeleton className="h-5 w-10 rounded-full" />
-          <Skeleton className="h-5 w-10 rounded-full" />
+          <Skeleton className="h-4 w-16" />
         </div>
       </div>
     </article>

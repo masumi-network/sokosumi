@@ -40,8 +40,10 @@ export const PROJECTS_BROWSE_LAYOUT_CLASS =
 
 /**
  * Inner divide wrapper for browse rows. Shared by live list and Instant skeleton.
+ * No horizontal padding: the rows carry their own `px-4`, so both the dividers
+ * and the row hover run the full width of the card, as the tasks list does.
  */
-export const PROJECTS_BROWSE_DIVIDE_CLASS = "divide-border divide-y px-2";
+export const PROJECTS_BROWSE_DIVIDE_CLASS = "divide-border divide-y";
 
 /**
  * Row geometry shared by live `ProjectListItem`, Instant skeleton, and Drive lists
