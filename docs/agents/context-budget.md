@@ -51,8 +51,12 @@ complete desktop startup cost; an existing conversation retains its prior histor
 
 A subsequent CLI `/status` screenshot, after the first `Reply only OK.` response,
 reported **24.9K context tokens used / 258K**. This is the observed runtime figure,
-not the narrower prompt-text count above. No equivalent pre-change runtime
-measurement was captured, so a runtime reduction percentage is not established.
+not the narrower prompt-text count above. A subsequent screenshot of the primary
+checkout on `main`, using Codex CLI 0.155.1, the same model/reasoning setting, and
+the same first prompt, reports **32.2K context tokens used / 258K**. The observed
+difference is approximately **7.3K tokens (23%)**. These are rounded UI readings
+from separate checkouts, not a fully controlled benchmark; the main screenshot
+also reports failed local hooks. The earlier ~60K estimate is not this baseline.
 
 ## Skill duplication
 
