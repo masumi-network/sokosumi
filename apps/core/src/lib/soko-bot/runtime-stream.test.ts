@@ -1,3 +1,4 @@
+import type { RuntimeJsonValue } from "@sokosumi/soko-bot";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -5,7 +6,11 @@ import {
   shouldPersistSokoBotRuntimeEvent,
 } from "./runtime-stream";
 
-function event(type: string, data: Record<string, unknown>, index: number) {
+function event(
+  type: string,
+  data: Record<string, RuntimeJsonValue>,
+  index: number,
+) {
   return {
     startIndex: index,
     event: {

@@ -19,8 +19,6 @@ const {
   taskScheduleOccurrenceFindManyMock,
   vendorGrantFindUniqueMock,
   resolveWorkspaceForContextMock,
-  workspaceFindUniqueMock,
-  resolveMemberOrganizationByIdMock,
 } = vi.hoisted(() => ({
   coworkerFindFirstMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
@@ -31,8 +29,6 @@ const {
   taskScheduleOccurrenceFindManyMock: vi.fn(),
   vendorGrantFindUniqueMock: vi.fn(),
   resolveWorkspaceForContextMock: vi.fn(),
-  workspaceFindUniqueMock: vi.fn(),
-  resolveMemberOrganizationByIdMock: vi.fn(),
 }));
 
 vi.mock("@/middleware/auth", async (importOriginal) => ({
@@ -68,13 +64,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: taskScheduleOccurrenceFindManyMock,
     },
     vendorGrant: { findUnique: vendorGrantFindUniqueMock },
-    workspace: { findUnique: workspaceFindUniqueMock },
   },
-}));
-
-vi.mock("@/helpers/organization", () => ({
-  resolveMemberOrganizationById: (...args: unknown[]) =>
-    resolveMemberOrganizationByIdMock(...args),
 }));
 
 const USER_AUTH_CONTEXT: AuthenticationContext = {
@@ -99,24 +89,19 @@ const FROM = "2026-06-01T00:00:00.000Z";
 const TO = "2026-06-08T00:00:00.000Z";
 
 let mountGetWorkspaceCalendar: (app: OpenAPIHonoWithAuth) => void;
-let readWorkspaceCalendar: typeof import("./get").readWorkspaceCalendar;
+let readWorkspaceCalendar: typeof import("./read").readWorkspaceCalendar;
 
-function createApp(
-  authContext: AuthenticationContext = USER_AUTH_CONTEXT,
-  activeWorkspaceId?: string,
-) {
+function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
   const app = new OpenAPIHonoWithAuth();
   app.use("*", async (c, next) => {
     c.set("requestId", "req_calendar");
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
-    if (activeWorkspaceId) {
-      c.set("workspaceContext", {
-        workspaceId: activeWorkspaceId,
-        userId: "user_123",
-        organizationId: null,
-      });
-    }
+    c.set("workspaceContext", {
+      workspaceId: WORKSPACE_ID,
+      userId: "user_123",
+      organizationId: null,
+    });
     return await next();
   });
   mountGetWorkspaceCalendar(app);
@@ -158,14 +143,15 @@ function requestCalendar(
   app: OpenAPIHonoWithAuth,
   query = `from=${FROM}&to=${TO}`,
 ) {
-  return app.request(`http://localhost/${WORKSPACE_ID}/calendar?${query}`);
+  return app.request(`http://localhost/calendar?${query}`);
 }
 
-describe("GET /workspaces/{id}/calendar", () => {
+describe("GET /workspaces/calendar", () => {
   beforeAll(async () => {
-    const module = await import("./get");
-    mountGetWorkspaceCalendar = module.default;
-    readWorkspaceCalendar = module.readWorkspaceCalendar;
+    const routeModule = await import("./get");
+    const readModule = await import("./read");
+    mountGetWorkspaceCalendar = routeModule.default;
+    readWorkspaceCalendar = readModule.readWorkspaceCalendar;
   });
 
   beforeEach(() => {
@@ -184,10 +170,6 @@ describe("GET /workspaces/{id}/calendar", () => {
     taskFindManyMock.mockResolvedValue([]);
     taskScheduleOccurrenceCountMock.mockResolvedValue(0);
     taskScheduleOccurrenceFindManyMock.mockResolvedValue([]);
-    workspaceFindUniqueMock.mockResolvedValue({
-      userId: "user_123",
-      organizationId: null,
-    });
   });
 
   it("returns calendar items for the caller personal workspace", async () => {
@@ -233,7 +215,6 @@ describe("GET /workspaces/{id}/calendar", () => {
         },
       }),
     });
-    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
     expect(taskFindManyMock).not.toHaveBeenCalled();
   });
 
@@ -325,7 +306,7 @@ describe("GET /workspaces/{id}/calendar", () => {
     const response = await requestCalendar(createApp());
 
     expect(response.status).toBe(403);
-    expect(workspaceFindUniqueMock).not.toHaveBeenCalled();
+    expect(taskFindManyMock).not.toHaveBeenCalled();
     expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
   });
 
@@ -525,46 +506,6 @@ describe("GET /workspaces/{id}/calendar", () => {
     });
   });
 
-  it("allows a member to read an organization workspace calendar", async () => {
-    workspaceFindUniqueMock.mockResolvedValue({
-      userId: null,
-      organizationId: "org_123",
-    });
-    resolveMemberOrganizationByIdMock.mockResolvedValue({ id: "org_123" });
-
-    const response = await requestCalendar(createApp());
-
-    expect(response.status).toBe(200);
-    expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith({
-      id: "org_123",
-      userId: "user_123",
-      tx: expect.anything(),
-    });
-  });
-
-  it("rejects a user who does not own the personal workspace", async () => {
-    workspaceFindUniqueMock.mockResolvedValue({
-      userId: "user_other",
-      organizationId: null,
-    });
-
-    const response = await requestCalendar(createApp());
-
-    expect(response.status).toBe(403);
-    expect(taskFindManyMock).not.toHaveBeenCalled();
-    expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
-  });
-
-  it("rejects a delegated coworker reading outside its active workspace", async () => {
-    const response = await requestCalendar(
-      createApp(COWORKER_AUTH_CONTEXT, "22222222-2222-7222-8222-222222222222"),
-    );
-
-    expect(response.status).toBe(403);
-    expect(taskFindManyMock).not.toHaveBeenCalled();
-    expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
-  });
-
   it("limits a delegated coworker to Tasks it can read", async () => {
     vendorGrantFindUniqueMock.mockResolvedValue({
       id: "grant_123",
@@ -572,9 +513,7 @@ describe("GET /workspaces/{id}/calendar", () => {
       permission: "workspace",
     });
 
-    const response = await requestCalendar(
-      createApp(COWORKER_AUTH_CONTEXT, WORKSPACE_ID),
-    );
+    const response = await requestCalendar(createApp(COWORKER_AUTH_CONTEXT));
 
     expect(response.status).toBe(200);
     expect(coworkerFindFirstMock).toHaveBeenCalledWith({

@@ -1,3 +1,4 @@
+import { Prisma } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
@@ -298,7 +299,8 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
         },
         data: expect.objectContaining({
           content: "",
-          metadata: null,
+          // `DbNull`, not `null`: Prisma rejects a bare null for a Json column.
+          metadata: Prisma.DbNull,
           deletedAt: expect.any(Date),
         }),
       }),

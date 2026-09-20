@@ -1,11 +1,11 @@
 # SPEC
 
 ## §G GOAL
-apps/cli slice 1: canonical Sokosumi developer CLI. Auth via browser OAuth or user API key. Headless Core discovery, Agent, Coworker, Task, Job commands. Ink status/resource views. User API-key mint depends on Core credential route. ⊥ marketplace TUI. ⊥ workspace connect / chat (later slice). Current slice → SOK-1069/T27 Ink TUI; ⊥ new runtime adapters, Agent-developer/promotion flow, workspace connect/chat, and new Core auth routes.
+[REPORTED: user-approved direction, 2026-09-18] Single developer admin CLI; connect existing framework runtimes as Coworkers with optional capabilities, session/private/hosted lifetimes, and tested paid graduation. This amendment defines future requirements, not shipped features. TUI work paused; existing commands and auth guards preserved.
 
 ## §C CONSTRAINTS
-- live in monorepo `apps/cli`. ⊥ second CLI. ⊥ sibling `sokosumi-cli` edits. [VISION.md:43]
-- talk Core HTTP only. ⊥ Prisma, ⊥ `@sokosumi/database`, ⊥ Postgres from CLI. [VISION.md:44]
+- live in monorepo `apps/cli`. ⊥ second CLI. ⊥ sibling `sokosumi-cli` edits. [VISION.md constraints](VISION.md#constraints)
+- talk Core HTTP only. ⊥ Prisma, ⊥ `@sokosumi/database`, ⊥ Postgres from CLI. [VISION.md constraints](VISION.md#constraints)
 - package identity ∈ {private workspace name: `sokosumi`, package path: `apps/cli`, bin: `sokosumi`}; npm publication ⊥ current slice.
 - CLI source/tests ∈ TypeScript. Typecheck required.
 - OAuth tokens & user API keys ∈ OS vault. Linux persistent auth → Secret Service. ⊥ plaintext credential file.
@@ -19,7 +19,10 @@ apps/cli slice 1: canonical Sokosumi developer CLI. Auth via browser OAuth or us
 - TUI menus use arrows + Enter. Esc back. q quit. ⊥ letter/numeric aliases.
 - v1 visual source = external user-provided `I-Want-You-Desing-Tui-Sokosumi` bundle. Production TUI = Ink/React. ⊥ HTML/CSS runtime, copied prototype fixtures, browser `localStorage`.
 - Biome format. Conventional Commits. pinned deps (no semver ranges).
-- complements web `/developer`. ⊥ replace it. [VISION.md:45]
+- complements web `/developer`. ⊥ replace it. [VISION.md constraints](VISION.md#constraints)
+
+- direction authority: docs/adr/0004-coworker-capabilities-and-graduation.md; implementation dependencies: docs/developer-cli-implementation-plan.md. Core owns policy, grants, waitlisting, promotion, and payment authorization.
+- historical external-bundle design constraint above applies only to deferred T27; no redesign prerequisite for integration.
 
 ## §I INTERFACES
 
@@ -35,6 +38,8 @@ apps/cli slice 1: canonical Sokosumi developer CLI. Auth via browser OAuth or us
 - file: `~/.sokosumi/config.json` → non-secret preferences only
 - headless JSON fields: `authenticated`, `authMethod`, `apiKeyAvailable`, `target`, `apiUrl`, `expiresAt`
 - pkg: private workspace `sokosumi` @ `apps/cli` → source build emits bin `sokosumi`; npm publication ⊥ current slice
+
+[PROPOSED] Runtime connection, delegated auth, chat transport, general x402 purchase, and seller settlement interfaces need approved Core/runtime contracts before implementation. No new command or credential type is advertised here.
 
 ## §V INVARIANTS
 V1: CLI auth ∈ {OAuth access token, OAuth refresh token, user API key}. ⊥ session cookie. ⊥ `coworker_*` key.
@@ -76,8 +81,8 @@ V36: source-built hosted CLI → registered target OAuth ID (`GxmewjdHVAaqUEglxW
 V37: hosted target OAuth readiness gate → real authorization-code exchange returns token for mainnet & preprod; metadata/authorize-only checks insufficient.
 V38: `sokosumi` no-arg source run → Ink directly; ⊥ npm registry check/update prompt.
 V39: CLI runtime ⊥ invoke npm/package manager/self-update; distribution ∉ current runtime.
-V40: external v1 design bundle → Ink/React TUI visual source; ⊥ HTML/CSS runtime, copied demo data, browser `localStorage`; live Core data only.
-V41: v1 TUI → dark terminal chrome + centered ASCII sign-in states + signed-in tab/workspace/pane states + visible selection/status state variants; ⊥ change to arrows + Enter, Esc back, q quit, SPEC V13 identity copy.
+V40: [Deferred T27 scope, 2026-09-18; not an integration prerequisite] external v1 design bundle → Ink/React TUI visual source; ⊥ HTML/CSS runtime, copied demo data, browser `localStorage`; live Core data only.
+V41: [Deferred T27 scope, 2026-09-18; not an integration prerequisite] v1 TUI → dark terminal chrome + centered ASCII sign-in states + signed-in tab/workspace/pane states + visible selection/status state variants; ⊥ change to arrows + Enter, Esc back, q quit, SPEC V13 identity copy.
 V42: every headless Core-backed command resolves initial auth before any Core call; unauthenticated preflight rejects before Core and `--json` emits exactly one stdout JSON error document with credentials redacted and no stderr copy.
 V43: TUI explicit target selection (flag/env/API URL) is authoritative; a prefixed API key cannot rewrite it and a mismatched prefix rejects before login.
 V44: untagged API keys require an explicit target (`--preprod` or `--api-url`) before auth status/login; ⊥ implicit hosted-default acceptance.
@@ -102,6 +107,21 @@ V63: error redaction recursively sanitizes credential-shaped `key=value` pairs i
 V64: CLI direct `@types/react` pin = workspace React types pin; workspace typecheck sees one React type identity.
 V65: `secret-tool` lookup exit status 1 with empty/whitespace-only stderr or explicit missing-item text means a missing item and leaves Secret Service supported; any other error fails closed.
 
+[REPORTED: user-approved requirements, 2026-09-18; not yet implementation claims]
+V66: developer CLI = admin control; runtime actor = Coworker; Coworker may hire Masumi Agents. No developer credential fallback for runtime work.
+V67: workspace exists before registration; Vendor controlled by developer or authorized company. Unrelated developers never share default Vendor authority.
+V68: session-only, retained workspace-only, persistent hosted modes explicit; session expiry/revocation removes temporary authority without deleting identity or shared work history.
+V69: capabilities optional; no fixed graduation order beyond actual dependencies. Active-session tools and automatic workers distinct; advertised support requires proof.
+V70: Core owns grants, readiness policy, waitlist, promotion, payment authorization; CLI only configures/displays through approved interfaces.
+V71: readiness derives from canonical grants, connection health, payment configuration; only non-derivable test evidence persisted, bound to configuration and validity.
+V72: paid eligibility requires baseline safety, seller receipt, and advertised-capability tests; eligibility ≠ admin approval; global availability ≠ all-workspace access.
+V73: private own-workspace use has no automatic seller fee; model costs and authorized purchases remain payable. Public paid usage charges reviewed seller prices.
+V74: seller submits usage pricing with waitlist application; new public price version requires review; existing authorized work retains accepted price and spending ceiling.
+V75: x402 funding explicitly selected ∈ {workspace credits, runtime-held wallet}; no silent fallback. Supported rails/assets, authorization, spending limits still apply to external services.
+V76: customer debit ≠ seller settlement; paid-graduation evidence must prove service delivery and intended seller receipt. Coworker-reported amount alone is not customer price authorization.
+V77: public paid runtime isolated from developer credentials; trusted private same-user session not advertised as isolated. Container/cloud label alone proves nothing.
+V78: runtime secrets never in argv, model-visible output, logs, or non-secret config; ephemeral secrets in memory, persistent secrets in OS vault; delivery contract requires approval.
+
 ## §T TASKS
 
 id|status|task|cites
@@ -112,7 +132,7 @@ T4|x|`auth login` / `auth logout` + `--json`|I,V1
 T5|x|thin Ink login/status/sign-out|I,V1,V13
 T6|x|Core seed first-party native public OAuth clients|V3,V4
 T7|x|tests: protocol, manager, boot route, upsert|V1,V3
-T8|.|coworker connect loop (later slice)|V5,V6,V14
+T8|.|coworker connect loop; gated on T29 runtime contract; see implementation plan|V5,V6,V14,V66,V67,V68
 T9|x|signed-in Register a Coworker menu (preset pick only)|V13,V14
 T10|x|migrate CLI source/tests to TypeScript; add typecheck|V1,V7
 T11|x|add target-scoped auth resolution and cross-platform OS vault|V1,V3,V9,V10
@@ -131,8 +151,16 @@ T23|x|configured API target → key-prefix inference precedence|V30
 T24|x|TUI hosted target → explicit API URL override|V32
 T25|x|preprod live OAuth smoke: fresh authorization-code exchange → token; compare mainnet/preprod|V37,I
 T26|x|remove npm-global updater, prompt, tests, and runtime package-manager calls|V38,V39,V48,V62,I
-T27|.|redesign Ink TUI against external v1 bundle: terminal chrome, sign-in, tabs/workspace, state variants, PTY widths|V40,V41,I
+T27|.|DEFERRED 2026-09-18; not completed or integration prerequisite: redesign Ink TUI against external v1 bundle: terminal chrome, sign-in, tabs/workspace, state variants, PTY widths|V40,V41,I
 T28|~|align CLI React types pin with workspace and sync lockfile|V64
+
+T29|.|approve runtime identity/invocation contract; evaluate delegation without changing developer-key guards|V1,V6,V58,V66,V77,V78
+T30|.|Core prerequisites and CLI private setup: Vendor/workspace authority, self-service registration, session lifecycle|V67,V68,V70
+T31|.|active-session Task/Job operations and automatic worker; prove recovery and authorization separately|V66,V69,V77,V78
+T32|.|approve chat transport; implement permitted direct/chat-channel/group participation and revocation|V69,V70,V77
+T33|.|approve Masumi funding/custody contract; general x402 services within authorized rails and limits|V70,V75,V76
+T34|.|Core seller usage-price authorization, version review, settlement and controlled payment evidence|V73,V74,V76
+T35|.|Core readiness derivation, capability evidence, waitlist review; CLI exposes status without self-approval|V70,V71,V72
 
 ## §B BUGS
 

@@ -1,8 +1,8 @@
-import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { createNestedOpenAPIHono } from "@/lib/hono";
 import mountRemoveTaskScheduleQuarantine from "./[taskId]/remove/post.js";
 import mountRepairTaskScheduleQuarantine from "./[taskId]/repair/post.js";
 
-const app = new OpenAPIHonoWithAuth();
+const app = createNestedOpenAPIHono();
 
 mountRepairTaskScheduleQuarantine(app);
 mountRemoveTaskScheduleQuarantine(app);

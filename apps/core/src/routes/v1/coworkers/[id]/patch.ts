@@ -3,6 +3,7 @@ import { createRoute } from "@hono/zod-openapi";
 import { coworkerInclude, mapCoworker } from "@/helpers/coworker";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { nullableJsonInput } from "@/helpers/prisma-json";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -11,11 +12,11 @@ import {
   type CoworkerMetadata,
   coworkerSchema,
 } from "@/schemas/coworker.schema";
-
 import {
   buildCoworkerMutationWhere,
   requireCoworkerManagementAccess,
 } from "../coworker-management-access";
+
 import { mergeCoworkerMetadata, normalizeCoworkerMetadata } from "../metadata";
 import { patchCoworkerRequestSchema } from "../schema";
 import { paramsSchema } from "./schema";
@@ -70,7 +71,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw notFound("Coworker not found");
       }
 
-      const metadata =
+      const metadata = nullableJsonInput(
         body.metadata === undefined
           ? undefined
           : normalizeCoworkerMetadata(
@@ -80,7 +81,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                     existingCoworker.metadata as CoworkerMetadata | null,
                     body.metadata,
                   ),
-            );
+            ),
+      );
 
       const updatedCount = await tx.coworker.updateMany({
         where: mutationWhere,

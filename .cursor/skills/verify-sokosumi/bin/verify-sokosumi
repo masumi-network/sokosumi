@@ -32,6 +32,9 @@ DEFAULT_FIXTURE_EMAIL="${VERIFY_SOKOSUMI_EMAIL:-alice@sokosumi.test}"
 DEFAULT_FIXTURE_PASSWORD="${VERIFY_SOKOSUMI_PASSWORD:-Password123!}"
 AUTH_EMAIL_SELECTOR='[data-testid="auth-field-email"]'
 AUTH_PASSWORD_SELECTOR='[data-testid="auth-field-currentPassword"]'
+# Cloudflare dummy token. The always-pass secret accepts any non-empty value;
+# a missing x-captcha-response header 400s once TURNSTILE_SECRET_KEY is set.
+TURNSTILE_DUMMY_TOKEN='XXXX.DUMMY.TOKEN.XXXX'
 
 function credentials_status() {
   # Presence-only — never echo secret values (Runtime Secrets redact; still avoid leaking).
@@ -253,6 +256,79 @@ function run_dev_web() {
   run_dev web
 }
 
+function read_env_value() {
+  # Last assigned value for a key in an env file, unquoted and space-stripped.
+  local env_file="$1" key="$2" line value
+  [[ -f "$env_file" ]] || return 1
+  line="$(grep -E "^[[:space:]]*${key}=" "$env_file" | tail -n 1 || true)"
+  [[ -n "$line" ]] || return 1
+  value="${line#*=}"
+  value="${value%\"}"
+  value="${value#\"}"
+  value="${value%\'}"
+  value="${value#\'}"
+  value="$(echo "$value" | tr -d '[:space:]')"
+  [[ -n "$value" ]] || return 1
+  printf '%s' "$value"
+}
+
+function turnstile_status() {
+  # Two keys, because the widget and the server check fail differently and an
+  # agent needs to tell them apart:
+  #
+  #   turnstile_site   — what the browser renders on /signin
+  #   turnstile_secret — whether Core verifies the token it sends
+  #
+  # Neither is covered by fixture_auth: that calls Core's sign-in endpoint with
+  # a dummy token, so it passes while the browser form is still blocked.
+  local site secret
+  site="$(read_env_value "$REPO_ROOT/apps/web/.env" NEXT_PUBLIC_TURNSTILE_SITE_KEY || true)"
+  secret="$(read_env_value "$REPO_ROOT/apps/core/.env" TURNSTILE_SECRET_KEY || true)"
+
+  # Cloudflare's documented testing prefixes: 1x always passes, 2x always
+  # blocks, 3x forces an interactive challenge. Only 1x is drivable.
+  case "$site" in
+    "") echo "turnstile_site=off (no site key; the form shows no widget)" ;;
+    1x*) echo "turnstile_site=test-pass" ;;
+    2x*) echo "turnstile_site=test-block" ;;
+    3x*) echo "turnstile_site=test-interactive" ;;
+    *) echo "turnstile_site=live" ;;
+  esac
+
+  case "$secret" in
+    "") echo "turnstile_secret=off (Core does not verify the token)" ;;
+    1x*) echo "turnstile_secret=test-pass" ;;
+    *) echo "turnstile_secret=live" ;;
+  esac
+
+  case "$site" in
+    1x* | "") ;;
+    2x*)
+      echo "warn: turnstile_site=test-block rejects every sign-in by design."
+      ;;
+    3x*)
+      echo "warn: turnstile_site=test-interactive shows a human check an agent must not answer."
+      ;;
+    *)
+      echo "warn: turnstile_site=live shows a human check an agent must not answer."
+      ;;
+  esac
+  case "$site" in
+    1x* | "") ;;
+    *)
+      echo "warn: set NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA in apps/web/.env."
+      echo "warn: env:bootstrap will not overwrite a key that is already set."
+      ;;
+  esac
+
+  # The mismatch worth naming on its own: the widget solves itself, then Core
+  # rejects the dummy token it produced. Looks like a broken app, not a config.
+  if [[ "$site" == 1x* && "$secret" != 1x* && -n "$secret" ]]; then
+    echo "warn: site key passes but TURNSTILE_SECRET_KEY in apps/core/.env is live — Core will reject the dummy token (API 403), not the widget."
+    echo "warn: set the matching 1x secret in apps/core/.env."
+  fi
+}
+
 function cookie_domain_trap() {
   # Fail doctor when Core local .env scopes cookies to a production host.
   # Matches assigned values only; comments and empty assignments are OK.
@@ -307,6 +383,7 @@ function fixture_probe() {
       -X POST "$CORE_URL/auth/sign-in/email" \
       -H "content-type: application/json" \
       -H "origin: $WEB_URL" \
+      -H "x-captcha-response: $TURNSTILE_DUMMY_TOKEN" \
       -d "{\"email\":\"$email\",\"password\":\"$password\"}" \
       --max-time 15 "${ca_args[@]}" 2>/dev/null || echo "000"
   )"
@@ -549,6 +626,7 @@ function sign_in_cookie() {
       -X POST "$CORE_URL/auth/sign-in/email" \
       -H "content-type: application/json" \
       -H "origin: $WEB_URL" \
+      -H "x-captcha-response: $TURNSTILE_DUMMY_TOKEN" \
       -d "{\"email\":\"$email\",\"password\":\"$password\"}" \
       --max-time 20 "${ca_args[@]}"
   )"
@@ -869,6 +947,8 @@ function doctor() {
     echo "owned_by_verify=no"
     echo "warn: no pid file — do not mutate a foreign instance; read-only checks only"
   fi
+
+  turnstile_status
 
   # Always report VERIFY_* presence so computer-use agents stop inventing users.
   credentials_status
