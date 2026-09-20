@@ -1,6 +1,7 @@
 import { NotificationKind } from "@sokosumi/database";
 import {
   BILLING_CREDITS_ADDED_MESSAGE_KEY,
+  BILLING_FOLLOW_UP_MESSAGE_KEY,
   BILLING_LOW_BALANCE_MESSAGE_KEY,
   BILLING_PAYMENT_FAILED_MESSAGE_KEY,
   BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY,
@@ -95,6 +96,12 @@ describe("toNotificationCategory", () => {
     ).toBe("FOLLOW_UP");
     expect(
       toNotificationCategory(NotificationKind.JOB, JOB_FOLLOW_UP_MESSAGE_KEY),
+    ).toBe("FOLLOW_UP");
+    expect(
+      toNotificationCategory(
+        NotificationKind.BILLING,
+        BILLING_FOLLOW_UP_MESSAGE_KEY,
+      ),
     ).toBe("FOLLOW_UP");
   });
 

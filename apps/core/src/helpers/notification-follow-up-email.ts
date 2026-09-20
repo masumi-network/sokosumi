@@ -1,10 +1,14 @@
 import type { NotificationKind } from "@sokosumi/database";
 import {
+  type BillingFollowUpReason,
+  renderBillingFollowUpEmail,
   renderChatDirectMessageFollowUpEmail,
   renderChatMentionFollowUpEmail,
   renderTaskFollowUpEmail,
 } from "@sokosumi/email";
 import {
+  BILLING_FOLLOW_UP_MESSAGE_KEY,
+  BILLING_PAYMENT_FAILED_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
   CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
   TASK_FOLLOW_UP_MESSAGE_KEY,
@@ -52,6 +56,17 @@ export interface FollowUpEmailInput {
   metadata?: Record<string, unknown> | null;
   recipientEmail: string;
   recipientName: null | string;
+}
+
+/** Only a low balance mails: Stripe already wrote when a payment failed. */
+const BILLING_REASONS: readonly BillingFollowUpReason[] = ["lowBalance"];
+
+function billingFollowUpReason(
+  sourceMessageKey: string,
+): BillingFollowUpReason | null {
+  const tail = sourceMessageKey.slice(sourceMessageKey.lastIndexOf(".") + 1);
+
+  return BILLING_REASONS.find((reason) => reason === tail) ?? null;
 }
 
 /**
@@ -123,12 +138,31 @@ export async function buildFollowUpEmail(
         }),
       );
 
+    case BILLING_FOLLOW_UP_MESSAGE_KEY: {
+      // Stripe already mailed the failed payment. The in-app reminder still
+      // lands; this skip is what keeps a second email out of the inbox.
+      if (input.sourceMessageKey === BILLING_PAYMENT_FAILED_MESSAGE_KEY) {
+        return null;
+      }
+
+      const credits = input.messageParams.credits;
+
+      return withRecipient(
+        input,
+        await renderBillingFollowUpEmail({
+          ...shared,
+          credits: typeof credits === "number" ? credits : null,
+          reason: billingFollowUpReason(input.sourceMessageKey),
+        }),
+      );
+    }
+
     default:
       return null;
   }
 }
 
-/** One tag for all three, so a reminder send is one thing to look for in Resend. */
+/** One tag for all reminder families, so a reminder send is one thing to look for in Resend. */
 function withRecipient(
   input: FollowUpEmailInput,
   rendered: { html: string; subject: string },
