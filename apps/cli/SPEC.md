@@ -122,7 +122,7 @@ V75: x402 funding explicitly selected ∈ {workspace credits, runtime-held walle
 V76: customer debit ≠ seller settlement; paid-graduation evidence must prove service delivery and intended seller receipt. Coworker-reported amount alone is not customer price authorization.
 V77: public paid runtime isolated from developer credentials; trusted private same-user session not advertised as isolated. Container/cloud label alone proves nothing.
 V78: runtime secrets never in argv, model-visible output, logs, or non-secret config; ephemeral secrets in memory, persistent secrets in OS vault; delivery contract requires approval.
-V79: `vendors me` → role = `admin` only; `workspaces list` identity = `organizationId`; organization metadata ∉ output; non-array list or missing required identity → fail; `--json` → one document.
+V79: `vendors me` → preserve Vendor memberships + roles; registration selection later requires role = `admin`; `workspaces list` identity = `organizationId`; organization metadata ∉ output; non-array list or missing required identity → fail; `--json` → one document.
 V80: shared discovery handler ! exact subcommand before Core call; bare `vendors` / `workspaces` → reject.
 
 ## §T TASKS
@@ -217,3 +217,4 @@ B45|2026-09-20|admin-only Vendor filter exposed dispatch fixture without role; e
 B46|2026-09-20|direct workspace guard used multiline form rejected by Biome formatter|§C Biome
 B47|2026-09-20|optional direct-handler guard accepted bare `vendors` / `workspaces` calls|V80
 B48|2026-09-20|workspace JSON forwarded arbitrary organization metadata without allowlist|V79
+B49|2026-09-20|admin-only discovery conflated membership listing with later registration selection|V79

@@ -2,15 +2,15 @@ import type { CoreHttpClient } from "../http-client.js";
 import { type ApiResponse, parseApiResponse } from "../models/api-response.js";
 import { parseVendor, type Vendor } from "../models/vendor.js";
 
-export interface FetchAdministeredVendorsResult {
+export interface FetchVendorMembershipsResult {
   response: ApiResponse<Vendor[]>;
   vendors: Vendor[];
 }
 
-export async function fetchAdministeredVendors(
+export async function fetchVendorMemberships(
   client: CoreHttpClient,
   signal?: AbortSignal,
-): Promise<FetchAdministeredVendorsResult> {
+): Promise<FetchVendorMembershipsResult> {
   const response = parseApiResponse<unknown[]>(
     await client.get<unknown>("/v1/vendors/me", signal),
   );
@@ -18,9 +18,7 @@ export async function fetchAdministeredVendors(
     throw new Error("Invalid vendor response: expected data array");
   }
   const data = response.data;
-  const vendors = data
-    .map(parseVendor)
-    .filter((vendor) => vendor.role === "admin");
+  const vendors = data.map(parseVendor);
   const normalizedResponse: ApiResponse<Vendor[]> = {
     ...response,
     data: vendors,

@@ -51,11 +51,11 @@ test("vendors me emits stable text output", async () => {
     subcommand: "me",
   });
   assert.deepEqual(output, [
-    "Administered Vendors\nAcme [vendor-1]\n  slug: acme\n  role: admin\n",
+    "Vendors\nAcme [vendor-1]\n  slug: acme\n  role: admin\n",
   ]);
 });
 
-test("TestV79 vendors me describes an empty administered result", async () => {
+test("TestV79 vendors me describes an empty membership result", async () => {
   const output: string[] = [];
   await runVendorsCommand({
     client: clientWith({ data: [] }),
@@ -63,7 +63,7 @@ test("TestV79 vendors me describes an empty administered result", async () => {
     subcommand: "me",
   });
 
-  assert.deepEqual(output, ["No administered vendors found.\n"]);
+  assert.deepEqual(output, ["No vendors found.\n"]);
 });
 
 test("TestV79 workspaces JSON allowlists organization identity fields", async () => {

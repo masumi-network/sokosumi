@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { CoreHttpClient } from "../../src/api/http-client.js";
 import { fetchOrganizationWorkspaces } from "../../src/api/services/organization-workspace-service.js";
-import { fetchAdministeredVendors } from "../../src/api/services/vendor-service.js";
+import { fetchVendorMemberships } from "../../src/api/services/vendor-service.js";
 
 function client(paths: string[], response: unknown): CoreHttpClient {
   return {
@@ -20,7 +20,7 @@ function client(paths: string[], response: unknown): CoreHttpClient {
 test("vendor and organization workspace services use the current-user Core routes", async () => {
   const vendorPaths: string[] = [];
   const workspacePaths: string[] = [];
-  const { vendors } = await fetchAdministeredVendors(
+  const { vendors } = await fetchVendorMemberships(
     client(vendorPaths, {
       data: [{ id: "vendor-1", name: "Acme", role: "admin" }],
     }),
@@ -48,8 +48,8 @@ test("vendor and organization workspace services use the current-user Core route
   assert.equal(organizationWorkspaces[0]?.role, "owner");
 });
 
-test("TestV79 vendor discovery returns only administered vendors", async () => {
-  const { vendors } = await fetchAdministeredVendors(
+test("TestV79 vendor discovery preserves membership roles", async () => {
+  const { vendors } = await fetchVendorMemberships(
     client([], {
       data: [
         { id: "vendor-admin", name: "Admin", role: "admin" },
@@ -59,14 +59,17 @@ test("TestV79 vendor discovery returns only administered vendors", async () => {
   );
 
   assert.deepEqual(
-    vendors.map((vendor) => vendor.id),
-    ["vendor-admin"],
+    vendors.map((vendor) => ({ id: vendor.id, role: vendor.role })),
+    [
+      { id: "vendor-admin", role: "admin" },
+      { id: "vendor-developer", role: "developer" },
+    ],
   );
 });
 
 test("TestV79 discovery rejects malformed data and missing identities", async () => {
   await assert.rejects(
-    fetchAdministeredVendors(client([], { data: null })),
+    fetchVendorMemberships(client([], { data: null })),
     /vendor response.*array/i,
   );
   await assert.rejects(
@@ -74,7 +77,7 @@ test("TestV79 discovery rejects malformed data and missing identities", async ()
     /organization workspace response.*array/i,
   );
   await assert.rejects(
-    fetchAdministeredVendors(
+    fetchVendorMemberships(
       client([], { data: [{ name: "Missing identity", role: "admin" }] }),
     ),
     /vendor response.*id/i,

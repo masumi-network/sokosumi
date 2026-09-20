@@ -1,5 +1,5 @@
 import type { Vendor } from "../../api/models/vendor.js";
-import { fetchAdministeredVendors } from "../../api/services/vendor-service.js";
+import { fetchVendorMemberships } from "../../api/services/vendor-service.js";
 import {
   type CommandContext,
   isJson,
@@ -16,10 +16,10 @@ function printVendors(
   vendors: readonly Vendor[],
 ): void {
   if (!vendors.length) {
-    writeText(stdout, ["No administered vendors found."]);
+    writeText(stdout, ["No vendors found."]);
     return;
   }
-  const lines = ["Administered Vendors"];
+  const lines = ["Vendors"];
   for (const vendor of vendors) {
     lines.push(`${vendor.name || "Unnamed Vendor"} [${vendor.id}]`);
     if (vendor.slug) lines.push(`  slug: ${vendor.slug}`);
@@ -37,7 +37,7 @@ export async function runVendorsCommand({
 }: VendorsCommandContext): Promise<void> {
   // Dispatch requires the explicit vendors me form; bare vendors is rejected.
   if (subcommand !== "me") throw new Error("Usage: sokosumi vendors me");
-  const { vendors } = await fetchAdministeredVendors(client, signal);
+  const { vendors } = await fetchVendorMemberships(client, signal);
   if (isJson({ json })) writeJson(stdout, { vendors });
   else printVendors(stdout, vendors);
 }
