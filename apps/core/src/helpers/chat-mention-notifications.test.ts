@@ -113,6 +113,28 @@ describe("emitChatMentionNotifications", () => {
     );
   });
 
+  it("drops nobody when a Coworker or a Soko Bot is the author", async () => {
+    await emitChatMentionNotifications({
+      roomId: ROOM_ID,
+      roomName: "general",
+      roomShape: "channel",
+      organizationId: "org_1",
+      messageId: MESSAGE_ID,
+      content: "ship it",
+      authorUserId: null,
+      authorName: "Eve",
+      mentionedUserIds: [MENTIONED_ID, OTHER_ID],
+    });
+
+    expect(createNotificationMock).toHaveBeenCalledTimes(2);
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: MENTIONED_ID,
+        messageParams: expect.objectContaining({ authorName: "Eve" }),
+      }),
+    );
+  });
+
   it("skips recipients who muted the room", async () => {
     membershipFindManyMock.mockResolvedValue([{ userId: MENTIONED_ID }]);
 
