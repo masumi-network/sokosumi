@@ -99,14 +99,17 @@ describe("notificationEmailLink", () => {
         metadata: null,
       }),
     ).toBe(`${BASE}/`);
+  });
+
+  it("opens the credits tab for a billing notice", () => {
     expect(
       notificationEmailLink({
         kind: NotificationKind.BILLING,
-        referenceId: "x",
-        messageKey: "Notifications.Billing.x",
+        referenceId: "org-1",
+        messageKey: "Notifications.Billing.lowBalance",
         metadata: null,
       }),
-    ).toBe(`${BASE}/`);
+    ).toBe(`${BASE}/billing?tab=credits`);
   });
 });
 

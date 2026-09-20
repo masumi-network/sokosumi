@@ -1,4 +1,5 @@
 import {
+  BILLING_FOLLOW_UP_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
@@ -6,7 +7,10 @@ import {
   TASK_FOLLOW_UP_MESSAGE_KEY,
 } from "@sokosumi/utils";
 
-import { TASK_ATTENTION_MESSAGE_KEYS } from "@/helpers/notification-delivery";
+import {
+  BILLING_ATTENTION_MESSAGE_KEYS,
+  TASK_ATTENTION_MESSAGE_KEYS,
+} from "@/helpers/notification-delivery";
 
 /**
  * Which notifications get a follow-up, and what the follow-up is stored as
@@ -24,6 +28,11 @@ import { TASK_ATTENTION_MESSAGE_KEYS } from "@/helpers/notification-delivery";
  * already counts, on the same stated grounds: they are the chat notifications
  * addressed to the reader rather than merely near them.
  *
+ * The billing half is the attention list too (SOK-932): a balance that ran
+ * low and a payment that failed both wait on the reader to fund or fix
+ * something, and a paid invoice marks them read so a settled wallet gets no
+ * reminder. A receipt and a plan that ends wait on nobody.
+ *
  * Jobs are absent since SOK-930: a job writes no notification for a reminder
  * to follow.
  *
@@ -40,6 +49,10 @@ const FOLLOW_UP_KEY_BY_SOURCE_KEY = new Map<string, string>([
   ...TASK_ATTENTION_MESSAGE_KEYS.map((key): [string, string] => [
     key,
     TASK_FOLLOW_UP_MESSAGE_KEY,
+  ]),
+  ...BILLING_ATTENTION_MESSAGE_KEYS.map((key): [string, string] => [
+    key,
+    BILLING_FOLLOW_UP_MESSAGE_KEY,
   ]),
 ]);
 

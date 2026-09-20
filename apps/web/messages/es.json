@@ -6499,7 +6499,8 @@
         "lowBalance": "Tus créditos se están agotando: quedan {credits}",
         "paymentFailed": "Un pago de la suscripción no se completó",
         "creditsAdded": "Se añadieron {credits} créditos a tu saldo",
-        "subscriptionEnding": "Tu suscripción termina al final del periodo actual"
+        "subscriptionEnding": "Tu suscripción termina al final del periodo actual",
+        "followUp": "Tu facturación sigue necesitando tu atención"
       },
       "Chat": {
         "mentioned": "{authorName} te mencionó en {roomName}",

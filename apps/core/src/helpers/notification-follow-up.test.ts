@@ -1,4 +1,7 @@
 import {
+  BILLING_CREDITS_ADDED_MESSAGE_KEY,
+  BILLING_FOLLOW_UP_MESSAGE_KEY,
+  BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
@@ -9,7 +12,10 @@ import {
 } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
-import { TASK_ATTENTION_MESSAGE_KEYS } from "./notification-delivery";
+import {
+  BILLING_ATTENTION_MESSAGE_KEYS,
+  TASK_ATTENTION_MESSAGE_KEYS,
+} from "./notification-delivery";
 import {
   FOLLOW_UP_SOURCE_MESSAGE_KEYS,
   followUpEventId,
@@ -42,6 +48,12 @@ describe("followUpMessageKeyFor", () => {
    * for a job reminder to remind anyone of. The key itself stays a follow-up
    * key, because a reminder stored before that is still one.
    */
+  it("answers for every billing key that waits on the reader", () => {
+    for (const key of BILLING_ATTENTION_MESSAGE_KEYS) {
+      expect(followUpMessageKeyFor(key)).toBe(BILLING_FOLLOW_UP_MESSAGE_KEY);
+    }
+  });
+
   it("answers for no job key at all", () => {
     expect(followUpMessageKeyFor("Notifications.Job.inputRequired")).toBeNull();
     expect(followUpMessageKeyFor("Notifications.Job.paymentFailed")).toBeNull();
@@ -59,6 +71,10 @@ describe("followUpMessageKeyFor", () => {
     expect(followUpMessageKeyFor("Notifications.Task.canceled")).toBeNull();
     expect(followUpMessageKeyFor("Notifications.Job.completed")).toBeNull();
     expect(followUpMessageKeyFor("Notifications.Job.failed")).toBeNull();
+    expect(followUpMessageKeyFor(BILLING_CREDITS_ADDED_MESSAGE_KEY)).toBeNull();
+    expect(
+      followUpMessageKeyFor(BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY),
+    ).toBeNull();
   });
 
   it("answers for no key it does not know", () => {
@@ -77,6 +93,7 @@ describe("followUpMessageKeyFor", () => {
       CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
       TASK_FOLLOW_UP_MESSAGE_KEY,
       JOB_FOLLOW_UP_MESSAGE_KEY,
+      BILLING_FOLLOW_UP_MESSAGE_KEY,
     ]) {
       expect(followUpMessageKeyFor(key)).toBeNull();
       expect(FOLLOW_UP_SOURCE_MESSAGE_KEYS).not.toContain(key);

@@ -1,5 +1,6 @@
 import {
   BILLING_CREDITS_ADDED_MESSAGE_KEY,
+  BILLING_FOLLOW_UP_MESSAGE_KEY,
   BILLING_LOW_BALANCE_MESSAGE_KEY,
   BILLING_PAYMENT_FAILED_MESSAGE_KEY,
   BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY,
@@ -361,6 +362,22 @@ describe("getNotificationHref", () => {
         }),
       ).toBe("/billing?tab=subscription");
     }
+  });
+
+  /**
+   * The reminder carries only its own key, so it cannot tell a low balance
+   * from a failed payment. It lands on the balance; the reminder email, built
+   * from the source row, lands more exactly.
+   */
+  it("sends a billing reminder to the credits tab", () => {
+    expect(
+      getNotificationHref({
+        kind: "BILLING",
+        referenceId: "org-1",
+        messageKey: BILLING_FOLLOW_UP_MESSAGE_KEY,
+        metadata: { workspaceId: "ws-1" },
+      }),
+    ).toBe("/billing?tab=credits");
   });
 
   /** A billing key this build does not know still lands on the balance. */
