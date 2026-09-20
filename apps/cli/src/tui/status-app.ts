@@ -11,6 +11,10 @@ import {
   type CoreHttpClient,
   createCoreHttpClient,
 } from "../api/http-client.js";
+import type { OrganizationWorkspace } from "../api/models/organization-workspace.js";
+import type { Vendor } from "../api/models/vendor.js";
+import { fetchOrganizationWorkspaces } from "../api/services/organization-workspace-service.js";
+import { fetchVendorMemberships } from "../api/services/vendor-service.js";
 import {
   type AuthEnvironment,
   type AuthManager,
@@ -43,7 +47,6 @@ import {
   COWORKER_FRAMEWORK_PRESETS,
   describeRegisterNextStep,
 } from "../coworker/presets.js";
-import { type ResourceKind, ResourceView } from "./resource-view.js";
 import { SelectInput, type SelectItem } from "./select-input.js";
 import { TUI_THEME } from "./theme.js";
 
@@ -64,21 +67,25 @@ export interface StatusAppOptions {
   config?: CliTargetConfig;
   clientIdOverride?: string;
   targetExplicit?: boolean;
+  networkSelectionLocked?: boolean;
 }
 
 type AuthScreen =
   | "home"
   | "auth-method"
-  | "oauth-target"
   | "oauth-confirm"
   | "oauth-wait"
   | "api-key-input"
   | "api-key-target"
   | "api-key-wait"
   | "register"
+  | "vendors"
+  | "workspaces"
+  | "manage"
   | "success"
-  | "error"
-  | ResourceKind;
+  | "error";
+
+type HomeAction = "register" | "vendors" | "workspaces" | "manage" | "sign-out";
 
 function adaptSelectHandler<T>(
   handler: (value: T) => void,
@@ -89,13 +96,13 @@ function adaptSelectHandler<T>(
 type AuthMethod = "oauth" | "api-key";
 type HostedTarget = "mainnet" | "preprod";
 type OAuthConfirm = "sign-in";
-type HomeAction = ResourceKind | "register" | "sign-out";
 type SelectorItem<T> = SelectItem<T>;
 type AuthPhase = "idle" | "waiting" | "success" | "error";
 
 const LOGO = `┌─┐┌─┐┬┌─┌─┐┌─┐┬ ┬┌┬┐┬
 └─┐│ │├┴┐│ │└─┐│ ││││││
 └─┘└─┘┴ ┴└─┘└─┘└─┘┴ ┴┴`;
+
 export function apiKeyCreationHint(environment: AuthEnvironment): string {
   const webUrl = String(environment.SOKOSUMI_WEB_URL || "").trim();
   if (!webUrl) return "Create one in the Sokosumi web app.";
@@ -146,6 +153,7 @@ export function resolveHostedTargetConfig(
     ...overrides,
   });
 }
+
 export function explicitApiKeyTargetError(
   apiKey: string,
   config: CliTargetConfig,
@@ -172,6 +180,81 @@ export function apiKeyTargetEscapeState(): {
   return { screen: "auth-method", pendingApiKey: null };
 }
 
+export function resolveSelectedHostedTarget(
+  config: CliTargetConfig,
+): HostedTarget {
+  return config.target === "preprod" ? "preprod" : "mainnet";
+}
+
+export function isNetworkSelectionLocked(
+  config: CliTargetConfig,
+  options: { preprod?: boolean; apiUrl?: string } = {},
+): boolean {
+  return Boolean(
+    options.preprod || options.apiUrl || config.target === "custom",
+  );
+}
+
+export function toggleHostedTarget(target: HostedTarget): HostedTarget {
+  return target === "mainnet" ? "preprod" : "mainnet";
+}
+
+export function canToggleSignInNetwork(options: {
+  route: "boot" | "auth" | "signed-in";
+  screen: AuthScreen;
+  networkSelectionLocked: boolean;
+  busy: boolean;
+}): boolean {
+  return (
+    options.route === "auth" &&
+    options.screen === "auth-method" &&
+    !options.networkSelectionLocked &&
+    !options.busy
+  );
+}
+
+export function nextSignInNetworkConfig(
+  selectedConfig: CliTargetConfig,
+  env: AuthEnvironment,
+  clientIdOverride?: string,
+): CliTargetConfig {
+  return createTargetConfig(
+    env,
+    toggleHostedTarget(resolveSelectedHostedTarget(selectedConfig)),
+    clientIdOverride,
+  );
+}
+
+export function resolveStatusCoreClient(options: {
+  coreClientOverride?: CoreHttpClient;
+  selectedApiUrl: string;
+  configApiUrl: string;
+  createClient: () => CoreHttpClient;
+}): CoreHttpClient {
+  if (
+    options.coreClientOverride !== undefined &&
+    options.selectedApiUrl === options.configApiUrl
+  ) {
+    return options.coreClientOverride;
+  }
+  return options.createClient();
+}
+
+export function buildSignInMenuItems(): SelectorItem<AuthMethod>[] {
+  return [
+    {
+      value: "oauth",
+      label: "Browser OAuth",
+      hint: "opens /signin · PKCE",
+    },
+    {
+      value: "api-key",
+      label: "User API key",
+      hint: apiKeyPrefixHint(),
+    },
+  ];
+}
+
 function createTargetConfig(
   env: AuthEnvironment,
   target: HostedTarget,
@@ -184,129 +267,48 @@ function createTargetConfig(
   );
 }
 
-function navigationHint({ back = false }: { back?: boolean } = {}) {
+function navigationHint({
+  back = false,
+  showNetworkToggle = false,
+}: {
+  back?: boolean;
+  showNetworkToggle?: boolean;
+} = {}) {
+  const parts = ["Use arrows, then Enter"];
+  if (showNetworkToggle) parts.push("Tab switch network");
+  if (back) parts.push("Esc back");
+  parts.push("q quit");
+  return React.createElement(Text, { dimColor: true }, parts.join(" · "));
+}
+
+function signedInIdentityLine(
+  target: string,
+  authMethod: NonNullable<InitialAuthState["authMethod"]>,
+): React.ReactElement {
+  const method = authMethod === "api-key" ? "user API key" : "browser OAuth";
   return React.createElement(
     Text,
     { dimColor: true },
-    back
-      ? "Use arrows, then Enter · Esc back · q quit"
-      : "Use arrows, then Enter · q quit",
+    `Signed in · ${target} · ${method}`,
   );
 }
 
-function titleBar(
-  route: "boot" | "auth" | "signed-in",
-  target: string | null,
-  resource: string | null,
-): React.ReactElement {
-  const path =
-    route === "signed-in"
-      ? `workspace / ${resource || "dashboard"}`
-      : route === "auth"
-        ? "session / sign in"
-        : "session / boot";
-  return React.createElement(
-    Box,
-    {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      borderStyle: "single",
-      borderColor: TUI_THEME.border,
-      paddingX: 1,
-      width: "100%",
-    },
-    React.createElement(
-      Text,
-      {
-        color: TUI_THEME.foreground,
-        backgroundColor: TUI_THEME.surface,
-      },
-      React.createElement(
-        Text,
-        { color: TUI_THEME.accent, bold: true },
-        `● sokosumi v${CLI_VERSION}`,
-      ),
-      React.createElement(Text, { dimColor: true }, ` / ${path}`),
-    ),
-    React.createElement(
-      Text,
-      { dimColor: !target, color: target ? TUI_THEME.accent : undefined },
-      target || "local session",
-    ),
-  );
-}
-
-function statusBar(
-  route: "boot" | "auth" | "signed-in",
-  target: string | null,
-  authMethod: InitialAuthState["authMethod"],
-  phase: AuthPhase,
-  navFocus: boolean,
-): React.ReactElement {
-  const left =
-    route === "signed-in"
-      ? `● ${target || "unknown"} · ${authMethod === "api-key" ? "user API key" : "browser OAuth"}`
-      : route === "boot"
-        ? "checking session"
-        : phase === "waiting"
-          ? "waiting for sign-in"
-          : "not signed in";
-  const right =
-    route === "signed-in"
-      ? navFocus
-        ? "←/→ tabs · Enter open · Esc exit · q quit"
-        : "↑/↓ move · Enter inspect · Esc tabs · q quit"
-      : route === "boot"
-        ? ""
-        : "↑/↓ move · Enter select · Esc back · q quit";
-  return React.createElement(
-    Box,
-    {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      flexWrap: "wrap",
-      borderStyle: "single",
-      borderColor: TUI_THEME.border,
-      paddingX: 1,
-      width: "100%",
-    },
-    React.createElement(
-      Text,
-      {
-        color: TUI_THEME.foreground,
-        backgroundColor: TUI_THEME.surface,
-        dimColor: route !== "signed-in",
-      },
-      left,
-    ),
-    React.createElement(
-      Text,
-      {
-        color: TUI_THEME.muted,
-        backgroundColor: TUI_THEME.surface,
-        dimColor: true,
-      },
-      right,
-    ),
-  );
-}
-
-function terminalChrome({
+function quietFrame({
   route,
   target,
-  resource,
   authMethod,
-  phase,
-  navFocus,
   children,
+  showBackHint = false,
+  showNavigationHint = true,
+  showNetworkToggle = false,
 }: {
   route: "boot" | "auth" | "signed-in";
   target: string | null;
-  resource: string | null;
   authMethod: InitialAuthState["authMethod"];
-  phase: AuthPhase;
-  navFocus: boolean;
   children: React.ReactNode;
+  showBackHint?: boolean;
+  showNavigationHint?: boolean;
+  showNetworkToggle?: boolean;
 }): React.ReactElement {
   return React.createElement(
     Box,
@@ -316,14 +318,35 @@ function terminalChrome({
       width: "100%",
       borderStyle: "round",
       borderColor: TUI_THEME.border,
+      paddingX: 1,
     },
-    titleBar(route, target, resource),
     React.createElement(
       Box,
-      { flexDirection: "column", flexGrow: 1, width: "100%" },
+      { flexDirection: "row", justifyContent: "space-between", width: "100%" },
+      React.createElement(
+        Text,
+        { color: TUI_THEME.accent, bold: true },
+        `sokosumi v${CLI_VERSION}`,
+      ),
+      route === "auth"
+        ? React.createElement(
+            Text,
+            { dimColor: !target, color: target ? TUI_THEME.accent : undefined },
+            target || "local session",
+          )
+        : null,
+    ),
+    React.createElement(
+      Box,
+      { flexDirection: "column", flexGrow: 1, width: "100%", paddingY: 1 },
       children,
     ),
-    statusBar(route, target, authMethod, phase, navFocus),
+    route === "signed-in" && authMethod && target
+      ? signedInIdentityLine(target, authMethod)
+      : null,
+    showNavigationHint
+      ? navigationHint({ back: showBackHint, showNetworkToggle })
+      : null,
   );
 }
 
@@ -336,7 +359,6 @@ function centeredScreen(...children: React.ReactNode[]): React.ReactElement {
       justifyContent: "center",
       flexGrow: 1,
       width: "100%",
-      paddingX: 1,
     },
     React.createElement(
       Box,
@@ -368,10 +390,10 @@ function messageLine(
     message,
   );
 }
+
 function StatusApp({
   authManager,
   authManagerFactory,
-  coreClient,
   loginFn,
   oauthPort,
   oauthTimeoutMs,
@@ -379,16 +401,21 @@ function StatusApp({
   config,
   clientIdOverride,
   targetExplicit = false,
+  networkSelectionLocked = false,
+  coreClient: coreClientOverride,
 }: Required<Pick<StatusAppOptions, "authManager" | "env" | "config">> &
   Pick<
     StatusAppOptions,
     | "authManagerFactory"
-    | "coreClient"
     | "loginFn"
     | "oauthPort"
     | "oauthTimeoutMs"
     | "clientIdOverride"
-  > & { targetExplicit?: boolean }) {
+    | "coreClient"
+  > & {
+    targetExplicit?: boolean;
+    networkSelectionLocked?: boolean;
+  }) {
   const { exit } = useApp();
   const [authState, setAuthState] = useState<InitialAuthState>({
     authenticated: false,
@@ -403,7 +430,6 @@ function StatusApp({
   const [selectedConfig, setSelectedConfig] = useState(config);
   const [pendingApiKey, setPendingApiKey] = useState<string | null>(null);
   const [apiKeyBuffer, setApiKeyBuffer] = useState("");
-  const [navFocus, setNavFocus] = useState(true);
   const abortController = useRef<AbortController | null>(null);
   const apiKeyAttempt = useRef(0);
   const oauthAttempt = useRef(0);
@@ -416,19 +442,38 @@ function StatusApp({
         : getManagerForConfig(selectedConfig, env, authManagerFactory),
     [authManager, authManagerFactory, config.apiUrl, env, selectedConfig],
   );
-
-  const resourceClient = useMemo(() => {
-    if (!coreClient) return undefined;
-    if (selectedConfig.apiUrl === config.apiUrl) return coreClient;
-    return createCoreHttpClient({
-      apiUrl: selectedConfig.apiUrl,
-      authManager: activeManager,
-      authBaseUrl: selectedConfig.authBaseUrl,
-      clientId: selectedConfig.clientId,
-      clientSecret: selectedConfig.clientSecret,
-      environment: env,
-    });
-  }, [activeManager, config.apiUrl, coreClient, env, selectedConfig]);
+  const coreClient = useMemo(
+    () =>
+      resolveStatusCoreClient({
+        coreClientOverride,
+        selectedApiUrl: selectedConfig.apiUrl,
+        configApiUrl: config.apiUrl,
+        createClient: () =>
+          createCoreHttpClient({
+            apiUrl: selectedConfig.apiUrl,
+            authManager: activeManager,
+            environment: env,
+            clientId: selectedConfig.clientId,
+            authBaseUrl: selectedConfig.authBaseUrl,
+            clientSecret: selectedConfig.clientSecret,
+          }),
+      }),
+    // `env` deliberately omitted: callers pass a session-stable object
+    // (process.env or once-built AuthEnvironment). Listing it recreates the
+    // client whenever identity changes without content change.
+    [
+      activeManager,
+      config.apiUrl,
+      coreClientOverride,
+      selectedConfig.apiUrl,
+      selectedConfig.authBaseUrl,
+      selectedConfig.clientId,
+      selectedConfig.clientSecret,
+    ],
+  );
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [workspaces, setWorkspaces] = useState<OrganizationWorkspace[]>([]);
+  const [resourceLoading, setResourceLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -479,6 +524,39 @@ function StatusApp({
     hasAuth: authState.authenticated,
   });
 
+  useEffect(() => {
+    if (route !== "signed-in") return;
+    if (screen !== "vendors" && screen !== "workspaces") return;
+    let cancelled = false;
+    setResourceLoading(true);
+    setPhase("idle");
+    setMessage("");
+    void (async () => {
+      try {
+        if (screen === "vendors") {
+          const { vendors: nextVendors } =
+            await fetchVendorMemberships(coreClient);
+          if (!cancelled) setVendors(nextVendors);
+        } else {
+          const { organizationWorkspaces } =
+            await fetchOrganizationWorkspaces(coreClient);
+          if (!cancelled) setWorkspaces(organizationWorkspaces);
+        }
+      } catch (error: unknown) {
+        if (!cancelled) {
+          setPhase("error");
+          setMessage(error instanceof Error ? error.message : String(error));
+        }
+      } finally {
+        if (!cancelled) setResourceLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      setResourceLoading(false);
+    };
+  }, [coreClient, route, screen]);
+
   const completeLogin = (nextState: InitialAuthState, nextMessage = "") => {
     setAuthState(nextState);
     setPhase("success");
@@ -488,7 +566,6 @@ function StatusApp({
     successTimer.current = setTimeout(() => {
       setPhase("idle");
       setScreen("home");
-      setNavFocus(true);
     }, 650);
   };
 
@@ -676,6 +753,7 @@ function StatusApp({
     setScreen("auth-method");
     setMessage("");
   };
+
   const cancelApiKeyLogin = () => {
     apiKeyLoginAttempt.current += 1;
     setPendingApiKey(null);
@@ -705,6 +783,23 @@ function StatusApp({
       } else {
         abortController.current?.abort();
         setBusy(false);
+      }
+      return;
+    }
+    if (key.tab) {
+      if (
+        screen === "auth-method" &&
+        canToggleSignInNetwork({
+          route,
+          screen,
+          networkSelectionLocked,
+          busy,
+        })
+      ) {
+        setSelectedConfig(
+          nextSignInNetworkConfig(selectedConfig, env, clientIdOverride),
+        );
+        setMessage("");
       }
       return;
     }
@@ -755,13 +850,8 @@ function StatusApp({
           setMessage("");
           return;
         }
-        if (screen === "oauth-target") {
-          setScreen("auth-method");
-          setMessage("");
-          return;
-        }
         if (screen === "oauth-confirm") {
-          setScreen("oauth-target");
+          setScreen("auth-method");
           setMessage("");
           return;
         }
@@ -777,8 +867,15 @@ function StatusApp({
       }
 
       if (route === "signed-in") {
-        if (!navFocus) {
-          setNavFocus(true);
+        if (
+          screen === "register" ||
+          screen === "manage" ||
+          screen === "vendors" ||
+          screen === "workspaces"
+        ) {
+          setScreen("home");
+          setMessage("");
+          setPhase("idle");
           return;
         }
         exit();
@@ -796,7 +893,7 @@ function StatusApp({
 
   const chooseAuthMethod = (method: AuthMethod) => {
     if (method === "oauth") {
-      setScreen(targetExplicit ? "oauth-confirm" : "oauth-target");
+      setScreen("oauth-confirm");
       setPhase("idle");
       setMessage("");
       return;
@@ -804,33 +901,21 @@ function StatusApp({
     beginApiKeyLogin();
   };
 
-  const tabItems: SelectorItem<HomeAction>[] = [
-    { value: "dashboard", label: "Dashboard" },
-    { value: "agents", label: "Agents" },
-    { value: "coworkers", label: "Coworkers" },
-    { value: "tasks", label: "Tasks" },
-    { value: "jobs", label: "Jobs" },
-    { value: "account", label: "Account" },
-    { value: "register", label: "Register", hint: "(soon)" },
+  const handleSignInAction = (action: AuthMethod) => {
+    chooseAuthMethod(action);
+  };
+
+  const homeItems: SelectorItem<HomeAction>[] = [
+    { value: "register", label: "Register a Coworker" },
+    { value: "vendors", label: "Vendors", hint: "memberships you administer" },
+    {
+      value: "workspaces",
+      label: "Workspaces",
+      hint: "organization workspaces",
+    },
+    { value: "manage", label: "Manage Coworker" },
     { value: "sign-out", label: "Sign out" },
   ];
-  const activeResource: ResourceKind | "register" =
-    screen === "home"
-      ? "dashboard"
-      : screen === "register"
-        ? "register"
-        : screen === "dashboard" ||
-            screen === "agents" ||
-            screen === "coworkers" ||
-            screen === "tasks" ||
-            screen === "jobs" ||
-            screen === "account"
-          ? screen
-          : "dashboard";
-  const tabIndex = Math.max(
-    0,
-    tabItems.findIndex((item) => item.value === activeResource),
-  );
 
   const selectHomeAction = (action: HomeAction) => {
     if (action === "sign-out") {
@@ -838,29 +923,21 @@ function StatusApp({
       setAuthState({ authenticated: false, authMethod: null, expiresAt: null });
       setPhase("idle");
       setScreen("auth-method");
-      setNavFocus(true);
       setMessage("Signed out.");
       return;
     }
-    if (action === "register") {
-      setScreen("register");
-      setNavFocus(false);
-      setMessage("");
-      return;
-    }
     setScreen(action);
-    setNavFocus(false);
     setMessage("");
   };
 
+  const targetLabel = displayTargetLabel(selectedConfig);
+
   if (route === "boot") {
-    return terminalChrome({
+    return quietFrame({
       route,
       target: null,
-      resource: null,
       authMethod: null,
-      phase,
-      navFocus,
+      showNavigationHint: false,
       children: centeredScreen(
         React.createElement(Text, { color: TUI_THEME.accent }, LOGO),
         React.createElement(Text, { bold: true }, "sokosumi · developer CLI"),
@@ -871,33 +948,7 @@ function StatusApp({
 
   if (route === "auth") {
     let content: React.ReactNode;
-    if (screen === "oauth-target") {
-      const items: SelectorItem<HostedTarget>[] = [
-        { value: "mainnet", label: "Mainnet", hint: "production" },
-        { value: "preprod", label: "Preprod", hint: "staging" },
-      ];
-      content = centeredScreen(
-        React.createElement(Text, { color: TUI_THEME.accent }, LOGO),
-        React.createElement(Text, { bold: true }, "Choose OAuth target"),
-        React.createElement(
-          Text,
-          { dimColor: true },
-          "Mainnet is production. Preprod is the staging network.",
-        ),
-        React.createElement(SelectInput, {
-          items,
-          onSelect: adaptSelectHandler<HostedTarget>((target) => {
-            setSelectedConfig(
-              createTargetConfig(env, target, clientIdOverride),
-            );
-            setScreen("oauth-confirm");
-            setMessage("");
-          }),
-        }),
-        navigationHint({ back: true }),
-        messageLine(message, phase),
-      );
-    } else if (screen === "oauth-confirm") {
+    if (screen === "oauth-confirm") {
       const items: SelectorItem<OAuthConfirm>[] = [
         { value: "sign-in", label: "Open browser sign-in" },
       ];
@@ -914,7 +965,6 @@ function StatusApp({
           onSelect: () => startOAuthLogin(selectedConfig),
           listen: !busy,
         }),
-        navigationHint({ back: true }),
         messageLine(message, phase),
       );
     } else if (screen === "api-key-input") {
@@ -966,7 +1016,6 @@ function StatusApp({
               startApiKeyLogin(pendingApiKey, nextConfig, true);
           }),
         }),
-        navigationHint({ back: true }),
         messageLine(message, phase),
       );
     } else if (screen === "oauth-wait" || screen === "api-key-wait") {
@@ -996,12 +1045,11 @@ function StatusApp({
         ),
         React.createElement(Text, { dimColor: true }, message),
         React.createElement(SelectInput, {
-          items: [{ value: "continue", label: "Continue to workspace" }],
+          items: [{ value: "continue", label: "Continue" }],
           onSelect: () => {
             if (successTimer.current) clearTimeout(successTimer.current);
             setPhase("idle");
             setScreen("home");
-            setNavFocus(true);
           },
         }),
       );
@@ -1022,57 +1070,54 @@ function StatusApp({
             setMessage("");
           },
         }),
-        navigationHint({ back: true }),
       );
     } else {
-      const items: SelectorItem<AuthMethod>[] = [
-        {
-          value: "oauth",
-          label: "Browser OAuth",
-          hint: "opens /signin · PKCE",
-        },
-        {
-          value: "api-key",
-          label: "User API key",
-          hint: apiKeyPrefixHint(),
-        },
-      ];
+      const items = buildSignInMenuItems();
       content = centeredScreen(
         React.createElement(Text, { color: TUI_THEME.accent }, LOGO),
         React.createElement(Text, { bold: true }, "Sign in"),
         React.createElement(
           Text,
           { dimColor: true },
-          "Choose a sign-in method. Signup happens in the browser; the CLI never asks for a password.",
+          networkSelectionLocked
+            ? `Target locked to ${targetLabel}. Choose a sign-in method. Signup happens in the browser; the CLI never asks for a password.`
+            : "Choose a sign-in method. Press Tab to switch network. Signup happens in the browser; the CLI never asks for a password.",
         ),
         React.createElement(SelectInput, {
           items,
-          onSelect: adaptSelectHandler<AuthMethod>(chooseAuthMethod),
+          onSelect: adaptSelectHandler<AuthMethod>(handleSignInAction),
           listen: !busy,
         }),
-        navigationHint(),
         messageLine(message, phase),
       );
     }
-    return terminalChrome({
+    const authScreensWithBack = new Set<AuthScreen>([
+      "oauth-confirm",
+      "api-key-target",
+      "error",
+    ]);
+    const authScreensWithCustomHint = new Set<AuthScreen>([
+      "api-key-input",
+      "oauth-wait",
+      "api-key-wait",
+    ]);
+    return quietFrame({
       route,
-      target: displayTargetLabel(selectedConfig),
-      resource: null,
+      target: targetLabel,
       authMethod: null,
-      phase,
-      navFocus,
+      showBackHint: authScreensWithBack.has(screen),
+      showNavigationHint: !authScreensWithCustomHint.has(screen),
+      showNetworkToggle:
+        screen === "auth-method" && !networkSelectionLocked && !busy,
       children: content,
     });
   }
 
   if (screen === "success") {
-    return terminalChrome({
+    return quietFrame({
       route: "signed-in",
-      target: displayTargetLabel(selectedConfig),
-      resource: null,
+      target: targetLabel,
       authMethod: authState.authMethod,
-      phase,
-      navFocus,
       children: centeredScreen(
         React.createElement(
           Text,
@@ -1081,115 +1126,168 @@ function StatusApp({
         ),
         React.createElement(Text, { dimColor: true }, message),
         React.createElement(SelectInput, {
-          items: [{ value: "continue", label: "Continue to workspace" }],
+          items: [{ value: "continue", label: "Continue" }],
           onSelect: () => {
             if (successTimer.current) clearTimeout(successTimer.current);
             setPhase("idle");
             setScreen("home");
-            setNavFocus(true);
           },
         }),
       ),
     });
   }
 
-  const workspaceContent =
-    activeResource === "register"
-      ? React.createElement(
-          Box,
-          { flexDirection: "column", paddingX: 1, width: "100%" },
-          React.createElement(
-            Text,
-            { color: TUI_THEME.accent, bold: true },
-            React.createElement(
-              React.Fragment,
-              null,
-              "/ register",
-              React.createElement(Text, { dimColor: true }, " (soon)"),
-            ),
-          ),
-          React.createElement(Text, { bold: true }, "Register a Coworker"),
-          React.createElement(
-            Text,
-            { dimColor: true },
-            "Choose a preset runtime. Registration stays preset-only; connection happens next.",
-          ),
-          React.createElement(SelectInput, {
-            items: COWORKER_FRAMEWORK_PRESETS.map((preset) => ({
-              value: preset.id,
-              label: preset.label,
-            })),
-            onSelect: adaptSelectHandler<string>((presetId) => {
-              const preset = COWORKER_FRAMEWORK_PRESETS.find(
-                (candidate) => candidate.id === presetId,
-              );
-              if (preset) setMessage(describeRegisterNextStep(preset));
-            }),
-            listen: !busy && !navFocus,
-          }),
-          React.createElement(
-            Text,
-            { dimColor: true },
-            "Esc returns to tabs · q quits",
-          ),
-          messageLine(message, phase),
-        )
-      : React.createElement(ResourceView, {
-          resource: activeResource,
-          coreClient: resourceClient,
-          onBack: () => setNavFocus(true),
-          onNavigate: (resource) => {
-            setScreen(resource);
-            setNavFocus(false);
-            setMessage("");
-          },
-          listen: !navFocus,
-          accountAuthMethod: authState.authMethod,
-          accountTarget: selectedConfig.target,
-        });
-
-  return terminalChrome({
-    route,
-    target: displayTargetLabel(selectedConfig),
-    resource: activeResource,
-    authMethod: authState.authMethod,
-    phase,
-    navFocus,
-    children: React.createElement(
+  let signedInContent: React.ReactNode;
+  if (screen === "register") {
+    signedInContent = React.createElement(
       Box,
-      { flexDirection: "column", flexGrow: 1, width: "100%" },
-      React.createElement(SelectInput, {
-        key: `${activeResource}-${navFocus ? "tabs" : "pane"}`,
-        items: tabItems,
-        initialIndex: tabIndex,
-        direction: "horizontal",
-        listen: navFocus,
-        onSelect: adaptSelectHandler<HomeAction>(selectHomeAction),
-      }),
+      { flexDirection: "column", width: "100%" },
+      React.createElement(Text, { bold: true }, "Register a Coworker"),
       React.createElement(
-        Box,
-        { flexDirection: "column", flexGrow: 1, width: "100%", paddingY: 1 },
-        workspaceContent,
-        React.createElement(
-          Box,
-          {
-            borderStyle: "single",
-            borderColor: TUI_THEME.border,
-            paddingX: 1,
-            width: "100%",
-          },
-          React.createElement(Text, { color: TUI_THEME.accent }, "› "),
-          React.createElement(
-            Text,
-            null,
-            navFocus
-              ? "select a tab"
-              : "select a row · Enter inspect · Esc returns to tabs",
-          ),
-          React.createElement(Text, { dimColor: true }, ` · ${activeResource}`),
-        ),
+        Text,
+        { dimColor: true },
+        "Choose a preset runtime. Registration stays preset-only until the runtime identity contract lands.",
       ),
-    ),
+      React.createElement(SelectInput, {
+        items: COWORKER_FRAMEWORK_PRESETS.map((preset) => ({
+          value: preset.id,
+          label: preset.label,
+        })),
+        onSelect: adaptSelectHandler<string>((presetId) => {
+          const preset = COWORKER_FRAMEWORK_PRESETS.find(
+            (candidate) => candidate.id === presetId,
+          );
+          if (preset) setMessage(describeRegisterNextStep(preset));
+        }),
+        listen: !busy,
+      }),
+      messageLine(message, phase),
+    );
+  } else if (screen === "vendors") {
+    const vendorItems: SelectorItem<string>[] = vendors.length
+      ? vendors.map((vendor) => ({
+          value: vendor.id,
+          label: vendor.name || "Unnamed vendor",
+          hint:
+            vendor.role === "admin"
+              ? "admin · can register Coworkers"
+              : vendor.role || undefined,
+        }))
+      : [{ value: "empty", label: "No vendors found", hint: "empty" }];
+    signedInContent = React.createElement(
+      Box,
+      { flexDirection: "column", width: "100%" },
+      React.createElement(Text, { bold: true }, "Vendors"),
+      React.createElement(
+        Text,
+        { dimColor: true },
+        resourceLoading
+          ? "Loading vendor memberships…"
+          : "Admin role is required to register Coworkers under a Vendor.",
+      ),
+      React.createElement(SelectInput, {
+        items: vendorItems,
+        onSelect: adaptSelectHandler<string>((vendorId) => {
+          if (vendorId === "empty") return;
+          const vendor = vendors.find((candidate) => candidate.id === vendorId);
+          if (!vendor) return;
+          setPhase("idle");
+          setMessage(
+            `${vendor.name || vendor.id} · role ${vendor.role || "unknown"} · id ${vendor.id}`,
+          );
+        }),
+        listen: !resourceLoading,
+      }),
+      messageLine(message, phase),
+    );
+  } else if (screen === "workspaces") {
+    const workspaceItems: SelectorItem<string>[] = workspaces.length
+      ? workspaces.map((workspace) => ({
+          value: workspace.organizationId,
+          label: workspace.name || "Unnamed workspace",
+          hint: workspace.role || workspace.slug || undefined,
+        }))
+      : [
+          {
+            value: "empty",
+            label: "No organization workspaces found",
+            hint: "empty",
+          },
+        ];
+    signedInContent = React.createElement(
+      Box,
+      { flexDirection: "column", width: "100%" },
+      React.createElement(Text, { bold: true }, "Organization workspaces"),
+      React.createElement(
+        Text,
+        { dimColor: true },
+        resourceLoading
+          ? "Loading organization workspaces…"
+          : "Choose a workspace before registering a workspace-only Coworker.",
+      ),
+      React.createElement(SelectInput, {
+        items: workspaceItems,
+        onSelect: adaptSelectHandler<string>((organizationId) => {
+          if (organizationId === "empty") return;
+          const workspace = workspaces.find(
+            (candidate) => candidate.organizationId === organizationId,
+          );
+          if (!workspace) return;
+          setPhase("idle");
+          setMessage(
+            `${workspace.name || workspace.organizationId} · organization ${workspace.organizationId}${workspace.role ? ` · role ${workspace.role}` : ""}`,
+          );
+        }),
+        listen: !resourceLoading,
+      }),
+      messageLine(message, phase),
+    );
+  } else if (screen === "manage") {
+    signedInContent = React.createElement(
+      Box,
+      { flexDirection: "column", width: "100%" },
+      React.createElement(Text, { bold: true }, "Manage Coworker"),
+      React.createElement(
+        Text,
+        { dimColor: true },
+        "Observability lives in Web and headless commands. Use the CLI for rename, API-key rotation, and inspection:",
+      ),
+      React.createElement(Text, null, "sokosumi coworkers list"),
+      React.createElement(
+        Text,
+        null,
+        "sokosumi coworkers update --id <id> --name <name>",
+      ),
+      React.createElement(Text, null, "sokosumi coworkers api-key --id <id>"),
+    );
+  } else {
+    signedInContent = centeredScreen(
+      React.createElement(Text, { color: TUI_THEME.accent }, LOGO),
+      React.createElement(Text, { bold: true }, "Developer CLI"),
+      React.createElement(
+        Text,
+        { dimColor: true },
+        "Sign in is done. Review Vendors and Workspaces, then register or manage Coworkers.",
+      ),
+      React.createElement(SelectInput, {
+        items: homeItems,
+        onSelect: adaptSelectHandler<HomeAction>(selectHomeAction),
+        listen: !busy,
+      }),
+      messageLine(message, phase),
+    );
+  }
+
+  return quietFrame({
+    route: "signed-in",
+    target: targetLabel,
+    authMethod: authState.authMethod,
+    showBackHint:
+      screen === "register" ||
+      screen === "manage" ||
+      screen === "vendors" ||
+      screen === "workspaces",
+    children: signedInContent,
   });
 }
 
@@ -1205,6 +1303,7 @@ export async function renderStatusApp({
   config = resolveCliConfig({ env }),
   clientIdOverride,
   targetExplicit = false,
+  networkSelectionLocked = false,
 }: StatusAppOptions = {}): Promise<{ tui: true }> {
   const manager =
     authManager || getManagerForConfig(config, env, authManagerFactory);
@@ -1220,6 +1319,7 @@ export async function renderStatusApp({
       config,
       clientIdOverride,
       targetExplicit,
+      networkSelectionLocked,
     }),
   );
   await waitUntilExit();
