@@ -30,8 +30,8 @@ import {
   oauthCallbackDisplayUri,
   renderStatusApp,
   resolveHostedTargetConfig,
-  resolveSelectedHostedTarget,
   type StatusAppOptions,
+  toggleHostedTarget,
 } from "../../src/tui/status-app.js";
 
 test("TUI display values derive from package, config, and OAuth sources", () => {
@@ -100,23 +100,14 @@ test("TestV55 TUI target labels sanitize API URLs", () => {
   assert.doesNotMatch(label, /user|password|secret|fragment/i);
 });
 
-test("sign-in menu exposes network choices before auth methods", () => {
-  const mainnetConfig = resolveHostedTargetConfig({}, "mainnet");
-  const items = buildSignInMenuItems(
-    resolveSelectedHostedTarget(mainnetConfig),
-    false,
-  );
+test("sign-in menu lists auth methods only; Tab toggles network", () => {
+  const items = buildSignInMenuItems();
   assert.deepEqual(
     items.map((item) => item.value),
-    ["mainnet", "preprod", "oauth", "api-key"],
-  );
-  assert.match(items[0]?.hint || "", /selected · production/);
-
-  const locked = buildSignInMenuItems("preprod", true);
-  assert.deepEqual(
-    locked.map((item) => item.value),
     ["oauth", "api-key"],
   );
+  assert.equal(toggleHostedTarget("mainnet"), "preprod");
+  assert.equal(toggleHostedTarget("preprod"), "mainnet");
 });
 
 test("env default mainnet URL does not lock TUI network selection", () => {
@@ -138,6 +129,29 @@ test("env default mainnet URL does not lock TUI network selection", () => {
       {},
     ),
     true,
+  );
+});
+
+test("env SOKOSUMI_API_URL still validates mismatched API keys when network is unlocked", () => {
+  const env = { SOKOSUMI_API_URL: "https://api.sokosumi.com" };
+  const config = resolveHostedTargetConfig(env, "mainnet");
+  const targetExplicit = Boolean(env.SOKOSUMI_API_URL);
+
+  assert.equal(isNetworkSelectionLocked(config, {}), false);
+  assert.equal(targetExplicit, true);
+  assert.match(
+    explicitApiKeyTargetError("soko_preprod_secret", config, targetExplicit) ||
+      "",
+    /belongs to preprod/,
+  );
+  assert.equal(
+    explicitApiKeyTargetError("soko_mainnet_secret", config, targetExplicit),
+    null,
+  );
+  assert.equal(
+    explicitApiKeyTargetError("soko_preprod_secret", config, false),
+    null,
+    "callers must pass targetExplicit=true when SOKOSUMI_API_URL is set",
   );
 });
 
@@ -179,8 +193,6 @@ test("TestV60 Ink solely owns API-key input and Esc/arrow navigation", async () 
     assert.match(output, new RegExp(`sokosumi v${CLI_VERSION}`));
     assert.match(output, /soko_mainnet_/);
     await waitForNextImmediate();
-    await sendInput(terminal.stdin, "\u001b[B");
-    await sendInput(terminal.stdin, "\u001b[B");
     await sendInput(terminal.stdin, "\u001b[B");
     await sendInput(terminal.stdin, "\r");
     await waitForOutput(terminal.stdout, () => output, "Input is hidden");
@@ -264,8 +276,6 @@ test("TestV56 OAuth Escape returns to confirm and allows retry", async () => {
   try {
     await waitForOutput(terminal.stdout, () => output, "Browser OAuth");
     await waitForNextImmediate();
-    await sendInput(terminal.stdin, "\u001b[B");
-    await sendInput(terminal.stdin, "\u001b[B");
     await sendInput(terminal.stdin, "\r");
     await waitForOutput(terminal.stdout, () => output, "Open browser sign-in?");
     assert.doesNotMatch(output, /Choose OAuth target/);
@@ -472,11 +482,8 @@ test("TestV34 runCli TUI selection preserves explicit client ID", async () => {
   try {
     await waitForOutput(terminal.stdout, () => output, "Browser OAuth");
     await waitForNextImmediate();
-    await sendInput(terminal.stdin, "\u001b[B");
-    await waitForOutput(terminal.stdout, () => output, "› Preprod");
-    await sendInput(terminal.stdin, "\r");
-    await waitForOutput(terminal.stdout, () => output, "Network: preprod");
-    await sendInput(terminal.stdin, "\u001b[B");
+    await sendInput(terminal.stdin, "\t");
+    await waitForOutput(terminal.stdout, () => output, "Target: preprod");
     await sendInput(terminal.stdin, "\r");
     await waitForOutput(terminal.stdout, () => output, "Open browser sign-in?");
     assert.doesNotMatch(output, /Choose OAuth target/);
