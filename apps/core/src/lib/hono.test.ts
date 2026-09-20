@@ -85,7 +85,7 @@ vi.mock("@/middleware/workspace", () => ({
     },
 }));
 
-import { OpenAPIHonoWithAuth } from "./hono";
+import { createNestedOpenAPIHono, OpenAPIHonoWithAuth } from "./hono";
 
 describe("OpenAPIHonoWithAuth", () => {
   beforeEach(() => {
@@ -137,6 +137,36 @@ describe("OpenAPIHonoWithAuth", () => {
         organizationId: "org_123",
         role: "user",
       },
+      workspaceContext: {
+        workspaceId: "workspace_123",
+        userId: "user_123",
+        organizationId: "org_123",
+      },
+    });
+    expect(middlewareCalls.calls).toEqual([
+      "auth",
+      "context",
+      "organization",
+      "workspace",
+    ]);
+  });
+
+  it("preserves parent workspaceContext on a nested remount without auth", async () => {
+    const parent = new OpenAPIHonoWithAuth({
+      includeWorkspaceContext: true,
+    });
+    const child = createNestedOpenAPIHono();
+    child.get("/files", (c) => {
+      return c.json({
+        workspaceContext: c.var.workspaceContext,
+      });
+    });
+    parent.route("/drive", child);
+
+    const response = await parent.request("http://localhost/drive/files");
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
       workspaceContext: {
         workspaceId: "workspace_123",
         userId: "user_123",

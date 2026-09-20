@@ -18,7 +18,7 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
-import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { createNestedOpenAPIHono } from "@/lib/hono";
 import { requireAdminAuthContext } from "@/middleware/auth";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import {
@@ -62,7 +62,7 @@ import {
   updateAuthoredVersion,
 } from "@/services/soko-bot-version.service";
 
-const app = new OpenAPIHonoWithAuth();
+const app = createNestedOpenAPIHono();
 const sokoBotPaginationQuerySchema = cursorPaginationQuerySchema.extend({
   cursor: z.string().uuid().optional(),
 });
