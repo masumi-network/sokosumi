@@ -10,6 +10,7 @@ import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create
 import { loadMoreProjects } from "@/app/projects/actions";
 import {
   PROJECTS_BROWSE_DIVIDE_CLASS,
+  PROJECTS_BROWSE_HEADER_ROW_CLASS,
   PROJECTS_BROWSE_LAYOUT_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
 } from "@/app/projects/constants";
@@ -123,10 +124,6 @@ export function ProjectsView({
       <div
         className={cn("flex flex-col gap-5", LIST_MOBILE_CREATE_FAB_CLEARANCE)}
       >
-        <div className="hidden justify-end md:flex">
-          <AddProjectButton label={labels.newProject} className="self-start" />
-        </div>
-
         {hasNothingAtAll ? (
           <ProjectsEmptyState labels={labels.empty} />
         ) : (
@@ -137,15 +134,23 @@ export function ProjectsView({
               PROJECTS_LIST_CARD_MIN_H_CLASS,
             )}
           >
-            {/* Header row of the list card, divided from the rows it labels. */}
-            <div className="border-border flex items-center gap-3 border-b px-4 py-2.5">
+            <div className={PROJECTS_BROWSE_HEADER_ROW_CLASS}>
               <ProjectsFilter labels={labels.filter} />
               {/* Plain text, not a control: the Core route has one fixed
                   ordering, so a chip here would promise a menu that cannot
-                  exist yet. */}
-              <span className="text-muted-foreground shrink-0 text-xs whitespace-nowrap">
+                  exist yet. Nothing in this row wraps, so the label yields
+                  across md–lg, where the create button shares the line and a
+                  longer locale would otherwise squeeze the filter to a stub. */}
+              <span className="text-muted-foreground inline shrink-0 text-xs whitespace-nowrap md:hidden lg:inline">
                 {labels.sortedBy}
               </span>
+              {/* Create lives on the line it acts on, so the page carries no
+                  row that exists only to hold a button. Below md the mobile
+                  FAB is the create control, so this one stays desktop-only. */}
+              <AddProjectButton
+                label={labels.newProject}
+                className="hidden md:inline-flex"
+              />
             </div>
 
             {hasLoadedProjects ? (
