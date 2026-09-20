@@ -23,11 +23,9 @@ import type {
   StripeCustomerBillingDetails,
 } from "@/lib/clients/generated/core";
 import { MemberRole } from "@/lib/clients/generated/core";
-import {
-  organizationSeatService,
-  organizationService,
-  userService,
-} from "@/lib/services";
+import { organizationService } from "@/lib/services/organization.service";
+import { organizationSeatService } from "@/lib/services/organization-seat.service";
+import { userService } from "@/lib/services/user.service";
 
 interface OrganizationSettingsContentProps {
   organization: OrganizationRecord;

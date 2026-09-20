@@ -9,7 +9,8 @@ import { loadRoomShellRoster } from "@/app/chat/load-room-shell-roster";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
 import type { ChatRoom, Organization } from "@/lib/clients/generated/core";
-import { chatRoomService, userService } from "@/lib/services";
+import { chatRoomService } from "@/lib/services/chat-room.service";
+import { userService } from "@/lib/services/user.service";
 import { isUuidString } from "@/lib/utils/uuid";
 
 interface ChatRoomPageProps {

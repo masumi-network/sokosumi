@@ -22,7 +22,7 @@ import {
   type ProvideJobInputSchemaType,
   provideJobInputSchema,
 } from "@/lib/schemas";
-import { jobService } from "@/lib/services";
+import { jobService } from "@/lib/services/job.service";
 import {
   type AuthenticatedRequest,
   withSession,

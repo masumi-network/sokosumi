@@ -37,7 +37,7 @@ vi.mock("@/lib/services/organization-assigned-seat.service", () => ({
     hasAssignedOrganizationSeatMock(...args),
 }));
 
-vi.mock("@/lib/services", () => ({
+vi.mock("@/lib/services/user.service", () => ({
   userService: {
     getWorkspaceAccess: (...args: unknown[]) => getWorkspaceAccessMock(...args),
   },

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getInvitationMock = vi.fn();
 
-vi.mock("@/lib/services", () => ({
+vi.mock("@/lib/services/chat-room.service", () => ({
   chatRoomService: {
     getInvitation: (...args: unknown[]) => getInvitationMock(...args),
   },

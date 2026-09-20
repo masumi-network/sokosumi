@@ -49,8 +49,10 @@ vi.mock("sonner", () => ({
   },
 }));
 
-vi.mock("@/lib/actions", () => ({
+vi.mock("@/lib/actions/credits/action", () => ({
   purchaseCredits: (...args: unknown[]) => purchaseCreditsMock(...args),
+}));
+vi.mock("@/lib/actions/errors", () => ({
   CommonErrorCode: {
     UNAUTHENTICATED: "UNAUTHENTICATED",
     UNAUTHORIZED: "UNAUTHORIZED",

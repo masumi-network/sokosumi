@@ -1,5 +1,5 @@
 import { clearMembershipVisibleRoomsSnapshot } from "@/components/chat/membership-visible-rooms-store";
-import { updatePreferredOrganization } from "@/lib/actions/organization";
+import { updatePreferredOrganization } from "@/lib/actions/organization/action";
 import { authClient } from "@/lib/auth/auth.client";
 
 /** Better Auth `ORGANIZATION_ERROR_CODES.USER_IS_NOT_A_MEMBER_OF_THE_ORGANIZATION`. */

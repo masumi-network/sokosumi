@@ -31,12 +31,12 @@ vi.mock("@/lib/auth/auth.client", () => ({
   },
 }));
 
-vi.mock("@/lib/actions", () => ({
+vi.mock("@/lib/actions/organization/invite-link-action", () => ({
   acceptOrganizationInviteLink: (...args: unknown[]) =>
     acceptOrganizationInviteLinkMock(...args),
 }));
 
-vi.mock("@/lib/actions/workspace-gate", () => ({
+vi.mock("@/lib/actions/workspace-gate/action", () => ({
   clearPendingOrganizationJoinCookieAction: (...args: unknown[]) =>
     clearPendingOrganizationJoinCookieActionMock(...args),
 }));

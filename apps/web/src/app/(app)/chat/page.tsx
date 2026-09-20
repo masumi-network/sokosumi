@@ -13,8 +13,7 @@ import { SidebarSeparator } from "@/components/ui/sidebar";
 import { getSession } from "@/lib/auth/auth.server";
 import { hasSokoBotBetaAccess } from "@/lib/beta-access";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
-import type { ChatRoomsPage } from "@/lib/services";
-
+import type { ChatRoomsPage } from "@/lib/services/chat-room.service";
 import { CHAT_CHATS_MOBILE_LIST_SHELL_CLASS } from "./chat-chats-list-shell";
 import { ChatDesktopHomeRedirect } from "./components/chat-desktop-home-redirect.client";
 import {
