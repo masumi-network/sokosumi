@@ -225,6 +225,21 @@ export function nextSignInNetworkConfig(
   );
 }
 
+export function resolveStatusCoreClient(options: {
+  coreClientOverride?: CoreHttpClient;
+  selectedApiUrl: string;
+  configApiUrl: string;
+  createClient: () => CoreHttpClient;
+}): CoreHttpClient {
+  if (
+    options.coreClientOverride !== undefined &&
+    options.selectedApiUrl === options.configApiUrl
+  ) {
+    return options.coreClientOverride;
+  }
+  return options.createClient();
+}
+
 export function buildSignInMenuItems(): SelectorItem<AuthMethod>[] {
   return [
     {
@@ -429,19 +444,27 @@ function StatusApp({
   );
   const coreClient = useMemo(
     () =>
-      coreClientOverride ??
-      createCoreHttpClient({
-        apiUrl: selectedConfig.apiUrl,
-        authManager: activeManager,
-        environment: env,
-        clientId: selectedConfig.clientId,
-        authBaseUrl: selectedConfig.authBaseUrl,
-        clientSecret: selectedConfig.clientSecret,
+      resolveStatusCoreClient({
+        coreClientOverride,
+        selectedApiUrl: selectedConfig.apiUrl,
+        configApiUrl: config.apiUrl,
+        createClient: () =>
+          createCoreHttpClient({
+            apiUrl: selectedConfig.apiUrl,
+            authManager: activeManager,
+            environment: env,
+            clientId: selectedConfig.clientId,
+            authBaseUrl: selectedConfig.authBaseUrl,
+            clientSecret: selectedConfig.clientSecret,
+          }),
       }),
+    // `env` deliberately omitted: callers pass a session-stable object
+    // (process.env or once-built AuthEnvironment). Listing it recreates the
+    // client whenever identity changes without content change.
     [
       activeManager,
+      config.apiUrl,
       coreClientOverride,
-      env,
       selectedConfig.apiUrl,
       selectedConfig.authBaseUrl,
       selectedConfig.clientId,

@@ -5,6 +5,7 @@ import test from "node:test";
 
 import { type Instance, render as inkRender } from "ink";
 import packageJson from "../../package.json" with { type: "json" };
+import type { CoreHttpClient } from "../../src/api/http-client.js";
 import {
   AuthManager,
   type OAuthCredentials,
@@ -32,6 +33,7 @@ import {
   oauthCallbackDisplayUri,
   renderStatusApp,
   resolveHostedTargetConfig,
+  resolveStatusCoreClient,
   type StatusAppOptions,
   toggleHostedTarget,
 } from "../../src/tui/status-app.js";
@@ -110,6 +112,56 @@ test("sign-in menu lists auth methods only; Tab toggles network", () => {
   );
   assert.equal(toggleHostedTarget("mainnet"), "preprod");
   assert.equal(toggleHostedTarget("preprod"), "mainnet");
+});
+
+function stubCoreClient(): CoreHttpClient {
+  return {
+    get: async <T>() => ({}) as T,
+    post: async <T>() => ({}) as T,
+    patch: async <T>() => ({}) as T,
+    delete: async <T>() => ({}) as T,
+  };
+}
+
+test("status core client reuses override only while API URLs match", () => {
+  const primary = stubCoreClient();
+  const created = stubCoreClient();
+  let createCount = 0;
+
+  const reused = resolveStatusCoreClient({
+    coreClientOverride: primary,
+    selectedApiUrl: "https://api.sokosumi.com",
+    configApiUrl: "https://api.sokosumi.com",
+    createClient: () => {
+      createCount += 1;
+      return created;
+    },
+  });
+  assert.equal(reused, primary);
+  assert.equal(createCount, 0);
+
+  const switched = resolveStatusCoreClient({
+    coreClientOverride: primary,
+    selectedApiUrl: "https://api.preprod.sokosumi.com",
+    configApiUrl: "https://api.sokosumi.com",
+    createClient: () => {
+      createCount += 1;
+      return created;
+    },
+  });
+  assert.equal(switched, created);
+  assert.equal(createCount, 1);
+
+  const withoutOverride = resolveStatusCoreClient({
+    selectedApiUrl: "https://api.sokosumi.com",
+    configApiUrl: "https://api.sokosumi.com",
+    createClient: () => {
+      createCount += 1;
+      return created;
+    },
+  });
+  assert.equal(withoutOverride, created);
+  assert.equal(createCount, 2);
 });
 
 test("Tab network toggle is scoped to unlocked auth-method screen", () => {
