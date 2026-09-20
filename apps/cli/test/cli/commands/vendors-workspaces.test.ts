@@ -55,6 +55,17 @@ test("vendors me emits stable text output", async () => {
   ]);
 });
 
+test("TestV79 vendors me describes an empty administered result", async () => {
+  const output: string[] = [];
+  await runVendorsCommand({
+    client: clientWith({ data: [] }),
+    stdout: { write: (value) => output.push(value) },
+    subcommand: "me",
+  });
+
+  assert.deepEqual(output, ["No administered vendors found.\n"]);
+});
+
 test("TestV79 workspaces JSON allowlists organization identity fields", async () => {
   const output: string[] = [];
   await runWorkspacesCommand({
