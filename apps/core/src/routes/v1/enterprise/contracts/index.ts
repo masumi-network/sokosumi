@@ -1,4 +1,4 @@
-import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { createNestedOpenAPIHono } from "@/lib/hono";
 
 import mountActivateEnterpriseContract from "./[id]/activate/post.js";
 import mountCancelEnterpriseContract from "./[id]/cancel/post.js";
@@ -8,7 +8,7 @@ import mountPreviewEnterpriseContractPeriods from "./[id]/periods/preview/get.js
 import mountGetEnterpriseContracts from "./get.js";
 import mountPostEnterpriseContract from "./post.js";
 
-const app = new OpenAPIHonoWithAuth();
+const app = createNestedOpenAPIHono();
 
 mountGetEnterpriseContracts(app);
 mountPostEnterpriseContract(app);

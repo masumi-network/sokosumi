@@ -2,6 +2,12 @@
 
 Private workspace package `sokosumi`; package path `apps/cli`; binary `sokosumi`. Lives in this monorepo. Product intent is [`VISION.md`](./VISION.md). Contract is [`SPEC.md`](./SPEC.md).
 
+## Planned direction
+
+[REPORTED: user-approved direction, 2026-09-18] Optional integrations will support temporary sessions, workspace-only Coworkers, and hosted workers. Capability checks have no fixed order. Public paid operation requires reviewed usage pricing, payment evidence, and administrative approval.
+
+This is planned work, not a new installed capability. See [ADR 0004](docs/adr/0004-coworker-capabilities-and-graduation.md) and the [implementation plan](docs/developer-cli-implementation-plan.md). Existing commands below remain the current interface.
+
 ## Run
 
 From the repo root, after `pnpm install`:
