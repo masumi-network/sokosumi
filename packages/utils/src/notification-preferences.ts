@@ -52,8 +52,8 @@ export const NOTIFICATION_EMAIL_CATEGORIES: readonly NotificationCategory[] = [
   "TASK_COMPLETED",
   "CHAT_MENTION",
   "CHAT_DIRECT_MESSAGE",
-  "SYSTEM",
   "BILLING_ATTENTION",
+  "SYSTEM",
   "FOLLOW_UP",
 ];
 
