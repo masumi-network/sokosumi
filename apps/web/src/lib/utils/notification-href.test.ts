@@ -373,4 +373,15 @@ describe("getNotificationHref", () => {
       }),
     ).toBe("/billing?tab=credits");
   });
+
+  it("sends a present unrecognized billing key to the credits tab", () => {
+    expect(
+      getNotificationHref({
+        kind: "BILLING",
+        referenceId: "invoice-1",
+        messageKey: "billing.not-a-real-key",
+        metadata: { roomId: "should-not-route" },
+      }),
+    ).toBe("/billing?tab=credits");
+  });
 });
