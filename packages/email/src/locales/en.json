@@ -175,6 +175,19 @@
           "scheduleRemovedByOperator": "The schedule for {taskName} was removed after a review a day ago, and you have not opened the notice yet."
         }
       }
+    },
+    "billing": {
+      "linkInstructions": "Or copy and paste this URL into your browser:",
+      "footer": "You're receiving this email because billing alerts are switched on in your notification settings.",
+      "greeting": "Hi {name}",
+      "greetingWithoutName": "Hi",
+      "lowBalance": {
+        "subject": "Sokosumi - Your credits are running low",
+        "preview": "You have {credits} credits left.",
+        "title": "Credits running low",
+        "body": "Your credits are running low. You have {credits} left. Work stops when they run out.",
+        "button": "Add credits"
+      }
     }
   }
 }

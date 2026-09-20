@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   renderChatRoomInvitationEmail,
   renderJobFailureNotificationEmail,
+  renderLowBalanceEmail,
   renderMagicLinkEmail,
   renderOrganizationInvitationEmail,
   renderResetPasswordEmail,
@@ -119,5 +120,21 @@ describe("email renderers", () => {
     expect(rendered.html).toContain("agent-blockchain-id");
     expect(rendered.html).toContain("&quot;error&quot;: &quot;failure&quot;");
     expect(rendered.html).toContain("result-hash");
+  });
+
+  it("renders a low-balance billing email with the remaining credits", async () => {
+    const rendered = await renderLowBalanceEmail({
+      actionUrl: "https://app.sokosumi.com/billing?tab=credits",
+      credits: 12,
+      locale: "en",
+      recipientName: "Sandro",
+    });
+
+    expect(rendered.subject).toBe("Sokosumi - Your credits are running low");
+    expect(rendered.html).toContain("Hi Sandro");
+    expect(rendered.html).toContain("12");
+    expect(rendered.html).toContain(
+      "https://app.sokosumi.com/billing?tab=credits",
+    );
   });
 });
