@@ -42,7 +42,9 @@ struct NotificationFrontPresence {
   }
 
   /// Ably attached the channel, so whatever it holds is back.
-  var restored: Action { action }
+  var restored: Action {
+    action
+  }
 
   /// The channel refused a leave. Whether to send it again shortly.
   ///

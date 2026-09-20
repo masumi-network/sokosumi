@@ -1,8 +1,7 @@
+@testable import SokosumiRealtime
 import Testing
 
-@testable import SokosumiRealtime
-
-@Suite struct NotificationFrontPresenceTests {
+struct NotificationFrontPresenceTests {
   /// What the connection does: send what it is given, then record it.
   private func send(_ presence: inout NotificationFrontPresence, _ action: NotificationFrontPresence.Action) {
     presence.sent(action)
@@ -42,8 +41,8 @@ import Testing
     #expect(presence.restored == .enter)
   }
 
-  // The leave that went missing: refused while the channel was suspended,
-  // and Ably still holds the member it puts back.
+  /// The leave that went missing: refused while the channel was suspended,
+  /// and Ably still holds the member it puts back.
   @Test func leavesAgainOnEveryRestoreAfterALeaveThatWentMissing() {
     var presence = NotificationFrontPresence()
     send(&presence, presence.setInFront(true))
@@ -53,8 +52,8 @@ import Testing
     #expect(presence.restored == .leave)
   }
 
-  // Told at launch, before the connection has the channel: nothing was sent,
-  // so the first restore must not leave a member that was never entered.
+  /// Told at launch, before the connection has the channel: nothing was sent,
+  /// so the first restore must not leave a member that was never entered.
   @Test func saysNothingOnRestoreWhenTheEnterReachedNoChannel() {
     var presence = NotificationFrontPresence()
     _ = presence.setInFront(true)
@@ -91,7 +90,7 @@ import Testing
     #expect(presence.leaveRefused(channelAttached: true) == true)
   }
 
-  // The attach that ends a suspension sends the answer again by itself.
+  /// The attach that ends a suspension sends the answer again by itself.
   @Test func waitsForTheRestoreWhenTheChannelIsNotAttached() {
     var presence = NotificationFrontPresence()
     send(&presence, presence.setInFront(true))
@@ -100,8 +99,8 @@ import Testing
     #expect(presence.leaveRefused(channelAttached: false) == false)
   }
 
-  // A key granted no presence right refuses every leave. Asking forever
-  // buys the reader nothing, so the app stops after the budget.
+  /// A key granted no presence right refuses every leave. Asking forever
+  /// buys the reader nothing, so the app stops after the budget.
   @Test func stopsSendingARefusedLeaveOnceTheBudgetIsSpent() {
     var presence = NotificationFrontPresence()
     send(&presence, presence.setInFront(true))
@@ -152,11 +151,11 @@ import Testing
     #expect(presence.restored == .none)
   }
 
-  // The acknowledgement is not the leave coming back from the server, and
-  // Ably drops the member it puts back only on the one that comes back. A
-  // connection lost between the two would hold every email back by its
-  // category's delay for the rest of the session, so the leave is sent
-  // again until the channel is gone.
+  /// The acknowledgement is not the leave coming back from the server, and
+  /// Ably drops the member it puts back only on the one that comes back. A
+  /// connection lost between the two would hold every email back by its
+  /// category's delay for the rest of the session, so the leave is sent
+  /// again until the channel is gone.
   @Test func leavesAgainOnRestoreAlthoughTheChannelTookTheLeave() {
     var presence = NotificationFrontPresence()
     send(&presence, presence.setInFront(true))
@@ -167,8 +166,8 @@ import Testing
     #expect(presence.restored == .leave)
   }
 
-  // A new socket on the same connection object starts from the top: the
-  // channel that refused the last leave is gone with it.
+  /// A new socket on the same connection object starts from the top: the
+  /// channel that refused the last leave is gone with it.
   @Test func startsTheBudgetOverWhenTheSocketIsReplaced() {
     var presence = NotificationFrontPresence()
     send(&presence, presence.setInFront(true))

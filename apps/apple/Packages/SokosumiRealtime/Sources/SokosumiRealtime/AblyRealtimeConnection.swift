@@ -272,7 +272,7 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
   /// with `asks`.
   private func send(
     _ action: NotificationFrontPresence.Action,
-    asked: Int? = nil,
+    asked: Int? = nil
   ) {
     guard action != .none else { return }
     let token = lock.withLock { asked ?? frontPresenceAsks }
