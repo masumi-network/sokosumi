@@ -200,6 +200,32 @@ export function toggleHostedTarget(target: HostedTarget): HostedTarget {
   return target === "mainnet" ? "preprod" : "mainnet";
 }
 
+export function canToggleSignInNetwork(options: {
+  route: "boot" | "auth" | "signed-in";
+  screen: AuthScreen;
+  networkSelectionLocked: boolean;
+  busy: boolean;
+}): boolean {
+  return (
+    options.route === "auth" &&
+    options.screen === "auth-method" &&
+    !options.networkSelectionLocked &&
+    !options.busy
+  );
+}
+
+export function nextSignInNetworkConfig(
+  selectedConfig: CliTargetConfig,
+  env: AuthEnvironment,
+  clientIdOverride?: string,
+): CliTargetConfig {
+  return createTargetConfig(
+    env,
+    toggleHostedTarget(resolveSelectedHostedTarget(selectedConfig)),
+    clientIdOverride,
+  );
+}
+
 export function buildSignInMenuItems(): SelectorItem<AuthMethod>[] {
   return [
     {
@@ -755,17 +781,20 @@ function StatusApp({
       }
       return;
     }
-    if (
-      key.tab &&
-      route === "auth" &&
-      screen === "auth-method" &&
-      !networkSelectionLocked &&
-      !busy
-    ) {
-      const current = resolveSelectedHostedTarget(selectedConfig);
-      const next = toggleHostedTarget(current);
-      setSelectedConfig(createTargetConfig(env, next, clientIdOverride));
-      setMessage("");
+    if (screen === "auth-method" && key.tab) {
+      if (
+        canToggleSignInNetwork({
+          route,
+          screen,
+          networkSelectionLocked,
+          busy,
+        })
+      ) {
+        setSelectedConfig(
+          nextSignInNetworkConfig(selectedConfig, env, clientIdOverride),
+        );
+        setMessage("");
+      }
       return;
     }
 

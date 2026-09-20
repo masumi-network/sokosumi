@@ -499,7 +499,9 @@ export async function runCli(
         clientIdOverride: options["client-id"],
         targetExplicit,
         networkSelectionLocked,
-        coreClient: dependencies.coreClient,
+        ...(dependencies.coreClient
+          ? { coreClient: dependencies.coreClient }
+          : {}),
         loginFn: dependencies.loginFn,
         oauthPort:
           options["oauth-port"] === undefined
