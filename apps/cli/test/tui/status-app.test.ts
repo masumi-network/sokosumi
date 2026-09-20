@@ -24,9 +24,11 @@ import {
   apiKeyPrefixHint,
   apiKeyTargetEscapeState,
   buildSignInMenuItems,
+  canToggleSignInNetwork,
   displayTargetLabel,
   explicitApiKeyTargetError,
   isNetworkSelectionLocked,
+  nextSignInNetworkConfig,
   oauthCallbackDisplayUri,
   renderStatusApp,
   resolveHostedTargetConfig,
@@ -108,6 +110,40 @@ test("sign-in menu lists auth methods only; Tab toggles network", () => {
   );
   assert.equal(toggleHostedTarget("mainnet"), "preprod");
   assert.equal(toggleHostedTarget("preprod"), "mainnet");
+});
+
+test("Tab network toggle is scoped to unlocked auth-method screen", () => {
+  assert.equal(
+    canToggleSignInNetwork({
+      route: "auth",
+      screen: "auth-method",
+      networkSelectionLocked: false,
+      busy: false,
+    }),
+    true,
+  );
+  assert.equal(
+    canToggleSignInNetwork({
+      route: "auth",
+      screen: "auth-method",
+      networkSelectionLocked: true,
+      busy: false,
+    }),
+    false,
+  );
+  assert.equal(
+    canToggleSignInNetwork({
+      route: "signed-in",
+      screen: "home",
+      networkSelectionLocked: false,
+      busy: false,
+    }),
+    false,
+  );
+
+  const mainnet = resolveHostedTargetConfig({}, "mainnet");
+  const preprod = nextSignInNetworkConfig(mainnet, {}, undefined);
+  assert.equal(preprod.target, "preprod");
 });
 
 test("env default mainnet URL does not lock TUI network selection", () => {
