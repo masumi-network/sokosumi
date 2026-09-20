@@ -142,3 +142,13 @@ names and the Codex/Claude Code agents. The CLI reported every skill installed;
 CLI-produced hashes matched `apps/web/skills-lock.json`. Reinstallation produced
 no skill-file or lockfile diff. Future installation and scope changes must use the
 CLI, as documented in [Skill management](skill-routing.md#manage-installations-with-the-skills-cli).
+
+## Follow-up: remove root CLAUDE.md
+
+Root `CLAUDE.md` held an `@AGENTS.md` import plus a copy of the PR-title and branch
+rules. Claude Code v2.1.277 and later reads root `AGENTS.md` directly when no
+`CLAUDE.md` exists in the working directory or above it, so the file was removed;
+the rules remain in the root contract and [Delivery](delivery.md). This saves about
+400 tokens per Claude Code session. Sessions that cannot read `AGENTS.md` directly
+(older versions, third-party providers, disabled telemetry) need a local
+`CLAUDE.md` containing `@AGENTS.md`.
