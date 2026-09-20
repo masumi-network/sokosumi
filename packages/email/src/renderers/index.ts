@@ -5,8 +5,10 @@ export {
   renderResetPasswordEmail,
   renderVerificationEmail,
 } from "./auth.js";
+export { renderLowBalanceEmail } from "./billing.js";
 export { renderJobFailureNotificationEmail } from "./jobs.js";
 export {
+  renderBillingFollowUpEmail,
   renderChatDirectMessageFollowUpEmail,
   renderChatMentionFollowUpEmail,
   renderTaskFollowUpEmail,

@@ -138,3 +138,20 @@ export type ChatDirectMessageFollowUpEmailProps = ChatDirectMessageEmailProps;
 export interface TaskFollowUpEmailProps extends TaskEmailProps {
   reason?: null | TaskAttentionReason;
 }
+
+/** A wallet that ran low. Stripe has no email for Sokosumi credits. */
+export interface BillingLowBalanceEmailProps extends NotificationEmailProps {
+  credits: number;
+}
+
+/**
+ * Why a billing reminder still waits. Payment failures stay in-app: Stripe
+ * already mailed those.
+ */
+export type BillingFollowUpReason = "lowBalance";
+
+export interface BillingFollowUpEmailProps extends NotificationEmailProps {
+  /** What was left when the balance ran low; only that reason reads it. */
+  credits?: null | number;
+  reason?: null | BillingFollowUpReason;
+}

@@ -4,6 +4,7 @@ import {
   renderActionEmail,
 } from "../templates/action-email.js";
 import type {
+  BillingFollowUpEmailProps,
   ChatDirectMessageFollowUpEmailProps,
   ChatMentionFollowUpEmailProps,
   RenderedEmail,
@@ -40,7 +41,7 @@ const FOLLOW_UP_SCOPE = "notifications.followUp";
 interface FollowUpEmailOptions {
   actionUrl: string;
   facts?: readonly ActionEmailFact[];
-  family: "directMessage" | "mention" | "task";
+  family: "billing" | "directMessage" | "mention" | "task";
   quote?: null | string;
   /**
    * Why the thing is waiting, named by the notification that started it.
@@ -142,6 +143,27 @@ export function renderChatDirectMessageFollowUpEmail({
     recipientName,
     t,
     values: { authorName: nameOr(t, authorName, "fallbackAuthorName") },
+  });
+}
+
+/** The low-balance sentence names what was left, so it needs the number. */
+export function renderBillingFollowUpEmail({
+  actionUrl,
+  credits,
+  locale,
+  reason,
+  recipientName,
+}: BillingFollowUpEmailProps): Promise<RenderedEmail> {
+  const { t } = createEmailTranslator(locale);
+  const hasCredits = typeof credits === "number";
+
+  return renderFollowUpEmail({
+    actionUrl,
+    family: "billing",
+    reason: reason === "lowBalance" && !hasCredits ? null : reason,
+    recipientName,
+    t,
+    values: hasCredits ? { credits: String(credits) } : {},
   });
 }
 

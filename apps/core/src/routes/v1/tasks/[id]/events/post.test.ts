@@ -85,6 +85,13 @@ vi.mock("@/helpers/notifications", () => ({
   createNotification: createNotificationMock,
 }));
 
+const notifyLowBalanceAfterChargeMock = vi.fn().mockResolvedValue(undefined);
+
+vi.mock("@/helpers/billing-notifications", () => ({
+  notifyLowBalanceAfterCharge: (...args: unknown[]) =>
+    notifyLowBalanceAfterChargeMock(...args),
+}));
+
 vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
   removeTaskSchedulePlannedOccurrences:
     removeTaskSchedulePlannedOccurrencesMock,
@@ -484,6 +491,8 @@ describe("POST /{id}/events", () => {
     expect(waitUntilCapturedPromises).toHaveLength(1);
     await waitUntilCapturedPromises[0];
 
+    // A status change takes no credits, so it never checks the balance.
+    expect(notifyLowBalanceAfterChargeMock).not.toHaveBeenCalled();
     expect(createNotificationMock).toHaveBeenCalledWith({
       userId: USER_ID,
       kind: NotificationKind.TASK,
@@ -967,7 +976,7 @@ describe("POST /{id}/events", () => {
       .mockResolvedValueOnce("txn_first")
       .mockResolvedValueOnce("txn_second");
     requireTaskCollaborationMock.mockResolvedValue(
-      createTask({ status: TaskStatus.RUNNING }),
+      createTask({ status: TaskStatus.RUNNING, organizationId: "org-1" }),
     );
 
     const app = createApp({
@@ -992,6 +1001,15 @@ describe("POST /{id}/events", () => {
     expect(createTaskEventTransactionMock).toHaveBeenCalledTimes(2);
     expect(tx.taskEvent.create).toHaveBeenCalledTimes(2);
     expect(tx.task.updateMany).not.toHaveBeenCalled();
+    // Each committed charge checks the wallet it came out of, after the
+    // response, on the task owner's wallet rather than the caller's.
+    expect(waitUntilCapturedPromises).toHaveLength(2);
+    await Promise.all(waitUntilCapturedPromises);
+    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledTimes(2);
+    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
+      userId: USER_ID,
+      organizationId: "org-1",
+    });
   });
 
   it("auto-sets OUT_OF_CREDITS on credit-only when balance is insufficient mid-run", async () => {

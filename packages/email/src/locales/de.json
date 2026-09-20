@@ -174,6 +174,29 @@
           "outOfCredits": "{taskName} hat vor einem Tag angehalten, weil die Credits aufgebraucht sind. Die Aufgabe wartet weiterhin.",
           "scheduleRemovedByOperator": "Der Zeitplan für {taskName} wurde vor einem Tag nach einer Prüfung entfernt, und du hast den Hinweis noch nicht geöffnet."
         }
+      },
+      "billing": {
+        "subject": "Sokosumi - Deine Abrechnung braucht weiterhin deine Aufmerksamkeit",
+        "preview": "Deine Abrechnung hat vor einem Tag deine Aufmerksamkeit gebraucht.",
+        "title": "Braucht weiterhin deine Aufmerksamkeit",
+        "body": "Deine Abrechnung hat vor einem Tag deine Aufmerksamkeit gebraucht, und du hast den Hinweis noch nicht geöffnet.",
+        "button": "Abrechnung öffnen",
+        "reasons": {
+          "lowBalance": "Deine Credits wurden vor einem Tag knapp, es waren noch {credits} übrig, und du hast den Hinweis noch nicht geöffnet."
+        }
+      }
+    },
+    "billing": {
+      "linkInstructions": "Oder kopiere diese URL in deinen Browser:",
+      "footer": "Du erhältst diese E-Mail, weil Abrechnungshinweise in deinen Benachrichtigungseinstellungen aktiviert sind.",
+      "greeting": "Hallo {name}",
+      "greetingWithoutName": "Hallo",
+      "lowBalance": {
+        "subject": "Sokosumi - Deine Credits werden knapp",
+        "preview": "Du hast noch {credits} Credits.",
+        "title": "Credits werden knapp",
+        "body": "Deine Credits werden knapp. Es sind noch {credits} übrig. Die Arbeit stoppt, wenn sie aufgebraucht sind.",
+        "button": "Credits aufladen"
       }
     }
   }

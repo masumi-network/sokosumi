@@ -1,4 +1,9 @@
 import {
+  BILLING_CREDITS_ADDED_MESSAGE_KEY,
+  BILLING_FOLLOW_UP_MESSAGE_KEY,
+  BILLING_LOW_BALANCE_MESSAGE_KEY,
+  BILLING_PAYMENT_FAILED_MESSAGE_KEY,
+  BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY,
   CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
   JOB_FOLLOW_UP_MESSAGE_KEY,
   TASK_FOLLOW_UP_MESSAGE_KEY,
@@ -327,13 +332,73 @@ describe("getNotificationHref", () => {
     ).toBe("/");
   });
 
-  it("falls back to home for BILLING notifications", () => {
+  it("opens the credits tab for a wallet that ran low or was topped up", () => {
+    for (const messageKey of [
+      BILLING_LOW_BALANCE_MESSAGE_KEY,
+      BILLING_CREDITS_ADDED_MESSAGE_KEY,
+    ]) {
+      expect(
+        getNotificationHref({
+          kind: "BILLING",
+          referenceId: "org-1",
+          messageKey,
+          metadata: { roomId: "should-not-route" },
+        }),
+      ).toBe("/billing?tab=credits");
+    }
+  });
+
+  it("opens the subscription tab for a payment or a plan that ends", () => {
+    for (const messageKey of [
+      BILLING_PAYMENT_FAILED_MESSAGE_KEY,
+      BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY,
+    ]) {
+      expect(
+        getNotificationHref({
+          kind: "BILLING",
+          referenceId: "org-1",
+          messageKey,
+          metadata: null,
+        }),
+      ).toBe("/billing?tab=subscription");
+    }
+  });
+
+  /**
+   * The reminder carries only its own key, so it cannot tell a low balance
+   * from a failed payment. It lands on the balance; the reminder email, built
+   * from the source row, lands more exactly.
+   */
+  it("sends a billing reminder to the credits tab", () => {
+    expect(
+      getNotificationHref({
+        kind: "BILLING",
+        referenceId: "org-1",
+        messageKey: BILLING_FOLLOW_UP_MESSAGE_KEY,
+        metadata: { workspaceId: "ws-1" },
+      }),
+    ).toBe("/billing?tab=credits");
+  });
+
+  /** A billing key this build does not know still lands on the balance. */
+  it("sends an unknown billing key to the credits tab", () => {
     expect(
       getNotificationHref({
         kind: "BILLING",
         referenceId: "invoice-1",
         metadata: { roomId: "should-not-route" },
       }),
-    ).toBe("/");
+    ).toBe("/billing?tab=credits");
+  });
+
+  it("sends a present unrecognized billing key to the credits tab", () => {
+    expect(
+      getNotificationHref({
+        kind: "BILLING",
+        referenceId: "invoice-1",
+        messageKey: "billing.not-a-real-key",
+        metadata: { roomId: "should-not-route" },
+      }),
+    ).toBe("/billing?tab=credits");
   });
 });
