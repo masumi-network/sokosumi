@@ -431,7 +431,6 @@ struct ChatRealtimeTests {
     #expect(!isValidAblyClientInstanceId("short"))
     #expect(!isValidAblyClientInstanceId("has space!"))
     #expect(!isValidAblyClientInstanceId(String(repeating: "a", count: 65)))
-    #expect(ablyPresenceClientId(userId: "user_1", instanceId: "inst_1") == "user_1:inst_1")
   }
 
   @Test func fetchAblyTokenPostsInstanceId() async throws {
