@@ -59,6 +59,7 @@ export interface StatusAppOptions {
   };
   authManager?: AuthManager;
   authManagerFactory?: AuthManagerFactory;
+  coreClient?: CoreHttpClient;
   loginFn?: AuthLoginOptions["loginFn"];
   oauthPort?: number;
   oauthTimeoutMs?: number;
@@ -67,13 +68,11 @@ export interface StatusAppOptions {
   clientIdOverride?: string;
   targetExplicit?: boolean;
   networkSelectionLocked?: boolean;
-  coreClient?: CoreHttpClient;
 }
 
 type AuthScreen =
   | "home"
   | "auth-method"
-  | "oauth-target"
   | "oauth-confirm"
   | "oauth-wait"
   | "api-key-input"
@@ -763,6 +762,23 @@ function StatusApp({
       }
       return;
     }
+    if (key.tab) {
+      if (
+        screen === "auth-method" &&
+        canToggleSignInNetwork({
+          route,
+          screen,
+          networkSelectionLocked,
+          busy,
+        })
+      ) {
+        setSelectedConfig(
+          nextSignInNetworkConfig(selectedConfig, env, clientIdOverride),
+        );
+        setMessage("");
+      }
+      return;
+    }
     if (rawApiKeyInput) {
       if (key.escape) {
         cancelApiKeyInput();
@@ -781,23 +797,6 @@ function StatusApp({
       }
       return;
     }
-    if (screen === "auth-method" && key.tab) {
-      if (
-        canToggleSignInNetwork({
-          route,
-          screen,
-          networkSelectionLocked,
-          busy,
-        })
-      ) {
-        setSelectedConfig(
-          nextSignInNetworkConfig(selectedConfig, env, clientIdOverride),
-        );
-        setMessage("");
-      }
-      return;
-    }
-
     if (input === "q" && !rawApiKeyInput) {
       if (screen === "oauth-wait") oauthAttempt.current += 1;
       if (screen === "api-key-wait") apiKeyLoginAttempt.current += 1;
@@ -824,11 +823,6 @@ function StatusApp({
           const reset = apiKeyTargetEscapeState();
           setPendingApiKey(reset.pendingApiKey);
           setScreen(reset.screen);
-          setMessage("");
-          return;
-        }
-        if (screen === "oauth-target") {
-          setScreen("auth-method");
           setMessage("");
           return;
         }
@@ -869,6 +863,7 @@ function StatusApp({
 
     if (route === "auth") {
       if (screen === "success" || screen === "error") return;
+      return;
     }
   });
 
@@ -929,32 +924,7 @@ function StatusApp({
 
   if (route === "auth") {
     let content: React.ReactNode;
-    if (screen === "oauth-target") {
-      const items: SelectorItem<HostedTarget>[] = [
-        { value: "mainnet", label: "Mainnet", hint: "production" },
-        { value: "preprod", label: "Preprod", hint: "staging" },
-      ];
-      content = centeredScreen(
-        React.createElement(Text, { color: TUI_THEME.accent }, LOGO),
-        React.createElement(Text, { bold: true }, "Choose OAuth target"),
-        React.createElement(
-          Text,
-          { dimColor: true },
-          "Mainnet is production. Preprod is the staging network.",
-        ),
-        React.createElement(SelectInput, {
-          items,
-          onSelect: adaptSelectHandler<HostedTarget>((target) => {
-            setSelectedConfig(
-              createTargetConfig(env, target, clientIdOverride),
-            );
-            setScreen("oauth-confirm");
-            setMessage("");
-          }),
-        }),
-        messageLine(message, phase),
-      );
-    } else if (screen === "oauth-confirm") {
+    if (screen === "oauth-confirm") {
       const items: SelectorItem<OAuthConfirm>[] = [
         { value: "sign-in", label: "Open browser sign-in" },
       ];
@@ -1098,7 +1068,6 @@ function StatusApp({
       );
     }
     const authScreensWithBack = new Set<AuthScreen>([
-      "oauth-target",
       "oauth-confirm",
       "api-key-target",
       "error",
@@ -1302,6 +1271,7 @@ export async function renderStatusApp({
   render = defaultRender,
   authManager,
   authManagerFactory,
+  coreClient,
   loginFn,
   oauthPort,
   oauthTimeoutMs,
@@ -1310,7 +1280,6 @@ export async function renderStatusApp({
   clientIdOverride,
   targetExplicit = false,
   networkSelectionLocked = false,
-  coreClient,
 }: StatusAppOptions = {}): Promise<{ tui: true }> {
   const manager =
     authManager || getManagerForConfig(config, env, authManagerFactory);
@@ -1318,6 +1287,7 @@ export async function renderStatusApp({
     React.createElement(StatusApp, {
       authManager: manager,
       authManagerFactory,
+      coreClient,
       loginFn,
       oauthPort,
       oauthTimeoutMs,
@@ -1326,7 +1296,6 @@ export async function renderStatusApp({
       clientIdOverride,
       targetExplicit,
       networkSelectionLocked,
-      coreClient,
     }),
   );
   await waitUntilExit();
