@@ -58,7 +58,6 @@ const INSTANT_WORKLIST = new Set([
   "(app)/agents/[agentId]/jobs/@modal/[jobId]/page.tsx",
   "(app)/agents/[agentId]/jobs/@right/[jobId]/page.tsx",
   "(app)/agents/[agentId]/jobs/@right/page.tsx",
-  "(app)/agents/[agentId]/layout.tsx",
   "(app)/agents/[agentId]/page.tsx",
   "(app)/billing/page.tsx",
   "(app)/calendar/page.tsx",
@@ -84,6 +83,19 @@ const INSTANT_WORKLIST = new Set([
   "(app)/tasks/[taskId]/page.tsx",
 ]);
 
+/**
+ * URL data read only by `generateMetadata`, never by the default export.
+ * That is a different insight — `blocking-prerender-metadata-runtime`, not
+ * `instant-shell-url-data` — and neither fix above applies to it: metadata
+ * cannot be wrapped in the page's `<Suspense>`, and `instant = false` does
+ * not quiet it. The documented fixes are a static `metadata` export or a
+ * `connection()` marker rendered inside `<Suspense>` on the page.
+ *
+ * Keep these separate so the worklist above stays an honest count of routes
+ * that the Suspense treatment can actually fix.
+ */
+const METADATA_ONLY = new Set(["(app)/agents/[agentId]/layout.tsx"]);
+
 const ROUTE_FILES = new Set(["page.tsx", "layout.tsx"]);
 
 function walk(dir: string, out: string[] = []): string[] {
@@ -103,6 +115,7 @@ interface RouteFile {
   rel: string;
   readsUrlData: boolean;
   optsOut: boolean;
+  hasSuspense: boolean;
 }
 
 function routeFiles(): RouteFile[] {
@@ -112,6 +125,7 @@ function routeFiles(): RouteFile[] {
       rel: path.relative(APP_ROOT, full).split(path.sep).join("/"),
       readsUrlData: URL_DATA_PROP.test(source),
       optsOut: /^export const instant\s*=\s*false/m.test(source),
+      hasSuspense: /<Suspense/.test(source),
     };
   });
 }
@@ -124,7 +138,8 @@ describe("instant navigation routes", () => {
           file.readsUrlData &&
           !file.optsOut &&
           !SUSPENSE_WRAPPED.has(file.rel) &&
-          !INSTANT_WORKLIST.has(file.rel),
+          !INSTANT_WORKLIST.has(file.rel) &&
+          !METADATA_ONLY.has(file.rel),
       )
       .map((file) => file.rel);
 
@@ -136,7 +151,11 @@ describe("instant navigation routes", () => {
     const byRel = new Map(files.map((file) => [file.rel, file]));
     const stale: string[] = [];
 
-    for (const rel of [...SUSPENSE_WRAPPED, ...INSTANT_WORKLIST]) {
+    for (const rel of [
+      ...SUSPENSE_WRAPPED,
+      ...INSTANT_WORKLIST,
+      ...METADATA_ONLY,
+    ]) {
       const file = byRel.get(rel);
       if (!file) {
         stale.push(`${rel}: listed but no longer a route file`);
@@ -151,6 +170,37 @@ describe("instant navigation routes", () => {
       }
     }
 
+    // A file on the migrated list that lost its boundary is the one rot case
+    // the checks above miss: it still reads URL data and still has no
+    // `instant` export, so it looks settled while it is back to blocking.
+    for (const rel of SUSPENSE_WRAPPED) {
+      if (byRel.get(rel)?.hasSuspense === false) {
+        stale.push(`${rel}: listed as suspense-wrapped but has no <Suspense>`);
+      }
+    }
+
     expect(stale).toEqual([]);
+  });
+
+  it("matches URL data however the promise is later awaited", () => {
+    // The shapes that defeated the `await params` grep this guard replaces.
+    const matches = [
+      "  params: Promise<{ id: string }>;",
+      "  searchParams: Promise<{ tab?: string }>;",
+      "export default async function P({ params }: { params: Promise<Q> }) {",
+      "interface Props { params: Promise<X>; searchParams: Promise<Y> }",
+    ];
+    for (const line of matches) {
+      expect(URL_DATA_PROP.test(line), line).toBe(true);
+    }
+
+    const nonMatches = [
+      "const params = new URLSearchParams();",
+      "const searchParams = useSearchParams();",
+      "type Params = Promise<{ id: string }>;",
+    ];
+    for (const line of nonMatches) {
+      expect(URL_DATA_PROP.test(line), line).toBe(false);
+    }
   });
 });

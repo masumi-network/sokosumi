@@ -279,7 +279,7 @@ First-party sources in `skills/` are only `branch-bugbot-gate`, `linear-requirem
 
 ### Next.js (apps/web only)
 
-App Router skills live under `apps/web/.claude/skills/`. They register only once a file under `apps/web/` is open, so name them yourself rather than waiting for them to appear. `next-partial-prefetching-adoption` owns the instant-navigation sweep — the `instant` route export, `instant-shell-url-data`, `blocking-prerender-*`. `next-cache-components`, `-adoption` and `-optimizer` own `cacheComponents`, `use cache` and static shells. `next-dev-loop` verifies a change against a running `next dev`; reach for it before hand-rolling curl against the dev log, which names the route but not the cause. Also `next-best-practices`, `next-upgrade`, `better-auth-best-practices`, `vercel-react-best-practices`, `vercel-composition-patterns`, `vercel-react-view-transitions`, `web-design-guidelines`.
+App Router skills live under `apps/web/.agents/skills/`. They register only once a file under `apps/web/` is open, so name them yourself rather than waiting for them to appear. `next-partial-prefetching-adoption` owns the instant-navigation sweep — the `instant` route export, `instant-shell-url-data`, `blocking-prerender-*`. `next-cache-components`, `-adoption` and `-optimizer` own `cacheComponents`, `use cache` and static shells. `next-dev-loop` verifies a change against a running `next dev`; reach for it before hand-rolling curl against the dev log, which names the route but not the cause. Also `next-best-practices`, `next-upgrade`, `better-auth-best-practices`, `vercel-react-best-practices`, `vercel-composition-patterns`, `vercel-react-view-transitions`, `web-design-guidelines`.
 
 ### Evlog (Core only)
 
