@@ -90,24 +90,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // The read is claimed with a conditional write, so of two requests
     // arriving together only one moves the row. The row is read again
     // afterwards because an email handed over in between is on the written
-    // row only, and because a request resolved in between deletes its rows:
-    // that leaves the first read standing rather than failing the read the
-    // caller asked for.
+    // row only. A request resolved in between deletes its rows: keep the
+    // read the caller asked for rather than failing it, or answering with
+    // the unread first read.
     let updated = notification;
     let claimedTheRead = false;
 
     if (!notification.isRead) {
+      const readAt = new Date();
       const { count } = await prisma.notification.updateMany({
         where: { id, isRead: false },
         data: {
           isRead: true,
-          readAt: new Date(),
+          readAt,
         },
       });
 
       claimedTheRead = count === 1;
-      updated =
-        (await prisma.notification.findUnique({ where: { id } })) ?? updated;
+      updated = (await prisma.notification.findUnique({ where: { id } })) ?? {
+        ...notification,
+        isRead: true,
+        readAt,
+      };
     }
 
     // Scheduled rather than awaited, so a failed cancel costs the reader one

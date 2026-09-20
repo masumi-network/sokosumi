@@ -325,6 +325,43 @@ describe("PATCH /notifications/{id}/read", () => {
     expect(publishClearedNotificationsMock).not.toHaveBeenCalled();
   });
 
+  /**
+   * A request resolved between the write and the reread deletes the row.
+   * The write already claimed the read, so the caller still gets a read
+   * record rather than the unread first read.
+   */
+  it("returns a read record when the row is gone after the write", async () => {
+    const existing = createNotificationRow({
+      kind: NotificationKind.TASK,
+      referenceId: "task_123",
+      emailId: "email_1",
+      emailScheduledAt: new Date("2026-06-16T15:10:00.000Z"),
+    });
+    notificationFindUniqueMock
+      .mockResolvedValueOnce(existing)
+      .mockResolvedValueOnce(null);
+
+    const app = createApp(mountMarkNotificationRead);
+    const response = await app.request("http://localhost/notif_123/read", {
+      method: "PATCH",
+    });
+    await Promise.all(waitUntilPromises);
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      data: { isRead: boolean; readAt: string | null };
+    };
+    expect(body.data.isRead).toBe(true);
+    expect(body.data.readAt).not.toBeNull();
+    expect(cancelNotificationEmailsMock).toHaveBeenCalledWith([
+      expect.objectContaining({
+        id: "notif_123",
+        isRead: true,
+        emailId: "email_1",
+      }),
+    ]);
+  });
+
   it("marks an owned unread notification as read", async () => {
     const existing = createNotificationRow();
     const readAt = new Date("2026-06-16T15:00:00.000Z");
