@@ -69,14 +69,82 @@
     }
   },
   "notifications": {
-    "followUp": {
+    "shared": {
       "linkInstructions": "Oder kopiere diese URL in deinen Browser:",
-      "footer": "Du erhältst diese E-Mail, weil Erinnerungen in deinen Benachrichtigungseinstellungen aktiviert sind.",
       "greeting": "Hallo {name}",
       "greetingWithoutName": "Hallo",
       "fallbackAuthorName": "Jemand",
       "fallbackRoomName": "einer Unterhaltung",
       "fallbackTaskName": "Deine Aufgabe",
+      "fallbackCoworkerName": "ein Coworker"
+    },
+    "event": {
+      "footer": "Du erhältst diese E-Mail, weil diese Benachrichtigung in deinen Benachrichtigungseinstellungen aktiviert ist.",
+      "mention": {
+        "subject": "Sokosumi - {authorName} hat dich in {roomName} erwähnt",
+        "title": "Du wurdest erwähnt",
+        "body": "{authorName} hat dich in {roomName} erwähnt.",
+        "button": "Unterhaltung öffnen"
+      },
+      "directMessage": {
+        "subject": "Sokosumi - {authorName} hat dir eine Nachricht gesendet",
+        "title": "Neue Direktnachricht",
+        "body": "{authorName} hat dir eine Direktnachricht gesendet.",
+        "button": "Unterhaltung öffnen"
+      },
+      "task": {
+        "button": "Aufgabe öffnen",
+        "projectLabel": "Projekt",
+        "attention": {
+          "title": "Eine Aufgabe braucht dich",
+          "reasons": {
+            "assigned": {
+              "subject": "Sokosumi - Dir wurde {taskName} zugewiesen",
+              "body": "Dir wurde {taskName} zugewiesen."
+            },
+            "inputRequired": {
+              "subject": "Sokosumi - {coworkerName} benötigt deinen Input für {taskName}",
+              "body": "{taskName} hat angehalten, weil {coworkerName} deine Eingabe braucht."
+            },
+            "approvalRequired": {
+              "subject": "Sokosumi - {coworkerName} benötigt deine Freigabe für {taskName}",
+              "body": "{taskName} hat angehalten, weil {coworkerName} deine Freigabe braucht."
+            },
+            "authenticationRequired": {
+              "subject": "Sokosumi - {coworkerName} benötigt eine Anmeldung von dir für {taskName}",
+              "body": "{taskName} hat angehalten, weil {coworkerName} eine Anmeldung von dir braucht."
+            },
+            "outOfCredits": {
+              "subject": "Sokosumi - {taskName} hat keine Credits mehr",
+              "body": "{taskName} hat angehalten, weil die Credits aufgebraucht sind."
+            },
+            "scheduleRemovedByOperator": {
+              "subject": "Sokosumi - Der Zeitplan für {taskName} wurde entfernt",
+              "body": "Der Zeitplan für {taskName} wurde nach einer Prüfung entfernt."
+            }
+          }
+        },
+        "completed": {
+          "subject": "Sokosumi - {coworkerName} hat {taskName} abgeschlossen",
+          "title": "Aufgabe abgeschlossen",
+          "body": "{coworkerName} hat {taskName} abgeschlossen."
+        }
+      },
+      "accessRequest": {
+        "title": "Zugriffsanfrage",
+        "button": "Anfrage prüfen",
+        "vendor": {
+          "subject": "Sokosumi - {requesterName} hat Zugriff auf deinen Workspace angefragt",
+          "body": "{requesterName} hat Vendor-Zugriff auf deinen Workspace angefragt."
+        },
+        "coworker": {
+          "subject": "Sokosumi - {requesterName} hat Zugriff auf deinen Workspace angefragt",
+          "body": "{requesterName} hat Coworker-Frühzugang zu deinem Workspace angefragt."
+        }
+      }
+    },
+    "followUp": {
+      "footer": "Du erhältst diese E-Mail, weil Erinnerungen in deinen Benachrichtigungseinstellungen aktiviert sind.",
       "mention": {
         "subject": "Sokosumi - {authorName} wartet weiterhin auf dich in {roomName}",
         "preview": "{authorName} hat dich vor einem Tag in {roomName} erwähnt.",
@@ -106,8 +174,7 @@
           "outOfCredits": "{taskName} hat vor einem Tag angehalten, weil die Credits aufgebraucht sind. Die Aufgabe wartet weiterhin.",
           "scheduleRemovedByOperator": "Der Zeitplan für {taskName} wurde vor einem Tag nach einer Prüfung entfernt, und du hast den Hinweis noch nicht geöffnet."
         }
-      },
-      "fallbackCoworkerName": "ein Coworker"
+      }
     }
   }
 }
