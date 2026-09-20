@@ -10,6 +10,8 @@ import { PROJECTS_PAGE_LIMIT } from "./constants";
 
 interface LoadMoreProjectsParams extends AuthenticatedRequest {
   cursor: string | null;
+  /** Carries the active name filter so later pages stay inside it. */
+  query?: string;
   expectedScope?: { userId: string; organizationId: string | null };
 }
 
@@ -21,7 +23,7 @@ export const loadMoreProjects = withSession<
     >["projects"];
     nextCursor: string | null;
   }
->(async ({ cursor, expectedScope, session }) => {
+>(async ({ cursor, query, expectedScope, session }) => {
   if (
     expectedScope &&
     (expectedScope.userId !== session.user.id ||
@@ -33,6 +35,7 @@ export const loadMoreProjects = withSession<
   const page = await projectService.listProjects({
     cursor,
     limit: PROJECTS_PAGE_LIMIT,
+    query,
   });
 
   return {

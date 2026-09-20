@@ -48,13 +48,13 @@ export function HistoryListItem({
   const credits = formatHistoryCredits(item.credits, labels, formatter.number);
   const showOwner = activeOrganizationId !== null;
   const rowClassName = cn(
-    "group grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 rounded-lg px-4 py-3 transition-colors",
+    "group grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 rounded-none px-4 py-3 transition-colors",
     showOwner
       ? "sm:grid-cols-[100px_minmax(0,1fr)_32px_110px_110px_80px] sm:items-center sm:gap-4"
       : "sm:grid-cols-[100px_minmax(0,1fr)_110px_110px_80px] sm:items-center sm:gap-4",
     isArchivedHistoryItem(item)
       ? "cursor-default"
-      : "hover:bg-card-background active:scale-[0.995]",
+      : "hover:bg-card-background-hover active:scale-[0.995]",
   );
   const content = (
     <HistoryListItemContent
