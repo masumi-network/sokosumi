@@ -133,6 +133,15 @@ test("Tab network toggle is scoped to unlocked auth-method screen", () => {
   );
   assert.equal(
     canToggleSignInNetwork({
+      route: "auth",
+      screen: "auth-method",
+      networkSelectionLocked: false,
+      busy: true,
+    }),
+    false,
+  );
+  assert.equal(
+    canToggleSignInNetwork({
       route: "signed-in",
       screen: "home",
       networkSelectionLocked: false,
@@ -452,6 +461,11 @@ test("TestV57 explicit preprod target skips OAuth target picker", async () => {
     await waitForOutput(terminal.stdout, () => output, "Open browser sign-in?");
     assert.doesNotMatch(output, /Choose OAuth target/);
     assert.match(output, /Target: preprod/);
+    await sendInput(terminal.stdin, "\t");
+    await waitForNextImmediate();
+    await waitForNextImmediate();
+    assert.match(output, /Target: preprod/);
+    assert.doesNotMatch(output, /Target: mainnet/);
     await sendInput(terminal.stdin, "q");
     await cliPromise;
   } finally {
