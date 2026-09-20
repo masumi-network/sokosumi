@@ -17,7 +17,7 @@ import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { getSession } from "@/lib/auth/auth.server";
 import type { Project } from "@/lib/clients/generated/core";
-import { agentService } from "@/lib/services";
+import { agentService } from "@/lib/services/agent.service";
 import { designMdService } from "@/lib/services/design-md.service";
 import { projectService } from "@/lib/services/project.service";
 import { taskService } from "@/lib/services/task.service";

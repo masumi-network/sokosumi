@@ -58,7 +58,7 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
 
 // The real @/queries barrel reaches the `getJob` server action and its
 // server-only auth/env imports; the modal only needs the query key.
-vi.mock("@/queries", () => ({
+vi.mock("@/queries/jobs", () => ({
   getJobQueryKey: (jobId: string) => ["jobs", jobId],
 }));
 

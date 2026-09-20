@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
-import { CommonErrorCode } from "@/lib/actions";
+import { CommonErrorCode } from "@/lib/actions/errors";
 import { provideJobInput } from "@/lib/actions/job/action";
 import {
   type JobInputsFormSchemaType,

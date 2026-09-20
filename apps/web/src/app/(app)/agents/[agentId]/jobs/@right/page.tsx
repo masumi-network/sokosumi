@@ -34,7 +34,7 @@ export default async function RightSectionPage({
   }
 
   return (
-    <div className="grid w-full place-items-center px-4 py-10 lg:min-h-[calc(100dvh-4rem)]">
+    <div className="@4xl/jobs-panes:min-h-[calc(100dvh-4rem)] grid w-full place-items-center px-4 py-10">
       <div className="bg-card-background w-full max-w-4xl rounded-xl border p-8 text-center">
         <p className="text-muted-foreground text-sm">{t("noExecutedJobs")}</p>
       </div>

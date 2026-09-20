@@ -4,6 +4,8 @@ import { getTranslations } from "next-intl/server";
 import ForgotPasswordForm from "./components/form";
 import ForgotPasswordHeader from "./components/header";
 
+export const instant = false;
+
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Auth.Pages.ForgotPassword.Metadata");
 

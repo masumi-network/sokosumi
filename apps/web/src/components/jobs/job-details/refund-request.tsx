@@ -33,8 +33,8 @@ import {
   type ActionError,
   CommonErrorCode,
   JobErrorCode,
-  requestRefundJob,
-} from "@/lib/actions";
+} from "@/lib/actions/errors";
+import { requestRefundJob } from "@/lib/actions/job/action";
 import type { Job } from "@/lib/clients/generated/core";
 import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";

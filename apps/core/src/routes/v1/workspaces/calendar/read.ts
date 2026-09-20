@@ -1,4 +1,4 @@
-import { createRoute, z } from "@hono/zod-openapi";
+import { z } from "@hono/zod-openapi";
 import {
   CalendarSourceType,
   type Prisma,
@@ -8,16 +8,8 @@ import {
 import { parseTaskScheduleMetadata } from "@sokosumi/utils";
 
 import { requireCoworkerCapability } from "@/helpers/access-control";
-import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
 import { getCalendarSourceId } from "@/helpers/calendar-source";
-import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
-import { badRequest, forbidden, notFound } from "@/helpers/error";
-import {
-  jsonErrorResponse,
-  jsonPaginatedSuccessResponse,
-} from "@/helpers/openapi";
-import { resolveMemberOrganizationById } from "@/helpers/organization";
-import { ok } from "@/helpers/response";
+import { badRequest, notFound } from "@/helpers/error";
 import { CALENDAR_OCCURRENCE_HORIZON_MS } from "@/helpers/task-schedule-occurrence-index";
 import {
   buildHumanTaskVisibilityWhere,
@@ -28,77 +20,11 @@ import {
   hasGrantedWorkspaceAccess,
 } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { type AuthenticationContext } from "@/middleware/auth";
-import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   workspaceCalendarItemSchema,
   workspaceCalendarQuerySchema,
 } from "@/schemas/workspace-calendar.schema";
-
-const paramsSchema = z.object({
-  id: z
-    .string()
-    .uuid()
-    .openapi({
-      param: { name: "id", in: "path" },
-      example: "11111111-1111-7111-8111-111111111111",
-    }),
-});
-
-const route = createRoute({
-  method: "get",
-  path: "/{id}/calendar",
-  description:
-    "List indexed planned and released schedule occurrences for a workspace",
-  tags: ["Workspaces"],
-  request: {
-    params: paramsSchema,
-    query: workspaceCalendarQuerySchema,
-  },
-  responses: {
-    200: jsonPaginatedSuccessResponse(
-      z.array(workspaceCalendarItemSchema),
-      "Workspace Calendar items",
-      {
-        data: [
-          {
-            id: "v1:tsk_123:2026-06-01T09:00:00.000Z:2026-06-02T09:00:00.000Z",
-            taskId: "tsk_123",
-            canEditSchedule: true,
-            taskName: "Prepare release notes",
-            taskStatus: "QUEUED",
-            taskAssigneeId: null,
-            taskOwnerId: "user_123",
-            scheduledAt: "2026-06-02T09:00:00.000Z",
-            originalScheduledAt: "2026-06-02T09:00:00.000Z",
-            state: "PLANNED",
-            sourceWorkspaceId: "11111111-1111-7111-8111-111111111111",
-            sourceType: "WORKSPACE",
-            sourceProjectId: null,
-            sourceAccuracy: "EXACT",
-            timeAccuracy: "EXACT",
-          },
-        ],
-        meta: {
-          timestamp: "2026-06-01T00:00:00.000Z",
-          requestId: "550e8400-e29b-41d4-a716-446655440000",
-          pagination: {
-            cursor: null,
-            limit: 20,
-            total: 1,
-            nextCursor: null,
-          },
-        },
-      },
-    ),
-    400: jsonErrorResponse("Bad Request"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
-    422: jsonErrorResponse("Unprocessable Entity"),
-  },
-});
 
 interface CalendarCursor {
   id: string;
@@ -455,63 +381,4 @@ export async function readWorkspaceCalendar(
         : null,
     },
   };
-}
-
-export default function mount(app: OpenAPIHonoWithAuth) {
-  app.openapi(route, async (c) => {
-    const userContext = await requireAuthorizedUserContext(c.var.authContext);
-    await requireCalendarBetaAccess(userContext.userId, prisma);
-    const { id: workspaceId } = c.req.valid("param");
-    if (userContext.source === "context") {
-      const activeWorkspace = requireWorkspaceContext(c.var.workspaceContext);
-      if (activeWorkspace.workspaceId !== workspaceId) {
-        throw forbidden("You can only access the active workspace calendar");
-      }
-    }
-    const query = c.req.valid("query");
-    const calendarQuery = parseWorkspaceCalendarQuery(query);
-
-    const workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId },
-      select: {
-        userId: true,
-        organizationId: true,
-      },
-    });
-    if (!workspace) {
-      throw notFound("Workspace not found");
-    }
-    if (workspace.organizationId) {
-      await resolveMemberOrganizationById({
-        id: workspace.organizationId,
-        userId: userContext.userId,
-        tx: prisma,
-      });
-    } else if (workspace.userId !== userContext.userId) {
-      throw forbidden("You do not have access to this workspace");
-    }
-
-    const project = query.projectId
-      ? await prisma.project.findFirst({
-          where: { id: query.projectId, workspaceId },
-          select: { id: true },
-        })
-      : null;
-    if (query.projectId && !project) {
-      throw notFound("Project not found");
-    }
-
-    const taskWhere = await getCalendarTaskWhere(
-      c.var.authContext,
-      workspaceId,
-    );
-    const { items, pagination } = await readWorkspaceCalendar(
-      workspaceId,
-      userContext.userId,
-      calendarQuery,
-      { projectId: project?.id, sourceId: query.sourceId, taskWhere },
-    );
-
-    return ok(c, items, pagination);
-  });
 }

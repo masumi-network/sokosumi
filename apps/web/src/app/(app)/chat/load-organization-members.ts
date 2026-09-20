@@ -1,7 +1,6 @@
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import type { Member } from "@/lib/clients/generated/core";
-import { userService } from "@/lib/services";
-
+import { userService } from "@/lib/services/user.service";
 /**
  * Org roster is secondary for room viewing (member pickers / edit channel).
  * Soft-fail Core 5xx so a transient members outage cannot take down the room

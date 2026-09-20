@@ -32,9 +32,10 @@ import type {
   Member,
 } from "@/lib/clients/generated/core";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
-import { chatRoomService, userService } from "@/lib/services";
+import { chatRoomService } from "@/lib/services/chat-room.service";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
+import { userService } from "@/lib/services/user.service";
 
 /** Chat action wire shape — ActionResultDto (neverthrow at boundary). */
 export type RoomActionResult<T> = ActionResultDto<T, ActionError>;

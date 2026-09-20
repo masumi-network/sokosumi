@@ -25,8 +25,7 @@ import { useProvideJobInput } from "@/hooks/use-provide-job-input";
 import type { Job } from "@/lib/clients/generated/core";
 import { flattenInputs } from "@/lib/schemas/job";
 import { getReadonlyNoneInputValues } from "@/lib/utils/job-input-transformers";
-import { getJobQueryKey } from "@/queries";
-
+import { getJobQueryKey } from "@/queries/jobs";
 import type { JobEvent } from "./job-details-events.utils";
 
 interface JobDetailsProvideInputProps {

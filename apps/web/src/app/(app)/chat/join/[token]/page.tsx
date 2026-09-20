@@ -1,6 +1,5 @@
 import { getSession } from "@/lib/auth/auth.server";
-import { chatRoomService } from "@/lib/services";
-
+import { chatRoomService } from "@/lib/services/chat-room.service";
 import { ChatJoinCard, ChatJoinInvalidCard } from "./components/chat-join-card";
 
 export default async function ChatJoinPage({

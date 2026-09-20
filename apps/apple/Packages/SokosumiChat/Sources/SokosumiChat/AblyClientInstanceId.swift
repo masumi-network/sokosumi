@@ -73,9 +73,3 @@ public func getOrCreateAblyClientInstanceId(
   store.save(id)
   return id
 }
-
-/// Multi-device presence client id (`{userId}:{instanceId}`, ADR 0003).
-/// The token binds it; org presence members carry it (`parseUserId`).
-public func ablyPresenceClientId(userId: String, instanceId: String) -> String {
-  "\(userId):\(instanceId)"
-}

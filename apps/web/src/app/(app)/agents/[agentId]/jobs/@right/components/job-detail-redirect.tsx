@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 
+import { useJobsTwoPaneFit } from "@/app/agents/[agentId]/jobs/components/use-jobs-two-pane-fit";
 import DefaultLoading from "@/components/default-loading";
 
 interface JobDetailRedirectProps {
@@ -10,45 +11,27 @@ interface JobDetailRedirectProps {
   jobId: string;
 }
 
+/**
+ * Auto-selects the first job into the right pane, but only once that pane is
+ * actually on screen. The fit is measured from the panes row, so a collapsed
+ * sidebar can turn the pane on at a window width an expanded one cannot.
+ */
 export default function JobDetailRedirect({
   agentId,
   jobId,
 }: JobDetailRedirectProps) {
   const router = useRouter();
+  const twoPaneFits = useJobsTwoPaneFit();
   const hasRedirectedRef = useRef(false);
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia("(min-width: 1024px)");
-
-    function tryRedirect(matches: boolean) {
-      if (!matches || hasRedirectedRef.current) {
-        return;
-      }
-
-      hasRedirectedRef.current = true;
-      router.push(`/agents/${agentId}/jobs/${jobId}`);
+    if (!twoPaneFits || hasRedirectedRef.current) {
+      return;
     }
 
-    function handleViewportChange(event: MediaQueryListEvent) {
-      tryRedirect(event.matches);
-    }
-
-    tryRedirect(mediaQuery.matches);
-
-    if (typeof mediaQuery.addEventListener === "function") {
-      mediaQuery.addEventListener("change", handleViewportChange);
-
-      return () => {
-        mediaQuery.removeEventListener("change", handleViewportChange);
-      };
-    }
-
-    mediaQuery.addListener(handleViewportChange);
-
-    return () => {
-      mediaQuery.removeListener(handleViewportChange);
-    };
-  }, [agentId, jobId, router]);
+    hasRedirectedRef.current = true;
+    router.push(`/agents/${agentId}/jobs/${jobId}`);
+  }, [agentId, jobId, router, twoPaneFits]);
 
   return <DefaultLoading className="h-full w-full flex-1 p-8" />;
 }

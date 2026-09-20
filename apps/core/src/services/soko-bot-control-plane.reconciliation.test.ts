@@ -1,6 +1,7 @@
 import type {
   IndexedRuntimeEvent,
   RuntimeEvent,
+  RuntimeJsonValue,
   SokoBotRuntime,
 } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -70,7 +71,7 @@ const LEASE_TOKEN = "lease_1";
 function runtimeEvent(
   type: string,
   id: string,
-  data: Record<string, unknown> = {},
+  data: Record<string, RuntimeJsonValue> = {},
 ): RuntimeEvent {
   return {
     type,

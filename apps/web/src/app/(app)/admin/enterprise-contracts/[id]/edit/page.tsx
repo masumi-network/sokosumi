@@ -10,6 +10,8 @@ import { getEnterpriseContractAction } from "@/lib/actions/enterprise-contract/a
 import { CommonErrorCode } from "@/lib/actions/errors";
 import { adminOrganizationService } from "@/lib/services/admin-organization.service";
 
+export const instant = false;
+
 export const metadata: Metadata = {
   title: "Edit enterprise contract",
   description: "Edit a draft enterprise contract",
