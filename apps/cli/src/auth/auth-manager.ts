@@ -1,4 +1,4 @@
-import { MAINNET_OAUTH_CLIENT_ID } from "./config.js";
+import { MAINNET_OAUTH_CLIENT_ID, resolveCliConfig } from "./config.js";
 import { refreshAccessToken } from "./oauth.js";
 import {
   type CredentialStore,
@@ -49,16 +49,15 @@ export interface AuthManagerOptions {
   environment?: AuthEnvironment;
 }
 
-function getAuthBaseUrlFromEnvironment(environment: AuthEnvironment): string {
-  const explicit = String(environment.SOKOSUMI_AUTH_URL || "").trim();
-  if (explicit) return explicit;
-
-  const apiUrl = String(
-    environment.SOKOSUMI_API_URL || "https://api.sokosumi.com",
-  )
-    .trim()
-    .replace(/\/+$/g, "");
-  return `${apiUrl}/auth`;
+function envBearerCredential(environment: AuthEnvironment): {
+  method: "api-key" | "oauth";
+  token: string;
+} | null {
+  const apiKey = String(environment.SOKOSUMI_API_KEY || "").trim();
+  if (apiKey) return { method: "api-key", token: apiKey };
+  const authToken = String(environment.SOKOSUMI_AUTH_TOKEN || "").trim();
+  if (authToken) return { method: "oauth", token: authToken };
+  return null;
 }
 
 function hasUsableExpiry(expiresAt: string | null | undefined): boolean {
@@ -163,8 +162,8 @@ export class AuthManager {
   getAuthMethod(
     environment: AuthEnvironment = this.environment,
   ): "oauth" | "api-key" | null {
-    if (String(environment.SOKOSUMI_API_KEY || "").trim()) return "api-key";
-    if (String(environment.SOKOSUMI_AUTH_TOKEN || "").trim()) return "oauth";
+    const envBearer = envBearerCredential(environment);
+    if (envBearer) return envBearer.method;
     if (this.credentials?.authToken && !this.isTokenExpired()) return "oauth";
     if (
       this.apiKeyCredentials?.apiKey &&
@@ -176,10 +175,8 @@ export class AuthManager {
   }
 
   getAuthToken(environment: AuthEnvironment = this.environment): string | null {
-    const envApiKey = String(environment.SOKOSUMI_API_KEY || "").trim();
-    if (envApiKey) return envApiKey;
-    const envToken = String(environment.SOKOSUMI_AUTH_TOKEN || "").trim();
-    if (envToken) return envToken;
+    const envBearer = envBearerCredential(environment);
+    if (envBearer) return envBearer.token;
     if (this.credentials?.authToken && !this.isTokenExpired()) {
       return this.credentials.authToken;
     }
@@ -203,19 +200,8 @@ export class AuthManager {
     clientSecret?: string;
     environment?: AuthEnvironment;
   } = {}): Promise<string | null> {
-    const envApiKey = String(environment.SOKOSUMI_API_KEY || "").trim();
-    if (envApiKey) return envApiKey;
-    const envToken = String(environment.SOKOSUMI_AUTH_TOKEN || "").trim();
-    if (envToken) return envToken;
-    if (this.credentials?.authToken && !this.isTokenExpired()) {
-      return this.credentials.authToken;
-    }
-    if (
-      this.apiKeyCredentials?.apiKey &&
-      hasUsableExpiry(this.apiKeyCredentials.expiresAt)
-    ) {
-      return this.apiKeyCredentials.apiKey;
-    }
+    const existing = this.getAuthToken(environment);
+    if (existing) return existing;
 
     const refreshToken = this.credentials?.refreshToken || null;
     const resolvedClientId = String(
@@ -227,7 +213,7 @@ export class AuthManager {
       this.refreshPromise = (async () => {
         const refreshed = await this.refreshTokenFn({
           authBaseUrl:
-            authBaseUrl || getAuthBaseUrlFromEnvironment(environment),
+            authBaseUrl || resolveCliConfig({ env: environment }).authBaseUrl,
           clientId: resolvedClientId,
           clientSecret:
             clientSecret ||
