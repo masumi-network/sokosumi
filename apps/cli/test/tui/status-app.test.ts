@@ -26,6 +26,7 @@ import {
   buildSignInMenuItems,
   displayTargetLabel,
   explicitApiKeyTargetError,
+  isNetworkSelectionLocked,
   oauthCallbackDisplayUri,
   renderStatusApp,
   resolveHostedTargetConfig,
@@ -115,6 +116,28 @@ test("sign-in menu exposes network choices before auth methods", () => {
   assert.deepEqual(
     locked.map((item) => item.value),
     ["oauth", "api-key"],
+  );
+});
+
+test("env default mainnet URL does not lock TUI network selection", () => {
+  const config = resolveHostedTargetConfig(
+    { SOKOSUMI_API_URL: "https://api.sokosumi.com" },
+    "mainnet",
+  );
+  assert.equal(isNetworkSelectionLocked(config, { preprod: false }), false);
+  assert.equal(isNetworkSelectionLocked(config, { preprod: true }), true);
+  assert.equal(
+    isNetworkSelectionLocked(
+      {
+        target: "custom",
+        apiUrl: "https://api.example.test",
+        authBaseUrl: "https://api.example.test/auth",
+        clientId: "client",
+        clientSecret: "",
+      },
+      {},
+    ),
+    true,
   );
 });
 

@@ -8,6 +8,14 @@ import {
 } from "ink";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  type CoreHttpClient,
+  createCoreHttpClient,
+} from "../api/http-client.js";
+import type { OrganizationWorkspace } from "../api/models/organization-workspace.js";
+import type { Vendor } from "../api/models/vendor.js";
+import { fetchOrganizationWorkspaces } from "../api/services/organization-workspace-service.js";
+import { fetchVendorMemberships } from "../api/services/vendor-service.js";
+import {
   type AuthEnvironment,
   type AuthManager,
   getAuthManager,
@@ -58,6 +66,8 @@ export interface StatusAppOptions {
   config?: CliTargetConfig;
   clientIdOverride?: string;
   targetExplicit?: boolean;
+  networkSelectionLocked?: boolean;
+  coreClient?: CoreHttpClient;
 }
 
 type AuthScreen =
@@ -70,11 +80,13 @@ type AuthScreen =
   | "api-key-target"
   | "api-key-wait"
   | "register"
+  | "vendors"
+  | "workspaces"
   | "manage"
   | "success"
   | "error";
 
-type HomeAction = "register" | "manage" | "sign-out";
+type HomeAction = "register" | "vendors" | "workspaces" | "manage" | "sign-out";
 
 function adaptSelectHandler<T>(
   handler: (value: T) => void,
@@ -176,11 +188,20 @@ export function resolveSelectedHostedTarget(
   return config.target === "preprod" ? "preprod" : "mainnet";
 }
 
+export function isNetworkSelectionLocked(
+  config: CliTargetConfig,
+  options: { preprod?: boolean; apiUrl?: string } = {},
+): boolean {
+  return Boolean(
+    options.preprod || options.apiUrl || config.target === "custom",
+  );
+}
+
 export function buildSignInMenuItems(
   selectedNetwork: HostedTarget,
-  targetExplicit: boolean,
+  networkSelectionLocked: boolean,
 ): SelectorItem<SignInAction>[] {
-  const networkItems: SelectorItem<SignInAction>[] = targetExplicit
+  const networkItems: SelectorItem<SignInAction>[] = networkSelectionLocked
     ? []
     : [
         {
@@ -351,6 +372,8 @@ function StatusApp({
   config,
   clientIdOverride,
   targetExplicit = false,
+  networkSelectionLocked = false,
+  coreClient: coreClientOverride,
 }: Required<Pick<StatusAppOptions, "authManager" | "env" | "config">> &
   Pick<
     StatusAppOptions,
@@ -359,7 +382,11 @@ function StatusApp({
     | "oauthPort"
     | "oauthTimeoutMs"
     | "clientIdOverride"
-  > & { targetExplicit?: boolean }) {
+    | "coreClient"
+  > & {
+    targetExplicit?: boolean;
+    networkSelectionLocked?: boolean;
+  }) {
   const { exit } = useApp();
   const [authState, setAuthState] = useState<InitialAuthState>({
     authenticated: false,
@@ -386,6 +413,31 @@ function StatusApp({
         : getManagerForConfig(selectedConfig, env, authManagerFactory),
     [authManager, authManagerFactory, config.apiUrl, env, selectedConfig],
   );
+  const authTargetLocked = targetExplicit && networkSelectionLocked;
+  const coreClient = useMemo(
+    () =>
+      coreClientOverride ??
+      createCoreHttpClient({
+        apiUrl: selectedConfig.apiUrl,
+        authManager: activeManager,
+        environment: env,
+        clientId: selectedConfig.clientId,
+        authBaseUrl: selectedConfig.authBaseUrl,
+        clientSecret: selectedConfig.clientSecret,
+      }),
+    [
+      activeManager,
+      coreClientOverride,
+      env,
+      selectedConfig.apiUrl,
+      selectedConfig.authBaseUrl,
+      selectedConfig.clientId,
+      selectedConfig.clientSecret,
+    ],
+  );
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [workspaces, setWorkspaces] = useState<OrganizationWorkspace[]>([]);
+  const [resourceLoading, setResourceLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -435,6 +487,38 @@ function StatusApp({
     authResolved,
     hasAuth: authState.authenticated,
   });
+
+  useEffect(() => {
+    if (route !== "signed-in") return;
+    if (screen !== "vendors" && screen !== "workspaces") return;
+    let cancelled = false;
+    setResourceLoading(true);
+    setPhase("idle");
+    setMessage("");
+    void (async () => {
+      try {
+        if (screen === "vendors") {
+          const { vendors: nextVendors } =
+            await fetchVendorMemberships(coreClient);
+          if (!cancelled) setVendors(nextVendors);
+        } else {
+          const { organizationWorkspaces } =
+            await fetchOrganizationWorkspaces(coreClient);
+          if (!cancelled) setWorkspaces(organizationWorkspaces);
+        }
+      } catch (error: unknown) {
+        if (!cancelled) {
+          setPhase("error");
+          setMessage(error instanceof Error ? error.message : String(error));
+        }
+      } finally {
+        if (!cancelled) setResourceLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [coreClient, route, screen]);
 
   const completeLogin = (nextState: InitialAuthState, nextMessage = "") => {
     setAuthState(nextState);
@@ -562,7 +646,7 @@ function StatusApp({
     const mismatch = explicitApiKeyTargetError(
       apiKey,
       selectedConfig,
-      targetExplicit,
+      authTargetLocked,
     );
     if (mismatch) {
       setPhase("error");
@@ -596,7 +680,7 @@ function StatusApp({
       const mismatch = explicitApiKeyTargetError(
         envApiKey,
         selectedConfig,
-        targetExplicit,
+        authTargetLocked,
       );
       if (mismatch) {
         setPhase("error");
@@ -607,13 +691,13 @@ function StatusApp({
       }
       const detectedTarget = targetFromUserApiKey(envApiKey);
       const nextConfig =
-        !targetExplicit && detectedTarget === "preprod"
+        !authTargetLocked && detectedTarget === "preprod"
           ? createTargetConfig(env, "preprod", clientIdOverride)
-          : !targetExplicit && detectedTarget === "mainnet"
+          : !authTargetLocked && detectedTarget === "mainnet"
             ? createTargetConfig(env, "mainnet", clientIdOverride)
             : selectedConfig;
       setSelectedConfig(nextConfig);
-      startApiKeyLogin(envApiKey, nextConfig, targetExplicit);
+      startApiKeyLogin(envApiKey, nextConfig, authTargetLocked);
       return;
     }
 
@@ -734,9 +818,15 @@ function StatusApp({
       }
 
       if (route === "signed-in") {
-        if (screen === "register" || screen === "manage") {
+        if (
+          screen === "register" ||
+          screen === "manage" ||
+          screen === "vendors" ||
+          screen === "workspaces"
+        ) {
           setScreen("home");
           setMessage("");
+          setPhase("idle");
           return;
         }
         exit();
@@ -772,6 +862,12 @@ function StatusApp({
 
   const homeItems: SelectorItem<HomeAction>[] = [
     { value: "register", label: "Register a Coworker" },
+    { value: "vendors", label: "Vendors", hint: "memberships you administer" },
+    {
+      value: "workspaces",
+      label: "Workspaces",
+      hint: "organization workspaces",
+    },
     { value: "manage", label: "Manage Coworker" },
     { value: "sign-out", label: "Sign out" },
   ];
@@ -957,14 +1053,17 @@ function StatusApp({
       );
     } else {
       const selectedNetwork = resolveSelectedHostedTarget(selectedConfig);
-      const items = buildSignInMenuItems(selectedNetwork, targetExplicit);
+      const items = buildSignInMenuItems(
+        selectedNetwork,
+        networkSelectionLocked,
+      );
       content = centeredScreen(
         React.createElement(Text, { color: TUI_THEME.accent }, LOGO),
         React.createElement(Text, { bold: true }, "Sign in"),
         React.createElement(
           Text,
           { dimColor: true },
-          targetExplicit
+          networkSelectionLocked
             ? `Target locked to ${targetLabel}. Choose a sign-in method. Signup happens in the browser; the CLI never asks for a password.`
             : "Choose a network, then a sign-in method. Signup happens in the browser; the CLI never asks for a password.",
         ),
@@ -1047,6 +1146,85 @@ function StatusApp({
       }),
       messageLine(message, phase),
     );
+  } else if (screen === "vendors") {
+    const vendorItems: SelectorItem<string>[] = vendors.length
+      ? vendors.map((vendor) => ({
+          value: vendor.id,
+          label: vendor.name || "Unnamed vendor",
+          hint:
+            vendor.role === "admin"
+              ? "admin · can register Coworkers"
+              : vendor.role || undefined,
+        }))
+      : [{ value: "empty", label: "No vendors found", hint: "empty" }];
+    signedInContent = React.createElement(
+      Box,
+      { flexDirection: "column", width: "100%" },
+      React.createElement(Text, { bold: true }, "Vendors"),
+      React.createElement(
+        Text,
+        { dimColor: true },
+        resourceLoading
+          ? "Loading vendor memberships…"
+          : "Admin role is required to register Coworkers under a Vendor.",
+      ),
+      React.createElement(SelectInput, {
+        items: vendorItems,
+        onSelect: adaptSelectHandler<string>((vendorId) => {
+          if (vendorId === "empty") return;
+          const vendor = vendors.find((candidate) => candidate.id === vendorId);
+          if (!vendor) return;
+          setPhase("idle");
+          setMessage(
+            `${vendor.name || vendor.id} · role ${vendor.role || "unknown"} · id ${vendor.id}`,
+          );
+        }),
+        listen: !resourceLoading,
+      }),
+      messageLine(message, phase),
+    );
+  } else if (screen === "workspaces") {
+    const workspaceItems: SelectorItem<string>[] = workspaces.length
+      ? workspaces.map((workspace) => ({
+          value: workspace.organizationId,
+          label: workspace.name || "Unnamed workspace",
+          hint: workspace.role || workspace.slug || undefined,
+        }))
+      : [
+          {
+            value: "empty",
+            label: "No organization workspaces found",
+            hint: "empty",
+          },
+        ];
+    signedInContent = React.createElement(
+      Box,
+      { flexDirection: "column", width: "100%" },
+      React.createElement(Text, { bold: true }, "Organization workspaces"),
+      React.createElement(
+        Text,
+        { dimColor: true },
+        resourceLoading
+          ? "Loading organization workspaces…"
+          : "Choose a workspace before registering a workspace-only Coworker.",
+      ),
+      React.createElement(SelectInput, {
+        items: workspaceItems,
+        onSelect: adaptSelectHandler<string>((organizationId) => {
+          if (organizationId === "empty") return;
+          const workspace = workspaces.find(
+            (candidate) => candidate.organizationId === organizationId,
+          );
+          if (!workspace) return;
+          setPhase("idle");
+          setMessage(
+            `${workspace.name || workspace.organizationId} · organization ${workspace.organizationId}${workspace.role ? ` · role ${workspace.role}` : ""}`,
+          );
+        }),
+        listen: !resourceLoading,
+      }),
+      messageLine(message, phase),
+    );
   } else if (screen === "manage") {
     signedInContent = React.createElement(
       Box,
@@ -1072,7 +1250,7 @@ function StatusApp({
       React.createElement(
         Text,
         { dimColor: true },
-        "Sign in is done. Register or manage Coworkers here; use headless commands and Web for everything else.",
+        "Sign in is done. Review Vendors and Workspaces, then register or manage Coworkers.",
       ),
       React.createElement(SelectInput, {
         items: homeItems,
@@ -1087,7 +1265,11 @@ function StatusApp({
     route: "signed-in",
     target: targetLabel,
     authMethod: authState.authMethod,
-    showBackHint: screen === "register" || screen === "manage",
+    showBackHint:
+      screen === "register" ||
+      screen === "manage" ||
+      screen === "vendors" ||
+      screen === "workspaces",
     children: signedInContent,
   });
 }
@@ -1103,6 +1285,8 @@ export async function renderStatusApp({
   config = resolveCliConfig({ env }),
   clientIdOverride,
   targetExplicit = false,
+  networkSelectionLocked = false,
+  coreClient,
 }: StatusAppOptions = {}): Promise<{ tui: true }> {
   const manager =
     authManager || getManagerForConfig(config, env, authManagerFactory);
@@ -1117,6 +1301,8 @@ export async function renderStatusApp({
       config,
       clientIdOverride,
       targetExplicit,
+      networkSelectionLocked,
+      coreClient,
     }),
   );
   await waitUntilExit();

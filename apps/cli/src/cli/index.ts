@@ -18,7 +18,11 @@ import {
 } from "../auth/config.js";
 import { loadCliEnvironment } from "../config/loader.js";
 import { redactErrorMessage } from "../error-redaction.js";
-import { renderStatusApp, type StatusAppOptions } from "../tui/status-app.js";
+import {
+  isNetworkSelectionLocked,
+  renderStatusApp,
+  type StatusAppOptions,
+} from "../tui/status-app.js";
 import { type AuthLoginOptions, runAuthLogin } from "./auth-login.js";
 import { runAuthLogout } from "./auth-logout.js";
 import { runAuthStatus } from "./auth-status.js";
@@ -479,6 +483,10 @@ export async function runCli(
   const targetExplicit = Boolean(
     options.preprod || options["api-url"] || env.SOKOSUMI_API_URL,
   );
+  const networkSelectionLocked = isNetworkSelectionLocked(config, {
+    preprod: options.preprod,
+    apiUrl: options["api-url"],
+  });
 
   try {
     if (positionals.length === 0) {
@@ -490,6 +498,8 @@ export async function runCli(
         config,
         clientIdOverride: options["client-id"],
         targetExplicit,
+        networkSelectionLocked,
+        coreClient: dependencies.coreClient,
         loginFn: dependencies.loginFn,
         oauthPort:
           options["oauth-port"] === undefined
