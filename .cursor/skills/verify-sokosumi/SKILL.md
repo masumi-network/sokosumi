@@ -21,8 +21,8 @@ Ready when:
 Preconditions before launch:
 
 - Node **24.x** on `PATH` (`node -v`)
-- `pnpm install` already done (`portless` is a root devDependency)
-- Workspace packages built at least once (`pnpm packages:build`) — Core imports compiled `@sokosumi/utils` / `@sokosumi/database` exports
+- `pnpm install` already done (`portless` is a root devDependency). Utils `dist` comes from package `prepare` on install; `@sokosumi/database` has no build (ADR 0035 — Core consumes it from source)
+- Prisma client generated (`pnpm prisma:generate`)
 - `apps/web/.env` and `apps/core/.env` present. **`verify-sokosumi launch` (and `pnpm env:bootstrap`) copy `.env.example` and sanitize placeholders.** **Do not leave angle-bracket placeholders** (`<your-…>`) — Zod rejects them. Use non-empty dummies that pass validation (see AGENTS.md cloud notes): `RESEND_API_KEY` = any non-empty string; `RESEND_FROM_EMAIL` optional (defaults to `noreply@sokosumi.com`); Ably keys any non-empty string; Blob/Resend/OAuth secrets any non-empty dummy. **Optional URL fields** (`AGENT_HIRED_WEBHOOK`, Sentry DSN, etc.) must be omitted/commented out or set to a real URL — a bare `dummy` string fails `z.url()` and crashes Web after Ready.
 - **`COMPOSIO_API_KEY`**: Core Zod allows omitting it, but if set it **must start with `ak_`**. A dummy like `dummy-composio-api-key` fails boot (`Invalid string: must start with "ak_"`). Use `ak_…` dummy or comment/remove the key
 - Web `APP_SIGNING_SECRET` is independent of Core `BETTER_AUTH_SECRET` (e.g. web uses `dummy-app-signing-secret`)
