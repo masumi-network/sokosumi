@@ -166,10 +166,12 @@ vi.mock("@vercel/functions", () => ({
 }));
 
 /**
- * Loaded once in `beforeAll`. Importing the sync router pulls in Core's whole
- * module graph, which took ~1.5s here and over 5s under full-suite worker
- * contention. Inside the first `it` that cost lands in a test's own budget and
- * times it out; in a hook it is setup, where it belongs.
+ * Imported in a hook, not statically and not inside an `it`.
+ *
+ * Static fails: the router's graph calls the mocked `getEnv` at module scope,
+ * and while `vi.mock` is hoisted the consts its factory closes over are not —
+ * `ReferenceError: Cannot access 'LOCK_TIMEOUT_MS' before initialization`.
+ * Inside the first `it`, the ~1.5s graph load runs against `testTimeout`.
  */
 let syncRouter: Hono;
 
