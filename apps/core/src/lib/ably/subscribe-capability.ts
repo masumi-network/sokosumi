@@ -34,8 +34,10 @@ export interface BuildAblyClientCapabilityInput {
  * - Chat control: always subscribe (SOK-742 membership revoke)
  * - Org presence: `presence` (enter/update/leave) + `subscribe` (get + presence
  *   events) on presence:org_* (ADR-0003; Ably requires both for roster maps)
- * - Notifications: `subscribe` (realtime feed) + `push-subscribe` (register this
- *   device for closed-app OS banners; ADR-0022)
+ * - Notifications: `subscribe` (realtime feed) + `presence` (a client enters
+ *   while it is in front, so Core can hold a notification email back for a
+ *   reader who is looking; SOK-1090) + `push-subscribe` (register this device
+ *   for closed-app OS banners; ADR-0022)
  */
 export function buildAblyClientCapability({
   userId,
@@ -48,7 +50,7 @@ export function buildAblyClientCapability({
     [`agent_jobs:*:user_${userId}`]: ["subscribe"],
     [makeUserTasksChannelName(userId)]: ["subscribe"],
     [makeUserNotificationsChannelName(userId, notificationChannelEnvironment)]:
-      ["subscribe", "push-subscribe"],
+      ["subscribe", "presence", "push-subscribe"],
     [makeUserChatControlChannelName(userId)]: ["subscribe"],
   };
 

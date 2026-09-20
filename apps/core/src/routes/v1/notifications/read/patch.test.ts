@@ -115,7 +115,13 @@ describe("PATCH /notifications/read", () => {
         isRead: true,
         readAt: expect.any(Date),
       },
-      select: { id: true, kind: true, messageKey: true },
+      select: {
+        id: true,
+        emailId: true,
+        emailScheduledAt: true,
+        kind: true,
+        messageKey: true,
+      },
     });
 
     const body = (await response.json()) as { data: { count: number } };
@@ -248,7 +254,13 @@ describe("PATCH /notifications/read", () => {
             isRead: true,
             readAt: expect.any(Date),
           },
-          select: { id: true, kind: true, messageKey: true },
+          select: {
+            id: true,
+            emailId: true,
+            emailScheduledAt: true,
+            kind: true,
+            messageKey: true,
+          },
         });
 
         const body = (await response.json()) as { data: { count: number } };
@@ -271,8 +283,9 @@ describe("PATCH /notifications/read", () => {
       });
 
       expect(response.status).toBe(200);
+      // The shared write still schedules the email cancel for the rows it
+      // cleared, so only the publish is asserted absent.
       await Promise.all(waitUntilPromises);
-      expect(waitUntilPromises).toHaveLength(0);
       expect(publishClearedNotificationsMock).not.toHaveBeenCalled();
     });
 

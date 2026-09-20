@@ -4,6 +4,7 @@ import { CHAT_ROOM_MESSAGE_MESSAGE_KEY } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 
 import { forbidden, notFound } from "@/helpers/error";
+import { cancelNotificationEmails } from "@/helpers/notification-email-dispatch";
 import { mapNotificationToItem } from "@/helpers/notification-item";
 import { publishClearedNotifications } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -86,15 +87,40 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw forbidden("You can only mark your own notifications as read");
     }
 
-    const updated = notification.isRead
-      ? notification
-      : await prisma.notification.update({
-          where: { id },
-          data: {
-            isRead: true,
-            readAt: new Date(),
-          },
-        });
+    // The read is claimed with a conditional write, so of two requests
+    // arriving together only one moves the row. The row is read again
+    // afterwards because an email handed over in between is on the written
+    // row only. A request resolved in between deletes its rows: keep the
+    // read the caller asked for rather than failing it, or answering with
+    // the unread first read.
+    let updated = notification;
+    let claimedTheRead = false;
+
+    if (!notification.isRead) {
+      const readAt = new Date();
+      const { count } = await prisma.notification.updateMany({
+        where: { id, isRead: false },
+        data: {
+          isRead: true,
+          readAt,
+        },
+      });
+
+      claimedTheRead = count === 1;
+      updated = (await prisma.notification.findUnique({ where: { id } })) ?? {
+        ...notification,
+        isRead: true,
+        readAt,
+      };
+    }
+
+    // Scheduled rather than awaited, so a failed cancel costs the reader one
+    // email they have already read instead of the read they asked for. Only
+    // the request that claimed the read cancels: the other would ask Resend
+    // to drop an email that is already gone, and report the refusal.
+    if (claimedTheRead) {
+      waitUntil(cancelNotificationEmails([updated]));
+    }
 
     // The counted room row is the one a banner stands for, so it is the only
     // row whose reading takes a banner down. A mention shares the room's

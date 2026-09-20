@@ -2,6 +2,11 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { NotificationKind } from "@sokosumi/database";
 import { waitUntil } from "@vercel/functions";
 
+import {
+  cancelNotificationEmails,
+  EMAILED_NOTIFICATION_COLUMNS,
+  type EmailedNotificationRow,
+} from "@/helpers/notification-email-dispatch";
 import { publishClearedNotifications } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -54,7 +59,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
     const readAt = new Date();
-    let clearedIds: string[] = [];
+    let clearedRows: EmailedNotificationRow[] = [];
 
     const room = await prisma.$transaction(async (tx) => {
       const room = await requireChatRoomUserAccess(id, userContext.userId, tx);
@@ -75,35 +80,33 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
       });
 
-      // Read before the write, because after it there is nothing left to
-      // name. The reader's open tabs are told about each one below: a room
-      // message stands in the notification center now, and a badge that
-      // only ever heard about rows being written would keep counting rows
-      // this room no longer has.
-      clearedIds = (
-        await tx.notification.findMany({
-          where: {
-            userId: userContext.userId,
-            kind: NotificationKind.CHAT,
-            referenceId: room.id,
-            isRead: false,
-          },
-          select: { id: true },
-        })
-      ).map((notification) => notification.id);
-
-      await tx.notification.updateMany({
-        where: { id: { in: clearedIds } },
+      // Written and read back in one statement, so the rows named below are
+      // exactly the ones this write cleared: an email handed over between a
+      // read and a separate write would be on no row this route saw. The
+      // reader's open tabs are told about each one: a room message stands
+      // in the notification center now, and a badge that only ever heard
+      // about rows being written would keep counting rows this room no
+      // longer has.
+      clearedRows = await tx.notification.updateManyAndReturn({
+        where: {
+          userId: userContext.userId,
+          kind: NotificationKind.CHAT,
+          referenceId: room.id,
+          isRead: false,
+        },
         data: {
           isRead: true,
           readAt,
         },
+        select: EMAILED_NOTIFICATION_COLUMNS,
       });
 
       return room;
     });
 
-    waitUntil(publishClearedNotifications(clearedIds));
+    waitUntil(publishClearedNotifications(clearedRows.map((row) => row.id)));
+    // The reader is in the room, so the email about it is no longer needed.
+    waitUntil(cancelNotificationEmails(clearedRows));
 
     // Top-level unreads are cleared by lastReadAt; thread replies still use
     // look baseline. Return the real dual-baseline count so the sidebar does
