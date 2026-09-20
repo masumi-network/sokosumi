@@ -312,11 +312,10 @@ describe("dispatchNotificationEmail", () => {
   });
 
   /**
-   * A task row written with In app off is read by nothing in the app, only
-   * by a click on its banner, so it is not asked: one such row that had been
-   * emailed would hold every later email about the task back for good. A
-   * chat row is asked whether hidden or not, because opening the room reads
-   * every row of the room.
+   * A task row written with In app off is in no list the reader can open,
+   * so it is not asked. That reader is mailed per event rather than per
+   * unread thing. A chat row is asked whether hidden or not, because
+   * opening the room reads every row of the room.
    */
   it("asks only the rows the reader can read, which for a task means the visible ones", async () => {
     await dispatch(finished());

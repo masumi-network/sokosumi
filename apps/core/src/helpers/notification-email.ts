@@ -42,11 +42,12 @@ const MINUTE_MS = 60_000;
  * The email exists for the reader who is away. One who is looking at the app
  * is given that long to get to the notification first, and the email is
  * cancelled when they do. A reader who turned the category off in the app
- * sees no row to get to, and the wait still pays: a record that settles
- * inside it takes the email back as well, so nobody is asked about a task
- * that has already ended. Held for less when the message is more likely to
- * be waited on: a direct message is a conversation, a finished task is an
- * outcome that keeps.
+ * sees no row to get to. For an attention row the wait still pays: a record
+ * that settles inside it takes the email back, so nobody is asked about a
+ * task that has already ended. A finished task has no such write; only a
+ * click takes that email back. Held for less when the message is more
+ * likely to be waited on: a direct message is a conversation, a finished
+ * task is an outcome that keeps.
  *
  * A category absent from here is never emailed at the event. Follow-ups are
  * emailed by their own sync, and the rest have no email at all
