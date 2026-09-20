@@ -27,6 +27,8 @@ import { runCoworkersCommand } from "./commands/coworkers.js";
 import { CLI_COMMANDS, runDiscoverCommand } from "./commands/discover.js";
 import { runJobsCommand } from "./commands/jobs.js";
 import { runTasksCommand } from "./commands/tasks.js";
+import { runVendorsCommand } from "./commands/vendors.js";
+import { runWorkspacesCommand } from "./commands/workspaces.js";
 import { CLI_VERSION } from "./metadata.js";
 
 interface TextOutput {
@@ -154,6 +156,8 @@ const COMMAND_USAGE: Record<(typeof CLI_COMMANDS)[number], string> = {
   "coworkers update": "COWORKER_ID [options]",
   "coworkers api-key": "COWORKER_ID [options]",
   "coworkers me": "",
+  "vendors me": "",
+  "workspaces list": "",
   "tasks list": "[options]",
   "tasks create": "--coworker-id ID --description TEXT",
   "tasks get": "TASK_ID",
@@ -282,6 +286,8 @@ const CORE_COMMAND_SECTIONS = new Set([
   "discover",
   "agents",
   "coworkers",
+  "vendors",
+  "workspaces",
   "tasks",
   "jobs",
 ]);
@@ -553,6 +559,32 @@ export async function runCli(
       return {};
     }
     if (
+      section === "vendors" &&
+      command === "me" &&
+      positionalId === undefined
+    ) {
+      await runVendorsCommand({
+        client: getCoreClient(config, env, dependencies),
+        stdout,
+        json: options.json,
+        subcommand: command,
+      });
+      return {};
+    }
+    if (
+      section === "workspaces" &&
+      command === "list" &&
+      positionalId === undefined
+    ) {
+      await runWorkspacesCommand({
+        client: getCoreClient(config, env, dependencies),
+        stdout,
+        json: options.json,
+        subcommand: command,
+      });
+      return {};
+    }
+    if (
       section === "tasks" &&
       (command === undefined ||
         ["list", "create", "get", "events", "jobs", "comment"].includes(
@@ -589,7 +621,7 @@ export async function runCli(
       positionalId !== undefined
     ) {
       throw new Error(
-        "Usage: sokosumi discover | agents list | coworkers | tasks | jobs | auth login|status|logout",
+        "Usage: sokosumi discover | agents list | coworkers | vendors me | workspaces list | tasks | jobs | auth login|status|logout",
       );
     }
 
