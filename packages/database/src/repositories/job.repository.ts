@@ -22,12 +22,6 @@ export const jobRepository = {
     return mapJobWithStatus(job);
   },
 
-  /**
-   * Check if user has finished job with the agent
-   * @param ownerId - The unique identifier of the job owner
-   * @param agentId - The unique identifier of the agent
-   * @returns Promise containing true if user has finished job with the agent, false otherwise
-   */
   async doesUserHaveFinishedJobWithAgent(
     ownerId: string,
     agentId: string,
@@ -46,13 +40,9 @@ export const jobRepository = {
 };
 
 /**
- * Creates a Prisma where query to filter for jobs that are finished.
- *
- * A job is considered "finished" if it meets any of the following criteria:
- * - AgentJobStatus is either Completed or Failed
- * - OnChainStatus is not FUNDS_LOCKED, REFUND_REQUESTED, or
- *   REFUND_AUTHORIZED (an authorized refund still needs its on-chain
- *   withdrawal), or is null for FREE jobs
+ * Finished: agent status Completed/Failed, and on-chain status is not
+ * FUNDS_LOCKED, REFUND_REQUESTED, or REFUND_AUTHORIZED (authorized refund
+ * still needs its on-chain withdrawal), or is null for FREE jobs.
  */
 function jobsFinishedWhereQuery(): Prisma.JobWhereInput {
   return {
@@ -65,7 +55,6 @@ function jobsFinishedWhereQuery(): Prisma.JobWhereInput {
             },
           },
         },
-        // Check for finalized on-chain statuses
         OR: [
           { purchase: { onChainStatus: null }, jobType: JobType.FREE },
           {

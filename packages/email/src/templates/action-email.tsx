@@ -7,7 +7,6 @@ import type { RenderedEmail } from "../types.js";
 const DEFAULT_LINK_INSTRUCTIONS =
   "Or copy and paste this URL into your browser:";
 
-/** One named piece of context under the body, such as a project or an agent. */
 export interface ActionEmailFact {
   label: string;
   value: string;
@@ -17,25 +16,11 @@ export interface ActionEmailTemplateProps {
   actionLabel: string;
   actionUrl: string;
   body: string;
-  /**
-   * Named context under the body, drawn only when there is some.
-   *
-   * For the reader who is deciding whether this needs them now. A task's
-   * project and a job's agent answer "which one is this?" without opening it.
-   */
   facts?: readonly ActionEmailFact[];
   footer: string;
   greeting: string;
   linkInstructions?: string;
   preview: string;
-  /**
-   * Something the email is quoting, such as the chat message it is about.
-   *
-   * Drawn as a quote rather than folded into the body, so a reader can tell
-   * Sokosumi's words from somebody else's. Absent when there is nothing to
-   * quote, which for a chat message means it was deleted or it cleaned to
-   * nothing.
-   */
   quote?: string;
   title: string;
 }
