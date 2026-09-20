@@ -34,14 +34,9 @@ jobs:
         uses: dorny/paths-filter@v3
         with:
           # 'every' is required: with the default 'some', the '!' exclusion
-          # patterns below would not exclude anything.
+          # patterns in js-paths-filter.yml would not exclude anything.
           predicate-quantifier: "every"
-          filters: |
-            js:
-              - "**"
-              - "!apps/apple/**"
-              - "!docs/**"
-              - "!**/*.md"
+          filters: .github/js-paths-filter.yml
 
   test:
     name: Test ${{ matrix.target.name }}
