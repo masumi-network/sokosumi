@@ -3,7 +3,7 @@
 import { Check, Copy, Globe, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -44,23 +44,6 @@ export function TaskShareModal({
   const isClient = useIsClient();
 
   const [taskShare, setTaskShare] = useState<TaskShare | null>(share);
-
-  const ignoreStaleShareAfterDeleteRef = useRef(false);
-
-  useEffect(() => {
-    setTaskShare((prev) => {
-      if (prev?.token && !share?.token) {
-        return prev;
-      }
-      if (ignoreStaleShareAfterDeleteRef.current && share?.token) {
-        return prev;
-      }
-      if (share === null) {
-        ignoreStaleShareAfterDeleteRef.current = false;
-      }
-      return share;
-    });
-  }, [share]);
 
   const link =
     isClient && taskShare?.token
@@ -159,7 +142,6 @@ export function TaskShareModal({
     setIsLoading(true);
     try {
       await coreClient.deleteTaskShare(taskId);
-      ignoreStaleShareAfterDeleteRef.current = true;
       syncTaskShare(null);
       toast.success(t("Success.share"));
     } catch (error) {
