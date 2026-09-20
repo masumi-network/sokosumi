@@ -19,6 +19,7 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import type { NotificationEventData } from "@/lib/ably";
 import { makeCurrentUserNotificationsChannelName } from "@/lib/ably/current-notifications-channel.client";
 import { healPushSubscription } from "@/lib/ably/push-self-heal.client";
+import { useNotificationFrontPresence } from "@/lib/ably/use-notification-front-presence";
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
 import { notificationsBrowserClient } from "@/lib/clients/core.notifications.browser.client";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
@@ -204,6 +205,7 @@ function NotificationRealtimeBridge({
       console.error("Ably notification error:", error);
     },
   });
+  useNotificationFrontPresence(userId);
 
   useMountEffect(() => {
     onSubscribed();

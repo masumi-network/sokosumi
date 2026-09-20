@@ -20,7 +20,11 @@ describe("buildAblyClientCapability", () => {
     expect(capability).toEqual({
       "agent_jobs:*:user_user_123": ["subscribe"],
       "tasks:all:user_user_123": ["subscribe"],
-      "notifications:all:user_user_123": ["subscribe", "push-subscribe"],
+      "notifications:all:user_user_123": [
+        "subscribe",
+        "presence",
+        "push-subscribe",
+      ],
       "chat_control:user_user_123": ["subscribe"],
       "chat_rooms:room_room-a": ["subscribe"],
       "chat_rooms:room_room-b": ["subscribe"],
@@ -63,6 +67,7 @@ describe("buildAblyClientCapability", () => {
 
     expect(capability["notifications:all:user_user_123"]).toEqual([
       "subscribe",
+      "presence",
       "push-subscribe",
     ]);
     expect(
@@ -89,7 +94,7 @@ describe("buildAblyClientCapability", () => {
       capability[
         "notifications:preview:mainnet:branch_fix%2Fpush-urls:user_user_123"
       ],
-    ).toEqual(["subscribe", "push-subscribe"]);
+    ).toEqual(["subscribe", "presence", "push-subscribe"]);
   });
 
   it("grants presence on each organization channel", () => {

@@ -3,7 +3,6 @@ import {
   renderChatDirectMessageFollowUpEmail,
   renderChatMentionFollowUpEmail,
   renderTaskFollowUpEmail,
-  type TaskFollowUpReason,
 } from "@sokosumi/email";
 import {
   CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
@@ -12,7 +11,11 @@ import {
 } from "@sokosumi/utils";
 
 import type { SendEmailInput } from "@/clients/email.client";
-import { getWebAppBaseUrl } from "@/config/env";
+import { taskAttentionReasonOf } from "@/helpers/notification-email";
+import {
+  notificationEmailLink,
+  readString,
+} from "@/helpers/notification-email-link";
 
 /**
  * The reminder email for one follow-up (SOK-916).
@@ -52,80 +55,6 @@ export interface FollowUpEmailInput {
 }
 
 /**
- * Why the task is waiting, or null when this key has no sentence.
- *
- * Read off the end of the message key, because every attention key Core writes
- * ends in the word the catalogs use: `Notifications.Task.inputRequired` and
- * `notifications.followUp.task.reasons.inputRequired`. A key added to a family
- * later falls through to the family's own body rather than asking the catalog
- * for a sentence nobody has written.
- */
-const TASK_REASONS: readonly TaskFollowUpReason[] = [
-  "approvalRequired",
-  "assigned",
-  "authenticationRequired",
-  "inputRequired",
-  "outOfCredits",
-  "scheduleRemovedByOperator",
-];
-
-function reasonIn<T extends string>(
-  reasons: readonly T[],
-  sourceMessageKey: string,
-): null | T {
-  const tail = sourceMessageKey.slice(sourceMessageKey.lastIndexOf(".") + 1);
-
-  return reasons.find((reason): reason is T => reason === tail) ?? null;
-}
-
-/**
- * Names the message a chat reminder is about, on the room's own URL.
- *
- * The same parameter web puts there (`CHAT_MESSAGE_PARAM` in
- * `apps/web/src/lib/utils/notification-href.ts`) and the room client reads.
- * Spelled again here rather than shared, because the web module it lives in
- * pulls in vendor-grant helpers this app has no use for. The two must agree;
- * only these three kinds are repeated, and the SYSTEM routing is not.
- */
-const CHAT_MESSAGE_PARAM = "message";
-
-function readString(
-  values: Record<string, unknown> | null | undefined,
-  key: string,
-): null | string {
-  const value = values?.[key];
-
-  return typeof value === "string" ? value : null;
-}
-
-/**
- * Where the reminder opens, absolute so it works from an inbox.
- *
- * Deliberately the same destinations web sends a clicked notification to, so
- * the email and the Notification Center land in the same place.
- */
-function followUpLink(input: FollowUpEmailInput): string {
-  const base = getWebAppBaseUrl();
-  const reference = encodeURIComponent(input.referenceId);
-
-  switch (input.kind) {
-    case "TASK":
-      return `${base}/tasks/${reference}`;
-
-    default: {
-      const room = `${base}/chat/rooms/${reference}`;
-      const messageId = readString(input.metadata, "messageId")?.trim();
-
-      if (!messageId) {
-        return room;
-      }
-
-      return `${room}?${CHAT_MESSAGE_PARAM}=${encodeURIComponent(messageId)}`;
-    }
-  }
-}
-
-/**
  * The email to send for this reminder, or null when there is none to send.
  *
  * Null for a message key with no email of its own. The caller only ever passes
@@ -136,7 +65,7 @@ export async function buildFollowUpEmail(
   input: FollowUpEmailInput,
   locale = "en",
 ): Promise<null | SendEmailInput> {
-  const actionUrl = followUpLink(input);
+  const actionUrl = notificationEmailLink(input);
   const recipientName = input.recipientName;
   const shared = { actionUrl, locale, recipientName };
 
@@ -189,7 +118,7 @@ export async function buildFollowUpEmail(
           ...shared,
           coworkerName: readString(input.messageParams, "coworkerName"),
           projectName: readString(input.messageParams, "projectName"),
-          reason: reasonIn(TASK_REASONS, input.sourceMessageKey),
+          reason: taskAttentionReasonOf(input.sourceMessageKey),
           taskName: readString(input.messageParams, "taskName"),
         }),
       );

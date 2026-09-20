@@ -85,8 +85,8 @@ export const CELL_TRACK = "flex w-12 shrink-0 justify-center @xl:w-18";
 export const CHANNEL_ICON: Record<StoredChannel, LucideIcon> = {
   IN_APP: Bell,
   OS_BANNER: Smartphone,
-  // Drawn in the email column rather than beside the other two, because only
-  // the reminder row stores this channel. `CHANNEL_SPECS` is what decides the
+  // Drawn in the email column rather than beside the other two, because not
+  // every row stores this channel. `CHANNEL_SPECS` is what decides the
   // columns, and `EMAIL` is deliberately absent from it.
   EMAIL: Mail,
 };
@@ -261,8 +261,8 @@ function KindCells({
   const label = t(kind.spec.labelKey);
   const pushHintId = useId();
 
-  // The cells this row draws, which is the columns plus the reminder row's own
-  // email cell (SOK-916). One list rather than a cell drawn beside the loop,
+  // The cells this row draws, which is the columns plus the email cell of a
+  // row that mails. One list rather than a cell drawn beside the loop,
   // so the press, the state and the sentence the row speaks all read the same
   // set. Last in the list, which is where the email column sits on every other
   // row.
@@ -346,7 +346,7 @@ function KindCells({
    *
    * `NONE` has nothing behind it and says so. `CHANNEL` is already drawn, by
    * the loop over `cellSpecs`, because that one is a cell of the matrix like
-   * the two beside it and is written by the same path (SOK-916).
+   * the two beside it and is written by the same path.
    */
   function emailCell() {
     if (kind.spec.email === "CHANNEL") {

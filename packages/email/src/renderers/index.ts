@@ -11,3 +11,10 @@ export {
   renderChatMentionFollowUpEmail,
   renderTaskFollowUpEmail,
 } from "./notification-follow-ups.js";
+export {
+  renderAccessRequestEmail,
+  renderChatDirectMessageEmail,
+  renderChatMentionEmail,
+  renderTaskAttentionEmail,
+  renderTaskCompletedEmail,
+} from "./notifications.js";

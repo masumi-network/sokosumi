@@ -1,5 +1,6 @@
 export * from "./renderers/index.js";
 export type {
+  AccessRequestKind,
   JobFailureNotificationEmailProps,
-  TaskFollowUpReason,
+  TaskAttentionReason,
 } from "./types.js";

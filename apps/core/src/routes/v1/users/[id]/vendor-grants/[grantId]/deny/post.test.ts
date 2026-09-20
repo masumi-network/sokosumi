@@ -114,6 +114,8 @@ describe("POST /users/{id}/vendor-grants/{grantId}/deny", () => {
           },
           notification: {
             deleteMany: notificationDeleteManyMock,
+            findMany: vi.fn().mockResolvedValue([]),
+            updateMany: vi.fn().mockResolvedValue({ count: 0 }),
           },
         }),
     );

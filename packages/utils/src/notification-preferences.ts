@@ -25,13 +25,31 @@ export const NOTIFICATION_CHANNELS = ["IN_APP", "OS_BANNER", "EMAIL"] as const;
 export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
 
 /**
- * Categories that send email. A category joins this list in the same change
- * that teaches it to send one.
+ * The categories that actually send an email.
  *
- * Not here: the job-failure alert still sent to the agent's author and
- * stakeholder list, not a settings-page reader (SOK-24).
+ * Everything addressed to the reader, and the reminders about it. A mention,
+ * a direct message, a task that stopped for them, a task that finished and a
+ * request for a workspace they manage each reach the inbox (SOK-1090), as
+ * does the reminder a day later (SOK-916).
+ *
+ * Deliberately absent: every message in a room, which would mail a busy room
+ * per message, and the other task updates, which ask nothing of the reader.
+ *
+ * This list is what keeps the email column honest. A category absent from it
+ * is never drawn with an email switch and never defaults to on, so no reader
+ * is shown a switch that controls nothing. A category joins the list in the
+ * same change that teaches it to send an email, never before.
+ *
+ * Deliberately not here: the job failure alert the product still sends. It
+ * goes to the agent's author and the stakeholder list rather than to a reader
+ * with a settings page, so no row of this matrix speaks for it (SOK-24).
  */
 export const NOTIFICATION_EMAIL_CATEGORIES: readonly NotificationCategory[] = [
+  "TASK_ATTENTION",
+  "TASK_COMPLETED",
+  "CHAT_MENTION",
+  "CHAT_DIRECT_MESSAGE",
+  "SYSTEM",
   "FOLLOW_UP",
 ];
 

@@ -9,12 +9,18 @@ import {
   isFollowUpMessageKey,
   VENDOR_GRANT_PENDING_MESSAGE_KEY,
 } from "@sokosumi/utils";
+import { waitUntil } from "@vercel/functions";
 
 import type { NotificationDelivery } from "@/helpers/notification-delivery";
 import {
   resolveNotificationDelivery,
   toNotificationCategory,
 } from "@/helpers/notification-delivery";
+import {
+  cancelNotificationEmails,
+  dispatchNotificationEmail,
+  EMAILED_NOTIFICATION_COLUMNS,
+} from "@/helpers/notification-email-dispatch";
 import { readNotificationRowJson } from "@/helpers/notification-row-json";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { publishNotificationEvent } from "@/lib/ably/publish";
@@ -412,6 +418,12 @@ export async function createNotification(
       await publishNotificationRow(notification, delivery);
     }
 
+    // Scheduled rather than awaited: the write may be inside the caller's
+    // transaction, and the email waits for it to commit (SOK-1090).
+    if (delivery.email) {
+      waitUntil(dispatchNotificationEmail(notification));
+    }
+
     return { notification, created: true };
   } catch (error) {
     if (!isPrismaUniqueViolation(error)) {
@@ -440,15 +452,10 @@ export async function deletePendingVendorGrantNotifications(
   grantId: string,
   prismaClient: Prisma.TransactionClient | typeof prisma = prisma,
 ): Promise<number> {
-  const result = await prismaClient.notification.deleteMany({
-    where: {
-      referenceId: grantId,
-      messageKey: VENDOR_GRANT_PENDING_MESSAGE_KEY,
-      kind: NotificationKind.SYSTEM,
-    },
-  });
-
-  return result.count;
+  return deletePendingRequestNotifications(
+    { referenceId: grantId, messageKey: VENDOR_GRANT_PENDING_MESSAGE_KEY },
+    prismaClient,
+  );
 }
 
 /**
@@ -459,13 +466,44 @@ export async function deletePendingCoworkerAccessNotifications(
   accessId: string,
   prismaClient: Prisma.TransactionClient | typeof prisma = prisma,
 ): Promise<number> {
-  const result = await prismaClient.notification.deleteMany({
-    where: {
-      referenceId: accessId,
-      messageKey: COWORKER_ACCESS_PENDING_MESSAGE_KEY,
-      kind: NotificationKind.SYSTEM,
-    },
+  return deletePendingRequestNotifications(
+    { referenceId: accessId, messageKey: COWORKER_ACCESS_PENDING_MESSAGE_KEY },
+    prismaClient,
+  );
+}
+
+/**
+ * The shared delete, which also takes back the emails scheduled for the rows.
+ *
+ * Read before the delete, because after it there is nothing left to name.
+ * The cancel is scheduled from inside the caller's transaction, so a
+ * transaction that rolls back after this has cancelled the email for a row
+ * that is still there. That reader gets no email about the request and the
+ * row stays unread, which the follow-up sync reminds them of a day later.
+ */
+async function deletePendingRequestNotifications(
+  request: { referenceId: string; messageKey: string },
+  prismaClient: Prisma.TransactionClient | typeof prisma,
+): Promise<number> {
+  const where = { ...request, kind: NotificationKind.SYSTEM };
+
+  // Takes the rows' locks before they are read. The dispatcher writes a
+  // row's email onto it with an `isRead: false` of its own, so without this
+  // it can land between the read and the delete: the read would miss the
+  // email, and the delete would take the row it is named on, leaving nothing
+  // to cancel it by. Locked first, the dispatcher either wrote before this,
+  // and the read sees its email, or waits for the delete and writes nothing.
+  // Whether it sends at all by then is its own question, answered at
+  // `dispatchNotificationEmail`.
+  await prismaClient.notification.updateMany({ where, data: { isRead: true } });
+
+  const scheduled = await prismaClient.notification.findMany({
+    where: { ...where, emailScheduledAt: { not: null } },
+    select: EMAILED_NOTIFICATION_COLUMNS,
   });
+  const result = await prismaClient.notification.deleteMany({ where });
+
+  waitUntil(cancelNotificationEmails(scheduled));
 
   return result.count;
 }
