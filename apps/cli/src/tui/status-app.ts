@@ -84,6 +84,7 @@ function adaptSelectHandler<T>(
 
 type AuthMethod = "oauth" | "api-key";
 type HostedTarget = "mainnet" | "preprod";
+type SignInAction = HostedTarget | AuthMethod;
 type OAuthConfirm = "sign-in";
 type SelectorItem<T> = SelectItem<T>;
 type AuthPhase = "idle" | "waiting" | "success" | "error";
@@ -167,6 +168,49 @@ export function apiKeyTargetEscapeState(): {
   pendingApiKey: null;
 } {
   return { screen: "auth-method", pendingApiKey: null };
+}
+
+export function resolveSelectedHostedTarget(
+  config: CliTargetConfig,
+): HostedTarget {
+  return config.target === "preprod" ? "preprod" : "mainnet";
+}
+
+export function buildSignInMenuItems(
+  selectedNetwork: HostedTarget,
+  targetExplicit: boolean,
+): SelectorItem<SignInAction>[] {
+  const networkItems: SelectorItem<SignInAction>[] = targetExplicit
+    ? []
+    : [
+        {
+          value: "mainnet",
+          label: "Mainnet",
+          hint:
+            selectedNetwork === "mainnet"
+              ? "selected · production"
+              : "production",
+        },
+        {
+          value: "preprod",
+          label: "Preprod",
+          hint:
+            selectedNetwork === "preprod" ? "selected · staging" : "staging",
+        },
+      ];
+  return [
+    ...networkItems,
+    {
+      value: "oauth",
+      label: "Browser OAuth",
+      hint: "opens /signin · PKCE",
+    },
+    {
+      value: "api-key",
+      label: "User API key",
+      hint: apiKeyPrefixHint(),
+    },
+  ];
 }
 
 function createTargetConfig(
@@ -672,7 +716,7 @@ function StatusApp({
           return;
         }
         if (screen === "oauth-confirm") {
-          setScreen("oauth-target");
+          setScreen("auth-method");
           setMessage("");
           return;
         }
@@ -707,12 +751,21 @@ function StatusApp({
 
   const chooseAuthMethod = (method: AuthMethod) => {
     if (method === "oauth") {
-      setScreen(targetExplicit ? "oauth-confirm" : "oauth-target");
+      setScreen("oauth-confirm");
       setPhase("idle");
       setMessage("");
       return;
     }
     beginApiKeyLogin();
+  };
+
+  const handleSignInAction = (action: SignInAction) => {
+    if (action === "mainnet" || action === "preprod") {
+      setSelectedConfig(createTargetConfig(env, action, clientIdOverride));
+      setMessage(`Network: ${action}`);
+      return;
+    }
+    chooseAuthMethod(action);
   };
 
   const homeItems: SelectorItem<HomeAction>[] = [
@@ -904,29 +957,21 @@ function StatusApp({
         navigationHint({ back: true }),
       );
     } else {
-      const items: SelectorItem<AuthMethod>[] = [
-        {
-          value: "oauth",
-          label: "Browser OAuth",
-          hint: "opens /signin · PKCE",
-        },
-        {
-          value: "api-key",
-          label: "User API key",
-          hint: apiKeyPrefixHint(),
-        },
-      ];
+      const selectedNetwork = resolveSelectedHostedTarget(selectedConfig);
+      const items = buildSignInMenuItems(selectedNetwork, targetExplicit);
       content = centeredScreen(
         React.createElement(Text, { color: TUI_THEME.accent }, LOGO),
         React.createElement(Text, { bold: true }, "Sign in"),
         React.createElement(
           Text,
           { dimColor: true },
-          "Choose a sign-in method. Signup happens in the browser; the CLI never asks for a password.",
+          targetExplicit
+            ? `Target locked to ${targetLabel}. Choose a sign-in method. Signup happens in the browser; the CLI never asks for a password.`
+            : "Choose a network, then a sign-in method. Signup happens in the browser; the CLI never asks for a password.",
         ),
         React.createElement(SelectInput, {
           items,
-          onSelect: adaptSelectHandler<AuthMethod>(chooseAuthMethod),
+          onSelect: adaptSelectHandler<SignInAction>(handleSignInAction),
           listen: !busy,
         }),
         navigationHint(),

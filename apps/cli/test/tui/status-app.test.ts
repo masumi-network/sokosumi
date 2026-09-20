@@ -23,11 +23,13 @@ import {
   apiKeyCreationHint,
   apiKeyPrefixHint,
   apiKeyTargetEscapeState,
+  buildSignInMenuItems,
   displayTargetLabel,
   explicitApiKeyTargetError,
   oauthCallbackDisplayUri,
   renderStatusApp,
   resolveHostedTargetConfig,
+  resolveSelectedHostedTarget,
   type StatusAppOptions,
 } from "../../src/tui/status-app.js";
 
@@ -97,6 +99,25 @@ test("TestV55 TUI target labels sanitize API URLs", () => {
   assert.doesNotMatch(label, /user|password|secret|fragment/i);
 });
 
+test("sign-in menu exposes network choices before auth methods", () => {
+  const mainnetConfig = resolveHostedTargetConfig({}, "mainnet");
+  const items = buildSignInMenuItems(
+    resolveSelectedHostedTarget(mainnetConfig),
+    false,
+  );
+  assert.deepEqual(
+    items.map((item) => item.value),
+    ["mainnet", "preprod", "oauth", "api-key"],
+  );
+  assert.match(items[0]?.hint || "", /selected · production/);
+
+  const locked = buildSignInMenuItems("preprod", true);
+  assert.deepEqual(
+    locked.map((item) => item.value),
+    ["oauth", "api-key"],
+  );
+});
+
 test("TestV47 TUI errors redact credential-shaped values", () => {
   assert.equal(
     redactErrorMessage(
@@ -135,6 +156,8 @@ test("TestV60 Ink solely owns API-key input and Esc/arrow navigation", async () 
     assert.match(output, new RegExp(`sokosumi v${CLI_VERSION}`));
     assert.match(output, /soko_mainnet_/);
     await waitForNextImmediate();
+    await sendInput(terminal.stdin, "\u001b[B");
+    await sendInput(terminal.stdin, "\u001b[B");
     await sendInput(terminal.stdin, "\u001b[B");
     await sendInput(terminal.stdin, "\r");
     await waitForOutput(terminal.stdout, () => output, "Input is hidden");
@@ -218,10 +241,11 @@ test("TestV56 OAuth Escape returns to confirm and allows retry", async () => {
   try {
     await waitForOutput(terminal.stdout, () => output, "Browser OAuth");
     await waitForNextImmediate();
-    await sendInput(terminal.stdin, "\r");
-    await waitForOutput(terminal.stdout, () => output, "Choose OAuth target");
+    await sendInput(terminal.stdin, "\u001b[B");
+    await sendInput(terminal.stdin, "\u001b[B");
     await sendInput(terminal.stdin, "\r");
     await waitForOutput(terminal.stdout, () => output, "Open browser sign-in?");
+    assert.doesNotMatch(output, /Choose OAuth target/);
     await waitForNextImmediate();
     await sendInput(terminal.stdin, "\r");
     await waitForNextImmediate();
@@ -283,7 +307,6 @@ async function sendInput(stdin: PassThrough, input: string): Promise<void> {
   stdin.write(input);
   stdin.emit("readable");
   await waitForNextImmediate();
-  // Ink 7 buffers a trailing ESC for 20ms so CSI sequences can complete.
   if (input === "\u001b") {
     await new Promise<void>((resolve) => setTimeout(resolve, 30));
   }
@@ -426,13 +449,14 @@ test("TestV34 runCli TUI selection preserves explicit client ID", async () => {
   try {
     await waitForOutput(terminal.stdout, () => output, "Browser OAuth");
     await waitForNextImmediate();
-    await sendInput(terminal.stdin, "\r");
-    await waitForOutput(terminal.stdout, () => output, "Choose OAuth target");
-
     await sendInput(terminal.stdin, "\u001b[B");
     await waitForOutput(terminal.stdout, () => output, "› Preprod");
     await sendInput(terminal.stdin, "\r");
+    await waitForOutput(terminal.stdout, () => output, "Network: preprod");
+    await sendInput(terminal.stdin, "\u001b[B");
+    await sendInput(terminal.stdin, "\r");
     await waitForOutput(terminal.stdout, () => output, "Open browser sign-in?");
+    assert.doesNotMatch(output, /Choose OAuth target/);
     assert.match(output, /Target: preprod/);
     await waitForNextImmediate();
     await sendInput(terminal.stdin, "\r");
