@@ -123,7 +123,7 @@ export function ProjectsView({
             )}
           >
             {/* Header row of the list card, divided from the rows it labels. */}
-            <div className="border-border flex items-center gap-3 border-b px-3 py-2.5">
+            <div className="border-border flex items-center gap-3 border-b px-4 py-2.5">
               <ProjectsFilter labels={labels.filter} />
               {/* Plain text, not a control: the Core route has one fixed
                   ordering, so a chip here would promise a menu that cannot

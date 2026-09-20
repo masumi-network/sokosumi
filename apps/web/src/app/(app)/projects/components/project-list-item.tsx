@@ -38,7 +38,7 @@ export function ProjectListItem({ project, labels }: ProjectListItemProps) {
       <Link
         href={`/projects/${project.id}`}
         className={cn(
-          "flex min-w-0 flex-row items-center gap-4 rounded-none px-2 py-3 transition-colors",
+          "flex min-w-0 flex-row items-center gap-4 rounded-none px-4 py-3 transition-colors",
           "hover:bg-card-background-hover active:scale-[0.995] md:rounded-lg",
         )}
       >
