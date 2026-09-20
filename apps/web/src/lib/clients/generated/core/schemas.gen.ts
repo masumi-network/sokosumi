@@ -14746,11 +14746,18 @@ export const ProjectListItemSchema = {
                     type: 'integer',
                     minimum: 0,
                     example: 1
+                },
+                lastActivityAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z',
+                    description: 'Latest visible task/job event, ready task output or project lifecycle event. Equals createdAt when the project has no activity yet, which is also the list ordering key.'
                 }
             },
             required: [
                 'taskCount',
-                'jobCount'
+                'jobCount',
+                'lastActivityAt'
             ]
         }
     ]

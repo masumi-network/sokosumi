@@ -74,6 +74,30 @@ describe("ProjectsPage", () => {
     vi.clearAllMocks();
   });
 
+  it("forwards the q search param to Core and down to the view", async () => {
+    projectServiceMock.listProjects.mockResolvedValue({
+      projects: [buildProject()],
+      pagination: { cursor: null, limit: 20, nextCursor: null, total: 1 },
+    });
+
+    const { ProjectsPageContent } = await import("./page");
+
+    render(
+      await ProjectsPageContent({
+        searchParams: Promise.resolve({ q: "  launch  " }),
+      }),
+    );
+
+    // Trimmed, so a stray space cannot change which projects Core returns.
+    expect(projectServiceMock.listProjects).toHaveBeenCalledWith({
+      limit: 20,
+      query: "launch",
+    });
+    expect(projectsViewMock).toHaveBeenCalledWith(
+      expect.objectContaining({ query: "launch" }),
+    );
+  });
+
   it("loads projects with embedded counts and passes labels to the view", async () => {
     const projects = [
       buildProject(),
@@ -102,6 +126,7 @@ describe("ProjectsPage", () => {
     expect(screen.getByText("Launch plan")).toBeInTheDocument();
     expect(projectServiceMock.listProjects).toHaveBeenCalledWith({
       limit: 20,
+      query: "",
     });
     expect(projectsViewMock).toHaveBeenCalledWith(
       expect.objectContaining({

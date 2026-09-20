@@ -2083,6 +2083,14 @@
       "list": {
         "loadMore": "Load more",
         "loading": "Loading projects...",
+        "filter": {
+          "placeholder": "Filter projects",
+          "clear": "Clear filter",
+          "noMatches": "No projects match \"{query}\"."
+        },
+        "sortedBy": "Sorted by recent activity",
+        "lastActivity": "Last activity",
+        "created": "Created",
         "stats": {
           "tasks": "Tasks",
           "jobs": "Jobs",

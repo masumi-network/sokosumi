@@ -72,6 +72,33 @@ function createApp(
   return app;
 }
 
+const PROJECT_ROW = {
+  id: "11111111-1111-4111-8111-111111111111",
+  workspaceId: WORKSPACE_CONTEXT.workspaceId,
+  name: "Research",
+  websiteUrl: null,
+  logo: null,
+  designMdUrl: null,
+  designMdExtractionId: null,
+  briefing: null as string | null,
+  briefingUrl: null as string | null,
+  contextMd: null,
+  contextMdUrl: null,
+  contextMdUpdatedAt: null,
+  contextMdModel: null,
+  contextMdUpdatingSince: null,
+  contextMdVersion: 0,
+  latestUpdateMd: null,
+  latestUpdateMdUpdatedAt: null,
+  createdAt: new Date("2026-04-01T10:00:00.000Z"),
+  updatedAt: new Date("2026-04-01T10:00:00.000Z"),
+  _count: { tasks: 0, jobs: 0 },
+};
+
+function createProjectRow(overrides: Partial<typeof PROJECT_ROW> = {}) {
+  return { ...PROJECT_ROW, ...overrides };
+}
+
 describe("GET /projects", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -81,33 +108,15 @@ describe("GET /projects", () => {
   });
 
   it("returns projects for the active workspace with pagination metadata", async () => {
-    const sample = {
-      id: "11111111-1111-4111-8111-111111111111",
-      workspaceId: WORKSPACE_CONTEXT.workspaceId,
-      name: "Research",
-      websiteUrl: null,
-      logo: null,
-      designMdUrl: null,
-      designMdExtractionId: null,
+    const sample = createProjectRow({
       briefing: "Notes",
       briefingUrl: "https://blob.example/projects/project_1/BRIEFING.md",
-      contextMd: null,
-      contextMdUrl: null,
-      contextMdUpdatedAt: null,
-      contextMdModel: null,
-      contextMdUpdatingSince: null,
-      contextMdVersion: 0,
-      latestUpdateMd: null,
-      latestUpdateMdUpdatedAt: null,
-      createdAt: new Date("2026-04-01T10:00:00.000Z"),
-      updatedAt: new Date("2026-04-01T10:00:00.000Z"),
-      _count: {
-        tasks: 2,
-        jobs: 1,
-      },
-    };
+      _count: { tasks: 2, jobs: 1 },
+    });
     projectFindManyMock.mockResolvedValue([sample]);
-    queryRawMock.mockResolvedValue([{ id: sample.id }]);
+    queryRawMock.mockResolvedValue([
+      { id: sample.id, lastActivityAt: sample.updatedAt },
+    ]);
     projectCountMock.mockResolvedValue(1);
 
     const app = createApp();
@@ -155,34 +164,70 @@ describe("GET /projects", () => {
     });
   });
 
+  it("filters the ranked query and the total by the q parameter", async () => {
+    const project = createProjectRow({ name: "Autumn Launch" });
+    projectFindManyMock.mockResolvedValue([project]);
+    queryRawMock.mockResolvedValue([
+      { id: project.id, lastActivityAt: project.updatedAt },
+    ]);
+    projectCountMock.mockResolvedValue(1);
+
+    const res = await createApp().request("http://localhost/?q=autumn");
+
+    expect(res.status).toBe(200);
+    expect(queryRawMock.mock.calls[0][0].values).toEqual(
+      expect.arrayContaining(["%autumn%"]),
+    );
+    expect(queryRawMock.mock.calls[1][0].values).toEqual(
+      expect.arrayContaining(["%autumn%"]),
+    );
+    expect(projectCountMock).not.toHaveBeenCalled();
+  });
+
+  it("escapes ILIKE wildcards so a search stays a literal substring", async () => {
+    const res = await createApp().request("http://localhost/?q=50%25_off");
+
+    expect(res.status).toBe(200);
+    expect(queryRawMock.mock.calls).toHaveLength(2);
+    for (const [sql] of queryRawMock.mock.calls) {
+      expect(sql.values).toEqual(expect.arrayContaining(["%50\\%\\_off%"]));
+    }
+    expect(projectCountMock).not.toHaveBeenCalled();
+  });
+
+  it("leaves the query unfiltered when q is absent", async () => {
+    const res = await createApp().request("http://localhost/");
+
+    expect(res.status).toBe(200);
+    expect(projectCountMock).toHaveBeenCalledWith({
+      where: { workspaceId: WORKSPACE_CONTEXT.workspaceId },
+    });
+  });
+
+  it("returns each project's lastActivityAt from its ranked row", async () => {
+    const project = createProjectRow();
+    const lastActivityAt = new Date("2026-04-09T08:30:00.000Z");
+    projectFindManyMock.mockResolvedValue([project]);
+    queryRawMock.mockResolvedValue([{ id: project.id, lastActivityAt }]);
+    projectCountMock.mockResolvedValue(1);
+
+    const res = await createApp().request("http://localhost/");
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: Array<{ lastActivityAt: string }>;
+    };
+    expect(body.data[0]?.lastActivityAt).toBe(lastActivityAt.toISOString());
+  });
+
   it("returns nextCursor when more than one page of results exists", async () => {
     const rows = Array.from(
       { length: LIMITS.DEFAULT_PAGINATION_LIMIT + 1 },
-      (_, i) => ({
-        id: `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`,
-        workspaceId: WORKSPACE_CONTEXT.workspaceId,
-        name: `P${i}`,
-        websiteUrl: null,
-        logo: null,
-        designMdUrl: null,
-        designMdExtractionId: null,
-        briefing: null,
-        briefingUrl: null,
-        contextMd: null,
-        contextMdUrl: null,
-        contextMdUpdatedAt: null,
-        contextMdModel: null,
-        contextMdUpdatingSince: null,
-        contextMdVersion: 0,
-        latestUpdateMd: null,
-        latestUpdateMdUpdatedAt: null,
-        createdAt: new Date("2026-04-01T10:00:00.000Z"),
-        updatedAt: new Date("2026-04-01T10:00:00.000Z"),
-        _count: {
-          tasks: 0,
-          jobs: 0,
-        },
-      }),
+      (_, i) =>
+        createProjectRow({
+          id: `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`,
+          name: `P${i}`,
+        }),
     );
     projectFindManyMock.mockResolvedValue([...rows].reverse());
     queryRawMock.mockResolvedValue(

@@ -24,6 +24,7 @@ import {
   useCreateProjectModal,
 } from "./create-project-modal";
 import { ProjectListItem } from "./project-list-item";
+import { ProjectsFilter, type ProjectsFilterLabels } from "./projects-filter";
 
 export interface ProjectsViewLabels {
   newProject: string;
@@ -39,11 +40,17 @@ export interface ProjectsViewLabels {
     tasks: string;
     jobs: string;
   };
+  lastActivity: string;
+  created: string;
+  filter: ProjectsFilterLabels;
+  sortedBy: string;
+  noMatches: string;
 }
 
 interface ProjectsViewProps {
   projects: ProjectListItemType[];
   nextCursor: string | null;
+  query: string;
   initialCreateProjectOpen: boolean;
   createProjectModalResetKey: string;
   labels: ProjectsViewLabels;
@@ -61,25 +68,45 @@ function ProjectsMobileCreateFabSlot() {
   );
 }
 
+function browseListKey(query: string, projects: ProjectListItemType[]) {
+  return `${query}|${projects
+    .map((project) => `${project.id}:${project.updatedAt}`)
+    .join("|")}`;
+}
+
 export function ProjectsView({
   projects,
   nextCursor,
+  query,
   initialCreateProjectOpen,
   createProjectModalResetKey,
   labels,
 }: ProjectsViewProps) {
+  const listKey = browseListKey(query, projects);
   const [items, setItems] = useState(projects);
   const [cursor, setCursor] = useState(nextCursor);
+  const [itemsKey, setItemsKey] = useState(listKey);
   const [isPending, startTransition] = useTransition();
+  // Reset appended pages when the server list changes, without remounting
+  // the filter (a `key` on this view was stealing focus after every `q`).
+  if (itemsKey !== listKey) {
+    setItemsKey(listKey);
+    setItems(projects);
+    setCursor(nextCursor);
+  }
   const hasLoadedProjects = items.length > 0;
+  const isFiltering = query.length > 0;
   const showEmptyState = !hasLoadedProjects && cursor === null;
+  // An unfiltered, empty workspace has nothing to filter, so the header row
+  // would only offer a search over zero projects.
+  const hasNothingAtAll = showEmptyState && !isFiltering;
 
   function handleLoadMore() {
     if (!cursor || isPending) return;
 
     startTransition(async () => {
       try {
-        const result = await loadMoreProjects({ cursor });
+        const result = await loadMoreProjects({ cursor, query });
         setItems((prev) => appendUniqueProjects(prev, result.projects));
         setCursor(result.nextCursor);
       } catch {
@@ -100,7 +127,9 @@ export function ProjectsView({
           <AddProjectButton label={labels.newProject} className="self-start" />
         </div>
 
-        {hasLoadedProjects ? (
+        {hasNothingAtAll ? (
+          <ProjectsEmptyState labels={labels.empty} />
+        ) : (
           <div
             data-testid="projects-browse"
             className={cn(
@@ -108,19 +137,36 @@ export function ProjectsView({
               PROJECTS_LIST_CARD_MIN_H_CLASS,
             )}
           >
-            <div className={PROJECTS_BROWSE_DIVIDE_CLASS}>
-              {items.map((project) => (
-                <ProjectListItem
-                  key={project.id}
-                  project={project}
-                  labels={{ counts: labels.counts }}
-                />
-              ))}
+            {/* Header row of the list card, divided from the rows it labels. */}
+            <div className="border-border flex items-center gap-3 border-b px-4 py-2.5">
+              <ProjectsFilter labels={labels.filter} />
+              {/* Plain text, not a control: the Core route has one fixed
+                  ordering, so a chip here would promise a menu that cannot
+                  exist yet. */}
+              <span className="text-muted-foreground shrink-0 text-xs whitespace-nowrap">
+                {labels.sortedBy}
+              </span>
             </div>
+
+            {hasLoadedProjects ? (
+              <div className={PROJECTS_BROWSE_DIVIDE_CLASS}>
+                {items.map((project) => (
+                  <ProjectListItem
+                    key={project.id}
+                    project={project}
+                    labels={{
+                      counts: labels.counts,
+                      lastActivity: labels.lastActivity,
+                      created: labels.created,
+                    }}
+                  />
+                ))}
+              </div>
+            ) : showEmptyState ? (
+              <ProjectsNoMatches message={labels.noMatches} />
+            ) : null}
           </div>
-        ) : showEmptyState ? (
-          <ProjectsEmptyState labels={labels.empty} />
-        ) : null}
+        )}
 
         {cursor ? (
           <div className="flex justify-center">
@@ -144,6 +190,18 @@ export function ProjectsView({
       <ProjectsMobileCreateFabSlot />
       <CreateProjectModal />
     </CreateProjectModalProvider>
+  );
+}
+
+/** Sits inside the list card, under its header row — so no chrome of its own. */
+function ProjectsNoMatches({ message }: { message: string }) {
+  return (
+    <div
+      data-testid="projects-no-matches"
+      className="flex flex-col items-center justify-center px-6 py-12 text-center"
+    >
+      <p className="text-muted-foreground text-sm">{message}</p>
+    </div>
   );
 }
 

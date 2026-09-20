@@ -196,6 +196,10 @@ export const projectListItemSchema = projectSchema
   .extend({
     taskCount: z.number().int().nonnegative().openapi({ example: 2 }),
     jobCount: z.number().int().nonnegative().openapi({ example: 1 }),
+    lastActivityAt: dateTimeSchema.openapi({
+      description:
+        "Latest visible task/job event, ready task output or project lifecycle event. Equals createdAt when the project has no activity yet, which is also the list ordering key.",
+    }),
   })
   .openapi("ProjectListItem");
 
