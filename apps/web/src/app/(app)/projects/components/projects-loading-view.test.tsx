@@ -29,10 +29,20 @@ describe("ProjectsPageSkeleton", () => {
 
     const createSlot = screen.getByTestId("projects-loading-create");
     expect(createSlot.className).toContain("hidden");
-    expect(createSlot.className).toContain("md:flex");
-    expect(createSlot.querySelector('[data-slot="skeleton"]')).toBeTruthy();
+    expect(createSlot.className).toContain("md:block");
     // No accessible button with English (or any) create label.
-    expect(createSlot.querySelector("button")).toBeNull();
+    expect(createSlot.tagName).not.toBe("BUTTON");
+  });
+
+  it("reserves the create control inside the list header row", () => {
+    render(<ProjectsPageSkeleton />);
+
+    const header = screen.getByTestId("projects-loading-browse")
+      .firstElementChild as HTMLElement;
+
+    expect(header).toContainElement(
+      screen.getByTestId("projects-loading-create"),
+    );
   });
 });
 
@@ -40,9 +50,14 @@ describe("ProjectsLoadingView", () => {
   it("hides header create below md and pads for the mobile FAB", () => {
     const { container } = render(<ProjectsLoadingView />);
 
-    const headerRow = screen.getByTestId("projects-loading-create");
-    expect(headerRow.className).toContain("hidden");
-    expect(headerRow.className).toContain("md:flex");
+    const create = screen.getByTestId("projects-loading-create");
+    expect(create.className).toContain("hidden");
+    expect(create.className).toContain("md:block");
+    // The list card is the first thing in the shell: no row above it whose
+    // only job was holding the create button.
+    expect(container.firstElementChild?.firstElementChild).toBe(
+      screen.getByTestId("projects-loading-browse"),
+    );
     expect(container.firstElementChild?.className).toContain(
       "pb-[calc(3.5rem+1rem)]",
     );
