@@ -30,5 +30,5 @@ Existing scope entry points: [Web](apps/web/AGENTS.md), [Core](apps/core/AGENTS.
 
 - Provide clear progress updates during long tasks. Use a todo list for complex work and mark items complete as they finish.
 - When present, load [Caveman](.agents/skills/caveman/SKILL.md) for replies. Load [Ponytail](.agents/skills/ponytail/SKILL.md) for coding work (default full). Their documented off switches remain supported.
-- For engineering flow selection, use [Ask Matt](.agents/skills/ask-matt/SKILL.md). Resolve named skills in `.agents/skills/<name>/` first, then `skills/<name>/`. Load only skills whose triggers apply.
+- For engineering flow selection, use [Ask Matt](.agents/skills/ask-matt/SKILL.md). For app work, resolve named skills in `apps/<app>/.agents/skills/<name>/` first, then `.agents/skills/<name>/`, then `skills/<name>/`. Load only skills whose triggers apply.
 - Before changing this instruction layout, read [writing-for-agents](.agents/skills/writing-for-agents/SKILL.md). Keep universal guardrails here; put task-specific detail behind explicit loading triggers. Preserve requirements and repair incoming links when moving sections.

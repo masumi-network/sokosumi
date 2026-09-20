@@ -22,7 +22,8 @@ and progress reporting were rewritten in the root contract.
 | Cursor Cloud instructions except Running & known local gotchas | [Cloud environment](cloud-environment.md) |
 | Purpose, scope discovery, Status Updates, universal guardrails | [Root contract](../../AGENTS.md) |
 
-Existing app/package instructions, skills, and `.cursor/rules/` remain in place.
+The initial split kept app/package instructions, skills, and `.cursor/rules/` in place.
+The skill relocation in the follow-up below is a separate, subsequent change.
 Web's incoming link to the old root lint section now points to code conventions.
 
 ## Measurements
@@ -85,3 +86,48 @@ in the same host and that its supporting files match. Recheck after skill update
 - Run `node --test scripts/ci/__tests__/doc-script-references.test.mjs` to validate
   documented pnpm commands against the workspace manifests.
 - Run `pnpm format` and `git diff --check`, then review the final diff.
+
+## Follow-up: scope Web UI skills
+
+Eleven Jakub UI skills moved from root `.agents/skills/` into
+`apps/web/.agents/skills/`, matching the existing Web skill installation layout.
+Their 57 files are byte-for-byte unchanged. Their eleven lock entries moved into
+`apps/web/skills-lock.json`, and the corresponding Claude symlinks moved into
+`apps/web/.claude/skills/`. No duplicate root links remain.
+
+The root contract now resolves app skills before shared skills. Web's existing
+mandatory UI-skill list points to the new paths and explicitly requires reading
+them even when a session started at root does not list them. Shared engineering,
+API, browser automation, and debugging skills remain at root because their scope
+crosses apps. User-installed plugin versions remain unchanged: similarly named
+skills can carry different instructions, and repository operation must not depend
+on a user's plugins.
+
+Fresh CLI prompt renders with the same `Reply only OK.` input gave:
+
+| Discovery surface | Before scope change | After scope change |
+| --- | ---: | ---: |
+| Root catalog entries | 114 | 107 |
+| Root automatically discoverable Jakub UI skills | 7 | 0 |
+| Root prompt-text tokens (`o200k_base`) | 8,962 | 8,938 |
+
+A render from `apps/web` still lists all seven automatically invoked UI skills.
+The other four retain their original explicit-invocation policy and remain linked
+from Web instructions. Codex uses the catalog space for remaining descriptions,
+so this move saves only 24 prompt-text tokens. It improves scope relevance rather
+than establishing a large additional token saving. It does not change models,
+reasoning effort, tool permissions, or skill content.
+
+Structural routing checks:
+
+| Representative task | Required route preserved |
+| --- | --- |
+| Web UI change from a root-started session | Root UI trigger → Web `AGENTS.md` → all eleven app-scoped UI skill paths |
+| Core API change | Root architecture/code conventions → Core `AGENTS.md`; UI skills absent from root discovery |
+| Native SwiftUI change | Root Apple scope → Apple instructions and its existing SwiftUI skill |
+| Instruction edit | Root writing-for-agents pointer → unchanged shared skill |
+
+Verification compares every relocated file against its Git source, checks unchanged
+lock metadata and resolving Claude symlinks, renders both root and Web catalogs,
+and checks document links. These are preservation and discoverability checks, not
+a benchmark proving unchanged model reasoning or task success rates.

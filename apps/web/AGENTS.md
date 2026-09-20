@@ -470,19 +470,19 @@ export AGENT_BROWSER_SESSION_NAME=sokosumi   # auto-saves/restores cookies
 
 ## Agent skills
 
-When implementing or reviewing UI in this app, load and follow these root skills. Do not invent parallel UI rules.
+When implementing or reviewing UI in this app, load and follow these app-scoped skills. Read them by path even when a root-started session does not list them. Do not invent parallel UI rules.
 
-- [`.agents/skills/better-ui/`](../../.agents/skills/better-ui/)
-- [`.agents/skills/better-typography/`](../../.agents/skills/better-typography/)
-- [`.agents/skills/better-colors/`](../../.agents/skills/better-colors/)
-- [`.agents/skills/better-accessibility/`](../../.agents/skills/better-accessibility/)
-- [`.agents/skills/better-layout/`](../../.agents/skills/better-layout/)
-- [`.agents/skills/better-writing/`](../../.agents/skills/better-writing/)
-- [`.agents/skills/better-interface/`](../../.agents/skills/better-interface/)
-- [`.agents/skills/interface-review/`](../../.agents/skills/interface-review/)
-- [`.agents/skills/explain-interface/`](../../.agents/skills/explain-interface/)
-- [`.agents/skills/variant/`](../../.agents/skills/variant/)
-- [`.agents/skills/break/`](../../.agents/skills/break/)
+- [`.agents/skills/better-ui/`](.agents/skills/better-ui/)
+- [`.agents/skills/better-typography/`](.agents/skills/better-typography/)
+- [`.agents/skills/better-colors/`](.agents/skills/better-colors/)
+- [`.agents/skills/better-accessibility/`](.agents/skills/better-accessibility/)
+- [`.agents/skills/better-layout/`](.agents/skills/better-layout/)
+- [`.agents/skills/better-writing/`](.agents/skills/better-writing/)
+- [`.agents/skills/better-interface/`](.agents/skills/better-interface/)
+- [`.agents/skills/interface-review/`](.agents/skills/interface-review/)
+- [`.agents/skills/explain-interface/`](.agents/skills/explain-interface/)
+- [`.agents/skills/variant/`](.agents/skills/variant/)
+- [`.agents/skills/break/`](.agents/skills/break/)
 
 ## Additional Rules
 
