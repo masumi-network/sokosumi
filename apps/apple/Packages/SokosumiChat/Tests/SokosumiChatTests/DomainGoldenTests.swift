@@ -11,7 +11,7 @@ struct DomainGoldenTests {
 
   @Test func transcriptTransitions() throws {
     let fixtures = try load([TranscriptFixture].self, name: "transcript")
-    #expect(fixtures.count == 7)
+    #expect(fixtures.count == 8)
     for fixture in fixtures {
       var shells = try fixture.shells.map { value in
         var shell = makeShell(parent: fixture.parent)
@@ -22,13 +22,24 @@ struct DomainGoldenTests {
       }
       var incoming = chatRoomMessage(from: makeShell(parent: fixture.incomingParent))
       incoming.id = "server-1"
+      if fixture.incomingSenderId != "me" {
+        incoming.metadata = nil
+        incoming.sender = .case1(.init(_type: .user, user: .init(
+          id: fixture.incomingSenderId, name: "Peer", email: "peer@example.com", presence: .online
+        )))
+      }
       var messages = fixture.messageIds.map { id in
         var message = incoming
         message.id = id
         return message
       }
       switch fixture.event {
-      case .send: shells.append(makeShell(parent: fixture.parent))
+      case .send:
+        let outbox = RoomOutbox()
+        let response = incoming
+        outbox.enqueue(makeShell(parent: fixture.parent), send: { response }, confirmed: { _ in }, failed: { _ in })
+        shells = outbox.shells
+        outbox.reset()
       case .fail: shells = failOutbound(shells: shells, clientTurnId: "turn-1", errorMessage: "Offline")
       case .retry: shells = markOutboundPending(shells: shells, clientTurnId: "turn-1")
       case .ack:
@@ -92,6 +103,7 @@ private struct TranscriptFixture: Decodable {
   let messageIds: [String]
   let parent: String?
   let incomingParent: String?
+  let incomingSenderId: String
   let expected: TranscriptSnapshot
 }
 

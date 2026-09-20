@@ -18,7 +18,8 @@
       "displayIds": [
         "pending:turn-1"
       ]
-    }
+    },
+    "incomingSenderId": "me"
   },
   {
     "name": "failure retains retry identity",
@@ -45,7 +46,8 @@
       "displayIds": [
         "pending:turn-1"
       ]
-    }
+    },
+    "incomingSenderId": "me"
   },
   {
     "name": "retry clears failure",
@@ -72,7 +74,8 @@
       "displayIds": [
         "pending:turn-1"
       ]
-    }
+    },
+    "incomingSenderId": "me"
   },
   {
     "name": "ack replaces pending shell",
@@ -95,7 +98,8 @@
       "displayIds": [
         "server-1"
       ]
-    }
+    },
+    "incomingSenderId": "me"
   },
   {
     "name": "realtime ack after HTTP is idempotent",
@@ -114,7 +118,8 @@
       "displayIds": [
         "server-1"
       ]
-    }
+    },
+    "incomingSenderId": "me"
   },
   {
     "name": "room ignores thread reply",
@@ -141,10 +146,11 @@
       "displayIds": [
         "pending:turn-1"
       ]
-    }
+    },
+    "incomingSenderId": "me"
   },
   {
-    "name": "thread accepts its reply",
+    "name": "thread confirms its own reply",
     "event": "create",
     "shells": [
       {
@@ -164,6 +170,38 @@
       "displayIds": [
         "server-1"
       ]
-    }
+    },
+    "incomingSenderId": "me"
+  },
+  {
+    "name": "thread accepts peer reply without confirming local send",
+    "event": "create",
+    "shells": [
+      {
+        "id": "turn-1",
+        "status": "pending",
+        "error": null
+      }
+    ],
+    "messageIds": [],
+    "parent": "root",
+    "incomingParent": "root",
+    "expected": {
+      "messageIds": [
+        "server-1"
+      ],
+      "shells": [
+        {
+          "id": "turn-1",
+          "status": "pending",
+          "error": null
+        }
+      ],
+      "displayIds": [
+        "server-1",
+        "pending:turn-1"
+      ]
+    },
+    "incomingSenderId": "peer"
   }
 ]

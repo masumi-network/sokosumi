@@ -13,7 +13,7 @@
 The Xcode navigator mirrors the real folders under `Sokosumi/` using filesystem-synchronized groups. Add Swift files to the owning folder; do not add parallel virtual groups or manual build-file entries.
 
 - `App/`: app scenes, `ChatRootView`, endpoint configuration and the Mac presence activity monitor.
-- `Authentication/`: sign-in presentation, app OAuth configuration and system-browser adapter.
+- `Authentication/`: sign-in presentation, app OAuth configuration, system-browser adapter and Keychain adapter for `TokenStore`.
 - `Packages/SokosumiWorkspace/`: shared workspace, room and realtime coordination; thread orchestration is in `WorkspaceState+Threads.swift`.
 - `Chat/Sidebar/`: conversation sections, workspace/account menus and room labels.
 - `Chat/Timeline/`: room scrolling, message rows and timeline status rows.
