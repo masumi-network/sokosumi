@@ -55,6 +55,13 @@ globalThis.MESSAGES = {
       "The schedule for {taskName} was repaired",
     "Notifications.Task.scheduleRemovedByOperator":
       "The schedule for {taskName} was removed after review",
+    "Notifications.Billing.lowBalance":
+      "Your credits are running low: {credits} left",
+    "Notifications.Billing.paymentFailed": "A subscription payment failed",
+    "Notifications.Billing.creditsAdded":
+      "{credits} credits were added to your balance",
+    "Notifications.Billing.subscriptionEnding":
+      "Your subscription ends when the current period does",
     "Notifications.Chat.mentioned": "{authorName} mentioned you in {roomName}",
     "Notifications.Chat.mentionedDirect":
       "{authorName} mentioned you in a direct message",
@@ -73,6 +80,7 @@ globalThis.MESSAGES = {
     "Notifications.Chat.mentionAll": "Everyone",
     "Notifications.Job.followUp": "{jobName} is still waiting for you",
     "Notifications.Task.followUp": "{taskName} is still waiting for you",
+    "Notifications.Billing.followUp": "Your billing still needs your attention",
     "Notifications.Chat.mentionedFollowUp":
       "{authorName} is still waiting for you in {roomName}",
     "Notifications.Chat.mentionedDirectFollowUp":
@@ -111,6 +119,14 @@ globalThis.MESSAGES = {
       "Der Zeitplan für {taskName} wurde repariert",
     "Notifications.Task.scheduleRemovedByOperator":
       "Der Zeitplan für {taskName} wurde nach der Prüfung entfernt",
+    "Notifications.Billing.lowBalance":
+      "Deine Credits werden knapp: noch {credits}",
+    "Notifications.Billing.paymentFailed":
+      "Eine Abo-Zahlung ist fehlgeschlagen",
+    "Notifications.Billing.creditsAdded":
+      "{credits} Credits wurden deinem Guthaben gutgeschrieben",
+    "Notifications.Billing.subscriptionEnding":
+      "Dein Abo endet mit der aktuellen Laufzeit",
     "Notifications.Chat.mentioned":
       "{authorName} hat dich in {roomName} erwähnt",
     "Notifications.Chat.mentionedDirect":
@@ -132,6 +148,8 @@ globalThis.MESSAGES = {
     "Notifications.Chat.mentionAll": "Alle",
     "Notifications.Job.followUp": "{jobName} wartet weiterhin auf dich",
     "Notifications.Task.followUp": "{taskName} wartet weiterhin auf dich",
+    "Notifications.Billing.followUp":
+      "Deine Abrechnung braucht weiterhin deine Aufmerksamkeit",
     "Notifications.Chat.mentionedFollowUp":
       "{authorName} wartet weiterhin auf dich in {roomName}",
     "Notifications.Chat.mentionedDirectFollowUp":
@@ -167,6 +185,14 @@ globalThis.MESSAGES = {
       "Se reparó la programación de {taskName}",
     "Notifications.Task.scheduleRemovedByOperator":
       "Se eliminó la programación de {taskName} después de revisarla",
+    "Notifications.Billing.lowBalance":
+      "Tus créditos se están agotando: quedan {credits}",
+    "Notifications.Billing.paymentFailed":
+      "Un pago de la suscripción no se completó",
+    "Notifications.Billing.creditsAdded":
+      "Se añadieron {credits} créditos a tu saldo",
+    "Notifications.Billing.subscriptionEnding":
+      "Tu suscripción termina al final del periodo actual",
     "Notifications.Chat.mentioned": "{authorName} te mencionó en {roomName}",
     "Notifications.Chat.mentionedDirect":
       "{authorName} te mencionó en un mensaje directo",
@@ -187,6 +213,8 @@ globalThis.MESSAGES = {
     "Notifications.Chat.mentionAll": "Todos",
     "Notifications.Job.followUp": "{jobName} sigue esperándote",
     "Notifications.Task.followUp": "{taskName} sigue esperándote",
+    "Notifications.Billing.followUp":
+      "Tu facturación sigue necesitando tu atención",
     "Notifications.Chat.mentionedFollowUp":
       "{authorName} sigue esperándote en {roomName}",
     "Notifications.Chat.mentionedDirectFollowUp":

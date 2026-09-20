@@ -14,6 +14,7 @@ import { projectService } from "@/lib/services/project.service";
 interface ProjectsPageProps {
   searchParams: Promise<{
     create?: string;
+    q?: string;
   }>;
 }
 
@@ -32,9 +33,11 @@ export async function generateMetadata(): Promise<Metadata> {
 export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
   await connection();
 
-  const { create } = await searchParams;
+  const { create, q } = await searchParams;
+  const query = q?.trim() ?? "";
   const projectsPagePromise = projectService.listProjects({
     limit: PROJECTS_PAGE_LIMIT,
+    query,
   });
   const translationsPromise = getTranslations("App.Projects");
 
@@ -47,11 +50,9 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
   return (
     <div className={PROJECTS_PAGE_SHELL_CLASS}>
       <ProjectsView
-        key={projectsPage.projects
-          .map((project) => `${project.id}:${project.updatedAt}`)
-          .join("|")}
         projects={projectsPage.projects}
         nextCursor={projectsPage.pagination?.nextCursor ?? null}
+        query={query}
         initialCreateProjectOpen={initialCreateProjectOpen}
         createProjectModalResetKey={String(initialCreateProjectOpen)}
         labels={{
@@ -68,6 +69,14 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
             tasks: t("list.stats.tasks"),
             jobs: t("list.stats.jobs"),
           },
+          lastActivity: t("list.lastActivity"),
+          created: t("list.created"),
+          filter: {
+            placeholder: t("list.filter.placeholder"),
+            clear: t("list.filter.clear"),
+          },
+          sortedBy: t("list.sortedBy"),
+          noMatches: t("list.filter.noMatches", { query }),
         }}
       />
     </div>

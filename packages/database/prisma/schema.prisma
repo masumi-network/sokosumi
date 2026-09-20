@@ -458,6 +458,18 @@ model Notification {
   /// notifications they silenced while it was off.
   inApp Boolean @default(true)
 
+  /// The Resend id of the email sent for this notification, or null when no
+  /// email was sent (SOK-1090). Set on the one row the email was sent for. A
+  /// later unread row about the same thing finds it on that row rather than
+  /// carrying a copy of it, and so sees the reader was already told. Needed
+  /// to cancel a scheduled email when the reader reads first.
+  emailId String?
+
+  /// When the email above is due to leave Resend. Null for an email that was
+  /// sent at once. A row read before this instant has its email cancelled;
+  /// a row read after it is left alone, because the email is already gone.
+  emailScheduledAt DateTime?
+
   @@unique([userId, kind, referenceId, eventId, messageKey])
   @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([userId, isRead])

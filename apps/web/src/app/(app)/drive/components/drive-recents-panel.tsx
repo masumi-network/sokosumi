@@ -314,10 +314,10 @@ export function DriveRecentsPanel({
         viewMode === "grid" ? "files-layout-grid" : "files-layout-list"
       }
     >
-      <div className={cn(viewMode === "grid" ? "py-1" : "px-2 py-2")}>
+      <div className={cn(viewMode === "grid" ? "py-1" : "py-2")}>
         {dayGroups.map((group) => (
           <section key={group.key} className="mb-4">
-            <div className="text-muted-foreground px-2 pb-2 text-xs font-medium capitalize">
+            <div className="text-muted-foreground px-4 pb-2 text-xs font-medium capitalize">
               {group.key}
             </div>
             <ul className={driveRecentsDayItemsClass(viewMode)}>

@@ -73,6 +73,15 @@ const baseEnvSchema = z.object({
   RESEND_API_KEY: z.string().min(1),
   RESEND_FROM_EMAIL: z.email().default("noreply@sokosumi.com"),
 
+  /**
+   * Credits under which a wallet is told it is running low (SOK-932).
+   *
+   * The same number web draws its low-credit label at
+   * (`NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD`), so the feed and the sidebar
+   * agree about what low means. Zero switches the notification off.
+   */
+  LOW_CREDITS_THRESHOLD: z.coerce.number().min(0).default(100),
+
   // Sentry
   SENTRY_DSN: z.url().optional(),
   SENTRY_ENVIRONMENT: z

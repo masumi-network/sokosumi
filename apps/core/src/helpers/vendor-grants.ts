@@ -240,7 +240,11 @@ export async function notifyWorkspaceApproversOfPendingGrant(
 ): Promise<void> {
   const workspace = await tx.workspace.findUnique({
     where: { id: params.workspaceId },
-    select: { userId: true, organizationId: true },
+    select: {
+      userId: true,
+      organizationId: true,
+      organization: { select: { slug: true } },
+    },
   });
 
   if (!workspace) {
@@ -271,6 +275,8 @@ export async function notifyWorkspaceApproversOfPendingGrant(
     select: { name: true, slug: true },
   });
 
+  const organizationSlug = workspace.organization?.slug ?? null;
+
   for (const userId of recipientUserIds) {
     await createNotification(
       {
@@ -285,11 +291,14 @@ export async function notifyWorkspaceApproversOfPendingGrant(
           permission: VendorPermissionApi.WORKSPACE,
           workspaceId: params.workspaceId,
           organizationId: workspace.organizationId,
+          organizationSlug,
         },
         metadata: {
           vendorId: params.vendorId,
           workspaceId: params.workspaceId,
           organizationId: workspace.organizationId,
+          // The review page resolves by slug, so the id alone is a 404.
+          organizationSlug,
           permission: VendorPermissionApi.WORKSPACE,
         },
       },

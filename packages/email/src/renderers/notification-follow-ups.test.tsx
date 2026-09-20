@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  renderBillingFollowUpEmail,
   renderChatDirectMessageFollowUpEmail,
   renderChatMentionFollowUpEmail,
   renderTaskFollowUpEmail,
@@ -8,6 +9,7 @@ import {
 
 const ROOM_URL = "https://app.sokosumi.com/chat/rooms/room_1";
 const TASK_URL = "https://app.sokosumi.com/tasks/task_1";
+const BILLING_URL = "https://app.sokosumi.com/billing?tab=credits";
 
 describe("reminder emails", () => {
   it("names who is waiting and where, for a mention", async () => {
@@ -205,6 +207,36 @@ describe("reminder emails", () => {
     // assigned task did neither, so the reason has to reach the preheader too.
     expect(rendered.html).toContain("was assigned to you a day ago");
     expect(rendered.html).not.toContain("stopped and asked for you");
+  });
+
+  it("names what was left when the balance ran low", async () => {
+    const rendered = await renderBillingFollowUpEmail({
+      actionUrl: BILLING_URL,
+      credits: 42,
+      locale: "en",
+      reason: "lowBalance",
+      recipientName: "Sandro",
+    });
+
+    expect(rendered.subject).toBe(
+      "Sokosumi - Your billing still needs your attention",
+    );
+    expect(rendered.html).toContain("with 42 left");
+    expect(rendered.html).toContain(BILLING_URL);
+  });
+
+  it("names no cause for a low balance the row does not count", async () => {
+    const rendered = await renderBillingFollowUpEmail({
+      actionUrl: BILLING_URL,
+      locale: "en",
+      reason: "lowBalance",
+      recipientName: "Sandro",
+    });
+
+    expect(rendered.html).toContain(
+      "Your billing needed your attention a day ago",
+    );
+    expect(rendered.html).not.toContain("running low");
   });
 
   it("says the reason in German too", async () => {

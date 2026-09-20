@@ -1,12 +1,17 @@
 import * as Sentry from "@sentry/node";
 import { NotificationKind, type Prisma } from "@sokosumi/database";
 import { CHAT_ROOM_MESSAGE_MESSAGE_KEY } from "@sokosumi/utils";
+import { waitUntil } from "@vercel/functions";
 
 import {
   TASK_ATTENTION_MESSAGE_KEYS,
   TASK_SCHEDULE_REMOVED_MESSAGE_KEY,
   TASK_TERMINAL_MESSAGE_KEYS,
 } from "@/helpers/notification-delivery";
+import {
+  cancelNotificationEmails,
+  EMAILED_NOTIFICATION_COLUMNS,
+} from "@/helpers/notification-email-dispatch";
 import { notificationFeedWhere } from "@/helpers/notification-feed";
 import prisma from "@/lib/db/prisma";
 
@@ -23,6 +28,9 @@ import prisma from "@/lib/db/prisma";
  * the one a banner stands for, so it is the only row whose reading takes a
  * banner down. The rows come back from the write itself, so a notification
  * arriving during the request is published too if this write marked it read.
+ *
+ * An email scheduled for a cleared row is taken back here too, scheduled
+ * rather than awaited so that a failed cancel cannot cost the reader the read.
  */
 export async function markNotificationsRead(
   userId: string,
@@ -39,8 +47,10 @@ export async function markNotificationsRead(
       isRead: true,
       readAt: new Date(),
     },
-    select: { id: true, kind: true, messageKey: true },
+    select: { ...EMAILED_NOTIFICATION_COLUMNS, kind: true, messageKey: true },
   });
+
+  waitUntil(cancelNotificationEmails(clearedRows));
 
   return {
     count: clearedRows.length,
@@ -141,6 +151,14 @@ export async function markSettledAttentionRead(
  * not cost the reader the write it sits next to, and must not undo the change
  * it is tidying up after. Returns the rows cleared, or zero when the write
  * failed. `notificationType` is what tells the two apart in Sentry.
+ *
+ * Written here rather than through `markNotificationsRead`, because the feed
+ * rule that one applies does not belong to this question. A record settles
+ * whether or not the reader sees its row in the app: a reader with In app
+ * off and Email on has an email waiting on a row the feed would never show,
+ * and leaving it to arrive asks them to answer a question nobody is asking,
+ * which is the outcome this function exists to prevent. No room row can
+ * match, so nothing here has a banner to take down.
  */
 export async function markAttentionRead(
   userId: string,
@@ -150,13 +168,24 @@ export async function markAttentionRead(
   notificationType: string,
 ): Promise<number> {
   try {
-    const { count } = await markNotificationsRead(userId, {
-      kind,
-      referenceId,
-      messageKey: { in: [...messageKeys] },
+    const cleared = await prisma.notification.updateManyAndReturn({
+      where: {
+        userId,
+        kind,
+        referenceId,
+        messageKey: { in: [...messageKeys] },
+        isRead: false,
+      },
+      data: {
+        isRead: true,
+        readAt: new Date(),
+      },
+      select: EMAILED_NOTIFICATION_COLUMNS,
     });
 
-    return count;
+    waitUntil(cancelNotificationEmails(cleared));
+
+    return cleared.length;
   } catch (error) {
     Sentry.captureException(error, {
       extra: { userId, referenceId, notificationType },

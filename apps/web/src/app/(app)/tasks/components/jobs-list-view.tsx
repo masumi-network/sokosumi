@@ -134,7 +134,7 @@ export function JobsListView({
                 statusColorClass={RECENT_SECTION_COLOR_CLASS}
               />
             </div>
-            <div className="divide-border flex flex-col divide-y px-2">
+            <div className="divide-border flex flex-col divide-y">
               {recentJobs.length > 0 ? (
                 recentJobs.map((job) => (
                   <JobListItem
@@ -164,7 +164,7 @@ export function JobsListView({
                     statusColorClass={COLUMN_STATUS_COLORS[columnId]}
                   />
                 </div>
-                <div className="divide-border flex flex-col divide-y px-2">
+                <div className="divide-border flex flex-col divide-y">
                   {columnJobs.length > 0 ? (
                     columnJobs.map((job) => (
                       <JobListItem

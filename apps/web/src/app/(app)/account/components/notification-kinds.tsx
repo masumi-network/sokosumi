@@ -170,7 +170,7 @@ function GroupRows({
             preset={group.preset}
             saving={group.saving}
             onPick={(preset) => {
-              void choices.setDeliveries(presetChanges(preset, kinds));
+              void choices.setDeliveries(presetChanges(preset, group.kinds));
             }}
             onCustom={() => {
               setOpen(true);

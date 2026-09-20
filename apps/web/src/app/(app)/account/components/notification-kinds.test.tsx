@@ -91,22 +91,28 @@ vi.mock("sonner", () => ({
  * row with its channel cells.
  */
 const MATRIX = [
+  // Core stores an email cell for the categories it mails, so those rows carry
+  // three cells rather than two. Every message in a room and the other task
+  // updates are the two it does not (SOK-1090).
   { category: "TASK_ATTENTION", channel: "IN_APP", enabled: true },
   { category: "TASK_ATTENTION", channel: "OS_BANNER", enabled: true },
+  { category: "TASK_ATTENTION", channel: "EMAIL", enabled: true },
   { category: "TASK_COMPLETED", channel: "IN_APP", enabled: true },
   { category: "TASK_COMPLETED", channel: "OS_BANNER", enabled: true },
+  { category: "TASK_COMPLETED", channel: "EMAIL", enabled: true },
   { category: "TASK_UPDATE", channel: "IN_APP", enabled: true },
   { category: "TASK_UPDATE", channel: "OS_BANNER", enabled: false },
   { category: "CHAT_ROOM_MESSAGE", channel: "IN_APP", enabled: false },
   { category: "CHAT_ROOM_MESSAGE", channel: "OS_BANNER", enabled: false },
   { category: "CHAT_MENTION", channel: "IN_APP", enabled: true },
   { category: "CHAT_MENTION", channel: "OS_BANNER", enabled: true },
+  { category: "CHAT_MENTION", channel: "EMAIL", enabled: true },
   { category: "CHAT_DIRECT_MESSAGE", channel: "IN_APP", enabled: true },
   { category: "CHAT_DIRECT_MESSAGE", channel: "OS_BANNER", enabled: true },
+  { category: "CHAT_DIRECT_MESSAGE", channel: "EMAIL", enabled: true },
   { category: "SYSTEM", channel: "IN_APP", enabled: true },
   { category: "SYSTEM", channel: "OS_BANNER", enabled: false },
-  // The one category Core stores an email cell for, so the one row here that
-  // carries three cells rather than two (SOK-916).
+  { category: "SYSTEM", channel: "EMAIL", enabled: true },
   { category: "FOLLOW_UP", channel: "IN_APP", enabled: true },
   { category: "FOLLOW_UP", channel: "OS_BANNER", enabled: false },
   { category: "FOLLOW_UP", channel: "EMAIL", enabled: true },
@@ -496,8 +502,11 @@ describe("NotificationKinds", () => {
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
     });
-    expect(lastWrite()).toHaveLength(6);
+    expect(lastWrite()).toHaveLength(8);
     expect(written("CHAT_MENTION", "IN_APP")).toBe(false);
+    // A situation is about Sokosumi and the device. The inbox stays as the
+    // reader set it, so Off does not switch their emails off without saying.
+    expect(written("CHAT_MENTION", "EMAIL")).toBe(true);
     expect(presetButton("groupChat")).toHaveTextContent("presetOff");
   });
 
@@ -707,11 +716,12 @@ describe("NotificationKinds", () => {
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
     });
-    // Both cells, not only the one pressed: the row says where the kind
+    // Every cell, not only the one pressed: the row says where the kind
     // arrives, so a write states every channel it names.
-    expect(lastWrite()).toHaveLength(2);
+    expect(lastWrite()).toHaveLength(3);
     expect(written("SYSTEM", "IN_APP")).toBe(false);
     expect(written("SYSTEM", "OS_BANNER")).toBe(false);
+    expect(written("SYSTEM", "EMAIL")).toBe(true);
     expect(cellFor("kindSystem", "channelInApp")).toHaveAttribute(
       "aria-pressed",
       "false",
@@ -1261,7 +1271,7 @@ describe("NotificationKinds", () => {
     const user = userEvent.setup();
     renderKinds();
 
-    const dead = emailCell("kindSystem");
+    const dead = emailCell("kindTaskUpdate");
 
     // Reachable by keyboard rather than dropped from the tab order, so a
     // reader who never uses a mouse still learns email is one of the places a
@@ -1270,7 +1280,7 @@ describe("NotificationKinds", () => {
     expect(dead).toBeEnabled();
     expect(dead).toHaveAttribute(
       "aria-label",
-      "channelEmailSoonLabel kindSystem",
+      "channelEmailSoonLabel kindTaskUpdate",
     );
     // The reason is in the name and in a description, not in a title a finger
     // never opens. The face is a mail icon with a clock on it, so the column
@@ -1292,7 +1302,7 @@ describe("NotificationKinds", () => {
   it("names the kind in every control that mails nothing", async () => {
     renderKinds();
 
-    // Chat's three kinds and the access request sit in two different folds.
+    // The two rows that mail nothing sit in two different folds.
     openFolds();
 
     expect(
@@ -1300,13 +1310,8 @@ describe("NotificationKinds", () => {
         .getAllByRole("button", { name: /^channelEmailSoonLabel/ })
         .map((button) => button.getAttribute("aria-label")),
     ).toEqual([
-      "channelEmailSoonLabel kindTaskAttention",
-      "channelEmailSoonLabel kindTaskCompleted",
       "channelEmailSoonLabel kindTaskUpdate",
       "channelEmailSoonLabel kindChatRoomMessage",
-      "channelEmailSoonLabel kindChatMention",
-      "channelEmailSoonLabel kindChatDirectMessage",
-      "channelEmailSoonLabel kindSystem",
     ]);
   });
 
@@ -1332,9 +1337,11 @@ describe("NotificationKinds", () => {
 
     await toggle("kindSystem", "channelInApp");
 
+    // The entry took the push with it. The email cell is its own choice and
+    // stays, so the row still arrives somewhere and the sentence says where.
     await waitFor(() => {
       expect(within(row).getByRole("status")).toHaveTextContent(
-        "channelsAnnounce kindSystem channelsNone",
+        "channelsAnnounce kindSystem channelEmail",
       );
     });
   });
@@ -1430,7 +1437,7 @@ describe("NotificationKinds", () => {
     });
     // One request, so the group cannot end up half applied with the reader
     // watching its kinds settle one by one.
-    expect(lastWrite()).toHaveLength(6);
+    expect(lastWrite()).toHaveLength(8);
     expect(written("CHAT_MENTION", "IN_APP")).toBe(false);
     expect(written("CHAT_DIRECT_MESSAGE", "OS_BANNER")).toBe(false);
   });
@@ -1447,7 +1454,7 @@ describe("NotificationKinds", () => {
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
     });
-    expect(lastWrite()).toHaveLength(6);
+    expect(lastWrite()).toHaveLength(8);
     expect(written("CHAT_MENTION", "OS_BANNER")).toBe(true);
     expect(written("CHAT_ROOM_MESSAGE", "IN_APP")).toBe(false);
     expect(written("CHAT_ROOM_MESSAGE", "OS_BANNER")).toBe(false);
@@ -1498,7 +1505,7 @@ describe("NotificationKinds", () => {
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
     });
-    expect(lastWrite()).toHaveLength(2);
+    expect(lastWrite()).toHaveLength(3);
     expect(written("TASK_COMPLETED", "OS_BANNER")).toBe(false);
     // The entry stays: dropping the push is not the same as silencing the row.
     expect(written("TASK_COMPLETED", "IN_APP")).toBe(true);
@@ -1607,7 +1614,7 @@ describe("NotificationKinds", () => {
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
     });
-    expect(lastWrite()).toHaveLength(2);
+    expect(lastWrite()).toHaveLength(3);
     expect(written("CHAT_DIRECT_MESSAGE", "OS_BANNER")).toBe(false);
     expect(written("CHAT_DIRECT_MESSAGE", "IN_APP")).toBe(true);
     expect(written("CHAT_MENTION", "IN_APP")).toBeUndefined();

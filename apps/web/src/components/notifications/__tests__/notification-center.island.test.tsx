@@ -97,6 +97,10 @@ vi.mock("@/lib/utils/notification-message", () => ({
 vi.mock("@/lib/utils/notification-time", () => ({
   useNotificationTimeFormatter: () => () => "today",
 }));
+vi.mock("@/lib/ably/use-notification-front-presence", () => ({
+  useNotificationFrontPresence: () => undefined,
+}));
+
 vi.mock("@/lib/ably/use-notification-realtime", () => ({
   useNotificationRealtime: ({
     onNotification,

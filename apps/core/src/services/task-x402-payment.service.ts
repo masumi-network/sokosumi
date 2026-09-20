@@ -12,6 +12,7 @@ import { paymentClient } from "@/clients/masumi-payment.client";
 import { getEnv } from "@/config/env";
 import { requireTaskCollaboration } from "@/helpers/access-control";
 import { getCreditCostsOrThrow } from "@/helpers/agent";
+import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
 import {
   badGateway,
   badRequest,
@@ -213,7 +214,7 @@ async function runX402ChargePhase(
     requirementSources: normalization.requirementSources,
   };
 
-  return await serializableTransaction(
+  const outcome = await serializableTransaction(
     async (tx): Promise<ChargePhaseOutcome> => {
       const task = await requireTaskCollaboration(authContext, taskId, tx);
 
@@ -468,6 +469,18 @@ async function runX402ChargePhase(
     }
     throw error;
   });
+
+  if (outcome.kind === "sign" && outcome.chargedNow) {
+    // After the commit: the wallet the charge came out of is the task's.
+    waitUntil(
+      notifyLowBalanceAfterCharge({
+        userId: task.ownerId,
+        organizationId: task.organizationId,
+      }),
+    );
+  }
+
+  return outcome;
 }
 
 function schedulePostCommitFanout(

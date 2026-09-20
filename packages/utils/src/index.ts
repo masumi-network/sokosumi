@@ -33,6 +33,12 @@ export type {
   SessionRecord,
   SessionUser,
 } from "./better-auth-types.js";
+export {
+  BILLING_CREDITS_ADDED_MESSAGE_KEY,
+  BILLING_LOW_BALANCE_MESSAGE_KEY,
+  BILLING_PAYMENT_FAILED_MESSAGE_KEY,
+  BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY,
+} from "./billing-notification-message-keys.js";
 export { CALENDAR_BETA_ORGANIZATION_SLUG } from "./calendar-beta.js";
 export {
   CALENDAR_CLIENT_VERSION,
@@ -240,6 +246,7 @@ export {
   VENDOR_GRANT_PENDING_MESSAGE_KEY,
 } from "./notification-feed-kinds.js";
 export {
+  BILLING_FOLLOW_UP_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
   CHAT_MENTION_DIRECT_FOLLOW_UP_MESSAGE_KEY,
   CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,

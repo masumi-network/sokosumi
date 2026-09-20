@@ -15,6 +15,7 @@ import { convertCreditsToCents } from "@sokosumi/utils";
 import type Stripe from "stripe";
 
 import { getEnv } from "@/config/env";
+import { notifyInvoicePaid } from "@/helpers/billing-notifications";
 import prisma from "@/lib/db/prisma";
 import { getSubscriptionCatalog } from "@/services/subscription-catalog.service";
 import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
@@ -527,6 +528,10 @@ export async function handleInvoicePaidEvent(
     });
 
   let skipOrganizationSubscriptionSplit = false;
+  // True once any grant for this invoice is known to exist, from this attempt
+  // or an earlier one: a retry after a crash between the commit and the
+  // notification must still settle the warnings the credits answer.
+  let creditsLanded = false;
   if (subscriptionCredits > 0 && organizationId) {
     const billingPlan = await resolveOrganizationBillingPlan(
       organizationId,
@@ -563,6 +568,7 @@ export async function handleInvoicePaidEvent(
 
     if (existingOrganizationInvoiceSubscriptionBucket) {
       skipOrganizationSubscriptionSplit = true;
+      creditsLanded = true;
     }
   }
 
@@ -578,13 +584,21 @@ export async function handleInvoicePaidEvent(
     userId,
   });
 
+  const wallet = { userId, organizationId };
+
   if (creditGrants.length === 0) {
+    // Nothing to grant now, but a paid invoice still answers a failed payment.
+    await notifyInvoicePaid(wallet, {
+      invoiceId,
+      topUpCredits: 0,
+      creditsGranted: creditsLanded,
+    });
     return;
   }
 
-  await prisma.$transaction(async (tx) => {
-    let creditsGranted = false;
+  let creditsGranted = false;
 
+  await prisma.$transaction(async (tx) => {
     for (const grant of creditGrants) {
       const existingBucket = await tx.creditBucket.findUnique({
         where: {
@@ -597,6 +611,7 @@ export async function handleInvoicePaidEvent(
       });
 
       if (existingBucket) {
+        creditsLanded = true;
         continue;
       }
 
@@ -644,6 +659,7 @@ export async function handleInvoicePaidEvent(
       }
 
       creditsGranted = true;
+      creditsLanded = true;
     }
 
     if (creditsGranted) {
@@ -653,5 +669,13 @@ export async function handleInvoicePaidEvent(
         tx,
       });
     }
+  });
+
+  // After the commit, because the receipt publishes over realtime and a
+  // grant that rolled back must not be announced.
+  await notifyInvoicePaid(wallet, {
+    invoiceId,
+    topUpCredits: oneTimeTopUpCredits,
+    creditsGranted: creditsLanded,
   });
 }
