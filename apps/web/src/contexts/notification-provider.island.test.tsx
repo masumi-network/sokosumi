@@ -27,6 +27,7 @@ const patchNotificationUnreadMock = vi.fn();
 const patchNotificationsReadAllMock = vi.fn();
 const getNotificationsCountsMock = vi.fn();
 const useNotificationRealtimeMock = vi.fn();
+const useNotificationFrontPresenceMock = vi.fn();
 const healPushSubscriptionMock = vi.fn();
 
 const lazyAblyProviderMock = vi.fn(
@@ -53,6 +54,11 @@ vi.mock("@/lib/clients/core.notifications.browser.client", () => ({
 vi.mock("@/lib/ably/use-notification-realtime", () => ({
   useNotificationRealtime: (...args: unknown[]) =>
     useNotificationRealtimeMock(...args),
+}));
+
+vi.mock("@/lib/ably/use-notification-front-presence", () => ({
+  useNotificationFrontPresence: (...args: unknown[]) =>
+    useNotificationFrontPresenceMock(...args),
 }));
 
 vi.mock("ably/react", () => ({
@@ -112,6 +118,7 @@ describe("NotificationProvider island", () => {
     patchNotificationsReadAllMock.mockReset();
     getNotificationsCountsMock.mockReset();
     useNotificationRealtimeMock.mockReset();
+    useNotificationFrontPresenceMock.mockReset();
     healPushSubscriptionMock.mockReset();
     healPushSubscriptionMock.mockResolvedValue(false);
     lazyAblyProviderMock.mockReset();
@@ -144,6 +151,11 @@ describe("NotificationProvider island", () => {
       screen.queryByTestId("notification-toast-listener"),
     ).not.toBeInTheDocument();
     expect(useNotificationRealtimeMock).not.toHaveBeenCalled();
+    // Presence rides the same island. Core reads a member on this channel as
+    // the reader looking at the app, so a page that never started an Ably
+    // client must enter nothing: a member it could not leave again would hold
+    // that reader's emails back for the rest of the session.
+    expect(useNotificationFrontPresenceMock).not.toHaveBeenCalled();
 
     await act(async () => {
       await Promise.resolve();
@@ -252,6 +264,10 @@ describe("NotificationProvider island", () => {
       "user-1",
     );
     expect(useNotificationRealtimeMock).toHaveBeenCalled();
+    // With the reader's own id: presence is entered on that reader's
+    // notifications channel, which is the channel Core asks about before it
+    // holds one of their emails back.
+    expect(useNotificationFrontPresenceMock).toHaveBeenCalledWith("user-1");
 
     // Outside the island, unlike the two above. A window the push worker
     // opened carries its target on the URL, and spending that must not wait
@@ -461,6 +477,7 @@ describe("NotificationProvider read state", () => {
     patchNotificationsReadAllMock.mockReset();
     getNotificationsCountsMock.mockReset();
     useNotificationRealtimeMock.mockReset();
+    useNotificationFrontPresenceMock.mockReset();
     lazyAblyProviderMock.mockReset();
     lazyAblyProviderMock.mockImplementation(
       ({ children }: { children: ReactNode }): ReactNode => <>{children}</>,
@@ -732,6 +749,7 @@ describe("NotificationProvider paging", () => {
     getNotificationsMock.mockReset();
     getNotificationsCountsMock.mockReset();
     useNotificationRealtimeMock.mockReset();
+    useNotificationFrontPresenceMock.mockReset();
     healPushSubscriptionMock.mockReset();
     healPushSubscriptionMock.mockResolvedValue(false);
     lazyAblyProviderMock.mockReset();
@@ -1105,6 +1123,7 @@ describe("NotificationProvider failed read writes", () => {
     patchNotificationReadMock.mockReset();
     patchNotificationUnreadMock.mockReset();
     useNotificationRealtimeMock.mockReset();
+    useNotificationFrontPresenceMock.mockReset();
     healPushSubscriptionMock.mockReset();
     healPushSubscriptionMock.mockResolvedValue(false);
     lazyAblyProviderMock.mockReset();

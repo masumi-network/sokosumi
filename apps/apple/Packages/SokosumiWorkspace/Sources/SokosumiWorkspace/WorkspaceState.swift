@@ -645,6 +645,7 @@ public final class WorkspaceState: ObservableObject {
       // Web's visibilitychange: hidden publishes afk at once, visible counts as activity.
       presence.setVisible(readAttention.isVisible)
       publishPresence(force: true)
+      realtime?.setInFront(readAttention.isVisible)
     }
   }
 
@@ -759,6 +760,7 @@ public final class WorkspaceState: ObservableObject {
       onEvent: { event in continuation.yield(event) }
     )
     connection.setMembershipRooms(Set(rooms.map(\.id)))
+    connection.setInFront(readAttention.isVisible)
     realtimeStreamTask?.cancel()
     realtimeStreamTask = Task {
       for await event in stream {
