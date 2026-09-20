@@ -100,7 +100,7 @@ See [.cursor/rules/effects.mdc](.cursor/rules/effects.mdc) for examples and refe
 
 ### Linting & Formatting
 
-The web app uses the shared Biome configuration from the repo root. See [root AGENTS.md](../../AGENTS.md#linting--formatting) for base rules.
+The web app uses the shared Biome configuration from the repo root. See [shared code conventions](../../docs/agents/coding-conventions.md#linting--formatting) for base rules.
 
 - `pnpm --filter web check` runs `biome check`, so it enforces linting, formatting, and import organization
 - `pnpm --filter web check:write` applies Biome fixes, including import organization
