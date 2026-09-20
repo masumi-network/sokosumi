@@ -131,3 +131,14 @@ Verification compares every relocated file against its Git source, checks unchan
 lock metadata and resolving Claude symlinks, renders both root and Web catalogs,
 and checks document links. These are preservation and discoverability checks, not
 a benchmark proving unchanged model reasoning or task success rates.
+
+
+## Skill-manager verification
+
+After the initial manual relocation, all eleven UI skills were reinstalled with
+`npx skills add jakubkrehel/skills` from `apps/web`, explicitly selecting the eleven
+names and the Codex/Claude Code agents. The CLI reported every skill installed;
+`npx skills list --json` recognized every skill and its GitHub source. All eleven
+CLI-produced hashes matched `apps/web/skills-lock.json`. Reinstallation produced
+no skill-file or lockfile diff. Future installation and scope changes must use the
+CLI, as documented in [Skill management](skill-routing.md#manage-installations-with-the-skills-cli).

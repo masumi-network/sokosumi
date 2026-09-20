@@ -7,6 +7,25 @@ Commands and backticked paths are relative to the repository root unless stated 
 
 First-party sources in `skills/` are only `branch-bugbot-gate`, `linear-requirement`, and `translations`. `.agents/skills/<name>` is a symlink to that tree for those three (`.claude/skills` already symlinks to `.agents`). Other named flows live under `.agents/skills/`. For app work, resolve `apps/<app>/.agents/skills/<name>/` first, then `.agents/skills/<name>/`, then `skills/<name>/`. Read an app skill by path when it is absent from a root-started session’s catalog. Third-party installs live only under `.agents/skills/` — at the repo root for shared skills, or under `apps/<app>/.agents/skills/` (with `apps/<app>/skills-lock.json` beside it) when the skill is scoped to one app, mirroring `apps/core/.agents/skills/`. Web UI implement/review: follow [`apps/web/AGENTS.md`](../../apps/web/AGENTS.md) and the Jakub skills under [`apps/web/.agents/skills/better-ui/`](../../apps/web/.agents/skills/better-ui/) (and siblings `better-typography`, `better-colors`, `better-accessibility`, `better-layout`, `better-writing`, `better-interface`, `interface-review`, `explain-interface`, `variant`, `break`).
 
+### Manage installations with the skills CLI
+
+Use `npx skills` to install, remove, update, or change the scope of managed skills.
+Run it from the owning directory: the repository root for shared skills,
+`apps/web` for Web skills, or the corresponding app/package directory. Let the CLI
+write skill files, agent links, and `skills-lock.json`; do not move managed skill
+folders or edit their lock entries by hand. For a scope change, install through
+the CLI in the destination, verify its listing, then remove the old registration
+through the CLI in the source scope.
+
+For the Web UI skills, run from `apps/web`:
+
+```bash
+npx skills add jakubkrehel/skills --skill better-ui better-typography better-colors better-accessibility better-layout better-writing better-interface interface-review explain-interface variant break --agent codex claude-code --yes
+npx skills list
+```
+
+Use `npx skills update --project` from that same directory to manage updates.
+
 ### Next.js (apps/web only)
 
 App Router skills live under `apps/web/.agents/skills/`. They register only once a file under `apps/web/` is open, so name them yourself rather than waiting for them to appear. `next-partial-prefetching-adoption` owns the instant-navigation sweep — the `instant` route export, `instant-shell-url-data`, `blocking-prerender-*`. `next-cache-components`, `-adoption` and `-optimizer` own `cacheComponents`, `use cache` and static shells. `next-dev-loop` verifies a change against a running `next dev`; reach for it before hand-rolling curl against the dev log, which names the route but not the cause. Also `next-best-practices`, `next-upgrade`, `better-auth-best-practices`, `vercel-react-best-practices`, `vercel-composition-patterns`, `vercel-react-view-transitions`, `web-design-guidelines`.
