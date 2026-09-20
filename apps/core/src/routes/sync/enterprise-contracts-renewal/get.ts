@@ -1,6 +1,7 @@
+import { runEnterpriseContractSchedulerPass } from "@sokosumi/database/helpers";
 import type { Hono } from "hono";
 
-import { enterpriseContractSyncService } from "@/services/enterprise-contract-sync.service";
+import prisma from "@/lib/db/prisma";
 
 import { handleSyncRequest } from "../handler.js";
 
@@ -17,7 +18,9 @@ export default function mount(app: Hono) {
           "[sync/enterprise-contracts-renewal] Starting enterprise contract renewal",
         );
         const startedAt = Date.now();
-        const result = await enterpriseContractSyncService.runRenewalPass();
+        const result = await prisma.$transaction((tx) =>
+          runEnterpriseContractSchedulerPass(tx),
+        );
 
         console.info("[sync/enterprise-contracts-renewal] Completed sync", {
           catchUpGranted: result.catchUpGranted,

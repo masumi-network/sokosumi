@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import prisma from "@/lib/db/prisma";
+
 const {
   acquireLockMock,
   syncCardanoV2RailReadinessMock,
@@ -13,7 +15,8 @@ const {
   syncSourceImportMock,
   syncStripeCustomersMock,
   syncX402BuySideReadinessMock,
-  expireStaleGuestInvitationsMock,
+  expireStalePendingInvitationsMock,
+  prismaTransactionMock,
   sendFollowUpsMock,
   purgeExpiredTaskX402PaymentHeadersMock,
   syncDueTaskSchedulesMock,
@@ -31,7 +34,8 @@ const {
   syncSourceImportMock: vi.fn(),
   syncStripeCustomersMock: vi.fn(),
   syncX402BuySideReadinessMock: vi.fn(),
-  expireStaleGuestInvitationsMock: vi.fn(),
+  expireStalePendingInvitationsMock: vi.fn(),
+  prismaTransactionMock: vi.fn(),
   sendFollowUpsMock: vi.fn(),
   purgeExpiredTaskX402PaymentHeadersMock: vi.fn(),
   syncDueTaskSchedulesMock: vi.fn(),
@@ -92,9 +96,19 @@ vi.mock("@/services/source-import-sync.service", () => ({
   },
 }));
 
-vi.mock("@/services/enterprise-contract-sync.service", () => ({
-  enterpriseContractSyncService: {
-    runRenewalPass: syncEnterpriseContractRenewalMock,
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@sokosumi/database/helpers")>();
+  return {
+    ...actual,
+    runEnterpriseContractSchedulerPass: (...args: unknown[]) =>
+      syncEnterpriseContractRenewalMock(...args),
+  };
+});
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    $transaction: (...args: unknown[]) => prismaTransactionMock(...args),
   },
 }));
 
@@ -116,10 +130,9 @@ vi.mock("@/services/stripe-customer-sync.service", () => ({
   },
 }));
 
-vi.mock("@/services/chat-room-guest-invitation-sync.service", () => ({
-  chatRoomGuestInvitationSyncService: {
-    expireStaleGuestInvitations: expireStaleGuestInvitationsMock,
-  },
+vi.mock("@/helpers/chat-room-invitation", () => ({
+  expireStalePendingInvitations: (...args: unknown[]) =>
+    expireStalePendingInvitationsMock(...args),
 }));
 
 vi.mock("@/services/task-x402-payment.purge", () => ({
@@ -204,8 +217,11 @@ describe("sync routes", () => {
       expiredPeriods: 0,
       preCreated: 0,
     });
+    prismaTransactionMock.mockImplementation(
+      async (callback: (tx: unknown) => Promise<unknown>) => callback({}),
+    );
+    expireStalePendingInvitationsMock.mockResolvedValue(0);
     syncStripeCustomersMock.mockResolvedValue(undefined);
-    expireStaleGuestInvitationsMock.mockResolvedValue({ expired: 0 });
     sendFollowUpsMock.mockResolvedValue({
       examined: 0,
       sent: 0,
@@ -529,6 +545,7 @@ describe("sync routes", () => {
     );
 
     await flushMicrotasks();
+    expect(prismaTransactionMock).toHaveBeenCalledTimes(1);
     expect(syncEnterpriseContractRenewalMock).toHaveBeenCalledTimes(1);
   });
 
@@ -764,7 +781,7 @@ describe("sync routes", () => {
 
     expect(response.status).toBe(401);
     expect(acquireLockMock).not.toHaveBeenCalled();
-    expect(expireStaleGuestInvitationsMock).not.toHaveBeenCalled();
+    expect(expireStalePendingInvitationsMock).not.toHaveBeenCalled();
   });
 
   it("returns 401 for invalid cron auth on guest invitation expiry sync", async () => {
@@ -781,7 +798,7 @@ describe("sync routes", () => {
 
     expect(response.status).toBe(401);
     expect(acquireLockMock).not.toHaveBeenCalled();
-    expect(expireStaleGuestInvitationsMock).not.toHaveBeenCalled();
+    expect(expireStalePendingInvitationsMock).not.toHaveBeenCalled();
   });
 
   it("returns 409 when guest invitation expiry lock is already held", async () => {
@@ -798,7 +815,7 @@ describe("sync routes", () => {
     );
 
     expect(response.status).toBe(409);
-    expect(expireStaleGuestInvitationsMock).not.toHaveBeenCalled();
+    expect(expireStalePendingInvitationsMock).not.toHaveBeenCalled();
   });
 
   it("returns 200 and starts guest invitation expiry sync exactly once in background", async () => {
@@ -819,7 +836,7 @@ describe("sync routes", () => {
     );
 
     await flushMicrotasks();
-    expect(expireStaleGuestInvitationsMock).toHaveBeenCalledTimes(1);
+    expect(expireStalePendingInvitationsMock).toHaveBeenCalledTimes(1);
   });
 
   it("returns 401 for missing cron auth on follow-up notification sync", async () => {
@@ -986,7 +1003,7 @@ describe("sync routes", () => {
   });
 
   it("releases guest invitation expiry lock after completion", async () => {
-    expireStaleGuestInvitationsMock.mockResolvedValue({ expired: 3 });
+    expireStalePendingInvitationsMock.mockResolvedValue(3);
     const app = await createApp();
 
     const response = await app.request(
@@ -1000,66 +1017,20 @@ describe("sync routes", () => {
 
     expect(response.status).toBe(200);
     await flushMicrotasks();
-    expect(expireStaleGuestInvitationsMock).toHaveBeenCalledTimes(1);
-    expect(expireStaleGuestInvitationsMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        abortSignal: expect.any(AbortSignal),
-      }),
-    );
+    expect(expireStalePendingInvitationsMock).toHaveBeenCalledTimes(1);
+    expect(expireStalePendingInvitationsMock).toHaveBeenCalledWith(prisma, {
+      now: expect.any(Date),
+    });
     expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
-  });
-
-  it("releases guest invitation expiry lock when sync exceeds timeout budget", async () => {
-    vi.useFakeTimers();
-
-    try {
-      expireStaleGuestInvitationsMock.mockImplementation(
-        (options: { abortSignal: AbortSignal }) =>
-          new Promise<{ expired: number }>((resolve) => {
-            options.abortSignal.addEventListener("abort", () => {
-              resolve({ expired: 0 });
-            });
-          }),
-      );
-      const consoleErrorSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => undefined);
-
-      try {
-        const app = await createApp();
-        const response = await app.request(
-          "http://localhost/sync/chat-room-guest-invitations-expire",
-          {
-            headers: {
-              Authorization: "Bearer test-cron-secret",
-            },
-          },
-        );
-
-        expect(response.status).toBe(200);
-        await flushPromises();
-        expect(expireStaleGuestInvitationsMock).toHaveBeenCalledTimes(1);
-
-        vi.advanceTimersByTime(4000);
-        await flushPromises();
-
-        expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
-        expect(releaseLockMock).toHaveBeenCalledTimes(1);
-      } finally {
-        consoleErrorSpy.mockRestore();
-      }
-    } finally {
-      vi.useRealTimers();
-    }
   });
 
   it("does not release guest invitation expiry lock when sync ignores cancellation", async () => {
     vi.useFakeTimers();
 
     try {
-      expireStaleGuestInvitationsMock.mockImplementation(
-        (_options: { abortSignal: AbortSignal }) =>
-          new Promise<{ expired: number }>(() => {
+      expireStalePendingInvitationsMock.mockImplementation(
+        () =>
+          new Promise<number>(() => {
             // Intentionally never resolves.
           }),
       );
@@ -1080,7 +1051,7 @@ describe("sync routes", () => {
 
         expect(response.status).toBe(200);
         await flushPromises();
-        expect(expireStaleGuestInvitationsMock).toHaveBeenCalledTimes(1);
+        expect(expireStalePendingInvitationsMock).toHaveBeenCalledTimes(1);
 
         vi.advanceTimersByTime(4000);
         await flushPromises();
@@ -1095,7 +1066,7 @@ describe("sync routes", () => {
   });
 
   it("warns when guest invitation expiry lock ownership changed on release", async () => {
-    expireStaleGuestInvitationsMock.mockResolvedValue({ expired: 1 });
+    expireStalePendingInvitationsMock.mockResolvedValue(1);
     releaseLockMock.mockResolvedValue(false);
     const consoleWarnSpy = vi
       .spyOn(console, "warn")
