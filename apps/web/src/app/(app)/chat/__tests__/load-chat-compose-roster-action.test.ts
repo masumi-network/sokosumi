@@ -22,13 +22,15 @@ vi.mock("@/lib/auth/auth.server", () => ({
 const createRoomMock = vi.fn();
 const getActiveOrganizationMock = vi.fn();
 const getMyMemberInOrganizationMock = vi.fn();
-vi.mock("@/lib/services", () => ({
+vi.mock("@/lib/services/user.service", () => ({
   userService: {
     getActiveOrganization: (...args: unknown[]) =>
       getActiveOrganizationMock(...args),
     getMyMemberInOrganization: (...args: unknown[]) =>
       getMyMemberInOrganizationMock(...args),
   },
+}));
+vi.mock("@/lib/services/chat-room.service", () => ({
   chatRoomService: {
     createRoom: (...args: unknown[]) => createRoomMock(...args),
   },

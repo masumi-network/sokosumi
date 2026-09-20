@@ -25,7 +25,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { createCredentialAccount } from "@/lib/actions";
+import { createCredentialAccount } from "@/lib/actions/auth/action";
 import { type NewPasswordFormType, newPasswordFormSchema } from "@/lib/schemas";
 
 export function NewPasswordForm() {

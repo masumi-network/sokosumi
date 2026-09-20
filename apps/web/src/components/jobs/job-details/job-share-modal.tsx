@@ -24,7 +24,7 @@ import {
 } from "@/lib/clients/core.browser.client";
 import type { Job, JobShare } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
-import { getJobQueryKey } from "@/queries";
+import { getJobQueryKey } from "@/queries/jobs";
 
 interface JobShareModalProps {
   open: boolean;

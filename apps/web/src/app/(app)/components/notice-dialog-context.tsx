@@ -7,7 +7,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { getPendingNoticesAction } from "@/lib/actions/notice";
+import { getPendingNoticesAction } from "@/lib/actions/notice/action";
 import type { Notice } from "@/lib/clients/generated/core";
 import { NoticeKind } from "@/lib/clients/generated/core";
 

@@ -1,5 +1,4 @@
-import { chatRoomService } from "@/lib/services";
-
+import { chatRoomService } from "@/lib/services/chat-room.service";
 import ChatRoomInvitationCard, {
   ChatRoomInvitationErrorCard,
 } from "./components/chat-room-invitation-card";

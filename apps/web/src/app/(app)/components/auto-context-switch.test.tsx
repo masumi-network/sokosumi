@@ -2,7 +2,7 @@ import { render, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AutoContextSwitch } from "@/app/components/auto-context-switch";
-import { updatePreferredOrganization } from "@/lib/actions/organization";
+import { updatePreferredOrganization } from "@/lib/actions/organization/action";
 import { authClient } from "@/lib/auth/auth.client";
 
 const replaceMock = vi.fn();
@@ -25,7 +25,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
   },
 }));
 
-vi.mock("@/lib/actions/organization", () => ({
+vi.mock("@/lib/actions/organization/action", () => ({
   updatePreferredOrganization: vi.fn(),
 }));
 

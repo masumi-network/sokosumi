@@ -18,7 +18,7 @@ vi.mock("sonner", () => ({
   },
 }));
 
-vi.mock("@/lib/actions/workspace-gate", () => ({
+vi.mock("@/lib/actions/workspace-gate/action", () => ({
   ensureOAuthWorkspaceAction: mockEnsureOAuthWorkspaceAction,
 }));
 

@@ -19,7 +19,8 @@ import {
   getShortAgentAuthorName,
 } from "@/lib/helpers/agent";
 import type { AgentRatingStats } from "@/lib/types/core-dto";
-import { cn, generateGradientBorder } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { generateGradientBorder } from "@/lib/utils/gradient";
 import { getCategoryColor } from "@/lib/utils/theme";
 
 import { AgentDetailLink } from "./agent-detail-link";

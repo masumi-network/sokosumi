@@ -5,7 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { ensureOAuthWorkspaceAction } from "@/lib/actions/workspace-gate";
+import { ensureOAuthWorkspaceAction } from "@/lib/actions/workspace-gate/action";
 import { authClient } from "@/lib/auth/auth.client";
 
 interface ConsentActionsProps {

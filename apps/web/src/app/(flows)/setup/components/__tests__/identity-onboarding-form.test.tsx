@@ -24,7 +24,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
   },
 }));
 
-vi.mock("@/lib/actions/workspace-gate", () => ({
+vi.mock("@/lib/actions/workspace-gate/action", () => ({
   createPersonalWorkspaceAction: (...args: unknown[]) =>
     createPersonalWorkspaceActionMock(...args),
 }));

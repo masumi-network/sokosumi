@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import DefaultLoading from "@/components/default-loading";
 import { getCoreAgentById } from "@/lib/agents/core-loaders";
 import { getSession } from "@/lib/auth/auth.server";
-import { agentService } from "@/lib/services";
+import { agentService } from "@/lib/services/agent.service";
 import {
   createUnavailableCoreAgent,
   getAgentRatingStats,

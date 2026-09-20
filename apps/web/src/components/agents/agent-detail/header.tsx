@@ -21,7 +21,7 @@ import {
   getFullAgentAuthorName,
 } from "@/lib/helpers/agent";
 import type { CoreAgentDto } from "@/lib/types/core-dto";
-import { generateGradientBorder } from "@/lib/utils";
+import { generateGradientBorder } from "@/lib/utils/gradient";
 import { getCategoryColor } from "@/lib/utils/theme";
 
 interface AgentDetailHeaderProps {

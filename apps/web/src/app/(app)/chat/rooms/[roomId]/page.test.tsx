@@ -30,10 +30,12 @@ vi.mock("@/lib/auth/auth.server", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
 }));
 
-vi.mock("@/lib/services", () => ({
+vi.mock("@/lib/services/chat-room.service", () => ({
   chatRoomService: {
     getRoom: (...args: unknown[]) => getRoomMock(...args),
   },
+}));
+vi.mock("@/lib/services/user.service", () => ({
   userService: {
     getActiveOrganization: (...args: unknown[]) =>
       getActiveOrganizationMock(...args),

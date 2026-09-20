@@ -26,11 +26,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  CommonErrorCode,
-  CreditsErrorCode,
-  claimFreeCreditsWithCoupon,
-} from "@/lib/actions";
+import { claimFreeCreditsWithCoupon } from "@/lib/actions/credits/action";
+import { CommonErrorCode, CreditsErrorCode } from "@/lib/actions/errors";
 import type { Organization } from "@/lib/clients/generated/core";
 import { fireGTMEvent } from "@/lib/gtm-events";
 

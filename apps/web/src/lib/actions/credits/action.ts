@@ -13,7 +13,7 @@ import {
   CreditsErrorCode,
 } from "@/lib/actions/errors";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
-import { userService } from "@/lib/services";
+import { userService } from "@/lib/services/user.service";
 import {
   type AuthenticatedRequest,
   withSession,

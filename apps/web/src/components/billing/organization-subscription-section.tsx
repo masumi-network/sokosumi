@@ -14,7 +14,7 @@ import { OrganizationErrorCode } from "@/lib/actions/errors/error-codes";
 import {
   updateOrganizationSubscriptionSeats,
   upgradeOrganizationSubscription,
-} from "@/lib/actions/subscription";
+} from "@/lib/actions/subscription/action";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import {
   OrganizationSeatSettingsFields,

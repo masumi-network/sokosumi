@@ -1,6 +1,5 @@
 import { getSession } from "@/lib/auth/auth.server";
-import { organizationService } from "@/lib/services";
-
+import { organizationService } from "@/lib/services/organization.service";
 import InvitationCard, {
   InvitationErrorCard,
 } from "./components/invitation-card";

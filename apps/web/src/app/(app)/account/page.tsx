@@ -16,8 +16,8 @@ import {
   type UserDeletionEvaluation,
 } from "@/lib/clients/generated/core";
 import { toDesignMdProfileValue } from "@/lib/helpers/design-md-profile";
-import { userService } from "@/lib/services";
 import { designMdService } from "@/lib/services/design-md.service";
+import { userService } from "@/lib/services/user.service";
 
 import { AccountSettings } from "./components/account-settings";
 
