@@ -232,6 +232,30 @@ describe("notifyLowBalanceAfterCharge", () => {
     ]);
   });
 
+  it("still writes later recipients when one inbox send fails", async () => {
+    getBalanceMock.mockResolvedValue(convertCreditsToCents(5));
+    sendBillingNotificationEmailMock
+      .mockRejectedValueOnce(new Error("resend down"))
+      .mockResolvedValue(undefined);
+
+    await expect(
+      notifyLowBalanceAfterCharge(ORGANIZATION),
+    ).resolves.toBeUndefined();
+
+    expect(
+      createNotificationMock.mock.calls.map((call) => call[0]?.userId),
+    ).toEqual(["owner-1", "admin-1"]);
+    expect(sendBillingNotificationEmailMock).toHaveBeenCalledTimes(2);
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        extra: expect.objectContaining({
+          notificationType: "billing-recipient",
+        }),
+      }),
+    );
+  });
+
   /** Best-effort: a charge that committed must not fail on its notification. */
   it("reports a failed balance read rather than throwing", async () => {
     getBalanceMock.mockRejectedValue(new Error("db down"));
@@ -405,7 +429,7 @@ describe("notifyPaymentFailed and notifySubscriptionEnding", () => {
       expect.any(Error),
       expect.objectContaining({
         extra: expect.objectContaining({
-          notificationType: "billing-payment-failed",
+          notificationType: "billing-recipient",
         }),
       }),
     );

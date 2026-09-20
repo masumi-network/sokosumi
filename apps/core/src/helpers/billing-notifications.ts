@@ -126,25 +126,29 @@ async function writeBillingNotification(
   ]);
 
   for (const userId of recipients) {
-    const { created } = await createNotification({
-      userId,
-      kind: NotificationKind.BILLING,
-      referenceId,
-      eventId: input.eventId,
-      messageKey: input.messageKey,
-      messageParams: input.messageParams,
-      metadata: { workspaceId, organizationId: wallet.organizationId },
-    });
-
-    // A duplicate row is the throttle: mailing it again would be a second
-    // warning for the same funding. Stripe already mails the other three
-    // billing keys, so only a newly written low-balance row reaches inbox.
-    if (created) {
-      await sendBillingNotificationEmail({
+    try {
+      const { created } = await createNotification({
         userId,
+        kind: NotificationKind.BILLING,
+        referenceId,
+        eventId: input.eventId,
         messageKey: input.messageKey,
         messageParams: input.messageParams,
+        metadata: { workspaceId, organizationId: wallet.organizationId },
       });
+
+      // A duplicate row is the throttle: mailing it again would be a second
+      // warning for the same funding. Stripe already mails the other three
+      // billing keys, so only a newly written low-balance row reaches inbox.
+      if (created) {
+        await sendBillingNotificationEmail({
+          userId,
+          messageKey: input.messageKey,
+          messageParams: input.messageParams,
+        });
+      }
+    } catch (error) {
+      reportBillingNotificationFailure(error, wallet, "billing-recipient");
     }
   }
 }
