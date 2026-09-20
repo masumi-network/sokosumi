@@ -215,6 +215,14 @@ test("TestV24 hosted OAuth derives auth base from selected target", () => {
   }
 });
 
+test("custom target does not fall back to sokosumi_cli client id", () => {
+  const config = resolveCliConfig({
+    env: { SOKOSUMI_API_URL: "https://api.example.test" },
+  });
+  assert.equal(config.clientId, "");
+  assert.equal(config.authBaseUrl, "https://api.example.test/auth");
+});
+
 test("TestV61 canonical API URL sanitizer removes standalone key credentials", () => {
   const apiUrl =
     "https://user:password@host/api?API_KEY=secret&key=key-value&access_key=access-value&region=west&monkey=banana#fragment";

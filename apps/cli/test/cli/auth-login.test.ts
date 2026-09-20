@@ -131,7 +131,7 @@ test("TestV52 auth login cancels before saving credentials for aborted OAuth sig
   }
 });
 
-test("auth login uses the first-party Sokosumi CLI client when env is unset", async () => {
+test("custom target OAuth does not fall back to sokosumi_cli", async () => {
   let loginRequest: BrowserLoginOptions | undefined;
   const loginFn = async (
     request: BrowserLoginOptions,
@@ -156,7 +156,7 @@ test("auth login uses the first-party Sokosumi CLI client when env is unset", as
     stdout: { write: () => undefined },
   });
 
-  assert.equal(loginRequest?.clientId, "sokosumi_cli");
+  assert.equal(loginRequest?.clientId, "");
   assert.equal(loginRequest?.authBaseUrl, "https://api.example.test/auth");
 });
 
