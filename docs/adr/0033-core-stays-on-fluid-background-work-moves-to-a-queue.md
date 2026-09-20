@@ -60,7 +60,7 @@ One more, specific to us: **strict data residency is not supported yet.** During
 
 On `v2beta` itself: the trigger type is `queue/v2beta` under `experimentalTriggers`, the product is public beta, and the docs state no stability or migration guarantee.
 
-**Unrelated finding worth its own ticket:** `@vercel/functions` exports `attachDatabasePool`, which releases idle pool clients before a function suspends and supports `pg`. Core uses it nowhere, and Core's P2028 history is exactly what it addresses.
+**Unrelated finding, tracked as SOK-1129:** `@vercel/functions` exports `attachDatabasePool`, which releases idle pool clients before a function suspends and supports `pg`. Core uses it nowhere, and Core's P2028 history is exactly what it addresses. `@prisma/adapter-pg` 7.10.0 accepts a `pg.Pool` instance (`disposeExternalPool` defaults to `false`), so the pool can be built and attached in Core and handed to the adapter — but `@vercel/functions` is an app dependency, not a `@sokosumi/database` one, so the pool must be constructed on the Core side rather than inside the client factory. The ticket gates on measuring actual connection pressure first.
 
 ## Considered options
 
