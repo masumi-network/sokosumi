@@ -5,6 +5,8 @@ import InvitationCard, {
   InvitationErrorCard,
 } from "./components/invitation-card";
 
+export const instant = false;
+
 export default async function AcceptInvitationPage({
   params,
 }: {

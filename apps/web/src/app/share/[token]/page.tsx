@@ -7,6 +7,8 @@ import { getAgentResolvedImage } from "@/lib/helpers/agent";
 import { shareService } from "@/lib/services";
 import { SharedTaskView } from "../components/shared-task-view";
 
+export const instant = false;
+
 export async function generateMetadata({
   params,
 }: {
