@@ -38,7 +38,7 @@ The Xcode navigator follows the physical source folders. Start with `Sokosumi/Ap
 | Location | Responsibility |
 | --- | --- |
 | `Sokosumi/App` | Scenes, root navigation, environment configuration |
-| `Sokosumi/Authentication` | Sign-in UI and system-browser integration |
+| `Sokosumi/Authentication` | Sign-in UI, system-browser integration and Keychain adapter for `TokenStore` |
 | `Sokosumi/Chat/Sidebar` | Conversation list and account/workspace menus |
 | `Sokosumi/Chat/Timeline` | Scrolling, message rows and status rows |
 | `Sokosumi/Chat/Threads` | Reply-thread presentation |
@@ -59,9 +59,9 @@ The app composes these UI-free packages:
 | --- | --- | --- |
 | `SokosumiWorkspace` | Coordination of auth, workspace, timelines, threads and realtime | All four packages below |
 | `CoreAPI` | Generated DTOs, HTTP client and client factory | None |
-| `SokosumiAuth` | OAuth lifecycle and token persistence | None |
+| `SokosumiAuth` | OAuth lifecycle and the `TokenStore` persistence port | None |
 | `SokosumiChat` | Workspace/room/thread state, sends, streaming, parsing, avatar loading and chat persistence | `CoreAPI` |
-| `SokosumiRealtime` | Ably transport, event delivery and org presence | `CoreAPI`, `SokosumiChat` |
+| `SokosumiRealtime` | Ably transport adapter, domain event delivery and org presence | `CoreAPI`, `SokosumiChat` |
 
 Views render package state and dispatch user actions through `WorkspaceState`. HTTP operations belong to `ChatService`/`CoreAPI`; token lifecycle belongs to `SokosumiAuth`. Chat read backoff lives in `SokosumiChat` (`ChatReadCooldown` and its client middleware), shared across clients by app composition and scoped to the OAuth login generation. The composer owns transient typing state so each keystroke does not invalidate the timeline. Rendering parses into portable models in `SokosumiChat`, then presents those models in SwiftUI.
 
