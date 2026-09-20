@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-09-15
 
-[VERIFIED] SOK-1069, “Simplify CLI TUI to one quiet frame,” requires one contextual header, one body focus surface, one footer keymap, and secondary Register presentation. It requires preserving auth, navigation, resource fetching, detail views, keyboard transitions, Ink, and the semantic TUI theme.
+[VERIFIED] SOK-1139 (supersedes canceled SOK-1069), “Minimal developer TUI,” requires one contextual header, one body focus surface, one footer keymap, and secondary Register presentation. It requires preserving auth, navigation, resource fetching, detail views, keyboard transitions, Ink, and the semantic TUI theme.
 
 [DECISION, user-approved 2026-09-14] The CLI TUI uses one outer frame with one contextual header, one body focus surface, and one footer keymap. It does not reintroduce nested title/status borders, duplicate resource menus, or repeated pane hints.
 
