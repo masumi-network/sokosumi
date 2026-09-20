@@ -21,6 +21,8 @@ export const CLI_COMMANDS = [
   "coworkers update",
   "coworkers api-key",
   "coworkers me",
+  "vendors me",
+  "workspaces list",
   "tasks list",
   "tasks create",
   "tasks get",
