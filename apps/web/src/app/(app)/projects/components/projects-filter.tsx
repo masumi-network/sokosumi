@@ -62,7 +62,7 @@ export function ProjectsFilter({ labels }: ProjectsFilterProps) {
         aria-hidden
       />
       <Input
-        className="pr-8 pl-8"
+        className="h-8 pr-8 pl-8"
         placeholder={labels.placeholder}
         value={value}
         onChange={(event) => handleChange(event.target.value)}

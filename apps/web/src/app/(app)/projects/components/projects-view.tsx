@@ -82,6 +82,9 @@ export function ProjectsView({
   const hasLoadedProjects = items.length > 0;
   const isFiltering = query.length > 0;
   const showEmptyState = !hasLoadedProjects && cursor === null;
+  // An unfiltered, empty workspace has nothing to filter, so the header row
+  // would only offer a search over zero projects.
+  const hasNothingAtAll = showEmptyState && !isFiltering;
 
   function handleLoadMore() {
     if (!cursor || isPending) return;
@@ -109,17 +112,9 @@ export function ProjectsView({
           <AddProjectButton label={labels.newProject} className="self-start" />
         </div>
 
-        <div className="flex items-center gap-3">
-          <ProjectsFilter labels={labels.filter} />
-          {/* Plain text, not a control: the Core route has one fixed
-              ordering, so a chip here would promise a menu that cannot
-              exist yet. */}
-          <span className="text-muted-foreground shrink-0 text-xs whitespace-nowrap">
-            {labels.sortedBy}
-          </span>
-        </div>
-
-        {hasLoadedProjects ? (
+        {hasNothingAtAll ? (
+          <ProjectsEmptyState labels={labels.empty} />
+        ) : (
           <div
             data-testid="projects-browse"
             className={cn(
@@ -127,27 +122,36 @@ export function ProjectsView({
               PROJECTS_LIST_CARD_MIN_H_CLASS,
             )}
           >
-            <div className={PROJECTS_BROWSE_DIVIDE_CLASS}>
-              {items.map((project) => (
-                <ProjectListItem
-                  key={project.id}
-                  project={project}
-                  labels={{
-                    counts: labels.counts,
-                    lastActivity: labels.lastActivity,
-                    created: labels.created,
-                  }}
-                />
-              ))}
+            {/* Header row of the list card, divided from the rows it labels. */}
+            <div className="border-border flex items-center gap-3 border-b px-3 py-2.5">
+              <ProjectsFilter labels={labels.filter} />
+              {/* Plain text, not a control: the Core route has one fixed
+                  ordering, so a chip here would promise a menu that cannot
+                  exist yet. */}
+              <span className="text-muted-foreground shrink-0 text-xs whitespace-nowrap">
+                {labels.sortedBy}
+              </span>
             </div>
+
+            {hasLoadedProjects ? (
+              <div className={PROJECTS_BROWSE_DIVIDE_CLASS}>
+                {items.map((project) => (
+                  <ProjectListItem
+                    key={project.id}
+                    project={project}
+                    labels={{
+                      counts: labels.counts,
+                      lastActivity: labels.lastActivity,
+                      created: labels.created,
+                    }}
+                  />
+                ))}
+              </div>
+            ) : showEmptyState ? (
+              <ProjectsNoMatches message={labels.noMatches} />
+            ) : null}
           </div>
-        ) : showEmptyState ? (
-          isFiltering ? (
-            <ProjectsNoMatches message={labels.noMatches} />
-          ) : (
-            <ProjectsEmptyState labels={labels.empty} />
-          )
-        ) : null}
+        )}
 
         {cursor ? (
           <div className="flex justify-center">
@@ -174,14 +178,12 @@ export function ProjectsView({
   );
 }
 
+/** Sits inside the list card, under its header row — so no chrome of its own. */
 function ProjectsNoMatches({ message }: { message: string }) {
   return (
     <div
       data-testid="projects-no-matches"
-      className={cn(
-        "bg-card-background border-border flex flex-col items-center justify-center rounded-xl border px-6 py-12 text-center",
-        PROJECTS_LIST_CARD_MIN_H_CLASS,
-      )}
+      className="flex flex-col items-center justify-center px-6 py-12 text-center"
     >
       <p className="text-muted-foreground text-sm">{message}</p>
     </div>
