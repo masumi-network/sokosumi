@@ -16,6 +16,7 @@ import mountDeleteProjectTask from "./[id]/tasks/[taskId]/delete.js";
 import mountPostProjectTask from "./[id]/tasks/post.js";
 import mountListProjects from "./get.js";
 import mountPostProject from "./post.js";
+import mountGetStarredProjects from "./starred/get.js";
 import mountGetProjectStats from "./stats/get.js";
 
 const app = new OpenAPIHonoWithAuth({
@@ -26,6 +27,7 @@ const app = new OpenAPIHonoWithAuth({
 mountListProjects(app);
 mountPostProject(app);
 mountGetProjectStats(app);
+mountGetStarredProjects(app);
 mountPostProjectJob(app);
 mountDeleteProjectJob(app);
 mountPostProjectTask(app);
