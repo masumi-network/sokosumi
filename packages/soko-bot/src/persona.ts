@@ -1,7 +1,5 @@
 export interface SokoBotPersona {
-  /** The owner's chosen name for the bot; null until named. */
   name: string | null;
-  /** Owner's display name, for a warmer voice. */
   ownerName: string | null;
 }
 
@@ -10,7 +8,6 @@ function firstName(name: string | null): string | null {
   return first && first.length > 0 ? first : null;
 }
 
-/** Identity block prepended to every version's system prompt. */
 export function composeSokoBotPersona(persona: SokoBotPersona): string {
   const name = persona.name?.trim() || "Soko Bot";
   const owner = firstName(persona.ownerName);
@@ -26,7 +23,6 @@ export function composeSokoBotPersona(persona: SokoBotPersona): string {
   ].join("\n");
 }
 
-/** First message the bot posts in its direct chat right after it is created. */
 export function composeSokoBotIntroduction(persona: SokoBotPersona): string {
   const name = persona.name?.trim() || "Soko Bot";
   const owner = firstName(persona.ownerName);

@@ -20,14 +20,12 @@ export function safeAddPathComponent(
   pathComponent: string,
 ): Result<URL, string> {
   try {
-    // Handle empty or whitespace-only path components
     const cleanPath = trimSlashes(pathComponent.trim());
 
     if (!cleanPath) {
-      return ok(new URL(url.href)); // Return a new URL if nothing to add
+      return ok(new URL(url.href));
     }
 
-    // Preserve existing pathname and append new component
     const currentPath = trimSlashes(url.pathname);
     const newPath = `${currentPath}/${encodeURI(cleanPath)}`;
     const newUrl = new URL(url.href);

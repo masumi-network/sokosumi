@@ -6,19 +6,7 @@ import {
   organizationLimitedInfoInclude,
 } from "../types/organization.js";
 
-/**
- * Repository for managing Organization entities and related queries.
- * Provides methods for fetching organizations with relations
- * and updating organization data.
- */
 export const organizationRepository = {
-  /**
-   * Retrieves a unique organization with its relations based on a unique identifier.
-   *
-   * @param where - Unique input to identify the organization (e.g., id or slug).
-   * @param tx - The Prisma transaction client to use.
-   * @returns The OrganizationWithRelations object if found, otherwise null.
-   */
   async getUniqueOrganizationWithRelations(
     where: Prisma.OrganizationWhereUniqueInput,
     tx: Prisma.TransactionClient,
@@ -29,13 +17,6 @@ export const organizationRepository = {
     });
   },
 
-  /**
-   * Retrieves an organization with its relations by organization ID.
-   *
-   * @param id - The ID of the organization.
-   * @param tx - The Prisma transaction client to use.
-   * @returns The OrganizationWithRelations object if found, otherwise null.
-   */
   async getOrganizationWithRelationsById(
     id: string,
     tx: Prisma.TransactionClient,
@@ -43,14 +24,6 @@ export const organizationRepository = {
     return await this.getUniqueOrganizationWithRelations({ id }, tx);
   },
 
-  /**
-   * Updates an organization by its ID with the provided data.
-   *
-   * @param organizationId - The ID of the organization to update.
-   * @param data - The update data for the organization.
-   * @param tx - The Prisma transaction client to use.
-   * @returns The updated OrganizationWithRelations object.
-   */
   async updateOrganizationById(
     organizationId: string,
     data: Prisma.OrganizationUpdateInput,
@@ -64,15 +37,7 @@ export const organizationRepository = {
   },
 
   /**
-   * Searches organizations by name or slug using a case-insensitive partial
-   * match.
-   *
-   * @param query - The search term to match against organization name and slug.
-   * @param limit - The maximum number of organizations to return.
-   * @param tx - The Prisma transaction client to use.
-   * @returns A promise that resolves to matching organizations (limited info).
-   *   An empty or whitespace-only query resolves to an empty array without
-   *   querying.
+   * Empty or whitespace-only query returns [] without querying.
    */
   async searchOrganizations(
     query: string,
@@ -97,13 +62,7 @@ export const organizationRepository = {
   },
 
   /**
-   * Retrieves a single organization's limited info by slug. Used to seed a
-   * combobox with an already-selected organization without loading the full
-   * list.
-   *
-   * @param slug - The slug of the organization.
-   * @param tx - The Prisma transaction client to use.
-   * @returns The organization's limited info if found, otherwise null.
+   * Limited info by slug, for seeding a combobox with the already-selected org.
    */
   async getOrganizationLimitedInfoBySlug(
     slug: string,
@@ -115,13 +74,6 @@ export const organizationRepository = {
     });
   },
 
-  /**
-   * Get an organization by its Stripe customer ID.
-   *
-   * @param stripeCustomerId - The Stripe customer ID.
-   * @param tx - The Prisma transaction client to use.
-   * @returns The organization if found, null otherwise.
-   */
   async getOrganizationByStripeCustomerId(
     stripeCustomerId: string,
     tx: Prisma.TransactionClient,
@@ -132,9 +84,8 @@ export const organizationRepository = {
   },
 
   /**
-   * Paginated organization listing for the admin organization overview. An
-   * empty or missing query lists all organizations (unlike `searchOrganizations`,
-   * which is a picker and returns nothing for blank queries). Ordered newest-first.
+   * Admin overview listing. Unlike `searchOrganizations`, an empty query lists
+   * all organizations. Ordered newest-first.
    */
   async listOrganizationsForAdminOverview(
     params: {
