@@ -5,7 +5,6 @@ import test from "node:test";
 
 import { type Instance, render as inkRender } from "ink";
 import packageJson from "../../package.json" with { type: "json" };
-import { parseTask } from "../../src/api/models/task.js";
 import {
   AuthManager,
   type OAuthCredentials,
@@ -20,10 +19,6 @@ import {
 import { runCli } from "../../src/cli/index.js";
 import { CLI_VERSION } from "../../src/cli/metadata.js";
 import { redactErrorMessage } from "../../src/error-redaction.js";
-import {
-  paginationTotal,
-  recentTaskActivity,
-} from "../../src/tui/resource-view.js";
 import {
   apiKeyCreationHint,
   apiKeyPrefixHint,
@@ -100,43 +95,6 @@ test("TestV55 TUI target labels sanitize API URLs", () => {
   const label = displayTargetLabel(config);
   assert.equal(label, "https://example.test/api?region=west");
   assert.doesNotMatch(label, /user|password|secret|fragment/i);
-});
-
-test("TestV46 dashboard counts prefer Core pagination totals", () => {
-  assert.equal(paginationTotal({ meta: { total: 42 } }, 3), 42);
-  assert.equal(
-    paginationTotal({ meta: { pagination: { totalCount: "17" } } }, 3),
-    17,
-  );
-  assert.equal(paginationTotal({ meta: {} }, 3), 3);
-});
-
-test("TestV55 recent task activity sorts valid updates and supports empty state", () => {
-  const recent = recentTaskActivity([
-    parseTask({
-      id: "old",
-      name: "Old",
-      status: "done",
-      updatedAt: "2024-01-01T00:00:00Z",
-    }),
-    parseTask({
-      id: "new",
-      name: "New",
-      status: "running",
-      updatedAt: "2024-03-01T00:00:00Z",
-    }),
-    parseTask({
-      id: "invalid",
-      name: "Invalid",
-      status: "unknown",
-      updatedAt: "not-a-date",
-    }),
-  ]);
-  assert.deepEqual(
-    recent.map((task) => task.id),
-    ["new", "old"],
-  );
-  assert.deepEqual(recentTaskActivity([]), []);
 });
 
 test("TestV47 TUI errors redact credential-shaped values", () => {

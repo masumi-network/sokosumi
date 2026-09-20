@@ -486,7 +486,6 @@ export async function runCli(
       const tuiFn = dependencies.tuiFn || renderStatusApp;
       return await tuiFn({
         authManager,
-        coreClient: getCoreClient(config, env, dependencies),
         env,
         config,
         clientIdOverride: options["client-id"],
