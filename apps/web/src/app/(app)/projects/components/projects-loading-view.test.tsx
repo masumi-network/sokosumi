@@ -61,7 +61,18 @@ describe("ProjectsLoadingView", () => {
     expect(browse.className).toContain("rounded-none");
     expect(browse.className).toContain("md:rounded-xl");
 
-    const divide = browse.firstElementChild;
+    // Header row first, then the divided rows. The header has to reserve the
+    // live one's height (px-4 py-2.5 around an h-8 input) or the Instant swap
+    // drops every row by ~53px when the real filter appears.
+    const header = browse.firstElementChild;
+    expect(header?.className).toContain("border-b");
+    expect(header?.className).toContain("px-4");
+    expect(header?.className).toContain("py-2.5");
+    expect(
+      header?.querySelector('[data-slot="skeleton"]')?.className,
+    ).toContain("h-8");
+
+    const divide = browse.lastElementChild;
     for (const token of PROJECTS_BROWSE_DIVIDE_CLASS.split(/\s+/)) {
       expect(divide?.className).toContain(token);
     }
