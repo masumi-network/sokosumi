@@ -240,6 +240,7 @@ private final class FakeRealtimeConnection: RealtimeConnection, @unchecked Senda
   private(set) var disconnectCount = 0
   private(set) var presenceOrganizations: [String?] = []
   private(set) var publishedPresence: [ChatPresenceMemberData] = []
+  private(set) var inFront: [Bool] = []
   private var handler: RealtimeEventHandler?
 
   func connect(
@@ -277,6 +278,10 @@ private final class FakeRealtimeConnection: RealtimeConnection, @unchecked Senda
 
   func publishPresence(_ data: ChatPresenceMemberData) {
     publishedPresence.append(data)
+  }
+
+  func setInFront(_ inFront: Bool) {
+    self.inFront.append(inFront)
   }
 
   func disconnect() {
@@ -633,6 +638,31 @@ struct WorkspaceRealtimeTests {
     #expect(state.transcriptRoomId == nil)
     #expect(state.transcriptMessages.isEmpty)
     #expect(fake.membershipRooms.last == [roomB])
+  }
+
+  @Test func windowVisibilityDrivesNotificationPresence() async throws {
+    let fake = FakeRealtimeConnection()
+    let (state, auth, _) = try realtimeState([
+      (200, realtimeAccessBody()),
+      (200, realtimeOrgsBody),
+      (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [])),
+      (200, realtimeReadBody(id: roomA))
+    ])
+    state.realtimeConnectionFactory = { fake }
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    // The window was visible before the socket existed, so the connection is
+    // told at connect rather than waiting for the next change.
+    #expect(fake.inFront == [true])
+
+    state.setWindowVisible(false, window: realtimeWindow)
+    #expect(fake.inFront == [true, false])
+    state.setWindowVisible(true, window: realtimeWindow)
+    #expect(fake.inFront == [true, false, true])
+    state.reset()
   }
 
   @Test func pendingSidebarResponseCannotRestoreRevokedRoom() async throws {
