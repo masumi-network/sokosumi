@@ -11,8 +11,6 @@ import type { CoworkerWorkspaceAccess } from "@/lib/clients/generated/core";
 import { adminCoworkerService } from "@/lib/services/admin-coworker.service";
 import { coworkerAccessService } from "@/lib/services/coworker-access.service";
 
-// `instant` is read per segment, so the admin layout's opt-out does not
-// cover this page. Auth/admin entry stays blocking on purpose.
 export const instant = false;
 
 export const metadata: Metadata = {

@@ -18,8 +18,6 @@ import {
 import { ConsentActions } from "./consent-actions";
 import { getOAuthConsentScopeFlags } from "./oauth-consent-scope-flags";
 
-// `instant` is read per segment, so the (auth) layout's opt-out does not
-// cover this page. Auth/admin entry stays blocking on purpose.
 export const instant = false;
 
 interface ConsentPageProps {

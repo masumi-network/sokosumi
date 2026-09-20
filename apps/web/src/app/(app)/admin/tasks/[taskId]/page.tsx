@@ -8,8 +8,6 @@ import { TASK_DETAIL_CONTEXT_STRIP_CLASS } from "@/app/tasks/constants";
 import { Button } from "@/components/ui/button";
 import { adminTaskService } from "@/lib/services/admin-task.service";
 
-// `instant` is read per segment, so the admin layout's opt-out does not
-// cover this page. Auth/admin entry stays blocking on purpose.
 export const instant = false;
 
 export const metadata: Metadata = {

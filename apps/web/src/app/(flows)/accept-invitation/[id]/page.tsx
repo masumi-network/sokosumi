@@ -5,8 +5,6 @@ import InvitationCard, {
   InvitationErrorCard,
 } from "./components/invitation-card";
 
-// Reached by an external link, never by in-app navigation, so there is no
-// prefetch to make instant. Blocking on the token lookup is the honest shape.
 export const instant = false;
 
 export default async function AcceptInvitationPage({

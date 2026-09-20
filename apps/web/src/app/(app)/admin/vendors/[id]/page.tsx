@@ -8,8 +8,6 @@ import { VendorLoadError } from "@/components/admin/vendors/vendor-load-error";
 import { Button } from "@/components/ui/button";
 import { adminVendorService } from "@/lib/services/admin-vendor.service";
 
-// `instant` is read per segment, so the admin layout's opt-out does not
-// cover this page. Auth/admin entry stays blocking on purpose.
 export const instant = false;
 
 export const metadata: Metadata = {

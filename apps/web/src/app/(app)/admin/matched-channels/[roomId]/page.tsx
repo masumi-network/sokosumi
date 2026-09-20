@@ -6,8 +6,6 @@ import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { adminMatchedChannelsService } from "@/lib/services/admin-matched-channels.service";
 import { userService } from "@/lib/services/user.service";
 
-// `instant` is read per segment, so the admin layout's opt-out does not
-// cover this page. Auth/admin entry stays blocking on purpose.
 export const instant = false;
 
 export const metadata: Metadata = {

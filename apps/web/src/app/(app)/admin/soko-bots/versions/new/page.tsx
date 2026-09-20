@@ -11,8 +11,6 @@ import { ADMIN_SOKO_BOT_VERSIONS_ROUTE } from "@/lib/soko-bot/constants";
 
 import { loadCreateVersionSearchParams } from "../search-params";
 
-// `instant` is read per segment, so the admin layout's opt-out does not
-// cover this page. Auth/admin entry stays blocking on purpose.
 export const instant = false;
 
 export async function generateMetadata(): Promise<Metadata> {

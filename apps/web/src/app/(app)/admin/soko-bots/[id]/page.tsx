@@ -8,8 +8,6 @@ import { AdminTurnsPanel } from "@/components/admin/soko-bots/admin-turns-panel"
 import { QualityOverview } from "@/components/admin/soko-bots/quality-overview";
 import { adminSokoBotService } from "@/lib/services/admin-soko-bot.service";
 
-// `instant` is read per segment, so the admin layout's opt-out does not
-// cover this page. Auth/admin entry stays blocking on purpose.
 export const instant = false;
 
 export const metadata: Metadata = {

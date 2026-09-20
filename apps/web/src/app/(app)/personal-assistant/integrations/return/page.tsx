@@ -4,8 +4,6 @@ import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 
-// `instant` is read per segment, so the personal-assistant layout's opt-out
-// does not cover this page. This OAuth return hop blocks on purpose.
 export const instant = false;
 
 interface ReturnPageProps {
