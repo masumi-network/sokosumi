@@ -1,0 +1,11 @@
+# Project pins
+
+Projects get the personal pin the chat sidebar already has: per-user, private, unlimited, stored as `starredAt` on a new narrow `project_star` row, with `POST`/`DELETE /v1/projects/{id}/star` and `starredAt` on the project DTO. Naming follows [ADR-0017](./0017-sidebar-pin-api-is-star.md) — star in the API and the database, Pin in the UI. Projects have no membership row to carry the column the way `ChatRoomUserMember` does, and `project_star` stays narrow rather than becoming a preferences bag: a second per-user project preference can add its own column or its own table.
+
+`GET /v1/projects/starred` exists alongside the DTO field because the two answer different questions. The field says whether a row already on the page is pinned; the endpoint returns the pins the page does not carry, which is the common case — a pinned project is usually a quiet one, and the projects list is ordered by activity. Sorting pins first inside that query was rejected: its cursor is `(lastActivityAt, id)`, so a per-user sort key would break pagination.
+
+The sidebar flyout diverges from the chat sidebar three times, deliberately. It renders five rows in total with pins first, where the chat sidebar renders every pin — a popover cannot lean on the sidebar's scrollbar. Pinning is a button on the projects list row rather than an item in a row overflow menu, because that menu would hold nothing else. And pins order by `starredAt` ascending with no drag-to-reorder, because five rows are cheaper to re-pin than to rearrange; `PUT /v1/projects/starred` can follow later without a migration.
+
+Rows below the pins stay in the reader's own visit order rather than activity order, because `lastActivityAt` is derived from task, job and project events — opening a project does not move it.
+
+Rejected: an organization-shared list of important projects; a generic `UserProjectPreference` row; an organization column on `project_star`; deleting pin rows when a project closes — they are filtered on read instead, so reopening restores the pin.
