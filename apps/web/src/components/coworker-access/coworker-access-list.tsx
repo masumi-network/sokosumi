@@ -9,18 +9,16 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useNotifications } from "@/contexts/notification-provider";
+import type { ActionResultDto } from "@/lib/actions/action-result";
 import {
   approveMyCoworkerAccess,
-  denyMyCoworkerAccess,
-  revokeMyCoworkerAccess,
-} from "@/lib/actions/account/coworker-access-action";
-import type { ActionResultDto } from "@/lib/actions/action-result";
-import type { ActionError } from "@/lib/actions/errors";
-import {
   approveOrganizationCoworkerAccess,
+  denyMyCoworkerAccess,
   denyOrganizationCoworkerAccess,
+  revokeMyCoworkerAccess,
   revokeOrganizationCoworkerAccess,
-} from "@/lib/actions/organization";
+} from "@/lib/actions/coworker-access-action";
+import type { ActionError } from "@/lib/actions/errors";
 import {
   type CoworkerAccessEntry,
   coworkerAccessStatusMessageKey,

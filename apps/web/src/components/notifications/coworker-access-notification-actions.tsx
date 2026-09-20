@@ -7,8 +7,10 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { useNotifications } from "@/contexts/notification-provider";
-import { approveMyCoworkerAccess } from "@/lib/actions/account/coworker-access-action";
-import { approveOrganizationCoworkerAccess } from "@/lib/actions/organization/coworker-access-action";
+import {
+  approveMyCoworkerAccess,
+  approveOrganizationCoworkerAccess,
+} from "@/lib/actions/coworker-access-action";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import {
