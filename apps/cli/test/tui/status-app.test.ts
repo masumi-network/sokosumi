@@ -243,6 +243,7 @@ test("TestV56 OAuth Escape returns to confirm and allows retry", async () => {
   const loginResolvers: Array<(credentials: OAuthCredentials) => void> = [];
   const cliPromise = runCli([], {
     env: {},
+    authManager,
     loginFn: async () => {
       loginCalls += 1;
       const deferred = createDeferred<OAuthCredentials>();
@@ -434,7 +435,14 @@ test("TestV34 runCli TUI selection preserves explicit client ID", async () => {
   const loginRequestResolvers = createDeferred<BrowserLoginOptions>();
   const loginRequestPromise = loginRequestResolvers.promise;
   const cliPromise = runCli(
-    ["--client-id", "flag-client", "--oauth-port", "53683"],
+    [
+      "--client-id",
+      "flag-client",
+      "--oauth-port",
+      "53683",
+      "--oauth-timeout-ms",
+      "180000",
+    ],
     {
       env: {
         SOKOSUMI_PREPROD_OAUTH_CLIENT_ID: "preprod-environment-client",
@@ -474,6 +482,7 @@ test("TestV34 runCli TUI selection preserves explicit client ID", async () => {
     const loginRequest = await loginRequestPromise;
     assert.match(output, /http:\/\/127\.0\.0\.1:53683\/oauth\/callback/);
     assert.equal(loginRequest.port, 53683);
+    assert.equal(loginRequest.timeoutMs, 180000);
     assert.equal(loginRequest.clientId, "flag-client");
     assert.equal(
       loginRequest.authBaseUrl,

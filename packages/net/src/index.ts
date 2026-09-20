@@ -1,1 +1,1 @@
-export { ssrfSafeFetch } from "./ssrf-fetch.js";
+export { type SsrfSafeFetchInit, ssrfSafeFetch } from "./ssrf-fetch.js";

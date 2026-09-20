@@ -635,10 +635,12 @@ export function mapChatRoomMessage(
 export function mergeChatRoomMessageMetadata(
   existing: unknown,
   quote: ChatRoomMessageQuote | null,
-): Record<string, unknown> | null {
-  const base =
+): Prisma.InputJsonObject | null {
+  // A value read back from a Json column may hold nulls, which is exactly what
+  // `InputJsonObject` permits — so widen rather than assert them away.
+  const base: Record<string, Prisma.InputJsonValue | null> =
     existing && typeof existing === "object" && !Array.isArray(existing)
-      ? { ...(existing as Record<string, unknown>) }
+      ? { ...(existing as Record<string, Prisma.InputJsonValue | null>) }
       : {};
 
   if (quote) {

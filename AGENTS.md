@@ -5,7 +5,7 @@
 ## Tech Stack & Architecture
 
 **Core Stack**: Next.js 16 (App Router), React 19.3, TypeScript, pnpm workspace, Node.js 24.x  
-**Task runner**: Turborepo (`turbo.json`) orchestrates `build` / `typecheck` / `test`. pnpm remains the package manager. Do not restore app-level `prebuild` or Core `build:workspace-deps` — the graph is `dependsOn` in `turbo.json`. Per-package `prepare` still emits `dist` for Vercel filtered installs, except `@sokosumi/database` (turbo `prisma:generate` on local machines and in CI, Core `vercel-build` on Vercel). `dev` and Biome stay outside turbo. See [ADR 0008](./docs/adr/0008-turbo-task-runner-on-pnpm.md).
+**Task runner**: Turborepo (`turbo.json`) orchestrates `build` / `typecheck` / `test`. pnpm remains the package manager. Do not restore app-level `prebuild` or Core `build:workspace-deps` — the graph is `dependsOn` in `turbo.json`. Per-package `prepare` still emits `dist` for Vercel filtered installs, except `@sokosumi/database`, which has no build at all — Core consumes its source and bundles it ([ADR 0035](./docs/adr/0035-database-consumed-from-source.md)); its Prisma client comes from turbo `prisma:generate` on local machines and in CI, and from Core `vercel-build` on Vercel. `dev` and Biome stay outside turbo. See [ADR 0008](./docs/adr/0008-turbo-task-runner-on-pnpm.md).
 **Web Architecture**: Three-layer pattern with services (`src/lib/services/`) coordinating domain flows and actions (`src/lib/actions/`) exposing typed server mutations. Web reaches data **only through the Core API** — it never touches Prisma/Postgres directly (see [Database Access](#database-access)).
 **API Architecture**: Hono with OpenAPI validation and standardized response helpers. Core owns all database access via Prisma (`@sokosumi/database`). New Core routes use direct Prisma; repositories remain for some legacy Core services. Web never touches the DB.
 **Styling**: Tailwind CSS + shadcn/ui + Radix UI primitives
@@ -34,7 +34,9 @@
 ### TypeScript Usage
 
 - **Mandatory**: Use TypeScript for all code
-- **Interfaces**: Prefer interfaces over types
+- **Interfaces**: Prefer interfaces over types. One exception: a shape written
+  verbatim into a Prisma `Json` column must be an object type alias — see
+  [Prisma JSON columns](.cursor/rules/prisma-json-columns.mdc)
 - **Enums**: Avoid enums; use maps instead
 - **Components**: Use functional components with TypeScript interfaces
 - **Inference**: Leverage Prisma type inference when possible
@@ -124,7 +126,9 @@ function handler(_req, res) {
 
 ### Git hooks
 
-Husky runs `pnpm precommit` (`pnpm check && pnpm typecheck`) before each commit. Expect roughly 10–15 seconds. Skip with `git commit --no-verify` or `HUSKY=0`.
+Husky runs `pnpm precommit` (`pnpm check && pnpm typecheck`) before each commit. Expect roughly 10–15 seconds. Let it run: it is the same pair CI gates on, so a commit that passes it is a commit that passes `Biome` and `Typecheck`.
+
+`git commit --no-verify` and `HUSKY=0` exist for the case where the hook itself is broken — a missing binary, a worktree without `node_modules`. Fix the cause and commit normally. Passing the checks by hand first is not a reason to bypass the hook: the bypass is indistinguishable from hiding a failure, and only the hook's own run proves the tree is green.
 
 In a fresh worktree the hook fails with `Command "prisma" not found` until `pnpm install` has run there. Install (about 30 seconds) rather than committing past it with `--no-verify`: the failure is the worktree's `node_modules`, so every later check is blind too.
 
@@ -144,6 +148,8 @@ Full list is in root `package.json`. Agents typically need:
 | `pnpm prisma:generate` | Generate Prisma clients |
 | `pnpm prisma:migrate:dev` | Dev migrations |
 | `pnpm prisma:migrate:deploy` | Apply migrations |
+
+Prefer the turbo entry points above over `pnpm --filter <workspace> <task>`. A filter-run invokes the package script directly and skips turbo's graph, so `prisma:generate` never fires. On a checkout where the client has not been generated that surfaces as a wall of `Module '"@sokosumi/database"' has no exported member 'Job'` — a missing client, not a broken change. Run `pnpm prisma:generate` first when you do need a filter-run.
 
 ## Testing Guidelines
 
@@ -188,7 +194,7 @@ docs(readme): update setup instructions
 > | `feat(auth): add refresh token` | `Make FormSection title optional` |
 > | `chore(deps): pin biome version` | `Update deps` |
 
-- **Required status checks** on `main` (ruleset `Default Branch`): `Build`, `Validate PR Title`, `Biome`, `Test Core`, `Test Packages`, `Test Web`, `Typecheck`, `Swift lint and format`. Read the live list with `gh api repos/masumi-network/sokosumi/rulesets/3855070 --jq '.rules[] | select(.type=="required_status_checks") | .parameters.required_status_checks[].context'`. Deleting or renaming the job behind one of these blocks every PR on a check that never reports, so update the ruleset in the same change.
+- **Required status checks** on `main` (ruleset `Default Branch`): `Build`, `Validate PR Title`, `Biome`, `Test Core`, `Test Packages`, `Test Web`, `Typecheck`, `Swift lint and format`, `Xcode test`, `Xcode release build`. Read the live list with `gh api repos/masumi-network/sokosumi/rulesets/3855070 --jq '.rules[] | select(.type=="required_status_checks") | .parameters.required_status_checks[].context'`. Deleting or renaming the job behind one of these blocks every PR on a check that never reports, so update the ruleset in the same change.
 - **Draft by default**: Open new PRs as **draft** unless the author explicitly asks for a ready-for-review PR. Mark it ready for review only once CI is green and the change is complete.
 - **Title**: Follow [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/) syntax (e.g. `feat(auth): add refresh token`)
 - **Description**: Explain user-facing impact
@@ -271,6 +277,10 @@ A shortcut is fine when the user asked for the smallest change, when a hotfix ha
 
 First-party sources in `skills/` are only `branch-bugbot-gate`, `linear-requirement`, and `translations`. `.agents/skills/<name>` is a symlink to that tree for those three (`.claude/skills` already symlinks to `.agents`). Other named flows live under `.agents/skills/`. Load `.agents/skills/<name>/` when that path exists; otherwise `skills/<name>/`. Third-party installs live only under `.agents/skills/` — at the repo root for shared skills, or under `apps/<app>/.agents/skills/` (with `apps/<app>/skills-lock.json` beside it) when the skill is scoped to one app, mirroring `apps/core/.agents/skills/`. Web UI implement/review: follow [`apps/web/AGENTS.md`](apps/web/AGENTS.md) and the Jakub skills under [`.agents/skills/better-ui/`](.agents/skills/better-ui/) (and siblings `better-typography`, `better-colors`, `better-accessibility`, `better-layout`, `better-writing`, `better-interface`, `interface-review`, `explain-interface`, `variant`, `break`).
 
+### Next.js (apps/web only)
+
+App Router skills live under `apps/web/.agents/skills/`. They register only once a file under `apps/web/` is open, so name them yourself rather than waiting for them to appear. `next-partial-prefetching-adoption` owns the instant-navigation sweep — the `instant` route export, `instant-shell-url-data`, `blocking-prerender-*`. `next-cache-components`, `-adoption` and `-optimizer` own `cacheComponents`, `use cache` and static shells. `next-dev-loop` verifies a change against a running `next dev`; reach for it before hand-rolling curl against the dev log, which names the route but not the cause. Also `next-best-practices`, `next-upgrade`, `better-auth-best-practices`, `vercel-react-best-practices`, `vercel-composition-patterns`, `vercel-react-view-transitions`, `web-design-guidelines`.
+
 ### Evlog (Core only)
 
 Core HTTP logging uses evlog. Conventions live in [`apps/core/AGENTS.md`](./apps/core/AGENTS.md) (the `<!-- evlog:start -->` block plus Sokosumi constraints). Skills are under `apps/core/.agents/skills/` (`review-logging-patterns`, `build-audit-logs`, `analyze-logs`). Do not add `evlog/next` to Web. Do not run `evlog agents` at the repo root.
@@ -336,6 +346,7 @@ Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily). Se
 - [Shared packages and deduplication](.cursor/rules/shared-packages.mdc) – when moving logic to `packages/utils` or refactoring duplicated code
 - [Avoid re-exports](.cursor/rules/avoid-re-exports.mdc) – import from the canonical owner; no passthrough barrels between packages or apps
 - [Utils vs database helpers](.cursor/rules/utils-vs-database.mdc) – client-safe shared code in `@sokosumi/utils`; Prisma-backed logic in `@sokosumi/database`
+- [Prisma JSON columns](.cursor/rules/prisma-json-columns.mdc) – `Prisma.InputJsonObject` / `InputJsonValue` at the producing helper, not a cast at the call site
 
 ## Cursor Cloud specific instructions
 

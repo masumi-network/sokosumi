@@ -17,7 +17,6 @@ sokosumi/
 │   ├── utils/       # @sokosumi/utils — client-safe helpers
 │   ├── net/         # @sokosumi/net — SSRF-safe fetch
 │   ├── email/       # @sokosumi/email — renderers and locales
-│   ├── chat/        # @sokosumi/chat — chat types
 │   ├── ai-provider/ # @sokosumi/ai-provider — Sokosumi AI SDK provider
 │   └── soko-bot/    # @sokosumi/soko-bot — Soko Bot contracts (runtime is in Core)
 ├── docs/            # Agent, domain, coworker, and design docs

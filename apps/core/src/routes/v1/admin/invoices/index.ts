@@ -1,4 +1,4 @@
-import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { createNestedOpenAPIHono } from "@/lib/hono";
 
 import mountDeleteAdminInvoice from "./[id]/delete.js";
 import mountGetAdminInvoice from "./[id]/get.js";
@@ -6,7 +6,7 @@ import mountMarkAdminInvoicePaid from "./[id]/pay/post.js";
 import mountListAdminInvoices from "./get.js";
 import mountCreateAdminInvoice from "./post.js";
 
-const app = new OpenAPIHonoWithAuth();
+const app = createNestedOpenAPIHono();
 
 mountListAdminInvoices(app);
 mountCreateAdminInvoice(app);

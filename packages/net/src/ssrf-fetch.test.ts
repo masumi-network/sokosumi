@@ -15,6 +15,7 @@ import {
   assertPublicHttpUrl,
   MAX_SSRF_FETCH_REDIRECTS,
   SsrfError,
+  type SsrfSafeFetchInit,
   ssrfSafeFetch,
 } from "./ssrf-fetch.js";
 
@@ -101,7 +102,9 @@ describe("ssrfSafeFetch", () => {
       mockRequestImplementation({ status: 200, body: "ok" }),
     );
 
-    const response = await ssrfSafeFetch("https://example.com/file.pdf");
+    const response = await ssrfSafeFetch("https://example.com/file.pdf", {
+      maxResponseBytes: 1024,
+    });
 
     expect(response.status).toBe(200);
     expect(await response.text()).toBe("ok");
@@ -123,6 +126,7 @@ describe("ssrfSafeFetch", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body,
+      maxResponseBytes: 1024,
     });
 
     expect(captured).toHaveLength(1);
@@ -146,7 +150,9 @@ describe("ssrfSafeFetch", () => {
         mockRequestImplementation({ status: 200, body: "ok" }),
       );
 
-    const response = await ssrfSafeFetch("https://example.com/file.pdf");
+    const response = await ssrfSafeFetch("https://example.com/file.pdf", {
+      maxResponseBytes: 1024,
+    });
 
     expect(response.status).toBe(200);
     expect(httpsRequestMock).toHaveBeenCalledTimes(2);
@@ -166,6 +172,7 @@ describe("ssrfSafeFetch", () => {
     const response = await ssrfSafeFetch("https://example.com/start_job", {
       method: "POST",
       body: "{}",
+      maxResponseBytes: 1024,
     });
 
     expect(response.status).toBe(302);
@@ -181,7 +188,9 @@ describe("ssrfSafeFetch", () => {
     );
 
     await expect(
-      ssrfSafeFetch("https://example.com/file.pdf"),
+      ssrfSafeFetch("https://example.com/file.pdf", {
+        maxResponseBytes: 1024,
+      }),
     ).rejects.toBeInstanceOf(SsrfError);
     expect(httpsRequestMock).toHaveBeenCalledTimes(
       MAX_SSRF_FETCH_REDIRECTS + 1,
@@ -200,6 +209,30 @@ describe("ssrfSafeFetch", () => {
     await expect(
       ssrfSafeFetch("https://example.com/big.bin", { maxResponseBytes: 50 }),
     ).rejects.toThrow(/Content-Length/);
+  });
+
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, 0, -1, undefined])(
+    "rejects maxResponseBytes %s before sending any request",
+    async (maxResponseBytes) => {
+      await expect(
+        ssrfSafeFetch("https://example.com/big.bin", {
+          // The cast covers a caller that bypasses the type at runtime.
+          maxResponseBytes: maxResponseBytes as number,
+        }),
+      ).rejects.toThrow(/maxResponseBytes must be a positive finite number/);
+      expect(httpsRequestMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rejects a missing init object before sending any request", async () => {
+    await expect(
+      // A JS caller can omit init entirely; the guard must still answer with SsrfError.
+      ssrfSafeFetch(
+        "https://example.com/big.bin",
+        undefined as unknown as SsrfSafeFetchInit,
+      ),
+    ).rejects.toBeInstanceOf(SsrfError);
+    expect(httpsRequestMock).not.toHaveBeenCalled();
   });
 
   it("rejects when streamed body exceeds maxResponseBytes", async () => {

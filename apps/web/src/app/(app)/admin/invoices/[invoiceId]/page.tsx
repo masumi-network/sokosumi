@@ -9,6 +9,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CommonErrorCode } from "@/lib/actions/errors";
 import { getAdminInvoiceAction } from "@/lib/actions/invoice-admin/action";
 
+export const instant = false;
+
 export const metadata: Metadata = {
   title: "Invoice",
   description: "Admin invoice detail",

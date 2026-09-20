@@ -1,9 +1,12 @@
 import Combine
 import CoreAPI
 import Foundation
+import os
 import SokosumiAuth
 import SokosumiChat
 import SokosumiRealtime
+
+private let logger = Logger(subsystem: "com.sokosumi.app", category: "transcript")
 
 /// App-owned coordinator connecting authentication, chat sessions and realtime.
 /// Package models own reusable behavior; this object orders their lifecycles,
@@ -938,7 +941,7 @@ public final class WorkspaceState: ObservableObject {
       return false
     } catch {
       guard generation == transcriptGeneration else { return false }
-      NSLog("Sokosumi transcript refresh failed: %@", String(describing: error))
+      logger.error("Sokosumi transcript refresh failed: \(String(describing: error), privacy: .public)")
       transcriptError = friendlyMessage(for: error)
       return false
     }
@@ -1044,7 +1047,7 @@ public final class WorkspaceState: ObservableObject {
       transcriptError = transcriptFailureMessage(error, auth: auth)
     } catch {
       guard generation == transcriptGeneration else { return }
-      NSLog("Sokosumi transcript load failed: %@", String(describing: error))
+      logger.error("Sokosumi transcript load failed: \(String(describing: error), privacy: .public)")
       transcriptError = friendlyMessage(for: error)
     }
   }
@@ -1140,7 +1143,7 @@ public final class WorkspaceState: ObservableObject {
       transcriptError = transcriptFailureMessage(error, auth: auth)
     } catch {
       guard generation == transcriptGeneration else { return }
-      NSLog("Sokosumi older messages load failed: %@", String(describing: error))
+      logger.error("Sokosumi older messages load failed: \(String(describing: error), privacy: .public)")
       transcriptError = friendlyMessage(for: error)
     }
   }

@@ -1,6 +1,7 @@
 import type { Hono } from "hono";
 
-import { chatRoomGuestInvitationSyncService } from "@/services/chat-room-guest-invitation-sync.service";
+import { expireStalePendingInvitations } from "@/helpers/chat-room-invitation";
+import prisma from "@/lib/db/prisma";
 
 import { handleSyncRequest } from "../handler.js";
 
@@ -17,16 +18,18 @@ export default function mount(app: Hono) {
           "[sync/chat-room-guest-invitations-expire] Starting stale guest invitation expiry",
         );
         const startedAt = Date.now();
-        const result =
-          await chatRoomGuestInvitationSyncService.expireStaleGuestInvitations({
-            abortSignal: context.abortSignal,
-          });
+        // When already aborted (sync deadline), skip the write.
+        const expired = context.abortSignal.aborted
+          ? 0
+          : await expireStalePendingInvitations(prisma, {
+              now: new Date(),
+            });
 
         console.info(
           "[sync/chat-room-guest-invitations-expire] Completed sync",
           {
             durationMs: Date.now() - startedAt,
-            expired: result.expired,
+            expired,
           },
         );
       },

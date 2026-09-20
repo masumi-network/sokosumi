@@ -1,7 +1,9 @@
 import { act, render, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import JobDetailRedirect from "@/app/agents/[agentId]/jobs/@right/components/job-detail-redirect";
+import { installJobsPanesRow } from "@/app/agents/[agentId]/jobs/components/__tests__/jobs-panes-harness";
+import { JOBS_TWO_PANE_MIN_WIDTH } from "@/app/agents/[agentId]/jobs/components/use-jobs-two-pane-fit";
 
 const pushMock = vi.fn();
 
@@ -11,60 +13,23 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
-function mockMatchMedia(initialMatches: boolean) {
-  let matches = initialMatches;
-  const listeners = new Set<(event: MediaQueryListEvent) => void>();
+const NARROW = JOBS_TWO_PANE_MIN_WIDTH - 1;
+const WIDE = JOBS_TWO_PANE_MIN_WIDTH;
 
-  const mediaQueryList = {
-    get matches() {
-      return matches;
-    },
-    media: "(min-width: 1024px)",
-    onchange: null,
-    addEventListener: vi.fn(
-      (eventName: string, listener: (event: MediaQueryListEvent) => void) => {
-        if (eventName === "change") {
-          listeners.add(listener);
-        }
-      },
-    ),
-    removeEventListener: vi.fn(
-      (eventName: string, listener: (event: MediaQueryListEvent) => void) => {
-        if (eventName === "change") {
-          listeners.delete(listener);
-        }
-      },
-    ),
-    addListener: vi.fn((listener: (event: MediaQueryListEvent) => void) => {
-      listeners.add(listener);
-    }),
-    removeListener: vi.fn((listener: (event: MediaQueryListEvent) => void) => {
-      listeners.delete(listener);
-    }),
-    dispatchEvent: vi.fn(),
-  };
-
-  Object.defineProperty(window, "matchMedia", {
-    writable: true,
-    value: vi.fn().mockReturnValue(mediaQueryList),
-  });
-
-  return {
-    setMatches(nextMatches: boolean) {
-      matches = nextMatches;
-      const event = { matches: nextMatches } as MediaQueryListEvent;
-      listeners.forEach((listener) => listener(event));
-    },
-  };
-}
+let panes: ReturnType<typeof installJobsPanesRow> | null = null;
 
 describe("JobDetailRedirect", () => {
   beforeEach(() => {
     pushMock.mockClear();
   });
 
-  it("does not redirect on viewport widths below lg", async () => {
-    mockMatchMedia(false);
+  afterEach(() => {
+    panes?.cleanup();
+    panes = null;
+  });
+
+  it("does not redirect while the panes row is too narrow for two panes", async () => {
+    panes = installJobsPanesRow(NARROW);
 
     render(<JobDetailRedirect agentId="agent-1" jobId="job-1" />);
 
@@ -73,8 +38,8 @@ describe("JobDetailRedirect", () => {
     });
   });
 
-  it("redirects when viewport width is lg or above", async () => {
-    mockMatchMedia(true);
+  it("redirects once the panes row is wide enough", async () => {
+    panes = installJobsPanesRow(WIDE);
 
     render(<JobDetailRedirect agentId="agent-1" jobId="job-1" />);
 
@@ -83,8 +48,9 @@ describe("JobDetailRedirect", () => {
     });
   });
 
-  it("redirects when viewport changes from below lg to lg", async () => {
-    const { setMatches } = mockMatchMedia(false);
+  it("redirects when the panes row grows past the threshold", async () => {
+    panes = installJobsPanesRow(NARROW);
+    const { setWidth } = panes;
 
     render(<JobDetailRedirect agentId="agent-1" jobId="job-1" />);
 
@@ -93,11 +59,23 @@ describe("JobDetailRedirect", () => {
     });
 
     act(() => {
-      setMatches(true);
+      setWidth(WIDE);
     });
 
     await waitFor(() => {
       expect(pushMock).toHaveBeenCalledWith("/agents/agent-1/jobs/job-1");
+    });
+  });
+
+  it("stays put when the window is wide but the sidebar leaves too little room", async () => {
+    // 1024px window, 224px expanded sidebar: the old viewport media query said
+    // two panes fit here, and the detail pane came out 432px wide.
+    panes = installJobsPanesRow(1024 - 224 - 32);
+
+    render(<JobDetailRedirect agentId="agent-1" jobId="job-1" />);
+
+    await waitFor(() => {
+      expect(pushMock).not.toHaveBeenCalled();
     });
   });
 });

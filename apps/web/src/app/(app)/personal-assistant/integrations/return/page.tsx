@@ -4,6 +4,8 @@ import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 
+export const instant = false;
+
 interface ReturnPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }

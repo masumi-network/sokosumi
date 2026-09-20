@@ -10,20 +10,18 @@ import { VendorMark } from "@/components/agents/vendor-mark";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useNotifications } from "@/contexts/notification-provider";
-import {
-  approveMyVendorGrant,
-  createMyVendorGrant,
-  denyMyVendorGrant,
-  revokeMyVendorGrant,
-} from "@/lib/actions/account/vendor-grant-action";
 import type { ActionResultDto } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors";
 import {
+  approveMyVendorGrant,
   approveOrganizationVendorGrant,
+  createMyVendorGrant,
   createOrganizationVendorGrant,
+  denyMyVendorGrant,
   denyOrganizationVendorGrant,
+  revokeMyVendorGrant,
   revokeOrganizationVendorGrant,
-} from "@/lib/actions/organization";
+} from "@/lib/actions/vendor-grant-action";
 import {
   isGrantDeniedOrRevoked,
   isGrantGranted,

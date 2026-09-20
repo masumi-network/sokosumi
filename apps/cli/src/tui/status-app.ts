@@ -59,7 +59,7 @@ export interface StatusAppOptions {
   coreClient?: CoreHttpClient;
   loginFn?: AuthLoginOptions["loginFn"];
   oauthPort?: number;
-  oauthCallbackPath?: string;
+  oauthTimeoutMs?: number;
   env?: AuthEnvironment;
   config?: CliTargetConfig;
   clientIdOverride?: string;
@@ -374,7 +374,7 @@ function StatusApp({
   coreClient,
   loginFn,
   oauthPort,
-  oauthCallbackPath,
+  oauthTimeoutMs,
   env,
   config,
   clientIdOverride,
@@ -386,7 +386,7 @@ function StatusApp({
     | "coreClient"
     | "loginFn"
     | "oauthPort"
-    | "oauthCallbackPath"
+    | "oauthTimeoutMs"
     | "clientIdOverride"
   > & { targetExplicit?: boolean }) {
   const { exit } = useApp();
@@ -509,9 +509,7 @@ function StatusApp({
       authManager: manager,
       stdout: { write: () => undefined },
       ...(oauthPort === undefined ? {} : { port: oauthPort }),
-      ...(oauthCallbackPath === undefined
-        ? {}
-        : { callbackPath: oauthCallbackPath }),
+      ...(oauthTimeoutMs === undefined ? {} : { timeoutMs: oauthTimeoutMs }),
       signal: controller.signal,
     })
       .then((result) => {
@@ -983,7 +981,7 @@ function StatusApp({
           Text,
           { dimColor: true },
           screen === "oauth-wait"
-            ? `⠋ Waiting for callback on ${oauthCallbackDisplayUri(oauthPort, oauthCallbackPath)} …`
+            ? `⠋ Waiting for callback on ${oauthCallbackDisplayUri(oauthPort)} …`
             : "⠋ Validating user API key …",
         ),
         React.createElement(Text, { dimColor: true }, message),
@@ -1202,7 +1200,7 @@ export async function renderStatusApp({
   coreClient,
   loginFn,
   oauthPort,
-  oauthCallbackPath,
+  oauthTimeoutMs,
   env = process.env,
   config = resolveCliConfig({ env }),
   clientIdOverride,
@@ -1217,7 +1215,7 @@ export async function renderStatusApp({
       coreClient,
       loginFn,
       oauthPort,
-      oauthCallbackPath,
+      oauthTimeoutMs,
       env,
       config,
       clientIdOverride,
