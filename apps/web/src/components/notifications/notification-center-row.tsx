@@ -62,7 +62,7 @@ export function NotificationCenterRow({
         {showPendingAccessActions ? (
           <button
             type="button"
-            className="hover:bg-card-background -mx-1 cursor-pointer rounded-md px-1 text-left"
+            className="hover:bg-card-background-hover -mx-1 cursor-pointer rounded-md px-1 text-left"
             onClick={() => onClick(notification)}
           >
             <p className="text-sm">{message}</p>
