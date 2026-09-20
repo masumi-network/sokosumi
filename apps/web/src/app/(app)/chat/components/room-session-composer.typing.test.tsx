@@ -182,6 +182,26 @@ describe("RoomSessionComposer typing", () => {
     expect(handleComposerChangeSpy).toHaveBeenCalledWith(true);
   });
 
+  it("still hears the next keystroke when a toolbar insert produced nothing", async () => {
+    // The flag is one-shot. If the insert fails or no-ops it never gets
+    // claimed, and a flag left set would swallow the next genuine keystroke.
+    renderComposer();
+    const editor = await screen.findByRole("textbox");
+
+    await act(async () => {
+      // Announce an insert, then never produce a change from it.
+      screen
+        .getByLabelText("Toolbar.emoji")
+        .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await Promise.resolve();
+    });
+    handleComposerChangeSpy.mockClear();
+
+    await typeInto(editor, "hello");
+
+    expect(handleComposerChangeSpy).toHaveBeenCalledWith(true);
+  });
+
   it("stays silent when a Draft is restored on open", async () => {
     setComposeDraft(DRAFT_KEY, { text: "abandoned draft", attachments: [] });
     renderComposer();

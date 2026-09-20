@@ -635,6 +635,9 @@ export function RoomComposer({
   }
 
   function handleLinkSave(text: string, url: string) {
+    // Third path that puts text in the editor without anyone typing it, after
+    // the emoji picker and quote-restore (ADR-0033).
+    onToolbarInsert?.();
     editorRef.current?.insertLink(text, url);
     editorRef.current?.focus();
   }

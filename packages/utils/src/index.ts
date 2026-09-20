@@ -78,6 +78,7 @@ export {
   type ChatPresenceState,
   isValidAblyClientInstanceId,
   type PresenceConnectionInput,
+  parseUserIdFromAblyPresenceClientId,
 } from "./chat-presence.js";
 export { CHAT_PRESENCE_ONLINE_WINDOW_MS } from "./chat-presence-windows.js";
 export {

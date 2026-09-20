@@ -66,11 +66,23 @@ function connectedHandler(): (() => void) | undefined {
   return call?.[1] as (() => void) | undefined;
 }
 
-/** Feed the hook an event as if it arrived from another client. */
-function emit(data: unknown) {
+/**
+ * Feed the hook an event as if it arrived from another client. Ably stamps
+ * clientId from the sender token, so tests carry one unless they are probing
+ * what happens without it.
+ */
+function emit(data: unknown, clientId?: string | null) {
+  const payload = data as { userId?: string };
+  const resolved =
+    clientId === undefined ? `${payload?.userId ?? ""}:instance-1` : clientId;
   const channel = channelFor(TYPING_CHANNEL);
   for (const [, handler] of channel.subscribe.mock.calls) {
-    (handler as (message: { data: unknown }) => void)({ data });
+    (handler as (message: { data: unknown; clientId?: string | null }) => void)(
+      {
+        data,
+        clientId: resolved,
+      },
+    );
   }
 }
 
@@ -108,6 +120,67 @@ describe("useRoomTyping", () => {
 
     act(() => {
       emit({ userId: "user_pat", state: "started", parentMessageId: "msg_1" });
+    });
+
+    expect(result.current.typistIds).toEqual([]);
+  });
+
+  it("ignores a typist claiming somebody else's name", async () => {
+    // Ably stamps clientId from the token, so a member publishing another
+    // person's userId cannot match it — otherwise they could put words in a
+    // teammate's line.
+    const { result } = renderHook(() => useRoomTyping(ROOM_ID, SELF));
+    await waitFor(() => {
+      expect(channelFor(TYPING_CHANNEL).subscribe).toHaveBeenCalled();
+    });
+
+    act(() => {
+      emit(
+        { userId: "user_pat", state: "started", parentMessageId: null },
+        "user_mallory:instance-9",
+      );
+    });
+
+    expect(result.current.typistIds).toEqual([]);
+  });
+
+  it("ignores a stop forged against another typist", async () => {
+    const { result } = renderHook(() => useRoomTyping(ROOM_ID, SELF));
+    await waitFor(() => {
+      expect(channelFor(TYPING_CHANNEL).subscribe).toHaveBeenCalled();
+    });
+    act(() => {
+      emit({ userId: "user_pat", state: "started", parentMessageId: null });
+    });
+    await waitFor(() => {
+      expect(result.current.typistIds).toEqual(["user_pat"]);
+    });
+
+    act(() => {
+      emit(
+        { userId: "user_pat", state: "stopped", parentMessageId: null },
+        "user_mallory:instance-9",
+      );
+    });
+
+    expect(result.current.typistIds).toEqual(["user_pat"]);
+  });
+
+  it("ignores an event with no clientId to bind it to a sender", async () => {
+    const { result } = renderHook(() => useRoomTyping(ROOM_ID, SELF));
+    await waitFor(() => {
+      expect(channelFor(TYPING_CHANNEL).subscribe).toHaveBeenCalled();
+    });
+
+    act(() => {
+      emit(
+        { userId: "user_pat", state: "started", parentMessageId: null },
+        null,
+      );
+      emit(
+        { userId: "user_pat", state: "started", parentMessageId: null },
+        "malformed-no-separator",
+      );
     });
 
     expect(result.current.typistIds).toEqual([]);

@@ -1,6 +1,9 @@
 "use client";
 
-import { makeChatTypingChannelName } from "@sokosumi/utils";
+import {
+  makeChatTypingChannelName,
+  parseUserIdFromAblyPresenceClientId,
+} from "@sokosumi/utils";
 import type * as Ably from "ably";
 import { useAbly } from "ably/react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -92,6 +95,18 @@ export function useRoomTyping(
     function handleMessage(message: Ably.Message) {
       const parsed = chatTypingEventDataSchema.safeParse(message.data);
       if (!parsed.success) {
+        return;
+      }
+      // Ably stamps clientId from the token, so it is the one part of the
+      // message the sender cannot choose. Without this a room member could
+      // publish somebody else's userId and put words in their line — or a
+      // `stopped` to clear it. The payload field still has to agree, so a
+      // client that gets its own identity wrong fails closed rather than
+      // announcing under the wrong name.
+      const senderUserId = message.clientId
+        ? parseUserIdFromAblyPresenceClientId(message.clientId)
+        : null;
+      if (senderUserId == null || senderUserId !== parsed.data.userId) {
         return;
       }
       // Thread-scoped Typing is not shown yet; a payload that claims a Thread

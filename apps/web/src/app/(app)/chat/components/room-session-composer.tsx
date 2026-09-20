@@ -232,6 +232,14 @@ export function RoomSessionComposer({
 
   const handleToolbarInsert = useCallback(() => {
     toolbarInsertRef.current = true;
+    // The insert dispatches its input event synchronously, so only a change in
+    // this task may claim the flag. Clearing it straight after stops a failed
+    // or no-op insert from leaving the flag set and swallowing the next real
+    // keystroke. Failing this way announces Typing once too often rather than
+    // going silent when somebody is genuinely typing.
+    queueMicrotask(() => {
+      toolbarInsertRef.current = false;
+    });
   }, []);
 
   // The pasted link the pending quote replaced, so removing that quote can put
