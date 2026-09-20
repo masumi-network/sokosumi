@@ -220,6 +220,23 @@ describe("useRoomTyping", () => {
     );
   });
 
+  it("swallows an attach/detach race instead of leaving an unhandled rejection", async () => {
+    const { unmount } = renderHook(() => useRoomTyping(ROOM_ID, SELF));
+    await waitFor(() => {
+      expect(channelFor(TYPING_CHANNEL).subscribe).toHaveBeenCalled();
+    });
+    const race = Object.assign(
+      new Error("attach request superseded by a subsequent detach request"),
+      { code: 90000, statusCode: 409 },
+    );
+    channelFor(TYPING_CHANNEL).detach.mockRejectedValue(race);
+
+    unmount();
+    await Promise.resolve();
+
+    expect(channelFor(TYPING_CHANNEL).detach).toHaveBeenCalled();
+  });
+
   it("shows nobody and publishes nothing when the token grants no typing", async () => {
     authorizeMock.mockResolvedValue({ capability: JSON.stringify({}) });
     const { result } = renderHook(() => useRoomTyping(ROOM_ID, SELF));

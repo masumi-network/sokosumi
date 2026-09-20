@@ -15,6 +15,7 @@ import {
   type TypingSet,
   type TypingState,
 } from "./room-typing-model";
+import { safeDetachChannel, safeSubscribeChannel } from "./safe-detach-channel";
 import { chatTypingEventDataSchema } from "./schema";
 
 const CHAT_TYPING_EVENT_NAME = "chat_typing";
@@ -143,7 +144,7 @@ export function useRoomTyping(
     function tearDown() {
       if (channel) {
         channel.unsubscribe(CHAT_TYPING_EVENT_NAME, handleMessage);
-        channel.detach();
+        safeDetachChannel(channel);
         channel = null;
       }
       canPublish = false;
@@ -181,7 +182,7 @@ export function useRoomTyping(
 
       if (!channel) {
         channel = ably.channels.get(channelName);
-        channel.subscribe(CHAT_TYPING_EVENT_NAME, handleMessage);
+        safeSubscribeChannel(channel, CHAT_TYPING_EVENT_NAME, handleMessage);
         intervalId = window.setInterval(recompute, TYPING_SWEEP_TICK_MS);
       }
     }
