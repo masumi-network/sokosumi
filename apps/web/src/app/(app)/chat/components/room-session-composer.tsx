@@ -384,11 +384,13 @@ export function RoomSessionComposer({
     // Text pastes bubble here after the editor inserted them as plain text.
     // `contents` keeps the Typing line a layout sibling of the composer card.
     <div className="contents" onPaste={(event) => void handlePaste(event)}>
-      {typingEnabled ? (
-        <RoomTypingLine typistIds={typistIds} usersById={usersById} />
-      ) : null}
       <RoomComposer
         ref={composerRef}
+        typingLine={
+          typingEnabled ? (
+            <RoomTypingLine typistIds={typistIds} usersById={usersById} />
+          ) : null
+        }
         roomId={roomId}
         value={composerValue}
         onValueChange={handleComposerValueChange}

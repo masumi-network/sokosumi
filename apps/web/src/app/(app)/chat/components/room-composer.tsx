@@ -18,6 +18,7 @@ import { useTranslations } from "next-intl";
 import {
   type Dispatch,
   type FormEvent,
+  type ReactNode,
   type Ref,
   type SetStateAction,
   useCallback,
@@ -348,6 +349,7 @@ export function RoomComposer({
   value,
   onValueChange,
   onEditorBlur,
+  typingLine,
   onToolbarInsert,
   mentions,
   usersById,
@@ -382,6 +384,8 @@ export function RoomComposer({
   onValueChange: Dispatch<SetStateAction<string>>;
   /** Editor lost focus — one of the four Typing stops (ADR-0033). */
   onEditorBlur?: () => void;
+  /** The Typing line, handed through to the composer chrome (ADR-0033). */
+  typingLine?: ReactNode;
   /**
    * A toolbar control put text in the editor rather than the person typing it.
    * Fires just before the insertion, so the resulting change can be told apart
@@ -660,6 +664,7 @@ export function RoomComposer({
   return (
     <>
       <RoomMessageComposer
+        typingLine={typingLine}
         formRef={formRef}
         onSubmit={onSubmit}
         withOuterPadding={false}

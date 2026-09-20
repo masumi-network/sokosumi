@@ -22,9 +22,20 @@ const NAME_LIMIT = 2;
 /**
  * The Typing line: who is composing a message to this room right now.
  *
- * Holds its height whether or not anyone is typing, so the composer never
- * moves under a reader mid-sentence. Static, because an animated indicator
- * would read as a coworker's Thought (ADR-0033).
+ * Placement is the composer form's, and differs by width (ADR-0033):
+ * - **Narrow**: an ordinary row above the composer card, holding its height
+ *   whether or not anyone is typing, so the composer never moves under a
+ *   reader mid-sentence. It costs one line of the transcript.
+ * - **`md` and up**: out of flow, in the bottom padding the form already has.
+ *   That space exists either way, so the transcript keeps its full height and
+ *   still nothing moves.
+ *
+ * Always rendered, with only its text swapped. A live region that mounts
+ * together with its text usually fails to announce, so the persistent node is
+ * doing two jobs: reserving the narrow-layout row, and being a region screen
+ * readers actually follow.
+ *
+ * Static, because an animated indicator would read as a coworker's Thought.
  */
 export function RoomTypingLine({ typistIds, usersById }: RoomTypingLineProps) {
   const t = useTranslations("App.Chat.Chat");
@@ -47,7 +58,8 @@ export function RoomTypingLine({ typistIds, usersById }: RoomTypingLineProps) {
   return (
     <p
       aria-live="polite"
-      className="text-muted-foreground min-h-5 truncate px-4 text-xs"
+      aria-atomic="true"
+      className="text-muted-foreground min-h-5 truncate px-4 text-xs md:absolute md:inset-x-0 md:bottom-1 md:min-h-0 md:px-9"
       data-testid="room-typing-line"
     >
       {label}
