@@ -44,7 +44,7 @@ export function TaskListItem({
         href={`/tasks/${task.id}`}
         className={cn(
           "flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4",
-          "rounded-lg px-4 py-3 transition-colors",
+          "rounded-none px-4 py-3 transition-colors",
           "hover:bg-card-background",
           "active:scale-[0.995]",
           (dragHandleProps?.isDragging || isOverlay) && "bg-senary shadow-sm",
