@@ -1,3 +1,5 @@
+export type VendorRole = "admin" | "developer";
+
 export interface Vendor {
   id: string;
   createdAt: string | null;
@@ -8,8 +10,10 @@ export interface Vendor {
     light: string | null;
     dark: string | null;
   };
-  role: string | null;
+  role: VendorRole | null;
 }
+
+const VENDOR_ROLES: readonly VendorRole[] = ["admin", "developer"];
 
 function asRecord(input: unknown): Record<string, unknown> {
   return input && typeof input === "object" && !Array.isArray(input)
@@ -28,6 +32,13 @@ function requiredIdentity(value: unknown, field: string): string {
   return value;
 }
 
+function vendorRole(value: unknown): VendorRole | null {
+  return typeof value === "string" &&
+    (VENDOR_ROLES as readonly string[]).includes(value)
+    ? (value as VendorRole)
+    : null;
+}
+
 export function parseVendor(input: unknown): Vendor {
   const value = asRecord(input);
   const logos = asRecord(value.logos);
@@ -41,6 +52,6 @@ export function parseVendor(input: unknown): Vendor {
       light: nullableString(logos.light),
       dark: nullableString(logos.dark),
     },
-    role: nullableString(value.role),
+    role: vendorRole(value.role),
   };
 }

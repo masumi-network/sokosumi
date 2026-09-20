@@ -1,11 +1,19 @@
+export type OrganizationRole = "owner" | "admin" | "member";
+
 export interface OrganizationWorkspace {
   organizationId: string;
   createdAt: string | null;
   name: string | null;
   slug: string | null;
   logo: string | null;
-  role: string | null;
+  role: OrganizationRole | null;
 }
+
+const ORGANIZATION_ROLES: readonly OrganizationRole[] = [
+  "owner",
+  "admin",
+  "member",
+];
 
 function asRecord(input: unknown): Record<string, unknown> {
   return input && typeof input === "object" && !Array.isArray(input)
@@ -24,6 +32,13 @@ function requiredOrganizationId(value: unknown): string {
   return value;
 }
 
+function organizationRole(value: unknown): OrganizationRole | null {
+  return typeof value === "string" &&
+    (ORGANIZATION_ROLES as readonly string[]).includes(value)
+    ? (value as OrganizationRole)
+    : null;
+}
+
 export function parseOrganizationWorkspace(
   input: unknown,
 ): OrganizationWorkspace {
@@ -34,6 +49,6 @@ export function parseOrganizationWorkspace(
     name: nullableString(value.name),
     slug: nullableString(value.slug),
     logo: nullableString(value.logo),
-    role: nullableString(value.role),
+    role: organizationRole(value.role),
   };
 }
