@@ -66,7 +66,9 @@ gh pr view <number> --json statusCheckRollup,state
 
 Wait until required checks are `pass` / `success`. Fail on `fail` / `failure` / `cancelled` / `timed_out`. Fix and re-push until green.
 
-### 3. Bugbot (zero High)
+### 3. Bugbot (zero High) — optional
+
+Bugbot is optional. If the `bugbot` subagent type is not available, skip this step. The gate is then local verify + CI green.
 
 Launch Task:
 
@@ -84,7 +86,7 @@ Full Repository Path: <absolute repository root>
 Diff: branch changes
 ```
 
-If the subagent cannot compute the diff, retry once with `Diff: natural language` and a per-file change description (see Cursor `review-bugbot` skill).
+If the subagent cannot compute the diff, retry once with `Diff: natural language` and a per-file change description.
 
 | Severity | Action |
 |----------|--------|
@@ -92,7 +94,7 @@ If the subagent cannot compute the diff, retry once with `Diff: natural language
 | **Medium** | Do not block. Post for human merge pass (step 4). Fix only if trivial and clearly in scope. |
 | **Low** | Optional note; no gate. |
 
-If Bugbot cannot run after one retry: **stop** and report the blocker. Do not claim the PR is ready.
+If the `bugbot` subagent is missing: skip Bugbot and continue (local verify + CI still apply). If Bugbot is available but cannot run after one retry: **stop** and report the blocker. Do not claim the PR is ready.
 
 Optional self-check before Bugbot: load `QUALITY-RULES.md` for triggers that match the diff (R1–R12).
 
@@ -128,12 +130,12 @@ prUrl: <url>
 branch: <name>
 verification: <commands + exit 0>
 ci: green|failed|pending
-bugbotHigh: 0|<n>
+bugbotHigh: 0|<n>|skipped
 bugbotMedium: <n> (linear|pr|none)
 blocker: <text if ok false>
 ```
 
-`ok: true` only when local verify exit 0, CI green, and Bugbot High = 0.
+`ok: true` only when local verify exit 0, CI green, and Bugbot High = 0 (or Bugbot skipped because the subagent is missing).
 
 ## What not to do
 

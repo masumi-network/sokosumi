@@ -3,7 +3,6 @@
  * Portless helpers for local / worktree stacks.
  *
  * Commands:
- *   node scripts/local-env/portless-dev.mjs bootstrap
  *   node scripts/local-env/portless-dev.mjs proxy
  *   node scripts/local-env/portless-dev.mjs url web|core
  *   node scripts/local-env/portless-dev.mjs run
@@ -351,10 +350,7 @@ const isMain =
 
 if (isMain) {
   const command = process.argv[2] ?? "run";
-  if (command === "bootstrap") {
-    const paths = await bootstrapLocalEnv(repoRoot);
-    console.log(`env bootstrap ok\n  core ${paths.core}\n  web  ${paths.web}`);
-  } else if (command === "proxy") {
+  if (command === "proxy") {
     ensureProxy();
     console.log("portless proxy ok");
   } else if (command === "url") {
@@ -374,7 +370,7 @@ if (isMain) {
     await runStack(process.argv[3]);
   } else {
     console.error(
-      "usage: portless-dev.mjs [run [web|core]|bootstrap|proxy|url web|url core]",
+      "usage: portless-dev.mjs [run [web|core]|proxy|url web|url core]",
     );
     process.exit(1);
   }
