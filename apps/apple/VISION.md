@@ -80,7 +80,7 @@ The iOS target links the same packages and ships its own SwiftUI. It does not fo
 
 ## Exclusions and earlier tracer limits
 
-- Windows or Linux native apps. Those stay `apps/web`.
+- Windows or Linux implementation in this Apple tree. Future native clients (WinUI 3 / C# and GTK 4 + Libadwaita / Rust, Flatpak) require a separate ADR and directory. Keep SwiftUI here; extract shared business logic only when the second client starts, with no Rust core or UniFFI now.
 - Kotlin Multiplatform, Compose Multiplatform, Electron, Tauri, Mac Catalyst.
 - Replacing Core or `apps/web`.
 - Coworker streaming, Soko Bot chat, attachments, mentions, and in-app notification behavior were deferred from the original tracer. They are now tracked as later slices in `PARITY.md`, not excluded from the ongoing chat goal. Closed-app push still requires separate scope/contract approval under ADR 0022 / 0023.
