@@ -19,7 +19,7 @@ export function driveItemsPanelClass(viewMode: FilesViewMode): string {
 export function driveItemsListClass(viewMode: FilesViewMode): string {
   return viewMode === "grid"
     ? DRIVE_ITEMS_GRID_CLASS
-    : "divide-border divide-y px-2";
+    : "divide-border divide-y";
 }
 
 export function driveRecentsDayItemsClass(viewMode: FilesViewMode): string {
@@ -32,7 +32,11 @@ export function driveItemArticleClass(viewMode: FilesViewMode): string {
   return viewMode === "grid"
     ? "group bg-background relative flex items-center gap-2 rounded-lg border border-border p-3 hover:bg-card-background"
     : cn(
-        "relative -mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-background",
+        // Square and full-bleed: the row spans the card, so a radius of its
+        // own would round the hover fill between straight dividers. Its px-2
+        // plus the body's px-2 keep content at the same 16px inset the
+        // container's padding used to provide.
+        "relative flex items-center gap-1 rounded-none px-2 hover:bg-card-background-hover",
         PROJECTS_LIST_ROW_LAYOUT_CLASS,
       );
 }
