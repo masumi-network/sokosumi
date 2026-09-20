@@ -16,6 +16,7 @@ import {
 } from "@sokosumi/utils";
 
 import { getEnv } from "@/config/env";
+import { sendBillingNotificationEmail } from "@/helpers/billing-notification-email";
 import { BILLING_ATTENTION_MESSAGE_KEYS } from "@/helpers/notification-delivery";
 import { markAttentionRead } from "@/helpers/notification-read";
 import { createNotification } from "@/helpers/notifications";
@@ -125,7 +126,7 @@ async function writeBillingNotification(
   ]);
 
   for (const userId of recipients) {
-    await createNotification({
+    const { created } = await createNotification({
       userId,
       kind: NotificationKind.BILLING,
       referenceId,
@@ -134,6 +135,17 @@ async function writeBillingNotification(
       messageParams: input.messageParams,
       metadata: { workspaceId, organizationId: wallet.organizationId },
     });
+
+    // A duplicate row is the throttle: mailing it again would be a second
+    // warning for the same funding. Stripe already mails the other three
+    // billing keys, so only a newly written low-balance row reaches inbox.
+    if (created) {
+      await sendBillingNotificationEmail({
+        userId,
+        messageKey: input.messageKey,
+        messageParams: input.messageParams,
+      });
+    }
   }
 }
 

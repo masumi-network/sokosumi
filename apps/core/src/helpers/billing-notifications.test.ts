@@ -18,6 +18,7 @@ const {
   prismaCreditBucketFindFirstMock,
   prismaMemberFindManyMock,
   prismaWorkspaceFindUniqueMock,
+  sendBillingNotificationEmailMock,
 } = vi.hoisted(() => ({
   captureExceptionMock: vi.fn(),
   createNotificationMock: vi.fn(),
@@ -28,6 +29,7 @@ const {
   prismaCreditBucketFindFirstMock: vi.fn(),
   prismaMemberFindManyMock: vi.fn(),
   prismaWorkspaceFindUniqueMock: vi.fn(),
+  sendBillingNotificationEmailMock: vi.fn(),
 }));
 
 vi.mock("@sentry/node", () => ({
@@ -50,6 +52,11 @@ vi.mock("@sokosumi/database/repositories", () => ({
 
 vi.mock("@/config/env", () => ({
   getEnv: () => ({ LOW_CREDITS_THRESHOLD: 100 }),
+}));
+
+vi.mock("@/helpers/billing-notification-email", () => ({
+  sendBillingNotificationEmail: (...args: unknown[]) =>
+    sendBillingNotificationEmailMock(...args),
 }));
 
 vi.mock("@/helpers/notifications", () => ({
@@ -133,6 +140,11 @@ describe("notifyLowBalanceAfterCharge", () => {
       messageParams: { credits: 42 },
       metadata: { workspaceId: "ws-1", organizationId: null },
     });
+    expect(sendBillingNotificationEmailMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      messageKey: BILLING_LOW_BALANCE_MESSAGE_KEY,
+      messageParams: { credits: 42 },
+    });
   });
 
   it("says nothing while the balance is at or above the threshold", async () => {
@@ -141,6 +153,15 @@ describe("notifyLowBalanceAfterCharge", () => {
     await notifyLowBalanceAfterCharge(PERSONAL);
 
     expect(createNotificationMock).not.toHaveBeenCalled();
+  });
+
+  it("does not mail a warning the table already holds", async () => {
+    getBalanceMock.mockResolvedValue(0n);
+    createNotificationMock.mockResolvedValue({ created: false });
+
+    await notifyLowBalanceAfterCharge(PERSONAL);
+
+    expect(sendBillingNotificationEmailMock).not.toHaveBeenCalled();
   });
 
   /**
