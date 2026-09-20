@@ -1,11 +1,11 @@
-import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { createNestedOpenAPIHono } from "@/lib/hono";
 
 import mountDeleteAdminVendor from "./[id]/delete.js";
 import mountPatchAdminVendor from "./[id]/patch.js";
 import mountListAdminVendors from "./get.js";
 import mountCreateAdminVendor from "./post.js";
 
-const app = new OpenAPIHonoWithAuth();
+const app = createNestedOpenAPIHono();
 
 mountListAdminVendors(app);
 mountCreateAdminVendor(app);

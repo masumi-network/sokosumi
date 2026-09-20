@@ -1,4 +1,4 @@
-import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { createNestedOpenAPIHono } from "@/lib/hono";
 import mountArchiveAdminMatchedChannel from "./[roomId]/archive/post.js";
 import mountDeleteAdminMatchedChannel from "./[roomId]/delete.js";
 import mountGetAdminMatchedChannel from "./[roomId]/get.js";
@@ -9,7 +9,7 @@ import mountRestoreAdminMatchedChannel from "./[roomId]/restore/post.js";
 import mountListAdminMatchedChannels from "./get.js";
 import mountCreateAdminMatchedChannel from "./post.js";
 
-const app = new OpenAPIHonoWithAuth();
+const app = createNestedOpenAPIHono();
 
 mountListAdminMatchedChannels(app);
 mountCreateAdminMatchedChannel(app);
