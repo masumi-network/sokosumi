@@ -2078,6 +2078,8 @@
       "list": {
         "loadMore": "Cargar más",
         "loading": "Cargando proyectos...",
+        "lastActivity": "Última actividad",
+        "created": "Creado",
         "stats": {
           "tasks": "Tareas",
           "jobs": "Jobs",

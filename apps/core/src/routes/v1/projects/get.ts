@@ -107,16 +107,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       prisma.project.count({ where }),
     ]);
     const byId = new Map(rows.map((row) => [row.id, row]));
-    const projects = page.flatMap(({ id }) => {
-      const project = byId.get(id);
-      return project ? [project] : [];
-    });
+    const projectsWithCounts = page.flatMap(({ id, lastActivityAt }) => {
+      const row = byId.get(id);
+      if (!row) return [];
 
-    const projectsWithCounts = projects.map(({ _count, ...project }) => ({
-      ...mapProjectForApi(project),
-      taskCount: _count.tasks,
-      jobCount: _count.jobs,
-    }));
+      const { _count, ...project } = row;
+      return [
+        {
+          ...mapProjectForApi(project),
+          taskCount: _count.tasks,
+          jobCount: _count.jobs,
+          lastActivityAt,
+        },
+      ];
+    });
     const paginationMeta = createPaginationMeta(
       page,
       count,

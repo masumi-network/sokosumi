@@ -70,9 +70,11 @@ function ProjectListItemSkeleton() {
           </div>
         </div>
 
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+        {/* One pill, not two: the jobs pill is dropped at zero, so most rows
+            carry a single count plus the activity stamp. */}
+        <div className="flex shrink-0 items-center gap-2">
           <Skeleton className="h-5 w-10 rounded-full" />
-          <Skeleton className="h-5 w-10 rounded-full" />
+          <Skeleton className="h-4 w-16" />
         </div>
       </div>
     </article>

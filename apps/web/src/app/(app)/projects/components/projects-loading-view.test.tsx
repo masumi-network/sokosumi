@@ -79,7 +79,8 @@ describe("ProjectsLoadingView", () => {
       expect(row?.className).not.toContain("border-border");
       expect(row?.className).not.toContain("bg-overlay");
       expect(row?.className.split(/\s+/)).not.toContain("border");
-      // Avatar + name + briefing + two count pills; no overflow actions column.
+      // Avatar + name + briefing + one count pill + activity stamp; no
+      // overflow actions column.
       expect(item.querySelectorAll('[data-slot="skeleton"]').length).toBe(5);
       for (const token of PROJECTS_LIST_ROW_LAYOUT_CLASS.split(/\s+/)) {
         expect(item.className).toContain(token);

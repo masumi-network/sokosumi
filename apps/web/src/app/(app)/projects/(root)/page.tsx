@@ -68,6 +68,8 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
             tasks: t("list.stats.tasks"),
             jobs: t("list.stats.jobs"),
           },
+          lastActivity: t("list.lastActivity"),
+          created: t("list.created"),
         }}
       />
     </div>

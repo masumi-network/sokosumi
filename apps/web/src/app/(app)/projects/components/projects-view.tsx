@@ -39,6 +39,8 @@ export interface ProjectsViewLabels {
     tasks: string;
     jobs: string;
   };
+  lastActivity: string;
+  created: string;
 }
 
 interface ProjectsViewProps {
@@ -113,7 +115,11 @@ export function ProjectsView({
                 <ProjectListItem
                   key={project.id}
                   project={project}
-                  labels={{ counts: labels.counts }}
+                  labels={{
+                    counts: labels.counts,
+                    lastActivity: labels.lastActivity,
+                    created: labels.created,
+                  }}
                 />
               ))}
             </div>
