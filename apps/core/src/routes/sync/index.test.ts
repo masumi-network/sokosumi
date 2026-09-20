@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import prisma from "@/lib/db/prisma";
 
@@ -165,8 +165,19 @@ vi.mock("@vercel/functions", () => ({
   },
 }));
 
-async function createApp() {
-  const { default: syncRouter } = await import("./index");
+/**
+ * Loaded once in `beforeAll`. Importing the sync router pulls in Core's whole
+ * module graph, which took ~1.5s here and over 5s under full-suite worker
+ * contention. Inside the first `it` that cost lands in a test's own budget and
+ * times it out; in a hook it is setup, where it belongs.
+ */
+let syncRouter: Hono;
+
+beforeAll(async () => {
+  ({ default: syncRouter } = await import("./index"));
+});
+
+function createApp() {
   const app = new Hono();
   app.route("/sync", syncRouter);
   return app;
@@ -248,7 +259,7 @@ describe("sync routes", () => {
   });
 
   it("returns 401 for missing cron auth", async () => {
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request("http://localhost/sync/agents");
 
@@ -258,7 +269,7 @@ describe("sync routes", () => {
   });
 
   it("returns 401 for invalid cron auth", async () => {
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request("http://localhost/sync/agents", {
       headers: {
@@ -273,7 +284,7 @@ describe("sync routes", () => {
 
   it("returns 409 when lock is already held", async () => {
     acquireLockMock.mockRejectedValue(new Error("LOCK_IS_LOCKED"));
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request("http://localhost/sync/agents", {
       headers: {
@@ -286,7 +297,7 @@ describe("sync routes", () => {
   });
 
   it("returns 401 for missing cron auth on jobs sync", async () => {
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request("http://localhost/sync/jobs");
 
@@ -296,7 +307,7 @@ describe("sync routes", () => {
   });
 
   it("returns 401 for invalid cron auth on jobs sync", async () => {
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request("http://localhost/sync/jobs", {
       headers: {
@@ -311,7 +322,7 @@ describe("sync routes", () => {
 
   it("returns 409 when jobs sync lock is already held", async () => {
     acquireLockMock.mockRejectedValue(new Error("LOCK_IS_LOCKED"));
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request("http://localhost/sync/jobs", {
       headers: {
@@ -324,7 +335,7 @@ describe("sync routes", () => {
   });
 
   it("runs due schedules, validation, and reconciliation within one deadline", async () => {
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request("http://localhost/sync/task-schedules", {
       headers: {
@@ -360,7 +371,7 @@ describe("sync routes", () => {
   it("returns 200 and starts registry sync exactly once in background", async () => {
     const deferred = createDeferred();
     syncRegistryAgentsMock.mockImplementation(() => deferred.promise);
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request("http://localhost/sync/agents", {
       headers: {
@@ -383,7 +394,7 @@ describe("sync routes", () => {
   it("refreshes the Cardano V2 rail readiness before the registry sync", async () => {
     const deferred = createDeferred();
     syncCardanoV2RailReadinessMock.mockImplementation(() => deferred.promise);
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request("http://localhost/sync/agents", {
       headers: {
@@ -413,7 +424,7 @@ describe("sync routes", () => {
   it("refreshes the x402 buy-side readiness before the registry sync", async () => {
     const deferred = createDeferred();
     syncX402BuySideReadinessMock.mockImplementation(() => deferred.promise);
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request("http://localhost/sync/agents", {
       headers: {
@@ -442,7 +453,7 @@ describe("sync routes", () => {
     // The x402 listing reads getX402ReadySources at request time; nothing
     // readiness-dependent is baked into agent rows, so no replay is needed.
     syncX402BuySideReadinessMock.mockResolvedValue(true);
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request("http://localhost/sync/agents", {
       headers: {
@@ -463,7 +474,7 @@ describe("sync routes", () => {
     // job. An unhandled throw from the readiness refresh (e.g. its 10s abort
     // firing) must be swallowed so the registry replay still runs.
     syncX402BuySideReadinessMock.mockRejectedValue(new Error("node timeout"));
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request("http://localhost/sync/agents", {
       headers: {
@@ -477,7 +488,7 @@ describe("sync routes", () => {
   });
 
   it("does not request a cursor reset on the recurring agents sync", async () => {
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request("http://localhost/sync/agents", {
       headers: {
@@ -495,7 +506,7 @@ describe("sync routes", () => {
 
   it("requests a cursor reset when the readiness source set changes", async () => {
     syncCardanoV2RailReadinessMock.mockResolvedValue(true);
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request("http://localhost/sync/agents", {
       headers: {
@@ -512,7 +523,7 @@ describe("sync routes", () => {
   });
 
   it("returns 200 and starts summary sync exactly once in background", async () => {
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request("http://localhost/sync/agents-summary", {
       headers: {
@@ -528,7 +539,7 @@ describe("sync routes", () => {
   });
 
   it("returns 200 and starts enterprise-contract renewal sync exactly once in background", async () => {
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request(
       "http://localhost/sync/enterprise-contracts-renewal",
@@ -550,7 +561,7 @@ describe("sync routes", () => {
   });
 
   it("returns 200 and starts free-subscription renewal sync exactly once in background", async () => {
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request(
       "http://localhost/sync/free-subscriptions-renewal",
@@ -578,7 +589,7 @@ describe("sync routes", () => {
   });
 
   it("returns 200 and starts source import sync exactly once in background", async () => {
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request("http://localhost/sync/source-import", {
       headers: {
@@ -601,7 +612,7 @@ describe("sync routes", () => {
   });
 
   it("returns 200 and starts jobs sync exactly once in background", async () => {
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request("http://localhost/sync/jobs", {
       headers: {
@@ -624,7 +635,7 @@ describe("sync routes", () => {
   });
 
   it("resets the purchase cursor when a jobs replay is requested", async () => {
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request(
       "http://localhost/sync/jobs?replay=true",
@@ -645,7 +656,7 @@ describe("sync routes", () => {
   });
 
   it("leaves the purchase cursor in place on a normal jobs run", async () => {
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request("http://localhost/sync/jobs", {
       headers: {
@@ -677,7 +688,7 @@ describe("sync routes", () => {
         .mockImplementation(() => undefined);
 
       try {
-        const app = await createApp();
+        const app = createApp();
         const response = await app.request(
           "http://localhost/sync/source-import",
           {
@@ -729,7 +740,7 @@ describe("sync routes", () => {
         .mockImplementation(() => undefined);
 
       try {
-        const app = await createApp();
+        const app = createApp();
         const response = await app.request("http://localhost/sync/jobs", {
           headers: {
             Authorization: "Bearer test-cron-secret",
@@ -754,7 +765,7 @@ describe("sync routes", () => {
   });
 
   it("returns 200 and starts stripe customer sync exactly once in background", async () => {
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request(
       "http://localhost/sync/stripe-customers",
@@ -773,7 +784,7 @@ describe("sync routes", () => {
   });
 
   it("returns 401 for missing cron auth on guest invitation expiry sync", async () => {
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request(
       "http://localhost/sync/chat-room-guest-invitations-expire",
@@ -785,7 +796,7 @@ describe("sync routes", () => {
   });
 
   it("returns 401 for invalid cron auth on guest invitation expiry sync", async () => {
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request(
       "http://localhost/sync/chat-room-guest-invitations-expire",
@@ -803,7 +814,7 @@ describe("sync routes", () => {
 
   it("returns 409 when guest invitation expiry lock is already held", async () => {
     acquireLockMock.mockRejectedValue(new Error("LOCK_IS_LOCKED"));
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request(
       "http://localhost/sync/chat-room-guest-invitations-expire",
@@ -819,7 +830,7 @@ describe("sync routes", () => {
   });
 
   it("returns 200 and starts guest invitation expiry sync exactly once in background", async () => {
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request(
       "http://localhost/sync/chat-room-guest-invitations-expire",
@@ -840,7 +851,7 @@ describe("sync routes", () => {
   });
 
   it("returns 401 for missing cron auth on follow-up notification sync", async () => {
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request(
       "http://localhost/sync/notification-follow-ups",
@@ -853,7 +864,7 @@ describe("sync routes", () => {
 
   it("returns 409 when the follow-up notification lock is already held", async () => {
     acquireLockMock.mockRejectedValue(new Error("LOCK_IS_LOCKED"));
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request(
       "http://localhost/sync/notification-follow-ups",
@@ -869,7 +880,7 @@ describe("sync routes", () => {
   });
 
   it("returns 200 and starts the follow-up notification sync exactly once in background", async () => {
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request(
       "http://localhost/sync/notification-follow-ups",
@@ -912,7 +923,7 @@ describe("sync routes", () => {
           }),
       );
 
-      const app = await createApp();
+      const app = createApp();
       const response = await app.request(
         "http://localhost/sync/notification-follow-ups",
         { headers: { Authorization: "Bearer test-cron-secret" } },
@@ -956,7 +967,7 @@ describe("sync routes", () => {
   });
 
   it("returns 401 for missing cron auth on x402 header purge sync", async () => {
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request(
       "http://localhost/sync/task-x402-payment-headers-purge",
@@ -969,7 +980,7 @@ describe("sync routes", () => {
 
   it("returns 409 when the x402 header purge lock is already held", async () => {
     acquireLockMock.mockRejectedValue(new Error("LOCK_IS_LOCKED"));
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request(
       "http://localhost/sync/task-x402-payment-headers-purge",
@@ -982,7 +993,7 @@ describe("sync routes", () => {
 
   it("returns 200 and starts the x402 header purge exactly once in background", async () => {
     purgeExpiredTaskX402PaymentHeadersMock.mockResolvedValue({ purged: 2 });
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request(
       "http://localhost/sync/task-x402-payment-headers-purge",
@@ -1004,7 +1015,7 @@ describe("sync routes", () => {
 
   it("releases guest invitation expiry lock after completion", async () => {
     expireStalePendingInvitationsMock.mockResolvedValue(3);
-    const app = await createApp();
+    const app = createApp();
 
     const response = await app.request(
       "http://localhost/sync/chat-room-guest-invitations-expire",
@@ -1039,7 +1050,7 @@ describe("sync routes", () => {
         .mockImplementation(() => undefined);
 
       try {
-        const app = await createApp();
+        const app = createApp();
         const response = await app.request(
           "http://localhost/sync/chat-room-guest-invitations-expire",
           {
@@ -1073,7 +1084,7 @@ describe("sync routes", () => {
       .mockImplementation(() => undefined);
 
     try {
-      const app = await createApp();
+      const app = createApp();
       const response = await app.request(
         "http://localhost/sync/chat-room-guest-invitations-expire",
         {
@@ -1109,7 +1120,7 @@ describe("sync routes", () => {
         .mockImplementation(() => undefined);
 
       try {
-        const app = await createApp();
+        const app = createApp();
         const response = await app.request("http://localhost/sync/agents", {
           headers: {
             Authorization: "Bearer test-cron-secret",
@@ -1149,7 +1160,7 @@ describe("sync routes", () => {
         .mockImplementation(() => undefined);
 
       try {
-        const app = await createApp();
+        const app = createApp();
         const response = await app.request("http://localhost/sync/agents", {
           headers: {
             Authorization: "Bearer test-cron-secret",
@@ -1182,7 +1193,7 @@ describe("sync routes", () => {
     try {
       syncRegistryAgentsMock.mockRejectedValue(new Error("sync failed fast"));
 
-      const app = await createApp();
+      const app = createApp();
       const response = await app.request("http://localhost/sync/agents", {
         headers: {
           Authorization: "Bearer test-cron-secret",
