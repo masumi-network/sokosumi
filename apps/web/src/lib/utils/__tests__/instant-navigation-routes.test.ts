@@ -48,7 +48,7 @@ const SUSPENSE_WRAPPED = new Set([
  * In-app destinations that still read URL data above their boundary. These
  * are where an App Shell actually pays off, so they want the Suspense
  * treatment rather than an opt-out — follow
- * `apps/web/.claude/skills/next-partial-prefetching-adoption` step 5, feature
+ * `apps/web/.agents/skills/next-partial-prefetching-adoption` step 5, feature
  * by feature, and delete each entry as it moves to SUSPENSE_WRAPPED.
  *
  * Shrink this list. Do not add to it: a new route picks a side on day one.
