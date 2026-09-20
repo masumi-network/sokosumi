@@ -32,6 +32,7 @@
 - cmd: `auth logout` → clear target-scoped local credentials; server key revocation separate
 - cmd: `discover` → command catalog + Core resource snapshot; partial resource failure → JSON/text errors
 - `agents list|hire`, `coworkers list|register|update|api-key|me`, `tasks list|create|get|events|jobs|comment`, `jobs list|get|input` → Core HTTP; `--json` → JSON-only stdout
+- `vendors me` → administered Vendor memberships only; `workspaces list` → organization-workspace candidates with `organizationId`; text or one JSON document
 - global: `--json`, `--api-url`, `--preprod`, `--client-id`, `--api-key-stdin`
 - env: `SOKOSUMI_MAINNET_OAUTH_CLIENT_ID`, `SOKOSUMI_PREPROD_OAUTH_CLIENT_ID`, `SOKOSUMI_OAUTH_CLIENT_ID`, `SOKOSUMI_AUTH_URL`, `SOKOSUMI_API_URL`, `SOKOSUMI_API_KEY`; hosted OAuth IDs: mainnet `GxmewjdHVAaqUEglxWdyCqVFvnTASycj`, preprod `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR`; hosted auth base = selected API URL + `/auth`
 - design: external `I-Want-You-Desing-Tui-Sokosumi` bundle primary file `sokosumi-tui-v1.html`; companions `DESIGN-HANDOFF.md`, `DESIGN-MANIFEST.json`, `brand-spec.md`; visual source only, ⊥ runtime asset.
@@ -121,6 +122,8 @@ V75: x402 funding explicitly selected ∈ {workspace credits, runtime-held walle
 V76: customer debit ≠ seller settlement; paid-graduation evidence must prove service delivery and intended seller receipt. Coworker-reported amount alone is not customer price authorization.
 V77: public paid runtime isolated from developer credentials; trusted private same-user session not advertised as isolated. Container/cloud label alone proves nothing.
 V78: runtime secrets never in argv, model-visible output, logs, or non-secret config; ephemeral secrets in memory, persistent secrets in OS vault; delivery contract requires approval.
+V79: `vendors me` → preserve Vendor memberships + roles; registration selection later requires role = `admin`; `workspaces list` identity = `organizationId`; organization metadata ∉ output; non-array list or missing required identity → fail; `--json` → one document.
+V80: shared discovery handler ! exact subcommand before Core call; bare `vendors` / `workspaces` → reject.
 
 ## §T TASKS
 
@@ -161,6 +164,7 @@ T32|.|approve chat transport; implement permitted direct/chat-channel/group part
 T33|.|approve Masumi funding/custody contract; general x402 services within authorized rails and limits|V70,V75,V76
 T34|.|Core seller usage-price authorization, version review, settlement and controlled payment evidence|V73,V74,V76
 T35|.|Core readiness derivation, capability evidence, waitlist review; CLI exposes status without self-approval|V70,V71,V72
+T36|x|CLI read-only administered Vendor + organization-workspace discovery|V18,V19,V42,V67,V79,V80,I
 
 ## §B BUGS
 
@@ -209,3 +213,8 @@ B41|2026-09-11|npm updater built command lines from user-controlled environment 
 B42|2026-09-11|CLI pinned `@types/react@19.2.18` beside workspace `19.3.0` ∴ Web build/typecheck saw unrelated React `Key`/`Ref` types|V64
 B43|2026-09-11|updater bin tests used manifest `2.1.4` as both current/latest ∴ update path did not run and 3 CLI tests failed|V38
 B44|2026-09-12|GNOME `secret-tool` lookup returns status 1 with empty stderr for a missing item; text-only detection rejected a healthy empty vault|V65
+B45|2026-09-20|admin-only Vendor filter exposed dispatch fixture without role; expected candidate disappeared|V79
+B46|2026-09-20|direct workspace guard used multiline form rejected by Biome formatter|§C Biome
+B47|2026-09-20|optional direct-handler guard accepted bare `vendors` / `workspaces` calls|V80
+B48|2026-09-20|workspace JSON forwarded arbitrary organization metadata without allowlist|V79
+B49|2026-09-20|admin-only discovery conflated membership listing with later registration selection|V79
