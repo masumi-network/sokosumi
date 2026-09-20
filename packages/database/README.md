@@ -67,15 +67,13 @@ import { createPrismaClient } from "@sokosumi/database/client";
 const prisma = createPrismaClient(process.env.DATABASE_URL);
 ```
 
+The factory also accepts a caller-owned `pg.Pool` and optional `onPoolError` /
+`onConnectionError` callbacks. Supplied pools retain their configuration and are
+not closed by `prisma.$disconnect()`; their owner must close them when needed.
+Core's singleton constructs its pool with TCP keepalive, attaches Vercel's idle
+connection cleanup, and reports adapter errors to Sentry.
+
 In Core, import the app singleton instead of calling the factory again:
-
-```typescript
-// apps/core/src/lib/db/prisma.ts
-import { createPrismaClient } from "@sokosumi/database/client";
-
-const prisma = createPrismaClient(process.env.DATABASE_URL!);
-export default prisma;
-```
 
 ```typescript
 // Core routes / services
@@ -164,7 +162,7 @@ Job include/payload types (`JobWithEvents`, `jobWithEvents`, …) are also re-ex
 ### Client Export (`@sokosumi/database/client`)
 
 - **Purpose**: Factory function to create Prisma client instances
-- **Includes**: `createPrismaClient(databaseUrl: string)`
+- **Includes**: `createPrismaClient(poolOrUrl: string | Pool, options?: PrismaClientPoolOptions)`
 - **Use in**: Core (`apps/core/src/lib/db/prisma.ts`) and server-side tests/scripts (`server-only`)
 
 ### Repositories Export (`@sokosumi/database/repositories`)
