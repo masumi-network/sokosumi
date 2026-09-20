@@ -38,8 +38,11 @@ export function ProjectListItem({ project, labels }: ProjectListItemProps) {
       <Link
         href={`/projects/${project.id}`}
         className={cn(
+          // Square by design: the row runs the full width of the card, so its
+          // own radius would round the hover fill inside straight dividers.
+          // The card's overflow-hidden rounds the first and last rows for us.
           "flex min-w-0 flex-row items-center gap-4 rounded-none px-4 py-3 transition-colors",
-          "hover:bg-card-background-hover active:scale-[0.995] md:rounded-lg",
+          "hover:bg-card-background-hover active:scale-[0.995]",
         )}
       >
         <div className="flex min-w-0 flex-1 items-center gap-3">

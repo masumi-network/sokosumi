@@ -109,7 +109,7 @@ function ProjectNeedsAttentionRow({
         href={href}
         className={cn(
           "flex items-center gap-3",
-          "rounded-lg px-4 py-3 transition-colors",
+          "rounded-none px-4 py-3 transition-colors",
           "hover:bg-card-background-hover active:scale-[0.995]",
         )}
       >

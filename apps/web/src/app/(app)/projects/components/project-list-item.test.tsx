@@ -89,8 +89,10 @@ describe("ProjectListItem", () => {
     expect(link.className.split(/\s+/)).toContain(
       "hover:bg-card-background-hover",
     );
+    // Square at every breakpoint: the row is full-bleed inside the card, so a
+    // radius of its own would round the hover fill between straight dividers.
     expect(link.className).toContain("rounded-none");
-    expect(link.className).toContain("md:rounded-lg");
+    expect(link.className).not.toContain("rounded-lg");
     expect(link.className).not.toContain("border-border");
     expect(link.className).not.toContain("bg-overlay");
     expect(link.className.split(/\s+/)).not.toContain("border");
