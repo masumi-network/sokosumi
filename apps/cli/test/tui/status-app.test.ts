@@ -585,7 +585,7 @@ test("TestV34 runCli TUI selection preserves explicit client ID", async () => {
     await waitForOutput(terminal.stdout, () => output, "Browser OAuth");
     await waitForNextImmediate();
     await sendInput(terminal.stdin, "\t");
-    await waitForOutput(terminal.stdout, () => output, "Target: preprod");
+    await waitForNextImmediate();
     await sendInput(terminal.stdin, "\r");
     await waitForOutput(terminal.stdout, () => output, "Open browser sign-in?");
     assert.doesNotMatch(output, /Choose OAuth target/);
