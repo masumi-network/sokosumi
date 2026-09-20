@@ -96,7 +96,6 @@ function adaptSelectHandler<T>(
 
 type AuthMethod = "oauth" | "api-key";
 type HostedTarget = "mainnet" | "preprod";
-type SignInAction = HostedTarget | AuthMethod;
 type OAuthConfirm = "sign-in";
 type SelectorItem<T> = SelectItem<T>;
 type AuthPhase = "idle" | "waiting" | "success" | "error";
@@ -197,30 +196,12 @@ export function isNetworkSelectionLocked(
   );
 }
 
-export function buildSignInMenuItems(
-  selectedNetwork: HostedTarget,
-  networkSelectionLocked: boolean,
-): SelectorItem<SignInAction>[] {
-  const networkItems: SelectorItem<SignInAction>[] = networkSelectionLocked
-    ? []
-    : [
-        {
-          value: "mainnet",
-          label: "Mainnet",
-          hint:
-            selectedNetwork === "mainnet"
-              ? "selected · production"
-              : "production",
-        },
-        {
-          value: "preprod",
-          label: "Preprod",
-          hint:
-            selectedNetwork === "preprod" ? "selected · staging" : "staging",
-        },
-      ];
+export function toggleHostedTarget(target: HostedTarget): HostedTarget {
+  return target === "mainnet" ? "preprod" : "mainnet";
+}
+
+export function buildSignInMenuItems(): SelectorItem<AuthMethod>[] {
   return [
-    ...networkItems,
     {
       value: "oauth",
       label: "Browser OAuth",
@@ -246,14 +227,18 @@ function createTargetConfig(
   );
 }
 
-function navigationHint({ back = false }: { back?: boolean } = {}) {
-  return React.createElement(
-    Text,
-    { dimColor: true },
-    back
-      ? "Use arrows, then Enter · Esc back · q quit"
-      : "Use arrows, then Enter · q quit",
-  );
+function navigationHint({
+  back = false,
+  showNetworkToggle = false,
+}: {
+  back?: boolean;
+  showNetworkToggle?: boolean;
+} = {}) {
+  const parts = ["Use arrows, then Enter"];
+  if (showNetworkToggle) parts.push("Tab switch network");
+  if (back) parts.push("Esc back");
+  parts.push("q quit");
+  return React.createElement(Text, { dimColor: true }, parts.join(" · "));
 }
 
 function signedInIdentityLine(
@@ -275,6 +260,7 @@ function quietFrame({
   children,
   showBackHint = false,
   showNavigationHint = true,
+  showNetworkToggle = false,
 }: {
   route: "boot" | "auth" | "signed-in";
   target: string | null;
@@ -282,6 +268,7 @@ function quietFrame({
   children: React.ReactNode;
   showBackHint?: boolean;
   showNavigationHint?: boolean;
+  showNetworkToggle?: boolean;
 }): React.ReactElement {
   return React.createElement(
     Box,
@@ -317,7 +304,9 @@ function quietFrame({
     route === "signed-in" && authMethod && target
       ? signedInIdentityLine(target, authMethod)
       : null,
-    showNavigationHint ? navigationHint({ back: showBackHint }) : null,
+    showNavigationHint
+      ? navigationHint({ back: showBackHint, showNetworkToggle })
+      : null,
   );
 }
 
@@ -413,7 +402,6 @@ function StatusApp({
         : getManagerForConfig(selectedConfig, env, authManagerFactory),
     [authManager, authManagerFactory, config.apiUrl, env, selectedConfig],
   );
-  const authTargetLocked = targetExplicit && networkSelectionLocked;
   const coreClient = useMemo(
     () =>
       coreClientOverride ??
@@ -646,7 +634,7 @@ function StatusApp({
     const mismatch = explicitApiKeyTargetError(
       apiKey,
       selectedConfig,
-      authTargetLocked,
+      targetExplicit,
     );
     if (mismatch) {
       setPhase("error");
@@ -680,7 +668,7 @@ function StatusApp({
       const mismatch = explicitApiKeyTargetError(
         envApiKey,
         selectedConfig,
-        authTargetLocked,
+        targetExplicit,
       );
       if (mismatch) {
         setPhase("error");
@@ -691,13 +679,13 @@ function StatusApp({
       }
       const detectedTarget = targetFromUserApiKey(envApiKey);
       const nextConfig =
-        !authTargetLocked && detectedTarget === "preprod"
+        !targetExplicit && detectedTarget === "preprod"
           ? createTargetConfig(env, "preprod", clientIdOverride)
-          : !authTargetLocked && detectedTarget === "mainnet"
+          : !targetExplicit && detectedTarget === "mainnet"
             ? createTargetConfig(env, "mainnet", clientIdOverride)
             : selectedConfig;
       setSelectedConfig(nextConfig);
-      startApiKeyLogin(envApiKey, nextConfig, authTargetLocked);
+      startApiKeyLogin(envApiKey, nextConfig, targetExplicit);
       return;
     }
 
@@ -767,6 +755,20 @@ function StatusApp({
       }
       return;
     }
+    if (
+      key.tab &&
+      route === "auth" &&
+      screen === "auth-method" &&
+      !networkSelectionLocked &&
+      !busy
+    ) {
+      const current = resolveSelectedHostedTarget(selectedConfig);
+      const next = toggleHostedTarget(current);
+      setSelectedConfig(createTargetConfig(env, next, clientIdOverride));
+      setMessage("");
+      return;
+    }
+
     if (input === "q" && !rawApiKeyInput) {
       if (screen === "oauth-wait") oauthAttempt.current += 1;
       if (screen === "api-key-wait") apiKeyLoginAttempt.current += 1;
@@ -851,12 +853,7 @@ function StatusApp({
     beginApiKeyLogin();
   };
 
-  const handleSignInAction = (action: SignInAction) => {
-    if (action === "mainnet" || action === "preprod") {
-      setSelectedConfig(createTargetConfig(env, action, clientIdOverride));
-      setMessage(`Network: ${action}`);
-      return;
-    }
+  const handleSignInAction = (action: AuthMethod) => {
     chooseAuthMethod(action);
   };
 
@@ -1052,11 +1049,7 @@ function StatusApp({
         }),
       );
     } else {
-      const selectedNetwork = resolveSelectedHostedTarget(selectedConfig);
-      const items = buildSignInMenuItems(
-        selectedNetwork,
-        networkSelectionLocked,
-      );
+      const items = buildSignInMenuItems();
       content = centeredScreen(
         React.createElement(Text, { color: TUI_THEME.accent }, LOGO),
         React.createElement(Text, { bold: true }, "Sign in"),
@@ -1065,11 +1058,11 @@ function StatusApp({
           { dimColor: true },
           networkSelectionLocked
             ? `Target locked to ${targetLabel}. Choose a sign-in method. Signup happens in the browser; the CLI never asks for a password.`
-            : "Choose a network, then a sign-in method. Signup happens in the browser; the CLI never asks for a password.",
+            : "Choose a sign-in method. Press Tab to switch network. Signup happens in the browser; the CLI never asks for a password.",
         ),
         React.createElement(SelectInput, {
           items,
-          onSelect: adaptSelectHandler<SignInAction>(handleSignInAction),
+          onSelect: adaptSelectHandler<AuthMethod>(handleSignInAction),
           listen: !busy,
         }),
         messageLine(message, phase),
@@ -1092,6 +1085,8 @@ function StatusApp({
       authMethod: null,
       showBackHint: authScreensWithBack.has(screen),
       showNavigationHint: !authScreensWithCustomHint.has(screen),
+      showNetworkToggle:
+        screen === "auth-method" && !networkSelectionLocked && !busy,
       children: content,
     });
   }
