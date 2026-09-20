@@ -48,7 +48,7 @@ export function ProjectsLoadingView() {
               text. Desktop only, like the live create control. */}
           <Skeleton
             data-testid="projects-loading-create"
-            className="hidden h-8 w-[7.25rem] shrink-0 rounded-md md:block"
+            className="hidden h-8 w-[7.25rem] shrink-0 rounded-md md:inline-flex"
           />
         </div>
 

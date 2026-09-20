@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ProjectsView } from "@/app/projects/components/projects-view";
+import { PROJECTS_BROWSE_HEADER_ROW_CLASS } from "@/app/projects/constants";
 import type { ProjectListItem as ProjectListItemType } from "@/lib/clients/generated/core/types.gen";
 
 vi.mock("nuqs", () => ({
@@ -103,6 +104,20 @@ describe("ProjectsView create control", () => {
       screen.getByRole("button", { name: "New project" }),
     );
     expect(header).toContainElement(screen.getByLabelText("Filter projects"));
+  });
+
+  it("renders the shared header geometry, not just an import of it", () => {
+    renderView();
+
+    // The Instant contract test can only grep for the constant's name, which
+    // an unused import would satisfy. Assert the tokens reach the DOM, as the
+    // skeleton's own test does for its side of the pair.
+    const header = screen.getByTestId("projects-browse")
+      .firstElementChild as HTMLElement;
+
+    for (const token of PROJECTS_BROWSE_HEADER_ROW_CLASS.split(/\s+/)) {
+      expect(header.className).toContain(token);
+    }
   });
 
   it("is the only create button on the browse screen", () => {

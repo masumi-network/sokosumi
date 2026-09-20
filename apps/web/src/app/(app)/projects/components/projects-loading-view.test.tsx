@@ -29,7 +29,7 @@ describe("ProjectsPageSkeleton", () => {
 
     const createSlot = screen.getByTestId("projects-loading-create");
     expect(createSlot.className).toContain("hidden");
-    expect(createSlot.className).toContain("md:block");
+    expect(createSlot.className).toContain("md:inline-flex");
     // No accessible button with English (or any) create label.
     expect(createSlot.tagName).not.toBe("BUTTON");
   });
@@ -52,7 +52,7 @@ describe("ProjectsLoadingView", () => {
 
     const create = screen.getByTestId("projects-loading-create");
     expect(create.className).toContain("hidden");
-    expect(create.className).toContain("md:block");
+    expect(create.className).toContain("md:inline-flex");
     // The list card is the first thing in the shell: no row above it whose
     // only job was holding the create button.
     expect(container.firstElementChild?.firstElementChild).toBe(
