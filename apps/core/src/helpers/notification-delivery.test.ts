@@ -212,16 +212,17 @@ describe("resolveNotificationDelivery", () => {
 
   /**
    * The device is what a reader asks for, one group at a time. Until they do,
-   * a stored nothing is Sokosumi and no banner, whatever consent stands.
+   * a stored nothing is Sokosumi and the inbox and no banner, whatever
+   * consent stands.
    */
-  it("delivers in Sokosumi and nowhere else for a reader who set nothing", () => {
+  it("delivers in Sokosumi and the inbox, and not on the device, for a reader who set nothing", () => {
     expect(
       resolveNotificationDelivery({
         category: "TASK_ATTENTION",
         preferences: NO_PREFERENCES,
         pushOptIn: true,
       }),
-    ).toEqual({ inApp: true, osBanner: false, email: false });
+    ).toEqual({ inApp: true, osBanner: false, email: true });
   });
 
   it("withholds the banner without account-wide push consent", () => {
@@ -233,7 +234,7 @@ describe("resolveNotificationDelivery", () => {
         ],
         pushOptIn: false,
       }),
-    ).toEqual({ inApp: true, osBanner: false, email: false });
+    ).toEqual({ inApp: true, osBanner: false, email: true });
   });
 
   it("stops delivering in-app when the reader turned that cell off", () => {
@@ -258,7 +259,7 @@ describe("resolveNotificationDelivery", () => {
         ],
         pushOptIn: true,
       }),
-    ).toEqual({ inApp: true, osBanner: false, email: false });
+    ).toEqual({ inApp: true, osBanner: false, email: true });
   });
 
   it("keeps one category's choice out of another's", () => {
@@ -268,10 +269,11 @@ describe("resolveNotificationDelivery", () => {
         preferences: [
           { category: "CHAT_MENTION", channel: "IN_APP", enabled: false },
           { category: "CHAT_MENTION", channel: "OS_BANNER", enabled: false },
+          { category: "CHAT_MENTION", channel: "EMAIL", enabled: false },
         ],
         pushOptIn: true,
       }),
-    ).toEqual({ inApp: true, osBanner: false, email: false });
+    ).toEqual({ inApp: true, osBanner: false, email: true });
   });
 
   it("falls back to the defaults for a notification with no category", () => {
@@ -298,7 +300,7 @@ describe("resolveNotificationDelivery", () => {
         ],
         pushOptIn: true,
       }),
-    ).toEqual({ inApp: true, osBanner: false, email: false });
+    ).toEqual({ inApp: true, osBanner: false, email: true });
   });
 
   /**
@@ -309,8 +311,10 @@ describe("resolveNotificationDelivery", () => {
   it("ignores a stored email cell on a category that does not mail", () => {
     expect(
       resolveNotificationDelivery({
-        category: "SYSTEM",
-        preferences: [{ category: "SYSTEM", channel: "EMAIL", enabled: true }],
+        category: "TASK_UPDATE",
+        preferences: [
+          { category: "TASK_UPDATE", channel: "EMAIL", enabled: true },
+        ],
         pushOptIn: true,
       }),
     ).toEqual({ inApp: true, osBanner: false, email: false });
@@ -382,13 +386,13 @@ describe("resolveNotificationDelivery for a reminder", () => {
   });
 
   it("sends no email for a category that has no email to send", () => {
-    // Even with the row switched on. Nothing emails a task attention
-    // notification, so a stored row saying otherwise decides nothing.
+    // Even with the row switched on. Nothing emails a task update, so a
+    // stored row saying otherwise decides nothing.
     expect(
       resolveNotificationDelivery({
-        category: "TASK_ATTENTION",
+        category: "TASK_UPDATE",
         preferences: [
-          { category: "TASK_ATTENTION", channel: "EMAIL", enabled: true },
+          { category: "TASK_UPDATE", channel: "EMAIL", enabled: true },
         ],
         pushOptIn: false,
       }).email,
