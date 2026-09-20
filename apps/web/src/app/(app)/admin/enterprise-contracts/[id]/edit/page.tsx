@@ -10,6 +10,10 @@ import { getEnterpriseContractAction } from "@/lib/actions/enterprise-contract/a
 import { CommonErrorCode } from "@/lib/actions/errors";
 import { adminOrganizationService } from "@/lib/services/admin-organization.service";
 
+// `instant` is read per segment, so the admin layout's opt-out does not
+// cover this page. Auth/admin entry stays blocking on purpose.
+export const instant = false;
+
 export const metadata: Metadata = {
   title: "Edit enterprise contract",
   description: "Edit a draft enterprise contract",

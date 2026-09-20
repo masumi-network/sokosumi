@@ -7,6 +7,10 @@ import { getAgentResolvedImage } from "@/lib/helpers/agent";
 import { shareService } from "@/lib/services";
 import { SharedTaskView } from "../components/shared-task-view";
 
+// Reached by an external link, never by in-app navigation, so there is no
+// prefetch to make instant. Blocking on the token lookup is the honest shape.
+export const instant = false;
+
 export async function generateMetadata({
   params,
 }: {

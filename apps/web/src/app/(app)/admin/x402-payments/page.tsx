@@ -21,6 +21,10 @@ import {
   adminTaskX402PaymentService,
 } from "@/lib/services/admin-task-x402-payment.service";
 
+// `instant` is read per segment, so the admin layout's opt-out does not
+// cover this page. Auth/admin entry stays blocking on purpose.
+export const instant = false;
+
 export const metadata: Metadata = {
   title: "x402 payments",
   description: "Inspect and resolve task x402 payments.",

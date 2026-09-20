@@ -10,6 +10,10 @@ import { AdminSokoBotDangerZone } from "@/components/admin/soko-bots/admin-soko-
 import { AdminSokoBotHeader } from "@/components/admin/soko-bots/admin-soko-bot-header";
 import { adminSokoBotService } from "@/lib/services/admin-soko-bot.service";
 
+// `instant` is read per segment, so the admin layout's opt-out does not
+// cover this page. Auth/admin entry stays blocking on purpose.
+export const instant = false;
+
 export const metadata: Metadata = {
   title: "Soko Bot · Advanced",
   description: "Soko Bot operator controls",
