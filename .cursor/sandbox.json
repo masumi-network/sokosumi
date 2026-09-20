@@ -1,6 +1,0 @@
-{
-  "networkPolicy": {
-    "default": "deny",
-    "allow": ["*.github.com", "raw.githubusercontent.com"]
-  }
-}
