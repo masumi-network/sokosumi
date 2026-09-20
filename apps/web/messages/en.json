@@ -6504,7 +6504,8 @@
         "lowBalance": "Your credits are running low: {credits} left",
         "paymentFailed": "A subscription payment failed",
         "creditsAdded": "{credits} credits were added to your balance",
-        "subscriptionEnding": "Your subscription ends when the current period does"
+        "subscriptionEnding": "Your subscription ends when the current period does",
+        "followUp": "Your billing still needs your attention"
       },
       "Chat": {
         "mentioned": "{authorName} mentioned you in {roomName}",

@@ -80,6 +80,7 @@ globalThis.MESSAGES = {
     "Notifications.Chat.mentionAll": "Everyone",
     "Notifications.Job.followUp": "{jobName} is still waiting for you",
     "Notifications.Task.followUp": "{taskName} is still waiting for you",
+    "Notifications.Billing.followUp": "Your billing still needs your attention",
     "Notifications.Chat.mentionedFollowUp":
       "{authorName} is still waiting for you in {roomName}",
     "Notifications.Chat.mentionedDirectFollowUp":
@@ -147,6 +148,8 @@ globalThis.MESSAGES = {
     "Notifications.Chat.mentionAll": "Alle",
     "Notifications.Job.followUp": "{jobName} wartet weiterhin auf dich",
     "Notifications.Task.followUp": "{taskName} wartet weiterhin auf dich",
+    "Notifications.Billing.followUp":
+      "Deine Abrechnung braucht weiterhin deine Aufmerksamkeit",
     "Notifications.Chat.mentionedFollowUp":
       "{authorName} wartet weiterhin auf dich in {roomName}",
     "Notifications.Chat.mentionedDirectFollowUp":
@@ -210,6 +213,8 @@ globalThis.MESSAGES = {
     "Notifications.Chat.mentionAll": "Todos",
     "Notifications.Job.followUp": "{jobName} sigue esperándote",
     "Notifications.Task.followUp": "{taskName} sigue esperándote",
+    "Notifications.Billing.followUp":
+      "Tu facturación sigue necesitando tu atención",
     "Notifications.Chat.mentionedFollowUp":
       "{authorName} sigue esperándote en {roomName}",
     "Notifications.Chat.mentionedDirectFollowUp":

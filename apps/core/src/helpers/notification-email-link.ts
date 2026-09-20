@@ -73,6 +73,9 @@ export function notificationEmailLink(
     case "SYSTEM":
       return accessRequestLink(base, input);
 
+    case "BILLING":
+      return `${base}/billing?tab=credits`;
+
     default:
       return `${base}/`;
   }

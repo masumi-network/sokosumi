@@ -6504,7 +6504,8 @@
         "lowBalance": "Deine Credits werden knapp: noch {credits}",
         "paymentFailed": "Eine Abo-Zahlung ist fehlgeschlagen",
         "creditsAdded": "{credits} Credits wurden deinem Guthaben gutgeschrieben",
-        "subscriptionEnding": "Dein Abo endet mit der aktuellen Laufzeit"
+        "subscriptionEnding": "Dein Abo endet mit der aktuellen Laufzeit",
+        "followUp": "Deine Abrechnung braucht weiterhin deine Aufmerksamkeit"
       },
       "Chat": {
         "mentioned": "{authorName} hat dich in {roomName} erwähnt",
