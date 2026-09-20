@@ -553,6 +553,7 @@ function StatusApp({
     })();
     return () => {
       cancelled = true;
+      setResourceLoading(false);
     };
   }, [coreClient, route, screen]);
 
