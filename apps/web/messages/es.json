@@ -5448,6 +5448,7 @@
         "label": "Hilos sin leer en {name}",
         "unreadReplies": "{count, plural, one {# respuesta sin leer} other {# respuestas sin leer}}",
         "moreThreads": "{count, plural, one {# hilo más sin leer} other {# hilos más sin leer}}",
+        "mentions": "{count, plural, one {# mención} other {# menciones}}",
         "untitled": "Hilo"
       },
       "Thread": {

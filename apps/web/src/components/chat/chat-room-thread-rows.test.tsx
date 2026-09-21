@@ -24,8 +24,12 @@ vi.mock("next/link", () => ({
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 
-function thread(n: number, overrides: { parentContent?: string } = {}) {
+function thread(
+  n: number,
+  overrides: { parentContent?: string; unreadMentionCount?: number } = {},
+) {
   return {
+    unreadMentionCount: overrides.unreadMentionCount ?? 0,
     parentMessageId: `550e8400-e29b-41d4-a716-446655440b0${n}`,
     firstUnreadReplyId: `550e8400-e29b-41d4-a716-446655440c0${n}`,
     parentContent: overrides.parentContent ?? `Thread ${n}`,
@@ -71,6 +75,26 @@ describe("ChatRoomThreadRows", () => {
       name: /Vendor-wide rollout/,
     });
     expect(row).toHaveAccessibleName(/2 unread replies/);
+  });
+
+  // Which of a room's unread Threads the room's mention badge is for.
+  it("marks a thread whose unread replies mention the reader", () => {
+    renderRows({
+      unreadThreads: [
+        thread(3, { parentContent: "Pricing copy", unreadMentionCount: 1 }),
+        thread(2, { parentContent: "Release notes" }),
+      ],
+      unreadThreadCount: 2,
+    });
+
+    const mentioned = screen.getByRole("link", { name: /Pricing copy/ });
+    expect(mentioned).toHaveAttribute("data-mention", "true");
+    expect(mentioned).toHaveAccessibleName(/1 mention/);
+    expect(mentioned).toHaveAccessibleName(/3 unread replies/);
+
+    const plain = screen.getByRole("link", { name: /Release notes/ });
+    expect(plain).not.toHaveAttribute("data-mention");
+    expect(plain).not.toHaveAccessibleName(/mention/);
   });
 
   it("opens the thread at its first unread reply", () => {
