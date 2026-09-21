@@ -184,7 +184,7 @@ export async function dispatchNotificationPublish(
     delivery.email = false;
     delivery.inApp = notification.inApp && delivery.inApp;
     delivery.osBanner =
-      notification.publishPush === true &&
+      notification.publishPush !== false &&
       delivery.osBanner &&
       !notification.isRead;
     if (!delivery.inApp && !delivery.osBanner) {

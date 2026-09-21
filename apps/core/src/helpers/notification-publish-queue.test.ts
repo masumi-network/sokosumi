@@ -49,6 +49,17 @@ it("does not queue a notification silenced on both realtime channels", () => {
   ).toEqual({});
 });
 
+it("preserves unknown push consent after a failed preference read", () => {
+  expect(
+    notificationPublishFields({
+      inApp: true,
+      osBanner: false,
+      email: false,
+      fellBack: true,
+    }),
+  ).toMatchObject({ publishId: expect.any(String), publishPush: null });
+});
+
 it("keeps deferred work attached to the invocation", async () => {
   dispatch.mockResolvedValue("pending");
   scheduleNotificationPublish("n1");

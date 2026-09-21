@@ -672,7 +672,7 @@ describe("createNotification push gating", () => {
     expect(schedulePublishMock).not.toHaveBeenCalled();
   });
 
-  it("queues in-app delivery with push off when the opt-in read fails", async () => {
+  it("queues unknown push consent for retry when the opt-in read fails", async () => {
     const notification = createChatRecord();
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockResolvedValue(notification);
@@ -685,7 +685,7 @@ describe("createNotification push gating", () => {
     // or the live Notification Center event (ADR-0022).
     expect(prismaMock.notification.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ publishPush: false }),
+        data: expect.objectContaining({ publishPush: null }),
       }),
     );
   });

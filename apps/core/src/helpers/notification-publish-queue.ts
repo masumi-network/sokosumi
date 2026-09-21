@@ -14,7 +14,8 @@ export function notificationPublishFields(
   }
   return {
     publishId: randomUUID(),
-    publishPush: delivery.osBanner,
+    // A failed read is unknown consent, not an explicit opt-out.
+    publishPush: delivery.fellBack ? null : delivery.osBanner,
     publishCreated: created,
     publishQueuedAt: now,
     publishNextAttemptAt: now,

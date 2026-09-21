@@ -173,6 +173,34 @@ describe("notification publish replay", () => {
     await dispatchNotificationPublish("n1", NOW);
     expect(publish.mock.calls[0]?.[1].osBanner).toBe(false);
   });
+  it("recovers unknown initial consent after a successful preference read", async () => {
+    row = pending({ publishPush: null });
+    expect(await dispatchNotificationPublish("n1", NOW)).toBe("published");
+    expect(publish.mock.calls[0]?.[1].osBanner).toBe(true);
+  });
+  it("keeps unknown consent pending while preferences cannot be read", async () => {
+    row = pending({ publishPush: null });
+    db.user.findUnique.mockRejectedValue(new Error("offline"));
+    expect(await dispatchNotificationPublish("n1", NOW)).toBe("pending");
+    expect(row?.publishId).toBe("revision1");
+    expect(publish).not.toHaveBeenCalled();
+  });
+  it("respects current opt-out when initial consent was unknown", async () => {
+    row = pending({ publishPush: null });
+    db.user.findUnique.mockResolvedValue({ ...reader, pushOptIn: false });
+    await dispatchNotificationPublish("n1", NOW);
+    expect(publish.mock.calls[0]?.[1].osBanner).toBe(false);
+  });
+  it("does not publish an unqueued historical row with null consent", async () => {
+    row = pending({
+      publishId: null,
+      publishPush: null,
+      publishQueuedAt: null,
+      publishNextAttemptAt: null,
+    });
+    expect(await dispatchNotificationPublish("n1", NOW)).toBe("pending");
+    expect(publish).not.toHaveBeenCalled();
+  });
   it("respects current account opt-out", async () => {
     db.user.findUnique.mockResolvedValue({ ...reader, pushOptIn: false });
     await dispatchNotificationPublish("n1", NOW);
