@@ -93,6 +93,12 @@
         "body": "{authorName} hat dir eine Direktnachricht gesendet.",
         "button": "Unterhaltung öffnen"
       },
+      "roomMessage": {
+        "subject": "Sokosumi - Ungelesene Nachrichten in {roomName}",
+        "title": "Ungelesene Nachrichten",
+        "body": "In {roomName} gibt es Nachrichten, die du noch nicht gelesen hast.",
+        "button": "Unterhaltung öffnen"
+      },
       "task": {
         "button": "Aufgabe öffnen",
         "projectLabel": "Projekt",
@@ -164,6 +170,10 @@
             "scheduleOccurrenceChangedByMember": {
               "subject": "Sokosumi - Ein Teammitglied hat einen Termin von {taskName} geändert",
               "body": "Ein Teammitglied hat einen Termin von {taskName} geändert."
+            },
+            "updated": {
+              "subject": "Sokosumi - {taskName} hat sich geändert",
+              "body": "{taskName} hat sich geändert."
             }
           }
         }

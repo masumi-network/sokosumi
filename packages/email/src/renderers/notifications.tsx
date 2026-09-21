@@ -7,6 +7,7 @@ import type {
   AccessRequestEmailProps,
   ChatDirectMessageEmailProps,
   ChatMentionEmailProps,
+  ChatRoomMessageEmailProps,
   ProjectUpdateEmailProps,
   RenderedEmail,
   TaskAttentionEmailProps,
@@ -120,6 +121,30 @@ export function renderChatDirectMessageEmail({
   });
 }
 
+/** No author or preview: one email speaks for the room's whole unread pile. */
+export function renderChatRoomMessageEmail({
+  actionUrl,
+  locale,
+  recipientName,
+  roomName,
+}: ChatRoomMessageEmailProps): Promise<RenderedEmail> {
+  const { t } = createEmailTranslator(locale);
+  const scope = `${EVENT_SCOPE}.roomMessage`;
+  const values = { roomName: nameOr(t, roomName, "fallbackRoomName") };
+
+  return renderEventEmail({
+    actionUrl,
+    recipientName,
+    t,
+    words: {
+      body: t(`${scope}.body`, values),
+      button: t(`${scope}.button`),
+      subject: t(`${scope}.subject`, values),
+      title: t(`${scope}.title`),
+    },
+  });
+}
+
 /** The project a task belongs to, when the notification named one. */
 function projectFact(
   t: TranslateFn,
@@ -198,6 +223,37 @@ export function renderTaskCompletedEmail({
   });
 }
 
+/**
+ * Schedule changes and other task outcomes, using the existing task
+ * destination. Reason picks the sentence; `updated` is the fallback for a key
+ * nobody has written one for.
+ */
+export function renderTaskUpdateEmail({
+  actionUrl,
+  locale,
+  projectName,
+  reason,
+  recipientName,
+  taskName,
+}: TaskUpdateEmailProps): Promise<RenderedEmail> {
+  const { t } = createEmailTranslator(locale);
+  const scope = `${EVENT_SCOPE}.task.update`;
+  const values = { taskName: nameOr(t, taskName, "fallbackTaskName") };
+
+  return renderEventEmail({
+    actionUrl,
+    facts: projectFact(t, projectName),
+    recipientName,
+    t,
+    words: {
+      body: t(`${scope}.reasons.${reason}.body`, values),
+      button: t(`${EVENT_SCOPE}.task.button`),
+      subject: t(`${scope}.reasons.${reason}.subject`, values),
+      title: t(`${scope}.title`),
+    },
+  });
+}
+
 /** A vendor or a coworker asked for a workspace the reader manages. */
 export function renderAccessRequestEmail({
   actionUrl,
@@ -220,32 +276,6 @@ export function renderAccessRequestEmail({
       body: t(`${scope}.${request}.body`, values),
       button: t(`${scope}.button`),
       subject: t(`${scope}.${request}.subject`, values),
-      title: t(`${scope}.title`),
-    },
-  });
-}
-
-/** Schedule changes and other task outcomes, using the existing task destination. */
-export function renderTaskUpdateEmail({
-  actionUrl,
-  locale,
-  projectName,
-  reason,
-  recipientName,
-  taskName,
-}: TaskUpdateEmailProps): Promise<RenderedEmail> {
-  const { t } = createEmailTranslator(locale);
-  const scope = `${EVENT_SCOPE}.task.update`;
-  const values = { taskName: nameOr(t, taskName, "fallbackTaskName") };
-  return renderEventEmail({
-    actionUrl,
-    facts: projectFact(t, projectName),
-    recipientName,
-    t,
-    words: {
-      body: t(`${scope}.reasons.${reason}.body`, values),
-      button: t(`${EVENT_SCOPE}.task.button`),
-      subject: t(`${scope}.reasons.${reason}.subject`, values),
       title: t(`${scope}.title`),
     },
   });

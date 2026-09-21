@@ -282,6 +282,24 @@ describe("dispatchNotificationEmail", () => {
     expect(cancelEmailMock).toHaveBeenCalledWith("email_1");
   });
 
+  it("takes a room message's email back the same way when its row went read", async () => {
+    hasAppInFrontMock.mockResolvedValue(true);
+    notificationUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    await dispatch(mention({ messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY }));
+
+    expect(cancelEmailMock).toHaveBeenCalledWith("email_1");
+  });
+
+  it("takes a task update's email back the same way when its row went read", async () => {
+    hasAppInFrontMock.mockResolvedValue(true);
+    notificationUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    await dispatch(finished({ messageKey: "Notifications.Task.canceled" }));
+
+    expect(cancelEmailMock).toHaveBeenCalledWith("email_1");
+  });
+
   it("leaves an email that already left alone when the row went read", async () => {
     notificationUpdateManyMock.mockResolvedValue({ count: 0 });
 
@@ -298,7 +316,15 @@ describe("dispatchNotificationEmail", () => {
   });
 
   it("does nothing for a category that is not emailed at the event", async () => {
-    await dispatch(mention({ messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY }));
+    // Billing news is the lasting example: Stripe already mails it.
+    await dispatch(
+      mention({
+        kind: NotificationKind.BILLING,
+        referenceId: "wallet_1",
+        messageKey: "Notifications.Billing.creditsAdded",
+        messageParams: JSON.stringify({ credits: 10 }),
+      }),
+    );
 
     expect(notificationFindUniqueMock).not.toHaveBeenCalled();
     expect(sendEmailMock).not.toHaveBeenCalled();
@@ -458,6 +484,64 @@ describe("dispatchNotificationEmail", () => {
     expect(sendEmailMock).toHaveBeenCalledWith(
       expect.objectContaining({
         subject: "Sokosumi - Atlas completed Pricing review",
+      }),
+    );
+  });
+
+  /**
+   * Everything a room can say is one email. Whichever row mails first speaks
+   * for the room, and the reader reads the room as a whole, so the other rows
+   * hold back until it is read (SOK-1142).
+   */
+  it("sends nothing for a room message whose room was already mailed, nor after one", async () => {
+    notificationFindManyMock.mockResolvedValue([
+      { messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY },
+    ]);
+
+    await dispatch(mention());
+
+    expect(sendEmailMock).not.toHaveBeenCalled();
+
+    notificationFindManyMock.mockResolvedValue([
+      { messageKey: CHAT_MENTION_MESSAGE_KEY },
+    ]);
+
+    await dispatch(
+      mention({
+        id: "notification_9",
+        messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+      }),
+    );
+
+    expect(sendEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("mails a room message on its own when nothing was mailed", async () => {
+    await dispatch(mention({ messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY }));
+
+    expect(sendEmailMock).toHaveBeenCalledTimes(1);
+    expect(sendEmailMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subject: "Sokosumi - Unread messages in Design",
+      }),
+    );
+  });
+
+  /**
+   * The change and the question are two emails the reader turned on
+   * separately, like the finish and the question before them.
+   */
+  it("mails a task update although the task's unanswered question was mailed", async () => {
+    notificationFindManyMock.mockResolvedValue([
+      { messageKey: TASK_INPUT_REQUIRED_MESSAGE_KEY },
+    ]);
+
+    await dispatch(finished({ messageKey: "Notifications.Task.canceled" }));
+
+    expect(sendEmailMock).toHaveBeenCalledTimes(1);
+    expect(sendEmailMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subject: "Sokosumi - Pricing review was canceled",
       }),
     );
   });

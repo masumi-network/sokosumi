@@ -4,6 +4,7 @@ import {
   renderAccessRequestEmail,
   renderChatDirectMessageEmail,
   renderChatMentionEmail,
+  renderChatRoomMessageEmail,
   renderProjectUpdateEmail,
   renderTaskAttentionEmail,
   renderTaskCompletedEmail,
@@ -197,6 +198,98 @@ describe("notification emails", () => {
       "Sokosumi - Andreas hat dich in product erwähnt",
     );
     expect(spanish.subject).toBe("Sokosumi - Ada completó Informe");
+  });
+
+  it("names the room and nobody in it, for unread room messages", async () => {
+    // One email speaks for the room's whole unread pile, so no author and no
+    // preview: whoever wrote first is not the point.
+    const rendered = await renderChatRoomMessageEmail({
+      actionUrl: ROOM_URL,
+      locale: "en",
+      recipientName: "Sandro",
+      roomName: "product",
+    });
+
+    expect(rendered.subject).toBe("Sokosumi - Unread messages in product");
+    expect(rendered.html).toContain(
+      "There are messages you have not read in product.",
+    );
+    expect(rendered.html).toContain(ROOM_URL);
+  });
+
+  it("stands in for a room the notification did not name", async () => {
+    const rendered = await renderChatRoomMessageEmail({
+      actionUrl: ROOM_URL,
+      locale: "en",
+      recipientName: "Sandro",
+      roomName: null,
+    });
+
+    expect(rendered.subject).toBe(
+      "Sokosumi - Unread messages in a conversation",
+    );
+  });
+
+  it("has a sentence for every update reason, including the fallback", async () => {
+    const reasons = [
+      "canceled",
+      "failed",
+      "scheduleRepaired",
+      "updated",
+    ] as const;
+
+    for (const reason of reasons) {
+      const rendered = await renderTaskUpdateEmail({
+        actionUrl: TASK_URL,
+        locale: "en",
+        reason,
+        recipientName: "Sandro",
+        taskName: "Quarterly report",
+      });
+
+      // A missing catalog entry renders as the key itself.
+      expect(rendered.subject).not.toContain("notifications.event");
+      expect(rendered.html).not.toContain("notifications.event");
+      expect(rendered.subject).toContain("Quarterly report");
+    }
+  });
+
+  it("says what changed on the task, in the subject and the body", async () => {
+    const rendered = await renderTaskUpdateEmail({
+      actionUrl: TASK_URL,
+      locale: "en",
+      projectName: "Finance",
+      reason: "failed",
+      recipientName: "Sandro",
+      taskName: "Quarterly report",
+    });
+
+    expect(rendered.subject).toBe("Sokosumi - Quarterly report failed");
+    expect(rendered.html).toContain("Quarterly report failed.");
+    expect(rendered.html).toContain("Project");
+    expect(rendered.html).toContain("Finance");
+    expect(rendered.html).toContain(TASK_URL);
+  });
+
+  it("writes the new emails in the locale they are given", async () => {
+    const germanRoom = await renderChatRoomMessageEmail({
+      actionUrl: ROOM_URL,
+      locale: "de",
+      recipientName: "Sandro",
+      roomName: "product",
+    });
+    const spanishUpdate = await renderTaskUpdateEmail({
+      actionUrl: TASK_URL,
+      locale: "es",
+      reason: "canceled",
+      recipientName: "Sandro",
+      taskName: "Informe",
+    });
+
+    expect(germanRoom.subject).toBe(
+      "Sokosumi - Ungelesene Nachrichten in product",
+    );
+    expect(spanishUpdate.subject).toBe("Sokosumi - Se canceló Informe");
   });
 });
 

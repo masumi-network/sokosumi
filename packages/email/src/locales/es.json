@@ -93,6 +93,12 @@
         "body": "{authorName} te envió un mensaje directo.",
         "button": "Abrir la conversación"
       },
+      "roomMessage": {
+        "subject": "Sokosumi - Mensajes sin leer en {roomName}",
+        "title": "Mensajes sin leer",
+        "body": "Hay mensajes que no has leído en {roomName}.",
+        "button": "Abrir la conversación"
+      },
       "task": {
         "button": "Abrir la tarea",
         "projectLabel": "Proyecto",
@@ -164,6 +170,10 @@
             "scheduleOccurrenceChangedByMember": {
               "subject": "Sokosumi - Un compañero cambió una ocurrencia de {taskName}",
               "body": "Un compañero cambió una ocurrencia de {taskName}."
+            },
+            "updated": {
+              "subject": "Sokosumi - {taskName} cambió",
+              "body": "{taskName} cambió."
             }
           }
         }

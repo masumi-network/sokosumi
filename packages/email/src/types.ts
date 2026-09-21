@@ -92,6 +92,7 @@ export interface TaskAttentionEmailProps extends TaskEmailProps {
   reason: TaskAttentionReason;
 }
 
+/** Catalog keys for task updates, plus `updated` as the fallback for unknown keys. */
 export type TaskUpdateReason =
   | "failed"
   | "canceled"
@@ -100,8 +101,10 @@ export type TaskUpdateReason =
   | "scheduleUpdatedByMember"
   | "scheduleRemovedByMember"
   | "scheduleSourceChangedByMember"
-  | "scheduleOccurrenceChangedByMember";
+  | "scheduleOccurrenceChangedByMember"
+  | "updated";
 
+/** A task changed without asking anything of the reader (SOK-1090, SOK-1142). */
 export interface TaskUpdateEmailProps extends TaskEmailProps {
   reason: TaskUpdateReason;
 }
@@ -113,6 +116,11 @@ export interface ProjectUpdateEmailProps extends NotificationEmailProps {
 
 /** A task that finished (SOK-1090). */
 export type TaskCompletedEmailProps = TaskEmailProps;
+
+/** Unread messages wait in a room the reader is in (SOK-1142). */
+export interface ChatRoomMessageEmailProps extends NotificationEmailProps {
+  roomName?: null | string;
+}
 
 export type AccessRequestKind = "coworker" | "vendor";
 

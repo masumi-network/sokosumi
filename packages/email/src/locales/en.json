@@ -93,6 +93,12 @@
         "body": "{authorName} sent you a direct message.",
         "button": "Open the conversation"
       },
+      "roomMessage": {
+        "subject": "Sokosumi - Unread messages in {roomName}",
+        "title": "Unread messages",
+        "body": "There are messages you have not read in {roomName}.",
+        "button": "Open the conversation"
+      },
       "task": {
         "button": "Open the task",
         "projectLabel": "Project",
@@ -164,6 +170,10 @@
             "scheduleOccurrenceChangedByMember": {
               "subject": "Sokosumi - A teammate changed an occurrence of {taskName}",
               "body": "A teammate changed an occurrence of {taskName}."
+            },
+            "updated": {
+              "subject": "Sokosumi - {taskName} changed",
+              "body": "{taskName} changed."
             }
           }
         }

@@ -122,15 +122,17 @@ async function committedRow(id: string): Promise<null | { isRead: boolean }> {
 /**
  * The categories one email speaks for, besides itself.
  *
- * A mention and a direct message in the same room are one email: the room is
- * read as a whole, and both rows go read together when the reader opens it.
- * A task is the opposite case. The question it asked and the finish it
- * reports are cleared by different things, and a reader who turned the
- * finished-task email on expects it whether or not they answered the
+ * Everything a room can say is one email: a mention, a direct message and
+ * the room's other messages are read as a whole when the reader opens it, so
+ * whichever arrives first mails for all of them and the rest hold back
+ * (SOK-1142). A task is the opposite case. The question it asked and the
+ * finish it reports are cleared by different things, and a reader who turned
+ * the finished-task email on expects it whether or not they answered the
  * question: an unread "schedule removed" row, which no run ends, would
  * otherwise hold every finish of that task out of the inbox for good.
  */
 const SHARED_EMAIL_CATEGORIES: readonly NotificationCategory[] = [
+  "CHAT_ROOM_MESSAGE",
   "CHAT_MENTION",
   "CHAT_DIRECT_MESSAGE",
 ];
