@@ -79,12 +79,19 @@ export function ChatRoomThreadRows({
       // Indented from the left only. The primitive insets both sides, which
       // cut the rows short of the room row's right edge and gave a Thread's
       // name less room than the room's own.
-      className="mr-0 gap-px pr-0"
+      //
+      // On the room row's two axes (`SIDEBAR_ROW_CLASS`): the rule hangs from
+      // the leading mark, whose slot is centred 20px in, and the Thread icons
+      // start on the label column at 40px. The primitive's own 14px and 10px
+      // put the rule and the icons beside those axes rather than on them.
+      // 18px margin plus the primitive's 1px nudge lands the rule on 19-20px;
+      // 13px of padding lands the icon, past its link's padding, on 40px.
+      className="mr-0 ml-[1.125rem] gap-px pr-0 pl-[0.8125rem]"
     >
       {threads.map((thread) => (
         <SidebarMenuSubItem key={thread.parentMessageId}>
           {wrapLink(
-            <SidebarMenuSubButton asChild size="sm">
+            <SidebarMenuSubButton asChild size="sm" className="pr-1">
               <Link
                 href={chatRoomMessageHref(room.id, thread.firstUnreadReplyId)}
                 replace={isActive}
@@ -104,7 +111,10 @@ export function ChatRoomThreadRows({
                     mentionNames,
                   ) || t("untitled")}
                 </span>
-                <span className="text-primary shrink-0 text-[0.6875rem] font-semibold tabular-nums">
+                {/* In the room badge's own column: a 28px box ending 4px from
+                    the row's edge, its number centred, so a Thread's count
+                    stacks under its room's badge instead of outside it. */}
+                <span className="text-primary w-7 shrink-0 text-center text-[0.6875rem] font-semibold tabular-nums">
                   <span aria-hidden>{thread.unreadReplyCount}</span>
                   <span className="sr-only">
                     {t("unreadReplies", { count: thread.unreadReplyCount })}
