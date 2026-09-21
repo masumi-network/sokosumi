@@ -135,6 +135,18 @@ describe("authoritative retained history reconciliation", () => {
     cache.clear();
   });
 
+  it("replaces transcript identity when reconciliation writes", async () => {
+    const { cache, lifetime } = retained();
+    const before = cache.get("room")?.transcript;
+    vi.mocked(fetchRoomMessages).mockResolvedValueOnce({
+      messages: [message(90)],
+      nextCursor: null,
+    });
+    await cache.refresh("room", lifetime, () => true);
+    expect(cache.get("room")?.transcript).not.toBe(before);
+    cache.clear();
+  });
+
   it("does not resurrect a realtime deletion received during a snapshot", async () => {
     const { cache, lifetime } = retained();
     let finish!: (page: typeof head) => void;

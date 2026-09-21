@@ -53,7 +53,10 @@ import {
 } from "@/app/chat/hooks/use-coworker-direct-room-stream";
 import { useEditChannelParam } from "@/app/chat/hooks/use-edit-channel-param";
 import { useQuietHoverWhileScrolling } from "@/app/chat/hooks/use-quiet-hover-while-scrolling";
-import { useRoomMessageJumps } from "@/app/chat/hooks/use-room-message-jumps";
+import {
+  TRANSCRIPT_SNAPSHOT_RETRIES,
+  useRoomMessageJumps,
+} from "@/app/chat/hooks/use-room-message-jumps";
 import { useRoomNotificationDeepLink } from "@/app/chat/hooks/use-room-notification-deep-link";
 import { useRoomReadAttention } from "@/app/chat/hooks/use-room-read-attention";
 import { useRoomReadReceipts } from "@/app/chat/hooks/use-room-read-receipts";
@@ -436,11 +439,11 @@ function RetainedRoomsClient({
     },
     dirty: () => cache.markDirty(roomId),
     captureSnapshot: () => {
-      const revision = cache.get(roomId)?.revision;
+      const transcript = cache.get(roomId)?.transcript;
       return () => {
         const valid =
           cache.current(roomId, lifetime) &&
-          cache.get(roomId)?.revision === revision;
+          cache.get(roomId)?.transcript === transcript;
         if (!valid) refreshRef.current();
         return valid;
       };
@@ -2084,7 +2087,6 @@ function RoomView({
     }
     const roomId = selectedRoom.id;
     const generation = boundaryLoadGenerationRef.current;
-    const snapshotCurrent = retained?.captureSnapshot();
     loadingBoundariesRef.current.add(cursorMessageId);
     setBoundaryStatus((current) => ({
       ...current,
@@ -2095,27 +2097,42 @@ function RoomView({
         isStillSelectedRoom(roomId) &&
         generation === boundaryLoadGenerationRef.current;
       try {
-        const result = await listRoomMessagesAction(roomId, {
-          cursor: cursorMessageId,
-          limit: ROOM_HISTORY_WINDOW_LIMIT,
-        });
-        if (!isCurrentLoad()) {
+        for (
+          let attempt = 0;
+          attempt < TRANSCRIPT_SNAPSHOT_RETRIES && isCurrentLoad();
+          attempt++
+        ) {
+          const snapshotCurrent = retained?.captureSnapshot();
+          const result = await listRoomMessagesAction(roomId, {
+            cursor: cursorMessageId,
+            limit: ROOM_HISTORY_WINDOW_LIMIT,
+          });
+          if (!isCurrentLoad()) {
+            return;
+          }
+          if (!result.ok) {
+            setBoundaryStatus((current) => ({
+              ...current,
+              [cursorMessageId]: "failed",
+            }));
+            return;
+          }
+          if (snapshotCurrent && !snapshotCurrent()) continue;
+          setTranscript((current) =>
+            mergeRoomOlderPage(current, cursorMessageId, result.value),
+          );
+          setBoundaryStatus((current) => {
+            const { [cursorMessageId]: _done, ...rest } = current;
+            return rest;
+          });
           return;
         }
-        if (!result.ok || (snapshotCurrent && !snapshotCurrent())) {
+        if (isCurrentLoad()) {
           setBoundaryStatus((current) => ({
             ...current,
             [cursorMessageId]: "failed",
           }));
-          return;
         }
-        setTranscript((current) =>
-          mergeRoomOlderPage(current, cursorMessageId, result.value),
-        );
-        setBoundaryStatus((current) => {
-          const { [cursorMessageId]: _done, ...rest } = current;
-          return rest;
-        });
       } catch {
         // A dropped connection rejects the action itself. The row keeps its
         // retry rather than spinning until the next reload.

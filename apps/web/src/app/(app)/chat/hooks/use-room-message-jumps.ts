@@ -25,6 +25,9 @@ import {
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
+/** Bounded so a busy room cannot retry an around-read forever. */
+export const TRANSCRIPT_SNAPSHOT_RETRIES = 5;
+
 interface RoomMessageJumpsParams {
   roomId: string | null;
   captureSnapshot?: () => () => boolean;
@@ -94,7 +97,13 @@ export function useRoomMessageJumps({
     aroundId: string,
     isNewestJump: () => boolean,
   ): Promise<boolean> {
-    while (isStillSelectedRoom(roomId) && isNewestJump()) {
+    for (
+      let attempt = 0;
+      attempt < TRANSCRIPT_SNAPSHOT_RETRIES &&
+      isStillSelectedRoom(roomId) &&
+      isNewestJump();
+      attempt++
+    ) {
       const snapshotCurrent = captureSnapshot?.();
       const result = await listRoomMessagesAction(roomId, {
         around: aroundId,

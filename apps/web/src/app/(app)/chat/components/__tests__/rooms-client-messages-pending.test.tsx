@@ -1386,12 +1386,27 @@ describe("channel cache access and navigation", () => {
     let finish!: (
       value: Awaited<ReturnType<typeof listRoomMessagesAction>>,
     ) => void;
-    vi.mocked(listRoomMessagesAction).mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          finish = resolve;
-        }),
-    );
+    vi.mocked(listRoomMessagesAction)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      )
+      .mockResolvedValueOnce({
+        ok: true,
+        value: {
+          messages: [
+            {
+              ...sampleMessage("older after retry"),
+              id: "older-fresh",
+              createdAt: new Date("2026-06-01"),
+            },
+            sampleMessage("newer edit"),
+          ],
+          nextCursor: null,
+        },
+      });
     render(
       <RoomsClient
         {...baseProps}
@@ -1410,12 +1425,24 @@ describe("channel cache access and navigation", () => {
     await act(async () =>
       finish({
         ok: true,
-        value: { messages: [sampleMessage("before edit")], nextCursor: null },
+        value: {
+          messages: [
+            {
+              ...sampleMessage("poisoned older"),
+              id: "older-stale",
+              createdAt: new Date("2026-06-01"),
+            },
+            sampleMessage("before edit"),
+          ],
+          nextCursor: null,
+        },
       }),
     );
+    expect(await screen.findByText("older after retry")).toBeTruthy();
     expect(screen.getByText("newer edit")).toBeTruthy();
+    expect(screen.queryByText("poisoned older")).toBeNull();
     expect(screen.queryByText("before edit")).toBeNull();
-    expect(screen.getByText("Boundary.retry")).toBeTruthy();
+    expect(screen.queryByText("Boundary.retry")).toBeNull();
   });
 
   it("isolates out-of-order responses during A/B/A switches", async () => {
