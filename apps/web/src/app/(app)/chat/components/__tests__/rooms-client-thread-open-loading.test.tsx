@@ -176,6 +176,7 @@ vi.mock("../room-message-row", () => ({
     <button
       type="button"
       data-testid={`open-thread-${message.id}`}
+      data-unread-replies={message.threadUnreadReplyCount ?? 0}
       onClick={() => onOpenThread?.(message)}
     >
       {message.content}
@@ -400,6 +401,36 @@ describe("RoomsClient thread open loading race", () => {
     });
     expect(screen.getByTestId("thread-loading").textContent).toBe("false");
     expect(screen.getByTestId("thread-reply-count").textContent).toBe("2");
+  });
+
+  it("clears the parent's unread replies once the thread has been looked at", async () => {
+    actions.markThreadReadAction.mockResolvedValue({
+      ok: true as const,
+      value: { lookedAt: new Date().toISOString() },
+    });
+    actions.listThreadMessagesAction.mockResolvedValue({
+      ok: true as const,
+      value: { messages: [replyMessage("r1")], nextCursor: null },
+    });
+
+    render(
+      <RoomsClient
+        {...baseProps}
+        messages={[{ ...parentMessage(), threadUnreadReplyCount: 2 }]}
+      />,
+    );
+    const row = screen.getByTestId("open-thread-parent-1");
+    expect(row.getAttribute("data-unread-replies")).toBe("2");
+
+    fireEvent.click(row);
+
+    await waitFor(() => {
+      expect(
+        screen
+          .getByTestId("open-thread-parent-1")
+          .getAttribute("data-unread-replies"),
+      ).toBe("0");
+    });
   });
 
   it("invalidates in-flight load when the panel is closed mid-fetch", async () => {

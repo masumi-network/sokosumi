@@ -2203,6 +2203,8 @@ function MessageMetaFooter({
 }) {
   const t = useTranslations("App.Channels");
   const isOutboundLocal = isOutboundLocalMessage(message);
+  // Absent on realtime payloads, which are not addressed to one viewer.
+  const unreadReplyCount = message.threadUnreadReplyCount ?? 0;
 
   return (
     <>
@@ -2245,10 +2247,21 @@ function MessageMetaFooter({
       {showThreadButton && message.threadReplyCount > 0 && onOpenThread ? (
         <button
           type="button"
-          className="text-primary hover:text-primary-hover -mx-1 mt-1 min-h-9 px-1 text-xs font-medium sm:mt-1 sm:min-h-0"
+          data-slot="thread-reply-bar"
+          data-unread={unreadReplyCount > 0 ? "true" : undefined}
+          className={cn(
+            "text-primary hover:text-primary-hover -mx-1 mt-1 min-h-9 px-1 text-xs font-medium sm:mt-1 sm:min-h-0",
+            // Unread reads as a bar, not a badge: the tint plus an inset left
+            // rule gives the count an edge to sit against without adding a
+            // second mark to a row that already carries reactions.
+            unreadReplyCount > 0 &&
+              "bg-primary-quinary shadow-primary-tertiary rounded-md px-2 font-semibold shadow-[inset_2px_0_0]",
+          )}
           onClick={() => onOpenThread(message)}
         >
-          {t("Thread.replyCount", { count: message.threadReplyCount })}
+          {unreadReplyCount > 0
+            ? t("Thread.newReplyCount", { count: unreadReplyCount })
+            : t("Thread.replyCount", { count: message.threadReplyCount })}
         </button>
       ) : null}
     </>
