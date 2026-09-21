@@ -5597,7 +5597,7 @@
         "open": "Mitglieder",
         "title": "Mitglieder",
         "humansTitle": "Personen",
-        "agentsTitle": "KI-Coworker",
+        "agentsTitle": "Coworker",
         "close": "Mitglieder schließen",
         "empty": "Keine Mitglieder vorhanden.",
         "message": "Nachricht an {name}",

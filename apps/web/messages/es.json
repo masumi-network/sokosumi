@@ -5597,7 +5597,7 @@
         "open": "Miembros",
         "title": "Miembros",
         "humansTitle": "Personas",
-        "agentsTitle": "Coworkers de IA",
+        "agentsTitle": "Coworkers",
         "close": "Cerrar miembros",
         "empty": "No hay miembros.",
         "message": "Mensaje a {name}",

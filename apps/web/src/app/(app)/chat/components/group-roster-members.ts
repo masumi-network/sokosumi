@@ -1,3 +1,6 @@
+import type { RoomReadReceipts } from "@/app/chat/hooks/use-room-read-receipts";
+
+import { orderRosterByReadRecency } from "./order-roster-by-read-recency";
 import type { ChatParticipantHoverProfile } from "./room-helpers";
 
 export interface RosterGroups {
@@ -16,14 +19,17 @@ export interface RosterGroups {
  *
  * The viewer goes first among the humans. They are the one row the reader can
  * always place, and a room's own member should not have to be hunted for
- * alphabetically.
+ * alphabetically. Everyone else follows by how recently they read, the same
+ * order the header stack shows, so the faces and the list agree about who is
+ * freshest.
  *
- * Order is otherwise left alone: it is the caller's, and the panel is not the
- * place to re-sort people.
+ * Machines keep the order they arrived in. They have no read mark to sort by,
+ * and none is invented for them.
  */
 export function groupRosterMembers(
   participants: readonly ChatParticipantHoverProfile[],
   currentUserId: string,
+  receipts: Pick<RoomReadReceipts, "readStateFor">,
 ): RosterGroups {
   const humans: ChatParticipantHoverProfile[] = [];
   const agents: ChatParticipantHoverProfile[] = [];
@@ -41,5 +47,9 @@ export function groupRosterMembers(
     humans.push(participant);
   }
 
-  return { humans: viewer ? [viewer, ...humans] : humans, agents };
+  const byReadRecency = orderRosterByReadRecency(humans, receipts);
+  return {
+    humans: viewer ? [viewer, ...byReadRecency] : byReadRecency,
+    agents,
+  };
 }

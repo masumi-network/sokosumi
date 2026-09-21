@@ -292,7 +292,9 @@ export function RoomRosterPanel({
   readStateFor,
   labels,
 }: RoomRosterPanelProps) {
-  const { humans, agents } = groupRosterMembers(participants, currentUserId);
+  const { humans, agents } = groupRosterMembers(participants, currentUserId, {
+    readStateFor,
+  });
   const groups = [
     { key: "humans", heading: labels.humansTitle, members: humans },
     { key: "agents", heading: labels.agentsTitle, members: agents },
