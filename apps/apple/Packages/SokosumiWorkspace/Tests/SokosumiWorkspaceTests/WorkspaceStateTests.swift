@@ -10,18 +10,6 @@ import Testing
 
 private let timestamp = "2026-01-01T00:00:00.000Z"
 
-private struct MemoryTokenStore: TokenStore {
-  var tokens: OAuthTokens?
-  func load() -> OAuthTokens? {
-    tokens
-  }
-
-  func save(_: OAuthTokens) throws {}
-  func clear() -> Bool {
-    true
-  }
-}
-
 @MainActor
 private final class ScriptedTransport: ClientTransport {
   private(set) var operationIDs: [String] = []
@@ -214,7 +202,7 @@ private func ephemeralState(
   )
   state.readAttention.setVisible(visible, window: UUID())
   state.clientResolver = { client }
-  return (state, AuthState(configuration: nil, store: MemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false), transport, defaults)
+  return (state, AuthState(configuration: nil, store: InMemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false), transport, defaults)
 }
 
 /// Settles the fire-and-forget transcript tasks `openRoom` / `loadOlder`
@@ -482,7 +470,7 @@ struct WorkspaceStateTests {
   }
 
   @Test func clientProviderReceivesCurrentAuthOnEveryResolution() throws {
-    let auth = AuthState(configuration: nil, store: MemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
+    let auth = AuthState(configuration: nil, store: InMemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
     let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: ScriptedTransport([]))
     var available = true
     var calls = 0
@@ -962,7 +950,7 @@ struct WorkspaceStateTests {
 
   @Test func missingThreadClientEndsInitialLoading() throws {
     let (state, _, _, _) = try ephemeralState([])
-    let auth = AuthState(configuration: nil, store: MemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
+    let auth = AuthState(configuration: nil, store: InMemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
     state.clientResolver = nil
     #expect(state.resolveClient(auth: auth) == nil)
     state.thread.timeline.reset(roomId: "room", parentMessageId: "parent")
@@ -2175,7 +2163,7 @@ extension WorkspaceStateTests {
 extension WorkspaceStateTests {
   @Test func searchWithoutClientReportsFailureForTheSubmittedQuery() async {
     let state = WorkspaceState(clientProvider: { _ in nil })
-    let auth = AuthState(configuration: nil, store: MemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
+    let auth = AuthState(configuration: nil, store: InMemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false)
     state.timeline.reset(roomId: "room")
     let search = RoomSearch()
     await state.searchMessages("  matching  ", roomId: "room", search: search, auth: auth)
@@ -2794,12 +2782,13 @@ extension WorkspaceStateTests {
     #expect(CoworkerMentionShell(message: shell) == .failed(mentionId: "mention_1", sourceMessageId: "source"))
 
     transport.pauseMentionRetry = true
-    let retry = Task { try await state.retryMention(shell, auth: auth) }
+    let now = Date(timeIntervalSince1970: 1_700_000_123.456)
+    let retry = Task { try await state.retryMention(shell, auth: auth, now: now) }
     while !transport.operationIDs.contains(mentionRetryOperation) {
       await Task.yield()
     }
     let inFlight = reply ? state.thread.timeline.messages.first : state.timeline.messages.last
-    #expect(try CoworkerMentionShell(message: #require(inFlight))?.isThinking == true)
+    #expect(try CoworkerMentionShell(message: #require(inFlight)) == .thinking(startedAt: now))
     #expect(try !canQuoteMessage(#require(inFlight)))
     #expect(state.pendingMentionRetries.count == 1)
     // A second click while the POST is in flight must not send another request.

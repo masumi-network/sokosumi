@@ -22,9 +22,10 @@ struct DriveFilePickerView: View {
         Button("Files", systemImage: "externaldrive") { folders = []
           query = ""
         }
-        ForEach(folders.indices, id: \.self) { index in
+        ForEach(crumbs, id: \.path) { crumb in
           Image(systemName: "chevron.right").accessibilityHidden(true)
-          Button(folders[index]) { folders = Array(folders.prefix(index + 1))
+          Button(crumb.name) {
+            folders = crumb.path.split(separator: "/").map(String.init)
             query = ""
           }
         }
@@ -69,6 +70,12 @@ struct DriveFilePickerView: View {
       await picker.load {
         try await load(folder, search)
       }
+    }
+  }
+
+  private var crumbs: [(path: String, name: String)] {
+    folders.enumerated().map { index, name in
+      (path: folders.prefix(index + 1).joined(separator: "/"), name: name)
     }
   }
 
