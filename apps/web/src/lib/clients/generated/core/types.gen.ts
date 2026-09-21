@@ -4465,6 +4465,10 @@ export type ProjectListItem = Project & {
      * Latest visible task/job event, ready task output or project lifecycle event. Equals createdAt when the project has no activity yet, which is also the list ordering key.
      */
     lastActivityAt: Date;
+    /**
+     * When the reader Pinned this project, or null when they have not. Always resolved for the acting user, so null means unpinned rather than unknown; it is null for every non-user actor, since a Pin belongs to a person. Never an ordering key here — the list stays in activity order and the sidebar flyout is what puts Pins first.
+     */
+    starredAt: Date | null;
 };
 
 export type ProjectLatestUpdate = {
@@ -4572,6 +4576,13 @@ export type ProjectTaskStatusCount = {
 export type ProjectJobStatusCount = {
     count: number;
     status: SokosumiJobStatus;
+};
+
+export type StarredProject = Project & {
+    /**
+     * When this reader Pinned the project. Ascending is the order the sidebar flyout draws Pins in.
+     */
+    starredAt: Date;
 };
 
 export type AddProjectJobRequest = {
@@ -4692,6 +4703,11 @@ export type ProjectNeedsAttention = {
      * Mixed tasks+jobs that need attention, already ranked, length 0..5. Never padded with excluded statuses.
      */
     items: Array<HistoryItem>;
+};
+
+export type ProjectStar = {
+    projectId: string;
+    starredAt: Date | null;
 };
 
 export type PatchProjectRequest = {
@@ -31166,6 +31182,85 @@ export type GetProjectsStatsResponses = {
 
 export type GetProjectsStatsResponse = GetProjectsStatsResponses[keyof GetProjectsStatsResponses];
 
+export type GetProjectsStarredData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/projects/starred';
+};
+
+export type GetProjectsStarredErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsStarredError = GetProjectsStarredErrors[keyof GetProjectsStarredErrors];
+
+export type GetProjectsStarredResponses = {
+    /**
+     * The reader's Pinned projects
+     */
+    200: {
+        data: Array<StarredProject>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsStarredResponse = GetProjectsStarredResponses[keyof GetProjectsStarredResponses];
+
 export type PostProjectsByIdJobsData = {
     body?: AddProjectJobRequest;
     headers?: {
@@ -32463,6 +32558,198 @@ export type GetProjectsByIdNeedsAttentionResponses = {
 };
 
 export type GetProjectsByIdNeedsAttentionResponse = GetProjectsByIdNeedsAttentionResponses[keyof GetProjectsByIdNeedsAttentionResponses];
+
+export type DeleteProjectsByIdStarData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/star';
+};
+
+export type DeleteProjectsByIdStarErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteProjectsByIdStarError = DeleteProjectsByIdStarErrors[keyof DeleteProjectsByIdStarErrors];
+
+export type DeleteProjectsByIdStarResponses = {
+    /**
+     * Project unstarred
+     */
+    200: {
+        data: ProjectStar;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteProjectsByIdStarResponse = DeleteProjectsByIdStarResponses[keyof DeleteProjectsByIdStarResponses];
+
+export type PostProjectsByIdStarData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/star';
+};
+
+export type PostProjectsByIdStarErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdStarError = PostProjectsByIdStarErrors[keyof PostProjectsByIdStarErrors];
+
+export type PostProjectsByIdStarResponses = {
+    /**
+     * Project starred
+     */
+    200: {
+        data: ProjectStar;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdStarResponse = PostProjectsByIdStarResponses[keyof PostProjectsByIdStarResponses];
 
 export type DeleteProjectsByIdData = {
     body?: never;

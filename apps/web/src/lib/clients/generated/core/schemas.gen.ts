@@ -14754,12 +14754,22 @@ export const ProjectListItemSchema = {
                     format: 'date-time',
                     example: '2021-01-01T00:00:00.000Z',
                     description: 'Latest visible task/job event, ready task output or project lifecycle event. Equals createdAt when the project has no activity yet, which is also the list ordering key.'
+                },
+                starredAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z',
+                    description: 'When the reader Pinned this project, or null when they have not. Always resolved for the acting user, so null means unpinned rather than unknown; it is null for every non-user actor, since a Pin belongs to a person. Never an ordering key here — the list stays in activity order and the sidebar flyout is what puts Pins first.'
                 }
             },
             required: [
                 'taskCount',
                 'jobCount',
-                'lastActivityAt'
+                'lastActivityAt',
+                'starredAt'
             ]
         }
     ]
@@ -15176,6 +15186,28 @@ export const ProjectJobStatusCountSchema = {
     ]
 } as const;
 
+export const StarredProjectSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/Project'
+        },
+        {
+            type: 'object',
+            properties: {
+                starredAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z',
+                    description: 'When this reader Pinned the project. Ascending is the order the sidebar flyout draws Pins in.'
+                }
+            },
+            required: [
+                'starredAt'
+            ]
+        }
+    ]
+} as const;
+
 export const AddProjectJobRequestSchema = {
     type: 'object',
     properties: {
@@ -15578,6 +15610,29 @@ export const ProjectNeedsAttentionSchema = {
         'taskCount',
         'jobCount',
         'items'
+    ]
+} as const;
+
+export const ProjectStarSchema = {
+    type: 'object',
+    properties: {
+        projectId: {
+            type: 'string',
+            format: 'uuid',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        starredAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'projectId',
+        'starredAt'
     ]
 } as const;
 

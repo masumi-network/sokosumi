@@ -17,6 +17,7 @@ import {
 
 const mocks = vi.hoisted(() => ({
   load: vi.fn(),
+  loadPinned: vi.fn(),
   pathname: "/projects/project-1/tasks",
   organizationId: "org-1" as string | null,
   userId: "user-1",
@@ -37,7 +38,10 @@ vi.mock("@/lib/auth/auth.client", () => ({
     isRefetching: mocks.refetching,
   }),
 }));
-vi.mock("@/app/projects/actions", () => ({ loadMoreProjects: mocks.load }));
+vi.mock("@/app/projects/actions", () => ({
+  loadMoreProjects: mocks.load,
+  loadPinnedProjects: mocks.loadPinned,
+}));
 vi.mock("next/link", () => ({
   default: ({
     prefetch: _prefetch,
@@ -121,6 +125,7 @@ beforeEach(() => {
     projects: [{ id: "project-1", name: "Launch plan" }],
     nextCursor: null,
   });
+  mocks.loadPinned.mockResolvedValue([]);
 });
 
 describe("Projects sidebar", () => {
@@ -474,9 +479,9 @@ describe("Projects sidebar", () => {
     openFlyout();
     const row = await screen.findByRole("link", { name: "Launch plan" });
     const panel = row.closest('[data-slot="popover-content"]');
-    // The heading says what the rows are, so it is not the row label echoed
-    // back — and it is what a screen reader announces for the panel.
-    const heading = screen.getByText("recentProjects");
+    // Its own name, not the row label echoed back, and not a group name
+    // either — the panel holds Pinned rows as well as recent ones.
+    const heading = screen.getByText("projectsPanel");
     expect(panel).toHaveAttribute("aria-labelledby", heading.id);
     expect(heading.id).not.toBe("");
   });
@@ -540,6 +545,8 @@ it.each([en, de, es])(
     const labels = messages.App.Sidebar.Content.MenuItems;
     for (const key of [
       "projects",
+      "projectsPanel",
+      "pinnedProjects",
       "recentProjects",
       "allProjects",
       "projectsLoading",
@@ -551,3 +558,107 @@ it.each([en, de, es])(
     }
   },
 );
+
+describe("ProjectsMenuItem pinned rows", () => {
+  it("shows a Pinned project the activity page does not carry", async () => {
+    // The case the starred endpoint exists for: a quiet project the reader
+    // Pinned, which has long since fallen off page one.
+    mocks.load.mockResolvedValue({
+      projects: [{ id: "project-1", name: "Launch plan" }],
+      nextCursor: null,
+    });
+    mocks.loadPinned.mockResolvedValue([
+      { id: "dormant", name: "Archive cleanup", logo: null },
+    ]);
+
+    setup();
+    openFlyout();
+
+    await waitFor(() => {
+      expect(projectHrefs()).toEqual([
+        "/projects/dormant",
+        "/projects/project-1",
+      ]);
+    });
+  });
+
+  it("draws Pins before recents under headings that name each group", async () => {
+    mocks.load.mockResolvedValue({
+      projects: [
+        { id: "recent-1", name: "Recent one" },
+        { id: "recent-2", name: "Recent two" },
+      ],
+      nextCursor: null,
+    });
+    mocks.loadPinned.mockResolvedValue([
+      { id: "pin-1", name: "Pinned one", logo: null },
+    ]);
+
+    setup();
+    openFlyout();
+
+    await waitFor(() => {
+      expect(projectHrefs()).toEqual([
+        "/projects/pin-1",
+        "/projects/recent-1",
+        "/projects/recent-2",
+      ]);
+    });
+    // A lone divider let the panel label a Pinned row "Recent projects", so
+    // each group names itself.
+    expect(screen.getByText("pinnedProjects")).toBeDefined();
+    expect(screen.getByText("recentProjects")).toBeDefined();
+  });
+
+  it("names the one list once when the reader has no Pins", async () => {
+    mocks.loadPinned.mockResolvedValue([]);
+
+    setup();
+    openFlyout();
+
+    await waitFor(() => {
+      expect(projectHrefs()).toEqual(["/projects/project-1"]);
+    });
+    // The panel heading already names it; a second one under it is noise.
+    expect(screen.queryByText("pinnedProjects")).toBeNull();
+    expect(screen.getAllByText("recentProjects")).toHaveLength(1);
+  });
+
+  it("keeps a closed Pin out of the flyout, so it does not claim a row", async () => {
+    mocks.loadPinned.mockResolvedValue([
+      {
+        id: "closed",
+        name: "Shipped",
+        logo: null,
+        closedAt: new Date("2026-09-01T00:00:00.000Z"),
+      },
+      { id: "open-pin", name: "Still going", logo: null, closedAt: null },
+    ]);
+
+    setup();
+    openFlyout();
+
+    await waitFor(() => {
+      expect(projectHrefs()).toEqual([
+        "/projects/open-pin",
+        "/projects/project-1",
+      ]);
+    });
+    expect(screen.queryByRole("link", { name: "Shipped" })).toBeNull();
+  });
+
+  it("shows failure and retries when the Pin list fails", async () => {
+    mocks.loadPinned
+      .mockRejectedValueOnce(new Error("Forbidden"))
+      .mockResolvedValueOnce([]);
+    setup();
+    openFlyout();
+    const retry = await screen.findByRole("button", { name: "retryProjects" });
+    expect(screen.getByRole("status")).toHaveTextContent("projectsError");
+    fireEvent.click(retry);
+    expect(
+      await screen.findByRole("link", { name: "Launch plan" }),
+    ).toBeInTheDocument();
+    expect(mocks.loadPinned).toHaveBeenCalledTimes(2);
+  });
+});
