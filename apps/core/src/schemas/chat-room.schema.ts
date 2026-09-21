@@ -192,7 +192,7 @@ export const chatRoomSchema = z
     }),
     threadUnreadCount: z.number().int().min(0).default(0).openapi({
       description:
-        "Thread unread: non-self replies in Threads the viewer Participates in, after the per-thread look baseline (thread lastReadAt, else room join createdAt), less Muted threads that do not mention them. Surfaces on the Thread, never on the channel. ADR-0013, ADR-0030, ADR-0037.",
+        "Thread unread: non-self replies in Threads the viewer Participates in, after the per-Thread Look baseline (thread lastReadAt, else room join createdAt), less Muted threads that do not mention them. Surfaces on the Thread, never on the channel. ADR-0013, ADR-0030, ADR-0037.",
       example: 3,
     }),
     unreadMentionCount: z.number().int().min(0).openapi({

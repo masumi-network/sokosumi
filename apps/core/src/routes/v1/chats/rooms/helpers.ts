@@ -206,7 +206,7 @@ function resolveUserPresence(
 }
 
 export interface MapChatRoomAttentionOptions {
-  /** Total Room attention: `channelUnreadCount + threadUnreadCount`. */
+  /** The sum: `channelUnreadCount + threadUnreadCount`. */
   unreadCount?: number;
   /** Room unread: top-level messages after Room last-read (ADR-0037). */
   channelUnreadCount?: number;
@@ -249,8 +249,11 @@ export function mapChatRoom(
 ) {
   const {
     unreadCount = 0,
-    channelUnreadCount = 0,
     threadUnreadCount = 0,
+    // A caller that states only the sum gets it as Room unread. Bold follows
+    // this half, so the other default, zero, would quietly stop a row bolding
+    // while its total said otherwise.
+    channelUnreadCount = Math.max(0, unreadCount - threadUnreadCount),
     unreadMentionCount = 0,
     starredAt = null,
     pinnedMessageCount = 0,
@@ -539,8 +542,8 @@ export async function mapChatRoomWithSidebarFlags(
 
   return mapChatRoom(room, userId, {
     unreadCount: attention.unreadCount ?? 0,
-    channelUnreadCount: attention.channelUnreadCount ?? 0,
-    threadUnreadCount: attention.threadUnreadCount ?? 0,
+    channelUnreadCount: attention.channelUnreadCount,
+    threadUnreadCount: attention.threadUnreadCount,
     unreadMentionCount: attention.unreadMentionCount ?? 0,
     starredAt: flags?.starredAt ?? null,
     pinnedMessageCount: pinnedMessageCounts.get(room.id) ?? 0,

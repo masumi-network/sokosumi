@@ -18,7 +18,7 @@ import {
 import {
   getChatRoomUnreadCounts,
   getChatRoomUnreadMentionCounts,
-  unreadAttention,
+  unreadCountFields,
 } from "../../room-unread";
 
 const paramsSchema = z.object({
@@ -99,7 +99,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       c,
       chatRoomSchema.parse(
         await mapChatRoomWithSidebarFlags(room, userContext.userId, prisma, {
-          ...unreadAttention(unreadCounts.get(room.id)),
+          ...unreadCountFields(unreadCounts.get(room.id)),
           unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
         }),
       ),

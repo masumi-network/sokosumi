@@ -82,7 +82,8 @@ function sqlThreadReplyPagesViewer(userIdSql: string): string {
 }
 
 /**
- * Room unread, as its two addends (ADR-0037).
+ * A room's unread, as its two addends: Room unread and Thread unread
+ * (ADR-0037).
  *
  * `channel` is what Room last-read clears. `thread` is what Looking a Thread
  * clears. They are reported separately because a reader who clears a channel
@@ -107,7 +108,7 @@ export function emptyChatRoomUnreadBreakdown(): ChatRoomUnreadBreakdown {
  * from the map, and reads as zero in all three. One helper so the routes that
  * build a summary cannot drift from each other.
  */
-export function unreadAttention(
+export function unreadCountFields(
   breakdown: ChatRoomUnreadBreakdown | undefined,
 ): {
   unreadCount: number;
