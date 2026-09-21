@@ -37,17 +37,22 @@ import type { RoomComposerHandle } from "../room-composer";
 import { RoomsClient } from "../rooms-client";
 import { transcriptViewportSpies } from "./transcript-viewport-stub";
 
-const { mockIsMobileMedia, mockHeaderRoomSlotHost, mockRoomRealtime } =
-  vi.hoisted(() => ({
-    mockRoomRealtime: vi.fn(),
-    mockIsMobileMedia: vi.fn((): boolean | undefined => false),
-    mockHeaderRoomSlotHost: vi.fn((): HTMLElement | null => null),
-  }));
+const {
+  mockIsMobileMedia,
+  mockHeaderRoomSlotHost,
+  mockRoomRealtime,
+  mockRouterReplace,
+} = vi.hoisted(() => ({
+  mockRoomRealtime: vi.fn(),
+  mockIsMobileMedia: vi.fn((): boolean | undefined => false),
+  mockHeaderRoomSlotHost: vi.fn((): HTMLElement | null => null),
+  mockRouterReplace: vi.fn(),
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: vi.fn(),
-    replace: vi.fn(),
+    replace: mockRouterReplace,
     refresh: vi.fn(),
   }),
   usePathname: () => "/chat/rooms/room-1",
@@ -1129,6 +1134,7 @@ describe("retained channel history", () => {
       vi.fn(() => new Promise<Response>(() => {})),
     );
     mockRoomRealtime.mockClear();
+    mockRouterReplace.mockClear();
   });
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -1263,6 +1269,86 @@ describe("channel cache access and navigation", () => {
       expect(screen.queryByTestId("room-message-list-skeleton")).toBeNull();
     },
   );
+
+  it("keeps the open room on screen until an uncached room can paint", async () => {
+    render(
+      <>
+        <a
+          href="/chat/rooms/room-channel"
+          onClick={(event) => event.preventDefault()}
+        >
+          Open A
+        </a>
+        <a
+          href="/chat/rooms/room-direct"
+          onClick={(event) => event.preventDefault()}
+        >
+          Open direct
+        </a>
+        <PersistentRoomView>
+          <RoomRouteBootstrap
+            {...baseProps}
+            messages={[sampleMessage("stay visible")]}
+          />
+        </PersistentRoomView>
+      </>,
+      { wrapper: CacheWrapper },
+    );
+    fireEvent.click(screen.getByText("Open A"));
+    expect(await screen.findByText("stay visible")).toBeTruthy();
+    fireEvent.click(screen.getByText("Open direct"));
+    expect(screen.getByText("stay visible")).toBeTruthy();
+    expect(screen.getByTestId("room-session-composer")).toBeTruthy();
+  });
+
+  it("does not spend a message link until the route commits", async () => {
+    function Page({ bootstrap }: { bootstrap: typeof baseProps }) {
+      return (
+        <>
+          <a
+            href="/chat/rooms/room-channel"
+            onClick={(event) => event.preventDefault()}
+          >
+            Open A
+          </a>
+          <a
+            href="/chat/rooms/room-b?message=msg-b"
+            onClick={(event) => event.preventDefault()}
+          >
+            Open B message
+          </a>
+          <PersistentRoomView>
+            <RoomRouteBootstrap {...bootstrap} />
+          </PersistentRoomView>
+        </>
+      );
+    }
+    const view = render(
+      <Page
+        bootstrap={{ ...baseProps, messages: [sampleMessage("A retained")] }}
+      />,
+      { wrapper: CacheWrapper },
+    );
+    fireEvent.click(screen.getByText("Open A"));
+    expect(await screen.findByText("A retained")).toBeTruthy();
+    view.rerender(
+      <Page
+        bootstrap={{
+          ...roomBProps,
+          messages: [
+            {
+              ...sampleMessage("B retained"),
+              id: "msg-b",
+              roomId: "room-b",
+            },
+          ],
+        }}
+      />,
+    );
+    fireEvent.click(screen.getByText("Open B message"));
+    expect(await screen.findByText("B retained")).toBeTruthy();
+    expect(mockRouterReplace).not.toHaveBeenCalled();
+  });
 
   it.each(["channel", "direct"] as const)(
     "restores each %s room's reading position on return",

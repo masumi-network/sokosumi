@@ -69,6 +69,7 @@ import {
   isTopLevelChatRoomMessage,
   routeRealtimeChatRoomMessage,
 } from "@/app/chat/utils/chat-room-message-scope";
+import { CHAT_EDIT_CHANNEL_PARAM } from "@/app/chat/utils/chat-route-base";
 import {
   type ClassicOutboundJob,
   type ClassicOutboundQueueRefs,
@@ -175,6 +176,7 @@ import type {
 import { cn } from "@/lib/utils";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
 import {
+  CHAT_MESSAGE_PARAM,
   type ChatRoomMessageLink,
   chatRoomMessageHref,
 } from "@/lib/utils/notification-href";
@@ -324,6 +326,51 @@ function RoomMessageRealtimeBridge({
     onContinuityLost,
   });
   return null;
+}
+
+const NO_ROOM_SEARCH = new URLSearchParams();
+
+/**
+ * Optimistic selection paints the room before `usePathname` catches up.
+ * Message and edit params stay on the committed route: spending them with
+ * `router.replace` while the link's push is still pending discards that push,
+ * so Back skips the room the reader just left.
+ */
+function visibleRoomLocation(
+  selectedRoomId: string | null,
+  routePathname: string,
+  routeSearchParams: Pick<URLSearchParams, "get" | "has" | "toString">,
+  selectedPath: string | null,
+): {
+  pathname: string;
+  searchParams: Pick<URLSearchParams, "get" | "has" | "toString">;
+  pendingMessageJump: boolean;
+} {
+  const optimisticPath = selectedPath?.split("?")[0];
+  const optimisticRoomId = optimisticPath?.match(
+    /^\/chat\/rooms\/([^/]+)\/?$/,
+  )?.[1];
+  const routeRoomId = routePathname.match(/^\/chat\/rooms\/([^/]+)\/?$/)?.[1];
+  const namesThisRoom =
+    selectedRoomId != null && optimisticRoomId === selectedRoomId;
+  const caughtUp = routeRoomId === selectedRoomId;
+  if (!namesThisRoom || caughtUp) {
+    return {
+      pathname: routePathname,
+      searchParams: routeSearchParams,
+      pendingMessageJump: false,
+    };
+  }
+  const optimisticQuery = selectedPath?.split("?")[1] ?? "";
+  const jump = new URLSearchParams(optimisticQuery);
+  const pendingMessageJump = jump.has(CHAT_MESSAGE_PARAM);
+  const deferToRoute = pendingMessageJump || jump.has(CHAT_EDIT_CHANNEL_PARAM);
+  return {
+    pathname: optimisticPath ?? routePathname,
+    searchParams:
+      deferToRoute || optimisticQuery === "" ? NO_ROOM_SEARCH : jump,
+    pendingMessageJump,
+  };
 }
 
 interface RetainedTranscriptBinding {
@@ -500,11 +547,12 @@ function RoomView({
   const routePathname = usePathname();
   const routeSearchParams = useSearchParams();
   const selectedPath = useRoomSelection();
-  const pathname = selectedPath?.split("?")[0] ?? routePathname;
-  const searchParams =
-    selectedPath && selectedPath.split("?")[0] !== routePathname
-      ? new URLSearchParams(selectedPath.split("?")[1] ?? "")
-      : routeSearchParams;
+  const { pathname, searchParams, pendingMessageJump } = visibleRoomLocation(
+    selectedRoomId,
+    routePathname,
+    routeSearchParams,
+    selectedPath,
+  );
   const isApple = useIsApplePlatform();
   const isMobile = useIsMobileMedia();
   const headerRoomSlotHost = useHeaderRoomSlotHost();
@@ -3101,7 +3149,9 @@ function RoomView({
             renderRow={renderTranscriptRow}
             holdOffBottom={searchHoldOffBottom}
             initialPosition={
-              searchParams.has("message") ? undefined : retained?.entry.position
+              pendingMessageJump || searchParams.has(CHAT_MESSAGE_PARAM)
+                ? undefined
+                : retained?.entry.position
             }
             onPositionChange={retained?.positionChanged}
           />

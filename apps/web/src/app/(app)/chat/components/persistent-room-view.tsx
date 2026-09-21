@@ -8,7 +8,10 @@ import {
   useLayoutEffect,
   useState,
 } from "react";
-import type { RoomTranscriptEntry } from "@/app/chat/utils/room-transcript-cache";
+import type {
+  RoomTranscriptCache,
+  RoomTranscriptEntry,
+} from "@/app/chat/utils/room-transcript-cache";
 import { useRoomCache, useRoomSelection } from "./room-cache-provider";
 import { RoomOpenLoadingView } from "./room-open-loading-view";
 import { RoomsClient, type RoomsClientProps } from "./rooms-client";
@@ -17,12 +20,45 @@ const RoomBootstrapContext = createContext<
   ((props: RoomsClientProps) => void) | null
 >(null);
 
+function roomIdFromPath(path: string | null | undefined): string | undefined {
+  return path?.split("?")[0].match(/^\/chat\/rooms\/([^/]+)\/?$/)?.[1];
+}
+
+/** Cached room, or the page bootstrap that just registered this room. */
+function roomCanPaint(
+  cache: RoomTranscriptCache,
+  roomId: string,
+  bootstrap: RoomsClientProps | null,
+): boolean {
+  if (!cache.available(roomId)) return false;
+  if (cache.get(roomId)?.bootstrap.selectedRoomId === roomId) return true;
+  return bootstrap?.selectedRoomId === roomId;
+}
+
 /** Lives above the route's loading boundary. Next owns URLs and access validation. */
 export function PersistentRoomView({ children }: { children: ReactNode }) {
   const cache = useRoomCache();
   const path = useRoomSelection();
   const [bootstrap, setBootstrap] = useState<RoomsClientProps | null>(null);
-  const roomId = path?.split("?")[0].match(/^\/chat\/rooms\/([^/]+)\/?$/)?.[1];
+  const requestedId = roomIdFromPath(path);
+  const [paintedId, setPaintedId] = useState(requestedId);
+  // A click updates the target before the next page can register. Painting
+  // that id immediately unmounts the open room onto a page that renders null.
+  const targetRevoked = Boolean(
+    requestedId && cache && !cache.available(requestedId),
+  );
+  const targetReady = Boolean(
+    requestedId && cache && roomCanPaint(cache, requestedId, bootstrap),
+  );
+  const nextPaintedId = !cache
+    ? requestedId
+    : !requestedId
+      ? undefined
+      : targetReady || targetRevoked
+        ? requestedId
+        : paintedId;
+  if (nextPaintedId !== paintedId) setPaintedId(nextPaintedId);
+  const roomId = cache ? nextPaintedId : requestedId;
   return (
     <RoomBootstrapContext value={setBootstrap}>
       {cache && roomId ? (
