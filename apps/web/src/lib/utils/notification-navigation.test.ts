@@ -9,7 +9,7 @@ const { getWorkspaceOrganizationIdMock, getMyMembersWithOrganizationsMock } =
     getMyMembersWithOrganizationsMock: vi.fn(),
   }));
 
-vi.mock("@/lib/services/workspace.service", () => ({
+vi.mock("@/lib/utils/workspace-organization.client", () => ({
   getWorkspaceOrganizationId: getWorkspaceOrganizationIdMock,
 }));
 
@@ -20,7 +20,7 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
 }));
 
 import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";
-import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@/lib/utils/vendor-grant-notification";
+import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@/lib/utils/workspace-approval";
 
 function createNotification(
   overrides: Partial<NotificationItem> = {},

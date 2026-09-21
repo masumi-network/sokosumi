@@ -14,7 +14,6 @@ import {
   getBrowserNotificationPermission,
   shouldShowBrowserNotification,
 } from "@/lib/utils/browser-notification";
-import { isPendingCoworkerAccessNotification } from "@/lib/utils/coworker-access-notification";
 import { buildNotificationBannerContent } from "@/lib/utils/notification-banner";
 import { getNotificationIcon } from "@/lib/utils/notification-icon";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
@@ -27,7 +26,11 @@ import {
   subscribeNotificationClicks,
   toNotificationTarget,
 } from "@/lib/utils/notification-service-worker";
-import { isPendingVendorGrantNotification } from "@/lib/utils/vendor-grant-notification";
+import {
+  COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+  isPendingWorkspaceApprovalNotification,
+  VENDOR_GRANT_PENDING_MESSAGE_KEY,
+} from "@/lib/utils/workspace-approval";
 
 import { useOpenNotification } from "./use-open-notification";
 
@@ -69,9 +72,14 @@ function PendingAccessNotificationToast({
   message,
   onOpen,
 }: PendingAccessNotificationToastProps) {
-  const showVendorGrantActions = isPendingVendorGrantNotification(notification);
-  const showCoworkerAccessActions =
-    isPendingCoworkerAccessNotification(notification);
+  const showVendorGrantActions = isPendingWorkspaceApprovalNotification(
+    notification,
+    VENDOR_GRANT_PENDING_MESSAGE_KEY,
+  );
+  const showCoworkerAccessActions = isPendingWorkspaceApprovalNotification(
+    notification,
+    COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+  );
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-1">
@@ -154,8 +162,14 @@ export function NotificationToastListener({
         isDocumentFocused &&
         notification.inApp &&
         !notification.isRead &&
-        (isPendingVendorGrantNotification(notification) ||
-          isPendingCoworkerAccessNotification(notification));
+        (isPendingWorkspaceApprovalNotification(
+          notification,
+          VENDOR_GRANT_PENDING_MESSAGE_KEY,
+        ) ||
+          isPendingWorkspaceApprovalNotification(
+            notification,
+            COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+          ));
 
       if (!showBrowser && !showPendingAccessToast) {
         return;
