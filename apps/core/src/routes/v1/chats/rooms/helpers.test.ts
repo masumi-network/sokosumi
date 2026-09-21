@@ -1101,6 +1101,7 @@ function createExternalRoom(
     userMembers: memberships,
     coworkerMembers: [],
     sokoBotMembers: [],
+    readStates: [],
     ...overrides,
   };
 }
@@ -1156,6 +1157,137 @@ describe("mapChatRoom guest-aware DTO fields", () => {
       { kind: "direct", discoverability: null, organizationId: null },
     );
     expect(mapChatRoom(room as never, MEMBER_ID).discoverability).toBeNull();
+  });
+});
+
+describe("mapChatRoom room read receipts", () => {
+  const MEMBER_READ_AT = new Date("2025-03-01T10:00:00.000Z");
+  const GUEST_READ_AT = new Date("2025-03-01T11:00:00.000Z");
+  const LEAVER_ID = "user_leaver";
+
+  function lastReadByMember(room: unknown, viewerId: string) {
+    return Object.fromEntries(
+      mapChatRoom(room as never, viewerId).userMembers.map((member) => [
+        member.id,
+        member.lastReadAt,
+      ]),
+    );
+  }
+
+  it("gives a member with read state their Room last-read", () => {
+    const room = createExternalRoom(
+      [createRoomMembership(MEMBER_ID, "member")],
+      { readStates: [{ userId: MEMBER_ID, lastReadAt: MEMBER_READ_AT }] },
+    );
+
+    expect(lastReadByMember(room, MEMBER_ID)).toEqual({
+      [MEMBER_ID]: MEMBER_READ_AT,
+    });
+  });
+
+  it("gives a member who never opened the room a null Room last-read", () => {
+    const room = createExternalRoom([
+      createRoomMembership(MEMBER_ID, "member"),
+      createRoomMembership(GUEST_ID, "member"),
+    ]);
+
+    expect(lastReadByMember(room, MEMBER_ID)).toEqual({
+      [MEMBER_ID]: null,
+      [GUEST_ID]: null,
+    });
+  });
+
+  it("hides every read time from a guest viewer, their own included", () => {
+    const room = createExternalRoom(
+      [
+        createRoomMembership(MEMBER_ID, "member"),
+        createRoomMembership(GUEST_ID, "guest"),
+      ],
+      {
+        readStates: [
+          { userId: MEMBER_ID, lastReadAt: MEMBER_READ_AT },
+          { userId: GUEST_ID, lastReadAt: GUEST_READ_AT },
+        ],
+      },
+    );
+
+    expect(lastReadByMember(room, GUEST_ID)).toEqual({
+      [MEMBER_ID]: null,
+      [GUEST_ID]: null,
+    });
+  });
+
+  it("still shows a guest's read time to a host member", () => {
+    const room = createExternalRoom(
+      [
+        createRoomMembership(MEMBER_ID, "member"),
+        createRoomMembership(GUEST_ID, "guest"),
+      ],
+      {
+        readStates: [
+          { userId: MEMBER_ID, lastReadAt: MEMBER_READ_AT },
+          { userId: GUEST_ID, lastReadAt: GUEST_READ_AT },
+        ],
+      },
+    );
+
+    expect(lastReadByMember(room, MEMBER_ID)).toEqual({
+      [MEMBER_ID]: MEMBER_READ_AT,
+      [GUEST_ID]: GUEST_READ_AT,
+    });
+  });
+
+  it("drops a read state whose member has left the roster", () => {
+    const room = createExternalRoom(
+      [createRoomMembership(MEMBER_ID, "member")],
+      {
+        readStates: [
+          { userId: MEMBER_ID, lastReadAt: MEMBER_READ_AT },
+          { userId: LEAVER_ID, lastReadAt: GUEST_READ_AT },
+        ],
+      },
+    );
+
+    expect(lastReadByMember(room, MEMBER_ID)).toEqual({
+      [MEMBER_ID]: MEMBER_READ_AT,
+    });
+  });
+
+  it("invents no read state for coworker or Soko Bot members", () => {
+    const room = createExternalRoom(
+      [createRoomMembership(MEMBER_ID, "member")],
+      {
+        readStates: [{ userId: MEMBER_ID, lastReadAt: MEMBER_READ_AT }],
+        coworkerMembers: [
+          {
+            coworker: {
+              id: "cow_1",
+              name: "Elena",
+              slug: "elena",
+              caption: null,
+              image: null,
+            },
+          },
+        ],
+        sokoBotMembers: [
+          {
+            sokoBot: {
+              id: "bot_1",
+              name: "Soko Bot",
+              avatarImageUrl: null,
+              avatarSeed: null,
+              userId: MEMBER_ID,
+              user: { name: "Org Member" },
+            },
+          },
+        ],
+      },
+    );
+
+    const mapped = mapChatRoom(room as never, MEMBER_ID);
+
+    expect(mapped.coworkerMembers[0]).not.toHaveProperty("lastReadAt");
+    expect(mapped.sokoBotMembers[0]).not.toHaveProperty("lastReadAt");
   });
 });
 
