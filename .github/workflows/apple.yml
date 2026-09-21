@@ -176,6 +176,9 @@ jobs:
       - name: Install Mint
         run: brew install mint
 
+      - name: Test scrolling performance runner
+        run: python3 apps/apple/scripts/test-scrolling-performance.py
+
       - name: Cache Mint packages
         uses: actions/cache@v6
         with:
