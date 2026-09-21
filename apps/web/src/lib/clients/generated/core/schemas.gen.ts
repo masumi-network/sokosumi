@@ -15407,6 +15407,149 @@ export const WorkspaceCalendarItemSchema = {
     ]
 } as const;
 
+export const ProjectCloseStatusSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        projectId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'CLOSING',
+                'CLOSE_FAILED',
+                'CLOSED'
+            ]
+        },
+        cutoffAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        reason: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        attempts: {
+            type: 'integer',
+            minimum: 0
+        },
+        failure: {
+            $ref: '#/components/schemas/ProjectCloseFailure'
+        },
+        completedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        projectRevision: {
+            type: 'integer',
+            minimum: 0
+        },
+        owedOccurrenceCount: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'id',
+        'projectId',
+        'state',
+        'cutoffAt',
+        'reason',
+        'attempts',
+        'failure',
+        'completedAt',
+        'projectRevision',
+        'owedOccurrenceCount'
+    ]
+} as const;
+
+export const ProjectCloseFailureSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        seriesTaskId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        message: {
+            type: 'string'
+        }
+    },
+    required: [
+        'seriesTaskId',
+        'message'
+    ]
+} as const;
+
+export const ProjectCloseRequestSchema = {
+    type: 'object',
+    properties: {
+        operationId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Browser-minted idempotency key for this operation',
+            example: '123e4567-e89b-42d3-a456-426614174000'
+        },
+        expectedProjectRevision: {
+            type: 'integer',
+            minimum: 0
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500,
+            example: 'Campaign completed'
+        }
+    },
+    required: [
+        'operationId',
+        'expectedProjectRevision'
+    ]
+} as const;
+
+export const ProjectCloseRecoveryRequestSchema = {
+    type: 'object',
+    properties: {
+        operationId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Browser-minted idempotency key for this operation',
+            example: '123e4567-e89b-42d3-a456-426614174000'
+        },
+        expectedProjectRevision: {
+            type: 'integer',
+            minimum: 0
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500,
+            example: 'Campaign completed'
+        }
+    },
+    required: [
+        'operationId',
+        'expectedProjectRevision',
+        'reason'
+    ]
+} as const;
+
 export const ProjectNeedsAttentionSchema = {
     type: 'object',
     properties: {
