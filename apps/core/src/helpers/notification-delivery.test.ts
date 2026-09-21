@@ -556,6 +556,8 @@ describe("resolveNotificationMatrix email column", () => {
     ).toEqual({
       TASK_ATTENTION: true,
       TASK_COMPLETED: true,
+      TASK_UPDATE: true,
+      PROJECT_UPDATE: true,
       CHAT_MENTION: false,
       CHAT_DIRECT_MESSAGE: false,
       BILLING_ATTENTION: true,
