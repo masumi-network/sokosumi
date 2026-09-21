@@ -385,7 +385,6 @@ struct ConversationSidebarView: View {
       unreadMentionCount: room.unreadMentionCount,
       markedUnread: room.markedUnread,
       isMuted: room.mutedAt != nil,
-      isActive: room.id == workspaces.selectedRoomId,
       showUnreadCount: workspaces.chatDisplay.showsRoomUnreadCount
     )
     return Label {
