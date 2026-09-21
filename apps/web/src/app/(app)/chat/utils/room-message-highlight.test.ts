@@ -10,8 +10,10 @@ import {
 import {
   highlightRoomTranscriptMessage,
   highlightThreadMessage,
+  ROOM_MESSAGE_HIGHLIGHT_FULL_STRENGTH_SHARE,
   ROOM_MESSAGE_HIGHLIGHT_LEAVE_MS,
   ROOM_MESSAGE_HIGHLIGHT_MS,
+  ROOM_MESSAGE_HIGHLIGHT_OPEN_SHARE,
 } from "@/app/chat/utils/room-message-highlight";
 
 /** One container per list, as the room renders it: two rows, one list. */
@@ -123,6 +125,9 @@ describe("room message highlight", () => {
     const article = row("msg-50");
 
     highlightRoomTranscriptMessage("msg-50");
+    vi.advanceTimersByTime(
+      Math.ceil(ROOM_MESSAGE_HIGHLIGHT_MS * ROOM_MESSAGE_HIGHLIGHT_OPEN_SHARE),
+    );
     wheelOver(article);
 
     // Still on the row, and saying so, while globals.css fades it.
@@ -140,6 +145,9 @@ describe("room message highlight", () => {
     const article = row("msg-51");
 
     highlightRoomTranscriptMessage("msg-51");
+    vi.advanceTimersByTime(
+      Math.ceil(ROOM_MESSAGE_HIGHLIGHT_MS * ROOM_MESSAGE_HIGHLIGHT_OPEN_SHARE),
+    );
     touchDragOver(article);
 
     expect(article.dataset.searchLanded).toBe("leaving");
@@ -155,10 +163,47 @@ describe("room message highlight", () => {
     const article = row("msg-57");
 
     highlightRoomTranscriptMessage("msg-57");
-    vi.advanceTimersByTime(Math.ceil(ROOM_MESSAGE_HIGHLIGHT_MS * 0.76));
+    vi.advanceTimersByTime(
+      Math.ceil(
+        ROOM_MESSAGE_HIGHLIGHT_MS * ROOM_MESSAGE_HIGHLIGHT_FULL_STRENGTH_SHARE,
+      ),
+    );
     wheelOver(article);
 
     expect(article.dataset.searchLanded).toBeUndefined();
+  });
+
+  /**
+   * The hold opens the mark over its first stretch. A scroll there must not
+   * hand it to the leave fade either: the fade opens at full strength, so a
+   * mark still on its way in would jump to full and then go out.
+   */
+  it("drops the mark outright when the hold is still opening it", () => {
+    vi.useFakeTimers();
+    const article = row("msg-59");
+
+    highlightRoomTranscriptMessage("msg-59");
+    vi.advanceTimersByTime(
+      Math.floor(
+        ROOM_MESSAGE_HIGHLIGHT_MS * ROOM_MESSAGE_HIGHLIGHT_OPEN_SHARE,
+      ) - 1,
+    );
+    wheelOver(article);
+
+    expect(article.dataset.searchLanded).toBeUndefined();
+  });
+
+  it("fades the mark out once the hold has it at full strength", () => {
+    vi.useFakeTimers();
+    const article = row("msg-60");
+
+    highlightRoomTranscriptMessage("msg-60");
+    vi.advanceTimersByTime(
+      Math.ceil(ROOM_MESSAGE_HIGHLIGHT_MS * ROOM_MESSAGE_HIGHLIGHT_OPEN_SHARE),
+    );
+    wheelOver(article);
+
+    expect(article.dataset.searchLanded).toBe("leaving");
   });
 
   /**
@@ -170,6 +215,9 @@ describe("room message highlight", () => {
     const article = row("msg-58");
 
     highlightRoomTranscriptMessage("msg-58");
+    vi.advanceTimersByTime(
+      Math.ceil(ROOM_MESSAGE_HIGHLIGHT_MS * ROOM_MESSAGE_HIGHLIGHT_OPEN_SHARE),
+    );
     wheelOver(article);
     vi.advanceTimersByTime(ROOM_MESSAGE_HIGHLIGHT_LEAVE_MS - 1);
     wheelOver(article);
@@ -202,11 +250,15 @@ describe("room message highlight", () => {
    * from rather than any ancestor holding the marked row.
    */
   it("leaves the other list's mark alone when one list scrolls", () => {
+    vi.useFakeTimers();
     const parent = row("msg-53", CHAT_MESSAGE_LIST_ROOM);
     const reply = row("msg-54", CHAT_MESSAGE_LIST_THREAD);
 
     highlightRoomTranscriptMessage("msg-53");
     highlightThreadMessage("msg-54");
+    vi.advanceTimersByTime(
+      Math.ceil(ROOM_MESSAGE_HIGHLIGHT_MS * ROOM_MESSAGE_HIGHLIGHT_OPEN_SHARE),
+    );
     wheelOver(reply);
 
     expect(reply.dataset.searchLanded).toBe("leaving");
@@ -377,20 +429,58 @@ describe("room message highlight", () => {
   });
 
   /**
-   * Where the hold stops holding the mark at full strength. Past that stop the
-   * stylesheet is fading the mark out itself, which is what tells a scroll to
-   * drop the mark rather than fade it again.
+   * Where the hold opens the mark and where it starts dropping it again. The
+   * two shares decide whether a scroll fades the mark or ends it, so they have
+   * to name the stops the stylesheet actually runs — in every keyframe the
+   * hold drives, not only the one the wash uses.
    */
-  it("reads the full-strength share from the stylesheet", () => {
+  it("reads its stretch from the stylesheet", () => {
     const css = readFileSync(
       resolve(process.cwd(), "src/app/globals.css"),
       "utf8",
     );
-    const wash = css.slice(css.indexOf("@keyframes chat-jump-wash"));
-    const lastFullStrength = [
-      ...wash.slice(0, wash.indexOf("100%")).matchAll(/(\d+)%\s*{/g),
-    ].at(-1);
+    const stopsOf = (name: string) => {
+      const opens = css.indexOf(`@keyframes ${name} {`);
+      const block = css.slice(opens, css.indexOf("\n}", opens));
+      return [...block.matchAll(/(\d+)%\s*{/g)].map((match) => match[1]);
+    };
 
-    expect(lastFullStrength?.[1]).toBe("76");
+    for (const name of ["chat-jump-wash", "chat-jump-rail", "chat-jump-dim"]) {
+      expect([name, stopsOf(name)]).toEqual([
+        name,
+        [
+          "0",
+          `${ROOM_MESSAGE_HIGHLIGHT_OPEN_SHARE * 100}`,
+          `${ROOM_MESSAGE_HIGHLIGHT_FULL_STRENGTH_SHARE * 100}`,
+          "100",
+        ],
+      ]);
+    }
+  });
+
+  /**
+   * The fade itself is drawn from the leaving mark. Nothing else in this suite
+   * can see the stylesheet, so without this the rules could go and every test
+   * here would still pass while the mark went back to being cut.
+   */
+  it("draws the leaving mark from the stylesheet", () => {
+    const css = readFileSync(
+      resolve(process.cwd(), "src/app/globals.css"),
+      "utf8",
+    );
+
+    // The mark on its way out, and the rows coming back out of the spotlight.
+    expect(css).toContain(
+      '[data-message-id][data-search-landed="leaving"]::before',
+    );
+    expect(css).toContain(
+      '[data-chat-message-list]:has([data-search-landed="leaving"])',
+    );
+    expect(css).toContain(
+      "animation: chat-jump-leave var(--chat-jump-leave) ease-out forwards",
+    );
+    expect(css).toContain(
+      "animation: chat-jump-undim var(--chat-jump-leave) ease-out forwards",
+    );
   });
 });

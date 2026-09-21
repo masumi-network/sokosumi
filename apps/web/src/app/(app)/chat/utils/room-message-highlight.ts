@@ -40,15 +40,21 @@ export const ROOM_MESSAGE_HIGHLIGHT_LEAVE_MS = 320;
 const LEAVING = "leaving";
 
 /**
- * The share of the hold the mark spends at full strength. After that the hold
- * is fading the mark out on its own, and starting the leave fade on top would
- * take the row back to full and drop it a second time. The tail is short, so a
- * scroll there ends the mark outright.
+ * The stretch of the hold the mark spends at full strength, as shares of the
+ * hold: the mark opens over the first, holds, then fades out over the last.
  *
- * Read from the last full-strength stop in the chat-jump-wash keyframes in
- * globals.css.
+ * The leave fade only reads right from inside that stretch. It opens at full
+ * strength, because that is where the stylesheet's rules leave the mark, so
+ * starting it while the hold is still opening the mark, or already fading it
+ * out, snaps the row back to full and fades it a second time. A scroll in
+ * either end ends the mark outright, and the reader sees less of a jump from
+ * that than from the mark coming back to say goodbye.
+ *
+ * Read from the chat-jump-wash, chat-jump-rail and chat-jump-dim keyframes in
+ * globals.css, which all run the same stops.
  */
-const HOLD_FULL_STRENGTH_SHARE = 0.76;
+export const ROOM_MESSAGE_HIGHLIGHT_OPEN_SHARE = 0.1;
+export const ROOM_MESSAGE_HIGHLIGHT_FULL_STRENGTH_SHARE = 0.76;
 
 /**
  * One mark per message list. A thread jump marks two rows at once: the reply
@@ -126,8 +132,9 @@ function clearHighlight(list: Element): void {
 
 /**
  * End the hold the way a reader scroll should: hand the mark to the leave
- * fade, and drop it when that fade has run. The watch stops here, because the
- * mark is already on its way out and a second scroll has nothing left to end.
+ * fade, and drop it when that fade has run. A scroll outside the stretch the
+ * fade can pick up ends the mark instead. The watch stops either way, because
+ * the mark is on its way out and a second scroll has nothing left to end.
  */
 function fadeOutHighlight(list: Element): void {
   const active = activeHighlights.get(list);
@@ -136,9 +143,11 @@ function fadeOutHighlight(list: Element): void {
   }
   window.clearTimeout(active.timer);
   active.stopWatchingScroll();
+  const held = Date.now() - active.landedAt;
   if (
-    Date.now() - active.landedAt >=
-    HOLD_FULL_STRENGTH_SHARE * ROOM_MESSAGE_HIGHLIGHT_MS
+    held < ROOM_MESSAGE_HIGHLIGHT_OPEN_SHARE * ROOM_MESSAGE_HIGHLIGHT_MS ||
+    held >=
+      ROOM_MESSAGE_HIGHLIGHT_FULL_STRENGTH_SHARE * ROOM_MESSAGE_HIGHLIGHT_MS
   ) {
     clearHighlight(list);
     return;
