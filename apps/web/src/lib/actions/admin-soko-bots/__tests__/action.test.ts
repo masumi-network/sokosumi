@@ -36,7 +36,7 @@ vi.mock("@/lib/services/admin-soko-bot.service", () => ({
   adminSokoBotService: serviceMock,
 }));
 
-import { CommonErrorCode } from "@/lib/actions/errors";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { AdminAccessRequiredError } from "@/lib/auth/errors";
 
 import {

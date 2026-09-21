@@ -20,8 +20,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { ActionResultDto } from "@/lib/actions/action-result";
-import type { ActionError } from "@/lib/actions/errors";
-import { CommonErrorCode } from "@/lib/actions/errors";
+import type { ActionError } from "@/lib/actions/errors/action-error";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import type { Coworker } from "@/lib/clients/generated/core/types.gen";
 import {
   COWORKER_CAPTION_MAX_LENGTH,

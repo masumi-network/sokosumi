@@ -8,7 +8,7 @@ import { createModalContext } from "@/components/common/modal-context";
 import type {
   BetterAuthClientError,
   BetterAuthClientResult,
-} from "@/lib/actions/errors";
+} from "@/lib/actions/errors/better-auth";
 import { unassignOrganizationSeat } from "@/lib/actions/organization/seat-action";
 import { authClient } from "@/lib/auth/auth.client";
 import { MemberRole } from "@/lib/clients/generated/core";

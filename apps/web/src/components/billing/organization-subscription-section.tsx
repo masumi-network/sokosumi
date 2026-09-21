@@ -9,8 +9,8 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
-import { CommonErrorCode } from "@/lib/actions/errors";
-import { OrganizationErrorCode } from "@/lib/actions/errors/error-codes";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
+import { OrganizationErrorCode } from "@/lib/actions/errors/error-codes/organization";
 import {
   updateOrganizationSubscriptionSeats,
   upgradeOrganizationSubscription,

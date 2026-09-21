@@ -11,7 +11,7 @@ import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { Button } from "@/components/ui/button";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 
-import { jobStatusDataSchema } from "@/lib/ably";
+import { jobStatusDataSchema } from "@/lib/ably/schema";
 import type { JobSummary } from "@/lib/clients/generated/core";
 import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
