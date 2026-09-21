@@ -215,6 +215,7 @@ import {
   RoomShellLayout,
 } from "./room-shell-layout";
 import { RoomShellRosterHydrator } from "./room-shell-roster-hydrator";
+import { RoomTypingProvider } from "./room-typing-provider";
 import { ThreadPanel } from "./thread-panel";
 
 interface RoomsClientProps {
@@ -2917,46 +2918,53 @@ export function RoomsClient({
           listScrollerRef={setScroller}
           listContent={openRoomListBody}
           composer={
-            <RoomSessionComposer
+            <RoomTypingProvider
               key={selectedRoom.id}
-              ref={roomComposerRef}
               roomId={selectedRoom.id}
-              draftKey={composeDraftKey.room(selectedRoom.id)}
-              mentions={mentionRecords}
-              usersById={usersById}
-              usersBySlug={usersBySlug}
-              coworkersById={coworkersById}
-              coworkersBySlug={coworkersBySlug}
-              sokoBotsById={sokoBotsById}
-              sokoBotsBySlug={sokoBotsBySlug}
-              channels={channelOptions}
-              channelLinks={channelLinks}
-              placeholder={
-                isDirectRoom
-                  ? t("directComposerPlaceholder", {
-                      member: selectedRoomDisplayName,
-                    })
-                  : t("composerPlaceholderWithChannel", {
-                      channel: selectedRoomDisplayName,
-                    })
-              }
-              isSending={isCoworkerStreaming}
-              showMentionShortcut={shouldShowRoomMentionShortcut(selectedRoom)}
-              pendingQuote={pendingQuote}
-              onClearPendingQuote={() => setPendingQuote(null)}
-              onSetPendingQuote={setPendingQuote}
-              onResolveMessageLink={handleResolveMessageLink}
-              requireBody={isCoworkerStreamRoom}
-              // Autofocus only after history settles. Send stays enabled so
-              // optimistic posts work during progressive open (merge into list).
-              focusOnMount={!messagesPending}
-              onBeforeSend={handleChannelBeforeSend}
-              onSend={handleChannelSend}
               currentUserId={currentUserId}
-              canOpenHumanDirect={canOpenHumanDirect}
-              onOpenDirectMessage={stableMessageHandlers.onOpenDirectMessage}
-              openingDirectParticipantKey={openingDirectKey}
-            />
+            >
+              <RoomSessionComposer
+                ref={roomComposerRef}
+                roomId={selectedRoom.id}
+                draftKey={composeDraftKey.room(selectedRoom.id)}
+                mentions={mentionRecords}
+                usersById={usersById}
+                usersBySlug={usersBySlug}
+                coworkersById={coworkersById}
+                coworkersBySlug={coworkersBySlug}
+                sokoBotsById={sokoBotsById}
+                sokoBotsBySlug={sokoBotsBySlug}
+                channels={channelOptions}
+                channelLinks={channelLinks}
+                placeholder={
+                  isDirectRoom
+                    ? t("directComposerPlaceholder", {
+                        member: selectedRoomDisplayName,
+                      })
+                    : t("composerPlaceholderWithChannel", {
+                        channel: selectedRoomDisplayName,
+                      })
+                }
+                isSending={isCoworkerStreaming}
+                showMentionShortcut={shouldShowRoomMentionShortcut(
+                  selectedRoom,
+                )}
+                pendingQuote={pendingQuote}
+                onClearPendingQuote={() => setPendingQuote(null)}
+                onSetPendingQuote={setPendingQuote}
+                onResolveMessageLink={handleResolveMessageLink}
+                requireBody={isCoworkerStreamRoom}
+                // Autofocus only after history settles. Send stays enabled so
+                // optimistic posts work during progressive open (merge into list).
+                focusOnMount={!messagesPending}
+                onBeforeSend={handleChannelBeforeSend}
+                onSend={handleChannelSend}
+                currentUserId={currentUserId}
+                canOpenHumanDirect={canOpenHumanDirect}
+                onOpenDirectMessage={stableMessageHandlers.onOpenDirectMessage}
+                openingDirectParticipantKey={openingDirectKey}
+              />
+            </RoomTypingProvider>
           }
           mainEnd={
             threadParentMessage ? (

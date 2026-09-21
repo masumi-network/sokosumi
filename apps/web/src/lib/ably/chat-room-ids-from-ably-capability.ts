@@ -1,5 +1,7 @@
 import { parseChatRoomIdFromChannelName } from "@sokosumi/utils";
 
+import { parseAblyCapabilityMap } from "./ably-capability-map";
+
 /**
  * Extract chat room ids granted in an Ably token capability map.
  * Returns null when capability is missing or unparseable (caller falls back
@@ -9,27 +11,8 @@ import { parseChatRoomIdFromChannelName } from "@sokosumi/utils";
 export function chatRoomIdsFromAblyCapability(
   capability: unknown,
 ): Set<string> | null {
-  let map: Record<string, unknown>;
-  if (capability == null) {
-    return null;
-  }
-  if (typeof capability === "string") {
-    try {
-      const parsed: unknown = JSON.parse(capability);
-      if (
-        parsed == null ||
-        typeof parsed !== "object" ||
-        Array.isArray(parsed)
-      ) {
-        return null;
-      }
-      map = parsed as Record<string, unknown>;
-    } catch {
-      return null;
-    }
-  } else if (typeof capability === "object" && !Array.isArray(capability)) {
-    map = capability as Record<string, unknown>;
-  } else {
+  const map = parseAblyCapabilityMap(capability);
+  if (map == null) {
     return null;
   }
 
