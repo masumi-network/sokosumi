@@ -1,5 +1,5 @@
 import type { InputRangeSchemaType } from "@sokosumi/masumi/schemas";
-import type { InputType } from "@sokosumi/masumi/types";
+import { InputType } from "@sokosumi/masumi/types";
 import { useMemo } from "react";
 
 import { transformJobInputSchemaValidations } from "@/components/job-input/util";
@@ -13,7 +13,7 @@ export function RangeInput({
   field,
   jobInputSchema,
   controlProps,
-}: JobInputComponentProps<InputType.RANGE, InputRangeSchemaType>) {
+}: JobInputComponentProps<typeof InputType.RANGE, InputRangeSchemaType>) {
   const { defaultValue, min, max, step } = useMemo(() => {
     const { data } = jobInputSchema;
     const transformedValidations =

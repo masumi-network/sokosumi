@@ -1,5 +1,5 @@
 import type { InputTextareaSchemaType } from "@sokosumi/masumi/schemas";
-import type { InputType } from "@sokosumi/masumi/types";
+import { InputType } from "@sokosumi/masumi/types";
 
 import { Textarea } from "@/components/ui/textarea";
 
@@ -10,7 +10,7 @@ export function TextareaInput({
   field,
   jobInputSchema,
   controlProps,
-}: JobInputComponentProps<InputType.TEXTAREA, InputTextareaSchemaType>) {
+}: JobInputComponentProps<typeof InputType.TEXTAREA, InputTextareaSchemaType>) {
   const { data } = jobInputSchema;
   const defaultValue = data?.default ?? "";
 

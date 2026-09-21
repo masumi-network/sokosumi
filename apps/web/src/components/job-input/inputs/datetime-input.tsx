@@ -1,5 +1,5 @@
 import type { InputDatetimeSchemaType } from "@sokosumi/masumi/schemas";
-import type { InputType } from "@sokosumi/masumi/types";
+import { InputType } from "@sokosumi/masumi/types";
 import { useMemo } from "react";
 
 import { transformJobInputSchemaValidations } from "@/components/job-input/util";
@@ -27,7 +27,7 @@ export function DatetimeInput({
   field,
   jobInputSchema,
   controlProps,
-}: JobInputComponentProps<InputType.DATETIME, InputDatetimeSchemaType>) {
+}: JobInputComponentProps<typeof InputType.DATETIME, InputDatetimeSchemaType>) {
   const valueString =
     typeof field.value === "string" &&
     DATETIME_LOCAL_VALUE_REGEX.test(field.value)
