@@ -78,7 +78,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         prisma,
       );
 
-    // Repository already returns createdAt desc; keep that order.
     const payload = links.map(toOrganizationInviteLinkResponse);
 
     return ok(c, z.array(organizationInviteLinkSchema).parse(payload));
