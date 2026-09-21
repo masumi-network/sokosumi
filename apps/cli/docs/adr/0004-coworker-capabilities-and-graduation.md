@@ -45,6 +45,6 @@ Public paid operation requires verified isolation from developer credentials. Pr
 
 ## Least confident decisions
 
-1. [PROPOSED] A short-lived Core-issued runtime delegation credential may provide the runtime boundary. Its claims, delivery, revocation, and invocation contract need approval before implementation; it must not bypass developer-key restrictions.
+1. [RESOLVED 2026-09-21 in ADR 0005] Runtime boundary = `coworker_*` API key plus a separate session grant. A short-lived Core-issued developer-delegation credential is **rejected** for the current path; reopen only if `coworker_*` plus session grants prove insufficient.
 2. [PROPOSED] Local chat requires a transport and recovery contract. Existing task polling does not establish chat support.
 3. [OPEN] Hosted Masumi tenancy, custody, seller fees, and payout provisioning require confirmation. No discussion or agreement with Sandro is claimed.
