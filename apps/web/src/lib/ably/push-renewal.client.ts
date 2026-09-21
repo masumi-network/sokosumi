@@ -98,11 +98,16 @@ async function stopBrowserDelivery(): Promise<void> {
   if (!("serviceWorker" in navigator)) return;
   const registration = await navigator.serviceWorker.getRegistration();
   if (!registration) return;
-  // Unregister also deactivates this registration's push subscription.
+  // Read and unsubscribe before unregistering. Unregister also deactivates
+  // this registration's push subscription, so a read after it answers null
+  // and an unsubscribe after it answers false. Either leaves the check below
+  // blind to a subscription that outlived the teardown.
+  const subscription = await registration.pushManager.getSubscription();
+  const unsubscribed = await subscription?.unsubscribe().catch(() => false);
+  // Unregister runs whatever the unsubscribe said, because it is the step
+  // that stops delivery on its own.
   forgetNotificationServiceWorker();
   const unregistered = await registration.unregister();
-  const subscription = await registration.pushManager.getSubscription();
-  const unsubscribed = await subscription?.unsubscribe();
   if (!unregistered || (subscription && !unsubscribed))
     throw new Error("Could not stop browser push delivery");
 }
@@ -114,6 +119,11 @@ export async function revokePushRenewal(): Promise<void> {
     await writeSnapshot(null);
   } catch {
     // Do not wait behind an activation whose browser subscribe may never finish.
-    await stopBrowserDelivery();
+    await stopBrowserDelivery().catch((error) =>
+      // Reported rather than thrown. Every caller awaits this before it
+      // deactivates the Ably device, so a throw here would leave the device
+      // registered and push arriving for a reader who has signed out.
+      console.error("Failed to stop browser push delivery", error),
+    );
   }
 }

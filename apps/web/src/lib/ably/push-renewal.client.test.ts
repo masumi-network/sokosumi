@@ -149,8 +149,15 @@ function worker() {
   };
 }
 
+function failStorage() {
+  vi.spyOn(databaseFactory, "open").mockImplementation(() => {
+    throw new Error("unavailable");
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.spyOn(console, "error").mockImplementation(() => {});
   databaseFactory = new IDBFactory();
   vi.stubGlobal("indexedDB", databaseFactory);
   subscription = makeSubscription(oldEndpoint);
@@ -198,14 +205,38 @@ describe("worker renewal consent", () => {
     expect(unregister).not.toHaveBeenCalled();
   });
   it("unregisters and unsubscribes if storage cannot revoke", async () => {
-    vi.spyOn(databaseFactory, "open").mockImplementation(() => {
-      throw new Error("unavailable");
-    });
+    failStorage();
     await revokePushRenewal();
     expect(unregister).toHaveBeenCalledOnce();
     expect(subscription.unsubscribe).toHaveBeenCalledOnce();
-    expect(unregister.mock.invocationCallOrder[0]).toBeLessThan(
-      subscription.unsubscribe.mock.invocationCallOrder[0],
+    // Unsubscribe first: unregister deactivates the subscription, so an
+    // unsubscribe after it answers false and reports nothing about the
+    // subscription this teardown had to remove.
+    expect(subscription.unsubscribe.mock.invocationCallOrder[0]).toBeLessThan(
+      unregister.mock.invocationCallOrder[0],
+    );
+  });
+  it("unregisters even when the unsubscribe fails", async () => {
+    failStorage();
+    subscription.unsubscribe.mockRejectedValueOnce(new Error("gone"));
+    await revokePushRenewal();
+    expect(unregister).toHaveBeenCalledOnce();
+    expect(console.error).toHaveBeenCalledWith(
+      "Failed to stop browser push delivery",
+      expect.objectContaining({
+        message: "Could not stop browser push delivery",
+      }),
+    );
+  });
+  it("reports rather than throws when delivery cannot be stopped", async () => {
+    failStorage();
+    unregister.mockResolvedValueOnce(false);
+    await expect(revokePushRenewal()).resolves.toBeUndefined();
+    expect(console.error).toHaveBeenCalledWith(
+      "Failed to stop browser push delivery",
+      expect.objectContaining({
+        message: "Could not stop browser push delivery",
+      }),
     );
   });
 });

@@ -317,9 +317,9 @@ export async function deactivatePush(
   // they leave behind then is a token beside a browser with no subscription:
   // the shape the repair reads as a subscription that died by itself.
   notePushTeardownStarted();
+  // Started before the queue, and never rejects: it reports its own failure
+  // so a revoke that could not finish still lets the deactivation below run.
   const renewalRevoked = revokePushRenewal();
-  // Attach rejection now, even when older work keeps the queue waiting.
-  void renewalRevoked.catch(() => {});
 
   // Nothing may join the activation ahead of this one, because this undoes
   // it. A reader who turns push back on afterwards is asking for a run of
