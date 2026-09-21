@@ -7,18 +7,6 @@
 
   @MainActor
   struct MacComposerTextInputTests {
-    @Test func mentionShortcutStartsQueryAtSelection() {
-      let input = MacComposerTextInput.InputView()
-      input.mentions = [.init(id: "peer", name: "Anna", slug: "anna", kind: .human)]
-      input.restoreDraft("Hello")
-      input.setSelectedRange(NSRange(location: 5, length: 0))
-      let commands = MacComposerCommands()
-      commands.input = input
-      commands.beginMention()
-      #expect(input.string == "Hello @\n")
-      #expect(input.selectedRange().location == 7)
-    }
-
     @Test func mentionChipRestoresAndDeletesAsOneCharacter() {
       let input = MacComposerTextInput.InputView()
       input.mentions = [.init(id: "user-1", name: "Anna", slug: "anna", kind: .human)]

@@ -57,7 +57,7 @@ import SwiftUI
         .accessibilityIdentifier("composer.emojiPicker")
         if !mentions.isEmpty {
           ComposerToolbarButton(title: "Mention", symbol: "at") {
-            commands.beginMention()
+            commands.openMentionPicker()
           }
           .accessibilityIdentifier("composer.mentionPicker")
         }
