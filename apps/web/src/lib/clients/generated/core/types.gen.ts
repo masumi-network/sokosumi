@@ -2568,6 +2568,10 @@ export type ChatRoomPinnedMessageListItem = {
         mentions: Array<ChatRoomMessageMention>;
         reactions: Array<ChatRoomMessageReaction>;
         threadReplyCount: number;
+        /**
+         * Non-self replies under this parent the viewer has not cleared: Participant-gated and mute-gated, after the per-thread look baseline. 0 for lurkers and for viewers with no unread. Present only on the message list; absent from realtime events and single-message responses, which do not compute it. ADR-0013, ADR-0030, ADR-0037.
+         */
+        threadUnreadReplyCount?: number;
         threadLastReplyAt: Date | null;
         metadata: {
             [key: string]: unknown;
@@ -2784,6 +2788,10 @@ export type ChatRoomMessage = {
     mentions: Array<ChatRoomMessageMention>;
     reactions: Array<ChatRoomMessageReaction>;
     threadReplyCount: number;
+    /**
+     * Non-self replies under this parent the viewer has not cleared: Participant-gated and mute-gated, after the per-thread look baseline. 0 for lurkers and for viewers with no unread. Present only on the message list; absent from realtime events and single-message responses, which do not compute it. ADR-0013, ADR-0030, ADR-0037.
+     */
+    threadUnreadReplyCount?: number;
     threadLastReplyAt: Date | null;
     metadata: {
         [key: string]: unknown;

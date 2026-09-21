@@ -541,6 +541,14 @@ export async function mapChatRoomWithSidebarFlags(
 export function mapChatRoomMessage(
   message: ChatRoomMessageWithSender,
   currentUserId?: string,
+  /**
+   * The viewer's unread replies under this parent. Passed in rather than
+   * derived: it depends on the viewer's Look baseline and Participant status,
+   * which the Prisma include cannot express. Left out of the payload when the
+   * caller did not compute it, so a client can tell "none unread" from "not
+   * known here" and keep the count it already has.
+   */
+  threadUnreadReplyCount?: number,
 ) {
   const sender = (() => {
     if (message.senderUser) {
@@ -644,6 +652,7 @@ export function mapChatRoomMessage(
           reactors: reaction.reactors,
         })),
     threadReplyCount: message._count.replies,
+    ...(threadUnreadReplyCount === undefined ? {} : { threadUnreadReplyCount }),
     threadLastReplyAt: message.replies[0]?.createdAt ?? null,
     metadata: isDeleted ? null : publicChatRoomMessageMetadata(metadata),
     quote: isDeleted ? null : readQuoteFromMetadata(metadata),

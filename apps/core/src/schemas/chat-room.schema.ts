@@ -573,6 +573,11 @@ export const chatRoomMessageSchema = z
     mentions: z.array(chatRoomMessageMentionSchema),
     reactions: z.array(chatRoomMessageReactionSchema),
     threadReplyCount: z.number().int().min(0),
+    threadUnreadReplyCount: z.number().int().min(0).optional().openapi({
+      description:
+        "Non-self replies under this parent the viewer has not cleared: Participant-gated and mute-gated, after the per-thread look baseline. 0 for lurkers and for viewers with no unread. Present only on the message list; absent from realtime events and single-message responses, which do not compute it. ADR-0013, ADR-0030, ADR-0037.",
+      example: 2,
+    }),
     threadLastReplyAt: dateTimeSchema.nullable(),
     metadata: z.record(z.string(), z.any()).nullable(),
     quote: chatRoomMessageQuoteSchema.nullable(),
