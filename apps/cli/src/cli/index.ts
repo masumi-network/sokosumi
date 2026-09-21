@@ -120,6 +120,8 @@ interface CliOptions {
   "vendor-id"?: string;
   "api-key-stdin"?: boolean;
   "create-api-key"?: boolean;
+  "create-vendor"?: boolean;
+  "confirm-create-vendor"?: boolean;
   details?: boolean;
 }
 
@@ -153,7 +155,8 @@ const COMMAND_USAGE: Record<(typeof CLI_COMMANDS)[number], string> = {
   "agents list": "[--search TEXT] [--limit N] [--json]",
   "agents hire": "AGENT_ID --input-json JSON [--max-credits N]",
   "coworkers list": "[--scope SCOPE] [--capability CAPABILITY]",
-  "coworkers register": "[--vendor-id ID] [--create-api-key] [options]",
+  "coworkers register":
+    "[--vendor-id ID] [--create-api-key] [--create-vendor --confirm-create-vendor] [options]",
   "coworkers update": "COWORKER_ID [options]",
   "coworkers api-key": "COWORKER_ID [options]",
   "coworkers me": "",
@@ -200,7 +203,12 @@ export const GLOBAL_BOOLEAN_FLAG_BY_TOKEN = {
   "--version": "version",
 } as const satisfies Record<string, keyof CliOptions>;
 
-export const BOOLEAN_OPTION_NAMES = ["create-api-key", "details"] as const;
+export const BOOLEAN_OPTION_NAMES = [
+  "create-api-key",
+  "create-vendor",
+  "confirm-create-vendor",
+  "details",
+] as const;
 
 function formatGlobalOptionHelp(): string[] {
   const booleanLines: string[] = [];
