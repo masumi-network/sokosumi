@@ -8,8 +8,8 @@ import {
   useLayoutEffect,
   useState,
 } from "react";
-import type { ChannelTranscriptEntry } from "@/app/chat/utils/channel-transcript-cache";
-import { useChannelCache, useChannelSelection } from "./channel-cache-provider";
+import type { RoomTranscriptEntry } from "@/app/chat/utils/room-transcript-cache";
+import { useRoomCache, useRoomSelection } from "./room-cache-provider";
 import { RoomOpenLoadingView } from "./room-open-loading-view";
 import { RoomsClient, type RoomsClientProps } from "./rooms-client";
 
@@ -18,9 +18,9 @@ const RoomBootstrapContext = createContext<
 >(null);
 
 /** Lives above the route's loading boundary. Next owns URLs and access validation. */
-export function PersistentChannelView({ children }: { children: ReactNode }) {
-  const cache = useChannelCache();
-  const path = useChannelSelection();
+export function PersistentRoomView({ children }: { children: ReactNode }) {
+  const cache = useRoomCache();
+  const path = useRoomSelection();
   const [bootstrap, setBootstrap] = useState<RoomsClientProps | null>(null);
   const roomId = path?.split("?")[0].match(/^\/chat\/rooms\/([^/]+)\/?$/)?.[1];
   return (
@@ -45,8 +45,8 @@ function SelectedRoom({
   bootstrap: RoomsClientProps | null;
   children: ReactNode;
 }) {
-  const cache = useChannelCache()!;
-  const { data } = useQuery<ChannelTranscriptEntry>(
+  const cache = useRoomCache()!;
+  const { data } = useQuery<RoomTranscriptEntry>(
     { queryKey: cache.key(roomId), queryFn: skipToken },
     cache.client,
   );
@@ -69,9 +69,9 @@ function SelectedRoom({
   );
 }
 
-/** All room views live above page replacement; only Channels retain history. */
-export function ChannelRouteBootstrap(props: RoomsClientProps) {
-  const cache = useChannelCache();
+/** All room views live above page replacement; all rooms retain history. */
+export function RoomRouteBootstrap(props: RoomsClientProps) {
+  const cache = useRoomCache();
   const register = useContext(RoomBootstrapContext);
   useLayoutEffect(() => {
     const roomId = props.selectedRoomId;
@@ -86,8 +86,6 @@ export function ChannelRouteBootstrap(props: RoomsClientProps) {
     )
       return;
     register?.(props);
-    if (props.rooms.find((room) => room.id === roomId)?.kind !== "channel")
-      return;
     const existing = cache.get(roomId);
     cache.client.setQueryData(
       cache.key(roomId),

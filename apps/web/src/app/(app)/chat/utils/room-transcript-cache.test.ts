@@ -2,7 +2,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchRoomMessages } from "@/components/chat/fetch-room-messages";
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
-import { ChannelTranscriptCache } from "./channel-transcript-cache";
+import { RoomTranscriptCache } from "./room-transcript-cache";
 
 vi.mock("@/components/chat/fetch-room-messages", () => ({
   fetchRoomMessages: vi.fn(),
@@ -30,7 +30,7 @@ function message(index: number): ChatRoomMessage {
   };
 }
 function retained() {
-  const cache = new ChannelTranscriptCache(
+  const cache = new RoomTranscriptCache(
     new QueryClient(),
     "reader",
     "workspace",

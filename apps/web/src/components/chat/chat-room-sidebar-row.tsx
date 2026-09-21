@@ -22,7 +22,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { leaveRoomAction } from "@/app/chat/actions";
-import { useChannelSelection } from "@/app/chat/components/channel-cache-provider";
+import { useRoomSelection } from "@/app/chat/components/room-cache-provider";
 import {
   CHAT_CHATS_LIST_PATH,
   CHAT_EDIT_CHANNEL_PARAM,
@@ -294,7 +294,7 @@ export function ChatRoomSidebarRow({
   itemProps,
   reorderHandle,
 }: ChatRoomSidebarRowProps) {
-  const selectedPath = useChannelSelection();
+  const selectedPath = useRoomSelection();
   const isActive = selectedPath
     ? selectedPath.split("?")[0] === `/chat/rooms/${room.id}`
     : routeIsActive;

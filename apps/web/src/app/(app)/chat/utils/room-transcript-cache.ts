@@ -17,8 +17,8 @@ import {
   type RoomTranscript,
 } from "./room-transcript-ranges";
 
-export const CHANNEL_RETENTION_MS = 30 * 60 * 1000;
-export interface ChannelTranscriptEntry {
+export const ROOM_RETENTION_MS = 30 * 60 * 1000;
+export interface RoomTranscriptEntry {
   bootstrap: RoomsClientProps;
   transcript: RoomTranscript;
   resolved: boolean;
@@ -58,7 +58,7 @@ function reconcile(
 }
 
 /** Query cache owns data; this session object owns only request coalescing and fences. */
-export class ChannelTranscriptCache {
+export class RoomTranscriptCache {
   readonly prefix: readonly string[];
   private valid = true;
   private readonly revoked = new Set<string>();
@@ -76,12 +76,12 @@ export class ChannelTranscriptCache {
     workspaceId: string | null,
   ) {
     this.prefix = [
-      "channel-transcript",
+      "room-transcript",
       userId,
       workspaceId ?? "personal-workspace",
     ];
     client.setQueryDefaults(this.prefix, {
-      gcTime: CHANNEL_RETENTION_MS,
+      gcTime: ROOM_RETENTION_MS,
       staleTime: Infinity,
       enabled: false,
       retry: false,
@@ -103,13 +103,13 @@ export class ChannelTranscriptCache {
     return [...this.prefix, roomId];
   }
   get(roomId: string) {
-    return this.client.getQueryData<ChannelTranscriptEntry>(this.key(roomId));
+    return this.client.getQueryData<RoomTranscriptEntry>(this.key(roomId));
   }
   current(roomId: string, lifetime: object) {
     return this.available(roomId) && this.get(roomId)?.lifetime === lifetime;
   }
 
-  seed(props: RoomsClientProps): ChannelTranscriptEntry {
+  seed(props: RoomsClientProps): RoomTranscriptEntry {
     const roomId = props.selectedRoomId ?? "";
     const existing = this.get(roomId);
     if (existing) return existing;
@@ -141,12 +141,11 @@ export class ChannelTranscriptCache {
   update(
     roomId: string,
     lifetime: object,
-    update: (entry: ChannelTranscriptEntry) => ChannelTranscriptEntry,
+    update: (entry: RoomTranscriptEntry) => RoomTranscriptEntry,
   ) {
     if (!this.current(roomId, lifetime)) return;
-    this.client.setQueryData<ChannelTranscriptEntry>(
-      this.key(roomId),
-      (entry) => (entry ? update(entry) : undefined),
+    this.client.setQueryData<RoomTranscriptEntry>(this.key(roomId), (entry) =>
+      entry ? update(entry) : undefined,
     );
   }
 

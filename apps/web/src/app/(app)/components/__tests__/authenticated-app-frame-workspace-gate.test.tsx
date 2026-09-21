@@ -45,8 +45,8 @@ vi.mock("@/lib/services/user.service", () => ({
   },
 }));
 
-vi.mock("@/app/chat/components/authenticated-channel-cache", () => ({
-  AuthenticatedChannelCache: ({ children }: { children: React.ReactNode }) => (
+vi.mock("@/app/chat/components/authenticated-room-cache", () => ({
+  AuthenticatedRoomCache: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>
   ),
 }));

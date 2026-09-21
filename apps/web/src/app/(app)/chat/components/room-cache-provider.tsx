@@ -10,26 +10,26 @@ import {
   useEffectEvent,
   useState,
 } from "react";
-import { ChannelTranscriptCache } from "@/app/chat/utils/channel-transcript-cache";
+import { RoomTranscriptCache } from "@/app/chat/utils/room-transcript-cache";
 import {
   ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
   type OrganizationChatRoomsChangedDetail,
 } from "@/components/chat/organization-chat-events";
 
-const ChannelSelectionContext = createContext<string | null>(null);
-export function useChannelSelection() {
-  return useContext(ChannelSelectionContext);
+const RoomSelectionContext = createContext<string | null>(null);
+export function useRoomSelection() {
+  return useContext(RoomSelectionContext);
 }
 
-const ChannelCacheContext = createContext<{
-  cache: ChannelTranscriptCache;
+const RoomCacheContext = createContext<{
+  cache: RoomTranscriptCache;
   generation: number;
 } | null>(null);
-export function useChannelCache() {
-  return useContext(ChannelCacheContext)?.cache ?? null;
+export function useRoomCache() {
+  return useContext(RoomCacheContext)?.cache ?? null;
 }
 
-export function ChannelCacheProvider({
+export function RoomCacheProvider({
   currentUserId,
   workspaceId,
   children,
@@ -39,17 +39,17 @@ export function ChannelCacheProvider({
   children: ReactNode;
 }) {
   return (
-    <ChannelCacheSession
+    <RoomCacheSession
       key={JSON.stringify([currentUserId, workspaceId])}
       currentUserId={currentUserId}
       workspaceId={workspaceId}
     >
       {children}
-    </ChannelCacheSession>
+    </RoomCacheSession>
   );
 }
 
-function ChannelCacheSession({
+function RoomCacheSession({
   currentUserId,
   workspaceId,
   children,
@@ -69,7 +69,7 @@ function ChannelCacheSession({
   const replace = useEffectEvent((href: string) => router.replace(href));
   const [generation, setGeneration] = useState(0);
   const [cache] = useState(
-    () => new ChannelTranscriptCache(client, currentUserId, workspaceId),
+    () => new RoomTranscriptCache(client, currentUserId, workspaceId),
   );
   useEffect(() => {
     const select = (url: URL) =>
@@ -141,10 +141,8 @@ function ChannelCacheSession({
     };
   }, [cache]);
   return (
-    <ChannelCacheContext value={{ cache, generation }}>
-      <ChannelSelectionContext value={target}>
-        {children}
-      </ChannelSelectionContext>
-    </ChannelCacheContext>
+    <RoomCacheContext value={{ cache, generation }}>
+      <RoomSelectionContext value={target}>{children}</RoomSelectionContext>
+    </RoomCacheContext>
   );
 }

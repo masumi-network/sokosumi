@@ -2,10 +2,10 @@
 
 import type { ReactNode } from "react";
 import { useSession } from "@/lib/auth/auth.client";
-import { ChannelCacheProvider } from "./channel-cache-provider";
+import { RoomCacheProvider } from "./room-cache-provider";
 
 /** Auth changes fence history before the next server frame finishes loading. */
-export function AuthenticatedChannelCache({
+export function AuthenticatedRoomCache({
   currentUserId,
   workspaceId,
   children,
@@ -17,7 +17,7 @@ export function AuthenticatedChannelCache({
   const session = useSession();
   if (!session.isPending && !session.error && !session.data) return null;
   return (
-    <ChannelCacheProvider
+    <RoomCacheProvider
       currentUserId={session.data?.user.id ?? currentUserId}
       workspaceId={
         session.data
@@ -26,6 +26,6 @@ export function AuthenticatedChannelCache({
       }
     >
       {children}
-    </ChannelCacheProvider>
+    </RoomCacheProvider>
   );
 }

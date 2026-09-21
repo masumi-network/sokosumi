@@ -1,7 +1,7 @@
 import { hasAdminRole } from "@sokosumi/utils";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { AuthenticatedChannelCache } from "@/app/chat/components/authenticated-channel-cache";
+import { AuthenticatedRoomCache } from "@/app/chat/components/authenticated-room-cache";
 import { HistorySearchDialogProvider } from "@/app/components/history-search-dialog-provider";
 import { EmergencyDialog } from "@/components/emergency-dialog/emergency-dialog";
 import { ImpersonationBanner } from "@/components/impersonation/impersonation-banner";
@@ -104,7 +104,7 @@ export default async function AuthenticatedAppFrame({
                   <BreadcrumbOverrideProvider>
                     {/* Sidebar "New Task" opens the wizard in place, so the
                         provider wraps sidebar and content. */}
-                    <AuthenticatedChannelCache
+                    <AuthenticatedRoomCache
                       currentUserId={session.user.id}
                       workspaceId={activeOrganizationId}
                     >
@@ -167,7 +167,7 @@ export default async function AuthenticatedAppFrame({
                           </div>
                         </div>
                       </NewTaskWizardProvider>
-                    </AuthenticatedChannelCache>
+                    </AuthenticatedRoomCache>
                   </BreadcrumbOverrideProvider>
                 </HistorySearchDialogProvider>
               </NoticeDialogProvider>

@@ -63,10 +63,6 @@ import { useRoomReadReceipts } from "@/app/chat/hooks/use-room-read-receipts";
 import { useUnreadThreadCount } from "@/app/chat/hooks/use-unread-thread-count";
 import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
 import { getRoomMessageAction } from "@/app/chat/message-actions";
-import type {
-  ChannelTranscriptCache,
-  ChannelTranscriptEntry,
-} from "@/app/chat/utils/channel-transcript-cache";
 import {
   filterTopLevelChatRoomMessages,
   isReplyUnderThreadParent,
@@ -119,6 +115,10 @@ import {
   pendingReactionKey,
 } from "@/app/chat/utils/pending-reactions";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
+import type {
+  RoomTranscriptCache,
+  RoomTranscriptEntry,
+} from "@/app/chat/utils/room-transcript-cache";
 import {
   buildRoomTranscriptRows,
   emptyRoomTranscript,
@@ -178,13 +178,13 @@ import {
   type ChatRoomMessageLink,
   chatRoomMessageHref,
 } from "@/lib/utils/notification-href";
-import { useChannelCache, useChannelSelection } from "./channel-cache-provider";
 import { MembershipStatusRow } from "./membership-status-row";
 import {
   canOpenHumanDirectFromSelectedRoom,
   openDirectWithParticipant,
   participantDirectKey,
 } from "./open-direct-with-participant";
+import { useRoomCache, useRoomSelection } from "./room-cache-provider";
 import { type RoomComposerHandle } from "./room-composer";
 import { RoomFileDropZone } from "./room-file-drop-zone";
 import { RoomHeaderChrome } from "./room-header-chrome";
@@ -327,7 +327,7 @@ function RoomMessageRealtimeBridge({
 }
 
 interface RetainedTranscriptBinding {
-  entry: ChannelTranscriptEntry;
+  entry: RoomTranscriptEntry;
   setTranscript: (update: SetStateAction<RoomTranscript>) => void;
   resolve: (page: RoomMessagePage) => void;
   refresh: (isCurrent: () => boolean) => Promise<void>;
@@ -337,13 +337,10 @@ interface RetainedTranscriptBinding {
 }
 
 export function RoomsClient(props: RoomsClientProps) {
-  const cache = useChannelCache();
+  const cache = useRoomCache();
   if (cache && props.selectedRoomId && !cache.available(props.selectedRoomId))
     return <RoomOpenLoadingView />;
-  const channel =
-    props.rooms.find((room) => room.id === props.selectedRoomId)?.kind ===
-    "channel";
-  return cache && channel && props.selectedRoomId ? (
+  return cache && props.selectedRoomId ? (
     <RetainedRoomsClient
       key={props.selectedRoomId}
       {...props}
@@ -359,8 +356,8 @@ function RetainedRoomsClient({
   cache,
   roomId,
   ...props
-}: RoomsClientProps & { cache: ChannelTranscriptCache; roomId: string }) {
-  const { data } = useQuery<ChannelTranscriptEntry>(
+}: RoomsClientProps & { cache: RoomTranscriptCache; roomId: string }) {
+  const { data } = useQuery<RoomTranscriptEntry>(
     {
       queryKey: cache.key(roomId),
       enabled: false,
@@ -502,7 +499,7 @@ function RoomView({
   const router = useRouter();
   const routePathname = usePathname();
   const routeSearchParams = useSearchParams();
-  const selectedPath = useChannelSelection();
+  const selectedPath = useRoomSelection();
   const pathname = selectedPath?.split("?")[0] ?? routePathname;
   const searchParams =
     selectedPath && selectedPath.split("?")[0] !== routePathname

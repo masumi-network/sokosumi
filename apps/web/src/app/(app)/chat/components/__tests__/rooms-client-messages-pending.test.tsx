@@ -28,11 +28,11 @@ import type {
 } from "@/lib/clients/generated/core";
 import { MemberRole } from "@/lib/clients/generated/core";
 import { TestQueryProvider } from "@/test/query-provider";
-import { ChannelCacheProvider } from "../channel-cache-provider";
 import {
-  ChannelRouteBootstrap,
-  PersistentChannelView,
-} from "../persistent-channel-view";
+  PersistentRoomView,
+  RoomRouteBootstrap,
+} from "../persistent-room-view";
+import { RoomCacheProvider } from "../room-cache-provider";
 import type { RoomComposerHandle } from "../room-composer";
 import { RoomsClient } from "../rooms-client";
 import { transcriptViewportSpies } from "./transcript-viewport-stub";
@@ -1100,9 +1100,9 @@ describe("RoomsClient progressive roster (header + composer without members)", (
 function CacheWrapper({ children }: { children: ReactNode }) {
   return (
     <TestQueryProvider>
-      <ChannelCacheProvider currentUserId="user-1" workspaceId="org-1">
+      <RoomCacheProvider currentUserId="user-1" workspaceId="org-1">
         {children}
-      </ChannelCacheProvider>
+      </RoomCacheProvider>
     </TestQueryProvider>
   );
 }
@@ -1138,9 +1138,9 @@ describe("retained channel history", () => {
     function Wrapper({ children }: { children: ReactNode }) {
       return (
         <TestQueryProvider>
-          <ChannelCacheProvider currentUserId="user-1" workspaceId="org-1">
+          <RoomCacheProvider currentUserId="user-1" workspaceId="org-1">
             {children}
-          </ChannelCacheProvider>
+          </RoomCacheProvider>
         </TestQueryProvider>
       );
     }
@@ -1208,85 +1208,104 @@ describe("channel cache access and navigation", () => {
     expect(screen.queryByText("local outbound")).toBeNull();
   });
 
-  it("switches cached header and messages on a link click before server navigation finishes", async () => {
-    function Page({ bootstrap }: { bootstrap: typeof baseProps }) {
-      return (
-        <>
-          <a
-            href="/chat/rooms/room-channel"
-            onClick={(event) => event.preventDefault()}
-          >
-            Open A
-          </a>
-          <a
-            href="/chat/rooms/room-b"
-            onClick={(event) => event.preventDefault()}
-          >
-            Open B
-          </a>
-          <PersistentChannelView>
-            <ChannelRouteBootstrap {...bootstrap} />
-          </PersistentChannelView>
-        </>
+  it.each(["channel", "direct"] as const)(
+    "switches cached %s rooms before server navigation finishes",
+    async (kind) => {
+      function Page({ bootstrap }: { bootstrap: typeof baseProps }) {
+        return (
+          <>
+            <a
+              href="/chat/rooms/room-channel"
+              onClick={(event) => event.preventDefault()}
+            >
+              Open A
+            </a>
+            <a
+              href="/chat/rooms/room-b"
+              onClick={(event) => event.preventDefault()}
+            >
+              Open B
+            </a>
+            <PersistentRoomView>
+              <RoomRouteBootstrap {...bootstrap} />
+            </PersistentRoomView>
+          </>
+        );
+      }
+      const view = render(
+        <Page
+          bootstrap={{
+            ...baseProps,
+            rooms: baseProps.rooms.map((room) => ({ ...room, kind })),
+            messages: [sampleMessage("A retained")],
+          }}
+        />,
+        { wrapper: CacheWrapper },
       );
-    }
-    const view = render(
-      <Page
-        bootstrap={{ ...baseProps, messages: [sampleMessage("A retained")] }}
-      />,
-      { wrapper: CacheWrapper },
-    );
-    fireEvent.click(screen.getByText("Open A"));
-    expect(await screen.findByText("A retained")).toBeTruthy();
-    view.rerender(
-      <Page
-        bootstrap={{
-          ...roomBProps,
-          messages: [
-            { ...sampleMessage("B retained"), id: "b", roomId: "room-b" },
-          ],
-        }}
-      />,
-    );
-    fireEvent.click(screen.getByText("Open B"));
-    expect(await screen.findByText("B retained")).toBeTruthy();
-    fireEvent.click(screen.getByText("Open A"));
-    expect(screen.getByText("A retained")).toBeTruthy();
-    expect(screen.queryByText("B retained")).toBeNull();
-    expect(screen.queryByTestId("room-message-list-skeleton")).toBeNull();
-  });
+      fireEvent.click(screen.getByText("Open A"));
+      expect(await screen.findByText("A retained")).toBeTruthy();
+      view.rerender(
+        <Page
+          bootstrap={{
+            ...roomBProps,
+            rooms: roomBProps.rooms.map((room) => ({ ...room, kind })),
+            messages: [
+              { ...sampleMessage("B retained"), id: "b", roomId: "room-b" },
+            ],
+          }}
+        />,
+      );
+      fireEvent.click(screen.getByText("Open B"));
+      expect(await screen.findByText("B retained")).toBeTruthy();
+      fireEvent.click(screen.getByText("Open A"));
+      expect(screen.getByText("A retained")).toBeTruthy();
+      expect(screen.queryByText("B retained")).toBeNull();
+      expect(screen.queryByTestId("room-message-list-skeleton")).toBeNull();
+    },
+  );
 
-  it("restores each channel's own reading position on return", () => {
-    const view = render(
-      <RoomsClient {...baseProps} messages={[sampleMessage("history A")]} />,
-      { wrapper: CacheWrapper },
-    );
-    const position = {
-      anchorId: "msg-real",
-      anchorCreatedAt: 1234,
-      offset: -42,
-      atLiveEdge: false,
-      visibleMessageIds: ["msg-real"],
-    };
-    const bindingA = transcriptViewportSpies.position.mock.calls.at(-1)![0];
-    expect(bindingA.onPositionChange).toBeTypeOf("function");
-    act(() => bindingA.onPositionChange?.(position));
-    view.rerender(
-      <RoomsClient
-        {...roomBProps}
-        messages={[{ ...sampleMessage("history B"), roomId: "room-b" }]}
-      />,
-    );
-    expect(
-      transcriptViewportSpies.position.mock.calls.at(-1)![0].initialPosition,
-    ).toBeUndefined();
-    view.rerender(
-      <RoomsClient {...baseProps} messagesPromise={new Promise(() => {})} />,
-    );
-    expect(
-      transcriptViewportSpies.position.mock.calls.at(-1)![0].initialPosition,
-    ).toEqual(position);
-  });
+  it.each(["channel", "direct"] as const)(
+    "restores each %s room's reading position on return",
+    (kind) => {
+      const propsA = {
+        ...baseProps,
+        rooms: baseProps.rooms.map((room) => ({ ...room, kind })),
+      };
+      const propsB = {
+        ...roomBProps,
+        rooms: roomBProps.rooms.map((room) => ({ ...room, kind })),
+      };
+      const view = render(
+        <RoomsClient {...propsA} messages={[sampleMessage("history A")]} />,
+        { wrapper: CacheWrapper },
+      );
+      const position = {
+        anchorId: "msg-real",
+        anchorCreatedAt: 1234,
+        offset: -42,
+        atLiveEdge: false,
+        visibleMessageIds: ["msg-real"],
+      };
+      const bindingA = transcriptViewportSpies.position.mock.calls.at(-1)![0];
+      expect(bindingA.onPositionChange).toBeTypeOf("function");
+      act(() => bindingA.onPositionChange?.(position));
+      view.rerender(
+        <RoomsClient
+          {...propsB}
+          messages={[{ ...sampleMessage("history B"), roomId: "room-b" }]}
+        />,
+      );
+      expect(
+        transcriptViewportSpies.position.mock.calls.at(-1)![0].initialPosition,
+      ).toBeUndefined();
+      view.rerender(
+        <RoomsClient {...propsA} messagesPromise={new Promise(() => {})} />,
+      );
+      expect(
+        transcriptViewportSpies.position.mock.calls.at(-1)![0].initialPosition,
+      ).toEqual(position);
+    },
+  );
 
   it("treats confirmed empty history as a hit", async () => {
     const view = render(<RoomsClient {...baseProps} />, {
@@ -1324,12 +1343,12 @@ describe("channel cache access and navigation", () => {
         >
           Open room
         </a>
-        <PersistentChannelView>
-          <ChannelRouteBootstrap
+        <PersistentRoomView>
+          <RoomRouteBootstrap
             {...baseProps}
             messages={[sampleMessage("private history")]}
           />
-        </PersistentChannelView>
+        </PersistentRoomView>
       </>,
       { wrapper: CacheWrapper },
     );
@@ -1546,7 +1565,7 @@ describe("channel cache access and navigation", () => {
         const workspaceId =
           changed && change === "workspace" ? "new-workspace" : "org-1";
         return (
-          <ChannelCacheProvider
+          <RoomCacheProvider
             currentUserId={currentUserId}
             workspaceId={workspaceId}
           >
@@ -1557,7 +1576,7 @@ describe("channel cache access and navigation", () => {
               messages={changed ? [] : [sampleMessage("old context")]}
               loadHistoryOnClient={changed}
             />
-          </ChannelCacheProvider>
+          </RoomCacheProvider>
         );
       }
       const view = render(<Session changed={false} />, {

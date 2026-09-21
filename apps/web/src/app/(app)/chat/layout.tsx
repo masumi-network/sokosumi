@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 
 import { APP_VIEWPORT_BASE } from "@/lib/app-viewport";
 import { ChatRouteErrorBoundary } from "./components/chat-route-error-boundary.client";
-import { PersistentChannelView } from "./components/persistent-channel-view";
+import { PersistentRoomView } from "./components/persistent-room-view";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.Channels.Metadata");
@@ -33,7 +33,7 @@ export default function ChatLayout({
   // so Instant Navigations can still validate if page chrome throws.
   return (
     <ChatRouteErrorBoundary>
-      <PersistentChannelView>{children}</PersistentChannelView>
+      <PersistentRoomView>{children}</PersistentRoomView>
     </ChatRouteErrorBoundary>
   );
 }
