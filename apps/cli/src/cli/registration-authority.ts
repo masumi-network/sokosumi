@@ -1,8 +1,8 @@
 import type { OrganizationWorkspace } from "../api/models/organization-workspace.js";
 import type { Vendor } from "../api/models/vendor.js";
 
-/** Web path to review Vendor memberships the developer administers. */
-export const WEB_DEVELOPER_VENDORS_ROUTE = "/developer/vendors";
+/** Web path everyone can open under Developer (default landing). */
+export const WEB_DEVELOPER_DEFAULT_ROUTE = "/developer/oauth-clients";
 
 /** Vendors the developer may register a Coworker under (V67, V79). */
 export function administeredVendors(vendors: readonly Vendor[]): Vendor[] {
@@ -31,16 +31,19 @@ export function describeRegistrationWorkspaceRequirement(
 
 /**
  * How to become a Vendor admin before registration.
- * CLI cannot create Vendors; Core create is platform-admin only.
+ *
+ * Web Developer → Vendors is hidden unless you already have admin membership
+ * (`getDeveloperVendorAdminAccess`); do not send blocked users there.
+ * Always-visible Developer tabs: Docs, OAuth clients, API keys, Coworkers, Tasks.
  */
 export function describeRegistrationAdminVendorRequirement(
   webUrl?: string,
 ): string {
   const base = trimWebBase(webUrl);
-  const review = base
-    ? `Review memberships at ${base}${WEB_DEVELOPER_VENDORS_ROUTE} or under Vendors here.`
-    : "Review memberships under Vendors here, or in the Sokosumi web app under Developer → Vendors.";
-  return `Registration requires Vendor role admin. Ask an existing Vendor admin to promote you, or ask a platform admin to create a Vendor and make you admin. ${review}`;
+  const developerHome = base
+    ? `Developer in the web app starts at ${base}${WEB_DEVELOPER_DEFAULT_ROUTE} (Docs, OAuth clients, API keys, Coworkers, Tasks). Vendors appears there only after you already have admin.`
+    : "In the Sokosumi web app, Developer shows Docs, OAuth clients, API keys, Coworkers, and Tasks. Vendors appears only after you already have admin.";
+  return `Registration requires Vendor role admin. Check memberships under Vendors here or \`sokosumi vendors me\`. Ask an existing Vendor admin to promote you, or ask a platform admin to create a Vendor and make you admin. ${developerHome}`;
 }
 
 /**

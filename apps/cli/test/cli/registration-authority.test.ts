@@ -104,10 +104,14 @@ test("TestV67 registration gate copy tells how to get workspace and Vendor admin
   );
   assert.match(
     describeRegistrationAdminVendorRequirement("https://app.example.test"),
-    /https:\/\/app\.example\.test\/developer\/vendors/,
+    /oauth-clients/,
+  );
+  assert.doesNotMatch(
+    describeRegistrationAdminVendorRequirement("https://app.example.test"),
+    /\/developer\/vendors/,
   );
   assert.match(
     describeRegistrationAdminVendorRequirement(),
-    /Developer → Vendors/,
+    /Vendors appears only after you already have admin/,
   );
 });
