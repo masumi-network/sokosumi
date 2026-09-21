@@ -11,10 +11,12 @@ import mountAddVendorMember from "./[id]/members/post.js";
 import mountPatchVendor from "./[id]/patch.js";
 import mountListVendors from "./get.js";
 import mountListMyVendorMemberships from "./me/get.js";
+import mountCreateVendor from "./post.js";
 
 const app = new OpenAPIHonoWithAuth();
 
 mountListVendors(app);
+mountCreateVendor(app);
 mountListMyVendorMemberships(app);
 mountPatchVendor(app);
 mountListVendorMembers(app);

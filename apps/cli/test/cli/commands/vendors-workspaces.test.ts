@@ -55,15 +55,35 @@ test("vendors me emits stable text output", async () => {
   ]);
 });
 
-test("TestV79 vendors me describes an empty membership result", async () => {
+test("vendors create posts name and slug then prints admin membership", async () => {
+  let posted: unknown;
+  const client: CoreHttpClient = {
+    get: async <T>() => ({ data: [] }) as T,
+    post: async <T>(_path: string, body: unknown) => {
+      posted = body;
+      return {
+        data: {
+          id: "vendor-new",
+          name: "Acme Labs",
+          slug: "acme-labs",
+          role: "admin",
+        },
+      } as T;
+    },
+    patch: async <T>() => ({ data: {} }) as T,
+    delete: async <T>() => ({ data: {} }) as T,
+  };
   const output: string[] = [];
   await runVendorsCommand({
-    client: clientWith({ data: [] }),
+    client,
     stdout: { write: (value) => output.push(value) },
-    subcommand: "me",
+    subcommand: "create",
+    options: { name: "Acme Labs", slug: "acme-labs" },
   });
-
-  assert.deepEqual(output, ["No vendors found.\n"]);
+  assert.deepEqual(posted, { name: "Acme Labs", slug: "acme-labs" });
+  assert.deepEqual(output, [
+    "Created vendor Acme Labs [vendor-new]\nslug: acme-labs\nrole: admin\n",
+  ]);
 });
 
 test("TestV79 workspaces JSON allowlists organization identity fields", async () => {

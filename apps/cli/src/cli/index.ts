@@ -72,7 +72,8 @@ type ValueOptionName =
   | "input-json"
   | "input-file"
   | "max-credits"
-  | "vendor-id";
+  | "vendor-id"
+  | "slug";
 
 type CliOptionValue = string | string[];
 
@@ -118,6 +119,7 @@ interface CliOptions {
   "input-file"?: string;
   "max-credits"?: string;
   "vendor-id"?: string;
+  slug?: string;
   "api-key-stdin"?: boolean;
   "create-api-key"?: boolean;
   "create-vendor"?: boolean;
@@ -161,6 +163,7 @@ const COMMAND_USAGE: Record<(typeof CLI_COMMANDS)[number], string> = {
   "coworkers api-key": "COWORKER_ID [options]",
   "coworkers me": "",
   "vendors me": "",
+  "vendors create": "--name NAME --slug SLUG",
   "workspaces list": "",
   "tasks list": "[options]",
   "tasks create": "--coworker-id ID --description TEXT",
@@ -282,6 +285,7 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "input-file",
   "max-credits",
   "vendor-id",
+  "slug",
 ]);
 
 const REPEATED_VALUE_OPTIONS = new Set<ValueOptionName>([
@@ -576,7 +580,7 @@ export async function runCli(
     }
     if (
       section === "vendors" &&
-      command === "me" &&
+      (command === "me" || command === "create") &&
       positionalId === undefined
     ) {
       await runVendorsCommand({
@@ -584,6 +588,7 @@ export async function runCli(
         stdout,
         json: options.json,
         subcommand: command,
+        options,
       });
       return {};
     }
@@ -637,7 +642,7 @@ export async function runCli(
       positionalId !== undefined
     ) {
       throw new Error(
-        "Usage: sokosumi discover | agents list | coworkers | vendors me | workspaces list | tasks | jobs | auth login|status|logout",
+        "Usage: sokosumi discover | agents list | coworkers | vendors me|create | workspaces list | tasks | jobs | auth login|status|logout",
       );
     }
 
