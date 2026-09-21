@@ -8534,8 +8534,49 @@ export const ChatRoomSchema = {
             type: 'integer',
             minimum: 0,
             default: 0,
-            description: 'Thread unread: non-self replies in Threads the viewer Participates in, after the per-thread look baseline (thread lastReadAt, else room join createdAt), less Muted threads that do not mention them. Surfaces on the Thread, never on the channel. ADR-0013, ADR-0030, ADR-0037.',
+            description: 'Thread unread: non-self replies in Threads the viewer Participates in, after the per-Thread Look baseline (thread lastReadAt, else room join createdAt), less Muted threads that do not mention them. Surfaces on the Thread, never on the channel. ADR-0013, ADR-0030, ADR-0037.',
             example: 3
+        },
+        unreadThreadCount: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'How many Threads in this room are Thread unread for the viewer. Counts Threads, where threadUnreadCount counts replies. States what `unreadThreads` leaves out past its cap. ADR-0037.',
+            example: 4
+        },
+        unreadThreads: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    parentMessageId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    firstUnreadReplyId: {
+                        type: 'string',
+                        format: 'uuid',
+                        description: 'The oldest reply still unread in this Thread: where opening it lands.'
+                    },
+                    parentContent: {
+                        type: 'string',
+                        description: 'The parent message\'s raw content, cut to 280 characters. May hold mention tokens and may be empty; the client builds the label.'
+                    },
+                    unreadReplyCount: {
+                        type: 'integer',
+                        minimum: 1
+                    }
+                },
+                required: [
+                    'parentMessageId',
+                    'firstUnreadReplyId',
+                    'parentContent',
+                    'unreadReplyCount'
+                ]
+            },
+            maxItems: 3,
+            default: [],
+            description: 'Up to 3 unread Threads in this room, newest unread reply first, for the sidebar\'s inset rows. Same eligibility as threadUnreadCount. `unreadThreadCount` is the true number; this list is capped. ADR-0037.'
         },
         unreadMentionCount: {
             type: 'integer',

@@ -156,6 +156,19 @@ function personalDirectRoom() {
   };
 }
 
+/**
+ * Answer the unread count query with `rows`, and the unread Threads query
+ * (which only runs when a room has Thread unread) with `threads`.
+ */
+function mockUnreadCounts(
+  rows: Array<Record<string, unknown>>,
+  threads: Array<Record<string, unknown>> = [],
+) {
+  queryRawUnsafeMock.mockImplementation(async (sql: string) =>
+    sql.includes('"firstUnreadReplyId"') ? threads : rows,
+  );
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   roomFindFirstMock.mockResolvedValue(room());
@@ -166,9 +179,7 @@ beforeEach(() => {
   });
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
   memberFindManyMock.mockResolvedValue([]);
-  queryRawUnsafeMock.mockResolvedValue([
-    { roomId: ROOM_ID, source: "channel", unreadCount: 2 },
-  ]);
+  mockUnreadCounts([{ roomId: ROOM_ID, source: "channel", unreadCount: 2 }]);
   notificationGroupByMock.mockResolvedValue([
     { referenceId: ROOM_ID, _count: { _all: 1 } },
   ]);
@@ -205,7 +216,7 @@ describe("GET /chats/rooms/{id}", () => {
   });
 
   it("reports Room unread and Thread unread as separate halves of the total", async () => {
-    queryRawUnsafeMock.mockResolvedValue([
+    mockUnreadCounts([
       { roomId: ROOM_ID, source: "channel", unreadCount: 2 },
       { roomId: ROOM_ID, source: "thread", unreadCount: 3 },
     ]);
@@ -222,10 +233,43 @@ describe("GET /chats/rooms/{id}", () => {
     });
   });
 
+  // A Look refreshes the sidebar row from this route, so it has to carry the
+  // room's remaining unread Threads or the row's inset list would vanish.
+  it("carries the room's unread threads when it has Thread unread", async () => {
+    queryRawUnsafeMock.mockImplementation(async (sql: string) =>
+      sql.includes('"firstUnreadReplyId"')
+        ? [
+            {
+              roomId: ROOM_ID,
+              parentMessageId: "550e8400-e29b-41d4-a716-446655440b01",
+              firstUnreadReplyId: "550e8400-e29b-41d4-a716-446655440c01",
+              parentContent: "Vendor-wide rollout",
+              unreadReplyCount: 2,
+              unreadThreadCount: 1,
+            },
+          ]
+        : [{ roomId: ROOM_ID, source: "thread", unreadCount: 2 }],
+    );
+
+    const response = await createApp(userAuthContext).request(`/${ROOM_ID}`);
+
+    const body = await response.json();
+    expect(body.data).toMatchObject({
+      threadUnreadCount: 2,
+      unreadThreadCount: 1,
+      unreadThreads: [
+        {
+          parentMessageId: "550e8400-e29b-41d4-a716-446655440b01",
+          firstUnreadReplyId: "550e8400-e29b-41d4-a716-446655440c01",
+          parentContent: "Vendor-wide rollout",
+          unreadReplyCount: 2,
+        },
+      ],
+    });
+  });
+
   it("reports a clean channel when the only unread is in Threads", async () => {
-    queryRawUnsafeMock.mockResolvedValue([
-      { roomId: ROOM_ID, source: "thread", unreadCount: 4 },
-    ]);
+    mockUnreadCounts([{ roomId: ROOM_ID, source: "thread", unreadCount: 4 }]);
 
     const response = await createApp(userAuthContext).request(`/${ROOM_ID}`);
 

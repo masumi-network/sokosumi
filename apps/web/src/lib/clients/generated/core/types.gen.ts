@@ -2313,9 +2313,28 @@ export type ChatRoom = {
      */
     channelUnreadCount?: number;
     /**
-     * Thread unread: non-self replies in Threads the viewer Participates in, after the per-thread look baseline (thread lastReadAt, else room join createdAt), less Muted threads that do not mention them. Surfaces on the Thread, never on the channel. ADR-0013, ADR-0030, ADR-0037.
+     * Thread unread: non-self replies in Threads the viewer Participates in, after the per-Thread Look baseline (thread lastReadAt, else room join createdAt), less Muted threads that do not mention them. Surfaces on the Thread, never on the channel. ADR-0013, ADR-0030, ADR-0037.
      */
     threadUnreadCount?: number;
+    /**
+     * How many Threads in this room are Thread unread for the viewer. Counts Threads, where threadUnreadCount counts replies. States what `unreadThreads` leaves out past its cap. ADR-0037.
+     */
+    unreadThreadCount?: number;
+    /**
+     * Up to 3 unread Threads in this room, newest unread reply first, for the sidebar's inset rows. Same eligibility as threadUnreadCount. `unreadThreadCount` is the true number; this list is capped. ADR-0037.
+     */
+    unreadThreads?: Array<{
+        parentMessageId: string;
+        /**
+         * The oldest reply still unread in this Thread: where opening it lands.
+         */
+        firstUnreadReplyId: string;
+        /**
+         * The parent message's raw content, cut to 280 characters. May hold mention tokens and may be empty; the client builds the label.
+         */
+        parentContent: string;
+        unreadReplyCount: number;
+    }>;
     /**
      * Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.
      */
