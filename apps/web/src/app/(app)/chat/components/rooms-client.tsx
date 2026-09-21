@@ -600,7 +600,7 @@ function RoomView({
         ),
       );
     },
-    [],
+    [setTranscript],
   );
   const [boundaryStatus, setBoundaryStatus] = useState<
     Record<string, TranscriptBoundaryStatus>
@@ -1778,7 +1778,7 @@ function RoomView({
         );
       }
     },
-    [],
+    [retained, setTranscript],
   );
   refreshLatestRef.current = useChatRefreshScheduler({
     key: selectedRoom?.id ?? null,

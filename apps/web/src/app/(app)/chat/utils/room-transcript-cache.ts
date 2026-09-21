@@ -80,7 +80,8 @@ export class RoomTranscriptCache {
       userId,
       workspaceId ?? "personal-workspace",
     ];
-    client.setQueryDefaults(this.prefix, {
+    // Defaults belong to the room query type, not an accumulating auth scope.
+    client.setQueryDefaults(["room-transcript"], {
       gcTime: ROOM_RETENTION_MS,
       staleTime: Infinity,
       enabled: false,

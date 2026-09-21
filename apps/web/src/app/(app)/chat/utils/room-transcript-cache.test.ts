@@ -64,6 +64,27 @@ function retained() {
 const head = { messages: [message(90)], nextCursor: "m90" };
 
 describe("authoritative retained history reconciliation", () => {
+  it("shares query defaults across cleared user and workspace scopes", () => {
+    const client = new QueryClient();
+    const registerDefaults = vi.spyOn(client, "setQueryDefaults");
+    const first = new RoomTranscriptCache(
+      client,
+      "first-user",
+      "first-workspace",
+    );
+    first.clear();
+    const second = new RoomTranscriptCache(client, "second-user", null);
+    expect(registerDefaults.mock.calls.map(([key]) => key)).toEqual([
+      ["room-transcript"],
+      ["room-transcript"],
+    ]);
+    expect(client.getQueryDefaults(second.key("room"))).toMatchObject({
+      gcTime: 30 * 60 * 1000,
+      enabled: false,
+      structuralSharing: false,
+    });
+    second.clear();
+  });
   beforeEach(() => vi.mocked(fetchRoomMessages).mockReset());
 
   it("follows older pagination before removing an absent historical message", async () => {
