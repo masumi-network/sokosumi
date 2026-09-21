@@ -7,6 +7,7 @@
   import SokosumiWorkspace
   import SwiftUI
   import Testing
+  import Vision
 
   extension NativeWindowTests {
     @MainActor struct TranscriptScrollingTests {
@@ -69,10 +70,22 @@
           host.layoutSubtreeIfNeeded()
           try await Task.sleep(for: .milliseconds(20))
         }
-        #expect(state.messageJump == nil)
+        if thread {
+          #expect(state.thread.jumpTarget?.messageId == "fixture-2")
+        } else {
+          #expect(state.messageJump == nil)
+        }
         #expect(distanceFromBottom(scroll) > 400)
         let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
         host.cacheDisplay(in: host.bounds, to: bitmap)
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.recognitionLanguages = ["en-US"]
+        request.usesLanguageCorrection = false
+        try VNImageRequestHandler(cgImage: #require(bitmap.cgImage)).perform([request])
+        let visibleText = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
+        #expect(visibleText.contains { $0.hasPrefix("Message 2:") })
+        #expect(!visibleText.contains { $0.hasPrefix("Message 98:") })
         let png = try #require(bitmap.representation(using: .png, properties: [:]))
         try png.write(to: FileManager.default.temporaryDirectory.appendingPathComponent("message-link-navigation-\(thread)-\(dark).png"))
       }

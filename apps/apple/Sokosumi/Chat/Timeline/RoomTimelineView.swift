@@ -130,7 +130,6 @@ import SwiftUI
 
     @ViewBuilder
     private var transcriptBody: some View {
-      // Share the live projection across rows and scroll observers for this update.
       let messages = preparedMessages
       if workspaces.transcriptRoomId != roomId || workspaces.transcriptLoading {
         ProgressView("Loading messages…")
@@ -153,7 +152,6 @@ import SwiftUI
       }
     }
 
-    // Existing view composition, now parameterized to share the projection.
     // swiftlint:disable:next cyclomatic_complexity function_body_length
     private func messageList(messages: [Components.Schemas.ChatRoomMessage]) -> some View {
       // Realize nearby rows only: laying out every rich message makes each

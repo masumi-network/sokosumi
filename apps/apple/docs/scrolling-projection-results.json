@@ -2,6 +2,7 @@
   "date": "2026-09-21",
   "base_commit": "26f8e9e0fb19e90dfbe6d08c33a8fd773cac99e2",
   "product_change": "Compute the live preparedMessages projection once per view evaluation and pass it to rows, jump readiness, and follow-latest observers in room and reply-thread views. No persistent cache or domain changes.",
+  "measured_after_commit": "4cd2f1a7da1160e9294443c4014f62440aa6560c",
   "changed_source_sha256": {
     "Sokosumi/Chat/Timeline/RoomTimelineView.swift": "2faae1aebed901cfd89f6cc9c4e9bfbc0d4bb511e618c526289a2ace98bb3981",
     "Sokosumi/Chat/Threads/ReplyThreadView.swift": "84ee9f6e535326503e13659c8cafc375e08c62703b335f2ec1bb78143932ff58"
@@ -11687,7 +11688,7 @@
     "ios17_workspace_build": "passes with -target arm64-apple-ios17.0",
     "swiftformat": "0/380 files require formatting",
     "swiftlint": "0 violations in 380 files",
-    "jump_cases": "4 room/thread x light/dark cases pass; all four snapshots visually inspected after making the fixture background opaque",
+    "jump_cases": "4 room/thread x light/dark cases pass; all four snapshots visually inspected after making the fixture background opaque. Review follow-up checks post-mount room/thread navigation state and uses native Vision text recognition on the bitmap to require Message 2 and exclude Message 98. A temporary wrong-target control (jump to message 50) fails the rendered-target assertion in all 4 cases; the control is reverted.",
     "content_growth_cases": 16,
     "rich_media_scroll_cases": 4,
     "harness_replay": "5 inlined files extract; measured app/probes reproduced byte for byte; Xcode project unchanged"
