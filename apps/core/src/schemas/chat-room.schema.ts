@@ -195,6 +195,32 @@ export const chatRoomSchema = z
         "Thread unread: non-self replies in Threads the viewer Participates in, after the per-Thread Look baseline (thread lastReadAt, else room join createdAt), less Muted threads that do not mention them. Surfaces on the Thread, never on the channel. ADR-0013, ADR-0030, ADR-0037.",
       example: 3,
     }),
+    unreadThreadCount: z.number().int().min(0).default(0).openapi({
+      description:
+        "How many Threads in this room are Thread unread for the viewer. Counts Threads, where threadUnreadCount counts replies. States what `unreadThreads` leaves out past its cap. ADR-0037.",
+      example: 4,
+    }),
+    unreadThreads: z
+      .array(
+        z.object({
+          parentMessageId: z.string().uuid(),
+          firstUnreadReplyId: z.string().uuid().openapi({
+            description:
+              "The oldest reply still unread in this Thread: where opening it lands.",
+          }),
+          parentContent: z.string().openapi({
+            description:
+              "The parent message's raw content, cut to 280 characters. May hold mention tokens and may be empty; the client builds the label.",
+          }),
+          unreadReplyCount: z.number().int().min(1),
+        }),
+      )
+      .max(3)
+      .default([])
+      .openapi({
+        description:
+          "Up to 3 unread Threads in this room, newest unread reply first, for the sidebar's inset rows. Same eligibility as threadUnreadCount. `unreadThreadCount` is the true number; this list is capped. ADR-0037.",
+      }),
     unreadMentionCount: z.number().int().min(0).openapi({
       description:
         "Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.",

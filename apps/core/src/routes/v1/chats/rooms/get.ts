@@ -36,6 +36,7 @@ import {
 import {
   getChatRoomUnreadCounts,
   getChatRoomUnreadMentionCounts,
+  listChatRoomUnreadThreads,
   unreadCountFields,
 } from "./room-unread";
 
@@ -181,6 +182,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     ];
     const [
       unreadCounts,
+      unreadThreads,
       unreadMentionCounts,
       sidebarFlags,
       pinnedMessageCounts,
@@ -188,6 +190,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       organizations,
     ] = await Promise.all([
       getChatRoomUnreadCounts(roomIds, userId, prisma),
+      listChatRoomUnreadThreads(roomIds, userId, prisma),
       getChatRoomUnreadMentionCounts(roomIds, userId, prisma),
       getChatRoomSidebarFlags(roomIds, userId, prisma),
       getChatRoomPinnedMessageCounts(roomIds, prisma),
@@ -220,6 +223,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           const flags = sidebarFlags.get(room.id);
           return mapChatRoom(room, userId, {
             ...unreadCountFields(unreadCounts.get(room.id)),
+            unreadThreads: unreadThreads.get(room.id),
             unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
             starredAt: flags?.starredAt ?? null,
             pinnedMessageCount: pinnedMessageCounts.get(room.id) ?? 0,

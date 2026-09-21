@@ -156,6 +156,19 @@ function room() {
   };
 }
 
+/**
+ * Answer the unread count query with `rows`, and the unread Threads query
+ * (which only runs when a room has Thread unread) with `threads`.
+ */
+function mockUnreadCounts(
+  rows: Array<Record<string, unknown>>,
+  threads: Array<Record<string, unknown>> = [],
+) {
+  queryRawUnsafeMock.mockImplementation(async (sql: string) =>
+    sql.includes('"firstUnreadReplyId"') ? threads : rows,
+  );
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   prismaTransactionMock.mockImplementation(async (cb) => cb(tx));
@@ -267,9 +280,7 @@ describe("POST /chats/rooms/{id}/read", () => {
   });
 
   it("returns remaining thread unreadCount after room mark-read", async () => {
-    queryRawUnsafeMock.mockResolvedValue([
-      { roomId: ROOM_ID, source: "thread", unreadCount: 2 },
-    ]);
+    mockUnreadCounts([{ roomId: ROOM_ID, source: "thread", unreadCount: 2 }]);
 
     const response = await createApp(userAuthContext).request(
       `/${ROOM_ID}/read`,

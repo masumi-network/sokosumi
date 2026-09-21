@@ -35,6 +35,8 @@ import {
   assertChatRoomContentMessage,
   readMembershipFromMetadata,
 } from "./membership-status";
+// Type only: `room-unread` imports this module at runtime.
+import type { ChatRoomUnreadThreads } from "./room-unread";
 
 export const chatRoomUserSelect = {
   id: true,
@@ -212,6 +214,8 @@ export interface MapChatRoomAttentionOptions {
   channelUnreadCount?: number;
   /** Thread unread: gated replies after each Thread's Look (ADR-0037). */
   threadUnreadCount?: number;
+  /** The room's unread Threads for the sidebar, capped, with the true count. */
+  unreadThreads?: ChatRoomUnreadThreads;
   unreadMentionCount?: number;
   starredAt?: Date | null;
   pinnedMessageCount?: number;
@@ -254,6 +258,7 @@ export function mapChatRoom(
     // this half, so the other default, zero, would quietly stop a row bolding
     // while its total said otherwise.
     channelUnreadCount = Math.max(0, unreadCount - threadUnreadCount),
+    unreadThreads = { threads: [], unreadThreadCount: 0 },
     unreadMentionCount = 0,
     starredAt = null,
     pinnedMessageCount = 0,
@@ -293,6 +298,8 @@ export function mapChatRoom(
     unreadCount,
     channelUnreadCount,
     threadUnreadCount,
+    unreadThreadCount: unreadThreads.unreadThreadCount,
+    unreadThreads: unreadThreads.threads,
     unreadMentionCount,
     starredAt,
     pinnedMessageCount,
@@ -522,6 +529,7 @@ export async function mapChatRoomWithSidebarFlags(
     unreadCount?: number;
     channelUnreadCount?: number;
     threadUnreadCount?: number;
+    unreadThreads?: ChatRoomUnreadThreads;
     unreadMentionCount?: number;
     activeOrganizationId?: string | null;
     organizationName?: string | null;
@@ -544,6 +552,7 @@ export async function mapChatRoomWithSidebarFlags(
     unreadCount: attention.unreadCount ?? 0,
     channelUnreadCount: attention.channelUnreadCount,
     threadUnreadCount: attention.threadUnreadCount,
+    unreadThreads: attention.unreadThreads,
     unreadMentionCount: attention.unreadMentionCount ?? 0,
     starredAt: flags?.starredAt ?? null,
     pinnedMessageCount: pinnedMessageCounts.get(room.id) ?? 0,
