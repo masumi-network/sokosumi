@@ -56,6 +56,15 @@ export interface FollowUpEmailInput {
   metadata?: Record<string, unknown> | null;
   recipientEmail: string;
   recipientName: null | string;
+  /**
+   * How many unread rows the reminder speaks for, counted when it was
+   * written.
+   *
+   * One reminder covers a room for a day, so it can stand for several rows.
+   * One of them is quoted; several are counted and none is quoted, because no
+   * one of them speaks for the rest (SOK-1142). Absent reads as one.
+   */
+  unreadCount?: null | number;
 }
 
 /** Only a low balance mails: Stripe already wrote when a payment failed. */
@@ -101,6 +110,7 @@ export async function buildFollowUpEmail(
             ...shared,
             authorName,
             messagePreview,
+            unreadCount: input.unreadCount,
           }),
         );
       }
@@ -112,6 +122,7 @@ export async function buildFollowUpEmail(
           authorName,
           messagePreview,
           roomName: readString(input.messageParams, "roomName"),
+          unreadCount: input.unreadCount,
         }),
       );
     }
@@ -123,6 +134,7 @@ export async function buildFollowUpEmail(
           ...shared,
           authorName: readString(input.messageParams, "authorName"),
           messagePreview: readString(input.messageParams, "messagePreview"),
+          unreadCount: input.unreadCount,
         }),
       );
 

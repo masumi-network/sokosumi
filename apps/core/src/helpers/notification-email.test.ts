@@ -221,19 +221,56 @@ describe("buildNotificationEmail", () => {
     expect(textIn(email?.html ?? "")).toContain("coworker early access");
   });
 
-  it("names the room for unread room messages, and nobody in it", async () => {
+  it("shows the one unread room message it was written for", async () => {
     const email = await buildNotificationEmail(
       input({ messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY }),
     );
 
-    expect(email?.subject).toBe("Sokosumi - Unread messages in Design");
+    expect(email?.subject).toBe("Sokosumi - Ada wrote in Design");
     expect(linkIn(email?.html ?? "")).toBe(
       `${BASE}/chat/rooms/room-1?message=message-1`,
     );
+    expect(textIn(email?.html ?? "")).toContain("Ada wrote in Design.");
+  });
+
+  /**
+   * The tally the counting write keeps. Once a second message joins the row,
+   * no one of them speaks for the rest, so the email counts them instead of
+   * showing the first (SOK-1142).
+   */
+  it("counts the unread room messages once the row stands for several", async () => {
+    const email = await buildNotificationEmail(
+      input({
+        messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+        messageParams: {
+          authorName: "Ada",
+          count: 4,
+          messagePreview: "Can you check this?",
+          roomName: "Design",
+        },
+      }),
+    );
+
+    expect(email?.subject).toBe("Sokosumi - 4 unread messages in Design");
     expect(textIn(email?.html ?? "")).toContain(
-      "There are messages you have not read in Design.",
+      "You have 4 unread messages in Design.",
     );
     expect(textIn(email?.html ?? "")).not.toContain("Ada");
+    expect(textIn(email?.html ?? "")).not.toContain("Can you check this?");
+  });
+
+  /** A count an older build could have written is not trusted as a tally. */
+  it("reads a tally that is not a whole number above one as one message", async () => {
+    for (const count of [1, 0, -2, 1.5, "3"]) {
+      const email = await buildNotificationEmail(
+        input({
+          messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+          messageParams: { authorName: "Ada", count, roomName: "Design" },
+        }),
+      );
+
+      expect(email?.subject).toBe("Sokosumi - Ada wrote in Design");
+    }
   });
 
   it("says what changed on a task that asked nothing of the reader", async () => {

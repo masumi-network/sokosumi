@@ -121,26 +121,46 @@ export function renderChatDirectMessageEmail({
   });
 }
 
-/** No author or preview: one email speaks for the room's whole unread pile. */
+/**
+ * One unread message, or a count of them.
+ *
+ * A single message is the whole of what is waiting, so the email shows it:
+ * who wrote and what they wrote, the way a mention does. Two or more have no
+ * one message that speaks for the rest, so the email counts them and quotes
+ * nobody. A count that is missing reads as one, because the row an email is
+ * built from stands for one message until a second joins it.
+ */
 export function renderChatRoomMessageEmail({
   actionUrl,
+  authorName,
   locale,
+  messagePreview,
   recipientName,
   roomName,
+  unreadCount,
 }: ChatRoomMessageEmailProps): Promise<RenderedEmail> {
   const { t } = createEmailTranslator(locale);
   const scope = `${EVENT_SCOPE}.roomMessage`;
-  const values = { roomName: nameOr(t, roomName, "fallbackRoomName") };
+  const room = nameOr(t, roomName, "fallbackRoomName");
+  const many = typeof unreadCount === "number" && unreadCount > 1;
+  const variant = many ? `${scope}.many` : `${scope}.one`;
+  const values: Record<string, string> = many
+    ? { count: String(unreadCount), roomName: room }
+    : {
+        authorName: nameOr(t, authorName, "fallbackAuthorName"),
+        roomName: room,
+      };
 
   return renderEventEmail({
     actionUrl,
+    quote: many ? null : messagePreview,
     recipientName,
     t,
     words: {
-      body: t(`${scope}.body`, values),
+      body: t(`${variant}.body`, values),
       button: t(`${scope}.button`),
-      subject: t(`${scope}.subject`, values),
-      title: t(`${scope}.title`),
+      subject: t(`${variant}.subject`, values),
+      title: t(`${variant}.title`),
     },
   });
 }

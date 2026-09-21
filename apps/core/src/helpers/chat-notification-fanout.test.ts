@@ -29,7 +29,9 @@ const {
   workspaceFindFirstAccessMock,
   loadChatMentionNamesMock,
   loadDirectRoomNamesByReaderMock,
+  resendRoomMessageEmailMock,
 } = vi.hoisted(() => ({
+  resendRoomMessageEmailMock: vi.fn(),
   createNotificationMock: vi.fn(),
   resolveDeliveryMock: vi.fn(),
   publishNotificationRowMock: vi.fn(),
@@ -98,6 +100,15 @@ vi.mock("@/helpers/chat-mention-names", () => ({
 
 vi.mock("@sentry/node", () => ({
   captureException: (...args: unknown[]) => captureExceptionMock(...args),
+}));
+
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (promise: Promise<unknown>) => promise,
+}));
+
+vi.mock("@/helpers/notification-email-dispatch", () => ({
+  resendRoomMessageEmail: (...args: unknown[]) =>
+    resendRoomMessageEmailMock(...args),
 }));
 
 import prisma from "@/lib/db/prisma";
@@ -842,6 +853,35 @@ describe("fanOutChatNotifications, counting per room", () => {
       messagePreview: "ship it",
       count: 2,
     });
+  });
+
+  /**
+   * The email waiting on that row said one message; the row now stands for
+   * two. It is sent again with the new tally rather than left to arrive
+   * about the first message of several (SOK-1142).
+   */
+  it("sends the row's email again once another message joins it", async () => {
+    notificationFindFirstMock.mockResolvedValue(
+      unreadRow({ authorName: "Ada", roomName: "general" }),
+    );
+
+    await fanOutChatNotifications(params({ countPerRoom: true }));
+
+    expect(resendRoomMessageEmailMock).toHaveBeenCalledExactlyOnceWith(
+      "notification_1",
+    );
+  });
+
+  /** A write that lost the race changed nothing, so there is nothing to resend. */
+  it("leaves the email alone when the counting write lost", async () => {
+    notificationFindFirstMock.mockResolvedValue(
+      unreadRow({ roomName: "general" }),
+    );
+    notificationUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    await fanOutChatNotifications(params({ countPerRoom: true }));
+
+    expect(resendRoomMessageEmailMock).not.toHaveBeenCalled();
   });
 
   it("carries the count on from the row it lands on", async () => {

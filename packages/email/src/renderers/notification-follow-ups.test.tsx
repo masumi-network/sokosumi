@@ -30,6 +30,101 @@ describe("reminder emails", () => {
     expect(rendered.html).toContain(ROOM_URL);
   });
 
+  /**
+   * One reminder covers a room for a day, so it can stand for several unread
+   * mentions. No one of them speaks for the rest, so they are counted and
+   * none is quoted (SOK-1142).
+   */
+  it("counts the unread mentions when it stands for several", async () => {
+    const rendered = await renderChatMentionFollowUpEmail({
+      actionUrl: ROOM_URL,
+      authorName: "Andreas",
+      locale: "en",
+      messagePreview: "can you look at this?",
+      recipientName: "Sandro",
+      roomName: "product",
+      unreadCount: 3,
+    });
+
+    expect(rendered.subject).toBe(
+      "Sokosumi - 3 mentions are still waiting for you in product",
+    );
+    expect(rendered.html).toContain(
+      "You have 3 unread mentions in product from a day ago",
+    );
+    expect(rendered.html).not.toContain("can you look at this?");
+    expect(rendered.html).not.toContain("Andreas");
+  });
+
+  it("counts the unread direct messages when it stands for several", async () => {
+    const rendered = await renderChatDirectMessageFollowUpEmail({
+      actionUrl: ROOM_URL,
+      authorName: "Andreas",
+      locale: "en",
+      messagePreview: "can you look at this?",
+      recipientName: "Sandro",
+      unreadCount: 2,
+    });
+
+    expect(rendered.subject).toBe(
+      "Sokosumi - 2 messages from Andreas are still waiting",
+    );
+    expect(rendered.html).toContain("You have 2 unread messages from Andreas");
+    expect(rendered.html).not.toContain("can you look at this?");
+  });
+
+  /** One row is the whole of what is waiting, so the reminder quotes it. */
+  it("quotes the one message it stands for, and a missing tally is one", async () => {
+    const counted = await renderChatMentionFollowUpEmail({
+      actionUrl: ROOM_URL,
+      authorName: "Andreas",
+      locale: "en",
+      messagePreview: "can you look at this?",
+      recipientName: "Sandro",
+      roomName: "product",
+      unreadCount: 1,
+    });
+    const untallied = await renderChatMentionFollowUpEmail({
+      actionUrl: ROOM_URL,
+      authorName: "Andreas",
+      locale: "en",
+      messagePreview: "can you look at this?",
+      recipientName: "Sandro",
+      roomName: "product",
+    });
+
+    for (const rendered of [counted, untallied]) {
+      expect(rendered.subject).toBe(
+        "Sokosumi - Andreas is still waiting for you in product",
+      );
+      expect(rendered.html).toContain("can you look at this?");
+    }
+  });
+
+  it("counts in the locale it is given", async () => {
+    const german = await renderChatMentionFollowUpEmail({
+      actionUrl: ROOM_URL,
+      locale: "de",
+      recipientName: "Sandro",
+      roomName: "product",
+      unreadCount: 5,
+    });
+    const spanish = await renderChatDirectMessageFollowUpEmail({
+      actionUrl: ROOM_URL,
+      authorName: "Andreas",
+      locale: "es",
+      recipientName: "Sandro",
+      unreadCount: 4,
+    });
+
+    expect(german.subject).toBe(
+      "Sokosumi - 5 Erwähnungen warten noch auf dich in product",
+    );
+    expect(spanish.subject).toBe(
+      "Sokosumi - 4 mensajes de Andreas siguen esperando",
+    );
+  });
+
   it("names only the author for a direct message, never the room", async () => {
     const rendered = await renderChatDirectMessageFollowUpEmail({
       actionUrl: ROOM_URL,

@@ -94,9 +94,16 @@
         "button": "Unterhaltung öffnen"
       },
       "roomMessage": {
-        "subject": "Sokosumi - Ungelesene Nachrichten in {roomName}",
-        "title": "Ungelesene Nachrichten",
-        "body": "In {roomName} gibt es Nachrichten, die du noch nicht gelesen hast.",
+        "one": {
+          "subject": "Sokosumi - {authorName} hat in {roomName} geschrieben",
+          "title": "Eine neue Nachricht",
+          "body": "{authorName} hat in {roomName} geschrieben."
+        },
+        "many": {
+          "subject": "Sokosumi - {count} ungelesene Nachrichten in {roomName}",
+          "title": "Ungelesene Nachrichten",
+          "body": "Du hast {count} ungelesene Nachrichten in {roomName}."
+        },
         "button": "Unterhaltung öffnen"
       },
       "task": {
@@ -213,11 +220,25 @@
         "body": "{authorName} hat dich vor einem Tag in {roomName} erwähnt, und du hast die Nachricht noch nicht geöffnet.",
         "button": "Unterhaltung öffnen"
       },
+      "mentionMany": {
+        "subject": "Sokosumi - {count} Erwähnungen warten noch auf dich in {roomName}",
+        "preview": "Du wurdest vor einem Tag {count}-mal in {roomName} erwähnt.",
+        "title": "Wartet noch auf dich",
+        "body": "Du hast {count} ungelesene Erwähnungen in {roomName} von vor einem Tag und hast sie noch nicht geöffnet.",
+        "button": "Unterhaltung öffnen"
+      },
       "directMessage": {
         "subject": "Sokosumi - {authorName} wartet weiterhin auf deine Antwort",
         "preview": "{authorName} hat dir vor einem Tag eine Nachricht geschickt.",
         "title": "Wartet weiterhin auf deine Antwort",
         "body": "{authorName} hat dir vor einem Tag eine Direktnachricht geschickt, und du hast sie noch nicht geöffnet.",
+        "button": "Unterhaltung öffnen"
+      },
+      "directMessageMany": {
+        "subject": "Sokosumi - {count} Nachrichten von {authorName} warten noch",
+        "preview": "{authorName} hat dir vor einem Tag {count} Nachrichten gesendet.",
+        "title": "Wartet noch auf deine Antwort",
+        "body": "Du hast {count} ungelesene Nachrichten von {authorName} von vor einem Tag und hast sie noch nicht geöffnet.",
         "button": "Unterhaltung öffnen"
       },
       "task": {

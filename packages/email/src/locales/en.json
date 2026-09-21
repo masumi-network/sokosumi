@@ -94,9 +94,16 @@
         "button": "Open the conversation"
       },
       "roomMessage": {
-        "subject": "Sokosumi - Unread messages in {roomName}",
-        "title": "Unread messages",
-        "body": "There are messages you have not read in {roomName}.",
+        "one": {
+          "subject": "Sokosumi - {authorName} wrote in {roomName}",
+          "title": "A new message",
+          "body": "{authorName} wrote in {roomName}."
+        },
+        "many": {
+          "subject": "Sokosumi - {count} unread messages in {roomName}",
+          "title": "Unread messages",
+          "body": "You have {count} unread messages in {roomName}."
+        },
         "button": "Open the conversation"
       },
       "task": {
@@ -213,11 +220,25 @@
         "body": "{authorName} mentioned you in {roomName} a day ago, and you have not opened it yet.",
         "button": "Open the conversation"
       },
+      "mentionMany": {
+        "subject": "Sokosumi - {count} mentions are still waiting for you in {roomName}",
+        "preview": "You were mentioned {count} times in {roomName} a day ago.",
+        "title": "Still waiting for you",
+        "body": "You have {count} unread mentions in {roomName} from a day ago, and you have not opened them yet.",
+        "button": "Open the conversation"
+      },
       "directMessage": {
         "subject": "Sokosumi - {authorName} is still waiting for your reply",
         "preview": "{authorName} sent you a message a day ago.",
         "title": "Still waiting for your reply",
         "body": "{authorName} sent you a direct message a day ago, and you have not opened it yet.",
+        "button": "Open the conversation"
+      },
+      "directMessageMany": {
+        "subject": "Sokosumi - {count} messages from {authorName} are still waiting",
+        "preview": "{authorName} sent you {count} messages a day ago.",
+        "title": "Still waiting for your reply",
+        "body": "You have {count} unread messages from {authorName} from a day ago, and you have not opened them yet.",
         "button": "Open the conversation"
       },
       "task": {

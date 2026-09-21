@@ -200,34 +200,81 @@ describe("notification emails", () => {
     expect(spanish.subject).toBe("Sokosumi - Ada completó Informe");
   });
 
-  it("names the room and nobody in it, for unread room messages", async () => {
-    // One email speaks for the room's whole unread pile, so no author and no
-    // preview: whoever wrote first is not the point.
+  it("shows the one unread message, the way a mention does", async () => {
+    // One message is the whole of what is waiting, so the email says who
+    // wrote it and quotes it.
     const rendered = await renderChatRoomMessageEmail({
       actionUrl: ROOM_URL,
+      authorName: "Ada",
       locale: "en",
+      messagePreview: "ship it when the tests go green",
+      recipientName: "Sandro",
+      roomName: "product",
+      unreadCount: 1,
+    });
+
+    expect(rendered.subject).toBe("Sokosumi - Ada wrote in product");
+    expect(rendered.html).toContain("Ada wrote in product.");
+    expect(rendered.html).toContain("ship it when the tests go green");
+    expect(rendered.html).toContain(ROOM_URL);
+  });
+
+  /**
+   * A row that was never counted onto stands for one message, so a missing
+   * tally reads as one rather than as none.
+   */
+  it("reads a missing tally as the one message it was written for", async () => {
+    const rendered = await renderChatRoomMessageEmail({
+      actionUrl: ROOM_URL,
+      authorName: "Ada",
+      locale: "en",
+      messagePreview: "ship it",
       recipientName: "Sandro",
       roomName: "product",
     });
 
-    expect(rendered.subject).toBe("Sokosumi - Unread messages in product");
-    expect(rendered.html).toContain(
-      "There are messages you have not read in product.",
-    );
-    expect(rendered.html).toContain(ROOM_URL);
+    expect(rendered.subject).toBe("Sokosumi - Ada wrote in product");
+    expect(rendered.html).toContain("ship it");
   });
 
-  it("stands in for a room the notification did not name", async () => {
+  it("counts the unread messages instead, and quotes nobody", async () => {
+    // No one of five messages speaks for the other four, so the email counts
+    // them and leaves the author and the preview out.
     const rendered = await renderChatRoomMessageEmail({
+      actionUrl: ROOM_URL,
+      authorName: "Ada",
+      locale: "en",
+      messagePreview: "ship it when the tests go green",
+      recipientName: "Sandro",
+      roomName: "product",
+      unreadCount: 5,
+    });
+
+    expect(rendered.subject).toBe("Sokosumi - 5 unread messages in product");
+    expect(rendered.html).toContain("You have 5 unread messages in product.");
+    expect(rendered.html).not.toContain("ship it when the tests go green");
+    expect(rendered.html).not.toContain("Ada");
+  });
+
+  it("stands in for a room, and an author, the notification did not name", async () => {
+    const one = await renderChatRoomMessageEmail({
+      actionUrl: ROOM_URL,
+      authorName: null,
+      locale: "en",
+      recipientName: "Sandro",
+      roomName: null,
+      unreadCount: 1,
+    });
+    const many = await renderChatRoomMessageEmail({
       actionUrl: ROOM_URL,
       locale: "en",
       recipientName: "Sandro",
       roomName: null,
+      unreadCount: 3,
     });
 
-    expect(rendered.subject).toBe(
-      "Sokosumi - Unread messages in a conversation",
-    );
+    expect(one.subject).toBe("Sokosumi - Someone wrote in a conversation");
+    expect(many.subject).toBe("Sokosumi - 3 unread messages in a conversation");
   });
 
   it("has a sentence for every update reason, including the fallback", async () => {
@@ -277,6 +324,7 @@ describe("notification emails", () => {
       locale: "de",
       recipientName: "Sandro",
       roomName: "product",
+      unreadCount: 4,
     });
     const spanishUpdate = await renderTaskUpdateEmail({
       actionUrl: TASK_URL,
@@ -287,7 +335,7 @@ describe("notification emails", () => {
     });
 
     expect(germanRoom.subject).toBe(
-      "Sokosumi - Ungelesene Nachrichten in product",
+      "Sokosumi - 4 ungelesene Nachrichten in product",
     );
     expect(spanishUpdate.subject).toBe("Sokosumi - Se canceló Informe");
   });

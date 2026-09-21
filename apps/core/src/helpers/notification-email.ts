@@ -137,6 +137,26 @@ export function taskUpdateReasonOf(messageKey: string): TaskUpdateReason {
   );
 }
 
+/**
+ * How many unread messages a room row stands for, or null when it stands for
+ * one.
+ *
+ * The counting write stores this as `count` and only once a second message
+ * joins the row, so a row that has never been counted onto carries nothing
+ * and is one message (SOK-1142). Anything that is not a whole number above
+ * one is read as one rather than trusted: the column is JSON an older build
+ * could have written.
+ */
+export function roomUnreadCountOf(
+  messageParams: Record<string, unknown>,
+): null | number {
+  const count = messageParams.count;
+
+  return typeof count === "number" && Number.isInteger(count) && count > 1
+    ? count
+    : null;
+}
+
 /** What the notification is about, spelled the way the email needs it. */
 export interface NotificationEmailInput {
   kind: NotificationKind;
@@ -209,7 +229,12 @@ export async function buildNotificationEmail(
         input,
         await renderChatRoomMessageEmail({
           ...shared,
+          authorName: readString(params, "authorName"),
+          messagePreview: readString(params, "messagePreview"),
           roomName: readString(params, "roomName"),
+          // The row's own tally, which the counting write keeps. Absent until
+          // a second message joins the row, and absent is one (SOK-1142).
+          unreadCount: roomUnreadCountOf(params),
         }),
       );
 
