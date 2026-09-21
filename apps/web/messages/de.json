@@ -4217,7 +4217,7 @@
         "presetAriaLabel": "Was du von {group} bekommst",
         "presetMenuCustomLabel": "{group} · einzeln gesetzt",
         "channelInApp": "In der App",
-        "channelInAppHint": "Landet bei deinen Benachrichtigungen in Sokosumi.",
+        "channelInAppHint": "In deinen Sokosumi-Benachrichtigungen.",
         "channelPush": "Push",
         "channelPushHint": "Ein Banner von deinem Gerät, auch wenn Sokosumi geschlossen ist.",
         "channelEmail": "E-Mail",
