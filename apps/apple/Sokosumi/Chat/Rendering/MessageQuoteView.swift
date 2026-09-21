@@ -20,8 +20,7 @@ struct MessageQuoteView: View {
   @State private var renderedSnippet = AttributedString()
 
   var body: some View {
-    HStack(alignment: .top, spacing: 8) {
-      Image(systemName: "quote.opening").foregroundStyle(.secondary).accessibilityHidden(true)
+    MessageQuoteBlock {
       VStack(alignment: .leading, spacing: 4) {
         if let jump {
           Button(quote.authorName) { jump(quote.messageId) }
@@ -55,8 +54,6 @@ struct MessageQuoteView: View {
           .labelStyle(.iconOnly).buttonStyle(.plain).foregroundStyle(.secondary)
       }
     }
-    .padding(8)
-    .background(.quaternary, in: .rect(cornerRadius: 6))
     .accessibilityElement(children: .contain)
     .task(id: RenderInput(source: quote.snippet, mentions: room.map(MessageMentions.init), channels: channels)) {
       let source = quote.snippet
@@ -81,6 +78,20 @@ struct MessageQuoteView: View {
       renderedSnippet = text
       renderedSnippet.link = nil
     }
+  }
+}
+
+/// The inset block every quote sits in: the transcript card, the composer preview and a quote-only pin.
+struct MessageQuoteBlock<Content: View>: View {
+  @ViewBuilder let content: Content
+
+  var body: some View {
+    HStack(alignment: .top, spacing: 8) {
+      Image(systemName: "quote.opening").foregroundStyle(.secondary).accessibilityHidden(true)
+      content
+    }
+    .padding(8)
+    .background(.quaternary, in: .rect(cornerRadius: 6))
   }
 }
 

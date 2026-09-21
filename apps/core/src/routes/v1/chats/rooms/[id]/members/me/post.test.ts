@@ -152,6 +152,7 @@ function publicChannel(overrides: Record<string, unknown> = {}) {
     userMembers: [member(OTHER_ID)],
     coworkerMembers: [],
     sokoBotMembers: [],
+    readStates: [],
     ...overrides,
   };
 }
