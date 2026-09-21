@@ -119,12 +119,25 @@ struct PinnedMessageCard: View {
                 Text(message.createdAt, style: .relative).font(.caption).foregroundStyle(.secondary).lineLimit(1)
               }
             }
-            MessageMarkdownView(source: message.content, room: room, channels: channels)
-              .lineLimit(6)
-              .frame(maxHeight: previewHeight, alignment: .top)
-              .fixedSize(horizontal: false, vertical: true)
-              .clipped()
-              .allowsHitTesting(false)
+            let preview = PinnedMessagePreview(message)
+            if let author = preview.quotedAuthor {
+              // A quote can be the whole message; show what was quoted, in the block quotes are drawn in.
+              MessageQuoteBlock {
+                VStack(alignment: .leading, spacing: 4) {
+                  if !author.isEmpty {
+                    Text(author).fontWeight(.semibold).lineLimit(1).truncationMode(.tail)
+                  }
+                  if !preview.source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    markdown(preview.source).foregroundStyle(.secondary)
+                  }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+              }
+              .accessibilityElement(children: .ignore)
+              .accessibilityLabel(preview.accessibilityLabel ?? "")
+            } else {
+              markdown(preview.source)
+            }
           }
           .frame(maxWidth: .infinity, alignment: .leading)
           .contentShape(.rect)
@@ -145,5 +158,14 @@ struct PinnedMessageCard: View {
     .background(isHovered ? Color.primary.opacity(0.06) : .clear, in: .rect(cornerRadius: 8))
     .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.primary.opacity(0.12)))
     .onHover { isHovered = $0 }
+  }
+
+  private func markdown(_ source: String) -> some View {
+    MessageMarkdownView(source: source, room: room, channels: channels)
+      .lineLimit(6)
+      .frame(maxHeight: previewHeight, alignment: .top)
+      .fixedSize(horizontal: false, vertical: true)
+      .clipped()
+      .allowsHitTesting(false)
   }
 }
