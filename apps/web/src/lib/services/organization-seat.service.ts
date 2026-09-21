@@ -67,6 +67,16 @@ function mapCoreSeatWriteError(error: unknown): never {
 
 export const organizationSeatService = (() => {
   return {
+    async hasAssignedSeat(organizationId: string | null): Promise<boolean> {
+      if (!organizationId) {
+        return true;
+      }
+
+      const { data } =
+        await coreClient.getOrganizationCallerSeat(organizationId);
+      return data.assigned;
+    },
+
     /**
      * Returns the seat summary, or `null` when Core reports the caller has no
      * access to the organization (403) or the organization is missing (404) —

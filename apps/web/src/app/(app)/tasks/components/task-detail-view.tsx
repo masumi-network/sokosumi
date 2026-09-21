@@ -49,7 +49,7 @@ import type { Task } from "@/lib/clients/generated/core/types.gen";
 import { agentService } from "@/lib/services/agent.service";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
-import { hasAssignedOrganizationSeat } from "@/lib/services/organization-assigned-seat.service";
+import { organizationSeatService } from "@/lib/services/organization-seat.service";
 import { projectService } from "@/lib/services/project.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { userService } from "@/lib/services/user.service";
@@ -110,7 +110,9 @@ export async function TaskDetailView({
   );
   const hasAssignedSeatPromise = forceReadOnly
     ? Promise.resolve(false)
-    : hasAssignedOrganizationSeat(task.workspace.organizationId ?? null);
+    : organizationSeatService.hasAssignedSeat(
+        task.workspace.organizationId ?? null,
+      );
   const translationsPromise = getTranslations("App.Tasks.Detail");
   const projectPromise = task.projectId
     ? projectService.getProjectById(task.projectId).catch(() => null)
