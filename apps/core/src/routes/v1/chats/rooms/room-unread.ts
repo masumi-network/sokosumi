@@ -212,11 +212,9 @@ export async function getChatRoomUnreadCounts(
   const byRoom = new Map<string, ChatRoomUnreadBreakdown>();
   for (const row of rows) {
     const breakdown = byRoom.get(row.roomId) ?? emptyChatRoomUnreadBreakdown();
-    if (row.source === "channel") {
-      breakdown.channel = Number(row.unreadCount);
-    } else {
-      breakdown.thread = Number(row.unreadCount);
-    }
+    // The source literals are the breakdown's own keys, so a leg can only
+    // land in its own half.
+    breakdown[row.source] = Number(row.unreadCount);
     breakdown.total = breakdown.channel + breakdown.thread;
     byRoom.set(row.roomId, breakdown);
   }

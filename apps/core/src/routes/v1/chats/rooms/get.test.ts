@@ -230,6 +230,41 @@ describe("GET /chats/rooms", () => {
     });
   });
 
+  it("keeps each room's halves apart when several rooms are unread", async () => {
+    const busy = guestRoomRow();
+    const threadOnly = {
+      ...guestRoomRow(),
+      id: "550e8400-e29b-41d4-a716-4466554400aa",
+      slug: "thread-only",
+    };
+    roomFindManyMock.mockResolvedValue([busy, threadOnly]);
+    roomCountMock.mockResolvedValue(2);
+    // Rows arrive interleaved, as GROUP BY makes no ordering promise.
+    queryRawUnsafeMock.mockResolvedValue([
+      { roomId: busy.id, source: "thread", unreadCount: 3 },
+      { roomId: threadOnly.id, source: "thread", unreadCount: 1 },
+      { roomId: busy.id, source: "channel", unreadCount: 2 },
+    ]);
+
+    const response = await createApp(ORG_ID).request("/");
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    const byId = new Map(
+      body.data.map((room: { id: string }) => [room.id, room]),
+    );
+    expect(byId.get(busy.id)).toMatchObject({
+      channelUnreadCount: 2,
+      threadUnreadCount: 3,
+      unreadCount: 5,
+    });
+    expect(byId.get(threadOnly.id)).toMatchObject({
+      channelUnreadCount: 0,
+      threadUnreadCount: 1,
+      unreadCount: 1,
+    });
+  });
+
   it("reports Room unread and Thread unread separately for each room", async () => {
     const room = guestRoomRow();
     roomFindManyMock.mockResolvedValue([room]);
