@@ -7,6 +7,7 @@
   import SokosumiWorkspace
   import SwiftUI
   import Testing
+  import Vision
 
   extension NativeWindowTests {
     @MainActor struct TranscriptScrollingTests {
@@ -42,13 +43,25 @@
         #expect(distanceFromBottom(scroll) > 400)
       }
 
-      @Test func messageLinkWaitsForPreparedTranscript() async throws {
-        let state = try fixtureState(thread: false, media: false)
+      @Test(arguments: [false, true], [false, true])
+      func messageLinkWaitsForPreparedTranscript(thread: Bool, dark: Bool) async throws {
+        let state = try fixtureState(thread: thread, media: false)
         let auth = AuthState()
-        #expect(try await state.openMessage("fixture-2", auth: auth) == .opened)
-        let host = NSHostingView(rootView: RoomTimelineView(roomId: "fixture")
-          .environmentObject(state).environmentObject(auth))
+        if thread {
+          state.thread.requestJump(to: "fixture-2")
+          #expect(state.thread.jumpTarget?.messageId == "fixture-2")
+        } else {
+          #expect(try await state.openMessage("fixture-2", auth: auth) == .opened)
+        }
+        let host = NSHostingView(rootView: Group {
+          if thread {
+            ReplyThreadView()
+          } else {
+            RoomTimelineView(roomId: "fixture")
+          }
+        }.background(.background).environmentObject(state).environmentObject(auth).environment(\.colorScheme, dark ? .dark : .light))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
         window.contentView = host
         window.orderFront(nil)
         defer { window.orderOut(nil) }
@@ -57,12 +70,24 @@
           host.layoutSubtreeIfNeeded()
           try await Task.sleep(for: .milliseconds(20))
         }
-        #expect(state.messageJump == nil)
+        if thread {
+          #expect(state.thread.jumpTarget?.messageId == "fixture-2")
+        } else {
+          #expect(state.messageJump == nil)
+        }
         #expect(distanceFromBottom(scroll) > 400)
         let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
         host.cacheDisplay(in: host.bounds, to: bitmap)
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.recognitionLanguages = ["en-US"]
+        request.usesLanguageCorrection = false
+        try VNImageRequestHandler(cgImage: #require(bitmap.cgImage)).perform([request])
+        let visibleText = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
+        #expect(visibleText.contains { $0.hasPrefix("Message 2:") })
+        #expect(!visibleText.contains { $0.hasPrefix("Message 98:") })
         let png = try #require(bitmap.representation(using: .png, properties: [:]))
-        try png.write(to: FileManager.default.temporaryDirectory.appendingPathComponent("message-link-navigation.png"))
+        try png.write(to: FileManager.default.temporaryDirectory.appendingPathComponent("message-link-navigation-\(thread)-\(dark).png"))
       }
 
       private func distanceFromBottom(_ scroll: NSScrollView) -> CGFloat {
