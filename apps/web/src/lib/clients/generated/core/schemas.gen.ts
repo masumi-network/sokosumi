@@ -9356,6 +9356,12 @@ export const ChatRoomPinnedMessageListItemSchema = {
                     type: 'integer',
                     minimum: 0
                 },
+                threadUnreadReplyCount: {
+                    type: 'integer',
+                    minimum: 0,
+                    description: 'Non-self replies under this parent the viewer has not cleared: Participant-gated and mute-gated, after the per-thread look baseline. 0 for lurkers and for viewers with no unread. Present only on the message list; absent from realtime events and single-message responses, which do not compute it. ADR-0013, ADR-0030, ADR-0037.',
+                    example: 2
+                },
                 threadLastReplyAt: {
                     type: [
                         'string',
@@ -10158,6 +10164,12 @@ export const ChatRoomMessageSchema = {
         threadReplyCount: {
             type: 'integer',
             minimum: 0
+        },
+        threadUnreadReplyCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Non-self replies under this parent the viewer has not cleared: Participant-gated and mute-gated, after the per-thread look baseline. 0 for lurkers and for viewers with no unread. Present only on the message list; absent from realtime events and single-message responses, which do not compute it. ADR-0013, ADR-0030, ADR-0037.',
+            example: 2
         },
         threadLastReplyAt: {
             type: [
