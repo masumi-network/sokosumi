@@ -116,6 +116,7 @@ function archivedRoom(
     ),
     coworkerMembers: [],
     sokoBotMembers: [],
+    readStates: [],
   };
 }
 

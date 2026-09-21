@@ -88,6 +88,16 @@ export const chatRoomUserParticipantSchema = z
         'Room membership kind: `"member"` (host-org participant) or `"guest"` (external channel only).',
       example: "member",
     }),
+    /**
+     * Room read receipt: this member's Room last-read. Null when they have
+     * never opened the room, and null for everyone when the viewer is a
+     * guest — read times do not cross the organization boundary. Absent on a
+     * message sender, which is the same shape but not a roster entry.
+     */
+    lastReadAt: dateTimeSchema.nullable().optional().openapi({
+      description:
+        "Room last-read for this member (Room read receipt) on a room roster entry. Null when the member has never opened the room, and null for every member when the viewer's room access is `guest`. Absent on message senders.",
+    }),
   })
   .openapi("ChatRoomUserParticipant");
 

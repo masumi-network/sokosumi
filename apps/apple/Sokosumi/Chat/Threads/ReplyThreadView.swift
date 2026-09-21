@@ -27,9 +27,9 @@ import SwiftUI
       return prepared.overlaying(liveRows)
     }
 
-    private var readyJump: ThreadSession.JumpTarget? {
+    private func readyJump(in messages: [Components.Schemas.ChatRoomMessage]) -> ThreadSession.JumpTarget? {
       guard let target = workspaces.thread.jumpTarget,
-            preparedMessages.contains(where: { $0.id == target.messageId }) else { return nil }
+            messages.contains(where: { $0.id == target.messageId }) else { return nil }
       return target
     }
 
@@ -107,7 +107,9 @@ import SwiftUI
     }
 
     @ViewBuilder private var content: some View {
-      if let parent = preparedMessages.first {
+      let messages = preparedMessages
+      if let parent = messages.first {
+        let jumpTarget = readyJump(in: messages)
         let currentRoom = workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }
         let channels = workspaces.composerChannels
         ScrollViewReader { proxy in
@@ -145,7 +147,7 @@ import SwiftUI
               }
               .font(.caption)
               .frame(minHeight: 24)
-              replies(channels: channels, room: currentRoom)
+              replies(messages: Array(messages.dropFirst()), channels: channels, room: currentRoom)
               Color.clear.frame(height: 17).id("thread-bottom")
             }
             .scrollTargetLayout()
@@ -155,8 +157,8 @@ import SwiftUI
           .scrollPosition(id: $visibleMessageID, anchor: .bottom)
           .defaultScrollAnchor(.bottom, for: .initialOffset)
           .defaultScrollAnchor(scrollIntent.followsLatest ? .bottom : nil, for: .sizeChanges)
-          .task(id: readyJump) {
-            guard let target = readyJump else { return }
+          .task(id: jumpTarget) {
+            guard let target = jumpTarget else { return }
             scrollIntent.readOlder()
             pendingBottomAlignment = false
             proxy.scrollTo(target.messageId, anchor: .center)
@@ -187,7 +189,7 @@ import SwiftUI
               }
             }
           }
-          .onChange(of: preparedMessages.last?.id) { _, _ in
+          .onChange(of: messages.last?.id) { _, _ in
             if scrollIntent.followsLatest {
               proxy.scrollTo("thread-bottom", anchor: .bottom)
             }
@@ -248,7 +250,7 @@ import SwiftUI
       }
     }
 
-    @ViewBuilder private func replies(channels: [ComposerChannel], room: Components.Schemas.ChatRoom?) -> some View {
+    @ViewBuilder private func replies(messages: [Components.Schemas.ChatRoomMessage], channels: [ComposerChannel], room: Components.Schemas.ChatRoom?) -> some View {
       let timeline = workspaces.thread.timeline
       if timeline.isLoading {
         ProgressView("Loading replies…")
@@ -261,7 +263,6 @@ import SwiftUI
            let error = workspaces.directStream.errorMessage {
           Text(error).foregroundStyle(.secondary)
         }
-        let messages = Array(preparedMessages.dropFirst())
         if messages.isEmpty, timeline.errorMessage == nil {
           Text("No replies yet.").foregroundStyle(.secondary)
         }

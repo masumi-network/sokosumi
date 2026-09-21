@@ -5,6 +5,13 @@ import {
   fetchCurrentCoworker,
   updateCoworker,
 } from "../../api/services/coworker-service.js";
+import { fetchOrganizationWorkspaces } from "../../api/services/organization-workspace-service.js";
+import { fetchVendorMemberships } from "../../api/services/vendor-service.js";
+import {
+  assertVendorCreationRequest,
+  requireAdministeredVendorForRegistration,
+  requireOrganizationWorkspacesForRegistration,
+} from "../registration-authority.js";
 import {
   applyListFilters,
   type CommandContext,
@@ -174,7 +181,19 @@ export async function runCoworkersCommand({
     return;
   }
   if (command === "register") {
+    assertVendorCreationRequest({
+      requested: optionBoolean(options, "create-vendor"),
+      confirmed: optionBoolean(options, "confirm-create-vendor"),
+    });
+    const { organizationWorkspaces } = await fetchOrganizationWorkspaces(
+      client,
+      signal,
+    );
+    requireOrganizationWorkspacesForRegistration(organizationWorkspaces);
     const payload = await buildPayload(options, false);
+    const vendorId = String(payload.vendorId);
+    const { vendors } = await fetchVendorMemberships(client, signal);
+    requireAdministeredVendorForRegistration(vendors, vendorId);
     const { coworker } = await createCoworker(client, payload, signal);
     let apiKey: unknown = null;
     if (optionBoolean(options, "create-api-key")) {
