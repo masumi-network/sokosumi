@@ -22,7 +22,7 @@ import type { JobInputFormIntlPath } from "./type";
  */
 const MIN_REQUIRED_STRING_LENGTH = 1;
 
-const STRING_BASED_TYPES = new Set([
+const STRING_BASED_TYPES = new Set<InputType>([
   InputType.STRING,
   InputType.TEXT,
   InputType.EMAIL,
@@ -31,7 +31,10 @@ const STRING_BASED_TYPES = new Set([
   InputType.SEARCH,
 ]);
 
-const BOOLEAN_TYPES = new Set([InputType.BOOLEAN, InputType.CHECKBOX]);
+const BOOLEAN_TYPES = new Set<InputType>([
+  InputType.BOOLEAN,
+  InputType.CHECKBOX,
+]);
 
 export const isStringBasedType = (type: InputType): boolean =>
   STRING_BASED_TYPES.has(type);

@@ -1,5 +1,5 @@
 import type { InputDateSchemaType } from "@sokosumi/masumi/schemas";
-import type { InputType } from "@sokosumi/masumi/types";
+import { InputType } from "@sokosumi/masumi/types";
 import { useMemo } from "react";
 
 import { transformJobInputSchemaValidations } from "@/components/job-input/util";
@@ -23,7 +23,7 @@ export function DateInput({
   field,
   jobInputSchema,
   controlProps,
-}: JobInputComponentProps<InputType.DATE, InputDateSchemaType>) {
+}: JobInputComponentProps<typeof InputType.DATE, InputDateSchemaType>) {
   const selectedDate =
     typeof field.value === "string" ? parseDateValue(field.value) : undefined;
 

@@ -1,5 +1,5 @@
 import type { InputOptionSchemaType } from "@sokosumi/masumi/schemas";
-import type { InputType } from "@sokosumi/masumi/types";
+import { InputType } from "@sokosumi/masumi/types";
 
 import { isSingleOption } from "@/components/job-input/util";
 import MultipleSelect from "@/components/multiple-select";
@@ -20,7 +20,7 @@ export function OptionInput({
   field,
   jobInputSchema,
   controlProps,
-}: JobInputComponentProps<InputType.OPTION, InputOptionSchemaType>) {
+}: JobInputComponentProps<typeof InputType.OPTION, InputOptionSchemaType>) {
   const isSingle = isSingleOption(jobInputSchema);
   const {
     name,
