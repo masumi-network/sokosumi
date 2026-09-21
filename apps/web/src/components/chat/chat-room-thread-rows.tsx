@@ -74,6 +74,9 @@ export function ChatRoomThreadRows({
     <SidebarMenuSub
       data-slot="room-thread-rows"
       aria-label={t("label", { name: roomLabel })}
+      // Rows a pixel apart: they read as one group under their room, where
+      // the primitive's wider gap reads as a second list of destinations.
+      className="gap-px"
     >
       {threads.map((thread) => (
         <SidebarMenuSubItem key={thread.parentMessageId}>
@@ -83,14 +86,22 @@ export function ChatRoomThreadRows({
                 href={chatRoomMessageHref(room.id, thread.firstUnreadReplyId)}
                 replace={isActive}
               >
-                <MessageSquare aria-hidden />
+                {/* Unread is a tinted icon circle plus weight, the language
+                    the notification rows and the thread list already use.
+                    Never a dot. */}
+                <span
+                  aria-hidden
+                  className="bg-primary-quaternary text-primary grid size-[1.125rem] shrink-0 place-items-center rounded-full"
+                >
+                  <MessageSquare className="size-[0.6875rem]" />
+                </span>
                 <span className="min-w-0 flex-1 truncate font-semibold">
                   {formatUnreadThreadsPreview(
                     thread.parentContent,
                     mentionNames,
                   ) || t("untitled")}
                 </span>
-                <span className="text-primary shrink-0 font-semibold tabular-nums">
+                <span className="text-primary shrink-0 text-[0.6875rem] font-semibold tabular-nums">
                   <span aria-hidden>{thread.unreadReplyCount}</span>
                   <span className="sr-only">
                     {t("unreadReplies", { count: thread.unreadReplyCount })}
@@ -108,7 +119,9 @@ export function ChatRoomThreadRows({
               <Link
                 href={chatRoomThreadListHref(room.id)}
                 replace={isActive}
-                className="text-muted-foreground"
+                // Starts on the labels' column: past the row's padding, the
+                // icon circle and the gap after it.
+                className="text-muted-foreground pl-[2.125rem]"
               >
                 <span>{t("moreThreads", { count: remainder })}</span>
               </Link>
