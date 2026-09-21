@@ -70,12 +70,14 @@ export default function RootLayout({
       <head>
         <ApplePwaHead />
       </head>
-      <TelemetryBoundary>
-        {/* Consent Mode (denied by default) MUST be set before GTM loads. */}
-        {analyticsEnabled && <ConsentModeInit />}
-        {gtmId && <GoogleTagManager gtmId={gtmId} />}
-        {gaId && <GoogleAnalytics gaId={gaId} />}
-      </TelemetryBoundary>
+      <Suspense fallback={null}>
+        <TelemetryBoundary>
+          {/* Consent Mode (denied by default) MUST be set before GTM loads. */}
+          {analyticsEnabled && <ConsentModeInit />}
+          {gtmId && <GoogleTagManager gtmId={gtmId} />}
+          {gaId && <GoogleAnalytics gaId={gaId} />}
+        </TelemetryBoundary>
+      </Suspense>
       <body className="bg-background min-h-dvh max-w-dvw antialiased">
         <DynamicTypeRootCap />
         <NuqsAdapter>
@@ -88,10 +90,12 @@ export default function RootLayout({
             </Suspense>
           </ThemeProvider>
         </NuqsAdapter>
-        <TelemetryBoundary>
-          <ClientAnalytics />
-          {analyticsEnabled && <AnalyticsUserId />}
-        </TelemetryBoundary>
+        <Suspense fallback={null}>
+          <TelemetryBoundary>
+            <ClientAnalytics />
+            {analyticsEnabled && <AnalyticsUserId />}
+          </TelemetryBoundary>
+        </Suspense>
         <DeploymentRefreshHandler />
       </body>
     </html>
