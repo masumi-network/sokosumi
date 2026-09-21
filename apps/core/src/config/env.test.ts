@@ -181,6 +181,7 @@ describe("Turnstile deployment configuration", () => {
     // Previews are throwaway, and a test key there is what lets an agent drive
     // the sign-in form without answering a human check. Failing would close
     // that door along with the hole.
+    vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("VERCEL_ENV", "preview");
     vi.stubEnv("TURNSTILE_SECRET_KEY", TURNSTILE_ALWAYS_PASS_SECRET);
 

@@ -268,7 +268,9 @@ function isDeployedEnvironment(value: z.infer<typeof baseEnvSchema>): boolean {
 function isProductionEnvironment(
   value: z.infer<typeof baseEnvSchema>,
 ): boolean {
-  return value.NODE_ENV === "production" || value.VERCEL_ENV === "production";
+  return value.VERCEL_ENV
+    ? value.VERCEL_ENV === "production"
+    : value.NODE_ENV === "production";
 }
 
 const envSchema = baseEnvSchema.superRefine((value, context) => {
