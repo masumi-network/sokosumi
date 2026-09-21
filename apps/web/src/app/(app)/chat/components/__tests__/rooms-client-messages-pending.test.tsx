@@ -35,6 +35,7 @@ import {
 } from "../persistent-channel-view";
 import type { RoomComposerHandle } from "../room-composer";
 import { RoomsClient } from "../rooms-client";
+import { transcriptViewportSpies } from "./transcript-viewport-stub";
 
 const { mockIsMobileMedia, mockHeaderRoomSlotHost, mockRoomRealtime } =
   vi.hoisted(() => ({
@@ -1255,6 +1256,38 @@ describe("channel cache access and navigation", () => {
     expect(screen.queryByTestId("room-message-list-skeleton")).toBeNull();
   });
 
+  it("restores each channel's own reading position on return", () => {
+    const view = render(
+      <RoomsClient {...baseProps} messages={[sampleMessage("history A")]} />,
+      { wrapper: CacheWrapper },
+    );
+    const position = {
+      anchorId: "msg-real",
+      anchorCreatedAt: 1234,
+      offset: -42,
+      atLiveEdge: false,
+      visibleMessageIds: ["msg-real"],
+    };
+    const bindingA = transcriptViewportSpies.position.mock.calls.at(-1)![0];
+    expect(bindingA.onPositionChange).toBeTypeOf("function");
+    act(() => bindingA.onPositionChange?.(position));
+    view.rerender(
+      <RoomsClient
+        {...roomBProps}
+        messages={[{ ...sampleMessage("history B"), roomId: "room-b" }]}
+      />,
+    );
+    expect(
+      transcriptViewportSpies.position.mock.calls.at(-1)![0].initialPosition,
+    ).toBeUndefined();
+    view.rerender(
+      <RoomsClient {...baseProps} messagesPromise={new Promise(() => {})} />,
+    );
+    expect(
+      transcriptViewportSpies.position.mock.calls.at(-1)![0].initialPosition,
+    ).toEqual(position);
+  });
+
   it("treats confirmed empty history as a hit", async () => {
     const view = render(<RoomsClient {...baseProps} />, {
       wrapper: CacheWrapper,
@@ -1280,6 +1313,36 @@ describe("channel cache access and navigation", () => {
     await act(async () => {});
     expect(screen.getByText("survives failure")).toBeTruthy();
     expect(screen.queryByText("Empty.messagesLoadFailedTitle")).toBeNull();
+  });
+
+  it("shows an inert room shell while revoked access redirects", async () => {
+    render(
+      <>
+        <a
+          href="/chat/rooms/room-channel"
+          onClick={(event) => event.preventDefault()}
+        >
+          Open room
+        </a>
+        <PersistentChannelView>
+          <ChannelRouteBootstrap
+            {...baseProps}
+            messages={[sampleMessage("private history")]}
+          />
+        </PersistentChannelView>
+      </>,
+      { wrapper: CacheWrapper },
+    );
+    fireEvent.click(screen.getByText("Open room"));
+    expect(await screen.findByText("private history")).toBeTruthy();
+    act(() =>
+      notifyOrganizationChatRoomsChanged({ removedRoomId: "room-channel" }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByText("private history")).toBeNull(),
+    );
+    expect(screen.getByTestId("chat-room-loading")).toBeVisible();
+    expect(screen.queryByTestId("room-session-composer")).toBeNull();
   });
 
   it("removes revoked history immediately and refuses a late response", async () => {

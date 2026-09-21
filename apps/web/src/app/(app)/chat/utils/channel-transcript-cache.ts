@@ -13,6 +13,7 @@ import {
   emptyRoomTranscript,
   mergeRoomHeadPage,
   mergeRoomJumpWindow,
+  ROOM_HISTORY_WINDOW_LIMIT,
   type RoomTranscript,
 } from "./room-transcript-ranges";
 
@@ -273,7 +274,10 @@ export class ChannelTranscriptCache {
       .filter((message) => compare(message, newest) >= 0)
       .slice(0, 3);
     for (const candidate of candidates) {
-      page = await this.read(roomId, { around: candidate.id, limit: 30 });
+      page = await this.read(roomId, {
+        around: candidate.id,
+        limit: ROOM_HISTORY_WINDOW_LIMIT,
+      });
       if (!current()) return "done";
       if (page?.messages.at(-1) && compare(page.messages.at(-1)!, newest) >= 0)
         break;
@@ -289,7 +293,7 @@ export class ChannelTranscriptCache {
     ) {
       const older = await this.read(roomId, {
         cursor: page.nextCursor,
-        limit: 30,
+        limit: ROOM_HISTORY_WINDOW_LIMIT,
       });
       if (!current()) return "done";
       if (!older || older.nextCursor === page.nextCursor) return "done";

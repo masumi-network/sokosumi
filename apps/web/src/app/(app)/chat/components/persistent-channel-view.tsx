@@ -10,6 +10,7 @@ import {
 } from "react";
 import type { ChannelTranscriptEntry } from "@/app/chat/utils/channel-transcript-cache";
 import { useChannelCache, useChannelSelection } from "./channel-cache-provider";
+import { RoomOpenLoadingView } from "./room-open-loading-view";
 import { RoomsClient, type RoomsClientProps } from "./rooms-client";
 
 const RoomBootstrapContext = createContext<
@@ -49,7 +50,8 @@ function SelectedRoom({
     { queryKey: cache.key(roomId), queryFn: skipToken },
     cache.client,
   );
-  const selected = cache.available(roomId)
+  const available = cache.available(roomId);
+  const selected = available
     ? (data?.bootstrap ??
       (bootstrap?.selectedRoomId === roomId ? bootstrap : null))
     : null;
@@ -60,7 +62,7 @@ function SelectedRoom({
         hidden={Boolean(selected)}
         className={selected ? undefined : "contents"}
       >
-        {children}
+        {available ? children : <RoomOpenLoadingView />}
       </div>
       {selected ? <RoomsClient {...selected} /> : null}
     </>
