@@ -3,10 +3,12 @@
 import { MessageCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ChatComposeSokoBot } from "@/app/chat/actions";
+import type { RoomReadReceipts } from "@/app/chat/hooks/use-room-read-receipts";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
 import { ChannelDiscoverabilityIcon } from "@/components/chat/channel-discoverability-icon";
 import { DirectRoomAvatarStack } from "@/components/chat/direct-room-avatar-stack";
 import { LiveMemberPresenceDot } from "@/components/chat/live-member-presence-dot";
+import { ReadReceiptAvatarStack } from "@/components/chat/read-receipt-avatar-stack";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type {
   ChatRoom,
@@ -129,6 +131,8 @@ export interface RoomHeaderChromeProps {
   onEditOpenChange: (open: boolean) => void;
   /** When false, skip avatar stack so title can paint without it. */
   showParticipants: boolean;
+  /** Seen by — who on the roster has read this room. */
+  readReceipts: RoomReadReceipts;
 }
 
 export function RoomHeaderChrome({
@@ -157,6 +161,7 @@ export function RoomHeaderChrome({
   editOpen,
   onEditOpenChange,
   showParticipants,
+  readReceipts,
 }: RoomHeaderChromeProps) {
   const t = useTranslations("App.Channels");
   const trimmedTopic = room.topic?.trim() ?? "";
@@ -265,6 +270,12 @@ export function RoomHeaderChrome({
             }}
           />
         </div>
+        {showParticipants ? (
+          <ReadReceiptAvatarStack
+            readers={readReceipts.readers}
+            nonReaders={readReceipts.nonReaders}
+          />
+        ) : null}
         {showParticipants && shouldShowRoomRosterControl(room) ? (
           <RoomParticipantStack
             room={room}

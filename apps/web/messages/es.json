@@ -5536,6 +5536,14 @@
         "copySuccess": "Copiado al portapapeles",
         "copyError": "No se pudo copiar."
       },
+      "SeenBy": {
+        "summary": "{count, plural, one {Leído por # persona} other {Leído por # personas}}",
+        "open": "Ver quién lo ha leído",
+        "title": "Leído por",
+        "readAt": "Leído {time}",
+        "notReadTitle": "Sin leer todavía",
+        "transcript": "Leído por {count}"
+      },
       "UnreadThreads": {
         "open": "Hilos",
         "title": "Hilos",

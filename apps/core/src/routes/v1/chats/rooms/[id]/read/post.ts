@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { NotificationKind } from "@sokosumi/database";
 import { waitUntil } from "@vercel/functions";
 
+import { publishChatRoomReadRealtime } from "@/helpers/chat-room-read-realtime";
 import { publishClearedNotifications } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -104,6 +105,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     });
 
     waitUntil(publishClearedNotifications(clearedIds));
+    // Seen by: the room hears about this reader within a moment, so the other
+    // side is not left waiting on a poll. Best effort — the publisher swallows
+    // its own failures and the next room payload carries the same mark.
+    waitUntil(
+      publishChatRoomReadRealtime({
+        roomId: room.id,
+        userId: userContext.userId,
+        lastReadAt: readAt,
+      }),
+    );
 
     // Top-level unreads are cleared by lastReadAt; thread replies still use
     // look baseline. Return the real dual-baseline count so the sidebar does

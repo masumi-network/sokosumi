@@ -2345,6 +2345,10 @@ export type ChatRoomUserParticipant = {
     image: string | null;
     presence: ChatRoomPresence;
     access?: ChatRoomAccess & unknown;
+    /**
+     * Room last-read for this member (Room read receipt) on a room roster entry. Null when the member has never opened the room, and null for every member when the viewer's room access is `guest`. Absent on message senders.
+     */
+    lastReadAt?: Date | null;
 };
 
 export const ChatRoomPresence = {

@@ -8616,6 +8616,15 @@ export const ChatRoomUserParticipantSchema = {
                     description: 'Room membership kind: `"member"` (host-org participant) or `"guest"` (external channel only).'
                 }
             ]
+        },
+        lastReadAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Room last-read for this member (Room read receipt) on a room roster entry. Null when the member has never opened the room, and null for every member when the viewer\'s room access is `guest`. Absent on message senders.'
         }
     },
     required: [

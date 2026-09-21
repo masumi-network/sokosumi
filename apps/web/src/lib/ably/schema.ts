@@ -185,6 +185,15 @@ export type ChatRoomPinnedMessageEventData = z.infer<
   typeof chatRoomPinnedMessageEventDataSchema
 >;
 
+/** Room read receipt: one member's Room last-read moved. Keyed by room+user. */
+export const chatRoomReadEventDataSchema = z.object({
+  roomId: z.string().min(1),
+  userId: z.string().min(1),
+  lastReadAt: z.iso.datetime(),
+});
+
+export type ChatRoomReadEventData = z.infer<typeof chatRoomReadEventDataSchema>;
+
 export function isChatRoomMessageIdEnvelope(
   event: ChatRoomMessageEventData,
 ): event is ChatRoomMessageIdEnvelopeData {

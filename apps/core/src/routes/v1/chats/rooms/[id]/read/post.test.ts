@@ -23,6 +23,7 @@ const {
   notificationUpdateManyMock,
   notificationFindManyMock,
   publishClearedNotificationsMock,
+  publishChatRoomReadRealtimeMock,
   membershipFindManyMock,
   readStateFindManyMock,
   threadReadUpsertMock,
@@ -38,6 +39,7 @@ const {
   notificationUpdateManyMock: vi.fn(),
   notificationFindManyMock: vi.fn(),
   publishClearedNotificationsMock: vi.fn(),
+  publishChatRoomReadRealtimeMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
   readStateFindManyMock: vi.fn(),
   threadReadUpsertMock: vi.fn(),
@@ -62,8 +64,17 @@ vi.mock("@/helpers/notifications", () => ({
     publishClearedNotificationsMock(...args),
 }));
 
+vi.mock("@/helpers/chat-room-read-realtime", () => ({
+  publishChatRoomReadRealtime: (...args: unknown[]) =>
+    publishChatRoomReadRealtimeMock(...args),
+}));
+
+// Background work never reaches the response, failure included — that is the
+// whole point of handing it to waitUntil.
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => promise,
+  waitUntil: (promise: Promise<unknown>) => {
+    void Promise.resolve(promise).catch(() => {});
+  },
 }));
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -134,6 +145,7 @@ function room() {
     ],
     coworkerMembers: [],
     sokoBotMembers: [],
+    readStates: [],
   };
 }
 
@@ -148,6 +160,7 @@ beforeEach(() => {
   notificationUpdateManyMock.mockResolvedValue({ count: 0 });
   membershipFindManyMock.mockResolvedValue([]);
   readStateFindManyMock.mockResolvedValue([]);
+  publishChatRoomReadRealtimeMock.mockResolvedValue(undefined);
   // Dual-baseline unread: room mark-read leaves unlooked thread replies.
   queryRawUnsafeMock.mockResolvedValue([]);
 });
@@ -264,5 +277,36 @@ describe("POST /chats/rooms/{id}/read", () => {
       unreadMentionCount: 0,
       markedUnread: false,
     });
+  });
+
+  it("tells the room who read it and when", async () => {
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/read`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(publishChatRoomReadRealtimeMock).toHaveBeenCalledOnce();
+    expect(publishChatRoomReadRealtimeMock).toHaveBeenCalledWith({
+      roomId: ROOM_ID,
+      userId: USER_ID,
+      lastReadAt: expect.any(Date),
+    });
+
+    const [{ lastReadAt }] = publishChatRoomReadRealtimeMock.mock.calls[0];
+    const { lastReadAt: written } = readStateUpsertMock.mock.calls[0][0].update;
+    expect(lastReadAt).toEqual(written);
+  });
+
+  it("still marks the room read when the read event cannot be published", async () => {
+    publishChatRoomReadRealtimeMock.mockRejectedValue(new Error("ably down"));
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/read`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(readStateUpsertMock).toHaveBeenCalledOnce();
   });
 });

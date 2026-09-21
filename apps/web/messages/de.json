@@ -5536,6 +5536,14 @@
         "copySuccess": "In die Zwischenablage kopiert",
         "copyError": "Kopieren fehlgeschlagen."
       },
+      "SeenBy": {
+        "summary": "{count, plural, one {Von # Person gelesen} other {Von # Personen gelesen}}",
+        "open": "Anzeigen, wer das gelesen hat",
+        "title": "Gelesen von",
+        "readAt": "Gelesen {time}",
+        "notReadTitle": "Noch nicht gelesen",
+        "transcript": "Von {count} gelesen"
+      },
       "UnreadThreads": {
         "open": "Threads",
         "title": "Threads",

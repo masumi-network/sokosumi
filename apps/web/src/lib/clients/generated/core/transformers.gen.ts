@@ -812,6 +812,13 @@ export const postChatsInvitationsByIdDeclineResponseTransformer = async (data: a
     return data;
 };
 
+const chatRoomUserParticipantSchemaResponseTransformer = (data: any) => {
+    if (data.lastReadAt) {
+        data.lastReadAt = new Date(data.lastReadAt);
+    }
+    return data;
+};
+
 const chatRoomSchemaResponseTransformer = (data: any) => {
     data.createdAt = new Date(data.createdAt);
     data.updatedAt = new Date(data.updatedAt);
@@ -821,6 +828,7 @@ const chatRoomSchemaResponseTransformer = (data: any) => {
     if (data.mutedAt) {
         data.mutedAt = new Date(data.mutedAt);
     }
+    data.userMembers = data.userMembers.map((item: any) => chatRoomUserParticipantSchemaResponseTransformer(item));
     return data;
 };
 
