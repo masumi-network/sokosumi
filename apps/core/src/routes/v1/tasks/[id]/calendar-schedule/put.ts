@@ -9,7 +9,11 @@ import {
 
 import { requireTaskScheduleWriteAccess } from "@/helpers/access-control";
 import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
-import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
+import {
+  lockCalendarScope,
+  lockTaskRows,
+  requireOpenCalendarProject,
+} from "@/helpers/calendar-locks";
 import { badRequest, conflict, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
@@ -140,6 +144,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ),
         });
       }
+      await requireOpenCalendarProject(
+        tx,
+        currentTask.workspaceId,
+        currentTask.projectId,
+      );
       validateScheduleInput(schedule);
       if (expectedScheduleRevision !== currentTask.scheduleRevision) {
         throw conflict(

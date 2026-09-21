@@ -58,6 +58,7 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
 vi.mock("@/helpers/calendar-locks", () => ({
   lockCalendarScope: lockCalendarScopeMock,
   lockTaskRows: lockTaskRowsMock,
+  requireOpenCalendarProject: vi.fn(),
 }));
 
 vi.mock("@/helpers/task-schedule-occurrence-index", async (importOriginal) => {

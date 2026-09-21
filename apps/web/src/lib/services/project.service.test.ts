@@ -9,10 +9,14 @@ const coreClientMock = {
   getProjects: vi.fn(),
   getProjectsById: vi.fn(),
   getProjectsByIdCalendar: vi.fn(),
+  getProjectsByIdClose: vi.fn(),
   getProjectsByIdContextMd: vi.fn(),
   getProjectsStats: vi.fn(),
   patchProjectsById: vi.fn(),
   postProjects: vi.fn(),
+  postProjectsByIdClose: vi.fn(),
+  postProjectsByIdCloseCancelOwed: vi.fn(),
+  postProjectsByIdCloseRetry: vi.fn(),
   putProjectsByIdDesignMd: vi.fn(),
   deleteProjectsByIdDesignMd: vi.fn(),
   postProjectsByIdJobs: vi.fn(),
@@ -146,6 +150,35 @@ describe("project.service", () => {
     expect(result).toBeNull();
   });
 
+  it("loads project close status and returns null on 404", async () => {
+    const status = {
+      id: "close-1",
+      projectId: "project-1",
+      state: "CLOSING",
+      cutoffAt: new Date("2026-09-14T10:00:00.000Z"),
+      reason: null,
+      attempts: 0,
+      failure: null,
+      completedAt: null,
+      projectRevision: 4,
+      owedOccurrenceCount: 2,
+    };
+    coreClientMock.getProjectsByIdClose.mockResolvedValue({ data: status });
+
+    const { projectService } = await import("./project.service");
+    await expect(
+      projectService.getProjectCloseStatus("project-1"),
+    ).resolves.toEqual(status);
+
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    coreClientMock.getProjectsByIdClose.mockRejectedValue(
+      new CoreApiRequestError("not found", { status: 404 }),
+    );
+    await expect(
+      projectService.getProjectCloseStatus("project-missing"),
+    ).resolves.toBeNull();
+  });
+
   it("loads Project Calendar items through Core", async () => {
     coreClientMock.getProjectsByIdCalendar.mockResolvedValue({
       data: [],
@@ -226,6 +259,61 @@ describe("project.service", () => {
     expect(created).toEqual(project);
     expect(updated).toEqual(buildProject({ name: "Updated launch plan" }));
     expect(deleted).toEqual({ id: "project-1", deleted: true });
+  });
+
+  it("closes and recovers projects via Core", async () => {
+    const status = {
+      id: "close-1",
+      projectId: "project-1",
+      state: "CLOSING",
+      cutoffAt: new Date("2026-09-14T10:00:00.000Z"),
+      reason: null,
+      attempts: 0,
+      failure: null,
+      completedAt: null,
+      projectRevision: 4,
+      owedOccurrenceCount: 2,
+    };
+    coreClientMock.postProjectsByIdClose.mockResolvedValue({ data: status });
+    coreClientMock.postProjectsByIdCloseRetry.mockResolvedValue({
+      data: status,
+    });
+    coreClientMock.postProjectsByIdCloseCancelOwed.mockResolvedValue({
+      data: status,
+    });
+    const closeInput = {
+      operationId: "operation-close",
+      expectedProjectRevision: 3,
+    };
+    const recoveryInput = {
+      operationId: "operation-recovery",
+      expectedProjectRevision: 4,
+      reason: "Reviewed the failure",
+    };
+
+    const { projectService } = await import("./project.service");
+    await expect(
+      projectService.closeProject("project-1", closeInput),
+    ).resolves.toEqual(status);
+    await expect(
+      projectService.retryProjectClose("project-1", recoveryInput),
+    ).resolves.toEqual(status);
+    await expect(
+      projectService.cancelProjectCloseOwedWork("project-1", recoveryInput),
+    ).resolves.toEqual(status);
+
+    expect(coreClientMock.postProjectsByIdClose).toHaveBeenCalledWith(
+      "project-1",
+      closeInput,
+    );
+    expect(coreClientMock.postProjectsByIdCloseRetry).toHaveBeenCalledWith(
+      "project-1",
+      recoveryInput,
+    );
+    expect(coreClientMock.postProjectsByIdCloseCancelOwed).toHaveBeenCalledWith(
+      "project-1",
+      recoveryInput,
+    );
   });
 
   it("adds and removes project jobs and tasks via Core", async () => {

@@ -1,5 +1,6 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import mountGetProjectCalendar from "./[id]/calendar/get.js";
+import mountProjectCloseRoutes from "./[id]/close/routes.js";
 import mountGetProjectContextMd from "./[id]/context-md/get.js";
 import mountDeleteProject from "./[id]/delete.js";
 import mountDeleteProjectDesignMd from "./[id]/design-md/delete.js";
@@ -31,6 +32,7 @@ mountGetProjectContextMd(app);
 mountPutProjectDesignMd(app);
 mountDeleteProjectDesignMd(app);
 mountGetProjectCalendar(app);
+mountProjectCloseRoutes(app);
 mountGetProjectNeedsAttention(app);
 mountGetProject(app);
 mountPatchProject(app);
