@@ -2794,12 +2794,13 @@ extension WorkspaceStateTests {
     #expect(CoworkerMentionShell(message: shell) == .failed(mentionId: "mention_1", sourceMessageId: "source"))
 
     transport.pauseMentionRetry = true
-    let retry = Task { try await state.retryMention(shell, auth: auth) }
+    let now = Date(timeIntervalSince1970: 1_700_000_123.456)
+    let retry = Task { try await state.retryMention(shell, auth: auth, now: now) }
     while !transport.operationIDs.contains(mentionRetryOperation) {
       await Task.yield()
     }
     let inFlight = reply ? state.thread.timeline.messages.first : state.timeline.messages.last
-    #expect(try CoworkerMentionShell(message: #require(inFlight))?.isThinking == true)
+    #expect(try CoworkerMentionShell(message: #require(inFlight)) == .thinking(startedAt: now))
     #expect(try !canQuoteMessage(#require(inFlight)))
     #expect(state.pendingMentionRetries.count == 1)
     // A second click while the POST is in flight must not send another request.
