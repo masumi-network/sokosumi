@@ -37,11 +37,8 @@ import SwiftUI
     }
 
     private var preparedMessages: [Components.Schemas.ChatRoomMessage] {
-      guard preparedTranscript?.input.scope == preparationScope else { return [] }
-      let snapshot = preparedTranscript?.input.messages ?? []
-      // Markdown is prepared async; chips must follow the live overlay now.
-      let live = Dictionary(workspaces.displayedTranscript.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
-      return snapshot.map { live[$0.id] ?? $0 }
+      guard let prepared = preparedTranscript, prepared.input.scope == preparationScope else { return [] }
+      return prepared.overlaying(workspaces.displayedTranscript)
     }
 
     let roomId: String

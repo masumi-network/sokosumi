@@ -81,21 +81,23 @@ struct SokoBotChainMetadataTests {
   }
 }
 
-struct HiddenSokoBotMentionShellTests {
+struct MentionShellTranscriptVisibilityTests {
   private let thinking = #"{"streaming":true,"mention_id":"mention_1","in_reply_to_message_id":"source","soko_bot":{"turn_id":"turn_1"}}"#
   private let failed = #"{"mention_id":"mention_1","mention_failed":true,"in_reply_to_message_id":"source","soko_bot":{"turn_id":"turn_1"}}"#
 
   @Test func bodilessSokoBotShellsLeaveTheTranscript() async throws {
-    #expect(try await isHiddenSokoBotMentionShell(decode(botRow(content: "", metadata: thinking))))
-    #expect(try await isHiddenSokoBotMentionShell(decode(botRow(content: "   ", metadata: failed))))
-    // Web keeps coworker shells, answered rows, tombstones and everything without shell metadata.
-    #expect(try await !isHiddenSokoBotMentionShell(decode(botRow(content: "", sender: coworkerSender, metadata: thinking))))
-    #expect(try await !isHiddenSokoBotMentionShell(decode(botRow(content: "Done.", metadata: #"{"mention_id":"mention_1","soko_bot":{"turn_id":"turn_1"}}"#))))
-    #expect(try await !isHiddenSokoBotMentionShell(decode(botRow(content: "", metadata: thinking, deletedAt: testTimestamp))))
-    #expect(try await !isHiddenSokoBotMentionShell(decode(botRow(content: "", metadata: #"{"mention_id":"","streaming":true}"#))))
-    #expect(try await !isHiddenSokoBotMentionShell(decode(botRow(content: "", metadata: #"{"mention_id":"mention_1"}"#))))
-    #expect(try await !isHiddenSokoBotMentionShell(decode(botRow(content: "", metadata: nil))))
-    #expect(try await !isHiddenSokoBotMentionShell(decode(botRow(content: "", sender: testUserSender(name: "Me", email: "me@example.com"), metadata: thinking))))
+    #expect(try await !shouldKeepPersistedMessage(decode(botRow(content: "", metadata: thinking))))
+    #expect(try await !shouldKeepPersistedMessage(decode(botRow(content: "   ", metadata: failed))))
+    // Web keeps coworker shells and answered rows.
+    #expect(try await shouldKeepPersistedMessage(decode(botRow(content: "", sender: coworkerSender, metadata: thinking))))
+    #expect(try await shouldKeepPersistedMessage(decode(botRow(content: "Done.", metadata: #"{"mention_id":"mention_1","soko_bot":{"turn_id":"turn_1"}}"#))))
+    // Row 19a: the predicate is web's whole `shouldKeepPersistedMessage`, so every other bodiless
+    // row leaves too — a tombstone, a bot row without shell metadata, and shell metadata on a human.
+    #expect(try await !shouldKeepPersistedMessage(decode(botRow(content: "", metadata: nil, deletedAt: testTimestamp))))
+    #expect(try await !shouldKeepPersistedMessage(decode(botRow(content: "", metadata: #"{"mention_id":"","streaming":true}"#))))
+    #expect(try await !shouldKeepPersistedMessage(decode(botRow(content: "", metadata: #"{"mention_id":"mention_1"}"#))))
+    #expect(try await !shouldKeepPersistedMessage(decode(botRow(content: "", metadata: nil))))
+    #expect(try await !shouldKeepPersistedMessage(decode(botRow(content: "", sender: testUserSender(name: "Me", email: "me@example.com"), metadata: thinking))))
   }
 
   @Test func displayedTranscriptDropsTheShellUntilTheAnswerArrives() async throws {

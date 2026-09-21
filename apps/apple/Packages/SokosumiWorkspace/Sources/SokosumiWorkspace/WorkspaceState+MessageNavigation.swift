@@ -47,7 +47,8 @@ public extension WorkspaceState {
       let message = try await navigationMessage(messageId, roomId: roomId, client: client, organizationSlug: slug)
       guard isCurrent(navigation, threadGeneration: initialThreadGeneration) else { return .superseded }
       if let message {
-        guard message.roomId == roomId else { return .unavailable }
+        // A row the transcript drops (a deleted message) can never be landed on.
+        guard message.roomId == roomId, shouldKeepPersistedMessage(message) else { return .unavailable }
         if message.parentMessageId != nil {
           return try await navigateReply(message, request: request, auth: auth)
         }
@@ -118,6 +119,10 @@ public extension WorkspaceState {
         return stopped
       }
       guard isCurrent(navigation, threadGeneration: threadGeneration) else { return .superseded }
+      // A search hit keeps its old body; the loaded row says whether the thread still shows it.
+      if let loaded = thread.timeline.messages.first(where: { $0.id == hit.id }), !shouldKeepPersistedMessage(loaded) {
+        return .unavailable
+      }
       thread.requestJump(to: hit.id)
       return thread.jumpTarget?.messageId == hit.id ? .opened : .unavailable
     } catch {
