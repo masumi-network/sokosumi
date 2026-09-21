@@ -1076,6 +1076,9 @@ export function WorkspaceCalendar({
     items !== prevItems ||
     (pagination?.nextCursor ?? null) !== prevServerNextCursor
   ) {
+    // A request from the previous snapshot must not append stale occurrences.
+    calendarAccessGeneration.current += 1;
+    eventRequestId.current += 1;
     setPrevItems(items);
     setPrevServerNextCursor(pagination?.nextCursor ?? null);
     setLoadedItems(items);
@@ -1366,9 +1369,13 @@ export function WorkspaceCalendar({
     setTimeState(null);
   }
 
-  function handleCalendarResync() {
+  function handleCalendarInvalidated() {
     calendarAccessGeneration.current += 1;
     eventRequestId.current += 1;
+  }
+
+  function handleCalendarResync() {
+    handleCalendarInvalidated();
     setLoadMoreError(false);
     setEditState(null);
     setTimeState(null);
@@ -1504,6 +1511,7 @@ export function WorkspaceCalendar({
           workspaceId={workspaceId}
           onAccessRevoked={handleCalendarAccessRevoked}
           onResync={handleCalendarResync}
+          onInvalidated={handleCalendarInvalidated}
         />
       ) : null}
       <div className="flex items-center gap-1">

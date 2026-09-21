@@ -64,11 +64,6 @@ vi.mock("@/contexts/lazy-ably-provider", () => ({
   default: ({ children }: { children: ReactNode }) => children,
 }));
 
-import {
-  cacheCalendarIdentityLabels,
-  getCachedCalendarIdentityLabel,
-} from "@/lib/schedules/calendar-identity-label-cache";
-
 import { CalendarRealtimeBridge } from "./calendar-realtime-bridge";
 
 const WORKSPACE_ID = "11111111-1111-7111-8111-111111111111";
@@ -121,6 +116,7 @@ describe("CalendarRealtimeBridge", () => {
       <CalendarRealtimeBridge
         currentUserId={USER_ID}
         workspaceId={WORKSPACE_ID}
+        onInvalidated={vi.fn()}
         onAccessRevoked={vi.fn()}
         onResync={onResync}
       />,
@@ -158,6 +154,7 @@ describe("CalendarRealtimeBridge", () => {
       <CalendarRealtimeBridge
         currentUserId={USER_ID}
         workspaceId={WORKSPACE_ID}
+        onInvalidated={vi.fn()}
         onAccessRevoked={vi.fn()}
         onResync={onResync}
       />,
@@ -211,15 +208,15 @@ describe("CalendarRealtimeBridge", () => {
   });
 
   it("coalesces a burst of committed invalidations into one refresh", async () => {
-    cacheCalendarIdentityLabels(WORKSPACE_ID, [
-      { ref: "user_2", state: "current_member", label: "Grace" },
-    ]);
+    const onResync = vi.fn();
+    const onInvalidated = vi.fn();
     render(
       <CalendarRealtimeBridge
         currentUserId={USER_ID}
         workspaceId={WORKSPACE_ID}
+        onInvalidated={onInvalidated}
         onAccessRevoked={vi.fn()}
-        onResync={vi.fn()}
+        onResync={onResync}
       />,
     );
     await flushAuthorization();
@@ -247,24 +244,23 @@ describe("CalendarRealtimeBridge", () => {
           payload: {},
         },
       });
+      // Both invalidations cancel stale requests without resetting editors.
+      expect(onInvalidated).toHaveBeenCalledTimes(2);
+      expect(onResync).toHaveBeenCalledOnce();
+      expect(refreshMock).toHaveBeenCalledOnce();
       vi.runAllTimers();
     });
 
     expect(refreshMock).toHaveBeenCalledTimes(2);
-    expect(
-      getCachedCalendarIdentityLabel(WORKSPACE_ID, "user_2"),
-    ).toBeUndefined();
   });
 
   it("detaches and clears workspace state before redirecting on access loss", async () => {
     const onAccessRevoked = vi.fn();
-    cacheCalendarIdentityLabels(WORKSPACE_ID, [
-      { ref: "user_2", state: "current_member", label: "Grace" },
-    ]);
     render(
       <CalendarRealtimeBridge
         currentUserId={USER_ID}
         workspaceId={WORKSPACE_ID}
+        onInvalidated={vi.fn()}
         onAccessRevoked={onAccessRevoked}
         onResync={vi.fn()}
       />,
@@ -296,9 +292,6 @@ describe("CalendarRealtimeBridge", () => {
     );
     expect(calendarChannel?.detach).toHaveBeenCalledOnce();
     expect(onAccessRevoked).toHaveBeenCalledOnce();
-    expect(
-      getCachedCalendarIdentityLabel(WORKSPACE_ID, "user_2"),
-    ).toBeUndefined();
     expect(replaceMock).toHaveBeenCalledWith("/");
     expect(refreshMock).toHaveBeenCalledTimes(2);
     expect(ablyState.authorize).toHaveBeenCalledTimes(2);
@@ -311,6 +304,7 @@ describe("CalendarRealtimeBridge", () => {
       <CalendarRealtimeBridge
         currentUserId={USER_ID}
         workspaceId={WORKSPACE_ID}
+        onInvalidated={vi.fn()}
         onAccessRevoked={onAccessRevoked}
         onResync={onResync}
       />,
@@ -338,16 +332,14 @@ describe("CalendarRealtimeBridge", () => {
     expect(refreshMock).toHaveBeenCalledTimes(2);
   });
 
-  it("drops cached labels and refreshes capabilities for an inactive workspace", async () => {
+  it("refreshes capabilities when access to an inactive workspace changes", async () => {
     const onAccessRevoked = vi.fn();
     const otherWorkspaceId = "22222222-2222-7222-8222-222222222222";
-    cacheCalendarIdentityLabels(otherWorkspaceId, [
-      { ref: "user_2", state: "current_member", label: "Grace" },
-    ]);
     render(
       <CalendarRealtimeBridge
         currentUserId={USER_ID}
         workspaceId={WORKSPACE_ID}
+        onInvalidated={vi.fn()}
         onAccessRevoked={onAccessRevoked}
         onResync={vi.fn()}
       />,
@@ -369,9 +361,6 @@ describe("CalendarRealtimeBridge", () => {
 
     expect(onAccessRevoked).not.toHaveBeenCalled();
     expect(replaceMock).not.toHaveBeenCalled();
-    expect(
-      getCachedCalendarIdentityLabel(otherWorkspaceId, "user_2"),
-    ).toBeUndefined();
     await flushAuthorization();
     expect(ablyState.authorize).toHaveBeenCalledTimes(2);
   });
@@ -383,6 +372,7 @@ describe("CalendarRealtimeBridge", () => {
       <CalendarRealtimeBridge
         currentUserId={USER_ID}
         workspaceId={WORKSPACE_ID}
+        onInvalidated={vi.fn()}
         onAccessRevoked={onAccessRevoked}
         onResync={onResync}
       />,

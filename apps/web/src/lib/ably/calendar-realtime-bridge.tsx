@@ -13,7 +13,6 @@ import { useEffect, useRef } from "react";
 import { z } from "zod";
 
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
-import { clearCalendarIdentityLabelCacheForWorkspace } from "@/lib/schedules/calendar-identity-label-cache";
 
 import {
   isExpectedAblyChannelLifecycleError,
@@ -71,6 +70,7 @@ interface CalendarRealtimeBridgeProps {
   workspaceId: string;
   onAccessRevoked: () => void;
   onResync: () => void;
+  onInvalidated: () => void;
 }
 
 function CalendarRealtimeSubscription({
@@ -78,12 +78,15 @@ function CalendarRealtimeSubscription({
   workspaceId,
   onAccessRevoked,
   onResync,
+  onInvalidated,
 }: CalendarRealtimeBridgeProps) {
   const ably = useAbly();
   const router = useRouter();
   useAblyConnectionHealthPublisher();
   const onAccessRevokedRef = useRef(onAccessRevoked);
   onAccessRevokedRef.current = onAccessRevoked;
+  const onInvalidatedRef = useRef(onInvalidated);
+  onInvalidatedRef.current = onInvalidated;
   const onResyncRef = useRef(onResync);
   onResyncRef.current = onResync;
 
@@ -121,7 +124,8 @@ function CalendarRealtimeSubscription({
         return;
       }
 
-      clearCalendarIdentityLabelCacheForWorkspace(workspaceId);
+      // Reject pending pages immediately without discarding an open editor.
+      onInvalidatedRef.current();
       if (!refreshTimeout) {
         refreshTimeout = setTimeout(() => {
           refreshTimeout = undefined;
@@ -151,7 +155,6 @@ function CalendarRealtimeSubscription({
       clearTimeout(refreshTimeout);
       refreshTimeout = undefined;
       detachCalendar();
-      clearCalendarIdentityLabelCacheForWorkspace(workspaceId);
       onAccessRevokedRef.current();
       router.replace("/");
       router.refresh();
@@ -254,7 +257,6 @@ function CalendarRealtimeSubscription({
         return;
       }
       if (resync) {
-        clearCalendarIdentityLabelCacheForWorkspace(workspaceId);
         onResyncRef.current();
         router.refresh();
       }
@@ -274,7 +276,6 @@ function CalendarRealtimeSubscription({
       }
 
       if (parsed.data.workspaceId !== workspaceId) {
-        clearCalendarIdentityLabelCacheForWorkspace(parsed.data.workspaceId);
         void syncAccess(false);
         return;
       }

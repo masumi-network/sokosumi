@@ -14,6 +14,19 @@ const migration = readFileSync(
 );
 
 describe("Calendar collaboration migration", () => {
+  it("captures pending emails before the membership FK cascades notifications", () => {
+    const cleanupOrderMigration = readFileSync(
+      join(
+        packageRoot,
+        "prisma/migrations/20260921190000_calendar_email_cleanup_before_cascade/migration.sql",
+      ),
+      "utf8",
+    );
+    expect(cleanupOrderMigration).toMatch(
+      /CREATE TRIGGER calendar_access_cleanup_member_delete\s+BEFORE DELETE ON "member"/,
+    );
+  });
+
   it("activates atomic revisions and a durable outbox for every Calendar surface", () => {
     expect(migration).toContain("enqueue_calendar_invalidation");
     expect(migration).toContain("calendar_invalidation_revision_seq");

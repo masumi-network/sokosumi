@@ -1127,50 +1127,94 @@ describe("WorkspaceCalendar", () => {
     });
   });
 
-  it("does not restore details from an in-flight page after access is revoked", async () => {
+  it.each(["onAccessRevoked", "onResync", "onInvalidated"] as const)(
+    "rejects pending pages after %s",
+    async (callback) => {
+      let resolvePage: ((value: unknown) => void) | undefined;
+      getWorkspaceCalendarMock.mockReturnValue(
+        new Promise((resolve) => {
+          resolvePage = resolve;
+        }),
+      );
+      render(
+        <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&timezone=UTC">
+          <WorkspaceCalendar
+            currentUserId="user-1"
+            initialDate="2026-08-18"
+            items={ITEMS}
+            sources={SOURCES}
+            workspaceId="workspace-1"
+            {...CALENDAR_PAGE}
+          />
+        </NuqsTestingAdapter>,
+      );
+
+      // The drain already asked for the next page; the answer arrives after
+      // access is gone.
+      expect(getWorkspaceCalendarMock).toHaveBeenCalledTimes(1);
+      const bridgeProps = calendarRealtimeBridgeMock.mock.calls.at(-1)?.[0] as {
+        onAccessRevoked: () => void;
+        onResync: () => void;
+        onInvalidated: () => void;
+      };
+      act(() => {
+        bridgeProps[callback]();
+      });
+      await act(async () => {
+        resolvePage?.({
+          data: [
+            {
+              ...ITEMS[0],
+              id: "occurrence-after-revoke",
+              taskName: "Secret after revoke",
+            },
+          ],
+          meta: { pagination: { nextCursor: null } },
+        });
+        await Promise.resolve();
+      });
+
+      expect(screen.queryByText(/Secret after revoke/)).not.toBeInTheDocument();
+    },
+  );
+
+  it("rejects a previous snapshot's pending page after a server refresh", async () => {
     let resolvePage: ((value: unknown) => void) | undefined;
     getWorkspaceCalendarMock.mockReturnValue(
       new Promise((resolve) => {
         resolvePage = resolve;
       }),
     );
-    render(
-      <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&timezone=UTC">
-        <WorkspaceCalendar
-          currentUserId="user-1"
-          initialDate="2026-08-18"
-          items={ITEMS}
-          sources={SOURCES}
-          workspaceId="workspace-1"
-          {...CALENDAR_PAGE}
-        />
-      </NuqsTestingAdapter>,
-    );
-
-    // The drain already asked for the next page; the answer arrives after
-    // access is gone.
-    expect(getWorkspaceCalendarMock).toHaveBeenCalledTimes(1);
-    const bridgeProps = calendarRealtimeBridgeMock.mock.calls.at(-1)?.[0] as {
-      onAccessRevoked: () => void;
-    };
-    act(() => {
-      bridgeProps.onAccessRevoked();
-    });
+    function calendar(
+      items: WorkspaceCalendarItem[],
+      nextCursor: string | null,
+    ) {
+      return (
+        <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&timezone=UTC">
+          <WorkspaceCalendar
+            currentUserId="user-1"
+            initialDate="2026-08-18"
+            items={items}
+            sources={SOURCES}
+            workspaceId="workspace-1"
+            range={CALENDAR_PAGE.range}
+            pagination={{ limit: 100, nextCursor }}
+          />
+        </NuqsTestingAdapter>
+      );
+    }
+    const view = render(calendar(ITEMS, "cursor-2"));
+    expect(getWorkspaceCalendarMock).toHaveBeenCalledOnce();
+    view.rerender(calendar([], null));
     await act(async () => {
       resolvePage?.({
         data: [
-          {
-            ...ITEMS[0],
-            id: "occurrence-after-revoke",
-            taskName: "Secret after revoke",
-          },
+          { ...ITEMS[0], id: "removed-occurrence", taskName: "Removed task" },
         ],
         meta: { pagination: { nextCursor: null } },
       });
-      await Promise.resolve();
     });
-
-    expect(screen.queryByText(/Secret after revoke/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Removed task/)).not.toBeInTheDocument();
   });
 
   it("loads more Project Calendar items through the Project endpoint", async () => {

@@ -320,10 +320,14 @@ export async function publishScopedNotificationRow(
   try {
     await prisma.$transaction(async (tx) => {
       await lockCalendarWorkspaceMembership(tx, workspaceId);
-      const [hasAccess, notification] = await Promise.all([
-        hasCalendarWorkspaceAccess(tx, workspaceId, userId),
-        tx.notification.findUnique({ where: { id: notificationId } }),
-      ]);
+      const hasAccess = await hasCalendarWorkspaceAccess(
+        tx,
+        workspaceId,
+        userId,
+      );
+      const notification = await tx.notification.findUnique({
+        where: { id: notificationId },
+      });
       if (!hasAccess || !notification) {
         return;
       }

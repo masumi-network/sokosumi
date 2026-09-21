@@ -17,7 +17,7 @@ export async function lockCalendarWorkspaceMembership(
   tx: Prisma.TransactionClient,
   workspaceId: string,
 ): Promise<void> {
-  // Member deletion owns the row before its AFTER DELETE trigger takes the
+  // Member deletion owns the row before its BEFORE DELETE trigger takes the
   // advisory lock. Take compatible Member row locks first as well, otherwise
   // publisher and deletion can each wait on the other's lock.
   await tx.$queryRaw`
