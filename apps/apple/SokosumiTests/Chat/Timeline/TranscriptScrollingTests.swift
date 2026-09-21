@@ -81,31 +81,29 @@
         // Vision text recognition throws on the virtualized CI runner, so there the row-visibility
         // check falls back to the scroll-offset assertion above; locally the OCR check runs.
         if let visibleText = try recognizedLines(in: bitmap) {
-          #expect(visibleText.contains { $0.hasPrefix("Message 2:") })
-          #expect(!visibleText.contains { $0.hasPrefix("Message 98:") })
+          #expect(visibleText.contains { $0.hasPrefix("Message 2:") }, "OCR read: \(visibleText)")
+          #expect(!visibleText.contains { $0.hasPrefix("Message 98:") }, "OCR read: \(visibleText)")
         }
         let png = try #require(bitmap.representation(using: .png, properties: [:]))
         try png.write(to: FileManager.default.temporaryDirectory.appendingPathComponent("message-link-navigation-\(thread)-\(dark).png"))
       }
 
       /// The text Vision reads in the render, or nil where Vision cannot run at all. A missing image is a
-      /// failure, not nil. `.fast` is the CPU path, tried once when `.accurate` throws.
+      /// failure, not nil. Only the accurate recognizer: it is the one the assertions were written against.
       private func recognizedLines(in bitmap: NSBitmapImageRep) throws -> [String]? {
         let image = try #require(bitmap.cgImage)
-        for level in [VNRequestTextRecognitionLevel.accurate, .fast] {
-          let request = VNRecognizeTextRequest()
-          request.recognitionLevel = level
-          request.recognitionLanguages = ["en-US"]
-          request.usesLanguageCorrection = false
-          do {
-            try VNImageRequestHandler(cgImage: image).perform([request])
-            note("OCR ran (\(level == .accurate ? "accurate" : "fast"))")
-            return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
-          } catch {
-            note("OCR unavailable (\(level == .accurate ? "accurate" : "fast")): \(error)")
-          }
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.recognitionLanguages = ["en-US"]
+        request.usesLanguageCorrection = false
+        do {
+          try VNImageRequestHandler(cgImage: image).perform([request])
+        } catch {
+          note("OCR unavailable (accurate): \(error)")
+          return nil
         }
-        return nil
+        note("OCR ran (accurate)")
+        return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
       }
 
       /// Says which OCR path ran: on stdout, and as an attachment in the result bundle.
