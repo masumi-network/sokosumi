@@ -26,7 +26,7 @@
 
 ## §I INTERFACES
 
-- cmd: `sokosumi` (no args) → Ink: auth method → OAuth target or API-key target detection → signed-in Dashboard, Agents, Coworkers, Tasks, Jobs, Account, Register a Coworker, Sign out
+- cmd: `sokosumi` (no args) → Ink: auth method → OAuth target or API-key target detection → signed-in Register a Coworker, Vendors, Workspaces, Manage Coworker, Sign out
 - cmd: `auth login` → browser OAuth or env/stdin user API key
 - cmd: `auth status` → text/JSON auth state
 - cmd: `auth logout` → clear target-scoped local credentials; server key revocation separate
@@ -88,7 +88,7 @@ V42: every headless Core-backed command resolves initial auth before any Core ca
 V43: TUI explicit target selection (flag/env/API URL) is authoritative; a prefixed API key cannot rewrite it and a mismatched prefix rejects before login.
 V44: untagged API keys require an explicit target (`--preprod` or `--api-url`) before auth status/login; ⊥ implicit hosted-default acceptance.
 V45: raw API-key input treats `q` as key data; Ctrl+C/Esc cancel the active input without accepting the partial key.
-V46: dashboard resource counts use finite Core pagination metadata totals when present; fallback to current-page length only when metadata has no usable total.
+V46: [Deferred 2026-09-21; stale vs current signed-in home; no dashboard] dashboard resource counts use finite Core pagination metadata totals when present; fallback to current-page length only when metadata has no usable total.
 V47: error redaction recursively replaces credential-shaped fields regardless of casing/separators/nesting, and credential values do not remain in rendered/serialized errors.
 V48: source CLI runtime ∉ {npm registry request, package-manager child process, self-update install}; secrets cannot cross removed updater boundary.
 V49: unsupported inline option values are rejected without echoing the supplied value in diagnostics, including `--json` output.
@@ -193,7 +193,7 @@ B21|2026-09-11|Core-backed headless dispatch discarded `resolveInitialAuth`'s un
 B22|2026-09-11|TUI API-key login inferred a prefixed key's target even after an explicit target was selected, allowing the key to override the chosen Core host|V43
 B23|2026-09-11|legacy untagged API keys fell through the hosted default without proving which target they belonged to|V44
 B24|2026-09-11|raw API-key q/cancel handling could accept the wrong terminal action or leave a partial key input active|V45
-B25|2026-09-11|dashboard counted only the current Core page, so paginated resources displayed page length instead of metadata totals|V46
+B25|2026-09-11|DEFERRED 2026-09-21 (no dashboard on current signed-in home): dashboard counted only the current Core page, so paginated resources displayed page length instead of metadata totals|V46
 B26|2026-09-11|credential-shaped error fields were redacted only for limited casing/flat shapes, leaking nested or separator variants|V47
 B27|2026-09-11|npm self-update inherited process secrets/configuration and allowed package lifecycle scripts during install|V48
 B28|2026-09-11|unsupported `--name=value` options exposed the supplied value in parser diagnostics|V49
