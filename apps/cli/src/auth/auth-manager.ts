@@ -11,8 +11,6 @@ export interface OAuthCredentials {
   refreshToken?: string | null;
   tokenType?: string;
   expiresAt?: string | null;
-  userId?: string | null;
-  email?: string | null;
 }
 
 export interface UserApiKeyCredentials {
@@ -95,10 +93,9 @@ export class AuthManager {
     this.loadCredentials();
   }
 
-  loadCredentials(): OAuthCredentials | null {
+  private loadCredentials(): void {
     this.credentials = this.credentialStore.read();
     this.apiKeyCredentials = this.apiKeyStore.read();
-    return this.credentials;
   }
 
   saveCredentials(credentials: OAuthCredentials): OAuthCredentials {
@@ -142,14 +139,6 @@ export class AuthManager {
     this.refreshPromise = null;
     this.credentialStore.clear();
     this.apiKeyStore.clear();
-  }
-
-  isAuthenticated(): boolean {
-    return Boolean(
-      (this.credentials?.authToken && !this.isTokenExpired()) ||
-        (this.apiKeyCredentials?.apiKey &&
-          hasUsableExpiry(this.apiKeyCredentials.expiresAt)),
-    );
   }
 
   isTokenExpired(): boolean {
