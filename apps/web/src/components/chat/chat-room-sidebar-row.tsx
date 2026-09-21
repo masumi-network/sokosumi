@@ -323,6 +323,7 @@ export function ChatRoomSidebarRow({
   const showUnreadCount = useShowRoomUnreadCount();
   const { bold, badgeCount, unreadTextCount } = resolveRoomAttention({
     unreadCount: room.unreadCount,
+    channelUnreadCount: room.channelUnreadCount,
     unreadMentionCount: room.unreadMentionCount,
     markedUnread: room.markedUnread,
     isMuted,

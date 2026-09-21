@@ -1,7 +1,12 @@
+import type { RoomAttentionCounts } from "./room-attention";
+
 /** Session attention snapshots protect remounts from stale server props. */
 interface RoomReadOverlay {
   updatedAtMs: number;
   unreadCount: number;
+  /** The two halves of `unreadCount` (ADR-0037); absent on older snapshots. */
+  channelUnreadCount?: number;
+  threadUnreadCount?: number;
   unreadMentionCount: number;
   markedUnread: boolean;
   revision: number;
@@ -12,11 +17,9 @@ interface RoomReadOverlay {
   } | null;
 }
 
-interface RoomAttentionFields {
+interface RoomAttentionFields extends RoomAttentionCounts {
   id: string;
   updatedAt: string | Date;
-  unreadCount: number;
-  unreadMentionCount: number;
   markedUnread: boolean;
 }
 
@@ -38,6 +41,8 @@ function storeAttention(
   overlaysByRoomId.set(room.id, {
     updatedAtMs: toUpdatedAtMs(room.updatedAt),
     unreadCount: room.unreadCount,
+    channelUnreadCount: room.channelUnreadCount,
+    threadUnreadCount: room.threadUnreadCount,
     unreadMentionCount: room.unreadMentionCount,
     markedUnread: room.markedUnread,
     revision: nextRevision,
@@ -63,6 +68,10 @@ function applyAttention<T extends RoomAttentionFields>(
   return {
     ...room,
     unreadCount: overlay.unreadCount,
+    // Bold follows the channel half, so a stale one would re-bold a room the
+    // overlay exists to keep read.
+    channelUnreadCount: overlay.channelUnreadCount,
+    threadUnreadCount: overlay.threadUnreadCount,
     unreadMentionCount: overlay.unreadMentionCount,
     markedUnread: overlay.markedUnread,
   };

@@ -565,6 +565,28 @@ describe("ChatRoomSidebarRow collapsed rail", () => {
     expect(renderRail({})).toBeNull();
   });
 
+  // ADR-0037: Thread replies stop marking the channel.
+  it("shows no pill for a room whose only unread is in threads", () => {
+    expect(
+      renderRail({
+        unreadCount: 3,
+        channelUnreadCount: 0,
+        threadUnreadCount: 3,
+      }),
+    ).toBeNull();
+    expect(screen.queryByText("Unread")).toBeNull();
+  });
+
+  it("shows the mention pill when a thread reply names the reader", () => {
+    const pill = renderRail({
+      unreadCount: 1,
+      channelUnreadCount: 0,
+      threadUnreadCount: 1,
+      unreadMentionCount: 1,
+    });
+    expect(pill?.getAttribute("data-variant")).toBe("mention");
+  });
+
   it("shows no pill for a muted room however loud it is", () => {
     expect(
       renderRail({

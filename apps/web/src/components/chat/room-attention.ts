@@ -1,6 +1,25 @@
 /**
+ * The counts and marks a room's sidebar attention is resolved from.
+ *
+ * `unreadCount` is the sum of its two halves (ADR-0037). The halves are
+ * optional because a room snapshot taken before the split carries only the
+ * sum; every reader here falls back to it.
+ */
+export interface RoomAttentionCounts {
+  unreadCount: number;
+  /** Room unread: what reading the channel clears. */
+  channelUnreadCount?: number;
+  /** Thread unread: what a Look clears. */
+  threadUnreadCount?: number;
+  unreadMentionCount: number;
+  markedUnread?: boolean;
+}
+
+/**
  * Sidebar attention chrome for a room row.
- * Bold = unread activity or forced unread; badge = unread @mentions only.
+ * Bold = unread top-level activity, an unread mention, or forced unread;
+ * badge = unread @mentions only. Thread replies do not bold a row (ADR-0037):
+ * they are Thread unread, and they surface on the Thread.
  * Muted rooms suppress both (and Core skips CHAT mention notification creates).
  *
  * `unreadTextCount` is the reader's opt-in Room unread count, rendered as text
@@ -23,6 +42,13 @@
  */
 export function resolveRoomAttention(options: {
   unreadCount: number;
+  /**
+   * Room unread: the channel half alone (ADR-0037). Bold and the reader's
+   * opt-in number follow this, not the total, so reading a channel genuinely
+   * quiets its row. Optional so a room snapshot that predates the split still
+   * gets the old behaviour from the total.
+   */
+  channelUnreadCount?: number;
   unreadMentionCount: number;
   markedUnread?: boolean;
   isMuted?: boolean;
@@ -34,10 +60,41 @@ export function resolveRoomAttention(options: {
     return { bold: false, badgeCount: 0, unreadTextCount: 0 };
   }
 
+  const channelUnread = options.channelUnreadCount ?? options.unreadCount;
+
   return {
-    bold: options.unreadCount > 0 || options.markedUnread === true,
+    // A User mention inside a Thread is the one escalation that reaches the
+    // channel: being named is not chatter. A mention reply counts toward the
+    // thread half, so without this term the split would quietly drop the
+    // loudest thing a Thread can hold.
+    bold:
+      channelUnread > 0 ||
+      options.unreadMentionCount > 0 ||
+      options.markedUnread === true,
     badgeCount: options.unreadMentionCount,
-    unreadTextCount: options.showUnreadCount === true ? options.unreadCount : 0,
+    unreadTextCount: options.showUnreadCount === true ? channelUnread : 0,
+  };
+}
+
+/**
+ * A room's attention the moment the reader reads it, before Core answers.
+ *
+ * Reading a channel empties Room unread, its mention badge, and a hand-set
+ * unread mark. It does not Look the room's Threads, so Thread unread stays
+ * and is all that is left of the total (ADR-0037). One rule for every place
+ * that clears a row optimistically, so none of them can leave the channel
+ * half behind and keep the row bold.
+ */
+export function roomAttentionAfterRead(
+  room: RoomAttentionCounts,
+): Required<RoomAttentionCounts> {
+  const threadUnreadCount = room.threadUnreadCount ?? 0;
+  return {
+    unreadCount: threadUnreadCount,
+    channelUnreadCount: 0,
+    threadUnreadCount,
+    unreadMentionCount: 0,
+    markedUnread: false,
   };
 }
 
@@ -51,18 +108,14 @@ export type SectionAttention = "mention" | "unread" | null;
  * is addressed to the reader, so it counts as a mention.
  */
 export function resolveSectionAttention(
-  rooms: ReadonlyArray<{
-    unreadCount: number;
-    unreadMentionCount: number;
-    markedUnread?: boolean;
-    mutedAt?: unknown;
-  }>,
+  rooms: ReadonlyArray<RoomAttentionCounts & { mutedAt?: unknown }>,
   options: { hasPendingInvitation?: boolean } = {},
 ): SectionAttention {
   let unread = false;
   for (const room of rooms) {
     const { bold, badgeCount } = resolveRoomAttention({
       unreadCount: room.unreadCount,
+      channelUnreadCount: room.channelUnreadCount,
       unreadMentionCount: room.unreadMentionCount,
       markedUnread: room.markedUnread,
       isMuted: room.mutedAt != null,

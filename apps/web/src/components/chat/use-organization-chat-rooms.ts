@@ -19,6 +19,7 @@ import {
   ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
   type OrganizationChatRoomsChangedDetail,
 } from "./organization-chat-events";
+import { roomAttentionAfterRead } from "./room-attention";
 import {
   applyRoomReadOverlays,
   beginRoomAttentionRefresh,
@@ -263,9 +264,7 @@ export function useOrganizationChatRooms({
             if (room.id !== detail.roomId) return room;
             const updated = detail.room ?? {
               ...room,
-              unreadCount: 0,
-              unreadMentionCount: 0,
-              markedUnread: false,
+              ...roomAttentionAfterRead(room),
             };
             if (!detail.room) rememberRoomRead(updated);
             return updated;
