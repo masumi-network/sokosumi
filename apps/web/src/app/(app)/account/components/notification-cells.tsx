@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  Bell,
-  type LucideIcon,
-  Mail,
-  MailClock,
-  Smartphone,
-} from "lucide-react";
+import { Bell, type LucideIcon, Mail, Smartphone } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useId, useMemo, useState } from "react";
 
@@ -100,21 +94,27 @@ export interface EmailChoice {
 }
 
 /**
- * A cell with nothing to press, and a reason a reader can reach.
+ * A cell the reader cannot press, and a reason they can reach.
  *
  * Kept in the row rather than dropped, so the column has no hole in it and the
  * row still says what that channel would mean here. The reason opens on hover
  * and on focus, and it is the cell's own description, because a native title
  * waits a second, never opens on a phone, and never opens on focus.
+ *
+ * `on` is the one that arrives anyway: a channel somebody else mails. Drawn
+ * filled like a cell that is on, because that is what it is saying, while the
+ * shape and the disabled state keep it from reading as something to press.
  */
-function DeadCell({
+function UnpressableCell({
   icon: Icon,
   label,
   hint,
+  on = false,
 }: {
   icon: LucideIcon;
   label: string;
   hint: string;
+  on?: boolean;
 }) {
   const hintId = useId();
 
@@ -129,7 +129,7 @@ function DeadCell({
           aria-disabled="true"
           aria-label={label}
           aria-describedby={hintId}
-          className={cn(CELL, CELL_DEAD)}
+          className={cn(CELL, on ? cn(CELL_ON, "cursor-default") : CELL_DEAD)}
         >
           <Icon className="size-4" aria-hidden="true" />
         </button>
@@ -157,7 +157,7 @@ export function UnusedChannelCells({ kind }: { kind: string }) {
   return (
     <>
       {CHANNEL_SPECS.map((spec) => (
-        <DeadCell
+        <UnpressableCell
           key={spec.id}
           icon={CHANNEL_ICON[spec.id]}
           label={t("channelUnavailableLabel", {
@@ -344,9 +344,11 @@ function KindCells({
   /**
    * The email column on this row, which is one of two different things.
    *
-   * `NONE` has nothing behind it and says so. `CHANNEL` is already drawn, by
-   * the loop over `cellSpecs`, because that one is a cell of the matrix like
-   * the two beside it and is written by the same path.
+   * `EXTERNAL` is mail somebody else sends, always, and the cell says so
+   * rather than offering a switch that reaches nothing (SOK-1142). `CHANNEL`
+   * is already drawn, by the loop over `cellSpecs`, because that one is a
+   * cell of the matrix like the two beside it and is written by the same
+   * path.
    */
   function emailCell() {
     if (kind.spec.email === "CHANNEL") {
@@ -354,10 +356,11 @@ function KindCells({
     }
 
     return (
-      <DeadCell
-        icon={MailClock}
-        label={t("channelEmailSoonLabel", { kind: label })}
-        hint={t("channelEmailSoonHint")}
+      <UnpressableCell
+        on
+        icon={Mail}
+        label={t("channelEmailExternalLabel", { kind: label })}
+        hint={t("channelEmailExternalHint")}
       />
     );
   }
