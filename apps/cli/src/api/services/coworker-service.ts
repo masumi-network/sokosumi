@@ -15,17 +15,7 @@ export interface FetchCoworkersOptions {
   capabilities?: string | readonly string[];
 }
 
-export interface CoworkerMutationData {
-  name?: string;
-  vendorId?: string;
-  caption?: string | null;
-  url?: string | null;
-  baseURL?: string | null;
-  description?: string | null;
-  capabilities?: readonly string[];
-  priority?: number;
-  metadata?: Record<string, unknown> | null;
-}
+export type CoworkerMutationData = Record<string, unknown>;
 
 export interface CoworkerApiKeyData {
   name?: string | null;
@@ -91,7 +81,8 @@ export async function createCoworker(
   data: CoworkerMutationData = {},
   signal?: AbortSignal,
 ): Promise<{ response: ApiResponse<unknown>; coworker: Coworker }> {
-  if (!data.name?.trim()) throw new Error("name is required");
+  if (typeof data.name !== "string" || !data.name.trim())
+    throw new Error("name is required");
   const response = parseApiResponse(
     await client.post<unknown>(COWORKERS_PATH, mutationPayload(data), signal),
   );

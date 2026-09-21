@@ -11,7 +11,6 @@ import {
   type CommandContext,
   type CommandOptions,
   formatDate,
-  isJson,
   option,
   optionString,
   parsePositiveInteger,
@@ -187,7 +186,7 @@ export async function runTasksCommand({
         ];
       },
     });
-    if (isJson({ json })) writeJson(stdout, { tasks: filtered });
+    if (json) writeJson(stdout, { tasks: filtered });
     else printTaskList(stdout, filtered);
     return;
   }
@@ -213,7 +212,7 @@ export async function runTasksCommand({
       typeof id === "string" && id
         ? await collectTaskDetails(client, id, signal)
         : {};
-    if (isJson({ json })) writeJson(stdout, { task, ...details });
+    if (json) writeJson(stdout, { task, ...details });
     else printTask(stdout, task, details);
     return;
   }
@@ -222,21 +221,21 @@ export async function runTasksCommand({
     if (!id) throw new Error("task id is required for `tasks get`");
     const { task } = await fetchTask(client, id, signal);
     const details = await collectTaskDetails(client, id, signal);
-    if (isJson({ json })) writeJson(stdout, { task, ...details });
+    if (json) writeJson(stdout, { task, ...details });
     else printTask(stdout, task, details);
     return;
   }
   if (command === "events") {
     if (!id) throw new Error("task id is required for `tasks events`");
     const { events } = await fetchTaskEvents(client, id, signal);
-    if (isJson({ json })) writeJson(stdout, { events });
+    if (json) writeJson(stdout, { events });
     else printEvents(stdout, events);
     return;
   }
   if (command === "jobs") {
     if (!id) throw new Error("task id is required for `tasks jobs`");
     const { jobs } = await fetchTaskJobs(client, id, signal);
-    if (isJson({ json })) writeJson(stdout, { jobs });
+    if (json) writeJson(stdout, { jobs });
     else printJobList(stdout, jobs);
     return;
   }
@@ -252,7 +251,7 @@ export async function runTasksCommand({
       { comment, status },
       signal,
     );
-    if (isJson({ json })) writeJson(stdout, { event });
+    if (json) writeJson(stdout, { event });
     else
       writeText(stdout, [
         `Created task event ${String(record(event).id || "")}`.trim(),
