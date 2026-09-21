@@ -135,7 +135,7 @@ globalThis.MESSAGES = {
     "Notifications.Billing.paymentFailed":
       "Eine Abo-Zahlung ist fehlgeschlagen",
     "Notifications.Billing.creditsAdded":
-      "{credits} Credits wurden deinem Guthaben gutgeschrieben",
+      "{credits} Credits wurden deinem Guthaben hinzugefügt",
     "Notifications.Billing.subscriptionEnding":
       "Dein Abo endet mit der aktuellen Laufzeit",
     "Notifications.Task.scheduleUpdatedByMember":
@@ -209,8 +209,7 @@ globalThis.MESSAGES = {
       "Se eliminó la programación de {taskName} después de revisarla",
     "Notifications.Billing.lowBalance":
       "Tus créditos se están agotando: quedan {credits}",
-    "Notifications.Billing.paymentFailed":
-      "Un pago de la suscripción no se completó",
+    "Notifications.Billing.paymentFailed": "Un pago de suscripción falló",
     "Notifications.Billing.creditsAdded":
       "Se añadieron {credits} créditos a tu saldo",
     "Notifications.Billing.subscriptionEnding":

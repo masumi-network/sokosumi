@@ -31,6 +31,8 @@ export default async function CalendarPage({
       <div className="w-full">
         <WorkspaceCalendar
           activeOrganizationId={page.activeOrganizationId}
+          currentUserId={page.currentUserId}
+          workspaceId={page.workspaceId}
           key={page.calendarKey}
           initialDate={page.initialDate}
           items={page.items}

@@ -126,12 +126,18 @@ describe("loadCalendarPageContext", () => {
     ]);
   });
 
-  it("returns empty sources when the sources read fails", async () => {
+  it("returns empty sources when optional sources fail to load", async () => {
+    getWorkspaceCalendarSourcesMock.mockRejectedValue(new Error("offline"));
+    const result = await loadCalendarPageContext(null);
+    expect(result.sources).toEqual([]);
+  });
+
+  it("propagates failures to load authoritative calendar sources", async () => {
     getWorkspaceCalendarSourcesMock.mockRejectedValue(new Error("offline"));
 
-    const result = await loadCalendarPageContext(null);
-
-    expect(result.sources).toEqual([]);
+    await expect(
+      loadCalendarPageContext(null, { requireSources: true }),
+    ).rejects.toThrow("offline");
   });
 });
 

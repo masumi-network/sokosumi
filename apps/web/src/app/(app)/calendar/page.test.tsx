@@ -194,6 +194,15 @@ describe("CalendarPage", () => {
     );
   });
 
+  it("does not render without a workspace source", async () => {
+    getWorkspaceCalendarSourcesMock.mockResolvedValue([]);
+
+    await expect(
+      CalendarPage({ searchParams: Promise.resolve({}) }),
+    ).rejects.toThrow("Calendar workspace source unavailable");
+    expect(workspaceCalendarMock).not.toHaveBeenCalled();
+  });
+
   it("does not render without the authoritative active workspace source", async () => {
     getWorkspaceCalendarMock.mockResolvedValue({
       items: [{ id: "occurrence-1" }],
