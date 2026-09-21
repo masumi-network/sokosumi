@@ -43,6 +43,28 @@ python3 "$M6_WORK/summarize.py" "$M6_WORK/lookup.jsonl" --retry-guard
 
 Each invocation exits itself. The default UI matrix produces 126 records; the separate preparation process adds 63 for the checker's 189 total. The lookup process produces six. Do not run another UI benchmark or build concurrently. Keep the window visible, avoid moving the pointer over it, and use the same display configuration. Filter a smoke test with `M6_COUNTS=50 M6_MIXES=plain`; omit `--check` when summarizing a partial matrix. The default is 50/500/2000 messages and six homogeneous mixes plus an equal-cycle mixed transcript. Expect roughly 20 minutes for the full UI matrix on the audited host; cached build, preparation and lookup take additional time.
 
+When sharing a DerivedData directory between before/after builds, preserve each binary before building the next variant (the projection follow-up used this):
+
+```sh
+ditto "$M6_DERIVED/Build/Products/Release/Sokosumi.app" "$M6_WORK/Sokosumi.app"
+M6_APP="$M6_WORK/Sokosumi.app/Contents/MacOS/Sokosumi"
+```
+
+For the projection follow-up, run both real views with plain and mixed content (12 cases, 72 phase records). `M6_VIEW=thread` keeps one parent and N−1 replies, so N remains the total prepared message count. Use identical extracted probes against separate before/after source checkouts and build each copied app as above:
+
+```sh
+for M6_VIEW in room thread; do
+  M6_VIEW="$M6_VIEW" M6_MIXES=plain,mixed "$M6_APP" \
+    > "$M6_WORK/projection-$M6_VIEW.jsonl" 2> "$M6_WORK/projection-$M6_VIEW-stderr.log"
+done
+cat "$M6_WORK/projection-room.jsonl" "$M6_WORK/projection-thread.jsonl" > "$M6_WORK/projection.jsonl"
+python3 "$M6_WORK/summarize.py" "$M6_WORK/projection.jsonl" --projection
+```
+
+The `--projection` check intentionally fails before the optimization. It requires exactly one `preparedMessages` getter call per room/thread body evaluation during scroll/idle phases, with no timing threshold. `view_bodies` counts the selected view; `room_bodies` retains its original room-only meaning. `projection_ms` summarizes the selected view's getter calls. Only the room has the original geometry/input timers; empty thread geometry fields mean uninstrumented, not zero cost. The check also requires real scrolling, reaching the top, unchanged preparation counts, inactive distant rows, and zero ordinary retry-source copies. This is reuse within one view evaluation, not a persistent cache or a claim that projection cost is independent of message count.
+
+The current conditional room/thread host records **two room preparations at startup on both sides** (first parses N, second reparses zero), **one thread preparation at startup**, and one preparation after each reaction. There are none during scrolling/idle. Separate fresh-process 50-message mixed-room runs reproduce the second startup pass before and after the product change. This differs from the earlier direct-room host's single startup pass; it is not evidence of a regression introduced by projection reuse. The thread initially realizes only the final row consistently (some mixed cases skip the preceding row on both sides), so its distant-row check uses that verified final ID; the room retains both final IDs as sentinels. The checker distinguishes the historical records without a `view` field from the current host and retains strict visit/parse assertions for every pass.
+
 For the isolated geometry comparison:
 
 ```sh
@@ -134,6 +156,8 @@ shutil.copy(source/'SokosumiTests/Chat/Timeline/ScrollMediaProtocol.swift',out/'
 
 patch('Packages/SokosumiWorkspace/Sources/SokosumiWorkspace/WorkspaceState+Mentions.swift','struct MentionRetryRequest: Hashable {','@MainActor public enum M6MentionRetryProbe {\n  public static var sourceCollections = 0\n}\n\nstruct MentionRetryRequest: Hashable {')
 patch('Packages/SokosumiWorkspace/Sources/SokosumiWorkspace/WorkspaceState+Mentions.swift','    transcriptMessages + (thread.parent.map { [$0] } ?? []) + thread.timeline.messages','    M6MentionRetryProbe.sourceCollections += 1\n    return transcriptMessages + (thread.parent.map { [$0] } ?? []) + thread.timeline.messages')
+patch('Sokosumi/Chat/Threads/ReplyThreadView.swift','    var body: some View {\n      content','    var body: some View {\n      let _ = M6Probe.threadBody()\n      content')
+patch('Sokosumi/Chat/Threads/ReplyThreadView.swift','    private var preparedMessages: [Components.Schemas.ChatRoomMessage] {','    private var preparedMessages: [Components.Schemas.ChatRoomMessage] {\n      let start = ProcessInfo.processInfo.systemUptime\n      defer { M6Probe.scans["preparedMessages", default: []].append((ProcessInfo.processInfo.systemUptime - start) * 1000) }')
 print(out)
 ```
 
@@ -157,12 +181,14 @@ import Synchronization
   static var totalBodies = 0
   static var scans: [String: [Double]] = [:]
   static var roomBodies = 0
+  static var threadBodies = 0
   static var geometryTransform: [Double] = []
   static var geometryAction: [Double] = []
   static let logger = Logger(subsystem: "com.sokosumi.m6", category: "measurement")
   static func body(_ id: String) { bodies[id, default: 0] += 1; totalBodies += 1 }
   static func roomBody() { roomBodies += 1 }
-  static func reset() { M6MentionRetryProbe.sourceCollections = 0; bodies = [:]; totalBodies = 0; scans = [:]; roomBodies = 0; geometryTransform = []; geometryAction = []; _ = M6Preparation.take() }
+  static func threadBody() { threadBodies += 1 }
+  static func reset() { M6MentionRetryProbe.sourceCollections = 0; bodies = [:]; totalBodies = 0; scans = [:]; roomBodies = 0; threadBodies = 0; geometryTransform = []; geometryAction = []; _ = M6Preparation.take() }
   static func summary(_ values: [Double]) -> [String: Double] {
     let sorted = values.sorted()
     guard !sorted.isEmpty else { return ["n": 0, "total": 0, "p50": 0, "p95": 0, "max": 0] }
@@ -171,6 +197,9 @@ import Synchronization
   static func emit(_ input: [String: Any]) {
     var value = input
     value["retry_source_collections"] = M6MentionRetryProbe.sourceCollections
+    value["view"] = ProcessInfo.processInfo.environment["M6_VIEW"] ?? "room"
+    value["view_bodies"] = roomBodies + threadBodies
+    value["projection_ms"] = summary(scans["preparedMessages"] ?? [])
     let data = try! JSONSerialization.data(withJSONObject: value, options: [.sortedKeys])
     print(String(decoding: data, as: UTF8.self)); fflush(stdout)
   }
@@ -220,13 +249,20 @@ import Synchronization
     let counts = (env["M6_COUNTS"] ?? "50,500,2000").split(separator: ",").map { Int($0)! }
     let mixes = (env["M6_MIXES"] ?? "plain,markdown,code,images,unfurls,reactions,mixed").split(separator: ",").map(String.init)
     for count in counts { for mix in mixes {
-      let fixture = messages(count, mix: mix)
+      let thread = env["M6_VIEW"] == "thread"
+      var fixture = messages(count, mix: mix)
+      if thread { for index in 1..<count { fixture[index].parentMessageId = fixture[0].id } }
       M6Probe.reset()
       if env["M6_ONLY"] == "prepare" { await prepareSamples(fixture, count: count, mix: mix); continue }
       let state = WorkspaceState(clientProvider: { _ in Client.connecting(to: URL(string: "https://scroll-fixture.invalid")!) })
       state.timeline.reset(roomId: "fixture")
       state.timeline.failInitialLoad(message: "", generation: state.timeline.generation)
-      state.timeline.messages = fixture
+      state.timeline.messages = thread ? [fixture[0]] : fixture
+      if thread {
+        state.thread.open(fixture[0])
+        state.thread.timeline.failInitialLoad(message: "", generation: state.thread.timeline.generation)
+        state.thread.timeline.messages = Array(fixture.dropFirst())
+      }
       if env["M6_ONLY"] == "lookup" {
         let message = fixture[count/2]
         for mode in ["existing", "reject-ordinary-first"] {
@@ -250,7 +286,9 @@ import Synchronization
         continue
       }
       let auth = AuthState()
-      let host = NSHostingView(rootView: RoomTimelineView(roomId: "fixture").environmentObject(state).environmentObject(auth))
+      let host = NSHostingView(rootView: Group {
+        if thread { ReplyThreadView() } else { RoomTimelineView(roomId: "fixture") }
+      }.environmentObject(state).environmentObject(auth))
       let window = NSWindow(contentRect: NSRect(x: 50, y: 50, width: 900, height: 700), styleMask: [.titled, .closable], backing: .buffered, defer: false)
       window.isReleasedWhenClosed = false
       window.contentView = host
@@ -465,7 +503,7 @@ for d in rows:
  if d['phase'] in ('early','late'):
   bodies=d['bodies_per_display_callback']
   scans=d.get('scans_ms',{})
-  print(d['count'],d['mix'],d['phase'],'bodies/display-callback',round(bodies['total']/max(1,bodies['n']),2),bodies['p95'],'event_p95',round(d['layout_ms']['p95'],3),'step_p95',round(d['step_ms']['p95'],3),'display_p95',round(d['display_interval_ms']['p95'],3),'scans_total',round(sum(x['total'] for x in scans.values()),3),'room',d['room_bodies'],'retired',d['retired_bodies'])
+  print(d.get('view','room'),d['count'],d['mix'],d['phase'],'bodies/display-callback',round(bodies['total']/max(1,bodies['n']),2),bodies['p95'],'event_p95',round(d['layout_ms']['p95'],3),'step_p95',round(d['step_ms']['p95'],3),'display_p95',round(d['display_interval_ms']['p95'],3),'scans_total',round(sum(x['total'] for x in scans.values()),3),'room',d['room_bodies'],'retired',d['retired_bodies'],'projection_calls',d.get('projection_ms',scans.get('preparedMessages',{})).get('n',0),'projection_ms',round(d.get('projection_ms',scans.get('preparedMessages',{})).get('total',0),3),'view_bodies',d.get('view_bodies',d['room_bodies']))
  if d['phase']=='reaction': print(d['count'],d['mix'],'tap prepare',d['prepare'])
 if '--check' in sys.argv:
  cases={(d['count'],d['mix']) for d in rows}
@@ -479,8 +517,10 @@ if '--check' in sys.argv:
   assert by_phase['late']['bodies_per_display_callback']['total']>0,(count,mix,'late phase did not exercise rows')
   for phase in ('load','reaction'):
    samples=by_phase[phase]['prepare']
-   assert len(samples)==1,(count,mix,phase,'unexpected preparation count')
+   expected=2 if phase=='load' and by_phase[phase].get('view')=='room' else 1
+   assert len(samples)==expected,(count,mix,phase,'unexpected preparation count')
    assert samples[0]['visited']==count and samples[0]['parsed']==(count if phase=='load' else 0),(count,mix,phase,'unexpected visit/parse count')
+   assert all(sample['visited']==count and sample['parsed']==0 for sample in samples[1:]),(count,mix,phase,'unexpected startup reparsing')
   for index in range(count-2,count):
    sentinel=f'fixture-{index}'
    assert by_phase['load']['ids'].get(sentinel,0)>0,(count,mix,sentinel,'not initially realized')
@@ -489,7 +529,7 @@ if '--check' in sys.argv:
    samples=by_phase['prepare-'+phase]['worker']
    assert len(samples)==7,(count,mix,phase,'sample count')
    assert all(x['visited']==count and x['parsed']==(count if phase=='cold' else 0) for x in samples),(count,mix,phase,'unexpected visit/parse count')
- print('PASS: 21 cases, real scrolling, top reached, no scroll preparation, one load/reaction preparation, distant rows inactive, 7 cold/reuse/reaction samples each')
+ print('PASS: 21 cases, real scrolling, top reached, no scroll preparation, expected load/reaction preparation, distant rows inactive, 7 cold/reuse/reaction samples each')
 
 if '--retry-guard' in sys.argv:
  cases=[r for r in rows if r['phase']=='lookup' and r['mode']=='existing']
@@ -498,6 +538,31 @@ if '--retry-guard' in sys.argv:
   assert row['allowed']==0
   assert row['retry_source_collections']==0,(row['count'],row['retry_source_collections'],'ordinary retry checks constructed source arrays')
  print('PASS: ordinary retry checks construct zero source arrays at 50/500/2000 messages')
+
+if '--projection' in sys.argv:
+ cases={(d['view'],d['count'],d['mix']) for d in rows}
+ assert cases=={(view,count,mix) for view in ('room','thread') for count in (50,500,2000) for mix in ('plain','mixed')},cases
+ assert len(rows)==72,len(rows)
+ for view,count,mix in sorted(cases):
+  phases={d['phase']:d for d in rows if (d['view'],d['count'],d['mix'])==(view,count,mix)}
+  assert phases['early']['start_y']-phases['early']['end_y']>400,(view,count,mix,'did not scroll')
+  assert phases['traverse']['end_y']<=1,(view,count,mix,'did not reach top')
+  for phase in ('early','traverse','late','idle'):
+   row=phases[phase]
+   assert not row['prepare'],(view,count,mix,phase,'unexpected preparation')
+   assert row['projection_ms']['n']==row['view_bodies'],(view,count,mix,phase,row['projection_ms']['n'],row['view_bodies'],'repeated projection')
+  assert phases['late']['view_bodies']>0,(view,count,mix,'view not exercised')
+  for phase in ('load','reaction'):
+   samples=phases[phase]['prepare']
+   expected=2 if phase=='load' and view=='room' else 1
+   assert len(samples)==expected and samples[0]['visited']==count and samples[0]['parsed']==(count if phase=='load' else 0),(view,count,mix,phase,samples)
+   assert all(sample['visited']==count and sample['parsed']==0 for sample in samples[1:]),(view,count,mix,phase,'unexpected startup reparsing')
+  for index in range(count-(2 if view=='room' else 1),count):
+   sentinel=f'fixture-{index}'
+   assert phases['load']['ids'].get(sentinel,0)>0,(view,count,mix,sentinel,'not initially realized')
+   assert phases['late']['ids'].get(sentinel,0)==0,(view,count,mix,sentinel,'evaluated during top sweep')
+  assert all(row['retry_source_collections']==0 for row in phases.values())
+ print('PASS: 12 room/thread cases; one projection per view evaluation during scroll/idle; scrolling, preparation, distant-row and retry-copy checks pass')
 ```
 
 ### trace_stacks.py

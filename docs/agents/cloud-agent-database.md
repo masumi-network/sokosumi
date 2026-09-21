@@ -144,7 +144,7 @@ Cloud-Agent-Run: bc-<run-id>
 ## Local Postgres (unchanged)
 
 Laptop / snapshot local Postgres remains available when Neon secrets are absent.
-Provision skips cleanly and prints a warning. See root `AGENTS.md`.
+Provision skips cleanly and prints a warning. See [`docs/agents/cloud-environment.md`](./cloud-environment.md).
 
 ## Tests
 

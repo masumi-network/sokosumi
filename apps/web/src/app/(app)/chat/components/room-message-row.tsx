@@ -148,10 +148,7 @@ import {
   type RoomMentionParticipant,
 } from "./room-helpers";
 import { RoomMessageMarkdown } from "./room-mention-markdown";
-import {
-  hasSokoBotChainBadge,
-  SokoBotChainBadge,
-} from "./soko-bot-chain-badge";
+import { SokoBotChainBadge } from "./soko-bot-chain-badge";
 import { SokoBotMessageFooter } from "./soko-bot-message-footer";
 
 type UserMentionLookup = Pick<ChatRoomUserParticipant, "id" | "name">;
@@ -1178,10 +1175,28 @@ function MessageActionControls({
   );
 }
 
-// Centred on the row's top edge, as in Slack and the Apple client: the same
-// spot at every row height, instead of hanging below a one-line row.
+// On the row's top edge, as in Slack and the Apple client: the same spot at
+// every row height, instead of hanging below a one-line row.
+//
+// How far above that edge depends on what the row starts with, because the
+// text now runs the full width and the pill covers whatever it sits on.
+//
+// A row with a name-and-time header has an empty lane waiting for it. The
+// header is short and left-aligned, so its right half holds nothing, and the
+// pill parked there hides no words at all — it only has to clear the first
+// line of the body, which a quarter of its height does.
+//
+// A continuation has no header to sit on, so it lifts three quarters clear
+// and covers the tail of the line above instead — one you have finished
+// reading, rather than the first line of the message you are pointing at. The
+// quarter left behind is what keeps it attached to its own row.
 const MESSAGE_ACTIONS_PILL_CLASS =
-  "border-border bg-background absolute top-0 right-2 -translate-y-1/2 items-center gap-0.5 rounded-full border p-0.5 shadow-sm";
+  "border-border bg-background absolute top-0 right-2 items-center gap-0.5 rounded-full border p-0.5 shadow-sm";
+
+/** Where the pill rides, by what the row leads with. See the class above. */
+function messageActionsPillLiftClass(isContinuation: boolean): string {
+  return isContinuation ? "-translate-y-3/4" : "-translate-y-1/4";
+}
 
 // Debounce the reveal: scrolling drags a stationary pointer across row after
 // row, and an instant pill flashes at each one. The delay only applies while
@@ -1211,6 +1226,7 @@ function MessageActions({
   showCopyLinkButton,
   showEditButton,
   showDeleteButton,
+  isContinuation,
 }: {
   message: ChatRoomMessage;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
@@ -1231,6 +1247,8 @@ function MessageActions({
   showCopyLinkButton: boolean;
   showEditButton: boolean;
   showDeleteButton: boolean;
+  /** No header on the row, so the pill has no empty lane to park in. */
+  isContinuation: boolean;
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const frequentlyUsedEmojis = useFrequentlyUsedEmojis();
@@ -1253,6 +1271,7 @@ function MessageActions({
       data-message-actions="hover"
       className={cn(
         MESSAGE_ACTIONS_PILL_CLASS,
+        messageActionsPillLiftClass(isContinuation),
         "hidden transition-[opacity,pointer-events] transition-discrete focus-within:opacity-100 [@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:flex [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100",
         MESSAGE_ACTIONS_PILL_REVEAL_DELAY_CLASS,
         // The upper half covers the row above, and an opacity-0 pill still
@@ -2245,7 +2264,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   isPinned = false,
   isContinuation = false,
   isFirstOfDay = false,
-  reserveHoverActionGutter = true,
+  seenBy,
 }: {
   message: ChatRoomMessage;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
@@ -2293,10 +2312,10 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   /** First message of a calendar day after a day separator; omit top margin because separator already provides rhythm. */
   isFirstOfDay?: boolean;
   /**
-   * Reserve right padding for the hover action pill. Off in the narrow
-   * thread panel so the body can use the full column.
+   * Seen by faces, pinned to the bottom-right of the message column. Newest
+   * message only.
    */
-  reserveHoverActionGutter?: boolean;
+  seenBy?: ReactNode;
 }) {
   const tChat = useTranslations("App.Chat.Chat");
   const tChannels = useTranslations("App.Channels");
@@ -2480,12 +2499,13 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         // the content (`isolate` scopes their z-index -1 to the row). Nothing
         // paints outside the row, so the scroller cannot clip it. The styling
         // itself lives in globals.css, keyed on data-search-landed.
-        "group relative isolate -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md pl-2 transition-colors hover:bg-card-background",
-        // Sized to the widest pill: eight buttons, or the chain badge plus seven.
-        reserveHoverActionGutter &&
-          (hasSokoBotChainBadge(message.metadata)
-            ? "[@media(hover:hover)]:pr-72"
-            : "[@media(hover:hover)]:pr-64"),
+        // pr-2, not a pill-sized gutter: the text runs the full width and the
+        // action pill draws over it, as Slack's does. The pill is opaque and
+        // only shows on the row under the pointer, so what it covers is the
+        // end of one line of a message you are already looking at — cheaper
+        // than 16rem that every row gives up forever so that one hovered row
+        // has somewhere to put eight buttons.
+        "group relative isolate -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md px-2 transition-colors hover:bg-card-background",
         showActions && TOUCH_MESSAGE_SELECT_NONE_CLASS,
         isContinuation
           ? "min-h-0 py-0.5"
@@ -2561,6 +2581,15 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         className={cn(
           "min-w-0 max-w-full flex-1 overflow-x-clip",
           isContinuation ? "space-y-1" : "space-y-1.5",
+          // The one reservation left, and only on the row that needs it: the
+          // faces sit in this corner, and with the text now running full
+          // width a long last line would otherwise run under them.
+          //
+          // Wide enough for what the corner actually occupies, which is more
+          // than the faces: three of them plus the `+N` is 52px, and below
+          // md the touch target reaches 14px further left again. 66px of
+          // reach, so 80px of reserve.
+          seenBy && "pe-20",
         )}
       >
         {isContinuation ? (
@@ -2743,6 +2772,14 @@ export const ChatMessageRow = memo(function ChatMessageRow({
           />
         ) : null}
       </div>
+      {/* Out of the text flow, in the row's bottom-right corner. Costs the
+          row no height at all, which is the whole reason it is here rather
+          than trailing the last line.
+          `end-2` is the action pill's own edge, so the two share a vertical
+          line and the faces land in the same corner on every row. */}
+      {seenBy ? (
+        <div className="absolute end-2 bottom-1 z-10">{seenBy}</div>
+      ) : null}
       {showActions ? (
         <>
           {/* Always mounted, and ahead of the pill in DOM order: on a row
@@ -2777,6 +2814,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               showCopyLinkButton={canCopyLink}
               showEditButton={canEdit}
               showDeleteButton={canDelete}
+              isContinuation={isContinuation}
             />
           ) : null}
           {sheetMounted ? (

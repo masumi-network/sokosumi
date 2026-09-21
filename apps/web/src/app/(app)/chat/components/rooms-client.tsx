@@ -56,6 +56,7 @@ import { useQuietHoverWhileScrolling } from "@/app/chat/hooks/use-quiet-hover-wh
 import { useRoomMessageJumps } from "@/app/chat/hooks/use-room-message-jumps";
 import { useRoomNotificationDeepLink } from "@/app/chat/hooks/use-room-notification-deep-link";
 import { useRoomReadAttention } from "@/app/chat/hooks/use-room-read-attention";
+import { useRoomReadReceipts } from "@/app/chat/hooks/use-room-read-receipts";
 import { useUnreadThreadCount } from "@/app/chat/hooks/use-unread-thread-count";
 import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
 import { getRoomMessageAction } from "@/app/chat/message-actions";
@@ -154,6 +155,7 @@ import { hydrateChatRoomMessageFromRealtime } from "@/lib/ably/hydrate-chat-room
 import {
   type ChatRoomMessageEventData,
   type ChatRoomPinnedMessageEventData,
+  type ChatRoomReadEventData,
   isChatRoomMessageIdEnvelope,
   isChatRoomMessagePatchEvent,
 } from "@/lib/ably/schema";
@@ -214,6 +216,7 @@ import {
 } from "./room-messages-hydrator";
 import { RoomOpenLoadingView } from "./room-open-loading-view";
 import { RoomRosterPanel } from "./room-roster-panel";
+import { RoomSeenByLine, seenByReadersFor } from "./room-seen-by-line";
 import {
   RoomSessionComposer,
   type RoomSessionSendRequest,
@@ -266,6 +269,7 @@ function RoomMessageRealtimeBridge({
   selectedRoomId,
   onMessage,
   onPinnedMessage,
+  onRoomRead,
   onContinuityLost,
   onSelectedRoomHealthChange,
 }: {
@@ -273,6 +277,7 @@ function RoomMessageRealtimeBridge({
   selectedRoomId: string | null;
   onMessage: (event: ChatRoomMessageEventData) => void;
   onPinnedMessage: (event: ChatRoomPinnedMessageEventData) => void;
+  onRoomRead: (event: ChatRoomReadEventData) => void;
   onContinuityLost: () => void;
   onSelectedRoomHealthChange: (healthy: boolean) => void;
 }) {
@@ -304,6 +309,7 @@ function RoomMessageRealtimeBridge({
     currentUserId,
     onMessage,
     onPinnedMessage,
+    onRoomRead,
     onMembershipRevoked: handleMembershipRevoked,
     onError: (error) => {
       console.error("Ably chat room message error:", error);
@@ -935,6 +941,14 @@ function RoomView({
   const selectedRoomDisplayName = selectedRoom
     ? getRoomDisplayName(selectedRoom, currentUserId, t("SelfDirect.you"))
     : "";
+
+  // Seen by. Seeded from the room payload, topped up by room read events; both
+  // the header stack and the transcript line read it, so neither reaches for
+  // the DTO or the channel on its own.
+  const readReceipts = useRoomReadReceipts({
+    room: selectedRoom,
+    currentUserId,
+  });
 
   const isDirectRoom = selectedRoom?.kind === "direct";
   const showRoomRosterControl =
@@ -2862,11 +2876,14 @@ function RoomView({
         editOpen={editChannelOpen}
         onEditOpenChange={setEditChannelOpen}
         showParticipants={showHeaderParticipants}
+        readReceipts={readReceipts}
       />
     ) : null;
 
   if (selectedRoom) {
     const showListSkeleton = messagesPending && displayMessages.length === 0;
+    // Seen by rides the newest message only; scrollback stays quiet.
+    const newestMessageId = displayMessages.at(-1)?.id ?? null;
     // Narrowed once here: the row renderer is a nested function, which
     // TypeScript does not narrow through.
     const room = selectedRoom;
@@ -2897,6 +2914,13 @@ function RoomView({
         isPersistedMentionThoughtShell(message.metadata) ||
         isFailedMentionThoughtShell(message.metadata);
       const isOutboundLocal = isOutboundLocalMessage(message);
+      // Asked once: an empty answer means no trailing faces and no gutter.
+      const seenByReaders = seenByReadersFor({
+        readersAsOf: readReceipts.readersAsOf,
+        messageId: message.id,
+        createdAt: message.createdAt,
+        newestMessageId,
+      });
       return (
         // flow-root on both wrappers: a row's vertical margins must stay
         // inside the box the virtualizer measures. Collapsed through, they
@@ -3002,6 +3026,14 @@ function RoomView({
                 !showDaySeparator &&
                 isMessageContinuation(previousMessage, message)
               }
+              seenBy={
+                seenByReaders.length > 0 ? (
+                  <RoomSeenByLine
+                    readers={seenByReaders}
+                    receipts={readReceipts}
+                  />
+                ) : undefined
+              }
             />
           )}
         </div>
@@ -3079,6 +3111,7 @@ function RoomView({
                   selectedRoomId={selectedRoomId}
                   onMessage={handleChatRoomRealtimeMessage}
                   onPinnedMessage={handlePinnedMessageRealtime}
+                  onRoomRead={readReceipts.applyReadEvent}
                   onContinuityLost={handleContinuityLost}
                   onSelectedRoomHealthChange={setSelectedRoomHealthy}
                 />
@@ -3304,6 +3337,7 @@ function RoomView({
               <RoomRosterPanel
                 participants={getRoomParticipantPreviews(selectedRoom)}
                 currentUserId={currentUserId}
+                readStateFor={readReceipts.readStateFor}
                 canOpenHumanDirect={canOpenHumanDirect}
                 onOpenDirect={stableMessageHandlers.onOpenDirectMessage}
                 openingDirectKey={openingDirectKey}
@@ -3312,7 +3346,11 @@ function RoomView({
                 }}
                 labels={{
                   title: t("RoomRoster.title"),
+                  humansTitle: t("RoomRoster.humansTitle"),
+                  agentsTitle: t("RoomRoster.agentsTitle"),
                   close: t("RoomRoster.close"),
+                  readAt: (time) => t("SeenBy.readAt", { time }),
+                  notRead: t("SeenBy.notRead"),
                   empty: t("RoomRoster.empty"),
                   coworkerBadge: t("coworkerBadge"),
                   personalAssistantBadge: t("personalAssistantBadge"),
