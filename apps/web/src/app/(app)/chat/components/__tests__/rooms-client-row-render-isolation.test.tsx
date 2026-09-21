@@ -84,6 +84,14 @@ vi.mock("@/lib/ably/use-chat-room-realtime", () => ({
   useChatRoomRealtime: vi.fn(),
 }));
 
+vi.mock("@/lib/ably/use-room-typing", () => ({
+  useRoomTyping: () => ({
+    typistIds: [],
+    handleComposerChange: () => {},
+    handleStopTyping: () => {},
+  }),
+}));
+
 vi.mock("@/lib/ably/use-selected-room-channel-health", () => ({
   useSelectedRoomChannelHealth: () => undefined,
 }));

@@ -1439,6 +1439,11 @@
         "expandPrompt": "Show full message",
         "collapsePrompt": "Show less",
         "authorize": "Authorize",
+        "typing": {
+          "one": "{name} is typing…",
+          "two": "{first} and {second} are typing…",
+          "many": "Several people are typing…"
+        },
         "reasoning": {
           "processing": "Processing...",
           "thinking": "Thinking...",

@@ -1,5 +1,6 @@
 import {
   makeChatRoomChannelName,
+  makeChatTypingChannelName,
   makeOrgPresenceChannelName,
   makeUserChatControlChannelName,
   makeUserNotificationsChannelName,
@@ -7,7 +8,11 @@ import {
   type NotificationChannelEnvironment,
 } from "@sokosumi/utils";
 
-type AblyClientCapabilityOp = "subscribe" | "presence" | "push-subscribe";
+type AblyClientCapabilityOp =
+  | "subscribe"
+  | "presence"
+  | "publish"
+  | "push-subscribe";
 
 /**
  * Ably capability ops granted to browser clients. Typed as the exact op union
@@ -56,6 +61,9 @@ export function buildAblyClientCapability({
 
   for (const roomId of roomIds) {
     capability[makeChatRoomChannelName(roomId)] = ["subscribe"];
+    // Typing gets its own channel so `publish` never lands on the message
+    // channel, where a member could forge a chat_room_message (ADR-0033).
+    capability[makeChatTypingChannelName(roomId)] = ["publish", "subscribe"];
   }
 
   for (const organizationId of organizationIds) {
