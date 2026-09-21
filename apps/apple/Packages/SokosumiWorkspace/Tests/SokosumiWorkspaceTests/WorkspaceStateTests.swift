@@ -2682,6 +2682,42 @@ private func mentionRetryFixture(sourceSenderId: String = "user_1", retryRespons
 }
 
 extension WorkspaceStateTests {
+  @Test func retryEligibilityRejectsRowsWithoutAFailedMentionSource() async throws {
+    let (state, _, _) = try await mentionRetryFixture(retryResponses: [])
+    defer { state.reset() }
+    let source = try #require(state.timeline.messages.first)
+    let shell = try #require(state.timeline.messages.last)
+    #expect(!state.canRetryMention(source))
+    #expect(!state.canRetryMention(CoworkerMentionShell.retrying(shell, startedAt: source.createdAt)))
+
+    var orphan = shell
+    orphan.metadata = try .init(additionalProperties: ["mention_id": .init(unvalidatedValue: "mention_1"), "mention_failed": .init(unvalidatedValue: true)])
+    #expect(!state.canRetryMention(orphan))
+    state.timeline.messages = [shell]
+    #expect(!state.canRetryMention(shell))
+  }
+
+  @Test(arguments: [false, true])
+  func retryEligibilityFindsSourceOnlyInOpenThread(reply: Bool) async throws {
+    let (state, _, _) = try await mentionRetryFixture(retryResponses: [])
+    defer { state.reset() }
+    var source = try #require(state.timeline.messages.first)
+    let shell = try #require(state.timeline.messages.last)
+    state.timeline.messages = [shell]
+    var parent = source
+    if reply {
+      parent.id = "thread-parent"
+      source.parentMessageId = parent.id
+    }
+    state.thread.open(parent)
+    if reply {
+      state.thread.timeline.messages = [source]
+    }
+    #expect(state.canRetryMention(shell))
+    state.thread.close()
+    #expect(!state.canRetryMention(shell))
+  }
+
   @Test(arguments: [false, true])
   func retryMentionFlipsTheShellThenMergesTheSource(reply: Bool) async throws {
     let (state, auth, transport) = try await mentionRetryFixture(retryResponses: [(200, envelope(mentionSourceJSON(id: "source", senderId: "user_1", status: "pending")))])

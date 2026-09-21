@@ -2,7 +2,7 @@
 
 This harness runs the real `RoomTimelineView`, `MessageRowView`, composer, renderers, and coordinator without an account. It adapts the window/scroll/media seam in `SokosumiTests/Chat/Timeline/TranscriptScrollingTests.swift`. It copies `apps/apple` into a disposable directory, inserts probes into that copy, and replaces only the copied app entry point. It never writes product sources in the checkout or adds package products to `SokosumiTests`.
 
-The probes and fixtures are inlined below. They use existing dependencies and system frameworks. Source replacements assert an exact match and stop if the implementation changes. Review a failed match against the new source; do not remove the assertion. The measured source baseline is `85524b023fc44ee13ce92d848e25c5cc23b08487`.
+The probes and fixtures are inlined below. They use existing dependencies and system frameworks. Source replacements assert an exact match and stop if the implementation changes. Review a failed match against the new source; do not remove the assertion. The original measured source baseline is `85524b023fc44ee13ce92d848e25c5cc23b08487`. The retry-guard follow-up compares `e7ec006938a2f0a9f419da39e236b2eb24282468` with the guard applied. For a before/after comparison, use a separate fresh harness directory for each source checkout; pass that checkout’s repository root to `setup.py`. The counter probes are identical on both sides.
 
 ## Run
 
@@ -38,6 +38,7 @@ M6_ONLY=prepare "$M6_APP" > "$M6_WORK/prepare-results.jsonl" 2> "$M6_WORK/prepar
 cat "$M6_WORK/ui-results.jsonl" "$M6_WORK/prepare-results.jsonl" > "$M6_WORK/results.jsonl"
 python3 "$M6_WORK/summarize.py" "$M6_WORK/results.jsonl" --check
 M6_ONLY=lookup M6_MIXES=plain "$M6_APP" > "$M6_WORK/lookup.jsonl" 2> "$M6_WORK/lookup-stderr.log"
+python3 "$M6_WORK/summarize.py" "$M6_WORK/lookup.jsonl" --retry-guard
 ```
 
 Each invocation exits itself. The default UI matrix produces 126 records; the separate preparation process adds 63 for the checker's 189 total. The lookup process produces six. Do not run another UI benchmark or build concurrently. Keep the window visible, avoid moving the pointer over it, and use the same display configuration. Filter a smoke test with `M6_COUNTS=50 M6_MIXES=plain`; omit `--check` when summarizing a partial matrix. The default is 50/500/2000 messages and six homogeneous mixes plus an equal-cycle mixed transcript. Expect roughly 20 minutes for the full UI matrix on the audited host; cached build, preparation and lookup take additional time.
@@ -97,11 +98,11 @@ The supplemental extractor reuses the skill's XML parser, caps stacks at 128 fra
 
 `prepare` reports each actual detached preparation: worker duration, messages visited and documents reparsed. The reaction calls the real coordinator method behind the button, with an in-process 250 ms HTTP response containing the confirmed reaction. No account or server is involved; this is not a literal button hit-test or tap-to-paint measurement. `M6_ONLY=prepare` runs seven direct API samples each for cold, unchanged-reuse and reaction-only preparation, in a fresh process with no hosted views. `wall_ms` includes task scheduling; `worker.ms` measures the detached body. Counts in the UI phases distinguish preparation frequency from cost. The final results replace earlier same-process post-UI preparation samples, which were contaminated by remaining UI/media and host scheduling effects.
 
-`scans_ms` measures the unmodified synchronous `preparationInput` and `preparedMessages` getters in the copied room view. Geometry transform/action timers surround their original code. Timers and dictionary counters add overhead; microsecond timings should not be interpreted beyond their precision. `M6_ONLY=lookup` compares the real retry-eligibility method with a harness-only failed-shell predicate before that method. It uses ordinary messages and the account-free state, and asserts that both paths deny them. It proves the avoidable source-array construction cost, not positive-case permission correctness or an end-to-end fix.
+`scans_ms` measures the unmodified synchronous `preparationInput` and `preparedMessages` getters in the copied room view. Geometry transform/action timers surround their original code. Timers and dictionary counters add overhead; microsecond timings should not be interpreted beyond their precision. `M6_ONLY=lookup` compares the real retry-eligibility method with a harness-only failed-shell predicate before that method. It uses ordinary messages and the account-free state, and asserts that both paths deny them. The added `retry_source_collections` counter instruments the real source getter only in the disposable copy. `--retry-guard` asserts that the existing method constructs zero source arrays for ordinary messages at 50/500/2000 messages; it fails on the pre-guard baseline. This checks the avoided work without a timing threshold. Package tests separately cover positive-case permission correctness.
 
 The separate geometry app has one tall rectangle, the same scroll-position/default-bottom-anchor/inset APIs, and either no observer or a full-geometry observer with an empty action apart from counters. It compares stable and growing insets across three rounds, reversing order in round 2. The inset grows during initial layout, before the measured scroll loop. This control does not replace the warning's layout-transition reproduction or test pagination correctness.
 
-The retained harness holds a scoped process activity token and publishes phase names in logs. The original 21-case UI matrix predates these two harness refinements; product view logic and counters are unchanged. Activity tokens did **not** eliminate delayed scheduled steps in the empty control. Do not interpret driver gaps as product FPS or assume App Nap caused them. Use body/prepare counts and the valid trace for the audit's conclusions.
+The retained harness holds a scoped process activity token and publishes phase names in logs. The original 21-case UI matrix predates the activity/log refinements and the later retry-source counter. Its original row/prepare counters are unchanged; older records do not include `retry_source_collections`. Activity tokens did **not** eliminate delayed scheduled steps in the empty control. Do not interpret driver gaps as product FPS or assume App Nap caused them. Use body/prepare counts and the valid trace for the audit's conclusions.
 
 ## Sources
 
@@ -131,6 +132,9 @@ patch('Sokosumi/Chat/Timeline/RoomTimelineView.swift','    private var preparedM
 shutil.copy(work/'Probe.swift',out/'Sokosumi/App/SokosumiApp.swift')
 shutil.copy(source/'SokosumiTests/Chat/Timeline/ScrollMediaProtocol.swift',out/'Sokosumi/App/ScrollMediaProtocol.swift')
 print(out)
+
+patch('Packages/SokosumiWorkspace/Sources/SokosumiWorkspace/WorkspaceState+Mentions.swift','struct MentionRetryRequest: Hashable {','@MainActor public enum M6MentionRetryProbe {\n  public static var sourceCollections = 0\n}\n\nstruct MentionRetryRequest: Hashable {')
+patch('Packages/SokosumiWorkspace/Sources/SokosumiWorkspace/WorkspaceState+Mentions.swift','    transcriptMessages + (thread.parent.map { [$0] } ?? []) + thread.timeline.messages','    M6MentionRetryProbe.sourceCollections += 1\n    return transcriptMessages + (thread.parent.map { [$0] } ?? []) + thread.timeline.messages')
 ```
 
 ### Probe.swift
@@ -158,13 +162,15 @@ import Synchronization
   static let logger = Logger(subsystem: "com.sokosumi.m6", category: "measurement")
   static func body(_ id: String) { bodies[id, default: 0] += 1; totalBodies += 1 }
   static func roomBody() { roomBodies += 1 }
-  static func reset() { bodies = [:]; totalBodies = 0; scans = [:]; roomBodies = 0; geometryTransform = []; geometryAction = []; _ = M6Preparation.take() }
+  static func reset() { M6MentionRetryProbe.sourceCollections = 0; bodies = [:]; totalBodies = 0; scans = [:]; roomBodies = 0; geometryTransform = []; geometryAction = []; _ = M6Preparation.take() }
   static func summary(_ values: [Double]) -> [String: Double] {
     let sorted = values.sorted()
     guard !sorted.isEmpty else { return ["n": 0, "total": 0, "p50": 0, "p95": 0, "max": 0] }
     return ["n": Double(sorted.count), "total": sorted.reduce(0,+), "p50": sorted[(sorted.count-1)/2], "p95": sorted[(sorted.count-1)*95/100], "max": sorted.last!]
   }
-  static func emit(_ value: [String: Any]) {
+  static func emit(_ input: [String: Any]) {
+    var value = input
+    value["retry_source_collections"] = M6MentionRetryProbe.sourceCollections
     let data = try! JSONSerialization.data(withJSONObject: value, options: [.sortedKeys])
     print(String(decoding: data, as: UTF8.self)); fflush(stdout)
   }
@@ -224,6 +230,7 @@ import Synchronization
       if env["M6_ONLY"] == "lookup" {
         let message = fixture[count/2]
         for mode in ["existing", "reject-ordinary-first"] {
+          M6MentionRetryProbe.sourceCollections = 0
           var batches: [Double] = []
           var allowed = 0
           for _ in 0..<21 {
@@ -483,6 +490,14 @@ if '--check' in sys.argv:
    assert len(samples)==7,(count,mix,phase,'sample count')
    assert all(x['visited']==count and x['parsed']==(count if phase=='cold' else 0) for x in samples),(count,mix,phase,'unexpected visit/parse count')
  print('PASS: 21 cases, real scrolling, top reached, no scroll preparation, one load/reaction preparation, distant rows inactive, 7 cold/reuse/reaction samples each')
+
+if '--retry-guard' in sys.argv:
+ cases=[r for r in rows if r['phase']=='lookup' and r['mode']=='existing']
+ assert {r['count'] for r in cases}=={50,500,2000}
+ for row in cases:
+  assert row['allowed']==0
+  assert row['retry_source_collections']==0,(row['count'],row['retry_source_collections'],'ordinary retry checks constructed source arrays')
+ print('PASS: ordinary retry checks construct zero source arrays at 50/500/2000 messages')
 ```
 
 ### trace_stacks.py
