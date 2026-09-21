@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+import { answerRoomUnreadReads } from "@/test-fixtures/chat-room-unread";
 
 import mountGetChatRoom from "./get";
 
@@ -156,17 +157,11 @@ function personalDirectRoom() {
   };
 }
 
-/**
- * Answer the unread count query with `rows`, and the unread Threads query
- * (which only runs when a room has Thread unread) with `threads`.
- */
 function mockUnreadCounts(
   rows: Array<Record<string, unknown>>,
   threads: Array<Record<string, unknown>> = [],
 ) {
-  queryRawUnsafeMock.mockImplementation(async (sql: string) =>
-    sql.includes('"firstUnreadReplyId"') ? threads : rows,
-  );
+  answerRoomUnreadReads(queryRawUnsafeMock, rows, threads);
 }
 
 beforeEach(() => {
@@ -236,19 +231,18 @@ describe("GET /chats/rooms/{id}", () => {
   // A Look refreshes the sidebar row from this route, so it has to carry the
   // room's remaining unread Threads or the row's inset list would vanish.
   it("carries the room's unread threads when it has Thread unread", async () => {
-    queryRawUnsafeMock.mockImplementation(async (sql: string) =>
-      sql.includes('"firstUnreadReplyId"')
-        ? [
-            {
-              roomId: ROOM_ID,
-              parentMessageId: "550e8400-e29b-41d4-a716-446655440b01",
-              firstUnreadReplyId: "550e8400-e29b-41d4-a716-446655440c01",
-              parentContent: "Vendor-wide rollout",
-              unreadReplyCount: 2,
-              unreadThreadCount: 1,
-            },
-          ]
-        : [{ roomId: ROOM_ID, source: "thread", unreadCount: 2 }],
+    mockUnreadCounts(
+      [{ roomId: ROOM_ID, source: "thread", unreadCount: 2 }],
+      [
+        {
+          roomId: ROOM_ID,
+          parentMessageId: "550e8400-e29b-41d4-a716-446655440b01",
+          firstUnreadReplyId: "550e8400-e29b-41d4-a716-446655440c01",
+          parentContent: "Vendor-wide rollout",
+          unreadReplyCount: 2,
+          unreadThreadCount: 1,
+        },
+      ],
     );
 
     const response = await createApp(userAuthContext).request(`/${ROOM_ID}`);

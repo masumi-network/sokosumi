@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+import { answerRoomUnreadReads } from "@/test-fixtures/chat-room-unread";
 
 import mountMarkChatRoomRead from "./post";
 
@@ -156,17 +157,11 @@ function room() {
   };
 }
 
-/**
- * Answer the unread count query with `rows`, and the unread Threads query
- * (which only runs when a room has Thread unread) with `threads`.
- */
 function mockUnreadCounts(
   rows: Array<Record<string, unknown>>,
   threads: Array<Record<string, unknown>> = [],
 ) {
-  queryRawUnsafeMock.mockImplementation(async (sql: string) =>
-    sql.includes('"firstUnreadReplyId"') ? threads : rows,
-  );
+  answerRoomUnreadReads(queryRawUnsafeMock, rows, threads);
 }
 
 beforeEach(() => {
