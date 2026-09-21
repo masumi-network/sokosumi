@@ -89,6 +89,10 @@ describe("usePushPreference", () => {
     // thing being read.
     activatePushMock.mockImplementation(async () => {
       setDeviceSubscribed(true);
+      await recordPushRepairOutcome({
+        hadRegistration: true,
+        deliveryHealthy: true,
+      }).catch((error) => console.error("Failed to record push repair", error));
       return true;
     });
     deactivatePushMock.mockImplementation(async () => {
@@ -307,6 +311,10 @@ describe("usePushPreference", () => {
     activatePushMock.mockImplementation(async () => {
       await activation;
       setDeviceSubscribed(true);
+      await recordPushRepairOutcome({
+        hadRegistration: true,
+        deliveryHealthy: true,
+      }).catch((error) => console.error("Failed to record push repair", error));
       return true;
     });
     const { result } = renderHook(() => usePushPreference("user_1"), {

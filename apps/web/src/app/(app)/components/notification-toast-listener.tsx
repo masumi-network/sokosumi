@@ -155,7 +155,6 @@ export function NotificationToastListener({
         notification.osBanner &&
         shouldShowBrowserNotification({
           permission,
-          isDocumentFocused,
           isRead: notification.isRead,
         });
       const showPendingAccessToast =
@@ -205,8 +204,8 @@ export function NotificationToastListener({
             );
           }
         });
-        return;
       }
+      if (!showPendingAccessToast) return;
 
       const message = formatMessage(
         notification.messageKey,
@@ -242,9 +241,8 @@ export function NotificationToastListener({
   });
 
   /**
-   * The worker asks before it skips a banner. Answering yes while the channel
-   * is detached would drop the notification twice over: no banner from the
-   * worker, and no in-app update either.
+   * Reply to identify this page as a handler for notification clicks. The
+   * worker routes clicks to a mounted listener even when its channel is down.
    */
   const showsNotifications = useEffectEvent(() => isReceivingNotifications());
 

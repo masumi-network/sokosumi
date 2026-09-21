@@ -169,6 +169,25 @@ describe("publishNotificationEvent", () => {
     envMock.VERCEL_GIT_COMMIT_REF = "main";
   });
 
+  it("reuses the pending revision id across separate publish attempts", async () => {
+    const input = {
+      userId: "user_123",
+      notification,
+      push: true,
+      messageId: "revision-123",
+    };
+    publishMock.mockRejectedValueOnce(new Error("acknowledgement lost"));
+    await expect(publishNotificationEvent(input)).rejects.toThrow(
+      "acknowledgement lost",
+    );
+    await publishNotificationEvent(input);
+    expect(publishMock).toHaveBeenCalledTimes(2);
+    for (const [message] of publishMock.mock.calls) {
+      expect(message).toMatchObject({ id: "revision-123", data: notification });
+      expect(message.extras.push.data.id).toBe(notification.id);
+    }
+  });
+
   it("publishes notification event to the user channel", async () => {
     await publishNotificationEvent({
       userId: "user_123",

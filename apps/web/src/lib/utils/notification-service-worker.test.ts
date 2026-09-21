@@ -188,12 +188,13 @@ describe("showNotification", () => {
    * re-alert here would sound twice for one message.
    */
   it("stays silent when it replaces the banner for the same notification", async () => {
+    const target = { ...TARGET, metadata: { messageId: "message-1" } };
     const showNotificationSpy = vi.fn().mockResolvedValue(undefined);
     stubServiceWorker({
       register: vi.fn().mockResolvedValue({
         active: {},
         showNotification: showNotificationSpy,
-        getNotifications: vi.fn().mockResolvedValue([{ data: TARGET }]),
+        getNotifications: vi.fn().mockResolvedValue([{ data: target }]),
       }),
     });
 
@@ -201,7 +202,7 @@ describe("showNotification", () => {
     await module.showNotification({
       title: "Sokosumi",
       body: "Ada mentioned you",
-      target: TARGET,
+      target,
     });
 
     expect(showNotificationSpy.mock.calls[0]?.[1]).not.toHaveProperty(
@@ -236,10 +237,9 @@ describe("showNotification", () => {
   });
 
   /**
-   * A lookup that throws must not cost the reader the banner, and must not
-   * guess `true`: silence is recoverable, a doubled alert is not.
+   * A failed lookup prefers an extra alert over a silent replacement.
    */
-  it("still shows the banner when the lookup fails, without re-alerting", async () => {
+  it("re-alerts when the existing banner cannot be checked", async () => {
     const showNotificationSpy = vi.fn().mockResolvedValue(undefined);
     stubServiceWorker({
       register: vi.fn().mockResolvedValue({
@@ -258,6 +258,72 @@ describe("showNotification", () => {
       }),
     ).resolves.toBe(true);
 
+    expect(showNotificationSpy.mock.calls[0]?.[1]).toHaveProperty(
+      "renotify",
+      true,
+    );
+  });
+
+  it.each([
+    {
+      name: "new message",
+      previous: { messageId: "message-1" },
+      incoming: { messageId: "message-2" },
+    },
+    {
+      name: "older banner without message identity",
+      previous: null,
+      incoming: { messageId: "message-2" },
+    },
+    {
+      name: "arrival without message identity",
+      previous: { messageId: "message-1" },
+      incoming: null,
+    },
+    {
+      name: "empty message identity",
+      previous: { messageId: "" },
+      incoming: { messageId: "" },
+    },
+  ])("re-alerts a grouped row for $name", async ({ previous, incoming }) => {
+    const showNotificationSpy = vi.fn().mockResolvedValue(undefined);
+    stubServiceWorker({
+      register: vi.fn().mockResolvedValue({
+        active: {},
+        showNotification: showNotificationSpy,
+        getNotifications: vi
+          .fn()
+          .mockResolvedValue([{ data: { ...TARGET, metadata: previous } }]),
+      }),
+    });
+    const module = await importFresh();
+    await module.showNotification({
+      title: "Sokosumi",
+      body: "New arrival",
+      target: { ...TARGET, metadata: incoming },
+    });
+    expect(showNotificationSpy.mock.calls[0]?.[1]).toHaveProperty(
+      "renotify",
+      true,
+    );
+  });
+
+  it("keeps duplicate non-chat notifications silent", async () => {
+    const target = { ...TARGET, kind: "SYSTEM" as const };
+    const showNotificationSpy = vi.fn().mockResolvedValue(undefined);
+    stubServiceWorker({
+      register: vi.fn().mockResolvedValue({
+        active: {},
+        showNotification: showNotificationSpy,
+        getNotifications: vi.fn().mockResolvedValue([{ data: target }]),
+      }),
+    });
+    const module = await importFresh();
+    await module.showNotification({
+      title: "Sokosumi",
+      body: "New arrival",
+      target,
+    });
     expect(showNotificationSpy.mock.calls[0]?.[1]).not.toHaveProperty(
       "renotify",
     );

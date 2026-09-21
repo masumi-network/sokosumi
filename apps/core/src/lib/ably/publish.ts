@@ -94,6 +94,8 @@ interface NotificationEventData {
 }
 
 interface PublishNotificationEventInput {
+  /** Reused across retries of one stored notification revision. */
+  messageId?: string;
   userId: string;
   notification: NotificationEventData;
   /** Also deliver as a closed-app OS banner (ADR-0022 channel-based push). */
@@ -255,6 +257,7 @@ export async function publishJobStatusData({
 }
 
 export async function publishNotificationEvent({
+  messageId,
   userId,
   notification,
   push = false,
@@ -268,6 +271,7 @@ export async function publishNotificationEvent({
   );
   await channel.publish({
     name: "notification_created",
+    ...(messageId && { id: messageId }),
     data: notification,
     ...(push && {
       extras: { push: { data: toNotificationPushData(notification) } },

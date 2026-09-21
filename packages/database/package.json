@@ -37,7 +37,7 @@
   },
   "files": [
     "src",
-    "prisma/schema.prisma"
+    "prisma/*.prisma"
   ],
   "scripts": {
     "prisma:generate": "pnpm exec prisma generate --no-hints",
