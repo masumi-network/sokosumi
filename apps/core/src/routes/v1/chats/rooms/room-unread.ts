@@ -247,6 +247,8 @@ export interface ChatRoomUnreadThreadPreview {
   /** The parent's raw content, cut short. The client builds the label. */
   parentContent: string;
   unreadReplyCount: number;
+  /** How many of those unread replies name the viewer. */
+  unreadMentionCount: number;
 }
 
 export interface ChatRoomUnreadThreads {
@@ -289,6 +291,7 @@ export async function listChatRoomUnreadThreads(
       firstUnreadReplyId: string;
       parentContent: string;
       unreadReplyCount: number | bigint;
+      unreadMentionCount: number | bigint;
       unreadThreadCount: number | bigint;
     }>
   >(
@@ -302,6 +305,14 @@ export async function listChatRoomUnreadThreads(
         LEFT(parent.content, ${CHAT_ROOM_UNREAD_THREAD_CONTENT_CHARS})
           AS "parentContent",
         COUNT(*)::int AS "unreadReplyCount",
+        COUNT(*) FILTER (
+          WHERE EXISTS (
+            SELECT 1
+            FROM "chat_room_user_mention" named
+            WHERE named."userId" = ${userIdPlaceholder}
+              AND named."messageId" = reply.id
+          )
+        )::int AS "unreadMentionCount",
         MAX(${attentionAt}) AS "lastUnreadAt"
       ${sqlUnreadThreadReplies(roomIdPlaceholders, userIdPlaceholder)}
       -- parent.id is the primary key, so its other columns ride along.
@@ -324,6 +335,7 @@ export async function listChatRoomUnreadThreads(
       "firstUnreadReplyId",
       "parentContent",
       "unreadReplyCount",
+      "unreadMentionCount",
       "unreadThreadCount"
     FROM ranked
     WHERE rank <= ${CHAT_ROOM_UNREAD_THREAD_CAP}
@@ -342,6 +354,7 @@ export async function listChatRoomUnreadThreads(
       firstUnreadReplyId: row.firstUnreadReplyId,
       parentContent: row.parentContent,
       unreadReplyCount: Number(row.unreadReplyCount),
+      unreadMentionCount: Number(row.unreadMentionCount ?? 0),
     });
     byRoom.set(row.roomId, entry);
   }

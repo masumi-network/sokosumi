@@ -2334,6 +2334,10 @@ export type ChatRoom = {
          */
         parentContent: string;
         unreadReplyCount: number;
+        /**
+         * How many of this Thread's unread replies name the viewer. Counted from the replies, so a Look clears it; the room's unreadMentionCount is counted from notifications, which Room last-read clears.
+         */
+        unreadMentionCount?: number;
     }>;
     /**
      * Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.

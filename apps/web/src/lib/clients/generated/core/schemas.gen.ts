@@ -8565,6 +8565,12 @@ export const ChatRoomSchema = {
                     unreadReplyCount: {
                         type: 'integer',
                         minimum: 1
+                    },
+                    unreadMentionCount: {
+                        type: 'integer',
+                        minimum: 0,
+                        default: 0,
+                        description: 'How many of this Thread\'s unread replies name the viewer. Counted from the replies, so a Look clears it; the room\'s unreadMentionCount is counted from notifications, which Room last-read clears.'
                     }
                 },
                 required: [

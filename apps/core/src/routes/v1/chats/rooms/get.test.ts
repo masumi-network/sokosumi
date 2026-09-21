@@ -286,6 +286,42 @@ describe("GET /chats/rooms", () => {
     });
   });
 
+  // A Thread that names the reader is marked as such on its own row, so the
+  // reader can tell which of a room's unread Threads the room's badge is for.
+  it("reports how many unread replies in a thread mention the viewer", async () => {
+    const room = guestRoomRow();
+    roomFindManyMock.mockResolvedValue([room]);
+    roomCountMock.mockResolvedValue(1);
+    const preview = (n: number, unreadMentionCount: number) => ({
+      roomId: room.id,
+      parentMessageId: `550e8400-e29b-41d4-a716-446655440b0${n}`,
+      firstUnreadReplyId: `550e8400-e29b-41d4-a716-446655440c0${n}`,
+      parentContent: `Thread ${n}`,
+      unreadReplyCount: 3,
+      unreadMentionCount,
+      unreadThreadCount: 2,
+    });
+    mockUnreadCounts(
+      [{ roomId: room.id, source: "thread", unreadCount: 6 }],
+      [preview(1, 1), preview(2, 0)],
+    );
+
+    const response = await createApp(ORG_ID).request("/");
+
+    const body = await response.json();
+    expect(
+      body.data[0].unreadThreads.map(
+        (thread: { unreadReplyCount: number; unreadMentionCount: number }) => [
+          thread.unreadReplyCount,
+          thread.unreadMentionCount,
+        ],
+      ),
+    ).toEqual([
+      [3, 1],
+      [3, 0],
+    ]);
+  });
+
   // The cap hides rows, never the truth: the overflow row states the rest.
   it("reports the true number of unread threads beside a capped list", async () => {
     const room = guestRoomRow();
