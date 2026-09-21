@@ -216,14 +216,12 @@ function renderRow({
   isSavingEdit = false,
   coworkersById = new Map(),
   usersById,
-  reserveHoverActionGutter,
   isPinned,
 }: {
   message?: ChatRoomMessage;
   isPinned?: boolean;
   isContinuation?: boolean;
   isFirstOfDay?: boolean;
-  reserveHoverActionGutter?: boolean;
   onQuote?: (message: ChatRoomMessage) => void;
   onPin?: (message: ChatRoomMessage) => void;
   showPinButton?: boolean;
@@ -274,7 +272,6 @@ function renderRow({
       isSavingEdit={isSavingEdit}
       isContinuation={isContinuation}
       isFirstOfDay={isFirstOfDay}
-      reserveHoverActionGutter={reserveHoverActionGutter}
       isPinned={isPinned}
     />,
   );
@@ -1016,38 +1013,18 @@ describe("ChatMessageRow", () => {
     }
   });
 
-  it("reserves hover-only right gutter on article", () => {
+  /**
+   * The text runs the full width and the opaque pill draws over it, as
+   * Slack's does. The row used to give up 16rem forever so that one hovered
+   * row had somewhere to put eight buttons.
+   */
+  it("reserves no gutter for the hover pill", () => {
     renderRow();
 
-    const article = screen.getByRole("article");
-    expect(article.className).toContain("[@media(hover:hover)]:pr-64");
-    expect(article.className.split(/\s+/)).not.toContain("pr-64");
-  });
-
-  it("widens the gutter when the pill carries the soko bot chain badge", () => {
-    renderRow({
-      message: userMessage({
-        metadata: {
-          soko_bot_chain: {
-            depth: 2,
-            max_depth: 4,
-            room_messages_this_hour: 3,
-            room_messages_per_hour: 20,
-          },
-        },
-      }),
-    });
-
-    const article = screen.getByRole("article");
-    expect(article.className).toContain("[@media(hover:hover)]:pr-72");
-    expect(article.className).not.toContain("pr-64");
-  });
-
-  it("skips the hover action gutter so a narrow thread can use full width", () => {
-    renderRow({ reserveHoverActionGutter: false });
-
-    const article = screen.getByRole("article");
-    expect(article.className).not.toContain("pr-64");
+    const tokens = screen.getByRole("article").className.split(/\s+/);
+    expect(tokens).not.toContain("[@media(hover:hover)]:pr-64");
+    expect(tokens).not.toContain("[@media(hover:hover)]:pr-72");
+    expect(tokens).toContain("px-2");
   });
 
   it("gives the hover pill the pointer only while it shows", async () => {
@@ -1064,6 +1041,27 @@ describe("ChatMessageRow", () => {
       "[@media(hover:hover)]:group-hover:pointer-events-auto",
     );
     expect(pillClasses).toContain("focus-within:pointer-events-auto");
+  });
+
+  /**
+   * A row with a name-and-time header has an empty right half on that line
+   * for the pill to park in, hiding nothing. A continuation has no header, so
+   * it lifts clear onto the line above instead of covering its own first one.
+   */
+  it("parks the hover pill on the header line", async () => {
+    const user = userEvent.setup();
+    renderRow();
+    await user.hover(screen.getByRole("article"));
+
+    expect(hoverPill()?.className.split(/\s+/)).toContain("-translate-y-1/4");
+  });
+
+  it("lifts the hover pill clear of a row that has no header", async () => {
+    const user = userEvent.setup();
+    renderRow({ isContinuation: true });
+    await user.hover(screen.getByRole("article"));
+
+    expect(hoverPill()?.className.split(/\s+/)).toContain("-translate-y-3/4");
   });
 
   it("keeps the hover pill inert while its More menu is open", async () => {

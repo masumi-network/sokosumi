@@ -410,11 +410,16 @@ _Avoid_: Unread threads (as the name of this list), inbox, treating this as a cr
 
 **Look**:
 The user’s high-water mark in a Thread: they opened it, and that moment is stored. Distinct from Room last-read and from being a Participant. Look clears; it does not opt a lurker into unread. Opening the Thread, posting a reply, or Mark all threads Looks it. Advancing Room last-read does not Look.
-_Avoid_: Replied, Participant, lastLookedAt, read receipt. Do not use “looked” in product UI (say unread / mark as read)
+_Avoid_: Replied, Participant, lastLookedAt, Room read receipt (that is a different mark on a different table). Do not use “looked” in product UI (say unread / mark as read)
 
 **Room last-read**:
 The user’s high-water mark on a room’s main transcript. Distinct from Look. Advancing it clears top-level Room unread and that room’s mention badge; leftover Participant Thread unread stays.
 _Avoid_: Look, lastReadAt (storage), treating this as reading Threads
+
+**Room read receipt**:
+Which members of the Room roster have advanced their Room last-read past a given moment. Shown as **Seen by**: in the newest message's bottom-right corner, the three most recent readers plus a `+N` — grey and unringed until hovered, and opening a list of who read it, when, and who has not. The room header carries the same faces larger, but that stack is the whole roster, the viewer and the machines included, merely *ordered* by read recency so the four that fit are the freshest readers; its `+N` counts the room, not the readers. Derived from Room last-read alone — nothing new is stored and nothing is asked of the reader. Humans only: Coworkers and Soko Bots are never counted. Driven by the roster, so a member who left stops counting. A Guest viewer on an External channel sees no read times at all; host members still see the Guest’s. Marked unread stays private and does not rewind it. Says nothing about Threads — that is Look.
+_Avoid_: Look, delivery receipt, last seen, Room unread, treating a face as “read your reply”
+Rides the existing room channel under its own event name, published by Core and marked ephemeral: the client only subscribes, so unlike Typing ([ADR-0033](docs/adr/0033-typing-rides-its-own-ephemeral-channel.md)) it needs no second channel and no capability change.
 
 **User mention**:
 A human @-reference to a user on a room message (main transcript or Thread). Distinct from Mention status (coworker turn lifecycle).
