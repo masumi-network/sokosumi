@@ -46,7 +46,9 @@ jobs:
     # Packages), which the branch ruleset requires. Gating is per-step
     # below, so docs-only PRs report fast successes instead of one
     # `Test ${{ matrix.target.name }}` skip placeholder that satisfies
-    # none of the required contexts.
+    # none of the required contexts. Test CLI, Test Local env, and
+    # Test CI config share this matrix but are advisory — not merge
+    # gates. See docs/agents/delivery.md.
     runs-on: ubuntu-latest
     permissions:
       contents: read
