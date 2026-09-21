@@ -1,6 +1,10 @@
 import { NotificationKind, type Prisma } from "@sokosumi/database";
 
 import { CHAT_ROOM_BADGE_MESSAGE_KEYS } from "@/helpers/notification-delivery";
+import {
+  CHAT_ROOM_UNREAD_THREAD_CAP,
+  CHAT_ROOM_UNREAD_THREAD_CONTENT_CHARS,
+} from "@/schemas/chat-room.schema";
 
 import {
   chatRoomMessageInclude,
@@ -236,13 +240,6 @@ export async function getChatRoomUnreadCounts(
   return byRoom;
 }
 
-/**
- * How many unread Threads a room shows inset in the sidebar before the
- * overflow row takes over. Three, because past that the channel list stops
- * being a list of channels (ADR-0037).
- */
-export const SIDEBAR_UNREAD_THREAD_CAP = 3;
-
 export interface ChatRoomUnreadThreadPreview {
   parentMessageId: string;
   /** Where opening the Thread lands: the oldest reply still unread. */
@@ -253,7 +250,7 @@ export interface ChatRoomUnreadThreadPreview {
 }
 
 export interface ChatRoomUnreadThreads {
-  /** Newest unread reply first, at most `SIDEBAR_UNREAD_THREAD_CAP`. */
+  /** Newest unread reply first, at most `CHAT_ROOM_UNREAD_THREAD_CAP`. */
   threads: ChatRoomUnreadThreadPreview[];
   /** Every unread Thread in the room, so the overflow can state the rest. */
   unreadThreadCount: number;
@@ -262,9 +259,6 @@ export interface ChatRoomUnreadThreads {
 export function emptyChatRoomUnreadThreads(): ChatRoomUnreadThreads {
   return { threads: [], unreadThreadCount: 0 };
 }
-
-/** Long enough for any sidebar label; short enough to keep the list light. */
-const UNREAD_THREAD_PARENT_CONTENT_CHARS = 280;
 
 /**
  * The top unread Threads per room, for the sidebar's inset rows.
@@ -305,12 +299,13 @@ export async function listChatRoomUnreadThreads(
         parent.id AS "parentMessageId",
         (ARRAY_AGG(reply.id ORDER BY ${attentionAt} ASC, reply.id ASC))[1]
           AS "firstUnreadReplyId",
-        LEFT(parent.content, ${UNREAD_THREAD_PARENT_CONTENT_CHARS})
+        LEFT(parent.content, ${CHAT_ROOM_UNREAD_THREAD_CONTENT_CHARS})
           AS "parentContent",
         COUNT(*)::int AS "unreadReplyCount",
         MAX(${attentionAt}) AS "lastUnreadAt"
       ${sqlUnreadThreadReplies(roomIdPlaceholders, userIdPlaceholder)}
-      GROUP BY parent."roomId", parent.id, parent.content
+      -- parent.id is the primary key, so its other columns ride along.
+      GROUP BY parent.id
     ),
     ranked AS (
       SELECT
@@ -331,7 +326,7 @@ export async function listChatRoomUnreadThreads(
       "unreadReplyCount",
       "unreadThreadCount"
     FROM ranked
-    WHERE rank <= ${SIDEBAR_UNREAD_THREAD_CAP}
+    WHERE rank <= ${CHAT_ROOM_UNREAD_THREAD_CAP}
     ORDER BY "roomId", rank
   `,
     ...uniqueRoomIds,
@@ -354,6 +349,24 @@ export async function listChatRoomUnreadThreads(
 }
 
 /**
+ * The unread Threads of the rooms that have any, going by their counts.
+ *
+ * The list is a second scan of the same replies the counts just read, so it
+ * is kept to the rooms where that scan can find something. The sidebar polls
+ * the room list, and most polls find no Thread unread at all.
+ */
+export async function listUnreadThreadsOfRoomsWithThreadUnread(
+  unreadCounts: ReadonlyMap<string, ChatRoomUnreadBreakdown>,
+  userId: string,
+  tx: Prisma.TransactionClient,
+): Promise<Map<string, ChatRoomUnreadThreads>> {
+  const roomIds = [...unreadCounts]
+    .filter(([, breakdown]) => breakdown.thread > 0)
+    .map(([roomId]) => roomId);
+  return listChatRoomUnreadThreads(roomIds, userId, tx);
+}
+
+/**
  * Everything unread a single room's summary carries: the three counts, and
  * the room's unread Threads for the sidebar.
  *
@@ -367,15 +380,19 @@ export async function roomUnreadFields(
   roomId: string,
   userId: string,
   tx: Prisma.TransactionClient,
-) {
-  const counts = unreadCountFields(breakdown);
-  const unreadThreads =
-    counts.threadUnreadCount > 0
-      ? (await listChatRoomUnreadThreads([roomId], userId, tx)).get(roomId)
-      : undefined;
+): Promise<
+  ReturnType<typeof unreadCountFields> & {
+    unreadThreads: ChatRoomUnreadThreads;
+  }
+> {
+  const unreadThreads = await listUnreadThreadsOfRoomsWithThreadUnread(
+    new Map(breakdown ? [[roomId, breakdown]] : []),
+    userId,
+    tx,
+  );
   return {
-    ...counts,
-    unreadThreads: unreadThreads ?? emptyChatRoomUnreadThreads(),
+    ...unreadCountFields(breakdown),
+    unreadThreads: unreadThreads.get(roomId) ?? emptyChatRoomUnreadThreads(),
   };
 }
 

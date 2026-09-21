@@ -16,6 +16,21 @@ const MAX_ROOM_MEMBERS = 500;
 const MAX_ROOM_COWORKERS = 50;
 const MAX_ROOM_SOKO_BOTS = 50;
 
+/**
+ * How many unread Threads a room lists for the sidebar before the overflow
+ * row takes over. Three, because past that the channel list stops being a
+ * list of channels (ADR-0037).
+ */
+export const CHAT_ROOM_UNREAD_THREAD_CAP = 3;
+
+/**
+ * How much of a parent message the list carries. A label shows far less, but
+ * it is built from this after mention tokens and links are rewritten, and a
+ * message that opens with a few of those is mostly markup: a short cut would
+ * end inside a token and put a raw id on the row.
+ */
+export const CHAT_ROOM_UNREAD_THREAD_CONTENT_CHARS = 1000;
+
 export const chatRoomPresenceSchema = z
   .enum(["online", "afk", "offline"])
   .openapi("ChatRoomPresence");
@@ -209,17 +224,15 @@ export const chatRoomSchema = z
               "The oldest reply still unread in this Thread: where opening it lands.",
           }),
           parentContent: z.string().openapi({
-            description:
-              "The parent message's raw content, cut to 280 characters. May hold mention tokens and may be empty; the client builds the label.",
+            description: `The parent message's raw content, cut to ${CHAT_ROOM_UNREAD_THREAD_CONTENT_CHARS} characters. May hold mention tokens and may be empty; the client builds the label.`,
           }),
           unreadReplyCount: z.number().int().min(1),
         }),
       )
-      .max(3)
+      .max(CHAT_ROOM_UNREAD_THREAD_CAP)
       .default([])
       .openapi({
-        description:
-          "Up to 3 unread Threads in this room, newest unread reply first, for the sidebar's inset rows. Same eligibility as threadUnreadCount. `unreadThreadCount` is the true number; this list is capped. ADR-0037.",
+        description: `Up to ${CHAT_ROOM_UNREAD_THREAD_CAP} unread Threads in this room, newest unread reply first, for the sidebar's inset rows. Same eligibility as threadUnreadCount. \`unreadThreadCount\` is the true number; this list is capped. ADR-0037.`,
       }),
     unreadMentionCount: z.number().int().min(0).openapi({
       description:

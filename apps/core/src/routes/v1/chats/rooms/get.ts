@@ -36,7 +36,7 @@ import {
 import {
   getChatRoomUnreadCounts,
   getChatRoomUnreadMentionCounts,
-  listChatRoomUnreadThreads,
+  listUnreadThreadsOfRoomsWithThreadUnread,
   unreadCountFields,
 } from "./room-unread";
 
@@ -180,6 +180,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           .filter((id): id is string => id != null),
       ),
     ];
+    // Started here so the unread Threads can wait on it alone, beside the
+    // other reads rather than after them.
+    const unreadCountsRead = getChatRoomUnreadCounts(roomIds, userId, prisma);
     const [
       unreadCounts,
       unreadThreads,
@@ -189,8 +192,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       peerInActiveOrganizationFlags,
       organizations,
     ] = await Promise.all([
-      getChatRoomUnreadCounts(roomIds, userId, prisma),
-      listChatRoomUnreadThreads(roomIds, userId, prisma),
+      unreadCountsRead,
+      unreadCountsRead.then((counts) =>
+        listUnreadThreadsOfRoomsWithThreadUnread(counts, userId, prisma),
+      ),
       getChatRoomUnreadMentionCounts(roomIds, userId, prisma),
       getChatRoomSidebarFlags(roomIds, userId, prisma),
       getChatRoomPinnedMessageCounts(roomIds, prisma),

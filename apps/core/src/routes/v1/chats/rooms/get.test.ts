@@ -1,6 +1,7 @@
 import { MemberRole } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { answerRoomUnreadReads } from "@/test-fixtures/chat-room-unread";
 
 import mountGetChatRooms from "./get";
 
@@ -193,17 +194,11 @@ function personalDirectRow() {
   };
 }
 
-/**
- * Answer the unread count query with `rows`, and the unread Threads query
- * (which only runs when a room has Thread unread) with `threads`.
- */
 function mockUnreadCounts(
   rows: Array<Record<string, unknown>>,
   threads: Array<Record<string, unknown>> = [],
 ) {
-  queryRawUnsafeMock.mockImplementation(async (sql: string) =>
-    sql.includes('"firstUnreadReplyId"') ? threads : rows,
-  );
+  answerRoomUnreadReads(queryRawUnsafeMock, rows, threads);
 }
 
 beforeEach(() => {
@@ -241,7 +236,7 @@ describe("GET /chats/rooms", () => {
     });
   });
 
-  it("lists a room's unread threads for the sidebar, newest first", async () => {
+  it("lists a room's unread threads for the sidebar, in the order read", async () => {
     const room = guestRoomRow();
     roomFindManyMock.mockResolvedValue([room]);
     roomCountMock.mockResolvedValue(1);
@@ -314,6 +309,20 @@ describe("GET /chats/rooms", () => {
     const body = await response.json();
     expect(body.data[0].unreadThreads).toHaveLength(3);
     expect(body.data[0].unreadThreadCount).toBe(7);
+  });
+
+  // The sidebar polls this route. Most polls find no Thread unread, and then
+  // the second scan of the room's replies has nothing to find.
+  it("skips the unread threads read when no room has Thread unread", async () => {
+    const room = guestRoomRow();
+    roomFindManyMock.mockResolvedValue([room]);
+    roomCountMock.mockResolvedValue(1);
+    mockUnreadCounts([{ roomId: room.id, source: "channel", unreadCount: 2 }]);
+
+    const response = await createApp(ORG_ID).request("/");
+
+    expect(response.status).toBe(200);
+    expect(queryRawUnsafeMock).toHaveBeenCalledOnce();
   });
 
   it("lists no threads for a room with no Thread unread", async () => {

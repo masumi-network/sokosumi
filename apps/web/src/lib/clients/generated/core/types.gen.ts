@@ -2330,7 +2330,7 @@ export type ChatRoom = {
          */
         firstUnreadReplyId: string;
         /**
-         * The parent message's raw content, cut to 280 characters. May hold mention tokens and may be empty; the client builds the label.
+         * The parent message's raw content, cut to 1000 characters. May hold mention tokens and may be empty; the client builds the label.
          */
         parentContent: string;
         unreadReplyCount: number;
