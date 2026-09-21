@@ -4,6 +4,7 @@ import { QueryClientContext } from "@tanstack/react-query";
 import { Pin } from "lucide-react";
 import { useContext, useOptimistic, useTransition } from "react";
 import { pinProjectAction, unpinProjectAction } from "@/app/projects/actions";
+import { PINNED_PROJECTS_QUERY_KEY } from "@/hooks/use-pinned-projects";
 import { cn } from "@/lib/utils";
 
 interface ProjectPinButtonProps {
@@ -52,8 +53,10 @@ export function ProjectPinButton({
       }
       // The flyout caches Pins under its own key; without this it keeps
       // showing the old set until something else refetches it.
+      // Keyed on the root, so every scope's entry refreshes and both the
+      // sidebar flyout and the project header pick the change up.
       await queryClient?.invalidateQueries({
-        queryKey: ["sidebar-pinned-projects"],
+        queryKey: [PINNED_PROJECTS_QUERY_KEY],
       });
     });
   }

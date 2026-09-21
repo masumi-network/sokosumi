@@ -11,7 +11,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { loadMoreProjects, loadPinnedProjects } from "@/app/projects/actions";
+import { loadMoreProjects } from "@/app/projects/actions";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,6 +32,7 @@ import {
 import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMountEffect } from "@/hooks/use-mount-effect";
+import { usePinnedProjects } from "@/hooks/use-pinned-projects";
 import {
   type RecentProjectsScope,
   useRecentProjectIds,
@@ -95,25 +96,7 @@ interface SidebarProject {
  */
 function useSidebarProjects(scope: ProjectsNavigationProps["scope"]) {
   const visitedIds = useRecentProjectIds(scope);
-  // Fetched apart from the activity page, and this is the whole reason the
-  // starred endpoint exists: a Pinned project is usually a quiet one, so it
-  // is regularly absent from page one and would silently vanish from the
-  // panel if we only looked there (ADR-0036).
-  const pinned = useQuery({
-    queryKey: [
-      "sidebar-pinned-projects",
-      scope?.userId ?? null,
-      scope?.organizationId ?? null,
-    ],
-    queryFn: () => {
-      if (!scope) throw new Error("No workspace scope");
-      return loadPinnedProjects({ expectedScope: scope });
-    },
-    enabled: scope != null,
-    retry: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-  });
+  const pinned = usePinnedProjects(scope);
   const { data, isPending, isError, refetch } = useQuery({
     queryKey: [
       "sidebar-project-page",

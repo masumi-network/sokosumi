@@ -44,6 +44,12 @@ vi.mock("@/app/projects/components/project-detail-actions", () => ({
   ProjectDetailActions: () => <div>Project actions</div>,
 }));
 
+// Stubbed like its sibling above: it reads the reader's Pin list through
+// react-query, and this file is about the page, not about Pin state.
+vi.mock("@/app/projects/components/project-detail-pin-button", () => ({
+  ProjectDetailPinButton: () => <div>Pin project</div>,
+}));
+
 vi.mock("@/app/projects/components/project-close-status", () => ({
   ProjectCloseStatusCard: ({ status }: { status: { state: string } }) => (
     <div data-testid="project-close-status">{status.state}</div>
