@@ -46,6 +46,7 @@ public final class ThreadSession: ObservableObject {
   }
 
   public func clearJump() {
+    guard jumpTarget != nil else { return }
     jumpTarget = nil
   }
 
