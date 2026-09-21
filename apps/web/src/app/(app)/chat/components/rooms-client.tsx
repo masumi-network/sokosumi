@@ -3167,6 +3167,8 @@ export function RoomsClient({
                 }}
                 labels={{
                   title: t("RoomRoster.title"),
+                  humansTitle: t("RoomRoster.humansTitle"),
+                  agentsTitle: t("RoomRoster.agentsTitle"),
                   close: t("RoomRoster.close"),
                   readAt: (time) => t("SeenBy.readAt", { time }),
                   notRead: t("SeenBy.notRead"),

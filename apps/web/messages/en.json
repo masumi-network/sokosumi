@@ -5596,6 +5596,8 @@
       "RoomRoster": {
         "open": "Members",
         "title": "Members",
+        "humansTitle": "People",
+        "agentsTitle": "AI coworkers",
         "close": "Close members",
         "empty": "No members to show.",
         "message": "Message {name}",

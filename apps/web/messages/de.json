@@ -5596,6 +5596,8 @@
       "RoomRoster": {
         "open": "Mitglieder",
         "title": "Mitglieder",
+        "humansTitle": "Personen",
+        "agentsTitle": "KI-Coworker",
         "close": "Mitglieder schließen",
         "empty": "Keine Mitglieder vorhanden.",
         "message": "Nachricht an {name}",

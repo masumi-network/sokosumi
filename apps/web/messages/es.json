@@ -5596,6 +5596,8 @@
       "RoomRoster": {
         "open": "Miembros",
         "title": "Miembros",
+        "humansTitle": "Personas",
+        "agentsTitle": "Coworkers de IA",
         "close": "Cerrar miembros",
         "empty": "No hay miembros.",
         "message": "Mensaje a {name}",

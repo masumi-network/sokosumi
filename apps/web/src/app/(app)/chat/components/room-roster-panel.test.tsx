@@ -29,6 +29,8 @@ vi.mock("@/hooks/use-clipboard", () => ({
 
 const labels = {
   title: "Members",
+  humansTitle: "People",
+  agentsTitle: "AI coworkers",
   close: "Close members",
   empty: "No members to show.",
   coworkerBadge: "AI coworker",
@@ -352,6 +354,67 @@ describe("RoomRosterPanel", () => {
       renderPanel(noReadState);
 
       expect(screen.queryByTestId("room-roster-read-state")).toBeNull();
+    });
+
+    /**
+     * On the right it competed with the name for width, and a roster of twenty
+     * truncated every name to make room for a timestamp.
+     */
+    it("puts the read time in the member's own column, not beside it", () => {
+      renderPanel((userId) =>
+        userId === "user-ada" ? { kind: "read", lastReadAt: READ_AT } : null,
+      );
+
+      const read = screen.getByTestId("room-roster-read-state");
+      const name = screen.getByText("Ada");
+      expect(read.parentElement).toBe(name.closest("div"));
+    });
+  });
+
+  describe("sections", () => {
+    function renderRoster(participants: ChatParticipantHoverProfile[]) {
+      return render(
+        <OrganizationSeatProvider hasAssignedSeat={true}>
+          <RoomRosterPanel
+            participants={participants}
+            currentUserId="user-self"
+            canOpenHumanDirect
+            onOpenDirect={vi.fn()}
+            openingDirectKey={null}
+            onClose={vi.fn()}
+            readStateFor={noReadState}
+            labels={labels}
+          />
+        </OrganizationSeatProvider>,
+      );
+    }
+
+    it("names the two halves once both are on the roster", () => {
+      renderRoster([humanAda, humanSelf, coworkerHannah]);
+
+      expect(
+        screen.getByTestId("room-roster-section-humans"),
+      ).toHaveTextContent("People");
+      expect(
+        screen.getByTestId("room-roster-section-agents"),
+      ).toHaveTextContent("AI coworkers");
+    });
+
+    it("names neither when the room is only people", () => {
+      renderRoster([humanAda, humanSelf]);
+
+      expect(screen.queryByTestId("room-roster-section-humans")).toBeNull();
+      expect(screen.queryByTestId("room-roster-section-agents")).toBeNull();
+    });
+
+    it("shows the viewer first", () => {
+      renderRoster([humanAda, humanSelf, coworkerHannah]);
+
+      const names = screen
+        .getAllByTestId("room-roster-member")
+        .map((row) => row.innerText || row.textContent?.split("\n")[0]);
+
+      expect(names[0]).toContain("Me");
     });
   });
 });

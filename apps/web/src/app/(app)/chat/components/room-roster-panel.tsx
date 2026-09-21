@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { copyTextWithToast } from "@/hooks/use-clipboard";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
+import { groupRosterMembers } from "./group-roster-members";
 import {
   canShowOpenDirect,
   participantDirectKey,
@@ -24,6 +25,10 @@ export const ROOM_ROSTER_PANEL_ID = "room-roster-panel";
 
 export interface RoomRosterPanelLabels {
   title: string;
+  /** Section heading over the people on the roster. */
+  humansTitle: string;
+  /** Section heading over the Coworkers and Soko Bots. */
+  agentsTitle: string;
   /** "Read 2 minutes ago" for a member whose Room last-read is known. */
   readAt: (time: string) => string;
   /** For a member on the roster who has never opened the room. */
@@ -111,9 +116,10 @@ function RosterMemberReadState({
 
   return (
     <span
-      // Sits on the name's line rather than centred in the row: the row is two
-      // lines and centring parked this between them, aligned to neither.
-      className="text-muted-foreground shrink-0 self-start text-xs leading-5"
+      // Under the name and the email rather than in a column beside them. On
+      // the right it competed with the name for width, and a roster of twenty
+      // truncated every name to "Alexa K…" to make room for a timestamp.
+      className="text-muted-foreground max-w-full truncate text-xs leading-tight"
       data-testid="room-roster-read-state"
     >
       {readState.kind === "read"
@@ -244,10 +250,10 @@ function RosterMemberRow({
             {caption}
           </button>
         ) : null}
+        {readState ? (
+          <RosterMemberReadState readState={readState} labels={labels} />
+        ) : null}
       </div>
-      {readState ? (
-        <RosterMemberReadState readState={readState} labels={labels} />
-      ) : null}
       {canMessage ? (
         <button
           type="button"
@@ -286,6 +292,13 @@ export function RoomRosterPanel({
   readStateFor,
   labels,
 }: RoomRosterPanelProps) {
+  const { humans, agents } = groupRosterMembers(participants, currentUserId);
+  const groups = [
+    { key: "humans", heading: labels.humansTitle, members: humans },
+    { key: "agents", heading: labels.agentsTitle, members: agents },
+  ] as const;
+  const showHeadings = humans.length > 0 && agents.length > 0;
+
   return (
     <aside
       className="bg-background absolute inset-0 z-30 flex min-h-0 w-full shrink-0 flex-col lg:static lg:z-auto lg:w-80 lg:border-l"
@@ -312,27 +325,45 @@ export function RoomRosterPanel({
             {labels.empty}
           </p>
         ) : (
-          participants.map((participant) => (
-            <RosterMemberRow
-              key={`${participant.kind}-${participant.id}`}
-              participant={participant}
-              canMessage={canShowOpenDirect({
-                profile: participant,
-                currentUserId,
-                canOpenHumanDirect,
-                onOpenDirect,
-              })}
-              isOpening={openingDirectKey === participantDirectKey(participant)}
-              isDirectActionBusy={openingDirectKey != null}
-              onOpenDirect={onOpenDirect}
-              readState={
-                participant.kind === "human"
-                  ? readStateFor(participant.id)
-                  : null
-              }
-              labels={labels}
-            />
-          ))
+          groups.map(({ key, heading, members }) =>
+            members.length === 0 ? null : (
+              <section key={key} className="mb-1">
+                {/* Only worth naming once both halves are there. A room of
+                    people alone needs no heading saying so. */}
+                {showHeadings ? (
+                  <h3
+                    className="text-muted-foreground px-2 pt-2 pb-1 text-xs font-medium"
+                    data-testid={`room-roster-section-${key}`}
+                  >
+                    {heading}
+                  </h3>
+                ) : null}
+                {members.map((participant) => (
+                  <RosterMemberRow
+                    key={`${participant.kind}-${participant.id}`}
+                    participant={participant}
+                    canMessage={canShowOpenDirect({
+                      profile: participant,
+                      currentUserId,
+                      canOpenHumanDirect,
+                      onOpenDirect,
+                    })}
+                    isOpening={
+                      openingDirectKey === participantDirectKey(participant)
+                    }
+                    isDirectActionBusy={openingDirectKey != null}
+                    onOpenDirect={onOpenDirect}
+                    readState={
+                      participant.kind === "human"
+                        ? readStateFor(participant.id)
+                        : null
+                    }
+                    labels={labels}
+                  />
+                ))}
+              </section>
+            ),
+          )
         )}
       </div>
     </aside>
