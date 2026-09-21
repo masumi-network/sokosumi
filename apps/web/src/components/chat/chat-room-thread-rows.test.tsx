@@ -3,11 +3,24 @@
  */
 import { render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
-import { describe, expect, it } from "vitest";
+import type { ComponentProps } from "react";
+import { describe, expect, it, vi } from "vitest";
 
 import messages from "@/../messages/en.json";
 
 import { ChatRoomThreadRows } from "./chat-room-thread-rows";
+
+// `replace` never reaches the DOM, so the stand-in writes it where a test
+// can read it.
+vi.mock("next/link", () => ({
+  default: ({
+    replace,
+    href,
+    ...props
+  }: ComponentProps<"a"> & { replace?: boolean; href: string }) => (
+    <a href={href} data-replace={replace ? "true" : undefined} {...props} />
+  ),
+}));
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 
@@ -24,7 +37,9 @@ function renderRows(room: {
   unreadThreads?: ReturnType<typeof thread>[];
   unreadThreadCount?: number;
   userMembers?: Array<{ id: string; name: string; email: string }>;
+  isActive?: boolean;
 }) {
+  const { isActive, ...roomFields } = room;
   return render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <ChatRoomThreadRows
@@ -33,9 +48,10 @@ function renderRows(room: {
           userMembers: [],
           coworkerMembers: [],
           sokoBotMembers: [],
-          ...room,
+          ...roomFields,
         }}
         roomLabel="product-launch"
+        isActive={isActive}
       />
     </NextIntlClientProvider>,
   );
@@ -64,6 +80,31 @@ describe("ChatRoomThreadRows", () => {
       "href",
       `/chat/rooms/${ROOM_ID}?message=550e8400-e29b-41d4-a716-446655440c01`,
     );
+  });
+
+  // The room takes the ask straight back off its URL. From inside that room
+  // a pushed entry would leave Back landing on the view the reader is on.
+  it("replaces rather than pushes when the reader is already in the room", () => {
+    renderRows({
+      unreadThreads: [thread(1), thread(2), thread(3)],
+      unreadThreadCount: 5,
+      isActive: true,
+    });
+
+    for (const link of screen.getAllByRole("link")) {
+      expect(link).toHaveAttribute("data-replace", "true");
+    }
+  });
+
+  it("pushes when the link leads to another room", () => {
+    renderRows({
+      unreadThreads: [thread(1), thread(2), thread(3)],
+      unreadThreadCount: 5,
+    });
+
+    for (const link of screen.getAllByRole("link")) {
+      expect(link).not.toHaveAttribute("data-replace");
+    }
   });
 
   it("renders nothing when no thread is unread", () => {
