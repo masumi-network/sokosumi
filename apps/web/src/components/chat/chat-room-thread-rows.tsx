@@ -76,7 +76,10 @@ export function ChatRoomThreadRows({
       aria-label={t("label", { name: roomLabel })}
       // Rows a pixel apart: they read as one group under their room, where
       // the primitive's wider gap reads as a second list of destinations.
-      className="gap-px"
+      // Indented from the left only. The primitive insets both sides, which
+      // cut the rows short of the room row's right edge and gave a Thread's
+      // name less room than the room's own.
+      className="mr-0 gap-px pr-0"
     >
       {threads.map((thread) => (
         <SidebarMenuSubItem key={thread.parentMessageId}>
