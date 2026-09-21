@@ -5,6 +5,13 @@ import {
   isPushSupported,
 } from "@/lib/utils/notification-service-worker";
 
+import {
+  forgetPushPreference,
+  hasPushPreference,
+  rememberPushPreference,
+  wantsPushHere,
+} from "./push-preference.client";
+
 import { isPushWorkPending, notePushTeardown } from "./push-work-queue.client";
 
 /**
@@ -235,6 +242,13 @@ export async function releasePushDeviceOnSignOut(
       return;
     }
 
+    if (
+      wantsPushHere(userId) ||
+      (!hasPushPreference() && hasAblyPushRegistration())
+    ) {
+      rememberPushPreference(userId, true);
+    }
+
     // Cancel work already running in another tab even when this tab reads
     // no subscription or token during that activation's reset.
     notePushTeardown();
@@ -259,7 +273,7 @@ export async function releasePushDeviceOnSignOut(
     // the sign-out go before this settles. The alternative for a late
     // rejection is no handler at all.
     await waitForRelease(
-      deactivatePush(userId).catch((error) => {
+      deactivatePush(userId, { preservePreference: true }).catch((error) => {
         console.error("Failed to release the push device on sign out", error);
       }),
     );
@@ -310,6 +324,7 @@ export async function releasePushDeviceOnSignOut(
  * record on Ably, which its own delivery prunes.
  */
 export async function dropBrowserPushSubscriptionOnAccountDeletion(): Promise<void> {
+  forgetPushPreference();
   try {
     // Said before anything is read, and whatever the reads would have said.
     // A token beside a browser with no subscription is the one shape
