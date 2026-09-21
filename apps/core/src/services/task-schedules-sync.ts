@@ -1,11 +1,7 @@
 import * as Sentry from "@sentry/node";
 import {
-  CalendarSourceAccuracy,
-  CalendarSourceType,
-  CalendarTimeAccuracy,
   Channel,
   type Prisma,
-  TaskLinkType,
   TaskScheduleOccurrenceState,
   TaskStatus,
 } from "@sokosumi/database";
@@ -27,6 +23,7 @@ import {
   TaskScheduleOccurrenceLimitError,
 } from "@/helpers/task-schedule-occurrence-index";
 import { quarantineTaskSchedule } from "@/helpers/task-schedule-quarantine";
+import { cloneRecurringTaskScheduleOccurrence } from "@/helpers/task-schedule-release";
 import { validatePersistedTaskSchedule } from "@/helpers/task-schedule-validation";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
@@ -80,45 +77,6 @@ async function publishTaskStatusUpdates(
       }
     }),
   );
-}
-
-function getCloneTaskData(
-  template: Prisma.TaskGetPayload<{
-    select: {
-      ownerId: true;
-      organizationId: true;
-      workspaceId: true;
-      projectId: true;
-      assigneeId: true;
-      name: true;
-      description: true;
-      visibility: true;
-    };
-  }>,
-) {
-  return {
-    ownerId: template.ownerId,
-    organizationId: template.organizationId,
-    workspaceId: template.workspaceId,
-    projectId: template.projectId,
-    assigneeId: template.assigneeId,
-    name: template.name,
-    description: template.description,
-    visibility: template.visibility,
-    status: TaskStatus.READY,
-    metadata: null,
-    nextRunAt: null,
-    creatorUserId: template.ownerId,
-    creatorCoworkerId: null,
-    creatorSokoBotId: null,
-    events: {
-      create: {
-        status: TaskStatus.READY,
-        channel: Channel.SOKOSUMI,
-        userId: template.ownerId,
-      },
-    },
-  };
 }
 
 /**
@@ -280,102 +238,6 @@ function shouldEndRecurringAfterRun(
   return nextRunAt == null;
 }
 
-interface OccurrenceReleaseTimes {
-  originalScheduledAt: Date;
-  effectiveScheduledAt: Date;
-}
-
-async function cloneRecurringOccurrence(
-  tx: Prisma.TransactionClient,
-  template: Prisma.TaskGetPayload<{
-    select: {
-      id: true;
-      ownerId: true;
-      organizationId: true;
-      workspaceId: true;
-      projectId: true;
-      assigneeId: true;
-      name: true;
-      description: true;
-      visibility: true;
-    };
-  }>,
-  metadata: Extract<TaskScheduleMetadata, { mode: "recurring" }>,
-  times: OccurrenceReleaseTimes,
-  recordCalendarHistory: boolean,
-): Promise<string> {
-  const clone = await tx.task.create({
-    data: getCloneTaskData(template),
-    select: { id: true },
-  });
-
-  const link = await tx.taskLink.create({
-    data: {
-      fromTaskId: template.id,
-      toTaskId: clone.id,
-      type: TaskLinkType.SCHEDULE,
-    },
-    select: { id: true },
-  });
-
-  if (!recordCalendarHistory) {
-    return clone.id;
-  }
-
-  const source = {
-    sourceWorkspaceId: template.workspaceId,
-    sourceType: template.projectId
-      ? CalendarSourceType.PROJECT
-      : CalendarSourceType.WORKSPACE,
-    sourceProjectId: template.projectId,
-  };
-
-  if (metadata.version === 2) {
-    await tx.taskScheduleOccurrence.deleteMany({
-      where: {
-        seriesTaskId: template.id,
-        epochId: metadata.epochId,
-        originalScheduledAt: times.originalScheduledAt,
-        state: TaskScheduleOccurrenceState.PLANNED,
-      },
-    });
-  }
-
-  await tx.taskScheduleOccurrence.create({
-    data:
-      metadata.version === 1
-        ? {
-            seriesTaskId: template.id,
-            releasedTaskId: clone.id,
-            legacyLinkId: link.id,
-            scheduleVersion: 1,
-            effectiveScheduledAt: times.effectiveScheduledAt,
-            state: TaskScheduleOccurrenceState.RELEASED,
-            ...source,
-            sourceAccuracy: CalendarSourceAccuracy.INFERRED,
-            timeAccuracy: CalendarTimeAccuracy.APPROXIMATE,
-            timezone: metadata.timezone,
-            ruleSnapshot: metadata,
-          }
-        : {
-            seriesTaskId: template.id,
-            releasedTaskId: clone.id,
-            epochId: metadata.epochId,
-            scheduleVersion: 2,
-            originalScheduledAt: times.originalScheduledAt,
-            effectiveScheduledAt: times.effectiveScheduledAt,
-            state: TaskScheduleOccurrenceState.RELEASED,
-            ...source,
-            sourceAccuracy: CalendarSourceAccuracy.EXACT,
-            timeAccuracy: CalendarTimeAccuracy.EXACT,
-            timezone: metadata.timezone,
-            ruleSnapshot: metadata,
-          },
-  });
-
-  return clone.id;
-}
-
 /**
  * Thrown inside the processDueTask transaction when clones were created but
  * the template is no longer QUEUED (e.g. canceled mid-sync). Prisma rolls
@@ -411,6 +273,10 @@ async function processDueTask(
           pendingVendorGrantId: null,
           scheduleQuarantine: null,
           nextRunAt: { lte: new Date() },
+          OR: [
+            { projectId: null },
+            { project: { closingAt: null, closedAt: null } },
+          ],
         },
         select: {
           id: true,
@@ -440,7 +306,11 @@ async function processDueTask(
       let template = candidate;
       let scheduleMetadata: TaskScheduleMetadata;
 
-      if (candidateMetadata?.version === 2 || calendarBetaEnabled) {
+      if (
+        candidate.projectId !== null ||
+        candidateMetadata?.version === 2 ||
+        calendarBetaEnabled
+      ) {
         const scopeLocked = await lockCalendarScope(tx, candidate.workspaceId, [
           candidate.projectId,
         ]);
@@ -467,6 +337,7 @@ async function processDueTask(
             visibility: true,
             metadata: true,
             nextRunAt: true,
+            project: { select: { closingAt: true, closedAt: true } },
           },
         });
         if (!currentTemplate?.nextRunAt) {
@@ -475,6 +346,12 @@ async function processDueTask(
         if (
           currentTemplate.workspaceId !== candidate.workspaceId ||
           currentTemplate.projectId !== candidate.projectId
+        ) {
+          return { outcome: "skipped", publishEvents: [] };
+        }
+        if (
+          currentTemplate.project?.closingAt ||
+          currentTemplate.project?.closedAt
         ) {
           return { outcome: "skipped", publishEvents: [] };
         }
@@ -573,7 +450,7 @@ async function processDueTask(
 
           const originalScheduledAt =
             occurrence.originalScheduledAt ?? occurrence.effectiveScheduledAt;
-          const cloneId = await cloneRecurringOccurrence(
+          const cloneId = await cloneRecurringTaskScheduleOccurrence(
             tx,
             template,
             metadata,
@@ -663,7 +540,7 @@ async function processDueTask(
             break;
           }
 
-          const cloneId = await cloneRecurringOccurrence(
+          const cloneId = await cloneRecurringTaskScheduleOccurrence(
             tx,
             template,
             metadata,
@@ -817,6 +694,10 @@ async function syncDueTaskSchedules(
         pendingVendorGrantId: null,
         scheduleQuarantine: null,
         nextRunAt: { lte: new Date() },
+        OR: [
+          { projectId: null },
+          { project: { closingAt: null, closedAt: null } },
+        ],
       },
       orderBy: [{ nextRunAt: { sort: "asc", nulls: "last" } }, { id: "asc" }],
       take: TASK_SCHEDULE_SYNC_BATCH_SIZE,

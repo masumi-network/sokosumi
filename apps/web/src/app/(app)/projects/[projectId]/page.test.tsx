@@ -8,6 +8,7 @@ const {
 } = vi.hoisted(() => ({
   hasCurrentUserCalendarBetaAccessMock: vi.fn(),
   projectServiceMock: {
+    getProjectCloseStatus: vi.fn(),
     getProjectById: vi.fn(),
     getProjectsStats: vi.fn(),
     getProjectNeedsAttention: vi.fn(),
@@ -41,6 +42,12 @@ vi.mock("@/lib/services/project.service", () => ({
 
 vi.mock("@/app/projects/components/project-detail-actions", () => ({
   ProjectDetailActions: () => <div>Project actions</div>,
+}));
+
+vi.mock("@/app/projects/components/project-close-status", () => ({
+  ProjectCloseStatusCard: ({ status }: { status: { state: string } }) => (
+    <div data-testid="project-close-status">{status.state}</div>
+  ),
 }));
 
 vi.mock("@/app/projects/components/project-memory-row", () => ({
@@ -79,6 +86,9 @@ function buildProject() {
     contextMd: null,
     contextMdUpdating: false,
     latestUpdate: null,
+    projectRevision: 3,
+    closingAt: null,
+    closedAt: null,
     createdAt: new Date("2026-05-27T10:00:00.000Z"),
     updatedAt: new Date("2026-05-27T10:00:00.000Z"),
   };
@@ -127,6 +137,7 @@ describe("ProjectDetailPage", () => {
     expect(projectServiceMock.getProjectNeedsAttention).toHaveBeenCalledWith(
       "project-1",
     );
+    expect(projectServiceMock.getProjectCloseStatus).not.toHaveBeenCalled();
     expect(projectServiceMock.getProjectsStats).not.toHaveBeenCalled();
     expect(notFoundMock).not.toHaveBeenCalled();
 
@@ -243,6 +254,38 @@ describe("ProjectDetailPage", () => {
     expect(fileBrowserLink).toHaveAttribute(
       "href",
       `/drive?view=tasks&projectId=${project.id}`,
+    );
+  });
+
+  it("loads and renders close status only after closing starts", async () => {
+    const project = {
+      ...buildProject(),
+      closingAt: new Date("2026-09-14T10:00:00.000Z"),
+    };
+    const closeStatus = {
+      id: "close-1",
+      projectId: "project-1",
+      state: "CLOSING",
+    };
+    projectServiceMock.getProjectById.mockResolvedValue(project);
+    projectServiceMock.getProjectNeedsAttention.mockResolvedValue({
+      taskCount: 0,
+      jobCount: 0,
+      items: [],
+    });
+    projectServiceMock.getProjectCloseStatus.mockResolvedValue(closeStatus);
+
+    const { default: ProjectDetailPage } = await import("./page");
+    const html = await ProjectDetailPage({
+      params: Promise.resolve({ projectId: "project-1" }),
+    });
+
+    expect(projectServiceMock.getProjectCloseStatus).toHaveBeenCalledWith(
+      "project-1",
+    );
+    render(html);
+    expect(screen.getByTestId("project-close-status")).toHaveTextContent(
+      "CLOSING",
     );
   });
 
