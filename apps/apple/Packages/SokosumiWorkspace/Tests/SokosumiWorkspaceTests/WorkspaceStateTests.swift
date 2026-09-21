@@ -1346,7 +1346,8 @@ struct WorkspaceStateTests {
     #expect(state.transcriptMessages.first?.deletedAt != nil)
     await state.directStream.task?.value
     #expect(state.directStream.overlayMessages.isEmpty)
-    #expect(Set(state.displayedTranscript.map(\.id)) == ["persisted", "root"])
+    // Row 19a: the deleted root stays in state and as the open thread's tombstone, not in the room transcript.
+    #expect(state.displayedTranscript.map(\.id) == ["persisted"])
     #expect(state.transcriptMessages.first { $0.id == "root" }?.deletedAt != nil)
     #expect(transport.operationIDs == ["get/chats/rooms/{id}/messages", "post/chats/rooms/{id}/stream", "get/chats/rooms/{id}/messages"])
     state.clearTranscript()
@@ -1700,7 +1701,7 @@ extension WorkspaceStateTests {
 
 extension WorkspaceStateTests {
   @Test(arguments: [false, true])
-  func deletionPreservesParentAndThreadTombstones(reply: Bool) async throws {
+  func deletionDropsTheRowAndKeepsTheThreadRootTombstone(reply: Bool) async throws {
     let roomId = "550e8400-e29b-41d4-a716-446655440000"
     let messageId = "550e8400-e29b-41d4-a716-446655440123"
     let response = createdMessageBody(id: messageId, roomId: roomId, content: "")
@@ -1730,12 +1731,16 @@ extension WorkspaceStateTests {
     #expect(state.thread.parent != nil)
     if reply {
       #expect(state.thread.timeline.messages.first?.deletedAt != nil)
+      #expect(state.displayedThreadReplies.isEmpty)
+      #expect(state.displayedTranscript.map(\.id) == ["parent"])
       #expect(state.timeline.messages.first?.content == "Original")
       #expect(state.timeline.messages.first?.threadReplyCount == 0)
       #expect(state.thread.parent?.threadReplyCount == 0)
       #expect(state.thread.parent?.threadLastReplyAt == nil)
     } else {
       #expect(state.timeline.messages.first?.deletedAt != nil)
+      #expect(state.displayedTranscript.isEmpty)
+      // Web renders the deleted parent above the divider as "This message was deleted".
       #expect(state.thread.parent?.deletedAt != nil)
     }
   }
@@ -1749,7 +1754,10 @@ extension WorkspaceStateTests {
     state.timeline.messages = [source]
     state.messageEditing.start(source, userId: "user_1")
     state.messageEditing.draft = "Unsaved"
+    #expect(state.displayedTranscript.map(\.id) == ["message"])
     await #expect(throws: (any Error).self) { try await state.deleteMessage(source, auth: auth) }
+    // Deletion is not optimistic (web awaits the server action too): a refusal leaves the row on screen.
+    #expect(state.displayedTranscript.map(\.id) == ["message"])
     #expect(state.timeline.messages.first?.content == "Original")
     #expect(state.timeline.messages.first?.deletedAt == nil)
     #expect(state.messageEditing.draft == "Unsaved")
@@ -2268,6 +2276,34 @@ extension WorkspaceStateTests {
     #expect(try await state.openMessage("missing", auth: auth) == .unavailable)
     #expect(state.messageJump == nil)
     #expect(transport.operationIDs.count == 1)
+  }
+
+  /// Row 19a: a quote or link to a deleted message has no row to land on, so it stops before the context load.
+  @Test func deletedMessageLinkIsUnavailableWithoutContextRequest() async throws {
+    let deleted = createdMessageBody(id: "gone", roomId: "room", content: "")
+      .replacingOccurrences(of: "\"deletedAt\":null", with: "\"deletedAt\":\"2026-01-02T00:00:00.000Z\"")
+    let (state, auth, transport, _) = try ephemeralState([(200, deleted)], visible: false)
+    defer { state.reset() }
+    state.timeline.reset(roomId: "room")
+    #expect(try await state.openMessage("gone", auth: auth) == .unavailable)
+    #expect(state.messageJump == nil)
+    #expect(transport.operationIDs.count == 1)
+  }
+
+  @Test func realtimeDeleteDropsTheOpenRoomRow() throws {
+    let (state, _, _, _) = try ephemeralState([], visible: false)
+    defer { state.reset() }
+    var first = chatRoomMessage(from: .init(clientTurnId: "first", roomId: "room", content: "First",
+                                            sender: .init(id: "user_2", name: "Ada", email: "ada@example.com", presence: .online)))
+    first.id = "first"
+    var target = first
+    target.id = "target"
+    state.timeline.reset(roomId: "room")
+    state.timeline.messages = [first, target]
+    #expect(state.displayedTranscript.map(\.id) == ["first", "target"])
+    state.applyRealtimeMessage(roomId: "room", eventType: .delete, message: tombstoneTranscriptMessage(target, now: Date(timeIntervalSince1970: 1_700_000_000)))
+    #expect(state.displayedTranscript.map(\.id) == ["first"])
+    #expect(state.transcriptMessages.map(\.id) == ["first", "target"])
   }
 
   @Test func messageLinkResolvesReplyOutsideLoadedHistory() async throws {
@@ -2800,7 +2836,11 @@ extension WorkspaceStateTests {
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (201, createdMessageBody(id: "saved", roomId: you, content: "")),
       (200, roomsBody(names: ["general", "You"])),
-      (200, transcriptPageBody(messages: [transcriptMessage(id: "saved", roomId: you, content: "")], nextCursor: nil))
+      // A send-to-self row has no body by design; its quote is what keeps it in the transcript (row 19a).
+      (200, transcriptPageBody(messages: [
+        transcriptMessage(id: "saved", roomId: you, content: "")
+          .replacingOccurrences(of: "\"quote\":null", with: #""quote":{"messageId":"source","authorName":"Ada","snippet":"Keep","roomId":"550e8400-e29b-41d4-a716-446655440000"}"#)
+      ], nextCursor: nil))
     ], visible: false)
     defer { state.reset() }
     await state.reload(auth: auth)

@@ -47,7 +47,8 @@ public extension WorkspaceState {
       let message = try await navigationMessage(messageId, roomId: roomId, client: client, organizationSlug: slug)
       guard isCurrent(navigation, threadGeneration: initialThreadGeneration) else { return .superseded }
       if let message {
-        guard message.roomId == roomId else { return .unavailable }
+        // A row the transcript drops (a deleted message) can never be landed on.
+        guard message.roomId == roomId, shouldKeepPersistedMessage(message) else { return .unavailable }
         if message.parentMessageId != nil {
           return try await navigateReply(message, request: request, auth: auth)
         }
