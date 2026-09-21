@@ -98,6 +98,9 @@
         } else {
           input.restoreDraft(text)
         }
+        // Send and a draft swap replace the text under a button-opened list. Web
+        // closes it through the editor's blur; the Send button here takes no focus.
+        Task { @MainActor [weak commands] in commands?.closeMentionPicker() }
       }
     }
 
@@ -158,7 +161,7 @@
       func textDidEndEditing(_: Notification) {
         let onBlur = parent.onBlur
         Task { @MainActor in onBlur?() }
-        Task { @MainActor [weak commands = parent.commands] in commands?.dismissSuggestions() }
+        parent.commands?.dismissSuggestionsAfterBlur()
       }
 
       func textViewDidChangeSelection(_ notification: Notification) {
@@ -424,10 +427,12 @@
         return trigger
       }
 
-      func acceptMention(_ mention: ComposerMention) {
-        guard let trigger = referenceTrigger, trigger.kind == .mention,
+      /// One insertion for the typed "@" and the toolbar button; `picker` says which opened the list.
+      func acceptMention(_ mention: ComposerMention, picker: ComposerMentionPicker = .init()) {
+        guard !hasMarkedText(),
+              let insertion = picker.insertion(in: string, selection: selectedRange(), typed: referenceTrigger),
               let current = mentions.first(where: { $0.id == mention.id && $0.kind == mention.kind }) else { return }
-        insertReference(token: current.token, label: "@" + current.name, range: trigger.range)
+        insertReference(token: current.token, label: "@" + current.name, range: insertion.range, leading: insertion.leadingSeparator)
       }
 
       func acceptChannel(_ channel: ComposerChannel) {
@@ -436,14 +441,19 @@
         insertReference(token: current.token(in: channels), label: "#" + current.name, range: trigger.range)
       }
 
-      private func insertReference(token: String, label: String, range: NSRange) {
+      private func insertReference(token: String, label: String, range: NSRange, leading: String = "") {
         let suffix = (string as NSString).substring(from: NSMaxRange(range))
         breakUndoCoalescing()
-        let chip = NSMutableAttributedString(attributedString: ComposerReferenceText.chip(token: token, name: label, attributes: typingAttributes))
+        // The separator after a chip must not inherit that chip's token.
+        clearReferenceTypingAttributes()
+        let chip = NSMutableAttributedString(string: leading, attributes: typingAttributes)
+        chip.append(ComposerReferenceText.chip(token: token, name: label, attributes: typingAttributes))
         if suffix.isEmpty || suffix.first?.isWhitespace == false {
           chip.append(NSAttributedString(string: " ", attributes: typingAttributes))
         }
         super.insertText(MacComposerAttributedText.styled(chip), replacementRange: range)
+        // A range apart from the selection (button path over selected text) leaves the selection behind.
+        setSelectedRange(NSRange(location: range.location + chip.length, length: 0))
         breakUndoCoalescing()
       }
 

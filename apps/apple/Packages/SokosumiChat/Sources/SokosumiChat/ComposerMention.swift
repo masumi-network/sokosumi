@@ -122,3 +122,54 @@ public struct ComposerReferenceTrigger: Equatable, Sendable {
     return Self(kind: kind, range: NSRange(tokenRange, in: prefix), query: query)
   }
 }
+
+/// How the mention list was opened. The toolbar button opens it with an empty
+/// query and types nothing, as web's `openMentions` does; a typed "@" opens it
+/// through `ComposerReferenceTrigger`. Both accept through `insertion`.
+public struct ComposerMentionPicker: Equatable, Sendable {
+  /// Where an accepted mention lands, in UTF-16 units.
+  public struct Insertion: Equatable, Sendable {
+    public let range: NSRange
+    public let leadingSeparator: String
+
+    public init(range: NSRange, leadingSeparator: String) {
+      self.range = range
+      self.leadingSeparator = leadingSeparator
+    }
+  }
+
+  public private(set) var isOpenedByButton = false
+
+  public init() {}
+
+  public mutating func openFromButton(hasMentions: Bool) {
+    isOpenedByButton = hasMentions
+  }
+
+  public mutating func close() {
+    isOpenedByButton = false
+  }
+
+  /// The query the list filters by; nil keeps it closed. Web keeps a
+  /// button-opened list unfiltered: what is typed meanwhile is ordinary draft text.
+  public func query(typed: ComposerReferenceTrigger?) -> String? {
+    if isOpenedByButton {
+      return ""
+    }
+    return typed?.kind == .mention ? typed?.query : nil
+  }
+
+  /// A typed "@query" is replaced, also under a button-opened list. Otherwise
+  /// the button path inserts at the selection's end, which leaves selected text
+  /// in place, after a space when the previous character is not whitespace.
+  public func insertion(in text: String, selection: NSRange, typed: ComposerReferenceTrigger?) -> Insertion? {
+    if let typed, typed.kind == .mention {
+      return Insertion(range: typed.range, leadingSeparator: "")
+    }
+    guard isOpenedByButton else { return nil }
+    let source = text as NSString
+    let caret = min(max(NSMaxRange(selection), 0), source.length)
+    let separator = source.substring(to: caret).last.map { $0.isWhitespace ? "" : " " } ?? ""
+    return Insertion(range: NSRange(location: caret, length: 0), leadingSeparator: separator)
+  }
+}
