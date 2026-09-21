@@ -31,7 +31,11 @@ vi.mock("@/app/projects/actions", () => ({
 
 import { ProjectDetailPinButton } from "./project-detail-pin-button";
 
-const labels = { pin: "Pin project", unpin: "Unpin project" };
+const labels = {
+  pin: "Pin project",
+  unpin: "Unpin project",
+  error: "Could not change the Pin.",
+};
 
 beforeEach(() => {
   vi.clearAllMocks();

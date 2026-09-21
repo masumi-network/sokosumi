@@ -2093,6 +2093,7 @@
         "created": "Erstellt",
         "pin": "Projekt anheften",
         "unpin": "Anheften aufheben",
+        "pinError": "Anheften konnte nicht geändert werden. Bitte erneut versuchen.",
         "stats": {
           "tasks": "Tasks",
           "jobs": "Jobs",

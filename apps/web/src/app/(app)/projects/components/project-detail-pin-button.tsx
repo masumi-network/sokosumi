@@ -7,7 +7,7 @@ import { useSession } from "@/lib/auth/auth.client";
 interface ProjectDetailPinButtonProps {
   projectId: string;
   isClosed?: boolean;
-  labels: { pin: string; unpin: string };
+  labels: { pin: string; unpin: string; error: string };
 }
 
 /**

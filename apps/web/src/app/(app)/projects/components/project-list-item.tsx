@@ -17,6 +17,7 @@ interface ProjectListItemLabels {
   created: string;
   pin: string;
   unpin: string;
+  pinError: string;
 }
 
 interface ProjectListItemProps {
@@ -91,7 +92,11 @@ export function ProjectListItem({ project, labels }: ProjectListItemProps) {
         projectId={project.id}
         isPinned={project.starredAt != null}
         isClosed={project.closingAt != null || project.closedAt != null}
-        labels={{ pin: labels.pin, unpin: labels.unpin }}
+        labels={{
+          pin: labels.pin,
+          unpin: labels.unpin,
+          error: labels.pinError,
+        }}
       />
     </article>
   );

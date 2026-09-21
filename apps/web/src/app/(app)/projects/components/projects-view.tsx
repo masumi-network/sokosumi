@@ -45,6 +45,7 @@ export interface ProjectsViewLabels {
   created: string;
   pin: string;
   unpin: string;
+  pinError: string;
   filter: ProjectsFilterLabels;
   sortedBy: string;
   noMatches: string;
@@ -167,6 +168,7 @@ export function ProjectsView({
                       created: labels.created,
                       pin: labels.pin,
                       unpin: labels.unpin,
+                      pinError: labels.pinError,
                     }}
                   />
                 ))}

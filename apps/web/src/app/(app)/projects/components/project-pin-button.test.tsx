@@ -4,7 +4,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   pin: vi.fn(),
   unpin: vi.fn(),
+  toastError: vi.fn(),
 }));
+
+vi.mock("sonner", () => ({ toast: { error: mocks.toastError } }));
 
 vi.mock("@/app/projects/actions", () => ({
   pinProjectAction: mocks.pin,
@@ -13,7 +16,11 @@ vi.mock("@/app/projects/actions", () => ({
 
 import { ProjectPinButton } from "./project-pin-button";
 
-const labels = { pin: "Pin project", unpin: "Unpin project" };
+const labels = {
+  pin: "Pin project",
+  unpin: "Unpin project",
+  error: "Could not change the Pin.",
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -146,6 +153,22 @@ describe("ProjectPinButton", () => {
 
     rerender(
       <ProjectPinButton projectId="p1" isPinned={false} labels={labels} />,
+    );
+    expect(screen.getByRole("button", { name: "Pin project" })).toBeDefined();
+  });
+
+  it("says why when the write fails, instead of silently reverting", async () => {
+    mocks.pin.mockRejectedValue(new Error("nope"));
+
+    render(
+      <ProjectPinButton projectId="p1" isPinned={false} labels={labels} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Pin project" }));
+
+    // An icon that returns to where it was, with no word said, reads as a
+    // bug rather than as a write that did not land.
+    await waitFor(() =>
+      expect(mocks.toastError).toHaveBeenCalledWith(labels.error),
     );
     expect(screen.getByRole("button", { name: "Pin project" })).toBeDefined();
   });

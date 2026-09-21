@@ -49,6 +49,7 @@ const labels = {
   created: "Created",
   pin: "Pin project",
   unpin: "Unpin project",
+  pinError: "Could not change the Pin.",
   filter: { placeholder: "Filter projects", clear: "Clear filter" },
   sortedBy: "Sorted by recent activity",
   noMatches: "No projects match",

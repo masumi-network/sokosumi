@@ -96,6 +96,7 @@ export default async function ProjectDetailPage({
                     labels={{
                       pin: tList("pin"),
                       unpin: tList("unpin"),
+                      error: tList("pinError"),
                     }}
                   />
                   <ProjectDetailActions

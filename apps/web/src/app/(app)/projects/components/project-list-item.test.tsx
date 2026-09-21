@@ -27,6 +27,7 @@ const labels = {
   lastActivity: "Last activity",
   pin: "Pin project",
   unpin: "Unpin project",
+  pinError: "Could not change the Pin.",
   created: "Created",
 };
 

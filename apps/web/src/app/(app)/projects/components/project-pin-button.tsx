@@ -3,6 +3,7 @@
 import { QueryClientContext } from "@tanstack/react-query";
 import { Pin } from "lucide-react";
 import { useContext, useState, useTransition } from "react";
+import { toast } from "sonner";
 import { pinProjectAction, unpinProjectAction } from "@/app/projects/actions";
 import { PINNED_PROJECTS_QUERY_KEY } from "@/hooks/use-pinned-projects";
 import { cn } from "@/lib/utils";
@@ -13,7 +14,7 @@ interface ProjectPinButtonProps {
   isPinned: boolean;
   /** Closing counts as closed here: both are on their way out of the list. */
   isClosed?: boolean;
-  labels: { pin: string; unpin: string };
+  labels: { pin: string; unpin: string; error: string };
   className?: string;
 }
 
@@ -60,9 +61,11 @@ export function ProjectPinButton({
           ? pinProjectAction({ projectId })
           : unpinProjectAction({ projectId }));
       } catch {
-        // Put the icon back; both calls are idempotent at Core, so the
-        // reader can simply click again.
+        // Put the icon back, and say why: a control that silently returns to
+        // where it was reads as a bug rather than as a failed write. Both
+        // calls are idempotent at Core, so clicking again is safe.
         setPinned(!next);
+        toast.error(labels.error);
         return;
       }
       // The flyout caches Pins under its own key; without this it keeps
@@ -97,7 +100,11 @@ export function ProjectPinButton({
       className={cn(
         // The row around this is a link, so the button sits beside it rather
         // than inside it — nesting would swallow the click and is invalid.
-        "focus-visible:ring-ring inline-flex size-8 shrink-0 items-center justify-center rounded-full transition-colors outline-hidden focus-visible:ring-2",
+        "focus-visible:ring-ring relative inline-flex size-8 shrink-0 items-center justify-center rounded-full transition-colors outline-hidden focus-visible:ring-2",
+        // The circle stays 32px, but the hit area grows to 44px: the row
+        // behind this is a link, so a near miss on a phone navigates to the
+        // project instead of doing nothing.
+        "before:absolute before:-inset-1.5 before:content-['']",
         "disabled:pointer-events-none disabled:opacity-50",
         // Pinned carries three signals at once — hue, fill and a tinted
         // ground — because at 16px a filled pin is barely distinguishable

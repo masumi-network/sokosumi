@@ -2093,6 +2093,7 @@
         "created": "Created",
         "pin": "Pin project",
         "unpin": "Unpin project",
+        "pinError": "Could not change the Pin. Try again.",
         "stats": {
           "tasks": "Tasks",
           "jobs": "Jobs",

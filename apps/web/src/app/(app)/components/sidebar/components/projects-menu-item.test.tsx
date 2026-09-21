@@ -545,6 +545,8 @@ it.each([en, de, es])(
     const labels = messages.App.Sidebar.Content.MenuItems;
     for (const key of [
       "projects",
+      "projectsPanel",
+      "pinnedProjects",
       "recentProjects",
       "allProjects",
       "projectsLoading",

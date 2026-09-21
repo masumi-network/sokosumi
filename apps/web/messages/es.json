@@ -2093,6 +2093,7 @@
         "created": "Creado",
         "pin": "Fijar proyecto",
         "unpin": "Desfijar proyecto",
+        "pinError": "No se pudo cambiar el fijado. Inténtalo de nuevo.",
         "stats": {
           "tasks": "Tareas",
           "jobs": "Jobs",
