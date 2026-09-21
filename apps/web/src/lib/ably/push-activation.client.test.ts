@@ -23,7 +23,8 @@ const needsResetMock = vi.fn();
 const getDeviceMock = vi.fn();
 vi.mock("./push-device-health.client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./push-device-health.client")>()),
-  pushDeviceNeedsReset: () => needsResetMock(),
+  findPushDeviceFault: async () =>
+    (await needsResetMock()) ? "delivery-failed" : null,
 }));
 const recordOutcomeMock = vi.fn<(...args: unknown[]) => Promise<void>>(
   async () => {},

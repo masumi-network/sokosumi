@@ -10,8 +10,8 @@ import {
 import { makeCurrentUserNotificationsChannelName } from "./current-notifications-channel.client";
 import { createAblyPushClient } from "./push-client.client";
 import {
+  findPushDeviceFault,
   isMissingPushDevice,
-  pushDeviceNeedsReset,
 } from "./push-device-health.client";
 import {
   forgetPushPreference,
@@ -120,9 +120,9 @@ async function runActivation(
       return false;
     await client.push.activate();
     if (await abandonedToTeardown(teardownVersion)) return false;
-    const needsReset = await pushDeviceNeedsReset(client, userId);
+    const fault = await findPushDeviceFault(client, userId);
     if (await abandonedToTeardown(teardownVersion)) return false;
-    if (needsReset) {
+    if (fault) {
       await recordPushRepairOutcome({
         hadRegistration: true,
         teardownVersion,
@@ -137,8 +137,15 @@ async function runActivation(
       if (repairOvertakenAcrossTabs(readerInitiated)) return false;
       await client.push.activate();
       if (await abandonedToTeardown(teardownVersion)) return false;
-      if (await pushDeviceNeedsReset(client, userId)) {
-        throw new Error("The push device registration is still unhealthy");
+      const remainingFault = await findPushDeviceFault(client, userId);
+      if (remainingFault) {
+        // The reason is in the message rather than a log line beside it. Every
+        // caller reports this by logging what it caught, and a reset that
+        // changes nothing is the one failure a retry never clears: which of
+        // the six states held is the whole diagnosis.
+        throw new Error(
+          `The push device registration is still unhealthy: ${remainingFault} (was ${fault})`,
+        );
       }
       if (await abandonedToTeardown(teardownVersion)) return false;
     }
