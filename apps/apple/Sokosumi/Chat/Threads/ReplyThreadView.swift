@@ -7,25 +7,43 @@ import SwiftUI
 #if os(macOS)
   struct ReplyThreadView: View {
     @EnvironmentObject private var workspaces: WorkspaceState
-    @EnvironmentObject private var auth: AuthState
     @State private var preparedTranscript: PreparedTranscript?
-
-    private var preparationScope: [String] {
-      [workspaces.currentUserId, workspaces.selectionId ?? "", workspaces.transcriptRoomId ?? "", workspaces.thread.parent?.id ?? "", String(workspaces.thread.timeline.generation)]
-    }
+    /// Publish the page controls with prepared replies, including empty final pages.
+    @State private var preparedHasMore = false
 
     private var preparationInput: PreparedTranscript.Input {
       let room = workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }
-      return .init(scope: preparationScope,
+      return .init(scope: [workspaces.currentUserId, workspaces.selectionId ?? "", workspaces.transcriptRoomId ?? "", workspaces.thread.parent?.id ?? "", String(workspaces.thread.timeline.generation)],
                    messages: (workspaces.displayedThreadParent.map { [$0] } ?? []) + workspaces.displayedThreadReplies,
                    mentions: room.map(MessageMentions.init), channels: workspaces.composerChannels, baseURL: CoreSettings.webBaseURL)
     }
 
-    private var preparedMessages: [Components.Schemas.ChatRoomMessage] {
-      guard let prepared = preparedTranscript, prepared.input.scope == preparationScope else { return [] }
-      let liveRows = (workspaces.displayedThreadParent.map { [$0] } ?? []) + workspaces.displayedThreadReplies
-      return prepared.overlaying(liveRows)
+    var body: some View {
+      let input = preparationInput
+      let prepared = preparedTranscript.flatMap { $0.input.scope == input.scope ? $0 : nil }
+      ReplyThreadContent(messages: prepared?.overlaying(input.messages) ?? [], preparedTranscript: prepared,
+                         preparationScope: input.scope, preparedHasMore: preparedHasMore)
+        .onChange(of: workspaces.thread.timeline.hasMore) { _, hasMore in
+          if preparedTranscript?.input == input {
+            preparedHasMore = hasMore
+          }
+        }
+        .task(id: input) {
+          let hasMore = workspaces.thread.timeline.hasMore
+          guard let prepared = try? await PreparedTranscript.prepare(input, reusing: preparedTranscript), !Task.isCancelled else { return }
+          preparedTranscript = prepared
+          preparedHasMore = hasMore
+        }
     }
+  }
+
+  private struct ReplyThreadContent: View {
+    @EnvironmentObject private var workspaces: WorkspaceState
+    @EnvironmentObject private var auth: AuthState
+    let messages: [Components.Schemas.ChatRoomMessage]
+    let preparedTranscript: PreparedTranscript?
+    let preparationScope: [String]
+    let preparedHasMore: Bool
 
     private func readyJump(in messages: [Components.Schemas.ChatRoomMessage]) -> ThreadSession.JumpTarget? {
       guard let target = workspaces.thread.jumpTarget,
@@ -33,8 +51,6 @@ import SwiftUI
       return target
     }
 
-    // Update the header controls together with prepared replies, including empty final pages.
-    @State private var preparedHasMore = false
     @State private var scrollIntent = TimelineScrollIntent()
     @State private var olderBoundaryVisible = false
     @State private var visibleMessageID: String?
@@ -93,21 +109,9 @@ import SwiftUI
           userIsScrolling = false
           pendingBottomAlignment = false
         }
-        .onChange(of: workspaces.thread.timeline.hasMore) { _, hasMore in
-          if preparedTranscript?.input == preparationInput {
-            preparedHasMore = hasMore
-          }
-        }
-        .task(id: preparationInput) {
-          let hasMore = workspaces.thread.timeline.hasMore
-          guard let prepared = try? await PreparedTranscript.prepare(preparationInput, reusing: preparedTranscript), !Task.isCancelled else { return }
-          preparedTranscript = prepared
-          preparedHasMore = hasMore
-        }
     }
 
     @ViewBuilder private var content: some View {
-      let messages = preparedMessages
       if let parent = messages.first {
         let jumpTarget = readyJump(in: messages)
         let currentRoom = workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }
