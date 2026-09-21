@@ -1,3 +1,4 @@
+import Combine
 import CoreAPI
 import Foundation
 import SokosumiChat
@@ -11,6 +12,25 @@ struct ThreadSessionTests {
       testMessageJSON(id: "root", content: "Parent", sender: testUserSender(name: "Ada", email: "ada@example.com"))
     ])
     return try #require(rows.first)
+  }
+
+  @Test func clearingJumpPublishesOnlyWhenTargetChanges() async throws {
+    let session = ThreadSession()
+    let message = try await parent()
+    session.timeline.messages = [message]
+    var changes = 0
+    let observation = session.objectWillChange.sink { changes += 1 }
+    defer { observation.cancel() }
+
+    session.clearJump()
+    #expect(changes == 0)
+    session.requestJump(to: message.id)
+    #expect(changes == 1)
+    session.clearJump()
+    #expect(session.jumpTarget == nil)
+    #expect(changes == 2)
+    session.clearJump()
+    #expect(changes == 2)
   }
 
   @Test func reopeningTheSameParentDoesNotResetTheTimeline() async throws {
