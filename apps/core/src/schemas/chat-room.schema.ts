@@ -227,6 +227,10 @@ export const chatRoomSchema = z
             description: `The parent message's raw content, cut to ${CHAT_ROOM_UNREAD_THREAD_CONTENT_CHARS} characters. May hold mention tokens and may be empty; the client builds the label.`,
           }),
           unreadReplyCount: z.number().int().min(1),
+          unreadMentionCount: z.number().int().min(0).default(0).openapi({
+            description:
+              "How many of this Thread's unread replies name the viewer. Counted from the replies, so a Look clears it; the room's unreadMentionCount is counted from notifications, which Room last-read clears.",
+          }),
         }),
       )
       .max(CHAT_ROOM_UNREAD_THREAD_CAP)
