@@ -1,6 +1,6 @@
 # ADR 0037: Thread unread leaves Room unread
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-09-21
 - Relates to: [ADR-0013](./0013-thread-unread-is-participant-gated.md) (thread unread is Participant-gated), [ADR-0027](./0027-room-unread-count-is-a-reader-opt-in.md) (room unread count is a reader opt-in), [ADR-0030](./0030-thread-mute-overrides-participant.md) (thread mute overrides Participant)
 

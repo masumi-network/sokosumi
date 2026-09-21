@@ -12,10 +12,11 @@
 
 ## Global Constraints
 
-- **This reverses documented vocabulary.** `CONTEXT.md` currently lists "a separate Threads badge", "Threads badge as a separate count" and "not a sidebar number" under _Avoid_. Task 1 records the reversal as an ADR and rewrites those entries. Do not start Task 2 before Task 1 is committed — in this repo the vocabulary leads the code.
+- **This reverses documented vocabulary.** `CONTEXT.md` used to list "a separate Threads badge", "Threads badge as a separate count" and "not a sidebar number" under _Avoid_. Task 1 recorded the reversal as ADR-0037 and rewrote those entries; it is done. Every later task's comments and copy must match the rewritten glossary, not the old one.
 - **`unreadCount` keeps meaning the total** (`channel + thread`) on the wire. `apps/apple` consumes it and is not in this plan's scope. New fields are additive.
 - **Participant, Look and Mute semantics do not change.** ADR-0013 and ADR-0030 stand. If a task's diff touches `sqlViewerIsThreadParticipant` or `sqlThreadReplyPagesViewer`, you have gone wrong.
-- **Tests mock Prisma.** No DB-backed tests. Follow the existing style in `apps/core/src/routes/v1/chats/rooms/room-unread.test.ts`: assert on the SQL string and on the mapping of fake rows.
+- **Tests mock Prisma.** No DB-backed tests.
+- **Seams were agreed after this plan was written, and they win over it.** SOK-1147's Testing Decisions are authoritative: test at the **Core route contract** (mocked Prisma, assert the response body), the **pure attention resolver**, and **thin component tests**. Broad `expect(sql).toContain(...)` assertions are explicitly rejected as behaviour coverage — they pass whenever the query is wrong in a way that keeps the literal, and they block refactoring. Keep exactly one narrow SQL assertion, as a tripwire that the ADR-0013/0030 gating predicates are still present. Where a task below writes SQL-string tests, convert them to this shape.
 - **Copy rules:** `CONTEXT.md` forbids the word "looked" in product UI — say *unread* / *mark as read*. New user-facing strings go in `apps/web/messages/en.json` and every sibling locale file; use the `translations` skill.
 - **Commit after every task.** Conventional Commits, scope `chat`.
 
@@ -43,12 +44,11 @@ Five conditions the spec implies that no task's happy path exercises. Each has a
 
 - [x] **Step 1: Write the ADR** — done, committed ahead of this plan.
 
-`docs/adr/0037-thread-unread-leaves-room-unread.md` already exists, with Status
-`Proposed`. Do not rewrite it. If review changed the decision, the spec and the
-tasks below are what must move, not the ADR alone. Flip its Status to `Accepted`
-only once the docs PR is approved.
+`docs/adr/0037-thread-unread-leaves-room-unread.md` already exists and reads
+`Status: Accepted`. Do not rewrite it. If the decision is ever revisited, the
+spec and the tasks below are what must move, not the ADR alone.
 
-- [ ] **Step 2: Rewrite the three CONTEXT.md entries**
+- [x] **Step 2: Rewrite the three CONTEXT.md entries** — done.
 
 Replace the **Room unread** entry (`CONTEXT.md:432-434`) with:
 
@@ -74,12 +74,12 @@ The per-room list of that room’s threads, shown in the thread side panel. Ever
 _Avoid_: Unread threads (as the name of this list), treating this as a cross-room surface
 ```
 
-- [ ] **Step 3: Check nothing else contradicts**
+- [x] **Step 3: Check nothing else contradicts** — done. Also fixed two knock-on contradictions the step did not predict: **Room last-read** claimed to clear "top-level Room unread" (now simply Room unread), and **Muted thread** said it stops counting toward Room unread (now Thread unread).
 
 Run: `rg -n "separate Threads badge|not a sidebar number|Threads badge as a separate count" CONTEXT.md docs/`
 Expected: no matches outside `docs/adr/superseded/`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit** — done.
 
 ```bash
 git add docs/adr/0037-thread-unread-leaves-room-unread.md CONTEXT.md
