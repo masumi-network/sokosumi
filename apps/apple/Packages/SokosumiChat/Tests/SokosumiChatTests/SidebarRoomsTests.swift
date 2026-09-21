@@ -317,4 +317,23 @@ struct SidebarRoomsTests {
     #expect(roomUnreadAccessibilityLabel(42) == "42 unread messages")
     #expect(roomUnreadAccessibilityLabel(250) == "More than 99 unread messages")
   }
+
+  /// Web `RoomMentionBadge` / `MentionAnnouncement`: nothing at zero, the shared cap above 99.
+  @Test(arguments: zip([-1, 0, 1, 42, 99, 100, 250], [nil, nil, "1", "42", "99", "99+", "99+"] as [String?]))
+  func mentionBadgeCapsAtNinetyNineAndHidesAtZero(mentions: Int, label: String?) {
+    #expect(resolveRoomAttention(unreadCount: max(0, mentions), unreadMentionCount: mentions).badgeLabel == label)
+  }
+
+  @Test(arguments: zip(
+    [-1, 0, 1, 42, 99, 100, 250],
+    [nil, nil, "1 mention", "42 mentions", "99 mentions", "More than 99 mentions", "More than 99 mentions"] as [String?]
+  ))
+  func mentionBadgeIsSpokenLikeWeb(mentions: Int, spoken: String?) {
+    #expect(resolveRoomAttention(unreadCount: max(0, mentions), unreadMentionCount: mentions).badgeAccessibilityLabel == spoken)
+  }
+
+  @Test func mutedAndOpenRoomsShowNoMentionBadge() {
+    #expect(resolveRoomAttention(unreadCount: 250, unreadMentionCount: 250, isMuted: true).badgeLabel == nil)
+    #expect(resolveRoomAttention(unreadCount: 250, unreadMentionCount: 250, isActive: true).badgeAccessibilityLabel == nil)
+  }
 }
