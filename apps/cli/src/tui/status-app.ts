@@ -44,6 +44,11 @@ import {
 import { type AuthLoginOptions, runAuthLogin } from "../cli/auth-login.js";
 import { CLI_VERSION } from "../cli/metadata.js";
 import {
+  administeredVendors,
+  describeRegistrationAdminVendorRequirement,
+  describeRegistrationWorkspaceRequirement,
+} from "../cli/registration-authority.js";
+import {
   COWORKER_FRAMEWORK_PRESETS,
   describeRegisterNextStep,
 } from "../coworker/presets.js";
@@ -525,7 +530,13 @@ function StatusApp({
 
   useEffect(() => {
     if (route !== "signed-in") return;
-    if (screen !== "vendors" && screen !== "workspaces") return;
+    if (
+      screen !== "vendors" &&
+      screen !== "workspaces" &&
+      screen !== "register"
+    ) {
+      return;
+    }
     let cancelled = false;
     setResourceLoading(true);
     setPhase("idle");
@@ -536,10 +547,19 @@ function StatusApp({
           const { vendors: nextVendors } =
             await fetchVendorMemberships(coreClient);
           if (!cancelled) setVendors(nextVendors);
-        } else {
+        } else if (screen === "workspaces") {
           const { organizationWorkspaces } =
             await fetchOrganizationWorkspaces(coreClient);
           if (!cancelled) setWorkspaces(organizationWorkspaces);
+        } else {
+          const [vendorResult, workspaceResult] = await Promise.all([
+            fetchVendorMemberships(coreClient),
+            fetchOrganizationWorkspaces(coreClient),
+          ]);
+          if (!cancelled) {
+            setVendors(vendorResult.vendors);
+            setWorkspaces(workspaceResult.organizationWorkspaces);
+          }
         }
       } catch (error: unknown) {
         if (!cancelled) {
@@ -1136,28 +1156,39 @@ function StatusApp({
 
   let signedInContent: React.ReactNode;
   if (screen === "register") {
+    const adminVendors = administeredVendors(vendors);
+    const missingWorkspace = !resourceLoading && workspaces.length === 0;
+    const missingAdminVendor = !resourceLoading && adminVendors.length === 0;
+    const registrationBlocked = missingWorkspace || missingAdminVendor;
+    const rawWebUrl = String(env.SOKOSUMI_WEB_URL || "").trim();
+    const webBase = rawWebUrl ? sanitizeApiUrl(rawWebUrl) : "";
+    const gateHint = resourceLoading
+      ? "Checking workspace and Vendor admin authority…"
+      : missingWorkspace
+        ? describeRegistrationWorkspaceRequirement(webBase || undefined)
+        : missingAdminVendor
+          ? describeRegistrationAdminVendorRequirement(webBase || undefined)
+          : "Choose a preset runtime. Connect it under an administered Vendor in a later step.";
     signedInContent = React.createElement(
       Box,
       { flexDirection: "column", width: "100%" },
       React.createElement(Text, { bold: true }, "Register a Coworker"),
-      React.createElement(
-        Text,
-        { dimColor: true },
-        "Choose a preset runtime. Registration stays preset-only until the runtime identity contract lands.",
-      ),
-      React.createElement(SelectInput, {
-        items: COWORKER_FRAMEWORK_PRESETS.map((preset) => ({
-          value: preset.id,
-          label: preset.label,
-        })),
-        onSelect: adaptSelectHandler<string>((presetId) => {
-          const preset = COWORKER_FRAMEWORK_PRESETS.find(
-            (candidate) => candidate.id === presetId,
-          );
-          if (preset) setMessage(describeRegisterNextStep(preset));
-        }),
-        listen: !busy,
-      }),
+      React.createElement(Text, { dimColor: true }, gateHint),
+      registrationBlocked
+        ? null
+        : React.createElement(SelectInput, {
+            items: COWORKER_FRAMEWORK_PRESETS.map((preset) => ({
+              value: preset.id,
+              label: preset.label,
+            })),
+            onSelect: adaptSelectHandler<string>((presetId) => {
+              const preset = COWORKER_FRAMEWORK_PRESETS.find(
+                (candidate) => candidate.id === presetId,
+              );
+              if (preset) setMessage(describeRegisterNextStep(preset));
+            }),
+            listen: !busy && !resourceLoading,
+          }),
       messageLine(message, phase),
     );
   } else if (screen === "vendors") {

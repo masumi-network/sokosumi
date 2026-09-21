@@ -1,6 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { RoomMemberReadState } from "@/app/chat/hooks/use-room-read-receipts";
 import { OrganizationSeatProvider } from "@/contexts/organization-seat-context";
 
 import type { ChatParticipantHoverProfile } from "./room-helpers";
@@ -17,6 +18,9 @@ vi.mock("next-intl", () => ({
     };
     return labels[key] ?? key;
   },
+  useFormatter: () => ({
+    relativeTime: (date: Date) => date.toISOString(),
+  }),
 }));
 
 vi.mock("@/hooks/use-clipboard", () => ({
@@ -25,6 +29,8 @@ vi.mock("@/hooks/use-clipboard", () => ({
 
 const labels = {
   title: "Members",
+  humansTitle: "People",
+  agentsTitle: "Coworkers",
   close: "Close members",
   empty: "No members to show.",
   coworkerBadge: "AI coworker",
@@ -32,7 +38,12 @@ const labels = {
   copy: (value: string) => `Copy ${value}`,
   copySuccess: "Copied to clipboard",
   copyError: "Could not copy.",
+  readAt: (time: string) => `Read ${time}`,
+  notRead: "Not read yet",
 };
+
+/** Default: the panel says nothing about reading. */
+const noReadState = () => null;
 
 const FOCUS_RING = "focus-visible:ring-2";
 
@@ -80,6 +91,7 @@ describe("RoomRosterPanel", () => {
           onOpenDirect={vi.fn()}
           openingDirectKey={null}
           onClose={vi.fn()}
+          readStateFor={noReadState}
           labels={labels}
         />
       </OrganizationSeatProvider>,
@@ -114,6 +126,7 @@ describe("RoomRosterPanel", () => {
           onOpenDirect={vi.fn()}
           openingDirectKey={null}
           onClose={onClose}
+          readStateFor={noReadState}
           labels={labels}
         />
       </OrganizationSeatProvider>,
@@ -127,7 +140,11 @@ describe("RoomRosterPanel", () => {
     expect(screen.getByText("ada@example.com")).toBeTruthy();
     expect(screen.getByText("Hannah")).toBeTruthy();
     expect(screen.getByText("@hannah")).toBeTruthy();
-    expect(screen.getByText("AI coworker")).toBeTruthy();
+    // The section heading says it once; the row no longer repeats it.
+    expect(screen.queryByText("AI coworker")).toBeNull();
+    expect(screen.getByTestId("room-roster-section-agents")).toHaveTextContent(
+      "Coworkers",
+    );
     expect(screen.queryByText("Research assistant")).toBeNull();
 
     await user.click(screen.getByRole("button", { name: "Close members" }));
@@ -146,6 +163,7 @@ describe("RoomRosterPanel", () => {
           onOpenDirect={onOpenDirect}
           openingDirectKey={null}
           onClose={vi.fn()}
+          readStateFor={noReadState}
           labels={labels}
         />
       </OrganizationSeatProvider>,
@@ -205,6 +223,7 @@ describe("RoomRosterPanel", () => {
           onOpenDirect={vi.fn()}
           openingDirectKey={null}
           onClose={vi.fn()}
+          readStateFor={noReadState}
           labels={labels}
         />
       </OrganizationSeatProvider>,
@@ -224,6 +243,7 @@ describe("RoomRosterPanel", () => {
           onOpenDirect={vi.fn()}
           openingDirectKey={null}
           onClose={vi.fn()}
+          readStateFor={noReadState}
           labels={labels}
         />
       </OrganizationSeatProvider>,
@@ -244,6 +264,7 @@ describe("RoomRosterPanel", () => {
           onOpenDirect={onOpenDirect}
           openingDirectKey={null}
           onClose={vi.fn()}
+          readStateFor={noReadState}
           labels={labels}
         />
       </OrganizationSeatProvider>,
@@ -279,5 +300,202 @@ describe("RoomRosterPanel", () => {
       "me@example.com",
       copyMessages,
     );
+  });
+
+  describe("Seen by", () => {
+    const READ_AT = new Date("2026-01-01T10:00:00.000Z");
+
+    function renderPanel(
+      readStateFor: (userId: string) => RoomMemberReadState | null,
+    ) {
+      return render(
+        <OrganizationSeatProvider hasAssignedSeat={true}>
+          <RoomRosterPanel
+            participants={[humanAda, humanSelf, coworkerHannah]}
+            currentUserId="user-self"
+            canOpenHumanDirect
+            onOpenDirect={vi.fn()}
+            openingDirectKey={null}
+            onClose={vi.fn()}
+            readStateFor={readStateFor}
+            labels={labels}
+          />
+        </OrganizationSeatProvider>,
+      );
+    }
+
+    it("tells each member when they last read the room", () => {
+      renderPanel((userId) =>
+        userId === "user-ada" ? { kind: "read", lastReadAt: READ_AT } : null,
+      );
+
+      expect(
+        screen.getByText(`Read ${READ_AT.toISOString()}`),
+      ).toBeInTheDocument();
+    });
+
+    it("names a member who has never opened the room", () => {
+      renderPanel((userId) =>
+        userId === "user-ada" ? { kind: "unread" } : null,
+      );
+
+      expect(screen.getByText("Not read yet")).toBeInTheDocument();
+    });
+
+    /**
+     * A Coworker does not read, so no read state is invented for one — the row
+     * must be silent rather than claim the machine has not read.
+     */
+    it("asks nothing about a coworker", () => {
+      const readStateFor = vi.fn(() => null);
+      renderPanel(readStateFor);
+
+      expect(readStateFor).not.toHaveBeenCalledWith("coworker-1");
+      expect(screen.queryByTestId("room-roster-read-state")).toBeNull();
+    });
+
+    it("stays silent for every member when the receipts say nothing", () => {
+      renderPanel(noReadState);
+
+      expect(screen.queryByTestId("room-roster-read-state")).toBeNull();
+    });
+
+    /**
+     * On the right it competed with the name for width, and a roster of twenty
+     * truncated every name to make room for a timestamp.
+     */
+    it("puts the read time in the member's own column, not beside it", () => {
+      renderPanel((userId) =>
+        userId === "user-ada" ? { kind: "read", lastReadAt: READ_AT } : null,
+      );
+
+      const read = screen.getByTestId("room-roster-read-state");
+      const name = screen.getByText("Ada");
+      expect(read.parentElement).toBe(name.closest("div"));
+    });
+  });
+
+  describe("sections", () => {
+    function renderRoster(participants: ChatParticipantHoverProfile[]) {
+      return render(
+        <OrganizationSeatProvider hasAssignedSeat={true}>
+          <RoomRosterPanel
+            participants={participants}
+            currentUserId="user-self"
+            canOpenHumanDirect
+            onOpenDirect={vi.fn()}
+            openingDirectKey={null}
+            onClose={vi.fn()}
+            readStateFor={noReadState}
+            labels={labels}
+          />
+        </OrganizationSeatProvider>,
+      );
+    }
+
+    it("names the two halves once both are on the roster", () => {
+      renderRoster([humanAda, humanSelf, coworkerHannah]);
+
+      expect(
+        screen.getByTestId("room-roster-section-humans"),
+      ).toHaveTextContent("People");
+      expect(
+        screen.getByTestId("room-roster-section-agents"),
+      ).toHaveTextContent("Coworkers");
+    });
+
+    it("names neither when the room is only people", () => {
+      renderRoster([humanAda, humanSelf]);
+
+      expect(screen.queryByTestId("room-roster-section-humans")).toBeNull();
+      expect(screen.queryByTestId("room-roster-section-agents")).toBeNull();
+    });
+
+    it("counts every human on the People heading, read or not", () => {
+      render(
+        <OrganizationSeatProvider hasAssignedSeat={true}>
+          <RoomRosterPanel
+            participants={[humanAda, humanSelf, coworkerHannah]}
+            currentUserId="user-self"
+            canOpenHumanDirect
+            onOpenDirect={vi.fn()}
+            openingDirectKey={null}
+            onClose={vi.fn()}
+            readStateFor={(id) =>
+              id === "user-ada" ? { kind: "unread" } : null
+            }
+            labels={labels}
+          />
+        </OrganizationSeatProvider>,
+      );
+
+      // Ada has never read, and still counts toward the room's people.
+      expect(
+        screen.getByTestId("room-roster-section-humans"),
+      ).toHaveTextContent("People2");
+      expect(
+        screen.getByTestId("room-roster-section-agents"),
+      ).toHaveTextContent("Coworkers1");
+    });
+
+    it("gathers the never-read under one subheading instead of per row", () => {
+      render(
+        <OrganizationSeatProvider hasAssignedSeat={true}>
+          <RoomRosterPanel
+            participants={[humanAda, humanSelf, coworkerHannah]}
+            currentUserId="user-self"
+            canOpenHumanDirect
+            onOpenDirect={vi.fn()}
+            openingDirectKey={null}
+            onClose={vi.fn()}
+            readStateFor={(id) =>
+              id === "user-ada" ? { kind: "unread" } : null
+            }
+            labels={labels}
+          />
+        </OrganizationSeatProvider>,
+      );
+
+      expect(
+        screen.getByTestId("room-roster-subsection-never-read"),
+      ).toHaveTextContent("Not read yet");
+      // Said once by the heading, never again on the row.
+      expect(screen.queryByTestId("room-roster-read-state")).toBeNull();
+    });
+
+    it("leaves the subheading out when everyone has read", () => {
+      render(
+        <OrganizationSeatProvider hasAssignedSeat={true}>
+          <RoomRosterPanel
+            participants={[humanAda, humanSelf, coworkerHannah]}
+            currentUserId="user-self"
+            canOpenHumanDirect
+            onOpenDirect={vi.fn()}
+            openingDirectKey={null}
+            onClose={vi.fn()}
+            readStateFor={(id) =>
+              id === "user-ada"
+                ? { kind: "read", lastReadAt: new Date("2026-01-01T10:00:00Z") }
+                : null
+            }
+            labels={labels}
+          />
+        </OrganizationSeatProvider>,
+      );
+
+      expect(
+        screen.queryByTestId("room-roster-subsection-never-read"),
+      ).toBeNull();
+    });
+
+    it("shows the viewer first", () => {
+      renderRoster([humanAda, humanSelf, coworkerHannah]);
+
+      const names = screen
+        .getAllByTestId("room-roster-member")
+        .map((row) => row.innerText || row.textContent?.split("\n")[0]);
+
+      expect(names[0]).toContain("Me");
+    });
   });
 });
