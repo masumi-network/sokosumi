@@ -232,9 +232,7 @@ describe("developer coworker actions", () => {
     const { CommonErrorCode } = await import(
       "@/lib/actions/errors/error-codes/common"
     );
-    const { COWORKER_IMAGE_MAX_SIZE_BYTES } = await import(
-      "@/lib/constants/coworker-image"
-    );
+    const { COWORKER_IMAGE_MAX_SIZE_BYTES } = await import("@sokosumi/utils");
 
     const oversizedImage = new File(
       [new Uint8Array(COWORKER_IMAGE_MAX_SIZE_BYTES + 1)],
