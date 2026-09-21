@@ -97,6 +97,19 @@ struct DirectStreamSessionTests {
     #expect(session.errorMessage == nil)
   }
 
+  @Test func sendUsesInjectedTurnIdAndNow() async throws {
+    let now = Date(timeIntervalSince1970: 1_788_868_800)
+    let session = DirectStreamSession(now: { now }, makeId: { "turn-fixed" })
+    session.reset(room: room())
+    let client = try makeTestClient(TestTransport([(200, completedStream)]))
+    #expect(session.send("Hello", client: client, organizationSlug: nil, settled: { false }, failed: { Issue.record($0) }))
+    #expect(session.overlayMessages.map(\.id) == ["stream:turn-fixed"])
+    #expect(session.overlayMessages.first?.createdAt == now)
+    await session.task?.value
+    #expect(session.overlayMessages.map(\.id) == ["stream:turn-fixed", "stream:answer"])
+    #expect(session.overlayMessages.map(\.createdAt) == [now, now])
+  }
+
   @Test func threadStreamRoutesBothOverlaysAndSharesRoomSendLock() async throws {
     let session = DirectStreamSession()
     session.reset(room: room())

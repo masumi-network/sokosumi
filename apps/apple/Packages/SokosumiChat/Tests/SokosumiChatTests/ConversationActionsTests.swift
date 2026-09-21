@@ -247,6 +247,23 @@ struct ConversationActionsTests {
     #expect(muted.partitioned.channels.map(\.id) == [peerRoomId, testRoomId])
   }
 
+  @Test func optimisticPinUsesInjectedNow() async throws {
+    let state = try await sidebar()
+    let now = Date(timeIntervalSince1970: 1_788_868_800)
+    let token = try #require(UUID(uuidString: "550e8400-e29b-41d4-a716-446655440999"))
+    let transport = PausedSidebarTransport()
+    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+    let task = Task {
+      try await state.perform(
+        .pin, roomId: testRoomId, client: client, organizationSlug: nil, now: now, makeId: { token }
+      )
+    }
+    await transport.waitForRequest()
+    #expect(state.rooms[0].starredAt == now)
+    await transport.release()
+    try await task.value
+  }
+
   @Test func actionSettlementDoesNotEndWorkspaceSwitchLoading() async throws {
     let state = try await sidebar()
     let transport = PausedSidebarTransport()
