@@ -110,6 +110,11 @@ function mention(overrides: Partial<Notification> = {}): Notification {
     inApp: true,
     emailId: null,
     emailScheduledAt: null,
+    publishId: null,
+    publishPush: null,
+    publishCreated: null,
+    publishQueuedAt: null,
+    publishNextAttemptAt: null,
     ...overrides,
   };
 }
