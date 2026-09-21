@@ -22,7 +22,7 @@ function ids(rows: { id: string }[]): string[] {
 
 describe("orderSidebarProjects", () => {
   it("falls back to activity order when the reader has no pins or history", () => {
-    const rows = orderSidebarProjects({
+    const { rows } = orderSidebarProjects({
       projects,
       pinnedIds: [],
       visitedIds: [],
@@ -32,7 +32,7 @@ describe("orderSidebarProjects", () => {
   });
 
   it("never renders more than the cap without pins", () => {
-    const rows = orderSidebarProjects({
+    const { rows } = orderSidebarProjects({
       projects,
       pinnedIds: [],
       visitedIds: [],
@@ -42,7 +42,7 @@ describe("orderSidebarProjects", () => {
   });
 
   it("puts last-visited ahead of activity order", () => {
-    const rows = orderSidebarProjects({
+    const { rows } = orderSidebarProjects({
       projects,
       pinnedIds: [],
       visitedIds: ["g", "f"],
@@ -52,7 +52,7 @@ describe("orderSidebarProjects", () => {
   });
 
   it("puts pins first, in the reader's order", () => {
-    const rows = orderSidebarProjects({
+    const { rows } = orderSidebarProjects({
       projects,
       pinnedIds: ["f", "b"],
       visitedIds: ["g"],
@@ -62,7 +62,7 @@ describe("orderSidebarProjects", () => {
   });
 
   it("lets pins claim slots rather than add rows", () => {
-    const rows = orderSidebarProjects({
+    const { rows } = orderSidebarProjects({
       projects,
       pinnedIds: ["g", "f", "e", "d", "c"],
       visitedIds: ["a", "b"],
@@ -71,18 +71,41 @@ describe("orderSidebarProjects", () => {
     expect(ids(rows)).toEqual(["g", "f", "e", "d", "c"]);
   });
 
-  it("still renders every pin past the cap", () => {
-    const rows = orderSidebarProjects({
+  it("caps pins too, so the popover is always the same height", () => {
+    const { rows } = orderSidebarProjects({
       projects,
       pinnedIds: ["g", "f", "e", "d", "c", "b"],
       visitedIds: ["a"],
     });
 
-    expect(ids(rows)).toEqual(["g", "f", "e", "d", "c", "b"]);
+    // The chat sidebar renders every pin; this list cannot, because a popover
+    // has no scrollbar of its own to lean on. `All projects` reaches "b".
+    expect(ids(rows)).toEqual(["g", "f", "e", "d", "c"]);
+  });
+
+  it("reports how long the pinned run is, so the panel can divide it", () => {
+    const { rows, pinnedCount } = orderSidebarProjects({
+      projects,
+      pinnedIds: ["g", "f"],
+      visitedIds: ["a"],
+    });
+
+    expect(pinnedCount).toBe(2);
+    expect(ids(rows).slice(0, pinnedCount)).toEqual(["g", "f"]);
+  });
+
+  it("reports a zero pinned run when the reader has no pins", () => {
+    const { pinnedCount } = orderSidebarProjects({
+      projects,
+      pinnedIds: [],
+      visitedIds: ["a"],
+    });
+
+    expect(pinnedCount).toBe(0);
   });
 
   it("lists a pinned project once, not again under recents", () => {
-    const rows = orderSidebarProjects({
+    const { rows } = orderSidebarProjects({
       projects,
       pinnedIds: ["c"],
       visitedIds: ["c", "a"],
@@ -92,7 +115,7 @@ describe("orderSidebarProjects", () => {
   });
 
   it("keeps the recents budget when a pin is missing from this page", () => {
-    const rows = orderSidebarProjects({
+    const { rows } = orderSidebarProjects({
       projects,
       pinnedIds: ["gone"],
       visitedIds: ["g"],
@@ -102,7 +125,7 @@ describe("orderSidebarProjects", () => {
   });
 
   it("skips visited projects that are missing from this page", () => {
-    const rows = orderSidebarProjects({
+    const { rows } = orderSidebarProjects({
       projects,
       pinnedIds: [],
       visitedIds: ["gone", "g"],
@@ -112,7 +135,7 @@ describe("orderSidebarProjects", () => {
   });
 
   it("renders a workspace smaller than the cap in full", () => {
-    const rows = orderSidebarProjects({
+    const { rows } = orderSidebarProjects({
       projects: [{ id: "a" }, { id: "b" }],
       pinnedIds: [],
       visitedIds: [],
@@ -122,7 +145,7 @@ describe("orderSidebarProjects", () => {
   });
 
   it("returns nothing for an empty workspace", () => {
-    const rows = orderSidebarProjects({
+    const { rows } = orderSidebarProjects({
       projects: [],
       pinnedIds: ["a"],
       visitedIds: ["b"],

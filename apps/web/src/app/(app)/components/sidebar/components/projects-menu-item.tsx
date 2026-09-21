@@ -11,7 +11,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { loadMoreProjects } from "@/app/projects/actions";
+import { loadMoreProjects, loadPinnedProjects } from "@/app/projects/actions";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -74,9 +74,16 @@ interface ProjectsNavigationProps {
   scope: RecentProjectsScope | null;
 }
 
-type SidebarProject = Awaited<
-  ReturnType<typeof loadMoreProjects>
->["projects"][number];
+/**
+ * All the flyout draws. Narrowed on purpose: Pinned rows arrive as
+ * `StarredProject` and the rest as `ProjectListItem`, and the panel has no
+ * business knowing which of the two a row came from.
+ */
+interface SidebarProject {
+  id: string;
+  name: string;
+  logo: string | null;
+}
 
 /**
  * The reader's flyout rows, fetched as soon as the sidebar mounts rather than
@@ -88,6 +95,25 @@ type SidebarProject = Awaited<
  */
 function useSidebarProjects(scope: ProjectsNavigationProps["scope"]) {
   const visitedIds = useRecentProjectIds(scope);
+  // Fetched apart from the activity page, and this is the whole reason the
+  // starred endpoint exists: a Pinned project is usually a quiet one, so it
+  // is regularly absent from page one and would silently vanish from the
+  // panel if we only looked there (ADR-0036).
+  const pinned = useQuery({
+    queryKey: [
+      "sidebar-pinned-projects",
+      scope?.userId ?? null,
+      scope?.organizationId ?? null,
+    ],
+    queryFn: () => {
+      if (!scope) throw new Error("No workspace scope");
+      return loadPinnedProjects({ expectedScope: scope });
+    },
+    enabled: scope != null,
+    retry: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
   const { data, isPending, isError, refetch } = useQuery({
     queryKey: [
       "sidebar-project-page",
@@ -106,11 +132,14 @@ function useSidebarProjects(scope: ProjectsNavigationProps["scope"]) {
     refetchOnReconnect: false,
   });
 
-  const rows = orderSidebarProjects({
-    projects: data?.projects ?? [],
-    // Pins arrive with the Core pin routes; the rule they plug into is already
-    // covered in `order-sidebar-projects.test.ts`.
-    pinnedIds: [],
+  const pinnedProjects = pinned.data ?? [];
+  const { rows, pinnedCount } = orderSidebarProjects<SidebarProject>({
+    // Pinned first, so a Pin outside the activity page is still resolvable.
+    // `byId` dedupes, and the activity backfill skips whatever is taken.
+    projects: [...pinnedProjects, ...(data?.projects ?? [])].map(
+      ({ id, name, logo }) => ({ id, name, logo }),
+    ),
+    pinnedIds: pinnedProjects.map((project) => project.id),
     visitedIds,
   });
 
@@ -118,7 +147,10 @@ function useSidebarProjects(scope: ProjectsNavigationProps["scope"]) {
   // flyout should show for it.
   return {
     rows,
-    isPending: isPending || scope == null,
+    pinnedCount,
+    // A Pin list still in flight must not paint an unpinned panel that
+    // reshuffles a moment later.
+    isPending: isPending || pinned.isPending || scope == null,
     isError,
     refetch,
   };
@@ -128,7 +160,8 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
   const { isMobile, setOpenMobile } = useSidebar();
-  const { rows, isPending, isError, refetch } = useSidebarProjects(scope);
+  const { rows, pinnedCount, isPending, isError, refetch } =
+    useSidebarProjects(scope);
   const active = pathname === "/projects" || pathname.startsWith("/projects/");
   const [open, setOpen] = useState(false);
   const headingId = useId();
@@ -293,7 +326,11 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
                 </Button>
               </div>
             ) : (
-              <ProjectLinks rows={rows} onNavigate={handleNavigate} />
+              <ProjectLinks
+                rows={rows}
+                pinnedCount={pinnedCount}
+                onNavigate={handleNavigate}
+              />
             )}
             {/* A way out of the panel without aiming back at the row behind
                 it. No avatar: the placeholder square only read as a project
@@ -346,20 +383,30 @@ function ProjectLinksSkeleton({ label }: { label: string }) {
 
 function ProjectLinks({
   rows,
+  pinnedCount,
   onNavigate,
 }: {
   rows: SidebarProject[];
+  pinnedCount: number;
   onNavigate: () => void;
 }) {
   const pathname = usePathname();
 
   return (
     <SidebarMenuSub className="mx-0 translate-x-0 gap-0 border-l-0 p-0">
-      {rows.map((project) => {
+      {rows.map((project, index) => {
         const href = `/projects/${encodeURIComponent(project.id)}`;
         const selected = pathname === href || pathname.startsWith(`${href}/`);
+        // A hairline rather than two headings: with five rows in total,
+        // headings cost more height than the grouping is worth, and a panel
+        // whose sections appear and vanish reads as less stable, not more.
+        const endsPinnedRun =
+          pinnedCount > 0 && index === pinnedCount && rows.length > pinnedCount;
         return (
           <SidebarMenuSubItem key={project.id}>
+            {endsPinnedRun ? (
+              <div aria-hidden className="bg-border mx-2 my-1 h-px" />
+            ) : null}
             <SidebarMenuSubButton
               asChild
               isActive={selected}

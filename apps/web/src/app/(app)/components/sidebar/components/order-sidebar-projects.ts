@@ -1,14 +1,19 @@
 /**
  * Ordering rule for the rows in the sidebar's Projects flyout.
  *
- * Pins claim slots, they do not add rows: every pinned project renders in the
+ * Pins claim slots, they do not add rows: pinned projects render in the
  * reader's own order, and last-visited projects fill whatever is left up to
  * {@link SIDEBAR_PROJECT_ROW_CAP}. Pin the cap's worth and no recents show.
  * A pinned project never lists twice, matching the Pinned rule the chat
  * sidebar already uses (`partition-rooms-for-sidebar.ts`).
  *
- * Returns the rows to render; the panel's `All projects` footer is what
- * reaches the projects the cap leaves out.
+ * Unlike that sidebar, the cap binds pins too: this list lives in a popover,
+ * which cannot lean on the sidebar's scrollbar, so the panel is always the
+ * same height and `All projects` reaches the rest (ADR-0036).
+ *
+ * Returns the rows to render plus `pinnedCount`, the length of the leading
+ * pinned run — the panel draws its divider there. The `All projects` footer
+ * is what reaches the projects the cap leaves out.
  *
  * Pure — no storage, no fetching.
  */
@@ -33,7 +38,7 @@ export function orderSidebarProjects<T extends Identified>({
   /** Project ids the reader opened, newest first. */
   visitedIds: readonly string[];
   cap?: number;
-}): T[] {
+}): { rows: T[]; pinnedCount: number } {
   const byId = new Map(projects.map((project) => [project.id, project]));
 
   const rows: T[] = [];
@@ -47,11 +52,12 @@ export function orderSidebarProjects<T extends Identified>({
     return true;
   }
 
-  // Pins always render, even past the cap: the reader placed them by hand.
   // Count what actually landed — a pin can point at a project this page does
-  // not carry — so the recents budget below stays right.
+  // not carry — so the recents budget below stays right, and stop at the cap
+  // so a reader with twenty pins still gets a panel the size of the others.
   let pinnedRows = 0;
   for (const id of pinnedIds) {
+    if (pinnedRows >= cap) break;
     if (take(id)) pinnedRows += 1;
   }
 
@@ -70,5 +76,5 @@ export function orderSidebarProjects<T extends Identified>({
     if (take(project.id)) recentRows += 1;
   }
 
-  return rows;
+  return { rows, pinnedCount: pinnedRows };
 }

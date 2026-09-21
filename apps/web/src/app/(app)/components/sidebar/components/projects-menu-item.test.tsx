@@ -17,6 +17,7 @@ import {
 
 const mocks = vi.hoisted(() => ({
   load: vi.fn(),
+  loadPinned: vi.fn(),
   pathname: "/projects/project-1/tasks",
   organizationId: "org-1" as string | null,
   userId: "user-1",
@@ -37,7 +38,10 @@ vi.mock("@/lib/auth/auth.client", () => ({
     isRefetching: mocks.refetching,
   }),
 }));
-vi.mock("@/app/projects/actions", () => ({ loadMoreProjects: mocks.load }));
+vi.mock("@/app/projects/actions", () => ({
+  loadMoreProjects: mocks.load,
+  loadPinnedProjects: mocks.loadPinned,
+}));
 vi.mock("next/link", () => ({
   default: ({
     prefetch: _prefetch,
@@ -121,6 +125,7 @@ beforeEach(() => {
     projects: [{ id: "project-1", name: "Launch plan" }],
     nextCursor: null,
   });
+  mocks.loadPinned.mockResolvedValue([]);
 });
 
 describe("Projects sidebar", () => {
@@ -551,3 +556,69 @@ it.each([en, de, es])(
     }
   },
 );
+
+describe("ProjectsMenuItem pinned rows", () => {
+  it("shows a Pinned project the activity page does not carry", async () => {
+    // The case the starred endpoint exists for: a quiet project the reader
+    // Pinned, which has long since fallen off page one.
+    mocks.load.mockResolvedValue({
+      projects: [{ id: "project-1", name: "Launch plan" }],
+      nextCursor: null,
+    });
+    mocks.loadPinned.mockResolvedValue([
+      { id: "dormant", name: "Archive cleanup", logo: null },
+    ]);
+
+    setup();
+    openFlyout();
+
+    await waitFor(() => {
+      expect(projectHrefs()).toEqual([
+        "/projects/dormant",
+        "/projects/project-1",
+      ]);
+    });
+  });
+
+  it("draws Pins before recents and divides the two", async () => {
+    mocks.load.mockResolvedValue({
+      projects: [
+        { id: "recent-1", name: "Recent one" },
+        { id: "recent-2", name: "Recent two" },
+      ],
+      nextCursor: null,
+    });
+    mocks.loadPinned.mockResolvedValue([
+      { id: "pin-1", name: "Pinned one", logo: null },
+    ]);
+
+    setup();
+    openFlyout();
+
+    await waitFor(() => {
+      expect(projectHrefs()).toEqual([
+        "/projects/pin-1",
+        "/projects/recent-1",
+        "/projects/recent-2",
+      ]);
+    });
+    // The panel is portalled, so this counts in the document, not `container`.
+    expect(
+      document.querySelectorAll('[aria-hidden="true"].bg-border'),
+    ).toHaveLength(1);
+  });
+
+  it("draws no divider when the reader has no Pins", async () => {
+    mocks.loadPinned.mockResolvedValue([]);
+
+    setup();
+    openFlyout();
+
+    await waitFor(() => {
+      expect(projectHrefs()).toEqual(["/projects/project-1"]);
+    });
+    expect(
+      document.querySelectorAll('[aria-hidden="true"].bg-border'),
+    ).toHaveLength(0);
+  });
+});
