@@ -203,5 +203,49 @@
       ]
     },
     "incomingSenderId": "peer"
+  },
+  {
+    "name": "room drops a deleted message from display",
+    "event": "delete",
+    "shells": [],
+    "messageIds": [
+      "kept",
+      "server-1"
+    ],
+    "parent": null,
+    "incomingParent": null,
+    "expected": {
+      "messageIds": [
+        "kept",
+        "server-1"
+      ],
+      "shells": [],
+      "displayIds": [
+        "kept"
+      ]
+    },
+    "incomingSenderId": "peer"
+  },
+  {
+    "name": "thread drops a deleted reply from display",
+    "event": "delete",
+    "shells": [],
+    "messageIds": [
+      "kept",
+      "server-1"
+    ],
+    "parent": "root",
+    "incomingParent": "root",
+    "expected": {
+      "messageIds": [
+        "kept",
+        "server-1"
+      ],
+      "shells": [],
+      "displayIds": [
+        "kept"
+      ]
+    },
+    "incomingSenderId": "peer"
   }
 ]
