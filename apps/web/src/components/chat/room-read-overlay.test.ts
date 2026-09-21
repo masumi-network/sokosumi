@@ -15,6 +15,8 @@ function room(overrides: {
   id?: string;
   updatedAt?: string;
   unreadCount?: number;
+  channelUnreadCount?: number;
+  threadUnreadCount?: number;
   unreadMentionCount?: number;
   markedUnread?: boolean;
 }) {
@@ -22,6 +24,8 @@ function room(overrides: {
     id: overrides.id ?? "room-1",
     updatedAt: overrides.updatedAt ?? "2026-08-01T12:00:00.000Z",
     unreadCount: overrides.unreadCount ?? 0,
+    channelUnreadCount: overrides.channelUnreadCount,
+    threadUnreadCount: overrides.threadUnreadCount,
     unreadMentionCount: overrides.unreadMentionCount ?? 0,
     markedUnread: overrides.markedUnread ?? false,
   };
@@ -94,6 +98,24 @@ describe("stalled attention changes", () => {
 });
 
 describe("room-read-overlay", () => {
+  // ADR-0037: bold follows the channel half. A remount that kept the stale
+  // half would re-bold a room the reader has just read.
+  it("clears the channel half on remount and keeps the thread half", () => {
+    rememberRoomRead(
+      room({ unreadCount: 3, channelUnreadCount: 0, threadUnreadCount: 3 }),
+    );
+
+    const remounted = applyRoomReadOverlays([
+      room({ unreadCount: 7, channelUnreadCount: 4, threadUnreadCount: 3 }),
+    ]);
+
+    expect(remounted[0]).toMatchObject({
+      unreadCount: 3,
+      channelUnreadCount: 0,
+      threadUnreadCount: 3,
+    });
+  });
+
   it("keeps a room cleared after remount with stale unread props (mobile sheet)", () => {
     // Mark-read succeeded while the sheet (and list) was unmounted.
     rememberRoomRead(

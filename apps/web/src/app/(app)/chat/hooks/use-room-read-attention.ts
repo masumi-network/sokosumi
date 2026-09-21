@@ -8,6 +8,7 @@ import {
   sameRoomReadAttention,
 } from "@/app/chat/utils/room-read-attention";
 import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
+import { roomAttentionAfterRead } from "@/components/chat/room-attention";
 import {
   applyRoomReadOverlays,
   beginRoomAttentionChange,
@@ -68,9 +69,7 @@ export function useRoomReadAttention(options: RoomReadAttentionOptions) {
       const pendingRoom = optimistic
         ? {
             ...previousRoom,
-            unreadCount: 0,
-            unreadMentionCount: 0,
-            markedUnread: false,
+            ...roomAttentionAfterRead(previousRoom),
           }
         : previousRoom;
       const token = beginRoomAttentionChange(pendingRoom, current.room);
