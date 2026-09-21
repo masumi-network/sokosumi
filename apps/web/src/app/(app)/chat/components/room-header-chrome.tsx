@@ -8,7 +8,6 @@ import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-r
 import { ChannelDiscoverabilityIcon } from "@/components/chat/channel-discoverability-icon";
 import { DirectRoomAvatarStack } from "@/components/chat/direct-room-avatar-stack";
 import { LiveMemberPresenceDot } from "@/components/chat/live-member-presence-dot";
-import { ReadReceiptAvatarStack } from "@/components/chat/read-receipt-avatar-stack";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type {
   ChatRoom,
@@ -19,6 +18,7 @@ import type {
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 import { EditChannelDialog } from "./edit-channel-dialog";
+import { orderRosterByReadRecency } from "./order-roster-by-read-recency";
 import { PinnedMessagesHeaderButton } from "./pinned-messages-panel";
 import { getRoomParticipantPreviews } from "./room-helpers";
 import { ROOM_ROSTER_PANEL_ID } from "./room-roster-panel";
@@ -29,13 +29,24 @@ function RoomParticipantStack({
   room,
   rosterOpen,
   onToggleRoster,
+  readReceipts,
 }: {
   room: ChatRoom;
   rosterOpen: boolean;
   onToggleRoster: () => void;
+  readReceipts: RoomReadReceipts;
 }) {
   const t = useTranslations("App.Channels");
-  const participants = getRoomParticipantPreviews(room);
+  // One stack, two facts. It is the roster — everyone, the viewer and the
+  // machines included — but ordered most-recent-read first, so the faces that
+  // fit are the freshest readers and the panel it opens names the rest with
+  // their read times. Read state is deliberately not a second badge on the
+  // face: presence already owns that corner, and two marks on a 24px circle
+  // is mush.
+  const participants = orderRosterByReadRecency(
+    getRoomParticipantPreviews(room),
+    readReceipts,
+  );
   const visibleParticipants = participants.slice(0, 4);
   const remainingCount = participants.length - visibleParticipants.length;
 
@@ -270,17 +281,12 @@ export function RoomHeaderChrome({
             }}
           />
         </div>
-        {showParticipants ? (
-          <ReadReceiptAvatarStack
-            readers={readReceipts.readers}
-            nonReaders={readReceipts.nonReaders}
-          />
-        ) : null}
         {showParticipants && shouldShowRoomRosterControl(room) ? (
           <RoomParticipantStack
             room={room}
             rosterOpen={rosterOpen}
             onToggleRoster={onToggleRoster}
+            readReceipts={readReceipts}
           />
         ) : null}
       </div>

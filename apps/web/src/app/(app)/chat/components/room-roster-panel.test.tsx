@@ -1,6 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { RoomMemberReadState } from "@/app/chat/hooks/use-room-read-receipts";
 import { OrganizationSeatProvider } from "@/contexts/organization-seat-context";
 
 import type { ChatParticipantHoverProfile } from "./room-helpers";
@@ -17,6 +18,9 @@ vi.mock("next-intl", () => ({
     };
     return labels[key] ?? key;
   },
+  useFormatter: () => ({
+    relativeTime: (date: Date) => date.toISOString(),
+  }),
 }));
 
 vi.mock("@/hooks/use-clipboard", () => ({
@@ -32,7 +36,12 @@ const labels = {
   copy: (value: string) => `Copy ${value}`,
   copySuccess: "Copied to clipboard",
   copyError: "Could not copy.",
+  readAt: (time: string) => `Read ${time}`,
+  notRead: "Not read yet",
 };
+
+/** Default: the panel says nothing about reading. */
+const noReadState = () => null;
 
 const FOCUS_RING = "focus-visible:ring-2";
 
@@ -80,6 +89,7 @@ describe("RoomRosterPanel", () => {
           onOpenDirect={vi.fn()}
           openingDirectKey={null}
           onClose={vi.fn()}
+          readStateFor={noReadState}
           labels={labels}
         />
       </OrganizationSeatProvider>,
@@ -114,6 +124,7 @@ describe("RoomRosterPanel", () => {
           onOpenDirect={vi.fn()}
           openingDirectKey={null}
           onClose={onClose}
+          readStateFor={noReadState}
           labels={labels}
         />
       </OrganizationSeatProvider>,
@@ -146,6 +157,7 @@ describe("RoomRosterPanel", () => {
           onOpenDirect={onOpenDirect}
           openingDirectKey={null}
           onClose={vi.fn()}
+          readStateFor={noReadState}
           labels={labels}
         />
       </OrganizationSeatProvider>,
@@ -205,6 +217,7 @@ describe("RoomRosterPanel", () => {
           onOpenDirect={vi.fn()}
           openingDirectKey={null}
           onClose={vi.fn()}
+          readStateFor={noReadState}
           labels={labels}
         />
       </OrganizationSeatProvider>,
@@ -224,6 +237,7 @@ describe("RoomRosterPanel", () => {
           onOpenDirect={vi.fn()}
           openingDirectKey={null}
           onClose={vi.fn()}
+          readStateFor={noReadState}
           labels={labels}
         />
       </OrganizationSeatProvider>,
@@ -244,6 +258,7 @@ describe("RoomRosterPanel", () => {
           onOpenDirect={onOpenDirect}
           openingDirectKey={null}
           onClose={vi.fn()}
+          readStateFor={noReadState}
           labels={labels}
         />
       </OrganizationSeatProvider>,
@@ -279,5 +294,64 @@ describe("RoomRosterPanel", () => {
       "me@example.com",
       copyMessages,
     );
+  });
+
+  describe("Seen by", () => {
+    const READ_AT = new Date("2026-01-01T10:00:00.000Z");
+
+    function renderPanel(
+      readStateFor: (userId: string) => RoomMemberReadState | null,
+    ) {
+      return render(
+        <OrganizationSeatProvider hasAssignedSeat={true}>
+          <RoomRosterPanel
+            participants={[humanAda, humanSelf, coworkerHannah]}
+            currentUserId="user-self"
+            canOpenHumanDirect
+            onOpenDirect={vi.fn()}
+            openingDirectKey={null}
+            onClose={vi.fn()}
+            readStateFor={readStateFor}
+            labels={labels}
+          />
+        </OrganizationSeatProvider>,
+      );
+    }
+
+    it("tells each member when they last read the room", () => {
+      renderPanel((userId) =>
+        userId === "user-ada" ? { kind: "read", lastReadAt: READ_AT } : null,
+      );
+
+      expect(
+        screen.getByText(`Read ${READ_AT.toISOString()}`),
+      ).toBeInTheDocument();
+    });
+
+    it("names a member who has never opened the room", () => {
+      renderPanel((userId) =>
+        userId === "user-ada" ? { kind: "unread" } : null,
+      );
+
+      expect(screen.getByText("Not read yet")).toBeInTheDocument();
+    });
+
+    /**
+     * A Coworker does not read, so no read state is invented for one — the row
+     * must be silent rather than claim the machine has not read.
+     */
+    it("asks nothing about a coworker", () => {
+      const readStateFor = vi.fn(() => null);
+      renderPanel(readStateFor);
+
+      expect(readStateFor).not.toHaveBeenCalledWith("coworker-1");
+      expect(screen.queryByTestId("room-roster-read-state")).toBeNull();
+    });
+
+    it("stays silent for every member when the receipts say nothing", () => {
+      renderPanel(noReadState);
+
+      expect(screen.queryByTestId("room-roster-read-state")).toBeNull();
+    });
   });
 });

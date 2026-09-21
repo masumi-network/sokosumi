@@ -133,7 +133,7 @@ import {
   subscribeMembershipVisibleRooms,
 } from "@/components/chat/membership-visible-rooms-store";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
-import { readReceiptFacesWidth } from "@/components/chat/read-receipt-avatar-stack";
+import { readReceiptFacesWidth } from "@/components/chat/read-receipt-faces";
 import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
 import { useShowRoomUnreadCount } from "@/components/chat/use-show-room-unread-count";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
@@ -3158,6 +3158,7 @@ export function RoomsClient({
               <RoomRosterPanel
                 participants={getRoomParticipantPreviews(selectedRoom)}
                 currentUserId={currentUserId}
+                readStateFor={readReceipts.readStateFor}
                 canOpenHumanDirect={canOpenHumanDirect}
                 onOpenDirect={stableMessageHandlers.onOpenDirectMessage}
                 openingDirectKey={openingDirectKey}
@@ -3167,6 +3168,8 @@ export function RoomsClient({
                 labels={{
                   title: t("RoomRoster.title"),
                   close: t("RoomRoster.close"),
+                  readAt: (time) => t("SeenBy.readAt", { time }),
+                  notRead: t("SeenBy.notRead"),
                   empty: t("RoomRoster.empty"),
                   coworkerBadge: t("coworkerBadge"),
                   personalAssistantBadge: t("personalAssistantBadge"),

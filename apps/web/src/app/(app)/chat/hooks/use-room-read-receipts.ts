@@ -28,12 +28,27 @@ export interface RoomReadReceipts {
    * faces the transcript shows under a message.
    */
   readersAsOf: (at: Date | string) => readonly RoomReader[];
+  /**
+   * What one roster row should say about a member.
+   *
+   * Null where the question does not apply and the row must stay silent: the
+   * viewer themselves (posting advances their own mark, so it would say
+   * nothing they do not know), anyone off the human roster — a Coworker or a
+   * Soko Bot has no read state and none is invented for them — and every
+   * member when the viewer is a guest.
+   */
+  readStateFor: (userId: string) => RoomMemberReadState | null;
 }
+
+export type RoomMemberReadState =
+  | { kind: "read"; lastReadAt: Date }
+  | { kind: "unread" };
 
 const NO_READERS: RoomReadReceipts = {
   readers: [],
   nonReaders: [],
   readersAsOf: () => [],
+  readStateFor: () => null,
 };
 
 function toTime(value: Date | string): number {
@@ -132,9 +147,27 @@ export function useRoomReadReceipts({
 
     readers.sort((a, b) => b.lastReadAt.getTime() - a.lastReadAt.getTime());
 
+    // A guest is told nothing either way. Everyone lands in `nonReaders` for
+    // them, which is what empties the stack — but "not read yet" about a host
+    // member is still a read time, so the rows must stay silent rather than
+    // report the whole room unread.
+    const readStateByUserId = new Map<string, RoomMemberReadState>();
+    if (!isGuestViewer) {
+      for (const reader of readers) {
+        readStateByUserId.set(reader.participant.id, {
+          kind: "read",
+          lastReadAt: reader.lastReadAt,
+        });
+      }
+      for (const participant of nonReaders) {
+        readStateByUserId.set(participant.id, { kind: "unread" });
+      }
+    }
+
     return {
       readers,
       nonReaders,
+      readStateFor: (userId) => readStateByUserId.get(userId) ?? null,
       readersAsOf: (at) => {
         const moment = toTime(at);
         if (Number.isNaN(moment)) {

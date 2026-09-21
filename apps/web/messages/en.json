@@ -5605,10 +5605,8 @@
       },
       "SeenBy": {
         "summary": "{count, plural, one {Seen by # person} other {Seen by # people}}",
-        "open": "See who has read this",
-        "title": "Seen by",
         "readAt": "Read {time}",
-        "notReadTitle": "Not read yet"
+        "notRead": "Not read yet"
       },
       "UnreadThreads": {
         "open": "Threads",

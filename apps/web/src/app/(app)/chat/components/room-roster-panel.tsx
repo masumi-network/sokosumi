@@ -1,6 +1,8 @@
 "use client";
 
 import { Loader2, MessageCircle, X } from "lucide-react";
+import { useFormatter } from "next-intl";
+import type { RoomMemberReadState } from "@/app/chat/hooks/use-room-read-receipts";
 import { AuroraOrb } from "@/components/aurora-orb";
 import {
   LiveMemberPresenceDot,
@@ -11,17 +13,21 @@ import { Button } from "@/components/ui/button";
 import { copyTextWithToast } from "@/hooks/use-clipboard";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
-
 import {
   canShowOpenDirect,
   participantDirectKey,
 } from "./open-direct-with-participant";
+
 import type { ChatParticipantHoverProfile } from "./room-helpers";
 
 export const ROOM_ROSTER_PANEL_ID = "room-roster-panel";
 
 export interface RoomRosterPanelLabels {
   title: string;
+  /** "Read 2 minutes ago" for a member whose Room last-read is known. */
+  readAt: (time: string) => string;
+  /** For a member on the roster who has never opened the room. */
+  notRead: string;
   close: string;
   empty: string;
   coworkerBadge: string;
@@ -87,12 +93,41 @@ function RosterMemberAvatar({
   );
 }
 
+/**
+ * Its own column rather than a third line: the name and the email already
+ * stack in the row, and growing it for one member leaves the roster ragged.
+ *
+ * Its own component so a row without a mark never reaches for a formatter —
+ * the read time is the only thing here that needs one.
+ */
+function RosterMemberReadState({
+  readState,
+  labels,
+}: {
+  readState: RoomMemberReadState;
+  labels: RoomRosterPanelLabels;
+}) {
+  const format = useFormatter();
+
+  return (
+    <span
+      className="text-muted-foreground shrink-0 text-xs"
+      data-testid="room-roster-read-state"
+    >
+      {readState.kind === "read"
+        ? labels.readAt(format.relativeTime(readState.lastReadAt))
+        : labels.notRead}
+    </span>
+  );
+}
+
 function RosterMemberRow({
   participant,
   canMessage,
   isOpening,
   isDirectActionBusy,
   onOpenDirect,
+  readState,
   labels,
 }: {
   participant: ChatParticipantHoverProfile;
@@ -100,6 +135,8 @@ function RosterMemberRow({
   isOpening: boolean;
   isDirectActionBusy: boolean;
   onOpenDirect: (profile: ChatParticipantHoverProfile) => void;
+  /** Seen by, per member. Null where the row says nothing about reading. */
+  readState: RoomMemberReadState | null;
   labels: RoomRosterPanelLabels;
 }) {
   const messageLabel = labels.message(participant.name);
@@ -206,6 +243,9 @@ function RosterMemberRow({
           </button>
         ) : null}
       </div>
+      {readState ? (
+        <RosterMemberReadState readState={readState} labels={labels} />
+      ) : null}
       {canMessage ? (
         <button
           type="button"
@@ -229,6 +269,8 @@ interface RoomRosterPanelProps {
   onOpenDirect: (profile: ChatParticipantHoverProfile) => void;
   openingDirectKey: string | null;
   onClose: () => void;
+  /** Seen by: what a row should say about a member, or null for silence. */
+  readStateFor: (userId: string) => RoomMemberReadState | null;
   labels: RoomRosterPanelLabels;
 }
 
@@ -239,6 +281,7 @@ export function RoomRosterPanel({
   onOpenDirect,
   openingDirectKey,
   onClose,
+  readStateFor,
   labels,
 }: RoomRosterPanelProps) {
   return (
@@ -280,6 +323,11 @@ export function RoomRosterPanel({
               isOpening={openingDirectKey === participantDirectKey(participant)}
               isDirectActionBusy={openingDirectKey != null}
               onOpenDirect={onOpenDirect}
+              readState={
+                participant.kind === "human"
+                  ? readStateFor(participant.id)
+                  : null
+              }
               labels={labels}
             />
           ))

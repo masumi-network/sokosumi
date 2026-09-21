@@ -6,7 +6,7 @@ import type {
   RoomReader,
   RoomReadReceipts,
 } from "@/app/chat/hooks/use-room-read-receipts";
-import { ReadReceiptFaces } from "@/components/chat/read-receipt-avatar-stack";
+import { ReadReceiptFaces } from "@/components/chat/read-receipt-faces";
 
 /**
  * Which readers a message shows — the newest message in the transcript, and
