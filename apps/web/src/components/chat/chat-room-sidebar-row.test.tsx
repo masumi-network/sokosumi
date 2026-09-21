@@ -1698,30 +1698,20 @@ describe("ChatRoomSidebarRow unread message count", () => {
     renderRow(makeRoom({ unreadCount: 4 }));
 
     expect(screen.queryByText("4 unread messages")).toBeNull();
-    expect(screen.queryByText("· 4")).toBeNull();
+    expect(
+      document.querySelector('[data-slot="room-unread-count"]'),
+    ).toBeNull();
   });
 
   it("shows the unread message count when the reader opted in", () => {
     renderRow(makeRoom({ unreadCount: 4 }));
 
-    expect(screen.getByText("· 4")).toHaveAttribute("aria-hidden", "true");
+    expect(
+      document.querySelector('[data-slot="room-unread-count"]'),
+    ).toHaveTextContent("4");
     expect(screen.getByText("4 unread messages").className).toContain(
       "sr-only",
     );
-  });
-
-  // The count has no unbolded variant, so it has to match the name it sits
-  // beside rather than merely being bold on its own.
-  it("draws the count at the same unread weight as the room name", () => {
-    renderRow(makeRoom({ unreadCount: 4 }));
-
-    const count = screen.getByText("4 unread messages").parentElement;
-    const name = screen.getByText("general");
-
-    for (const className of [count?.className, name.className]) {
-      expect(className).toContain("font-semibold");
-      expect(className).toContain("text-foreground");
-    }
   });
 
   it("shows no count on a room with nothing unread", () => {
@@ -1740,39 +1730,72 @@ describe("ChatRoomSidebarRow unread message count", () => {
   // the bold name, the mention badge, and the count. It is pinned here rather
   // than in `room-attention.test.ts`, which no longer has an active flag to
   // pass.
-  it("keeps bold, badge, and count on the room the reader has open", () => {
+  it("keeps bold and the badge on the room the reader has open", () => {
     renderRow(makeRoom({ unreadCount: 4, unreadMentionCount: 2 }), true);
 
     expect(screen.getByText("general").className).toContain("font-semibold");
     expect(screen.getByText("2 mentions")).toBeInTheDocument();
+  });
+
+  // One number per row, so the count takes the badge's own slot: the same
+  // column, and the same crossfade with the row's menu. Muted, because it is
+  // the one number on the sidebar that is not about the reader.
+  it("draws the count in the badge's column, announced inside the link", () => {
+    renderRow(makeRoom({ unreadCount: 4 }));
+
+    const count = document.querySelector('[data-slot="room-unread-count"]');
+    expect(count).toHaveAttribute("aria-hidden");
+    expect(
+      document
+        .querySelector('[data-slot="room-trailing"]')
+        ?.contains(count as Node),
+    ).toBe(true);
+    expect(
+      document.querySelector('a[href="/chat/rooms/room-1"]'),
+    ).toHaveTextContent("4 unread messages");
+  });
+
+  it("keeps bold and the count on the room the reader has open", () => {
+    renderRow(makeRoom({ unreadCount: 4 }), true);
+
+    expect(screen.getByText("general").className).toContain("font-semibold");
     expect(screen.getByText("4 unread messages")).toBeInTheDocument();
   });
 
   it("caps a very loud room so the row cannot reflow", () => {
     renderRow(makeRoom({ unreadCount: 1234 }));
 
-    expect(screen.getByText("· 99+")).toHaveAttribute("aria-hidden", "true");
+    expect(
+      document.querySelector('[data-slot="room-unread-count"]'),
+    ).toHaveTextContent("99+");
     expect(screen.getByText("More than 99 unread messages")).toBeVisible();
   });
 
   // Collapsed to icons, the row is a 20px glyph with no room for either
   // number. Hiding both is the decided behaviour, not an oversight.
-  it("hides the count with the mention badge when the sidebar collapses", () => {
-    renderRow(makeRoom({ unreadCount: 4, unreadMentionCount: 2 }));
+  it("hides the count when the sidebar collapses", () => {
+    renderRow(makeRoom({ unreadCount: 4 }));
 
     // The count is a visible span wrapping its own announcement, so the rule
-    // sits on the parent there. The mention is announcement only.
+    // sits on the parent.
     expect(
       screen.getByText("4 unread messages").parentElement?.className,
     ).toContain("group-data-[collapsible=icon]:hidden");
+  });
+
+  it("hides the mention badge when the sidebar collapses", () => {
+    renderRow(makeRoom({ unreadCount: 4, unreadMentionCount: 2 }));
+
+    // The mention is announcement only.
     expect(screen.getByText("2 mentions").className).toContain(
       "group-data-[collapsible=icon]:hidden",
     );
   });
 
-  // The regression guard: a mention and unread messages on one row, each
-  // number saying its own thing. The badge must keep counting mentions.
-  it("shows a mention badge and a message count without either changing", () => {
+  // The regression guard: a mention and unread messages on one row. One
+  // number per row, so the badge stands alone, and it must keep counting
+  // mentions rather than turning into the message count it replaced.
+  it("shows the mention badge alone on a row that also has unread messages", () => {
     renderRow(makeRoom({ unreadCount: 9, unreadMentionCount: 2 }));
 
     expect(screen.getByText("2 mentions")).toBeInTheDocument();
@@ -1780,8 +1803,10 @@ describe("ChatRoomSidebarRow unread message count", () => {
       "data-slot",
       "room-mention-badge",
     );
-    expect(screen.getByText("9 unread messages")).toBeInTheDocument();
-    expect(screen.getByText("· 9")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.queryByText("9 unread messages")).toBeNull();
+    expect(
+      document.querySelector('[data-slot="room-unread-count"]'),
+    ).toBeNull();
   });
 
   // The badge announced a hardcoded English `aria-label` before SOK-1042, so a
@@ -1793,19 +1818,17 @@ describe("ChatRoomSidebarRow unread message count", () => {
     expect(screen.queryByLabelText(/mentions/)).toBeNull();
   });
 
-  // What is announced shares one ceiling. What is drawn does not: the mention
-  // badge carries an `@` in a 28px hole, so its number gives way at nine,
-  // while the message count beside it has the room for 99.
-  it("caps the drawn mention badge lower than the announced counts", () => {
+  // What is announced is exact up to 99. What is drawn is not: the mention
+  // badge carries an `@` in a 28px hole, so its number gives way at nine. The
+  // message count, which a row shows instead of a badge, has the room for 99.
+  it("caps the drawn mention badge lower than its announcement", () => {
     renderRow(makeRoom({ unreadCount: 1234, unreadMentionCount: 1234 }));
 
     expect(screen.getByText("9+").closest("[aria-hidden]")).toHaveAttribute(
       "data-slot",
       "room-mention-badge",
     );
-    expect(screen.getByText("· 99+")).toHaveAttribute("aria-hidden", "true");
     expect(screen.getByText("More than 99 mentions")).toBeInTheDocument();
-    expect(screen.getByText("More than 99 unread messages")).toBeVisible();
   });
 
   // The pure-function seam never receives the room kind, so it cannot prove

@@ -112,13 +112,22 @@ describe("ChatRoomSidebarRow against the English catalog", () => {
     expect(screen.getByText("Unread")).toBeInTheDocument();
   });
 
-  it("announces both numbers past the shared cap", () => {
-    renderRow(makeRoom({ unreadCount: 1234, unreadMentionCount: 1234 }));
+  // A row shows one number, so each cap is announced on its own row.
+  it("announces a message count past the cap", () => {
+    renderRow(makeRoom({ unreadCount: 1234 }));
 
     expect(
       screen.getByText("More than 99 unread messages"),
     ).toBeInTheDocument();
+    expect(
+      document.querySelector('[data-slot="room-unread-count"]'),
+    ).toHaveTextContent("99+");
+  });
+
+  it("announces a mention count past the cap", () => {
+    renderRow(makeRoom({ unreadCount: 1234, unreadMentionCount: 1234 }));
+
     expect(screen.getByText("More than 99 mentions")).toBeInTheDocument();
-    expect(screen.getByText("· 99+")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.queryByText("More than 99 unread messages")).toBeNull();
   });
 });

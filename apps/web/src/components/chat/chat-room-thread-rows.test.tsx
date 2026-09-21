@@ -98,6 +98,28 @@ describe("ChatRoomThreadRows", () => {
     expect(plain).not.toHaveAccessibleName(/mention/);
   });
 
+  // One number per row, as on the room rows above them. Both counts are still
+  // announced; only one is drawn.
+  it("draws one count per thread: the mention where there is one", () => {
+    renderRows({
+      unreadThreads: [
+        thread(3, { parentContent: "Pricing copy", unreadMentionCount: 1 }),
+        thread(2, { parentContent: "Release notes" }),
+      ],
+      unreadThreadCount: 2,
+    });
+
+    const tones = (name: RegExp) =>
+      [
+        ...screen
+          .getByRole("link", { name })
+          .querySelectorAll<HTMLElement>("[data-tone]"),
+      ].map((pill) => [pill.dataset.tone, pill.textContent]);
+
+    expect(tones(/Pricing copy/)).toEqual([["mention", "1"]]);
+    expect(tones(/Release notes/)).toEqual([["unread", "2"]]);
+  });
+
   it("opens the thread at its first unread reply", () => {
     renderRows({ unreadThreads: [thread(1)], unreadThreadCount: 1 });
 

@@ -86,17 +86,28 @@ describe("resolveRoomAttention", () => {
     ).toEqual({ bold: false, badgeCount: 0, unreadTextCount: 0 });
   });
 
-  // The regression guard for the mistake this design exists to avoid: the badge
-  // keeps counting mentions and the text keeps counting messages, and turning
-  // the setting on changes neither one's meaning.
-  it("reports a mention and a message count side by side, each unchanged", () => {
+  // One number per row. A row that holds something addressed to the reader
+  // shows that and nothing else: two numbers in two colours asked the reader
+  // to work out which was which, and the badge is the one that matters. The
+  // badge still counts mentions only, and bold still says there is more.
+  it("lets the badge stand alone when the reader opted in to counts", () => {
     expect(
       resolveRoomAttention({
         unreadCount: 9,
         unreadMentionCount: 2,
         showUnreadCount: true,
       }),
-    ).toEqual({ bold: true, badgeCount: 2, unreadTextCount: 9 });
+    ).toEqual({ bold: true, badgeCount: 2, unreadTextCount: 0 });
+  });
+
+  it("shows the message count when nothing is addressed to the reader", () => {
+    expect(
+      resolveRoomAttention({
+        unreadCount: 9,
+        unreadMentionCount: 0,
+        showUnreadCount: true,
+      }),
+    ).toEqual({ bold: true, badgeCount: 0, unreadTextCount: 9 });
   });
 
   it("keeps a hand-marked unread room bold with no count to show", () => {

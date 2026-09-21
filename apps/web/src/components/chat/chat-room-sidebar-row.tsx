@@ -148,24 +148,17 @@ export interface ChatRoomSidebarRowProps {
 }
 
 /**
- * The reader's opt-in Room unread count.
+ * The reader's opt-in Room unread count, as the link announces it.
  *
- * Text rather than a pill, because it is not the mention badge and a reader has
- * to tell the two apart at a glance. It caps like the badge so a very loud room
- * cannot reflow the row. Collapsed to icons the row is a 24px mark with space
- * for neither number, so count and badge both hide. That is decided, not an
+ * The number itself is drawn by `RoomRowCount`, in the trailing cluster,
+ * outside the link and `aria-hidden`. This span is what carries it into the
+ * link's accessible name beside the room name, the way `MentionAnnouncement`
+ * carries the badge. Collapsed to icons the row is a 24px mark with space for
+ * no number, so this hides with the drawn one. That is decided, not an
  * oversight.
  *
- * A middot opens the count, so the digits stop running on from the room name
- * they follow. Dot and digits carry the name's unread weight and colour,
- * because they are part of the same statement: this room has something for you.
- * `resolveRoomAttention` only ever reports a count above zero together with
- * `bold`, so there is no unbolded state to render and no prop to thread.
- * `room-attention.test.ts` pins that.
- *
- * `whitespace-nowrap` holds the middot and the digits together. The label is
- * one string with a space in it, so without this the two can land on separate
- * lines wherever the count stops being an unshrinkable flex item.
+ * A bare `span` is role `generic`, which prohibits an accessible name, so an
+ * `aria-label` here can be dropped. Real text carries it instead.
  */
 function RoomUnreadCount({ count }: { count: number }) {
   const t = useTranslations("App.Channels.RoomUnread");
@@ -174,16 +167,10 @@ function RoomUnreadCount({ count }: { count: number }) {
     return null;
   }
 
-  const capped = count > ROOM_COUNT_CAP;
-
-  // A bare `span` is role `generic`, which prohibits an accessible name, so an
-  // `aria-label` here can be dropped and the row announces a bare number beside
-  // the badge's bare number. Real text carries it instead.
   return (
-    <span className="text-foreground group-data-[collapsible=icon]:hidden shrink-0 leading-4 font-semibold whitespace-nowrap tabular-nums">
-      <span aria-hidden="true">{`· ${roomCountLabel(count)}`}</span>
+    <span className="group-data-[collapsible=icon]:hidden">
       <span className="sr-only">
-        {capped
+        {count > ROOM_COUNT_CAP
           ? t("unreadMessagesCapped", { max: ROOM_COUNT_CAP })
           : t("unreadMessages", { count })}
       </span>
@@ -244,10 +231,20 @@ function MentionAnnouncement({ count }: { count: number }) {
  */
 function MentionBadge({
   count,
+  unreadTextCount,
   countsMentions,
   crossfadesWithMenu,
 }: {
   count: number;
+  /**
+   * The reader's opt-in Room unread count. A row shows one number, so
+   * `resolveRoomAttention` only reports this when there is no badge, and it
+   * takes the badge's slot: same column, same crossfade with the menu. Muted
+   * text and no pill, because it is the one number on the sidebar that is
+   * not about the reader. It caps like the badge, so a loud room cannot
+   * reflow the row.
+   */
+  unreadTextCount: number;
   /**
    * The count is mentions, so the pill is amber and says so with an `@`.
    * False for a Direct of two, whose badge counts every message: that one
@@ -256,13 +253,13 @@ function MentionBadge({
   countsMentions: boolean;
   crossfadesWithMenu: boolean;
 }) {
-  if (count <= 0) {
+  if (count <= 0 && unreadTextCount <= 0) {
     return null;
   }
 
   return (
     <span
-      data-slot="room-mention-badge"
+      data-slot={count > 0 ? "room-mention-badge" : "room-unread-count"}
       aria-hidden
       className={cn(
         "pointer-events-none inline-flex size-8 shrink-0 items-center justify-center md:size-7",
@@ -273,10 +270,16 @@ function MentionBadge({
         ],
       )}
     >
-      <MentionCountPill
-        count={count}
-        tone={countsMentions ? "mention" : "unread"}
-      />
+      {count > 0 ? (
+        <MentionCountPill
+          count={count}
+          tone={countsMentions ? "mention" : "unread"}
+        />
+      ) : (
+        <span className="text-muted-foreground text-xs tabular-nums">
+          {roomCountLabel(unreadTextCount)}
+        </span>
+      )}
     </span>
   );
 }
@@ -365,6 +368,9 @@ export function ChatRoomSidebarRow({
     isMuted,
     showUnreadCount,
   });
+  // The row's one number, whichever it is, stands in the badge's slot, so
+  // the hole that keeps the name clear of it has to be held open for either.
+  const hasRowCount = badgeCount > 0 || unreadTextCount > 0;
   const railVariant = badgeCount > 0 ? "mention" : bold ? "unread" : null;
 
   function runRoomAction(
@@ -537,7 +543,7 @@ export function ChatRoomSidebarRow({
           // Touch keeps the bell or the badge in flow beside the menu, so the
           // hole holds two boxes. They are the same 32px box, and a muted room
           // carries no badge, so one width serves both.
-          (isMuted || badgeCount > 0) && "[@media(hover:none)]:w-16",
+          (isMuted || hasRowCount) && "[@media(hover:none)]:w-16",
           // A muted row shows its glyph at rest, a badged row shows its badge,
           // and the open room is the row being read, so all three hold the
           // 16px hole in every state. The name is `flex-1 min-w-0`, so a hole
@@ -554,9 +560,9 @@ export function ChatRoomSidebarRow({
           // the menu's column and crossfades with it. Reorder mode is the
           // exception: its handle never fades, so the badge stays in flow
           // beside it and the hole holds both.
-          badgeCount > 0 && reorderHandle
+          hasRowCount && reorderHandle
             ? "[@media(hover:hover)]:w-16"
-            : isMuted || isActive || reorderHandle || badgeCount > 0
+            : isMuted || isActive || reorderHandle || hasRowCount
               ? "[@media(hover:hover)]:size-4"
               : [
                   "[@media(hover:hover)]:size-0",
@@ -652,6 +658,7 @@ export function ChatRoomSidebarRow({
         <div data-slot="room-trailing" className={TRAILING_CLUSTER_CLASS}>
           <MentionBadge
             count={badgeCount}
+            unreadTextCount={unreadTextCount}
             countsMentions={badgeCountsMentions}
             crossfadesWithMenu={reorderHandle == null}
           />

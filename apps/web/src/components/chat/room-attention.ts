@@ -22,12 +22,13 @@ export interface RoomAttentionCounts {
  * they are Thread unread, and they surface on the Thread.
  * Muted rooms suppress both (and Core skips CHAT mention notification creates).
  *
- * `unreadTextCount` is the reader's opt-in Room unread count, rendered as text
- * beside the badge. It is a third field rather than a new meaning for
- * `badgeCount`, because the badge counts mentions and directs and keeps saying
- * so: `CONTEXT.md` lists using the mention badge as the message unread count
- * under *Avoid* for **Room unread**. Both numbers can sit on one row, and
- * neither changes what the other says.
+ * `unreadTextCount` is the reader's opt-in Room unread count, rendered as
+ * muted text. It is a third field rather than a new meaning for `badgeCount`,
+ * because the badge counts mentions and directs and keeps saying so:
+ * `CONTEXT.md` lists using the mention badge as the message unread count under
+ * *Avoid* for **Room unread**. A row shows one of the two, never both: the
+ * badge when there is one, the count otherwise. Neither changes what the
+ * other says.
  *
  * Having the room open is not a reason to drop the chrome. Opening a room does
  * not read it: the read baseline moves when the reader actually looks, and
@@ -72,7 +73,13 @@ export function resolveRoomAttention(options: {
       options.unreadMentionCount > 0 ||
       options.markedUnread === true,
     badgeCount: options.unreadMentionCount,
-    unreadTextCount: options.showUnreadCount === true ? channelUnread : 0,
+    // One number per row. A badge is something addressed to the reader, and it
+    // stands alone: beside it the message count was a second number in a
+    // second colour, and bold already says there is more.
+    unreadTextCount:
+      options.showUnreadCount === true && options.unreadMentionCount === 0
+        ? channelUnread
+        : 0,
   };
 }
 
