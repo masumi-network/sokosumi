@@ -727,7 +727,7 @@ describe("ably-push-sw display", () => {
     expect(worker.reported).toHaveBeenCalledTimes(1);
   });
 
-  it("skips display on Chromium while a focused app page shows it instead", async () => {
+  it("displays on Chromium even while a focused app page reports receiving", async () => {
     const worker = loadServiceWorker({
       isChromium: true,
       windows: [appPage()],
@@ -735,7 +735,7 @@ describe("ably-push-sw display", () => {
 
     await worker.dispatchPush(MENTION_PUSH);
 
-    expect(worker.shown).toEqual([]);
+    expect(worker.shown).toHaveLength(1);
   });
 
   /**
@@ -859,7 +859,7 @@ describe("ably-push-sw display", () => {
    * The subscription is `userVisibleOnly`, so a handler that renders nothing
    * costs the reader a banner and invites the browser's own.
    */
-  it("still shows something when the skip check throws", async () => {
+  it("displays the full banner without querying focused pages", async () => {
     const worker = loadServiceWorker({
       isChromium: true,
       matchAllThrows: true,
@@ -867,19 +867,9 @@ describe("ably-push-sw display", () => {
 
     await worker.dispatchPush(MENTION_PUSH);
 
-    expect(worker.shown).toEqual([
-      {
-        title: "Sokosumi",
-        options: {
-          tag: "sokosumi-notification",
-          icon: "/images/app-icons/apple-icon-180.png",
-        },
-      },
-    ]);
-    // The fallback banner carries no body and no target, so on its own it
-    // looks like a push that simply said nothing. The report is the only
-    // record that a real notification was lost.
-    expect(worker.reported).toHaveBeenCalledTimes(1);
+    expect(worker.shown).toHaveLength(1);
+    expect(worker.shown[0]?.options.data).toEqual(MENTION_TARGET);
+    expect(worker.reported).not.toHaveBeenCalled();
   });
 
   it("keeps the banner when the payload names a prototype member", async () => {

@@ -226,9 +226,8 @@ describe("pushsubscriptionchange", () => {
     });
     expect(instance.fetchMock).toHaveBeenCalledOnce();
   });
-  it("ignores stale events and revoked permission", async () => {
+  it("does not renew after permission is revoked", async () => {
     const instance = worker();
-    await instance.fire("https://push.example/stale");
     instance.pushManager.permissionState.mockResolvedValue("denied");
     await instance.fire();
     expect(instance.fetchMock).not.toHaveBeenCalled();
@@ -263,6 +262,23 @@ describe("pushsubscriptionchange", () => {
     await instance.fire();
     expect(subscription.unsubscribe).toHaveBeenCalledOnce();
     expect(await readRecord()).toBeUndefined();
+  });
+  it("retries a later rotation after an earlier endpoint update failed", async () => {
+    const instance = worker();
+    instance.fetchMock.mockResolvedValueOnce({ ok: false, status: 503 });
+    await instance.fire();
+    subscription = makeSubscription("https://push.example/third");
+    await instance.fire(newEndpoint);
+    expect(instance.fetchMock).toHaveBeenCalledTimes(2);
+    expect(await readRecord()).toMatchObject({
+      endpoint: subscription.endpoint,
+    });
+  });
+  it("reconciles a stale event with the current browser subscription", async () => {
+    const instance = worker();
+    await instance.fire("https://push.example/stale");
+    expect(instance.fetchMock).toHaveBeenCalledOnce();
+    expect(await readRecord()).toMatchObject({ endpoint: newEndpoint });
   });
   it("retains the old snapshot after a failed PATCH for foreground recovery", async () => {
     const instance = worker();

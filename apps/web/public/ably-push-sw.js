@@ -2,8 +2,7 @@
  * Sokosumi web push service worker (SOK-875).
  *
  * Ably subscribes this worker with `userVisibleOnly: true`, so every push
- * event MUST end in `showNotification`, apart from the focused-window
- * exception in `canSkipDisplay`. Skipping one anywhere else makes the browser
+ * event MUST end in `showNotification`. Skipping a banner can make the browser
  * post its own "This site has been updated in the background" banner instead.
  *
  * Core sends no display strings (ADR-0023). This worker renders them from the
@@ -13,16 +12,9 @@
  * written, so it never passes through the TypeScript build. Its copies of app
  * constants are guarded by tests instead of by the compiler.
  *
- * That constraint is also why two decisions exist twice. `buildTarget` here
- * builds the same shape as `toNotificationTarget` in
- * `lib/utils/notification-service-worker.ts`. `canSkipDisplay` here decides
- * the focused-page suppression that `shouldShowBrowserNotification` in
- * `lib/utils/browser-notification.ts` decides for the page, from different
- * inputs and in the opposite direction: the worker sees neither `isRead` nor
- * the permission, and reads focus from `clients.matchAll` rather than from the
- * document. The spec wants one pure function both paths call; SOK-876 owns
- * that renderer, and it takes these two pairs and the imported catalog with
- * it.
+ * `buildTarget` mirrors `toNotificationTarget` in
+ * `lib/utils/notification-service-worker.ts`, because this worker cannot import
+ * application TypeScript. Pushes always display, including while a tab is focused.
  */
 
 /**
@@ -381,7 +373,7 @@ async function buildBanner(pushData) {
 /** Mirrors SHOWS_NOTIFICATIONS_QUERY in the app. */
 const SHOWS_NOTIFICATIONS_QUERY = "sokosumi:shows-notifications";
 
-/** How long a focused page has to claim it shows notifications itself. */
+/** How long an open page has to answer the click-routing query. */
 const SHOWS_NOTIFICATIONS_TIMEOUT_MS = 200;
 
 /** Nothing replied inside the timeout: this page has no listener mounted. */
@@ -390,7 +382,7 @@ const NO_ANSWER = "no-answer";
 /**
  * Ask one page whether it shows notifications in the app itself.
  *
- * Three outcomes, not two, because the two callers ask for different reasons.
+ * The reply identifies pages that can route banner clicks.
  * `true` and `false` both come from a page that mounts the notification
  * listener; `NO_ANSWER` means nothing there answers at all, so the page is a
  * share link or the sign-in page.
@@ -420,45 +412,6 @@ function askShowsNotifications(client) {
 
     client.postMessage({ type: SHOWS_NOTIFICATIONS_QUERY }, [channel.port2]);
   });
-}
-
-/**
- * Whether this push may render nothing.
- *
- * Chromium documents a focused-window exception: a handler does not have to
- * show a notification while the reader already has the site open and focused
- * (ADR-0023). WebKit grants no exception and revokes the subscription when a
- * push displays nothing, so every other engine always displays.
- *
- * "Open and focused" means a page that shows the notification itself, so this
- * asks the focused pages rather than assuming any same-origin tab counts.
- *
- * `userAgentData` is missing outside Chromium (MDN: "not Baseline … does not
- * work in some of the most widely-used browsers"), so its absence is read as
- * "no exception". That is the safe direction: a surplus banner costs less than
- * a revoked subscription.
- */
-async function canSkipDisplay() {
-  if (!self.navigator.userAgentData) {
-    return false;
-  }
-
-  const windows = await self.clients.matchAll({
-    type: "window",
-    includeUncontrolled: true,
-  });
-  const focused = windows.filter(
-    (client) => client.focused && client.visibilityState === "visible",
-  );
-
-  if (focused.length === 0) {
-    return false;
-  }
-
-  // Only a page that says yes renders this notification itself. A page that
-  // says no, and a page with no listener at all, both need the banner.
-  const answers = await Promise.all(focused.map(askShowsNotifications));
-  return answers.some((answer) => answer === true);
 }
 
 /**
@@ -500,10 +453,6 @@ async function shouldRenotify(tag, id) {
 }
 
 async function showPushNotification(data) {
-  if (await canSkipDisplay()) {
-    return;
-  }
-
   const pushData = readPushData(data);
 
   const target = buildTarget(pushData);
@@ -544,9 +493,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     showPushNotification(event.data).catch((error) => {
       // The fallback carries no body and no target, so the reader gets a bare
-      // title they cannot click through to anything. The two ways to land
-      // here, a rejected `showNotification` and a rejected `clients.matchAll`
-      // inside the skip check, leave no other trace.
+      // title they cannot click through to anything. Report the rendering
+      // failure that caused the fallback.
       console.error("Could not render a push notification", error);
       return showFallbackNotification().catch(() => {
         // Nothing left to try. The browser posts its own banner instead.

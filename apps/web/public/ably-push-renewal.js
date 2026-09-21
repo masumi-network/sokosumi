@@ -80,14 +80,9 @@
     return btoa(String.fromCharCode(...new Uint8Array(value)));
   }
 
-  async function renew(event) {
+  async function renew() {
     const snapshot = await readSnapshot();
     if (!validSnapshot(snapshot)) return;
-    if (
-      event.oldSubscription &&
-      event.oldSubscription.endpoint !== snapshot.endpoint
-    )
-      return;
     const options = {
       userVisibleOnly: true,
       applicationServerKey: decodeKey(snapshot.publicVapidKey),
@@ -147,7 +142,7 @@
     if (!self.navigator.locks || typeof indexedDB === "undefined") return;
     event.waitUntil(
       self.navigator.locks
-        .request(PUSH_WORK_LOCK, () => renew(event))
+        .request(PUSH_WORK_LOCK, renew)
         .catch((error) =>
           console.error("Could not renew push subscription", error),
         ),
