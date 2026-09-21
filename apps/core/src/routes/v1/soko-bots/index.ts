@@ -1,4 +1,3 @@
-import { ComposioError } from "@composio/core";
 import { createRoute, z } from "@hono/zod-openapi";
 import { composeSystemPrompt, SOKO_BOT_SKILLS } from "@sokosumi/soko-bot";
 import { isNmkrEmail } from "@sokosumi/utils";
@@ -103,7 +102,6 @@ import {
   disconnectSokoBotIntegration,
   finalizeSokoBotIntegration,
   listSokoBotIntegrations,
-  SokoBotIntegrationError,
   searchSokoBotIntegrationCatalog,
 } from "@/services/soko-bot-integrations.service";
 import {
@@ -137,6 +135,8 @@ import {
 import { mountSokoBotApiKeyRoutes } from "./api-keys.js";
 import { mountSokoBotAvatarRoutes } from "./avatars.js";
 import { mountSokoBotEventRoutes } from "./events.js";
+import { mountSokoBotIntegrationAuthRoutes } from "./integration-auth.js";
+import { mapIntegrationError } from "./integration-error.js";
 
 const app = new OpenAPIHonoWithAuth({ includeWorkspaceContext: true });
 const sokoBotPaginationQuerySchema = cursorPaginationQuerySchema.extend({
@@ -760,21 +760,9 @@ app.openapi(resolveDecisionRoute, async (c) => {
 });
 
 mountSokoBotAvatarRoutes(app);
+mountSokoBotIntegrationAuthRoutes(app);
 
 const providerParamSchema = z.object({ provider: z.string().min(1) });
-
-function mapIntegrationError(error: unknown): never {
-  if (error instanceof ComposioError) {
-    throw unprocessableEntity(`Composio: ${error.message}`);
-  }
-  if (error instanceof SokoBotIntegrationError) {
-    if (error.kind === "NOT_CONFIGURED" || error.kind === "NOT_FOUND")
-      throw notFound(error.message);
-    if (error.kind === "UNKNOWN_PROVIDER") throw notFound(error.message);
-    throw unprocessableEntity(error.message);
-  }
-  throw error;
-}
 
 const listIntegrationsRoute = createRoute({
   method: "get",

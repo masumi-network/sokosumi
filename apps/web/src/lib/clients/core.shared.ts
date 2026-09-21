@@ -111,6 +111,7 @@ import {
   browseSokoBotSkills as coreBrowseSokoBotSkills,
   cancelMySokoBotTurn as coreCancelMySokoBotTurn,
   claimCoupon as coreClaimCoupon,
+  completeMySokoBotIntegrationAuth as coreCompleteMySokoBotIntegrationAuth,
   connectMySokoBotIntegration as coreConnectMySokoBotIntegration,
   createAdminFreeCreditGrant as coreCreateAdminFreeCreditGrant,
   createAdminInvoice as coreCreateAdminInvoice,
@@ -4441,6 +4442,15 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function completeMySokoBotIntegrationAuth(sessionUri: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreCompleteMySokoBotIntegrationAuth({ client, body: { sessionUri } }),
+      "Failed to verify the integration",
+    );
+  }
+
   async function disconnectMySokoBotIntegration(provider: string) {
     return executeCoreOperation(
       getClient,
@@ -5450,6 +5460,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     searchSokoBotIntegrationCatalog,
     connectMySokoBotIntegration,
     finalizeMySokoBotIntegration,
+    completeMySokoBotIntegrationAuth,
     disconnectMySokoBotIntegration,
     listMySokoBotSkills,
     getSokoBotTeam,
