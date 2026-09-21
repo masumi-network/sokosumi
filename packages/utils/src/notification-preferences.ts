@@ -31,9 +31,12 @@ export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
  * The categories that actually send an email.
  *
  * Everything addressed to the reader, and the reminders about it. A mention,
- * a direct message, a task that stopped for them, a task that finished and a
- * request for a workspace they manage each reach the inbox (SOK-1090), as
- * does the reminder a day later (SOK-916).
+ * a direct message, a task that stopped for them, a task that finished, a
+ * wallet that waits on them and a request for a workspace they manage each
+ * reach the inbox (SOK-1090), as does the reminder a day later (SOK-916).
+ * Membership says an email can be sent, not that one is sent by default: the
+ * chat rows wait for the reader to turn them on
+ * (`NOTIFICATION_EMAIL_OFF_BY_DEFAULT` below).
  *
  * Deliberately absent: every message in a room, which would mail a busy room
  * per message, and the other task updates, which ask nothing of the reader.
@@ -57,6 +60,21 @@ export const NOTIFICATION_EMAIL_CATEGORIES: readonly NotificationCategory[] = [
   "FOLLOW_UP",
 ];
 
+/**
+ * The chat categories, whose email waits to be asked for.
+ *
+ * A mention and a direct message already reach the reader in Sokosumi and on
+ * the device, so the mailed copy is the loudest of three sayings of one thing
+ * and is off until the row is turned on. The rows that stay on by default say
+ * what the reader cannot see coming in the app: a task that stopped for them,
+ * a task that finished, a wallet that waits on them, a workspace request, a
+ * reminder.
+ */
+const NOTIFICATION_EMAIL_OFF_BY_DEFAULT: readonly NotificationCategory[] = [
+  "CHAT_MENTION",
+  "CHAT_DIRECT_MESSAGE",
+];
+
 const NOTIFICATION_CHANNEL_DEFAULT: Record<
   Exclude<NotificationChannel, "EMAIL">,
   boolean
@@ -75,10 +93,13 @@ export function notificationDefault(
   channel: NotificationChannel,
 ): boolean {
   // EMAIL before the null case: that case answers yes, and unnamed categories
-  // have no email. Categories that send email default on.
+  // have no email. Categories that send email default on, except the chat
+  // ones, which wait for the reader to ask.
   if (channel === "EMAIL") {
     return (
-      category !== null && NOTIFICATION_EMAIL_CATEGORIES.includes(category)
+      category !== null &&
+      NOTIFICATION_EMAIL_CATEGORIES.includes(category) &&
+      !NOTIFICATION_EMAIL_OFF_BY_DEFAULT.includes(category)
     );
   }
 

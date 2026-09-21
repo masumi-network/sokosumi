@@ -306,7 +306,7 @@ describe("resolveNotificationDelivery", () => {
         ],
         pushOptIn: true,
       }),
-    ).toEqual({ inApp: true, osBanner: false, email: true });
+    ).toEqual({ inApp: true, osBanner: false, email: false });
   });
 
   it("keeps one category's choice out of another's", () => {
@@ -317,6 +317,7 @@ describe("resolveNotificationDelivery", () => {
           { category: "CHAT_MENTION", channel: "IN_APP", enabled: false },
           { category: "CHAT_MENTION", channel: "OS_BANNER", enabled: false },
           { category: "CHAT_MENTION", channel: "EMAIL", enabled: false },
+          { category: "CHAT_DIRECT_MESSAGE", channel: "EMAIL", enabled: true },
         ],
         pushOptIn: true,
       }),
@@ -365,6 +366,42 @@ describe("resolveNotificationDelivery", () => {
         pushOptIn: true,
       }),
     ).toEqual({ inApp: true, osBanner: false, email: false });
+  });
+});
+
+describe("resolveNotificationDelivery chat email", () => {
+  /**
+   * Chat email is opt-in. A mention and a direct message already reach the
+   * reader in Sokosumi and on the device, so a reader who stored nothing is
+   * not mailed about them as well.
+   */
+  it("sends no chat email to a reader who stored nothing", () => {
+    expect(
+      resolveNotificationDelivery({
+        category: "CHAT_MENTION",
+        preferences: [],
+        pushOptIn: true,
+      }).email,
+    ).toBe(false);
+    expect(
+      resolveNotificationDelivery({
+        category: "CHAT_DIRECT_MESSAGE",
+        preferences: [],
+        pushOptIn: true,
+      }).email,
+    ).toBe(false);
+  });
+
+  it("mails a mention once the reader turns that cell on", () => {
+    expect(
+      resolveNotificationDelivery({
+        category: "CHAT_MENTION",
+        preferences: [
+          { category: "CHAT_MENTION", channel: "EMAIL", enabled: true },
+        ],
+        pushOptIn: false,
+      }).email,
+    ).toBe(true);
   });
 });
 
@@ -484,13 +521,29 @@ describe("resolveNotificationMatrix email column", () => {
     ]);
   });
 
-  it("offers that cell switched on, so reminders reach an inbox by default", () => {
+  /**
+   * Written out rather than looped over the exported lists: the defaults are
+   * the decision, and a loop over `NOTIFICATION_EMAIL_CATEGORIES` cannot
+   * notice a category quietly changing its mind.
+   */
+  it("offers every email cell on except the chat ones, which wait to be asked", () => {
     const emailCells = resolveNotificationMatrix([]).filter(
       (cell) => cell.channel === "EMAIL",
     );
 
-    expect(emailCells.every((cell) => cell.enabled)).toBe(true);
-    expect(emailCells.length).toBeGreaterThan(0);
+    expect(
+      Object.fromEntries(
+        emailCells.map((cell) => [cell.category, cell.enabled]),
+      ),
+    ).toEqual({
+      TASK_ATTENTION: true,
+      TASK_COMPLETED: true,
+      CHAT_MENTION: false,
+      CHAT_DIRECT_MESSAGE: false,
+      BILLING_ATTENTION: true,
+      SYSTEM: true,
+      FOLLOW_UP: true,
+    });
   });
 });
 
