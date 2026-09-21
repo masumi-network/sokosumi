@@ -28,21 +28,9 @@ const {
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     project: { findFirst: projectFindFirstMock },
+    member: { findUnique: getMemberByUserIdAndOrganizationIdMock },
   },
 }));
-
-vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@sokosumi/database/repositories")>();
-  return {
-    ...actual,
-    memberRepository: {
-      ...actual.memberRepository,
-      getMemberByUserIdAndOrganizationId:
-        getMemberByUserIdAndOrganizationIdMock,
-    },
-  };
-});
 
 vi.mock("@/lib/site-icon", () => ({
   resolveSiteIconAsOrganizationLogo: (...args: unknown[]) =>
@@ -113,6 +101,15 @@ describe("GET /tools/site-icon", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
+    expect(getMemberByUserIdAndOrganizationIdMock).toHaveBeenCalledWith({
+      where: {
+        userId_organizationId: {
+          userId: "user_123",
+          organizationId: "org_123",
+        },
+      },
+      select: { id: true },
+    });
     expect(resolveSiteIconAsOrganizationLogoMock).toHaveBeenCalledWith(
       "https://example.com",
       "org_123",

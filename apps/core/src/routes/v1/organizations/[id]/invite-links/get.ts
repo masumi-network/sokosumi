@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { MemberRole } from "@sokosumi/database";
-import { organizationInviteLinkRepository } from "@sokosumi/database/repositories";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
@@ -72,11 +71,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
     });
 
-    const links =
-      await organizationInviteLinkRepository.listInviteLinksByOrganizationId(
-        organization.id,
-        prisma,
-      );
+    const links = await prisma.organizationInviteLink.findMany({
+      where: { organizationId: organization.id },
+      orderBy: { createdAt: "desc" },
+    });
 
     const payload = links.map(toOrganizationInviteLinkResponse);
 
