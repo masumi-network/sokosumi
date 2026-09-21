@@ -10,6 +10,9 @@ const approveVendorGrantMock = vi.fn();
 const denyVendorGrantMock = vi.fn();
 const revokeVendorGrantMock = vi.fn();
 const createVendorGrantMock = vi.fn();
+const approveCoworkerAccessMock = vi.fn();
+const denyCoworkerAccessMock = vi.fn();
+const revokeCoworkerAccessMock = vi.fn();
 
 vi.mock("@/lib/services/vendor-grant.service", () => ({
   vendorGrantService: {
@@ -27,6 +30,14 @@ vi.mock("@/lib/services/vendor-grant.service", () => ({
   },
 }));
 
+vi.mock("@/lib/services/coworker-access.service", () => ({
+  coworkerAccessService: {
+    approve: (...args: unknown[]) => approveCoworkerAccessMock(...args),
+    deny: (...args: unknown[]) => denyCoworkerAccessMock(...args),
+    revoke: (...args: unknown[]) => revokeCoworkerAccessMock(...args),
+  },
+}));
+
 vi.mock("@/middleware/auth-middleware", () => ({
   withSession:
     <TArgs, TResult>(
@@ -37,17 +48,21 @@ vi.mock("@/middleware/auth-middleware", () => ({
 }));
 
 import {
+  approveMyCoworkerAccess,
   approveMyVendorGrant,
+  approveOrganizationCoworkerAccess,
   approveOrganizationVendorGrant,
   createMyVendorGrant,
   createOrganizationVendorGrant,
-} from "@/lib/actions/vendor-grant-action";
+  denyMyCoworkerAccess,
+} from "@/lib/actions/workspace-approval-action";
 
 const GRANT_ID = "11111111-1111-4111-8111-111111111111";
+const ACCESS_ID = "11111111-1111-4111-8111-111111111111";
 const VENDOR_ID = "22222222-2222-4222-8222-222222222222";
 const ORGANIZATION_ID = "org_1";
 
-describe("vendorGrantAction", () => {
+describe("workspaceApprovalAction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -107,5 +122,41 @@ describe("vendorGrantAction", () => {
       error: { code: CommonErrorCode.BAD_INPUT },
     });
     expect(approveMyVendorGrantMock).not.toHaveBeenCalled();
+  });
+
+  it("approves personal coworker access", async () => {
+    approveCoworkerAccessMock.mockResolvedValue({ id: ACCESS_ID });
+
+    const result = await approveMyCoworkerAccess({ accessId: ACCESS_ID });
+
+    expect(result).toEqual({ ok: true, value: { accessId: ACCESS_ID } });
+    expect(approveCoworkerAccessMock).toHaveBeenCalledWith(ACCESS_ID, {
+      type: "personal",
+    });
+  });
+
+  it("approves organization coworker access", async () => {
+    approveCoworkerAccessMock.mockResolvedValue({ id: ACCESS_ID });
+
+    const result = await approveOrganizationCoworkerAccess({
+      organizationId: ORGANIZATION_ID,
+      accessId: ACCESS_ID,
+    });
+
+    expect(result).toEqual({ ok: true, value: { accessId: ACCESS_ID } });
+    expect(approveCoworkerAccessMock).toHaveBeenCalledWith(ACCESS_ID, {
+      type: "organization",
+      organizationId: ORGANIZATION_ID,
+    });
+  });
+
+  it("rejects invalid personal access ids", async () => {
+    const result = await denyMyCoworkerAccess({ accessId: "not-a-uuid" });
+
+    expect(result).toEqual({
+      ok: false,
+      error: { code: CommonErrorCode.BAD_INPUT },
+    });
+    expect(denyCoworkerAccessMock).not.toHaveBeenCalled();
   });
 });

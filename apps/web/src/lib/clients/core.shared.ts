@@ -3743,6 +3743,20 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getOwnedCoworkerById(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetCoworkersById({
+          client,
+          path: { id },
+          query: { scope: "owned" },
+          cache: "no-store",
+        }),
+      "Failed to fetch owned coworker",
+    );
+  }
+
   async function patchCoworker(
     id: string,
     body: NonNullable<PatchCoworkersByIdData["body"]>,
@@ -5243,6 +5257,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getCoworkers,
     getOwnedCoworkers,
     getCoworkerById,
+    getOwnedCoworkerById,
     patchCoworker,
     patchCoworkerWhitelist,
     archiveCoworker,

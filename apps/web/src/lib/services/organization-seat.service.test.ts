@@ -15,10 +15,12 @@ vi.mock("better-auth/api", () => ({
 
 const {
   getOrganizationSeatSummaryMock,
+  getOrganizationCallerSeatMock,
   assignOrganizationSeatMock,
   unassignOrganizationSeatMock,
 } = vi.hoisted(() => ({
   getOrganizationSeatSummaryMock: vi.fn(),
+  getOrganizationCallerSeatMock: vi.fn(),
   assignOrganizationSeatMock: vi.fn(),
   unassignOrganizationSeatMock: vi.fn(),
 }));
@@ -40,6 +42,8 @@ vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
     assignOrganizationSeat: (...args: unknown[]) =>
       assignOrganizationSeatMock(...args),
+    getOrganizationCallerSeat: (...args: unknown[]) =>
+      getOrganizationCallerSeatMock(...args),
     getOrganizationSeatSummary: (...args: unknown[]) =>
       getOrganizationSeatSummaryMock(...args),
     unassignOrganizationSeat: (...args: unknown[]) =>
@@ -340,5 +344,31 @@ describe("organizationSeatService", () => {
       message:
         "Only organization owners and admins can manage seat assignments",
     });
+  });
+
+  it("treats a personal workspace as seated", async () => {
+    const { organizationSeatService } = await import(
+      "./organization-seat.service"
+    );
+
+    await expect(organizationSeatService.hasAssignedSeat(null)).resolves.toBe(
+      true,
+    );
+    expect(getOrganizationCallerSeatMock).not.toHaveBeenCalled();
+  });
+
+  it("returns whether Core treats the caller as seated", async () => {
+    getOrganizationCallerSeatMock.mockResolvedValue({
+      data: { assigned: false },
+    });
+
+    const { organizationSeatService } = await import(
+      "./organization-seat.service"
+    );
+
+    await expect(
+      organizationSeatService.hasAssignedSeat("org-1"),
+    ).resolves.toBe(false);
+    expect(getOrganizationCallerSeatMock).toHaveBeenCalledWith("org-1");
   });
 });

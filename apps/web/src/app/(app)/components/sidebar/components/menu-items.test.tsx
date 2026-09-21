@@ -107,7 +107,7 @@ vi.mock("next/link", () => ({
 }));
 
 import MenuItems from "@/app/components/sidebar/components/menu-items";
-import { OrganizationSeatProvider } from "@/contexts/organization-seat-context";
+import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 import { TestQueryProvider } from "@/test/query-provider";
 
 let sidebarIsMobile = true;
@@ -120,9 +120,9 @@ function renderMenu(
   sidebarIsMobile = isMobile;
   return render(
     <TestQueryProvider>
-      <OrganizationSeatProvider hasAssignedSeat={hasAssignedSeat}>
+      <OrganizationSeatContext value={hasAssignedSeat}>
         <MenuItems calendarMenuEnabled={calendarMenuEnabled} />
-      </OrganizationSeatProvider>
+      </OrganizationSeatContext>
     </TestQueryProvider>,
   );
 }
@@ -213,9 +213,9 @@ describe("MenuItems search action", () => {
     sidebarIsMobile = true;
     rerender(
       <TestQueryProvider>
-        <OrganizationSeatProvider hasAssignedSeat>
+        <OrganizationSeatContext value={true}>
           <MenuItems calendarMenuEnabled />
-        </OrganizationSeatProvider>
+        </OrganizationSeatContext>
       </TestQueryProvider>,
     );
 

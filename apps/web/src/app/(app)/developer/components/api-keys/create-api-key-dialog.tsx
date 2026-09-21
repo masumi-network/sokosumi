@@ -70,8 +70,8 @@ export function CreateApiKeyDialog({
       name: values.name,
     });
 
-    if (result.success && result.data) {
-      setCreatedKey(result.data.key);
+    if (result.ok) {
+      setCreatedKey(result.value.key);
       onSuccess(result);
       form.reset();
     }

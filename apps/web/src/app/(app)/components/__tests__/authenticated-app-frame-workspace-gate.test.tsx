@@ -32,9 +32,11 @@ vi.mock("@/lib/calendar-beta-access.server", () => ({
     hasCurrentUserCalendarBetaAccessMock(),
 }));
 
-vi.mock("@/lib/services/organization-assigned-seat.service", () => ({
-  hasAssignedOrganizationSeat: (...args: unknown[]) =>
-    hasAssignedOrganizationSeatMock(...args),
+vi.mock("@/lib/services/organization-seat.service", () => ({
+  organizationSeatService: {
+    hasAssignedSeat: (...args: unknown[]) =>
+      hasAssignedOrganizationSeatMock(...args),
+  },
 }));
 
 vi.mock("@/lib/services/user.service", () => ({

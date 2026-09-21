@@ -14,7 +14,7 @@ import { signInRedirectPath } from "@/lib/auth/auth.server";
 import { readRouteSession } from "@/lib/auth/route-session";
 import { hasCurrentUserCalendarBetaAccess } from "@/lib/calendar-beta-access.server";
 import type { Notice } from "@/lib/clients/generated/core";
-import { hasAssignedOrganizationSeat } from "@/lib/services/organization-assigned-seat.service";
+import { organizationSeatService } from "@/lib/services/organization-seat.service";
 import { userService } from "@/lib/services/user.service";
 import { cn } from "@/lib/utils";
 import { isWorkspaceReady, WORKSPACE_GATE_PATH } from "@/lib/workspace-gate";
@@ -73,10 +73,12 @@ export default async function AuthenticatedAppFrame({
 
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
   const [hasAssignedSeat, calendarBetaEnabled] = await Promise.all([
-    hasAssignedOrganizationSeat(activeOrganizationId).catch((error) => {
-      console.error("Failed to resolve assigned organization seat", error);
-      return activeOrganizationId == null;
-    }),
+    organizationSeatService
+      .hasAssignedSeat(activeOrganizationId)
+      .catch((error) => {
+        console.error("Failed to resolve assigned organization seat", error);
+        return activeOrganizationId == null;
+      }),
     hasCurrentUserCalendarBetaAccess(),
   ]);
 

@@ -1,3 +1,5 @@
+"use client";
+
 import { coreClient } from "@/lib/clients/core.browser.client";
 
 const workspaceOrganizationIdCache = new Map<string, string | null>();
