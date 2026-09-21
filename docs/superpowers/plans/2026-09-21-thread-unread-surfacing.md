@@ -364,8 +364,8 @@ Expected: PASS. Any remaining type error is a call site missed in Step 4.
 
 - [ ] **Step 6: Regenerate the web client**
 
-Run: `pnpm --filter @sokosumi/web generate:core-client`
-Expected: `apps/web/src/lib/clients/generated/core/types.gen.ts` gains `channelUnreadCount` and `threadUnreadCount` on `ChatRoom`. If that script name does not exist, find it with `rg -n '"generate' apps/web/package.json` and use the one that writes `lib/clients/generated/core`.
+Run: `pnpm --filter web generate:core:snapshot`
+Expected: `apps/web/src/lib/clients/generated/core/types.gen.ts` gains `channelUnreadCount` and `threadUnreadCount` on `ChatRoom`.
 
 - [ ] **Step 7: Commit**
 
@@ -506,7 +506,7 @@ Expected: PASS.
 - [ ] **Step 7: Regenerate the client and commit**
 
 ```bash
-pnpm --filter @sokosumi/web generate:core-client
+pnpm --filter web generate:core:snapshot
 git add apps/core/src apps/web/src/lib/clients/generated
 git commit -m "feat(chat): report per-viewer unread reply count on thread parents"
 ```
@@ -944,7 +944,7 @@ Only the list route needs this; leave the seven single-room routes alone, since 
 
 - [ ] **Step 5: Run tests, regenerate, commit**
 
-Run: `pnpm --filter @sokosumi/core test && pnpm --filter @sokosumi/core typecheck && pnpm --filter @sokosumi/web generate:core-client`
+Run: `pnpm --filter @sokosumi/core test && pnpm --filter @sokosumi/core typecheck && pnpm --filter web generate:core:snapshot`
 Expected: PASS.
 
 ```bash
