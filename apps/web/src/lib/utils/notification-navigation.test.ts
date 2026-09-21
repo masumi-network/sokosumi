@@ -9,7 +9,7 @@ const { getWorkspaceOrganizationIdMock, getMyMembersWithOrganizationsMock } =
     getMyMembersWithOrganizationsMock: vi.fn(),
   }));
 
-vi.mock("@/lib/services/workspace.service", () => ({
+vi.mock("@/lib/utils/workspace-organization.client", () => ({
   getWorkspaceOrganizationId: getWorkspaceOrganizationIdMock,
 }));
 
