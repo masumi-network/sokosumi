@@ -21,13 +21,14 @@ public struct ComposerInputRule: Equatable, Sendable {
     ("**", .bold), ("~~", .strikethrough), ("_", .italic), ("`", .code)
   ]
 
-  /// `typed` is the character the keystroke inserted; pasted or programmatic
-  /// text never fires a rule. `nodeStart` bounds the search like web's text node.
-  public static func match(in text: String, caret: Int, typed: String, nodeStart: Int = 0) -> Self? {
+  /// Like web, this asks only what the text before the caret ends with, not which edit
+  /// put it there; the caller decides which edits count as user input. At most one pair,
+  /// the one ending at the caret. `nodeStart` bounds the search like web's text node.
+  public static func match(in text: String, caret: Int, nodeStart: Int = 0) -> Self? {
     let source = text as NSString
-    guard typed.utf16.count == 1, nodeStart >= 0, caret > nodeStart, caret <= source.length else { return nil }
+    guard nodeStart >= 0, caret > nodeStart, caret <= source.length else { return nil }
     let node = source.substring(with: NSRange(location: nodeStart, length: caret - nodeStart)) as NSString
-    for (delimiter, style) in rules where delimiter.hasSuffix(typed) {
+    for (delimiter, style) in rules {
       let width = delimiter.utf16.count
       let closeStart = node.length - width
       guard closeStart > 0, node.range(of: delimiter, options: [.backwards, .literal, .anchored]).location != NSNotFound else { continue }
@@ -47,7 +48,7 @@ public struct ComposerInputRule: Equatable, Sendable {
 
   /// Bounds the search to the caret's run of uniform formatting on its line,
   /// which is what web's text node is, and skips code, code blocks and chips.
-  public static func match(in text: NSAttributedString, caret: Int, typed: String) -> Self? {
+  public static func match(in text: NSAttributedString, caret: Int) -> Self? {
     guard caret > 0, caret <= text.length else { return nil }
     let node = Node(text.attributes(at: caret - 1, effectiveRange: nil))
     guard !node.isProtected else { return nil }
@@ -56,7 +57,7 @@ public struct ComposerInputRule: Equatable, Sendable {
     while start > line.location, Node(text.attributes(at: start - 1, effectiveRange: nil)) == node {
       start -= 1
     }
-    return match(in: text.string, caret: caret, typed: typed, nodeStart: start)
+    return match(in: text.string, caret: caret, nodeStart: start)
   }
 
   /// What replaces `range`: the inner text, formatted, without its delimiters.

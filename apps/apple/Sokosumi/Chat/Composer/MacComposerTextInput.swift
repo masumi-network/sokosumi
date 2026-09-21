@@ -306,10 +306,10 @@
         formattingDidChange?()
       }
 
-      /// Formats a just-closed `**hi**`, `~~hi~~`, `_hi_` or `` `hi` `` before the caret as its own undo step.
-      func applyInputRule(typed: String) -> Bool {
+      /// Formats a closed `**hi**`, `~~hi~~`, `_hi_` or `` `hi` `` ending at the caret as its own undo step.
+      func applyInputRule() -> Bool {
         let text = attributedString()
-        guard !preservesRawDraft, let rule = ComposerInputRule.match(in: text, caret: selectedRange().location, typed: typed) else { return false }
+        guard !preservesRawDraft, let rule = ComposerInputRule.match(in: text, caret: selectedRange().location) else { return false }
         breakUndoCoalescing()
         replaceTyped(MacComposerAttributedText.styled(rule.replacement(in: text)), range: rule.range,
                      surrounding: text.attributes(at: rule.range.location, effectiveRange: nil), formats: true)
@@ -317,7 +317,50 @@
         return true
       }
 
-      /// Paste and `insertAtCaret` insert through here as well; only a keystroke fires an input rule.
+      /// Web runs its input rules on every `input` event: typing, paste and deletion. Text
+      /// the app inserts itself (`insertAtCaret`, chips, emoji, a restored draft) is not one.
+      /// Nothing is replaced under an input method; the rule waits for the commit.
+      private func applyInputRuleAfterUserEdit(hadMarkedText: Bool = false) -> Bool {
+        let isReplayingEdit = undoManager?.isUndoing == true || undoManager?.isRedoing == true
+        guard !isReplayingEdit, !hadMarkedText, !hasMarkedText(), selectedRange().length == 0, !caretIsInCode else { return false }
+        return applyInputRule()
+      }
+
+      private func deleting(_ delete: () -> Void) {
+        let hadMarkedText = hasMarkedText()
+        delete()
+        _ = applyInputRuleAfterUserEdit(hadMarkedText: hadMarkedText)
+      }
+
+      override func deleteBackward(_ sender: Any?) {
+        deleting { super.deleteBackward(sender) }
+      }
+
+      override func deleteForward(_ sender: Any?) {
+        deleting { super.deleteForward(sender) }
+      }
+
+      override func deleteWordBackward(_ sender: Any?) {
+        deleting { super.deleteWordBackward(sender) }
+      }
+
+      override func deleteWordForward(_ sender: Any?) {
+        deleting { super.deleteWordForward(sender) }
+      }
+
+      override func deleteToBeginningOfLine(_ sender: Any?) {
+        deleting { super.deleteToBeginningOfLine(sender) }
+      }
+
+      override func deleteToEndOfLine(_ sender: Any?) {
+        deleting { super.deleteToEndOfLine(sender) }
+      }
+
+      override func cut(_ sender: Any?) {
+        deleting { super.cut(sender) }
+      }
+
+      /// `insertAtCaret` inserts through `insertText` as well; only the person's own edits fire an input rule.
       private var insertsUntypedText = false
 
       private func insertUntyped(_ text: String) {
@@ -331,8 +374,7 @@
         clearReferenceTypingAttributes()
         super.insertText(insertString, replacementRange: replacementRange)
         guard !isReplayingEdit, !hasMarkedText(), selectedRange().length == 0, !caretIsInCode else { return }
-        let typed = (insertString as? String) ?? (insertString as? NSAttributedString)?.string ?? ""
-        if !insertsUntypedText, applyInputRule(typed: typed) {
+        if !insertsUntypedText, applyInputRuleAfterUserEdit() {
           return
         }
         if let edit = ComposerEmoji.match(in: string, caret: selectedRange().location) {
@@ -423,7 +465,7 @@
         let plain = pasteboard.string(forType: .string) ?? ""
         let text = plain.isEmpty ? ComposerPaste.plainText(html: pasteboard.string(forType: .html) ?? "") : plain
         guard !text.isEmpty else { return }
-        insertUntyped(text)
+        insertText(text, replacementRange: selectedRange())
         onPaste?(ComposerTextPaste(text: text, remove: { [weak self] in self?.removeLastText(text) ?? false }))
       }
 

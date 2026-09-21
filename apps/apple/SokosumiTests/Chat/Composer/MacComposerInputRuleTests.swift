@@ -85,7 +85,7 @@
       input.allowsUndo = true
       input.string = "so **hi**"
       input.setSelectedRange(NSRange(location: 9, length: 0))
-      #expect(input.applyInputRule(typed: "*"))
+      #expect(input.applyInputRule())
       #expect(input.string == "so hi")
       delegate.manager.undo()
       #expect(input.string == "so **hi**")
@@ -101,22 +101,106 @@
       #expect(!delegate.manager.canUndo)
     }
 
-    @Test func pasteDoesNotFormat() {
+    /// Web runs the rule on every input event and its paste handler says so ("markdown
+    /// input rules still apply after paste"), so a paste that leaves a closed pair before
+    /// the caret formats it. This test used to assert the opposite, from a wrong brief.
+    @Test(arguments: [("", "**hi**"), ("_hi", "_"), ("so ", "~~hi~~"), ("", "`hi`")])
+    func pasteFormatsThePairItCloses(_ typed: String, _ pasted: String) {
       let pasteboard = NSPasteboard.withUniqueName()
       defer { pasteboard.releaseGlobally() }
       let input = MacComposerTextInput.InputView()
-      pasteboard.setString("**hi**", forType: .string)
+      type(typed, into: input)
+      pasteboard.setString(pasted, forType: .string)
       input.pasteText(from: pasteboard)
-      #expect(input.string == "**hi**")
-      // Not even a pasted closing delimiter on its own.
-      input.string = ""
-      type("_hi", into: input)
-      pasteboard.clearContents()
-      pasteboard.setString("_", forType: .string)
-      input.pasteText(from: pasteboard)
-      #expect(input.string == "_hi_")
+      #expect(input.string == (typed.hasPrefix("so ") ? "so hi" : "hi"))
+      #expect(input.selectedRange() == NSRange(location: input.string.utf16.count, length: 0))
+      // The same bytes the literal paste serialized to before.
+      #expect(input.captureDraft() == typed + pasted + "\n")
+      #expect(input.captureDraft() == ComposerBlockText.document(NSAttributedString(string: typed + pasted)).markdown)
     }
 
+    /// One pair per edit, as on web: only the pair that ends at the caret.
+    @Test func pasteOfSeveralPairsFormatsOnlyTheLast() {
+      let pasteboard = NSPasteboard.withUniqueName()
+      defer { pasteboard.releaseGlobally() }
+      let input = MacComposerTextInput.InputView()
+      pasteboard.setString("**a** and **b**", forType: .string)
+      input.pasteText(from: pasteboard)
+      #expect(input.string == "**a** and b")
+      #expect(input.attributedString().attribute(ComposerInlineText.bold, at: 10, effectiveRange: nil) as? Bool == true)
+      #expect(input.attributedString().attribute(ComposerInlineText.bold, at: 2, effectiveRange: nil) == nil)
+      #expect(input.captureDraft() == "**a** and **b**\n")
+    }
+
+    @Test func pasteThatClosesNoPairStaysLiteral() {
+      let pasteboard = NSPasteboard.withUniqueName()
+      defer { pasteboard.releaseGlobally() }
+      let input = MacComposerTextInput.InputView()
+      pasteboard.setString("**hi** there", forType: .string)
+      input.pasteText(from: pasteboard)
+      #expect(input.string == "**hi** there")
+    }
+
+    /// Undo after a formatting paste never stops half way: in the test host, where the
+    /// event group stays open, one undo removes the formatting and the paste together.
+    @Test func undoAfterAFormattingPasteLeavesNoHalfState() {
+      let pasteboard = NSPasteboard.withUniqueName()
+      defer { pasteboard.releaseGlobally() }
+      let input = MacComposerTextInput.InputView()
+      let delegate = UndoDelegate()
+      input.delegate = delegate
+      input.allowsUndo = true
+      pasteboard.setString("**hi**", forType: .string)
+      input.pasteText(from: pasteboard)
+      #expect(input.string == "hi")
+      delegate.manager.undo()
+      #expect(input.string.isEmpty)
+      delegate.manager.redo()
+      #expect(input.string == "hi")
+      #expect(input.captureDraft() == "**hi**\n")
+      delegate.manager.undo()
+    }
+
+    /// Web's input event covers deletions: removing what stood between a closed pair and
+    /// the caret formats the pair.
+    @Test func aDeletionThatLeavesAClosedPairBeforeTheCaretFormatsIt() {
+      let input = MacComposerTextInput.InputView()
+      input.string = "so **hi**!"
+      input.setSelectedRange(NSRange(location: 10, length: 0))
+      input.deleteBackward(nil)
+      #expect(input.string == "so hi")
+      #expect(input.selectedRange() == NSRange(location: 5, length: 0))
+      #expect(input.captureDraft() == "so **hi**\n")
+    }
+
+    @Test func otherDeletionsFormatToo() {
+      let input = MacComposerTextInput.InputView()
+      input.string = "_hi_ word"
+      input.setSelectedRange(NSRange(location: 9, length: 0))
+      input.deleteWordBackward(nil)
+      #expect(input.string == "_hi_ ")
+      input.setSelectedRange(NSRange(location: 4, length: 0))
+      input.deleteForward(nil)
+      #expect(input.string == "hi")
+      input.string = "`hi` cut"
+      input.setSelectedRange(NSRange(location: 4, length: 4))
+      input.cut(nil)
+      #expect(input.string == "hi")
+    }
+
+    @Test func aDeletionInsideCodeOrThatClosesNothingStaysLiteral() {
+      let input = MacComposerTextInput.InputView()
+      input.string = "snake_case_!"
+      input.setSelectedRange(NSRange(location: 12, length: 0))
+      input.deleteBackward(nil)
+      #expect(input.string == "snake_case_")
+      input.restoreDraft("`_x_!`")
+      input.setSelectedRange(NSRange(location: 4, length: 0))
+      input.deleteBackward(nil)
+      #expect(input.string == "_x_\n")
+    }
+
+    /// Not a user input event on web either: the app put this text there.
     @Test func programmaticInsertionDoesNotFormat() {
       let input = MacComposerTextInput.InputView()
       type("_hi", into: input)
@@ -130,17 +214,29 @@
       input.setMarkedText("*", selectedRange: NSRange(location: 1, length: 0), replacementRange: input.selectedRange())
       #expect(input.hasMarkedText())
       #expect(input.string == "**hi**")
-      // Committing the single character is the keystroke.
+      // Committing ends the composition; then it is an edit like any other.
       input.insertText("*", replacementRange: input.markedRange())
       #expect(!input.hasMarkedText())
       #expect(input.string == "hi")
     }
 
-    @Test func aCommittedCompositionOfSeveralCharactersDoesNotFormat() {
+    /// The kept Apple exception: nothing is replaced under an active input method. The
+    /// rule runs once the composition commits, whatever its length, as any other edit.
+    @Test func aCompositionFormatsOnlyOnceCommitted() {
       let input = MacComposerTextInput.InputView()
       input.setMarkedText("_hi_", selectedRange: NSRange(location: 4, length: 0), replacementRange: input.selectedRange())
       #expect(input.string == "_hi_")
       input.insertText("_hi_", replacementRange: input.markedRange())
+      #expect(!input.hasMarkedText())
+      #expect(input.string == "hi")
+    }
+
+    /// An input method handles its own Backspace; should a deletion reach the view while
+    /// text is marked, it must not format what was being composed.
+    @Test func aDeletionDuringACompositionDoesNotFormat() {
+      let input = MacComposerTextInput.InputView()
+      input.setMarkedText("_hi_!", selectedRange: NSRange(location: 5, length: 0), replacementRange: input.selectedRange())
+      input.deleteBackward(nil)
       #expect(input.string == "_hi_")
     }
 
