@@ -12,7 +12,9 @@ public extension WorkspaceState {
   /// Retry is offered to the mentioner only, and only while the source human
   /// message is loaded in the room or the open thread (web `mentionRetrySourceMessages`).
   func canRetryMention(_ shell: Components.Schemas.ChatRoomMessage) -> Bool {
-    guard shell.roomId == transcriptRoomId else { return false }
+    // Ordinary rows reach this while scrolling; reject them before copying the transcript.
+    guard shell.roomId == transcriptRoomId,
+          case .failed(_, _?) = CoworkerMentionShell(message: shell) else { return false }
     return CoworkerMentionShell.canRetry(shell, currentUserId: currentUserId, sources: mentionRetrySources)
   }
 
