@@ -30,7 +30,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "get",
     path: "/starred",
     description:
-      "The current user's Pinned projects in the active workspace, oldest Pin first (ADR 0036). Separate from the project list because a Pinned project is usually a quiet one, so it often falls outside the activity-ordered first page. Closed projects are left out; their Pin survives, so reopening restores it.",
+      "The current user's Pinned projects in the active workspace, oldest Pin first (ADR 0036). Separate from the project list because a Pinned project is usually a quiet one, so it often falls outside the activity-ordered first page. Closed projects stay in this list so a project page can still offer Unpin; the sidebar flyout drops them. The Pin row survives either way, so reopening restores it.",
     tags: ["Projects"],
     responses: {
       200: jsonSuccessResponse(
@@ -56,7 +56,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         userId: userContext.userId,
         project: {
           workspaceId: workspaceContext.workspaceId,
-          closedAt: null,
         },
       },
       // Ascending, so the reader's oldest Pin leads. Unlike a Pinned room

@@ -2091,6 +2091,9 @@
         "sortedBy": "Ordenado por actividad reciente",
         "lastActivity": "Última actividad",
         "created": "Creado",
+        "pin": "Fijar proyecto",
+        "unpin": "Desfijar proyecto",
+        "pinError": "No se pudo cambiar el fijado. Inténtalo de nuevo.",
         "stats": {
           "tasks": "Tareas",
           "jobs": "Jobs",
@@ -2414,6 +2417,8 @@
           "taskManager": "Tareas",
           "projects": "Proyectos",
           "allProjects": "Todos los proyectos",
+          "projectsPanel": "Tus proyectos",
+          "pinnedProjects": "Fijados",
           "recentProjects": "Proyectos recientes",
           "history": "Historial",
           "drive": "Archivos",
