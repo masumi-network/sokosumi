@@ -44,6 +44,7 @@ interface FullCalendarProps {
 }
 
 const {
+  calendarRealtimeBridgeMock,
   alertDialogActionMock,
   alertDialogMock,
   clearTaskScheduleMock,
@@ -63,6 +64,7 @@ const {
   taskScheduleSectionMock,
   toastErrorMock,
 } = vi.hoisted(() => ({
+  calendarRealtimeBridgeMock: vi.fn(),
   alertDialogActionMock: vi.fn(),
   alertDialogMock: vi.fn(),
   clearTaskScheduleMock: vi.fn(),
@@ -81,6 +83,13 @@ const {
   saveCalendarTaskScheduleMock: vi.fn(),
   taskScheduleSectionMock: vi.fn(),
   toastErrorMock: vi.fn(),
+}));
+
+vi.mock("@/lib/ably/calendar-realtime-bridge", () => ({
+  CalendarRealtimeBridge: (props: { onInvalidated: () => void }) => {
+    calendarRealtimeBridgeMock(props);
+    return null;
+  },
 }));
 
 vi.mock("@fullcalendar/react", () => ({
@@ -882,6 +891,19 @@ describe("WorkspaceCalendar editing", () => {
       expect(saveCalendarTaskScheduleMock).toHaveBeenCalledWith(
         expect.objectContaining({ taskId: "task-1" }),
       ),
+    );
+  });
+
+  it("preserves an open editor when another member invalidates the calendar", async () => {
+    const user = userEvent.setup();
+    renderCalendar({ currentUserId: "user-1", workspaceId: "workspace-1" });
+    await openEditor(user);
+    const bridge = calendarRealtimeBridgeMock.mock.calls.at(-1)?.[0];
+    act(() => bridge.onInvalidated());
+    expect(screen.getByRole("dialog")).toHaveTextContent("edit.title");
+    await user.click(screen.getByRole("button", { name: "save schedule" }));
+    await waitFor(() =>
+      expect(saveCalendarTaskScheduleMock).toHaveBeenCalled(),
     );
   });
 

@@ -40,6 +40,8 @@ export interface CalendarPageSearchParams {
 
 export interface LoadedWorkspaceCalendarPage {
   activeOrganizationId: string | null;
+  currentUserId: string | null;
+  workspaceId: string;
   calendarKey: string;
   coworkerOptions: CoworkerOption[];
   initialDate: string;
@@ -69,9 +71,13 @@ export function resolveCalendarPageQuery(
 
 export async function loadCalendarPageContext(
   activeOrganizationId: string | null,
+  options: { requireSources?: boolean } = {},
 ) {
   const [sources, coworkers, memberOptions] = await Promise.all([
-    taskService.getWorkspaceCalendarSources().catch(() => []),
+    taskService.getWorkspaceCalendarSources().catch((error: unknown) => {
+      if (options.requireSources) throw error;
+      return [];
+    }),
     coworkerService.listCoworkers().catch(() => []),
     listTaskAssigneeMemberOptions(activeOrganizationId),
   ]);
@@ -138,6 +144,8 @@ export async function loadWorkspaceCalendarPage({
 
     return {
       activeOrganizationId,
+      currentUserId: session?.user?.id ?? null,
+      workspaceId: project.workspaceId,
       calendarKey: `${project.id}-${initialDate}-${params.scope ?? "workspace"}-${params.assigneeId ?? "all"}-${calendarStatus ?? "all"}`,
       coworkerOptions,
       initialDate,
@@ -166,9 +174,15 @@ export async function loadWorkspaceCalendarPage({
       scope,
       status: calendarStatus,
     }),
-    loadCalendarPageContext(activeOrganizationId),
+    loadCalendarPageContext(activeOrganizationId, { requireSources: true }),
     getProjectFilterOptions(params.projectId),
   ]);
+  const workspaceSource = sources.find(
+    (source) => source.sourceType === "WORKSPACE",
+  );
+  if (!workspaceSource)
+    throw new Error("Calendar workspace source unavailable");
+  const workspaceId = workspaceSource.sourceId.replace(/^workspace:/, "");
   const schedulableProjectIds = new Set(
     sources
       .filter(
@@ -179,6 +193,8 @@ export async function loadWorkspaceCalendarPage({
 
   return {
     activeOrganizationId,
+    currentUserId: session?.user?.id ?? null,
+    workspaceId,
     calendarKey: `${initialDate}-${params.projectId ?? "all"}-${params.sourceId ?? "all"}-${params.scope ?? "workspace"}-${params.assigneeId ?? "all"}-${calendarStatus ?? "all"}`,
     coworkerOptions,
     initialDate,

@@ -20,7 +20,12 @@ import {
 const UPDATE_MESSAGE_KEYS: readonly string[] = [
   "Notifications.Task.failed",
   "Notifications.Task.canceled",
+  "Notifications.Task.scheduleOccurrenceChangedByMember",
   "Notifications.Task.scheduleRepaired",
+  "Notifications.Task.scheduleRemovedByMember",
+  "Notifications.Task.scheduleRemovedByOperator",
+  "Notifications.Task.scheduleSourceChangedByMember",
+  "Notifications.Task.scheduleUpdatedByMember",
 ];
 
 const SOURCE_ROOT = join(process.cwd(), "src");
@@ -126,5 +131,15 @@ describe("the task keys Core names", () => {
         ...UPDATE_MESSAGE_KEYS,
       ].filter((key) => !emitted.has(key)),
     ).toEqual([]);
+  });
+
+  it("classify each named key exactly once", () => {
+    const classified = [
+      ...TASK_ATTENTION_MESSAGE_KEYS,
+      TASK_COMPLETED_MESSAGE_KEY,
+      ...UPDATE_MESSAGE_KEYS,
+    ];
+
+    expect(new Set(classified).size).toBe(classified.length);
   });
 });

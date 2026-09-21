@@ -4,8 +4,10 @@ import {
   renderAccessRequestEmail,
   renderChatDirectMessageEmail,
   renderChatMentionEmail,
+  renderProjectUpdateEmail,
   renderTaskAttentionEmail,
   renderTaskCompletedEmail,
+  renderTaskUpdateEmail,
 } from "../index.js";
 
 const ROOM_URL = "https://app.sokosumi.com/chat/rooms/room_1";
@@ -195,5 +197,60 @@ describe("notification emails", () => {
       "Sokosumi - Andreas hat dich in product erwähnt",
     );
     expect(spanish.subject).toBe("Sokosumi - Ada completó Informe");
+  });
+});
+
+describe("calendar email templates", () => {
+  it.each(["en", "de", "es"])(
+    "renders every update template in %s",
+    async (locale) => {
+      const reasons = [
+        "failed",
+        "canceled",
+        "scheduleRepaired",
+        "scheduleRemovedByOperator",
+        "scheduleUpdatedByMember",
+        "scheduleRemovedByMember",
+        "scheduleSourceChangedByMember",
+        "scheduleOccurrenceChangedByMember",
+      ] as const;
+      for (const reason of reasons) {
+        const email = await renderTaskUpdateEmail({
+          actionUrl: TASK_URL,
+          locale,
+          reason,
+          taskName: "Report <script>",
+          recipientName: "Ada",
+        });
+        expect(email.subject).toContain("Report");
+        expect(email.html).toContain(TASK_URL);
+        expect(email.html).not.toContain("<script>");
+        expect(email.html).not.toContain("notifications.event");
+        expect(email.html).not.toContain("{taskName}");
+        if (locale !== "en") expect(email.subject).not.toContain("A teammate");
+      }
+      for (const outcome of ["closed", "closeFailed"] as const) {
+        const email = await renderProjectUpdateEmail({
+          actionUrl: "https://app.sokosumi.com/projects/p1",
+          locale,
+          outcome,
+          projectName: "Launch",
+        });
+        expect(email.subject).toContain("Launch");
+        expect(email.html).toContain("/projects/p1");
+        expect(email.html).not.toContain("notifications.event");
+        expect(email.html).not.toContain("{projectName}");
+      }
+    },
+  );
+
+  it("uses a translated project fallback when the name is missing", async () => {
+    const email = await renderProjectUpdateEmail({
+      actionUrl: REVIEW_URL,
+      locale: "de",
+      outcome: "closed",
+      projectName: " ",
+    });
+    expect(email.subject).toBe("Sokosumi - Dein Projekt ist jetzt geschlossen");
   });
 });

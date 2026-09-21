@@ -55,6 +55,8 @@ export default async function ProjectCalendarPage({
         <div className="mt-6 w-full">
           <WorkspaceCalendar
             activeOrganizationId={page.activeOrganizationId}
+            currentUserId={page.currentUserId}
+            workspaceId={project.workspaceId}
             initialDate={page.initialDate}
             items={page.items}
             key={page.calendarKey}

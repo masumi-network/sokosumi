@@ -15,6 +15,8 @@ const {
   removeMemberMock,
   applyOrganizationExitChatRevocationMock,
   publishOrganizationExitChatRevocationMock,
+  deliverOrganizationCalendarInvalidationsNowMock,
+  queryRawMock,
   transactionMock,
   authContextState,
 } = vi.hoisted(() => ({
@@ -31,6 +33,8 @@ const {
   removeMemberMock: vi.fn(),
   applyOrganizationExitChatRevocationMock: vi.fn(),
   publishOrganizationExitChatRevocationMock: vi.fn(),
+  deliverOrganizationCalendarInvalidationsNowMock: vi.fn(),
+  queryRawMock: vi.fn(),
   transactionMock: vi.fn(),
 }));
 
@@ -59,6 +63,11 @@ vi.mock("@/helpers/chat-room-organization-exit", () => ({
     applyOrganizationExitChatRevocationMock(...args),
   publishOrganizationExitChatRevocation: (...args: unknown[]) =>
     publishOrganizationExitChatRevocationMock(...args),
+}));
+
+vi.mock("@/helpers/calendar-invalidation", () => ({
+  deliverOrganizationCalendarInvalidationsNow: (...args: unknown[]) =>
+    deliverOrganizationCalendarInvalidationsNowMock(...args),
 }));
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -114,11 +123,21 @@ describe("DELETE /admin/organizations/{slug}/members/{memberId}", () => {
       statusMessages: [],
     });
     publishOrganizationExitChatRevocationMock.mockResolvedValue(undefined);
-    transactionMock.mockImplementation(async (callback) => callback({}));
+    deliverOrganizationCalendarInvalidationsNowMock.mockResolvedValue(
+      undefined,
+    );
+    queryRawMock.mockResolvedValue([{ id: MEMBER.id }]);
+    transactionMock.mockImplementation(async (callback) =>
+      callback({ $queryRaw: queryRawMock }),
+    );
   });
 
   it("hard-leaves chat rooms before removing the member, then publishes", async () => {
     const callOrder: string[] = [];
+    queryRawMock.mockImplementation(async () => {
+      callOrder.push("lock");
+      return [{ id: MEMBER.id }];
+    });
     applyOrganizationExitChatRevocationMock.mockImplementation(async () => {
       callOrder.push("apply");
       return { revokedRoomIds: ["room-1"], statusMessages: [] };
@@ -137,16 +156,23 @@ describe("DELETE /admin/organizations/{slug}/members/{memberId}", () => {
 
     expect(response.status).toBe(204);
     expect(applyOrganizationExitChatRevocationMock).toHaveBeenCalledWith(
-      {},
+      expect.objectContaining({ $queryRaw: queryRawMock }),
       "user_target",
       "org_1",
     );
-    expect(removeMemberMock).toHaveBeenCalledWith("mem_1", "org_1", {});
+    expect(removeMemberMock).toHaveBeenCalledWith(
+      "mem_1",
+      "org_1",
+      expect.objectContaining({ $queryRaw: queryRawMock }),
+    );
     expect(publishOrganizationExitChatRevocationMock).toHaveBeenCalledWith(
       "user_target",
       { revokedRoomIds: ["room-1"], statusMessages: [] },
     );
-    expect(callOrder).toEqual(["apply", "removeMember", "publish"]);
+    expect(
+      deliverOrganizationCalendarInvalidationsNowMock,
+    ).toHaveBeenCalledWith("org_1", "user_target");
+    expect(callOrder).toEqual(["lock", "apply", "removeMember", "publish"]);
   });
 
   it("does not publish when owner retention blocks remove", async () => {
@@ -159,6 +185,9 @@ describe("DELETE /admin/organizations/{slug}/members/{memberId}", () => {
 
     expect(response.status).toBe(400);
     expect(publishOrganizationExitChatRevocationMock).not.toHaveBeenCalled();
+    expect(
+      deliverOrganizationCalendarInvalidationsNowMock,
+    ).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the organization is missing", async () => {

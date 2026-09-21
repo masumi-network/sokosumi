@@ -58,7 +58,6 @@ export const TASK_ATTENTION_MESSAGE_KEYS: readonly string[] = [
   "Notifications.Task.approvalRequired",
   "Notifications.Task.authenticationRequired",
   "Notifications.Task.outOfCredits",
-  TASK_SCHEDULE_REMOVED_MESSAGE_KEY,
 ];
 
 /**
@@ -191,6 +190,8 @@ export function toNotificationCategory(
       return BILLING_ATTENTION_MESSAGE_KEYS.includes(messageKey)
         ? "BILLING_ATTENTION"
         : "BILLING_UPDATE";
+    case "PROJECT":
+      return "PROJECT_UPDATE";
     case "SYSTEM":
       return "SYSTEM";
     case "CHAT":

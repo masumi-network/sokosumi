@@ -92,6 +92,25 @@ export interface TaskAttentionEmailProps extends TaskEmailProps {
   reason: TaskAttentionReason;
 }
 
+export type TaskUpdateReason =
+  | "failed"
+  | "canceled"
+  | "scheduleRepaired"
+  | "scheduleRemovedByOperator"
+  | "scheduleUpdatedByMember"
+  | "scheduleRemovedByMember"
+  | "scheduleSourceChangedByMember"
+  | "scheduleOccurrenceChangedByMember";
+
+export interface TaskUpdateEmailProps extends TaskEmailProps {
+  reason: TaskUpdateReason;
+}
+
+export interface ProjectUpdateEmailProps extends NotificationEmailProps {
+  projectName?: null | string;
+  outcome: "closed" | "closeFailed";
+}
+
 /** A task that finished (SOK-1090). */
 export type TaskCompletedEmailProps = TaskEmailProps;
 

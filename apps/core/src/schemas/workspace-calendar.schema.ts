@@ -161,3 +161,22 @@ export const workspaceCalendarSourceSchema = z
     }),
   })
   .openapi("WorkspaceCalendarSource");
+
+export const calendarIdentityLabelsRequestSchema = z
+  .object({
+    refs: z.array(z.string().min(1).max(255)).max(50),
+  })
+  .strict()
+  .openapi("CalendarIdentityLabelsRequest");
+
+export const calendarIdentityLabelSchema = z
+  .object({
+    ref: z.string(),
+    state: z.enum(["current_member", "former_member", "unknown"]),
+    label: z.string().optional(),
+  })
+  .openapi("CalendarIdentityLabel");
+
+export const calendarIdentityLabelsSchema = z
+  .array(calendarIdentityLabelSchema)
+  .openapi("CalendarIdentityLabels");

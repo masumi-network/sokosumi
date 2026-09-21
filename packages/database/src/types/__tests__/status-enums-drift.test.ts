@@ -42,6 +42,7 @@ describe("status enum drift guard", () => {
     expect({ ...PrismaNotificationKind }).toEqual({
       JOB: "JOB",
       TASK: "TASK",
+      PROJECT: "PROJECT",
       BILLING: "BILLING",
       SYSTEM: "SYSTEM",
       CHAT: "CHAT",

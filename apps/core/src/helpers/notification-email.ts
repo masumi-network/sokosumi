@@ -3,9 +3,12 @@ import {
   renderAccessRequestEmail,
   renderChatDirectMessageEmail,
   renderChatMentionEmail,
+  renderProjectUpdateEmail,
   renderTaskAttentionEmail,
   renderTaskCompletedEmail,
+  renderTaskUpdateEmail,
   type TaskAttentionReason,
+  type TaskUpdateReason,
 } from "@sokosumi/email";
 import {
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
@@ -58,6 +61,8 @@ const EMAIL_DELAY_MS: Partial<Record<NotificationCategory, number>> = {
   CHAT_MENTION: 10 * MINUTE_MS,
   TASK_ATTENTION: 10 * MINUTE_MS,
   TASK_COMPLETED: 30 * MINUTE_MS,
+  TASK_UPDATE: 30 * MINUTE_MS,
+  PROJECT_UPDATE: 10 * MINUTE_MS,
   SYSTEM: 5 * MINUTE_MS,
 };
 
@@ -98,6 +103,17 @@ export function taskAttentionReasonOf(
   );
 }
 
+const TASK_UPDATE_REASONS: readonly TaskUpdateReason[] = [
+  "failed",
+  "canceled",
+  "scheduleRepaired",
+  "scheduleRemovedByOperator",
+  "scheduleUpdatedByMember",
+  "scheduleRemovedByMember",
+  "scheduleSourceChangedByMember",
+  "scheduleOccurrenceChangedByMember",
+];
+
 /** What the notification is about, spelled the way the email needs it. */
 export interface NotificationEmailInput {
   kind: NotificationKind;
@@ -112,8 +128,8 @@ export interface NotificationEmailInput {
 /**
  * The email to send for this notification, or null when it has none.
  *
- * Null for a message key with no email of its own: a room message, a task
- * update, a chat key nobody mapped. The delay table above already keeps those
+ * Null for a message key with no email of its own, such as a room message
+ * or a chat key nobody mapped. The delay table above already keeps those
  * categories out, so this branch answers for a key inside an emailing category
  * that still has no template, which is the safe way round for a key added
  * later.
@@ -178,6 +194,21 @@ export async function buildNotificationEmail(
         }),
       );
 
+    case "Notifications.Project.closed":
+    case "Notifications.Project.closeFailed":
+      if (input.kind !== "PROJECT") return null;
+      return withRecipient(
+        input,
+        await renderProjectUpdateEmail({
+          ...shared,
+          projectName: readString(params, "projectName"),
+          outcome:
+            input.messageKey === "Notifications.Project.closed"
+              ? "closed"
+              : "closeFailed",
+        }),
+      );
+
     case VENDOR_GRANT_PENDING_MESSAGE_KEY:
       return withRecipient(
         input,
@@ -199,6 +230,23 @@ export async function buildNotificationEmail(
       );
 
     default: {
+      const updateReason =
+        input.kind === "TASK"
+          ? TASK_UPDATE_REASONS.find(
+              (reason) => input.messageKey === `Notifications.Task.${reason}`,
+            )
+          : undefined;
+      if (updateReason) {
+        return withRecipient(
+          input,
+          await renderTaskUpdateEmail({
+            ...shared,
+            projectName: readString(params, "projectName"),
+            reason: updateReason,
+            taskName: readString(params, "taskName"),
+          }),
+        );
+      }
       const reason =
         input.kind === "TASK" ? taskAttentionReasonOf(input.messageKey) : null;
 

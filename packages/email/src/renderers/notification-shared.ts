@@ -46,7 +46,8 @@ export function nameOr(
     | "fallbackAuthorName"
     | "fallbackCoworkerName"
     | "fallbackRoomName"
-    | "fallbackTaskName",
+    | "fallbackTaskName"
+    | "fallbackProjectName",
 ): string {
   const trimmedValue = value?.trim();
 

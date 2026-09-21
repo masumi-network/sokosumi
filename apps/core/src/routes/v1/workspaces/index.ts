@@ -1,5 +1,6 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
+import mountPostCalendarIdentityLabels from "./[id]/calendar/identity-labels/post.js";
 import mountGetWorkspaceById from "./[id]/get.js";
 import mountGetActiveWorkspaceCalendar from "./calendar/get.js";
 import mountGetWorkspaceCalendarSources from "./calendar/sources/get.js";
@@ -12,6 +13,7 @@ mountPostWorkspaceDesignMdAdHoc(app);
 mountGetWorkspaceDesignMd(app);
 mountGetActiveWorkspaceCalendar(app);
 mountGetWorkspaceCalendarSources(app);
+mountPostCalendarIdentityLabels(app);
 mountGetWorkspaceById(app);
 
 export default app;
