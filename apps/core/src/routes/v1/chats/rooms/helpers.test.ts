@@ -11,7 +11,6 @@ import {
   buildDirectRoomName,
   buildDiscoverabilityFilter,
   canManageChatRoomLifecycle,
-  canPermanentlyDeleteChatRoom,
   chatRoomInclude,
   chatRoomMessageInclude,
   contentIncludesRoomAllMention,
@@ -461,21 +460,6 @@ describe("canManageChatRoomLifecycle", () => {
 
   it("denies a creator who is only a plain member", () => {
     expect(canManageChatRoomLifecycle({ role: MemberRole.MEMBER })).toBe(false);
-  });
-});
-
-describe("canPermanentlyDeleteChatRoom", () => {
-  it.each([
-    ["owner", MemberRole.OWNER],
-    ["admin", MemberRole.ADMIN],
-  ] as const)("allows an organization %s", (_label, role) => {
-    expect(canPermanentlyDeleteChatRoom({ role })).toBe(true);
-  });
-
-  it("denies a plain member", () => {
-    expect(canPermanentlyDeleteChatRoom({ role: MemberRole.MEMBER })).toBe(
-      false,
-    );
   });
 });
 

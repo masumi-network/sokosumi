@@ -1,5 +1,4 @@
 import { createRoute } from "@hono/zod-openapi";
-import { organizationRepository } from "@sokosumi/database/repositories";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -41,19 +40,23 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { query } = c.req.valid("query");
+    const trimmed = (query ?? "").trim();
+    if (!trimmed) {
+      return ok(c, adminOrganizationSearchResponseSchema.parse([]));
+    }
 
-    const organizations = await organizationRepository.searchOrganizations(
-      query ?? "",
-      SEARCH_LIMIT,
-      prisma,
-    );
+    const organizations = await prisma.organization.findMany({
+      where: {
+        OR: [
+          { name: { contains: trimmed, mode: "insensitive" } },
+          { slug: { contains: trimmed, mode: "insensitive" } },
+        ],
+      },
+      select: { id: true, name: true, slug: true },
+      orderBy: { name: "asc" },
+      take: SEARCH_LIMIT,
+    });
 
-    const options = organizations.map((organization) => ({
-      id: organization.id,
-      name: organization.name,
-      slug: organization.slug,
-    }));
-
-    return ok(c, adminOrganizationSearchResponseSchema.parse(options));
+    return ok(c, adminOrganizationSearchResponseSchema.parse(organizations));
   });
 }

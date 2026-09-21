@@ -1,3 +1,4 @@
+import { NOTIFICATION_EMAIL_CATEGORIES } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 // The generated index re-exports types only, and this needs the category list
@@ -29,7 +30,7 @@ const MENTION: KindSpec = {
   category: "CHAT_MENTION",
   labelKey: "kindChatMention",
   hintKey: "kindChatMentionHint",
-  email: "NONE",
+  email: "CHANNEL",
 };
 
 /** The group as the page holds it: these pin the table the reader presses. */
@@ -563,10 +564,13 @@ describe("presetStops", () => {
 describe("NOTIFICATION_GROUPS", () => {
   /**
    * The rows that draw an email cell are the categories Core mails, and Core
-   * keeps that list (`NOTIFICATION_EMAIL_CATEGORIES`). Web cannot read it,
-   * so this pins the copy: a row moved onto or off that list changes this
-   * test in the same change, rather than drawing a cell Core ignores or
-   * hiding one it reads (SOK-1090, SOK-916).
+   * keeps that list (`NOTIFICATION_EMAIL_CATEGORIES`). This file is a test,
+   * so it reads the list rather than pinning a copy: a row moved onto or off
+   * it fails here in the same change, rather than drawing a cell Core
+   * ignores or hiding one it reads (SOK-1090, SOK-916, SOK-1142). App code
+   * still cannot take this import; the page keeps its own vocabulary. Both
+   * sides are sorted, because the page orders its rows for the reader and
+   * Core orders its list for itself.
    */
   it("offers the email cell on the rows Core mails", () => {
     expect(
@@ -574,17 +578,23 @@ describe("NOTIFICATION_GROUPS", () => {
         group.kinds
           .filter((kind) => kind.email === "CHANNEL")
           .map((kind) => kind.category),
+      ).toSorted(),
+    ).toEqual([...NOTIFICATION_EMAIL_CATEGORIES].toSorted());
+  });
+
+  /**
+   * Every other row says where its email really comes from, or it is a
+   * coming-soon cell again: a promise the row behind it does not keep.
+   */
+  it("marks every row it does not mail as arriving from elsewhere", () => {
+    const mailed = new Set<string>(NOTIFICATION_EMAIL_CATEGORIES);
+
+    expect(
+      NOTIFICATION_GROUPS.flatMap((group) =>
+        group.kinds
+          .filter((kind) => !mailed.has(kind.category))
+          .map((kind) => `${kind.category} ${kind.email}`),
       ),
-    ).toEqual([
-      "TASK_ATTENTION",
-      "TASK_COMPLETED",
-      "TASK_UPDATE",
-      "CHAT_MENTION",
-      "CHAT_DIRECT_MESSAGE",
-      "BILLING_ATTENTION",
-      "PROJECT_UPDATE",
-      "SYSTEM",
-      "FOLLOW_UP",
-    ]);
+    ).toEqual(["BILLING_UPDATE EXTERNAL"]);
   });
 });

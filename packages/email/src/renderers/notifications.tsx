@@ -7,6 +7,7 @@ import type {
   AccessRequestEmailProps,
   ChatDirectMessageEmailProps,
   ChatMentionEmailProps,
+  ChatRoomMessageEmailProps,
   ProjectUpdateEmailProps,
   RenderedEmail,
   TaskAttentionEmailProps,
@@ -120,6 +121,50 @@ export function renderChatDirectMessageEmail({
   });
 }
 
+/**
+ * One unread message, or a count of them.
+ *
+ * A single message is the whole of what is waiting, so the email shows it:
+ * who wrote and what they wrote, the way a mention does. Two or more have no
+ * one message that speaks for the rest, so the email counts them and quotes
+ * nobody. A count that is missing reads as one, because the row an email is
+ * built from stands for one message until a second joins it.
+ */
+export function renderChatRoomMessageEmail({
+  actionUrl,
+  authorName,
+  locale,
+  messagePreview,
+  recipientName,
+  roomName,
+  unreadCount,
+}: ChatRoomMessageEmailProps): Promise<RenderedEmail> {
+  const { t } = createEmailTranslator(locale);
+  const scope = `${EVENT_SCOPE}.roomMessage`;
+  const room = nameOr(t, roomName, "fallbackRoomName");
+  const many = typeof unreadCount === "number" && unreadCount > 1;
+  const variant = many ? `${scope}.many` : `${scope}.one`;
+  const values: Record<string, string> = many
+    ? { count: String(unreadCount), roomName: room }
+    : {
+        authorName: nameOr(t, authorName, "fallbackAuthorName"),
+        roomName: room,
+      };
+
+  return renderEventEmail({
+    actionUrl,
+    quote: many ? null : messagePreview,
+    recipientName,
+    t,
+    words: {
+      body: t(`${variant}.body`, values),
+      button: t(`${scope}.button`),
+      subject: t(`${variant}.subject`, values),
+      title: t(`${variant}.title`),
+    },
+  });
+}
+
 /** The project a task belongs to, when the notification named one. */
 function projectFact(
   t: TranslateFn,
@@ -198,6 +243,37 @@ export function renderTaskCompletedEmail({
   });
 }
 
+/**
+ * Schedule changes and other task outcomes, using the existing task
+ * destination. Reason picks the sentence; `updated` is the fallback for a key
+ * nobody has written one for.
+ */
+export function renderTaskUpdateEmail({
+  actionUrl,
+  locale,
+  projectName,
+  reason,
+  recipientName,
+  taskName,
+}: TaskUpdateEmailProps): Promise<RenderedEmail> {
+  const { t } = createEmailTranslator(locale);
+  const scope = `${EVENT_SCOPE}.task.update`;
+  const values = { taskName: nameOr(t, taskName, "fallbackTaskName") };
+
+  return renderEventEmail({
+    actionUrl,
+    facts: projectFact(t, projectName),
+    recipientName,
+    t,
+    words: {
+      body: t(`${scope}.reasons.${reason}.body`, values),
+      button: t(`${EVENT_SCOPE}.task.button`),
+      subject: t(`${scope}.reasons.${reason}.subject`, values),
+      title: t(`${scope}.title`),
+    },
+  });
+}
+
 /** A vendor or a coworker asked for a workspace the reader manages. */
 export function renderAccessRequestEmail({
   actionUrl,
@@ -220,32 +296,6 @@ export function renderAccessRequestEmail({
       body: t(`${scope}.${request}.body`, values),
       button: t(`${scope}.button`),
       subject: t(`${scope}.${request}.subject`, values),
-      title: t(`${scope}.title`),
-    },
-  });
-}
-
-/** Schedule changes and other task outcomes, using the existing task destination. */
-export function renderTaskUpdateEmail({
-  actionUrl,
-  locale,
-  projectName,
-  reason,
-  recipientName,
-  taskName,
-}: TaskUpdateEmailProps): Promise<RenderedEmail> {
-  const { t } = createEmailTranslator(locale);
-  const scope = `${EVENT_SCOPE}.task.update`;
-  const values = { taskName: nameOr(t, taskName, "fallbackTaskName") };
-  return renderEventEmail({
-    actionUrl,
-    facts: projectFact(t, projectName),
-    recipientName,
-    t,
-    words: {
-      body: t(`${scope}.reasons.${reason}.body`, values),
-      button: t(`${EVENT_SCOPE}.task.button`),
-      subject: t(`${scope}.reasons.${reason}.subject`, values),
       title: t(`${scope}.title`),
     },
   });

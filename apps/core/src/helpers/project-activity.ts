@@ -1,40 +1,15 @@
 import { z } from "@hono/zod-openapi";
 import { PrismaRaw } from "@sokosumi/database/client";
-import { badRequest, forbidden } from "@/helpers/error";
-import {
-  buildCoworkerTaskAccessSql,
-  buildHumanTaskVisibilitySql,
-} from "@/helpers/task-visibility";
-import { hasGrantedWorkspaceAccess } from "@/helpers/vendor-grants";
+import { badRequest } from "@/helpers/error";
 import type { AuthenticationContext } from "@/middleware/auth";
+import { resolveProjectReaderAccess } from "@/types/project";
 
 export async function projectActivityVisibility(
   auth: AuthenticationContext,
   workspaceId: string,
 ): Promise<{ task: PrismaRaw.Sql; job: PrismaRaw.Sql }> {
-  if (auth.actor === "user" || auth.actor === "sokoBot") {
-    const task = buildHumanTaskVisibilitySql(auth.userId);
-    return {
-      task,
-      job: PrismaRaw.sql`AND (j."taskId" IS NULL OR (TRUE ${task}))`,
-    };
-  }
-  if (auth.actor !== "coworker") throw forbidden("Unsupported project reader");
-  const hasWorkspaceGrant = auth.context
-    ? await hasGrantedWorkspaceAccess({ vendorId: auth.vendorId, workspaceId })
-    : false;
-  return {
-    task: buildCoworkerTaskAccessSql({ ...auth, hasWorkspaceGrant }),
-    // Same parent-task rule as buildCoworkerJobParentTaskWhere. A workspace
-    // grant does not broaden the Job reader set.
-    job: PrismaRaw.sql`AND (
-      t."assigneeId" = ${auth.coworkerId}
-      OR (t.visibility = 'PRIVATE' AND EXISTS (
-        SELECT 1 FROM coworker c
-        WHERE c.id = t."assigneeId" AND c."vendorId" = ${auth.vendorId}::uuid
-      ))
-    )`,
-  };
+  const { sqlWhere } = await resolveProjectReaderAccess(auth, workspaceId);
+  return sqlWhere;
 }
 
 const projectActivityCursorSchema = z.object({

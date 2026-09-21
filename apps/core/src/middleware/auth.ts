@@ -637,13 +637,11 @@ const bearerMiddleware: MiddlewareHandler<AuthEnv> = bearerAuth({
       throw unauthorized("Invalid or expired agent token");
     }
 
-    // Check 2: Better Auth API key
     const apiKeyValid = await verifyApiKey(token, c);
     if (apiKeyValid) {
       return true;
     }
 
-    // Check 3: OAuth Access Token
     const oauthTokenValid = await verifyOAuthToken(token, c);
     if (oauthTokenValid) {
       return true;
