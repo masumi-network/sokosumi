@@ -5,6 +5,7 @@
 import * as Sentry from "@sentry/nextjs";
 
 import { beforeSendServerEvent } from "@/lib/sentry/expected-request-errors";
+import { redactResetPasswordToken } from "@/lib/sentry/reset-password-token-redaction";
 
 Sentry.init({
   // eslint-disable-next-line no-restricted-properties
@@ -14,6 +15,7 @@ Sentry.init({
   tracesSampleRate: 0.005,
 
   beforeSend: beforeSendServerEvent,
+  beforeSendTransaction: redactResetPasswordToken,
 
   // Setting this option to true will print useful information to the console while you're setting up Sentry.
   debug: false,
