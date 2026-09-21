@@ -27,6 +27,7 @@ import { type AuthLoginOptions, runAuthLogin } from "./auth-login.js";
 import { runAuthLogout } from "./auth-logout.js";
 import { runAuthStatus } from "./auth-status.js";
 import { runAgentsCommand } from "./commands/agents.js";
+import type { CommandOutput } from "./commands/command-helpers.js";
 import { runCoworkersCommand } from "./commands/coworkers.js";
 import { CLI_COMMANDS, runDiscoverCommand } from "./commands/discover.js";
 import { runJobsCommand } from "./commands/jobs.js";
@@ -34,10 +35,6 @@ import { runTasksCommand } from "./commands/tasks.js";
 import { runVendorsCommand } from "./commands/vendors.js";
 import { runWorkspacesCommand } from "./commands/workspaces.js";
 import { CLI_VERSION } from "./metadata.js";
-
-interface TextOutput {
-  write(value: string): unknown;
-}
 
 type ValueOptionName =
   | "auth-url"
@@ -128,7 +125,7 @@ interface CliOptions {
 
 export interface CliDependencies {
   env?: AuthEnvironment;
-  stdout?: TextOutput;
+  stdout?: CommandOutput;
   tuiFn?: (options: StatusAppOptions) => Promise<CliResult> | CliResult;
   authManager?: AuthManager;
   coreClient?: CoreHttpClient;
@@ -429,7 +426,7 @@ function getCoreClient(
 }
 
 function writeJsonError(
-  stdout: TextOutput,
+  stdout: CommandOutput,
   error: unknown,
   environment?: AuthEnvironment,
 ): void {

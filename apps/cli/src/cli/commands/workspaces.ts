@@ -2,7 +2,6 @@ import type { OrganizationWorkspace } from "../../api/models/organization-worksp
 import { fetchOrganizationWorkspaces } from "../../api/services/organization-workspace-service.js";
 import {
   type CommandContext,
-  isJson,
   writeJson,
   writeText,
 } from "./command-helpers.js";
@@ -43,7 +42,6 @@ export async function runWorkspacesCommand({
     client,
     signal,
   );
-  if (isJson({ json }))
-    writeJson(stdout, { workspaces: organizationWorkspaces });
+  if (json) writeJson(stdout, { workspaces: organizationWorkspaces });
   else printWorkspaces(stdout, organizationWorkspaces);
 }

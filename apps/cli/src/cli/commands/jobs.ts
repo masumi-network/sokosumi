@@ -11,7 +11,6 @@ import {
   applyListFilters,
   type CommandContext,
   type CommandOptions,
-  isJson,
   option,
   optionString,
   parsePositiveInteger,
@@ -146,7 +145,7 @@ export async function runJobsCommand({
         return [value.id, value.name, value.status, value.agentId];
       },
     });
-    if (isJson({ json })) writeJson(stdout, { jobs: filtered });
+    if (json) writeJson(stdout, { jobs: filtered });
     else printJobList(stdout, filtered);
     return;
   }
@@ -171,7 +170,7 @@ export async function runJobsCommand({
       { eventId, inputData },
       signal,
     );
-    if (isJson({ json })) {
+    if (json) {
       writeJson(stdout, { jobId: id, eventId, input: response.data });
     } else {
       writeText(stdout, [`Submitted input for job ${id}`, `event: ${eventId}`]);
@@ -187,7 +186,7 @@ export async function runJobsCommand({
       option(options, "details") === "true"
         ? await collectJobDetails(client, id, signal)
         : {};
-    if (isJson({ json })) writeJson(stdout, { job, ...details });
+    if (json) writeJson(stdout, { job, ...details });
     else printJob(stdout, job, details);
     return;
   }
