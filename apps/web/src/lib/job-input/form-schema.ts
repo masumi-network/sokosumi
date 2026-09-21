@@ -47,9 +47,6 @@ type StringBasedInputSchemaType = {
   validations?: Array<{ validation: string; value: string | number }> | null;
 };
 
-/**
- * Creates a Zod schema for string-based input types (STRING, TEXT, EMAIL, PASSWORD, URL, SEARCH)
- */
 function makeZodSchemaForStringType(
   jobInputSchema: StringBasedInputSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
@@ -67,9 +64,6 @@ function makeZodSchemaForStringType(
   );
 }
 
-/**
- * Creates a Zod schema for textarea input type
- */
 function makeZodSchemaForTextareaType(
   jobInputSchema: InputTextareaSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
@@ -87,9 +81,6 @@ function makeZodSchemaForTextareaType(
   );
 }
 
-/**
- * Creates a Zod schema for tel input type
- */
 function makeZodSchemaForTelType(
   jobInputSchema: InputTelSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
@@ -103,9 +94,6 @@ function makeZodSchemaForTelType(
   );
 }
 
-/**
- * Creates a Zod schema for number input type
- */
 function makeZodSchemaForNumberType(
   jobInputSchema: InputNumberSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
@@ -123,9 +111,6 @@ function makeZodSchemaForNumberType(
   );
 }
 
-/**
- * Creates a Zod schema for range input type
- */
 function makeZodSchemaForRangeType(
   jobInputSchema: InputRangeSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
@@ -140,9 +125,6 @@ function makeZodSchemaForRangeType(
   );
 }
 
-/**
- * Creates a Zod schema for boolean/checkbox input types
- */
 function makeZodSchemaForBooleanType(
   jobInputSchema: { name: string },
   t?: IntlTranslation<JobInputFormIntlPath>,
@@ -153,9 +135,6 @@ function makeZodSchemaForBooleanType(
   });
 }
 
-/**
- * Creates a Zod schema for date input type
- */
 function makeZodSchemaForDateType(
   jobInputSchema: InputDateSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
@@ -169,9 +148,6 @@ function makeZodSchemaForDateType(
   );
 }
 
-/**
- * Creates a Zod schema for datetime input type
- */
 function makeZodSchemaForDatetimeType(
   jobInputSchema: InputDatetimeSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
@@ -185,9 +161,6 @@ function makeZodSchemaForDatetimeType(
   );
 }
 
-/**
- * Creates a Zod schema for time input type
- */
 function makeZodSchemaForTimeType(
   jobInputSchema: InputTimeSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
@@ -201,9 +174,6 @@ function makeZodSchemaForTimeType(
   );
 }
 
-/**
- * Creates a Zod schema for month input type
- */
 function makeZodSchemaForMonthType(
   jobInputSchema: InputMonthSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
@@ -217,9 +187,6 @@ function makeZodSchemaForMonthType(
   );
 }
 
-/**
- * Creates a Zod schema for week input type
- */
 function makeZodSchemaForWeekType(
   jobInputSchema: InputWeekSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
@@ -233,9 +200,6 @@ function makeZodSchemaForWeekType(
   );
 }
 
-/**
- * Creates a Zod schema for color input type
- */
 function makeZodSchemaForColorType(
   jobInputSchema: InputColorSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
@@ -249,9 +213,6 @@ function makeZodSchemaForColorType(
   );
 }
 
-/**
- * Creates a Zod schema for file input type
- */
 function makeZodSchemaForFileType(
   jobInputSchema: InputFileSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
@@ -265,9 +226,6 @@ function makeZodSchemaForFileType(
   );
 }
 
-/**
- * Creates a Zod schema for option input type
- */
 function makeZodSchemaForOptionType(
   jobInputSchema: InputOptionSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
@@ -287,9 +245,6 @@ function makeZodSchemaForOptionType(
   );
 }
 
-/**
- * Creates a Zod schema for multiselect input type
- */
 function makeZodSchemaForMultiselectType(
   jobInputSchema: InputMultiselectSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
@@ -309,9 +264,6 @@ function makeZodSchemaForMultiselectType(
   );
 }
 
-/**
- * Creates a Zod schema for radio-group input type
- */
 function makeZodSchemaForRadioGroupType(
   jobInputSchema: InputRadioGroupSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
@@ -331,22 +283,16 @@ function makeZodSchemaForRadioGroupType(
   );
 }
 
-/**
- * Main function to create a Zod schema from a job input schema.
- * Handles all input types by delegating to specialized schema builders.
- */
 export const makeZodSchemaFromJobInputSchema = (
   jobInputSchema: InputFieldSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
 ): z.ZodTypeAny => {
   const { type } = jobInputSchema;
 
-  // Handle NONE type
   if (type === InputType.NONE) {
     return z.never().nullable();
   }
 
-  // Handle HIDDEN type
   if (type === InputType.HIDDEN) {
     return z.string().optional();
   }
