@@ -206,7 +206,12 @@ function resolveUserPresence(
 }
 
 export interface MapChatRoomAttentionOptions {
+  /** Total Room attention: `channelUnreadCount + threadUnreadCount`. */
   unreadCount?: number;
+  /** Room unread: top-level messages after Room last-read (ADR-0037). */
+  channelUnreadCount?: number;
+  /** Thread unread: gated replies after each Thread's Look (ADR-0037). */
+  threadUnreadCount?: number;
   unreadMentionCount?: number;
   starredAt?: Date | null;
   pinnedMessageCount?: number;
@@ -244,6 +249,8 @@ export function mapChatRoom(
 ) {
   const {
     unreadCount = 0,
+    channelUnreadCount = 0,
+    threadUnreadCount = 0,
     unreadMentionCount = 0,
     starredAt = null,
     pinnedMessageCount = 0,
@@ -281,6 +288,8 @@ export function mapChatRoom(
     createdAt: room.createdAt,
     updatedAt: room.updatedAt,
     unreadCount,
+    channelUnreadCount,
+    threadUnreadCount,
     unreadMentionCount,
     starredAt,
     pinnedMessageCount,
@@ -508,6 +517,8 @@ export async function mapChatRoomWithSidebarFlags(
   tx: Prisma.TransactionClient | typeof prisma,
   attention: {
     unreadCount?: number;
+    channelUnreadCount?: number;
+    threadUnreadCount?: number;
     unreadMentionCount?: number;
     activeOrganizationId?: string | null;
     organizationName?: string | null;
@@ -528,6 +539,8 @@ export async function mapChatRoomWithSidebarFlags(
 
   return mapChatRoom(room, userId, {
     unreadCount: attention.unreadCount ?? 0,
+    channelUnreadCount: attention.channelUnreadCount ?? 0,
+    threadUnreadCount: attention.threadUnreadCount ?? 0,
     unreadMentionCount: attention.unreadMentionCount ?? 0,
     starredAt: flags?.starredAt ?? null,
     pinnedMessageCount: pinnedMessageCounts.get(room.id) ?? 0,

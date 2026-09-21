@@ -267,7 +267,9 @@ describe("POST /chats/rooms/{id}/read", () => {
   });
 
   it("returns remaining thread unreadCount after room mark-read", async () => {
-    queryRawUnsafeMock.mockResolvedValue([{ roomId: ROOM_ID, unreadCount: 2 }]);
+    queryRawUnsafeMock.mockResolvedValue([
+      { roomId: ROOM_ID, source: "thread", unreadCount: 2 },
+    ]);
 
     const response = await createApp(userAuthContext).request(
       `/${ROOM_ID}/read`,
@@ -278,6 +280,10 @@ describe("POST /chats/rooms/{id}/read", () => {
     const body = await response.json();
     expect(body.data).toMatchObject({
       id: ROOM_ID,
+      // Reading the channel empties the channel's half. What is left belongs
+      // to Threads, which only a Look clears (ADR-0037).
+      channelUnreadCount: 0,
+      threadUnreadCount: 2,
       unreadCount: 2,
       unreadMentionCount: 0,
       markedUnread: false,

@@ -166,7 +166,9 @@ beforeEach(() => {
   });
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
   memberFindManyMock.mockResolvedValue([]);
-  queryRawUnsafeMock.mockResolvedValue([{ roomId: ROOM_ID, unreadCount: 2 }]);
+  queryRawUnsafeMock.mockResolvedValue([
+    { roomId: ROOM_ID, source: "channel", unreadCount: 2 },
+  ]);
   notificationGroupByMock.mockResolvedValue([
     { referenceId: ROOM_ID, _count: { _all: 1 } },
   ]);
@@ -199,6 +201,52 @@ describe("GET /chats/rooms/{id}", () => {
       unreadMentionCount: 1,
       starredAt: null,
       markedUnread: false,
+    });
+  });
+
+  it("reports Room unread and Thread unread as separate halves of the total", async () => {
+    queryRawUnsafeMock.mockResolvedValue([
+      { roomId: ROOM_ID, source: "channel", unreadCount: 2 },
+      { roomId: ROOM_ID, source: "thread", unreadCount: 3 },
+    ]);
+
+    const response = await createApp(userAuthContext).request(`/${ROOM_ID}`);
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data).toMatchObject({
+      channelUnreadCount: 2,
+      threadUnreadCount: 3,
+      // Still the sum: clients outside this work read only this.
+      unreadCount: 5,
+    });
+  });
+
+  it("reports a clean channel when the only unread is in Threads", async () => {
+    queryRawUnsafeMock.mockResolvedValue([
+      { roomId: ROOM_ID, source: "thread", unreadCount: 4 },
+    ]);
+
+    const response = await createApp(userAuthContext).request(`/${ROOM_ID}`);
+
+    const body = await response.json();
+    expect(body.data).toMatchObject({
+      channelUnreadCount: 0,
+      threadUnreadCount: 4,
+      unreadCount: 4,
+    });
+  });
+
+  it("zeroes all three counts for a room with nothing unread", async () => {
+    queryRawUnsafeMock.mockResolvedValue([]);
+
+    const response = await createApp(userAuthContext).request(`/${ROOM_ID}`);
+
+    const body = await response.json();
+    expect(body.data).toMatchObject({
+      channelUnreadCount: 0,
+      threadUnreadCount: 0,
+      unreadCount: 0,
     });
   });
 
