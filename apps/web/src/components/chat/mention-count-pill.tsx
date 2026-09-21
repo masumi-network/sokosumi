@@ -10,9 +10,10 @@ import { cn } from "@/lib/utils";
  * amber without the glyph reads as some third kind of count. A channel's
  * badge, a group Direct's badge and a mentioned Thread row.
  *
- * `unread`: messages. The solid primary pill the badge has always been. A
- * Direct of two, where Core counts every message toward the badge, so amber
- * would say the reader was named when they were only written to.
+ * `unread`: messages that are the reader's, where nobody named them. The same
+ * pill tinted primary: a Direct of two, where Core counts every message toward
+ * the badge, and a Thread row's unread replies. One shape for both, because
+ * both say the same thing; amber there would claim the reader was named.
  */
 export type MentionCountTone = "mention" | "unread";
 
@@ -27,7 +28,7 @@ const MENTION_COUNT_CAP = 9;
 const TONE_CLASS: Record<MentionCountTone, string> = {
   // Tighter than `unread`: the glyph has to fit the same hole.
   mention: "bg-mention-quaternary text-mention-label gap-px px-[0.1875rem]",
-  unread: "bg-primary-solid text-primary-solid-foreground px-1",
+  unread: "bg-primary-quaternary text-primary px-1",
 };
 
 /**

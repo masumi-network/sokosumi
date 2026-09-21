@@ -146,22 +146,27 @@ export function ChatRoomThreadRows({
                       mentionNames,
                     ) || t("untitled")}
                   </span>
-                  {mentions > 0 ? (
-                    <span className="shrink-0">
-                      <span aria-hidden>
+                  {/* One count per row, in the room badge's own column: a
+                      28px box ending 4px from the row's edge, its pill
+                      centred, so it stacks under its room's badge. A Thread
+                      that names the reader draws the mention and not the
+                      reply count, as its room's row does. Both are still
+                      announced. */}
+                  <span className="flex w-7 shrink-0 justify-center">
+                    <span aria-hidden>
+                      {mentions > 0 ? (
                         <MentionCountPill count={mentions} tone="mention" />
-                      </span>
-                      <span className="sr-only">
-                        {t("mentions", { count: mentions })}
-                      </span>
+                      ) : (
+                        <MentionCountPill
+                          count={thread.unreadReplyCount}
+                          tone="unread"
+                        />
+                      )}
                     </span>
-                  ) : null}
-                  {/* In the room badge's own column: a 28px box ending 4px
-                      from the row's edge, its number centred, so a Thread's
-                      count stacks under its room's badge, not outside it. */}
-                  <span className="text-primary w-7 shrink-0 text-center text-[0.6875rem] font-semibold tabular-nums">
-                    <span aria-hidden>{thread.unreadReplyCount}</span>
                     <span className="sr-only">
+                      {mentions > 0
+                        ? `${t("mentions", { count: mentions })}, `
+                        : null}
                       {t("unreadReplies", { count: thread.unreadReplyCount })}
                     </span>
                   </span>

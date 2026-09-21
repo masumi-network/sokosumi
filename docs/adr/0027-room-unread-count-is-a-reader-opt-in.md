@@ -69,6 +69,24 @@ a room read leaves unlooked thread replies counted on purpose
 `isActive` hid real unread and brought the number back the moment the reader
 clicked away. SOK-1048 removed that option. Do not restore it.
 
+**Correction (2026-09-21, SOK-1147):** as written above, this ADR lets the
+count and the mention badge sit on one row with neither changing what the
+other says. A row now shows one number. Where there is a badge, it stands
+alone and the count is not drawn; where there is none, the count shows as
+before. Two numbers in two colours on one row asked the reader to work out
+which was which, and the badge is the one addressed to them; bold still says
+the room holds more. What each number counts is unchanged, which is the part
+of this ADR that mattered: the badge still counts mentions and directs, the
+count still counts Room unread, and `resolveRoomAttention` still reports them
+as separate fields. The same rule holds on a Thread's inset row, which draws
+its mention or its unread replies, never both. The sidebar's marks settled
+into two in the same work. A muted number says how much is unread, the same
+number in the same place for a channel, a Direct and a Thread's inset row. A
+tinted primary pill with an `@` says the reader was named, matching the
+collapsed rail's mention pill. Core counts every message toward the badge in a
+Direct of two, so that row is written to rather than named: it draws the
+number, not the pill, though the badge still bolds it and marks the rail.
+
 **Out of scope:** which notifications are created or delivered, including
 `CHAT_ROOM_MESSAGE` and its default; bringing `CHAT` into the Notification
 Center.
