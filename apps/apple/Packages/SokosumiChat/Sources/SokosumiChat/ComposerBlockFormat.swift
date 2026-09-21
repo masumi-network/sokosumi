@@ -79,7 +79,7 @@ public enum ComposerBlockFormat: String, CaseIterable, Sendable {
     let continues = replacement.string.hasSuffix("\n") && kind(after.last) == "p"
       && replacement.attribute(Self.insertedLineEnd, at: replacement.length - 1, effectiveRange: nil) as? Bool == true
     let resolved = continues ? after : plain
-    replaceReferenceLabels(in: replacement)
+    ComposerReferenceText.replaceChipsWithLabels(in: replacement)
     replacement.enumerateAttribute(ComposerBlockText.listMarker, in: NSRange(location: 0, length: replacement.length)) { marker, run, _ in
       var attributes: [NSAttributedString.Key: Any] = [ComposerBlockText.path: resolved]
       if marker as? Bool == true {
@@ -127,19 +127,11 @@ public enum ComposerBlockFormat: String, CaseIterable, Sendable {
   /// The selection as the characters it shows: list markers out, a reference chip as its label.
   private static func codeText(_ text: NSAttributedString) -> String {
     let flat = NSMutableAttributedString(attributedString: withoutMarkers(text))
-    replaceReferenceLabels(in: flat)
+    ComposerReferenceText.replaceChipsWithLabels(in: flat)
     return flat.string
   }
 
   private static let insertedLineEnd = NSAttributedString.Key("com.sokosumi.composer.insertedLineEnd")
-
-  private static func replaceReferenceLabels(in text: NSMutableAttributedString) {
-    text.enumerateAttribute(ComposerReferenceText.name, in: NSRange(location: 0, length: text.length), options: .reverse) { name, run, _ in
-      if let name = name as? String {
-        text.replaceCharacters(in: run, with: NSAttributedString(string: name))
-      }
-    }
-  }
 
   /// True when the block's line ending is not a newline the selection already covered.
   private static func lineEndWasInserted(_ selection: NSRange, range: NSRange, source: NSString) -> Bool {

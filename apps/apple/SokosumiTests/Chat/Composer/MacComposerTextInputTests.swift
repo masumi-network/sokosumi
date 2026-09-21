@@ -433,6 +433,44 @@
       #expect(opened.captureDraft() == "so **x**\n```\n\n```\n")
     }
 
+    /// The mention button has no code guard on web either, so a chip can land inside a
+    /// fence. It is sent as the label it shows, as web reads a `pre`, never as U+FFFC.
+    @Test func aMentionPickedInsideAFenceIsSentAsItsLabel() {
+      let input = MacComposerTextInput.InputView()
+      input.mentions = [.init(id: "bob", name: "Bob", slug: "bob", kind: .human)]
+      input.restoreDraft("```\nping\n```\n")
+      input.setSelectedRange(NSRange(location: 4, length: 0))
+      let commands = MacComposerCommands()
+      commands.input = input
+      commands.openMentionPicker()
+      commands.acceptMention(input.mentions[0])
+      #expect(input.string == "ping \u{FFFC}\n")
+      let draft = input.captureDraft()
+      #expect(draft == "```\nping @Bob\n```\n")
+      #expect(!draft.contains("\u{FFFC}"))
+      input.restoreDraft(draft)
+      #expect(input.captureDraft() == draft)
+    }
+
+    /// The highlight reads the typing attributes, the control reads the character under the
+    /// caret. At both edges of a block that touches a paragraph they have to agree: a lit
+    /// control unwraps, an idle one opens a block.
+    @Test(arguments: [("code", 0, true), ("code", 4, true), ("after", 0, false), ("before", 6, false)])
+    func theHighlightAgreesWithTheToggleAtABlocksEdges(_ word: String, _ offset: Int, _ inBlock: Bool) async throws {
+      let input = MacComposerTextInput.InputView()
+      input.restoreDraft("before\n```\ncode\n```\nafter\n")
+      #expect(input.string == "before\ncode\nafter\n")
+      let commands = MacComposerCommands()
+      commands.input = input
+      input.setSelectedRange(NSRange(location: (input.string as NSString).range(of: word).location + offset, length: 0))
+      commands.refresh()
+      try await Task.sleep(for: .milliseconds(50))
+      #expect(commands.activeBlocks.contains(.codeBlock) == inBlock)
+      commands.apply(.codeBlock)
+      let unwrapped = input.captureDraft() == "before\ncode\nafter\n"
+      #expect(unwrapped == inBlock)
+    }
+
     @MainActor struct CodeBlockFixtureTests {
       /// The real composer with its toolbar, focused, the caret inside a code block: the
       /// block is monospaced on its tint and the Code block control is highlighted. Then
