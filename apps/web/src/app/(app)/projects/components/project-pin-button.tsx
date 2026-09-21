@@ -91,10 +91,11 @@ export function ProjectPinButton({
         // Pinned carries three signals at once — hue, fill and a tinted
         // ground — because at 16px a filled pin is barely distinguishable
         // from an outlined one, and one step of grey did not read at all.
-        // The tinted circle follows the treatment used for notification rows.
+        // Solid ramp steps, not an opacity modifier: the colour-token rule is
+        // absolute, and this is the same pairing the task-created badge uses.
         optimisticPinned
-          ? "text-primary bg-primary/10 hover:bg-primary/20"
-          : "text-muted-foreground/60 hover:text-foreground",
+          ? "text-primary bg-primary-quinary hover:bg-primary-quaternary"
+          : "text-muted-foreground hover:text-foreground",
         className,
       )}
     >
