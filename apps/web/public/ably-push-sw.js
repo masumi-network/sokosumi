@@ -415,27 +415,13 @@ function askShowsNotifications(client) {
 }
 
 /**
- * Whether this banner replaces a *different* notification, and so owes the
- * reader a second alert.
- *
- * A room is one tag, so two things replace a banner there and only one should
- * make a sound: a newer message, not the open tab's banner for this same
- * notification arriving down the other transport. Comparing identity rather
- * than timing is what tells those apart, and `createdAt` cannot, because the
- * banners a reader has had on screen longest predate that field.
- *
- * Both failure directions answer false, because a missed sound is recoverable
- * where a doubled one is not.
- *
- * The reasoning, and the two races this does not close, are written out once
- * over `shouldRenotify` in `lib/utils/notification-service-worker.ts`. This
- * copy differs in one way: it reads `data.id` directly where the app validates
- * the whole target through its schema, so the two disagree only about a banner
- * whose data no longer parses. It is written twice because this file never
- * passes through the TypeScript build.
+ * Grouped chat arrivals share a row ID. Message identity separates a new
+ * arrival from the same arrival delivered by both push and realtime.
+ * Missing identity or failed lookups prefer an extra alert over silence.
+ * Mirrors shouldRenotify in lib/utils/notification-service-worker.ts.
  */
-async function shouldRenotify(tag, id) {
-  if (!id) {
+async function shouldRenotify(tag, incoming) {
+  if (!incoming) {
     return false;
   }
 
@@ -445,10 +431,20 @@ async function shouldRenotify(tag, id) {
       return false;
     }
 
-    return !banners.some((banner) => banner.data && banner.data.id === id);
+    return !banners.some((banner) => {
+      if (!banner.data || banner.data.id !== incoming.id) return false;
+      if (incoming.kind !== "CHAT") return true;
+      const previousMessageId = banner.data.metadata?.messageId;
+      const incomingMessageId = incoming.metadata?.messageId;
+      return (
+        typeof previousMessageId === "string" &&
+        previousMessageId.length > 0 &&
+        previousMessageId === incomingMessageId
+      );
+    });
   } catch (error) {
     console.error("Failed to read the displayed notifications", error);
-    return false;
+    return true;
   }
 }
 
@@ -475,7 +471,7 @@ async function showPushNotification(data) {
     data: target,
     // Left off entirely rather than sent as false: false is the default, and
     // a browser that does not know the option reads no flag either way.
-    ...((await shouldRenotify(tag, target && target.id)) && {
+    ...((await shouldRenotify(tag, target)) && {
       renotify: true,
     }),
   });

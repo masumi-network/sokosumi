@@ -811,11 +811,58 @@ describe("ably-push-sw display", () => {
   it("stays silent when it replaces the banner for the same notification", async () => {
     const worker = loadServiceWorker({
       isChromium: false,
-      displayed: [{ data: MENTION_PUSH }],
+      displayed: [
+        { data: { ...MENTION_TARGET, metadata: { messageId: "message-1" } } },
+      ],
     });
 
-    await worker.dispatchPush(MENTION_PUSH);
+    await worker.dispatchPush({
+      ...MENTION_PUSH,
+      metadata: JSON.stringify({ messageId: "message-1" }),
+    });
 
+    expect(worker.shown[0]?.options.renotify).toBeUndefined();
+  });
+
+  it.each([
+    {
+      name: "new message",
+      previous: { messageId: "message-1" },
+      incoming: { messageId: "message-2" },
+    },
+    {
+      name: "older banner without message identity",
+      previous: null,
+      incoming: { messageId: "message-2" },
+    },
+    {
+      name: "arrival without message identity",
+      previous: { messageId: "message-1" },
+      incoming: null,
+    },
+    {
+      name: "empty message identity",
+      previous: { messageId: "" },
+      incoming: { messageId: "" },
+    },
+  ])("re-alerts a grouped row for $name", async ({ previous, incoming }) => {
+    const worker = loadServiceWorker({
+      isChromium: false,
+      displayed: [{ data: { ...MENTION_TARGET, metadata: previous } }],
+    });
+    await worker.dispatchPush({
+      ...MENTION_PUSH,
+      metadata: JSON.stringify(incoming),
+    });
+    expect(worker.shown[0]?.options.renotify).toBe(true);
+  });
+
+  it("keeps duplicate non-chat notifications silent", async () => {
+    const worker = loadServiceWorker({
+      isChromium: false,
+      displayed: [{ data: { ...MENTION_TARGET, kind: "SYSTEM" } }],
+    });
+    await worker.dispatchPush({ ...MENTION_PUSH, kind: "SYSTEM" });
     expect(worker.shown[0]?.options.renotify).toBeUndefined();
   });
 
@@ -829,10 +876,9 @@ describe("ably-push-sw display", () => {
 
   /**
    * `userVisibleOnly` means this push must still end in a banner. A lookup
-   * that throws must not cost the reader that banner, and must not guess
-   * `true`: a missed sound is recoverable, a doubled one is not.
+   * that throws must not cost the reader that banner or its alert.
    */
-  it("still displays when the lookup fails, without re-alerting", async () => {
+  it("re-alerts when the existing banner cannot be checked", async () => {
     const worker = loadServiceWorker({
       isChromium: false,
       getNotificationsThrows: true,
@@ -841,7 +887,7 @@ describe("ably-push-sw display", () => {
     await worker.dispatchPush(MENTION_PUSH);
 
     expect(worker.shown).toHaveLength(1);
-    expect(worker.shown[0]?.options.renotify).toBeUndefined();
+    expect(worker.shown[0]?.options.renotify).toBe(true);
   });
 
   it("always displays off Chromium, where skipping revokes the subscription", async () => {
