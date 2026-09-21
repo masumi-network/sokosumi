@@ -10,6 +10,7 @@ import {
 import {
   highlightRoomTranscriptMessage,
   highlightThreadMessage,
+  ROOM_MESSAGE_HIGHLIGHT_LEAVE_MS,
   ROOM_MESSAGE_HIGHLIGHT_MS,
 } from "@/app/chat/utils/room-message-highlight";
 
@@ -117,21 +118,63 @@ describe("room message highlight", () => {
     expect(article.dataset.searchLanded).toBeUndefined();
   });
 
-  it("drops the mark when the reader wheels over the list", () => {
+  it("fades the mark out when the reader wheels over the list", () => {
+    vi.useFakeTimers();
     const article = row("msg-50");
 
     highlightRoomTranscriptMessage("msg-50");
     wheelOver(article);
 
+    // Still on the row, and saying so, while globals.css fades it.
+    expect(article.dataset.searchLanded).toBe("leaving");
+
+    vi.advanceTimersByTime(ROOM_MESSAGE_HIGHLIGHT_LEAVE_MS - 1);
+    expect(article.dataset.searchLanded).toBe("leaving");
+
+    vi.advanceTimersByTime(1);
     expect(article.dataset.searchLanded).toBeUndefined();
   });
 
-  it("drops the mark when the reader drags the list by touch", () => {
+  it("fades the mark out when the reader drags the list by touch", () => {
+    vi.useFakeTimers();
     const article = row("msg-51");
 
     highlightRoomTranscriptMessage("msg-51");
     touchDragOver(article);
 
+    expect(article.dataset.searchLanded).toBe("leaving");
+  });
+
+  /**
+   * The hold fades the mark out on its own over its last stretch. A scroll
+   * there must not hand it to the leave fade, which starts at full strength:
+   * the row would light back up and go out a second time.
+   */
+  it("drops the mark outright when the hold is already fading it", () => {
+    vi.useFakeTimers();
+    const article = row("msg-57");
+
+    highlightRoomTranscriptMessage("msg-57");
+    vi.advanceTimersByTime(Math.ceil(ROOM_MESSAGE_HIGHLIGHT_MS * 0.76));
+    wheelOver(article);
+
+    expect(article.dataset.searchLanded).toBeUndefined();
+  });
+
+  /**
+   * The fade runs on one clock. A second wheel inside it must not restart the
+   * fade, or a reader who keeps scrolling holds the mark on the row.
+   */
+  it("keeps one fade when the reader goes on scrolling", () => {
+    vi.useFakeTimers();
+    const article = row("msg-58");
+
+    highlightRoomTranscriptMessage("msg-58");
+    wheelOver(article);
+    vi.advanceTimersByTime(ROOM_MESSAGE_HIGHLIGHT_LEAVE_MS - 1);
+    wheelOver(article);
+
+    vi.advanceTimersByTime(1);
     expect(article.dataset.searchLanded).toBeUndefined();
   });
 
@@ -166,7 +209,7 @@ describe("room message highlight", () => {
     highlightThreadMessage("msg-54");
     wheelOver(reply);
 
-    expect(reply.dataset.searchLanded).toBeUndefined();
+    expect(reply.dataset.searchLanded).toBe("leaving");
     expect(parent.dataset.searchLanded).toBe("true");
   });
 
@@ -318,5 +361,36 @@ describe("room message highlight", () => {
     expect(declared.map((match) => match[1])).toEqual([
       `${ROOM_MESSAGE_HIGHLIGHT_MS}ms`,
     ]);
+  });
+
+  it("fades for as long as the stylesheet draws the fade", () => {
+    const css = readFileSync(
+      resolve(process.cwd(), "src/app/globals.css"),
+      "utf8",
+    );
+
+    const declared = [...css.matchAll(/--chat-jump-leave:\s*(\S+?);/g)];
+
+    expect(declared.map((match) => match[1])).toEqual([
+      `${ROOM_MESSAGE_HIGHLIGHT_LEAVE_MS}ms`,
+    ]);
+  });
+
+  /**
+   * Where the hold stops holding the mark at full strength. Past that stop the
+   * stylesheet is fading the mark out itself, which is what tells a scroll to
+   * drop the mark rather than fade it again.
+   */
+  it("reads the full-strength share from the stylesheet", () => {
+    const css = readFileSync(
+      resolve(process.cwd(), "src/app/globals.css"),
+      "utf8",
+    );
+    const wash = css.slice(css.indexOf("@keyframes chat-jump-wash"));
+    const lastFullStrength = [
+      ...wash.slice(0, wash.indexOf("100%")).matchAll(/(\d+)%\s*{/g),
+    ].at(-1);
+
+    expect(lastFullStrength?.[1]).toBe("76");
   });
 });

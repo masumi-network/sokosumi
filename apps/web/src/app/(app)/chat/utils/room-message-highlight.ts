@@ -24,6 +24,33 @@ import {
 export const ROOM_MESSAGE_HIGHLIGHT_MS = 4500;
 
 /**
+ * How long the mark takes to fade once a reader scroll ends the hold early.
+ * Cutting it instead reads as a snap, on the marked row and on every other
+ * row coming back out of the spotlight at the same moment.
+ *
+ * Keep in sync with --chat-jump-leave in globals.css, which draws the fade.
+ */
+export const ROOM_MESSAGE_HIGHLIGHT_LEAVE_MS = 320;
+
+/**
+ * What the mark says while it fades. globals.css draws the fade from this
+ * value, and keeps the rest of the mark's styling on the attribute itself, so
+ * the wash and the rail carry on from where the hold had them.
+ */
+const LEAVING = "leaving";
+
+/**
+ * The share of the hold the mark spends at full strength. After that the hold
+ * is fading the mark out on its own, and starting the leave fade on top would
+ * take the row back to full and drop it a second time. The tail is short, so a
+ * scroll there ends the mark outright.
+ *
+ * Read from the last full-strength stop in the chat-jump-wash keyframes in
+ * globals.css.
+ */
+const HOLD_FULL_STRENGTH_SHARE = 0.76;
+
+/**
  * One mark per message list. A thread jump marks two rows at once: the reply
  * in the panel, and the message its thread hangs off in the transcript behind
  * it. Keying by the list each row sits in lets those two stand together, while
@@ -33,7 +60,12 @@ export const ROOM_MESSAGE_HIGHLIGHT_MS = 4500;
  */
 const activeHighlights = new Map<
   Element,
-  { element: HTMLElement; timer: number; stopWatchingScroll: () => void }
+  {
+    element: HTMLElement;
+    timer: number;
+    landedAt: number;
+    stopWatchingScroll: () => void;
+  }
 >();
 
 /**
@@ -65,7 +97,7 @@ const READER_SCROLL_EVENTS = ["wheel", "touchmove"] as const;
 function watchReaderScroll(list: Element): () => void {
   const onReaderScroll = (event: Event) => {
     if (event.target instanceof Node && list.contains(event.target)) {
-      clearHighlight(list);
+      fadeOutHighlight(list);
     }
   };
   for (const type of READER_SCROLL_EVENTS) {
@@ -93,6 +125,35 @@ function clearHighlight(list: Element): void {
 }
 
 /**
+ * End the hold the way a reader scroll should: hand the mark to the leave
+ * fade, and drop it when that fade has run. The watch stops here, because the
+ * mark is already on its way out and a second scroll has nothing left to end.
+ */
+function fadeOutHighlight(list: Element): void {
+  const active = activeHighlights.get(list);
+  if (!active || active.element.dataset.searchLanded === LEAVING) {
+    return;
+  }
+  window.clearTimeout(active.timer);
+  active.stopWatchingScroll();
+  if (
+    Date.now() - active.landedAt >=
+    HOLD_FULL_STRENGTH_SHARE * ROOM_MESSAGE_HIGHLIGHT_MS
+  ) {
+    clearHighlight(list);
+    return;
+  }
+  active.element.dataset.searchLanded = LEAVING;
+  activeHighlights.set(list, {
+    ...active,
+    stopWatchingScroll: () => {},
+    timer: window.setTimeout(() => {
+      clearHighlight(list);
+    }, ROOM_MESSAGE_HIGHLIGHT_LEAVE_MS),
+  });
+}
+
+/**
  * Scroll the row into view and mark it as landed for a moment. The mark is
  * styled from `data-search-landed` in globals.css, so a React re-render inside
  * that moment cannot wipe it, as it would a class added here. A reader scroll
@@ -111,6 +172,7 @@ function landOn(list: Element, target: HTMLElement): void {
   target.dataset.searchLanded = "true";
   activeHighlights.set(list, {
     element: target,
+    landedAt: Date.now(),
     timer: window.setTimeout(() => {
       clearHighlight(list);
     }, ROOM_MESSAGE_HIGHLIGHT_MS),
