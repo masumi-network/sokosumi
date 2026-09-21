@@ -2156,6 +2156,11 @@ function MessageMetaFooter({
    * reactions wrap far enough right to reach them; the reply-count button is
    * short and left-aligned. Width is one row of faces at their cap — four
    * 16px slots overlapping by 4 — plus a little air.
+   *
+   * It earns its keep on touch, where the row holds nothing free on the right
+   * and the corner sits just past the text. With the action pill's gutter
+   * reserved the faces are already well clear of the reactions, and this is
+   * 56px of slack that only moves where a long row of them wraps.
    */
   reserveSeenByCorner?: boolean;
 }) {
@@ -2578,8 +2583,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
       )}
       <div
         className={cn(
-          // relative: Seen by hangs off this column's bottom-right corner.
-          "relative min-w-0 max-w-full flex-1 overflow-x-clip",
+          "min-w-0 max-w-full flex-1 overflow-x-clip",
           isContinuation ? "space-y-1" : "space-y-1.5",
         )}
       >
@@ -2763,19 +2767,19 @@ export const ChatMessageRow = memo(function ChatMessageRow({
             reserveSeenByCorner={seenBy != null}
           />
         ) : null}
-        {/* Out of the text flow, pinned to this column's bottom-right corner.
-            Costs the row no height at all, which is the whole reason it is
-            here rather than trailing the last line — and it is the furthest
-            from the words a receipt can sit while still belonging to the
-            message. Anchored to the column rather than the row so it tracks
-            the end of the text on every device; the row reserves 16rem on the
-            right for the hover pill, and the corner of *that* is nowhere.
-            end-0.5: the column clips overflow, and a flush edge shaved the
-            focus ring off the faces. */}
-        {seenBy ? (
-          <div className="absolute end-0.5 bottom-0 z-10">{seenBy}</div>
-        ) : null}
       </div>
+      {/* Out of the text flow, in the row's bottom-right corner. Costs the
+          row no height at all, which is the whole reason it is here rather
+          than trailing the last line.
+          Anchored to the row, not to the message column: on a hover-capable
+          device the row holds 16rem on the right free for the action pill, so
+          the column's own corner lands in the middle of that empty band,
+          aligned to nothing. `end-2` is the pill's own edge, which makes the
+          two share a vertical line and gives the faces the same corner on
+          every row. */}
+      {seenBy ? (
+        <div className="absolute end-2 bottom-1 z-10">{seenBy}</div>
+      ) : null}
       {showActions ? (
         <>
           {/* Always mounted, and ahead of the pill in DOM order: on a row
