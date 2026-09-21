@@ -78,16 +78,38 @@
         #expect(distanceFromBottom(scroll) > 400)
         let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
         host.cacheDisplay(in: host.bounds, to: bitmap)
+        // Vision text recognition throws on the virtualized CI runner, so there the row-visibility
+        // check falls back to the scroll-offset assertion above; locally the OCR check runs.
+        if let visibleText = try recognizedLines(in: bitmap) {
+          #expect(visibleText.contains { $0.hasPrefix("Message 2:") }, "OCR read: \(visibleText)")
+          #expect(!visibleText.contains { $0.hasPrefix("Message 98:") }, "OCR read: \(visibleText)")
+        }
+        let png = try #require(bitmap.representation(using: .png, properties: [:]))
+        try png.write(to: FileManager.default.temporaryDirectory.appendingPathComponent("message-link-navigation-\(thread)-\(dark).png"))
+      }
+
+      /// The text Vision reads in the render, or nil where Vision cannot run at all. A missing image is a
+      /// failure, not nil. Only the accurate recognizer: it is the one the assertions were written against.
+      private func recognizedLines(in bitmap: NSBitmapImageRep) throws -> [String]? {
+        let image = try #require(bitmap.cgImage)
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
         request.recognitionLanguages = ["en-US"]
         request.usesLanguageCorrection = false
-        try VNImageRequestHandler(cgImage: #require(bitmap.cgImage)).perform([request])
-        let visibleText = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
-        #expect(visibleText.contains { $0.hasPrefix("Message 2:") })
-        #expect(!visibleText.contains { $0.hasPrefix("Message 98:") })
-        let png = try #require(bitmap.representation(using: .png, properties: [:]))
-        try png.write(to: FileManager.default.temporaryDirectory.appendingPathComponent("message-link-navigation-\(thread)-\(dark).png"))
+        do {
+          try VNImageRequestHandler(cgImage: image).perform([request])
+        } catch {
+          note("OCR unavailable (accurate): \(error)")
+          return nil
+        }
+        note("OCR ran (accurate)")
+        return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
+      }
+
+      /// Says which OCR path ran: on stdout, and as an attachment in the result bundle.
+      private func note(_ line: String) {
+        print(line)
+        Attachment.record(line, named: "message-link-ocr-path.txt")
       }
 
       private func distanceFromBottom(_ scroll: NSScrollView) -> CGFloat {
