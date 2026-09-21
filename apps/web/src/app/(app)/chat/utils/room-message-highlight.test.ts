@@ -29,10 +29,37 @@ function row(
   return article;
 }
 
+/**
+ * The scroller the list sits in, as both the room and the thread render it:
+ * the list is the scroller's one child.
+ */
+function scrollerAround(list: string = CHAT_MESSAGE_LIST_ROOM): HTMLElement {
+  const container = document.querySelector(
+    `[data-chat-message-list="${list}"]`,
+  );
+  if (!container) {
+    throw new Error(`no ${list} list`);
+  }
+  const scroller = document.createElement("div");
+  container.replaceWith(scroller);
+  scroller.append(container);
+  return scroller;
+}
+
+/** A reader turning the wheel over a row. Neither event bubbles to the list. */
+function wheelOver(element: HTMLElement): void {
+  element.dispatchEvent(new Event("wheel"));
+}
+
+function touchDragOver(element: HTMLElement): void {
+  element.dispatchEvent(new Event("touchmove"));
+}
+
 describe("room message highlight", () => {
   afterEach(() => {
     document.body.innerHTML = "";
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it("scrolls the landed message into view instantly and marks it", () => {
@@ -88,6 +115,100 @@ describe("room message highlight", () => {
 
     vi.advanceTimersByTime(1);
     expect(article.dataset.searchLanded).toBeUndefined();
+  });
+
+  it("drops the mark when the reader wheels over the list", () => {
+    const article = row("msg-50");
+
+    highlightRoomTranscriptMessage("msg-50");
+    wheelOver(article);
+
+    expect(article.dataset.searchLanded).toBeUndefined();
+  });
+
+  it("drops the mark when the reader drags the list by touch", () => {
+    const article = row("msg-51");
+
+    highlightRoomTranscriptMessage("msg-51");
+    touchDragOver(article);
+
+    expect(article.dataset.searchLanded).toBeUndefined();
+  });
+
+  /**
+   * The jump scrolls the list itself, and the virtualizer writes the scroll
+   * again for as long as the rows around the landing are still measuring.
+   * Both raise a scroll event the reader's own cannot be told apart from, so
+   * the watch reads the reader's input instead and lets scroll events pass.
+   */
+  it("holds the mark through the scrolling the jump itself causes", () => {
+    const article = row("msg-52");
+    const scroller = scrollerAround();
+
+    highlightRoomTranscriptMessage("msg-52");
+    scroller.dispatchEvent(new Event("scroll"));
+    article.dispatchEvent(new Event("scroll"));
+
+    expect(article.dataset.searchLanded).toBe("true");
+  });
+
+  /**
+   * A thread jump marks a row in each list. The reader scrolling one says
+   * nothing about the other, which sits in its own scroller. Both lists share
+   * ancestors that scroll, so the watch has to read the list the event came
+   * from rather than any ancestor holding the marked row.
+   */
+  it("leaves the other list's mark alone when one list scrolls", () => {
+    const parent = row("msg-53", CHAT_MESSAGE_LIST_ROOM);
+    const reply = row("msg-54", CHAT_MESSAGE_LIST_THREAD);
+
+    highlightRoomTranscriptMessage("msg-53");
+    highlightThreadMessage("msg-54");
+    wheelOver(reply);
+
+    expect(reply.dataset.searchLanded).toBeUndefined();
+    expect(parent.dataset.searchLanded).toBe("true");
+  });
+
+  /**
+   * A page-level scroll targets the document, which holds every list. Reading
+   * it as a scroll of the landed list would clear a mark the reader never
+   * scrolled past.
+   */
+  it("ignores a wheel outside the list that holds the mark", () => {
+    const article = row("msg-55");
+    scrollerAround();
+
+    highlightRoomTranscriptMessage("msg-55");
+    document.dispatchEvent(new Event("wheel"));
+    document.body.dispatchEvent(new Event("wheel"));
+
+    expect(article.dataset.searchLanded).toBe("true");
+  });
+
+  /**
+   * A capture listener is only removed by a call that says `capture` too, so
+   * a removal that drops the flag leaves the watch on the window for good.
+   * Nothing the marked row does afterwards shows that: the map entry is gone,
+   * so the stale watch finds nothing to clear and reads as clean.
+   */
+  it("removes the watch with the capture flag it was added with", () => {
+    vi.useFakeTimers();
+    const added = vi.spyOn(window, "addEventListener");
+    const removed = vi.spyOn(window, "removeEventListener");
+    row("msg-56");
+
+    highlightRoomTranscriptMessage("msg-56");
+    vi.advanceTimersByTime(ROOM_MESSAGE_HIGHLIGHT_MS);
+
+    const watched = added.mock.calls.filter(
+      ([type]) => type === "wheel" || type === "touchmove",
+    );
+    expect(watched).toHaveLength(2);
+    for (const [type, handler, options] of watched) {
+      expect(options).toMatchObject({ capture: true });
+      expect(removed).toHaveBeenCalledWith(type, handler, { capture: true });
+    }
   });
 
   it("keeps one mark per list when a second jump lands inside the hold", () => {
