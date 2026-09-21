@@ -189,37 +189,18 @@ function RoomUnreadCount({ count }: { count: number }) {
  * German or Spanish reader untranslated either way. The wrapper holds the
  * collapsed rule, so the announcement goes quiet with the count and the badge.
  */
-function MentionAnnouncement({
-  count,
-  countsMentions,
-}: {
-  count: number;
-  /**
-   * False for a Direct of two, whose badge counts every message. It draws the
-   * unread pill there, so it has to say "unread messages" too: a reader who
-   * hears "5 mentions" and one who sees a plain "5" were told different
-   * things.
-   */
-  countsMentions: boolean;
-}) {
-  const tMentions = useTranslations("App.Channels.RoomMentions");
-  const tUnread = useTranslations("App.Channels.RoomUnread");
+function MentionAnnouncement({ count }: { count: number }) {
+  const t = useTranslations("App.Channels.RoomMentions");
 
   if (count <= 0) {
     return null;
   }
 
-  const capped = count > ROOM_COUNT_CAP;
-
   return (
     <span className="group-data-[collapsible=icon]:hidden sr-only">
-      {countsMentions
-        ? capped
-          ? tMentions("mentionsCapped", { max: ROOM_COUNT_CAP })
-          : tMentions("mentions", { count })
-        : capped
-          ? tUnread("unreadMessagesCapped", { max: ROOM_COUNT_CAP })
-          : tUnread("unreadMessages", { count })}
+      {count > ROOM_COUNT_CAP
+        ? t("mentionsCapped", { max: ROOM_COUNT_CAP })
+        : t("mentions", { count })}
     </span>
   );
 }
@@ -251,9 +232,9 @@ function MentionAnnouncement({
 function MentionBadge({
   count,
   unreadTextCount,
-  countsMentions,
   crossfadesWithMenu,
 }: {
+  /** Mentions to draw as the `@` pill. Zero in a Direct of two. */
   count: number;
   /**
    * The reader's opt-in Room unread count. A row shows one number, so
@@ -264,12 +245,6 @@ function MentionBadge({
    * reflow the row.
    */
   unreadTextCount: number;
-  /**
-   * The count is mentions, so the pill is amber and says so with an `@`.
-   * False for a Direct of two, whose badge counts every message: that one
-   * stays the plain unread pill.
-   */
-  countsMentions: boolean;
   crossfadesWithMenu: boolean;
 }) {
   if (count <= 0 && unreadTextCount <= 0) {
@@ -290,10 +265,7 @@ function MentionBadge({
       )}
     >
       {count > 0 ? (
-        <MentionCountPill
-          count={count}
-          tone={countsMentions ? "mention" : "unread"}
-        />
+        <MentionCountPill count={count} />
       ) : (
         <span className="text-muted-foreground text-xs tabular-nums">
           {roomCountLabel(unreadTextCount)}
@@ -379,17 +351,19 @@ export function ChatRoomSidebarRow({
     room.kind === "direct" && room.userMembers.length <= 2
   );
   const showUnreadCount = useShowRoomUnreadCount();
-  const { bold, badgeCount, unreadTextCount } = resolveRoomAttention({
-    unreadCount: room.unreadCount,
-    channelUnreadCount: room.channelUnreadCount,
-    unreadMentionCount: room.unreadMentionCount,
-    markedUnread: room.markedUnread,
-    isMuted,
-    showUnreadCount,
-  });
+  const { bold, badgeCount, mentionCount, unreadTextCount } =
+    resolveRoomAttention({
+      unreadCount: room.unreadCount,
+      channelUnreadCount: room.channelUnreadCount,
+      unreadMentionCount: room.unreadMentionCount,
+      markedUnread: room.markedUnread,
+      isMuted,
+      showUnreadCount,
+      badgeCountsMentions,
+    });
   // The row's one number, whichever it is, stands in the badge's slot, so
   // the hole that keeps the name clear of it has to be held open for either.
-  const hasRowCount = badgeCount > 0 || unreadTextCount > 0;
+  const hasRowCount = mentionCount > 0 || unreadTextCount > 0;
   const railVariant = badgeCount > 0 ? "mention" : bold ? "unread" : null;
 
   function runRoomAction(
@@ -553,10 +527,7 @@ export function ChatRoomSidebarRow({
           </span>
         ) : null}
       </span>
-      <MentionAnnouncement
-        count={badgeCount}
-        countsMentions={badgeCountsMentions}
-      />
+      <MentionAnnouncement count={mentionCount} />
       <span
         data-slot="room-trailing-spacer"
         className={cn(
@@ -679,9 +650,8 @@ export function ChatRoomSidebarRow({
         )}
         <div data-slot="room-trailing" className={TRAILING_CLUSTER_CLASS}>
           <MentionBadge
-            count={badgeCount}
+            count={mentionCount}
             unreadTextCount={unreadTextCount}
-            countsMentions={badgeCountsMentions}
             crossfadesWithMenu={reorderHandle == null}
           />
           {reorderHandle ?? (

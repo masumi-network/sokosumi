@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageSquare } from "lucide-react";
+import { AtSign, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
@@ -12,6 +12,7 @@ import {
 } from "@/app/chat/utils/room-mention-names";
 import { formatUnreadThreadsPreview } from "@/app/chat/utils/unread-threads-preview";
 import { MentionCountPill } from "@/components/chat/mention-count-pill";
+import { roomCountLabel } from "@/components/chat/room-count-label";
 import {
   SidebarMenuSub,
   SidebarMenuSubButton,
@@ -123,22 +124,24 @@ export function ChatRoomThreadRows({
                   replace={isActive}
                   data-mention={mentions > 0 ? "true" : undefined}
                 >
-                  {/* Unread is a tinted icon circle plus weight, the language
-                    the notification rows and the thread list already use.
-                    Never a dot. */}
+                  {/* The icon is the extra signal. An unread Thread gets a
+                      neutral circle, so the list under a room stays quiet; a
+                      Thread that names the reader gets the primary one with
+                      an `@`, the only colour on the row besides its pill. */}
                   <span
                     aria-hidden
                     className={cn(
                       "grid size-[1.125rem] shrink-0 place-items-center rounded-full",
-                      // A Thread that names the reader takes the mention's
-                      // amber, so it stands out from the room's other unread
-                      // Threads the way the room's badge does from its count.
                       mentions > 0
-                        ? "bg-mention-quaternary text-mention-label"
-                        : "bg-primary-quaternary text-primary",
+                        ? "bg-primary-quaternary text-primary"
+                        : "bg-sidebar-accent text-muted-foreground",
                     )}
                   >
-                    <MessageSquare className="size-[0.6875rem]" />
+                    {mentions > 0 ? (
+                      <AtSign className="size-[0.6875rem]" />
+                    ) : (
+                      <MessageSquare className="size-[0.6875rem]" />
+                    )}
                   </span>
                   <span className="min-w-0 flex-1 truncate font-semibold">
                     {formatUnreadThreadsPreview(
@@ -146,21 +149,23 @@ export function ChatRoomThreadRows({
                       mentionNames,
                     ) || t("untitled")}
                   </span>
-                  {/* One count per row, in the room badge's own column: a
-                      28px box ending 4px from the row's edge, its pill
-                      centred, so it stacks under its room's badge. A Thread
-                      that names the reader draws the mention and not the
-                      reply count, as its room's row does. Both are still
-                      announced. */}
+                  {/* One number per row, in the room pill's own column: a
+                      28px box ending 4px from the row's edge, its content
+                      centred, so it stacks under its room's. A muted number
+                      for unread replies, as a room shows for its messages;
+                      the `@` pill instead where the reader was named. Both
+                      are still announced. */}
                   <span className="flex w-7 shrink-0 justify-center">
                     <span aria-hidden>
                       {mentions > 0 ? (
-                        <MentionCountPill count={mentions} tone="mention" />
+                        <MentionCountPill count={mentions} />
                       ) : (
-                        <MentionCountPill
-                          count={thread.unreadReplyCount}
-                          tone="unread"
-                        />
+                        <span
+                          data-slot="thread-unread-count"
+                          className="text-muted-foreground text-xs tabular-nums"
+                        >
+                          {roomCountLabel(thread.unreadReplyCount)}
+                        </span>
                       )}
                     </span>
                     <span className="sr-only">

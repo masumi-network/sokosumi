@@ -54,14 +54,30 @@ export function resolveRoomAttention(options: {
   markedUnread?: boolean;
   isMuted?: boolean;
   showUnreadCount?: boolean;
-}): { bold: boolean; badgeCount: number; unreadTextCount: number } {
+  /**
+   * The badge counts mentions. False in a Direct of two, where Core counts
+   * every message toward it: the reader was written to, not named, so that
+   * row draws no mention pill and shows the same muted count a channel does.
+   * The badge still bolds the row and marks the rail there.
+   */
+  badgeCountsMentions?: boolean;
+}): {
+  bold: boolean;
+  /** What was addressed to the reader. Drives bold and the rail pill. */
+  badgeCount: number;
+  /** What the row draws as its `@` pill: the badge, where it counts mentions. */
+  mentionCount: number;
+  unreadTextCount: number;
+} {
   // Muted suppression stays one early return, so the count cannot drift from
   // the two fields that already obey it.
   if (options.isMuted === true) {
-    return { bold: false, badgeCount: 0, unreadTextCount: 0 };
+    return { bold: false, badgeCount: 0, mentionCount: 0, unreadTextCount: 0 };
   }
 
   const channelUnread = options.channelUnreadCount ?? options.unreadCount;
+  const mentionCount =
+    options.badgeCountsMentions === false ? 0 : options.unreadMentionCount;
 
   return {
     // A User mention inside a Thread is the one escalation that reaches the
@@ -73,11 +89,11 @@ export function resolveRoomAttention(options: {
       options.unreadMentionCount > 0 ||
       options.markedUnread === true,
     badgeCount: options.unreadMentionCount,
-    // One number per row. A badge is something addressed to the reader, and it
-    // stands alone: beside it the message count was a second number in a
-    // second colour, and bold already says there is more.
+    mentionCount,
+    // One number per row. A mention pill stands alone: beside it the message
+    // count was a second number, and bold already says there is more.
     unreadTextCount:
-      options.showUnreadCount === true && options.unreadMentionCount === 0
+      options.showUnreadCount === true && mentionCount === 0
         ? channelUnread
         : 0,
   };
