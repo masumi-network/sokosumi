@@ -25,9 +25,7 @@ const envPublicConfigSchema = z.object({
     .default(256),
 
   NEXT_PUBLIC_MASUMI_URL: z.url().default("https://www.masumi.network"),
-  NEXT_PUBLIC_KODOSUMI_URL: z.url().default("https://kodosumi.com"),
   NEXT_PUBLIC_SOKOSUMI_URL: z.url().default("https://app.sokosumi.com"),
-  NEXT_PUBLIC_HANNAH_URL: z.url().default("https://hannah.sumike.ai"),
   NEXT_PUBLIC_MCP_URL: z.url().default("https://mcp.sokosumi.com"),
   NEXT_PUBLIC_CORE_APP_BASE_URL: z.url().optional(),
   NEXT_PUBLIC_NETWORK: z
@@ -63,9 +61,7 @@ function validateEnv() {
     NEXT_PUBLIC_PASSWORD_MAX_LENGTH:
       process.env.NEXT_PUBLIC_PASSWORD_MAX_LENGTH,
     NEXT_PUBLIC_MASUMI_URL: process.env.NEXT_PUBLIC_MASUMI_URL,
-    NEXT_PUBLIC_KODOSUMI_URL: process.env.NEXT_PUBLIC_KODOSUMI_URL,
     NEXT_PUBLIC_SOKOSUMI_URL: process.env.NEXT_PUBLIC_SOKOSUMI_URL,
-    NEXT_PUBLIC_HANNAH_URL: process.env.NEXT_PUBLIC_HANNAH_URL,
     NEXT_PUBLIC_MCP_URL: process.env.NEXT_PUBLIC_MCP_URL,
     NEXT_PUBLIC_CORE_APP_BASE_URL: process.env.NEXT_PUBLIC_CORE_APP_BASE_URL,
     NEXT_PUBLIC_NETWORK: process.env.NEXT_PUBLIC_NETWORK,
