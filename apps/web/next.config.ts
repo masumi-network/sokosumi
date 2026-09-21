@@ -37,6 +37,17 @@ const browserCoreApiBaseUrl = normalizeCoreApiBaseUrl(
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
+  // Old public job shares lived at /share/jobs/:token. Canonical URL is
+  // /share/:token (jobs and tasks). Keep a 308 so bookmarks still resolve.
+  async redirects() {
+    return [
+      {
+        source: "/share/jobs/:token",
+        destination: "/share/:token",
+        permanent: true,
+      },
+    ];
+  },
   // Portless named URLs (`https://web.sokosumi.localhost`) and worktree
   // prefixes (`https://main.web.sokosumi.localhost`) hit Next as cross-origin
   // from the proxy. Classic `localhost:3000` still works.
