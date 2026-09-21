@@ -9,11 +9,19 @@ import {
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
-import { mapProjectForApi, projectSchema } from "@/schemas/project.schema";
+import {
+  mapProjectForApi,
+  starredProjectSchema,
+} from "@/schemas/project.schema";
 
 /**
  * Far above any real Pin list, and the sidebar only draws five. This bounds
  * the payload without imposing a limit on how much a reader may Pin.
+ *
+ * Deliberately uncursored: the order is oldest Pin first, so the five the
+ * flyout wants come from the near end and truncation can only hide a reader's
+ * newest Pins past 50. Give this a cursor if an "all Pins" view is ever built,
+ * because that view would lose them silently.
  */
 const MAX_STARRED_PROJECTS = 50;
 
@@ -26,7 +34,7 @@ const route = withOrganizationSlugHeaderParameter(
     tags: ["Projects"],
     responses: {
       200: jsonSuccessResponse(
-        z.array(projectSchema),
+        z.array(starredProjectSchema),
         "The reader's Pinned projects",
       ),
       401: jsonErrorResponse("Unauthorized"),
@@ -55,14 +63,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // there is no reorder mode yet, so this really is the time of pinning.
       orderBy: { starredAt: "asc" },
       take: MAX_STARRED_PROJECTS,
-      select: { project: true },
+      select: { project: true, starredAt: true },
     });
 
     return ok(
       c,
-      z
-        .array(projectSchema)
-        .parse(stars.map((star) => mapProjectForApi(star.project))),
+      z.array(starredProjectSchema).parse(
+        stars.map((star) => ({
+          ...mapProjectForApi(star.project),
+          starredAt: star.starredAt,
+        })),
+      ),
     );
   });
 }

@@ -20,6 +20,10 @@ CREATE UNIQUE INDEX "project_star_userId_projectId_key" ON "project_star"("userI
 -- CreateIndex
 CREATE INDEX "project_star_userId_starredAt_idx" ON "project_star"("userId", "starredAt");
 
+-- CreateIndex
+-- The unique key leads with userId, so the cascade from project needs its own.
+CREATE INDEX "project_star_projectId_idx" ON "project_star"("projectId");
+
 -- AddForeignKey
 ALTER TABLE "project_star" ADD CONSTRAINT "project_star_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 

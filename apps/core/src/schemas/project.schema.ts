@@ -222,6 +222,20 @@ export const projectStarSchema = z
   })
   .openapi("ProjectStar");
 
+/**
+ * A Pinned project as the starred list returns it: the project plus the
+ * reader's own `starredAt`, so a client that merges the list into a map can
+ * still recover the Pin order without leaning on JSON array position.
+ */
+export const starredProjectSchema = projectSchema
+  .extend({
+    starredAt: dateTimeSchema.openapi({
+      description:
+        "When this reader Pinned the project. Ascending is the order the sidebar flyout draws Pins in.",
+    }),
+  })
+  .openapi("StarredProject");
+
 export const PROJECT_NEEDS_ATTENTION_LIMIT = 5 as const;
 
 export const projectNeedsAttentionSchema = z

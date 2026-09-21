@@ -584,6 +584,10 @@ model ProjectStar {
 
   @@unique([userId, projectId])
   @@index([userId, starredAt])
+  // The unique key leads with userId, so deleting a project would otherwise
+  // scan this table to cascade. Same reason NoticeAcknowledgment indexes its
+  // non-leading FK.
+  @@index([projectId])
   @@map("project_star")
 }
 

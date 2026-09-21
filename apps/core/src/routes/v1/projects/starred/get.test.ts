@@ -93,9 +93,17 @@ describe("GET /projects/starred", () => {
   });
 
   it("returns the reader's Pinned projects, oldest Pin first", async () => {
+    const olderPin = new Date("2026-09-01T10:00:00.000Z");
+    const newerPin = new Date("2026-09-19T10:00:00.000Z");
     projectStarFindManyMock.mockResolvedValue([
-      { project: createProject("11111111-1111-4111-8111-111111111111", "Old") },
-      { project: createProject("22222222-2222-4222-8222-222222222222", "New") },
+      {
+        project: createProject("11111111-1111-4111-8111-111111111111", "Old"),
+        starredAt: olderPin,
+      },
+      {
+        project: createProject("22222222-2222-4222-8222-222222222222", "New"),
+        starredAt: newerPin,
+      },
     ]);
 
     const res = await createApp().request("http://localhost/starred");
@@ -109,6 +117,21 @@ describe("GET /projects/starred", () => {
     expect(projectStarFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({ orderBy: { starredAt: "asc" } }),
     );
+  });
+
+  it("carries starredAt, so Pin order survives a client that builds a map", async () => {
+    const starredAt = new Date("2026-09-01T10:00:00.000Z");
+    projectStarFindManyMock.mockResolvedValue([
+      {
+        project: createProject("11111111-1111-4111-8111-111111111111", "Old"),
+        starredAt,
+      },
+    ]);
+
+    const res = await createApp().request("http://localhost/starred");
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).data[0]?.starredAt).toBe(starredAt.toISOString());
   });
 
   it("leaves out closed projects and other workspaces", async () => {

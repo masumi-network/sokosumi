@@ -32,6 +32,33 @@ const {
   queryRawMock: vi.fn(),
 }));
 
+// The binding and grant lookups have their own tests; stubbing them lets a
+// bound coworker reach the handler, which is where the Pin gate lives.
+vi.mock("@/helpers/coworker-user-context-binding", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@/helpers/coworker-user-context-binding")
+    >();
+  return {
+    ...actual,
+    requireAuthorizedUserContext: vi.fn(
+      async (authContext: AuthenticationContext) => ({
+        userId:
+          authContext.actor === "coworker"
+            ? (authContext.context?.userId ?? "user_123")
+            : "user_123",
+        organizationId: null,
+      }),
+    ),
+  };
+});
+
+vi.mock("@/helpers/vendor-grants", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/helpers/vendor-grants")>();
+  return { ...actual, hasGrantedWorkspaceAccess: vi.fn(async () => false) };
+});
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $queryRaw: queryRawMock,
@@ -113,6 +140,33 @@ describe("GET /projects", () => {
     projectCountMock.mockResolvedValue(0);
     projectStarFindManyMock.mockResolvedValue([]);
     queryRawMock.mockResolvedValue([]);
+  });
+
+  it("never resolves a Pin for a coworker acting on a user's behalf", async () => {
+    const sample = createProjectRow({ _count: { tasks: 0, jobs: 0 } });
+    projectFindManyMock.mockResolvedValue([sample]);
+    queryRawMock.mockResolvedValue([
+      { id: sample.id, lastActivityAt: sample.updatedAt },
+    ]);
+    projectCountMock.mockResolvedValue(1);
+    // The row IS Pinned by the bound user. The gate, not an empty table, is
+    // what has to keep it out of the response.
+    projectStarFindManyMock.mockResolvedValue([
+      { projectId: sample.id, starredAt: new Date() },
+    ]);
+
+    const res = await createApp({
+      actor: "coworker",
+      coworkerId: "coworker_123",
+      vendorId: TEST_VENDOR_ID,
+      context: { userId: "user_123", organizationId: null },
+    } as AuthenticationContext).request("http://localhost/");
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).data[0]?.starredAt).toBeNull();
+    // A later cleanup that stars by requireAuthorizedUserContext().userId
+    // would leak the bound user's Pins; this is what catches it.
+    expect(projectStarFindManyMock).not.toHaveBeenCalled();
   });
 
   it("reports the reader's own Pin on each row", async () => {

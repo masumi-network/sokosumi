@@ -113,8 +113,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }),
     );
     const page = ranked.slice(0, take);
-    // Prisma `contains` compiles to unescaped ILIKE, so `%` / `_` in `q`
-    // would inflate the total relative to the escaped ranked query.
     // A Pin belongs to a person (ADR 0036), so only a user context resolves
     // one. A coworker or vendor reading the same list sees every row unpinned
     // rather than seeing the bound user's Pins as its own.
@@ -125,6 +123,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where: { workspaceId, id: { in: page.map((row) => row.id) } },
         include: projectListCountsInclude,
       }),
+      // Prisma `contains` compiles to unescaped ILIKE, so `%` / `_` in `q`
+      // would inflate the total relative to the escaped ranked query.
       search
         ? prisma
             .$queryRaw<Array<{ count: bigint }>>(
