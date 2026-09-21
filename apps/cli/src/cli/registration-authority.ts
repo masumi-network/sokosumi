@@ -32,11 +32,11 @@ export function describeRegistrationWorkspaceRequirement(
 /**
  * How to become a Vendor admin before registration.
  *
- * Primary unblock: an existing Vendor admin adds you as admin
+ * Primary unblock: create a Vendor (`sokosumi vendors create` / Core
+ * `POST /v1/vendors`) or ask an existing Vendor admin to add you as admin
  * (`POST /v1/vendors/{id}/members` with role admin, or promote via patch).
  * Web Developer → Vendors is hidden unless you already have admin membership
  * (`getDeveloperVendorAdminAccess`); do not send blocked users there.
- * Developer self-service Vendor create is not available yet (track separately).
  */
 export function describeRegistrationAdminVendorRequirement(
   webUrl?: string,
@@ -45,7 +45,7 @@ export function describeRegistrationAdminVendorRequirement(
   const developerHome = base
     ? `Developer in the web app starts at ${base}${WEB_DEVELOPER_DEFAULT_ROUTE} (Docs, OAuth clients, API keys, Coworkers, Tasks). Vendors appears there only after you already have admin.`
     : "In the Sokosumi web app, Developer shows Docs, OAuth clients, API keys, Coworkers, and Tasks. Vendors appears only after you already have admin.";
-  return `Registration requires Vendor role admin. Check memberships under Vendors here or \`sokosumi vendors me\`. Ask an existing Vendor admin to add you as admin on their Vendor (member invite or role promote). If no Vendor exists yet, ask a platform admin to create one and make you admin. ${developerHome}`;
+  return `Registration requires Vendor role admin. Check memberships under Vendors here or \`sokosumi vendors me\`. Create one with \`sokosumi vendors create --name NAME --slug SLUG\`, or ask an existing Vendor admin to add you as admin on their Vendor (member invite or role promote). If no Vendor exists yet and create is unavailable, ask a platform admin to create one and make you admin. ${developerHome}`;
 }
 
 /**
@@ -86,9 +86,8 @@ export function requireAdministeredVendorForRegistration(
 }
 
 /**
- * Vendor creation: require explicit confirmation, then refuse.
- * Core only exposes platform-admin create (`POST /v1/admin/vendors`);
- * do not invent a CLI-only self-service path (SOK-966 PR2).
+ * Vendor creation on register requires explicit confirmation.
+ * Core developer create is `POST /v1/vendors` (caller becomes admin).
  */
 export function assertVendorCreationRequest(options: {
   requested: boolean;
@@ -100,7 +99,4 @@ export function assertVendorCreationRequest(options: {
       "Vendor creation requires explicit confirmation (`--confirm-create-vendor`).",
     );
   }
-  throw new Error(
-    "Core has no developer self-service Vendor create path yet. Ask an existing Vendor admin to add you as admin, or ask a platform admin to create a Vendor and make you admin.",
-  );
 }

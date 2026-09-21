@@ -179,13 +179,32 @@ test("TestV67 coworkers register rejects non-admin Vendor before Core create", a
   assert.equal(postCalled, false);
 });
 
-test("TestV67 coworkers register refuses --create-vendor without inventing Core policy", async () => {
-  let postCalled = false;
+test("TestV67 coworkers register --create-vendor needs confirm then creates Vendor", async () => {
+  const posts: { path: string; body: unknown }[] = [];
   const client: CoreHttpClient = {
-    get: async <T>() => ({ data: [] }) as T,
-    post: async <T>() => {
-      postCalled = true;
-      return { data: {} } as T;
+    get: async <T>(path: string) => {
+      if (path.includes("/organizations")) {
+        return {
+          data: [{ id: "org-1", name: "Acme Org", role: "owner" }],
+        } as T;
+      }
+      return { data: [] } as T;
+    },
+    post: async <T>(path: string, body?: unknown) => {
+      posts.push({ path, body });
+      if (path.includes("/vendors") && !path.includes("/coworkers")) {
+        return {
+          data: {
+            id: "vendor-new",
+            name: "Acme Labs",
+            slug: "acme-labs",
+            role: "admin",
+          },
+        } as T;
+      }
+      return {
+        data: { id: "coworker-1", name: "Ops Agent", vendorId: "vendor-new" },
+      } as T;
     },
     patch: async <T>() => ({ data: {} }) as T,
     delete: async <T>() => ({ data: {} }) as T,
@@ -199,12 +218,15 @@ test("TestV67 coworkers register refuses --create-vendor without inventing Core 
         subcommand: "register",
         options: {
           name: "Ops Agent",
-          "vendor-id": "vendor-1",
           "create-vendor": true,
+          "vendor-name": "Acme Labs",
+          "vendor-slug": "acme-labs",
         },
       }),
     /explicit confirmation/,
   );
+  assert.equal(posts.length, 0);
+
   await assert.rejects(
     () =>
       runCoworkersCommand({
@@ -216,11 +238,40 @@ test("TestV67 coworkers register refuses --create-vendor without inventing Core 
           "vendor-id": "vendor-1",
           "create-vendor": true,
           "confirm-create-vendor": true,
+          "vendor-name": "Acme Labs",
+          "vendor-slug": "acme-labs",
         },
       }),
-    /no developer self-service Vendor create/,
+    /either `--vendor-id` or `--create-vendor`/,
   );
-  assert.equal(postCalled, false);
+  assert.equal(posts.length, 0);
+
+  const output: string[] = [];
+  await runCoworkersCommand({
+    client,
+    stdout: { write: (value) => output.push(value) },
+    subcommand: "register",
+    options: {
+      name: "Ops Agent",
+      "create-vendor": true,
+      "confirm-create-vendor": true,
+      "vendor-name": "Acme Labs",
+      "vendor-slug": "acme-labs",
+    },
+  });
+  assert.deepEqual(
+    posts.map((entry) => entry.path),
+    ["/v1/vendors", "/v1/coworkers"],
+  );
+  assert.deepEqual(posts[0]?.body, {
+    name: "Acme Labs",
+    slug: "acme-labs",
+  });
+  assert.equal(
+    (posts[1]?.body as { vendorId?: string } | undefined)?.vendorId,
+    "vendor-new",
+  );
+  assert.match(output.join(""), /Created coworker Ops Agent/);
 });
 
 test("coworkers api-key requires an id", async () => {

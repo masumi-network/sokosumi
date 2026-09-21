@@ -75,7 +75,7 @@ test("TestV67 registration accepts only an administered Vendor", () => {
   );
 });
 
-test("TestV67 Vendor creation needs confirm then refuses without Core path", () => {
+test("TestV67 Vendor creation needs confirm then allows Core path", () => {
   assert.doesNotThrow(() =>
     assertVendorCreationRequest({ requested: false, confirmed: false }),
   );
@@ -83,9 +83,8 @@ test("TestV67 Vendor creation needs confirm then refuses without Core path", () 
     () => assertVendorCreationRequest({ requested: true, confirmed: false }),
     /explicit confirmation/,
   );
-  assert.throws(
-    () => assertVendorCreationRequest({ requested: true, confirmed: true }),
-    /no developer self-service Vendor create/,
+  assert.doesNotThrow(() =>
+    assertVendorCreationRequest({ requested: true, confirmed: true }),
   );
 });
 
@@ -97,6 +96,10 @@ test("TestV67 registration gate copy tells how to get workspace and Vendor admin
   assert.match(
     describeRegistrationWorkspaceRequirement("https://app.example.test"),
     /https:\/\/app\.example\.test/,
+  );
+  assert.match(
+    describeRegistrationAdminVendorRequirement("https://app.example.test"),
+    /vendors create/,
   );
   assert.match(
     describeRegistrationAdminVendorRequirement("https://app.example.test"),

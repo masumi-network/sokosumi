@@ -73,6 +73,8 @@ type ValueOptionName =
   | "input-file"
   | "max-credits"
   | "vendor-id"
+  | "vendor-name"
+  | "vendor-slug"
   | "slug";
 
 type CliOptionValue = string | string[];
@@ -119,6 +121,8 @@ interface CliOptions {
   "input-file"?: string;
   "max-credits"?: string;
   "vendor-id"?: string;
+  "vendor-name"?: string;
+  "vendor-slug"?: string;
   slug?: string;
   "api-key-stdin"?: boolean;
   "create-api-key"?: boolean;
@@ -158,7 +162,7 @@ const COMMAND_USAGE: Record<(typeof CLI_COMMANDS)[number], string> = {
   "agents hire": "AGENT_ID --input-json JSON [--max-credits N]",
   "coworkers list": "[--scope SCOPE] [--capability CAPABILITY]",
   "coworkers register":
-    "[--vendor-id ID] [--create-api-key] [--create-vendor --confirm-create-vendor] [options]",
+    "[--vendor-id ID | --create-vendor --confirm-create-vendor --vendor-name NAME --vendor-slug SLUG] [--create-api-key] [options]",
   "coworkers update": "COWORKER_ID [options]",
   "coworkers api-key": "COWORKER_ID [options]",
   "coworkers me": "",
@@ -285,6 +289,8 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "input-file",
   "max-credits",
   "vendor-id",
+  "vendor-name",
+  "vendor-slug",
   "slug",
 ]);
 
