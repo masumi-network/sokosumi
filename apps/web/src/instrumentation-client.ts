@@ -2,6 +2,7 @@ import * as Sentry from "@sentry/nextjs";
 import { ablyAuthSessionIgnoreErrors } from "@/lib/sentry/ably-auth-session-errors";
 import { ablyChannelLifecycleIgnoreErrors } from "@/lib/sentry/ably-channel-lifecycle-errors";
 import { expectedClientNoiseIgnoreErrors } from "@/lib/sentry/expected-request-errors";
+import { redactResetPasswordToken } from "@/lib/sentry/reset-password-token-redaction";
 import {
   browserHistoryRateLimitIgnoreErrors,
   firefoxBridgeIgnoreErrors,
@@ -43,8 +44,15 @@ Sentry.init({
     ...expectedClientNoiseIgnoreErrors,
   ],
   beforeSend: beforeSendClientEvent,
+  beforeSendTransaction: redactResetPasswordToken,
 
-  integrations: [Sentry.replayIntegration({})],
+  integrations: [
+    Sentry.replayIntegration({
+      maskAllInputs: true,
+      maskAllText: true,
+      blockAllMedia: true,
+    }),
+  ],
 
   // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
   tracesSampleRate: 0.005,

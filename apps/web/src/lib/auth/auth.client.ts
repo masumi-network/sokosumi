@@ -17,7 +17,6 @@ export const {
   signIn,
   signOut,
   requestPasswordReset,
-  resetPassword,
   deleteUser,
   useSession,
   changeEmail,

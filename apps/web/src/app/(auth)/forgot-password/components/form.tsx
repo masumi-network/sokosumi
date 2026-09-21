@@ -45,7 +45,7 @@ export default function ForgotPasswordForm({
       const requestPasswordResetResult = await requestPasswordReset({
         fetchOptions,
         email: values.email,
-        redirectTo: getAbsoluteAuthRedirectUrl("/reset-password"),
+        redirectTo: getAbsoluteAuthRedirectUrl("/reset-password/exchange"),
       });
 
       if (requestPasswordResetResult.error) {
