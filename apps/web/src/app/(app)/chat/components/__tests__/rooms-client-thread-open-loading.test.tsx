@@ -23,6 +23,8 @@ const actions = vi.hoisted(() => ({
   markOrganizationChatRoomReadAction: vi.fn(),
 }));
 
+const { mockSearch } = vi.hoisted(() => ({ mockSearch: { current: "" } }));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: vi.fn(),
@@ -30,7 +32,7 @@ vi.mock("next/navigation", () => ({
     refresh: vi.fn(),
   }),
   usePathname: () => "/chat/rooms/room-channel",
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(mockSearch.current),
 }));
 
 vi.mock("next-intl", () => ({
@@ -182,6 +184,10 @@ vi.mock("../room-message-row", () => ({
       {message.content}
     </button>
   ),
+}));
+
+vi.mock("../thread-list-panel", () => ({
+  ThreadListPanel: () => <aside data-testid="thread-list-panel" />,
 }));
 
 /** Capture loading/replies so the race is asserted at the real seam. */
@@ -341,6 +347,7 @@ const baseProps = {
 describe("RoomsClient thread open loading race", () => {
   beforeEach(() => {
     mockSearchHit.current = null;
+    mockSearch.current = "";
     actions.markThreadReadAction.mockReset();
     actions.listThreadMessagesAction.mockReset();
     actions.markOrganizationChatRoomReadAction.mockReset();
@@ -431,6 +438,23 @@ describe("RoomsClient thread open loading race", () => {
           .getAttribute("data-unread-replies"),
       ).toBe("0");
     });
+  });
+
+  // The sidebar's overflow row asks for the thread list on the room's URL.
+  it("opens the thread list the URL asks for", async () => {
+    mockSearch.current = "threads=1";
+
+    render(<RoomsClient {...baseProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("thread-list-panel")).toBeTruthy();
+    });
+  });
+
+  it("opens no thread list when the URL asks for nothing", () => {
+    render(<RoomsClient {...baseProps} />);
+
+    expect(screen.queryByTestId("thread-list-panel")).toBeNull();
   });
 
   it("invalidates in-flight load when the panel is closed mid-fetch", async () => {

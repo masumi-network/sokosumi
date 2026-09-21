@@ -5451,6 +5451,12 @@
         "afk": "Away",
         "offline": "Offline"
       },
+      "ThreadRows": {
+        "label": "Hilos sin leer en {name}",
+        "unreadReplies": "{count, plural, one {# respuesta sin leer} other {# respuestas sin leer}}",
+        "moreThreads": "{count, plural, one {# hilo más sin leer} other {# hilos más sin leer}}",
+        "untitled": "Hilo"
+      },
       "Thread": {
         "title": "Thread",
         "open": "Open thread",

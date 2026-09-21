@@ -5451,6 +5451,12 @@
         "afk": "Away",
         "offline": "Offline"
       },
+      "ThreadRows": {
+        "label": "Unread threads in {name}",
+        "unreadReplies": "{count, plural, one {# unread reply} other {# unread replies}}",
+        "moreThreads": "{count, plural, one {# more unread thread} other {# more unread threads}}",
+        "untitled": "Thread"
+      },
       "Thread": {
         "title": "Thread",
         "open": "Open thread",

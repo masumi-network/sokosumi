@@ -5451,6 +5451,12 @@
         "afk": "Away",
         "offline": "Offline"
       },
+      "ThreadRows": {
+        "label": "Ungelesene Threads in {name}",
+        "unreadReplies": "{count, plural, one {# ungelesene Antwort} other {# ungelesene Antworten}}",
+        "moreThreads": "{count, plural, one {# weiterer ungelesener Thread} other {# weitere ungelesene Threads}}",
+        "untitled": "Thread"
+      },
       "Thread": {
         "title": "Thread",
         "open": "Open thread",
