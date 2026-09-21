@@ -45,7 +45,7 @@ export function describeRegistrationAdminVendorRequirement(
   const developerHome = base
     ? `Developer in the web app starts at ${base}${WEB_DEVELOPER_DEFAULT_ROUTE} (Docs, OAuth clients, API keys, Coworkers, Tasks). Vendors appears there only after you already have admin.`
     : "In the Sokosumi web app, Developer shows Docs, OAuth clients, API keys, Coworkers, and Tasks. Vendors appears only after you already have admin.";
-  return `Registration requires Vendor role admin. Check memberships under Vendors here or \`sokosumi vendors me\`. Create one with \`sokosumi vendors create --name NAME --slug SLUG\`, or ask an existing Vendor admin to add you as admin on their Vendor (member invite or role promote). If no Vendor exists yet and create is unavailable, ask a platform admin to create one and make you admin. ${developerHome}`;
+  return `Registration requires Vendor role admin. Check memberships under Vendors here or \`sokosumi vendors me\`. Create one with \`sokosumi vendors create --name NAME --slug SLUG\` (or \`coworkers register --create-vendor --confirm-create-vendor --vendor-name NAME --vendor-slug SLUG\`), or ask an existing Vendor admin to add you as admin on their Vendor (member invite or role promote). ${developerHome}`;
 }
 
 /**
