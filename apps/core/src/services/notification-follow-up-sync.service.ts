@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/node";
-import type { Prisma } from "@sokosumi/database";
+import { NotificationKind, type Prisma } from "@sokosumi/database";
 import {
   RESEND_BATCH_MAX_SIZE,
   type SendEmailInput,
@@ -445,6 +445,25 @@ export async function sendFollowUps(
       }
 
       try {
+        // A deleted source must not reserve the daily room key ahead of a live one.
+        const messageId = input.metadata?.messageId;
+        if (
+          input.kind === NotificationKind.CHAT &&
+          typeof messageId === "string"
+        ) {
+          const message = await prisma.chatRoomMessage.findFirst({
+            where: {
+              id: messageId,
+              roomId: input.referenceId,
+              deletedAt: null,
+            },
+            select: { id: true },
+          });
+          if (!message) {
+            continue;
+          }
+        }
+
         // Asked before the write rather than left to the create path, which
         // stores a hidden row for readers who silenced the category. A hidden
         // reminder reaches nobody and would still be there to explain later.

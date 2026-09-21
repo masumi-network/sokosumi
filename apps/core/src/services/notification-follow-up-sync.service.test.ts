@@ -11,6 +11,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   captureExceptionMock,
+  chatRoomMessageFindFirstMock,
   createNotificationMock,
   notificationFindManyMock,
   resolveDeliveryMock,
@@ -18,6 +19,7 @@ const {
   userFindUniqueMock,
 } = vi.hoisted(() => ({
   captureExceptionMock: vi.fn(),
+  chatRoomMessageFindFirstMock: vi.fn(),
   createNotificationMock: vi.fn(),
   notificationFindManyMock: vi.fn(),
   resolveDeliveryMock: vi.fn(),
@@ -31,6 +33,7 @@ vi.mock("@sentry/node", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    chatRoomMessage: { findFirst: chatRoomMessageFindFirstMock },
     notification: {
       findMany: notificationFindManyMock,
     },
@@ -325,6 +328,7 @@ describe("NotificationFollowUpSyncService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     written = [];
+    chatRoomMessageFindFirstMock.mockResolvedValue({ id: "message-1" });
     seed([]);
     resolveDeliveryMock.mockResolvedValue({
       inApp: true,
@@ -368,6 +372,53 @@ describe("NotificationFollowUpSyncService", () => {
         return { notification: { id: input.eventId }, created: true };
       },
     );
+  });
+
+  it.each([CHAT_MENTION_MESSAGE_KEY, CHAT_DIRECT_MESSAGE_MESSAGE_KEY])(
+    "uses a live source when the oldest %s message was deleted",
+    async (messageKey) => {
+      seed([
+        row({ id: "old", messageKey, metadata: { messageId: "deleted" } }),
+        row({
+          id: "new",
+          messageKey,
+          createdAt: JUST_A_DAY,
+          metadata: { messageId: "live" },
+        }),
+      ]);
+      chatRoomMessageFindFirstMock
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: "live" });
+
+      const result = await notificationFollowUpSyncService.sendFollowUps({
+        now,
+      });
+
+      expect(result.sent).toBe(1);
+      expect(createNotificationMock).toHaveBeenCalledTimes(1);
+      expect(firstFollowUpInput()?.metadata).toEqual({ messageId: "live" });
+      expect(chatRoomMessageFindFirstMock).toHaveBeenNthCalledWith(1, {
+        where: { id: "deleted", roomId: "room-1", deletedAt: null },
+        select: { id: true },
+      });
+    },
+  );
+
+  it("does not reserve a reminder key when the source lookup fails", async () => {
+    seed([row()]);
+    chatRoomMessageFindFirstMock.mockRejectedValueOnce(
+      new Error("unavailable"),
+    );
+
+    const failed = await notificationFollowUpSyncService.sendFollowUps({ now });
+    expect(failed.sent).toBe(0);
+    expect(createNotificationMock).not.toHaveBeenCalled();
+    expect(captureExceptionMock).toHaveBeenCalled();
+
+    const retried = await notificationFollowUpSyncService.sendFollowUps({
+      now,
+    });
+    expect(retried.sent).toBe(1);
   });
 
   it("reminds a reader of a mention they never opened", async () => {
