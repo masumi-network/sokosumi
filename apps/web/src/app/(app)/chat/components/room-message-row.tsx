@@ -2583,9 +2583,13 @@ export const ChatMessageRow = memo(function ChatMessageRow({
           isContinuation ? "space-y-1" : "space-y-1.5",
           // The one reservation left, and only on the row that needs it: the
           // faces sit in this corner, and with the text now running full
-          // width a long last line would otherwise run under them. Four 16px
-          // slots overlapping by 4, plus air.
-          seenBy && "pe-14",
+          // width a long last line would otherwise run under them.
+          //
+          // Wide enough for what the corner actually occupies, which is more
+          // than the faces: three of them plus the `+N` is 52px, and below
+          // md the touch target reaches 14px further left again. 66px of
+          // reach, so 80px of reserve.
+          seenBy && "pe-20",
         )}
       >
         {isContinuation ? (
@@ -2771,12 +2775,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
       {/* Out of the text flow, in the row's bottom-right corner. Costs the
           row no height at all, which is the whole reason it is here rather
           than trailing the last line.
-          Anchored to the row, not to the message column: on a hover-capable
-          device the row holds 16rem on the right free for the action pill, so
-          the column's own corner lands in the middle of that empty band,
-          aligned to nothing. `end-2` is the pill's own edge, which makes the
-          two share a vertical line and gives the faces the same corner on
-          every row. */}
+          `end-2` is the action pill's own edge, so the two share a vertical
+          line and the faces land in the same corner on every row. */}
       {seenBy ? (
         <div className="absolute end-2 bottom-1 z-10">{seenBy}</div>
       ) : null}
