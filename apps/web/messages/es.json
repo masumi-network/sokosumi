@@ -5608,8 +5608,7 @@
         "open": "Ver quién lo ha leído",
         "title": "Leído por",
         "readAt": "Leído {time}",
-        "notReadTitle": "Sin leer todavía",
-        "transcript": "Leído por {count}"
+        "notReadTitle": "Sin leer todavía"
       },
       "UnreadThreads": {
         "open": "Hilos",

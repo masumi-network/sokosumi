@@ -9,12 +9,13 @@ import type {
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
-    key === "transcript" ? `Seen by ${values?.count}` : key,
+    key === "summary" ? `Seen by ${values?.count} people` : key,
 }));
 
-import { RoomSeenByLine } from "./room-seen-by-line";
+import { RoomSeenByLine, seenByReadersFor } from "./room-seen-by-line";
 
 const VIEWER_ID = "user-viewer";
+const NEWEST_ID = "message-newest";
 const NEWEST_AT = "2026-01-01T12:00:00.000Z";
 
 function member(
@@ -38,11 +39,11 @@ function member(
  */
 function Probe({
   members,
-  isNewest = true,
+  messageId = NEWEST_ID,
   createdAt = NEWEST_AT,
 }: {
   members: ChatRoomUserParticipant[];
-  isNewest?: boolean;
+  messageId?: string;
   createdAt?: string;
 }) {
   const room = {
@@ -52,13 +53,13 @@ function Probe({
     sokoBotMembers: [],
   } as unknown as ChatRoom;
   const receipts = useRoomReadReceipts({ room, currentUserId: VIEWER_ID });
-  return (
-    <RoomSeenByLine
-      countReadAsOf={receipts.countReadAsOf}
-      createdAt={createdAt}
-      isNewest={isNewest}
-    />
-  );
+  const readers = seenByReadersFor({
+    readersAsOf: receipts.readersAsOf,
+    messageId,
+    createdAt,
+    newestMessageId: NEWEST_ID,
+  });
+  return <RoomSeenByLine readers={readers} />;
 }
 
 function line() {
@@ -66,7 +67,7 @@ function line() {
 }
 
 describe("RoomSeenByLine", () => {
-  it("counts the members whose mark has passed the message", () => {
+  it("shows a face per member whose mark has passed the message", () => {
     render(
       <Probe
         members={[
@@ -78,7 +79,32 @@ describe("RoomSeenByLine", () => {
       />,
     );
 
-    expect(line()).toHaveTextContent("Seen by 2");
+    expect(line()).toHaveAccessibleName("Seen by 2 people");
+    expect(screen.getByTestId("read-receipt-face-user-a")).toBeInTheDocument();
+    expect(screen.getByTestId("read-receipt-face-user-b")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("read-receipt-face-user-c"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("caps the faces and counts the rest into a +N", () => {
+    render(
+      <Probe
+        members={[
+          member("user-a", "2026-01-01T17:00:00.000Z"),
+          member("user-b", "2026-01-01T16:00:00.000Z"),
+          member("user-c", "2026-01-01T15:00:00.000Z"),
+          member("user-d", "2026-01-01T14:00:00.000Z"),
+          member("user-e", "2026-01-01T13:00:00.000Z"),
+        ]}
+      />,
+    );
+
+    expect(line()).toHaveAccessibleName("Seen by 5 people");
+    expect(line()).toHaveTextContent("+2");
+    expect(
+      screen.queryByTestId("read-receipt-face-user-d"),
+    ).not.toBeInTheDocument();
   });
 
   it("leaves the viewer out of the count", () => {
@@ -91,13 +117,16 @@ describe("RoomSeenByLine", () => {
       />,
     );
 
-    expect(line()).toHaveTextContent("Seen by 1");
+    expect(line()).toHaveAccessibleName("Seen by 1 people");
+    expect(
+      screen.queryByTestId(`read-receipt-face-${VIEWER_ID}`),
+    ).not.toBeInTheDocument();
   });
 
-  it("renders nothing under a message that is not the newest", () => {
+  it("renders nothing on a message that is not the newest", () => {
     render(
       <Probe
-        isNewest={false}
+        messageId="message-older"
         members={[member("user-a", "2026-01-01T13:00:00.000Z")]}
       />,
     );

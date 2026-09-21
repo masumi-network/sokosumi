@@ -31,17 +31,112 @@ function participantName(participant: ChatRoomUserParticipant): string {
 function ParticipantAvatar({
   participant,
   className,
+  textClassName,
 }: {
   participant: ChatRoomUserParticipant;
   className?: string;
+  textClassName?: string;
 }) {
   return (
     <Avatar className={className}>
       <AvatarImage src={participant.image ?? undefined} alt="" />
-      <AvatarFallback className="bg-muted text-muted-foreground text-[0.625rem]">
+      <AvatarFallback
+        className={cn(
+          "bg-muted text-muted-foreground text-[0.625rem]",
+          textClassName,
+        )}
+      >
         {getInitials(participantName(participant))}
       </AvatarFallback>
     </Avatar>
+  );
+}
+
+/** Face sizes: the header stack, and the smaller one under a message. */
+const FACE_SIZE = {
+  md: "size-6",
+  sm: "size-4",
+} as const;
+
+const OVERLAP = {
+  md: "-space-x-2",
+  sm: "-space-x-1",
+} as const;
+
+/** Whole pixels, matching FACE_SIZE and OVERLAP, for the width arithmetic. */
+const FACE_PX = { md: 24, sm: 16 } as const;
+const OVERLAP_PX = { md: 8, sm: 4 } as const;
+
+/**
+ * How wide the faces will render, in px.
+ *
+ * The transcript needs this before layout: it reserves exactly this much at the
+ * end of the message so the last line wraps early and the faces stay on it
+ * rather than dropping to a row of their own. Derived from the same constants
+ * the component renders with, so the reservation cannot drift from the render.
+ */
+export function readReceiptFacesWidth(
+  readerCount: number,
+  size: keyof typeof FACE_SIZE = "md",
+): number {
+  const faces = Math.min(readerCount, READ_RECEIPT_FACE_CAP);
+  const slots = faces + (readerCount > faces ? 1 : 0);
+  if (slots === 0) {
+    return 0;
+  }
+  return FACE_PX[size] + (slots - 1) * (FACE_PX[size] - OVERLAP_PX[size]);
+}
+
+interface ReadReceiptFacesProps {
+  /** Readers, most-recent-read first, viewer already excluded. */
+  readers: readonly RoomReader[];
+  size?: keyof typeof FACE_SIZE;
+  className?: string;
+}
+
+/**
+ * Overlapping faces, capped, with a `+N` for the rest. Purely presentational
+ * and inert: whoever mounts it owns the accessible name, because a row of
+ * unlabeled images is not a summary anyone can hear.
+ */
+export function ReadReceiptFaces({
+  readers,
+  size = "md",
+  className,
+}: ReadReceiptFacesProps) {
+  const faces = readers.slice(0, READ_RECEIPT_FACE_CAP);
+  const remainingCount = readers.length - faces.length;
+
+  return (
+    <span className={cn("flex", OVERLAP[size], className)}>
+      {faces.map(({ participant }, index) => (
+        <span
+          key={participant.id}
+          className={cn("relative inline-flex shrink-0", FACE_SIZE[size])}
+          style={{ zIndex: faces.length - index }}
+          data-testid={`read-receipt-face-${participant.id}`}
+        >
+          <ParticipantAvatar
+            participant={participant}
+            className="ring-border size-full shadow-xs ring-1"
+            textClassName={size === "sm" ? "text-[0.5rem]" : undefined}
+          />
+        </span>
+      ))}
+      {remainingCount > 0 ? (
+        <span
+          className={cn(
+            "bg-muted text-muted-foreground ring-border relative inline-flex shrink-0 items-center justify-center rounded-full font-medium shadow-xs ring-1",
+            FACE_SIZE[size],
+            size === "sm" ? "text-[0.5rem]" : "text-[0.625rem]",
+          )}
+          style={{ zIndex: 0 }}
+          aria-hidden
+        >
+          +{remainingCount}
+        </span>
+      ) : null}
+    </span>
   );
 }
 
@@ -132,9 +227,6 @@ export function ReadReceiptAvatarStack({
     return null;
   }
 
-  const faces = readers.slice(0, READ_RECEIPT_FACE_CAP);
-  const remainingCount = readers.length - faces.length;
-
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -143,35 +235,14 @@ export function ReadReceiptAvatarStack({
           // The pseudo-element carries the touch target out to 44px below md,
           // where the faces themselves are only 24px tall.
           className={cn(
-            "relative flex -space-x-2 cursor-pointer rounded-full outline-none after:absolute after:-inset-2 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring md:after:hidden",
+            "relative flex cursor-pointer rounded-full outline-none after:absolute after:-inset-2 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring md:after:hidden",
             className,
           )}
           aria-label={t("summary", { count: readers.length })}
           title={t("open")}
           data-testid="read-receipt-stack"
         >
-          {faces.map(({ participant }, index) => (
-            <span
-              key={participant.id}
-              className="relative inline-flex size-6 shrink-0"
-              style={{ zIndex: faces.length - index }}
-              data-testid={`read-receipt-face-${participant.id}`}
-            >
-              <ParticipantAvatar
-                participant={participant}
-                className="ring-border size-full shadow-xs ring-1"
-              />
-            </span>
-          ))}
-          {remainingCount > 0 ? (
-            <span
-              className="bg-muted text-muted-foreground ring-border relative inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-medium shadow-xs ring-1"
-              style={{ zIndex: 0 }}
-              aria-hidden
-            >
-              +{remainingCount}
-            </span>
-          ) : null}
+          <ReadReceiptFaces readers={readers} />
         </button>
       </PopoverTrigger>
       <PopoverContent

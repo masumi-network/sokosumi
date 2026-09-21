@@ -725,6 +725,7 @@ function ChannelMessageBody({
   onOpenDirectMessage,
   openingDirectParticipantKey,
   trailing,
+  trailingGutterPx = 0,
 }: {
   messageId: string;
   content: string;
@@ -740,6 +741,14 @@ function ChannelMessageBody({
   onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
   openingDirectParticipantKey?: string | null;
   trailing?: ReactNode;
+  /**
+   * Width to hold free at the end of the text for `trailing`, in px. The last
+   * paragraph goes inline so `trailing` lands on its final line; this narrows
+   * every line box by that much, so the last words wrap early and leave the
+   * room rather than pushing `trailing` onto a line of its own. Zero means the
+   * trailing content takes whatever is left and wraps if it must.
+   */
+  trailingGutterPx?: number;
 }) {
   const t = useTranslations("App.Channels.Message");
   const jumboEmojiCount = getJumboEmojiCount(content);
@@ -775,6 +784,11 @@ function ChannelMessageBody({
           expanded || skipBodyClamp ? null : MESSAGE_BODY_CLAMP_CLASS,
           trailing ? "[&_.prose]:contents [&_p:last-of-type]:inline" : null,
         )}
+        style={
+          trailing && trailingGutterPx > 0
+            ? { paddingInlineEnd: `${trailingGutterPx}px` }
+            : undefined
+        }
       >
         <ChannelMessageText
           content={content}
@@ -2246,6 +2260,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   isContinuation = false,
   isFirstOfDay = false,
   reserveHoverActionGutter = true,
+  seenBy,
+  seenByGutterPx = 0,
 }: {
   message: ChatRoomMessage;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
@@ -2297,6 +2313,10 @@ export const ChatMessageRow = memo(function ChatMessageRow({
    * thread panel so the body can use the full column.
    */
   reserveHoverActionGutter?: boolean;
+  /** Seen by faces, trailing the message's last line. Newest message only. */
+  seenBy?: ReactNode;
+  /** Width `seenBy` needs, held free at the end of the text so it fits. */
+  seenByGutterPx?: number;
 }) {
   const tChat = useTranslations("App.Chat.Chat");
   const tChannels = useTranslations("App.Channels");
@@ -2701,14 +2721,26 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                       canOpenHumanDirect={canOpenHumanDirect}
                       onOpenDirectMessage={onOpenDirectMessage}
                       openingDirectParticipantKey={openingDirectParticipantKey}
+                      // Both ride the last line; the edited label comes first
+                      // because it is about the message and Seen by is about
+                      // the room's reaction to it.
                       trailing={
-                        isContinuation && showEdited && editedAt != null ? (
-                          <MessageEditedLabel
-                            editedAt={editedAt}
-                            className="ms-1.5 inline-flex h-6 items-center"
-                          />
+                        (isContinuation && showEdited && editedAt != null) ||
+                        seenBy ? (
+                          <>
+                            {isContinuation &&
+                            showEdited &&
+                            editedAt != null ? (
+                              <MessageEditedLabel
+                                editedAt={editedAt}
+                                className="ms-1.5 inline-flex h-6 items-center"
+                              />
+                            ) : null}
+                            {seenBy}
+                          </>
                         ) : null
                       }
+                      trailingGutterPx={seenByGutterPx}
                     />
                   )}
                   <MessageUnfurlList

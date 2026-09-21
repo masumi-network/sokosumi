@@ -23,10 +23,18 @@ export async function publishChatRoomReadRealtime(
   try {
     const client = getRestClient();
     const channel = client.channels.get(makeChatRoomChannelName(input.roomId));
-    await channel.publish(CHAT_ROOM_READ_EVENT_NAME, {
-      roomId: input.roomId,
-      userId: input.userId,
-      lastReadAt: input.lastReadAt.toISOString(),
+    // Ephemeral (ADR-0033's one transferable lesson): a read receipt is
+    // derived, and the next room payload carries the same mark. It gains
+    // nothing from history, rewind or resume, and a reconnecting client
+    // replaying stale reads would only re-assert what its payload just said.
+    await channel.publish({
+      name: CHAT_ROOM_READ_EVENT_NAME,
+      data: {
+        roomId: input.roomId,
+        userId: input.userId,
+        lastReadAt: input.lastReadAt.toISOString(),
+      },
+      extras: { ephemeral: true },
     });
   } catch (error) {
     console.error("Failed to publish room read event over Ably:", error);

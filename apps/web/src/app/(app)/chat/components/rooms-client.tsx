@@ -133,6 +133,7 @@ import {
   subscribeMembershipVisibleRooms,
 } from "@/components/chat/membership-visible-rooms-store";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
+import { readReceiptFacesWidth } from "@/components/chat/read-receipt-avatar-stack";
 import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
 import { useShowRoomUnreadCount } from "@/components/chat/use-show-room-unread-count";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
@@ -206,7 +207,7 @@ import {
   RoomMessagesHydrator,
 } from "./room-messages-hydrator";
 import { RoomRosterPanel } from "./room-roster-panel";
-import { RoomSeenByLine } from "./room-seen-by-line";
+import { RoomSeenByLine, seenByReadersFor } from "./room-seen-by-line";
 import {
   RoomSessionComposer,
   type RoomSessionSendRequest,
@@ -247,6 +248,9 @@ interface RoomsClientProps {
    */
   rosterPromise?: Promise<RoomShellRosterPage>;
 }
+
+/** The `ms-1.5` between the message's last word and the Seen by faces. */
+const SEEN_BY_TRAILING_GAP_PX = 6;
 
 /** Poll cadence for the open room while Ably or its channel is unavailable. */
 const ROOM_MESSAGE_FALLBACK_MS = 3_000;
@@ -2730,6 +2734,13 @@ export function RoomsClient({
         isPersistedMentionThoughtShell(message.metadata) ||
         isFailedMentionThoughtShell(message.metadata);
       const isOutboundLocal = isOutboundLocalMessage(message);
+      // Asked once: an empty answer means no trailing faces and no gutter.
+      const seenByReaders = seenByReadersFor({
+        readersAsOf: readReceipts.readersAsOf,
+        messageId: message.id,
+        createdAt: message.createdAt,
+        newestMessageId,
+      });
       return (
         // flow-root on both wrappers: a row's vertical margins must stay
         // inside the box the virtualizer measures. Collapsed through, they
@@ -2835,13 +2846,19 @@ export function RoomsClient({
                 !showDaySeparator &&
                 isMessageContinuation(previousMessage, message)
               }
+              seenBy={
+                seenByReaders.length > 0 ? (
+                  <RoomSeenByLine readers={seenByReaders} />
+                ) : undefined
+              }
+              seenByGutterPx={
+                seenByReaders.length > 0
+                  ? SEEN_BY_TRAILING_GAP_PX +
+                    readReceiptFacesWidth(seenByReaders.length, "sm")
+                  : 0
+              }
             />
           )}
-          <RoomSeenByLine
-            countReadAsOf={readReceipts.countReadAsOf}
-            createdAt={message.createdAt}
-            isNewest={message.id === newestMessageId}
-          />
         </div>
       );
     }

@@ -183,7 +183,7 @@ describe("useRoomReadReceipts", () => {
     );
   });
 
-  it("counts the readers whose mark has reached a given moment", () => {
+  it("reports the readers whose mark has reached a given moment", () => {
     render(
       <Probe
         room={makeRoom([
@@ -194,17 +194,21 @@ describe("useRoomReadReceipts", () => {
       />,
     );
 
-    expect(latest?.countReadAsOf("2026-01-01T09:00:00.000Z")).toBe(2);
-    expect(latest?.countReadAsOf("2026-01-01T10:00:00.000Z")).toBe(2);
-    expect(latest?.countReadAsOf("2026-01-01T11:00:00.000Z")).toBe(1);
-    expect(latest?.countReadAsOf("2026-01-01T13:00:00.000Z")).toBe(0);
+    const idsAsOf = (at: string) =>
+      latest?.readersAsOf(at).map((reader) => reader.participant.id);
+
+    // Most-recent-read first, so the faces name the people they show.
+    expect(idsAsOf("2026-01-01T09:00:00.000Z")).toEqual(["user-b", "user-a"]);
+    expect(idsAsOf("2026-01-01T10:00:00.000Z")).toEqual(["user-b", "user-a"]);
+    expect(idsAsOf("2026-01-01T11:00:00.000Z")).toEqual(["user-b"]);
+    expect(idsAsOf("2026-01-01T13:00:00.000Z")).toEqual([]);
   });
 
   it("reports nothing without a room", () => {
     render(<Probe room={null} />);
 
     expect(readerIds()).toBe("");
-    expect(latest?.countReadAsOf(new Date())).toBe(0);
+    expect(latest?.readersAsOf(new Date())).toEqual([]);
   });
 
   it("forgets one room's live events when another room opens", () => {

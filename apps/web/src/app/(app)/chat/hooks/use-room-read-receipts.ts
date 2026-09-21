@@ -23,14 +23,17 @@ export interface RoomReadReceipts {
   readers: readonly RoomReader[];
   /** Roster humans with no Room last-read at all, by display order. */
   nonReaders: readonly ChatRoomUserParticipant[];
-  /** How many readers had read as of `at` — the transcript's Seen by N. */
-  countReadAsOf: (at: Date | string) => number;
+  /**
+   * The readers whose mark had reached `at`, most-recent-read first — the
+   * faces the transcript shows under a message.
+   */
+  readersAsOf: (at: Date | string) => readonly RoomReader[];
 }
 
 const NO_READERS: RoomReadReceipts = {
   readers: [],
   nonReaders: [],
-  countReadAsOf: () => 0,
+  readersAsOf: () => [],
 };
 
 function toTime(value: Date | string): number {
@@ -121,13 +124,14 @@ export function useRoomReadReceipts({
     return {
       readers,
       nonReaders,
-      countReadAsOf: (at) => {
+      readersAsOf: (at) => {
         const moment = toTime(at);
         if (Number.isNaN(moment)) {
-          return 0;
+          return [];
         }
-        return readers.filter((reader) => reader.lastReadAt.getTime() >= moment)
-          .length;
+        return readers.filter(
+          (reader) => reader.lastReadAt.getTime() >= moment,
+        );
       },
     };
   }, [room, currentUserId, liveReads]);

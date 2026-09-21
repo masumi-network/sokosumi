@@ -44,10 +44,16 @@ describe("publishChatRoomReadRealtime", () => {
     expect(channelsGetMock).toHaveBeenCalledWith(
       makeChatRoomChannelName(ROOM_ID),
     );
-    expect(publishMock).toHaveBeenCalledWith(CHAT_ROOM_READ_EVENT_NAME, {
-      roomId: ROOM_ID,
-      userId: USER_ID,
-      lastReadAt: LAST_READ_AT.toISOString(),
+    expect(publishMock).toHaveBeenCalledWith({
+      name: CHAT_ROOM_READ_EVENT_NAME,
+      data: {
+        roomId: ROOM_ID,
+        userId: USER_ID,
+        lastReadAt: LAST_READ_AT.toISOString(),
+      },
+      // Derived and re-sent with every room payload, so it has no business in
+      // history, rewind or resume.
+      extras: { ephemeral: true },
     });
   });
 

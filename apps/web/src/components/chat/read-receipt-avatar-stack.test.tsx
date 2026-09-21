@@ -25,7 +25,10 @@ vi.mock("next-intl", () => ({
   }),
 }));
 
-import { ReadReceiptAvatarStack } from "./read-receipt-avatar-stack";
+import {
+  ReadReceiptAvatarStack,
+  readReceiptFacesWidth,
+} from "./read-receipt-avatar-stack";
 
 function participant(id: string, name?: string): ChatRoomUserParticipant {
   return {
@@ -50,6 +53,34 @@ const READERS_ABOVE_CAP: RoomReader[] = [
   reader("d", "2026-01-01T11:00:00.000Z"),
   reader("e", "2026-01-01T10:00:00.000Z"),
 ];
+
+/**
+ * The transcript reserves this width at the end of the message so the faces
+ * stay on the last line. Wrong by a few pixels and the faces drop to a row of
+ * their own, which is the whole thing this avoids.
+ */
+describe("readReceiptFacesWidth", () => {
+  it("is zero when there is nobody to show", () => {
+    expect(readReceiptFacesWidth(0, "sm")).toBe(0);
+  });
+
+  it("measures each overlapping face up to the cap", () => {
+    // 16px faces overlapping by 4px: 16, then 12 per extra slot.
+    expect(readReceiptFacesWidth(1, "sm")).toBe(16);
+    expect(readReceiptFacesWidth(2, "sm")).toBe(28);
+    expect(readReceiptFacesWidth(3, "sm")).toBe(40);
+  });
+
+  it("counts the +N as one more slot, and stops growing after it", () => {
+    expect(readReceiptFacesWidth(4, "sm")).toBe(52);
+    expect(readReceiptFacesWidth(99, "sm")).toBe(52);
+  });
+
+  it("measures the larger header faces too", () => {
+    expect(readReceiptFacesWidth(1)).toBe(24);
+    expect(readReceiptFacesWidth(4)).toBe(72);
+  });
+});
 
 describe("ReadReceiptAvatarStack", () => {
   it("renders nothing when nobody has read the room", () => {

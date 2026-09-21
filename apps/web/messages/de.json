@@ -5608,8 +5608,7 @@
         "open": "Anzeigen, wer das gelesen hat",
         "title": "Gelesen von",
         "readAt": "Gelesen {time}",
-        "notReadTitle": "Noch nicht gelesen",
-        "transcript": "Von {count} gelesen"
+        "notReadTitle": "Noch nicht gelesen"
       },
       "UnreadThreads": {
         "open": "Threads",

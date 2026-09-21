@@ -419,6 +419,7 @@ _Avoid_: Look, lastReadAt (storage), treating this as reading Threads
 **Room read receipt**:
 Which members of the Room roster have advanced their Room last-read past a given moment. Shown as **Seen by**: a stack of the three most recent readers plus a `+N` in the room header, and a `Seen by N` line under the newest message. Derived from Room last-read alone — nothing new is stored and nothing is asked of the reader. Humans only: Coworkers and Soko Bots are never counted. Driven by the roster, so a member who left stops counting. A Guest viewer on an External channel sees no read times at all; host members still see the Guest’s. Marked unread stays private and does not rewind it. Says nothing about Threads — that is Look.
 _Avoid_: Look, delivery receipt, last seen, Room unread, treating a face as “read your reply”
+Rides the existing room channel under its own event name, published by Core and marked ephemeral: the client only subscribes, so unlike Typing ([ADR-0033](docs/adr/0033-typing-rides-its-own-ephemeral-channel.md)) it needs no second channel and no capability change.
 
 **User mention**:
 A human @-reference to a user on a room message (main transcript or Thread). Distinct from Mention status (coworker turn lifecycle).
