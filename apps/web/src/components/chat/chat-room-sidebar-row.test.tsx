@@ -802,27 +802,32 @@ describe("ChatRoomSidebarRow mention badge", () => {
     expect(badge?.querySelector('[data-slot="mention-glyph"]')).not.toBeNull();
   });
 
-  // The badge shares a 28px hole with the row's menu, and the glyph takes
-  // 12px of it, so the `@` rides a single digit only.
-  it("keeps the @ up to nine", () => {
+  // Amber always carries its `@`: amber without one reads as a different kind
+  // of count. The badge shares a 28px hole with the row's menu, so past nine
+  // it is the number that gives way, not the glyph.
+  it("shows the exact mention count up to nine", () => {
     const badge = badgeOf({ kind: "channel", unreadMentionCount: 9 });
 
     expect(badge).toHaveTextContent("9");
+    expect(badge).not.toHaveTextContent("9+");
     expect(badge?.querySelector('[data-slot="mention-glyph"]')).not.toBeNull();
   });
 
-  it("drops the @ from ten, where it would crowd the room's name", () => {
-    const badge = badgeOf({ kind: "channel", unreadMentionCount: 10 });
+  it.each([10, 12, 120])("shows @ 9+ for %i mentions", (unreadMentionCount) => {
+    const badge = badgeOf({ kind: "channel", unreadMentionCount });
 
-    expect(badge).toHaveTextContent("10");
-    expect(badge?.querySelector('[data-slot="mention-glyph"]')).toBeNull();
+    expect(badge).toHaveTextContent("9+");
+    expect(badge?.querySelector('[data-slot="mention-glyph"]')).not.toBeNull();
   });
 
-  it("shows a capped count without an @", () => {
-    const badge = badgeOf({ kind: "channel", unreadMentionCount: 120 });
+  it("keeps a Direct of two's message count exact past nine", () => {
+    const badge = badgeOf({
+      kind: "direct",
+      unreadMentionCount: 12,
+      userMembers: [makeUser("a"), makeUser("b")],
+    });
 
-    expect(badge).toHaveTextContent("99+");
-    expect(badge?.querySelector('[data-slot="mention-glyph"]')).toBeNull();
+    expect(badge).toHaveTextContent("12");
   });
 });
 
@@ -1788,11 +1793,13 @@ describe("ChatRoomSidebarRow unread message count", () => {
     expect(screen.queryByLabelText(/mentions/)).toBeNull();
   });
 
-  // One cap for both numbers on this row.
-  it("caps the mention badge at the same ceiling as the message count", () => {
+  // What is announced shares one ceiling. What is drawn does not: the mention
+  // badge carries an `@` in a 28px hole, so its number gives way at nine,
+  // while the message count beside it has the room for 99.
+  it("caps the drawn mention badge lower than the announced counts", () => {
     renderRow(makeRoom({ unreadCount: 1234, unreadMentionCount: 1234 }));
 
-    expect(screen.getByText("99+").closest("[aria-hidden]")).toHaveAttribute(
+    expect(screen.getByText("9+").closest("[aria-hidden]")).toHaveAttribute(
       "data-slot",
       "room-mention-badge",
     );
