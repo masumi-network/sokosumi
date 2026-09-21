@@ -184,7 +184,9 @@ Acceptance cases:
 
 ### B. Active-session operations and automatic execution
 
-[PROPOSED] Support both runtime-operated tools during a live session and a connected worker for automatic assignment. Use shared operation handlers, never recursive invocation of `runCli`.
+[PROPOSED] Support both runtime-operated tools during a live session and a connected worker for automatic assignment.
+
+[VERIFIED: ADR 0005, 2026-09-21] Use shared operation handlers; never recursive invocation of `runCli`.
 
 Prerequisites: Core binds each operation to a Coworker and authorized context. Choose the adapter contract, claim/recovery semantics, and secret-delivery channel before implementation. The developer CLI remains an admin control tool.
 

@@ -124,6 +124,8 @@ V77: public paid runtime isolated from developer credentials; trusted private sa
 V78: runtime secrets never in argv, model-visible output, logs, or non-secret config; session-only → memory; retained/hosted → OS vault (ADR 0005).
 V79: `vendors me` → preserve Vendor memberships + roles; registration selection later requires role = `admin`; `workspaces list` identity = `organizationId`; organization metadata ∉ output; non-array list or missing required identity → fail; `--json` → one document.
 V80: shared discovery handler ! exact subcommand before Core call; bare `vendors` / `workspaces` → reject.
+
+[VERIFIED: ADR 0005, 2026-09-21]
 V81: runtime bearer ∈ `coworker_*` only; developer OAuth/user API key (`soko_*`, incl. SOK-1135 mint) ⊥ runtime Core calls; short-lived developer-delegation JWT ⊥ approved contract (ADR 0005).
 V82: session grant ⊥ Coworker identity and key material; expiry/disconnect remove temporary authority only; reconnect requires authorization (ADR 0005).
 V83: mint/rotate/revoke `coworker_*` ∈ developer auth only (interactive or headless); runtime ⊥ self-mint (ADR 0005).
