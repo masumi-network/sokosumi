@@ -46,13 +46,7 @@ Sentry.init({
   beforeSend: beforeSendClientEvent,
   beforeSendTransaction: redactResetPasswordToken,
 
-  integrations: [
-    Sentry.replayIntegration({
-      maskAllInputs: true,
-      maskAllText: true,
-      blockAllMedia: true,
-    }),
-  ],
+  integrations: [Sentry.replayIntegration({})],
 
   // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
   tracesSampleRate: 0.005,

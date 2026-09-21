@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import { beforeSendServerEvent } from "./expected-request-errors";
 import { redactResetPasswordToken } from "./reset-password-token-redaction";
+import { beforeSendClientEvent } from "./third-party-fetch-errors";
 
 describe("redactResetPasswordToken", () => {
   it("removes reset tokens from the request URL and parsed query", () => {
@@ -42,5 +44,62 @@ describe("redactResetPasswordToken", () => {
     };
 
     expect(redactResetPasswordToken(event)).toBe(event);
+  });
+
+  it("removes the token from every field in a transaction payload", () => {
+    const transaction = {
+      type: "transaction" as const,
+      request: undefined,
+      breadcrumbs: [
+        {
+          data: {
+            url: "https://app.sokosumi.com/reset-password/exchange?token=secret",
+          },
+        },
+      ],
+      spans: [
+        {
+          data: {
+            "url.full":
+              "https://app.sokosumi.com/reset-password/exchange?token=secret",
+          },
+        },
+      ],
+      contexts: {
+        trace: {
+          data: { resetToken: "secret" },
+        },
+      },
+    };
+    const event = redactResetPasswordToken(transaction);
+
+    expect(JSON.stringify(event)).not.toContain("secret");
+    expect(event.breadcrumbs?.[0]?.data?.url).toBe(
+      "https://app.sokosumi.com/reset-password/exchange",
+    );
+    expect(event.spans?.[0]?.data?.["url.full"]).toBe(
+      "https://app.sokosumi.com/reset-password/exchange",
+    );
+  });
+
+  it.each([
+    ["client", beforeSendClientEvent],
+    ["server", beforeSendServerEvent],
+  ])("redacts the complete payload through the %s hook", (_name, hook) => {
+    const event = {
+      type: undefined,
+      request: {
+        url: "https://app.sokosumi.com/reset-password/exchange?token=secret",
+      },
+      breadcrumbs: [
+        {
+          data: {
+            url: "https://app.sokosumi.com/reset-password/exchange?token=secret",
+          },
+        },
+      ],
+    };
+
+    expect(JSON.stringify(hook(event, {}))).not.toContain("secret");
   });
 });

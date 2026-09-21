@@ -268,6 +268,32 @@ describe("resetPasswordViaCore", () => {
       },
     );
   });
+
+  it("throws the Core error response", async () => {
+    const fetchCoreAuthMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          code: "INVALID_TOKEN",
+          message: "reset token is invalid",
+        }),
+        { status: 400 },
+      ),
+    );
+
+    vi.doMock("./auth.server.client", () => ({
+      fetchCoreAuth: (...args: unknown[]) => fetchCoreAuthMock(...args),
+      getCoreAuthBaseUrl: () => "https://core.example.com/auth",
+    }));
+
+    const { resetPasswordViaCore } = await import("./core-auth-http.server");
+
+    await expect(
+      resetPasswordViaCore("new-password-123", "reset_token_1"),
+    ).rejects.toMatchObject({
+      message: "reset token is invalid",
+      code: "INVALID_TOKEN",
+    });
+  });
 });
 
 describe("inviteOrganizationMemberViaCore", () => {
