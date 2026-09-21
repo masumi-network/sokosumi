@@ -93,6 +93,19 @@
         "body": "{authorName} te envió un mensaje directo.",
         "button": "Abrir la conversación"
       },
+      "roomMessage": {
+        "one": {
+          "subject": "Sokosumi - {authorName} escribió en {roomName}",
+          "title": "Un mensaje nuevo",
+          "body": "{authorName} escribió en {roomName}."
+        },
+        "many": {
+          "subject": "Sokosumi - {count} mensajes sin leer en {roomName}",
+          "title": "Mensajes sin leer",
+          "body": "Tienes {count} mensajes sin leer en {roomName}."
+        },
+        "button": "Abrir la conversación"
+      },
       "task": {
         "button": "Abrir la tarea",
         "projectLabel": "Proyecto",
@@ -164,6 +177,10 @@
             "scheduleOccurrenceChangedByMember": {
               "subject": "Sokosumi - Un compañero cambió una ocurrencia de {taskName}",
               "body": "Un compañero cambió una ocurrencia de {taskName}."
+            },
+            "updated": {
+              "subject": "Sokosumi - {taskName} cambió",
+              "body": "{taskName} cambió."
             }
           }
         }
@@ -203,11 +220,25 @@
         "body": "{authorName} te mencionó en {roomName} hace un día y todavía no lo has abierto.",
         "button": "Abrir la conversación"
       },
+      "mentionMany": {
+        "subject": "Sokosumi - {count} menciones siguen esperándote en {roomName}",
+        "preview": "Te mencionaron {count} veces en {roomName} hace un día.",
+        "title": "Sigue esperándote",
+        "body": "Tienes {count} menciones sin leer en {roomName} de hace un día y todavía no las has abierto.",
+        "button": "Abrir la conversación"
+      },
       "directMessage": {
         "subject": "Sokosumi - {authorName} sigue esperando tu respuesta",
         "preview": "{authorName} te envió un mensaje hace un día.",
         "title": "Sigue esperando tu respuesta",
         "body": "{authorName} te envió un mensaje directo hace un día y todavía no lo has abierto.",
+        "button": "Abrir la conversación"
+      },
+      "directMessageMany": {
+        "subject": "Sokosumi - {count} mensajes de {authorName} siguen esperando",
+        "preview": "{authorName} te envió {count} mensajes hace un día.",
+        "title": "Sigue esperando tu respuesta",
+        "body": "Tienes {count} mensajes sin leer de {authorName} de hace un día y todavía no los has abierto.",
         "button": "Abrir la conversación"
       },
       "task": {

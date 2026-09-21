@@ -92,7 +92,9 @@ vi.mock("sonner", () => ({
  */
 const MATRIX = [
   // Core stores an email cell for the categories it mails, so those rows carry
-  // three cells rather than two. Every message in a room has no email.
+  // three cells rather than two. Every message in a room joined them when its
+  // cell went live, off until the reader turns it on, and billing news is the
+  // one row Core never mails: Stripe already sends it (SOK-1090, SOK-1142).
   { category: "TASK_ATTENTION", channel: "IN_APP", enabled: true },
   { category: "TASK_ATTENTION", channel: "OS_BANNER", enabled: true },
   { category: "TASK_ATTENTION", channel: "EMAIL", enabled: true },
@@ -101,14 +103,21 @@ const MATRIX = [
   { category: "TASK_COMPLETED", channel: "EMAIL", enabled: true },
   { category: "TASK_UPDATE", channel: "IN_APP", enabled: true },
   { category: "TASK_UPDATE", channel: "OS_BANNER", enabled: false },
+  { category: "TASK_UPDATE", channel: "EMAIL", enabled: true },
   { category: "CHAT_ROOM_MESSAGE", channel: "IN_APP", enabled: false },
   { category: "CHAT_ROOM_MESSAGE", channel: "OS_BANNER", enabled: false },
+  { category: "CHAT_ROOM_MESSAGE", channel: "EMAIL", enabled: false },
   { category: "CHAT_MENTION", channel: "IN_APP", enabled: true },
   { category: "CHAT_MENTION", channel: "OS_BANNER", enabled: true },
   { category: "CHAT_MENTION", channel: "EMAIL", enabled: true },
   { category: "CHAT_DIRECT_MESSAGE", channel: "IN_APP", enabled: true },
   { category: "CHAT_DIRECT_MESSAGE", channel: "OS_BANNER", enabled: true },
   { category: "CHAT_DIRECT_MESSAGE", channel: "EMAIL", enabled: true },
+  { category: "BILLING_ATTENTION", channel: "IN_APP", enabled: true },
+  { category: "BILLING_ATTENTION", channel: "OS_BANNER", enabled: false },
+  { category: "BILLING_ATTENTION", channel: "EMAIL", enabled: true },
+  { category: "BILLING_UPDATE", channel: "IN_APP", enabled: true },
+  { category: "BILLING_UPDATE", channel: "OS_BANNER", enabled: false },
   { category: "SYSTEM", channel: "IN_APP", enabled: true },
   { category: "SYSTEM", channel: "OS_BANNER", enabled: false },
   { category: "SYSTEM", channel: "EMAIL", enabled: true },
@@ -299,7 +308,7 @@ async function toggle(kind: string, channel: string) {
 function emailCell(kind: string) {
   return within(stops(kind)).getByRole("button", {
     name: new RegExp(
-      `^(channelCellLabel channelEmail|channelEmailSoonLabel) ${kind}$`,
+      `^(channelCellLabel channelEmail|channelEmailExternalLabel) ${kind}$`,
     ),
   });
 }
@@ -501,11 +510,14 @@ describe("NotificationKinds", () => {
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
     });
-    expect(lastWrite()).toHaveLength(8);
+    expect(lastWrite()).toHaveLength(9);
     expect(written("CHAT_MENTION", "IN_APP")).toBe(false);
     // A situation is about Sokosumi and the device. The inbox stays as the
-    // reader set it, so Off does not switch their emails off without saying.
+    // reader set it, so Off does not switch their emails off without saying:
+    // every email cell the group holds rides along as it was, the room's
+    // off one with the other two (SOK-1142).
     expect(written("CHAT_MENTION", "EMAIL")).toBe(true);
+    expect(written("CHAT_ROOM_MESSAGE", "EMAIL")).toBe(false);
     expect(presetButton("groupChat")).toHaveTextContent("presetOff");
   });
 
@@ -1291,10 +1303,15 @@ describe("NotificationKinds", () => {
   });
 
   it("lets the reader enable email for task updates", async () => {
-    renderKinds([
-      ...MATRIX,
-      { category: "TASK_UPDATE", channel: "EMAIL", enabled: false },
-    ]);
+    // The row starts off rather than appended a second time: the stored
+    // matrix already carries a cell for it, and the first one wins.
+    renderKinds(
+      MATRIX.map((cell) =>
+        cell.category === "TASK_UPDATE" && cell.channel === "EMAIL"
+          ? { ...cell, enabled: false }
+          : cell,
+      ),
+    );
     const control = emailCell("kindTaskUpdate");
     expect(control).not.toHaveAttribute("aria-disabled", "true");
     await userEvent.setup().click(control);
@@ -1313,49 +1330,52 @@ describe("NotificationKinds", () => {
     );
   });
 
-  it("marks a kind Sokosumi never mails, and presses nowhere", async () => {
+  /**
+   * The one row whose email arrives anyway, from Stripe. Drawn on, because
+   * that is what it says, and pressable nowhere, because there is nothing
+   * here to configure (SOK-1142).
+   */
+  it("marks a kind somebody else mails, and presses nowhere", async () => {
     const user = userEvent.setup();
     renderKinds();
 
-    const dead = emailCell("kindChatRoomMessage");
+    const external = emailCell("kindBillingUpdate");
 
     // Reachable by keyboard rather than dropped from the tab order, so a
     // reader who never uses a mouse still learns email is one of the places a
     // notification can arrive.
-    expect(dead).toHaveAttribute("aria-disabled", "true");
-    expect(dead).toBeEnabled();
-    expect(dead).toHaveAttribute(
+    expect(external).toHaveAttribute("aria-disabled", "true");
+    expect(external).toBeEnabled();
+    expect(external).toHaveAttribute(
       "aria-label",
-      "channelEmailSoonLabel kindChatRoomMessage",
+      "channelEmailExternalLabel kindBillingUpdate",
     );
     // The reason is in the name and in a description, not in a title a finger
-    // never opens. The face is a mail icon with a clock on it, so the column
-    // has no hole in it and the row says which cells are still waiting.
-    expect(dead).toHaveTextContent("");
-    expect(dead.querySelector("svg")).not.toBeNull();
-    expect(describedBy(dead)).toBe("channelEmailSoonHint");
+    // never opens. The face is the mail icon drawn on, so the column has no
+    // hole in it and the cell says the email arrives.
+    expect(external).toHaveTextContent("");
+    expect(external.querySelector("svg")).not.toBeNull();
+    expect(describedBy(external)).toBe("channelEmailExternalHint");
 
-    await user.click(dead);
+    await user.click(external);
 
     expect(patchMyPreferences).not.toHaveBeenCalled();
   });
 
   /**
-   * The cells that mail nothing all carry one icon, so each one names its own
-   * kind. Without that they would answer to the same name, and a reader
-   * listening to them could not tell which row they had reached.
+   * The cell that mails from elsewhere names its own kind. Without that a
+   * reader listening to it could not tell which row they had reached.
    */
-  it("names the kind in every control that mails nothing", async () => {
+  it("names the kind in the control that mails from elsewhere", async () => {
     renderKinds();
 
-    // The room-message row is inside the chat fold.
     openFolds();
 
     expect(
       screen
-        .getAllByRole("button", { name: /^channelEmailSoonLabel/ })
+        .getAllByRole("button", { name: /^channelEmailExternalLabel/ })
         .map((button) => button.getAttribute("aria-label")),
-    ).toEqual(["channelEmailSoonLabel kindChatRoomMessage"]);
+    ).toEqual(["channelEmailExternalLabel kindBillingUpdate"]);
   });
 
   /**
@@ -1480,7 +1500,7 @@ describe("NotificationKinds", () => {
     });
     // One request, so the group cannot end up half applied with the reader
     // watching its kinds settle one by one.
-    expect(lastWrite()).toHaveLength(8);
+    expect(lastWrite()).toHaveLength(9);
     expect(written("CHAT_MENTION", "IN_APP")).toBe(false);
     expect(written("CHAT_DIRECT_MESSAGE", "OS_BANNER")).toBe(false);
   });
@@ -1497,7 +1517,7 @@ describe("NotificationKinds", () => {
     await waitFor(() => {
       expect(patchMyPreferences).toHaveBeenCalledTimes(1);
     });
-    expect(lastWrite()).toHaveLength(8);
+    expect(lastWrite()).toHaveLength(9);
     expect(written("CHAT_MENTION", "OS_BANNER")).toBe(true);
     expect(written("CHAT_ROOM_MESSAGE", "IN_APP")).toBe(false);
     expect(written("CHAT_ROOM_MESSAGE", "OS_BANNER")).toBe(false);

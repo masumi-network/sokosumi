@@ -1,5 +1,6 @@
 import { type Notification, NotificationKind } from "@sokosumi/database";
 import {
+  CHAT_ROOM_MESSAGE_MESSAGE_KEY,
   COWORKER_ACCESS_PENDING_MESSAGE_KEY,
   VENDOR_GRANT_PENDING_MESSAGE_KEY,
 } from "@sokosumi/utils";
@@ -783,6 +784,82 @@ describe("createNotification email", () => {
     );
 
     expect(dispatchNotificationEmailMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The other task updates mail by default like the finish before them, so a
+   * reader who stored nothing still hears that a task died or healed
+   * (SOK-1142).
+   */
+  it("mails a task update to a reader who stored nothing", async () => {
+    userFindUniqueMock.mockResolvedValue({
+      pushOptIn: false,
+      notificationPreferences: [],
+    });
+    const notification = createNotificationRecord();
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(notification);
+
+    await createNotification(
+      {
+        ...notificationInput,
+        messageKey: "Notifications.Task.canceled",
+      },
+      prismaMock as unknown as typeof prisma,
+    );
+
+    expect(dispatchNotificationEmailMock).toHaveBeenCalledWith(notification);
+  });
+
+  /**
+   * The room's email waits to be asked for, so a reader who stored nothing is
+   * not mailed about every room they are in; one who turned the row on is
+   * (SOK-1142).
+   */
+  it("mails a room message only once the reader turned that cell on", async () => {
+    userFindUniqueMock.mockResolvedValue({
+      pushOptIn: false,
+      notificationPreferences: [],
+    });
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(
+      createNotificationRecord(),
+    );
+
+    await createNotification(
+      {
+        ...notificationInput,
+        kind: NotificationKind.CHAT,
+        referenceId: "room_123",
+        eventId: "message_123",
+        messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+        messageParams: { roomName: "Design" },
+      },
+      prismaMock as unknown as typeof prisma,
+    );
+
+    expect(dispatchNotificationEmailMock).not.toHaveBeenCalled();
+
+    userFindUniqueMock.mockResolvedValue({
+      pushOptIn: false,
+      notificationPreferences: [
+        { category: "CHAT_ROOM_MESSAGE", channel: "EMAIL", enabled: true },
+      ],
+    });
+
+    await createNotification(
+      {
+        ...notificationInput,
+        kind: NotificationKind.CHAT,
+        referenceId: "room_123",
+        eventId: "message_124",
+        messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+        messageParams: { roomName: "Design" },
+      },
+      prismaMock as unknown as typeof prisma,
+    );
+
+    expect(dispatchNotificationEmailMock).toHaveBeenCalledTimes(1);
   });
 });
 

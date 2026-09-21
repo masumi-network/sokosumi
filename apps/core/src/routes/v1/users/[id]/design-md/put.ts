@@ -1,5 +1,4 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { userRepository } from "@sokosumi/database/repositories";
 
 import { buildUserDesignMdMetadata } from "@/helpers/design-md";
 import { notFound, serviceUnavailable } from "@/helpers/error";
@@ -70,7 +69,9 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
     const body = c.req.valid("json");
 
-    const user = await userRepository.getUserById(resolvedUserId, prisma);
+    const user = await prisma.user.findUnique({
+      where: { id: resolvedUserId },
+    });
     if (!user) {
       throw notFound("User not found");
     }
@@ -92,7 +93,10 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
       extractionId: body.extractionId,
     });
 
-    await userRepository.updateUserMetadata(resolvedUserId, serialized, prisma);
+    await prisma.user.update({
+      where: { id: resolvedUserId },
+      data: { metadata: serialized },
+    });
 
     return ok(c, persistedDesignMdSchema.parse({ designMd: persisted }));
   });

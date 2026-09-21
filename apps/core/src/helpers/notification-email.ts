@@ -3,6 +3,7 @@ import {
   renderAccessRequestEmail,
   renderChatDirectMessageEmail,
   renderChatMentionEmail,
+  renderChatRoomMessageEmail,
   renderProjectUpdateEmail,
   renderTaskAttentionEmail,
   renderTaskCompletedEmail,
@@ -13,6 +14,7 @@ import {
 import {
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_MENTION_MESSAGE_KEY,
+  CHAT_ROOM_MESSAGE_MESSAGE_KEY,
   COWORKER_ACCESS_PENDING_MESSAGE_KEY,
   type NotificationCategory,
   VENDOR_GRANT_PENDING_MESSAGE_KEY,
@@ -50,7 +52,9 @@ const MINUTE_MS = 60_000;
  * task that has already ended. A finished task has no such write; only a
  * click takes that email back. Held for less when the message is more
  * likely to be waited on: a direct message is a conversation, a finished
- * task is an outcome that keeps.
+ * task is an outcome that keeps. A room message waits like a mention: it
+ * addresses nobody in particular, and the per-room scope below means the
+ * wait covers the whole unread pile, not one message (SOK-1142).
  *
  * A category absent from here is never emailed at the event. Follow-ups are
  * emailed by their own sync, and the rest have no email at all
@@ -59,6 +63,7 @@ const MINUTE_MS = 60_000;
 const EMAIL_DELAY_MS: Partial<Record<NotificationCategory, number>> = {
   CHAT_DIRECT_MESSAGE: 5 * MINUTE_MS,
   CHAT_MENTION: 10 * MINUTE_MS,
+  CHAT_ROOM_MESSAGE: 10 * MINUTE_MS,
   TASK_ATTENTION: 10 * MINUTE_MS,
   TASK_COMPLETED: 30 * MINUTE_MS,
   TASK_UPDATE: 30 * MINUTE_MS,
@@ -103,6 +108,14 @@ export function taskAttentionReasonOf(
   );
 }
 
+/**
+ * What changed on a task, or `updated` when the key says nothing more
+ * specific.
+ *
+ * The update family is open at the bottom: a task key added later lands here
+ * until it is listed, and it gets the generic sentence rather than no email,
+ * because the reader turned the row on to hear about changes as a whole.
+ */
 const TASK_UPDATE_REASONS: readonly TaskUpdateReason[] = [
   "failed",
   "canceled",
@@ -113,6 +126,36 @@ const TASK_UPDATE_REASONS: readonly TaskUpdateReason[] = [
   "scheduleSourceChangedByMember",
   "scheduleOccurrenceChangedByMember",
 ];
+
+export function taskUpdateReasonOf(messageKey: string): TaskUpdateReason {
+  const tail = messageKey.slice(messageKey.lastIndexOf(".") + 1);
+
+  return (
+    TASK_UPDATE_REASONS.find(
+      (reason): reason is TaskUpdateReason => reason === tail,
+    ) ?? "updated"
+  );
+}
+
+/**
+ * How many unread messages a room row stands for, or null when it stands for
+ * one.
+ *
+ * The counting write stores this as `count` and only once a second message
+ * joins the row, so a row that has never been counted onto carries nothing
+ * and is one message (SOK-1142). Anything that is not a whole number above
+ * one is read as one rather than trusted: the column is JSON an older build
+ * could have written.
+ */
+export function roomUnreadCountOf(
+  messageParams: Record<string, unknown>,
+): null | number {
+  const count = messageParams.count;
+
+  return typeof count === "number" && Number.isInteger(count) && count > 1
+    ? count
+    : null;
+}
 
 /** What the notification is about, spelled the way the email needs it. */
 export interface NotificationEmailInput {
@@ -128,11 +171,9 @@ export interface NotificationEmailInput {
 /**
  * The email to send for this notification, or null when it has none.
  *
- * Null for a message key with no email of its own, such as a room message
- * or a chat key nobody mapped. The delay table above already keeps those
- * categories out, so this branch answers for a key inside an emailing category
- * that still has no template, which is the safe way round for a key added
- * later.
+ * Null for a chat key nobody mapped. Every task key reaches a template: the
+ * ones the attention list names, and the rest as an update, so a key added
+ * later still reaches the reader who asked to hear about changes (SOK-1142).
  */
 export async function buildNotificationEmail(
   input: NotificationEmailInput,
@@ -183,6 +224,20 @@ export async function buildNotificationEmail(
         }),
       );
 
+    case CHAT_ROOM_MESSAGE_MESSAGE_KEY:
+      return withRecipient(
+        input,
+        await renderChatRoomMessageEmail({
+          ...shared,
+          authorName: readString(params, "authorName"),
+          messagePreview: readString(params, "messagePreview"),
+          roomName: readString(params, "roomName"),
+          // The row's own tally, which the counting write keeps. Absent until
+          // a second message joins the row, and absent is one (SOK-1142).
+          unreadCount: roomUnreadCountOf(params),
+        }),
+      );
+
     case TASK_COMPLETED_MESSAGE_KEY:
       return withRecipient(
         input,
@@ -230,37 +285,37 @@ export async function buildNotificationEmail(
       );
 
     default: {
-      const updateReason =
-        input.kind === "TASK"
-          ? TASK_UPDATE_REASONS.find(
-              (reason) => input.messageKey === `Notifications.Task.${reason}`,
-            )
-          : undefined;
-      if (updateReason) {
+      if (input.kind !== "TASK") {
+        return null;
+      }
+
+      // Read as an update first: `scheduleRemovedByOperator` is in both
+      // families, and the update sentence is the one that names the review.
+      const updateReason = taskUpdateReasonOf(input.messageKey);
+      const attentionReason =
+        updateReason === "updated"
+          ? taskAttentionReasonOf(input.messageKey)
+          : null;
+
+      if (attentionReason !== null) {
         return withRecipient(
           input,
-          await renderTaskUpdateEmail({
+          await renderTaskAttentionEmail({
             ...shared,
+            coworkerName: readString(params, "coworkerName"),
             projectName: readString(params, "projectName"),
-            reason: updateReason,
+            reason: attentionReason,
             taskName: readString(params, "taskName"),
           }),
         );
       }
-      const reason =
-        input.kind === "TASK" ? taskAttentionReasonOf(input.messageKey) : null;
-
-      if (reason === null) {
-        return null;
-      }
 
       return withRecipient(
         input,
-        await renderTaskAttentionEmail({
+        await renderTaskUpdateEmail({
           ...shared,
-          coworkerName: readString(params, "coworkerName"),
           projectName: readString(params, "projectName"),
-          reason,
+          reason: updateReason,
           taskName: readString(params, "taskName"),
         }),
       );
