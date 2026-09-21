@@ -1,12 +1,4 @@
-import {
-  ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
-  ORGANIZATION_LOGO_MAX_SIZE_BYTES,
-} from "@sokosumi/utils";
-
-export {
-  ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
-  ORGANIZATION_LOGO_MAX_SIZE_BYTES,
-};
+import { ORGANIZATION_LOGO_ALLOWED_MIME_TYPES } from "@sokosumi/utils";
 
 /**
  * Max time to wait for the logo upload before releasing the UI.

@@ -164,6 +164,33 @@ test("TestV16 hosted refresh does not use an unconfigured fallback client", asyn
   assert.equal(refreshed, false);
 });
 
+test("constructor loads stored OAuth tokens and ignores leftover identity keys", () => {
+  const manager = new AuthManager({
+    credentialStore: {
+      read: () => {
+        const stored = {
+          authToken: "stored-token",
+          refreshToken: "refresh-token",
+          tokenType: "Bearer",
+          expiresAt: "2030-01-01T00:00:00.000Z",
+          userId: "legacy-user",
+          email: "legacy@example.test",
+        };
+        return stored;
+      },
+      write: () => {},
+      clear: () => {},
+    },
+    apiKeyStore: emptyApiKeyStore,
+    environment: {},
+  });
+
+  assert.equal(manager.getAuthToken(), "stored-token");
+  assert.equal(manager.getAuthMethod(), "oauth");
+  assert.equal(manager.getCredentials()?.authToken, "stored-token");
+  assert.equal(manager.getCredentials()?.refreshToken, "refresh-token");
+});
+
 test("keeps an API key in memory when no vault is available", () => {
   const manager = new AuthManager({
     credentialStore: {
