@@ -48,27 +48,12 @@ export interface JobFailureNotificationEmailProps extends LocalizedEmailProps {
   resultHash: null | string;
 }
 
-/**
- * What every notification email needs.
- *
- * `actionUrl` is the same destination the in-app notification opens, so the
- * two surfaces cannot disagree about where the thing lives. The name is
- * optional because the account may not carry one, and each renderer greets
- * without it rather than greeting a blank.
- */
+/** Same destination the in-app notification opens. Name optional. */
 export interface NotificationEmailProps extends LocalizedEmailProps {
   actionUrl: string;
   recipientName?: null | string;
 }
 
-/**
- * The message itself, as the notification stored it.
- *
- * Core keeps a preview on the chat notification row and takes it back when the
- * message is edited or deleted, so this is what the reader's Notification
- * Center says too. Absent when there is nothing to show: a deleted message, or
- * a body that cleans to nothing once an unnamed mention is taken out of it.
- */
 interface QuotedChatMessage {
   messagePreview?: null | string;
 }
@@ -86,13 +71,7 @@ export interface ChatDirectMessageEmailProps
   authorName?: null | string;
 }
 
-/**
- * Why a task is waiting, in the words of the notification that said so.
- *
- * The same six keys Core calls task attention. A union rather than a string,
- * because each one names a sentence in the catalogs and a key with no sentence
- * must not be able to reach them.
- */
+/** Catalog keys for task attention; unknown keys must not reach the catalogs. */
 export type TaskAttentionReason =
   | "approvalRequired"
   | "assigned"
@@ -116,12 +95,6 @@ export interface TaskAttentionEmailProps extends TaskEmailProps {
 /** A task that finished (SOK-1090). */
 export type TaskCompletedEmailProps = TaskEmailProps;
 
-/**
- * Who is asking for a workspace: a vendor, or a coworker in early access.
- *
- * The two requests are the same email with one sentence changed, and the same
- * button, so they share a renderer rather than each bringing one.
- */
 export type AccessRequestKind = "coworker" | "vendor";
 
 /** Someone asked for access to a workspace the reader manages (SOK-1090). */
@@ -144,10 +117,7 @@ export interface BillingLowBalanceEmailProps extends NotificationEmailProps {
   credits: number;
 }
 
-/**
- * Why a billing reminder still waits. Payment failures stay in-app: Stripe
- * already mailed those.
- */
+/** Payment failures stay in-app; Stripe already mailed those. */
 export type BillingFollowUpReason = "lowBalance";
 
 export interface BillingFollowUpEmailProps extends NotificationEmailProps {
