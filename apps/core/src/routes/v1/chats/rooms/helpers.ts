@@ -1057,16 +1057,6 @@ export function canManageChatRoomLifecycle(options: {
   return isOrganizationOwnerOrAdmin(options.role);
 }
 
-/**
- * Permanent delete removes the room and cascaded children for everyone.
- * Same elevation as archive/restore — organization owner/admin only.
- */
-export function canPermanentlyDeleteChatRoom(options: {
-  role: string;
-}): boolean {
-  return canManageChatRoomLifecycle(options);
-}
-
 export function chatRoomPatchTouchesSettings(body: {
   name?: unknown;
   topic?: unknown;
