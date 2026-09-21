@@ -7,6 +7,7 @@
   import SokosumiWorkspace
   import SwiftUI
   import Testing
+  import Vision
 
   extension NativeWindowTests {
     @MainActor struct TranscriptScrollingTests {
@@ -42,13 +43,25 @@
         #expect(distanceFromBottom(scroll) > 400)
       }
 
-      @Test func messageLinkWaitsForPreparedTranscript() async throws {
-        let state = try fixtureState(thread: false, media: false)
+      @Test(arguments: [false, true], [false, true])
+      func messageLinkWaitsForPreparedTranscript(thread: Bool, dark: Bool) async throws {
+        let state = try fixtureState(thread: thread, media: false)
         let auth = AuthState()
-        #expect(try await state.openMessage("fixture-2", auth: auth) == .opened)
-        let host = NSHostingView(rootView: RoomTimelineView(roomId: "fixture")
-          .environmentObject(state).environmentObject(auth))
+        if thread {
+          state.thread.requestJump(to: "fixture-2")
+          #expect(state.thread.jumpTarget?.messageId == "fixture-2")
+        } else {
+          #expect(try await state.openMessage("fixture-2", auth: auth) == .opened)
+        }
+        let host = NSHostingView(rootView: Group {
+          if thread {
+            ReplyThreadView()
+          } else {
+            RoomTimelineView(roomId: "fixture")
+          }
+        }.background(.background).environmentObject(state).environmentObject(auth).environment(\.colorScheme, dark ? .dark : .light))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
         window.contentView = host
         window.orderFront(nil)
         defer { window.orderOut(nil) }
@@ -57,12 +70,46 @@
           host.layoutSubtreeIfNeeded()
           try await Task.sleep(for: .milliseconds(20))
         }
-        #expect(state.messageJump == nil)
+        if thread {
+          #expect(state.thread.jumpTarget?.messageId == "fixture-2")
+        } else {
+          #expect(state.messageJump == nil)
+        }
         #expect(distanceFromBottom(scroll) > 400)
         let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
         host.cacheDisplay(in: host.bounds, to: bitmap)
+        // Vision text recognition throws on the virtualized CI runner, so there the row-visibility
+        // check falls back to the scroll-offset assertion above; locally the OCR check runs.
+        if let visibleText = try recognizedLines(in: bitmap) {
+          #expect(visibleText.contains { $0.hasPrefix("Message 2:") }, "OCR read: \(visibleText)")
+          #expect(!visibleText.contains { $0.hasPrefix("Message 98:") }, "OCR read: \(visibleText)")
+        }
         let png = try #require(bitmap.representation(using: .png, properties: [:]))
-        try png.write(to: FileManager.default.temporaryDirectory.appendingPathComponent("message-link-navigation.png"))
+        try png.write(to: FileManager.default.temporaryDirectory.appendingPathComponent("message-link-navigation-\(thread)-\(dark).png"))
+      }
+
+      /// The text Vision reads in the render, or nil where Vision cannot run at all. A missing image is a
+      /// failure, not nil. Only the accurate recognizer: it is the one the assertions were written against.
+      private func recognizedLines(in bitmap: NSBitmapImageRep) throws -> [String]? {
+        let image = try #require(bitmap.cgImage)
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.recognitionLanguages = ["en-US"]
+        request.usesLanguageCorrection = false
+        do {
+          try VNImageRequestHandler(cgImage: image).perform([request])
+        } catch {
+          note("OCR unavailable (accurate): \(error)")
+          return nil
+        }
+        note("OCR ran (accurate)")
+        return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
+      }
+
+      /// Says which OCR path ran: on stdout, and as an attachment in the result bundle.
+      private func note(_ line: String) {
+        print(line)
+        Attachment.record(line, named: "message-link-ocr-path.txt")
       }
 
       private func distanceFromBottom(_ scroll: NSScrollView) -> CGFloat {

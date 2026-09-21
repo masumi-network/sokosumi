@@ -134,6 +134,7 @@ function guestRoomRow() {
     ],
     coworkerMembers: [],
     sokoBotMembers: [],
+    readStates: [],
   };
 }
 
@@ -188,6 +189,7 @@ function personalDirectRow() {
     ],
     coworkerMembers: [],
     sokoBotMembers: [],
+    readStates: [],
   };
 }
 
