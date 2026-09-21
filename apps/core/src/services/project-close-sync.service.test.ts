@@ -167,6 +167,65 @@ describe("project close sync", () => {
     taskScheduleOccurrenceFindFirstMock.mockResolvedValue(null);
   });
 
+  it.each(["cursor", "history", "unpaid"] as const)(
+    "reconciles legacy planned rows against %s before closing",
+    async (releaseEvidence) => {
+      const scheduledAt = new Date("2026-09-14T09:00:00.000Z");
+      const legacyRule = {
+        version: 1,
+        scheduledAt: "2026-09-01T08:00:00.000Z",
+        mode: "recurring",
+        timezone: "UTC",
+        expr: "0 9 * * *",
+        endsMode: "never",
+      };
+      const task = {
+        ...recurringTask,
+        // A new v2 epoch can still have retained projections from a v1 rule.
+        metadata:
+          releaseEvidence === "history"
+            ? recurringTask.metadata
+            : JSON.stringify({
+                ...legacyRule,
+                ...(releaseEvidence === "cursor"
+                  ? { lastRunAt: scheduledAt.toISOString() }
+                  : {}),
+              }),
+      };
+      taskFindFirstMock
+        .mockResolvedValueOnce({ id: task.id })
+        .mockResolvedValueOnce(task)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null);
+      taskScheduleOccurrenceFindManyMock.mockResolvedValue([
+        {
+          id: "legacy_projection",
+          epochId: null,
+          scheduleVersion: 1,
+          originalScheduledAt: scheduledAt,
+          effectiveScheduledAt: scheduledAt,
+          ruleSnapshot: legacyRule,
+        },
+      ]);
+      taskScheduleOccurrenceFindFirstMock.mockImplementation(
+        async ({ where }) =>
+          where.state === "RELEASED" && releaseEvidence === "history"
+            ? { id: "existing_release" }
+            : null,
+      );
+
+      const result = await projectCloseSyncService.syncProjectCloses(options());
+
+      expect(result.closed).toBe(1);
+      expect(cloneRecurringTaskScheduleOccurrenceMock).toHaveBeenCalledTimes(
+        releaseEvidence === "unpaid" ? 1 : 0,
+      );
+      expect(taskScheduleOccurrenceDeleteManyMock).toHaveBeenCalledWith({
+        where: { id: "legacy_projection", state: "PLANNED" },
+      });
+    },
+  );
+
   it("releases owed rows by effective time, retires equality/later, and closes", async () => {
     taskFindFirstMock
       .mockResolvedValueOnce({ id: recurringTask.id })

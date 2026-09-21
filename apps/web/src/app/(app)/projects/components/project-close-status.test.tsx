@@ -1,6 +1,6 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProjectCloseStatusCard } from "@/app/projects/components/project-close-status";
 import type { ProjectCloseStatus } from "@/lib/clients/generated/core";
@@ -63,6 +63,41 @@ describe("ProjectCloseStatusCard", () => {
     retryMock.mockReset();
     toastErrorMock.mockReset();
   });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it.each(["CLOSED", "CLOSE_FAILED"] as const)(
+    "refreshes a closing project until it becomes %s",
+    (state) => {
+      vi.useFakeTimers();
+      const { rerender, unmount } = render(
+        <ProjectCloseStatusCard status={buildStatus()} />,
+      );
+      act(() => vi.advanceTimersByTime(5_000));
+      expect(refreshMock).toHaveBeenCalledTimes(1);
+
+      rerender(<ProjectCloseStatusCard status={buildStatus({ state })} />);
+      expect(
+        screen.getByRole("heading", { name: `status.${state}.title` }),
+      ).toBeInTheDocument();
+      if (state === "CLOSE_FAILED") {
+        expect(
+          screen.getByRole("button", { name: "recovery.retryAction" }),
+        ).toBeInTheDocument();
+      }
+      act(() => vi.advanceTimersByTime(10_000));
+      expect(refreshMock).toHaveBeenCalledTimes(1);
+
+      rerender(<ProjectCloseStatusCard status={buildStatus()} />);
+      act(() => vi.advanceTimersByTime(5_000));
+      expect(refreshMock).toHaveBeenCalledTimes(2);
+      unmount();
+      act(() => vi.advanceTimersByTime(10_000));
+      expect(refreshMock).toHaveBeenCalledTimes(2);
+    },
+  );
 
   it("shows closing progress with the owed occurrence count", () => {
     render(<ProjectCloseStatusCard status={buildStatus()} />);

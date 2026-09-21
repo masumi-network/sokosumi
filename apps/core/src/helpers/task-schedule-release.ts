@@ -75,6 +75,19 @@ export async function cloneRecurringTaskScheduleOccurrence(
     select: { id: true },
   });
 
+  if (metadata.version === 1) {
+    await tx.taskScheduleOccurrence.deleteMany({
+      where: {
+        seriesTaskId: template.id,
+        sourceProjectId: template.projectId,
+        scheduleVersion: 1,
+        state: TaskScheduleOccurrenceState.PLANNED,
+        effectiveScheduledAt: times.effectiveScheduledAt,
+        ruleSnapshot: { path: ["scheduledAt"], equals: metadata.scheduledAt },
+      },
+    });
+  }
+
   if (!recordCalendarHistory) {
     return clone.id;
   }

@@ -3,7 +3,7 @@
 import { CircleCheck, CircleX, Clock3, LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import {
@@ -65,6 +65,15 @@ export function ProjectCloseStatusCard({ status }: ProjectCloseStatusProps) {
   const [reason, setReason] = useState("");
   const [reasonError, setReasonError] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (status.state !== "CLOSING" || isPending) return;
+
+    const interval = window.setInterval(() => {
+      startTransition(() => router.refresh());
+    }, 5_000);
+    return () => window.clearInterval(interval);
+  }, [status.state, isPending, router]);
 
   const [previousStatusState, setPreviousStatusState] = useState(status.state);
   if (previousStatusState !== status.state) {

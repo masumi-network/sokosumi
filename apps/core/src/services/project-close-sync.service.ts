@@ -171,6 +171,7 @@ async function releaseRecurringOwedBatch(
     },
   });
 
+  const currentMetadata = parseTaskScheduleMetadata(task.metadata);
   for (const occurrence of owed) {
     const occurrenceMetadata = parseTaskScheduleMetadata(
       occurrence.ruleSnapshot
@@ -186,17 +187,43 @@ async function releaseRecurringOwedBatch(
     ) {
       throw new Error("Occurrence schedule snapshot is invalid");
     }
-    await cloneRecurringTaskScheduleOccurrence(
-      tx,
-      task,
-      occurrenceMetadata,
-      {
-        originalScheduledAt:
-          occurrence.originalScheduledAt ?? occurrence.effectiveScheduledAt,
-        effectiveScheduledAt: occurrence.effectiveScheduledAt,
-      },
-      true,
-    );
+    // Legacy releases used separate history rows and left their projections
+    // behind. A saved cursor also proves release when history was disabled.
+    const alreadyReleased =
+      occurrence.scheduleVersion === 1 &&
+      occurrenceMetadata.version === 1 &&
+      ((currentMetadata?.version === 1 &&
+        currentMetadata.scheduledAt === occurrenceMetadata.scheduledAt &&
+        currentMetadata.lastRunAt != null &&
+        new Date(currentMetadata.lastRunAt) >=
+          occurrence.effectiveScheduledAt) ||
+        (await tx.taskScheduleOccurrence.findFirst({
+          where: {
+            seriesTaskId: task.id,
+            sourceProjectId: task.projectId,
+            scheduleVersion: 1,
+            state: TaskScheduleOccurrenceState.RELEASED,
+            effectiveScheduledAt: occurrence.effectiveScheduledAt,
+            ruleSnapshot: {
+              path: ["scheduledAt"],
+              equals: occurrenceMetadata.scheduledAt,
+            },
+          },
+          select: { id: true },
+        })) !== null);
+    if (!alreadyReleased) {
+      await cloneRecurringTaskScheduleOccurrence(
+        tx,
+        task,
+        occurrenceMetadata,
+        {
+          originalScheduledAt:
+            occurrence.originalScheduledAt ?? occurrence.effectiveScheduledAt,
+          effectiveScheduledAt: occurrence.effectiveScheduledAt,
+        },
+        true,
+      );
+    }
     if (occurrence.scheduleVersion === 1) {
       await tx.taskScheduleOccurrence.deleteMany({
         where: {

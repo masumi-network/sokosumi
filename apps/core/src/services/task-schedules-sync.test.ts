@@ -202,6 +202,20 @@ describe("taskSchedulesSyncService", () => {
     );
     expect(mockTaskCreate).toHaveBeenCalledTimes(3);
     expect(mockTaskScheduleOccurrenceCreate).toHaveBeenCalledTimes(3);
+    expect(mockTaskScheduleOccurrenceDeleteMany).toHaveBeenCalledTimes(3);
+    expect(mockTaskScheduleOccurrenceDeleteMany).toHaveBeenNthCalledWith(1, {
+      where: {
+        seriesTaskId: "template-1",
+        sourceProjectId: null,
+        scheduleVersion: 1,
+        state: "PLANNED",
+        effectiveScheduledAt: new Date("2026-06-08T09:00:00.000Z"),
+        ruleSnapshot: {
+          path: ["scheduledAt"],
+          equals: "2026-06-01T09:00:00.000Z",
+        },
+      },
+    });
     expect(mockTaskScheduleOccurrenceCreate).toHaveBeenCalledWith({
       data: expect.objectContaining({
         seriesTaskId: "template-1",
@@ -365,7 +379,10 @@ describe("taskSchedulesSyncService", () => {
         },
         taskLink: { create: mockTaskLinkCreate },
         taskEvent: { create: mockTaskEventCreate },
-        taskScheduleOccurrence: { create: mockTaskScheduleOccurrenceCreate },
+        taskScheduleOccurrence: {
+          create: mockTaskScheduleOccurrenceCreate,
+          deleteMany: mockTaskScheduleOccurrenceDeleteMany,
+        },
         taskScheduleQuarantine: { upsert: mockTaskScheduleQuarantineUpsert },
       }),
     );
@@ -422,7 +439,10 @@ describe("taskSchedulesSyncService", () => {
         },
         taskLink: { create: mockTaskLinkCreate },
         taskEvent: { create: mockTaskEventCreate },
-        taskScheduleOccurrence: { create: mockTaskScheduleOccurrenceCreate },
+        taskScheduleOccurrence: {
+          create: mockTaskScheduleOccurrenceCreate,
+          deleteMany: mockTaskScheduleOccurrenceDeleteMany,
+        },
         taskScheduleQuarantine: { upsert: mockTaskScheduleQuarantineUpsert },
       }),
     );
@@ -1139,6 +1159,7 @@ describe("taskSchedulesSyncService", () => {
         },
         taskScheduleOccurrence: {
           create: mockTaskScheduleOccurrenceCreate,
+          deleteMany: mockTaskScheduleOccurrenceDeleteMany,
         },
         taskScheduleQuarantine: {
           upsert: mockTaskScheduleQuarantineUpsert,
@@ -1215,6 +1236,7 @@ describe("taskSchedulesSyncService", () => {
         },
         taskScheduleOccurrence: {
           create: mockTaskScheduleOccurrenceCreate,
+          deleteMany: mockTaskScheduleOccurrenceDeleteMany,
         },
         taskScheduleQuarantine: {
           upsert: mockTaskScheduleQuarantineUpsert,
@@ -1288,6 +1310,7 @@ describe("taskSchedulesSyncService", () => {
         },
         taskScheduleOccurrence: {
           create: mockTaskScheduleOccurrenceCreate,
+          deleteMany: mockTaskScheduleOccurrenceDeleteMany,
         },
         taskScheduleQuarantine: {
           upsert: mockTaskScheduleQuarantineUpsert,
@@ -1355,6 +1378,7 @@ describe("taskSchedulesSyncService", () => {
         taskEvent: { create: mockTaskEventCreate },
         taskScheduleOccurrence: {
           create: mockTaskScheduleOccurrenceCreate,
+          deleteMany: mockTaskScheduleOccurrenceDeleteMany,
         },
         taskScheduleQuarantine: {
           upsert: mockTaskScheduleQuarantineUpsert,
@@ -1418,6 +1442,7 @@ describe("taskSchedulesSyncService", () => {
         taskEvent: { create: mockTaskEventCreate },
         taskScheduleOccurrence: {
           create: mockTaskScheduleOccurrenceCreate,
+          deleteMany: mockTaskScheduleOccurrenceDeleteMany,
         },
         taskScheduleQuarantine: {
           upsert: mockTaskScheduleQuarantineUpsert,
@@ -1497,6 +1522,7 @@ describe("taskSchedulesSyncService", () => {
         taskEvent: { create: mockTaskEventCreate },
         taskScheduleOccurrence: {
           create: mockTaskScheduleOccurrenceCreate,
+          deleteMany: mockTaskScheduleOccurrenceDeleteMany,
         },
         taskScheduleQuarantine: {
           upsert: mockTaskScheduleQuarantineUpsert,
@@ -1613,6 +1639,7 @@ describe("taskSchedulesSyncService", () => {
         },
         taskScheduleOccurrence: {
           create: mockTaskScheduleOccurrenceCreate,
+          deleteMany: mockTaskScheduleOccurrenceDeleteMany,
         },
         taskScheduleQuarantine: {
           upsert: mockTaskScheduleQuarantineUpsert,
@@ -1696,6 +1723,7 @@ describe("taskSchedulesSyncService", () => {
         },
         taskScheduleOccurrence: {
           create: mockTaskScheduleOccurrenceCreate,
+          deleteMany: mockTaskScheduleOccurrenceDeleteMany,
         },
         taskScheduleQuarantine: {
           upsert: mockTaskScheduleQuarantineUpsert,
@@ -1776,6 +1804,7 @@ describe("taskSchedulesSyncService", () => {
         },
         taskScheduleOccurrence: {
           create: mockTaskScheduleOccurrenceCreate,
+          deleteMany: mockTaskScheduleOccurrenceDeleteMany,
         },
         taskScheduleQuarantine: {
           upsert: mockTaskScheduleQuarantineUpsert,
