@@ -698,6 +698,7 @@ export function ChatRoomSidebarRow({
         <ChatRoomThreadRows
           room={room}
           roomLabel={label}
+          isActive={isActive}
           wrapLink={
             dismissSheetOnNavigate
               ? (link) => <SheetClose asChild>{link}</SheetClose>

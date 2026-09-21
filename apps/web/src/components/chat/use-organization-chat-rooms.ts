@@ -19,7 +19,7 @@ import {
   ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
   type OrganizationChatRoomsChangedDetail,
 } from "./organization-chat-events";
-import { roomAttentionAfterRead } from "./room-attention";
+import { keepRoomUnreadState, roomAttentionAfterRead } from "./room-attention";
 import {
   applyRoomReadOverlays,
   beginRoomAttentionRefresh,
@@ -103,6 +103,8 @@ export function useOrganizationChatRooms({
 
   /**
    * Put a room at the top of the live list, replacing any row already there.
+   * What was unread on that row stays: the answers that land here do not
+   * count it.
    *
    * The archived copy goes at the same time: a room is live or archived, never
    * both, so the two collections cannot be updated apart without the room
@@ -112,8 +114,12 @@ export function useOrganizationChatRooms({
     latestAppliedRefreshRef.current = beginRoomAttentionRefresh();
     latestArchivedRefreshRef.current = latestAppliedRefreshRef.current;
     setRoomRows((current) => {
+      const held = current.find((row) => row.id === room.id);
       const without = current.filter((row) => row.id !== room.id);
-      return applyRoomReadOverlays([room, ...without]);
+      return applyRoomReadOverlays([
+        keepRoomUnreadState(held, room),
+        ...without,
+      ]);
     });
     setArchivedRows((current) => current.filter((row) => row.id !== room.id));
   }, []);

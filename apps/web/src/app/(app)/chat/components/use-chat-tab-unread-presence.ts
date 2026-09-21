@@ -18,7 +18,10 @@ import {
   ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
   type OrganizationChatRoomsChangedDetail,
 } from "@/components/chat/organization-chat-events";
-import { roomAttentionAfterRead } from "@/components/chat/room-attention";
+import {
+  keepRoomUnreadState,
+  roomAttentionAfterRead,
+} from "@/components/chat/room-attention";
 import {
   applyRoomReadOverlays,
   beginRoomAttentionRefresh,
@@ -186,9 +189,15 @@ export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
 
       const room = detail?.room;
       if (room) {
+        // The answers that land here do not count what is unread, so the
+        // room keeps what the title already counted for it.
         setRooms((current) => {
+          const held = current.find((row) => row.id === room.id);
           const without = current.filter((row) => row.id !== room.id);
-          return applyRoomReadOverlays([room, ...without]);
+          return applyRoomReadOverlays([
+            keepRoomUnreadState(held, room),
+            ...without,
+          ]);
         });
         return;
       }

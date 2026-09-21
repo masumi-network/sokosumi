@@ -76,6 +76,40 @@ export function resolveRoomAttention(options: {
   };
 }
 
+/** Everything a room row holds about what is unread in it. */
+type RoomUnreadState = RoomAttentionCounts & {
+  unreadThreadCount?: number;
+  unreadThreads?: unknown;
+};
+
+/**
+ * A newer copy of a room, with what is unread carried over from the copy
+ * already held.
+ *
+ * Opening a Direct, joining, creating and restoring each answer with the
+ * room, and none of them counts what is unread: their zeros mean "not
+ * counted". Taken as they come they would unbold a row and empty its inset
+ * thread rows until the next poll.
+ */
+export function keepRoomUnreadState<T extends RoomUnreadState>(
+  held: RoomUnreadState | undefined,
+  incoming: T,
+): T {
+  if (!held) {
+    return incoming;
+  }
+  return {
+    ...incoming,
+    unreadCount: held.unreadCount,
+    channelUnreadCount: held.channelUnreadCount,
+    threadUnreadCount: held.threadUnreadCount,
+    unreadThreadCount: held.unreadThreadCount,
+    unreadThreads: held.unreadThreads,
+    unreadMentionCount: held.unreadMentionCount,
+    markedUnread: held.markedUnread,
+  };
+}
+
 /**
  * A room's attention the moment the reader reads it, before Core answers.
  *

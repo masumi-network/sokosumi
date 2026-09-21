@@ -26,6 +26,13 @@ interface ChatRoomThreadRowsProps {
     RoomMentionRoster;
   /** The room's name as its row shows it, for the list's accessible name. */
   roomLabel: string;
+  /**
+   * The reader is in this room already. The room takes each ask straight back
+   * off its URL, so from inside it a pushed entry would leave Back landing on
+   * the view the reader is on. The row's Edit item replaces for the same
+   * reason.
+   */
+  isActive?: boolean;
   /** Wraps each link, so a mobile sheet can close when one is followed. */
   wrapLink?: (link: ReactNode) => ReactNode;
 }
@@ -47,6 +54,7 @@ interface ChatRoomThreadRowsProps {
 export function ChatRoomThreadRows({
   room,
   roomLabel,
+  isActive = false,
   wrapLink = (link) => link,
 }: ChatRoomThreadRowsProps) {
   const t = useTranslations("App.Channels.ThreadRows");
@@ -73,6 +81,7 @@ export function ChatRoomThreadRows({
             <SidebarMenuSubButton asChild size="sm">
               <Link
                 href={chatRoomMessageHref(room.id, thread.firstUnreadReplyId)}
+                replace={isActive}
               >
                 <MessageSquare aria-hidden />
                 <span className="min-w-0 flex-1 truncate font-semibold">
@@ -98,6 +107,7 @@ export function ChatRoomThreadRows({
             <SidebarMenuSubButton asChild size="sm">
               <Link
                 href={chatRoomThreadListHref(room.id)}
+                replace={isActive}
                 className="text-muted-foreground"
               >
                 <span>{t("moreThreads", { count: remainder })}</span>
