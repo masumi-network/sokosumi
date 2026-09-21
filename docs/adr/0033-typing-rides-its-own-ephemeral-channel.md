@@ -19,6 +19,10 @@ That is fine because Core mints with `client.auth.createTokenRequest`, where the
 
 So: **do not move browser Ably auth to JWTs without first shrinking the capability** — by collapsing the two per-room channels into one grant, by granting a namespace wildcard, or by scoping the token to rooms the client actually has open. The [TokenRequest spec](https://ably.com/docs/api/token-request-spec) states no limit at all, which is an absence of documentation rather than a documented absence of one; a server-side ceiling would have to come from Ably support.
 
+**The grant's breadth is a client-visible contract, so narrow it additively:** the capability is not only a permission, it is the allow-list clients attach from — web reads it as `allowedFromToken` in `use-chat-room-realtime.tsx`, and the Apple client already refreshes capability for the same purpose (PARITY row 07). A client that reads "rooms in my token" as "rooms I have" breaks the moment the grant narrows, and a shipped native binary cannot be hotfixed.
+
+So if the token is ever scoped to the open room, do it by **adding an optional `roomId` to `POST /v1/realtime/ably-token`**: clients that send it get a narrow token, clients that do not keep today's membership-wide grant. Old binaries go on working and native adopts it on its own cycle. Do **not** narrow the default. Clients must treat the capability as *the rooms they may attach right now*, and re-authorize rather than caching it as a room list.
+
 **Why the client publishes directly:** the signal is high frequency and worthless a second later. Proxying it through Core would add a hop and a rate-limited endpoint for no safety gain once the capability is scoped to the one channel. Ably's per-connection ceiling of 50 msg/s is far above a 10s throttle.
 
 **Scope:** every room, Channels and Directs alike. Humans only; a coworker's turn is already announced by **Thought**, and announcing it twice in two vocabularies would be worse than not announcing it. The selected room only, so the sidebar attaches nothing. Web only for now; the Apple client needs its own capability handling before it can participate, recorded as a parity row.
