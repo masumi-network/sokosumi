@@ -39071,7 +39071,12 @@ export type GetCoworkersByIdData = {
     path: {
         id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * When 'owned', return the coworker only if it is active and accessible via vendor membership (vendor admin: all vendor coworkers; developer: assigned only; user-authenticated only). Omit to retrieve any coworker by ID.
+         */
+        scope?: 'owned';
+    };
     url: '/coworkers/{id}';
 };
 
@@ -39092,9 +39097,39 @@ export type GetCoworkersByIdErrors = {
         };
     };
     /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;
