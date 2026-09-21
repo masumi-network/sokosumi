@@ -158,6 +158,47 @@ type FollowUpSource = Prisma.NotificationGetPayload<{
   select: typeof FOLLOW_UP_SOURCE_COLUMNS;
 }>;
 
+/**
+ * How many rows of this kind the reader still has unread in this room or
+ * task.
+ *
+ * The reminder is one per reference per day, so it already speaks for every
+ * row it found. The email says so: one row is quoted, several are counted
+ * (SOK-1142). Counted now rather than for the reminder's day, because the
+ * sentence is about what is waiting, and what is waiting is what the reader
+ * will find when they open it.
+ *
+ * Narrowed to the source row's own key, so a reminder about mentions counts
+ * mentions. The room's other messages are not things waiting on the reader
+ * and would inflate a sentence about what is.
+ *
+ * Never throws. The reminder is already written by the time this is asked,
+ * and a failed count must cost the number rather than the email: null reads
+ * as one, which is the sentence the email had before this existed.
+ */
+async function unreadRowsLike(source: FollowUpSource): Promise<null | number> {
+  try {
+    return await prisma.notification.count({
+      where: {
+        userId: source.userId,
+        kind: source.kind,
+        referenceId: source.referenceId,
+        messageKey: source.messageKey,
+        isRead: false,
+      },
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      extra: {
+        notificationId: source.id,
+        notificationType: "notification-follow-up-count",
+      },
+    });
+
+    return null;
+  }
+}
+
 /** Where a reminder email is sent, and who it greets. */
 interface FollowUpReader {
   email: string;
@@ -572,6 +613,7 @@ export async function sendFollowUps(
 
         const email = await buildFollowUpEmail({
           kind: input.kind,
+          unreadCount: await unreadRowsLike(source),
           messageKey: input.messageKey,
           messageParams: input.messageParams,
           metadata: input.metadata,

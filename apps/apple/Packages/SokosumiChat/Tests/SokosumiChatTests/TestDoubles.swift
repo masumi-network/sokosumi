@@ -21,14 +21,15 @@ func testMessageJSON(
   deletedAt: String? = nil,
   editedAt: String? = nil,
   membership: String? = nil,
-  metadata: String? = nil
+  metadata: String? = nil,
+  roomId: String = testRoomId
 ) -> String {
   let deletedJSON = deletedAt.map { "\"\($0)\"" } ?? "null"
   let editedJSON = editedAt.map { "\"\($0)\"" } ?? "null"
   let membershipJSON = membership ?? "null"
   let metadataJSON = metadata ?? "null"
   return """
-  {"id":"\(id)","roomId":"\(testRoomId)","parentMessageId":null,"content":"\(content)","createdAt":"\(createdAt)","deletedAt":\(deletedJSON),"editedAt":\(editedJSON),"sender":\(sender),"mentions":[],"reactions":[],"threadReplyCount":0,"threadLastReplyAt":null,"metadata":\(metadataJSON),"quote":null,"membership":\(membershipJSON),"unfurls":null}
+  {"id":"\(id)","roomId":"\(roomId)","parentMessageId":null,"content":"\(content)","createdAt":"\(createdAt)","deletedAt":\(deletedJSON),"editedAt":\(editedJSON),"sender":\(sender),"mentions":[],"reactions":[],"threadReplyCount":0,"threadLastReplyAt":null,"metadata":\(metadataJSON),"quote":null,"membership":\(membershipJSON),"unfurls":null}
   """
 }
 

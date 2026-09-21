@@ -15,6 +15,7 @@ import {
 import {
   cancelNotificationEmails,
   dispatchNotificationEmail,
+  resendRoomMessageEmail,
 } from "./notification-email-dispatch";
 
 const {
@@ -144,6 +145,139 @@ async function dispatch(notification: Notification): Promise<void> {
   await run;
 }
 
+/** A room row whose email is already scheduled, standing for `count` messages. */
+function scheduledRoomRow(
+  count: number,
+  overrides: Partial<Notification> = {},
+) {
+  return mention({
+    messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+    messageParams: JSON.stringify({
+      authorName: "Ada",
+      count,
+      messagePreview: "Can you check this?",
+      roomName: "Design",
+    }),
+    emailId: "email_stale",
+    emailScheduledAt: TEN_MINUTES_LATER,
+    ...overrides,
+  });
+}
+
+/** Run the resend to the end, through every wait it schedules. */
+async function resend(): Promise<void> {
+  const run = resendRoomMessageEmail("notification_1");
+  await vi.runAllTimersAsync();
+  await run;
+}
+
+describe("resendRoomMessageEmail", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    vi.clearAllMocks();
+    notificationFindManyMock.mockResolvedValue([]);
+    notificationUpdateManyMock.mockResolvedValue({ count: 1 });
+    userFindUniqueMock.mockResolvedValue({
+      email: "reader@example.com",
+      name: "Grace",
+    });
+    hasAppInFrontMock.mockResolvedValue(false);
+    sendEmailMock.mockResolvedValue({ id: "email_2" });
+    cancelEmailMock.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /**
+   * The row now stands for three messages rather than two, so the email says
+   * three. The send time it was promised is kept: deciding a fresh delay on
+   * every message would push a busy room's email away for as long as anyone
+   * kept writing (SOK-1142).
+   */
+  it("sends the new tally at the time the old email was promised", async () => {
+    // Three minutes into the wait, so a fresh delay would be a different
+    // instant and the assertion below can tell the two apart.
+    vi.setSystemTime(new Date("2026-09-19T10:03:00.000Z"));
+    notificationFindUniqueMock
+      .mockResolvedValueOnce(scheduledRoomRow(3))
+      .mockResolvedValueOnce({ isRead: false })
+      .mockResolvedValueOnce({ isRead: false })
+      .mockResolvedValueOnce({ emailId: "email_2" });
+
+    await resend();
+
+    expect(sendEmailMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        subject: "Sokosumi - 3 unread messages in Design",
+        scheduledAt: TEN_MINUTES_LATER.toISOString(),
+        idempotencyKey: "notification-email/notification_1/3",
+      }),
+    );
+  });
+
+  /**
+   * The new email is handed over first. A cancel that runs before a send that
+   * fails would leave the reader with no email at all, which is the more
+   * expensive failure than one duplicate.
+   */
+  it("takes the old email back only once the new one is away", async () => {
+    notificationFindUniqueMock
+      .mockResolvedValueOnce(scheduledRoomRow(3))
+      .mockResolvedValueOnce({ isRead: false })
+      .mockResolvedValueOnce({ isRead: false })
+      .mockResolvedValueOnce({ emailId: "email_2" });
+
+    await resend();
+
+    expect(cancelEmailMock).toHaveBeenCalledExactlyOnceWith("email_stale");
+    expect(sendEmailMock.mock.invocationCallOrder[0]).toBeLessThan(
+      cancelEmailMock.mock.invocationCallOrder[0] as number,
+    );
+  });
+
+  /**
+   * The dispatch sent nothing, so the old email is the reader's only one and
+   * cancelling it here would take it away.
+   */
+  it("keeps the old email when nothing replaced it", async () => {
+    notificationFindUniqueMock
+      .mockResolvedValueOnce(scheduledRoomRow(3))
+      .mockResolvedValueOnce({ isRead: true })
+      .mockResolvedValueOnce({ emailId: "email_stale" });
+
+    await resend();
+
+    expect(sendEmailMock).not.toHaveBeenCalled();
+    expect(cancelEmailMock).not.toHaveBeenCalled();
+  });
+
+  /** Nothing left to say differently: that email is already on its way. */
+  it("does nothing once the email has left", async () => {
+    notificationFindUniqueMock.mockResolvedValueOnce(
+      scheduledRoomRow(3, { emailScheduledAt: null }),
+    );
+
+    await resend();
+
+    expect(sendEmailMock).not.toHaveBeenCalled();
+    expect(cancelEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("does nothing for a row the reader has already read", async () => {
+    notificationFindUniqueMock.mockResolvedValueOnce(
+      scheduledRoomRow(3, { isRead: true }),
+    );
+
+    await resend();
+
+    expect(sendEmailMock).not.toHaveBeenCalled();
+    expect(cancelEmailMock).not.toHaveBeenCalled();
+  });
+});
+
 describe("dispatchNotificationEmail", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -240,7 +374,7 @@ describe("dispatchNotificationEmail", () => {
         to: "reader@example.com",
         subject: "Sokosumi - Ada mentioned you in Design",
         tag: "notification",
-        idempotencyKey: "notification-email/notification_1",
+        idempotencyKey: "notification-email/notification_1/1",
       }),
     );
     expect(sendEmailMock.mock.calls[0]?.[0]).not.toHaveProperty("scheduledAt");
@@ -282,6 +416,24 @@ describe("dispatchNotificationEmail", () => {
     expect(cancelEmailMock).toHaveBeenCalledWith("email_1");
   });
 
+  it("takes a room message's email back the same way when its row went read", async () => {
+    hasAppInFrontMock.mockResolvedValue(true);
+    notificationUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    await dispatch(mention({ messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY }));
+
+    expect(cancelEmailMock).toHaveBeenCalledWith("email_1");
+  });
+
+  it("takes a task update's email back the same way when its row went read", async () => {
+    hasAppInFrontMock.mockResolvedValue(true);
+    notificationUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    await dispatch(finished({ messageKey: "Notifications.Task.canceled" }));
+
+    expect(cancelEmailMock).toHaveBeenCalledWith("email_1");
+  });
+
   it("leaves an email that already left alone when the row went read", async () => {
     notificationUpdateManyMock.mockResolvedValue({ count: 0 });
 
@@ -298,7 +450,15 @@ describe("dispatchNotificationEmail", () => {
   });
 
   it("does nothing for a category that is not emailed at the event", async () => {
-    await dispatch(mention({ messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY }));
+    // Billing news is the lasting example: Stripe already mails it.
+    await dispatch(
+      mention({
+        kind: NotificationKind.BILLING,
+        referenceId: "wallet_1",
+        messageKey: "Notifications.Billing.creditsAdded",
+        messageParams: JSON.stringify({ credits: 10 }),
+      }),
+    );
 
     expect(notificationFindUniqueMock).not.toHaveBeenCalled();
     expect(sendEmailMock).not.toHaveBeenCalled();
@@ -458,6 +618,82 @@ describe("dispatchNotificationEmail", () => {
     expect(sendEmailMock).toHaveBeenCalledWith(
       expect.objectContaining({
         subject: "Sokosumi - Atlas completed Pricing review",
+      }),
+    );
+  });
+
+  /**
+   * Everything a room can say is one email. Whichever row mails first speaks
+   * for the room, and the reader reads the room as a whole, so the other rows
+   * hold back until it is read (SOK-1142).
+   */
+  it("sends nothing for a room message whose room was already mailed, nor after one", async () => {
+    notificationFindManyMock.mockResolvedValue([
+      { messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY },
+    ]);
+
+    await dispatch(mention());
+
+    expect(sendEmailMock).not.toHaveBeenCalled();
+
+    notificationFindManyMock.mockResolvedValue([
+      { messageKey: CHAT_MENTION_MESSAGE_KEY },
+    ]);
+
+    await dispatch(
+      mention({
+        id: "notification_9",
+        messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+      }),
+    );
+
+    expect(sendEmailMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * A room message always waits out its delay, whether or not the reader is
+   * looking. The wait is what lets the messages after it join the row the
+   * email stands for, so the inbox gets one email that counts them rather
+   * than one about the first of them (SOK-1142).
+   */
+  it("holds a room message back although the reader is away", async () => {
+    hasAppInFrontMock.mockResolvedValue(false);
+
+    await dispatch(mention({ messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY }));
+
+    expect(sendEmailMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scheduledAt: TEN_MINUTES_LATER.toISOString(),
+      }),
+    );
+  });
+
+  it("mails a room message on its own when nothing was mailed", async () => {
+    await dispatch(mention({ messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY }));
+
+    expect(sendEmailMock).toHaveBeenCalledTimes(1);
+    expect(sendEmailMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subject: "Sokosumi - Ada wrote in Design",
+      }),
+    );
+  });
+
+  /**
+   * The change and the question are two emails the reader turned on
+   * separately, like the finish and the question before them.
+   */
+  it("mails a task update although the task's unanswered question was mailed", async () => {
+    notificationFindManyMock.mockResolvedValue([
+      { messageKey: TASK_INPUT_REQUIRED_MESSAGE_KEY },
+    ]);
+
+    await dispatch(finished({ messageKey: "Notifications.Task.canceled" }));
+
+    expect(sendEmailMock).toHaveBeenCalledTimes(1);
+    expect(sendEmailMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subject: "Sokosumi - Pricing review was canceled",
       }),
     );
   });
