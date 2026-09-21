@@ -11,6 +11,7 @@ import {
   roomMentionNames,
 } from "@/app/chat/utils/room-mention-names";
 import { formatUnreadThreadsPreview } from "@/app/chat/utils/unread-threads-preview";
+import { MentionCountPill } from "@/components/chat/mention-count-pill";
 import {
   SidebarMenuSub,
   SidebarMenuSubButton,
@@ -61,6 +62,13 @@ interface ChatRoomThreadRowsProps {
  * same rows ride a flyout instead, which is portalled out of the sidebar and
  * so out of reach of that rule.
  */
+type UnreadThread = NonNullable<ChatRoom["unreadThreads"]>[number];
+
+/** Absent on a room snapshot taken before Core counted it. */
+function mentionCount(thread: UnreadThread): number {
+  return thread.unreadMentionCount ?? 0;
+}
+
 export function ChatRoomThreadRows({
   room,
   roomLabel,
@@ -111,13 +119,22 @@ export function ChatRoomThreadRows({
               <Link
                 href={chatRoomMessageHref(room.id, thread.firstUnreadReplyId)}
                 replace={isActive}
+                data-mention={mentionCount(thread) > 0 ? "true" : undefined}
               >
                 {/* Unread is a tinted icon circle plus weight, the language
                     the notification rows and the thread list already use.
                     Never a dot. */}
                 <span
                   aria-hidden
-                  className="bg-primary-quaternary text-primary grid size-[1.125rem] shrink-0 place-items-center rounded-full"
+                  className={cn(
+                    "grid size-[1.125rem] shrink-0 place-items-center rounded-full",
+                    // A Thread that names the reader takes the mention's
+                    // amber, so it stands out from the room's other unread
+                    // Threads the way the room's badge does from its count.
+                    mentionCount(thread) > 0
+                      ? "bg-semantic-warning-quaternary text-semantic-warning-label"
+                      : "bg-primary-quaternary text-primary",
+                  )}
                 >
                   <MessageSquare className="size-[0.6875rem]" />
                 </span>
@@ -127,6 +144,19 @@ export function ChatRoomThreadRows({
                     mentionNames,
                   ) || t("untitled")}
                 </span>
+                {mentionCount(thread) > 0 ? (
+                  <span className="shrink-0">
+                    <span aria-hidden>
+                      <MentionCountPill
+                        label={String(mentionCount(thread))}
+                        showGlyph
+                      />
+                    </span>
+                    <span className="sr-only">
+                      {t("mentions", { count: mentionCount(thread) })}
+                    </span>
+                  </span>
+                ) : null}
                 {/* In the room badge's own column: a 28px box ending 4px from
                     the row's edge, its number centred, so a Thread's count
                     stacks under its room's badge instead of outside it. */}

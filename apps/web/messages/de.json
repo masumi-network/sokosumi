@@ -5455,6 +5455,7 @@
         "label": "Ungelesene Threads in {name}",
         "unreadReplies": "{count, plural, one {# ungelesene Antwort} other {# ungelesene Antworten}}",
         "moreThreads": "{count, plural, one {# weiterer ungelesener Thread} other {# weitere ungelesene Threads}}",
+        "mentions": "{count, plural, one {# Erwähnung} other {# Erwähnungen}}",
         "untitled": "Thread"
       },
       "Thread": {

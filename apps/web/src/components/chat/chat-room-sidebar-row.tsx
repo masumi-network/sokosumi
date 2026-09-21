@@ -31,6 +31,7 @@ import {
   pathWithSearch,
 } from "@/app/chat/utils/chat-route-base";
 import { ChatRoomThreadRows } from "@/components/chat/chat-room-thread-rows";
+import { MentionCountPill } from "@/components/chat/mention-count-pill";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import {
   markOrganizationChatRoomUnreadAction,
@@ -243,9 +244,15 @@ function MentionAnnouncement({ count }: { count: number }) {
  */
 function MentionBadge({
   count,
+  countsMentions,
   crossfadesWithMenu,
 }: {
   count: number;
+  /**
+   * The count is mentions, so the pill says so with an `@`. False for a
+   * Direct of two, whose badge counts every message as well.
+   */
+  countsMentions: boolean;
   crossfadesWithMenu: boolean;
 }) {
   if (count <= 0) {
@@ -265,9 +272,12 @@ function MentionBadge({
         ],
       )}
     >
-      <span className="bg-primary-solid text-primary-solid-foreground inline-flex min-w-4.5 items-center justify-center rounded-full px-1 text-[0.625rem] leading-4 font-semibold tabular-nums">
-        {roomCountLabel(count)}
-      </span>
+      {/* `@ 99+` is wider than the hole this shares with the menu and would
+          run into the room's name, so the capped label goes without. */}
+      <MentionCountPill
+        label={roomCountLabel(count)}
+        showGlyph={countsMentions && count <= ROOM_COUNT_CAP}
+      />
     </span>
   );
 }
@@ -341,6 +351,12 @@ export function ChatRoomSidebarRow({
       room.discoverability === "matched" ||
       room.userMembers.filter((member) => member.access === "member").length >
         1);
+  // Core writes a notification for every message only in a Direct of two
+  // humans or fewer (`shouldEmitChatDirectMessageNotifications`). Everywhere
+  // else, a group Direct included, the badge counts mentions alone.
+  const badgeCountsMentions = !(
+    room.kind === "direct" && room.userMembers.length <= 2
+  );
   const showUnreadCount = useShowRoomUnreadCount();
   const { bold, badgeCount, unreadTextCount } = resolveRoomAttention({
     unreadCount: room.unreadCount,
@@ -637,6 +653,7 @@ export function ChatRoomSidebarRow({
         <div data-slot="room-trailing" className={TRAILING_CLUSTER_CLASS}>
           <MentionBadge
             count={badgeCount}
+            countsMentions={badgeCountsMentions}
             crossfadesWithMenu={reorderHandle == null}
           />
           {reorderHandle ?? (

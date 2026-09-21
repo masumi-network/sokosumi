@@ -733,6 +733,65 @@ describe("ChatRoomSidebarRow unread threads", () => {
   });
 });
 
+// The badge says "addressed to you". Core counts every message toward it only
+// in a Direct of two. Everywhere else it counts mentions alone, and says so
+// with an `@`.
+describe("ChatRoomSidebarRow mention badge", () => {
+  function badgeOf(room: Partial<ChatRoom>) {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom(room)}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+    return container.querySelector('[data-slot="room-mention-badge"]');
+  }
+
+  it("marks a channel's mention count with an @", () => {
+    const badge = badgeOf({ kind: "channel", unreadMentionCount: 2 });
+
+    expect(badge).toHaveTextContent("2");
+    expect(badge?.querySelector('[data-slot="mention-glyph"]')).not.toBeNull();
+  });
+
+  const member = (id: string) =>
+    ({ id, name: id, email: `${id}@x.io`, access: "member" }) as never;
+
+  it("shows the count of a Direct of two without an @", () => {
+    const badge = badgeOf({
+      kind: "direct",
+      unreadMentionCount: 2,
+      userMembers: [member("a"), member("b")],
+    });
+
+    expect(badge).toHaveTextContent("2");
+    expect(badge?.querySelector('[data-slot="mention-glyph"]')).toBeNull();
+  });
+
+  it("marks a group Direct's mention count with an @", () => {
+    const badge = badgeOf({
+      kind: "direct",
+      unreadMentionCount: 2,
+      userMembers: [member("a"), member("b"), member("c")],
+    });
+
+    expect(badge?.querySelector('[data-slot="mention-glyph"]')).not.toBeNull();
+  });
+
+  // The badge shares a 28px hole with the row's menu. `@ 99+` does not fit it
+  // and would run into the room's name.
+  it("drops the @ once the count is capped", () => {
+    const badge = badgeOf({ kind: "channel", unreadMentionCount: 120 });
+
+    expect(badge).toHaveTextContent("99+");
+    expect(badge?.querySelector('[data-slot="mention-glyph"]')).toBeNull();
+  });
+});
+
 // The collapsed rail hides the inset rows, so the same rows ride a flyout
 // beside the room's mark (ADR-0037).
 describe("ChatRoomSidebarRow rail thread flyout", () => {
