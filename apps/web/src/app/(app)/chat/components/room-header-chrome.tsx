@@ -68,7 +68,7 @@ function RoomParticipantStack({
       {visibleParticipants.map((participant, index) => (
         <span
           key={`${participant.kind}-${participant.id}`}
-          className="relative inline-flex size-6 shrink-0 md:size-7"
+          className="relative inline-flex size-6 shrink-0"
           style={{ zIndex: visibleParticipants.length - index }}
         >
           <Avatar className="ring-border size-full shadow-xs ring-1">
@@ -101,7 +101,7 @@ function RoomParticipantStack({
       ))}
       {remainingCount > 0 ? (
         <span
-          className="bg-muted text-muted-foreground ring-border relative inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-medium shadow-xs ring-1 md:size-7"
+          className="bg-muted text-muted-foreground ring-border relative inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-medium shadow-xs ring-1"
           style={{ zIndex: 0 }}
           aria-hidden
         >
@@ -243,7 +243,9 @@ export function RoomHeaderChrome({
           </>
         )}
       </div>
-      <div className="flex shrink-0 items-center gap-1">
+      {/* pe-0.5: the row above clips overflow and ends flush with this
+          group, which shaved the ring off the last face. */}
+      <div className="flex shrink-0 items-center gap-1 pe-0.5">
         <div className="flex items-center">
           <RoomSearchPanel
             key={room.id}

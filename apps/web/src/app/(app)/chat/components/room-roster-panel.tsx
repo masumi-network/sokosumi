@@ -111,7 +111,9 @@ function RosterMemberReadState({
 
   return (
     <span
-      className="text-muted-foreground shrink-0 text-xs"
+      // Sits on the name's line rather than centred in the row: the row is two
+      // lines and centring parked this between them, aligned to neither.
+      className="text-muted-foreground shrink-0 self-start text-xs leading-5"
       data-testid="room-roster-read-state"
     >
       {readState.kind === "read"
