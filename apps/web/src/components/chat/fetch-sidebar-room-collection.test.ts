@@ -36,6 +36,9 @@ describe("sidebar collection GET requests", () => {
           updatedAt: timestamp,
           starredAt: timestamp,
           mutedAt: null,
+          // A room DTO always carries its roster, and the transformer walks it
+          // for each member's Room last-read.
+          userMembers: [],
         },
       ]),
     );

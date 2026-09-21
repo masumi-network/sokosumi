@@ -2353,7 +2353,7 @@ export const getProjectsStats = <ThrowOnError extends boolean = false>(options?:
 });
 
 /**
- * The current user's Pinned projects in the active workspace, oldest Pin first (ADR 0036). Separate from the project list because a Pinned project is usually a quiet one, so it often falls outside the activity-ordered first page. Closed projects are left out; their Pin survives, so reopening restores it.
+ * The current user's Pinned projects in the active workspace, oldest Pin first (ADR 0036). Separate from the project list because a Pinned project is usually a quiet one, so it often falls outside the activity-ordered first page. Closed projects stay in this list so a project page can still offer Unpin; the sidebar flyout drops them. The Pin row survives either way, so reopening restores it.
  */
 export const getProjectsStarred = <ThrowOnError extends boolean = false>(options?: Options<GetProjectsStarredData, ThrowOnError>): RequestResult<GetProjectsStarredResponses, GetProjectsStarredErrors, ThrowOnError> => (options?.client ?? client).get<GetProjectsStarredResponses, GetProjectsStarredErrors, ThrowOnError>({
     responseTransformer: getProjectsStarredResponseTransformer,

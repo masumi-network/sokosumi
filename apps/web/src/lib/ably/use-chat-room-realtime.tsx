@@ -2,6 +2,7 @@
 
 import {
   CHAT_ROOM_PINNED_MESSAGE_EVENT_NAME,
+  CHAT_ROOM_READ_EVENT_NAME,
   makeChatRoomChannelName,
   makeUserChatControlChannelName,
 } from "@sokosumi/utils";
@@ -12,8 +13,10 @@ import { useEffect, useMemo, useRef } from "react";
 import {
   type ChatRoomMessageEventData,
   type ChatRoomPinnedMessageEventData,
+  type ChatRoomReadEventData,
   chatRoomMessageEventDataSchema,
   chatRoomPinnedMessageEventDataSchema,
+  chatRoomReadEventDataSchema,
 } from "@/lib/ably/schema";
 
 import {
@@ -34,6 +37,8 @@ interface UseChatRoomRealtimeOptions {
   currentUserId: string;
   onMessage?: (event: ChatRoomMessageEventData) => void;
   onPinnedMessage?: (event: ChatRoomPinnedMessageEventData) => void;
+  /** Room read receipt: a member advanced their Room last-read. */
+  onRoomRead?: (event: ChatRoomReadEventData) => void;
   onError?: (error: Error) => void;
   /** After local detach + re-auth queue (SOK-746 membership-visible UI). */
   onMembershipRevoked?: (event: ChatMembershipRevokedEvent) => void;
@@ -57,6 +62,7 @@ export function useChatRoomRealtime({
   currentUserId,
   onMessage,
   onPinnedMessage,
+  onRoomRead,
   onError,
   onMembershipRevoked,
 }: UseChatRoomRealtimeOptions) {
@@ -65,6 +71,8 @@ export function useChatRoomRealtime({
   onMessageRef.current = onMessage;
   const onPinnedMessageRef = useRef(onPinnedMessage);
   onPinnedMessageRef.current = onPinnedMessage;
+  const onRoomReadRef = useRef(onRoomRead);
+  onRoomReadRef.current = onRoomRead;
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
   const onMembershipRevokedRef = useRef(onMembershipRevoked);
@@ -84,6 +92,19 @@ export function useChatRoomRealtime({
       return;
     }
     onPinnedMessageRef.current?.(parsed.data);
+  });
+
+  const handleRoomReadRef = useRef((message: Ably.Message) => {
+    const parsed = chatRoomReadEventDataSchema.safeParse(message.data);
+    if (!parsed.success) {
+      console.error(
+        "Failed to parse chat_room_read event",
+        message,
+        parsed.error,
+      );
+      return;
+    }
+    onRoomReadRef.current?.(parsed.data);
   });
 
   const handleMessageRef = useRef((message: Ably.Message) => {
@@ -129,6 +150,7 @@ export function useChatRoomRealtime({
 
     const handleMessage = handleMessageRef.current;
     const handlePinnedMessage = handlePinnedMessageRef.current;
+    const handleRoomRead = handleRoomReadRef.current;
     /** Coalesce focus+visibility+revoke so two applies never interleave. */
     let syncInFlight = false;
     let syncQueued = false;
@@ -147,6 +169,7 @@ export function useChatRoomRealtime({
         CHAT_ROOM_PINNED_MESSAGE_EVENT_NAME,
         handlePinnedMessage,
       );
+      channel.unsubscribe(CHAT_ROOM_READ_EVENT_NAME, handleRoomRead);
       safeDetachChannel(channel);
       attached.delete(roomId);
     }
@@ -229,6 +252,7 @@ export function useChatRoomRealtime({
           CHAT_ROOM_PINNED_MESSAGE_EVENT_NAME,
           handlePinnedMessage,
         );
+        channel.unsubscribe(CHAT_ROOM_READ_EVENT_NAME, handleRoomRead);
         safeDetachChannel(channel);
         attached.delete(roomId);
       }
@@ -247,6 +271,11 @@ export function useChatRoomRealtime({
           channel,
           CHAT_ROOM_PINNED_MESSAGE_EVENT_NAME,
           handlePinnedMessage,
+        );
+        safeSubscribeChannel(
+          channel,
+          CHAT_ROOM_READ_EVENT_NAME,
+          handleRoomRead,
         );
         attached.set(roomId, channel);
       }
@@ -345,6 +374,7 @@ export function useChatRoomRealtime({
       syncGenerationRef.current += 1;
       const handleMessage = handleMessageRef.current;
       const handlePinnedMessage = handlePinnedMessageRef.current;
+      const handleRoomRead = handleRoomReadRef.current;
       const attached = channelsRef.current;
       for (const channel of attached.values()) {
         channel.unsubscribe(CHAT_ROOM_MESSAGE_EVENT_NAME, handleMessage);
@@ -352,6 +382,7 @@ export function useChatRoomRealtime({
           CHAT_ROOM_PINNED_MESSAGE_EVENT_NAME,
           handlePinnedMessage,
         );
+        channel.unsubscribe(CHAT_ROOM_READ_EVENT_NAME, handleRoomRead);
         safeDetachChannel(channel);
       }
       attached.clear();
