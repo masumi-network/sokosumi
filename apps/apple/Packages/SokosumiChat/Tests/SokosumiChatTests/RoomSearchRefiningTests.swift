@@ -151,6 +151,25 @@ struct RoomSearchRefiningTests {
     await task.value
     #expect(search.results.isEmpty)
     #expect(search.presentation(for: "he").placeholder == .empty)
+
+    // The switched room keeps its own page: dropping every answer after a switch would fail here.
+    let own = Task { await search.search(query: "hel", roomId: otherRoomId, client: client, organizationSlug: nil) }
+    await transport.waitForRequest("hel")
+    await transport.respond(to: "hel", rows: ["b1", "b2"], roomId: otherRoomId)
+    await own.value
+    #expect(search.results.map(\.id) == ["b1", "b2"] && search.selectedId == "b1")
+    let kept = search.presentation(for: "hel")
+    #expect(kept.placeholder == nil && !kept.isRefining)
+    #expect(kept.results.map(\.id) == ["b1", "b2"])
+
+    // Back in the first room, the second room's hits go before the answer arrives.
+    let back = start(search, "hel", client: client)
+    await transport.waitForRequest("hel", count: 2)
+    #expect(search.results.isEmpty && search.selectedId == nil)
+    #expect(search.presentation(for: "hel").placeholder == .loading)
+    await transport.respond(to: "hel", rows: ["a2"])
+    await back.value
+    #expect(search.results.map(\.id) == ["a2"] && search.selectedId == "a2")
   }
 
   @Test func resetClearsResultsSelectionAndQuery() async throws {
@@ -277,9 +296,9 @@ private actor GatedSearchTransport: ClientTransport {
     await withCheckedContinuation { observers.append(Observer(query: query, count: count, continuation: $0)) }
   }
 
-  func respond(to query: String, rows: [String]) {
+  func respond(to query: String, rows: [String], roomId: String = testRoomId) {
     let sender = testUserSender(name: "Ada", email: "ada@example.com")
-    let messages = rows.map { testMessageJSON(id: $0, content: "Hit \($0)", sender: sender) }
+    let messages = rows.map { testMessageJSON(id: $0, content: "Hit \($0)", sender: sender, roomId: roomId) }
     respond(to: query, status: 200, body: testMessagesPageBody(messages: messages, nextCursor: nil))
   }
 

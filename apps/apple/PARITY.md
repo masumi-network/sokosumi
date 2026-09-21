@@ -1523,6 +1523,8 @@ Verification (all from `apps/apple`, on `f8adbeec0`):
 - Fixtures, recorded as test attachments and inspected: refining in [light](docs/screenshots/room-search-refining-light.png) and [dark](docs/screenshots/room-search-refining-dark.png) — both hits, the first selected, no status row; first search in [light](docs/screenshots/room-search-first-loading-light.png) and [dark](docs/screenshots/room-search-first-loading-dark.png) — spinner over "Searching…", no hits.
 - No task-owned test host remained running; no separate derived data was created.
 
+Review follow-up (23a): `RoomSearchRefiningTests.anotherRoomNeverShowsTheFirstRoomsResults` now also answers the switched room with rows of its own room id and asserts they are kept, selected and shown without a status row, then switches back and asserts they are cleared before the first room's answer; test-only, red against a model that dropped every answer outside the first room.
+
 Unverified: the app was not launched. Not exercised live: typing against a real room and watching the hits stay, Return and click on a stale hit, arrow keys while refining, a real failed search over stale hits, switching rooms with search open, and VoiceOver. Whether SwiftUI shows a frame between the keystroke and the model hearing of it is covered only by `presentation(for:)` answering for the field's text.
 
 How to test: open a room, press Cmd-F and type a word with hits. Keep typing: the hits stay until the new ones replace them, with no "Searching…" flash and no "No messages found" flash. Press Down, keep typing, press Return before the new answer: the highlighted message opens. Clear the field: the list empties at once. Search for nonsense: "Searching…", then "No messages found".
