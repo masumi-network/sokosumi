@@ -820,6 +820,30 @@ describe("ChatRoomSidebarRow mention badge", () => {
     expect(badge?.querySelector('[data-slot="mention-glyph"]')).not.toBeNull();
   });
 
+  // What is drawn and what is announced have to say the same thing. A Direct
+  // of two draws the unread pill, because its count is messages, so a screen
+  // reader must not hear "mentions" there.
+  it("announces a Direct of two's count as unread messages", () => {
+    badgeOf({
+      kind: "direct",
+      unreadMentionCount: 5,
+      userMembers: [makeUser("a"), makeUser("b")],
+    });
+
+    expect(screen.getByText("5 unread messages")).toBeInTheDocument();
+    expect(screen.queryByText("5 mentions")).toBeNull();
+  });
+
+  it("announces a channel's and a group Direct's count as mentions", () => {
+    badgeOf({
+      kind: "direct",
+      unreadMentionCount: 2,
+      userMembers: [makeUser("a"), makeUser("b"), makeUser("c")],
+    });
+
+    expect(screen.getByText("2 mentions")).toBeInTheDocument();
+  });
+
   it("keeps a Direct of two's message count exact past nine", () => {
     const badge = badgeOf({
       kind: "direct",

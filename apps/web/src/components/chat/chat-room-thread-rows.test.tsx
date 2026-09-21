@@ -120,6 +120,22 @@ describe("ChatRoomThreadRows", () => {
     expect(tones(/Release notes/)).toEqual([["unread", "2"]]);
   });
 
+  // The same pill as the room's badge, so the same cap: past nine the number
+  // gives way and the `@` stays. The announcement keeps the exact count.
+  it("caps a thread's drawn mention count like its room's badge", () => {
+    renderRows({
+      unreadThreads: [
+        thread(3, { parentContent: "All hands", unreadMentionCount: 120 }),
+      ],
+      unreadThreadCount: 1,
+    });
+
+    const row = screen.getByRole("link", { name: /All hands/ });
+    expect(row.querySelector("[data-tone]")).toHaveTextContent("9+");
+    expect(row.querySelector('[data-slot="mention-glyph"]')).not.toBeNull();
+    expect(row).toHaveAccessibleName(/120 mentions/);
+  });
+
   it("opens the thread at its first unread reply", () => {
     renderRows({ unreadThreads: [thread(1)], unreadThreadCount: 1 });
 
