@@ -7,6 +7,8 @@ import {
   getUserMetadata,
   normalizeOrganizationLogo,
   normalizeWebsiteUrl,
+  ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
+  ORGANIZATION_LOGO_MAX_SIZE_BYTES,
   parseUserMetadata,
   serializeMetadataRecord,
 } from "@sokosumi/utils";
@@ -40,11 +42,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth/auth.client";
-import {
-  ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
-  ORGANIZATION_LOGO_MAX_SIZE_BYTES,
-  ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
-} from "@/lib/constants/organization-logo";
+import { ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS } from "@/lib/constants/organization-logo";
 import {
   type BrandProfileFormType,
   brandProfileFormSchema,

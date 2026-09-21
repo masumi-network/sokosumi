@@ -1,6 +1,10 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
+  ORGANIZATION_LOGO_MAX_SIZE_BYTES,
+} from "@sokosumi/utils";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -26,11 +30,7 @@ import {
 } from "@/lib/actions/admin-vendors/action";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import type { Vendor } from "@/lib/clients/generated/core";
-import {
-  ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
-  ORGANIZATION_LOGO_MAX_SIZE_BYTES,
-  ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
-} from "@/lib/constants/organization-logo";
+import { ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS } from "@/lib/constants/organization-logo";
 import {
   ClientTimeoutError,
   raceWithTimeout,

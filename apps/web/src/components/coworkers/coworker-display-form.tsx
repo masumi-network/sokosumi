@@ -1,5 +1,6 @@
 "use client";
 
+import { COWORKER_IMAGE_MAX_SIZE_BYTES } from "@sokosumi/utils";
 import { Bot, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -27,10 +28,7 @@ import {
   COWORKER_CAPTION_MAX_LENGTH,
   COWORKER_NAME_MIN_LENGTH,
 } from "@/lib/constants/coworker-display";
-import {
-  COWORKER_IMAGE_ACCEPT,
-  COWORKER_IMAGE_MAX_SIZE_BYTES,
-} from "@/lib/constants/coworker-image";
+import { COWORKER_IMAGE_ACCEPT } from "@/lib/constants/coworker-image";
 import type {
   CoworkerImageIntent,
   UpdateCoworkerDisplayResult,
