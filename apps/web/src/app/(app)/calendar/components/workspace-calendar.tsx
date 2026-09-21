@@ -87,6 +87,7 @@ import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useMountEffect } from "@/hooks/use-mount-effect";
+import { CalendarRealtimeBridge } from "@/lib/ably/calendar-realtime-bridge";
 import {
   clearTaskSchedule,
   mutateTaskOccurrence,
@@ -171,6 +172,7 @@ function findCalendarPeople(
 
 interface WorkspaceCalendarProps {
   activeOrganizationId?: string | null;
+  currentUserId?: string | null;
   initialDate: string;
   items: WorkspaceCalendarItem[];
   latestDate?: string;
@@ -185,6 +187,7 @@ interface WorkspaceCalendarProps {
   };
   coworkers?: CalendarCoworker[];
   lockedProjectId?: string;
+  workspaceId?: string | null;
 }
 
 const calendarParsers = {
@@ -1027,6 +1030,7 @@ interface OccurrenceTimeState {
 
 export function WorkspaceCalendar({
   activeOrganizationId = null,
+  currentUserId = null,
   initialDate,
   items,
   latestDate,
@@ -1035,6 +1039,7 @@ export function WorkspaceCalendar({
   range,
   coworkers = [],
   lockedProjectId,
+  workspaceId = null,
 }: WorkspaceCalendarProps) {
   const t = useTranslations("App.Calendar");
   const tFilters = useTranslations("App.Tasks.Filters");
@@ -1057,6 +1062,7 @@ export function WorkspaceCalendar({
   const [eventLoadError, setEventLoadError] = useState(false);
   const [calendarRenderEpoch, setCalendarRenderEpoch] = useState(0);
   const eventRequestId = useRef(0);
+  const calendarAccessGeneration = useRef(0);
   const hasActivatedRef = useRef(false);
 
   // Reset on a new server page during render, not in an effect, so a stale
@@ -1070,6 +1076,9 @@ export function WorkspaceCalendar({
     items !== prevItems ||
     (pagination?.nextCursor ?? null) !== prevServerNextCursor
   ) {
+    // A request from the previous snapshot must not append stale occurrences.
+    calendarAccessGeneration.current += 1;
+    eventRequestId.current += 1;
     setPrevItems(items);
     setPrevServerNextCursor(pagination?.nextCursor ?? null);
     setLoadedItems(items);
@@ -1313,6 +1322,7 @@ export function WorkspaceCalendar({
       return;
     }
 
+    const accessGeneration = calendarAccessGeneration.current;
     try {
       const query = {
         from: range.from,
@@ -1332,6 +1342,9 @@ export function WorkspaceCalendar({
       const result = lockedProjectId
         ? await coreClient.getProjectsByIdCalendar(lockedProjectId, query)
         : await coreClient.getWorkspaceCalendar(query);
+      if (accessGeneration !== calendarAccessGeneration.current) {
+        return;
+      }
       setLoadedItems((currentItems) => [
         ...currentItems,
         ...result.data.filter(
@@ -1340,8 +1353,32 @@ export function WorkspaceCalendar({
       ]);
       setNextCursor(result.meta?.pagination?.nextCursor ?? null);
     } catch {
-      setLoadMoreError(true);
+      if (accessGeneration === calendarAccessGeneration.current) {
+        setLoadMoreError(true);
+      }
     }
+  }
+
+  function handleCalendarAccessRevoked() {
+    calendarAccessGeneration.current += 1;
+    eventRequestId.current += 1;
+    setLoadedItems([]);
+    setNextCursor(null);
+    setLoadMoreError(false);
+    setEditState(null);
+    setTimeState(null);
+  }
+
+  function handleCalendarInvalidated() {
+    calendarAccessGeneration.current += 1;
+    eventRequestId.current += 1;
+  }
+
+  function handleCalendarResync() {
+    handleCalendarInvalidated();
+    setLoadMoreError(false);
+    setEditState(null);
+    setTimeState(null);
   }
 
   // A calendar cannot show "load more": a day holding three of its five
@@ -1468,6 +1505,15 @@ export function WorkspaceCalendar({
 
   return (
     <div className="flex w-full flex-col gap-5 pb-6">
+      {currentUserId && workspaceId ? (
+        <CalendarRealtimeBridge
+          currentUserId={currentUserId}
+          workspaceId={workspaceId}
+          onAccessRevoked={handleCalendarAccessRevoked}
+          onResync={handleCalendarResync}
+          onInvalidated={handleCalendarInvalidated}
+        />
+      ) : null}
       <div className="flex items-center gap-1">
         <Button
           aria-label={t("previous")}

@@ -131,8 +131,16 @@ describe("toNotificationCategory", () => {
       "Notifications.Task.approvalRequired",
       "Notifications.Task.authenticationRequired",
       "Notifications.Task.outOfCredits",
-      "Notifications.Task.scheduleRemovedByOperator",
     ]);
+  });
+
+  it("keeps operator schedule removal on the quiet update row", () => {
+    const messageKey = "Notifications.Task.scheduleRemovedByOperator";
+
+    expect(TASK_ATTENTION_MESSAGE_KEYS).not.toContain(messageKey);
+    expect(toNotificationCategory(NotificationKind.TASK, messageKey)).toBe(
+      "TASK_UPDATE",
+    );
   });
 
   it("puts every listed attention key on the loud row", () => {
@@ -160,6 +168,15 @@ describe("toNotificationCategory", () => {
         "notifications.vendorGrant.pending",
       ),
     ).toBe("SYSTEM");
+  });
+
+  it("maps project lifecycle notifications to project updates", () => {
+    expect(
+      toNotificationCategory(
+        NotificationKind.PROJECT,
+        "Notifications.Project.closed",
+      ),
+    ).toBe("PROJECT_UPDATE");
   });
 
   it("splits chat by message key, because the reader chooses between them", () => {
@@ -241,6 +258,7 @@ describe("toNotificationCategory", () => {
       // at all (SOK-930).
       JOB: null,
       TASK: "TASK_UPDATE",
+      PROJECT: "PROJECT_UPDATE",
       SYSTEM: "SYSTEM",
       CHAT: "CHAT_MENTION",
       BILLING: "BILLING_UPDATE",
@@ -294,7 +312,7 @@ describe("resolveNotificationDelivery", () => {
         ],
         pushOptIn: true,
       }),
-    ).toEqual({ inApp: false, osBanner: true, email: false });
+    ).toEqual({ inApp: false, osBanner: true, email: true });
   });
 
   it("stops interrupting when the reader turned that banner cell off", () => {
@@ -359,13 +377,13 @@ describe("resolveNotificationDelivery", () => {
   it("ignores a stored email cell on a category that does not mail", () => {
     expect(
       resolveNotificationDelivery({
-        category: "TASK_UPDATE",
+        category: "CHAT_ROOM_MESSAGE",
         preferences: [
-          { category: "TASK_UPDATE", channel: "EMAIL", enabled: true },
+          { category: "CHAT_ROOM_MESSAGE", channel: "EMAIL", enabled: true },
         ],
         pushOptIn: true,
       }),
-    ).toEqual({ inApp: true, osBanner: false, email: false });
+    ).toEqual({ inApp: false, osBanner: false, email: false });
   });
 });
 
@@ -496,13 +514,13 @@ describe("resolveNotificationDelivery for billing", () => {
 
 describe("resolveNotificationDelivery email gate", () => {
   it("sends no email for a category that has no email to send", () => {
-    // Even with the row switched on. Nothing emails a task update, so a
+    // Even with the row switched on. Nothing emails every room message, so a
     // stored row saying otherwise decides nothing.
     expect(
       resolveNotificationDelivery({
-        category: "TASK_UPDATE",
+        category: "CHAT_ROOM_MESSAGE",
         preferences: [
-          { category: "TASK_UPDATE", channel: "EMAIL", enabled: true },
+          { category: "CHAT_ROOM_MESSAGE", channel: "EMAIL", enabled: true },
         ],
         pushOptIn: false,
       }).email,
@@ -538,6 +556,8 @@ describe("resolveNotificationMatrix email column", () => {
     ).toEqual({
       TASK_ATTENTION: true,
       TASK_COMPLETED: true,
+      TASK_UPDATE: true,
+      PROJECT_UPDATE: true,
       CHAT_MENTION: false,
       CHAT_DIRECT_MESSAGE: false,
       BILLING_ATTENTION: true,
@@ -681,4 +701,26 @@ describe("resolveNotificationMatrix", () => {
         .every((cell) => cell.enabled),
     ).toBe(true);
   });
+});
+
+describe("calendar email preferences", () => {
+  it.each(["TASK_UPDATE", "PROJECT_UPDATE"] as const)(
+    "honors %s email opt-out independently of push",
+    (category) => {
+      expect(
+        resolveNotificationDelivery({
+          category,
+          preferences: [],
+          pushOptIn: false,
+        }).email,
+      ).toBe(true);
+      expect(
+        resolveNotificationDelivery({
+          category,
+          preferences: [{ category, channel: "EMAIL", enabled: false }],
+          pushOptIn: true,
+        }).email,
+      ).toBe(false);
+    },
+  );
 });

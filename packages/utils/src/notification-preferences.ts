@@ -6,6 +6,7 @@ export const NOTIFICATION_CATEGORIES = [
   "TASK_ATTENTION",
   "TASK_COMPLETED",
   "TASK_UPDATE",
+  "PROJECT_UPDATE",
   "CHAT_ROOM_MESSAGE",
   "CHAT_MENTION",
   "CHAT_DIRECT_MESSAGE",
@@ -39,7 +40,7 @@ export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
  * (`NOTIFICATION_EMAIL_OFF_BY_DEFAULT` below).
  *
  * Deliberately absent: every message in a room, which would mail a busy room
- * per message, and the other task updates, which ask nothing of the reader.
+ * per message. Task and project updates use their own email preferences.
  *
  * This list is what keeps the email column honest. A category absent from it
  * is never drawn with an email switch and never defaults to on, so no reader
@@ -53,6 +54,8 @@ export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
 export const NOTIFICATION_EMAIL_CATEGORIES: readonly NotificationCategory[] = [
   "TASK_ATTENTION",
   "TASK_COMPLETED",
+  "TASK_UPDATE",
+  "PROJECT_UPDATE",
   "CHAT_MENTION",
   "CHAT_DIRECT_MESSAGE",
   "BILLING_ATTENTION",

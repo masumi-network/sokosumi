@@ -12,6 +12,7 @@ import { sendEmail } from "@/clients/email.client";
 import { stripeClient } from "@/clients/stripe.client";
 import { LIMITS, TIME } from "@/config/constants";
 import { getWebAppBaseUrl } from "@/config/env";
+import { deliverOrganizationCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { upgradeGuestChatRoomMembershipsToMember } from "@/helpers/chat-room-guest-upgrade";
 import {
   listOrganizationExitChatRoomIdsForAbly,
@@ -180,14 +181,17 @@ export function createAuthOrganizationPlugin() {
           member as { organizationExitChatRoomIds?: string[] }
         ).organizationExitChatRoomIds = roomIds;
       },
-      afterRemoveMember: async ({ user, member }) => {
+      afterRemoveMember: async ({ organization, user, member }) => {
         const roomIds =
           (member as { organizationExitChatRoomIds?: string[] })
             .organizationExitChatRoomIds ?? [];
-        await publishOrganizationExitChatRevocation(user.id, {
-          revokedRoomIds: roomIds,
-          statusMessages: [],
-        });
+        await Promise.all([
+          publishOrganizationExitChatRevocation(user.id, {
+            revokedRoomIds: roomIds,
+            statusMessages: [],
+          }),
+          deliverOrganizationCalendarInvalidationsNow(organization.id, user.id),
+        ]);
       },
       beforeDeleteOrganization: async ({ organization, user }) => {
         const evaluation = await evaluateOrganizationDeletion(

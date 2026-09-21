@@ -21,6 +21,7 @@ const {
   lockCalendarScopeMock,
   lockTaskRowsMock,
   memberFindFirstMock,
+  notifyTaskCalendarActionMock,
   prismaMock,
   quarantineFindUniqueMock,
   requireAssignedOrganizationSeatMock,
@@ -38,6 +39,7 @@ const {
     lockCalendarScopeMock: vi.fn(),
     lockTaskRowsMock: vi.fn(),
     memberFindFirstMock,
+    notifyTaskCalendarActionMock: vi.fn(),
     prismaMock: { member: { findFirst: memberFindFirstMock } },
     quarantineFindUniqueMock: vi.fn(),
     requireAssignedOrganizationSeatMock: vi.fn(),
@@ -61,6 +63,9 @@ vi.mock("@/helpers/calendar-locks", () => ({
 }));
 vi.mock("@/helpers/organization-assigned-seat", () => ({
   requireAssignedOrganizationSeat: requireAssignedOrganizationSeatMock,
+}));
+vi.mock("@/helpers/task-notifications", () => ({
+  notifyTaskCalendarAction: notifyTaskCalendarActionMock,
 }));
 vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
   TaskScheduleOccurrenceLimitError: class TaskScheduleOccurrenceLimitError extends Error {},
@@ -131,6 +136,8 @@ function mockCurrentTask(
 ) {
   requireTaskScheduleWriteAccessMock.mockResolvedValue({
     id: TASK_ID,
+    ownerId: "user_123",
+    name: "Scheduled task",
     status: TaskStatus.QUEUED,
     assigneeId: "coworker-1",
     assigneeSokoBotId: null,
@@ -453,6 +460,8 @@ describe("PUT /tasks/{id}/calendar-schedule", () => {
     taskEventCreateMock.mockClear();
     retireTaskScheduleFutureOccurrencesMock.mockClear();
     taskEventFindUniqueMock.mockResolvedValue({
+      id: "evt_1",
+      userId: "original_actor",
       schedulePayload: storedPayload,
     });
     // The successful attempt already advanced the revision past the one the
@@ -469,13 +478,19 @@ describe("PUT /tasks/{id}/calendar-schedule", () => {
           scheduleOperationId: OPERATION_ID,
         },
       },
-      select: { schedulePayload: true },
+      select: { id: true, schedulePayload: true, userId: true },
     });
     expect(taskUpdateMock).not.toHaveBeenCalled();
     expect(taskEventCreateMock).not.toHaveBeenCalled();
     expect(retireTaskScheduleFutureOccurrencesMock).not.toHaveBeenCalled();
     expect(taskFindUniqueOrThrowMock).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: TASK_ID } }),
+    );
+    expect(notifyTaskCalendarActionMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        actorUserId: "original_actor",
+        eventId: "evt_1",
+      }),
     );
   });
 
@@ -486,6 +501,7 @@ describe("PUT /tasks/{id}/calendar-schedule", () => {
     });
     mockCurrentTask(createV2Metadata(), { scheduleRevision: 5 });
     taskEventFindUniqueMock.mockResolvedValue({
+      id: "evt_1",
       schedulePayload: {
         requestFingerprint: createTaskScheduleRequestFingerprint({
           action: "update_schedule",
@@ -506,6 +522,7 @@ describe("PUT /tasks/{id}/calendar-schedule", () => {
   it("rejects reusing one operation identity for a different schedule", async () => {
     mockCurrentTask(createV2Metadata());
     taskEventFindUniqueMock.mockResolvedValue({
+      id: "evt_other",
       schedulePayload: {
         action: "update_schedule",
         requestFingerprint: "0".repeat(64),

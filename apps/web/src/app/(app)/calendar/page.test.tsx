@@ -88,7 +88,13 @@ describe("CalendarPage", () => {
         total: 0,
       },
     });
-    getWorkspaceCalendarSourcesMock.mockResolvedValue([]);
+    getWorkspaceCalendarSourcesMock.mockResolvedValue([
+      {
+        sourceId: "workspace:workspace-1",
+        sourceType: "WORKSPACE",
+        isSchedulable: true,
+      },
+    ]);
     listCoworkersMock.mockResolvedValue([]);
     listTaskAssigneeMemberOptionsMock.mockResolvedValue([]);
     getProjectFilterOptionsMock.mockResolvedValue([]);
@@ -113,8 +119,36 @@ describe("CalendarPage", () => {
     expect(getProjectFilterOptionsMock).toHaveBeenCalledOnce();
   });
 
+  it("passes the exact active workspace and user identities to Calendar realtime", async () => {
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: "org-1" },
+      user: { id: "user-1" },
+    });
+    getWorkspaceCalendarSourcesMock.mockResolvedValue([
+      {
+        sourceId: "workspace:workspace-1",
+        sourceType: "WORKSPACE",
+        isSchedulable: true,
+      },
+    ]);
+
+    render(await CalendarPage({ searchParams: Promise.resolve({}) }));
+
+    expect(workspaceCalendarMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        currentUserId: "user-1",
+        workspaceId: "workspace-1",
+      }),
+    );
+  });
+
   it("offers only schedulable Projects in the shared task modal", async () => {
     getWorkspaceCalendarSourcesMock.mockResolvedValue([
+      {
+        sourceId: "workspace:workspace-1",
+        sourceType: "WORKSPACE",
+        isSchedulable: true,
+      },
       {
         sourceId: "project:project-1",
         sourceType: "PROJECT",
@@ -160,7 +194,16 @@ describe("CalendarPage", () => {
     );
   });
 
-  it("still renders Calendar items when Calendar sources fail to load", async () => {
+  it("does not render without a workspace source", async () => {
+    getWorkspaceCalendarSourcesMock.mockResolvedValue([]);
+
+    await expect(
+      CalendarPage({ searchParams: Promise.resolve({}) }),
+    ).rejects.toThrow("Calendar workspace source unavailable");
+    expect(workspaceCalendarMock).not.toHaveBeenCalled();
+  });
+
+  it("does not render without the authoritative active workspace source", async () => {
     getWorkspaceCalendarMock.mockResolvedValue({
       items: [{ id: "occurrence-1" }],
       pagination: null,
@@ -169,14 +212,10 @@ describe("CalendarPage", () => {
       new Error("Calendar sources unavailable"),
     );
 
-    render(await CalendarPage({ searchParams: Promise.resolve({}) }));
-
-    expect(workspaceCalendarMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        items: [{ id: "occurrence-1" }],
-        sources: [],
-      }),
-    );
+    await expect(
+      CalendarPage({ searchParams: Promise.resolve({}) }),
+    ).rejects.toThrow("Calendar sources unavailable");
+    expect(workspaceCalendarMock).not.toHaveBeenCalled();
   });
 
   it("passes the selected non-Project source filter to the initial Calendar read", async () => {
