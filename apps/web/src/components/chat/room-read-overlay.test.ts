@@ -11,12 +11,23 @@ import {
   settleRoomAttentionChange,
 } from "./room-read-overlay";
 
+function unreadThread(parentMessageId: string) {
+  return {
+    parentMessageId,
+    firstUnreadReplyId: `${parentMessageId}-reply`,
+    parentContent: parentMessageId,
+    unreadReplyCount: 1,
+  };
+}
+
 function room(overrides: {
   id?: string;
   updatedAt?: string;
   unreadCount?: number;
   channelUnreadCount?: number;
   threadUnreadCount?: number;
+  unreadThreadCount?: number;
+  unreadThreads?: ReturnType<typeof unreadThread>[];
   unreadMentionCount?: number;
   markedUnread?: boolean;
 }) {
@@ -26,6 +37,8 @@ function room(overrides: {
     unreadCount: overrides.unreadCount ?? 0,
     channelUnreadCount: overrides.channelUnreadCount,
     threadUnreadCount: overrides.threadUnreadCount,
+    unreadThreadCount: overrides.unreadThreadCount,
+    unreadThreads: overrides.unreadThreads,
     unreadMentionCount: overrides.unreadMentionCount ?? 0,
     markedUnread: overrides.markedUnread ?? false,
   };
@@ -98,6 +111,31 @@ describe("stalled attention changes", () => {
 });
 
 describe("room-read-overlay", () => {
+  // The inset rows under a room have to follow a Look the same way its counts
+  // do, or a remount would bring back a row the reader has just cleared.
+  it("keeps a looked-at thread off the list on remount", () => {
+    rememberRoomRead(
+      room({
+        threadUnreadCount: 1,
+        unreadThreadCount: 1,
+        unreadThreads: [unreadThread("p2")],
+      }),
+    );
+
+    const remounted = applyRoomReadOverlays([
+      room({
+        threadUnreadCount: 3,
+        unreadThreadCount: 2,
+        unreadThreads: [unreadThread("p1"), unreadThread("p2")],
+      }),
+    ]);
+
+    expect(remounted[0]).toMatchObject({
+      unreadThreadCount: 1,
+      unreadThreads: [unreadThread("p2")],
+    });
+  });
+
   // ADR-0037: bold follows the channel half. A remount that kept the stale
   // half would re-bold a room the reader has just read.
   it("clears the channel half on remount and keeps the thread half", () => {

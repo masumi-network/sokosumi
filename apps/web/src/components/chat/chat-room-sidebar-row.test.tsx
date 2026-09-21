@@ -622,6 +622,97 @@ describe("ChatRoomSidebarRow collapsed rail", () => {
 });
 
 // The rail selection bar: the row's job is when it shows, not how it looks.
+describe("ChatRoomSidebarRow unread threads", () => {
+  const unreadThread = {
+    parentMessageId: "550e8400-e29b-41d4-a716-446655440b01",
+    firstUnreadReplyId: "550e8400-e29b-41d4-a716-446655440c01",
+    parentContent: "Vendor-wide rollout",
+    unreadReplyCount: 2,
+  };
+
+  function renderRoom(room: Partial<ChatRoom>) {
+    render(
+      <ChatRoomSidebarRow
+        room={makeRoom(room)}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+  }
+
+  it("lists a room's unread threads under its row", () => {
+    renderRoom({
+      threadUnreadCount: 2,
+      unreadThreadCount: 1,
+      unreadThreads: [unreadThread],
+    });
+
+    expect(
+      document.querySelector('[data-slot="room-thread-rows"]'),
+    ).not.toBeNull();
+    expect(screen.getByText("Vendor-wide rollout")).toBeInTheDocument();
+  });
+
+  // The trailing cluster is centred on its positioned ancestor. Were that the
+  // whole item, the badge and the menu would land on the inset rows.
+  it("keeps the row's trailing cluster off the inset thread rows", () => {
+    renderRoom({
+      threadUnreadCount: 2,
+      unreadThreadCount: 1,
+      unreadThreads: [unreadThread],
+    });
+
+    const main = document.querySelector('[data-slot="room-row-main"]');
+    expect(
+      main?.contains(document.querySelector('[data-slot="room-trailing"]')),
+    ).toBe(true);
+    expect(
+      main?.contains(document.querySelector('[data-slot="room-thread-rows"]')),
+    ).toBe(false);
+  });
+
+  it("lists nothing while the rows are being reordered", () => {
+    render(
+      <ChatRoomSidebarRow
+        room={makeRoom({
+          threadUnreadCount: 2,
+          unreadThreadCount: 1,
+          unreadThreads: [unreadThread],
+        })}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+        reorderHandle={<button type="button">Move</button>}
+      />,
+    );
+
+    expect(document.querySelector('[data-slot="room-thread-rows"]')).toBeNull();
+  });
+
+  it("lists nothing under a room with no unread thread", () => {
+    renderRoom({ unreadCount: 2, channelUnreadCount: 2 });
+
+    expect(document.querySelector('[data-slot="room-thread-rows"]')).toBeNull();
+  });
+
+  // Room mute outranks everything else a room can hold.
+  it("lists nothing under a muted room", () => {
+    renderRoom({
+      mutedAt: new Date("2026-08-01T00:00:00.000Z"),
+      threadUnreadCount: 2,
+      unreadThreadCount: 1,
+      unreadThreads: [unreadThread],
+    });
+
+    expect(document.querySelector('[data-slot="room-thread-rows"]')).toBeNull();
+  });
+});
+
 describe("ChatRoomSidebarRow rail selection bar", () => {
   function renderRow(
     room: Partial<ChatRoom>,
