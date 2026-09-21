@@ -26,7 +26,7 @@
 
 ## §I INTERFACES
 
-- cmd: `sokosumi` (no args) → Ink: auth method → OAuth target or API-key target detection → signed-in Register a Coworker, Vendors, Workspaces, Manage Coworker, Sign out
+- cmd: `sokosumi` (no args) → Ink: auth method → OAuth target or API-key target detection → signed-in Register a Coworker, Vendors, Workspaces, Sign out
 - cmd: `auth login` → browser OAuth or env/stdin user API key
 - cmd: `auth status` → text/JSON auth state
 - cmd: `auth logout` → clear target-scoped local credentials; server key revocation separate

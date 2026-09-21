@@ -81,11 +81,10 @@ type AuthScreen =
   | "register"
   | "vendors"
   | "workspaces"
-  | "manage"
   | "success"
   | "error";
 
-type HomeAction = "register" | "vendors" | "workspaces" | "manage" | "sign-out";
+type HomeAction = "register" | "vendors" | "workspaces" | "sign-out";
 
 function adaptSelectHandler<T>(
   handler: (value: T) => void,
@@ -869,7 +868,6 @@ function StatusApp({
       if (route === "signed-in") {
         if (
           screen === "register" ||
-          screen === "manage" ||
           screen === "vendors" ||
           screen === "workspaces"
         ) {
@@ -913,7 +911,6 @@ function StatusApp({
       label: "Workspaces",
       hint: "organization workspaces",
     },
-    { value: "manage", label: "Manage Coworker" },
     { value: "sign-out", label: "Sign out" },
   ];
 
@@ -1242,24 +1239,6 @@ function StatusApp({
       }),
       messageLine(message, phase),
     );
-  } else if (screen === "manage") {
-    signedInContent = React.createElement(
-      Box,
-      { flexDirection: "column", width: "100%" },
-      React.createElement(Text, { bold: true }, "Manage Coworker"),
-      React.createElement(
-        Text,
-        { dimColor: true },
-        "Observability lives in Web and headless commands. Use the CLI for rename, API-key rotation, and inspection:",
-      ),
-      React.createElement(Text, null, "sokosumi coworkers list"),
-      React.createElement(
-        Text,
-        null,
-        "sokosumi coworkers update --id <id> --name <name>",
-      ),
-      React.createElement(Text, null, "sokosumi coworkers api-key --id <id>"),
-    );
   } else {
     signedInContent = centeredScreen(
       React.createElement(Text, { color: TUI_THEME.accent }, LOGO),
@@ -1267,7 +1246,18 @@ function StatusApp({
       React.createElement(
         Text,
         { dimColor: true },
-        "Sign in is done. Review Vendors and Workspaces, then register or manage Coworkers.",
+        "Sign in is done. Review Vendors and Workspaces, then register a Coworker.",
+      ),
+      React.createElement(Text, { dimColor: true }, "sokosumi coworkers list"),
+      React.createElement(
+        Text,
+        { dimColor: true },
+        "sokosumi coworkers update --id <id> --name <name>",
+      ),
+      React.createElement(
+        Text,
+        { dimColor: true },
+        "sokosumi coworkers api-key --id <id>",
       ),
       React.createElement(SelectInput, {
         items: homeItems,
@@ -1283,10 +1273,7 @@ function StatusApp({
     target: targetLabel,
     authMethod: authState.authMethod,
     showBackHint:
-      screen === "register" ||
-      screen === "manage" ||
-      screen === "vendors" ||
-      screen === "workspaces",
+      screen === "register" || screen === "vendors" || screen === "workspaces",
     children: signedInContent,
   });
 }
