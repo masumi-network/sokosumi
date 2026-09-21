@@ -1,9 +1,46 @@
 import type { OrganizationWorkspace } from "../api/models/organization-workspace.js";
 import type { Vendor } from "../api/models/vendor.js";
 
+/** Web path to review Vendor memberships the developer administers. */
+export const WEB_DEVELOPER_VENDORS_ROUTE = "/developer/vendors";
+
 /** Vendors the developer may register a Coworker under (V67, V79). */
 export function administeredVendors(vendors: readonly Vendor[]): Vendor[] {
   return vendors.filter((vendor) => vendor.role === "admin");
+}
+
+function trimWebBase(webUrl: string | undefined): string {
+  return String(webUrl ?? "")
+    .trim()
+    .replace(/\/+$/g, "");
+}
+
+/**
+ * How to get an organization workspace before registration.
+ * Optional `webUrl` should already be sanitized (no credentials).
+ */
+export function describeRegistrationWorkspaceRequirement(
+  webUrl?: string,
+): string {
+  const base = trimWebBase(webUrl);
+  const webStep = base
+    ? `In the Sokosumi web app (${base}), use the workspace switcher to create or join an organization.`
+    : "In the Sokosumi web app, use the workspace switcher to create or join an organization.";
+  return `Registration requires an organization workspace. ${webStep} Then open Workspaces here or run \`sokosumi workspaces list\`.`;
+}
+
+/**
+ * How to become a Vendor admin before registration.
+ * CLI cannot create Vendors; Core create is platform-admin only.
+ */
+export function describeRegistrationAdminVendorRequirement(
+  webUrl?: string,
+): string {
+  const base = trimWebBase(webUrl);
+  const review = base
+    ? `Review memberships at ${base}${WEB_DEVELOPER_VENDORS_ROUTE} or under Vendors here.`
+    : "Review memberships under Vendors here, or in the Sokosumi web app under Developer → Vendors.";
+  return `Registration requires Vendor role admin. Ask an existing Vendor admin to promote you, or ask a platform admin to create a Vendor and make you admin. ${review}`;
 }
 
 /**
@@ -12,11 +49,10 @@ export function administeredVendors(vendors: readonly Vendor[]): Vendor[] {
  */
 export function requireOrganizationWorkspacesForRegistration(
   workspaces: readonly OrganizationWorkspace[],
+  webUrl?: string,
 ): void {
   if (workspaces.length === 0) {
-    throw new Error(
-      "Registration requires an organization workspace. Create or join an organization first, then run `sokosumi workspaces list`.",
-    );
+    throw new Error(describeRegistrationWorkspaceRequirement(webUrl));
   }
 }
 
@@ -27,17 +63,18 @@ export function requireOrganizationWorkspacesForRegistration(
 export function requireAdministeredVendorForRegistration(
   vendors: readonly Vendor[],
   vendorId: string,
+  webUrl?: string,
 ): Vendor {
   const trimmed = vendorId.trim();
   const vendor = vendors.find((candidate) => candidate.id === trimmed);
   if (!vendor) {
     throw new Error(
-      `Vendor ${trimmed} is not in your memberships. Run \`sokosumi vendors me\` and choose a Vendor you administer.`,
+      `Vendor ${trimmed} is not in your memberships. ${describeRegistrationAdminVendorRequirement(webUrl)}`,
     );
   }
   if (vendor.role !== "admin") {
     throw new Error(
-      `Vendor ${trimmed} role is ${vendor.role ?? "unknown"}; registration requires admin.`,
+      `Vendor ${trimmed} role is ${vendor.role ?? "unknown"}; registration requires admin. ${describeRegistrationAdminVendorRequirement(webUrl)}`,
     );
   }
   return vendor;
@@ -59,6 +96,6 @@ export function assertVendorCreationRequest(options: {
     );
   }
   throw new Error(
-    "Core has no developer self-service Vendor create path. Administer an existing Vendor or ask a platform admin.",
+    "Core has no developer self-service Vendor create path. Ask a platform admin to create a Vendor and assign you as admin, or ask an existing Vendor admin to promote you.",
   );
 }

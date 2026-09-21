@@ -6,6 +6,8 @@ import type { Vendor } from "../../src/api/models/vendor.js";
 import {
   administeredVendors,
   assertVendorCreationRequest,
+  describeRegistrationAdminVendorRequirement,
+  describeRegistrationWorkspaceRequirement,
   requireAdministeredVendorForRegistration,
   requireOrganizationWorkspacesForRegistration,
 } from "../../src/cli/registration-authority.js";
@@ -84,5 +86,28 @@ test("TestV67 Vendor creation needs confirm then refuses without Core path", () 
   assert.throws(
     () => assertVendorCreationRequest({ requested: true, confirmed: true }),
     /no developer self-service Vendor create/,
+  );
+});
+
+test("TestV67 registration gate copy tells how to get workspace and Vendor admin", () => {
+  assert.match(
+    describeRegistrationWorkspaceRequirement("https://app.example.test"),
+    /workspace switcher/,
+  );
+  assert.match(
+    describeRegistrationWorkspaceRequirement("https://app.example.test"),
+    /https:\/\/app\.example\.test/,
+  );
+  assert.match(
+    describeRegistrationAdminVendorRequirement("https://app.example.test"),
+    /promote you/,
+  );
+  assert.match(
+    describeRegistrationAdminVendorRequirement("https://app.example.test"),
+    /https:\/\/app\.example\.test\/developer\/vendors/,
+  );
+  assert.match(
+    describeRegistrationAdminVendorRequirement(),
+    /Developer → Vendors/,
   );
 });

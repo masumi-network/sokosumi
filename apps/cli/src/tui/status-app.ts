@@ -43,7 +43,11 @@ import {
 } from "../auth/oauth.js";
 import { type AuthLoginOptions, runAuthLogin } from "../cli/auth-login.js";
 import { CLI_VERSION } from "../cli/metadata.js";
-import { administeredVendors } from "../cli/registration-authority.js";
+import {
+  administeredVendors,
+  describeRegistrationAdminVendorRequirement,
+  describeRegistrationWorkspaceRequirement,
+} from "../cli/registration-authority.js";
 import {
   COWORKER_FRAMEWORK_PRESETS,
   describeRegisterNextStep,
@@ -1156,12 +1160,14 @@ function StatusApp({
     const missingWorkspace = !resourceLoading && workspaces.length === 0;
     const missingAdminVendor = !resourceLoading && adminVendors.length === 0;
     const registrationBlocked = missingWorkspace || missingAdminVendor;
+    const rawWebUrl = String(env.SOKOSUMI_WEB_URL || "").trim();
+    const webBase = rawWebUrl ? sanitizeApiUrl(rawWebUrl) : "";
     const gateHint = resourceLoading
       ? "Checking workspace and Vendor admin authority…"
       : missingWorkspace
-        ? "Registration requires an organization workspace. Open Workspaces or create/join an organization first."
+        ? describeRegistrationWorkspaceRequirement(webBase || undefined)
         : missingAdminVendor
-          ? "Registration requires a Vendor you administer. Open Vendors to review memberships."
+          ? describeRegistrationAdminVendorRequirement(webBase || undefined)
           : "Choose a preset runtime. Connect it under an administered Vendor in a later step.";
     signedInContent = React.createElement(
       Box,
