@@ -92,4 +92,31 @@ describe("ProjectPinButton", () => {
 
     expect(screen.getByRole("button", { name: "Unpin project" })).toBeDefined();
   });
+
+  it("marks a Pinned project apart by more than one step of grey", () => {
+    // On the preview the two states were near-identical at 16px: a filled
+    // lucide Pin barely differs from an outlined one, and muted-to-foreground
+    // is a small step. Hue, fill and ground now move together.
+    const { unmount } = render(
+      <ProjectPinButton projectId="p1" isPinned labels={labels} />,
+    );
+    const pinnedClasses =
+      screen.getByRole("button").className.split(/\s+/) ?? [];
+    expect(pinnedClasses).toContain("text-primary");
+    expect(pinnedClasses).toContain("bg-primary/10");
+    expect(
+      screen.getByRole("button").querySelector("svg")?.getAttribute("class"),
+    ).toContain("fill-current");
+    unmount();
+
+    render(
+      <ProjectPinButton projectId="p1" isPinned={false} labels={labels} />,
+    );
+    const unpinnedClasses = screen.getByRole("button").className.split(/\s+/);
+    expect(unpinnedClasses).not.toContain("text-primary");
+    expect(unpinnedClasses).not.toContain("bg-primary/10");
+    expect(
+      screen.getByRole("button").querySelector("svg")?.getAttribute("class"),
+    ).not.toContain("fill-current");
+  });
 });

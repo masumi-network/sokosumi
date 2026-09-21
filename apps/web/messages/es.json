@@ -2416,6 +2416,8 @@
           "taskManager": "Tareas",
           "projects": "Proyectos",
           "allProjects": "Todos los proyectos",
+          "projectsPanel": "Tus proyectos",
+          "pinnedProjects": "Fijados",
           "recentProjects": "Proyectos recientes",
           "history": "Historial",
           "drive": "Archivos",

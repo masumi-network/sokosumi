@@ -282,15 +282,13 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
             onPointerEnter={clearPending}
             onPointerLeave={closeForPointer}
           >
-            {/* Not the row's own label repeated back: on the rail this is the
-                only thing naming the panel, and at full width it is what says
-                why a project can be missing from five rows — which is what the
-                `All projects` footer below answers. */}
-            <p
-              id={headingId}
-              className="text-muted-foreground px-2 py-1.5 text-xs font-medium"
-            >
-              {t("recentProjects")}
+            {/* Names the panel itself, for a reader on the rail where
+                nothing else does. Its own name, not the row's echoed back,
+                and not one of the group names either: calling the whole panel
+                "Recent projects" would mislabel the Pinned rows inside it,
+                which is exactly what a lone divider let happen on screen. */}
+            <p id={headingId} className="sr-only">
+              {t("projectsPanel")}
             </p>
             {isPending ? (
               <ProjectLinksSkeleton label={t("projectsLoading")} />
@@ -312,6 +310,10 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
               <ProjectLinks
                 rows={rows}
                 pinnedCount={pinnedCount}
+                labels={{
+                  pinned: t("pinnedProjects"),
+                  recent: t("recentProjects"),
+                }}
                 onNavigate={handleNavigate}
               />
             )}
@@ -367,59 +369,92 @@ function ProjectLinksSkeleton({ label }: { label: string }) {
 function ProjectLinks({
   rows,
   pinnedCount,
+  labels,
   onNavigate,
 }: {
   rows: SidebarProject[];
   pinnedCount: number;
+  labels: { pinned: string; recent: string };
   onNavigate: () => void;
 }) {
   const pathname = usePathname();
+  const pinned = rows.slice(0, pinnedCount);
+  const recent = rows.slice(pinnedCount);
+
+  function group(
+    projects: SidebarProject[],
+    label: string | null,
+    headingId: string,
+  ) {
+    if (projects.length === 0) return null;
+
+    return (
+      <>
+        {label ? (
+          <p
+            id={headingId}
+            className="text-muted-foreground px-2 py-1.5 text-xs font-medium"
+          >
+            {label}
+          </p>
+        ) : null}
+        <SidebarMenuSub
+          aria-labelledby={label ? headingId : undefined}
+          className="mx-0 translate-x-0 gap-0 border-l-0 p-0"
+        >
+          {projects.map((project) => {
+            const href = `/projects/${encodeURIComponent(project.id)}`;
+            const selected =
+              pathname === href || pathname.startsWith(`${href}/`);
+            return (
+              <SidebarMenuSubItem key={project.id}>
+                <SidebarMenuSubButton
+                  asChild
+                  isActive={selected}
+                  className={cn(
+                    "min-h-9 h-auto translate-x-0 px-2 py-2",
+                    selected
+                      ? "text-sidebar-accent-foreground"
+                      : "text-tertiary-foreground dark:text-muted-foreground hover:text-sidebar-accent-foreground dark:hover:text-sidebar-accent-foreground",
+                  )}
+                >
+                  <Link
+                    href={href}
+                    prefetch={false}
+                    onClick={onNavigate}
+                    aria-current={selected ? "page" : undefined}
+                    title={project.name}
+                  >
+                    <span aria-hidden className="shrink-0">
+                      <ProjectAvatar
+                        name={project.name}
+                        logo={project.logo}
+                        className="size-5"
+                      />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">
+                      {project.name}
+                    </span>
+                  </Link>
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+            );
+          })}
+        </SidebarMenuSub>
+      </>
+    );
+  }
+
+  // With no Pins there is nothing to tell apart, so the single list carries
+  // the plain heading on its own.
+  if (pinnedCount === 0) {
+    return group(recent, labels.recent, "sidebar-projects-recent");
+  }
 
   return (
-    <SidebarMenuSub className="mx-0 translate-x-0 gap-0 border-l-0 p-0">
-      {rows.map((project, index) => {
-        const href = `/projects/${encodeURIComponent(project.id)}`;
-        const selected = pathname === href || pathname.startsWith(`${href}/`);
-        // A hairline rather than two headings: with five rows in total,
-        // headings cost more height than the grouping is worth, and a panel
-        // whose sections appear and vanish reads as less stable, not more.
-        const endsPinnedRun =
-          pinnedCount > 0 && index === pinnedCount && rows.length > pinnedCount;
-        return (
-          <SidebarMenuSubItem key={project.id}>
-            {endsPinnedRun ? (
-              <div aria-hidden className="bg-border mx-2 my-1 h-px" />
-            ) : null}
-            <SidebarMenuSubButton
-              asChild
-              isActive={selected}
-              className={cn(
-                "min-h-9 h-auto translate-x-0 px-2 py-2",
-                selected
-                  ? "text-sidebar-accent-foreground"
-                  : "text-tertiary-foreground dark:text-muted-foreground hover:text-sidebar-accent-foreground dark:hover:text-sidebar-accent-foreground",
-              )}
-            >
-              <Link
-                href={href}
-                prefetch={false}
-                onClick={onNavigate}
-                aria-current={selected ? "page" : undefined}
-                title={project.name}
-              >
-                <span aria-hidden className="shrink-0">
-                  <ProjectAvatar
-                    name={project.name}
-                    logo={project.logo}
-                    className="size-5"
-                  />
-                </span>
-                <span className="min-w-0 flex-1 truncate">{project.name}</span>
-              </Link>
-            </SidebarMenuSubButton>
-          </SidebarMenuSubItem>
-        );
-      })}
-    </SidebarMenuSub>
+    <>
+      {group(pinned, labels.pinned, "sidebar-projects-pinned")}
+      {group(recent, labels.recent, "sidebar-projects-recent")}
+    </>
   );
 }

@@ -86,9 +86,15 @@ export function ProjectPinButton({
       className={cn(
         // The row around this is a link, so the button sits beside it rather
         // than inside it — nesting would swallow the click and is invalid.
-        "text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex size-8 shrink-0 items-center justify-center rounded-md transition-colors outline-hidden focus-visible:ring-2",
+        "focus-visible:ring-ring inline-flex size-8 shrink-0 items-center justify-center rounded-full transition-colors outline-hidden focus-visible:ring-2",
         "disabled:pointer-events-none disabled:opacity-50",
-        optimisticPinned && "text-foreground",
+        // Pinned carries three signals at once — hue, fill and a tinted
+        // ground — because at 16px a filled pin is barely distinguishable
+        // from an outlined one, and one step of grey did not read at all.
+        // The tinted circle follows the treatment used for notification rows.
+        optimisticPinned
+          ? "text-primary bg-primary/10 hover:bg-primary/20"
+          : "text-muted-foreground/60 hover:text-foreground",
         className,
       )}
     >

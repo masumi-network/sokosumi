@@ -479,9 +479,9 @@ describe("Projects sidebar", () => {
     openFlyout();
     const row = await screen.findByRole("link", { name: "Launch plan" });
     const panel = row.closest('[data-slot="popover-content"]');
-    // The heading says what the rows are, so it is not the row label echoed
-    // back — and it is what a screen reader announces for the panel.
-    const heading = screen.getByText("recentProjects");
+    // Its own name, not the row label echoed back, and not a group name
+    // either — the panel holds Pinned rows as well as recent ones.
+    const heading = screen.getByText("projectsPanel");
     expect(panel).toHaveAttribute("aria-labelledby", heading.id);
     expect(heading.id).not.toBe("");
   });
@@ -580,7 +580,7 @@ describe("ProjectsMenuItem pinned rows", () => {
     });
   });
 
-  it("draws Pins before recents and divides the two", async () => {
+  it("draws Pins before recents under headings that name each group", async () => {
     mocks.load.mockResolvedValue({
       projects: [
         { id: "recent-1", name: "Recent one" },
@@ -602,13 +602,13 @@ describe("ProjectsMenuItem pinned rows", () => {
         "/projects/recent-2",
       ]);
     });
-    // The panel is portalled, so this counts in the document, not `container`.
-    expect(
-      document.querySelectorAll('[aria-hidden="true"].bg-border'),
-    ).toHaveLength(1);
+    // A lone divider let the panel label a Pinned row "Recent projects", so
+    // each group names itself.
+    expect(screen.getByText("pinnedProjects")).toBeDefined();
+    expect(screen.getByText("recentProjects")).toBeDefined();
   });
 
-  it("draws no divider when the reader has no Pins", async () => {
+  it("names the one list once when the reader has no Pins", async () => {
     mocks.loadPinned.mockResolvedValue([]);
 
     setup();
@@ -617,8 +617,8 @@ describe("ProjectsMenuItem pinned rows", () => {
     await waitFor(() => {
       expect(projectHrefs()).toEqual(["/projects/project-1"]);
     });
-    expect(
-      document.querySelectorAll('[aria-hidden="true"].bg-border'),
-    ).toHaveLength(0);
+    // The panel heading already names it; a second one under it is noise.
+    expect(screen.queryByText("pinnedProjects")).toBeNull();
+    expect(screen.getAllByText("recentProjects")).toHaveLength(1);
   });
 });
