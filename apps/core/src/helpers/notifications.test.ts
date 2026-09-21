@@ -71,6 +71,14 @@ vi.mock("@vercel/functions", () => ({
   waitUntil: (promise: Promise<unknown>) => promise,
 }));
 
+const { schedulePublishMock } = vi.hoisted(() => ({
+  schedulePublishMock: vi.fn(),
+}));
+vi.mock("@/helpers/notification-publish-queue", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./notification-publish-queue")>()),
+  scheduleNotificationPublish: schedulePublishMock,
+}));
+
 const CREATED_AT = new Date("2026-06-18T09:00:00.000Z");
 const READ_AT = new Date("2026-06-18T09:30:00.000Z");
 const TASK_KIND = NotificationKind.TASK;
@@ -167,29 +175,15 @@ describe("createNotification", () => {
         messageParams: JSON.stringify(notificationInput.messageParams),
         metadata: JSON.stringify(notificationInput.metadata),
         inApp: true,
+        publishId: expect.any(String),
+        publishPush: false,
+        publishCreated: true,
+        publishQueuedAt: expect.any(Date),
+        publishNextAttemptAt: expect.any(Date),
       },
     });
-    expect(publishNotificationEventMock).toHaveBeenCalledWith({
-      push: false,
-      userId: notification.userId,
-      notification: {
-        id: notification.id,
-        userId: notification.userId,
-        kind: notification.kind,
-        referenceId: notification.referenceId,
-        eventId: notification.eventId,
-        messageKey: notification.messageKey,
-        messageParams: notificationInput.messageParams,
-        metadata: notificationInput.metadata,
-        isRead: notification.isRead,
-        readAt: null,
-        createdAt: notification.createdAt.toISOString(),
-        inApp: true,
-        osBanner: false,
-        // Written by this event, so a reader's tab counts it on the badge.
-        created: true,
-      },
-    });
+    expect(schedulePublishMock).toHaveBeenCalledWith(notification.id);
+    expect(publishNotificationEventMock).not.toHaveBeenCalled();
     expect(prismaMock.notification.findUnique).not.toHaveBeenCalled();
     expect(prismaMock.notification.upsert).not.toHaveBeenCalled();
   });
@@ -284,9 +278,14 @@ describe("createNotification", () => {
         messageParams: JSON.stringify(notificationInput.messageParams),
         metadata: JSON.stringify(notificationInput.metadata),
         inApp: true,
+        publishId: expect.any(String),
+        publishPush: false,
+        publishCreated: true,
+        publishQueuedAt: expect.any(Date),
+        publishNextAttemptAt: expect.any(Date),
       },
     });
-    expect(publishNotificationEventMock).toHaveBeenCalled();
+    expect(schedulePublishMock).toHaveBeenCalledWith(created.id);
     expect(prismaMock.notification.findUnique).not.toHaveBeenCalled();
     expect(existing.messageKey).toBe("Notifications.Task.completed");
   });
@@ -317,6 +316,7 @@ describe("createNotification", () => {
 
 describe("createNotification push gating", () => {
   beforeEach(() => {
+    schedulePublishMock.mockClear();
     // mockReset, not mockClear: these cases arm rejections and differing
     // resolved values, so a leftover implementation would leak forward and
     // let a later case pass on the previous case's publish.
@@ -373,17 +373,16 @@ describe("createNotification push gating", () => {
     });
   }
 
-  it("pushes a chat notification when the user opted in", async () => {
+  it("queues push for a chat notification when the user opted in", async () => {
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockResolvedValue(createChatRecord());
     mockReader({ pushOptIn: true, preferences: bannerOn("CHAT_MENTION") });
 
     await createNotification(chatInput, prismaMock as unknown as typeof prisma);
 
-    expect(publishNotificationEventMock).toHaveBeenCalledWith(
+    expect(prismaMock.notification.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        push: true,
-        notification: expect.objectContaining({ osBanner: true }),
+        data: expect.objectContaining({ publishPush: true }),
       }),
     );
     expect(userFindUniqueMock).toHaveBeenCalledWith({
@@ -404,8 +403,10 @@ describe("createNotification push gating", () => {
 
     await createNotification(chatInput, prismaMock as unknown as typeof prisma);
 
-    expect(publishNotificationEventMock).toHaveBeenCalledWith(
-      expect.objectContaining({ push: false }),
+    expect(prismaMock.notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ publishPush: false }),
+      }),
     );
   });
 
@@ -440,7 +441,7 @@ describe("createNotification push gating", () => {
       }),
     );
     // Nothing to render and nothing to interrupt with, so nothing published.
-    expect(publishNotificationEventMock).not.toHaveBeenCalled();
+    expect(schedulePublishMock).not.toHaveBeenCalled();
   });
 
   // Every kind pushes now, not chat alone, so the gate is the opt-in and
@@ -466,7 +467,7 @@ describe("createNotification push gating", () => {
   };
 
   for (const kind of NON_CHAT_KINDS) {
-    it(`pushes a ${kind} notification when the user opted in`, async () => {
+    it(`queues push for a ${kind} notification when the user opted in`, async () => {
       const prismaMock = createPrismaMock();
       prismaMock.notification.create.mockResolvedValue(
         createNotificationRecord({ kind }),
@@ -482,8 +483,10 @@ describe("createNotification push gating", () => {
         prismaMock as unknown as typeof prisma,
       );
 
-      expect(publishNotificationEventMock).toHaveBeenCalledWith(
-        expect.objectContaining({ push: true }),
+      expect(prismaMock.notification.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ publishPush: true }),
+        }),
       );
     });
 
@@ -499,8 +502,10 @@ describe("createNotification push gating", () => {
         prismaMock as unknown as typeof prisma,
       );
 
-      expect(publishNotificationEventMock).toHaveBeenCalledWith(
-        expect.objectContaining({ push: false }),
+      expect(prismaMock.notification.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ publishPush: false }),
+        }),
       );
     });
   }
@@ -512,8 +517,10 @@ describe("createNotification push gating", () => {
 
     await createNotification(chatInput, prismaMock as unknown as typeof prisma);
 
-    expect(publishNotificationEventMock).toHaveBeenCalledWith(
-      expect.objectContaining({ push: false }),
+    expect(prismaMock.notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ publishPush: false }),
+      }),
     );
   });
 
@@ -535,8 +542,10 @@ describe("createNotification push gating", () => {
     );
 
     expect(result.created).toBe(true);
-    expect(publishNotificationEventMock).toHaveBeenCalledWith(
-      expect.objectContaining({ push: true }),
+    expect(txMock.notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ publishPush: true }),
+      }),
     );
     expect(userFindUniqueMock).toHaveBeenCalledTimes(1);
   });
@@ -578,8 +587,10 @@ describe("createNotification push gating", () => {
       }),
     );
     // The banner survives the in-app choice: they are separate columns.
-    expect(publishNotificationEventMock).toHaveBeenCalledWith(
-      expect.objectContaining({ push: true }),
+    expect(prismaMock.notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ publishPush: true }),
+      }),
     );
   });
 
@@ -606,10 +617,9 @@ describe("createNotification push gating", () => {
     );
     // An open tab renders its own banner from this event, so the answer has to
     // ride the payload and not only the push extras.
-    expect(publishNotificationEventMock).toHaveBeenCalledWith(
+    expect(prismaMock.notification.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        push: false,
-        notification: expect.objectContaining({ osBanner: false }),
+        data: expect.objectContaining({ publishPush: false }),
       }),
     );
   });
@@ -633,8 +643,10 @@ describe("createNotification push gating", () => {
       prismaMock as unknown as typeof prisma,
     );
 
-    expect(publishNotificationEventMock).toHaveBeenCalledWith(
-      expect.objectContaining({ push: true }),
+    expect(prismaMock.notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ publishPush: true }),
+      }),
     );
   });
 
@@ -657,10 +669,10 @@ describe("createNotification push gating", () => {
 
     // Nothing to render and nothing to interrupt with, so the publish would be
     // an Ably message no client acts on.
-    expect(publishNotificationEventMock).not.toHaveBeenCalled();
+    expect(schedulePublishMock).not.toHaveBeenCalled();
   });
 
-  it("still publishes in-app, with push off, when the opt-in read fails", async () => {
+  it("queues in-app delivery with push off when the opt-in read fails", async () => {
     const notification = createChatRecord();
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockResolvedValue(notification);
@@ -671,8 +683,10 @@ describe("createNotification push gating", () => {
     ).resolves.toEqual({ notification, created: true });
     // Push is additive: a consent-read failure must not cost the in-app toast
     // or the live Notification Center event (ADR-0022).
-    expect(publishNotificationEventMock).toHaveBeenCalledWith(
-      expect.objectContaining({ push: false }),
+    expect(prismaMock.notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ publishPush: false }),
+      }),
     );
   });
 });
@@ -981,7 +995,11 @@ describe("chat room arrival count", () => {
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockResolvedValue(chatRecord());
 
-    await createNotification(chatInput, prismaMock as unknown as typeof prisma);
+    await publishNotificationRow(chatRecord(), {
+      inApp: true,
+      osBanner: true,
+      email: false,
+    });
 
     expect(publishedGroupCount()).toBe(5);
     expect(notificationFindManyMock).toHaveBeenCalledWith({
@@ -1051,7 +1069,11 @@ describe("chat room arrival count", () => {
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockResolvedValue(chatRecord());
 
-    await createNotification(chatInput, prismaMock as unknown as typeof prisma);
+    await publishNotificationRow(chatRecord(), {
+      inApp: true,
+      osBanner: true,
+      email: false,
+    });
 
     expect(publishedGroupCount()).toBe(1);
   });
@@ -1075,7 +1097,11 @@ describe("chat room arrival count", () => {
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockResolvedValue(chatRecord());
 
-    await createNotification(chatInput, prismaMock as unknown as typeof prisma);
+    await publishNotificationRow(chatRecord(), {
+      inApp: true,
+      osBanner: true,
+      email: false,
+    });
 
     expect(publishedGroupCount()).toBe(2);
   });
@@ -1103,7 +1129,11 @@ describe("chat room arrival count", () => {
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockResolvedValue(chatRecord());
 
-    await createNotification(chatInput, prismaMock as unknown as typeof prisma);
+    await publishNotificationRow(chatRecord(), {
+      inApp: true,
+      osBanner: true,
+      email: false,
+    });
 
     expect(captureExceptionMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1348,7 +1378,11 @@ describe("chat room arrival count", () => {
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockResolvedValue(chatRecord());
 
-    await createNotification(chatInput, prismaMock as unknown as typeof prisma);
+    await publishNotificationRow(chatRecord(), {
+      inApp: true,
+      osBanner: true,
+      email: false,
+    });
 
     expect(publishNotificationEventMock).toHaveBeenCalledTimes(1);
     expect(publishedGroupCount()).toBeUndefined();
