@@ -52,20 +52,18 @@ function ParticipantAvatar({
   );
 }
 
-/** Face sizes: the header stack, and the smaller one under a message. */
-const FACE_SIZE = {
-  md: "size-6",
-  sm: "size-4",
+/**
+ * The header stack, and the smaller faces under a message.
+ *
+ * Each size carries its classes and its pixels together, because the
+ * transcript has to know the width before layout and Tailwind cannot scan a
+ * class name built at runtime. Keeping the twins in one literal means a face
+ * size is one edit rather than a hunt through four constants.
+ */
+const FACE = {
+  md: { size: "size-6", px: 24, overlap: "-space-x-2", overlapPx: 8 },
+  sm: { size: "size-4", px: 16, overlap: "-space-x-1", overlapPx: 4 },
 } as const;
-
-const OVERLAP = {
-  md: "-space-x-2",
-  sm: "-space-x-1",
-} as const;
-
-/** Whole pixels, matching FACE_SIZE and OVERLAP, for the width arithmetic. */
-const FACE_PX = { md: 24, sm: 16 } as const;
-const OVERLAP_PX = { md: 8, sm: 4 } as const;
 
 /**
  * How wide the faces will render, in px.
@@ -77,20 +75,21 @@ const OVERLAP_PX = { md: 8, sm: 4 } as const;
  */
 export function readReceiptFacesWidth(
   readerCount: number,
-  size: keyof typeof FACE_SIZE = "md",
+  size: keyof typeof FACE = "md",
 ): number {
   const faces = Math.min(readerCount, READ_RECEIPT_FACE_CAP);
   const slots = faces + (readerCount > faces ? 1 : 0);
   if (slots === 0) {
     return 0;
   }
-  return FACE_PX[size] + (slots - 1) * (FACE_PX[size] - OVERLAP_PX[size]);
+  const { px, overlapPx } = FACE[size];
+  return px + (slots - 1) * (px - overlapPx);
 }
 
 interface ReadReceiptFacesProps {
   /** Readers, most-recent-read first, viewer already excluded. */
   readers: readonly RoomReader[];
-  size?: keyof typeof FACE_SIZE;
+  size?: keyof typeof FACE;
   className?: string;
 }
 
@@ -108,11 +107,11 @@ export function ReadReceiptFaces({
   const remainingCount = readers.length - faces.length;
 
   return (
-    <span className={cn("flex", OVERLAP[size], className)}>
+    <span className={cn("flex", FACE[size].overlap, className)}>
       {faces.map(({ participant }, index) => (
         <span
           key={participant.id}
-          className={cn("relative inline-flex shrink-0", FACE_SIZE[size])}
+          className={cn("relative inline-flex shrink-0", FACE[size].size)}
           style={{ zIndex: faces.length - index }}
           data-testid={`read-receipt-face-${participant.id}`}
         >
@@ -127,7 +126,7 @@ export function ReadReceiptFaces({
         <span
           className={cn(
             "bg-muted text-muted-foreground ring-border relative inline-flex shrink-0 items-center justify-center rounded-full font-medium shadow-xs ring-1",
-            FACE_SIZE[size],
+            FACE[size].size,
             size === "sm" ? "text-[0.5rem]" : "text-[0.625rem]",
           )}
           style={{ zIndex: 0 }}
@@ -233,9 +232,9 @@ export function ReadReceiptAvatarStack({
         <button
           type="button"
           // The pseudo-element carries the touch target out to 44px below md,
-          // where the faces themselves are only 24px tall.
+          // where the faces themselves are only 24px tall: 24 + 10 a side.
           className={cn(
-            "relative flex cursor-pointer rounded-full outline-none after:absolute after:-inset-2 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring md:after:hidden",
+            "relative flex cursor-pointer rounded-full outline-none after:absolute after:-inset-2.5 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring md:after:hidden",
             className,
           )}
           aria-label={t("summary", { count: readers.length })}

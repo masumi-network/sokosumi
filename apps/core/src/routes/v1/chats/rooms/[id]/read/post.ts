@@ -111,13 +111,26 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Seen by: the room hears about this reader within a moment, so the other
     // side is not left waiting on a poll. Best effort — the publisher swallows
     // its own failures and the next room payload carries the same mark.
-    waitUntil(
-      publishChatRoomReadRealtime({
-        roomId: room.id,
-        userId: userContext.userId,
-        lastReadAt: readAt,
-      }),
+    //
+    // Silent on a room with a guest on it. Read times do not cross the
+    // organization boundary, and the mapper's guest rule only covers the
+    // payload: Ably capabilities are per channel, never per subscriber, so
+    // every member of the room channel sees whatever is published on it and a
+    // guest holds `subscribe` like anyone else. Host members there fall back to
+    // the mark their next room payload carries, which is the same degradation
+    // as a dropped connection.
+    const roomHasGuest = room.userMembers.some(
+      (member) => member.access === "guest",
     );
+    if (!roomHasGuest) {
+      waitUntil(
+        publishChatRoomReadRealtime({
+          roomId: room.id,
+          userId: userContext.userId,
+          lastReadAt: readAt,
+        }),
+      );
+    }
 
     // Top-level unreads are cleared by lastReadAt; thread replies still use
     // look baseline. Return the real dual-baseline count so the sidebar does

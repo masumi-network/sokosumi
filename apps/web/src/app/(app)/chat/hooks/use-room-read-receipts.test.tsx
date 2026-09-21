@@ -23,16 +23,26 @@ function member(id: string, lastReadAt: Date | null): ChatRoomUserParticipant {
     presence: "offline",
     access: "member",
     lastReadAt,
-  } as ChatRoomUserParticipant;
+  };
 }
 
-function makeRoom(members: ChatRoomUserParticipant[]): ChatRoom {
-  return {
+/**
+ * Only what the hook reads. Built with `satisfies` on the fields it touches,
+ * so a rename in the DTO breaks this rather than sliding past a cast.
+ */
+function makeRoom(
+  members: ChatRoomUserParticipant[],
+  overrides: Partial<ChatRoom> = {},
+): ChatRoom {
+  const partialRoom: Partial<ChatRoom> = {
     id: ROOM_ID,
+    myAccess: "member",
     userMembers: members,
     coworkerMembers: [],
     sokoBotMembers: [],
-  } as unknown as ChatRoom;
+    ...overrides,
+  };
+  return partialRoom as ChatRoom;
 }
 
 let latest:
@@ -204,6 +214,43 @@ describe("useRoomReadReceipts", () => {
     expect(idsAsOf("2026-01-01T13:00:00.000Z")).toEqual([]);
   });
 
+  /**
+   * The payload already hides read times from a guest; this is the wire. A
+   * guest holds `subscribe` on the room channel like anyone else, so an event
+   * can reach them even though Core does not publish one for a room with a
+   * guest on it.
+   */
+  it("ignores read events entirely when the viewer is a guest", () => {
+    render(
+      <Probe
+        room={makeRoom([member("user-a", null)], { myAccess: "guest" })}
+      />,
+    );
+
+    apply({
+      roomId: ROOM_ID,
+      userId: "user-a",
+      lastReadAt: "2026-01-01T10:00:00.000Z",
+    });
+
+    expect(readerIds()).toBe("");
+    expect(latest?.readersAsOf("2026-01-01T00:00:00.000Z")).toEqual([]);
+  });
+
+  it("shows a guest nobody as read, even with marks in the payload", () => {
+    render(
+      <Probe
+        room={makeRoom(
+          [member("user-a", new Date("2026-01-01T10:00:00.000Z"))],
+          { myAccess: "guest" },
+        )}
+      />,
+    );
+
+    expect(readerIds()).toBe("");
+    expect(latest?.nonReaders.map((member) => member.id)).toEqual(["user-a"]);
+  });
+
   it("reports nothing without a room", () => {
     render(<Probe room={null} />);
 
@@ -220,10 +267,7 @@ describe("useRoomReadReceipts", () => {
     });
     expect(readerIds()).toBe("user-a");
 
-    const otherRoom = {
-      ...makeRoom([member("user-a", null)]),
-      id: "room-2",
-    } as ChatRoom;
+    const otherRoom = makeRoom([member("user-a", null)], { id: "room-2" });
     view.rerender(<Probe room={otherRoom} />);
 
     expect(readerIds()).toBe("");

@@ -112,6 +112,32 @@ describe("ReadReceiptAvatarStack", () => {
     expect(stack).toHaveTextContent("+2");
   });
 
+  it("shows the faces in the order it is handed, most-recent-read first", () => {
+    // Ids deliberately out of alphabetical order, so sorting by anything but
+    // the given order fails here. The hook sorts; the stack must not re-sort,
+    // or the three faces would stop being the three the list names first.
+    render(
+      <ReadReceiptAvatarStack
+        readers={[
+          reader("zoe", "2026-01-01T14:00:00.000Z"),
+          reader("adam", "2026-01-01T13:00:00.000Z"),
+          reader("mina", "2026-01-01T12:00:00.000Z"),
+        ]}
+        nonReaders={[]}
+      />,
+    );
+
+    const shown = screen
+      .getAllByTestId(/^read-receipt-face-/)
+      .map((face) => face.dataset.testid);
+
+    expect(shown).toEqual([
+      "read-receipt-face-zoe",
+      "read-receipt-face-adam",
+      "read-receipt-face-mina",
+    ]);
+  });
+
   it("shows every face and no +N at the cap", () => {
     render(
       <ReadReceiptAvatarStack
@@ -133,7 +159,10 @@ describe("ReadReceiptAvatarStack", () => {
     ).toBeInTheDocument();
   });
 
-  it("gives the stack a 44px touch target below md", () => {
+  // 24px faces plus 10px a side is 44. Asserted as tokens because no test
+  // environment here computes Tailwind, and the sibling sidebar row is tested
+  // the same way.
+  it("carries the touch target out to 44px below md", () => {
     render(
       <ReadReceiptAvatarStack readers={READERS_ABOVE_CAP} nonReaders={[]} />,
     );
@@ -141,7 +170,7 @@ describe("ReadReceiptAvatarStack", () => {
     const tokens = screen
       .getByTestId("read-receipt-stack")
       .className.split(/\s+/);
-    expect(tokens).toContain("after:-inset-2");
+    expect(tokens).toContain("after:-inset-2.5");
     expect(tokens).toContain("md:after:hidden");
   });
 

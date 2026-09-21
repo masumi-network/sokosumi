@@ -30,7 +30,7 @@ function member(
     presence: "offline",
     access: "member",
     lastReadAt: lastReadAt ? new Date(lastReadAt) : null,
-  } as ChatRoomUserParticipant;
+  };
 }
 
 /**
@@ -46,12 +46,16 @@ function Probe({
   messageId?: string;
   createdAt?: string;
 }) {
-  const room = {
+  // Only what the hook reads, but checked against the real DTO so a rename
+  // breaks here rather than sliding past a cast.
+  const partialRoom: Partial<ChatRoom> = {
     id: "room-1",
+    myAccess: "member",
     userMembers: members,
     coworkerMembers: [],
     sokoBotMembers: [],
-  } as unknown as ChatRoom;
+  };
+  const room = partialRoom as ChatRoom;
   const receipts = useRoomReadReceipts({ room, currentUserId: VIEWER_ID });
   const readers = seenByReadersFor({
     readersAsOf: receipts.readersAsOf,

@@ -303,6 +303,41 @@ describe("POST /chats/rooms/{id}/read", () => {
     expect(lastReadAt).toEqual(written);
   });
 
+  /**
+   * Ably capabilities are per channel, never per subscriber: a guest holds
+   * `subscribe` on the room channel like every other member, so anything
+   * published there reaches them. The mapper's guest rule only covers the
+   * payload, which would make the boundary hold for one fetch and then leak
+   * live.
+   */
+  it("stays silent when a guest is on the room", async () => {
+    roomFindFirstMock.mockResolvedValue({
+      ...room(),
+      userMembers: [
+        ...room().userMembers,
+        {
+          access: "guest",
+          user: {
+            id: "user_guest",
+            name: "Guest",
+            email: "guest@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+      ],
+    });
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/read`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(readStateUpsertMock).toHaveBeenCalledOnce();
+    expect(publishChatRoomReadRealtimeMock).not.toHaveBeenCalled();
+  });
+
   it("still marks the room read when the read event cannot be published", async () => {
     publishChatRoomReadRealtimeMock.mockRejectedValue(new Error("ably down"));
 

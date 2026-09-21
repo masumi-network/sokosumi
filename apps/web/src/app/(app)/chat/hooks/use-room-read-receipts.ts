@@ -65,6 +65,13 @@ export function useRoomReadReceipts({
   const [liveReads, setLiveReads] = useState<ReadonlyMap<string, number>>(
     new Map(),
   );
+  // Read times do not cross the organization boundary. Core keeps them out of
+  // the payload for a guest and off the wire for a room with one on it; this is
+  // the last of the three, so a guest client that somehow met an event still
+  // shows nothing.
+  const isGuestViewer = room?.myAccess === "guest";
+  const isGuestViewerRef = useRef(isGuestViewer);
+  isGuestViewerRef.current = isGuestViewer;
   const roomIdRef = useRef(room?.id ?? null);
   // A new room starts from its own payload; the previous room's events say
   // nothing about it.
@@ -76,7 +83,7 @@ export function useRoomReadReceipts({
   }
 
   const applyReadEvent = useCallback((event: ChatRoomReadEventData) => {
-    if (event.roomId !== roomIdRef.current) {
+    if (isGuestViewerRef.current || event.roomId !== roomIdRef.current) {
       return;
     }
     const at = toTime(event.lastReadAt);
@@ -104,6 +111,10 @@ export function useRoomReadReceipts({
 
     for (const participant of room.userMembers) {
       if (participant.id === currentUserId) {
+        continue;
+      }
+      if (isGuestViewer) {
+        nonReaders.push(participant);
         continue;
       }
       const seeded = participant.lastReadAt
@@ -134,7 +145,7 @@ export function useRoomReadReceipts({
         );
       },
     };
-  }, [room, currentUserId, liveReads]);
+  }, [room, currentUserId, liveReads, isGuestViewer]);
 
   return { ...receipts, applyReadEvent };
 }
