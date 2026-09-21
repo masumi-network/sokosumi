@@ -1175,10 +1175,16 @@ function MessageActionControls({
   );
 }
 
-// Centred on the row's top edge, as in Slack and the Apple client: the same
-// spot at every row height, instead of hanging below a one-line row.
+// On the row's top edge, as in Slack and the Apple client: the same spot at
+// every row height, instead of hanging below a one-line row.
+//
+// Three quarters of it sits above that edge rather than half. Now that the
+// text runs the full width the pill covers words, and this decides whose:
+// mostly the row above, which you have finished reading, instead of the first
+// line of the row you are pointing at. The quarter that stays is what keeps
+// it attached to its own row rather than floating between two.
 const MESSAGE_ACTIONS_PILL_CLASS =
-  "border-border bg-background absolute top-0 right-2 -translate-y-1/2 items-center gap-0.5 rounded-full border p-0.5 shadow-sm";
+  "border-border bg-background absolute top-0 right-2 -translate-y-3/4 items-center gap-0.5 rounded-full border p-0.5 shadow-sm";
 
 // Debounce the reveal: scrolling drags a stationary pointer across row after
 // row, and an instant pill flashes at each one. The delay only applies while
