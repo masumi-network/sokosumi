@@ -113,6 +113,9 @@ import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
 const TRAILING_CLUSTER_CLASS =
   "group-data-[collapsible=icon]:hidden absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center";
 
+/** The highest mention count the badge still marks with an `@`. */
+const MENTION_GLYPH_MAX_COUNT = 9;
+
 /**
  * A beat before the thread flyout opens, so running the pointer down the rail
  * does not throw a card out of every unread room on the way. The same beat
@@ -249,8 +252,9 @@ function MentionBadge({
 }: {
   count: number;
   /**
-   * The count is mentions, so the pill says so with an `@`. False for a
-   * Direct of two, whose badge counts every message as well.
+   * The count is mentions, so the pill is amber and says so with an `@`.
+   * False for a Direct of two, whose badge counts every message: that one
+   * stays the plain unread pill.
    */
   countsMentions: boolean;
   crossfadesWithMenu: boolean;
@@ -272,11 +276,13 @@ function MentionBadge({
         ],
       )}
     >
-      {/* `@ 99+` is wider than the hole this shares with the menu and would
-          run into the room's name, so the capped label goes without. */}
+      {/* The glyph takes 12px of the 28px hole this shares with the menu, so
+          it rides only a single digit. `@ 12` is about 33px wide, which
+          leaves the room's name under 2px; `12` and `99+` fit without it. */}
       <MentionCountPill
         label={roomCountLabel(count)}
-        showGlyph={countsMentions && count <= ROOM_COUNT_CAP}
+        tone={countsMentions ? "mention" : "unread"}
+        showGlyph={count <= MENTION_GLYPH_MAX_COUNT}
       />
     </span>
   );

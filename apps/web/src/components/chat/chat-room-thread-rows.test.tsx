@@ -77,7 +77,8 @@ describe("ChatRoomThreadRows", () => {
     expect(row).toHaveAccessibleName(/2 unread replies/);
   });
 
-  // Which of a room's unread Threads the room's mention badge is for.
+  // A Thread that still holds an unread reply naming the reader. Counted from
+  // the replies, so it clears on a Look, not when the room's badge does.
   it("marks a thread whose unread replies mention the reader", () => {
     renderRows({
       unreadThreads: [
