@@ -9,10 +9,12 @@ public struct PartitionedSidebarRooms: Sendable {
   public var external: [Components.Schemas.ChatRoom]
 }
 
-/// Attention chrome mirroring web's `resolveRoomAttention`: muted rooms
-/// and the active room suppress chrome — the active transcript has
-/// resolved and marks read via `RoomReadAttention` (ADR 0026). Bold
-/// covers any unread, including leftover thread unread (ADR 0013).
+/// Attention chrome mirroring web's `resolveRoomAttention`: only muted rooms
+/// suppress it. The resolver does not know which room is open, because
+/// opening a room does not read it — last-read moves when history resolves
+/// on screen (ADR 0026), via `RoomReadAttention` — so the selected row stays
+/// bold, badged and counted until the room is read, marked read or muted.
+/// Bold covers any unread, including leftover thread unread (ADR 0013).
 /// `unreadTextCount` is the reader's opt-in Room unread count: a third field,
 /// because the badge keeps counting mentions only.
 public struct RoomAttention: Equatable, Sendable {
@@ -166,10 +168,9 @@ public func resolveRoomAttention(
   unreadMentionCount: Int,
   markedUnread: Bool = false,
   isMuted: Bool = false,
-  isActive: Bool = false,
   showUnreadCount: Bool = false
 ) -> RoomAttention {
-  if isMuted || isActive {
+  if isMuted {
     return .init(bold: false, badgeCount: 0)
   }
   return .init(
