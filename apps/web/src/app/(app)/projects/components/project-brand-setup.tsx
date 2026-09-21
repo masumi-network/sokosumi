@@ -13,8 +13,8 @@ import {
 import {
   DESIGN_MD_TRANSLATION_NAMESPACE,
   type DesignMdOwner,
-  useDesignMdGeneration,
-} from "@/components/design-md";
+} from "@/components/design-md/types";
+import { useDesignMdGeneration } from "@/components/design-md/use-design-md-generation";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   resolveProjectSiteIcon,

@@ -1,4 +1,5 @@
-import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
+import type { ActionError } from "@/lib/actions/errors/action-error";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { parseRetryDelaySeconds } from "@/lib/chat/chat-read-throttle";
 import type { Client } from "@/lib/clients/generated/core/client";
 import {

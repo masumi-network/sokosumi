@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { CopyableValue } from "@/components/copyable-value";
-import { OrganizationLogo } from "@/components/organizations";
+import { OrganizationLogo } from "@/components/organizations/organization-logo";
 import { Avatar } from "@/components/ui/avatar";
 import {
   Card,

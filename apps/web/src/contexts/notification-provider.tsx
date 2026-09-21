@@ -16,9 +16,9 @@ import { NotificationToastListener } from "@/app/components/notification-toast-l
 import { NotificationUrlTargetOpener } from "@/app/components/notification-url-target-opener";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import type { NotificationEventData } from "@/lib/ably";
 import { makeCurrentUserNotificationsChannelName } from "@/lib/ably/current-notifications-channel.client";
 import { healPushSubscription } from "@/lib/ably/push-self-heal.client";
+import type { NotificationEventData } from "@/lib/ably/schema";
 import { useNotificationFrontPresence } from "@/lib/ably/use-notification-front-presence";
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
 import { notificationsBrowserClient } from "@/lib/clients/core.notifications.browser.client";
