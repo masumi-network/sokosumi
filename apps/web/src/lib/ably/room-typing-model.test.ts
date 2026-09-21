@@ -95,6 +95,29 @@ describe("applyTypingEvent", () => {
     expect(liveTypistIds(set, 2_000)).toEqual([]);
   });
 
+  it("sends a typist who went quiet and came back to the end of the line", () => {
+    // Pat goes quiet and expires; Kim starts while Pat is away. When Pat
+    // types again they are starting afresh, so Kim — who has been typing the
+    // whole time — must still be named first.
+    let set = applyTypingEvent(EMPTY, started("user_pat", 1_000), SELF);
+    set = applyTypingEvent(set, started("user_kim", 6_000), SELF);
+    const afterPatExpired = 1_000 + TYPING_EXPIRY_MS + 1;
+    set = applyTypingEvent(set, started("user_pat", afterPatExpired), SELF);
+
+    expect(liveTypistIds(set, afterPatExpired)).toEqual([
+      "user_kim",
+      "user_pat",
+    ]);
+  });
+
+  it("does not reorder a typist who merely paused inside the window", () => {
+    let set = applyTypingEvent(EMPTY, started("user_pat", 1_000), SELF);
+    set = applyTypingEvent(set, started("user_kim", 6_000), SELF);
+    set = applyTypingEvent(set, started("user_pat", 10_000), SELF);
+
+    expect(liveTypistIds(set, 10_000)).toEqual(["user_pat", "user_kim"]);
+  });
+
   it("ignores a stop for somebody who was not typing", () => {
     const set = applyTypingEvent(EMPTY, stopped("user_ghost", 1_000), SELF);
 

@@ -63,7 +63,11 @@ export function applyTypingEvent(
   }
 
   const existing = current.find((typist) => typist.userId === event.userId);
-  if (existing) {
+  // An entry past its expiry is one a reader has already stopped seeing, so
+  // the person is starting again rather than continuing. Keeping the old entry
+  // would keep their old place in the order and put them in front of somebody
+  // who started while they were away.
+  if (existing && event.atMs - existing.lastHeartbeatMs < TYPING_EXPIRY_MS) {
     return current.map((typist) =>
       typist.userId === event.userId
         ? { ...typist, lastHeartbeatMs: event.atMs }
@@ -72,7 +76,7 @@ export function applyTypingEvent(
   }
 
   return [
-    ...current,
+    ...current.filter((typist) => typist.userId !== event.userId),
     {
       userId: event.userId,
       startedAtMs: event.atMs,

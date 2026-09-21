@@ -58,6 +58,24 @@ vi.mock("@/components/chat/room-message-composer", async (importOriginal) => {
   };
 });
 
+// Stand in for the link dialog so its Save can be reached without driving a
+// Radix dialog. `handleLinkSave` is the third programmatic-insert path.
+vi.mock("@/components/chat/composer-add-link-dialog", () => ({
+  ComposerAddLinkDialog: ({
+    onSave,
+  }: {
+    onSave: (text: string, url: string) => void;
+  }) => (
+    <button
+      aria-label="save-link"
+      onClick={() => onSave("Ably", "https://ably.com")}
+      type="button"
+    >
+      save link
+    </button>
+  ),
+}));
+
 vi.mock("@/lib/ably/use-room-typing", () => ({
   useRoomTyping: () => ({
     typistIds: [],
@@ -200,6 +218,19 @@ describe("RoomSessionComposer typing", () => {
     await typeInto(editor, "hello");
 
     expect(handleComposerChangeSpy).toHaveBeenCalledWith(true);
+  });
+
+  it("stays silent when the toolbar inserts a link", async () => {
+    // Third programmatic-insert path after the emoji picker and quote-restore:
+    // the app put that text there, not the person (ADR-0033).
+    renderComposer();
+    await screen.findByRole("textbox");
+
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText("save-link"));
+    });
+
+    expect(handleComposerChangeSpy).not.toHaveBeenCalled();
   });
 
   it("stays silent when a Draft is restored on open", async () => {
