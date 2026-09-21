@@ -43,6 +43,8 @@ function pending(overrides: Partial<Notification> = {}): Notification {
   return {
     id: "n1",
     userId: "u1",
+    workspaceId: null,
+    organizationId: null,
     kind: "TASK",
     referenceId: "task1",
     eventId: "e1",
@@ -104,6 +106,7 @@ describe("notification publish replay", () => {
       expect.any(Object),
       expect.objectContaining({ osBanner: true }),
       true,
+      expect.any(Object),
       "revision1",
     );
     expect(row).toMatchObject({
@@ -122,7 +125,7 @@ describe("notification publish replay", () => {
     expect(
       await dispatchNotificationPublish("n1", new Date(NOW.getTime() + 60000)),
     ).toBe("published");
-    expect(publish.mock.calls.map((call) => call[3])).toEqual([
+    expect(publish.mock.calls.map((call) => call[4])).toEqual([
       "revision1",
       "revision1",
     ]);
@@ -165,6 +168,7 @@ describe("notification publish replay", () => {
       expect.objectContaining({ messageParams: '{"taskName":"Updated"}' }),
       expect.any(Object),
       false,
+      expect.any(Object),
       "revision1",
     );
   });
@@ -227,6 +231,7 @@ describe("notification publish replay", () => {
       expect.objectContaining({ isRead: true }),
       expect.objectContaining({ osBanner: false }),
       false,
+      expect.any(Object),
       "revision1",
     );
   });

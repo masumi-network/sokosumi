@@ -7,6 +7,10 @@ import {
 import { HTTPException } from "hono/http-exception";
 
 import {
+  hasCalendarWorkspaceAccess,
+  lockCalendarWorkspaceMembership,
+} from "@/helpers/calendar-membership-fence";
+import {
   resolveNotificationDelivery,
   toNotificationCategory,
 } from "@/helpers/notification-delivery";
@@ -99,6 +103,24 @@ async function resolveChatDelivery(
 }
 
 /** Replays the current committed revision. Failed attempts keep the queued row. */
+/**
+ * A Workspace row is only ever published to a current member. `createNotification`
+ * checks this when it owns the write transaction, but a publish runs after that
+ * transaction commits, so the membership can be gone by the time it goes out.
+ */
+async function hasWorkspaceAccess(
+  notification: Notification,
+): Promise<boolean> {
+  if (!notification.workspaceId) {
+    return true;
+  }
+  const workspaceId = notification.workspaceId;
+  return prisma.$transaction(async (tx) => {
+    await lockCalendarWorkspaceMembership(tx, workspaceId);
+    return hasCalendarWorkspaceAccess(tx, workspaceId, notification.userId);
+  });
+}
+
 export async function dispatchNotificationPublish(
   notificationId: string,
   now = new Date(),
@@ -180,7 +202,11 @@ export async function dispatchNotificationPublish(
       user && notification.kind === NotificationKind.CHAT
         ? await resolveChatDelivery(notification, params, metadata)
         : "message";
-    if (!user || chatDelivery === "skip") {
+    if (
+      !user ||
+      chatDelivery === "skip" ||
+      !(await hasWorkspaceAccess(notification))
+    ) {
       await clearRevision(notificationId, publishId);
       return "skipped";
     }
@@ -226,6 +252,7 @@ export async function dispatchNotificationPublish(
       { ...latest, inApp: delivery.inApp },
       delivery,
       latest.publishCreated === true && !latest.isRead,
+      prisma,
       publishId,
     );
     if (!published) {
