@@ -94,7 +94,7 @@ function renderPanel(
   options: {
     onOpenThread?: (parent: ChatRoomMessage) => boolean | Promise<boolean>;
     onClose?: () => void;
-    onAllThreadsLooked?: () => void;
+    onAllThreadsLooked?: (stillUnreadParentIds: string[]) => void;
   } = {},
 ) {
   return render(
@@ -271,6 +271,37 @@ describe("ThreadListPanel", () => {
       expect(markAllUnreadThreadsReadActionMock).toHaveBeenCalledWith(ROOM_ID);
     });
     expect(onAllThreadsLooked).toHaveBeenCalledTimes(1);
+    expect(onAllThreadsLooked).toHaveBeenCalledWith([]);
+  });
+
+  // Core's Mark all leaves muted threads alone, even with a mention still
+  // unread (SOK-1087), so the caller must not treat those as read.
+  it("names the muted threads Mark all leaves unread", async () => {
+    const mutedId = "550e8400-e29b-41d4-a716-446655440098";
+    listThreadsActionMock.mockResolvedValue({
+      ok: true,
+      value: {
+        threads: [
+          threadItem(),
+          threadItem({
+            parentMessage: parentMessage({
+              id: mutedId,
+              content: "Muted parent",
+            }),
+            mutedAt: new Date("2026-08-01T02:00:00.000Z"),
+          }),
+        ],
+        nextCursor: null,
+      },
+    });
+    const onAllThreadsLooked = vi.fn();
+    renderPanel({ onAllThreadsLooked });
+
+    fireEvent.click(await screen.findByTestId("thread-list-mark-all-read"));
+
+    await waitFor(() => {
+      expect(onAllThreadsLooked).toHaveBeenCalledWith([mutedId]);
+    });
   });
 
   it("refetches the first page after mark-all so recency and cursor stay consistent", async () => {

@@ -1720,13 +1720,13 @@ function RoomView({
 
   // A Look clears the thread's unread everywhere at once: the header count
   // re-reads Core, and the parent's reply bar drops its tint without waiting
-  // for the next page of messages. Zeroing is always right after a Look.
+  // for the next page of messages. Zeroing one thread is always right after
+  // its Look.
   const clearThreadUnreadReplies = useCallback(
-    (parentMessageId: string | "all") => {
+    (isCleared: (parentMessageId: string) => boolean) => {
       setMessagesState((current) =>
         current.map((message) =>
-          (parentMessageId === "all" || message.id === parentMessageId) &&
-          (message.threadUnreadReplyCount ?? 0) > 0
+          (message.threadUnreadReplyCount ?? 0) > 0 && isCleared(message.id)
             ? { ...message, threadUnreadReplyCount: 0 }
             : message,
         ),
@@ -1737,7 +1737,7 @@ function RoomView({
   const handleThreadLooked = useCallback(
     (parentMessageId: string) => {
       bumpThreadUnread();
-      clearThreadUnreadReplies(parentMessageId);
+      clearThreadUnreadReplies((id) => id === parentMessageId);
     },
     [bumpThreadUnread, clearThreadUnreadReplies],
   );
@@ -3361,9 +3361,13 @@ function RoomView({
                 onClose={() => {
                   setThreadListOpen(false);
                 }}
-                onAllThreadsLooked={() => {
+                onAllThreadsLooked={(stillUnreadParentIds) => {
                   bumpThreadUnread();
-                  clearThreadUnreadReplies("all");
+                  // Mark all skips muted threads, so a mention still unread
+                  // in one keeps its reply bar.
+                  clearThreadUnreadReplies(
+                    (id) => !stillUnreadParentIds.includes(id),
+                  );
                   void syncRoomAttentionAfterThreadLook(selectedRoom.id);
                 }}
                 labels={{
