@@ -1,14 +1,40 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const getWorkspaceCalendarMock = vi.fn();
 const getWorkspaceCalendarSourcesMock = vi.fn();
 const listCoworkersMock = vi.fn();
 const listTaskAssigneeMemberOptionsMock = vi.fn();
 const getCoworkerOptionsMock = vi.fn();
+const getProjectByIdMock = vi.fn();
+const getProjectCalendarMock = vi.fn();
+const getProjectFilterOptionsMock = vi.fn();
+const getSessionMock = vi.fn();
+const hasCurrentUserCalendarBetaAccessMock = vi.fn();
 
 vi.mock("server-only", () => ({}));
 
+vi.mock("next/navigation", () => ({
+  notFound: () => {
+    throw new Error("NEXT_NOT_FOUND");
+  },
+}));
+
+vi.mock("next/server", () => ({
+  connection: vi.fn(),
+}));
+
+vi.mock("@/lib/auth/auth.server", () => ({
+  getSession: () => getSessionMock(),
+}));
+
+vi.mock("@/lib/calendar-beta-access.server", () => ({
+  hasCurrentUserCalendarBetaAccess: () =>
+    hasCurrentUserCalendarBetaAccessMock(),
+}));
+
 vi.mock("@/lib/services/task.service", () => ({
   taskService: {
+    getWorkspaceCalendar: (query: unknown) => getWorkspaceCalendarMock(query),
     getWorkspaceCalendarSources: () => getWorkspaceCalendarSourcesMock(),
   },
 }));
@@ -17,6 +43,19 @@ vi.mock("@/lib/services/coworker.service", () => ({
   coworkerService: {
     listCoworkers: () => listCoworkersMock(),
   },
+}));
+
+vi.mock("@/lib/services/project.service", () => ({
+  projectService: {
+    getProjectById: (projectId: string) => getProjectByIdMock(projectId),
+    getProjectCalendar: (projectId: string, query: unknown) =>
+      getProjectCalendarMock(projectId, query),
+  },
+}));
+
+vi.mock("@/lib/helpers/project-filter-options", () => ({
+  getProjectFilterOptions: (projectId?: string) =>
+    getProjectFilterOptionsMock(projectId),
 }));
 
 vi.mock("@/app/tasks/utils/task-assignee-members", () => ({
@@ -31,8 +70,18 @@ vi.mock("@/app/tasks/utils/coworker-options", () => ({
 
 import {
   loadCalendarPageContext,
+  loadWorkspaceCalendarPage,
   resolveCalendarPageQuery,
 } from "./load-calendar-page";
+
+const PROJECT = {
+  id: "project-1",
+  name: "Launch plan",
+  logo: null,
+  designMd: null,
+  briefingUrl: null,
+  contextMd: null,
+};
 
 describe("resolveCalendarPageQuery", () => {
   it("parses a known Task status and a calendar date", () => {
@@ -83,5 +132,135 @@ describe("loadCalendarPageContext", () => {
     const result = await loadCalendarPageContext(null);
 
     expect(result.sources).toEqual([]);
+  });
+});
+
+describe("loadWorkspaceCalendarPage", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(true);
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: "org-1" },
+    });
+    getWorkspaceCalendarMock.mockResolvedValue({
+      items: [{ id: "occurrence-1" }],
+      pagination: null,
+    });
+    getWorkspaceCalendarSourcesMock.mockResolvedValue([
+      {
+        sourceId: "project:project-1",
+        sourceType: "PROJECT",
+        isSchedulable: true,
+      },
+      {
+        sourceId: "project:project-2",
+        sourceType: "PROJECT",
+        isSchedulable: false,
+      },
+    ]);
+    listCoworkersMock.mockResolvedValue([]);
+    listTaskAssigneeMemberOptionsMock.mockResolvedValue([]);
+    getCoworkerOptionsMock.mockReturnValue([]);
+    getProjectFilterOptionsMock.mockResolvedValue([
+      { id: "project-1", name: "Open" },
+      { id: "project-2", name: "Closed" },
+    ]);
+    getProjectByIdMock.mockResolvedValue(PROJECT);
+    getProjectCalendarMock.mockResolvedValue({
+      items: [{ id: "project-occurrence-1" }],
+      pagination: null,
+    });
+  });
+
+  it("does not load Calendar data outside the Calendar beta", async () => {
+    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(false);
+
+    await expect(
+      loadWorkspaceCalendarPage({ searchParams: Promise.resolve({}) }),
+    ).rejects.toThrow("NEXT_NOT_FOUND");
+
+    expect(getWorkspaceCalendarMock).not.toHaveBeenCalled();
+    expect(getProjectByIdMock).not.toHaveBeenCalled();
+  });
+
+  it("loads the workspace Calendar and keeps only schedulable Projects", async () => {
+    const result = await loadWorkspaceCalendarPage({
+      searchParams: Promise.resolve({
+        assigneeId: "coworker-1",
+        date: "2026-06-18",
+        projectId: "project-1",
+        sourceId: "legacy-unknown:workspace-1",
+        scope: "owned",
+        status: "READY",
+      }),
+    });
+
+    expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assigneeId: "coworker-1",
+        projectId: "project-1",
+        sourceId: "legacy-unknown:workspace-1",
+        scope: "owned",
+        status: "READY",
+      }),
+    );
+    expect(getProjectCalendarMock).not.toHaveBeenCalled();
+    expect(result.project).toBeNull();
+    expect(result.items).toEqual([{ id: "occurrence-1" }]);
+    expect(result.projectOptions).toEqual([{ id: "project-1", name: "Open" }]);
+    expect(result.activeOrganizationId).toBe("org-1");
+  });
+
+  it("loads the route Project Calendar and ignores query project/source filters", async () => {
+    const result = await loadWorkspaceCalendarPage({
+      projectId: PROJECT.id,
+      searchParams: Promise.resolve({
+        assigneeId: "coworker-1",
+        date: "2026-06-18",
+        projectId: "project-2",
+        sourceId: "workspace:workspace-1",
+        scope: "owned",
+        status: "READY",
+      }),
+    });
+
+    expect(getProjectByIdMock).toHaveBeenCalledWith(PROJECT.id);
+    expect(getProjectCalendarMock).toHaveBeenCalledWith(
+      PROJECT.id,
+      expect.objectContaining({
+        assigneeId: "coworker-1",
+        scope: "owned",
+        status: "READY",
+      }),
+    );
+    expect(getProjectCalendarMock).toHaveBeenCalledWith(
+      PROJECT.id,
+      expect.not.objectContaining({
+        projectId: expect.anything(),
+        sourceId: expect.anything(),
+      }),
+    );
+    expect(getWorkspaceCalendarMock).not.toHaveBeenCalled();
+    expect(getProjectFilterOptionsMock).not.toHaveBeenCalled();
+    expect(result.project).toEqual(PROJECT);
+    expect(result.sources).toEqual([
+      expect.objectContaining({ sourceId: "project:project-1" }),
+    ]);
+    expect(result.projectOptions).toEqual([
+      expect.objectContaining({ id: PROJECT.id }),
+    ]);
+  });
+
+  it("does not load Project Calendar data when the route Project is missing", async () => {
+    getProjectByIdMock.mockResolvedValue(null);
+
+    await expect(
+      loadWorkspaceCalendarPage({
+        projectId: PROJECT.id,
+        searchParams: Promise.resolve({}),
+      }),
+    ).rejects.toThrow("NEXT_NOT_FOUND");
+
+    expect(getProjectCalendarMock).not.toHaveBeenCalled();
   });
 });

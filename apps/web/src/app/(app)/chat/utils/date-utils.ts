@@ -10,7 +10,6 @@ export function formatDaySeparator(date: Date): string {
     date.getDate(),
   );
 
-  // Check if it's today
   if (
     messageDate.getTime() === today.getTime() &&
     messageDate.getMonth() === today.getMonth() &&
@@ -22,7 +21,6 @@ export function formatDaySeparator(date: Date): string {
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
 
-  // Check if it's yesterday
   if (
     messageDate.getTime() === yesterday.getTime() &&
     messageDate.getMonth() === yesterday.getMonth() &&
@@ -31,7 +29,6 @@ export function formatDaySeparator(date: Date): string {
     return "Yesterday";
   }
 
-  // Check if it's within the last week
   const daysDiff = Math.floor(
     (today.getTime() - messageDate.getTime()) / (1000 * 60 * 60 * 24),
   );
