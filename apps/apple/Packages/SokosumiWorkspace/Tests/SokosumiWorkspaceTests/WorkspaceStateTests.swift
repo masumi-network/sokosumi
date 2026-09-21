@@ -2207,6 +2207,31 @@ extension WorkspaceStateTests {
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/threads/{parentMessageId}/messages" }.count == 2)
   }
 
+  /// Row 19a: the search hit still carries its old body, so the loaded thread row decides.
+  @Test func searchReplyDeletedSinceTheSearchIsUnavailable() async throws {
+    let parentRow = transcriptMessage(id: "parent", roomId: "room", content: "Parent")
+    let deleted = transcriptMessage(id: "old", roomId: "room", content: "")
+      .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"parent\"")
+      .replacingOccurrences(of: "\"deletedAt\":null", with: "\"deletedAt\":\"2026-01-02T00:00:00.000Z\"")
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, transcriptPageBody(messages: [parentRow], nextCursor: nil)),
+      (200, transcriptPageBody(messages: [deleted], nextCursor: nil))
+    ], visible: false)
+    defer { state.reset() }
+    state.timeline.reset(roomId: "room")
+    #expect(try await state.jumpToMessage("parent", auth: auth))
+    var hit = try #require(state.transcriptMessages.first)
+    hit.id = "old"
+    hit.content = "Old"
+    hit.parentMessageId = "parent"
+    #expect(try await state.openMessageReply(hit, auth: auth) == .unavailable)
+    let loaded = try #require(state.thread.timeline.messages.first { $0.id == "old" })
+    #expect(!shouldKeepPersistedMessage(loaded))
+    #expect(state.thread.jumpTarget == nil)
+    #expect(state.displayedThreadReplies.isEmpty)
+    #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/threads/{parentMessageId}/messages" }.count == 1)
+  }
+
   @Test func searchReplyCannotOpenAfterRoomSwitch() async throws {
     let (state, auth, transport, _) = try ephemeralState([
       (200, transcriptPageBody(messages: [transcriptMessage(id: "parent", roomId: "room", content: "Parent")], nextCursor: nil)),

@@ -119,6 +119,10 @@ public extension WorkspaceState {
         return stopped
       }
       guard isCurrent(navigation, threadGeneration: threadGeneration) else { return .superseded }
+      // A search hit keeps its old body; the loaded row says whether the thread still shows it.
+      if let loaded = thread.timeline.messages.first(where: { $0.id == hit.id }), !shouldKeepPersistedMessage(loaded) {
+        return .unavailable
+      }
       thread.requestJump(to: hit.id)
       return thread.jumpTarget?.messageId == hit.id ? .opened : .unavailable
     } catch {

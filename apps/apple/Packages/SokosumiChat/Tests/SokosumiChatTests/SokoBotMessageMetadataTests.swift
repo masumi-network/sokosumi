@@ -81,7 +81,7 @@ struct SokoBotChainMetadataTests {
   }
 }
 
-struct HiddenSokoBotMentionShellTests {
+struct MentionShellTranscriptVisibilityTests {
   private let thinking = #"{"streaming":true,"mention_id":"mention_1","in_reply_to_message_id":"source","soko_bot":{"turn_id":"turn_1"}}"#
   private let failed = #"{"mention_id":"mention_1","mention_failed":true,"in_reply_to_message_id":"source","soko_bot":{"turn_id":"turn_1"}}"#
 
