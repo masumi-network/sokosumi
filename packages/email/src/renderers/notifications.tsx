@@ -18,24 +18,7 @@ import {
   type TranslateFn,
 } from "./notification-shared.js";
 
-/**
- * The notification emails (SOK-1090).
- *
- * One per thing the reader is told about: a mention, a direct message, a task
- * that stopped for them, a task that finished, and someone asking for access
- * to a workspace they manage. Each says what the in-app notification says and
- * opens where it opens, so the inbox and the Notification Center never
- * disagree about the same row.
- *
- * All five are the action email every other transactional email here uses.
- * They differ in their words and their button, not in their layout. The words
- * live under `notifications.event` in the three catalogs; the reminders a day
- * later (SOK-916) live beside them under `notifications.followUp`.
- *
- * The caller chooses the locale. Today Core passes English, because `User`
- * carries no locale column (SOK-1096).
- */
-
+/** Notification emails (SOK-1090). */
 const EVENT_SCOPE = "notifications.event";
 
 interface EventEmailOptions {
@@ -44,7 +27,6 @@ interface EventEmailOptions {
   quote?: null | string;
   recipientName?: null | string;
   t: TranslateFn;
-  /** The catalog entry for the words: subject, body and button. */
   words: {
     body: string;
     button: string;
@@ -71,9 +53,8 @@ function renderEventEmail({
     footer: t(`${EVENT_SCOPE}.footer`),
     greeting: buildGreeting(t, recipientName),
     linkInstructions: linkInstructions(t),
-    // The preheader is the body. A fresh notification has one sentence to
-    // say, and a second line saying it differently would only compete with
-    // the first in the inbox list.
+    // Preheader is the body so the inbox list does not get a competing
+    // second line.
     preview: words.body,
     quote: trimmedQuote ? trimmedQuote : undefined,
     subject: words.subject,
@@ -111,13 +92,7 @@ export function renderChatMentionEmail({
   });
 }
 
-/**
- * Someone messaged the reader one to one.
- *
- * No room name, deliberately. A room of two is named after the other person,
- * who here is the author, so naming it would name them twice. The in-app
- * notification makes the same choice.
- */
+/** No room name: a DM room is named after the author. */
 export function renderChatDirectMessageEmail({
   actionUrl,
   authorName,
@@ -160,14 +135,7 @@ function projectFact(
     : undefined;
 }
 
-/**
- * A task stopped and needs the reader: input, approval, a sign-in, credits,
- * an assignment, or a schedule an operator removed.
- *
- * The reason picks the subject and the body, because "a task needs you" says
- * nothing about which of the six it is, and the reader decides from the
- * subject line whether to open it now.
- */
+/** Reason picks subject and body so the subject names which of the six it is. */
 export function renderTaskAttentionEmail({
   actionUrl,
   coworkerName,
