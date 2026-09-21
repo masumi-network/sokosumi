@@ -287,11 +287,54 @@
         breakUndoCoalescing()
       }
 
+      /// Replaces a typed `**hi**` with its formatted inner text. Unlike a toolbar
+      /// toggle the caret ends up collapsed after the run, and typing goes on in
+      /// the format around the delimiters, as web's caret leaves the new mark.
+      /// Undo puts the literal delimiters back with the caret after them.
+      private func replaceTyped(_ replacement: NSAttributedString, range: NSRange, surrounding: [NSAttributedString.Key: Any], formats: Bool) {
+        guard let textStorage, NSMaxRange(range) <= textStorage.length else { return }
+        let previous = textStorage.attributedSubstring(from: range)
+        undoManager?.registerUndo(withTarget: self) { input in
+          input.replaceTyped(previous, range: NSRange(location: range.location, length: replacement.length), surrounding: surrounding, formats: !formats)
+        }
+        textStorage.replaceCharacters(in: range, with: replacement)
+        setSelectedRange(NSRange(location: range.location + replacement.length, length: 0))
+        if formats {
+          typingAttributes = surrounding
+        }
+        didChangeText()
+        formattingDidChange?()
+      }
+
+      /// Formats a just-closed `**hi**`, `~~hi~~`, `_hi_` or `` `hi` `` before the caret as its own undo step.
+      func applyInputRule(typed: String) -> Bool {
+        let text = attributedString()
+        guard !preservesRawDraft, let rule = ComposerInputRule.match(in: text, caret: selectedRange().location, typed: typed) else { return false }
+        breakUndoCoalescing()
+        replaceTyped(MacComposerAttributedText.styled(rule.replacement(in: text)), range: rule.range,
+                     surrounding: text.attributes(at: rule.range.location, effectiveRange: nil), formats: true)
+        breakUndoCoalescing()
+        return true
+      }
+
+      /// Paste and `insertAtCaret` insert through here as well; only a keystroke fires an input rule.
+      private var insertsUntypedText = false
+
+      private func insertUntyped(_ text: String) {
+        insertsUntypedText = true
+        defer { insertsUntypedText = false }
+        insertText(text, replacementRange: selectedRange())
+      }
+
       override func insertText(_ insertString: Any, replacementRange: NSRange) {
         let isReplayingEdit = undoManager?.isUndoing == true || undoManager?.isRedoing == true
         clearReferenceTypingAttributes()
         super.insertText(insertString, replacementRange: replacementRange)
         guard !isReplayingEdit, !hasMarkedText(), selectedRange().length == 0, !caretIsInCode else { return }
+        let typed = (insertString as? String) ?? (insertString as? NSAttributedString)?.string ?? ""
+        if !insertsUntypedText, applyInputRule(typed: typed) {
+          return
+        }
         if let edit = ComposerEmoji.match(in: string, caret: selectedRange().location) {
           breakUndoCoalescing()
           super.insertText(edit.replacement, replacementRange: edit.range)
@@ -380,7 +423,7 @@
         let plain = pasteboard.string(forType: .string) ?? ""
         let text = plain.isEmpty ? ComposerPaste.plainText(html: pasteboard.string(forType: .html) ?? "") : plain
         guard !text.isEmpty else { return }
-        insertText(text, replacementRange: selectedRange())
+        insertUntyped(text)
         onPaste?(ComposerTextPaste(text: text, remove: { [weak self] in self?.removeLastText(text) ?? false }))
       }
 
@@ -402,7 +445,7 @@
       func insertAtCaret(_ text: String) {
         window?.makeFirstResponder(self)
         breakUndoCoalescing()
-        insertText(text, replacementRange: selectedRange())
+        insertUntyped(text)
         breakUndoCoalescing()
       }
 
