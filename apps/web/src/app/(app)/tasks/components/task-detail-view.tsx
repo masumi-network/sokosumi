@@ -55,10 +55,11 @@ import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { userService } from "@/lib/services/user.service";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import {
-  buildVendorGrantReviewHref,
-  canApproveVendorGrants,
+  buildWorkspaceApprovalReviewHref,
+  canApproveWorkspaceAccess,
   resolveViewerOrganizationMembership,
-} from "@/lib/utils/vendor-grant-approval";
+  VENDOR_GRANT_REVIEW_HASH,
+} from "@/lib/utils/workspace-approval";
 
 type SessionResult = Awaited<ReturnType<typeof getSession>>;
 type AgentsResult = Awaited<
@@ -345,7 +346,7 @@ async function TaskVendorGrantApprovalBannerSlot({
     return null;
   }
 
-  const canApprove = canApproveVendorGrants({
+  const canApprove = canApproveWorkspaceAccess({
     organizationId: orgId,
     isAuthenticated: true,
     viewerMembership,
@@ -364,9 +365,10 @@ async function TaskVendorGrantApprovalBannerSlot({
     );
   }
 
-  const reviewHref = buildVendorGrantReviewHref({
+  const reviewHref = buildWorkspaceApprovalReviewHref({
     organizationId: orgId,
     organizationSlug: viewerMembership?.organization.slug,
+    hash: VENDOR_GRANT_REVIEW_HASH,
   });
 
   return (
