@@ -98,6 +98,33 @@ describe("releasePushDeviceOnSignOut", () => {
   });
 
   /**
+   * `deactivatePush` forgets the preference first and clears the registration
+   * at the end of its asynchronous work. A sign-out inside that window reads
+   * a registration with no preference: the same shape a reader from before
+   * preferences existed leaves behind, and the one case where it is a lie.
+   */
+  it("does not restore consent a teardown already withdrew", async () => {
+    localStorage.setItem("ably.push.deviceIdentityToken", "token");
+    notePushTeardownStarted();
+
+    await releasePushDeviceOnSignOut("user_1");
+
+    expect(hasPushPreference()).toBe(false);
+  });
+
+  /**
+   * The reader this fallback is for: a registration with no preference and no
+   * teardown under way is the only trace of the consent they gave.
+   */
+  it("restores consent for a registration no teardown is clearing", async () => {
+    localStorage.setItem("ably.push.deviceIdentityToken", "token");
+
+    await releasePushDeviceOnSignOut("user_1");
+
+    expect(hasPushPreference()).toBe(true);
+  });
+
+  /**
    * Both registration reads are local. A reader who never turned push on must
    * not pay for the Ably SDK on their way out.
    */

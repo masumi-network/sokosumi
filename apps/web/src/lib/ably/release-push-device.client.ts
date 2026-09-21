@@ -242,9 +242,18 @@ export async function releasePushDeviceOnSignOut(
       return;
     }
 
+    // The second arm carries a reader from before preferences existed: a
+    // registration with no preference beside it is the only trace of the
+    // consent they gave. A teardown already under way is the one case where
+    // that trace lies. `deactivatePush` forgets the preference first and
+    // clears the registration at the end of its asynchronous work, so a
+    // sign-out inside that window reads the same shape and would write the
+    // consent this reader just withdrew back for the next session to resume.
     if (
       wantsPushHere(userId) ||
-      (!hasPushPreference() && hasAblyPushRegistration())
+      (!hasPushPreference() &&
+        hasAblyPushRegistration() &&
+        !hasUnfinishedPushTeardown())
     ) {
       rememberPushPreference(userId, true);
     }
