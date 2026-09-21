@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 
-import type { ChatRoomReadEventData } from "@/lib/ably";
+import type { ChatRoomReadEventData } from "@/lib/ably/schema";
 import type {
   ChatRoom,
   ChatRoomUserParticipant,

@@ -5,7 +5,10 @@ import { useTranslations } from "next-intl";
 import type React from "react";
 import { useCallback, useMemo } from "react";
 
-import { defaultValues, type JobInputsFormSchemaType } from "@/lib/job-input";
+import {
+  defaultValues,
+  type JobInputsFormSchemaType,
+} from "@/lib/job-input/form";
 import { cn } from "@/lib/utils";
 
 import {

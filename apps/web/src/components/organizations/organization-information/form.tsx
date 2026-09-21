@@ -43,7 +43,7 @@ import {
 import {
   type OrganizationInformationFormSchemaType,
   organizationInformationFormSchema,
-} from "@/lib/schemas";
+} from "@/lib/schemas/organization";
 import {
   cleanupOrganizationLogoBestEffort,
   getOrganizationLogoUploadErrorMessage,

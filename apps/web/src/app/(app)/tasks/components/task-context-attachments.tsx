@@ -18,7 +18,7 @@ import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import {
   type DesignMdAdHocAttachment,
   DesignMdAdHocDialog,
-} from "@/components/design-md";
+} from "@/components/design-md/design-md-adhoc-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,

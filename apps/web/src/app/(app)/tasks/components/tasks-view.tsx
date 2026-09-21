@@ -81,7 +81,7 @@ import {
   jobStatusDataSchema,
   type TaskEventData,
   taskEventDataSchema,
-} from "@/lib/ably";
+} from "@/lib/ably/schema";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import {
   AgentJobStatus,

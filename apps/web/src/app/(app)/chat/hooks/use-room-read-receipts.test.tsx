@@ -5,7 +5,7 @@ import {
   type RoomReadReceipts,
   useRoomReadReceipts,
 } from "@/app/chat/hooks/use-room-read-receipts";
-import type { ChatRoomReadEventData } from "@/lib/ably";
+import type { ChatRoomReadEventData } from "@/lib/ably/schema";
 import type {
   ChatRoom,
   ChatRoomUserParticipant,

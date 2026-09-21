@@ -425,13 +425,22 @@ struct ConversationSidebarView: View {
     .labelStyle(RoomRowLabelStyle())
     .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
     .tag(room.id)
-    .badge(attention.badgeCount)
+    .badge(mentionBadge(attention))
     .contextMenu {
       // Reorder mode: the handle stands where the status does and the row menu is not offered.
       if pinned == nil {
         roomActions(room)
       }
     }
+  }
+
+  /// The mention badge as text, so it caps at "99+" like every other chat count. `nil` draws no
+  /// badge, as the zero `Int` badge did; VoiceOver hears web's spoken form, not "99 plus".
+  private func mentionBadge(_ attention: RoomAttention) -> Text? {
+    guard let label = attention.badgeLabel, let spoken = attention.badgeAccessibilityLabel else {
+      return nil
+    }
+    return Text(verbatim: label).accessibilityLabel(spoken)
   }
 
   /// Web's handle takes the drag and the Up/Down keys. `List` drags the whole row natively, so the

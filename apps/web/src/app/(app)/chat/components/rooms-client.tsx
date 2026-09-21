@@ -142,16 +142,18 @@ import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useIsMobileMedia } from "@/hooks/use-mobile";
 import {
+  chatRoomMessageIdEnvelopeAction,
+  tombstoneChatRoomMessage,
+} from "@/lib/ably/apply-chat-room-message-id-envelope";
+import { applyChatRoomMessagePatch } from "@/lib/ably/apply-chat-room-message-patch";
+import { hydrateChatRoomMessageFromRealtime } from "@/lib/ably/hydrate-chat-room-message";
+import {
   type ChatRoomMessageEventData,
   type ChatRoomPinnedMessageEventData,
   type ChatRoomReadEventData,
-  chatRoomMessageIdEnvelopeAction,
   isChatRoomMessageIdEnvelope,
   isChatRoomMessagePatchEvent,
-  tombstoneChatRoomMessage,
-} from "@/lib/ably";
-import { applyChatRoomMessagePatch } from "@/lib/ably/apply-chat-room-message-patch";
-import { hydrateChatRoomMessageFromRealtime } from "@/lib/ably/hydrate-chat-room-message";
+} from "@/lib/ably/schema";
 import { useChatRoomRealtime } from "@/lib/ably/use-chat-room-realtime";
 import { useSelectedRoomChannelHealth } from "@/lib/ably/use-selected-room-channel-health";
 import type {

@@ -18,7 +18,7 @@ import {
   revokeMyCoworkerAccess,
   revokeOrganizationCoworkerAccess,
 } from "@/lib/actions/coworker-access-action";
-import type { ActionError } from "@/lib/actions/errors";
+import type { ActionError } from "@/lib/actions/errors/action-error";
 import {
   type CoworkerAccessEntry,
   coworkerAccessStatusMessageKey,

@@ -25,7 +25,7 @@ import {
   clearRoomReadOverlays,
   rememberRoomRead,
 } from "@/components/chat/room-read-overlay";
-import { chatRoomMessageEventDataSchema } from "@/lib/ably";
+import { chatRoomMessageEventDataSchema } from "@/lib/ably/schema";
 import { useChatRoomRealtime } from "@/lib/ably/use-chat-room-realtime";
 import type {
   ChatRoom,
