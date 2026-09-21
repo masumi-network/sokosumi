@@ -1430,6 +1430,11 @@
         "downloadGeneratedImage": "Generiertes Bild herunterladen",
         "expandPrompt": "Vollständige Nachricht anzeigen",
         "collapsePrompt": "Weniger anzeigen",
+        "typing": {
+          "one": "{name} schreibt gerade …",
+          "two": "{first} und {second} schreiben gerade …",
+          "many": "Mehrere Personen schreiben gerade …"
+        },
         "reasoning": {
           "processing": "Wird verarbeitet...",
           "thinking": "Denkt nach...",
