@@ -25,6 +25,9 @@ const labels = {
     jobs: "Jobs",
   },
   lastActivity: "Last activity",
+  pin: "Pin project",
+  unpin: "Unpin project",
+  pinError: "Could not change the Pin.",
   created: "Created",
 };
 
@@ -86,7 +89,12 @@ describe("ProjectListItem", () => {
     // --card-background, so the hover has to be the step past it. Pinned
     // exactly: "hover:bg-card-background" is a substring of the correct
     // class, so a toContain on the shorter name passes either way.
-    expect(link.className.split(/\s+/)).toContain(
+    //
+    // The fill lives on the row, not the link: the Pin button sits outside
+    // the link, so a link-scoped fill would leave the row's right edge
+    // unlit while the pointer is over it.
+    const row = link.closest("article");
+    expect(row?.className.split(/\s+/)).toContain(
       "hover:bg-card-background-hover",
     );
     // Square at every breakpoint: the row is full-bleed inside the card, so a
@@ -180,5 +188,38 @@ describe("ProjectListItem", () => {
     expect(stamp).toHaveTextContent("ago:2026-08-16T10:00:00.000Z");
     expect(stamp).toHaveAttribute("data-title-prefix", "Created");
     expect(screen.getByText("Created")).toBeInTheDocument();
+  });
+});
+
+describe("ProjectListItem Pin button", () => {
+  it("sits beside the row link, never inside it", () => {
+    render(<ProjectListItem project={project} labels={labels} />);
+
+    const button = screen.getByTestId("project-pin-button");
+    // A button nested in an anchor is invalid HTML, and the click would
+    // navigate to the project instead of Pinning it. This is why the row is
+    // a flex pair rather than one big link.
+    expect(button.closest("a")).toBeNull();
+    expect(button.closest("article")).not.toBeNull();
+  });
+
+  it("reads its state from the row's own starredAt", () => {
+    render(
+      <ProjectListItem
+        project={{
+          ...project,
+          starredAt: new Date("2026-09-01T10:00:00.000Z"),
+        }}
+        labels={labels}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Unpin project" })).toBeDefined();
+  });
+
+  it("offers to Pin a row the reader has not Pinned", () => {
+    render(<ProjectListItem project={project} labels={labels} />);
+
+    expect(screen.getByRole("button", { name: "Pin project" })).toBeDefined();
   });
 });

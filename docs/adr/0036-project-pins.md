@@ -8,4 +8,8 @@ The sidebar flyout diverges from the chat sidebar three times, deliberately. It 
 
 Rows below the pins stay in the reader's own visit order rather than activity order, because `lastActivityAt` is derived from task, job and project events — opening a project does not move it.
 
-Rejected: an organization-shared list of important projects; a generic `UserProjectPreference` row; an organization column on `project_star`; deleting pin rows when a project closes — they are filtered on read instead, so reopening restores the pin.
+The flyout's two groups carry headings. This reverses the original call here, which was that at five rows a hairline divider was enough and headings cost more height than the grouping was worth. On the preview it was plainly wrong: the panel's one heading said "Recent projects" directly above a Pinned row, so the label was lying about the first group, and a bare rule between two visually identical rows carried none of that meaning. The panel's own accessible name is now a separate string rather than either group's, since naming the whole panel after one of its groups mislabels the other.
+
+A Pinned row in the projects list marks itself with hue, fill and a tinted ground together. One step of grey plus a filled icon was the first attempt and did not read at all: at 16px a filled pin is barely distinguishable from an outlined one. The control stays on the row's trailing edge rather than moving to the leading edge, because the list is ordered by activity — Pins are scattered through it, so nobody scans the column for them, and the leading edge already belongs to the avatar.
+
+Rejected: an organization-shared list of important projects; a generic `UserProjectPreference` row; an organization column on `project_star`; deleting pin rows when a project closes — `GET /v1/projects/starred` still returns them so a project page can Unpin, the flyout drops them, and reopening restores the pin.

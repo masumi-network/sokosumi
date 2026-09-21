@@ -2091,6 +2091,9 @@
         "sortedBy": "Nach letzter Aktivität sortiert",
         "lastActivity": "Letzte Aktivität",
         "created": "Erstellt",
+        "pin": "Projekt anheften",
+        "unpin": "Anheften aufheben",
+        "pinError": "Anheften konnte nicht geändert werden. Bitte erneut versuchen.",
         "stats": {
           "tasks": "Tasks",
           "jobs": "Jobs",
@@ -2414,6 +2417,8 @@
           "taskManager": "Aufgaben",
           "projects": "Projekte",
           "allProjects": "Alle Projekte",
+          "projectsPanel": "Deine Projekte",
+          "pinnedProjects": "Angeheftet",
           "recentProjects": "Zuletzt verwendete Projekte",
           "history": "Verlauf",
           "drive": "Dateien",
