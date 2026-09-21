@@ -1,8 +1,9 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-const { channel, envMock, useChannelMock } = vi.hoisted(() => ({
+const { channel, connection, envMock, useChannelMock } = vi.hoisted(() => ({
   channel: { state: "attached" as string },
+  connection: { state: "connected" as string },
   envMock: {
     NEXT_PUBLIC_NETWORK: "Mainnet" as const,
     NEXT_PUBLIC_VERCEL_ENV: "production" as "production" | "preview",
@@ -16,6 +17,7 @@ vi.mock("@/config/env.public", () => ({
 }));
 
 vi.mock("ably/react", () => ({
+  useAbly: () => ({ connection }),
   useChannel: (...args: unknown[]) => {
     useChannelMock(...args);
     return { channel };
@@ -45,6 +47,18 @@ describe("useNotificationRealtime", () => {
       useNotificationRealtime({ userId: "user_1" }),
     );
 
+    expect(result.current.isReceivingNotifications()).toBe(true);
+  });
+
+  it("does not suppress push while an attached channel has lost its connection", () => {
+    channel.state = "attached";
+    connection.state = "connected";
+    const { result } = renderHook(() =>
+      useNotificationRealtime({ userId: "user_1" }),
+    );
+    connection.state = "disconnected";
+    expect(result.current.isReceivingNotifications()).toBe(false);
+    connection.state = "connected";
     expect(result.current.isReceivingNotifications()).toBe(true);
   });
 
