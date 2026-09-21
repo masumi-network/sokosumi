@@ -130,6 +130,8 @@ import SwiftUI
 
     @ViewBuilder
     private var transcriptBody: some View {
+      // Share the live projection across rows and scroll observers for this update.
+      let messages = preparedMessages
       if workspaces.transcriptRoomId != roomId || workspaces.transcriptLoading {
         ProgressView("Loading messages…")
           .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -144,14 +146,16 @@ import SwiftUI
           )
           .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-      } else if preparedMessages.isEmpty {
+      } else if messages.isEmpty {
         ProgressView("Loading messages…").frame(maxWidth: .infinity, maxHeight: .infinity)
       } else {
-        messageList
+        messageList(messages: messages)
       }
     }
 
-    private var messageList: some View {
+    // Existing view composition, now parameterized to share the projection.
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
+    private func messageList(messages: [Components.Schemas.ChatRoomMessage]) -> some View {
       // Realize nearby rows only: laying out every rich message makes each
       // scroll event expensive. Keep each message unary and anchored by ID.
       let transcriptRoom = room
@@ -183,7 +187,6 @@ import SwiftUI
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 12)
             }
-            let messages = preparedMessages
             let gaps = workspaces.timeline.historyGapMessageIds
             ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
               let previous = index > 0 ? messages[index - 1] : nil
@@ -279,7 +282,7 @@ import SwiftUI
         }
         .scrollPosition($scrollPosition)
         .defaultScrollAnchor(scrollIntent.followsLatest ? .bottom : nil, for: .sizeChanges)
-        .onChange(of: preparedMessages.contains(where: { $0.id == quoteTarget }) ? quoteTarget : nil, initial: true) { _, target in
+        .onChange(of: messages.contains(where: { $0.id == quoteTarget }) ? quoteTarget : nil, initial: true) { _, target in
           guard let target else { return }
           guard workspaces.displayedTranscript.contains(where: { $0.id == target }) else {
             quoteTarget = nil
@@ -301,7 +304,7 @@ import SwiftUI
             highlightedId = nil
           }
         }
-        .onChange(of: preparedMessages.last?.id) { _, _ in
+        .onChange(of: messages.last?.id) { _, _ in
           if scrollIntent.followsLatest, workspaces.timeline.historicalAnchor == nil {
             proxy.scrollTo("timeline-bottom", anchor: .bottom)
           }

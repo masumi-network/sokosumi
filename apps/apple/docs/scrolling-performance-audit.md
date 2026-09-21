@@ -1,5 +1,51 @@
 # Chat scrolling performance
 
+## Projection reuse follow-up — 2026-09-21
+
+`RoomTimelineView` and `ReplyThreadView` now compute `preparedMessages` once per view evaluation and pass that array to the rows, jump-readiness check and last-message observer. This removes repeated calls to the existing `PreparedTranscript.overlaying` helper: **four to one in the room, three to one in the thread** during scrolling. The thread's pending-jump path also uses the same array. The projection is still live on every update; no persistent cache, new state lifetime, renderer, domain rule or scroll container is introduced.
+
+The comparison starts at merged retry guard `26f8e9e0fb19e90dfbe6d08c33a8fd773cac99e2`. Both sides use identical probes from the [inlined harness](scrolling-performance-harness.md), arm64 Release builds, the same 900 × 700 pt window and the same host/configuration as below. Each side runs 12 cases: room/thread × 50/500/2,000 total messages × plain/mixed content. Mixed content cycles through plain text, markdown, code, images, unfurls and reactions; a thread contains one parent and N−1 replies. Each pane starts in a fresh process. There is one run per cell, with no concurrent build or other benchmark. Both binaries were copied out of the shared DerivedData directory before the next build. Each copied app logged one `sandbox_extension_issue_file_to_process` launch warning; the retained evidence records it, and both sides completed every case and trace.
+
+For the 120-tick repeat-scroll phase in the plain cases:
+
+| View | Messages | View evaluations, before / after | Projection calls, before / after | Total projection time (ms), before / after |
+| --- | ---: | ---: | ---: | ---: |
+| room | 50 | 103 / 101 | 412 / 101 | 12.349 / 5.121 |
+| room | 500 | 101 / 101 | 404 / 101 | 94.812 / 30.855 |
+| room | 2,000 | 101 / 101 | 404 / 101 | 383.784 / 132.235 |
+| thread | 50 | 94 / 93 | 282 / 93 | 11.627 / 7.209 |
+| thread | 500 | 94 / 94 | 282 / 94 | 79.186 / 32.227 |
+| thread | 2,000 | 81 / 93 | 243 / 93 | 259.829 / 114.165 |
+
+Body evaluation counts can vary even with identical wheel ticks, so the table retains that denominator. Every updated scroll/idle phase in all 12 plain/mixed cases has exactly one projection per view evaluation. This is a **75% reduction in calls per room evaluation and 67% per thread evaluation**, not a promise of the same percentage reduction in scrolling latency. At 2,000 messages the room's aggregate projection time falls from 383.784 to 132.235 ms for the same 101 evaluations. One O(N) projection still runs per update; reuse across unchanged updates would need a separate state/invalidation design.
+
+The deterministic `--projection` check fails on the baseline (`136` calls for `34` room evaluations in the 50-message mixed early phase), and passes after the change. It uses no timing threshold. Both matrices scroll more than 400 points and reach the top; neither prepares during scrolling/idle or constructs ordinary retry-source arrays. The current conditional room/thread host records **two room startup preparations on both sides** (first parses N, second reparses zero), one thread startup preparation, and one reaction preparation that reparses zero. Fresh-process 50-message mixed-room checks reproduce the extra startup pass before and after. This differs from the older direct-room harness and is retained rather than attributed to this fix. The final two room IDs stay inactive during the top sweep; threads use the final ID because the preceding row is not consistently realized at startup on either side.
+
+A separate paired Time Profiler capture uses the expert skill's recorder and parser, scoped to the complete first 120-wheel-event phase via process-scoped unified logs. The previous SwiftUI-template finalization failure still limits this workflow to Time Profiler plus explicit body counters. `RoomTimelineView.preparedMessages` drops from **396 ms (10.34%) to 125 ms (3.21%)** of inclusive main-thread sample weight. Direct counters record **428 / 107 projection calls for 107 / 107 room evaluations**, and **1,520 / 1,522 row-body evaluations**. Inclusive frames overlap; their shares must not be added.
+
+**An overall scrolling speedup is not established.** Total sampled main-thread work is **3,830 / 3,900 ms** and phase duration is **5,034.420 / 4,987.216 ms** in this single pair. The result establishes less projection work, not improved presented-frame FPS or a cure for the live-room report. [Retained evidence](scrolling-projection-results.json) includes both complete phase summaries, getter distributions, isolated startup checks, source hashes, trace bounds and parsed stacks. Binary traces stay local; the harness recreates the capture and checks.
+
+Verification: the full workspace suite passes **867 tests, zero failures/skips**, before and after the product change. This includes the 16 existing content-growth/reading-position cases, four room/thread media-scrolling cases, and the expanded four light/dark room/thread jump cases that request navigation before preparation finishes. Release harness builds and the shared Workspace build targeting iOS 17 pass. Strict uncached SwiftLint and pinned SwiftFormat pass. The inlined sources recreate the measured app/probes byte for byte, with the Xcode project and package-product linkage unchanged. An app-only rerun passes 100 tests after making the snapshot fixture background explicit. All four light/dark room/thread captures were inspected: the requested message is centered and highlighted, with the composer and Jump to latest control visible. The existing large room view composition has a scoped length/complexity lint annotation after becoming a parameterized function; its branches and view tree were not expanded.
+
+Verification commands, from `apps/apple` (reuse the shared DerivedData directory via `-derivedDataPath` when needed):
+
+```sh
+xcodebuild test -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug \
+  -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation \
+  -parallel-testing-enabled NO -enableCodeCoverage NO \
+  ENABLE_CODE_COVERAGE=NO CLANG_ENABLE_CODE_COVERAGE=NO DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=-
+xcodebuild -workspace Sokosumi.xcworkspace -scheme SokosumiWorkspace -configuration Debug \
+  -destination 'generic/platform=iOS' -sdk iphoneos -skipPackagePluginValidation \
+  CODE_SIGNING_ALLOWED=NO IPHONEOS_DEPLOYMENT_TARGET=17.0 \
+  ENABLE_CODE_COVERAGE=NO CLANG_ENABLE_CODE_COVERAGE=NO build
+mint run swiftformat --lint .
+mint run swiftlint lint --strict --no-cache
+```
+
+The final app-only run adds `-only-testing:SokosumiTests` to the test command. Release harness builds and the red/green projection check use the commands in the [harness](scrolling-performance-harness.md).
+
+**M6 remains Partial.** `ScrollView`, `LazyVStack`, stable row IDs, scroll anchors, callbacks and detached preparation are retained. Live authenticated room/thread responsiveness, older-page insertion, historic pagination, gap loading, follow-latest arrivals and position while images grow still need interactive acceptance. This change does not justify a `List` conversion or close the separate geometry warning.
+
 ## Retry guard follow-up — 2026-09-21
 
 `WorkspaceState.canRetryMention` now rejects rows that are not failed mention shells with a source ID **before** constructing `mentionRetrySources`. Room and thread views share this method. Valid failed shells still use the existing loaded-source and ownership check. `ScrollView`, `LazyVStack`, row rendering, geometry callbacks and the prepared-message projection are unchanged.
