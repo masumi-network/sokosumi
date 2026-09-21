@@ -189,18 +189,37 @@ function RoomUnreadCount({ count }: { count: number }) {
  * German or Spanish reader untranslated either way. The wrapper holds the
  * collapsed rule, so the announcement goes quiet with the count and the badge.
  */
-function MentionAnnouncement({ count }: { count: number }) {
-  const t = useTranslations("App.Channels.RoomMentions");
+function MentionAnnouncement({
+  count,
+  countsMentions,
+}: {
+  count: number;
+  /**
+   * False for a Direct of two, whose badge counts every message. It draws the
+   * unread pill there, so it has to say "unread messages" too: a reader who
+   * hears "5 mentions" and one who sees a plain "5" were told different
+   * things.
+   */
+  countsMentions: boolean;
+}) {
+  const tMentions = useTranslations("App.Channels.RoomMentions");
+  const tUnread = useTranslations("App.Channels.RoomUnread");
 
   if (count <= 0) {
     return null;
   }
 
+  const capped = count > ROOM_COUNT_CAP;
+
   return (
     <span className="group-data-[collapsible=icon]:hidden sr-only">
-      {count > ROOM_COUNT_CAP
-        ? t("mentionsCapped", { max: ROOM_COUNT_CAP })
-        : t("mentions", { count })}
+      {countsMentions
+        ? capped
+          ? tMentions("mentionsCapped", { max: ROOM_COUNT_CAP })
+          : tMentions("mentions", { count })
+        : capped
+          ? tUnread("unreadMessagesCapped", { max: ROOM_COUNT_CAP })
+          : tUnread("unreadMessages", { count })}
     </span>
   );
 }
@@ -534,7 +553,10 @@ export function ChatRoomSidebarRow({
           </span>
         ) : null}
       </span>
-      <MentionAnnouncement count={badgeCount} />
+      <MentionAnnouncement
+        count={badgeCount}
+        countsMentions={badgeCountsMentions}
+      />
       <span
         data-slot="room-trailing-spacer"
         className={cn(
