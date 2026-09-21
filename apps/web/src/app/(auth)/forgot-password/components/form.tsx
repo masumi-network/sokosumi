@@ -14,7 +14,7 @@ import { getAbsoluteAuthRedirectUrl } from "@/lib/auth/auth.utils";
 import {
   type ForgotPasswordFormSchemaType,
   forgotPasswordFormSchema,
-} from "@/lib/schemas";
+} from "@/lib/schemas/auth";
 
 interface ForgotPasswordFormProps {
   initialEmail?: string;

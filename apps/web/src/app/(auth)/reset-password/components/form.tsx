@@ -13,7 +13,7 @@ import { resetPasswordWithToken } from "@/lib/actions/auth/action";
 import {
   type ResetPasswordFormSchemaType,
   resetPasswordFormSchema,
-} from "@/lib/schemas";
+} from "@/lib/schemas/auth";
 
 export default function ResetPasswordForm() {
   const t = useTranslations("Auth.Pages.ResetPassword.Form");

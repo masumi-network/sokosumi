@@ -2,7 +2,7 @@
 
 import { Trash } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { OrganizationRemoveModal } from "@/components/organizations";
+import OrganizationRemoveModal from "@/components/organizations/organization-remove/modal";
 import { Button } from "@/components/ui/button";
 import useModal from "@/hooks/use-modal";
 import type {

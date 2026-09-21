@@ -2,7 +2,8 @@ import { err, ok } from "neverthrow";
 import { type NextRequest, NextResponse } from "next/server";
 
 import { toActionResult } from "@/lib/actions/action-result";
-import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
+import type { ActionError } from "@/lib/actions/errors/action-error";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import type { ImpersonationResult } from "@/lib/api/admin-impersonation";
 import { assertAdminSession } from "@/lib/auth/admin-access";
 import { isAdminAccessRequiredError } from "@/lib/auth/errors";

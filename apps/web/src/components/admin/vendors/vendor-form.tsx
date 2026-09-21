@@ -24,7 +24,7 @@ import {
   createAdminVendorAction,
   patchAdminVendorAction,
 } from "@/lib/actions/admin-vendors/action";
-import { CommonErrorCode } from "@/lib/actions/errors";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import type { Vendor } from "@/lib/clients/generated/core";
 import {
   ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,

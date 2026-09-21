@@ -6,7 +6,8 @@ import {
   type ActionResultDto,
   toActionResult,
 } from "@/lib/actions/action-result";
-import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
+import type { ActionError } from "@/lib/actions/errors/action-error";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import {
   resetPasswordViaCore,
   setPasswordViaCore,
@@ -18,9 +19,11 @@ import {
 import {
   type NewPasswordFormType,
   newPasswordFormSchema,
+} from "@/lib/schemas/account";
+import {
   type ResetPasswordFormSchemaType,
   resetPasswordFormSchema,
-} from "@/lib/schemas";
+} from "@/lib/schemas/auth";
 import { utmService } from "@/lib/services/utm.service";
 
 export async function createCredentialAccount(

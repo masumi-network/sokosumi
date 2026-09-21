@@ -17,13 +17,14 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { CommonErrorCode, JobErrorCode } from "@/lib/actions/errors";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
+import { JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { updateJobName } from "@/lib/actions/job/action";
 import type { Job } from "@/lib/clients/generated/core";
 import {
   type JobDetailsNameFormSchemaType,
   jobDetailsNameFormSchema,
-} from "@/lib/schemas";
+} from "@/lib/schemas/job";
 
 export interface UseJobDetailsNameControllerResult {
   editing: boolean;

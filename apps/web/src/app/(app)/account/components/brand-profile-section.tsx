@@ -17,10 +17,8 @@ import { useCallback, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
-import {
-  DesignMdProfileSection,
-  type DesignMdProfileValue,
-} from "@/components/design-md";
+import { DesignMdProfileSection } from "@/components/design-md/design-md-profile-section";
+import type { DesignMdProfileValue } from "@/components/design-md/types";
 import { OrganizationLogoUploadField } from "@/components/organizations/organization-logo-upload-field";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,7 +48,7 @@ import {
 import {
   type BrandProfileFormType,
   brandProfileFormSchema,
-} from "@/lib/schemas";
+} from "@/lib/schemas/account";
 import { formatBytes } from "@/lib/utils/format-bytes";
 import {
   ClientTimeoutError,

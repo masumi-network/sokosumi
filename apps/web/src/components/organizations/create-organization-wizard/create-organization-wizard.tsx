@@ -39,8 +39,8 @@ import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-swi
 import {
   DESIGN_MD_TRANSLATION_NAMESPACE,
   type DesignMdOwner,
-  useDesignMdGeneration,
-} from "@/components/design-md";
+} from "@/components/design-md/types";
+import { useDesignMdGeneration } from "@/components/design-md/use-design-md-generation";
 import { OrganizationLogoUploadField } from "@/components/organizations/organization-logo-upload-field";
 import { Button } from "@/components/ui/button";
 import {

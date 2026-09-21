@@ -1,7 +1,7 @@
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
-import { CommonErrorCode } from "@/lib/actions/errors";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 
 import { toSubscriptionSeatsActionError } from "./map-core-subscription-seats-error";
