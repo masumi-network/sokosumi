@@ -46,6 +46,7 @@ self.addEventListener("install", () => {
  * relative path would have to be resolved against that.
  */
 importScripts("/ably-push-messages.js");
+importScripts("/ably-push-renewal.js");
 
 const FALLBACK_LOCALE = "en";
 

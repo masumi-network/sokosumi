@@ -17,6 +17,7 @@ import {
   forgetPushPreference,
   rememberPushPreference,
 } from "./push-preference.client";
+import { rememberPushRenewal, revokePushRenewal } from "./push-renewal.client";
 import { recordPushRepairOutcome } from "./push-repair-outcome.client";
 import {
   getPushTeardownVersion,
@@ -151,6 +152,10 @@ async function runActivation(
     if (!repaired) {
       throw new Error("The browser created no push subscription");
     }
+    await rememberPushRenewal(client, userId, teardownVersion).catch((error) =>
+      console.error("Failed to store push renewal", error),
+    );
+    if (await abandonedToTeardown(teardownVersion)) return false;
     await recordPushRepairOutcome({
       hadRegistration: true,
       teardownVersion,
@@ -312,6 +317,9 @@ export async function deactivatePush(
   // they leave behind then is a token beside a browser with no subscription:
   // the shape the repair reads as a subscription that died by itself.
   notePushTeardownStarted();
+  const renewalRevoked = revokePushRenewal();
+  // Attach rejection now, even when older work keeps the queue waiting.
+  void renewalRevoked.catch(() => {});
 
   // Nothing may join the activation ahead of this one, because this undoes
   // it. A reader who turns push back on afterwards is asking for a run of
@@ -323,10 +331,10 @@ export async function deactivatePush(
   // The caller can time out while the queue retains the browser lock.
   // Only settlement of the SDK work lets the next activation start.
   return new Promise<void>((resolve, reject) => {
-    void queuePushWork(() => runDeactivation(userId, reject)).then(
-      resolve,
-      reject,
-    );
+    void queuePushWork(async () => {
+      await renewalRevoked;
+      return runDeactivation(userId, reject);
+    }).then(resolve, reject);
   });
 }
 

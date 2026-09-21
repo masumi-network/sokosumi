@@ -224,6 +224,11 @@ export interface ShowNotificationInput {
 let registrationPromise: Promise<ServiceWorkerRegistration | null> | null =
   null;
 
+/** A storage failure can require unregistering the push worker during logout. */
+export function forgetNotificationServiceWorker(): void {
+  registrationPromise = null;
+}
+
 export function isServiceWorkerSupported(): boolean {
   return typeof navigator !== "undefined" && "serviceWorker" in navigator;
 }

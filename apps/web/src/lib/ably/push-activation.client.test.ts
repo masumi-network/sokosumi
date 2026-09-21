@@ -31,6 +31,16 @@ const recordOutcomeMock = vi.fn<(...args: unknown[]) => Promise<void>>(
 vi.mock("./push-repair-outcome.client", () => ({
   recordPushRepairOutcome: (...args: unknown[]) => recordOutcomeMock(...args),
 }));
+const rememberRenewalMock = vi.fn();
+const revokeRenewalMock = vi.fn();
+vi.mock("./push-renewal.client", () => ({
+  rememberPushRenewal: (...args: unknown[]) => rememberRenewalMock(...args),
+  revokePushRenewal: (...args: unknown[]) => revokeRenewalMock(...args),
+}));
+beforeEach(() => {
+  rememberRenewalMock.mockReset().mockResolvedValue(undefined);
+  revokeRenewalMock.mockReset().mockResolvedValue(undefined);
+});
 const calls: string[] = [];
 
 /** Set to make the singleton throw the way a first construction can. */
@@ -141,6 +151,21 @@ describe("deactivatePush", () => {
     getDeviceMock.mockResolvedValue({ id: "old-device" });
     await deactivatePush("user_1");
     expect(deactivateMock).toHaveBeenLastCalledWith(expect.any(Function));
+  });
+
+  it("revokes worker authority before deactivating the device", async () => {
+    let finish = () => {};
+    revokeRenewalMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const work = deactivatePush("user_1");
+    expect(revokeRenewalMock).toHaveBeenCalledTimes(1);
+    expect(deactivateMock).not.toHaveBeenCalled();
+    finish();
+    await work;
+    expect(deactivateMock).toHaveBeenCalledTimes(1);
   });
 
   it("drops the browser subscription as well as the Ably device", async () => {
@@ -831,6 +856,30 @@ describe("activatePush", () => {
     recordOutcomeMock.mockRejectedValueOnce(new Error("listener failed"));
     expect(await activatePush("user_1")).toBe(true);
     expect(subscribeDeviceMock).toHaveBeenCalled();
+  });
+
+  it("stores renewal authority only after device and channel registration succeed", async () => {
+    expect(await activatePush("user_1")).toBe(true);
+    expect(rememberRenewalMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      "user_1",
+      expect.any(String),
+    );
+    expect(rememberRenewalMock.mock.invocationCallOrder[0]).toBeGreaterThan(
+      subscribeDeviceMock.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("does not store renewal authority if channel subscription fails", async () => {
+    subscribeDeviceMock.mockRejectedValueOnce(new Error("channel failed"));
+    await expect(activatePush("user_1")).rejects.toThrow("channel failed");
+    expect(rememberRenewalMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps foreground activation usable when renewal storage fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    rememberRenewalMock.mockRejectedValueOnce(new Error("storage unavailable"));
+    expect(await activatePush("user_1")).toBe(true);
   });
 
   it("activates again after the one before it finished", async () => {

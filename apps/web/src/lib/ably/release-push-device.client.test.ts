@@ -16,6 +16,11 @@ import {
   releasePushDeviceOnSignOut,
 } from "./release-push-device.client";
 
+const revokeRenewalMock = vi.fn();
+vi.mock("./push-renewal.client", () => ({
+  revokePushRenewal: () => revokeRenewalMock(),
+}));
+beforeEach(() => revokeRenewalMock.mockReset().mockResolvedValue(undefined));
 const deactivatePushMock = vi.fn();
 const dropBrowserPushSubscriptionMock = vi.fn();
 const hasWebPushSubscriptionMock = vi.fn();
@@ -63,6 +68,9 @@ describe("releasePushDeviceOnSignOut", () => {
     );
     const release = releasePushDeviceOnSignOut("user_1");
     const markedBeforeRead = hasUnfinishedPushTeardown();
+    await vi.waitFor(() =>
+      expect(hasWebPushSubscriptionMock).toHaveBeenCalled(),
+    );
     finishRead(false);
     await release;
     expect(markedBeforeRead).toBe(true);
@@ -87,6 +95,21 @@ describe("releasePushDeviceOnSignOut", () => {
     expect(resumePushPreferenceForSession("other", "new", 200)).toBe(false);
     expect(resumePushPreferenceForSession("user_1", "old", 100)).toBe(false);
     expect(resumePushPreferenceForSession("user_1", "new", 200)).toBe(true);
+  });
+
+  it("revokes worker authority before checking for an existing subscription", async () => {
+    let finish = () => {};
+    revokeRenewalMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const work = releasePushDeviceOnSignOut("user_1");
+    expect(revokeRenewalMock).toHaveBeenCalledTimes(1);
+    expect(hasWebPushSubscriptionMock).not.toHaveBeenCalled();
+    finish();
+    await work;
+    expect(deactivatePushMock).toHaveBeenCalled();
   });
 
   it("drops the registration this browser holds", async () => {
@@ -504,4 +527,5 @@ it("forgets durable consent when the account is deleted", async () => {
   rememberPushPreference("user_1");
   await dropBrowserPushSubscriptionOnAccountDeletion();
   expect(hasPushPreference()).toBe(false);
+  expect(revokeRenewalMock).toHaveBeenCalledTimes(1);
 });
