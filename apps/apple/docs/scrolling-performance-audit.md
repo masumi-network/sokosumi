@@ -1,5 +1,38 @@
 # Chat scrolling performance
 
+## Stable-scroll projection follow-up — 2026-09-21
+
+Unchanged-data scrolling now triggers **zero `PreparedTranscript.overlaying` rebuilds** in both the room and reply thread. The preparation input, prepared snapshot and live projection belong to the outer view; scroll/composer state stays in a private content view. A scroll-state update therefore evaluates the content view without rebuilding the full message dictionary/array or preparation input. This uses ordinary SwiftUI view boundaries, keeps `ScrollView`/`LazyVStack`, and introduces no persistent cache or new model revision scheme. Real workspace publications and preparation completions can still rebuild the projection.
+
+The view split alone left one rebuild at the start of a thread gesture. `.onScrollPhaseChange(.interacting)` calls `ThreadSession.clearJump()`, which published even when its target was already nil. The method now returns for that no-op. Its new package regression fails before the guard and verifies that setting and actually clearing a jump still publish afterward.
+
+The matched comparison starts at `ccc120c80f86e3a02f48fb4665df6fddd8719167`, after #4970. It uses the same M4 Pro/macOS 27/Xcode 27 host, 900 × 700 pt window, arm64 Release configuration and synthetic real views as the previous audit. Both source copies receive identical harness code. Each pane runs in a fresh process, with one settled 30-wheel-event sample per cell and no concurrent build or benchmark. Mixed content cycles equally through plain text, markdown, code blocks, images, unfurls and reactions; the thread's count includes its parent. Both binaries are copied out of shared DerivedData before the next build. Each process logs the same sandbox-extension launch warning and completes its cases.
+
+| Pane / content | Messages | Scroll-content body evaluations, before / after | Actual projection rebuilds, before / after |
+| --- | ---: | ---: | ---: |
+| room / plain | 50 | 29 / 28 | 29 / 0 |
+| room / plain | 500 | 29 / 29 | 29 / 0 |
+| room / plain | 2,000 | 29 / 29 | 29 / 0 |
+| room / mixed | 50 | 10 / 10 | 10 / 0 |
+| room / mixed | 500 | 10 / 12 | 10 / 0 |
+| room / mixed | 2,000 | 10 / 10 | 10 / 0 |
+| thread / plain | 50 | 25 / 25 | 25 / 0 |
+| thread / plain | 500 | 26 / 26 | 26 / 0 |
+| thread / plain | 2,000 | 26 / 26 | 26 / 0 |
+| thread / mixed | 50 | 13 / 12 | 13 / 0 |
+| thread / mixed | 500 | 16 / 15 | 16 / 0 |
+| thread / mixed | 2,000 | 13 / 12 | 13 / 0 |
+
+All cells receive 30 × 60-point wheel events, move at least 1,800 points in reported document coordinates, and prepare zero times during the measured phase. Thread offsets also reflect lazy document-height estimates; their deltas are not equal-distance or latency measurements. `overlay_builds` instruments the actual dictionary construction inside `PreparedTranscript.overlaying`, so removing or moving its old caller cannot hide the work. `view_bodies` counts the scroll-state owner on both sides. The room's preparation-input getter also runs zero times during these updated scroll phases. The removed `preparedMessages` getter timer has no after samples; that absence is **not** a new projection timing measurement. The deterministic `--stable-projection` check fails on every baseline cell and passes on every updated cell without a timing threshold. Startup prepares twice in the baseline room (second pass reparses zero), once in the updated room, and once in both threads.
+
+An additional 2,000-message plain case per pane runs the full early/traverse/repeat/idle/reaction sequence. Room and thread reach the top, with **zero rebuilds across 538 / 561 scroll-content body evaluations**, no scroll-time preparations, and no evaluations of the verified bottom sentinel rows during the repeat sweep. Each reaction prepares once, visits 2,000 messages and reparses zero documents; actual data changes still rebuild the projection. Both revisions also pass 12 live-update checks per pane: edits/prepared markdown, optimistic reactions before the response, confirmation/rollback, arrival/deletion, pending-send display, failed-send outbox state, outbound-row removal and scope replacement. Scope checks cover a room generation change and a new thread parent; they are not cross-account or authenticated acceptance.
+
+[Retained evidence](scrolling-stable-projection-results.json) records the counters, source hashes and validation results. The [inlined harness](scrolling-performance-harness.md#stable-transcript-projection-regression) includes the exact probes, fast counter check and separate live-update mode. Extraction reproduces the measured instrumented sources byte for byte, including an unchanged Xcode project; no test-target package products or dependencies are added.
+
+Verification: the same full workspace suite passes before (**892 tests / 1,182 parameterized executions**) and after (**893 / 1,183**), with zero failures/skips; the only added test is the no-op jump publication regression. Existing content-growth, media-scrolling and light/dark room/thread jump tests pass. All four captured jump images were inspected: message 2 is visible and highlighted, with the composer and Jump to latest control intact; their OCR assertions also pass. Both Release harness builds, the iOS 17 Workspace build, pinned uncached SwiftFormat and strict uncached SwiftLint pass. The existing geometry warning is still emitted during tests. Task-owned harness processes have exited. The workspace/build/lint commands are retained in the previous follow-up below.
+
+**This proves removal of scroll-driven O(N) projection work, not smoother presented frames.** No new Instruments trace or FPS measurement is claimed. The earlier trace established that the projection consumed CPU; the new direct counter establishes that stable scrolling no longer calls it. Other workspace publications, reaction-only preparation walks and the separate geometry warning remain outside this result. M6 stays Partial pending the user's live-room/thread acceptance and its existing pagination, historic-jump, gap-loading, follow-latest and image-growth gates.
+
 ## Projection reuse follow-up — 2026-09-21
 
 `RoomTimelineView` and `ReplyThreadView` now compute `preparedMessages` once per view evaluation and pass that array to the rows, jump-readiness check and last-message observer. This removes repeated calls to the existing `PreparedTranscript.overlaying` helper: **four to one in the room, three to one in the thread** during scrolling. The thread's pending-jump path also uses the same array. The projection is still live on every update; no persistent cache, new state lifetime, renderer, domain rule or scroll container is introduced.
