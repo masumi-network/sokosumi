@@ -6,11 +6,20 @@ const deactivate = vi.hoisted(() => vi.fn());
 const subscribeDevice = vi.hoisted(() => vi.fn());
 const unsubscribeDevice = vi.hoisted(() => vi.fn());
 
-vi.mock("../realtime-singleton.client", () => ({
-  getAblyRealtimeClient: () => ({
+vi.mock("../push-client.client", () => ({
+  createAblyPushClient: () => ({
+    getDevice: async () => ({
+      deviceIdentityToken: localStorage.getItem(
+        "ably.push.deviceIdentityToken",
+      ),
+    }),
     push: { activate, deactivate },
     channels: { get: () => ({ push: { subscribeDevice, unsubscribeDevice } }) },
   }),
+}));
+vi.mock("../push-device-health.client", () => ({
+  pushDeviceNeedsReset: async () => false,
+  isMissingPushDevice: () => false,
 }));
 vi.mock("../current-notifications-channel.client", () => ({
   makeCurrentUserNotificationsChannelName: (userId: string) => userId,

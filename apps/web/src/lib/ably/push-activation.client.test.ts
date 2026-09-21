@@ -19,25 +19,38 @@ vi.mock("@/config/env.public", () => ({
   getEnvPublicConfig: () => envMock,
 }));
 
+const needsResetMock = vi.fn();
+const getDeviceMock = vi.fn();
+vi.mock("./push-device-health.client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./push-device-health.client")>()),
+  pushDeviceNeedsReset: () => needsResetMock(),
+}));
+const recordOutcomeMock = vi.fn<(...args: unknown[]) => Promise<void>>(
+  async () => {},
+);
+vi.mock("./push-repair-outcome.client", () => ({
+  recordPushRepairOutcome: (...args: unknown[]) => recordOutcomeMock(...args),
+}));
 const calls: string[] = [];
 
 /** Set to make the singleton throw the way a first construction can. */
 let clientConstructionError: Error | null = null;
 
-vi.mock("./realtime-singleton.client", () => ({
-  getAblyRealtimeClient: () => {
+vi.mock("./push-client.client", () => ({
+  createAblyPushClient: () => {
     if (clientConstructionError) {
       throw clientConstructionError;
     }
     return {
+      getDevice: () => getDeviceMock(),
       push: {
         activate: () => {
           calls.push("activate");
           return activateMock();
         },
-        deactivate: () => {
+        deactivate: (...args: unknown[]) => {
           calls.push("deactivate");
-          return deactivateMock();
+          return deactivateMock(...args);
         },
       },
       channels: {
@@ -77,6 +90,8 @@ describe("deactivatePush", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    needsResetMock.mockReset().mockResolvedValue(false);
+    getDeviceMock.mockResolvedValue({ deviceIdentityToken: "token" });
     calls.length = 0;
     clientConstructionError = null;
     activateMock.mockResolvedValue(undefined);
@@ -122,6 +137,12 @@ describe("deactivatePush", () => {
    * settings switch reads that subscription. Leaving it would show the switch
    * on for a device that receives nothing.
    */
+  it("resets missing credentials on teardown without waiting for SDK authentication", async () => {
+    getDeviceMock.mockResolvedValue({ id: "old-device" });
+    await deactivatePush("user_1");
+    expect(deactivateMock).toHaveBeenLastCalledWith(expect.any(Function));
+  });
+
   it("drops the browser subscription as well as the Ably device", async () => {
     await deactivatePush("user_1");
 
@@ -357,6 +378,8 @@ describe("activatePush", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    needsResetMock.mockReset().mockResolvedValue(false);
+    getDeviceMock.mockResolvedValue({ deviceIdentityToken: "token" });
     localStorage.clear();
     calls.length = 0;
     clientConstructionError = null;
@@ -409,16 +432,15 @@ describe("activatePush", () => {
    * back on for a reader who asked it off.
    */
   it("stops a repair before the second subscribe when a teardown starts between rounds", async () => {
-    hasWebPushSubscriptionMock
-      .mockResolvedValueOnce(false)
-      .mockResolvedValue(true);
+    needsResetMock.mockResolvedValueOnce(true);
+    hasWebPushSubscriptionMock.mockResolvedValue(true);
     deactivateMock.mockImplementation(async () => {
       localStorage.setItem("sokosumi.push.teardownStarted", "1");
     });
 
     await activatePush("user_1", { readerInitiated: false });
 
-    expect(calls).toEqual(["activate", "subscribeDevice", "deactivate"]);
+    expect(calls).toEqual(["activate", "unsubscribeBrowser", "deactivate"]);
     expect(localStorage.getItem("sokosumi.push.teardownStarted")).toBe("1");
   });
 
@@ -456,15 +478,14 @@ describe("activatePush", () => {
    * it would report success and receive nothing.
    */
   it("clears the stored activation and retries when no subscription appears", async () => {
-    hasWebPushSubscriptionMock
-      .mockResolvedValueOnce(false)
-      .mockResolvedValueOnce(true);
+    needsResetMock.mockResolvedValueOnce(true);
+    hasWebPushSubscriptionMock.mockResolvedValue(true);
 
     await activatePush("user_1");
 
     expect(calls).toEqual([
       "activate",
-      "subscribeDevice",
+      "unsubscribeBrowser",
       "deactivate",
       "activate",
       "subscribeDevice",
@@ -672,9 +693,8 @@ describe("activatePush", () => {
     );
     // No subscription after the first round, which is what sends it round
     // again; one after the second, so nothing but the teardown ends this run.
-    hasWebPushSubscriptionMock
-      .mockResolvedValueOnce(false)
-      .mockResolvedValue(true);
+    needsResetMock.mockResolvedValueOnce(true);
+    hasWebPushSubscriptionMock.mockResolvedValue(true);
 
     const activation = activatePush("user_1");
     await vi.waitFor(() => expect(resolvers).toHaveLength(1));
@@ -691,7 +711,7 @@ describe("activatePush", () => {
     resolvers[1]();
     await activation;
 
-    expect(unsubscribeMock).toHaveBeenCalledTimes(1);
+    expect(unsubscribeMock).toHaveBeenCalledTimes(2);
     expect(localStorage.getItem("ably.push.deviceIdentityToken")).toBeNull();
   });
 
@@ -799,6 +819,20 @@ describe("activatePush", () => {
   });
 
   /** A finished activation must not answer the next one. */
+  it("does not report success when teardown starts during the final health record", async () => {
+    recordOutcomeMock.mockImplementationOnce(async () => {
+      notePushTeardown();
+    });
+    expect(await activatePush("user_1")).toBe(false);
+  });
+
+  it("keeps successful activation when the health observer throws", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    recordOutcomeMock.mockRejectedValueOnce(new Error("listener failed"));
+    expect(await activatePush("user_1")).toBe(true);
+    expect(subscribeDeviceMock).toHaveBeenCalled();
+  });
+
   it("activates again after the one before it finished", async () => {
     await activatePush("user_1");
     activateMock.mockClear();
@@ -818,5 +852,19 @@ describe("activatePush", () => {
     await expect(activatePush("user_1")).rejects.toThrow("denied");
     expect(duringActivation).not.toBe(browserRequestPermission);
     expect(Notification.requestPermission).toBe(browserRequestPermission);
+  });
+
+  // SOK-1120: logout can remove the identity token but leave SDK activation state.
+  it("resets local SDK state without remote deregistration when its token is missing", async () => {
+    localStorage.clear();
+    hasWebPushSubscriptionMock.mockResolvedValue(true);
+    needsResetMock
+      .mockReset()
+      .mockResolvedValueOnce(true)
+      .mockResolvedValue(false);
+    getDeviceMock.mockResolvedValue({ id: "old-device" });
+    deactivateMock.mockResolvedValue(undefined);
+    await activatePush("user_1");
+    expect(deactivateMock).toHaveBeenLastCalledWith(expect.any(Function));
   });
 });
