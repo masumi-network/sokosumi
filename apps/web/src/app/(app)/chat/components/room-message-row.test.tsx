@@ -1043,6 +1043,27 @@ describe("ChatMessageRow", () => {
     expect(pillClasses).toContain("focus-within:pointer-events-auto");
   });
 
+  /**
+   * A row with a name-and-time header has an empty right half on that line
+   * for the pill to park in, hiding nothing. A continuation has no header, so
+   * it lifts clear onto the line above instead of covering its own first one.
+   */
+  it("parks the hover pill on the header line", async () => {
+    const user = userEvent.setup();
+    renderRow();
+    await user.hover(screen.getByRole("article"));
+
+    expect(hoverPill()?.className.split(/\s+/)).toContain("-translate-y-1/4");
+  });
+
+  it("lifts the hover pill clear of a row that has no header", async () => {
+    const user = userEvent.setup();
+    renderRow({ isContinuation: true });
+    await user.hover(screen.getByRole("article"));
+
+    expect(hoverPill()?.className.split(/\s+/)).toContain("-translate-y-3/4");
+  });
+
   it("keeps the hover pill inert while its More menu is open", async () => {
     const user = userEvent.setup();
     renderRow();

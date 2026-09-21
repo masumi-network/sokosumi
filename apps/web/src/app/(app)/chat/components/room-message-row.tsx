@@ -1178,13 +1178,25 @@ function MessageActionControls({
 // On the row's top edge, as in Slack and the Apple client: the same spot at
 // every row height, instead of hanging below a one-line row.
 //
-// Three quarters of it sits above that edge rather than half. Now that the
-// text runs the full width the pill covers words, and this decides whose:
-// mostly the row above, which you have finished reading, instead of the first
-// line of the row you are pointing at. The quarter that stays is what keeps
-// it attached to its own row rather than floating between two.
+// How far above that edge depends on what the row starts with, because the
+// text now runs the full width and the pill covers whatever it sits on.
+//
+// A row with a name-and-time header has an empty lane waiting for it. The
+// header is short and left-aligned, so its right half holds nothing, and the
+// pill parked there hides no words at all — it only has to clear the first
+// line of the body, which a quarter of its height does.
+//
+// A continuation has no header to sit on, so it lifts three quarters clear
+// and covers the tail of the line above instead — one you have finished
+// reading, rather than the first line of the message you are pointing at. The
+// quarter left behind is what keeps it attached to its own row.
 const MESSAGE_ACTIONS_PILL_CLASS =
-  "border-border bg-background absolute top-0 right-2 -translate-y-3/4 items-center gap-0.5 rounded-full border p-0.5 shadow-sm";
+  "border-border bg-background absolute top-0 right-2 items-center gap-0.5 rounded-full border p-0.5 shadow-sm";
+
+/** Where the pill rides, by what the row leads with. See the class above. */
+function messageActionsPillLiftClass(isContinuation: boolean): string {
+  return isContinuation ? "-translate-y-3/4" : "-translate-y-1/4";
+}
 
 // Debounce the reveal: scrolling drags a stationary pointer across row after
 // row, and an instant pill flashes at each one. The delay only applies while
@@ -1214,6 +1226,7 @@ function MessageActions({
   showCopyLinkButton,
   showEditButton,
   showDeleteButton,
+  isContinuation,
 }: {
   message: ChatRoomMessage;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
@@ -1234,6 +1247,8 @@ function MessageActions({
   showCopyLinkButton: boolean;
   showEditButton: boolean;
   showDeleteButton: boolean;
+  /** No header on the row, so the pill has no empty lane to park in. */
+  isContinuation: boolean;
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const frequentlyUsedEmojis = useFrequentlyUsedEmojis();
@@ -1256,6 +1271,7 @@ function MessageActions({
       data-message-actions="hover"
       className={cn(
         MESSAGE_ACTIONS_PILL_CLASS,
+        messageActionsPillLiftClass(isContinuation),
         "hidden transition-[opacity,pointer-events] transition-discrete focus-within:opacity-100 [@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:flex [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100",
         MESSAGE_ACTIONS_PILL_REVEAL_DELAY_CLASS,
         // The upper half covers the row above, and an opacity-0 pill still
@@ -2798,6 +2814,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               showCopyLinkButton={canCopyLink}
               showEditButton={canEdit}
               showDeleteButton={canDelete}
+              isContinuation={isContinuation}
             />
           ) : null}
           {sheetMounted ? (
