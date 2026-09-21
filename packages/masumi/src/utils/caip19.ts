@@ -24,16 +24,6 @@ export const CAIP2_EVM_NETWORK_PATTERN = /^eip155:(0|[1-9]\d{0,31})$/;
 /** ERC-20 contract address: 0x + 40 hex chars. */
 export const EVM_ADDRESS_PATTERN = /^0x[0-9a-fA-F]{40}$/;
 
-const CAIP19_ERC20_KEY_PATTERN =
-  /^eip155:(0|[1-9]\d{0,31})\/erc20:0x[0-9a-f]{40}$/;
-
-export interface Caip19AssetKeyParts {
-  /** Lowercase CAIP-2 network id, e.g. `eip155:8453`. */
-  caip2Network: string;
-  /** Lowercase ERC-20 contract address, e.g. `0xabc…` (42 chars). */
-  assetAddress: string;
-}
-
 /**
  * Builds the canonical lowercase CAIP-19 `CreditCost.unit` key for an ERC-20
  * asset on an EVM chain: `eip155:8453/erc20:0x…`.
@@ -61,35 +51,11 @@ export function buildCaip19AssetKey(
 }
 
 /**
- * Parses a CAIP-19 ERC-20 asset key back into its parts. Case-insensitive on
- * input (rows predating canonicalization may carry uppercase hex); the parts
- * come back lowercase. Returns `null` for anything that is not a well-formed
- * `eip155:<chainId>/erc20:<address>` key — including Cardano units, which
- * simply are not CAIP-19 keys.
- */
-export function parseCaip19AssetKey(key: string): Caip19AssetKeyParts | null {
-  const normalized = key.trim().toLowerCase();
-  if (!CAIP19_ERC20_KEY_PATTERN.test(normalized)) {
-    return null;
-  }
-  const [caip2Network, assetPart] = normalized.split("/") as [string, string];
-  return {
-    caip2Network,
-    assetAddress: assetPart.slice("erc20:".length),
-  };
-}
-
-/** Whether a `CreditCost.unit` value is a CAIP-19 ERC-20 asset key. */
-export function isCaip19AssetKey(key: string): boolean {
-  return parseCaip19AssetKey(key) !== null;
-}
-
-/**
  * Whether a `CreditCost.unit` spelling belongs to the EVM (`eip155:`)
  * namespace AT ALL — canonical or not.
  *
- * This is the EXCLUSION fence, deliberately broader than
- * {@link isCaip19AssetKey}. The canonical pattern answers "may this key
+ * This is the EXCLUSION fence, deliberately broader than the canonical
+ * CAIP-19 key `buildCaip19AssetKey` mints. The builder answers "may this key
  * enter the whole-token pricing path" — a positive gate, where strictness
  * fails closed. This answers the opposite question: "must this unit be kept
  * OUT of the per-smallest-unit Cardano path". There, strictness fails OPEN:
