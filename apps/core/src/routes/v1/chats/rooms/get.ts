@@ -36,7 +36,7 @@ import {
 import {
   getChatRoomUnreadCounts,
   getChatRoomUnreadMentionCounts,
-  unreadAttention,
+  unreadCountFields,
 } from "./room-unread";
 
 /**
@@ -219,7 +219,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         rooms.map((room) => {
           const flags = sidebarFlags.get(room.id);
           return mapChatRoom(room, userId, {
-            ...unreadAttention(unreadCounts.get(room.id)),
+            ...unreadCountFields(unreadCounts.get(room.id)),
             unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
             starredAt: flags?.starredAt ?? null,
             pinnedMessageCount: pinnedMessageCounts.get(room.id) ?? 0,

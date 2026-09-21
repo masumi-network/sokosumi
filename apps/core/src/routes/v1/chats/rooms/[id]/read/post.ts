@@ -23,7 +23,7 @@ import {
   mapChatRoomWithSidebarFlags,
   requireChatRoomUserAccess,
 } from "../../helpers";
-import { getChatRoomUnreadCounts, unreadAttention } from "../../room-unread";
+import { getChatRoomUnreadCounts, unreadCountFields } from "../../room-unread";
 
 const paramsSchema = z.object({
   id: z
@@ -146,7 +146,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       c,
       chatRoomSchema.parse(
         await mapChatRoomWithSidebarFlags(room, userContext.userId, prisma, {
-          ...unreadAttention(unreadCounts.get(room.id)),
+          ...unreadCountFields(unreadCounts.get(room.id)),
           unreadMentionCount: 0,
         }),
       ),
