@@ -130,6 +130,7 @@ V81: runtime bearer ∈ `coworker_*` only; developer OAuth/user API key (`soko_*
 V82: session grant ⊥ Coworker identity and key material; expiry/disconnect remove temporary authority only; reconnect requires authorization (ADR 0005).
 V83: mint/rotate/revoke `coworker_*` ∈ developer auth only (interactive or headless); runtime ⊥ self-mint (ADR 0005).
 V84: CLI/TUI/skill share in-process handlers; ⊥ recursive CLI entrypoint; runtime adapters → Core HTTP with `coworker_*` (ADR 0005).
+V85: `coworkers register` requires ≥1 organization workspace and `--vendor-id` ∈ administered (`admin`) memberships; foreign/non-admin Vendor ⊥ before Core create; `--create-vendor` requires `--confirm-create-vendor` then refuses (no Core developer self-service create).
 
 ## §T TASKS
 
@@ -171,6 +172,7 @@ T33|.|approve Masumi funding/custody contract; general x402 services within auth
 T34|.|Core seller usage-price authorization, version review, settlement and controlled payment evidence|V73,V74,V76
 T35|.|Core readiness derivation, capability evidence, waitlist review; CLI exposes status without self-approval|V70,V71,V72
 T36|x|CLI read-only administered Vendor + organization-workspace discovery|V18,V19,V42,V67,V79,V80,I
+T37|x|CLI registration gates: workspace required, admin Vendor only, refuse inventing Vendor create|V67,V79,V85,I
 
 ## §B BUGS
 
