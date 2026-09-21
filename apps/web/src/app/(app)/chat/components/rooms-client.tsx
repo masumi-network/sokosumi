@@ -133,7 +133,6 @@ import {
   subscribeMembershipVisibleRooms,
 } from "@/components/chat/membership-visible-rooms-store";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
-import { readReceiptFacesWidth } from "@/components/chat/read-receipt-faces";
 import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
 import { useShowRoomUnreadCount } from "@/components/chat/use-show-room-unread-count";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
@@ -250,9 +249,6 @@ interface RoomsClientProps {
    */
   rosterPromise?: Promise<RoomShellRosterPage>;
 }
-
-/** The `ms-1.5` between the message's last word and the Seen by faces. */
-const SEEN_BY_TRAILING_GAP_PX = 6;
 
 /** Poll cadence for the open room while Ably or its channel is unavailable. */
 const ROOM_MESSAGE_FALLBACK_MS = 3_000;
@@ -2850,14 +2846,11 @@ export function RoomsClient({
               }
               seenBy={
                 seenByReaders.length > 0 ? (
-                  <RoomSeenByLine readers={seenByReaders} />
+                  <RoomSeenByLine
+                    readers={seenByReaders}
+                    receipts={readReceipts}
+                  />
                 ) : undefined
-              }
-              seenByGutterPx={
-                seenByReaders.length > 0
-                  ? SEEN_BY_TRAILING_GAP_PX +
-                    readReceiptFacesWidth(seenByReaders.length, "sm")
-                  : 0
               }
             />
           )}

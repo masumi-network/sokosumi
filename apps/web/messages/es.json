@@ -5607,6 +5607,7 @@
       },
       "SeenBy": {
         "summary": "{count, plural, one {Leído por # persona} other {Leído por # personas}}",
+        "readersTitle": "Leído por",
         "readAt": "Leído por última vez {time}",
         "notRead": "Sin leer todavía"
       },

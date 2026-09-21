@@ -7,11 +7,12 @@ import { getInitials } from "@/lib/utils/text";
 /** Faces shown before the rest collapse into a `+N`. */
 export const READ_RECEIPT_FACE_CAP = 3;
 
-function participantName(participant: ChatRoomUserParticipant): string {
+/** What to call a member: their name, or the email until they have one. */
+export function participantName(participant: ChatRoomUserParticipant): string {
   return participant.name || participant.email;
 }
 
-function ParticipantAvatar({
+export function ParticipantAvatar({
   participant,
   className,
   textClassName,
@@ -35,44 +36,38 @@ function ParticipantAvatar({
   );
 }
 
-/**
- * The header stack, and the smaller faces under a message.
- *
- * Each size carries its classes and its pixels together, because the
- * transcript has to know the width before layout and Tailwind cannot scan a
- * class name built at runtime. Keeping the twins in one literal means a face
- * size is one edit rather than a hunt through four constants.
- */
+/** The header stack, and the smaller faces under a message. */
 const FACE = {
-  md: { size: "size-6", px: 24, overlap: "-space-x-2", overlapPx: 8 },
-  sm: { size: "size-4", px: 16, overlap: "-space-x-1", overlapPx: 4 },
+  md: { size: "size-6", overlap: "-space-x-2" },
+  sm: { size: "size-4", overlap: "-space-x-1" },
 } as const;
 
 /**
- * How wide the faces will render, in px.
+ * How loud the faces are at rest.
  *
- * The transcript needs this before layout: it reserves exactly this much at the
- * end of the message so the last line wraps early and the faces stay on it
- * rather than dropping to a row of their own. Derived from the same constants
- * the component renders with, so the reservation cannot drift from the render.
+ * `quiet` is for the faces under a message, where the receipt arrives the
+ * instant you finish writing and has to not shout about it. Colour is most of
+ * what shouts — three photo avatars at the end of your own sentence read as
+ * content — so they sit grey until the pointer or the keyboard arrives. The
+ * ring goes with it: without it they sit in the text lane rather than on it.
+ *
+ * It answers to a `group` ancestor, so whatever wraps the faces owns the
+ * hover, the focus ring and the open state. The header stack stays `full`:
+ * nothing there competes with a sentence.
  */
-export function readReceiptFacesWidth(
-  readerCount: number,
-  size: keyof typeof FACE = "md",
-): number {
-  const faces = Math.min(readerCount, READ_RECEIPT_FACE_CAP);
-  const slots = faces + (readerCount > faces ? 1 : 0);
-  if (slots === 0) {
-    return 0;
-  }
-  const { px, overlapPx } = FACE[size];
-  return px + (slots - 1) * (px - overlapPx);
-}
+export type ReadReceiptFacesTone = "full" | "quiet";
+
+const TONE: Record<ReadReceiptFacesTone, string> = {
+  full: "ring-border ring-1",
+  quiet:
+    "opacity-70 grayscale group-hover:opacity-100 group-hover:grayscale-0 group-focus-visible:opacity-100 group-focus-visible:grayscale-0 group-data-[state=open]:opacity-100 group-data-[state=open]:grayscale-0 motion-safe:transition motion-safe:duration-150",
+};
 
 interface ReadReceiptFacesProps {
   /** Readers, most-recent-read first, viewer already excluded. */
   readers: readonly RoomReader[];
   size?: keyof typeof FACE;
+  tone?: ReadReceiptFacesTone;
   className?: string;
 }
 
@@ -84,6 +79,7 @@ interface ReadReceiptFacesProps {
 export function ReadReceiptFaces({
   readers,
   size = "md",
+  tone = "full",
   className,
 }: ReadReceiptFacesProps) {
   const faces = readers.slice(0, READ_RECEIPT_FACE_CAP);
@@ -100,7 +96,7 @@ export function ReadReceiptFaces({
         >
           <ParticipantAvatar
             participant={participant}
-            className="ring-border size-full shadow-xs ring-1"
+            className={cn("size-full shadow-xs", TONE[tone])}
             textClassName={size === "sm" ? "text-[0.5rem]" : undefined}
           />
         </span>
@@ -108,9 +104,10 @@ export function ReadReceiptFaces({
       {remainingCount > 0 ? (
         <span
           className={cn(
-            "bg-muted text-muted-foreground ring-border relative inline-flex shrink-0 items-center justify-center rounded-full font-medium shadow-xs ring-1",
+            "bg-muted text-muted-foreground relative inline-flex shrink-0 items-center justify-center rounded-full font-medium shadow-xs",
             FACE[size].size,
             size === "sm" ? "text-[0.5rem]" : "text-[0.625rem]",
+            TONE[tone],
           )}
           style={{ zIndex: 0 }}
           aria-hidden

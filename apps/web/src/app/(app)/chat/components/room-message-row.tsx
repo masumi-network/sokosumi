@@ -725,7 +725,6 @@ function ChannelMessageBody({
   onOpenDirectMessage,
   openingDirectParticipantKey,
   trailing,
-  trailingGutterPx = 0,
 }: {
   messageId: string;
   content: string;
@@ -741,14 +740,6 @@ function ChannelMessageBody({
   onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
   openingDirectParticipantKey?: string | null;
   trailing?: ReactNode;
-  /**
-   * Width to hold free at the end of the text for `trailing`, in px. The last
-   * paragraph goes inline so `trailing` lands on its final line; this narrows
-   * every line box by that much, so the last words wrap early and leave the
-   * room rather than pushing `trailing` onto a line of its own. Zero means the
-   * trailing content takes whatever is left and wraps if it must.
-   */
-  trailingGutterPx?: number;
 }) {
   const t = useTranslations("App.Channels.Message");
   const jumboEmojiCount = getJumboEmojiCount(content);
@@ -784,11 +775,6 @@ function ChannelMessageBody({
           expanded || skipBodyClamp ? null : MESSAGE_BODY_CLAMP_CLASS,
           trailing ? "[&_.prose]:contents [&_p:last-of-type]:inline" : null,
         )}
-        style={
-          trailing && trailingGutterPx > 0
-            ? { paddingInlineEnd: `${trailingGutterPx}px` }
-            : undefined
-        }
       >
         <ChannelMessageText
           content={content}
@@ -2158,12 +2144,20 @@ function MessageMetaFooter({
   onOpenThread,
   showThreadButton,
   isDeleted,
+  reserveSeenByCorner = false,
 }: {
   message: ChatRoomMessage;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
   isDeleted: boolean;
+  /**
+   * Hold the bottom-right corner free for the Seen by faces. Only the
+   * reactions wrap far enough right to reach them; the reply-count button is
+   * short and left-aligned. Width is one row of faces at their cap — four
+   * 16px slots overlapping by 4 — plus a little air.
+   */
+  reserveSeenByCorner?: boolean;
 }) {
   const t = useTranslations("App.Channels");
   const isOutboundLocal = isOutboundLocalMessage(message);
@@ -2171,7 +2165,12 @@ function MessageMetaFooter({
   return (
     <>
       {!isDeleted && !isOutboundLocal && message.reactions.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5 pt-1">
+        <div
+          className={cn(
+            "flex flex-wrap gap-1.5 pt-1",
+            reserveSeenByCorner && "pe-14",
+          )}
+        >
           {message.reactions.map((reaction) => {
             const whoReactedLabel = formatWhoReactedLabel(reaction, t);
 
@@ -2261,7 +2260,6 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   isFirstOfDay = false,
   reserveHoverActionGutter = true,
   seenBy,
-  seenByGutterPx = 0,
 }: {
   message: ChatRoomMessage;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
@@ -2313,10 +2311,11 @@ export const ChatMessageRow = memo(function ChatMessageRow({
    * thread panel so the body can use the full column.
    */
   reserveHoverActionGutter?: boolean;
-  /** Seen by faces, trailing the message's last line. Newest message only. */
+  /**
+   * Seen by faces, pinned to the bottom-right of the message column. Newest
+   * message only.
+   */
   seenBy?: ReactNode;
-  /** Width `seenBy` needs, held free at the end of the text so it fits. */
-  seenByGutterPx?: number;
 }) {
   const tChat = useTranslations("App.Chat.Chat");
   const tChannels = useTranslations("App.Channels");
@@ -2579,7 +2578,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
       )}
       <div
         className={cn(
-          "min-w-0 max-w-full flex-1 overflow-x-clip",
+          // relative: Seen by hangs off this column's bottom-right corner.
+          "relative min-w-0 max-w-full flex-1 overflow-x-clip",
           isContinuation ? "space-y-1" : "space-y-1.5",
         )}
       >
@@ -2721,26 +2721,14 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                       canOpenHumanDirect={canOpenHumanDirect}
                       onOpenDirectMessage={onOpenDirectMessage}
                       openingDirectParticipantKey={openingDirectParticipantKey}
-                      // Both ride the last line; the edited label comes first
-                      // because it is about the message and Seen by is about
-                      // the room's reaction to it.
                       trailing={
-                        (isContinuation && showEdited && editedAt != null) ||
-                        seenBy ? (
-                          <>
-                            {isContinuation &&
-                            showEdited &&
-                            editedAt != null ? (
-                              <MessageEditedLabel
-                                editedAt={editedAt}
-                                className="ms-1.5 inline-flex h-6 items-center"
-                              />
-                            ) : null}
-                            {seenBy}
-                          </>
+                        isContinuation && showEdited && editedAt != null ? (
+                          <MessageEditedLabel
+                            editedAt={editedAt}
+                            className="ms-1.5 inline-flex h-6 items-center"
+                          />
                         ) : null
                       }
-                      trailingGutterPx={seenByGutterPx}
                     />
                   )}
                   <MessageUnfurlList
@@ -2772,7 +2760,20 @@ export const ChatMessageRow = memo(function ChatMessageRow({
             onOpenThread={onOpenThread}
             showThreadButton={showThreadButton && !isOutboundLocal}
             isDeleted={isDeleted}
+            reserveSeenByCorner={seenBy != null}
           />
+        ) : null}
+        {/* Out of the text flow, pinned to this column's bottom-right corner.
+            Costs the row no height at all, which is the whole reason it is
+            here rather than trailing the last line — and it is the furthest
+            from the words a receipt can sit while still belonging to the
+            message. Anchored to the column rather than the row so it tracks
+            the end of the text on every device; the row reserves 16rem on the
+            right for the hover pill, and the corner of *that* is nowhere.
+            end-0.5: the column clips overflow, and a flush edge shaved the
+            focus ring off the faces. */}
+        {seenBy ? (
+          <div className="absolute end-0.5 bottom-0 z-10">{seenBy}</div>
         ) : null}
       </div>
       {showActions ? (
