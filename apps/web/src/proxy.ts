@@ -4,7 +4,10 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { applyDocumentSecurityHeaders } from "@/config/document-security-headers";
 import { getEnvSecrets } from "@/config/env.secrets";
-import { PUSH_WORKER_MESSAGES_PATH } from "@/config/push-worker-assets";
+import {
+  PUSH_WORKER_MESSAGES_PATH,
+  PUSH_WORKER_RENEWAL_PATH,
+} from "@/config/push-worker-assets";
 import {
   applyPendingOrganizationJoinCookie,
   joinTokenFromJoinPath,
@@ -44,6 +47,7 @@ const EXCLUDED_PATHS = [
   // push worker at all. `proxy.test.ts` reads this path out of the worker's
   // `importScripts` call, so a move fails there rather than silently here.
   PUSH_WORKER_MESSAGES_PATH,
+  PUSH_WORKER_RENEWAL_PATH,
   "/maintenance",
 ];
 

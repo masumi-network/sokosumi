@@ -163,7 +163,7 @@ describe("push repair outcome", () => {
 
     unsubscribe();
     hasWebPushSubscriptionMock.mockResolvedValue(true);
-    await store.recordPushRepairOutcome();
+    await store.recordPushRepairOutcome({ deliveryHealthy: true });
 
     expect(listener).toHaveBeenCalledTimes(1);
     expect(store.getPushRepairOutcome()).toBe("healthy");
@@ -185,7 +185,7 @@ it("forgets a resolved repair after reload", async () => {
   const store = await loadStore();
   await store.recordPushRepairOutcome({ hadRegistration: true });
   hasWebPushSubscriptionMock.mockResolvedValue(true);
-  await store.recordPushRepairOutcome();
+  await store.recordPushRepairOutcome({ deliveryHealthy: true });
   expect(store.getPushRepairOutcome()).toBe("healthy");
   hasWebPushSubscriptionMock.mockResolvedValue(false);
   const nextPage = await loadStore();
@@ -251,4 +251,18 @@ it("does not persist a repair that settled after teardown", async () => {
     "./release-push-device.client"
   );
   expect(hasUnresolvedPushRepair()).toBe(false);
+});
+
+it("keeps confirmed remote failure visible until remote recovery is verified", async () => {
+  hasWebPushSubscriptionMock.mockResolvedValue(true);
+  const store = await loadStore();
+  await store.recordPushRepairOutcome({
+    hadRegistration: true,
+    deliveryHealthy: false,
+  });
+  expect(store.getPushRepairOutcome()).toBe("quiet");
+  await store.recordPushRepairOutcome();
+  expect(store.getPushRepairOutcome()).toBe("quiet");
+  await store.recordPushRepairOutcome({ deliveryHealthy: true });
+  expect(store.getPushRepairOutcome()).toBe("healthy");
 });

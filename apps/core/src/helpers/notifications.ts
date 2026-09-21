@@ -25,6 +25,10 @@ import {
   dispatchNotificationEmail,
   EMAILED_NOTIFICATION_COLUMNS,
 } from "@/helpers/notification-email-dispatch";
+import {
+  notificationPublishFields,
+  scheduleNotificationPublish,
+} from "@/helpers/notification-publish-queue";
 import { readNotificationRowJson } from "@/helpers/notification-row-json";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { publishNotificationEvent } from "@/lib/ably/publish";
@@ -235,7 +239,9 @@ export async function publishNotificationRow(
    */
   created = true,
   prismaClient: Prisma.TransactionClient | typeof prisma = prisma,
-): Promise<void> {
+  /** Reused across retries of one stored notification revision. */
+  messageId?: string,
+): Promise<boolean> {
   try {
     // Read the same way the count reads them, rather than with a bare
     // `JSON.parse`. A damaged column threw out of here into the catch below,
@@ -266,12 +272,13 @@ export async function publishNotificationRow(
       messageParams === null ||
       (notification.metadata !== null && metadata === null)
     ) {
-      return;
+      return false;
     }
 
     const groupCount = await chatRoomArrivals(notification, prismaClient);
 
     await publishNotificationEvent({
+      ...(messageId && { messageId }),
       push: delivery.osBanner,
       userId: notification.userId,
       notification: {
@@ -292,6 +299,7 @@ export async function publishNotificationRow(
         ...(groupCount !== undefined && { groupCount }),
       },
     });
+    return true;
   } catch (error) {
     console.error("Failed to publish notification over Ably:", error);
     Sentry.captureException(error, {
@@ -302,6 +310,7 @@ export async function publishNotificationRow(
         errorType: "ably-publish-notification",
       },
     });
+    return false;
   }
 }
 
@@ -484,27 +493,14 @@ export async function createNotification(
             ? null
             : JSON.stringify(metadata),
         inApp: delivery.inApp,
+        ...notificationPublishFields(delivery),
       },
     });
 
     // Nothing to render and nothing to interrupt with: the publish would be an
     // Ably message no client acts on.
     if (delivery.inApp || delivery.osBanner) {
-      if (input.workspaceId && !callerOwnsTransaction) {
-        await publishScopedNotificationRow(
-          notification.id,
-          input.workspaceId,
-          input.userId,
-          delivery,
-        );
-      } else {
-        await publishNotificationRow(
-          notification,
-          delivery,
-          true,
-          callerOwnsTransaction ? client : prisma,
-        );
-      }
+      scheduleNotificationPublish(notification.id);
     }
 
     // Scheduled rather than awaited: the write may be inside the caller's

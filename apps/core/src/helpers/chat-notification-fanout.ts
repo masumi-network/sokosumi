@@ -7,13 +7,13 @@ import {
 } from "@/helpers/calendar-membership-fence";
 import { loadDirectRoomNamesByReader } from "@/helpers/chat-direct-room-names";
 import { loadChatMentionNames } from "@/helpers/chat-mention-names";
+import {
+  notificationPublishFields,
+  scheduleNotificationPublish,
+} from "@/helpers/notification-publish-queue";
 import { readNotificationRowJson } from "@/helpers/notification-row-json";
 import type { CreateNotificationInput } from "@/helpers/notifications";
-import {
-  createNotification,
-  publishNotificationRow,
-  resolveDelivery,
-} from "@/helpers/notifications";
+import { createNotification, resolveDelivery } from "@/helpers/notifications";
 import { isPrismaTransactionConflict } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 
@@ -194,6 +194,7 @@ async function countOntoUnreadRow(
       where: {
         id: unread.id,
         messageParams: unread.messageParams,
+        publishId: unread.publishId,
         isRead: false,
       },
       data: {
@@ -206,6 +207,7 @@ async function countOntoUnreadRow(
             ? null
             : JSON.stringify(input.metadata),
         createdAt: new Date(),
+        ...notificationPublishFields(delivery, unread.publishCreated === true),
       },
     });
 
@@ -217,15 +219,7 @@ async function countOntoUnreadRow(
       return;
     }
 
-    const notification = await client.notification.findUnique({
-      where: { id: unread.id },
-    });
-
-    if (notification) {
-      // Room and (for host members) workspace membership remain locked in the
-      // caller transaction, so publishing directly cannot race revocation.
-      await publishNotificationRow(notification, delivery, false, client);
-    }
+    scheduleNotificationPublish(unread.id);
 
     return;
   }
