@@ -3,7 +3,7 @@ import { InputType } from "@sokosumi/masumi/types";
 import type { ComponentType } from "react";
 import type { ControllerRenderProps, UseFormReturn } from "react-hook-form";
 
-import type { JobInputsFormSchemaType } from "@/lib/job-input";
+import type { JobInputsFormSchemaType } from "@/lib/job-input/form";
 
 import { BooleanInput } from "./boolean-input";
 import { CheckboxInput } from "./checkbox-input";

@@ -14,7 +14,7 @@ import {
   type ChatRoomPinnedMessageEventData,
   chatRoomMessageEventDataSchema,
   chatRoomPinnedMessageEventDataSchema,
-} from "@/lib/ably";
+} from "@/lib/ably/schema";
 
 import {
   CHAT_MEMBERSHIP_REVOKED_EVENT_NAME,

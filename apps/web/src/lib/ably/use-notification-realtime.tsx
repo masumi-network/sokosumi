@@ -7,7 +7,7 @@ import { useCallback } from "react";
 import {
   type NotificationEventData,
   notificationEventDataSchema,
-} from "@/lib/ably";
+} from "@/lib/ably/schema";
 import { makeCurrentUserNotificationsChannelName } from "./current-notifications-channel.client";
 
 const NOTIFICATION_CREATED_EVENT_NAME = "notification_created";

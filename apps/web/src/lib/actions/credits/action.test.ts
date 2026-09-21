@@ -147,7 +147,9 @@ describe("credits actions", () => {
   });
 
   it("returns INVALID_CREDITS when credits are not a positive integer", async () => {
-    const { CreditsErrorCode } = await import("@/lib/actions/errors");
+    const { CreditsErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/credits"
+    );
     const { purchaseCredits } = await import("./action");
 
     const result = await purchaseCredits({
@@ -167,7 +169,9 @@ describe("credits actions", () => {
   });
 
   it("returns UNAUTHORIZED for organization purchase when user is not a member", async () => {
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { CommonErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/common"
+    );
     const { purchaseCredits } = await import("./action");
     getMyMemberInOrganizationMock.mockResolvedValue(null);
 

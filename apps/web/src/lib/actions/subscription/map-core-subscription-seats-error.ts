@@ -3,11 +3,9 @@ import "server-only";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { APIError } from "better-auth/api";
 
-import {
-  type ActionError,
-  betterAuthApiErrorSchema,
-  CommonErrorCode,
-} from "@/lib/actions/errors";
+import type { ActionError } from "@/lib/actions/errors/action-error";
+import { betterAuthApiErrorSchema } from "@/lib/actions/errors/better-auth";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import {
   CoreApiRequestError,
   toCoreApiActionError,

@@ -2,10 +2,8 @@
 
 import { useTranslations } from "next-intl";
 
-import {
-  OrganizationBulkInviteModal,
-  OrganizationMemberInviteModal,
-} from "@/components/organizations";
+import OrganizationBulkInviteModal from "@/components/organizations/organization-bulk-invite/modal";
+import OrganizationMemberInviteModal from "@/components/organizations/organization-member-invite/modal";
 import { Button } from "@/components/ui/button";
 import useModal from "@/hooks/use-modal";
 
