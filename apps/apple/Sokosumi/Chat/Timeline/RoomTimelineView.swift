@@ -9,6 +9,31 @@ import SwiftUI
   /// day separator pills, membership status rows, and a native composer.
   struct RoomTimelineView: View {
     @EnvironmentObject private var workspaces: WorkspaceState
+    @State private var preparedTranscript: PreparedTranscript?
+    let roomId: String
+
+    private var preparationInput: PreparedTranscript.Input {
+      let room = workspaces.rooms.first { $0.id == roomId }
+      return .init(scope: [workspaces.currentUserId, workspaces.selectionId ?? "", roomId, String(workspaces.timeline.generation)],
+                   messages: workspaces.displayedTranscript, mentions: room.map(MessageMentions.init),
+                   channels: workspaces.composerChannels, baseURL: CoreSettings.webBaseURL)
+    }
+
+    var body: some View {
+      let input = preparationInput
+      let prepared = preparedTranscript.flatMap { $0.input.scope == input.scope ? $0 : nil }
+      // Keep scroll state below this boundary so scrolling does not rebuild the projection.
+      RoomTranscriptContent(roomId: roomId, messages: prepared?.overlaying(input.messages) ?? [],
+                            hasLiveMessages: !input.messages.isEmpty, preparedTranscript: prepared)
+        .task(id: input) {
+          guard let prepared = try? await PreparedTranscript.prepare(input, reusing: preparedTranscript), !Task.isCancelled else { return }
+          preparedTranscript = prepared
+        }
+    }
+  }
+
+  private struct RoomTranscriptContent: View {
+    @EnvironmentObject private var workspaces: WorkspaceState
     @EnvironmentObject private var auth: AuthState
     /// Eager first layout can report near-top before the bottom anchor
     /// lands. Require a trip away from the top before auto-loading.
@@ -24,24 +49,10 @@ import SwiftUI
     @State private var scrollPosition = ScrollPosition(idType: String.self)
     @State private var quoteFocusRequest: String?
 
-    @State private var preparedTranscript: PreparedTranscript?
-
-    private var preparationScope: [String] {
-      [workspaces.currentUserId, workspaces.selectionId ?? "", roomId, String(workspaces.timeline.generation)]
-    }
-
-    private var preparationInput: PreparedTranscript.Input {
-      .init(scope: preparationScope,
-            messages: workspaces.displayedTranscript, mentions: room.map(MessageMentions.init),
-            channels: workspaces.composerChannels, baseURL: CoreSettings.webBaseURL)
-    }
-
-    private var preparedMessages: [Components.Schemas.ChatRoomMessage] {
-      guard let prepared = preparedTranscript, prepared.input.scope == preparationScope else { return [] }
-      return prepared.overlaying(workspaces.displayedTranscript)
-    }
-
     let roomId: String
+    let messages: [Components.Schemas.ChatRoomMessage]
+    let hasLiveMessages: Bool
+    let preparedTranscript: PreparedTranscript?
 
     private var room: Components.Schemas.ChatRoom? {
       workspaces.rooms.first { $0.id == roomId }
@@ -74,10 +85,6 @@ import SwiftUI
 
     var body: some View {
       transcriptBody
-        .task(id: preparationInput) {
-          guard let prepared = try? await PreparedTranscript.prepare(preparationInput, reusing: preparedTranscript), !Task.isCancelled else { return }
-          preparedTranscript = prepared
-        }
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         .safeAreaInset(edge: .bottom, spacing: 0) {
           ChatComposerView(
@@ -130,11 +137,10 @@ import SwiftUI
 
     @ViewBuilder
     private var transcriptBody: some View {
-      let messages = preparedMessages
       if workspaces.transcriptRoomId != roomId || workspaces.transcriptLoading {
         ProgressView("Loading messages…")
           .frame(maxWidth: .infinity, maxHeight: .infinity)
-      } else if workspaces.displayedTranscript.isEmpty {
+      } else if !hasLiveMessages {
         if let error = workspaces.transcriptError {
           transcriptError(error, retryOlder: false)
         } else {
