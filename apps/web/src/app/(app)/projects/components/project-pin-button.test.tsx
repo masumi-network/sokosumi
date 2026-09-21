@@ -67,4 +67,29 @@ describe("ProjectPinButton", () => {
       render(<ProjectPinButton projectId="p1" isPinned labels={labels} />),
     ).not.toThrow();
   });
+
+  it("offers nothing on a closed project the reader has not Pinned", () => {
+    // A closed project is filtered out of the Pin list, so Pinning one would
+    // create a Pin that never appears anywhere.
+    render(
+      <ProjectPinButton
+        projectId="p1"
+        isPinned={false}
+        isClosed
+        labels={labels}
+      />,
+    );
+
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("still lets a Pin be cleared from a closed project", () => {
+    // Hiding it outright would strand the Pin with no way back, which is why
+    // Core's unstar route accepts a closed project too.
+    render(
+      <ProjectPinButton projectId="p1" isPinned isClosed labels={labels} />,
+    );
+
+    expect(screen.getByRole("button", { name: "Unpin project" })).toBeDefined();
+  });
 });

@@ -90,6 +90,7 @@ export function ProjectListItem({ project, labels }: ProjectListItemProps) {
       <ProjectPinButton
         projectId={project.id}
         isPinned={project.starredAt != null}
+        isClosed={project.closingAt != null || project.closedAt != null}
         labels={{ pin: labels.pin, unpin: labels.unpin }}
       />
     </article>

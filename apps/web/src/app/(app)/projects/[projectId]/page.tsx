@@ -92,6 +92,7 @@ export default async function ProjectDetailPage({
                 <div className="flex items-center gap-1">
                   <ProjectDetailPinButton
                     projectId={project.id}
+                    isClosed={Boolean(project.closingAt || project.closedAt)}
                     labels={{
                       pin: tList("pin"),
                       unpin: tList("unpin"),

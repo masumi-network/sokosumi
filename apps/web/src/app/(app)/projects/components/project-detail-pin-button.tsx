@@ -6,6 +6,7 @@ import { useSession } from "@/lib/auth/auth.client";
 
 interface ProjectDetailPinButtonProps {
   projectId: string;
+  isClosed?: boolean;
   labels: { pin: string; unpin: string };
 }
 
@@ -22,6 +23,7 @@ interface ProjectDetailPinButtonProps {
  */
 export function ProjectDetailPinButton({
   projectId,
+  isClosed = false,
   labels,
 }: ProjectDetailPinButtonProps) {
   const { data: session, isPending, isRefetching, error } = useSession();
@@ -45,6 +47,7 @@ export function ProjectDetailPinButton({
     <ProjectPinButton
       projectId={projectId}
       isPinned={pinned.data.some((project) => project.id === projectId)}
+      isClosed={isClosed}
       labels={labels}
     />
   );

@@ -11,6 +11,8 @@ interface ProjectPinButtonProps {
   projectId: string;
   /** The reader's own Pin, from `starredAt` on the row. */
   isPinned: boolean;
+  /** Closing counts as closed here: both are on their way out of the list. */
+  isClosed?: boolean;
   labels: { pin: string; unpin: string };
   className?: string;
 }
@@ -27,6 +29,7 @@ interface ProjectPinButtonProps {
 export function ProjectPinButton({
   projectId,
   isPinned,
+  isClosed = false,
   labels,
   className,
 }: ProjectPinButtonProps) {
@@ -59,6 +62,14 @@ export function ProjectPinButton({
         queryKey: [PINNED_PROJECTS_QUERY_KEY],
       });
     });
+  }
+
+  // A closed project is filtered out of the Pin list, so Pinning one would
+  // create a Pin that never appears anywhere. Unpinning stays available while
+  // a Pin exists, or closing a project would strand it with no way back —
+  // which is also why Core's unstar route accepts a closed project.
+  if (isClosed && !optimisticPinned) {
+    return null;
   }
 
   const label = optimisticPinned ? labels.unpin : labels.pin;
