@@ -149,11 +149,7 @@ export function ChatRoomThreadRows({
                   {mentions > 0 ? (
                     <span className="shrink-0">
                       <span aria-hidden>
-                        <MentionCountPill
-                          label={String(mentions)}
-                          tone="mention"
-                          showGlyph
-                        />
+                        <MentionCountPill count={mentions} tone="mention" />
                       </span>
                       <span className="sr-only">
                         {t("mentions", { count: mentions })}
