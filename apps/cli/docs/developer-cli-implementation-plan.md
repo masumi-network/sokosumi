@@ -22,7 +22,7 @@ The contract is [SPEC.md](../SPEC.md). The architecture decision is [ADR 0004](a
 | Core | Registration policy, workspace permissions, task/job state, spending authorization, waitlist review, graduation | Treating runtime-reported credits as proof of accepted seller pricing |
 | Masumi Payment Service | Supported chain-specific payment operations and settlement | Sokosumi workspace authorization or administrative promotion |
 
-[PROPOSED] Shared command handlers serve integrations directly. Do not recursively launch the CLI entrypoint from the TUI or adapters. Existing developer auth remains separate from the proposed runtime invocation contract. A short-lived delegation token is a candidate, not an approved implementation choice.
+[VERIFIED: ADR 0005, 2026-09-21] Shared command handlers serve integrations directly. Do not recursively launch the CLI entrypoint from the TUI or adapters. Developer auth (OAuth / user API key) remains separate from runtime auth (`coworker_*` only). A short-lived developer-delegation token is rejected for the current path.
 
 The runtime initiates its local connection outward. Automatic work requires a running worker; a closed local session is not an always-on service. Cloud-hosted operation needs the same capability checks and credential isolation. Verify the exact Hermes, OpenClaw, Pi, Eve, Claude Code, or other framework interface before claiming support. A tool-call integration does not prove automatic execution support.
 
@@ -156,7 +156,9 @@ These units describe independently reviewable outcomes, not a forced user journe
    - Files: `apps/cli/SPEC.md`, `apps/cli/docs/developer-cli-implementation-plan.md`, `apps/cli/src/api/models/organization-workspace.ts`, `apps/cli/src/api/models/vendor.ts`, `apps/cli/src/api/services/organization-workspace-service.ts`, `apps/cli/src/api/services/vendor-service.ts`, `apps/cli/src/cli/commands/discover.ts`, `apps/cli/src/cli/commands/vendors.ts`, `apps/cli/src/cli/commands/workspaces.ts`, `apps/cli/src/cli/index.ts`, `apps/cli/test/api/vendor-workspace-service.test.ts`, `apps/cli/test/cli/bin.test.ts`, `apps/cli/test/cli/commands/vendors-workspaces.test.ts`, `apps/cli/test/cli/index.test.ts`.
    - Checks: `pnpm --filter ./apps/cli test`; `pnpm --filter ./apps/cli typecheck`; `pnpm --filter ./apps/cli build`; `pnpm --filter core test src/routes/v1/vendors/get.test.ts src/routes/v1/vendors/vendor-admin.test.ts src/routes/v1/users/user-path-access.test.ts src/routes/v1/users/user-route-context.test.ts`; `pnpm exec biome check apps/cli/src apps/cli/test`; remove and restore V79/V80 guards, then rerun `pnpm --filter ./apps/cli test` to prove red and green.
    - Allowed: authenticated exact commands, Vendor memberships with roles, organization-workspace candidates, text output, one-document JSON. Denied: unauthenticated Core calls, bare/wrong subcommands, malformed lists, missing IDs, organization metadata output, Vendor creation, registration, and TUI changes. Admin-only selection belongs to PR 2.
-2. Runtime contract. Approve the runtime identity and invocation contract without weakening the developer-key guards.
+1b. [DONE 2026-09-21 / SOK-966 PR2] Controlled registration selection. `coworkers register` and the TUI Register screen require at least one organization workspace and an administered (`admin`) Vendor. Foreign/non-admin Vendor ids fail before Core create. `--create-vendor` requires `--confirm-create-vendor` then refuses: Core only has platform-admin Vendor create. Gate copy directs blocked developers to ask an existing Vendor admin to add them as admin (platform admin create is the fallback). Discovery commands stay read-only.
+1c. [FOLLOW-UP / not SOK-966] Developer self-service Vendor create (Core + CLI/web). One-time cold-start: signed-in developer creates a Vendor they control, becomes `admin`, then registers Coworkers. Until then, invite/promote via existing Vendor admin. Slots before or with unit 3 private registration; does not expand 1b.
+2. Runtime contract. [DONE 2026-09-21 / SOK-967 / ADR 0005] Runtime identity and invocation approved: `coworker_*` only for runtime; session grant separate from identity; developer-key guards preserved.
 3. Private registration. Implement Core-owned Vendor/workspace authorization, registration, and session lifecycle, with CLI setup.
 4. Agent-agnostic adapter. Connect one runtime through a framework-neutral adapter. Claude Code may be the first verified example; it is not the target architecture.
 5. Task and worker. Implement active-session Task/Job operations and the separately authorized automatic worker.
@@ -173,7 +175,7 @@ T33-T35 remain end-to-end slices: Core and Masumi retain their respective owners
 
 Owners: CLI controls setup; Core owns Vendor authorization, registration, grants, expiry, and revocation; the runtime adapter owns its connection.
 
-Prerequisites: approve self-service registration and the runtime identity contract. Establish a workspace before registration. Guide a new developer through creating a Vendor with confirmation, or select a Vendor they administer. Do not share one default Vendor among unrelated developers.
+Prerequisites: approve self-service registration. Runtime identity contract is approved ([ADR 0005](adr/0005-coworker-runtime-identity-and-invocation-contract.md)). Establish a workspace before registration. Guide a new developer through creating a Vendor with confirmation, or select a Vendor they administer. Do not share one default Vendor among unrelated developers.
 
 Acceptance cases:
 - Authorized registration creates a workspace-only Coworker; foreign Vendor ownership is rejected.
@@ -184,7 +186,9 @@ Acceptance cases:
 
 ### B. Active-session operations and automatic execution
 
-[PROPOSED] Support both runtime-operated tools during a live session and a connected worker for automatic assignment. Use shared operation handlers, never recursive invocation of `runCli`.
+[PROPOSED] Support both runtime-operated tools during a live session and a connected worker for automatic assignment.
+
+[VERIFIED: ADR 0005, 2026-09-21] Use shared operation handlers; never recursive invocation of `runCli`.
 
 Prerequisites: Core binds each operation to a Coworker and authorized context. Choose the adapter contract, claim/recovery semantics, and secret-delivery channel before implementation. The developer CLI remains an admin control tool.
 

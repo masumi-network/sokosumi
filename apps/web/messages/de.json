@@ -5596,12 +5596,20 @@
       "RoomRoster": {
         "open": "Mitglieder",
         "title": "Mitglieder",
+        "humansTitle": "Personen",
+        "agentsTitle": "Coworker",
         "close": "Mitglieder schließen",
         "empty": "Keine Mitglieder vorhanden.",
         "message": "Nachricht an {name}",
         "copy": "{value} kopieren",
         "copySuccess": "In die Zwischenablage kopiert",
         "copyError": "Kopieren fehlgeschlagen."
+      },
+      "SeenBy": {
+        "summary": "{count, plural, one {Von # Person gelesen} other {Von # Personen gelesen}}",
+        "readersTitle": "Gelesen von",
+        "readAt": "Zuletzt gelesen {time}",
+        "notRead": "Noch nicht gelesen"
       },
       "UnreadThreads": {
         "open": "Threads",

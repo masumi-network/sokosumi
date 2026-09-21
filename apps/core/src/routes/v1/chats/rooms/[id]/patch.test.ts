@@ -232,6 +232,7 @@ function channelRoom(overrides: Record<string, unknown> = {}) {
     ],
     coworkerMembers: [],
     sokoBotMembers: [],
+    readStates: [],
     ...overrides,
   };
 }

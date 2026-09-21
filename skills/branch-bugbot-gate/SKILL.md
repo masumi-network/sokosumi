@@ -50,7 +50,7 @@ pnpm <script>
 pnpm --filter <workspace> <script>
 ```
 
-Typical: `pnpm --filter web check` / `pnpm web:test`, `pnpm --filter core check` / `pnpm core:test`, or narrower Vitest paths. See root `AGENTS.md`.
+Typical: `pnpm --filter web check` / `pnpm web:test`, `pnpm --filter core check` / `pnpm core:test`, or narrower Vitest paths. See [`docs/agents/local-development.md`](../../docs/agents/local-development.md) for commands and [`docs/agents/coding-conventions.md`](../../docs/agents/coding-conventions.md) for test targeting.
 
 **All commands must exit 0.** Fix on the branch before continuing.
 

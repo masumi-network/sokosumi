@@ -591,7 +591,7 @@ struct WorkspaceRealtimeTests {
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 3)
   }
 
-  @Test func envelopeDeleteTombstonesOnScreenRow() async throws {
+  @Test func envelopeDeleteDropsOnScreenRow() async throws {
     let targetId = "550e8400-e29b-41d4-a716-446655440719"
     let (state, auth, _) = try realtimeState([
       (200, realtimeAccessBody()),
@@ -604,9 +604,12 @@ struct WorkspaceRealtimeTests {
     ])
     await state.reload(auth: auth)
     await waitForRealtimeIdle(state)
+    #expect(state.displayedTranscript.map(\.id) == [targetId])
     state.applyRealtimeEnvelope(
       .init(eventType: .delete, messageId: targetId, roomId: roomA)
     )
+    // Row 19a: state keeps the tombstone (patches still address it); the transcript drops it like web.
+    #expect(state.displayedTranscript.isEmpty)
     #expect(state.transcriptMessages.count == 1)
     #expect(state.transcriptMessages[0].content.isEmpty)
     #expect(state.transcriptMessages[0].deletedAt != nil)

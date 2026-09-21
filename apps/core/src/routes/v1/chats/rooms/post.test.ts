@@ -187,6 +187,7 @@ function channelRoom(overrides: Record<string, unknown> = {}) {
     ],
     coworkerMembers: [],
     sokoBotMembers: [],
+    readStates: [],
     ...overrides,
   };
 }
@@ -251,6 +252,7 @@ function coworkerDirectRoom(overrides: Record<string, unknown> = {}) {
       },
     ],
     sokoBotMembers: [],
+    readStates: [],
     ...overrides,
   });
 }

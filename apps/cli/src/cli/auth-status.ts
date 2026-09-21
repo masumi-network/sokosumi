@@ -6,10 +6,7 @@ import {
   resolveTargetScope,
   sanitizeApiUrl,
 } from "../auth/config.js";
-
-interface TextOutput {
-  write(value: string): unknown;
-}
+import type { CommandOutput } from "./commands/command-helpers.js";
 
 interface AuthStatusManager {
   getApiKeyCredentials(): { apiKey: string; expiresAt?: string | null } | null;
@@ -43,7 +40,7 @@ export async function runAuthStatus({
   env?: AuthEnvironment;
   config?: CliTargetConfig;
   authManager?: AuthStatusManager;
-  stdout?: TextOutput;
+  stdout?: CommandOutput;
   json?: boolean;
   targetExplicit?: boolean;
 } = {}): Promise<AuthStatusResult> {

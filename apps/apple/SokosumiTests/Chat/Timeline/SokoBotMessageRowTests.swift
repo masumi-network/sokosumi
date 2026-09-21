@@ -47,7 +47,7 @@
       #expect(SokoBotTurnMetadata(message: hop) == nil)
       // A shell without its answer never reaches the row (web drops it from the transcript).
       let shell = try botMessage(id: "shell", content: "", metadata: ["streaming": true, "mention_id": "mention_1", "soko_bot": ["turn_id": "turn_1"] as [String: String]])
-      #expect(isHiddenSokoBotMentionShell(shell))
+      #expect(!shouldKeepPersistedMessage(shell))
       #expect(displayedTranscript(messages: [shell, settled], shells: []).map(\.id) == ["settled"])
     }
 

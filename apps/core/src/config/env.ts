@@ -264,13 +264,24 @@ function isDeployedEnvironment(value: z.infer<typeof baseEnvSchema>): boolean {
  * Previews are throwaway and are the one deployment where Cloudflare's test
  * keys are a reasonable choice — they let an agent drive the sign-in form
  * without answering a human check. Production has no such excuse.
+ *
+ * On Vercel, `NODE_ENV` is "production" for every deployment, previews
+ * included, so it cannot tell the two apart and `VERCEL_ENV` is the only
+ * honest signal. Reading both with `||` made every preview a production one,
+ * which killed the very case the paragraph above describes: a preview holding
+ * the always-passes secret exited at boot, so every route answered
+ * FUNCTION_INVOCATION_FAILED instead of warning.
+ *
+ * Off Vercel there is no `VERCEL_ENV`, and `NODE_ENV` is the only signal
+ * there is.
  */
 function isProductionEnvironment(
   value: z.infer<typeof baseEnvSchema>,
 ): boolean {
-  return value.VERCEL_ENV
-    ? value.VERCEL_ENV === "production"
-    : value.NODE_ENV === "production";
+  if (value.VERCEL_ENV) {
+    return value.VERCEL_ENV === "production";
+  }
+  return value.NODE_ENV === "production";
 }
 
 const envSchema = baseEnvSchema.superRefine((value, context) => {

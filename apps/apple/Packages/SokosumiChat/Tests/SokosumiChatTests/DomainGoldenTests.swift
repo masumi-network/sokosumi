@@ -11,7 +11,7 @@ struct DomainGoldenTests {
 
   @Test func transcriptTransitions() throws {
     let fixtures = try load([TranscriptFixture].self, name: "transcript")
-    #expect(fixtures.count == 8)
+    #expect(fixtures.count == 10)
     for fixture in fixtures {
       var shells = try fixture.shells.map { value in
         var shell = makeShell(parent: fixture.parent)
@@ -47,6 +47,9 @@ struct DomainGoldenTests {
       case .create:
         (messages, shells) = applyRealtimeFullEvent(messages: messages, shells: shells, eventType: .create,
                                                     message: incoming, parentMessageId: fixture.parent)
+      case .delete:
+        (messages, shells) = applyRealtimeFullEvent(messages: messages, shells: shells, eventType: .delete,
+                                                    message: tombstoneTranscriptMessage(incoming, now: now), parentMessageId: fixture.parent)
       }
       let snapshot = TranscriptSnapshot(
         messageIds: messages.map(\.id),
@@ -54,7 +57,7 @@ struct DomainGoldenTests {
         displayIds: displayedTranscript(messages: messages, shells: shells).map(\.id)
       )
       #expect(snapshot == fixture.expected, "\(fixture.name)")
-      #expect(messages.allSatisfy { $0.content == "Hello" && $0.createdAt == now }, "\(fixture.name)")
+      #expect(messages.allSatisfy { ($0.content == "Hello" || $0.deletedAt == now) && $0.createdAt == now }, "\(fixture.name)")
     }
   }
 
@@ -96,7 +99,7 @@ struct DomainGoldenTests {
 }
 
 private struct TranscriptFixture: Decodable {
-  enum Event: String, Decodable { case send, fail, retry, ack, create }
+  enum Event: String, Decodable { case send, fail, retry, ack, create, delete }
   let name: String
   let event: Event
   let shells: [ShellSnapshot]

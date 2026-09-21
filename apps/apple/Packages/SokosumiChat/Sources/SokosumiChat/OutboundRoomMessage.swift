@@ -59,13 +59,26 @@ public func isOutboundLocalMessage(_ message: Components.Schemas.ChatRoomMessage
   message.id.hasPrefix(outboundLocalIdPrefix)
 }
 
-/// Persisted rows the transcript shows, then the local outbound shells. Web's
-/// display merge drops bodiless Soko Bot mention shells (`isHiddenSokoBotMentionShell`).
+/// Web's `shouldKeepPersistedMessage` (merge-room-messages.ts): a persisted row
+/// stays in a transcript only with a visible body, a quote, a membership
+/// status, or as a coworker mention shell. Core blanks all of these on delete,
+/// so a deleted message leaves the room transcript and thread replies, and so
+/// does a bodiless Soko Bot shell. State keeps the row; only display drops it,
+/// so realtime patches and reply counts keep addressing it. A thread root is
+/// not filtered and keeps its "This message was deleted" tombstone.
+public func shouldKeepPersistedMessage(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
+  message.membership != nil
+    || !message.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    || message.quote != nil
+    || CoworkerMentionShell(message: message) != nil
+}
+
+/// Persisted rows the transcript shows (`shouldKeepPersistedMessage`), then the local outbound shells.
 public func displayedTranscript(
   messages: [Components.Schemas.ChatRoomMessage],
   shells: [OutboundShell]
 ) -> [Components.Schemas.ChatRoomMessage] {
-  messages.filter { !isHiddenSokoBotMentionShell($0) } + shells.map(chatRoomMessage(from:))
+  messages.filter(shouldKeepPersistedMessage) + shells.map(chatRoomMessage(from:))
 }
 
 public func chatRoomMessage(from shell: OutboundShell) -> Components.Schemas.ChatRoomMessage {

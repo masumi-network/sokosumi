@@ -19,6 +19,8 @@
     private var dismissedEmojiTrigger: String?
     private var referenceTrigger: ComposerReferenceTrigger?
     private var dismissedReferenceTrigger: ComposerReferenceTrigger?
+    private var mentionPicker = ComposerMentionPicker()
+    private var blurDismissal: Task<Void, Never>?
 
     func focus() {
       guard let input else { return }
@@ -38,10 +40,15 @@
         dismissedReferenceTrigger = nil
         selectedSuggestionID = nil
       }
-      let matches = trigger.flatMap { trigger in
-        input.map { trigger.kind == .mention ? ComposerMention.matching($0.mentions, query: trigger.query) : [] }
+      if input?.mentions.isEmpty != false {
+        mentionPicker.close()
+      }
+      // A button-opened list owns the panel, as on web: no channel or emoji rows beside it.
+      let openedByButton = mentionPicker.isOpenedByButton
+      let matches = mentionPicker.query(typed: trigger).flatMap { query in
+        input.map { ComposerMention.matching($0.mentions, query: query) }
       } ?? []
-      let options = trigger != nil && trigger != dismissedReferenceTrigger ? matches : []
+      let options = openedByButton || (trigger != nil && trigger != dismissedReferenceTrigger) ? matches : []
       // Keep section order identical for mouse and keyboard navigation.
       let grouped = options.filter { $0.kind == .human || $0.kind == .all }
         + options.filter { $0.kind == .coworker || $0.kind == .sokoBot }
@@ -49,7 +56,7 @@
         mentionOptions = grouped
       }
       let channels = trigger.flatMap { trigger in
-        input.map { trigger.kind == .channel && trigger != dismissedReferenceTrigger ? ComposerChannel.matching($0.channels, query: trigger.query) : [] }
+        input.map { trigger.kind == .channel && trigger != dismissedReferenceTrigger && !openedByButton ? ComposerChannel.matching($0.channels, query: trigger.query) : [] }
       } ?? []
       if channelOptions != channels {
         channelOptions = channels
@@ -64,7 +71,7 @@
         dismissedEmojiTrigger = nil
         selectedSuggestionID = nil
       }
-      let shortcodes: [String] = if emoji != nil, emoji != dismissedEmojiTrigger, let input, let range = input.emojiCompletionRange {
+      let shortcodes: [String] = if emoji != nil, emoji != dismissedEmojiTrigger, !openedByButton, let input, let range = input.emojiCompletionRange {
         ComposerEmoji.completions(for: String((input.string as NSString).substring(with: range).dropFirst()))
       } else {
         []
@@ -78,6 +85,7 @@
     }
 
     func dismissSuggestions() {
+      mentionPicker.close()
       dismissedReferenceTrigger = referenceTrigger
       mentionOptions = []
       channelOptions = []
@@ -85,9 +93,21 @@
       emojiOptions = []
     }
 
+    /// Focus loss closes the lists a turn later, off the text view's callback. A
+    /// mention button pressed in between cancels it, as web's `openMentions`
+    /// clears its blur timeout: the list it opens must not be closed by the older blur.
+    func dismissSuggestionsAfterBlur() {
+      blurDismissal?.cancel()
+      blurDismissal = Task { @MainActor [weak self] in
+        guard !Task.isCancelled else { return }
+        self?.dismissSuggestions()
+      }
+    }
+
     func acceptMention(_ mention: ComposerMention) {
       input?.window?.makeFirstResponder(input)
-      input?.acceptMention(mention)
+      input?.acceptMention(mention, picker: mentionPicker)
+      mentionPicker.close()
       mentionOptions = []
       refresh()
     }
@@ -139,13 +159,23 @@
       var url: String
     }
 
-    func beginMention() {
-      guard let input, !input.hasMarkedText(), !input.mentions.isEmpty else { return }
+    /// The toolbar button. Opens the list over the unchanged draft and selection;
+    /// only accepting a row edits the text.
+    func openMentionPicker() {
+      guard let input, !input.hasMarkedText() else { return }
+      blurDismissal?.cancel()
+      blurDismissal = nil
       input.window?.makeFirstResponder(input)
-      let range = input.selectedRange()
-      let prefix = (input.string as NSString).substring(to: range.location)
-      let separator = prefix.last.map { $0.isWhitespace ? "" : " " } ?? ""
-      input.insertText(separator + "@", replacementRange: range)
+      mentionPicker.openFromButton(hasMentions: !input.mentions.isEmpty)
+      selectedSuggestionID = nil
+      refreshSuggestions()
+    }
+
+    /// Closes only a button-opened list; a typed "@" keeps following its trigger.
+    func closeMentionPicker() {
+      guard mentionPicker.isOpenedByButton else { return }
+      mentionPicker.close()
+      refreshSuggestions()
     }
 
     func beginLink() {

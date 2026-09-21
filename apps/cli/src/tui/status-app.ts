@@ -44,6 +44,11 @@ import {
 import { type AuthLoginOptions, runAuthLogin } from "../cli/auth-login.js";
 import { CLI_VERSION } from "../cli/metadata.js";
 import {
+  administeredVendors,
+  describeRegistrationAdminVendorRequirement,
+  describeRegistrationWorkspaceRequirement,
+} from "../cli/registration-authority.js";
+import {
   COWORKER_FRAMEWORK_PRESETS,
   describeRegisterNextStep,
 } from "../coworker/presets.js";
@@ -81,11 +86,10 @@ type AuthScreen =
   | "register"
   | "vendors"
   | "workspaces"
-  | "manage"
   | "success"
   | "error";
 
-type HomeAction = "register" | "vendors" | "workspaces" | "manage" | "sign-out";
+type HomeAction = "register" | "vendors" | "workspaces" | "sign-out";
 
 function adaptSelectHandler<T>(
   handler: (value: T) => void,
@@ -526,7 +530,13 @@ function StatusApp({
 
   useEffect(() => {
     if (route !== "signed-in") return;
-    if (screen !== "vendors" && screen !== "workspaces") return;
+    if (
+      screen !== "vendors" &&
+      screen !== "workspaces" &&
+      screen !== "register"
+    ) {
+      return;
+    }
     let cancelled = false;
     setResourceLoading(true);
     setPhase("idle");
@@ -537,10 +547,19 @@ function StatusApp({
           const { vendors: nextVendors } =
             await fetchVendorMemberships(coreClient);
           if (!cancelled) setVendors(nextVendors);
-        } else {
+        } else if (screen === "workspaces") {
           const { organizationWorkspaces } =
             await fetchOrganizationWorkspaces(coreClient);
           if (!cancelled) setWorkspaces(organizationWorkspaces);
+        } else {
+          const [vendorResult, workspaceResult] = await Promise.all([
+            fetchVendorMemberships(coreClient),
+            fetchOrganizationWorkspaces(coreClient),
+          ]);
+          if (!cancelled) {
+            setVendors(vendorResult.vendors);
+            setWorkspaces(workspaceResult.organizationWorkspaces);
+          }
         }
       } catch (error: unknown) {
         if (!cancelled) {
@@ -869,7 +888,6 @@ function StatusApp({
       if (route === "signed-in") {
         if (
           screen === "register" ||
-          screen === "manage" ||
           screen === "vendors" ||
           screen === "workspaces"
         ) {
@@ -913,7 +931,6 @@ function StatusApp({
       label: "Workspaces",
       hint: "organization workspaces",
     },
-    { value: "manage", label: "Manage Coworker" },
     { value: "sign-out", label: "Sign out" },
   ];
 
@@ -1139,28 +1156,39 @@ function StatusApp({
 
   let signedInContent: React.ReactNode;
   if (screen === "register") {
+    const adminVendors = administeredVendors(vendors);
+    const missingWorkspace = !resourceLoading && workspaces.length === 0;
+    const missingAdminVendor = !resourceLoading && adminVendors.length === 0;
+    const registrationBlocked = missingWorkspace || missingAdminVendor;
+    const rawWebUrl = String(env.SOKOSUMI_WEB_URL || "").trim();
+    const webBase = rawWebUrl ? sanitizeApiUrl(rawWebUrl) : "";
+    const gateHint = resourceLoading
+      ? "Checking workspace and Vendor admin authority…"
+      : missingWorkspace
+        ? describeRegistrationWorkspaceRequirement(webBase || undefined)
+        : missingAdminVendor
+          ? describeRegistrationAdminVendorRequirement(webBase || undefined)
+          : "Choose a preset runtime. Connect it under an administered Vendor in a later step.";
     signedInContent = React.createElement(
       Box,
       { flexDirection: "column", width: "100%" },
       React.createElement(Text, { bold: true }, "Register a Coworker"),
-      React.createElement(
-        Text,
-        { dimColor: true },
-        "Choose a preset runtime. Registration stays preset-only until the runtime identity contract lands.",
-      ),
-      React.createElement(SelectInput, {
-        items: COWORKER_FRAMEWORK_PRESETS.map((preset) => ({
-          value: preset.id,
-          label: preset.label,
-        })),
-        onSelect: adaptSelectHandler<string>((presetId) => {
-          const preset = COWORKER_FRAMEWORK_PRESETS.find(
-            (candidate) => candidate.id === presetId,
-          );
-          if (preset) setMessage(describeRegisterNextStep(preset));
-        }),
-        listen: !busy,
-      }),
+      React.createElement(Text, { dimColor: true }, gateHint),
+      registrationBlocked
+        ? null
+        : React.createElement(SelectInput, {
+            items: COWORKER_FRAMEWORK_PRESETS.map((preset) => ({
+              value: preset.id,
+              label: preset.label,
+            })),
+            onSelect: adaptSelectHandler<string>((presetId) => {
+              const preset = COWORKER_FRAMEWORK_PRESETS.find(
+                (candidate) => candidate.id === presetId,
+              );
+              if (preset) setMessage(describeRegisterNextStep(preset));
+            }),
+            listen: !busy && !resourceLoading,
+          }),
       messageLine(message, phase),
     );
   } else if (screen === "vendors") {
@@ -1242,24 +1270,6 @@ function StatusApp({
       }),
       messageLine(message, phase),
     );
-  } else if (screen === "manage") {
-    signedInContent = React.createElement(
-      Box,
-      { flexDirection: "column", width: "100%" },
-      React.createElement(Text, { bold: true }, "Manage Coworker"),
-      React.createElement(
-        Text,
-        { dimColor: true },
-        "Observability lives in Web and headless commands. Use the CLI for rename, API-key rotation, and inspection:",
-      ),
-      React.createElement(Text, null, "sokosumi coworkers list"),
-      React.createElement(
-        Text,
-        null,
-        "sokosumi coworkers update --id <id> --name <name>",
-      ),
-      React.createElement(Text, null, "sokosumi coworkers api-key --id <id>"),
-    );
   } else {
     signedInContent = centeredScreen(
       React.createElement(Text, { color: TUI_THEME.accent }, LOGO),
@@ -1267,7 +1277,18 @@ function StatusApp({
       React.createElement(
         Text,
         { dimColor: true },
-        "Sign in is done. Review Vendors and Workspaces, then register or manage Coworkers.",
+        "Sign in is done. Review Vendors and Workspaces, then register a Coworker.",
+      ),
+      React.createElement(Text, { dimColor: true }, "sokosumi coworkers list"),
+      React.createElement(
+        Text,
+        { dimColor: true },
+        "sokosumi coworkers update --id <id> --name <name>",
+      ),
+      React.createElement(
+        Text,
+        { dimColor: true },
+        "sokosumi coworkers api-key --id <id>",
       ),
       React.createElement(SelectInput, {
         items: homeItems,
@@ -1283,10 +1304,7 @@ function StatusApp({
     target: targetLabel,
     authMethod: authState.authMethod,
     showBackHint:
-      screen === "register" ||
-      screen === "manage" ||
-      screen === "vendors" ||
-      screen === "workspaces",
+      screen === "register" || screen === "vendors" || screen === "workspaces",
     children: signedInContent,
   });
 }
