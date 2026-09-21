@@ -3,6 +3,7 @@ import { type Notification, NotificationKind } from "@sokosumi/database";
 import {
   CHAT_MENTION_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+  isFollowUpMessageKey,
 } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 
@@ -104,6 +105,34 @@ async function resolveChatDelivery(
 
 /** Replays the current committed revision. Failed attempts keep the queued row. */
 /**
+ * Ends a revision the source it points at no longer supports.
+ *
+ * A follow-up reminder reserves one shared event id per room and day by being
+ * written, so a reminder about a message that has since gone holds the room's
+ * reminder for the rest of that day. It gives the reservation back instead, and
+ * the next sync run writes a reminder for a message that is still there.
+ *
+ * A reminder whose email has left keeps its reservation. The email cannot be
+ * taken back, and a second reservation would send a second one.
+ */
+async function releaseRevision(
+  notification: Notification,
+  publishId: string,
+): Promise<void> {
+  if (
+    isFollowUpMessageKey(notification.messageKey) &&
+    notification.emailId === null
+  ) {
+    await prisma.notification.deleteMany({
+      where: { id: notification.id, publishId },
+    });
+    return;
+  }
+
+  await clearRevision(notification.id, publishId);
+}
+
+/**
  * A Workspace row is only ever published to a current member. `createNotification`
  * checks this when it owns the write transaction, but a publish runs after that
  * transaction commits, so the membership can be gone by the time it goes out.
@@ -202,11 +231,15 @@ export async function dispatchNotificationPublish(
       user && notification.kind === NotificationKind.CHAT
         ? await resolveChatDelivery(notification, params, metadata)
         : "message";
-    if (
-      !user ||
-      chatDelivery === "skip" ||
-      !(await hasWorkspaceAccess(notification))
-    ) {
+    if (!user) {
+      await clearRevision(notificationId, publishId);
+      return "skipped";
+    }
+    if (chatDelivery === "skip") {
+      await releaseRevision(notification, publishId);
+      return "skipped";
+    }
+    if (!(await hasWorkspaceAccess(notification))) {
       await clearRevision(notificationId, publishId);
       return "skipped";
     }

@@ -15,6 +15,7 @@ const {
   threadReadStateFindUniqueMock,
   createNotificationMock,
   notificationFindManyMock,
+  notificationUpdateManyMock,
   resolveDeliveryMock,
   sendEmailsMock,
   userFindUniqueMock,
@@ -24,6 +25,7 @@ const {
   threadReadStateFindUniqueMock: vi.fn(),
   createNotificationMock: vi.fn(),
   notificationFindManyMock: vi.fn(),
+  notificationUpdateManyMock: vi.fn(),
   resolveDeliveryMock: vi.fn(),
   sendEmailsMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
@@ -39,6 +41,7 @@ vi.mock("@/lib/db/prisma", () => ({
     chatRoomThreadReadState: { findUnique: threadReadStateFindUniqueMock },
     notification: {
       findMany: notificationFindManyMock,
+      updateMany: notificationUpdateManyMock,
     },
     user: {
       findUnique: userFindUniqueMock,
@@ -346,7 +349,12 @@ describe("NotificationFollowUpSyncService", () => {
       email: "reader@example.com",
       name: "Sandro",
     });
-    sendEmailsMock.mockResolvedValue([]);
+    notificationUpdateManyMock.mockResolvedValue({ count: 1 });
+    // Resend answers one id per input, in order, which is what pairs an email
+    // with the reminder row that has to stop being revocable.
+    sendEmailsMock.mockImplementation(async (inputs: readonly unknown[]) =>
+      inputs.map((_, index) => ({ id: `resend_${index}` })),
+    );
     createNotificationMock.mockImplementation(
       async (input: {
         eventId: string;
@@ -1434,6 +1442,24 @@ describe("NotificationFollowUpSyncService", () => {
     // The room and the person waiting, which is what the mention row carried.
     expect(email.subject).toContain("Ada");
     expect(email.subject).toContain("Design");
+  });
+
+  /**
+   * The publish path gives an unsent reminder's shared event id back when the
+   * message it points at is gone. An emailed reminder has to keep it, so the
+   * row has to say that its email left.
+   */
+  it("records the email id on the reminder it emailed", async () => {
+    wantsEmail();
+    seed([row()]);
+
+    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    expect(result.emailed).toBe(1);
+    expect(notificationUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: written[0]?.eventId, emailId: null },
+      data: { emailId: "resend_0" },
+    });
   });
 
   /**

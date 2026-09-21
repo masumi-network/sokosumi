@@ -4,7 +4,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { db, publish, access, capture } = vi.hoisted(() => ({
   db: {
-    notification: { findUnique: vi.fn(), updateMany: vi.fn() },
+    notification: {
+      findUnique: vi.fn(),
+      updateMany: vi.fn(),
+      deleteMany: vi.fn(),
+    },
     user: { findUnique: vi.fn() },
     chatRoomMessage: { findFirst: vi.fn() },
     chatRoomThreadReadState: { findUnique: vi.fn() },
@@ -90,6 +94,13 @@ beforeEach(() => {
     )
       return { count: 0 };
     Object.assign(row, data);
+    return { count: 1 };
+  });
+  db.notification.deleteMany.mockImplementation(async ({ where }) => {
+    if (!row || row.id !== where.id || row.publishId !== where.publishId) {
+      return { count: 0 };
+    }
+    row = null;
     return { count: 1 };
   });
   db.user.findUnique.mockResolvedValue(reader);
@@ -282,6 +293,32 @@ describe("notification publish replay", () => {
     access.mockResolvedValue({ userMembers: [{ userId: "u1", mutedAt: NOW }] });
     expect(await dispatchNotificationPublish("n1", NOW)).toBe("skipped");
     expect(publish).not.toHaveBeenCalled();
+  });
+  it("gives a follow-up reservation back when the source is gone", async () => {
+    chat({ messageKey: "Notifications.Chat.mentionedFollowUp" });
+    db.chatRoomMessage.findFirst.mockResolvedValue(null);
+    expect(await dispatchNotificationPublish("n1", NOW)).toBe("skipped");
+    expect(db.notification.deleteMany).toHaveBeenCalledWith({
+      where: { id: "n1", publishId: "revision1" },
+    });
+    expect(row).toBeNull();
+  });
+  it("keeps an emailed follow-up reservation when the source is gone", async () => {
+    chat({
+      messageKey: "Notifications.Chat.mentionedFollowUp",
+      emailId: "resend_1",
+    });
+    db.chatRoomMessage.findFirst.mockResolvedValue(null);
+    expect(await dispatchNotificationPublish("n1", NOW)).toBe("skipped");
+    expect(db.notification.deleteMany).not.toHaveBeenCalled();
+    expect(row).toMatchObject({ publishId: null, emailId: "resend_1" });
+  });
+  it("keeps a plain notification when its source is gone", async () => {
+    chat();
+    db.chatRoomMessage.findFirst.mockResolvedValue(null);
+    expect(await dispatchNotificationPublish("n1", NOW)).toBe("skipped");
+    expect(db.notification.deleteMany).not.toHaveBeenCalled();
+    expect(row).toMatchObject({ publishId: null });
   });
   it("suppresses deleted messages", async () => {
     chat();
