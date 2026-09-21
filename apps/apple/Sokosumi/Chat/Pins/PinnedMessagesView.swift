@@ -120,7 +120,7 @@ struct PinnedMessageCard: View {
               }
             }
             let preview = PinnedMessagePreview(message)
-            if let author = preview.quotedAuthor {
+            if let author = preview.quotedAuthor, let label = preview.accessibilityLabel {
               // A quote can be the whole message; show what was quoted, in the block quotes are drawn in.
               MessageQuoteBlock {
                 VStack(alignment: .leading, spacing: 4) {
@@ -134,7 +134,7 @@ struct PinnedMessageCard: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
               }
               .accessibilityElement(children: .ignore)
-              .accessibilityLabel(preview.accessibilityLabel ?? "")
+              .accessibilityLabel(label)
             } else {
               markdown(preview.source)
             }
