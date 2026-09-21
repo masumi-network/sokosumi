@@ -98,9 +98,10 @@ describe("ChatRoomThreadRows", () => {
     expect(plain).not.toHaveAccessibleName(/mention/);
   });
 
-  // One number per row, as on the room rows above them. Both counts are still
+  // One number per row, as on the room rows above them: a muted number for
+  // unread replies, the `@` pill where the reader was named. Both are still
   // announced; only one is drawn.
-  it("draws one count per thread: the mention where there is one", () => {
+  it("draws a muted number, or the @ pill where the reader was named", () => {
     renderRows({
       unreadThreads: [
         thread(3, { parentContent: "Pricing copy", unreadMentionCount: 1 }),
@@ -109,15 +110,17 @@ describe("ChatRoomThreadRows", () => {
       unreadThreadCount: 2,
     });
 
-    const tones = (name: RegExp) =>
-      [
-        ...screen
-          .getByRole("link", { name })
-          .querySelectorAll<HTMLElement>("[data-tone]"),
-      ].map((pill) => [pill.dataset.tone, pill.textContent]);
+    const named = screen.getByRole("link", { name: /Pricing copy/ });
+    expect(named.querySelector('[data-slot="mention-pill"]')).toHaveTextContent(
+      "1",
+    );
+    expect(named.querySelector('[data-slot="thread-unread-count"]')).toBeNull();
 
-    expect(tones(/Pricing copy/)).toEqual([["mention", "1"]]);
-    expect(tones(/Release notes/)).toEqual([["unread", "2"]]);
+    const plain = screen.getByRole("link", { name: /Release notes/ });
+    expect(plain.querySelector('[data-slot="mention-pill"]')).toBeNull();
+    expect(
+      plain.querySelector('[data-slot="thread-unread-count"]'),
+    ).toHaveTextContent("2");
   });
 
   // The same pill as the room's badge, so the same cap: past nine the number
@@ -131,7 +134,9 @@ describe("ChatRoomThreadRows", () => {
     });
 
     const row = screen.getByRole("link", { name: /All hands/ });
-    expect(row.querySelector("[data-tone]")).toHaveTextContent("9+");
+    expect(row.querySelector('[data-slot="mention-pill"]')).toHaveTextContent(
+      "9+",
+    );
     expect(row.querySelector('[data-slot="mention-glyph"]')).not.toBeNull();
     expect(row).toHaveAccessibleName(/120 mentions/);
   });

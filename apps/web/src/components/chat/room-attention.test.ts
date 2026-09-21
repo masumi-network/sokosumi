@@ -13,7 +13,12 @@ describe("resolveRoomAttention", () => {
         unreadCount: 3,
         unreadMentionCount: 0,
       }),
-    ).toEqual({ bold: true, badgeCount: 0, unreadTextCount: 0 });
+    ).toEqual({
+      bold: true,
+      badgeCount: 0,
+      mentionCount: 0,
+      unreadTextCount: 0,
+    });
   });
 
   it("shows a mention badge only when unreadMentionCount > 0", () => {
@@ -22,7 +27,12 @@ describe("resolveRoomAttention", () => {
         unreadCount: 5,
         unreadMentionCount: 2,
       }),
-    ).toEqual({ bold: true, badgeCount: 2, unreadTextCount: 0 });
+    ).toEqual({
+      bold: true,
+      badgeCount: 2,
+      mentionCount: 2,
+      unreadTextCount: 0,
+    });
   });
 
   it("bolds forced-unread rooms even when unreadCount is 0", () => {
@@ -32,7 +42,12 @@ describe("resolveRoomAttention", () => {
         unreadMentionCount: 0,
         markedUnread: true,
       }),
-    ).toEqual({ bold: true, badgeCount: 0, unreadTextCount: 0 });
+    ).toEqual({
+      bold: true,
+      badgeCount: 0,
+      mentionCount: 0,
+      unreadTextCount: 0,
+    });
   });
 
   it("suppresses bold and badge when the room is muted", () => {
@@ -43,7 +58,12 @@ describe("resolveRoomAttention", () => {
         markedUnread: true,
         isMuted: true,
       }),
-    ).toEqual({ bold: false, badgeCount: 0, unreadTextCount: 0 });
+    ).toEqual({
+      bold: false,
+      badgeCount: 0,
+      mentionCount: 0,
+      unreadTextCount: 0,
+    });
   });
 
   it("reports no count when the reader has not opted in", () => {
@@ -52,7 +72,12 @@ describe("resolveRoomAttention", () => {
         unreadCount: 7,
         unreadMentionCount: 0,
       }),
-    ).toEqual({ bold: true, badgeCount: 0, unreadTextCount: 0 });
+    ).toEqual({
+      bold: true,
+      badgeCount: 0,
+      mentionCount: 0,
+      unreadTextCount: 0,
+    });
   });
 
   it("reports the unread message count when the reader opted in", () => {
@@ -62,7 +87,12 @@ describe("resolveRoomAttention", () => {
         unreadMentionCount: 0,
         showUnreadCount: true,
       }),
-    ).toEqual({ bold: true, badgeCount: 0, unreadTextCount: 7 });
+    ).toEqual({
+      bold: true,
+      badgeCount: 0,
+      mentionCount: 0,
+      unreadTextCount: 7,
+    });
   });
 
   it("reports no count for a read room the reader opted in on", () => {
@@ -72,7 +102,12 @@ describe("resolveRoomAttention", () => {
         unreadMentionCount: 0,
         showUnreadCount: true,
       }),
-    ).toEqual({ bold: false, badgeCount: 0, unreadTextCount: 0 });
+    ).toEqual({
+      bold: false,
+      badgeCount: 0,
+      mentionCount: 0,
+      unreadTextCount: 0,
+    });
   });
 
   it("suppresses the count on a muted room the reader opted in on", () => {
@@ -83,7 +118,12 @@ describe("resolveRoomAttention", () => {
         isMuted: true,
         showUnreadCount: true,
       }),
-    ).toEqual({ bold: false, badgeCount: 0, unreadTextCount: 0 });
+    ).toEqual({
+      bold: false,
+      badgeCount: 0,
+      mentionCount: 0,
+      unreadTextCount: 0,
+    });
   });
 
   // One number per row. A row that holds something addressed to the reader
@@ -97,7 +137,12 @@ describe("resolveRoomAttention", () => {
         unreadMentionCount: 2,
         showUnreadCount: true,
       }),
-    ).toEqual({ bold: true, badgeCount: 2, unreadTextCount: 0 });
+    ).toEqual({
+      bold: true,
+      badgeCount: 2,
+      mentionCount: 2,
+      unreadTextCount: 0,
+    });
   });
 
   it("shows the message count when nothing is addressed to the reader", () => {
@@ -107,7 +152,12 @@ describe("resolveRoomAttention", () => {
         unreadMentionCount: 0,
         showUnreadCount: true,
       }),
-    ).toEqual({ bold: true, badgeCount: 0, unreadTextCount: 9 });
+    ).toEqual({
+      bold: true,
+      badgeCount: 0,
+      mentionCount: 0,
+      unreadTextCount: 9,
+    });
   });
 
   it("keeps a hand-marked unread room bold with no count to show", () => {
@@ -118,7 +168,12 @@ describe("resolveRoomAttention", () => {
         markedUnread: true,
         showUnreadCount: true,
       }),
-    ).toEqual({ bold: true, badgeCount: 0, unreadTextCount: 0 });
+    ).toEqual({
+      bold: true,
+      badgeCount: 0,
+      mentionCount: 0,
+      unreadTextCount: 0,
+    });
   });
 
   // The row draws the count at the name's unread weight with no unbolded
@@ -157,7 +212,12 @@ describe("resolveRoomAttention with the channel half", () => {
         unreadMentionCount: 0,
         showUnreadCount: true,
       }),
-    ).toEqual({ bold: false, badgeCount: 0, unreadTextCount: 0 });
+    ).toEqual({
+      bold: false,
+      badgeCount: 0,
+      mentionCount: 0,
+      unreadTextCount: 0,
+    });
   });
 
   // The rule that fails silently when wrong: a mention reply counts toward
@@ -169,7 +229,12 @@ describe("resolveRoomAttention with the channel half", () => {
         channelUnreadCount: 0,
         unreadMentionCount: 1,
       }),
-    ).toEqual({ bold: true, badgeCount: 1, unreadTextCount: 0 });
+    ).toEqual({
+      bold: true,
+      badgeCount: 1,
+      mentionCount: 1,
+      unreadTextCount: 0,
+    });
   });
 
   it("keeps the badge counting mentions only, beside a busy thread", () => {
@@ -190,7 +255,12 @@ describe("resolveRoomAttention with the channel half", () => {
         unreadMentionCount: 0,
         showUnreadCount: true,
       }),
-    ).toEqual({ bold: true, badgeCount: 0, unreadTextCount: 2 });
+    ).toEqual({
+      bold: true,
+      badgeCount: 0,
+      mentionCount: 0,
+      unreadTextCount: 2,
+    });
   });
 
   it("shows no opt-in number for a row bold only by a thread mention", () => {
@@ -213,7 +283,12 @@ describe("resolveRoomAttention with the channel half", () => {
         isMuted: true,
         showUnreadCount: true,
       }),
-    ).toEqual({ bold: false, badgeCount: 0, unreadTextCount: 0 });
+    ).toEqual({
+      bold: false,
+      badgeCount: 0,
+      mentionCount: 0,
+      unreadTextCount: 0,
+    });
   });
 
   it("keeps a hand-marked unread room bold when only threads are unread", () => {
@@ -250,6 +325,56 @@ describe("resolveRoomAttention with the channel half", () => {
         }
       }
     }
+  });
+});
+
+// A Direct of two is written to, not named: Core counts every message there
+// toward the badge. So it draws no mention pill, and its number is the same
+// muted count a channel shows. The badge still bolds the row and marks the
+// rail, which is unchanged.
+describe("resolveRoomAttention in a Direct of two", () => {
+  it("draws no mention pill and shows the message count instead", () => {
+    expect(
+      resolveRoomAttention({
+        unreadCount: 5,
+        channelUnreadCount: 5,
+        unreadMentionCount: 5,
+        badgeCountsMentions: false,
+        showUnreadCount: true,
+      }),
+    ).toEqual({
+      bold: true,
+      badgeCount: 5,
+      mentionCount: 0,
+      unreadTextCount: 5,
+    });
+  });
+
+  it("stays bold with no number when the reader switched counts off", () => {
+    expect(
+      resolveRoomAttention({
+        unreadCount: 5,
+        channelUnreadCount: 5,
+        unreadMentionCount: 5,
+        badgeCountsMentions: false,
+      }),
+    ).toEqual({
+      bold: true,
+      badgeCount: 5,
+      mentionCount: 0,
+      unreadTextCount: 0,
+    });
+  });
+
+  it("draws the mention pill everywhere else", () => {
+    expect(
+      resolveRoomAttention({
+        unreadCount: 3,
+        channelUnreadCount: 3,
+        unreadMentionCount: 1,
+        showUnreadCount: true,
+      }),
+    ).toMatchObject({ mentionCount: 1, unreadTextCount: 0 });
   });
 });
 

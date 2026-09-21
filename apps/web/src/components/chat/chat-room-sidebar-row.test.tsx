@@ -733,11 +733,12 @@ describe("ChatRoomSidebarRow unread threads", () => {
   });
 });
 
-// The badge says "addressed to you". Core counts every message toward it only
-// in a Direct of two. Everywhere else it counts mentions alone, and says so
-// with an `@`.
-describe("ChatRoomSidebarRow mention badge", () => {
-  function badgeOf(room: Partial<ChatRoom>) {
+// Two marks, and only two. A muted number says how much is unread, the same
+// way for a channel, a Direct and a Thread. A primary `@` pill says the reader
+// was named. Core counts every message toward the badge in a Direct of two,
+// so that row is written to, not named, and draws the number.
+describe("ChatRoomSidebarRow mention pill", () => {
+  function renderRoom(room: Partial<ChatRoom>) {
     const { container } = render(
       <ChatRoomSidebarRow
         room={makeRoom(room)}
@@ -748,110 +749,81 @@ describe("ChatRoomSidebarRow mention badge", () => {
         onRoomUpdated={vi.fn()}
       />,
     );
-    return container.querySelector('[data-slot="room-mention-badge"]');
+    return {
+      pill: container.querySelector('[data-slot="room-mention-badge"]'),
+      count: container.querySelector('[data-slot="room-unread-count"]'),
+    };
   }
 
-  it("marks a channel's mention count with an @", () => {
-    const badge = badgeOf({ kind: "channel", unreadMentionCount: 2 });
+  it("marks a channel's mentions with an @ pill", () => {
+    const { pill } = renderRoom({ kind: "channel", unreadMentionCount: 2 });
 
-    expect(badge).toHaveTextContent("2");
-    expect(badge?.querySelector('[data-slot="mention-glyph"]')).not.toBeNull();
+    expect(pill).toHaveTextContent("2");
+    expect(pill?.querySelector('[data-slot="mention-glyph"]')).not.toBeNull();
   });
 
-  // Amber means "you were named". In a Direct of two the count is messages,
-  // so amber there would say something that did not happen.
-  it("keeps a Direct of two's count in the plain unread tone", () => {
-    const badge = badgeOf({
-      kind: "direct",
-      unreadMentionCount: 5,
-      userMembers: [makeUser("a"), makeUser("b")],
-    });
-
-    expect(badge?.querySelector("[data-tone]")).toHaveAttribute(
-      "data-tone",
-      "unread",
-    );
-  });
-
-  it("puts a channel's and a group Direct's count in the mention tone", () => {
-    expect(
-      badgeOf({ kind: "channel", unreadMentionCount: 1 })?.querySelector(
-        "[data-tone]",
-      ),
-    ).toHaveAttribute("data-tone", "mention");
-  });
-
-  it("shows the count of a Direct of two without an @", () => {
-    const badge = badgeOf({
-      kind: "direct",
-      unreadMentionCount: 2,
-      userMembers: [makeUser("a"), makeUser("b")],
-    });
-
-    expect(badge).toHaveTextContent("2");
-    expect(badge?.querySelector('[data-slot="mention-glyph"]')).toBeNull();
-  });
-
-  it("marks a group Direct's mention count with an @", () => {
-    const badge = badgeOf({
+  it("marks a group Direct's mentions with an @ pill", () => {
+    const { pill } = renderRoom({
       kind: "direct",
       unreadMentionCount: 2,
       userMembers: [makeUser("a"), makeUser("b"), makeUser("c")],
     });
 
-    expect(badge?.querySelector('[data-slot="mention-glyph"]')).not.toBeNull();
+    expect(pill?.querySelector('[data-slot="mention-glyph"]')).not.toBeNull();
   });
 
-  // Amber always carries its `@`: amber without one reads as a different kind
-  // of count. The badge shares a 28px hole with the row's menu, so past nine
-  // it is the number that gives way, not the glyph.
-  it("shows the exact mention count up to nine", () => {
-    const badge = badgeOf({ kind: "channel", unreadMentionCount: 9 });
-
-    expect(badge).toHaveTextContent("9");
-    expect(badge).not.toHaveTextContent("9+");
-    expect(badge?.querySelector('[data-slot="mention-glyph"]')).not.toBeNull();
-  });
-
-  it.each([10, 12, 120])("shows @ 9+ for %i mentions", (unreadMentionCount) => {
-    const badge = badgeOf({ kind: "channel", unreadMentionCount });
-
-    expect(badge).toHaveTextContent("9+");
-    expect(badge?.querySelector('[data-slot="mention-glyph"]')).not.toBeNull();
-  });
-
-  // What is drawn and what is announced have to say the same thing. A Direct
-  // of two draws the unread pill, because its count is messages, so a screen
-  // reader must not hear "mentions" there.
-  it("announces a Direct of two's count as unread messages", () => {
-    badgeOf({
+  it("shows a Direct of two the same muted number a channel gets", () => {
+    showRoomUnreadCountMock.mockReturnValueOnce(true);
+    const { pill, count } = renderRoom({
       kind: "direct",
+      unreadCount: 5,
+      channelUnreadCount: 5,
       unreadMentionCount: 5,
       userMembers: [makeUser("a"), makeUser("b")],
     });
 
+    expect(pill).toBeNull();
+    expect(count).toHaveTextContent("5");
     expect(screen.getByText("5 unread messages")).toBeInTheDocument();
     expect(screen.queryByText("5 mentions")).toBeNull();
   });
 
+  it("draws the @ pill alone on a channel that also has unread messages", () => {
+    const { pill, count } = renderRoom({
+      kind: "channel",
+      unreadCount: 4,
+      channelUnreadCount: 3,
+      unreadMentionCount: 1,
+    });
+
+    expect(pill).toHaveTextContent("1");
+    expect(count).toBeNull();
+  });
+
+  // The pill shares a 28px hole with the row's menu, and the `@` takes its
+  // share, so past nine it is the number that gives way, never the glyph.
+  it("shows the exact mention count up to nine", () => {
+    const { pill } = renderRoom({ kind: "channel", unreadMentionCount: 9 });
+
+    expect(pill).toHaveTextContent("9");
+    expect(pill).not.toHaveTextContent("9+");
+  });
+
+  it.each([10, 12, 120])("shows @ 9+ for %i mentions", (unreadMentionCount) => {
+    const { pill } = renderRoom({ kind: "channel", unreadMentionCount });
+
+    expect(pill).toHaveTextContent("9+");
+    expect(pill?.querySelector('[data-slot="mention-glyph"]')).not.toBeNull();
+  });
+
   it("announces a channel's and a group Direct's count as mentions", () => {
-    badgeOf({
+    renderRoom({
       kind: "direct",
       unreadMentionCount: 2,
       userMembers: [makeUser("a"), makeUser("b"), makeUser("c")],
     });
 
     expect(screen.getByText("2 mentions")).toBeInTheDocument();
-  });
-
-  it("keeps a Direct of two's message count exact past nine", () => {
-    const badge = badgeOf({
-      kind: "direct",
-      unreadMentionCount: 12,
-      userMembers: [makeUser("a"), makeUser("b")],
-    });
-
-    expect(badge).toHaveTextContent("12");
   });
 });
 
