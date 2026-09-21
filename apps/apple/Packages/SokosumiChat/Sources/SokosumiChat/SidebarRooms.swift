@@ -25,6 +25,23 @@ public struct RoomAttention: Equatable, Sendable {
     self.badgeCount = badgeCount
     self.unreadTextCount = unreadTextCount
   }
+
+  /// What the mention badge prints (web `RoomMentionBadge`): nothing at zero
+  /// or below, otherwise the count through the shared `roomCountLabel` cap.
+  public var badgeLabel: String? {
+    badgeCount > 0 ? roomCountLabel(badgeCount) : nil
+  }
+
+  /// Spoken form of the mention badge (web `MentionAnnouncement`, `RoomMentions.mentions*`).
+  public var badgeAccessibilityLabel: String? {
+    guard badgeCount > 0 else {
+      return nil
+    }
+    if badgeCount > roomCountCap {
+      return "More than \(roomCountCap) mentions"
+    }
+    return badgeCount == 1 ? "1 mention" : "\(badgeCount) mentions"
+  }
 }
 
 /// Web `ROOM_COUNT_CAP`: a very loud room cannot reflow its row.
