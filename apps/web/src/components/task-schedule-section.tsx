@@ -340,18 +340,13 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
     const parsed = parseDateTimeLocalInput(oneTimeLocalIso);
     if (!parsed) return base;
 
-    const timeFormatter = new Intl.DateTimeFormat(undefined, {
-      hour: "numeric",
-      minute: "2-digit",
+    const timeLabel = formatter.dateTime(parsed, "time", {
       timeZone: timezone,
     });
-    const weekdayFormatter = new Intl.DateTimeFormat(undefined, {
+    const weekdayLabel = formatter.dateTime(parsed, {
       weekday: "long",
       timeZone: timezone,
     });
-
-    const timeLabel = timeFormatter.format(parsed);
-    const weekdayLabel = weekdayFormatter.format(parsed);
     const dayOfMonth = parsed.getDate();
 
     return {
@@ -365,7 +360,7 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
         time: timeLabel,
       }),
     };
-  }, [oneTimeLocalIso, t, timezone]);
+  }, [formatter, oneTimeLocalIso, t, timezone]);
 
   function deriveBuilderStateFromCron(cron: string): {
     unit: "day" | "week" | "month";
