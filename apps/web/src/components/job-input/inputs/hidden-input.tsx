@@ -1,5 +1,5 @@
 import type { InputHiddenSchemaType } from "@sokosumi/masumi/schemas";
-import type { InputType } from "@sokosumi/masumi/types";
+import { InputType } from "@sokosumi/masumi/types";
 
 import type { JobInputComponentProps } from "./types";
 
@@ -8,7 +8,7 @@ export function HiddenInput({
   field,
   jobInputSchema,
   controlProps,
-}: JobInputComponentProps<InputType.HIDDEN, InputHiddenSchemaType>) {
+}: JobInputComponentProps<typeof InputType.HIDDEN, InputHiddenSchemaType>) {
   const value =
     typeof field.value === "string"
       ? field.value
