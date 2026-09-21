@@ -5,6 +5,15 @@
   const RECORD_KEY = "current";
   const PUSH_WORK_LOCK = "sokosumi.push.work";
   const REQUEST_TIMEOUT_MS = 10_000;
+  const RETRY_DELAYS_MS = [1_000, 5_000];
+  const RENEWAL_SYNC_PREFIX = "sokosumi:push-renewal:";
+
+  class RetryableRenewalError extends Error {
+    constructor(message, generation) {
+      super(message);
+      this.generation = generation;
+    }
+  }
 
   function openDatabase() {
     return new Promise((resolve, reject) => {
@@ -80,9 +89,9 @@
     return btoa(String.fromCharCode(...new Uint8Array(value)));
   }
 
-  async function renew() {
+  async function renew(generation) {
     const snapshot = await readSnapshot();
-    if (!validSnapshot(snapshot)) return;
+    if (!validSnapshot(snapshot) || snapshot.generation !== generation) return;
     const options = {
       userVisibleOnly: true,
       applicationServerKey: decodeKey(snapshot.publicVapidKey),
@@ -94,9 +103,19 @@
       return;
     // Read the live subscription under the lock, since an event may have waited
     // behind a foreground repair and its supplied replacement may now be stale.
-    let subscription = await self.registration.pushManager.getSubscription();
-    if (!subscription)
-      subscription = await self.registration.pushManager.subscribe(options);
+    let subscription;
+    try {
+      subscription = await self.registration.pushManager.getSubscription();
+      if (!subscription)
+        subscription = await self.registration.pushManager.subscribe(options);
+    } catch (error) {
+      if (error?.name === "NetworkError" || error?.name === "AbortError")
+        throw new RetryableRenewalError(
+          "Push service subscription failed",
+          generation,
+        );
+      throw error;
+    }
     const current = await readSnapshot();
     if (current?.generation !== snapshot.generation) {
       await subscription.unsubscribe();
@@ -127,9 +146,22 @@
         }),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       },
-    );
-    if (!response.ok)
-      throw new Error(`Push renewal failed (${response.status})`);
+    ).catch(() => {
+      throw new RetryableRenewalError(
+        "Push renewal network request failed",
+        generation,
+      );
+    });
+    if (!response.ok) {
+      const message = `Push renewal failed (${response.status})`;
+      if (
+        response.status === 408 ||
+        response.status === 429 ||
+        response.status >= 500
+      )
+        throw new RetryableRenewalError(message, generation);
+      throw new Error(message);
+    }
     if ((await readSnapshot())?.generation !== snapshot.generation) {
       await subscription.unsubscribe();
       return;
@@ -137,15 +169,64 @@
     await updateEndpoint(snapshot, subscription.endpoint);
   }
 
+  async function renewWithRetries(expectedGeneration) {
+    const snapshot = await readSnapshot();
+    if (
+      !validSnapshot(snapshot) ||
+      (expectedGeneration && snapshot.generation !== expectedGeneration)
+    )
+      return;
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        await self.navigator.locks.request(PUSH_WORK_LOCK, () =>
+          renew(snapshot.generation),
+        );
+        return;
+      } catch (error) {
+        if (!(error instanceof RetryableRenewalError)) throw error;
+        if ((await readSnapshot())?.generation !== snapshot.generation) return;
+        if (attempt >= RETRY_DELAYS_MS.length) throw error;
+        // Release the lock before waiting so logout and foreground repair can run.
+        await new Promise((resolve) =>
+          setTimeout(resolve, RETRY_DELAYS_MS[attempt]),
+        );
+      }
+    }
+  }
+
+  function canRenew() {
+    return self.navigator.locks && typeof indexedDB !== "undefined";
+  }
+
   self.addEventListener("pushsubscriptionchange", (event) => {
-    // Foreground recovery remains available when cross-context locking is absent.
-    if (!self.navigator.locks || typeof indexedDB === "undefined") return;
+    if (!canRenew()) return;
     event.waitUntil(
-      self.navigator.locks
-        .request(PUSH_WORK_LOCK, renew)
-        .catch((error) =>
-          console.error("Could not renew push subscription", error),
-        ),
+      renewWithRetries().catch(async (error) => {
+        console.error("Could not renew push subscription", error);
+        if (error instanceof RetryableRenewalError && self.registration.sync) {
+          try {
+            await self.registration.sync.register(
+              RENEWAL_SYNC_PREFIX + error.generation,
+            );
+          } catch (syncError) {
+            console.error("Could not schedule push renewal", syncError);
+          }
+        }
+      }),
+    );
+  });
+
+  self.addEventListener("sync", (event) => {
+    if (!event.tag.startsWith(RENEWAL_SYNC_PREFIX) || !canRenew()) return;
+    const generation = event.tag.slice(RENEWAL_SYNC_PREFIX.length);
+    if (!generation) return;
+    event.waitUntil(
+      renewWithRetries(generation).catch((error) => {
+        console.error("Could not sync push subscription", error);
+        // Reject transient failures: resolving would tell the browser to discard
+        // its queued sync. Permanent errors require foreground registration repair.
+        if (error instanceof RetryableRenewalError) throw error;
+      }),
     );
   });
 })();

@@ -64,10 +64,15 @@ async function readRecord(): Promise<Record<string, string> | undefined> {
   });
 }
 function worker() {
-  let listener: (event: {
-    oldSubscription: { endpoint: string } | null;
+  interface WorkerEvent {
+    oldSubscription?: { endpoint: string } | null;
+    tag?: string;
     waitUntil: (work: Promise<unknown>) => void;
-  }) => void;
+  }
+  const listeners = new Map<string, (event: WorkerEvent) => void>();
+  const syncRegister = vi.fn(async (_tag: string) => {});
+  const delay = vi.fn(async () => {});
+  const retryDelays: number[] = [];
   const fetchMock = vi.fn(async (_url: string, _options: RequestInit) => ({
     ok: true,
     status: 200,
@@ -85,6 +90,10 @@ function worker() {
   );
   const context = createContext({
     indexedDB: databaseFactory,
+    setTimeout: (callback: () => void, milliseconds: number) => {
+      retryDelays.push(milliseconds);
+      void delay().then(callback);
+    },
     btoa,
     atob,
     Uint8Array,
@@ -93,22 +102,44 @@ function worker() {
     fetch: fetchMock,
     self: {
       navigator: { locks: { request: requestLock } },
-      registration: { pushManager },
-      addEventListener: (name: string, callback: typeof listener) => {
-        if (name === "pushsubscriptionchange") listener = callback;
+      registration: { pushManager, sync: { register: syncRegister } },
+      addEventListener: (
+        name: string,
+        callback: (event: WorkerEvent) => void,
+      ) => {
+        listeners.set(name, callback);
       },
     },
   });
   runInContext(source, context);
   return {
     fetchMock,
+    syncRegister,
+    delay,
+    retryDelays,
     pushManager,
     requestLock,
     context,
     fire: async (endpoint: string | null = oldEndpoint) => {
       let pending: Promise<unknown> = Promise.resolve();
+      const listener = listeners.get("pushsubscriptionchange");
+      if (!listener) throw new Error("Missing rotation handler");
       listener({
         oldSubscription: endpoint ? { endpoint } : null,
+        waitUntil: (work) => {
+          pending = work;
+        },
+      });
+      await pending;
+    },
+    fireSync: async (tag?: string) => {
+      const listener = listeners.get("sync");
+      if (!listener) throw new Error("Missing sync handler");
+      let pending: Promise<unknown> = Promise.resolve();
+      listener({
+        tag:
+          tag ??
+          `sokosumi:push-renewal:${(await readRecord())?.generation ?? "revoked"}`,
         waitUntil: (work) => {
           pending = work;
         },
@@ -240,7 +271,7 @@ describe("pushsubscriptionchange", () => {
     expect(instance.fetchMock).not.toHaveBeenCalled();
     runInContext("self.navigator.locks = undefined", instance.context);
     await instance.fire();
-    expect(instance.requestLock).toHaveBeenCalledTimes(1);
+    expect(instance.requestLock).not.toHaveBeenCalled();
   });
   it("stops a late browser subscription when logout overtakes subscribe", async () => {
     const instance = worker();
@@ -269,7 +300,7 @@ describe("pushsubscriptionchange", () => {
     await instance.fire();
     subscription = makeSubscription("https://push.example/third");
     await instance.fire(newEndpoint);
-    expect(instance.fetchMock).toHaveBeenCalledTimes(2);
+    expect(instance.fetchMock).toHaveBeenCalledTimes(3);
     expect(await readRecord()).toMatchObject({
       endpoint: subscription.endpoint,
     });
@@ -280,10 +311,149 @@ describe("pushsubscriptionchange", () => {
     expect(instance.fetchMock).toHaveBeenCalledOnce();
     expect(await readRecord()).toMatchObject({ endpoint: newEndpoint });
   });
-  it("retains the old snapshot after a failed PATCH for foreground recovery", async () => {
+  it("retains the old snapshot after transient retries are exhausted", async () => {
     const instance = worker();
-    instance.fetchMock.mockResolvedValueOnce({ ok: false, status: 503 });
+    instance.fetchMock.mockResolvedValue({ ok: false, status: 503 });
     await instance.fire();
     expect(await readRecord()).toMatchObject({ endpoint: oldEndpoint });
+  });
+  it.each([408, 429, 500, 503])(
+    "retries HTTP %s without another rotation",
+    async (status) => {
+      const instance = worker();
+      instance.fetchMock.mockResolvedValueOnce({ ok: false, status });
+      await instance.fire();
+      expect(instance.fetchMock).toHaveBeenCalledTimes(2);
+      expect(instance.requestLock).toHaveBeenCalledTimes(2);
+      expect(instance.retryDelays).toEqual([1000]);
+      expect(instance.syncRegister).not.toHaveBeenCalled();
+      expect(await readRecord()).toMatchObject({ endpoint: newEndpoint });
+    },
+  );
+  it("retries network failures with bounded waits then queues background sync", async () => {
+    const instance = worker();
+    instance.fetchMock.mockRejectedValue(new TypeError("network unavailable"));
+    await instance.fire();
+    expect(instance.fetchMock).toHaveBeenCalledTimes(3);
+    expect(instance.retryDelays).toEqual([1000, 5000]);
+    expect(instance.syncRegister).toHaveBeenCalledExactlyOnceWith(
+      `sokosumi:push-renewal:${(await readRecord())?.generation}`,
+    );
+    instance.fetchMock.mockResolvedValue({ ok: true, status: 200 });
+    await instance.fireSync();
+    expect(instance.fetchMock).toHaveBeenCalledTimes(4);
+    expect(await readRecord()).toMatchObject({ endpoint: newEndpoint });
+  });
+  it("rejects a transiently failed sync so the browser keeps retrying", async () => {
+    const instance = worker();
+    instance.fetchMock.mockResolvedValue({ ok: false, status: 503 });
+    await expect(instance.fireSync()).rejects.toThrow("503");
+    expect(instance.fetchMock).toHaveBeenCalledTimes(3);
+    expect(instance.syncRegister).not.toHaveBeenCalled();
+  });
+  it.each([400, 401, 403, 404])(
+    "does not retry permanent HTTP %s",
+    async (status) => {
+      const instance = worker();
+      instance.fetchMock.mockResolvedValue({ ok: false, status });
+      await instance.fire();
+      expect(instance.fetchMock).toHaveBeenCalledTimes(1);
+      expect(instance.syncRegister).not.toHaveBeenCalled();
+      expect(instance.retryDelays).toEqual([]);
+      await expect(instance.fireSync()).resolves.toBeUndefined();
+      expect(instance.fetchMock).toHaveBeenCalledTimes(2);
+    },
+  );
+  it("does not revive a revoked subscription during retry or a later sync", async () => {
+    const instance = worker();
+    instance.fetchMock.mockResolvedValue({ ok: false, status: 503 });
+    instance.delay.mockImplementationOnce(async () => {
+      await revokePushRenewal();
+    });
+    await instance.fire();
+    await instance.fireSync();
+    expect(instance.fetchMock).toHaveBeenCalledTimes(1);
+    expect(instance.syncRegister).not.toHaveBeenCalled();
+    expect(await readRecord()).toBeUndefined();
+  });
+  it("does not adopt a new device generation during an old retry chain", async () => {
+    const instance = worker();
+    instance.fetchMock.mockResolvedValue({ ok: false, status: 503 });
+    instance.delay.mockImplementationOnce(async () => {
+      await rememberPushRenewal(client, "reader", "current");
+    });
+    await instance.fire();
+    expect(instance.fetchMock).toHaveBeenCalledTimes(1);
+    expect(instance.syncRegister).not.toHaveBeenCalled();
+    expect(subscription.unsubscribe).not.toHaveBeenCalled();
+  });
+  it("keeps bounded retry when Background Sync is unavailable", async () => {
+    const instance = worker();
+    runInContext("self.registration.sync = undefined", instance.context);
+    instance.fetchMock.mockResolvedValue({ ok: false, status: 503 });
+    await instance.fire();
+    expect(instance.fetchMock).toHaveBeenCalledTimes(3);
+    expect(instance.syncRegister).not.toHaveBeenCalled();
+  });
+  it("ignores sync events owned by another feature", async () => {
+    const instance = worker();
+    await instance.fireSync("unrelated");
+    expect(instance.fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("does not apply an old account's queued sync to a new device generation", async () => {
+    const instance = worker();
+    const oldTag = `sokosumi:push-renewal:${(await readRecord())?.generation}`;
+    await revokePushRenewal();
+    await rememberPushRenewal(client, "reader", "current");
+    await instance.fireSync(oldTag);
+    expect(instance.fetchMock).not.toHaveBeenCalled();
+    expect(subscription.unsubscribe).not.toHaveBeenCalled();
+  });
+
+  it.each(["NetworkError", "AbortError"])(
+    "retries a transient subscribe %s",
+    async (name) => {
+      const instance = worker();
+      instance.pushManager.getSubscription.mockResolvedValue(null);
+      instance.pushManager.subscribe.mockRejectedValueOnce(
+        new DOMException("push service unavailable", name),
+      );
+      await instance.fire();
+      expect(instance.pushManager.subscribe).toHaveBeenCalledTimes(2);
+      expect(instance.fetchMock).toHaveBeenCalledOnce();
+      expect(await readRecord()).toMatchObject({ endpoint: newEndpoint });
+    },
+  );
+  it("queues background sync when the push service remains unavailable", async () => {
+    const instance = worker();
+    instance.pushManager.getSubscription.mockResolvedValue(null);
+    instance.pushManager.subscribe.mockRejectedValue(
+      new DOMException("push service unavailable", "AbortError"),
+    );
+    await instance.fire();
+    expect(instance.pushManager.subscribe).toHaveBeenCalledTimes(3);
+    expect(instance.fetchMock).not.toHaveBeenCalled();
+    expect(instance.syncRegister).toHaveBeenCalledOnce();
+  });
+  it("does not retry a subscribe permission error", async () => {
+    const instance = worker();
+    instance.pushManager.getSubscription.mockResolvedValue(null);
+    instance.pushManager.subscribe.mockRejectedValue(
+      new DOMException("permission denied", "NotAllowedError"),
+    );
+    await instance.fire();
+    expect(instance.pushManager.subscribe).toHaveBeenCalledOnce();
+    expect(instance.syncRegister).not.toHaveBeenCalled();
+  });
+
+  it("retries an aborted subscription lookup", async () => {
+    const instance = worker();
+    instance.pushManager.getSubscription.mockRejectedValueOnce(
+      new DOMException("lookup failed", "AbortError"),
+    );
+    await instance.fire();
+    expect(instance.pushManager.getSubscription).toHaveBeenCalledTimes(2);
+    expect(instance.fetchMock).toHaveBeenCalledOnce();
   });
 });
