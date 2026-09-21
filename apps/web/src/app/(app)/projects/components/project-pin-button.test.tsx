@@ -119,4 +119,34 @@ describe("ProjectPinButton", () => {
       screen.getByRole("button").querySelector("svg")?.getAttribute("class"),
     ).not.toContain("fill-current");
   });
+  it("stays Pinned once the action resolves, rather than snapping back", async () => {
+    render(
+      <ProjectPinButton projectId="p1" isPinned={false} labels={labels} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Pin project" }));
+    await waitFor(() => expect(mocks.pin).toHaveBeenCalled());
+    // The reported symptom: the icon went blue, then snapped back to grey,
+    // because an optimistic value is dropped when the transition ends and
+    // `isPinned` on the projects list is never refreshed.
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Unpin project" }),
+      ).toBeDefined(),
+    );
+  });
+
+  it("lets the server override what the button remembers", async () => {
+    // The button holds committed state, so it must still yield when the page
+    // genuinely re-renders with a different truth — otherwise a stale Pin
+    // would outlive a navigation or a refetched list.
+    const { rerender } = render(
+      <ProjectPinButton projectId="p1" isPinned labels={labels} />,
+    );
+    expect(screen.getByRole("button", { name: "Unpin project" })).toBeDefined();
+
+    rerender(
+      <ProjectPinButton projectId="p1" isPinned={false} labels={labels} />,
+    );
+    expect(screen.getByRole("button", { name: "Pin project" })).toBeDefined();
+  });
 });

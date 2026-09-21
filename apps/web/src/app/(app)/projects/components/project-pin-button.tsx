@@ -2,7 +2,7 @@
 
 import { QueryClientContext } from "@tanstack/react-query";
 import { Pin } from "lucide-react";
-import { useContext, useOptimistic, useTransition } from "react";
+import { useContext, useState, useTransition } from "react";
 import { pinProjectAction, unpinProjectAction } from "@/app/projects/actions";
 import { PINNED_PROJECTS_QUERY_KEY } from "@/hooks/use-pinned-projects";
 import { cn } from "@/lib/utils";
@@ -38,20 +38,31 @@ export function ProjectPinButton({
   // button's job is to Pin, and it must stay renderable on its own.
   const queryClient = useContext(QueryClientContext);
   const [isPending, startTransition] = useTransition();
-  const [optimisticPinned, setOptimisticPinned] = useOptimistic(isPinned);
+  // Committed state, not `useOptimistic`. An optimistic value is discarded
+  // when the transition ends and falls back to `isPinned` — which on the
+  // projects list comes from the server-rendered row's `starredAt` and is
+  // never refreshed, so a Pin flipped blue and snapped straight back to grey.
+  const [pinned, setPinned] = useState(isPinned);
+  // Whatever the server last told us. When that changes — a navigation, a
+  // refresh, a refetched Pin list — it wins over what this button remembers.
+  const [serverPinned, setServerPinned] = useState(isPinned);
+  if (serverPinned !== isPinned) {
+    setServerPinned(isPinned);
+    setPinned(isPinned);
+  }
 
   function toggle() {
-    const next = !optimisticPinned;
+    const next = !pinned;
+    setPinned(next);
     startTransition(async () => {
-      setOptimisticPinned(next);
       try {
         await (next
           ? pinProjectAction({ projectId })
           : unpinProjectAction({ projectId }));
       } catch {
-        // useOptimistic rolls the icon back when the transition ends without
-        // the server state having moved, so there is nothing to undo here.
-        // Both calls are idempotent at Core, so a retry is always safe.
+        // Put the icon back; both calls are idempotent at Core, so the
+        // reader can simply click again.
+        setPinned(!next);
         return;
       }
       // The flyout caches Pins under its own key; without this it keeps
@@ -68,11 +79,11 @@ export function ProjectPinButton({
   // create a Pin that never appears anywhere. Unpinning stays available while
   // a Pin exists, or closing a project would strand it with no way back —
   // which is also why Core's unstar route accepts a closed project.
-  if (isClosed && !optimisticPinned) {
+  if (isClosed && !pinned) {
     return null;
   }
 
-  const label = optimisticPinned ? labels.unpin : labels.pin;
+  const label = pinned ? labels.unpin : labels.pin;
 
   return (
     <button
@@ -81,7 +92,7 @@ export function ProjectPinButton({
       disabled={isPending}
       aria-label={label}
       title={label}
-      aria-pressed={optimisticPinned}
+      aria-pressed={pinned}
       data-testid="project-pin-button"
       className={cn(
         // The row around this is a link, so the button sits beside it rather
@@ -93,16 +104,13 @@ export function ProjectPinButton({
         // from an outlined one, and one step of grey did not read at all.
         // Solid ramp steps, not an opacity modifier: the colour-token rule is
         // absolute, and this is the same pairing the task-created badge uses.
-        optimisticPinned
+        pinned
           ? "text-primary bg-primary-quinary hover:bg-primary-quaternary"
           : "text-muted-foreground hover:text-foreground",
         className,
       )}
     >
-      <Pin
-        aria-hidden
-        className={cn("size-4", optimisticPinned && "fill-current")}
-      />
+      <Pin aria-hidden className={cn("size-4", pinned && "fill-current")} />
     </button>
   );
 }

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -62,5 +62,18 @@ describe("ProjectDetailPinButton", () => {
     // Rendering an unpinned button that flips a moment later would state
     // something false about the reader's own project.
     expect(screen.queryByRole("button")).toBeNull();
+  });
+  it("stays Pinned once the action resolves", async () => {
+    mocks.pinned.mockReturnValue({ data: [] });
+    render(<ProjectDetailPinButton projectId="p1" labels={labels} />);
+    fireEvent.click(screen.getByRole("button", { name: "Pin project" }));
+    await waitFor(() => expect(mocks.pin).toHaveBeenCalled());
+    // If H1 holds this ALSO reverts here, because the mocked hook never
+    // changes its answer — proving the fallback, not the surface, is at fault.
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Unpin project" }),
+      ).toBeDefined(),
+    );
   });
 });
