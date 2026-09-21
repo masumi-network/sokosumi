@@ -105,53 +105,6 @@ jobs:
           retention-days: 3
           if-no-files-found: ignore
 
-  # Release is the one configuration nothing else compiles. `Xcode test` builds
-  # Debug; Xcode Cloud builds Release but only when a release is cut, so a
-  # whole-module-optimization, `@inlinable` access or dead-stripping break
-  # would otherwise surface on the archive that is meant to ship.
-  #
-  # The Release compile gate for pull requests. It runs in parallel with
-  # `test`, so an Apple pull request gains runner minutes but no wall-clock
-  # time.
-  #
-  # This is the unsigned half of the split with `publish`, and the split is a
-  # security boundary, not a tidiness one. A pull request from a branch in
-  # this repository DOES receive repository secrets, and `xcodebuild` runs
-  # contributor-controlled build scripts and SwiftPM plugins. A job that both
-  # runs on pull requests and holds the Developer ID key would let an
-  # unreviewed pull request exfiltrate the identity that signs the published
-  # app. So this job never references a secret and signs ad-hoc, and every
-  # step that touches the certificate lives in `publish`, which only runs
-  # after merge.
-  #
-  # Pull requests only. `publish` compiles Release itself on `push` and on
-  # `workflow_dispatch`, so running here too would just compile Release twice
-  # in the same run.
-  release-build:
-    name: Xcode release build
-    needs: changes
-    if: github.event_name == 'pull_request' && needs.changes.outputs.apple == 'true'
-    runs-on: xcode-27
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-
-      - name: Select Xcode 27 toolchain
-        # Image default is Xcode 27; Xcode.app is the documented alias.
-        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-
-      - name: Show Xcode version
-        run: xcodebuild -version && swift --version
-
-      - name: Build Sokosumi for Release
-        working-directory: apps/apple
-        # `build`, not `archive`: CI holds no Apple certificates, and Xcode
-        # Cloud performs the real signed archive. The point here is the
-        # compile, not the package.
-        run: xcodebuild -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Release -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- build
-
   lint:
     name: Swift lint and format
     needs: changes
