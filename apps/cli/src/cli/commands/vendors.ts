@@ -2,7 +2,6 @@ import type { Vendor } from "../../api/models/vendor.js";
 import { fetchVendorMemberships } from "../../api/services/vendor-service.js";
 import {
   type CommandContext,
-  isJson,
   writeJson,
   writeText,
 } from "./command-helpers.js";
@@ -38,6 +37,6 @@ export async function runVendorsCommand({
   // Dispatch requires the explicit vendors me form; bare vendors is rejected.
   if (subcommand !== "me") throw new Error("Usage: sokosumi vendors me");
   const { vendors } = await fetchVendorMemberships(client, signal);
-  if (isJson({ json })) writeJson(stdout, { vendors });
+  if (json) writeJson(stdout, { vendors });
   else printVendors(stdout, vendors);
 }
