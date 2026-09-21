@@ -8520,8 +8520,22 @@ export const ChatRoomSchema = {
         unreadCount: {
             type: 'integer',
             minimum: 0,
-            description: 'Unread messages from others: top-level after room lastReadAt, plus thread replies in Threads the viewer Participates in after per-thread look baseline (thread lastReadAt, else room join createdAt). Soft-deleted excluded. ADR-0013.',
+            description: 'Total unread from others: channelUnreadCount + threadUnreadCount. Prefer the two halves; this stays the sum for existing clients. Soft-deleted excluded. ADR-0013, ADR-0037.',
+            example: 5
+        },
+        channelUnreadCount: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'Room unread: non-self top-level messages after room lastReadAt. Excludes Thread replies. Drives sidebar bold. ADR-0037.',
             example: 2
+        },
+        threadUnreadCount: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'Thread unread: non-self replies in Threads the viewer Participates in, after the per-thread look baseline (thread lastReadAt, else room join createdAt), less Muted threads that do not mention them. Surfaces on the Thread, never on the channel. ADR-0013, ADR-0030, ADR-0037.',
+            example: 3
         },
         unreadMentionCount: {
             type: 'integer',

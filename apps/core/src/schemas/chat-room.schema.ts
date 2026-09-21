@@ -182,8 +182,18 @@ export const chatRoomSchema = z
     updatedAt: dateTimeSchema,
     unreadCount: z.number().int().min(0).openapi({
       description:
-        "Unread messages from others: top-level after room lastReadAt, plus thread replies in Threads the viewer Participates in after per-thread look baseline (thread lastReadAt, else room join createdAt). Soft-deleted excluded. ADR-0013.",
+        "Total unread from others: channelUnreadCount + threadUnreadCount. Prefer the two halves; this stays the sum for existing clients. Soft-deleted excluded. ADR-0013, ADR-0037.",
+      example: 5,
+    }),
+    channelUnreadCount: z.number().int().min(0).default(0).openapi({
+      description:
+        "Room unread: non-self top-level messages after room lastReadAt. Excludes Thread replies. Drives sidebar bold. ADR-0037.",
       example: 2,
+    }),
+    threadUnreadCount: z.number().int().min(0).default(0).openapi({
+      description:
+        "Thread unread: non-self replies in Threads the viewer Participates in, after the per-thread look baseline (thread lastReadAt, else room join createdAt), less Muted threads that do not mention them. Surfaces on the Thread, never on the channel. ADR-0013, ADR-0030, ADR-0037.",
+      example: 3,
     }),
     unreadMentionCount: z.number().int().min(0).openapi({
       description:

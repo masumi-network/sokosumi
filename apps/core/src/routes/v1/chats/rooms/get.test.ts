@@ -217,7 +217,9 @@ describe("GET /chats/rooms", () => {
     messageGroupByMock.mockResolvedValue([
       { roomId: room.id, _max: { createdAt: room.createdAt } },
     ]);
-    queryRawUnsafeMock.mockResolvedValue([{ roomId: room.id, unreadCount: 1 }]);
+    queryRawUnsafeMock.mockResolvedValue([
+      { roomId: room.id, source: "channel", unreadCount: 1 },
+    ]);
 
     const response = await createApp(ORG_ID).request("/");
     expect(response.status).toBe(200);
@@ -225,6 +227,26 @@ describe("GET /chats/rooms", () => {
     expect(body.data[0]).toMatchObject({
       updatedAt: room.updatedAt.toISOString(),
       unreadCount: 1,
+    });
+  });
+
+  it("reports Room unread and Thread unread separately for each room", async () => {
+    const room = guestRoomRow();
+    roomFindManyMock.mockResolvedValue([room]);
+    roomCountMock.mockResolvedValue(1);
+    queryRawUnsafeMock.mockResolvedValue([
+      { roomId: room.id, source: "channel", unreadCount: 2 },
+      { roomId: room.id, source: "thread", unreadCount: 3 },
+    ]);
+
+    const response = await createApp(ORG_ID).request("/");
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data[0]).toMatchObject({
+      channelUnreadCount: 2,
+      threadUnreadCount: 3,
+      unreadCount: 5,
     });
   });
 
