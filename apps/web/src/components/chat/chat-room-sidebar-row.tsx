@@ -69,12 +69,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import { SheetClose } from "@/components/ui/sheet";
 import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRailSelectionBar,
   SidebarRowSlot,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
 import type { ChatRoom } from "@/lib/clients/generated/core";
@@ -105,6 +111,18 @@ import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
  */
 const TRAILING_CLUSTER_CLASS =
   "group-data-[collapsible=icon]:hidden absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center";
+
+/**
+ * A beat before the thread flyout opens, so running the pointer down the rail
+ * does not throw a card out of every unread room on the way. The same beat
+ * the app's other hover cards take.
+ */
+const RAIL_FLYOUT_OPEN_DELAY_MS = 150;
+/**
+ * Long enough to cross the gap from the mark onto the card, short enough that
+ * the card is gone before the next room's name tooltip is up.
+ */
+const RAIL_FLYOUT_CLOSE_DELAY_MS = 120;
 
 export interface ChatRoomSidebarRowProps {
   room: ChatRoom;
@@ -535,6 +553,46 @@ export function ChatRoomSidebarRow({
     </Link>
   );
 
+  // Collapsed to icons the row is only its leading mark, so the name rides
+  // the button's tooltip, which the sidebar shows in that state alone.
+  //
+  // A room with unread Threads gets a flyout there instead (ADR-0037): the
+  // rail hides the inset rows, and these are the same rows from the same
+  // list. It stands in for the tooltip, since two floating layers on one
+  // hover would cover each other, and carries the room's name itself. It is
+  // a hover card because its rows are links a pointer has to be able to move
+  // onto, which a tooltip does not allow. Room mute outranks it, as it does
+  // the inset rows.
+  //
+  // It is a pointer surface only. Radix takes a hover card's content out of
+  // the tab order and does not open it for touch, so from the keyboard or on
+  // a touch rail the rows are reached by expanding the sidebar or opening the
+  // room, where the reply bars and the thread list hold the same Threads.
+  const { state: sidebarState, isMobile: isMobileSidebar } = useSidebar();
+  const showRailThreadFlyout =
+    sidebarState === "collapsed" &&
+    !isMobileSidebar &&
+    !isMuted &&
+    (room.unreadThreads?.length ?? 0) > 0;
+  const roomButton = (
+    <SidebarMenuButton
+      asChild
+      isActive={isActive}
+      tooltip={showRailThreadFlyout ? undefined : label}
+      // A guest row is one of the three items allowed to differ between
+      // states (CONTEXT.md, "Sidebar row"): its host organisation line is
+      // the second line a 32px row has no room for, so this row alone grows
+      // to hold it. Its mark still sits in the shared slot.
+      className={cn(subtitle && "h-auto min-h-11 py-1 md:h-auto md:min-h-8")}
+    >
+      {dismissSheetOnNavigate ? (
+        <SheetClose asChild>{roomLink}</SheetClose>
+      ) : (
+        roomLink
+      )}
+    </SidebarMenuButton>
+  );
+
   return (
     <SidebarMenuItem
       {...itemProps}
@@ -546,27 +604,32 @@ export function ChatRoomSidebarRow({
       <div data-slot="room-row-main" className="group/room-row relative">
         {railVariant ? <RailAttentionPill variant={railVariant} /> : null}
         {isActive ? <SidebarRailSelectionBar /> : null}
-        {/* Collapsed to icons the row is only its leading mark, so the name
-          rides the button's tooltip, which the sidebar shows in that state
-          alone. */}
-        <SidebarMenuButton
-          asChild
-          isActive={isActive}
-          tooltip={label}
-          // A guest row is one of the three items allowed to differ between
-          // states (CONTEXT.md, "Sidebar row"): its host organisation line is
-          // the second line a 32px row has no room for, so this row alone grows
-          // to hold it. Its mark still sits in the shared slot.
-          className={cn(
-            subtitle && "h-auto min-h-11 py-1 md:h-auto md:min-h-8",
-          )}
-        >
-          {dismissSheetOnNavigate ? (
-            <SheetClose asChild>{roomLink}</SheetClose>
-          ) : (
-            roomLink
-          )}
-        </SidebarMenuButton>
+        {showRailThreadFlyout ? (
+          <HoverCard
+            openDelay={RAIL_FLYOUT_OPEN_DELAY_MS}
+            closeDelay={RAIL_FLYOUT_CLOSE_DELAY_MS}
+          >
+            <HoverCardTrigger asChild>{roomButton}</HoverCardTrigger>
+            <HoverCardContent
+              side="right"
+              align="start"
+              sideOffset={12}
+              className="w-72 p-2"
+            >
+              <p className="truncate px-2 pb-1 text-xs font-semibold">
+                {label}
+              </p>
+              <ChatRoomThreadRows
+                room={room}
+                roomLabel={label}
+                isActive={isActive}
+                variant="flyout"
+              />
+            </HoverCardContent>
+          </HoverCard>
+        ) : (
+          roomButton
+        )}
         <div data-slot="room-trailing" className={TRAILING_CLUSTER_CLASS}>
           <MentionBadge
             count={badgeCount}
