@@ -147,12 +147,18 @@ describe("loadWorkspaceCalendarPage", () => {
     hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(true);
     getSessionMock.mockResolvedValue({
       session: { activeOrganizationId: "org-1" },
+      user: { id: "user-1" },
     });
     getWorkspaceCalendarMock.mockResolvedValue({
       items: [{ id: "occurrence-1" }],
       pagination: null,
     });
     getWorkspaceCalendarSourcesMock.mockResolvedValue([
+      {
+        sourceId: "workspace:workspace-1",
+        sourceType: "WORKSPACE",
+        isSchedulable: true,
+      },
       {
         sourceId: "project:project-1",
         sourceType: "PROJECT",
@@ -215,6 +221,8 @@ describe("loadWorkspaceCalendarPage", () => {
     expect(result.items).toEqual([{ id: "occurrence-1" }]);
     expect(result.projectOptions).toEqual([{ id: "project-1", name: "Open" }]);
     expect(result.activeOrganizationId).toBe("org-1");
+    expect(result.workspaceId).toBe("workspace-1");
+    expect(result.currentUserId).toBe("user-1");
   });
 
   it("loads the route Project Calendar and ignores query project/source filters", async () => {
