@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { DataTable } from "@/components/data-table";
+import DataTable from "@/components/data-table/data-table";
 import type { PendingInvitation } from "@/lib/clients/generated/core";
 import { InvitationStatus, MemberRole } from "@/lib/clients/generated/core";
 import { InvitationDisplayStatus } from "@/lib/constants/invitation-display-status";

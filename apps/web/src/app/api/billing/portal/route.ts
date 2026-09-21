@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 
-import { CommonErrorCode } from "@/lib/actions/errors";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { sanitizeAuthRedirectPathForOrigin } from "@/lib/auth/auth.utils";
 import { readRouteSession } from "@/lib/auth/route-session";
 import {

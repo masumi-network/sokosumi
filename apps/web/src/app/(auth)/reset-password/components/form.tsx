@@ -13,7 +13,7 @@ import { resetPassword } from "@/lib/auth/auth.client";
 import {
   type ResetPasswordFormSchemaType,
   resetPasswordFormSchema,
-} from "@/lib/schemas";
+} from "@/lib/schemas/auth";
 
 interface ResetPasswordFormProps {
   token: string;

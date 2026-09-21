@@ -8,7 +8,7 @@ import {
   type ActionResultDto,
   toActionResult,
 } from "@/lib/actions/action-result";
-import type { ActionError } from "@/lib/actions/errors";
+import type { ActionError } from "@/lib/actions/errors/action-error";
 import {
   createMyVendorGrant,
   createOrganizationVendorGrant,

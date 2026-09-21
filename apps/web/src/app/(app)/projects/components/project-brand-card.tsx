@@ -33,11 +33,9 @@ import {
   readPendingProjectBrandJob,
   savePendingProjectBrandJob,
 } from "@/app/projects/project-brand-job";
-import {
-  DESIGN_MD_TRANSLATION_NAMESPACE,
-  DesignMdUploadTrigger,
-  useDesignMdGeneration,
-} from "@/components/design-md";
+import { DesignMdUploadTrigger } from "@/components/design-md/design-md-upload-trigger";
+import { DESIGN_MD_TRANSLATION_NAMESPACE } from "@/components/design-md/types";
+import { useDesignMdGeneration } from "@/components/design-md/use-design-md-generation";
 import {
   AlertDialog,
   AlertDialogAction,

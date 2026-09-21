@@ -152,7 +152,9 @@ describe("GET /api/billing/portal", () => {
   });
 
   it("redirects to sign in when portal creation returns unauthenticated", async () => {
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { CommonErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/common"
+    );
     mockSession({ user: { id: "user-1" } });
     openPersonalBillingPortalServerMock.mockResolvedValue({
       ok: false,
@@ -173,7 +175,9 @@ describe("GET /api/billing/portal", () => {
   });
 
   it("redirects back with billingPortalError when portal creation fails", async () => {
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { CommonErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/common"
+    );
     mockSession({ user: { id: "user-1" } });
     openPersonalBillingPortalServerMock.mockResolvedValue({
       ok: false,
@@ -194,7 +198,9 @@ describe("GET /api/billing/portal", () => {
   });
 
   it("redirects back with unauthorized billingPortalError when access is denied", async () => {
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { CommonErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/common"
+    );
     mockSession({ user: { id: "user-1" } });
     openOrganizationBillingPortalServerMock.mockResolvedValue({
       ok: false,
