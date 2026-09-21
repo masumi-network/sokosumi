@@ -6,20 +6,28 @@ import {
   NextJobAction,
   OnChainJobStatus,
 } from "../generated/prisma/browser.js";
-import type { Job } from "../generated/prisma/client.js";
+import type { Job, Prisma } from "../generated/prisma/client.js";
 import {
-  type FreeJobWithStatus,
-  type JobEventForListSummary,
-  type JobEventForStatusCompute,
-  type JobEventWithRelations,
-  type JobForStatusCompute,
   type JobWithEvents,
-  type JobWithPurchase,
+  type JobWithListSummaryRelations,
   type JobWithSokosumiStatus,
-  type JobWithTransaction,
-  type PaidJobWithStatus,
+  jobForStatusComputeSelect,
+  jobWithPurchase,
+  jobWithTransaction,
 } from "../types/job.js";
 import { JOB_SYNC_PAYMENT_GRACE_MS } from "./job-sync.js";
+
+type JobForStatusCompute = Prisma.JobGetPayload<{
+  select: typeof jobForStatusComputeSelect;
+}>;
+type JobEventForStatusCompute = JobForStatusCompute["events"][number];
+type JobEventForListSummary = JobWithListSummaryRelations["events"][number];
+type JobWithPurchase = Prisma.JobGetPayload<{
+  include: typeof jobWithPurchase;
+}>;
+type JobWithTransaction = Prisma.JobGetPayload<{
+  include: typeof jobWithTransaction;
+}>;
 
 function hasPaymentWindowExpired(
   job: Pick<Job, "createdAt" | "payByTime">,
@@ -245,7 +253,7 @@ export function getResult(job: {
 
 function getInitiatedEvent(
   job: JobWithEvents,
-): JobEventWithRelations | undefined {
+): JobWithEvents["events"][number] | undefined {
   const lastEvent = job.events.at(-1);
   if (!lastEvent || lastEvent.status !== AgentJobStatus.INITIATED) {
     return undefined;
@@ -335,9 +343,9 @@ export function mapJobWithStatus(
 
   switch (job.jobType) {
     case JobType.PAID:
-      return baseJobWithStatus as PaidJobWithStatus;
+      return baseJobWithStatus as JobWithSokosumiStatus;
     case JobType.FREE:
-      return baseJobWithStatus as FreeJobWithStatus;
+      return baseJobWithStatus as JobWithSokosumiStatus;
     default: {
       const _exhaustive: never = job.jobType;
       throw new Error(`Unhandled job type: ${_exhaustive}`);
