@@ -62,7 +62,8 @@ describe("notificationEmailDelayMs", () => {
 
   it("has no delay for a category that is not emailed at the event", () => {
     expect(notificationEmailDelayMs("CHAT_ROOM_MESSAGE")).toBeNull();
-    expect(notificationEmailDelayMs("TASK_UPDATE")).toBeNull();
+    expect(notificationEmailDelayMs("TASK_UPDATE")).toBe(30 * 60_000);
+    expect(notificationEmailDelayMs("PROJECT_UPDATE")).toBe(10 * 60_000);
     // The sync mails the reminders on its own schedule.
     expect(notificationEmailDelayMs("FOLLOW_UP")).toBeNull();
     expect(notificationEmailDelayMs(null)).toBeNull();
@@ -211,7 +212,7 @@ describe("buildNotificationEmail", () => {
       buildNotificationEmail(
         input({
           kind: NotificationKind.TASK,
-          messageKey: "Notifications.Task.canceled",
+          messageKey: "Notifications.Task.unknownUpdate",
         }),
       ),
     ).resolves.toBeNull();
@@ -226,5 +227,55 @@ describe("buildNotificationEmail", () => {
         }),
       ),
     ).resolves.toBeNull();
+  });
+});
+
+describe("calendar and project notification emails", () => {
+  it.each([
+    ["scheduleUpdatedByMember", "A teammate updated the schedule for Report"],
+    ["scheduleRemovedByMember", "A teammate removed the schedule for Report"],
+    [
+      "scheduleSourceChangedByMember",
+      "A teammate moved Report to another calendar source",
+    ],
+    [
+      "scheduleOccurrenceChangedByMember",
+      "A teammate changed an occurrence of Report",
+    ],
+    ["scheduleRepaired", "The schedule for Report was repaired"],
+    [
+      "scheduleRemovedByOperator",
+      "The schedule for Report was removed after review",
+    ],
+    ["failed", "Report failed"],
+    ["canceled", "Report was canceled"],
+  ])("renders %s with its task link", async (reason, message) => {
+    const email = await buildNotificationEmail(
+      input({
+        kind: NotificationKind.TASK,
+        referenceId: "task/1",
+        messageKey: `Notifications.Task.${reason}`,
+        messageParams: { taskName: "Report" },
+      }),
+    );
+    expect(email?.subject).toBe(`Sokosumi - ${message}`);
+    expect(textIn(email?.html ?? "")).toContain(message);
+    expect(linkIn(email?.html ?? "")).toBe(`${BASE}/tasks/task%2F1`);
+  });
+
+  it.each([
+    ["closed", "Launch is now closed"],
+    ["closeFailed", "Launch could not finish closing"],
+  ])("renders project %s with its project link", async (outcome, message) => {
+    const email = await buildNotificationEmail(
+      input({
+        kind: NotificationKind.PROJECT,
+        referenceId: "project/1",
+        messageKey: `Notifications.Project.${outcome}`,
+        messageParams: { projectName: "Launch" },
+      }),
+    );
+    expect(email?.subject).toBe(`Sokosumi - ${message}`);
+    expect(linkIn(email?.html ?? "")).toBe(`${BASE}/projects/project%2F1`);
   });
 });

@@ -236,7 +236,7 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         category: "TASK_UPDATE",
         labelKey: "kindTaskUpdate",
         hintKey: "kindTaskUpdateHint",
-        email: "NONE",
+        email: "CHANNEL",
       },
     ],
     // The same four ids every other group offers, and deliberately: a reader
@@ -414,7 +414,7 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         category: "PROJECT_UPDATE",
         labelKey: "kindProjectUpdate",
         hintKey: "kindProjectUpdateHint",
-        email: "NONE",
+        email: "CHANNEL",
       },
     ],
     presets: [],

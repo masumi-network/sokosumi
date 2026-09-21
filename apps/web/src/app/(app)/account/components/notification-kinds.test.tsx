@@ -92,8 +92,7 @@ vi.mock("sonner", () => ({
  */
 const MATRIX = [
   // Core stores an email cell for the categories it mails, so those rows carry
-  // three cells rather than two. Every message in a room and the other task
-  // updates are the two it does not (SOK-1090).
+  // three cells rather than two. Every message in a room has no email.
   { category: "TASK_ATTENTION", channel: "IN_APP", enabled: true },
   { category: "TASK_ATTENTION", channel: "OS_BANNER", enabled: true },
   { category: "TASK_ATTENTION", channel: "EMAIL", enabled: true },
@@ -1291,11 +1290,34 @@ describe("NotificationKinds", () => {
     });
   });
 
+  it("lets the reader enable email for task updates", async () => {
+    renderKinds([
+      ...MATRIX,
+      { category: "TASK_UPDATE", channel: "EMAIL", enabled: false },
+    ]);
+    const control = emailCell("kindTaskUpdate");
+    expect(control).not.toHaveAttribute("aria-disabled", "true");
+    await userEvent.setup().click(control);
+    await waitFor(() =>
+      expect(patchMyPreferences).toHaveBeenCalledWith(
+        expect.objectContaining({
+          notificationPreferences: expect.arrayContaining([
+            expect.objectContaining({
+              category: "TASK_UPDATE",
+              channel: "EMAIL",
+              enabled: true,
+            }),
+          ]),
+        }),
+      ),
+    );
+  });
+
   it("marks a kind Sokosumi never mails, and presses nowhere", async () => {
     const user = userEvent.setup();
     renderKinds();
 
-    const dead = emailCell("kindTaskUpdate");
+    const dead = emailCell("kindChatRoomMessage");
 
     // Reachable by keyboard rather than dropped from the tab order, so a
     // reader who never uses a mouse still learns email is one of the places a
@@ -1304,7 +1326,7 @@ describe("NotificationKinds", () => {
     expect(dead).toBeEnabled();
     expect(dead).toHaveAttribute(
       "aria-label",
-      "channelEmailSoonLabel kindTaskUpdate",
+      "channelEmailSoonLabel kindChatRoomMessage",
     );
     // The reason is in the name and in a description, not in a title a finger
     // never opens. The face is a mail icon with a clock on it, so the column
@@ -1326,17 +1348,14 @@ describe("NotificationKinds", () => {
   it("names the kind in every control that mails nothing", async () => {
     renderKinds();
 
-    // The two rows that mail nothing sit in two different folds.
+    // The room-message row is inside the chat fold.
     openFolds();
 
     expect(
       screen
         .getAllByRole("button", { name: /^channelEmailSoonLabel/ })
         .map((button) => button.getAttribute("aria-label")),
-    ).toEqual([
-      "channelEmailSoonLabel kindTaskUpdate",
-      "channelEmailSoonLabel kindChatRoomMessage",
-    ]);
+    ).toEqual(["channelEmailSoonLabel kindChatRoomMessage"]);
   });
 
   /**

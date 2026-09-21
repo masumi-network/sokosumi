@@ -1,5 +1,7 @@
 import type { Prisma } from "@sokosumi/database";
+import { z } from "zod";
 import { lockCalendarWorkspaceMembership } from "@/helpers/calendar-membership-fence";
+import { cancelNotificationEmails } from "@/helpers/notification-email-dispatch";
 import {
   publishCalendarAccessRevoked,
   publishCalendarInvalidationToUsers,
@@ -52,6 +54,31 @@ function accessRevocation(payload: Prisma.JsonValue): {
     typeof payload.organizationId === "string"
     ? { userId: payload.userId, organizationId: payload.organizationId }
     : null;
+}
+
+const pendingNotificationEmailsSchema = z.array(
+  z.object({
+    id: z.string(),
+    emailId: z.string(),
+    emailScheduledAt: z.coerce.date(),
+  }),
+);
+
+function splitEmailCancellationPayload(payload: Prisma.JsonValue) {
+  if (
+    typeof payload !== "object" ||
+    payload === null ||
+    Array.isArray(payload)
+  ) {
+    return { publicPayload: payload, emails: [] };
+  }
+  const { pendingNotificationEmails, ...publicPayload } = payload;
+  return {
+    publicPayload,
+    emails: pendingNotificationEmailsSchema.parse(
+      pendingNotificationEmails ?? [],
+    ),
+  };
 }
 
 function affectedProjectIds(payload: Prisma.JsonValue): string[] {
@@ -240,7 +267,10 @@ export const calendarInvalidationOutboxService = {
           // A second transaction fences membership only. The revision above is
           // already committed, while the shared advisory lock guarantees that a
           // removal cannot commit before a fanout using its old membership.
-          const published = await prisma.$transaction(async (tx) => {
+          const { emails } = splitEmailCancellationPayload(
+            readyInvalidation.payload,
+          );
+          const publication = prisma.$transaction(async (tx) => {
             await lockCalendarWorkspaceMembership(
               tx,
               readyInvalidation.workspaceId,
@@ -315,7 +345,8 @@ export const calendarInvalidationOutboxService = {
                   workspaceId: invalidation.workspaceId,
                   projectId: invalidation.projectId,
                   calendarRevision: invalidation.calendarRevision,
-                  payload: invalidation.payload,
+                  payload: splitEmailCancellationPayload(invalidation.payload)
+                    .publicPayload,
                 },
               }),
               ...(shouldPublishRevocation && revoked
@@ -327,19 +358,27 @@ export const calendarInvalidationOutboxService = {
                   ]
                 : []),
             ]);
-            const marked = await tx.calendarInvalidationOutbox.updateMany({
-              where: {
-                id: invalidation.id,
-                attempts,
-                publishedAt: null,
-              },
-              data: {
-                publishedAt: new Date(),
-                lastError: null,
-              },
-            });
-            return marked.count === 1;
+            return true;
           });
+          // Cancellation uses the email queue; never wait on it while holding
+          // the membership fence, which senders acquire from inside that queue.
+          const deliveries = await Promise.allSettled([
+            publication,
+            cancelNotificationEmails(emails, { retryOnFailure: true }),
+          ]);
+          const failure = deliveries.find(
+            (delivery) => delivery.status === "rejected",
+          );
+          if (failure?.status === "rejected") throw failure.reason;
+          const published =
+            deliveries[0]?.status === "fulfilled" && deliveries[0].value;
+          if (published) {
+            const marked = await prisma.calendarInvalidationOutbox.updateMany({
+              where: { id: readyInvalidation.id, attempts, publishedAt: null },
+              data: { publishedAt: new Date(), lastError: null },
+            });
+            if (marked.count !== 1) continue;
+          }
           if (published) {
             result.published += 1;
           }

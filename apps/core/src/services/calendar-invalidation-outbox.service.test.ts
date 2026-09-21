@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  cancelNotificationEmailsMock,
   findManyMock,
   findUniqueMock,
   deleteManyMock,
@@ -14,6 +15,7 @@ const {
   workspaceUpdateManyMock,
   workspaceFindUniqueMock,
 } = vi.hoisted(() => ({
+  cancelNotificationEmailsMock: vi.fn(),
   deleteManyMock: vi.fn(),
   findManyMock: vi.fn(),
   findUniqueMock: vi.fn(),
@@ -26,6 +28,10 @@ const {
   updateManyMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   workspaceUpdateManyMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/notification-email-dispatch", () => ({
+  cancelNotificationEmails: cancelNotificationEmailsMock,
 }));
 
 vi.mock("@/lib/ably/publish", () => ({
@@ -78,6 +84,7 @@ const WORKSPACE = {
 describe("calendarInvalidationOutboxService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    cancelNotificationEmailsMock.mockResolvedValue(undefined);
     findManyMock.mockResolvedValue([{ id: OUTBOX_ROW.id, attempts: 0 }]);
     findUniqueMock.mockResolvedValue(OUTBOX_ROW);
     workspaceFindUniqueMock.mockResolvedValue(WORKSPACE);
@@ -89,6 +96,67 @@ describe("calendarInvalidationOutboxService", () => {
     workspaceUpdateManyMock.mockResolvedValue({ count: 1 });
     publishMock.mockResolvedValue(undefined);
     publishAccessRevokedMock.mockResolvedValue(undefined);
+  });
+
+  it("cancels departed members' scheduled emails without exposing provider IDs", async () => {
+    findUniqueMock.mockResolvedValue({
+      ...OUTBOX_ROW,
+      payload: {
+        kind: "calendar_access_revoked",
+        userId: "departed-user",
+        organizationId: "org-1",
+        pendingNotificationEmails: [
+          {
+            id: "n1",
+            emailId: "e1",
+            emailScheduledAt: "2026-09-21T20:00:00.000Z",
+          },
+        ],
+      },
+    });
+    const { calendarInvalidationOutboxService } = await import(
+      "./calendar-invalidation-outbox.service"
+    );
+    await calendarInvalidationOutboxService.syncInvalidations({
+      shouldContinue: () => true,
+      maxBatches: 1,
+    });
+    expect(cancelNotificationEmailsMock).toHaveBeenCalledWith(
+      [
+        {
+          id: "n1",
+          emailId: "e1",
+          emailScheduledAt: new Date("2026-09-21T20:00:00.000Z"),
+        },
+      ],
+      { retryOnFailure: true },
+    );
+    expect(
+      publishMock.mock.calls[0]?.[0].invalidation.payload,
+    ).not.toHaveProperty("pendingNotificationEmails");
+  });
+
+  it("keeps revocations retryable when email cancellation fails", async () => {
+    findUniqueMock.mockResolvedValue({
+      ...OUTBOX_ROW,
+      payload: {
+        kind: "calendar_access_revoked",
+        userId: "departed-user",
+        organizationId: "org-1",
+      },
+    });
+    cancelNotificationEmailsMock.mockRejectedValue(
+      new Error("provider unavailable"),
+    );
+    const { calendarInvalidationOutboxService } = await import(
+      "./calendar-invalidation-outbox.service"
+    );
+    const result = await calendarInvalidationOutboxService.syncInvalidations({
+      shouldContinue: () => true,
+      maxBatches: 1,
+    });
+    expect(result.failed).toBe(1);
+    expect(publishAccessRevokedMock).toHaveBeenCalled();
   });
 
   it("signals a departed member on the always-owned control channel", async () => {
