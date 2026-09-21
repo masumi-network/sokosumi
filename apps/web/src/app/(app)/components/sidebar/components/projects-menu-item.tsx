@@ -297,12 +297,14 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
             )}
             {/* A way out of the panel without aiming back at the row behind
                 it. No avatar: the placeholder square only read as a project
-                whose logo had failed to load. */}
+                whose logo had failed to load. The padding holds its text on the
+                name column all the same, so the footer does not hang left of
+                every row above it. */}
             <div className="bg-border my-1 h-px" />
             <Link
               href="/projects"
               onClick={handleNavigate}
-              className="text-muted-foreground ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground block rounded-md px-2 py-1.5 text-sm outline-hidden focus-visible:ring-2"
+              className="text-muted-foreground ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground block rounded-md py-1.5 pr-2 pl-9 text-sm outline-hidden focus-visible:ring-2"
             >
               {t("allProjects")}
             </Link>
