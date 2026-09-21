@@ -22,6 +22,7 @@ const {
   readStateUpsertMock,
   notificationUpdateManyAndReturnMock,
   publishClearedNotificationsMock,
+  publishChatRoomReadRealtimeMock,
   cancelNotificationEmailsMock,
   membershipFindManyMock,
   readStateFindManyMock,
@@ -37,6 +38,7 @@ const {
   readStateUpsertMock: vi.fn(),
   notificationUpdateManyAndReturnMock: vi.fn(),
   publishClearedNotificationsMock: vi.fn(),
+  publishChatRoomReadRealtimeMock: vi.fn(),
   cancelNotificationEmailsMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
   readStateFindManyMock: vi.fn(),
@@ -62,6 +64,11 @@ vi.mock("@/helpers/notifications", () => ({
     publishClearedNotificationsMock(...args),
 }));
 
+vi.mock("@/helpers/chat-room-read-realtime", () => ({
+  publishChatRoomReadRealtime: (...args: unknown[]) =>
+    publishChatRoomReadRealtimeMock(...args),
+}));
+
 vi.mock("@/helpers/notification-email-dispatch", async (importOriginal) => ({
   ...(await importOriginal<
     typeof import("@/helpers/notification-email-dispatch")
@@ -70,8 +77,12 @@ vi.mock("@/helpers/notification-email-dispatch", async (importOriginal) => ({
     cancelNotificationEmailsMock(...args),
 }));
 
+// Background work never reaches the response, failure included — that is the
+// whole point of handing it to waitUntil.
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => promise,
+  waitUntil: (promise: Promise<unknown>) => {
+    void Promise.resolve(promise).catch(() => {});
+  },
 }));
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -141,6 +152,7 @@ function room() {
     ],
     coworkerMembers: [],
     sokoBotMembers: [],
+    readStates: [],
   };
 }
 
@@ -154,6 +166,7 @@ beforeEach(() => {
   notificationUpdateManyAndReturnMock.mockResolvedValue([]);
   membershipFindManyMock.mockResolvedValue([]);
   readStateFindManyMock.mockResolvedValue([]);
+  publishChatRoomReadRealtimeMock.mockResolvedValue(undefined);
   // Dual-baseline unread: room mark-read leaves unlooked thread replies.
   queryRawUnsafeMock.mockResolvedValue([]);
 });
@@ -269,5 +282,71 @@ describe("POST /chats/rooms/{id}/read", () => {
       unreadMentionCount: 0,
       markedUnread: false,
     });
+  });
+
+  it("tells the room who read it and when", async () => {
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/read`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(publishChatRoomReadRealtimeMock).toHaveBeenCalledOnce();
+    expect(publishChatRoomReadRealtimeMock).toHaveBeenCalledWith({
+      roomId: ROOM_ID,
+      userId: USER_ID,
+      lastReadAt: expect.any(Date),
+    });
+
+    const [{ lastReadAt }] = publishChatRoomReadRealtimeMock.mock.calls[0];
+    const { lastReadAt: written } = readStateUpsertMock.mock.calls[0][0].update;
+    expect(lastReadAt).toEqual(written);
+  });
+
+  /**
+   * Ably capabilities are per channel, never per subscriber: a guest holds
+   * `subscribe` on the room channel like every other member, so anything
+   * published there reaches them. The mapper's guest rule only covers the
+   * payload, which would make the boundary hold for one fetch and then leak
+   * live.
+   */
+  it("stays silent when a guest is on the room", async () => {
+    roomFindFirstMock.mockResolvedValue({
+      ...room(),
+      userMembers: [
+        ...room().userMembers,
+        {
+          access: "guest",
+          user: {
+            id: "user_guest",
+            name: "Guest",
+            email: "guest@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+      ],
+    });
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/read`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(readStateUpsertMock).toHaveBeenCalledOnce();
+    expect(publishChatRoomReadRealtimeMock).not.toHaveBeenCalled();
+  });
+
+  it("still marks the room read when the read event cannot be published", async () => {
+    publishChatRoomReadRealtimeMock.mockRejectedValue(new Error("ably down"));
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/read`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(readStateUpsertMock).toHaveBeenCalledOnce();
   });
 });
