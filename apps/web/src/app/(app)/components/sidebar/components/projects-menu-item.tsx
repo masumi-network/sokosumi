@@ -97,7 +97,12 @@ interface SidebarProject {
 function useSidebarProjects(scope: ProjectsNavigationProps["scope"]) {
   const visitedIds = useRecentProjectIds(scope);
   const pinned = usePinnedProjects(scope);
-  const { data, isPending, isError, refetch } = useQuery({
+  const {
+    data,
+    isPending,
+    isError,
+    refetch: refetchActivity,
+  } = useQuery({
     queryKey: [
       "sidebar-project-page",
       scope?.userId ?? null,
@@ -115,7 +120,11 @@ function useSidebarProjects(scope: ProjectsNavigationProps["scope"]) {
     refetchOnReconnect: false,
   });
 
-  const pinnedProjects = pinned.data ?? [];
+  // Closed Pins stay on GET /starred so a project page can Unpin. They do not
+  // belong in this popover — a closed project is on its way out of the list.
+  const pinnedProjects = (pinned.data ?? []).filter(
+    (project) => project.closedAt == null,
+  );
   const { rows, pinnedCount } = orderSidebarProjects<SidebarProject>({
     // Pinned first, so a Pin outside the activity page is still resolvable.
     // `byId` dedupes, and the activity backfill skips whatever is taken.
@@ -134,8 +143,11 @@ function useSidebarProjects(scope: ProjectsNavigationProps["scope"]) {
     // A Pin list still in flight must not paint an unpinned panel that
     // reshuffles a moment later.
     isPending: isPending || pinned.isPending || scope == null,
-    isError,
-    refetch,
+    isError: isError || pinned.isError,
+    refetch() {
+      void refetchActivity();
+      void pinned.refetch();
+    },
   };
 }
 

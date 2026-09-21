@@ -621,4 +621,42 @@ describe("ProjectsMenuItem pinned rows", () => {
     expect(screen.queryByText("pinnedProjects")).toBeNull();
     expect(screen.getAllByText("recentProjects")).toHaveLength(1);
   });
+
+  it("keeps a closed Pin out of the flyout, so it does not claim a row", async () => {
+    mocks.loadPinned.mockResolvedValue([
+      {
+        id: "closed",
+        name: "Shipped",
+        logo: null,
+        closedAt: new Date("2026-09-01T00:00:00.000Z"),
+      },
+      { id: "open-pin", name: "Still going", logo: null, closedAt: null },
+    ]);
+
+    setup();
+    openFlyout();
+
+    await waitFor(() => {
+      expect(projectHrefs()).toEqual([
+        "/projects/open-pin",
+        "/projects/project-1",
+      ]);
+    });
+    expect(screen.queryByRole("link", { name: "Shipped" })).toBeNull();
+  });
+
+  it("shows failure and retries when the Pin list fails", async () => {
+    mocks.loadPinned
+      .mockRejectedValueOnce(new Error("Forbidden"))
+      .mockResolvedValueOnce([]);
+    setup();
+    openFlyout();
+    const retry = await screen.findByRole("button", { name: "retryProjects" });
+    expect(screen.getByRole("status")).toHaveTextContent("projectsError");
+    fireEvent.click(retry);
+    expect(
+      await screen.findByRole("link", { name: "Launch plan" }),
+    ).toBeInTheDocument();
+    expect(mocks.loadPinned).toHaveBeenCalledTimes(2);
+  });
 });

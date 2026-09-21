@@ -12,4 +12,4 @@ The flyout's two groups carry headings. This reverses the original call here, wh
 
 A Pinned row in the projects list marks itself with hue, fill and a tinted ground together. One step of grey plus a filled icon was the first attempt and did not read at all: at 16px a filled pin is barely distinguishable from an outlined one. The control stays on the row's trailing edge rather than moving to the leading edge, because the list is ordered by activity — Pins are scattered through it, so nobody scans the column for them, and the leading edge already belongs to the avatar.
 
-Rejected: an organization-shared list of important projects; a generic `UserProjectPreference` row; an organization column on `project_star`; deleting pin rows when a project closes — they are filtered on read instead, so reopening restores the pin.
+Rejected: an organization-shared list of important projects; a generic `UserProjectPreference` row; an organization column on `project_star`; deleting pin rows when a project closes — `GET /v1/projects/starred` still returns them so a project page can Unpin, the flyout drops them, and reopening restores the pin.

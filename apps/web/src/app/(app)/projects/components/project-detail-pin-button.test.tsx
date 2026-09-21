@@ -39,7 +39,10 @@ beforeEach(() => {
 
 describe("ProjectDetailPinButton", () => {
   it("reads Pinned from the reader's Pin list, since the project carries none", () => {
-    mocks.pinned.mockReturnValue({ data: [{ id: "p1" }, { id: "other" }] });
+    mocks.pinned.mockReturnValue({
+      data: [{ id: "p1" }, { id: "other" }],
+      isError: false,
+    });
 
     render(<ProjectDetailPinButton projectId="p1" labels={labels} />);
 
@@ -47,7 +50,7 @@ describe("ProjectDetailPinButton", () => {
   });
 
   it("reads unpinned when the project is absent from that list", () => {
-    mocks.pinned.mockReturnValue({ data: [{ id: "other" }] });
+    mocks.pinned.mockReturnValue({ data: [{ id: "other" }], isError: false });
 
     render(<ProjectDetailPinButton projectId="p1" labels={labels} />);
 
@@ -55,7 +58,7 @@ describe("ProjectDetailPinButton", () => {
   });
 
   it("holds the space instead of guessing while the list loads", () => {
-    mocks.pinned.mockReturnValue({ data: undefined });
+    mocks.pinned.mockReturnValue({ data: undefined, isError: false });
 
     render(<ProjectDetailPinButton projectId="p1" labels={labels} />);
 
@@ -63,8 +66,26 @@ describe("ProjectDetailPinButton", () => {
     // something false about the reader's own project.
     expect(screen.queryByRole("button")).toBeNull();
   });
+
+  it("still lets a Pin be cleared from a closed project", () => {
+    // GET /starred keeps closed Pins for this surface. Hiding the control
+    // would strand one with no way back — the flyout already dropped it.
+    mocks.pinned.mockReturnValue({ data: [{ id: "p1" }], isError: false });
+
+    render(<ProjectDetailPinButton projectId="p1" isClosed labels={labels} />);
+
+    expect(screen.getByRole("button", { name: "Unpin project" })).toBeDefined();
+  });
+
+  it("offers the control rather than a blank slot when the Pin list fails", () => {
+    mocks.pinned.mockReturnValue({ data: undefined, isError: true });
+
+    render(<ProjectDetailPinButton projectId="p1" labels={labels} />);
+
+    expect(screen.getByRole("button", { name: "Pin project" })).toBeDefined();
+  });
   it("stays Pinned once the action resolves", async () => {
-    mocks.pinned.mockReturnValue({ data: [] });
+    mocks.pinned.mockReturnValue({ data: [], isError: false });
     render(<ProjectDetailPinButton projectId="p1" labels={labels} />);
     fireEvent.click(screen.getByRole("button", { name: "Pin project" }));
     await waitFor(() => expect(mocks.pin).toHaveBeenCalled());

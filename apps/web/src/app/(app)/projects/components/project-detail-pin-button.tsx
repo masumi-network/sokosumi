@@ -36,7 +36,7 @@ export function ProjectDetailPinButton({
       : null;
   const pinned = usePinnedProjects(scope);
 
-  if (!pinned.data) {
+  if (!pinned.data && !pinned.isError) {
     // Holds the space rather than rendering an unpinned button that flips a
     // moment later: a control that lies briefly is worse than one that
     // arrives, and the reserved box keeps the header from shifting.
@@ -46,7 +46,9 @@ export function ProjectDetailPinButton({
   return (
     <ProjectPinButton
       projectId={projectId}
-      isPinned={pinned.data.some((project) => project.id === projectId)}
+      isPinned={Boolean(
+        pinned.data?.some((project) => project.id === projectId),
+      )}
       isClosed={isClosed}
       labels={labels}
     />
