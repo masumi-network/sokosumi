@@ -69,7 +69,6 @@ export const provideJobInput = withSession<
         );
       }
 
-      // Set user context for Sentry
       Sentry.setUser({
         id: userId,
       });
@@ -82,7 +81,6 @@ export const provideJobInput = withSession<
         inputDataSize: JSON.stringify(inputData).length,
       });
 
-      // Add breadcrumb for job input submission flow
       Sentry.addBreadcrumb({
         category: "Job Action",
         message: "Submitting job input",
@@ -113,7 +111,6 @@ export const provideJobInput = withSession<
         inputData: coreInputData,
       });
 
-      // Add success breadcrumb
       Sentry.addBreadcrumb({
         category: "Job Action",
         message: "Job input submitted successfully",
