@@ -2,9 +2,8 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
+import { RoomRouteBootstrap } from "@/app/chat/components/persistent-room-view";
 import { RoomOpenLoadingView } from "@/app/chat/components/room-open-loading-view";
-import { RoomsClient } from "@/app/chat/components/rooms-client";
-import { loadRoomMessages } from "@/app/chat/load-room-messages";
 import { loadRoomShellRoster } from "@/app/chat/load-room-shell-roster";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
@@ -67,17 +66,16 @@ function NoOrganizationCard({
 }
 
 /**
- * Real header + live composer as soon as the room is known; history + roster
- * via promises so chrome is not blocked (SOK-778 history; roster deferred
- * for LCP). Instant / Suspense: RoomOpenLoadingView (list bones + disabled
- * composer chrome).
+ * Validate room access and register chrome without waiting for history.
+ * Every room reads through its retained client transcript; the roster streams
+ * separately through a promise.
  */
-function progressiveRoomOpen(shell: ChatRoomShellProps, roomId: string) {
-  const messagesPromise = loadRoomMessages(roomId);
+function progressiveRoomOpen(shell: ChatRoomShellProps) {
   const rosterPromise = loadRoomShellRoster(shell.organizationIdForRoster);
 
   return (
-    <RoomsClient
+    <RoomRouteBootstrap
+      loadHistoryOnClient
       activeOrganization={shell.activeOrganization}
       rooms={shell.rooms}
       organizationMembers={[]}
@@ -88,7 +86,6 @@ function progressiveRoomOpen(shell: ChatRoomShellProps, roomId: string) {
       membersLoadFailed={false}
       messages={[]}
       messagesNextCursor={null}
-      messagesPromise={messagesPromise}
       rosterPromise={rosterPromise}
     />
   );
@@ -145,16 +142,13 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
       );
     }
 
-    return progressiveRoomOpen(
-      {
-        activeOrganization: null,
-        rooms: [selectedRoom],
-        currentUserId,
-        selectedRoomId: selectedRoom.id,
-        organizationIdForRoster: null,
-      },
-      selectedRoom.id,
-    );
+    return progressiveRoomOpen({
+      activeOrganization: null,
+      rooms: [selectedRoom],
+      currentUserId,
+      selectedRoomId: selectedRoom.id,
+      organizationIdForRoster: null,
+    });
   }
 
   const selectedRoom = await chatRoomService.getRoom(roomId);
@@ -174,16 +168,13 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
     redirect(ROOM_UNAVAILABLE_HREF);
   }
 
-  return progressiveRoomOpen(
-    {
-      activeOrganization,
-      rooms: [selectedRoom],
-      currentUserId,
-      selectedRoomId: selectedRoom.id,
-      organizationIdForRoster: activeOrganization.id,
-    },
-    selectedRoom.id,
-  );
+  return progressiveRoomOpen({
+    activeOrganization,
+    rooms: [selectedRoom],
+    currentUserId,
+    selectedRoomId: selectedRoom.id,
+    organizationIdForRoster: activeOrganization.id,
+  });
 }
 
 export default function ChatRoomPage({ params }: ChatRoomPageProps) {

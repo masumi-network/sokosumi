@@ -34,6 +34,8 @@ export async function activateOrganizationWorkspace(
   // Drop prior workspace Instant/Chats snapshot so soft-nav never paints the
   // previous org's rooms (SOK-903). New OrganizationChatList republishes.
   clearMembershipVisibleRoomsSnapshot();
+  if (typeof window !== "undefined")
+    window.dispatchEvent(new Event("chat-session-ended"));
 
   try {
     const result = await updatePreferredOrganization({
