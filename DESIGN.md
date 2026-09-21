@@ -145,24 +145,22 @@ add one in `globals.css`.
 
 ### Neutrals
 
-Black/White + the neutral ramp `#FAFAFA → #0C0C0C` plus the step ramp
-(`--secondary/-tertiary/-quaternary/-quinary/-senary`). Elevated surfaces are
-**lighter** (card `#FAFAFA` on muted `#F5F5F5`), not heavier. Default border = `--border`;
-`--input` is a separate, stronger control boundary. The base layer applies `border-border` +
-`outline-ring` to all elements.
+Black/White plus the neutral ramp (`--background` / `--card-background` through
+`--foreground`) and the step ramp (`--secondary/-tertiary/-quaternary/-quinary/-senary`).
+Values live in `globals.css`. Elevated surfaces are **lighter** (`--card-background` on
+`--muted`), not heavier. Default border = `--border`; `--input` is a separate, stronger
+control boundary. The base layer applies `border-border` + `outline-ring` to all elements.
 
 ### Category palette (ecosystem)
 
 Category accents come from the **real masumi (warm) + kodosumi (cool)** palettes, mapped to
-`--chart-1…5` — **never** stock shadcn chart defaults:
+`--chart-1…5` — **never** stock shadcn chart defaults. Hex values live only in `globals.css`.
 
-| Token | Hex | Source |
-| --- | --- | --- |
-| `--chart-1` | `#00A4FA` | kodosumi · Sky Blue |
-| `--chart-2` | `#FA008C` | masumi · Electric Pink |
-| `--chart-3` | `#0AFA14` | kodosumi · Neon Grass |
-| `--chart-4` | `#FFD300` | masumi · Golden Yellow |
-| `--chart-5` | `#FF6400` | masumi · Persimmon |
+- `--chart-1` — kodosumi · Sky Blue
+- `--chart-2` — masumi · Electric Pink
+- `--chart-3` — kodosumi · Neon Grass
+- `--chart-4` — masumi · Golden Yellow
+- `--chart-5` — masumi · Persimmon
 
 These are vivid (built for fills/ink, not small text). Use as **solid fills** (badges, mock
 accents) or **`-quinary` resting fills** (chips — `--chart-N-quinary`); keep adjacent
