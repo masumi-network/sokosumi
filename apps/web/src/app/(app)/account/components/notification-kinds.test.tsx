@@ -844,6 +844,30 @@ describe("NotificationKinds", () => {
   });
 
   /**
+   * The legend is the head of the grid, so a panel opening downwards covers
+   * the first rows of cells under it: 288px of sentences over the very
+   * switches the reader opened the panel to understand.
+   *
+   * Read off the side Radix resolved rather than off the prop, so a later
+   * change that moves the panel back under the name fails here.
+   */
+  it("opens a column's explanation above the name", async () => {
+    const user = userEvent.setup();
+    renderKinds();
+
+    await openGroup("groupTask");
+
+    await user.hover(screen.getByRole("button", { name: "channelPush" }));
+
+    const panel = await screen.findByText("channelPushHint");
+
+    expect(panel.closest("[data-slot='popover-content']")).toHaveAttribute(
+      "data-side",
+      "top",
+    );
+  });
+
+  /**
    * The panel sits 4px off the name it explains, so the move towards it
    * leaves the name first. Closing on that would put three sentences where a
    * mouse can see them and never reach them.
