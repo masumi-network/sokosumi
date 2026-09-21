@@ -3,9 +3,13 @@ import Foundation
 import SokosumiChat
 import Testing
 
-private func preferencesBody(showRoomUnreadCount: Bool = true, pushOptIn: Bool = true) -> String {
+private func preferencesBody(
+  showRoomUnreadCount: Bool = true,
+  pushOptIn: Bool = true,
+  mentionInAppEnabled: Bool = true
+) -> String {
   """
-  {"data":{"marketingOptIn":false,"notificationsOptIn":false,"pushOptIn":\(pushOptIn),"showRoomUnreadCount":\(showRoomUnreadCount),"notificationPreferences":[{"category":"CHAT_MENTION","channel":"IN_APP","enabled":true}]},"meta":{"timestamp":"\(testTimestamp)","requestId":"test"}}
+  {"data":{"marketingOptIn":false,"notificationsOptIn":false,"pushOptIn":\(pushOptIn),"showRoomUnreadCount":\(showRoomUnreadCount),"notificationPreferences":[{"category":"CHAT_MENTION","channel":"IN_APP","enabled":\(mentionInAppEnabled)}]},"meta":{"timestamp":"\(testTimestamp)","requestId":"test"}}
   """
 }
 
@@ -25,7 +29,7 @@ struct ChatServicePreferencesTests {
   @Test func patchSendsOnlyTheFieldsTheCallerChanged() async throws {
     let transport = TestTransport([
       (200, preferencesBody()),
-      (200, preferencesBody(showRoomUnreadCount: false, pushOptIn: false))
+      (200, preferencesBody(showRoomUnreadCount: false, pushOptIn: false, mentionInAppEnabled: false))
     ])
     let client = try makeTestClient(transport)
     let display = try await ChatService().updateUserPreferences(client: client, showRoomUnreadCount: true)
