@@ -69,14 +69,26 @@ public enum ComposerBlockFormat: String, CaseIterable, Sendable {
     let joins = kind(before.last) == "p" && before.dropLast() == path.dropLast()
     let index = path.last?.split(separator: ":").first.map(String.init) ?? "0"
     let plain = joins ? before : Array(path.dropLast()) + [index + ":p"]
-    // Only the characters leave the fence: it never sent inline formatting.
+    // Only the characters leave the fence. A chip leaves the label it shows, not U+FFFC.
+    // A line ending this control inserted, so the caret had a character to sit on, comes
+    // back out when the same line continues past the block.
+    let after = end < text.length ? blockPath(in: text, at: end) : []
     let replacement = NSMutableAttributedString(attributedString: text.attributedSubstring(from: NSRange(location: start, length: end - start)))
+    // The marked newline was not in the selection, so the text after it is the rest of that
+    // line. Put the characters back on that line's path and drop the newline.
+    let continues = replacement.string.hasSuffix("\n") && kind(after.last) == "p"
+      && replacement.attribute(Self.insertedLineEnd, at: replacement.length - 1, effectiveRange: nil) as? Bool == true
+    let resolved = continues ? after : plain
+    replaceReferenceLabels(in: replacement)
     replacement.enumerateAttribute(ComposerBlockText.listMarker, in: NSRange(location: 0, length: replacement.length)) { marker, run, _ in
-      var attributes: [NSAttributedString.Key: Any] = [ComposerBlockText.path: plain]
+      var attributes: [NSAttributedString.Key: Any] = [ComposerBlockText.path: resolved]
       if marker as? Bool == true {
         attributes[ComposerBlockText.listMarker] = true
       }
       replacement.setAttributes(attributes, range: run)
+    }
+    if continues {
+      replacement.deleteCharacters(in: NSRange(location: replacement.length - 1, length: 1))
     }
     return Edit(range: NSRange(location: start, length: end - start), replacement: replacement)
   }
@@ -101,19 +113,40 @@ public enum ComposerBlockFormat: String, CaseIterable, Sendable {
       replacement.append(NSAttributedString(string: "\n", attributes: [ComposerBlockText.path: before]))
     }
     let code = codeText(text.attributedSubstring(from: selection))
-    replacement.append(NSAttributedString(string: code + "\n", attributes: [ComposerBlockText.path: path]))
+    replacement.append(NSAttributedString(string: code, attributes: [ComposerBlockText.path: path]))
+    var lineEnd: [NSAttributedString.Key: Any] = [ComposerBlockText.path: path]
+    // The caret has to sit on a character that still belongs to the block. A newline the
+    // selection did not already have is only that anchor; unwrap removes it to rejoin the line.
+    if lineEndWasInserted(selection, range: range, source: source) {
+      lineEnd[Self.insertedLineEnd] = true
+    }
+    replacement.append(NSAttributedString(string: "\n", attributes: lineEnd))
     return Edit(range: range, replacement: replacement)
   }
 
   /// The selection as the characters it shows: list markers out, a reference chip as its label.
   private static func codeText(_ text: NSAttributedString) -> String {
     let flat = NSMutableAttributedString(attributedString: withoutMarkers(text))
-    flat.enumerateAttribute(ComposerReferenceText.name, in: NSRange(location: 0, length: flat.length), options: .reverse) { name, run, _ in
+    replaceReferenceLabels(in: flat)
+    return flat.string
+  }
+
+  private static let insertedLineEnd = NSAttributedString.Key("com.sokosumi.composer.insertedLineEnd")
+
+  private static func replaceReferenceLabels(in text: NSMutableAttributedString) {
+    text.enumerateAttribute(ComposerReferenceText.name, in: NSRange(location: 0, length: text.length), options: .reverse) { name, run, _ in
       if let name = name as? String {
-        flat.replaceCharacters(in: run, with: String(repeating: name, count: run.length))
+        text.replaceCharacters(in: run, with: NSAttributedString(string: name))
       }
     }
-    return flat.string
+  }
+
+  /// True when the block's line ending is not a newline the selection already covered.
+  private static func lineEndWasInserted(_ selection: NSRange, range: NSRange, source: NSString) -> Bool {
+    func endsWithLineEnd(_ range: NSRange) -> Bool {
+      range.length > 0 && NSMaxRange(range) <= source.length && source.character(at: NSMaxRange(range) - 1) == 10
+    }
+    return !endsWithLineEnd(selection) && !endsWithLineEnd(range)
   }
 
   private static func blockPath(in text: NSAttributedString, at index: Int) -> [String] {

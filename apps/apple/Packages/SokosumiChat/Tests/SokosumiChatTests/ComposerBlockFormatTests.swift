@@ -211,12 +211,46 @@ struct ComposerCodeBlockToggleTests {
     #expect(unwrapped.caret == 13)
   }
 
+  /// A selection that does not end on a line break still shares that line once the block
+  /// is toggled back off. The fence is sent on its own lines in between.
+  @Test func unwrappingTheFirstWordOfALaterParagraphKeepsThatParagraph() throws {
+    let source = try text("before\n\nhello world")
+    let wrapped = toggle(.codeBlock, in: source, selection: NSRange(location: (source.string as NSString).range(of: "hello").location, length: 5))
+    let unwrapped = toggle(.codeBlock, in: wrapped.text, selection: NSRange(location: wrapped.caret, length: 0))
+    #expect(unwrapped.text.string == source.string)
+    #expect(markdown(unwrapped.text) == markdown(source))
+  }
+
+  @Test func unwrappingASelectionFromTheMiddleOfALineRestoresThatLine() throws {
+    let source = try text("hello world")
+    let wrapped = toggle(.codeBlock, in: source, selection: NSRange(location: 3, length: 5))
+    #expect(markdown(wrapped.text) == "hel\n```\nlo wo\n```\nrld\n")
+    #expect(isCode(wrapped.text, at: wrapped.caret))
+    let unwrapped = toggle(.codeBlock, in: wrapped.text, selection: NSRange(location: wrapped.caret, length: 0))
+    #expect(unwrapped.text.string == source.string)
+    #expect(markdown(unwrapped.text) == "hello world\n")
+    #expect(unwrapped.caret == 8)
+  }
+
+  @Test func unwrappingAReferenceChipWritesTheLabelItShows() {
+    let path = ["0:c:"]
+    let source = NSMutableAttributedString(string: "hi ", attributes: [ComposerBlockText.path: path])
+    source.append(ComposerReferenceText.chip(token: "@alice", name: "@Alice", attributes: [ComposerBlockText.path: path]))
+    source.append(NSAttributedString(string: "\n", attributes: [ComposerBlockText.path: path]))
+    let toggled = toggle(.codeBlock, in: source, selection: NSRange(location: 0, length: 0))
+    #expect(!toggled.text.string.contains("\u{FFFC}"))
+    #expect(markdown(toggled.text) == "hi @Alice\n")
+  }
+
   @Test func anEmptyBlockOpenedMidLineGetsItsOwnLine() throws {
     let toggled = try toggle(.codeBlock, in: text("hello"), selection: NSRange(location: 3, length: 0))
     #expect(toggled.text.string == "hel\n\nlo\n")
     #expect(markdown(toggled.text) == "hel\n```\n\n```\nlo\n")
     #expect(toggled.caret == 4)
     #expect(isCode(toggled.text, at: toggled.caret))
+    let closed = toggle(.codeBlock, in: toggled.text, selection: NSRange(location: toggled.caret, length: 0))
+    #expect(closed.text.string == "hel\nlo\n")
+    #expect(markdown(closed.text) == "hel\nlo\n")
   }
 
   @Test func aNewBlockDoesNotMergeIntoTheBlockBesideIt() throws {
