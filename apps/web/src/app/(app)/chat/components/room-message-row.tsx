@@ -148,10 +148,7 @@ import {
   type RoomMentionParticipant,
 } from "./room-helpers";
 import { RoomMessageMarkdown } from "./room-mention-markdown";
-import {
-  hasSokoBotChainBadge,
-  SokoBotChainBadge,
-} from "./soko-bot-chain-badge";
+import { SokoBotChainBadge } from "./soko-bot-chain-badge";
 import { SokoBotMessageFooter } from "./soko-bot-message-footer";
 
 type UserMentionLookup = Pick<ChatRoomUserParticipant, "id" | "name">;
@@ -2144,25 +2141,12 @@ function MessageMetaFooter({
   onOpenThread,
   showThreadButton,
   isDeleted,
-  reserveSeenByCorner = false,
 }: {
   message: ChatRoomMessage;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
   isDeleted: boolean;
-  /**
-   * Hold the bottom-right corner free for the Seen by faces. Only the
-   * reactions wrap far enough right to reach them; the reply-count button is
-   * short and left-aligned. Width is one row of faces at their cap — four
-   * 16px slots overlapping by 4 — plus a little air.
-   *
-   * It earns its keep on touch, where the row holds nothing free on the right
-   * and the corner sits just past the text. With the action pill's gutter
-   * reserved the faces are already well clear of the reactions, and this is
-   * 56px of slack that only moves where a long row of them wraps.
-   */
-  reserveSeenByCorner?: boolean;
 }) {
   const t = useTranslations("App.Channels");
   const isOutboundLocal = isOutboundLocalMessage(message);
@@ -2170,12 +2154,7 @@ function MessageMetaFooter({
   return (
     <>
       {!isDeleted && !isOutboundLocal && message.reactions.length > 0 ? (
-        <div
-          className={cn(
-            "flex flex-wrap gap-1.5 pt-1",
-            reserveSeenByCorner && "pe-14",
-          )}
-        >
+        <div className="flex flex-wrap gap-1.5 pt-1">
           {message.reactions.map((reaction) => {
             const whoReactedLabel = formatWhoReactedLabel(reaction, t);
 
@@ -2263,7 +2242,6 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   isPinned = false,
   isContinuation = false,
   isFirstOfDay = false,
-  reserveHoverActionGutter = true,
   seenBy,
 }: {
   message: ChatRoomMessage;
@@ -2311,11 +2289,6 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   isContinuation?: boolean;
   /** First message of a calendar day after a day separator; omit top margin because separator already provides rhythm. */
   isFirstOfDay?: boolean;
-  /**
-   * Reserve right padding for the hover action pill. Off in the narrow
-   * thread panel so the body can use the full column.
-   */
-  reserveHoverActionGutter?: boolean;
   /**
    * Seen by faces, pinned to the bottom-right of the message column. Newest
    * message only.
@@ -2504,12 +2477,13 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         // the content (`isolate` scopes their z-index -1 to the row). Nothing
         // paints outside the row, so the scroller cannot clip it. The styling
         // itself lives in globals.css, keyed on data-search-landed.
-        "group relative isolate -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md pl-2 transition-colors hover:bg-card-background",
-        // Sized to the widest pill: eight buttons, or the chain badge plus seven.
-        reserveHoverActionGutter &&
-          (hasSokoBotChainBadge(message.metadata)
-            ? "[@media(hover:hover)]:pr-72"
-            : "[@media(hover:hover)]:pr-64"),
+        // pr-2, not a pill-sized gutter: the text runs the full width and the
+        // action pill draws over it, as Slack's does. The pill is opaque and
+        // only shows on the row under the pointer, so what it covers is the
+        // end of one line of a message you are already looking at — cheaper
+        // than 16rem that every row gives up forever so that one hovered row
+        // has somewhere to put eight buttons.
+        "group relative isolate -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md px-2 transition-colors hover:bg-card-background",
         showActions && TOUCH_MESSAGE_SELECT_NONE_CLASS,
         isContinuation
           ? "min-h-0 py-0.5"
@@ -2585,6 +2559,11 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         className={cn(
           "min-w-0 max-w-full flex-1 overflow-x-clip",
           isContinuation ? "space-y-1" : "space-y-1.5",
+          // The one reservation left, and only on the row that needs it: the
+          // faces sit in this corner, and with the text now running full
+          // width a long last line would otherwise run under them. Four 16px
+          // slots overlapping by 4, plus air.
+          seenBy && "pe-14",
         )}
       >
         {isContinuation ? (
@@ -2764,7 +2743,6 @@ export const ChatMessageRow = memo(function ChatMessageRow({
             onOpenThread={onOpenThread}
             showThreadButton={showThreadButton && !isOutboundLocal}
             isDeleted={isDeleted}
-            reserveSeenByCorner={seenBy != null}
           />
         ) : null}
       </div>
