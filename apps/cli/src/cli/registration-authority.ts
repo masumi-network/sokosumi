@@ -32,9 +32,11 @@ export function describeRegistrationWorkspaceRequirement(
 /**
  * How to become a Vendor admin before registration.
  *
+ * Primary unblock: an existing Vendor admin adds you as admin
+ * (`POST /v1/vendors/{id}/members` with role admin, or promote via patch).
  * Web Developer → Vendors is hidden unless you already have admin membership
  * (`getDeveloperVendorAdminAccess`); do not send blocked users there.
- * Always-visible Developer tabs: Docs, OAuth clients, API keys, Coworkers, Tasks.
+ * Developer self-service Vendor create is not available yet (track separately).
  */
 export function describeRegistrationAdminVendorRequirement(
   webUrl?: string,
@@ -43,7 +45,7 @@ export function describeRegistrationAdminVendorRequirement(
   const developerHome = base
     ? `Developer in the web app starts at ${base}${WEB_DEVELOPER_DEFAULT_ROUTE} (Docs, OAuth clients, API keys, Coworkers, Tasks). Vendors appears there only after you already have admin.`
     : "In the Sokosumi web app, Developer shows Docs, OAuth clients, API keys, Coworkers, and Tasks. Vendors appears only after you already have admin.";
-  return `Registration requires Vendor role admin. Check memberships under Vendors here or \`sokosumi vendors me\`. Ask an existing Vendor admin to promote you, or ask a platform admin to create a Vendor and make you admin. ${developerHome}`;
+  return `Registration requires Vendor role admin. Check memberships under Vendors here or \`sokosumi vendors me\`. Ask an existing Vendor admin to add you as admin on their Vendor (member invite or role promote). If no Vendor exists yet, ask a platform admin to create one and make you admin. ${developerHome}`;
 }
 
 /**
@@ -99,6 +101,6 @@ export function assertVendorCreationRequest(options: {
     );
   }
   throw new Error(
-    "Core has no developer self-service Vendor create path. Ask a platform admin to create a Vendor and assign you as admin, or ask an existing Vendor admin to promote you.",
+    "Core has no developer self-service Vendor create path yet. Ask an existing Vendor admin to add you as admin, or ask a platform admin to create a Vendor and make you admin.",
   );
 }

@@ -100,7 +100,7 @@ test("TestV67 registration gate copy tells how to get workspace and Vendor admin
   );
   assert.match(
     describeRegistrationAdminVendorRequirement("https://app.example.test"),
-    /promote you/,
+    /existing Vendor admin to add you as admin/,
   );
   assert.match(
     describeRegistrationAdminVendorRequirement("https://app.example.test"),
