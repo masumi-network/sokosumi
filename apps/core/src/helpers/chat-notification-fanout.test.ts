@@ -1,6 +1,14 @@
 import { NotificationKind } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const { schedulePublishMock } = vi.hoisted(() => ({
+  schedulePublishMock: vi.fn(),
+}));
+vi.mock("@/helpers/notification-publish-queue", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./notification-publish-queue")>()),
+  scheduleNotificationPublish: schedulePublishMock,
+}));
+
 const {
   createNotificationMock,
   resolveDeliveryMock,
@@ -130,6 +138,7 @@ function messageSays(content: string) {
 }
 
 beforeEach(() => {
+  schedulePublishMock.mockClear();
   vi.clearAllMocks();
   executeRawMock.mockResolvedValue(0);
   queryRawMock.mockImplementation((strings: TemplateStringsArray) =>
@@ -899,11 +908,14 @@ describe("fanOutChatNotifications, counting per room", () => {
 
     await fanOutChatNotifications(params({ countPerRoom: true }));
 
-    expect(publishNotificationRowMock).toHaveBeenCalledWith(
-      { id: "notification_1" },
-      { inApp: true, osBanner: false },
-      false,
-    );
+    expect(schedulePublishMock).toHaveBeenCalledTimes(1);
+    expect(notificationUpdateManyMock.mock.calls[0]?.[0].data).toMatchObject({
+      publishId: expect.any(String),
+      publishPush: false,
+      publishCreated: false,
+      publishQueuedAt: expect.any(Date),
+      publishNextAttemptAt: expect.any(Date),
+    });
   });
 
   it("keeps a banner-only message out of an existing in-app row", async () => {
@@ -977,6 +989,21 @@ describe("fanOutChatNotifications, counting per room", () => {
    * was counted the day it was written, so saying it is new puts the badge one
    * ahead of the server until the next reload.
    */
+  it("keeps an unpublished initial room row marked as new when coalescing", async () => {
+    notificationFindFirstMock.mockResolvedValue({
+      ...unreadRow({ roomName: "general" }),
+      publishId: "pending-initial",
+      publishCreated: true,
+    });
+    await fanOutChatNotifications(params({ countPerRoom: true }));
+    expect(notificationUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ publishId: "pending-initial" }),
+        data: expect.objectContaining({ publishCreated: true }),
+      }),
+    );
+  });
+
   it("publishes the counted row as a change rather than a new row", async () => {
     notificationFindFirstMock.mockResolvedValue(
       unreadRow({ roomName: "general" }),
@@ -984,7 +1011,9 @@ describe("fanOutChatNotifications, counting per room", () => {
 
     await fanOutChatNotifications(params({ countPerRoom: true }));
 
-    expect(publishNotificationRowMock.mock.calls[0]?.[2]).toBe(false);
+    expect(
+      notificationUpdateManyMock.mock.calls[0]?.[0].data.publishCreated,
+    ).toBe(false);
   });
 
   /**

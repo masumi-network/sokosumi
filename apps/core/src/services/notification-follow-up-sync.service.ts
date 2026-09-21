@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/node";
-import type { Prisma } from "@sokosumi/database";
+import { NotificationKind, type Prisma } from "@sokosumi/database";
 import {
   RESEND_BATCH_MAX_SIZE,
   type SendEmailInput,
@@ -287,7 +287,39 @@ function toFollowUpInput(
  * must not cost the rest of the work or make it look like the reminders
  * themselves failed.
  */
-async function flushFollowUpEmails(pending: SendEmailInput[]): Promise<number> {
+interface PendingFollowUpEmail {
+  notificationId: string;
+  email: SendEmailInput;
+}
+
+/**
+ * A reminder whose email has left is no longer revocable. The publish path
+ * gives an unsent reminder's shared event id back when the source it points at
+ * is gone; an emailed one has to keep it, or the reader is told twice.
+ */
+async function recordFollowUpEmails(
+  chunk: readonly PendingFollowUpEmail[],
+  ids: readonly { id: string }[],
+): Promise<void> {
+  await Promise.all(
+    chunk.map((pending, index) => {
+      const emailId = ids[index]?.id;
+
+      if (!emailId) {
+        return undefined;
+      }
+
+      return prisma.notification.updateMany({
+        where: { id: pending.notificationId, emailId: null },
+        data: { emailId },
+      });
+    }),
+  );
+}
+
+async function flushFollowUpEmails(
+  pending: PendingFollowUpEmail[],
+): Promise<number> {
   if (pending.length === 0) {
     return 0;
   }
@@ -299,7 +331,9 @@ async function flushFollowUpEmails(pending: SendEmailInput[]): Promise<number> {
     const chunk = batch.slice(offset, offset + RESEND_BATCH_MAX_SIZE);
 
     try {
-      await sendEmails(chunk);
+      const ids = await sendEmails(chunk.map((item) => item.email));
+
+      await recordFollowUpEmails(chunk, ids);
 
       accepted += chunk.length;
     } catch (error) {
@@ -363,7 +397,7 @@ export async function sendFollowUps(
   let sent = 0;
   let emailed = 0;
   /** Reminder emails written this page, handed over when the page ends. */
-  const pendingEmails: SendEmailInput[] = [];
+  const pendingEmails: PendingFollowUpEmail[] = [];
   const readerFor = createReaderCache();
   /** The last row this run finished, and where the next page starts after. */
   let after: { createdAt: Date; id: string } | undefined;
@@ -445,6 +479,37 @@ export async function sendFollowUps(
       }
 
       try {
+        // Check source eligibility before reserving the shared daily room key.
+        const messageId = input.metadata?.messageId;
+        if (
+          input.kind === NotificationKind.CHAT &&
+          typeof messageId === "string"
+        ) {
+          const message = await prisma.chatRoomMessage.findFirst({
+            where: {
+              id: messageId,
+              roomId: input.referenceId,
+              deletedAt: null,
+            },
+            select: { id: true, parentMessageId: true },
+          });
+          if (!message) {
+            continue;
+          }
+          if (message.parentMessageId) {
+            const thread = await prisma.chatRoomThreadReadState.findUnique({
+              where: {
+                userId_parentMessageId: {
+                  userId: input.userId,
+                  parentMessageId: message.parentMessageId,
+                },
+              },
+              select: { mutedAt: true },
+            });
+            if (thread?.mutedAt) continue;
+          }
+        }
+
         // Asked before the write rather than left to the create path, which
         // stores a hidden row for readers who silenced the category. A hidden
         // reminder reaches nobody and would still be there to explain later.
@@ -479,7 +544,11 @@ export async function sendFollowUps(
         // The answer above, not a second read. Between two reads the reader
         // can switch the category off, and the write would then store a row
         // nobody sees while this run counted a reminder as sent.
-        const { created } = await createNotification(input, prisma, delivery);
+        const { notification, created } = await createNotification(
+          input,
+          prisma,
+          delivery,
+        );
 
         if (!created) {
           continue;
@@ -516,7 +585,7 @@ export async function sendFollowUps(
         });
 
         if (email) {
-          pendingEmails.push(email);
+          pendingEmails.push({ notificationId: notification.id, email });
         }
       } catch (error) {
         Sentry.captureException(error, {
