@@ -5453,6 +5453,7 @@
         "empty": "No replies yet",
         "replyPlaceholder": "Reply in thread",
         "replyCount": "{count, plural, one {# reply} other {# replies}}",
+        "newReplyCount": "{count, plural, one {# new reply} other {# new replies}}",
         "mute": "Mute thread",
         "unmute": "Unmute thread",
         "muted": "Muted"

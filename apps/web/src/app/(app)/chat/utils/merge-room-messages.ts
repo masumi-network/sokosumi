@@ -32,6 +32,31 @@ export function applyFullChatRoomMessageEvent(
 }
 
 /**
+ * Carry the viewer's unread reply count onto a fresher copy of a message that
+ * does not state one.
+ *
+ * Only the message list computes the count. Realtime events are broadcast to
+ * the whole room, and an edit, reaction or pin answers with the message alone,
+ * so their payloads leave it out. Without this, any of them landing on a
+ * thread parent would untint its reply bar.
+ */
+export function keepKnownThreadUnreadReplyCount(
+  known: ChatRoomMessage | undefined,
+  incoming: ChatRoomMessage,
+): ChatRoomMessage {
+  if (
+    incoming.threadUnreadReplyCount != null ||
+    known?.threadUnreadReplyCount == null
+  ) {
+    return incoming;
+  }
+  return {
+    ...incoming,
+    threadUnreadReplyCount: known.threadUnreadReplyCount,
+  };
+}
+
+/**
  * Merge room message pages by id. Incoming rows win (fresh reactions /
  * mention status). Result is sorted oldest → newest for reading order.
  *
@@ -80,10 +105,14 @@ export function mergeRoomMessages(
   for (const message of confirmed) {
     byId.set(message.id, message);
   }
-  for (const message of remainingIncoming) {
-    if (isOutboundLocalMessage(message)) {
+  for (const incoming of remainingIncoming) {
+    if (isOutboundLocalMessage(incoming)) {
       continue;
     }
+    const message = keepKnownThreadUnreadReplyCount(
+      byId.get(incoming.id),
+      incoming,
+    );
     // Memoized rows key on object identity; a refresh page re-sends every
     // message, so keep the existing object when nothing in it changed.
     const existingById = byId.get(message.id);

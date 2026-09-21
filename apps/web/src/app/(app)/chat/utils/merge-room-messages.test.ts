@@ -80,6 +80,48 @@ describe("applyFullChatRoomMessageEvent", () => {
     expect(next.map((row) => row.id)).toEqual(["m1"]);
   });
 
+  it("keeps the viewer's unread reply count when a broadcast event replaces the parent", () => {
+    const parent = {
+      ...message("m1", "2026-07-01T10:00:00.000Z", "hello"),
+      threadReplyCount: 5,
+      threadUnreadReplyCount: 2,
+    };
+    // The realtime payload is addressed to the whole room, so it carries no
+    // per-viewer count.
+    const { threadUnreadReplyCount: _, ...edited } = {
+      ...parent,
+      content: "hello, edited",
+    };
+
+    const next = applyFullChatRoomMessageEvent([parent], {
+      eventType: "update",
+      message: edited,
+    });
+
+    expect(next).toEqual([
+      expect.objectContaining({
+        id: "m1",
+        content: "hello, edited",
+        threadUnreadReplyCount: 2,
+      }),
+    ]);
+  });
+
+  it("takes a fresh unread reply count over the known one", () => {
+    const parent = {
+      ...message("m1", "2026-07-01T10:00:00.000Z", "hello"),
+      threadReplyCount: 5,
+      threadUnreadReplyCount: 2,
+    };
+
+    const next = mergeRoomMessages(
+      [parent],
+      [{ ...parent, threadUnreadReplyCount: 0 }],
+    );
+
+    expect(next[0].threadUnreadReplyCount).toBe(0);
+  });
+
   it("merges a user tombstone so deleted chrome stays", () => {
     const chat = message("m1", "2026-07-01T10:00:00.000Z", "hello");
     const tombstone = {

@@ -89,6 +89,7 @@ import {
 import { formatDaySeparator } from "@/app/chat/utils/date-utils";
 import {
   applyFullChatRoomMessageEvent,
+  keepKnownThreadUnreadReplyCount,
   mergeMessagesWithStreamOverlay,
   mergeRoomMessages,
 } from "@/app/chat/utils/merge-room-messages";
@@ -1717,6 +1718,30 @@ function RoomView({
     selectedRoomId,
   ]);
 
+  // A Look clears the thread's unread everywhere at once: the header count
+  // re-reads Core, and the parent's reply bar drops its tint without waiting
+  // for the next page of messages. Zeroing is always right after a Look.
+  const clearThreadUnreadReplies = useCallback(
+    (parentMessageId: string | "all") => {
+      setMessagesState((current) =>
+        current.map((message) =>
+          (parentMessageId === "all" || message.id === parentMessageId) &&
+          (message.threadUnreadReplyCount ?? 0) > 0
+            ? { ...message, threadUnreadReplyCount: 0 }
+            : message,
+        ),
+      );
+    },
+    [setMessagesState],
+  );
+  const handleThreadLooked = useCallback(
+    (parentMessageId: string) => {
+      bumpThreadUnread();
+      clearThreadUnreadReplies(parentMessageId);
+    },
+    [bumpThreadUnread, clearThreadUnreadReplies],
+  );
+
   const { markThreadRead, syncRoomAttentionAfterThreadLook } =
     useRoomReadAttention({
       room: selectedRoom,
@@ -1726,7 +1751,7 @@ function RoomView({
       openThreadParentId: threadParentMessage?.id ?? null,
       threadMessages: persistedThreadMessages,
       isThreadLoading,
-      onThreadLooked: bumpThreadUnread,
+      onThreadLooked: handleThreadLooked,
     });
 
   const refreshFocusedRoomMessages = useCallback(
@@ -1797,7 +1822,9 @@ function RoomView({
       }
       return filterTopLevelChatRoomMessages(
         current.map((message) =>
-          message.id === updatedMessage.id ? updatedMessage : message,
+          message.id === updatedMessage.id
+            ? keepKnownThreadUnreadReplyCount(message, updatedMessage)
+            : message,
         ),
       );
     });
@@ -3336,6 +3363,7 @@ function RoomView({
                 }}
                 onAllThreadsLooked={() => {
                   bumpThreadUnread();
+                  clearThreadUnreadReplies("all");
                   void syncRoomAttentionAfterThreadLook(selectedRoom.id);
                 }}
                 labels={{
