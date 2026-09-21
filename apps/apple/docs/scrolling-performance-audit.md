@@ -1,27 +1,138 @@
 # Chat scrolling performance
 
-Room and reply-thread scrolling must stay responsive while image attachments, avatars, and link previews load. Preserve message layout, complete-line expansion, rounded edges, hover actions, historic jumps, pagination, and follow-latest. Shared code stays iOS 17 compatible. No web edits, new dependencies, or API contract changes.
+## Measured result — 2026-09-21
 
-#4571 improved parsing throughput. That is not a scrolling fix. Users still reported poor scrolling after the link-preview work.
+**Neither the growing row-body workload in candidate (a) nor `PreparedTranscript.prepare` in candidate (b) explains the measured steady-scroll work.** The geometry callback in (c) is also small in the tested path. There is other whole-transcript work on the main actor: `preparedMessages` repeatedly builds its live-message dictionary/projection, and retry eligibility eagerly constructs `mentionRetrySources` for ordinary rows. The native CPU trace attributes 9.66% of main-thread sample weight to `mentionRetryAction(for:)` and 7.97% to `preparedMessages` during scrolling. These are measured contributors, not a claim that removing one will cure every reported hitch.
 
-**Reopened 2026-09-19** (user report: web scrolls well, the Mac app does not). The earlier line — "further performance tuning is deferred … do not build a custom list engine" — closed this while #4571's parsing work was the only thing on the table. It no longer holds, and the next agent should not read it as a reason to skip the problem. Tracked as **M6** in [PARITY.md](../PARITY.md) under macOS-native additions; it is not a parity row, because web's virtualizer is explicitly not a native requirement.
+**Cheapest next fix:** reject messages that are not failed mention shells with a source ID in `WorkspaceState.canRetryMention`, before evaluating `mentionRetrySources`. The isolated negative-case check at 2,000 messages falls from **0.127 ms to 0.000083 ms per call** with that guard in the measurement harness. No product fix was made or measured end to end. Keep the existing eligibility check for valid failed shells; a future patch needs its positive/negative permission tests.
 
-Nothing here is measured. No one has profiled this app. Two candidate causes, in order of suspicion:
+The original “lazy rows never disappear, therefore live rendered work grows without limit” statement was an unmeasured hypothesis. The counts below reject its **cumulative row-body evaluation** prediction. They do not measure retained heap/state or prove that every offscreen descendant is inactive. M6 remains Todo because no scrolling fix or regression-gate acceptance happened in this session.
 
-1. **The rendered set is unbounded.** `ScrollView` + `LazyVStack` (`Sokosumi/Chat/Timeline/RoomTimelineView.swift:163`) creates rows lazily but does not discard them once created, so paging back through a long room grows the live view count without limit. Web keeps its rendered set constant with TanStack Virtual. The concept worth porting is windowing; the SwiftUI construct that already recycles is `List`. Porting TanStack itself is not the move.
-2. **Whole-transcript preparation on every input change.** `PreparedTranscript.prepare` (`Packages/SokosumiChat/Sources/SokosumiChat/PreparedTranscript.swift:33`) walks every message, reusing by id and content. Steady state is cheap, but `Input.messages` carries the pending-reaction overlay, so a single reaction tap re-walks the array.
+## Method and reproducibility
 
-A third possibility is independent of both: [scroll-geometry-warning.md](scroll-geometry-warning.md) reproduces `OnScrollGeometryChange … tried to update multiple times per frame` in a 40-line standalone app with no chat models, rendering or networking.
+Baseline: `85524b023fc44ee13ce92d848e25c5cc23b08487`, Apple M4 Pro, 24 GiB RAM, macOS 27.0 (26A428), Xcode 27.0 (27A266a), arm64 Release (`-O`). Both `ENABLE_CODE_COVERAGE=NO` and `CLANG_ENABLE_CODE_COVERAGE=NO` are necessary here. The app/package compile commands were checked for coverage instrumentation. A cached generator-tool link still mentioned its profile runtime; it is not the measured app.
 
-**Profile first.** Instruments plus SwiftUI view-body counts on a long transcript, before any code changes — the cause may be none of the above.
+The [inlined harness](scrolling-performance-harness.md) adapts `SokosumiTests/Chat/Timeline/TranscriptScrollingTests.swift`: real `RoomTimelineView`, `MessageRowView`, rendering/composer code, and `WorkspaceState`, hosted in a 900 × 700 pt `NSWindow`. It copies Apple sources to a disposable directory and adds counters there. The checkout's product code, Xcode project, package products, dependencies, and `apps/web` were not changed. In particular, **no package products were added to `SokosumiTests`**; the hosted-test/Xcode Cloud coverage link remains unchanged.
 
-**What a change must not break.** Moving off `ScrollView` means rewriting `ScrollPosition`, `.defaultScrollAnchor(.bottom, for: .sizeChanges)` and the geometry-edge callbacks that drive pagination and follow-latest. That machinery carries the most user-accepted behavior in the app. Regression gates: reading position when an older page is inserted, historic jumps, gap rows, follow-latest, and the reader's position while images grow.
+Fixtures use fixed IDs/times, alternating authors, and 50 / 500 / 2,000 messages. Separate homogeneous cases cover plain text, markdown, Swift code blocks, images, unfurls, and reactions; the mixed case cycles equally through those six types. Markdown has three rich paragraphs, code has eight lines, and plain text repeats a short paragraph four times. Images/unfurls use the existing `ScrollMediaProtocol`: a local 2400 × 1600 PNG with a 50 ms delay and distinct URLs. No account, live server, roster, or channel suggestions are used.
 
-Still in force: publish UI state on the main actor; parse transcripts in a detached task with Sendable snapshots, cancellation and stale-result checks; bound reuse to the previous snapshot.
+One UI run per count/mix cell waits for the real transcript and settles for 1.5 seconds, scrolls upward at 60 pixels per wheel tick for up to 120 ticks, traverses to the top at 400 pixels per tick, repeats a 120-tick up/down sweep near the top, idles for 60 ticks, then calls the coordinator action behind one reaction tap. Every gesture ends explicitly and settles for 500 ms outside its measured interval. All 21 cases scrolled more than 400 points and reached the top. The seven preparation samples per mode run separately in a fresh process without hosted views; the lookup benchmark also runs in its own process.
 
-## Reuse
+Counters record `MessageRowView.body` by message ID and group counts between `NSView.displayLink` callbacks. These are **display callbacks, not proof of presented frames**. Direct timers measure the actual detached preparation worker, synchronous getters, and geometry transform/action. Full records and checks are retained in [results](scrolling-performance-results.jsonl) and [supporting evidence](scrolling-performance-evidence.json).
 
-- Extend `TranscriptScrollingTests` for media-loading scenarios.
-- Reuse `ImageThumbnail.swift` if display-sized decoding is needed.
-- Reuse `RoomTimeline`, `ThreadSession`, `TimelineScrollIntent`, and coordinator lifecycles.
-- Keep `ExpandableMessageBody` line-boundary coverage when measurement changes.
+The retained harness also holds a scoped process activity token and publishes phase names in its diagnostic logs. The original UI-count matrix predates those two harness refinements; neither changes product view logic or the counters. The token did not eliminate all empty-control scheduling delays. Some driver intervals were 80–116 ms even without an observer, so **driver sleep/callback intervals are not used as product FPS or as causal timing evidence**. This avoids mistaking foreground, scheduler, or host effects for transcript work. The raw intervals remain available for inspection.
+
+## (a) Row bodies stay bounded while scrolling
+
+After traversing history, repeat-scroll body evaluations per display callback were:
+
+| Content | 50 messages: mean / p95 | 500: mean / p95 | 2,000: mean / p95 |
+| --- | ---: | ---: | ---: |
+| plain | 11.81 / 15 | 12.28 / 16 | 12.12 / 16 |
+| markdown | 3.04 / 9 | 3.08 / 9 | 3.17 / 9 |
+| code | 1.35 / 5 | 1.48 / 5 | 1.48 / 7 |
+| images | 0.68 / 4 | 0.69 / 4 | 0.66 / 5 |
+| unfurls | 0.90 / 5 | 0.95 / 5 | 0.33 / 4 |
+| reactions | 6.26 / 12 | 6.79 / 13 | 6.41 / 12 |
+| mixed | 1.90 / 7 | 1.96 / 7 | 1.76 / 7 |
+
+For plain text, the early-scroll means were **12.75 / 12.65 / 12.65** at 50 / 500 / 2,000 messages; the repeat-scroll means were **11.81 / 12.28 / 12.12**. A 40× increase in loaded messages did not produce a 40× body workload. Content height changes how many nearby rows are crossed per tick, which explains why the content mixes should not be compared as equal-size rows.
+
+The **last two bottom message IDs had zero body evaluations during the later top sweep in all 21 cases**. All were realized at the initial bottom position. The full per-ID records show where evaluation happened; initial realization also includes a few top rows while the bottom anchor is established, so the raw `retired_bodies` aggregate is not itself an offscreen count. Distant bottom sentinels, not that aggregate, establish that previously visited rows are not continuously reevaluated. Nearby prefetch rows and independently updating descendants are outside that narrower conclusion.
+
+Idle phases caused zero preparation calls. Row-body counts can include isolated local state changes; they are not an allocation or retained-view count. Moving to `List` is not supported by a claim that every previously visited row body runs on every scroll frame.
+
+## (b) Preparation: cold parsing scales; reactions re-walk without reparsing
+
+Across all 21 UI cases there was **one preparation at load, zero during early/traverse/repeat/idle phases, and one after the synthetic successful reaction action**. The reaction visits exactly N messages and reparses **zero** documents. The worker also builds the previous N-entry source dictionary before its N-message loop. This confirms the reaction re-walk; it does not make it a steady-scroll explanation. The mock returns the same confirmed reaction state as the optimistic overlay; different server normalization or concurrent realtime updates can cause additional production preparations.
+
+The fresh-process direct API benchmark produced these worker wall-time medians (seven samples per cell):
+
+| Messages | Content | Cold median (ms) | Reuse median (ms) | Reaction-only median (ms) |
+| --- | --- | ---: | ---: | ---: |
+| 50 | plain | 7.539 | 0.013 | 0.011 |
+| 50 | markdown | 12.010 | 0.011 | 0.010 |
+| 50 | code | 3.074 | 0.011 | 0.010 |
+| 50 | images | 1.876 | 0.011 | 0.010 |
+| 50 | unfurls | 5.279 | 0.010 | 0.008 |
+| 50 | reactions | 5.377 | 0.009 | 0.022 |
+| 50 | mixed | 5.714 | 0.011 | 0.009 |
+| 500 | plain | 52.837 | 0.081 | 0.077 |
+| 500 | markdown | 118.503 | 0.079 | 0.078 |
+| 500 | code | 31.860 | 0.079 | 0.078 |
+| 500 | images | 19.073 | 0.078 | 0.079 |
+| 500 | unfurls | 53.382 | 0.081 | 0.079 |
+| 500 | reactions | 52.423 | 0.077 | 0.077 |
+| 500 | mixed | 55.771 | 0.078 | 0.078 |
+| 2,000 | plain | 209.620 | 0.313 | 0.308 |
+| 2,000 | markdown | 489.534 | 0.311 | 0.304 |
+| 2,000 | code | 127.191 | 0.315 | 0.315 |
+| 2,000 | images | 82.235 | 0.419 | 0.329 |
+| 2,000 | unfurls | 214.038 | 0.323 | 0.323 |
+| 2,000 | reactions | 217.942 | 0.316 | 0.311 |
+| 2,000 | mixed | 224.217 | 0.329 | 0.309 |
+
+`Cold` always passes `reusing: nil`. `Reuse` keeps the previous snapshot unchanged. `Reaction-only` changes one message's reactions while preserving all content. Every cold sample parsed N documents; every reuse/reaction sample visited N and parsed zero. Caller wall times, which also include detached-task scheduling, are retained in the raw data. Do not confuse the direct worker timing with network or tap-to-paint latency.
+
+An earlier same-process benchmark immediately after media-heavy UI phases produced substantially larger parsing times (for example, 1,127 ms for 2,000 mixed messages). Those values are excluded from this table: they mixed parsing with remaining UI/media and host scheduling effects. The separate no-view process is the reproducible preparation measurement.
+
+## Other measured main-thread work and the cheapest fix
+
+The valid native Time Profiler capture covers a 2,000-message plain transcript. The analysed **4,000–9,000 ms** window lies entirely inside early scrolling: capture began at 12:25:49.659 +02:00, and unified-log BEGIN/END timestamps were 12:25:52.730096 and 12:25:58.791708. The trace's own log table was empty, so the process-scoped unified log establishes that boundary.
+
+There were **4,256 main-thread samples / 4,256 ms of sample weight in 5,000 ms: 85.12% running coverage**, consistent with a CPU-bound interval. Selected inclusive shares of main-thread sample weight were:
+
+| Stack | Share |
+| --- | ---: |
+| `NSHostingView.layout()` | 81.04% |
+| `RoomTimelineView.mentionRetryAction(for:)` | 9.66% |
+| `RoomTimelineView.preparedMessages.getter` | 7.97% |
+| `MessageRowView.body.getter` | 5.83% |
+
+Inclusive stacks overlap; do not add these percentages. The supplemental stack analysis uses at most 128 frames per sample. The expert skill's Time Profiler analysis reports zero detected hangs in this short window; hitches and SwiftUI lanes are **unavailable**, not zero.
+
+The source explains the avoidable retry work: `WorkspaceState.canRetryMention` passes `mentionRetrySources` as an eagerly evaluated argument. That property concatenates the transcript, thread parent and replies **before** `CoworkerMentionShell.canRetry` rejects an ordinary message. The negative-case benchmark calls the real method 2,100 times per count, in 21 batches of 100. Its comparison checks for a failed shell with a source ID before calling that same method. Both paths deny every ordinary-message case:
+
+| Loaded messages | Existing check, median ms/call | Reject ordinary message first, ms/call |
+| --- | ---: | ---: |
+| 50 | 0.004012 | 0.000083 |
+| 500 | 0.032160 | 0.000087 |
+| 2,000 | 0.126915 | 0.000082 |
+
+Use the existing `CoworkerMentionShell` predicate in the shared `WorkspaceState.canRetryMention` seam. Do not add another renderer or implement a new permission path. This is the smallest measured waste to remove, with the benefit limited to that work until a future UI benchmark proves more.
+
+`preparedMessages` is a second measured contributor. During the plain-text top sweep it ran **404 / 404 / 388 times**, spending **11.46 / 103.51 / 366.61 ms** at 50 / 500 / 2,000 messages. That is four calls for each of **101 / 101 / 97** room-body evaluations. Unlike detached `prepare`, this dictionary/map work happens while scrolling on the main actor. Reusing that projection when message/reaction inputs have not changed is a later candidate; this session does not prescribe or ship its state-lifetime design.
+
+## (c) Geometry has a small independent cost
+
+The actual `TranscriptScrollEdges` observer was timed without changing its behavior. Across the early/traverse/repeat phases and all content mixes, the largest per-case p95 at each count was:
+
+| Messages | Transform p95 (ms) | Action p95 (ms) |
+| --- | ---: | ---: |
+| 50 | 0.000750 | 0.012625 |
+| 500 | 0.000792 | 0.013750 |
+| 2,000 | 0.001125 | 0.026417 |
+
+These are nonzero costs, but they do not explain the observed main-thread CPU work. Microsecond timings include timer overhead. The fixed-width run does not exercise width-change restoration.
+
+A separate one-rectangle app removes all chat models and rows. Its growing inset changes during initial layout, before the measured scroll loop. It preserves scroll position, the bottom size-change anchor and the composer inset, comparing no observer, a full-geometry observer with an empty action, and that observer with an inset growing from 0 to 202 points. Each variant receives 240 identical 60-pixel wheel events; order is reversed in round 2:
+
+| Round | No observer: event/layout p95 (ms) | Empty observer (ms) | Observer + growing inset (ms) |
+| --- | ---: | ---: | ---: |
+| 1 | 0.227 | 0.236 | 0.253 |
+| 2 | 0.277 | 0.269 | 0.277 |
+| 3 | 0.359 | 0.306 | 0.320 |
+
+The stable observer's paired p95 differences were **+0.009 / −0.009 / −0.052 ms**. It received 239–240 action callbacks per run. There is no repeatable positive event/layout penalty above the run-to-run variation in this control. Long scheduled-step delays also appeared in the no-observer variant, including with the activity token; they cannot be attributed to the observer. This does not close the separate [scroll geometry warning](scroll-geometry-warning.md), which concerns layout transitions and still has its original reproduction and failed substitutions.
+
+## Trace capture and limits
+
+The app-scoped `swiftui-expert-skill` scripts were used for capture and analysis on the host Mac. A 25-second native `SwiftUI` capture grew to about 1.4 GiB but did not finalize after more than five minutes. It was interrupted/terminated; export still failed with **`Document Missing Template Error`**. It supplies no evidence. A valid **Time Profiler** capture (`native-time.trace`, 16.093 s recorded) supplies the CPU evidence above, and explicit body counters provide the requested fallback. An earlier geometry-only SwiftUI capture succeeded but reported an empty SwiftUI lane; its zero-body table is not used as evidence.
+
+Binary traces are not committed. The inlined harness recreates them; the parsed metrics, phase timestamps and raw counters are retained. No claim is made about live authenticated rooms, actual presented-frame FPS, retained heap, every descendant's body, or an end-to-end improvement from the proposed guard.
+
+## Preserve M6's regression gates
+
+**Do not start with a `List` conversion on this evidence.** It would replace the current `ScrollPosition`, `.defaultScrollAnchor(.bottom, for: .sizeChanges)`, and geometry-edge machinery without addressing the measured eager copies directly. Its cost is a rewrite and re-verification of reading position on older-page insertion, historic jumps, gap rows, follow-latest, and position while images grow. None of those gates is waived or marked passed here.
+
+Room and reply-thread scrolling remain required; this measurement exercised the room view. Keep shared code iOS 17 compatible, preserve the API contract, and retain `ExpandableMessageBody` line-boundary coverage. Keep the accepted complete-line expansion, rounded edges, hover actions, pagination, and follow behavior. Publish UI state on the main actor; prepare in detached work with Sendable snapshots, cancellation and stale-result checks; bound document reuse to the previous snapshot. Reuse `TranscriptScrollingTests`, `ImageThumbnail`, `RoomTimeline`, `ThreadSession`, `TimelineScrollIntent`, and coordinator lifecycles in any subsequent fix. #4571's parsing improvement remains distinct from a scrolling fix.
