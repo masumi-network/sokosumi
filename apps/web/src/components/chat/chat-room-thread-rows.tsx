@@ -17,6 +17,7 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import type { ChatRoom } from "@/lib/clients/generated/core";
+import { cn } from "@/lib/utils";
 import { chatRoomMessageHref } from "@/lib/utils/notification-href";
 
 interface ChatRoomThreadRowsProps {
@@ -33,6 +34,13 @@ interface ChatRoomThreadRowsProps {
    * reason.
    */
   isActive?: boolean;
+  /**
+   * Where the rows sit. `inset` is under the room's row in the expanded
+   * sidebar. `flyout` is the card beside the room's mark on the collapsed
+   * rail, where there is no row to be inset under, so the rule and the indent
+   * that tie the rows to one go.
+   */
+  variant?: "inset" | "flyout";
   /** Wraps each link, so a mobile sheet can close when one is followed. */
   wrapLink?: (link: ReactNode) => ReactNode;
 }
@@ -49,12 +57,15 @@ interface ChatRoomThreadRowsProps {
  * the list; the overflow row states what the cap left out and opens the
  * room's thread list.
  *
- * Hidden on the collapsed rail by the sub-menu primitive.
+ * Inset, the sub-menu primitive hides them on the collapsed rail. There the
+ * same rows ride a flyout instead, which is portalled out of the sidebar and
+ * so out of reach of that rule.
  */
 export function ChatRoomThreadRows({
   room,
   roomLabel,
   isActive = false,
+  variant = "inset",
   wrapLink = (link) => link,
 }: ChatRoomThreadRowsProps) {
   const t = useTranslations("App.Channels.ThreadRows");
@@ -73,6 +84,7 @@ export function ChatRoomThreadRows({
   return (
     <SidebarMenuSub
       data-slot="room-thread-rows"
+      data-variant={variant}
       aria-label={t("label", { name: roomLabel })}
       // Rows a pixel apart: they read as one group under their room, where
       // the primitive's wider gap reads as a second list of destinations.
@@ -86,7 +98,11 @@ export function ChatRoomThreadRows({
       // put the rule and the icons beside those axes rather than on them.
       // 18px margin plus the primitive's 1px nudge lands the rule on 19-20px;
       // 13px of padding lands the icon, past its link's padding, on 40px.
-      className="mr-0 ml-[1.125rem] gap-px pr-0 pl-[0.8125rem]"
+      // The flyout has no room row above it, so it drops the rule and both.
+      className={cn(
+        "mr-0 ml-[1.125rem] gap-px pr-0 pl-[0.8125rem]",
+        variant === "flyout" && "mx-0 border-l-0 px-0 py-0",
+      )}
     >
       {threads.map((thread) => (
         <SidebarMenuSubItem key={thread.parentMessageId}>

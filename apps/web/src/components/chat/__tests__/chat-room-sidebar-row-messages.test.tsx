@@ -42,6 +42,8 @@ vi.mock("@/components/ui/sidebar", async () => ({
     asChild?: boolean;
   }) =>
     asChild === true && isValidElement(children) ? children : <>{children}</>,
+  // The row asks whether the rail is collapsed, to offer its thread flyout.
+  useSidebar: () => ({ state: "expanded", isMobile: false }),
   SidebarMenuItem: ({ children }: { children: ReactNode }) => (
     <li>{children}</li>
   ),

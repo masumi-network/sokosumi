@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
   cloneElement,
@@ -143,6 +143,25 @@ vi.mock("@/components/ui/sheet", () => ({
   }) => (asChild && isValidElement(children) ? children : <>{children}</>),
 }));
 
+// Expanded unless a test collapses it. The row asks only to choose between its
+// name tooltip and the unread threads flyout.
+const sidebarMock = vi.hoisted(() => ({
+  state: "expanded" as "expanded" | "collapsed",
+  isMobile: false,
+}));
+
+// Content inline rather than on hover: when the card opens belongs to the
+// primitive. This row decides whether there is a card and what it holds.
+vi.mock("@/components/ui/hover-card", () => ({
+  HoverCard: ({ children }: { children: ReactNode }) => (
+    <div data-testid="rail-flyout">{children}</div>
+  ),
+  HoverCardTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
+  HoverCardContent: ({ children }: { children: ReactNode }) => (
+    <div data-testid="rail-flyout-content">{children}</div>
+  ),
+}));
+
 // The real module under the overrides, so `SidebarRowSlot` — the shared
 // leading slot every row sits its mark in — is the one the app ships.
 vi.mock("@/components/ui/sidebar", async () => ({
@@ -174,6 +193,7 @@ vi.mock("@/components/ui/sidebar", async () => ({
   SidebarMenuItem: ({ children }: { children: ReactNode }) => (
     <li>{children}</li>
   ),
+  useSidebar: () => sidebarMock,
   // A marker, not the real bar: what it looks like belongs to the primitive
   // that owns it, and `sidebar-rail-selection.test.tsx` pins that. This row
   // only decides when it is there.
@@ -710,6 +730,91 @@ describe("ChatRoomSidebarRow unread threads", () => {
     });
 
     expect(document.querySelector('[data-slot="room-thread-rows"]')).toBeNull();
+  });
+});
+
+// The collapsed rail hides the inset rows, so the same rows ride a flyout
+// beside the room's mark (ADR-0037).
+describe("ChatRoomSidebarRow rail thread flyout", () => {
+  const unreadThread = {
+    parentMessageId: "550e8400-e29b-41d4-a716-446655440b01",
+    firstUnreadReplyId: "550e8400-e29b-41d4-a716-446655440c01",
+    parentContent: "Vendor-wide rollout",
+    unreadReplyCount: 2,
+  };
+  const withUnreadThread = {
+    threadUnreadCount: 2,
+    unreadThreadCount: 1,
+    unreadThreads: [unreadThread],
+  };
+
+  afterEach(() => {
+    sidebarMock.state = "expanded";
+    sidebarMock.isMobile = false;
+  });
+
+  function renderRoom(room: Partial<ChatRoom>) {
+    render(
+      <ChatRoomSidebarRow
+        room={makeRoom(room)}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+  }
+
+  it("lists a room's unread threads beside its mark on the collapsed rail", () => {
+    sidebarMock.state = "collapsed";
+    renderRoom(withUnreadThread);
+
+    const flyout = within(screen.getByTestId("rail-flyout-content"));
+    expect(flyout.getByText("general")).toBeInTheDocument();
+    expect(
+      flyout.getByRole("link", { name: /Vendor-wide rollout/ }),
+    ).toHaveAttribute(
+      "href",
+      "/chat/rooms/room-1?message=550e8400-e29b-41d4-a716-446655440c01",
+    );
+  });
+
+  // Two floating layers on one hover would cover each other.
+  it("stands in for the name tooltip rather than joining it", () => {
+    sidebarMock.state = "collapsed";
+    renderRoom(withUnreadThread);
+
+    expect(screen.getByTestId("sidebar-menu-button")).not.toHaveAttribute(
+      "data-tooltip",
+    );
+  });
+
+  it("keeps the plain name tooltip for a room with no unread thread", () => {
+    sidebarMock.state = "collapsed";
+    renderRoom({ unreadCount: 2, channelUnreadCount: 2 });
+
+    expect(screen.queryByTestId("rail-flyout")).toBeNull();
+    expect(screen.getByTestId("sidebar-menu-button")).toHaveAttribute(
+      "data-tooltip",
+      "general",
+    );
+  });
+
+  it("offers no flyout while the sidebar is expanded", () => {
+    renderRoom(withUnreadThread);
+
+    expect(screen.queryByTestId("rail-flyout")).toBeNull();
+  });
+
+  it("offers no flyout for a muted room", () => {
+    sidebarMock.state = "collapsed";
+    renderRoom({
+      ...withUnreadThread,
+      mutedAt: new Date("2026-08-01T00:00:00.000Z"),
+    });
+
+    expect(screen.queryByTestId("rail-flyout")).toBeNull();
   });
 });
 
