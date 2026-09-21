@@ -14,7 +14,7 @@ import { HeaderNotificationBell } from "@/app/components/header/header-notificat
 import { NotificationsPageContent } from "@/app/notifications/page-content";
 import { NotificationProvider } from "@/contexts/notification-provider";
 import { NOTIFICATION_VIEW_STORAGE_KEY } from "@/contexts/notification-view-storage";
-import type { NotificationEventData } from "@/lib/ably";
+import type { NotificationEventData } from "@/lib/ably/schema";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 
 /**

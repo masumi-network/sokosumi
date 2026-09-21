@@ -292,7 +292,9 @@ describe("core.client", () => {
       mapCoreApiStatusToCommonErrorCode,
       toCoreApiActionError,
     } = await import("./core.client");
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { CommonErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/common"
+    );
 
     expect(mapCoreApiStatusToCommonErrorCode(401)).toBe(
       CommonErrorCode.UNAUTHORIZED,

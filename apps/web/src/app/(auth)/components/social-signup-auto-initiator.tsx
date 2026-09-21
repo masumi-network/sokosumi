@@ -12,7 +12,7 @@ import {
   buildAuthCallbackUrl,
   buildOAuthConsentReturnUrlFromSearchParams,
 } from "@/lib/auth/auth.utils";
-import type { SocialProviderId } from "@/lib/schemas";
+import type { SocialProviderId } from "@/lib/schemas/auth";
 
 interface SocialSignupAutoInitiatorProps {
   provider: SocialProviderId;

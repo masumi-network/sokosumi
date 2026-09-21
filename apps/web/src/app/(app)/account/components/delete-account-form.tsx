@@ -50,7 +50,10 @@ import {
 } from "@/lib/actions/errors/better-auth";
 import { deleteUser } from "@/lib/auth/auth.client";
 import type { UserDeletionEvaluation } from "@/lib/clients/generated/core";
-import { type DeleteAccountFormType, deleteAccountSchema } from "@/lib/schemas";
+import {
+  type DeleteAccountFormType,
+  deleteAccountSchema,
+} from "@/lib/schemas/account";
 
 interface DeleteAccountFormProps {
   blockers?: UserDeletionEvaluation["blockers"];

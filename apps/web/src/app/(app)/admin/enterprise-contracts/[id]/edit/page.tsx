@@ -7,7 +7,7 @@ import { ContractLoadError } from "@/components/admin/enterprise-contracts/contr
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getEnterpriseContractAction } from "@/lib/actions/enterprise-contract/action";
-import { CommonErrorCode } from "@/lib/actions/errors";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { adminOrganizationService } from "@/lib/services/admin-organization.service";
 
 export const instant = false;

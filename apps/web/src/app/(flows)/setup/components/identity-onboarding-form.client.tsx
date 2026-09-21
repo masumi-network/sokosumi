@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { CreateOrganizationWizard } from "@/components/organizations";
+import { CreateOrganizationWizard } from "@/components/organizations/create-organization-wizard/create-organization-wizard";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -19,11 +19,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { WorkspaceGateErrorCode } from "@/lib/actions/errors";
+import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspace-gate";
 import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate/action";
 import { activateOrganizationWorkspace } from "@/lib/activate-organization-workspace";
 import { authClient } from "@/lib/auth/auth.client";
-import { type NameFormType, nameFormSchema } from "@/lib/schemas";
+import { type NameFormType, nameFormSchema } from "@/lib/schemas/account";
 import { cn } from "@/lib/utils";
 
 type WorkspaceChoice = "personal" | "organization";

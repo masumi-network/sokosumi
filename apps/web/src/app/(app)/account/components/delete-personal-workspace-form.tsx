@@ -23,7 +23,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { WorkspaceGateErrorCode } from "@/lib/actions/errors";
+import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspace-gate";
 import { deletePersonalWorkspaceAction } from "@/lib/actions/workspace-gate/action";
 import { activateOrganizationWorkspace } from "@/lib/activate-organization-workspace";
 
