@@ -10,7 +10,7 @@
 
 ## App Router Structure
 
-The live tree is `src/app/`. `(app)` is protected. `(auth)` is public auth. `(flows)` is invitations and setup. Also `api/`, `share/`, `tasks/`, `maintenance`.
+The live tree is `src/app/`. `(app)` is protected. `(auth)` is public auth. `(flows)` is invitations and setup. Also `api/`, `auth/` (OAuth callbacks), `share/`, `(app)/tasks`, `maintenance`.
 
 ## App-Specific Conventions
 
