@@ -24811,7 +24811,7 @@ export type GetUsersByIdPreferencesResponses = {
              */
             pushOptIn: boolean;
             /**
-             * Whether chat sidebar rows show a room's unread message count. Display only: it changes no notification delivery
+             * Whether chat sidebar rows show a room's unread message count. On unless the reader switched it off (ADR-0038). Display only: it changes no notification delivery
              */
             showRoomUnreadCount: boolean;
             /**
@@ -24840,7 +24840,7 @@ export type PatchUsersByIdPreferencesData = {
          */
         pushOptIn?: boolean;
         /**
-         * Whether chat sidebar rows show a room's unread message count. Display only: it changes no notification delivery
+         * Whether chat sidebar rows show a room's unread message count. On unless the reader switched it off (ADR-0038). Display only: it changes no notification delivery
          */
         showRoomUnreadCount?: boolean;
         /**
@@ -24944,7 +24944,7 @@ export type PatchUsersByIdPreferencesResponses = {
              */
             pushOptIn: boolean;
             /**
-             * Whether chat sidebar rows show a room's unread message count. Display only: it changes no notification delivery
+             * Whether chat sidebar rows show a room's unread message count. On unless the reader switched it off (ADR-0038). Display only: it changes no notification delivery
              */
             showRoomUnreadCount: boolean;
             /**
