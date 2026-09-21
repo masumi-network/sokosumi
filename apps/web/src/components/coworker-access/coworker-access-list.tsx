@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useNotifications } from "@/contexts/notification-provider";
 import type { ActionResultDto } from "@/lib/actions/action-result";
+import type { ActionError } from "@/lib/actions/errors/action-error";
 import {
   approveMyCoworkerAccess,
   approveOrganizationCoworkerAccess,
@@ -17,14 +18,13 @@ import {
   denyOrganizationCoworkerAccess,
   revokeMyCoworkerAccess,
   revokeOrganizationCoworkerAccess,
-} from "@/lib/actions/coworker-access-action";
-import type { ActionError } from "@/lib/actions/errors/action-error";
+} from "@/lib/actions/workspace-approval-action";
+import type { CoworkerWorkspaceAccess } from "@/lib/clients/generated/core";
 import {
-  type CoworkerAccessEntry,
-  coworkerAccessStatusMessageKey,
-  isAccessGranted,
-  isAccessPending,
-} from "@/lib/utils/coworker-access-display";
+  isWorkspaceApprovalGranted,
+  isWorkspaceApprovalPending,
+  workspaceApprovalStatusMessageKey,
+} from "@/lib/utils/workspace-approval";
 
 interface CoworkerAccessModeMap {
   organization: true;
@@ -41,7 +41,7 @@ interface CoworkerAccessNamespaceMap {
 type CoworkerAccessNamespace = keyof CoworkerAccessNamespaceMap;
 
 interface CoworkerAccessListProps {
-  entries: CoworkerAccessEntry[];
+  rows: CoworkerWorkspaceAccess[];
   mode: CoworkerAccessMode;
   organizationId?: string;
   emptyLabel: string;
@@ -49,22 +49,22 @@ interface CoworkerAccessListProps {
 }
 
 export function CoworkerAccessList({
-  entries,
+  rows,
   mode,
   organizationId,
   emptyLabel,
   namespace,
 }: CoworkerAccessListProps) {
-  if (entries.length === 0) {
+  if (rows.length === 0) {
     return <p className="text-muted-foreground text-sm">{emptyLabel}</p>;
   }
 
   return (
     <ul className="divide-border divide-y rounded-lg border">
-      {entries.map((entry) => (
+      {rows.map((row) => (
         <CoworkerAccessCard
-          key={entry.access.id}
-          entry={entry}
+          key={row.id}
+          row={row}
           mode={mode}
           organizationId={organizationId}
           namespace={namespace}
@@ -75,14 +75,14 @@ export function CoworkerAccessList({
 }
 
 interface CoworkerAccessCardProps {
-  entry: CoworkerAccessEntry;
+  row: CoworkerWorkspaceAccess;
   mode: CoworkerAccessMode;
   organizationId?: string;
   namespace: CoworkerAccessNamespace;
 }
 
 function CoworkerAccessCard({
-  entry,
+  row,
   mode,
   organizationId,
   namespace,
@@ -93,20 +93,20 @@ function CoworkerAccessCard({
     <li className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0 flex-1 space-y-2">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-medium">{entry.coworkerName}</span>
-          {entry.coworkerSlug ? (
+          <span className="text-sm font-medium">{row.coworkerName}</span>
+          {row.coworkerSlug ? (
             <span className="text-muted-foreground font-mono text-xs">
-              {entry.coworkerSlug}
+              {row.coworkerSlug}
             </span>
           ) : null}
           <Badge variant="secondary" className="h-5 px-1.5 text-xs">
-            {t(coworkerAccessStatusMessageKey(entry.access.status))}
+            {t(workspaceApprovalStatusMessageKey(row.status))}
           </Badge>
         </div>
       </div>
 
       <CoworkerAccessCardActions
-        entry={entry}
+        row={row}
         mode={mode}
         organizationId={organizationId}
         namespace={namespace}
@@ -118,14 +118,14 @@ function CoworkerAccessCard({
 type CoworkerAccessCardAction = "approve" | "deny" | "revoke";
 
 interface CoworkerAccessCardActionsProps {
-  entry: CoworkerAccessEntry;
+  row: CoworkerWorkspaceAccess;
   mode: CoworkerAccessMode;
   organizationId?: string;
   namespace: CoworkerAccessNamespace;
 }
 
 function CoworkerAccessCardActions({
-  entry,
+  row,
   mode,
   organizationId,
   namespace,
@@ -220,8 +220,8 @@ function CoworkerAccessCardActions({
     }
   }
 
-  if (isAccessPending(entry)) {
-    const accessId = entry.access.id;
+  if (isWorkspaceApprovalPending(row.status)) {
+    const accessId = row.id;
 
     return (
       <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
@@ -266,7 +266,7 @@ function CoworkerAccessCardActions({
     );
   }
 
-  if (isAccessGranted(entry)) {
+  if (isWorkspaceApprovalGranted(row.status)) {
     return (
       <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
         <Button
@@ -277,7 +277,7 @@ function CoworkerAccessCardActions({
           onClick={() =>
             runAction(
               "revoke",
-              () => revokeAccess(entry.access.id),
+              () => revokeAccess(row.id),
               "revokeSuccess",
               "revokeError",
             )

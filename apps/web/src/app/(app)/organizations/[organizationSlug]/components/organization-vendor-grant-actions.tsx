@@ -1,7 +1,7 @@
 "use client";
 
 import { VendorGrantCreateForm } from "@/components/vendor-grants/vendor-grant-create-form";
-import { createOrganizationVendorGrant } from "@/lib/actions/vendor-grant-action";
+import { createOrganizationVendorGrant } from "@/lib/actions/workspace-approval-action";
 
 interface OrganizationVendorGrantFormProps {
   organizationId: string;

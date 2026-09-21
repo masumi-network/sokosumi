@@ -10,13 +10,14 @@ import { useNotifications } from "@/contexts/notification-provider";
 import {
   approveMyVendorGrant,
   approveOrganizationVendorGrant,
-} from "@/lib/actions/vendor-grant-action";
+} from "@/lib/actions/workspace-approval-action";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import {
-  isPendingVendorGrantNotification,
-  resolveVendorGrantNotificationTarget,
-} from "@/lib/utils/vendor-grant-notification";
+  isPendingWorkspaceApprovalNotification,
+  resolveWorkspaceApprovalNotificationTarget,
+  VENDOR_GRANT_PENDING_MESSAGE_KEY,
+} from "@/lib/utils/workspace-approval";
 
 interface VendorGrantNotificationActionsProps {
   notification: Pick<
@@ -35,12 +36,22 @@ export function VendorGrantNotificationActions({
   const [loadingAction, setLoadingAction] = useState<"accept" | null>(null);
   const [accepted, setAccepted] = useState(false);
 
-  const target = resolveVendorGrantNotificationTarget(notification);
-  if (accepted || !isPendingVendorGrantNotification(notification) || !target) {
+  const target = resolveWorkspaceApprovalNotificationTarget(
+    notification,
+    VENDOR_GRANT_PENDING_MESSAGE_KEY,
+  );
+  if (
+    accepted ||
+    !isPendingWorkspaceApprovalNotification(
+      notification,
+      VENDOR_GRANT_PENDING_MESSAGE_KEY,
+    ) ||
+    !target
+  ) {
     return null;
   }
 
-  const { grantId, organizationId } = target;
+  const { requestId: grantId, organizationId } = target;
 
   async function handleAccept(
     event: MouseEvent<HTMLButtonElement>,
