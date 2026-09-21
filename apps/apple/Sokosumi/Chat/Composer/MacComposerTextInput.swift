@@ -161,7 +161,7 @@
       func textDidEndEditing(_: Notification) {
         let onBlur = parent.onBlur
         Task { @MainActor in onBlur?() }
-        Task { @MainActor [weak commands = parent.commands] in commands?.dismissSuggestions() }
+        parent.commands?.dismissSuggestionsAfterBlur()
       }
 
       func textViewDidChangeSelection(_ notification: Notification) {

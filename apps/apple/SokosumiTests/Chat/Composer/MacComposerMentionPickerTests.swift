@@ -252,7 +252,79 @@
     }
   }
 
+  /// The coordinator is the text view's weak delegate; the fixture keeps it alive.
+  @MainActor private struct FocusedComposer {
+    let window: NSWindow
+    let input: MacComposerTextInput.InputView
+    let commands: MacComposerCommands
+    let coordinator: MacComposerTextInput.Coordinator
+  }
+
   extension NativeWindowTests {
+    /// The real delegate path: resigning first responder makes `textDidEndEditing`
+    /// schedule its dismissal for a later turn.
+    @MainActor struct MentionButtonPickerBlurTests {
+      private func focusedComposer(_ draft: String) throws -> FocusedComposer {
+        let commands = MacComposerCommands()
+        let coordinator = MacComposerTextInput.Coordinator(MacComposerTextInput(text: .constant(draft), submit: { false }, commands: commands))
+        let input = MacComposerTextInput.InputView(frame: NSRect(x: 0, y: 0, width: 300, height: 80))
+        input.mentions = [.init(id: "anna", name: "Anna", slug: "anna", kind: .human), .init(id: "bob", name: "Bob", slug: "bob", kind: .human)]
+        input.delegate = coordinator
+        commands.input = input
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 80), styleMask: [.titled], backing: .buffered, defer: false)
+        window.contentView?.addSubview(input)
+        window.orderFront(nil)
+        #expect(window.makeFirstResponder(input))
+        input.insertText(draft, replacementRange: input.selectedRange())
+        return FocusedComposer(window: window, input: input, commands: commands, coordinator: coordinator)
+      }
+
+      private func runDeferredWork() async throws {
+        for _ in 0 ..< 10 {
+          await Task.yield()
+        }
+        try await Task.sleep(for: .milliseconds(100))
+      }
+
+      /// Web: "keeps the mention listbox open when openMentions runs after editor blur".
+      @Test func buttonPressedRightAfterABlurKeepsItsList() async throws {
+        let composer = try focusedComposer("Hello")
+        let (window, input, commands) = (composer.window, composer.input, composer.commands)
+        defer { window.orderOut(nil) }
+        #expect(window.makeFirstResponder(nil))
+        #expect(window.firstResponder !== input)
+        commands.openMentionPicker()
+        #expect(window.firstResponder === input)
+        #expect(commands.mentionOptions.map(\.id) == ["anna", "bob"])
+        try await runDeferredWork()
+        #expect(commands.mentionOptions.map(\.id) == ["anna", "bob"])
+        #expect(input.string == "Hello")
+        #expect(input.selectedRange() == NSRange(location: 5, length: 0))
+        withExtendedLifetime(composer) {}
+      }
+
+      @Test func plainBlurStillClosesATypedAndAButtonOpenedList() async throws {
+        let composer = try focusedComposer("@an")
+        let (window, input, commands) = (composer.window, composer.input, composer.commands)
+        defer { window.orderOut(nil) }
+        commands.refreshSuggestions()
+        #expect(commands.mentionOptions.map(\.id) == ["anna"])
+        #expect(window.makeFirstResponder(nil))
+        try await runDeferredWork()
+        #expect(commands.mentionOptions.isEmpty)
+        #expect(input.string == "@an")
+
+        #expect(window.makeFirstResponder(input))
+        commands.openMentionPicker()
+        #expect(!commands.mentionOptions.isEmpty)
+        #expect(window.makeFirstResponder(nil))
+        try await runDeferredWork()
+        commands.refreshSuggestions()
+        #expect(commands.mentionOptions.isEmpty)
+        withExtendedLifetime(composer) {}
+      }
+    }
+
     @MainActor struct MentionButtonPickerFixtureTests {
       /// The real composer with "Hello" typed and the mention button pressed: the
       /// list is open and the editor still reads "Hello", with no "@".
@@ -278,9 +350,23 @@
         window.orderFront(nil)
         defer { window.orderOut(nil) }
         try await Task.sleep(for: .milliseconds(200))
-        #expect(window.firstResponder !== Self.textView(in: host))
-        // Third action button: 12 outer + 12 inner padding, two 28-point buttons and 12-point gaps.
-        let point = NSPoint(x: 12 + 12 + 28 + 12 + 28 + 12 + 14, y: 12 + 10 + 14)
+        let input = try #require(Self.textView(in: host) as? MacComposerTextInput.InputView)
+        let scroll = try #require(input.enclosingScrollView)
+        // The editor starts focused, as it is when someone is writing.
+        #expect(window.makeFirstResponder(input))
+        var blurs = 0
+        let observer = NotificationCenter.default.addObserver(forName: NSText.didEndEditingNotification, object: input, queue: nil) { _ in
+          MainActor.assumeIsolated { blurs += 1 }
+        }
+        defer { NotificationCenter.default.removeObserver(observer) }
+        // Arrow keys are only consumed while a suggestion list is open.
+        #expect(input.suggestionKeyHandler?(125) == false)
+        // SwiftUI builds no accessibility tree in the test host, so the button is found from the
+        // editor's real frame: `ComposerLayout` insets the editor by 10 and 8, the action row by 12,
+        // and the mention button is the third 28-point action with 12-point gaps. A wrong hit opens
+        // no mention list and fails below.
+        let editor = scroll.convert(scroll.bounds, to: nil)
+        let point = NSPoint(x: editor.minX - 10 + 12 + 2 * (28 + 12) + 14, y: editor.minY - 8 - 14)
         for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
           let event = try #require(NSEvent.mouseEvent(with: type, location: point, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
                                                       windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
@@ -288,11 +374,15 @@
         }
         try await Task.sleep(for: .milliseconds(300))
         host.layoutSubtreeIfNeeded()
-        let input = try #require(Self.textView(in: host))
+        // The click neither took focus from the editor nor ended editing.
+        #expect(blurs == 0)
+        #expect(window.firstResponder === input)
         #expect(input.string.trimmingCharacters(in: .newlines) == "Hello")
         #expect(text == "Hello")
-        // The press focuses the editor; nothing else in this window does.
-        #expect(window.firstResponder === input)
+        // The list is open: Down and Up are consumed, and leave the first row highlighted again.
+        #expect(input.suggestionKeyHandler?(125) == true)
+        #expect(input.suggestionKeyHandler?(126) == true)
+        try await Task.sleep(for: .milliseconds(100))
         let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
         host.cacheDisplay(in: host.bounds, to: bitmap)
         let png = try #require(bitmap.representation(using: .png, properties: [:]))

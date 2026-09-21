@@ -20,6 +20,7 @@
     private var referenceTrigger: ComposerReferenceTrigger?
     private var dismissedReferenceTrigger: ComposerReferenceTrigger?
     private var mentionPicker = ComposerMentionPicker()
+    private var blurDismissal: Task<Void, Never>?
 
     func focus() {
       guard let input else { return }
@@ -92,6 +93,17 @@
       emojiOptions = []
     }
 
+    /// Focus loss closes the lists a turn later, off the text view's callback. A
+    /// mention button pressed in between cancels it, as web's `openMentions`
+    /// clears its blur timeout: the list it opens must not be closed by the older blur.
+    func dismissSuggestionsAfterBlur() {
+      blurDismissal?.cancel()
+      blurDismissal = Task { @MainActor [weak self] in
+        guard !Task.isCancelled else { return }
+        self?.dismissSuggestions()
+      }
+    }
+
     func acceptMention(_ mention: ComposerMention) {
       input?.window?.makeFirstResponder(input)
       input?.acceptMention(mention, picker: mentionPicker)
@@ -151,6 +163,8 @@
     /// only accepting a row edits the text.
     func openMentionPicker() {
       guard let input, !input.hasMarkedText() else { return }
+      blurDismissal?.cancel()
+      blurDismissal = nil
       input.window?.makeFirstResponder(input)
       mentionPicker.openFromButton(hasMentions: !input.mentions.isEmpty)
       selectedSuggestionID = nil
