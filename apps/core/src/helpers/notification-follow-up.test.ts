@@ -1,4 +1,7 @@
 import {
+  BILLING_CREDITS_ADDED_MESSAGE_KEY,
+  BILLING_FOLLOW_UP_MESSAGE_KEY,
+  BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
@@ -10,7 +13,7 @@ import {
 import { describe, expect, it } from "vitest";
 
 import {
-  JOB_ATTENTION_MESSAGE_KEYS,
+  BILLING_ATTENTION_MESSAGE_KEYS,
   TASK_ATTENTION_MESSAGE_KEYS,
 } from "./notification-delivery";
 import {
@@ -34,13 +37,29 @@ describe("followUpMessageKeyFor", () => {
    * the same list. `notification-delivery.test` writes both out by name, so a
    * key dropped from either is still caught somewhere.
    */
-  it("answers for every task and job key that waits on the reader", () => {
+  it("answers for every task key that waits on the reader", () => {
     for (const key of TASK_ATTENTION_MESSAGE_KEYS) {
       expect(followUpMessageKeyFor(key)).toBe(TASK_FOLLOW_UP_MESSAGE_KEY);
     }
-    for (const key of JOB_ATTENTION_MESSAGE_KEYS) {
-      expect(followUpMessageKeyFor(key)).toBe(JOB_FOLLOW_UP_MESSAGE_KEY);
+  });
+
+  /**
+   * SOK-930 stopped Core writing a job notification, so there is nothing left
+   * for a job reminder to remind anyone of. The key itself stays a follow-up
+   * key, because a reminder stored before that is still one.
+   */
+  it("answers for every billing key that waits on the reader", () => {
+    for (const key of BILLING_ATTENTION_MESSAGE_KEYS) {
+      expect(followUpMessageKeyFor(key)).toBe(BILLING_FOLLOW_UP_MESSAGE_KEY);
     }
+  });
+
+  it("answers for no job key at all", () => {
+    expect(followUpMessageKeyFor("Notifications.Job.inputRequired")).toBeNull();
+    expect(followUpMessageKeyFor("Notifications.Job.paymentFailed")).toBeNull();
+    expect(FOLLOW_UP_SOURCE_MESSAGE_KEYS).not.toContain(
+      "Notifications.Job.inputRequired",
+    );
   });
 
   it("answers for nothing a reader merely opted into", () => {
@@ -52,6 +71,10 @@ describe("followUpMessageKeyFor", () => {
     expect(followUpMessageKeyFor("Notifications.Task.canceled")).toBeNull();
     expect(followUpMessageKeyFor("Notifications.Job.completed")).toBeNull();
     expect(followUpMessageKeyFor("Notifications.Job.failed")).toBeNull();
+    expect(followUpMessageKeyFor(BILLING_CREDITS_ADDED_MESSAGE_KEY)).toBeNull();
+    expect(
+      followUpMessageKeyFor(BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY),
+    ).toBeNull();
   });
 
   it("answers for no key it does not know", () => {
@@ -70,6 +93,7 @@ describe("followUpMessageKeyFor", () => {
       CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
       TASK_FOLLOW_UP_MESSAGE_KEY,
       JOB_FOLLOW_UP_MESSAGE_KEY,
+      BILLING_FOLLOW_UP_MESSAGE_KEY,
     ]) {
       expect(followUpMessageKeyFor(key)).toBeNull();
       expect(FOLLOW_UP_SOURCE_MESSAGE_KEYS).not.toContain(key);

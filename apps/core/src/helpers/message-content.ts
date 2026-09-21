@@ -2,28 +2,34 @@ import { isChatUiProviderReasoningPartType } from "@sokosumi/utils";
 
 import { isSafeRemoteUrl, normalizeSafeRemoteUrl } from "@/helpers/safe-url";
 
-export interface PersistedChatUiReasoningPart {
+/**
+ * Persisted UI parts are written verbatim into the `metadata` JSON column, so
+ * they are declared as object type aliases rather than interfaces: only an
+ * alias gets TypeScript's implicit index signature, which is what lets the
+ * compiler check the shape against `Prisma.InputJsonValue` (ADR 0035).
+ */
+export type PersistedChatUiReasoningPart = {
   type: string;
   text: string;
-}
+};
 
-export interface PersistedChatUiTextPart {
+export type PersistedChatUiTextPart = {
   type: "text";
   text: string;
-}
+};
 
-export interface PersistedChatUiFilePart {
+export type PersistedChatUiFilePart = {
   type: "file";
   url: string;
   mediaType: string;
   filename?: string;
-}
+};
 
 /** Assistant / Responses-style body text; preserved in `ui_message_v1` for API round-trip. */
-export interface PersistedChatUiOutputTextPart {
+export type PersistedChatUiOutputTextPart = {
   type: "output_text";
   text: string;
-}
+};
 
 export type PersistedChatUiPart =
   | PersistedChatUiTextPart
@@ -31,10 +37,10 @@ export type PersistedChatUiPart =
   | PersistedChatUiFilePart;
 
 /** Primary assistant body may echo persisted `contentType` (e.g. `output_text`). */
-export interface PersistedConversationPrimaryBodyPart {
+export type PersistedConversationPrimaryBodyPart = {
   type: string;
   text: string;
-}
+};
 
 export type PersistedConversationContentPart =
   | PersistedChatUiReasoningPart

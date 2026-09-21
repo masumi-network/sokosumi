@@ -102,6 +102,39 @@ test("hosted OAuth refresh uses the resolved first-party client", async () => {
   assert.equal(refreshRequest?.clientId, "GxmewjdHVAaqUEglxWdyCqVFvnTASycj");
 });
 
+test("OAuth refresh derives auth base from resolveCliConfig when omitted", async () => {
+  let refreshRequest: RefreshTokenRequest | undefined;
+  const manager = new AuthManager({
+    credentialStore: {
+      read: () => ({
+        authToken: "expired-access-token",
+        refreshToken: "refresh-token",
+        expiresAt: "2020-01-01T00:00:00.000Z",
+      }),
+      write: () => {},
+      clear: () => {},
+    },
+    apiKeyStore: emptyApiKeyStore,
+    refreshTokenFn: async (request) => {
+      refreshRequest = request;
+      return { authToken: "fresh-access-token" };
+    },
+    environment: {
+      SOKOSUMI_API_URL: "https://api.preprod.sokosumi.com",
+      SOKOSUMI_AUTH_URL: "https://app.sokosumi.com/api/auth",
+    },
+  });
+
+  assert.equal(
+    await manager.getAuthTokenAsync({ clientId: "cli-client" }),
+    "fresh-access-token",
+  );
+  assert.equal(
+    refreshRequest?.authBaseUrl,
+    "https://api.preprod.sokosumi.com/auth",
+  );
+});
+
 test("TestV16 hosted refresh does not use an unconfigured fallback client", async () => {
   let refreshed = false;
   const manager = new AuthManager({

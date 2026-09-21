@@ -20,11 +20,38 @@ describe("buildAblyClientCapability", () => {
     expect(capability).toEqual({
       "agent_jobs:*:user_user_123": ["subscribe"],
       "tasks:all:user_user_123": ["subscribe"],
-      "notifications:all:user_user_123": ["subscribe", "push-subscribe"],
+      "notifications:all:user_user_123": [
+        "subscribe",
+        "presence",
+        "push-subscribe",
+      ],
       "chat_control:user_user_123": ["subscribe"],
       "chat_rooms:room_room-a": ["subscribe"],
       "chat_rooms:room_room-b": ["subscribe"],
+      "chat_typing:room_room-a": ["publish", "subscribe"],
+      "chat_typing:room_room-b": ["publish", "subscribe"],
     });
+  });
+
+  // ADR-0033: Typing is publishable by the browser, room messages are not.
+  // If `publish` ever reaches a chat_rooms channel, a room member can forge a
+  // chat_room_message that every client renders as genuine.
+  it("grants publish on typing channels and nowhere else", () => {
+    const capability = buildAblyClientCapability({
+      userId: "user_123",
+      roomIds: ["room-a", "room-b"],
+      organizationIds: ["org_a"],
+      notificationChannelEnvironment: NON_PREVIEW_ENVIRONMENT,
+    });
+
+    expect(
+      Object.entries(capability)
+        .filter(([, ops]) => ops.includes("publish"))
+        .map(([channel]) => channel)
+        .sort(),
+    ).toEqual(["chat_typing:room_room-a", "chat_typing:room_room-b"]);
+    expect(capability["chat_rooms:room_room-a"]).toEqual(["subscribe"]);
+    expect(capability["chat_rooms:room_room-b"]).toEqual(["subscribe"]);
   });
 
   // buildAblyClientCapability, not the buildAblySubscribeCapability wrapper:
@@ -40,6 +67,7 @@ describe("buildAblyClientCapability", () => {
 
     expect(capability["notifications:all:user_user_123"]).toEqual([
       "subscribe",
+      "presence",
       "push-subscribe",
     ]);
     expect(
@@ -66,7 +94,7 @@ describe("buildAblyClientCapability", () => {
       capability[
         "notifications:preview:mainnet:branch_fix%2Fpush-urls:user_user_123"
       ],
-    ).toEqual(["subscribe", "push-subscribe"]);
+    ).toEqual(["subscribe", "presence", "push-subscribe"]);
   });
 
   it("grants presence on each organization channel", () => {

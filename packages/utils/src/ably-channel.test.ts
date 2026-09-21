@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   makeAgentJobsChannelName,
   makeChatRoomChannelName,
+  makeChatTypingChannelName,
   makeOrgPresenceChannelName,
   makeUserChatControlChannelName,
   makeUserNotificationsChannelName,
@@ -90,6 +91,21 @@ describe("parseChatRoomIdFromChannelName", () => {
     ).toBeNull();
     expect(parseChatRoomIdFromChannelName("chat_rooms:room_")).toBeNull();
     expect(parseChatRoomIdFromChannelName("chat_rooms:all:user_x")).toBeNull();
+  });
+});
+
+describe("chat typing channel names", () => {
+  it("names a room's typing channel apart from its message channel", () => {
+    expect(makeChatTypingChannelName("room_1")).toBe("chat_typing:room_room_1");
+    expect(makeChatTypingChannelName("room_1")).not.toBe(
+      makeChatRoomChannelName("room_1"),
+    );
+  });
+
+  it("is not mistaken for a room message channel", () => {
+    expect(
+      parseChatRoomIdFromChannelName(makeChatTypingChannelName("room_1")),
+    ).toBeNull();
   });
 });
 

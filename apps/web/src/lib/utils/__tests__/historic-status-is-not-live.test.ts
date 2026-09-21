@@ -12,8 +12,13 @@ const SRC_ROOT = path.resolve(
 /**
  * A status badge that spins claims the work is in flight as you read it. An
  * activity feed renders `event.status`: the status someone set at that moment,
- * which a later event has usually already replaced. The claim is false there,
- * so those call sites pass `live={false}`.
+ * which a later event has usually already replaced. The claim is false there.
+ *
+ * Holding the glyph still was the first fix and it was the wrong one. A
+ * stopped `LoaderCircle` is an arc with a gap in it and nothing else, so the
+ * whole glyph means motion and at rest it reads as a rendering fault. The
+ * historic form is `TaskStatusInline`: a dot, which was never moving, and the
+ * status word beside it.
  *
  * Two feeds render this shape today, the task activity feed and the public
  * share view, and the second one was missed when the first was fixed. This
@@ -41,7 +46,7 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 describe("historic status badges", () => {
-  it("never spins a status a later event has replaced", () => {
+  it("never draws a status a later event has replaced as a live badge", () => {
     const violations: string[] = [];
 
     for (const file of walk(SRC_ROOT)) {
@@ -51,16 +56,30 @@ describe("historic status badges", () => {
       const source = readFileSync(file, "utf8");
       for (const [element] of source.matchAll(HISTORIC_BADGE)) {
         if (!/\bevent\.status\b/.test(element)) continue;
-        if (/\blive=\{false\}/.test(element)) continue;
         const line = source
           .slice(0, source.indexOf(element))
           .split("\n").length;
         violations.push(
-          `${rel}:${line}: reads event.status without live={false}`,
+          `${rel}:${line}: reads event.status; use TaskStatusInline`,
         );
       }
     }
 
     expect(violations).toEqual([]);
+  });
+
+  /**
+   * Without this the guard is vacuous: delete both feeds and the regex above
+   * matches nothing, which looks exactly like a pass.
+   */
+  it("still finds the two feeds it exists to police", () => {
+    const feeds = walk(SRC_ROOT).filter((file) => {
+      const source = readFileSync(file, "utf8");
+      return (
+        /<TaskStatusInline\b/.test(source) && /\bevent\.status\b/.test(source)
+      );
+    });
+
+    expect(feeds.length).toBeGreaterThanOrEqual(2);
   });
 });

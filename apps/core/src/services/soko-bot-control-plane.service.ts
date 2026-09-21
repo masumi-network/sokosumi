@@ -23,11 +23,13 @@ import {
 } from "@sokosumi/soko-bot";
 
 import { getEnv } from "@/config/env";
+import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
 import {
   failOpenChatRoomMentions,
   publishChatRoomMentionStatuses,
 } from "@/helpers/chat-room-mention-status";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import { jsonInput } from "@/helpers/prisma-json";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
@@ -347,10 +349,6 @@ function safeMemoryRevision<T extends { hash: string; markdown: string }>(
 ): T {
   const markdown = sanitizeSokoBotMemoryMarkdown(revision.markdown);
   return { ...revision, markdown, hash: memoryHash(markdown) };
-}
-
-function jsonInput(value: unknown): Prisma.InputJsonValue {
-  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
 function safeRuntimeDiagnostic(
@@ -1318,7 +1316,14 @@ export class SokoBotControlPlane {
     providerCompletedAt?: Date;
     requireMissingEveSession?: boolean;
   }): Promise<boolean> {
+    // Set inside the transaction and read after it commits, because the
+    // low-balance check publishes over realtime and must not run for a
+    // charge that rolled back. Reset per attempt: a serialization retry
+    // starts over and must not carry the rolled-back attempt's charge.
+    let chargedUserId: string | null = null;
+
     return serializableTransaction(async (tx) => {
+      chargedUserId = null;
       const turn = await tx.sokoBotTurn.findUnique({
         where: { id: input.turnId },
         select: {
@@ -1357,6 +1362,9 @@ export class SokoBotControlPlane {
         },
         tx,
       );
+      if (usageCharge.chargedCents > 0n) {
+        chargedUserId = turn.userId;
+      }
       // Runtime work already happened before settlement. A late billing
       // shortfall must be visible and block later funded turns, but discarding
       // a completed answer would charge the user for an unusable result.
@@ -1461,6 +1469,14 @@ export class SokoBotControlPlane {
       return true;
     }, "Soko Bot turn settlement collided with another operation").then(
       async (settled) => {
+        // On the charge alone: a settlement that lost its lease after the
+        // usage was recorded still committed that charge.
+        if (chargedUserId) {
+          await notifyLowBalanceAfterCharge({
+            userId: chargedUserId,
+            organizationId: null,
+          });
+        }
         if (settled) {
           // Lazy: the chat bridge pulls in realtime publishing, which the
           // control plane must not load for page/schedule turns or tests.

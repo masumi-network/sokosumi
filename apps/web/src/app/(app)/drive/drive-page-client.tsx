@@ -138,7 +138,10 @@ import {
   toDriveListSortQuery,
 } from "@/lib/utils/files-sort";
 import { formatBytes } from "@/lib/utils/format-bytes";
-import { DRIVE_ITEMS_QUERY_KEY, getDriveItemsQueryOptions } from "@/queries";
+import {
+  DRIVE_ITEMS_QUERY_KEY,
+  getDriveItemsQueryOptions,
+} from "@/queries/drive";
 
 const filesSortByParser = parseAsStringLiteral([...FILES_SORT_BY_VALUES]);
 const filesSortOrderParser = parseAsStringLiteral([...FILES_SORT_ORDER_VALUES]);

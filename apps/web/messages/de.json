@@ -295,7 +295,7 @@
       "docs": "Dokumentation",
       "drive": "Dateien",
       "soko-bots": "Soko Bots",
-      "calendar": "Zeitpläne"
+      "calendar": "Kalender"
     },
     "Jobs": {
       "StatusBadge": {
@@ -799,11 +799,15 @@
       "browserPermissionDescription": "Schalte in deinen Kontoeinstellungen Push für die gewünschten Updates ein. Dann bekommst du sie auch, wenn Sokosumi geschlossen ist.",
       "browserPermissionOpenSettings": "Benachrichtigungseinstellungen öffnen",
       "browserPermissionInAppTitle": "Benachrichtigungen erhalten, wenn du in einem anderen Tab bist",
-      "browserPermissionInAppDescription": "Erlaube Browser-Benachrichtigungen für Jobs, Tasks, Abrechnung, System und Chat, während Sokosumi geöffnet, aber nicht fokussiert ist.",
+      "browserPermissionInAppDescription": "Erlaube Browser-Benachrichtigungen für Tasks, Abrechnung, System und Chat, während Sokosumi geöffnet, aber nicht fokussiert ist.",
       "browserPermissionEnable": "Browser-Benachrichtigungen aktivieren",
       "browserPermissionRequesting": "Warte auf Berechtigung…",
       "browserPermissionDeniedTitle": "Browser-Benachrichtigungen sind blockiert",
       "browserPermissionDeniedDescription": "Benachrichtigungen für diese Website sind in deinem Browser blockiert. Öffne die Browser-Benachrichtigungseinstellungen für Sokosumi, um sie zuzulassen.",
+      "pushQuietTitle": "Push-Benachrichtigungen kommen in diesem Browser nicht mehr an",
+      "pushQuietDescription": "Dieser Browser hat sein Push-Abonnement verloren, daher kommen hier keine Updates an. Deine anderen Geräte erhalten sie möglicherweise weiterhin.",
+      "pushQuietRestore": "Push wieder einschalten",
+      "pushQuietRestoring": "Push wird wieder eingeschaltet…",
       "vendorGrantAcceptSuccess": "Vendor-Zugriff genehmigt",
       "vendorGrantAcceptError": "Vendor-Zugriff konnte nicht genehmigt werden",
       "coworkerAccessAcceptSuccess": "Coworker-Early-Access genehmigt",
@@ -1264,7 +1268,7 @@
         "description": "Gib dein neues Passwort ein",
         "Form": {
           "submit": "Passwort zurücksetzen",
-          "success": "Passwort erfolgreich zurückgesetzt",
+          "success": "Passwort zurückgesetzt. Du wurdest auf allen Geräten abgemeldet.",
           "error": "Passwort-Reset fehlgeschlagen",
           "Fields": {
             "Password": {
@@ -1314,7 +1318,7 @@
         "statusOptions": {
           "archived": "Archiviert",
           "DRAFT": "Entwurf",
-          "QUEUED": "In Warteschlange",
+          "QUEUED": "Geplant",
           "READY": "Bereit",
           "GRANT_PENDING": "Freigabe ausstehend",
           "INPUT_REQUIRED": "Eingabe erforderlich",
@@ -1421,12 +1425,16 @@
         "waitForResponses": "Bitte warte, bis die anderen Antworten abgeschlossen sind (max. 3 gleichzeitig).",
         "imageAttachment": "Ein Bild-Anhang",
         "fileLabel": "Datei",
-        "modelAlt": "Modell",
         "coworkerAlt": "Coworker",
         "userAvatarAlt": "Nutzer-Avatar",
         "downloadGeneratedImage": "Generiertes Bild herunterladen",
         "expandPrompt": "Vollständige Nachricht anzeigen",
         "collapsePrompt": "Weniger anzeigen",
+        "typing": {
+          "one": "{name} schreibt gerade …",
+          "two": "{first} und {second} schreiben gerade …",
+          "many": "Mehrere Personen schreiben gerade …"
+        },
         "reasoning": {
           "processing": "Wird verarbeitet...",
           "thinking": "Denkt nach...",
@@ -1571,7 +1579,7 @@
         "statusLabel": "Status",
         "statusOptions": {
           "DRAFT": "Entwurf",
-          "QUEUED": "In Warteschlange",
+          "QUEUED": "Geplant",
           "READY": "Bereit",
           "GRANT_PENDING": "Freigabe ausstehend",
           "INPUT_REQUIRED": "Eingabe erforderlich",
@@ -1885,7 +1893,7 @@
         "status": "Status",
         "statusDescription": "Wähle den Anfangsstatus für diesen Task",
         "statusDraft": "Entwurf",
-        "statusQueued": "In Warteschlange",
+        "statusQueued": "Geplant",
         "statusReady": "Bereit",
         "changeStatus": "Status ändern…",
         "noStatusMatches": "Kein Status passt",
@@ -2075,6 +2083,17 @@
       "list": {
         "loadMore": "Mehr laden",
         "loading": "Projekte werden geladen...",
+        "filter": {
+          "placeholder": "Projekte filtern",
+          "clear": "Filter zurücksetzen",
+          "noMatches": "Keine Projekte passen zu „{query}“."
+        },
+        "sortedBy": "Nach letzter Aktivität sortiert",
+        "lastActivity": "Letzte Aktivität",
+        "created": "Erstellt",
+        "pin": "Projekt anheften",
+        "unpin": "Anheften aufheben",
+        "pinError": "Anheften konnte nicht geändert werden. Bitte erneut versuchen.",
         "stats": {
           "tasks": "Tasks",
           "jobs": "Jobs",
@@ -2296,9 +2315,55 @@
           "moreActions": "Weitere Aktionen",
           "viewDetails": "Details anzeigen",
           "edit": "Bearbeiten",
+          "close": "Projekt schließen",
           "delete": "Löschen",
           "remove": "Entfernen",
           "confirmRemoveJob": "Diesen Job aus dem Projekt entfernen?"
+        },
+        "close": {
+          "dialog": {
+            "title": "Projekt schließen?",
+            "description": "Arbeit, die vor dem Schließungszeitpunkt geplant ist, wird abgeschlossen. Arbeit ab diesem Zeitpunkt wird abgebrochen und das Projekt kann nicht erneut geöffnet werden.",
+            "reasonLabel": "Grund (optional)",
+            "reasonPlaceholder": "Warum wird dieses Projekt geschlossen?",
+            "confirm": "Projekt schließen",
+            "cancel": "Projekt geöffnet lassen",
+            "success": "Projektschließung gestartet",
+            "error": "Das Projekt konnte nicht geschlossen werden. Prüfe den aktuellen Status und versuche es erneut."
+          },
+          "status": {
+            "CLOSING": {
+              "title": "Projekt wird geschlossen",
+              "description": "{count, plural, =0 {Keine ausstehenden Ausführungen verbleiben} one {# ausstehende Ausführung verbleibt} other {# ausstehende Ausführungen verbleiben}} vor dem Schließungszeitpunkt {cutoff}. Arbeit ab diesem Zeitpunkt wird abgebrochen."
+            },
+            "CLOSE_FAILED": {
+              "title": "Projektschließung erfordert Aufmerksamkeit",
+              "descriptionWithCancel": "Geplante Arbeit ist am Schließungszeitpunkt {cutoff} pausiert. Wiederhole die Schließung oder brich nur die blockierte ausstehende Arbeit ab.",
+              "descriptionRetryOnly": "Geplante Arbeit ist am Schließungszeitpunkt {cutoff} pausiert. Wiederhole die Schließung, um fortzufahren."
+            },
+            "CLOSED": {
+              "title": "Projekt geschlossen",
+              "description": "Geschlossen am {completedAt}. Der Kalenderverlauf bleibt erhalten."
+            }
+          },
+          "recovery": {
+            "retryAction": "Schließung wiederholen",
+            "cancelOwedAction": "Ausstehende Arbeit abbrechen",
+            "reasonLabel": "Grund",
+            "reasonPlaceholder": "Begründe, warum diese Wiederherstellungsaktion nötig ist",
+            "reasonRequired": "Gib einen Grund für diese Wiederherstellungsaktion ein.",
+            "keepFailed": "Schließung pausiert lassen",
+            "success": "Projektschließung fortgesetzt",
+            "error": "Die Projektschließung konnte nicht fortgesetzt werden. Prüfe den aktuellen Status und versuche es erneut.",
+            "retry": {
+              "title": "Projektschließung wiederholen?",
+              "description": "Der Schließungsprozess versucht die blockierte geplante Arbeit ab demselben Schließungszeitpunkt erneut."
+            },
+            "cancelOwed": {
+              "title": "Ausstehende Arbeit abbrechen?",
+              "description": "Nur die blockierte, vor dem Schließungszeitpunkt fällige Arbeit wird abgebrochen. Dies kann nicht rückgängig gemacht werden."
+            }
+          }
         },
         "deleteDialog": {
           "title": "Projekt löschen",
@@ -2351,6 +2416,10 @@
           "filesAndOutputs": "Dateien und Outputs",
           "taskManager": "Aufgaben",
           "projects": "Projekte",
+          "allProjects": "Alle Projekte",
+          "projectsPanel": "Deine Projekte",
+          "pinnedProjects": "Angeheftet",
+          "recentProjects": "Zuletzt verwendete Projekte",
           "history": "Verlauf",
           "drive": "Dateien",
           "admin": "Administration",
@@ -2358,13 +2427,15 @@
           "back": "Zurück",
           "chat": "Chat",
           "sokoBot": "Soko Bots",
-          "calendar": "Zeitpläne"
+          "calendar": "Kalender",
+          "projectsLoading": "Projekte werden geladen…",
+          "projectsError": "Projekte konnten nicht geladen werden.",
+          "retryProjects": "Erneut versuchen"
         },
         "ChatLists": {
           "title": "Letzte Chats",
           "noChats": "Noch keine Chats",
           "untitledChat": "Unbenannter Chat",
-          "modelAlt": "Modell",
           "coworkerAlt": "Mitarbeiter"
         },
         "SeatRequired": {
@@ -3976,6 +4047,8 @@
         "currentPassword": "Aktuelles Passwort",
         "newPassword": "Neues Passwort",
         "confirmPassword": "Neues Passwort bestätigen",
+        "revokeOtherSessionsLabel": "Von anderen Geräten abmelden",
+        "revokeOtherSessionsHelp": "Beendet alle anderen Sitzungen. Dieses Gerät bleibt angemeldet.",
         "submit": "Passwort aktualisieren",
         "success": "Passwort erfolgreich aktualisiert",
         "error": "Passwort konnte nicht aktualisiert werden"
@@ -4067,8 +4140,6 @@
       "Notifications": {
         "title": "Benachrichtigungen",
         "description": "Wähle, worüber Sokosumi dich informiert und wo es dich erreicht",
-        "jobStatusEmailsEnabledSuccess": "Job-Benachrichtigungen per E-Mail aktiviert",
-        "jobStatusEmailsDisabledSuccess": "Job-Benachrichtigungen per E-Mail deaktiviert",
         "marketingEmailsTitle": "Marketing-E-Mails",
         "marketingEmailsDescription": "Erhalte eine E-Mail, wenn Sokosumi neue Features, Updates und Aktionen hat.",
         "marketingEmailOnlyHint": "Sokosumi sendet dafür nur E-Mails.",
@@ -4099,14 +4170,6 @@
         "kindsDescription": "Stelle eine ganze Gruppe auf einmal ein, oder öffne sie und wähle für jede Benachrichtigung.",
         "kindsLoading": "Deine Benachrichtigungseinstellungen werden geladen.",
         "kindsLoadError": "Deine Benachrichtigungseinstellungen wurden nicht geladen. Lade die Seite neu, um es erneut zu versuchen.",
-        "groupJob": "Jobs",
-        "groupJobDescription": "Jobs, die auf dich warten, und der Rest.",
-        "kindJobAttention": "Jobs, die auf dich warten",
-        "kindJobAttentionHint": "Ein Job braucht deine Eingabe, oder seine Zahlung ist gescheitert.",
-        "kindJobCompleted": "Abgeschlossene Jobs",
-        "kindJobCompletedHint": "Ein Job hat die Arbeit erledigt, um die du gebeten hast.",
-        "kindJobUpdate": "Andere Job-Updates",
-        "kindJobUpdateHint": "Alles andere, was ein Job meldet, zum Beispiel gescheitert oder erstattet. Für dich gibt es nichts zu tun.",
         "groupTask": "Aufgaben",
         "groupTaskDescription": "Aufgaben, die auf dich warten, und der Rest.",
         "kindTaskAttention": "Aufgaben, die auf dich warten",
@@ -4129,14 +4192,20 @@
         "presetEssential": "Wichtig",
         "presetAppOnly": "In der App",
         "presetOff": "Aus",
-        "presetJobMostHint": "Jobs, die auf dich warten, und abgeschlossene Jobs kommen in der App und als Push an. Andere Job-Updates kommen nur in der App an.",
-        "presetJobEssentialHint": "Nur Jobs, die auf dich warten, kommen als Push an. Abgeschlossene Jobs und andere Updates kommen nur in der App an.",
-        "presetJobAppOnlyHint": "Jede Job-Benachrichtigung kommt in der App an. Keine davon kommt als Push an.",
-        "presetJobOffHint": "Keine Job-Benachrichtigung kommt an, weder in der App noch als Push. E-Mails zum Job-Status haben einen eigenen Schalter.",
         "presetTaskMostHint": "Aufgaben, die auf dich warten, und abgeschlossene Aufgaben kommen in der App und als Push an. Andere Aufgaben-Updates kommen nur in der App an.",
         "presetTaskEssentialHint": "Nur Aufgaben, die auf dich warten, kommen als Push an. Abgeschlossene Aufgaben und andere Updates kommen nur in der App an.",
         "presetTaskAppOnlyHint": "Jede Aufgaben-Benachrichtigung kommt in der App an. Keine davon kommt als Push an.",
         "presetTaskOffHint": "Keine Aufgaben-Benachrichtigung kommt an, weder in der App noch als Push. Öffne die Gruppe, um eine einzelne wieder einzuschalten.",
+        "groupBilling": "Abrechnung",
+        "groupBillingDescription": "Knappe Credits, Zahlungen und Aufladungen.",
+        "kindBillingAttention": "Abrechnung, die auf dich wartet",
+        "kindBillingAttentionHint": "Deine Credits werden knapp, oder eine Zahlung ist fehlgeschlagen. Die Arbeit stoppt, wenn sich nichts ändert.",
+        "kindBillingUpdate": "Andere Abrechnungs-Updates",
+        "kindBillingUpdateHint": "Eine Aufladung ist angekommen, oder dein Abo endet zum Ende der Laufzeit. Für dich gibt es nichts zu tun.",
+        "presetBillingMostHint": "Abrechnung, die auf dich wartet, und andere Abrechnungs-Updates kommen in der App und als Push an.",
+        "presetBillingEssentialHint": "Nur Abrechnung, die auf dich wartet, kommt als Push an. Andere Abrechnungs-Updates kommen nur in der App an.",
+        "presetBillingAppOnlyHint": "Jede Abrechnungs-Benachrichtigung kommt in der App an. Keine davon kommt als Push an.",
+        "presetBillingOffHint": "Keine Abrechnungs-Benachrichtigung kommt an, weder in der App noch als Push. Öffne die Gruppe, um eine einzelne wieder einzuschalten.",
         "presetChatMostHint": "Jede Nachricht in deinen Räumen kommt in der App an. Erwähnungen und Direktnachrichten kommen zusätzlich als Push an.",
         "presetChatEssentialHint": "Erwähnungen und Direktnachrichten kommen als Push an. Jede Nachricht in deinen Räumen ist aus.",
         "presetChatAppOnlyHint": "Erwähnungen und Direktnachrichten kommen in der App an. Jede Nachricht in deinen Räumen ist aus, und nichts kommt als Push an.",
@@ -4152,17 +4221,15 @@
         "channelPush": "Push",
         "channelPushHint": "Auf deinem Gerät, auch wenn Sokosumi geschlossen ist.",
         "channelEmail": "E-Mail",
-        "channelEmailHint": "Wohin Sokosumi dir E-Mails schickt. Erinnerungen haben eine eigene Zelle. Alle Job-E-Mails teilen sich einen Schalter: eine E-Mail, wenn ein Job abgeschlossen ist, geklärt wurde oder auf deine Eingabe wartet.",
+        "channelEmailHint": "Wohin Sokosumi dir E-Mails schickt. Eine E-Mail, die noch wartet, entfällt, sobald du ihre Benachrichtigung in Sokosumi liest. Marketing-E-Mails haben eine eigene Zelle.",
         "channelsKindLabel": "Benachrichtigung",
         "channelsLegendLabel": "Was die Spalten bedeuten",
-        "channelEmailFallbackHint": "Eine E-Mail, wenn ein Job abgeschlossen ist, geklärt wurde oder auf deine Eingabe wartet.",
         "channelsAnnounce": "{kind}: {channels}",
         "channelsNone": "keine",
         "channelCellLabel": "{channel} für {kind}",
         "channelUnavailableLabel": "{channel}, nicht für {kind}",
-        "channelEmailLabel": "E-Mails zum Job-Status",
-        "channelEmailSoonLabel": "E-Mail, noch nicht für {kind}",
-        "channelEmailSoonHint": "Sokosumi sendet für diese Benachrichtigung noch keine E-Mail.",
+        "channelEmailSoonLabel": "E-Mail, nicht für {kind}",
+        "channelEmailSoonHint": "Sokosumi sendet für diese Benachrichtigung keine E-Mail.",
         "deliveryAriaLabel": "Zustellung für {kind}",
         "newsDeliveryAriaLabel": "Zustellung für Marketing-E-Mails",
         "kindFollowUp": "Erinnerungen",
@@ -6218,7 +6285,7 @@
     },
     "Calendar": {
       "Metadata": {
-        "title": "Zeitpläne",
+        "title": "Kalender",
         "description": "Geplante Aufgabenfreigaben im Workspace durchsuchen."
       },
       "previous": "Vorheriger Zeitraum",
@@ -6271,7 +6338,7 @@
         "label": "Aufgabenstatus",
         "all": "Alle Status",
         "DRAFT": "Entwurf",
-        "QUEUED": "In Warteschlange",
+        "QUEUED": "Geplant",
         "READY": "Bereit",
         "GRANT_PENDING": "Freigabe ausstehend",
         "INPUT_REQUIRED": "Eingabe erforderlich",
@@ -6491,6 +6558,13 @@
         "scheduleRemovedByOperator": "Der Zeitplan für {taskName} wurde nach der Prüfung entfernt",
         "assigned": "Dir wurde {taskName} zugewiesen",
         "followUp": "{taskName} wartet weiterhin auf dich"
+      },
+      "Billing": {
+        "lowBalance": "Deine Credits werden knapp: noch {credits}",
+        "paymentFailed": "Eine Abo-Zahlung ist fehlgeschlagen",
+        "creditsAdded": "{credits} Credits wurden deinem Guthaben gutgeschrieben",
+        "subscriptionEnding": "Dein Abo endet mit der aktuellen Laufzeit",
+        "followUp": "Deine Abrechnung braucht weiterhin deine Aufmerksamkeit"
       },
       "Chat": {
         "mentioned": "{authorName} hat dich in {roomName} erwähnt",

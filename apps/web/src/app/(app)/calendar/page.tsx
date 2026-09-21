@@ -5,19 +5,14 @@ import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { CalendarCreateTaskModal } from "@/app/calendar/components/calendar-create-task-modal";
 import { WorkspaceCalendar } from "@/app/calendar/components/workspace-calendar";
+import {
+  loadCalendarPageContext,
+  resolveCalendarPageQuery,
+} from "@/app/calendar/load-calendar-page";
 import { CreateTaskModalProvider } from "@/app/tasks/components/create-task-modal";
-import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
-import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-members";
 import { getSession } from "@/lib/auth/auth.server";
 import { hasCurrentUserCalendarBetaAccess } from "@/lib/calendar-beta-access.server";
-import { TaskStatus } from "@/lib/clients/generated/core";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
-import {
-  getCalendarRange,
-  getLatestCalendarDate,
-  resolveCalendarDate,
-} from "@/lib/schedules/calendar-range";
-import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
 
 interface CalendarPageProps {
@@ -59,18 +54,11 @@ export default async function CalendarPage({
     scope,
     status,
   } = await searchParams;
-  const calendarStatus = Object.values(TaskStatus).find(
-    (taskStatus) => taskStatus === status,
-  );
-  const now = new Date();
-  const latestCalendarDate = getLatestCalendarDate(now);
-  const initialDate = resolveCalendarDate(date, now);
-  const range = getCalendarRange(initialDate);
+  const { calendarStatus, latestCalendarDate, initialDate, range } =
+    resolveCalendarPageQuery(date, status);
   const [
     { items, pagination },
-    sources,
-    coworkers,
-    memberOptions,
+    { sources, coworkerOptions },
     allProjectOptions,
   ] = await Promise.all([
     taskService.getWorkspaceCalendar({
@@ -83,14 +71,9 @@ export default async function CalendarPage({
       scope: scope === "owned" ? "owned" : "workspace",
       status: calendarStatus,
     }),
-    taskService.getWorkspaceCalendarSources().catch(() => []),
-    coworkerService.listCoworkers().catch(() => []),
-    listTaskAssigneeMemberOptions(
-      session?.session?.activeOrganizationId ?? null,
-    ),
+    loadCalendarPageContext(session?.session?.activeOrganizationId ?? null),
     getProjectFilterOptions(projectId),
   ]);
-  const coworkerOptions = [...memberOptions, ...getCoworkerOptions(coworkers)];
   const schedulableProjectIds = new Set(
     sources
       .filter(

@@ -7,9 +7,9 @@ import { resolveLandingGreetingName } from "@/app/chat/components/landing/landin
 import { firstSearchValue } from "@/app/chat/load-room-messages";
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
 import { getSession } from "@/lib/auth/auth.server";
-import { userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
+import { userService } from "@/lib/services/user.service";
 
 interface WelcomePageProps {
   searchParams: Promise<{

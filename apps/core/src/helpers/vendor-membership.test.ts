@@ -314,28 +314,65 @@ describe("resolveUserIdFromUserIdOrEmail", () => {
 });
 
 describe("assertCanRemoveOrDemoteVendorAdmin", () => {
+  const txVendorMemberFindFirst = vi.fn();
+  const txVendorMemberCount = vi.fn();
+  const tx = {
+    vendorMember: {
+      findFirst: txVendorMemberFindFirst,
+      count: txVendorMemberCount,
+    },
+  } as never;
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("allows demoting a non-last admin", async () => {
-    vendorMemberFindFirstMock.mockResolvedValue({ role: "admin" });
-    vendorMemberCountMock.mockResolvedValue(2);
+    txVendorMemberFindFirst.mockResolvedValue({ role: "admin" });
+    txVendorMemberCount.mockResolvedValue(2);
 
     await expect(
-      assertCanRemoveOrDemoteVendorAdmin(TEST_VENDOR_ID, "user_123"),
+      assertCanRemoveOrDemoteVendorAdmin(TEST_VENDOR_ID, "user_123", tx),
     ).resolves.toBeUndefined();
   });
 
   it("blocks demoting the last admin", async () => {
-    vendorMemberFindFirstMock.mockResolvedValue({ role: "admin" });
-    vendorMemberCountMock.mockResolvedValue(1);
+    txVendorMemberFindFirst.mockResolvedValue({ role: "admin" });
+    txVendorMemberCount.mockResolvedValue(1);
 
     await expect(
-      assertCanRemoveOrDemoteVendorAdmin(TEST_VENDOR_ID, "user_123"),
+      assertCanRemoveOrDemoteVendorAdmin(TEST_VENDOR_ID, "user_123", tx),
     ).rejects.toMatchObject({
       status: 400,
       message: "Cannot remove or demote the last vendor admin",
     });
+  });
+
+  it("throws 404 when the target is not a member", async () => {
+    txVendorMemberFindFirst.mockResolvedValue(null);
+
+    await expect(
+      assertCanRemoveOrDemoteVendorAdmin(TEST_VENDOR_ID, "user_123", tx),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(txVendorMemberCount).not.toHaveBeenCalled();
+  });
+
+  it("reads only through the provided transaction client", async () => {
+    txVendorMemberFindFirst.mockResolvedValue({ role: "admin" });
+    txVendorMemberCount.mockResolvedValue(1);
+
+    await expect(
+      assertCanRemoveOrDemoteVendorAdmin(TEST_VENDOR_ID, "user_123", tx),
+    ).rejects.toMatchObject({ status: 400 });
+
+    expect(txVendorMemberFindFirst).toHaveBeenCalledWith({
+      where: { vendorId: TEST_VENDOR_ID, userId: "user_123" },
+      select: { role: true },
+    });
+    expect(txVendorMemberCount).toHaveBeenCalledWith({
+      where: { vendorId: TEST_VENDOR_ID, role: "admin" },
+    });
+    expect(vendorMemberFindFirstMock).not.toHaveBeenCalled();
+    expect(vendorMemberCountMock).not.toHaveBeenCalled();
   });
 });

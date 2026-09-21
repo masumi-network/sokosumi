@@ -29,7 +29,7 @@
       "source": "honojs/skills",
       "sourceType": "github",
       "skillPath": "skills/hono/SKILL.md",
-      "computedHash": "2b2d642a6698cf1767d7a65f8beb4aceb078033d5afc5838c08da6d683fc333d"
+      "computedHash": "e3f141a41800df815000216a53510fe6f888629471c214706cc05adff27297fb"
     },
     "organization-best-practices": {
       "source": "better-auth/skills",
@@ -47,7 +47,7 @@
       "source": "resend/resend-skills",
       "sourceType": "github",
       "skillPath": "skills/resend/SKILL.md",
-      "computedHash": "49e48cc8d42af643ffcab6596085a70d0085117dfb1c09891188ddb02d8688a7"
+      "computedHash": "72169e4605a19bb4333d3787fd1ded476791d79828bf077e350957eb04d00962"
     },
     "two-factor-authentication-best-practices": {
       "source": "better-auth/skills",

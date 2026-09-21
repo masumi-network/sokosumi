@@ -8,7 +8,11 @@ import {
 } from "@sokosumi/utils";
 
 import { requireTaskScheduleWriteAccess } from "@/helpers/access-control";
-import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
+import {
+  lockCalendarScope,
+  lockTaskRows,
+  requireOpenCalendarProject,
+} from "@/helpers/calendar-locks";
 import { badRequest, conflict, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
@@ -106,6 +110,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ) {
           throw conflict("Task Calendar source changed during schedule update");
         }
+        await requireOpenCalendarProject(
+          tx,
+          currentTask.workspaceId,
+          currentTask.projectId,
+        );
         if (!isSchedulableTaskStatus(currentTask.status)) {
           throw forbidden(
             "You can only schedule draft, ready, or queued tasks",

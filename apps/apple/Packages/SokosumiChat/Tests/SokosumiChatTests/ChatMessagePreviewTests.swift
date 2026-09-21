@@ -7,8 +7,11 @@ struct ChatMessagePreviewTests {
   /// Covers representable buildChatMessagePreview inputs, with and without roster names.
   /// One lone-surrogate case is excluded: Swift String cannot hold malformed UTF-16.
   @Test func matchesWebPreviewCorpus() throws {
-    let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-      .appendingPathComponent("Fixtures/chat-message-preview.json")
+    // Bundled, not read from #filePath: Xcode Cloud runs the test bundle on a
+    // machine where the source checkout is not at the compile-time path.
+    let url = try #require(
+      Bundle.module.url(forResource: "chat-message-preview", withExtension: "json", subdirectory: "Fixtures")
+    )
     let examples = try JSONDecoder().decode([Example].self, from: Data(contentsOf: url))
     #expect(examples.count == 177)
     for example in examples {

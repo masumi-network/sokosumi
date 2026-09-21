@@ -50,35 +50,6 @@
     }
   },
   "jobs": {
-    "finalStatus": {
-      "subject": "Sokosumi - {agentName}-Job {status}",
-      "preview": "Dein Job für {agentName} ist jetzt {status}.",
-      "title": "Job {status}",
-      "greeting": "Hallo {name}",
-      "body": "{jobName} für {agentName} ist jetzt {status}.",
-      "button": "Job ansehen",
-      "linkInstructions": "Oder kopiere diese URL und füge sie in deinen Browser ein:",
-      "footer": "Du erhältst diese E-Mail, weil Job-Benachrichtigungen für deinen Account aktiviert sind.",
-      "fallbackJobName": "Dein Job",
-      "status": {
-        "completed": "abgeschlossen",
-        "failed": "fehlgeschlagen",
-        "payment_failed": "Zahlung fehlgeschlagen",
-        "refund_resolved": "erstattet",
-        "dispute_resolved": "Einspruch gelöst"
-      }
-    },
-    "inputRequired": {
-      "subject": "Sokosumi - {agentName} benötigt deinen Input",
-      "preview": "Dein Job für {agentName} benötigt Input, um fortzufahren.",
-      "title": "Aktion erforderlich",
-      "greeting": "Hallo {name}",
-      "body": "Dein Job {jobName} für {agentName} wartet auf deinen Input, um fortzufahren.",
-      "bodyWithoutJobName": "Dein Job für {agentName} wartet auf deinen Input, um fortzufahren.",
-      "button": "Input bereitstellen",
-      "linkInstructions": "Oder kopiere diese URL und füge sie in deinen Browser ein:",
-      "footer": "Du erhältst diese E-Mail, weil Job-Benachrichtigungen für deinen Account aktiviert sind."
-    },
     "failureNotification": {
       "subject": "Job-Fehlerbenachrichtigung - {jobId}",
       "preview": "Job {jobId} ist fehlgeschlagen",
@@ -98,15 +69,82 @@
     }
   },
   "notifications": {
-    "followUp": {
+    "shared": {
       "linkInstructions": "Oder kopiere diese URL in deinen Browser:",
-      "footer": "Du erhältst diese E-Mail, weil Erinnerungen in deinen Benachrichtigungseinstellungen aktiviert sind.",
       "greeting": "Hallo {name}",
       "greetingWithoutName": "Hallo",
       "fallbackAuthorName": "Jemand",
       "fallbackRoomName": "einer Unterhaltung",
       "fallbackTaskName": "Deine Aufgabe",
-      "fallbackJobName": "Dein Auftrag",
+      "fallbackCoworkerName": "ein Coworker"
+    },
+    "event": {
+      "footer": "Du erhältst diese E-Mail, weil diese Benachrichtigung in deinen Benachrichtigungseinstellungen aktiviert ist.",
+      "mention": {
+        "subject": "Sokosumi - {authorName} hat dich in {roomName} erwähnt",
+        "title": "Du wurdest erwähnt",
+        "body": "{authorName} hat dich in {roomName} erwähnt.",
+        "button": "Unterhaltung öffnen"
+      },
+      "directMessage": {
+        "subject": "Sokosumi - {authorName} hat dir eine Nachricht gesendet",
+        "title": "Neue Direktnachricht",
+        "body": "{authorName} hat dir eine Direktnachricht gesendet.",
+        "button": "Unterhaltung öffnen"
+      },
+      "task": {
+        "button": "Aufgabe öffnen",
+        "projectLabel": "Projekt",
+        "attention": {
+          "title": "Eine Aufgabe braucht dich",
+          "reasons": {
+            "assigned": {
+              "subject": "Sokosumi - Dir wurde {taskName} zugewiesen",
+              "body": "Dir wurde {taskName} zugewiesen."
+            },
+            "inputRequired": {
+              "subject": "Sokosumi - {coworkerName} benötigt deinen Input für {taskName}",
+              "body": "{taskName} hat angehalten, weil {coworkerName} deine Eingabe braucht."
+            },
+            "approvalRequired": {
+              "subject": "Sokosumi - {coworkerName} benötigt deine Freigabe für {taskName}",
+              "body": "{taskName} hat angehalten, weil {coworkerName} deine Freigabe braucht."
+            },
+            "authenticationRequired": {
+              "subject": "Sokosumi - {coworkerName} benötigt eine Anmeldung von dir für {taskName}",
+              "body": "{taskName} hat angehalten, weil {coworkerName} eine Anmeldung von dir braucht."
+            },
+            "outOfCredits": {
+              "subject": "Sokosumi - {taskName} hat keine Credits mehr",
+              "body": "{taskName} hat angehalten, weil die Credits aufgebraucht sind."
+            },
+            "scheduleRemovedByOperator": {
+              "subject": "Sokosumi - Der Zeitplan für {taskName} wurde entfernt",
+              "body": "Der Zeitplan für {taskName} wurde nach einer Prüfung entfernt."
+            }
+          }
+        },
+        "completed": {
+          "subject": "Sokosumi - {coworkerName} hat {taskName} abgeschlossen",
+          "title": "Aufgabe abgeschlossen",
+          "body": "{coworkerName} hat {taskName} abgeschlossen."
+        }
+      },
+      "accessRequest": {
+        "title": "Zugriffsanfrage",
+        "button": "Anfrage prüfen",
+        "vendor": {
+          "subject": "Sokosumi - {requesterName} hat Zugriff auf deinen Workspace angefragt",
+          "body": "{requesterName} hat Vendor-Zugriff auf deinen Workspace angefragt."
+        },
+        "coworker": {
+          "subject": "Sokosumi - {requesterName} hat Zugriff auf deinen Workspace angefragt",
+          "body": "{requesterName} hat Coworker-Frühzugang zu deinem Workspace angefragt."
+        }
+      }
+    },
+    "followUp": {
+      "footer": "Du erhältst diese E-Mail, weil Erinnerungen in deinen Benachrichtigungseinstellungen aktiviert sind.",
       "mention": {
         "subject": "Sokosumi - {authorName} wartet weiterhin auf dich in {roomName}",
         "preview": "{authorName} hat dich vor einem Tag in {roomName} erwähnt.",
@@ -137,20 +175,29 @@
           "scheduleRemovedByOperator": "Der Zeitplan für {taskName} wurde vor einem Tag nach einer Prüfung entfernt, und du hast den Hinweis noch nicht geöffnet."
         }
       },
-      "job": {
-        "subject": "Sokosumi - {jobName} wartet weiterhin auf dich",
-        "preview": "{jobName} hat vor einem Tag angehalten und braucht dich.",
-        "title": "Wartet weiterhin auf dich",
-        "body": "{jobName} hat vor einem Tag angehalten, weil der Auftrag dich braucht. Er wartet immer noch.",
-        "button": "Auftrag öffnen",
-        "agentLabel": "Agent",
+      "billing": {
+        "subject": "Sokosumi - Deine Abrechnung braucht weiterhin deine Aufmerksamkeit",
+        "preview": "Deine Abrechnung hat vor einem Tag deine Aufmerksamkeit gebraucht.",
+        "title": "Braucht weiterhin deine Aufmerksamkeit",
+        "body": "Deine Abrechnung hat vor einem Tag deine Aufmerksamkeit gebraucht, und du hast den Hinweis noch nicht geöffnet.",
+        "button": "Abrechnung öffnen",
         "reasons": {
-          "inputRequired": "{jobName} hat vor einem Tag angehalten, weil {agentName} deine Eingabe braucht. Der Auftrag wartet weiterhin.",
-          "paymentFailed": "Die Zahlung für {jobName} ist vor einem Tag fehlgeschlagen, und du hast den Auftrag noch nicht geöffnet."
+          "lowBalance": "Deine Credits wurden vor einem Tag knapp, es waren noch {credits} übrig, und du hast den Hinweis noch nicht geöffnet."
         }
-      },
-      "fallbackCoworkerName": "ein Coworker",
-      "fallbackAgentName": "der Agent"
+      }
+    },
+    "billing": {
+      "linkInstructions": "Oder kopiere diese URL in deinen Browser:",
+      "footer": "Du erhältst diese E-Mail, weil Abrechnungshinweise in deinen Benachrichtigungseinstellungen aktiviert sind.",
+      "greeting": "Hallo {name}",
+      "greetingWithoutName": "Hallo",
+      "lowBalance": {
+        "subject": "Sokosumi - Deine Credits werden knapp",
+        "preview": "Du hast noch {credits} Credits.",
+        "title": "Credits werden knapp",
+        "body": "Deine Credits werden knapp. Es sind noch {credits} übrig. Die Arbeit stoppt, wenn sie aufgebraucht sind.",
+        "button": "Credits aufladen"
+      }
     }
   }
 }

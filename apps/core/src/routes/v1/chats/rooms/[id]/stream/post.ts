@@ -176,7 +176,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id: roomId } = c.req.valid("param");
     const {
       messages,
-      model,
       parentMessageId: requestedParentMessageId,
       quote: requestedQuote,
     } = c.req.valid("json");
@@ -185,8 +184,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw unprocessableEntity(AI_SDK_CHAT_MESSAGES_REQUIREMENT);
     }
 
-    const room = await prisma.$transaction(async (tx) =>
-      requireChatRoomUserWriteAccess(roomId, userContext.userId, tx),
+    const room = await requireChatRoomUserWriteAccess(
+      roomId,
+      userContext.userId,
+      prisma,
     );
 
     // Match web `isCoworkerOnlyDirectRoom` and message-POST skip-mention:
@@ -204,24 +205,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
-    const { parentMessageId, userMessageMetadata } = await prisma.$transaction(
-      async (tx) => {
-        const parentMessageId = await resolveThreadParentMessageId(
-          tx,
-          room.id,
-          requestedParentMessageId,
-        );
-        const quote = await resolveRoomQuoteSnapshot(
-          tx,
-          room.id,
-          requestedQuote?.messageId,
-        );
-        return {
-          parentMessageId,
-          userMessageMetadata: mergeChatRoomMessageMetadata(null, quote),
-        };
-      },
+    const parentMessageId = await resolveThreadParentMessageId(
+      prisma,
+      room.id,
+      requestedParentMessageId,
     );
+    const quote = await resolveRoomQuoteSnapshot(
+      prisma,
+      room.id,
+      requestedQuote?.messageId,
+    );
+    const userMessageMetadata = mergeChatRoomMessageMetadata(null, quote);
 
     const roomCoworker = room.coworkerMembers[0]!.coworker;
     const workspaceId = await resolveWorkspaceIdForChatRoom({
@@ -516,7 +510,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       };
 
       const result = streamText({
-        model: getSokosumiProvider()(model ?? null),
+        model: getSokosumiProvider()(null),
         messages: modelMessages,
         allowSystemInMessages: true,
         maxRetries: 0,

@@ -17,7 +17,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
   useSession: (...args: unknown[]) => useSessionMock(...args),
 }));
 
-vi.mock("@/lib/actions", () => ({
+vi.mock("@/lib/actions/errors", () => ({
   CommonErrorCode: {
     UNAUTHENTICATED: "UNAUTHENTICATED",
     UNAUTHORIZED: "UNAUTHORIZED",
@@ -25,6 +25,8 @@ vi.mock("@/lib/actions", () => ({
   JobErrorCode: {
     JOB_NOT_FOUND: "JOB_NOT_FOUND",
   },
+}));
+vi.mock("@/lib/actions/job/action", () => ({
   updateJobName: vi.fn(),
 }));
 

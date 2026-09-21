@@ -2,10 +2,20 @@
 
 import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { ComponentType, ReactNode, SVGProps } from "react";
+import {
+  type ComponentType,
+  type ReactNode,
+  type SVGProps,
+  useRef,
+} from "react";
+import { flushSync } from "react-dom";
 
-import { CollapsibleTrigger } from "@/components/ui/collapsible";
-import { SidebarMenuButton } from "@/components/ui/sidebar";
+import {
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { SidebarMenuButton, SidebarRowSlot } from "@/components/ui/sidebar";
+import { SIDEBAR_ROW_CLASS } from "@/components/ui/sidebar-classes";
 import { cn } from "@/lib/utils";
 import { RailAttentionPill } from "./chat-room-sidebar-row";
 import type { SectionAttention } from "./room-attention";
@@ -19,13 +29,21 @@ import type { SectionAttention } from "./room-attention";
  * before it runs under them. Below `md` each control reaches 44px through a
  * pseudo-element, and the slot's gap keeps those two targets from overlapping.
  *
- * A section with a `railIcon` keeps its heading on the collapsed rail, as the
- * same 32px square every rail item is: the icon names the section, the
+ * Every section keeps its heading on the collapsed rail, as the same 32px
+ * square every rail item is: the icon names the section, the
  * tooltip spells it out, and pressing it opens or closes the section there
  * too. It stands where the expanded heading's 32px row stood, so the rooms
  * under it keep their place when the sidebar toggles, and it marks where one
  * section ends and the next begins. Both headings are rendered and CSS picks
  * one, the same way a Channel row carries its glyph and its tile.
+ *
+ * `onRailPress` is for a section whose rows never reach the rail — Archived,
+ * whose rows are static and carry a Restore menu a 32px square has no room
+ * for. Opening it there would dim a square and show nothing, so its square
+ * expands the sidebar instead, the way a pending invitation's tile does, and
+ * the caller opens the section on the way. Focus follows to the expanded
+ * heading, because the square the reader pressed is gone by then and a
+ * hidden button drops a keyboard reader on the body.
  *
  * A closed section hides its rooms, and with them whatever they held for the
  * reader. `closedAttention` says so on the heading: the row's own bold on the
@@ -39,18 +57,24 @@ export function ChatSidebarSectionHeader({
   isOpen,
   railIcon: RailIcon,
   closedAttention = null,
+  onRailPress,
   createAction,
   secondaryAction,
 }: {
   /** The section's title. A string, because the rail's tooltip shows it too. */
   children: string;
   isOpen: boolean;
-  railIcon?: ComponentType<SVGProps<SVGSVGElement>>;
+  /** Required: every section keeps a square on the rail, or the sections
+   *  below it jump when the sidebar toggles. */
+  railIcon: ComponentType<SVGProps<SVGSVGElement>>;
   closedAttention?: SectionAttention;
+  /** Rail square expands the sidebar and runs this, instead of toggling. */
+  onRailPress?: () => void;
   createAction?: ReactNode;
   secondaryAction?: ReactNode;
 }) {
   const tChannels = useTranslations("App.Channels");
+  const expandedTriggerRef = useRef<HTMLButtonElement>(null);
   const trailingCount = (secondaryAction ? 1 : 0) + (createAction ? 1 : 0);
   const attention = isOpen ? null : closedAttention;
   const attentionLabel =
@@ -60,12 +84,30 @@ export function ChatSidebarSectionHeader({
         ? tChannels("RoomUnread.railUnread")
         : null;
 
+  const railContent = RailIcon ? (
+    <>
+      <SidebarRowSlot>
+        <RailIcon aria-hidden className="size-4" />
+      </SidebarRowSlot>
+      <span className="sr-only">{children}</span>
+      {attentionLabel ? (
+        <span className="sr-only">{attentionLabel}</span>
+      ) : null}
+    </>
+  ) : null;
+
   return (
     <>
-      <div className="group-data-[collapsible=icon]:hidden relative flex h-11 items-center gap-1 px-3 md:h-8">
+      <div
+        className={cn(
+          SIDEBAR_ROW_CLASS,
+          "group-data-[collapsible=icon]:hidden relative",
+        )}
+      >
         <CollapsibleTrigger
+          ref={expandedTriggerRef}
           className={cn(
-            "text-muted-foreground hover:text-foreground ring-sidebar-ring flex h-full min-w-0 flex-1 items-center gap-3 rounded-md md:gap-1 text-left text-base font-medium outline-hidden transition-colors focus-visible:ring-2 md:text-xs",
+            "text-muted-foreground hover:text-foreground ring-sidebar-ring flex h-full min-w-0 flex-1 items-center gap-2 rounded-md text-left text-base font-medium outline-hidden transition-colors focus-visible:ring-2 md:text-xs",
             attention && "text-foreground font-semibold",
             trailingCount === 1 && "pr-9",
             trailingCount >= 2 && "pr-20",
@@ -74,15 +116,17 @@ export function ChatSidebarSectionHeader({
             trailingCount >= 2 && "md:pr-14",
           )}
         >
-          <ChevronDown
-            aria-hidden
-            className={cn(
-              // Centred in the rooms' 28px leading column below `md`, so the
-              // title starts where the room names do.
-              "mx-1.5 size-4 shrink-0 transition-transform md:mx-0 md:size-3",
-              !isOpen && "-rotate-90",
-            )}
-          />
+          {/* In the shared slot, so the chevron sits where the section's rail
+              icon sits and the title starts on the rooms' 48px column. */}
+          <SidebarRowSlot>
+            <ChevronDown
+              aria-hidden
+              className={cn(
+                "size-4 shrink-0 transition-transform duration-200 ease-out motion-reduce:transition-none md:size-3",
+                !isOpen && "-rotate-90",
+              )}
+            />
+          </SidebarRowSlot>
           <span className="truncate">{children}</span>
           {attentionLabel ? (
             <span className="sr-only">{attentionLabel}</span>
@@ -95,29 +139,67 @@ export function ChatSidebarSectionHeader({
           </div>
         ) : null}
       </div>
-      {RailIcon ? (
-        <div
-          data-slot="section-rail-header"
-          className="relative hidden group-data-[collapsible=icon]:block"
+      <div
+        data-slot="section-rail-header"
+        className="relative hidden group-data-[collapsible=icon]:block"
+      >
+        {attention ? <RailAttentionPill variant={attention} /> : null}
+        <SidebarMenuButton
+          asChild={!onRailPress}
+          type={onRailPress ? "button" : undefined}
+          tooltip={children}
+          onClick={
+            onRailPress
+              ? () => {
+                  // The expanded heading is `display: none` until the
+                  // sidebar commits its new state, so it cannot take focus
+                  // before then.
+                  flushSync(onRailPress);
+                  expandedTriggerRef.current?.focus();
+                }
+              : undefined
+          }
+          // `isOpen`, not `data-[state=closed]`: the tooltip trigger writes
+          // its own `data-state` onto this same button and wins.
+          className={cn("text-muted-foreground", !isOpen && "opacity-60")}
         >
-          {attention ? <RailAttentionPill variant={attention} /> : null}
-          <SidebarMenuButton
-            asChild
-            tooltip={children}
-            // `isOpen`, not `data-[state=closed]`: the tooltip trigger writes
-            // its own `data-state` onto this same button and wins.
-            className={cn("text-muted-foreground", !isOpen && "opacity-60")}
-          >
-            <CollapsibleTrigger>
-              <RailIcon aria-hidden />
-              <span className="sr-only">{children}</span>
-              {attentionLabel ? (
-                <span className="sr-only">{attentionLabel}</span>
-              ) : null}
-            </CollapsibleTrigger>
-          </SidebarMenuButton>
-        </div>
-      ) : null}
+          {onRailPress ? (
+            railContent
+          ) : (
+            <CollapsibleTrigger>{railContent}</CollapsibleTrigger>
+          )}
+        </SidebarMenuButton>
+      </div>
     </>
+  );
+}
+
+/**
+ * The rooms under a section heading, sliding on the same motion as the
+ * Projects disclosure in the main sidebar: height travels with the rows, so
+ * every section below moves with them instead of jumping.
+ *
+ * The height animation needs `overflow-hidden`, which would otherwise clip a
+ * room's `RailAttentionPill` — it sits at `-left-2`, in the group's padding,
+ * outside the rows' box. The negative margin pushes the clip edge out by
+ * exactly that gutter and the padding puts the rows back where they were.
+ */
+export function ChatSidebarSectionContent({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  /** For a section whose rows leave the box on their own — see Pinned. */
+  className?: string;
+}) {
+  return (
+    <CollapsibleContent
+      className={cn(
+        "motion-safe:data-[state=closed]:animate-collapsible-up motion-safe:data-[state=open]:animate-collapsible-down -mx-2 overflow-hidden px-2",
+        className,
+      )}
+    >
+      {children}
+    </CollapsibleContent>
   );
 }

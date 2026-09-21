@@ -3,7 +3,7 @@ import { OpenAPIHono, type RouteConfig, z } from "@hono/zod-openapi";
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
 import { type AuthVariables, authMiddleware } from "@/middleware/auth";
 import { coworkerContextMiddleware } from "@/middleware/coworker-context";
-import { organizationHeaderMiddleware } from "@/middleware/organization";
+import { organizationContextMiddleware } from "@/middleware/organization";
 import { organizationProductSeatMiddleware } from "@/middleware/organization-product-seat";
 import {
   type WorkspaceVariables,
@@ -46,17 +46,32 @@ export type EnvVariables = {
 };
 
 /**
+ * Nested remount under an already-authed parent. Validation hook only.
+ * Does not run auth, coworker, organization, workspace, or seat middleware.
+ *
+ * Nesting `OpenAPIHonoWithAuth` re-runs bearer/session auth and, with the
+ * default `includeWorkspaceContext: false`, writes `workspaceContext: null`
+ * over a parent that already resolved workspace.
+ */
+export function createNestedOpenAPIHono() {
+  return new OpenAPIHono<EnvVariables>({
+    defaultHook: defaultValidationHook,
+  });
+}
+
+/**
  * Type-safe OpenAPIHono class with AuthContext in Variables
  * Use this for OpenAPI routes that require authentication
  *
  * Auth middleware is automatically applied - all routes are protected
  * Coworker context middleware runs after auth to attach optional workspace scope from headers.
- * Organization header middleware is also applied to set organizationId from X-Organization-Slug header
- * For mixed public/private routes, use standard OpenAPIHono class instead
+ * Organization context middleware verifies session membership, or sets organizationId from X-Organization-Slug
+ * For mixed public/private routes, use standard OpenAPIHono class instead.
+ * For nested remounts under this class, use `createNestedOpenAPIHono`.
  *
  * @example
  * const app = new OpenAPIHonoWithAuth();
- * // authMiddleware and organizationHeaderMiddleware are already applied
+ * // authMiddleware and organizationContextMiddleware are already applied
  */
 export class OpenAPIHonoWithAuth<
   ExtraVariables extends object = {},
@@ -75,7 +90,7 @@ export class OpenAPIHonoWithAuth<
 
     this.use(authMiddleware);
     this.use(coworkerContextMiddleware);
-    this.use(organizationHeaderMiddleware);
+    this.use(organizationContextMiddleware);
     this.use(workspaceMiddleware(includeWorkspaceContext));
     if (requireOrganizationProductSeat) {
       this.use(organizationProductSeatMiddleware);

@@ -85,8 +85,8 @@ export const CELL_TRACK = "flex w-12 shrink-0 justify-center @xl:w-18";
 export const CHANNEL_ICON: Record<StoredChannel, LucideIcon> = {
   IN_APP: Bell,
   OS_BANNER: Smartphone,
-  // Drawn in the email column rather than beside the other two, because only
-  // the reminder row stores this channel. `CHANNEL_SPECS` is what decides the
+  // Drawn in the email column rather than beside the other two, because not
+  // every row stores this channel. `CHANNEL_SPECS` is what decides the
   // columns, and `EMAIL` is deliberately absent from it.
   EMAIL: Mail,
 };
@@ -174,16 +174,14 @@ export function UnusedChannelCells({ kind }: { kind: string }) {
 /**
  * Email on one row.
  *
- * What it writes is an account switch rather than a cell of the matrix, so one
- * value can sit on more than one row: both job rows hold the job emails and
- * move together. The Email head over the column says so, once for the card,
- * rather than every cell in it saying so again.
+ * What it writes is an account switch rather than a cell of the matrix. The
+ * marketing row is the one that carries it.
  *
  * It does not speak what it wrote. The write behind it raises a toast, and the
- * toast names the account switch that moved, which is the fact a reader on a
- * shared value needs. Said here as well, one press would be announced twice in
- * two wordings. The channel cells still speak, because a press there moves the
- * sibling cell beside it, and no toast reports where the kind arrives now.
+ * toast names the account switch that moved. Said here as well, one press
+ * would be announced twice in two wordings. The channel cells still speak,
+ * because a press there moves the sibling cell beside it, and no toast reports
+ * where the kind arrives now.
  */
 export function EmailCell({
   name,
@@ -251,12 +249,10 @@ export function EmailCell({
  */
 function KindCells({
   kind,
-  email,
   pushBlock,
   onToggle,
 }: {
   kind: KindChoice;
-  email: EmailChoice;
   pushBlock: PushBlock | null;
   onToggle: (channel: StoredChannel, on: boolean) => void;
 }) {
@@ -265,8 +261,8 @@ function KindCells({
   const label = t(kind.spec.labelKey);
   const pushHintId = useId();
 
-  // The cells this row draws, which is the columns plus the reminder row's own
-  // email cell (SOK-916). One list rather than a cell drawn beside the loop,
+  // The cells this row draws, which is the columns plus the email cell of a
+  // row that mails. One list rather than a cell drawn beside the loop,
   // so the press, the state and the sentence the row speaks all read the same
   // set. Last in the list, which is where the email column sits on every other
   // row.
@@ -346,28 +342,15 @@ function KindCells({
   }, [arrival, awaiting, saving, cellSpecs, channels, label, t]);
 
   /**
-   * The email column on this row, which is one of three different things.
+   * The email column on this row, which is one of two different things.
    *
-   * `ACCOUNT` writes the account switch that the job rows share. `NONE` has
-   * nothing behind it and says so. `CHANNEL` is already drawn, by the loop
-   * over `cellSpecs`, because that one is a cell of the matrix like the two
-   * beside it and is written by the same path (SOK-916).
+   * `NONE` has nothing behind it and says so. `CHANNEL` is already drawn, by
+   * the loop over `cellSpecs`, because that one is a cell of the matrix like
+   * the two beside it and is written by the same path.
    */
   function emailCell() {
     if (kind.spec.email === "CHANNEL") {
       return null;
-    }
-
-    if (kind.spec.email === "ACCOUNT") {
-      return (
-        <EmailCell
-          name={t("channelCellLabel", {
-            channel: t("channelEmail"),
-            kind: label,
-          })}
-          email={email}
-        />
-      );
     }
 
     return (
@@ -452,14 +435,12 @@ function KindCells({
  */
 export function ChannelGrid({
   kinds,
-  email,
   pushBlock,
   showNames,
   heads,
   onToggle,
 }: {
   kinds: readonly KindChoice[];
-  email: EmailChoice;
   pushBlock: PushBlock | null;
   showNames: boolean;
   /** The column names, drawn once above the rows. */
@@ -493,7 +474,6 @@ export function ChannelGrid({
           ) : null}
           <KindCells
             kind={kind}
-            email={email}
             pushBlock={pushBlock}
             onToggle={(channel, on) => {
               onToggle(kind, channel, on);

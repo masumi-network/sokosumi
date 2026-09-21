@@ -2,9 +2,24 @@
 
 Native SwiftUI chat for macOS 26. iOS 17+ is planned; there is no iOS app target yet. Feature coverage and remaining work live in [PARITY.md](PARITY.md), and product intent in [VISION.md](VISION.md).
 
+
+## Install the latest build
+
+Every change to `apps/apple/**` (or the workflow itself) that reaches `main`
+publishes a signed, notarized disk image to the `apple-latest` prerelease. The
+URL never changes:
+
+**<https://github.com/masumi-network/sokosumi/releases/download/apple-latest/Sokosumi.dmg>**
+
+Open it and drag Sokosumi to Applications. It is a rolling build of `main`,
+not a stable release.
+
+Maintainers: the signing credentials behind that job are set up once by
+[`scripts/setup-release-signing.sh`](scripts/setup-release-signing.sh).
+
 ## Build and run
 
-Open `Sokosumi.xcodeproj`, select the `Sokosumi` scheme and My Mac, then run with the configured Apple Development signing identity. Xcode 27+ is required. Use a stable signing identity for interactive builds so the saved Keychain session remains accessible. See [AGENTS.md](AGENTS.md#interactive-signing) for signing and OAuth setup.
+Open `Sokosumi.xcworkspace` (not the bare project — the workspace is what makes the package tests reachable from the `Sokosumi` scheme), select the `Sokosumi` scheme and My Mac, then run with the configured Apple Development signing identity. Xcode 27+ is required. Use a stable signing identity for interactive builds so the saved Keychain session remains accessible. See [AGENTS.md](AGENTS.md#interactive-signing) for signing and OAuth setup.
 
 Configuration resolves environment variables before the corresponding Info.plist keys:
 
@@ -23,7 +38,7 @@ The Xcode navigator follows the physical source folders. Start with `Sokosumi/Ap
 | Location | Responsibility |
 | --- | --- |
 | `Sokosumi/App` | Scenes, root navigation, environment configuration |
-| `Sokosumi/Authentication` | Sign-in UI and system-browser integration |
+| `Sokosumi/Authentication` | Sign-in UI, system-browser integration and Keychain adapter for `TokenStore` |
 | `Sokosumi/Chat/Sidebar` | Conversation list and account/workspace menus |
 | `Sokosumi/Chat/Timeline` | Scrolling, message rows and status rows |
 | `Sokosumi/Chat/Threads` | Reply-thread presentation |
@@ -44,9 +59,9 @@ The app composes these UI-free packages:
 | --- | --- | --- |
 | `SokosumiWorkspace` | Coordination of auth, workspace, timelines, threads and realtime | All four packages below |
 | `CoreAPI` | Generated DTOs, HTTP client and client factory | None |
-| `SokosumiAuth` | OAuth lifecycle and token persistence | None |
+| `SokosumiAuth` | OAuth lifecycle and the `TokenStore` persistence port | None |
 | `SokosumiChat` | Workspace/room/thread state, sends, streaming, parsing, avatar loading and chat persistence | `CoreAPI` |
-| `SokosumiRealtime` | Ably transport, event delivery and org presence | `CoreAPI`, `SokosumiChat` |
+| `SokosumiRealtime` | Ably transport adapter, domain event delivery and org presence | `CoreAPI`, `SokosumiChat` |
 
 Views render package state and dispatch user actions through `WorkspaceState`. HTTP operations belong to `ChatService`/`CoreAPI`; token lifecycle belongs to `SokosumiAuth`. Chat read backoff lives in `SokosumiChat` (`ChatReadCooldown` and its client middleware), shared across clients by app composition and scoped to the OAuth login generation. The composer owns transient typing state so each keystroke does not invalidate the timeline. Rendering parses into portable models in `SokosumiChat`, then presents those models in SwiftUI.
 
@@ -68,9 +83,9 @@ Run from `apps/apple`:
 mint bootstrap
 mint run swiftformat --lint .
 mint run swiftlint lint --strict
-xcodebuild -project Sokosumi.xcodeproj -scheme Sokosumi -configuration Debug \
+xcodebuild -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug \
   -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation \
-  DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- test -only-testing:SokosumiTests
+  DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- test -enableCodeCoverage NO
 ```
 
-Run affected package suites with `swift test --package-path Packages/<package>`. CI runs all five package suites and app tests. Keep ad-hoc test builds separate from signed interactive builds. For structural changes, run the same tests before and after; also check navigation, composer focus, scrolling and hover actions in an interactive build when those views change.
+That one command runs the app tests and all five package suites. Narrow it with `-only-testing:<target>`, or rerun a single package quickly with `swift test --package-path Packages/<package>`. Keep ad-hoc test builds separate from signed interactive builds. For structural changes, run the same tests before and after; also check navigation, composer focus, scrolling and hover actions in an interactive build when those views change.

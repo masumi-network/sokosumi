@@ -2,12 +2,14 @@ import { MemberRole, type Prisma } from "@sokosumi/database";
 import {
   buildRoomQuoteSnippetParts,
   CHANNEL_SLUG_MAX_LENGTH,
+  canQuoteIntoRoom,
   channelNameFromSlug,
   formatParticipantNameList,
   getFirstName,
   MAX_LISTED_CHAT_REACTION_REACTORS,
   sanitizeChannelSlug,
 } from "@sokosumi/utils";
+import { HTTPException } from "hono/http-exception";
 
 import {
   buildCoworkerNonEmptyBaseUrlWhere,
@@ -653,10 +655,12 @@ export function mapChatRoomMessage(
 export function mergeChatRoomMessageMetadata(
   existing: unknown,
   quote: ChatRoomMessageQuote | null,
-): Record<string, unknown> | null {
-  const base =
+): Prisma.InputJsonObject | null {
+  // A value read back from a Json column may hold nulls, which is exactly what
+  // `InputJsonObject` permits — so widen rather than assert them away.
+  const base: Record<string, Prisma.InputJsonValue | null> =
     existing && typeof existing === "object" && !Array.isArray(existing)
-      ? { ...(existing as Record<string, unknown>) }
+      ? { ...(existing as Record<string, Prisma.InputJsonValue | null>) }
       : {};
 
   if (quote) {
@@ -694,10 +698,14 @@ function readQuoteAttachmentFromMetadata(
   };
 }
 
-function readQuoteFromMetadata(
-  metadata: Record<string, unknown> | null,
+/** Soft-parses `metadata.quote` from a stored message's metadata JSON. */
+export function readQuoteFromMetadata(
+  metadata: unknown,
 ): ChatRoomMessageQuote | null {
-  const raw = metadata?.quote;
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+  const raw = (metadata as Record<string, unknown>).quote;
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     return null;
   }
@@ -719,6 +727,11 @@ function readQuoteFromMetadata(
       ? { roomId: candidate.roomId }
       : {}),
   };
+}
+
+/** One answer for every quote refusal, so it never reveals what exists. */
+export function quotedMessageNotFound() {
+  return badRequest("Quoted message not found");
 }
 
 export const roomQuoteSourceSelect = {
@@ -768,7 +781,14 @@ export async function resolveRoomQuoteSnapshot(
   if (!quoteMessageId) {
     return null;
   }
+  return await loadRoomQuoteSnapshot(tx, roomId, quoteMessageId);
+}
 
+async function loadRoomQuoteSnapshot(
+  tx: Prisma.TransactionClient,
+  roomId: string,
+  quoteMessageId: string,
+): Promise<ChatRoomMessageQuote> {
   const quoted = await tx.chatRoomMessage.findFirst({
     where: {
       id: quoteMessageId,
@@ -779,10 +799,65 @@ export async function resolveRoomQuoteSnapshot(
   });
 
   if (!quoted) {
-    throw badRequest("Quoted message not found");
+    throw quotedMessageNotFound();
   }
 
   return buildRoomQuoteSnapshot(quoted);
+}
+
+/**
+ * Resolve a quote of a message in another room. Allowed only when the sender
+ * reads the source room and every human reader of the target room does too
+ * (`canQuoteIntoRoom`), so the snippet never reaches someone who cannot follow
+ * the Message link. Every refusal is the same 400, so the response does not
+ * reveal whether a room or message exists.
+ */
+export async function resolveCrossRoomQuoteSnapshot(
+  tx: Prisma.TransactionClient,
+  options: {
+    sourceRoomId: string;
+    quoteMessageId: string;
+    senderUserId: string;
+    targetMemberUserIds: readonly string[];
+  },
+): Promise<ChatRoomMessageQuote> {
+  const { sourceRoomId, quoteMessageId, senderUserId, targetMemberUserIds } =
+    options;
+
+  try {
+    await requireChatRoomUserMembership(sourceRoomId, senderUserId, tx);
+  } catch (error) {
+    if (error instanceof HTTPException) {
+      throw quotedMessageNotFound();
+    }
+    throw error;
+  }
+
+  const sourceMembers = await tx.chatRoomUserMember.findMany({
+    where: { roomId: sourceRoomId },
+    select: { userId: true },
+  });
+  if (
+    !canQuoteIntoRoom(
+      targetMemberUserIds,
+      sourceMembers.map((member) => member.userId),
+    )
+  ) {
+    throw quotedMessageNotFound();
+  }
+
+  try {
+    return {
+      ...(await loadRoomQuoteSnapshot(tx, sourceRoomId, quoteMessageId)),
+      roomId: sourceRoomId,
+    };
+  } catch (error) {
+    // A membership status message refuses with its own wording.
+    if (error instanceof HTTPException) {
+      throw quotedMessageNotFound();
+    }
+    throw error;
+  }
 }
 
 export function normalizeUniqueStrings(values: readonly string[]): string[] {

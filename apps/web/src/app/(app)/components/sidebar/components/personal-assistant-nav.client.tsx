@@ -14,7 +14,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRailSelectionBar,
+  SidebarRowSlot,
 } from "@/components/ui/sidebar";
+import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
@@ -30,49 +32,10 @@ export interface SidebarSokoBotAvatar {
   seed: string;
 }
 
-const MAX_STACK = 3;
-
-function stackFaceClass(faceCount: number): string {
-  return cn(
-    "size-5 shrink-0 rounded-full object-cover",
-    "group-data-[collapsible=icon]:border group-data-[collapsible=icon]:border-sidebar",
-    faceCount === 1
-      ? "group-data-[collapsible=icon]:size-4"
-      : "group-data-[collapsible=icon]:size-3",
-  );
-}
-
-/** Up to three workspace Soko Bots, overlapping like a team roster. */
-function BotStack({ bots }: { bots: SidebarSokoBotAvatar[] }) {
-  const faces = bots.slice(0, MAX_STACK);
-  const faceClass = stackFaceClass(faces.length);
-
-  return (
-    <span
-      data-slot="soko-bot-stack"
-      className="flex shrink-0 -space-x-1.5 group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:-space-x-2"
-      aria-hidden
-    >
-      {faces.map((bot) =>
-        bot.imageUrl ? (
-          <img key={bot.id} src={bot.imageUrl} alt="" className={faceClass} />
-        ) : (
-          <AuroraOrb
-            key={bot.id}
-            seed={bot.seed}
-            size={40}
-            className={faceClass}
-          />
-        ),
-      )}
-    </span>
-  );
-}
-
 export default function PersonalAssistantNav({
-  bots = [],
+  bot = null,
 }: {
-  bots?: SidebarSokoBotAvatar[];
+  bot?: SidebarSokoBotAvatar | null;
 }) {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
@@ -90,10 +53,19 @@ export default function PersonalAssistantNav({
       <SidebarGroupContent>
         <SidebarMenu className="gap-0">
           <SidebarMenuItem>
+            {/*
+              An ordinary Sidebar row, not a card. It used to be a 48px
+              bordered box expanded and a 32px square on the rail, holding a
+              stack of up to three faces that shrank as the stack grew — so
+              the entry above every other row was the one that moved the list
+              furthest on a toggle, and its mark changed size with the number
+              of bots in the workspace. One face at 20px in the shared slot
+              says the same thing and lines up with the nav under it; the
+              divider below still marks it as the entry it is.
+            */}
             <SidebarMenuButton
               asChild
               isActive={isActive}
-              size="lg"
               tooltip={t("sokoBot")}
             >
               <SheetClose asChild>
@@ -101,24 +73,24 @@ export default function PersonalAssistantNav({
                   href={SOKO_BOTS_ROUTE}
                   aria-current={isActive ? "page" : undefined}
                   className={cn(
-                    "flex min-h-auto w-full items-center gap-2.5 rounded-lg border px-3",
-                    "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-md group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:px-0",
-                    // On the rail this row keeps the expanded card's hover
-                    // (primary border, accent fill) instead of the shared
-                    // neutral ring, so the featured entry stays featured.
-                    // `!` beats the variant's equally specific rail rules.
-                    "group-data-[collapsible=icon]:hover:ring-0! group-data-[collapsible=icon]:active:ring-0! group-data-[collapsible=icon]:hover:bg-sidebar-accent!",
                     isActive
-                      ? "border-transparent text-sidebar-accent-foreground"
-                      : "border-primary-tertiary hover:border-primary text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                      ? "text-sidebar-accent-foreground"
+                      : "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                   )}
                 >
-                  {bots.length > 0 ? (
-                    <BotStack bots={bots} />
-                  ) : (
-                    <Bot className="size-4 shrink-0" aria-hidden />
-                  )}
-                  <span className="flex-1 truncate font-medium group-data-[collapsible=icon]:sr-only">
+                  <SidebarRowSlot>
+                    {bot ? (
+                      <BotFace bot={bot} />
+                    ) : (
+                      <Bot className="size-4" aria-hidden />
+                    )}
+                  </SidebarRowSlot>
+                  <span
+                    className={cn(
+                      SIDEBAR_ROW_LABEL_CLASS,
+                      "truncate font-medium",
+                    )}
+                  >
                     {t("sokoBot")}
                   </span>
                 </Link>
@@ -130,4 +102,21 @@ export default function PersonalAssistantNav({
       </SidebarGroupContent>
     </SidebarGroup>
   );
+}
+
+/**
+ * The workspace's first Soko Bot — yours when you have one.
+ *
+ * 20px, the size every face in this sidebar is: this row stands directly
+ * above the chat lists, so a face here and a Direct's face below it are read
+ * as one column. One size in both states, so the toggle cannot resize it.
+ */
+function BotFace({ bot }: { bot: SidebarSokoBotAvatar }) {
+  const className = "size-5 shrink-0 rounded-full object-cover";
+
+  if (bot.imageUrl) {
+    return <img src={bot.imageUrl} alt="" className={className} aria-hidden />;
+  }
+
+  return <AuroraOrb seed={bot.seed} size={40} className={className} />;
 }

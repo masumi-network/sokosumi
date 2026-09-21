@@ -4,13 +4,15 @@ import { err, ok } from "neverthrow";
 import { useTranslations } from "next-intl";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { VendorGrantApprovalActions } from "@/components/vendor-grants/vendor-grant-approval-actions";
-import { createMyVendorGrant } from "@/lib/actions/account/vendor-grant-action";
 import {
   type ActionResultDto,
   toActionResult,
 } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors";
-import { createOrganizationVendorGrant } from "@/lib/actions/organization/vendor-grant-action";
+import {
+  createMyVendorGrant,
+  createOrganizationVendorGrant,
+} from "@/lib/actions/vendor-grant-action";
 
 interface TasksPendingVendorGrantBannerProps {
   canApprove: boolean;

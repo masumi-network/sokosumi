@@ -185,6 +185,33 @@
       #expect(input.captureDraft() == "hello\n")
     }
 
+    @Test func pasteSwapRemovesTheInsertedTextAndLeavesABlankDraft() {
+      let pasteboard = NSPasteboard.withUniqueName()
+      defer { pasteboard.releaseGlobally() }
+      let url = "https://app.sokosumi.com/chat/rooms/source?message=m1"
+      pasteboard.setString(url, forType: .string)
+      let input = MacComposerTextInput.InputView()
+      input.isRichText = true
+      var paste: ComposerTextPaste?
+      input.onPaste = { paste = $0 }
+      input.pasteText(from: pasteboard)
+      #expect(paste?.text == url)
+      #expect(input.captureDraft() == "\(url)\n")
+      #expect(paste?.remove() == true)
+      let leftover = input.captureDraft()
+      #expect(!leftover.contains(url))
+      #expect(leftover.isEmpty)
+      #expect(paste?.remove() == false)
+    }
+
+    @Test func insertAtCaretPutsTextAtTheSelection() {
+      let input = MacComposerTextInput.InputView()
+      input.restoreDraft("ab")
+      input.setSelectedRange(NSRange(location: 1, length: 0))
+      input.insertAtCaret("X")
+      #expect(input.captureDraft() == "aXb\n")
+    }
+
     @Test func linkReplacementWithDifferentLengthIsUndoable() {
       let input = MacComposerTextInput.InputView()
       let delegate = UndoDelegate()

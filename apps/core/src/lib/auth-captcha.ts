@@ -1,4 +1,7 @@
-import { AUTH_CAPTCHA_ACTION } from "@sokosumi/utils";
+import {
+  AUTH_CAPTCHA_ACTION,
+  TURNSTILE_ALWAYS_PASS_SECRET,
+} from "@sokosumi/utils";
 import { captcha } from "better-auth/plugins";
 
 export function createAuthCaptchaPlugin(secretKey: string | undefined) {
@@ -7,7 +10,11 @@ export function createAuthCaptchaPlugin(secretKey: string | undefined) {
   return captcha({
     provider: "cloudflare-turnstile",
     secretKey,
-    expectedAction: AUTH_CAPTCHA_ACTION,
+    // Dummy siteverify succeeds with no `action`; expectedAction would 403 every local token.
+    expectedAction:
+      secretKey === TURNSTILE_ALWAYS_PASS_SECRET
+        ? undefined
+        : AUTH_CAPTCHA_ACTION,
     // Custom endpoints replace Better Auth's defaults. Include every public
     // account-email entry point, including resends and address changes.
     endpoints: [

@@ -37,6 +37,17 @@ const browserCoreApiBaseUrl = normalizeCoreApiBaseUrl(
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
+  // Old public job shares lived at /share/jobs/:token. Canonical URL is
+  // /share/:token (jobs and tasks). Keep a 308 so bookmarks still resolve.
+  async redirects() {
+    return [
+      {
+        source: "/share/jobs/:token",
+        destination: "/share/:token",
+        permanent: true,
+      },
+    ];
+  },
   // Portless named URLs (`https://web.sokosumi.localhost`) and worktree
   // prefixes (`https://main.web.sokosumi.localhost`) hit Next as cross-origin
   // from the proxy. Classic `localhost:3000` still works.
@@ -73,7 +84,12 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     serverActions: {
-      bodySizeLimit: "20mb",
+      // The largest body any Server Action needs is the coworker image
+      // upload: COWORKER_IMAGE_MAX_SIZE_BYTES (2 MB) plus multipart framing.
+      // Every other action carries small JSON. Job and task files are
+      // uploaded straight to Core, not through a Server Action. Core keeps
+      // its own authoritative caps.
+      bodySizeLimit: "4mb",
     },
     ...(!isWebpackDev && { turbopackRustReactCompiler: true }),
     optimizePackageImports: ["lucide-react", "radix-ui"],

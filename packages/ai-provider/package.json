@@ -35,12 +35,11 @@
   },
   "dependencies": {
     "@ai-sdk/provider": "4.0.17",
-    "@sokosumi/chat": "workspace:*",
     "@sokosumi/utils": "workspace:*"
   },
   "devDependencies": {
-    "@ai-sdk/provider-utils": "5.0.43",
-    "@types/node": "24.13.5",
+    "@ai-sdk/provider-utils": "5.0.45",
+    "@types/node": "24.13.6",
     "@typescript/typescript6": "6.0.2",
     "typescript": "7.0.2",
     "vitest": "5.0.1"

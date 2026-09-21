@@ -10,14 +10,13 @@ sokosumi/
 │   ├── web/         # Next.js 16 web app (TypeScript, Tailwind, Shadcn UI)
 │   ├── core/        # Hono API — owns all Postgres/Prisma access
 │   ├── apple/       # Native macOS + iOS — Xcode (outside turbo and Biome)
-│   └── cli/         # Developer CLI — private sokosumi package (SPEC + VISION)
+│   └── cli/         # Developer CLI — Ink TUI and headless commands (SPEC + VISION)
 ├── packages/
 │   ├── database/    # @sokosumi/database — Prisma client, helpers, repositories
 │   ├── masumi/      # @sokosumi/masumi — protocol clients, hash, schemas
 │   ├── utils/       # @sokosumi/utils — client-safe helpers
 │   ├── net/         # @sokosumi/net — SSRF-safe fetch
 │   ├── email/       # @sokosumi/email — renderers and locales
-│   ├── chat/        # @sokosumi/chat — chat types
 │   ├── ai-provider/ # @sokosumi/ai-provider — Sokosumi AI SDK provider
 │   └── soko-bot/    # @sokosumi/soko-bot — Soko Bot contracts (runtime is in Core)
 ├── docs/            # Agent, domain, coworker, and design docs

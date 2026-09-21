@@ -6,7 +6,6 @@ import mountDeleteTaskShareById from "./delete";
 
 const {
   authContextState,
-  prismaTransactionMock,
   requireMutableTaskOwnershipMock,
   deleteByTaskIdMock,
 } = vi.hoisted(() => ({
@@ -31,7 +30,6 @@ const {
         }
       | null,
   },
-  prismaTransactionMock: vi.fn(),
   requireMutableTaskOwnershipMock: vi.fn(),
   deleteByTaskIdMock: vi.fn(),
 }));
@@ -82,9 +80,12 @@ vi.mock("@sokosumi/database/repositories", () => ({
   },
 }));
 
-vi.mock("@/lib/db/prisma", () => ({
+vi.mock("@/lib/db/prisma", async () => ({
   default: {
-    $transaction: (...args: unknown[]) => prismaTransactionMock(...args),
+    member: {
+      findUnique: (await import("@/test-fixtures/organization-membership"))
+        .stubMemberFindUnique,
+    },
   },
 }));
 
@@ -103,9 +104,6 @@ describe("DELETE /tasks/{id}/share", () => {
       organizationId: "org_123",
       role: "user",
     };
-    prismaTransactionMock.mockImplementation(
-      async (callback: (tx: unknown) => Promise<unknown>) => await callback({}),
-    );
     requireMutableTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
       ownerId: "user_123",

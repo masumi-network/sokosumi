@@ -3,8 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   renderChatRoomInvitationEmail,
   renderJobFailureNotificationEmail,
-  renderJobFinalStatusEmail,
-  renderJobInputRequiredEmail,
+  renderLowBalanceEmail,
   renderMagicLinkEmail,
   renderOrganizationInvitationEmail,
   renderResetPasswordEmail,
@@ -102,61 +101,6 @@ describe("email renderers", () => {
     );
   });
 
-  it("renders job final status emails with fallback job names in a localized locale", async () => {
-    const rendered = await renderJobFinalStatusEmail({
-      agentName: "Planner",
-      jobLink: "https://example.com/job",
-      jobStatus: "completed",
-      locale: "es",
-      recipientName: "Andreas",
-    });
-
-    expect(rendered.subject).toBe("Sokosumi - Job completado de Planner");
-    expect(rendered.html).toContain("Tu job");
-    expect(rendered.html).toContain("Planner");
-  });
-
-  it("falls back to a generic job greeting for blank recipient names", async () => {
-    const rendered = await renderJobFinalStatusEmail({
-      agentName: "Planner",
-      jobLink: "https://example.com/job",
-      jobStatus: "completed",
-      locale: "en",
-      recipientName: "   ",
-    });
-
-    expect(rendered.html).toContain("Hi");
-    expect(rendered.html).not.toContain("Hi   ");
-  });
-
-  it("renders job input required emails", async () => {
-    const rendered = await renderJobInputRequiredEmail({
-      agentName: "Planner",
-      jobLink: "https://example.com/job",
-      jobName: "Quarterly review",
-      locale: "en",
-      recipientName: "Andreas",
-    });
-
-    expect(rendered.subject).toBe("Sokosumi - Planner needs your input");
-    expect(rendered.html).toContain("Quarterly review");
-    expect(rendered.html).toContain("Provide input");
-  });
-
-  it("renders job input required fallback copy without duplicating the fallback job name", async () => {
-    const rendered = await renderJobInputRequiredEmail({
-      agentName: "Planner",
-      jobLink: "https://example.com/job",
-      locale: "en",
-      recipientName: "Andreas",
-    });
-
-    expect(rendered.html).toContain(
-      "Your job for Planner is waiting for your input to continue.",
-    );
-    expect(rendered.html).not.toContain("Your job Your job");
-  });
-
   it("renders job failure notification emails with formatted output", async () => {
     const rendered = await renderJobFailureNotificationEmail({
       agentBlockchainIdentifier: "agent-blockchain-id",
@@ -176,5 +120,21 @@ describe("email renderers", () => {
     expect(rendered.html).toContain("agent-blockchain-id");
     expect(rendered.html).toContain("&quot;error&quot;: &quot;failure&quot;");
     expect(rendered.html).toContain("result-hash");
+  });
+
+  it("renders a low-balance billing email with the remaining credits", async () => {
+    const rendered = await renderLowBalanceEmail({
+      actionUrl: "https://app.sokosumi.com/billing?tab=credits",
+      credits: 12,
+      locale: "en",
+      recipientName: "Sandro",
+    });
+
+    expect(rendered.subject).toBe("Sokosumi - Your credits are running low");
+    expect(rendered.html).toContain("Hi Sandro");
+    expect(rendered.html).toContain("12");
+    expect(rendered.html).toContain(
+      "https://app.sokosumi.com/billing?tab=credits",
+    );
   });
 });

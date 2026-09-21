@@ -10,10 +10,10 @@ private func cell(_ category: String, _ channel: String, _ enabled: Bool) -> Str
 /// Core's defaults: mentions and direct messages everywhere, room messages off, plus one non-chat row.
 private func matrixBody(
   room: (Bool, Bool) = (false, false), mention: (Bool, Bool) = (true, true), direct: (Bool, Bool) = (true, true),
-  jobBanner: Bool = true, pushOptIn: Bool = false
+  otherBanner: Bool = true, pushOptIn: Bool = false
 ) -> String {
   let cells = [
-    cell("JOB_ATTENTION", "IN_APP", true), cell("JOB_ATTENTION", "OS_BANNER", jobBanner),
+    cell("TASK_ATTENTION", "IN_APP", true), cell("TASK_ATTENTION", "OS_BANNER", otherBanner),
     cell("CHAT_ROOM_MESSAGE", "IN_APP", room.0), cell("CHAT_ROOM_MESSAGE", "OS_BANNER", room.1),
     cell("CHAT_MENTION", "IN_APP", mention.0), cell("CHAT_MENTION", "OS_BANNER", mention.1),
     cell("CHAT_DIRECT_MESSAGE", "IN_APP", direct.0), cell("CHAT_DIRECT_MESSAGE", "OS_BANNER", direct.1),
@@ -95,8 +95,8 @@ struct ChatNotificationPreferencesTests {
 
   @Test func lastBannerOffReleasesTheConsent() async throws {
     let transport = TestTransport([
-      (200, matrixBody(mention: (true, false), direct: (true, true), jobBanner: false, pushOptIn: true)),
-      (200, matrixBody(mention: (true, false), direct: (false, false), jobBanner: false, pushOptIn: false))
+      (200, matrixBody(mention: (true, false), direct: (true, true), otherBanner: false, pushOptIn: true)),
+      (200, matrixBody(mention: (true, false), direct: (false, false), otherBanner: false, pushOptIn: false))
     ])
     let client = try makeTestClient(transport)
     let preferences = ChatNotificationPreferences()

@@ -386,6 +386,8 @@ describe("chat room user auth guards", () => {
               _count: { replies: 0 },
             }),
           },
+          // The human mention rows are written in the same transaction.
+          chatRoomUserMember: { findMany: vi.fn().mockResolvedValue([]) },
         }),
     );
 
@@ -531,22 +533,25 @@ const membershipScopedCases: AuthRequestCase[] = [
   },
 ];
 
-// Room-scoped membership GETs that must not open interactive txs.
-// List GET / is not room-scoped (no single-room 404 path) — covered in get.test.ts.
+// Room-scoped membership checks that must not open interactive txs.
+// Stream POST runs write-access on the default client; the later write tx
+// only runs after membership succeeds. List GET / is not room-scoped (no
+// single-room 404 path) — covered in get.test.ts.
 const membershipCasesWithoutInteractiveTx = new Set([
   "GET /{id}",
   "GET /{id}/messages",
   "GET /{id}/messages/{messageId}",
   "GET /{id}/stream/messages",
   "GET /{id}/stream/active",
+  "POST /{id}/stream",
 ]);
 
 describe("chat room membership isolation", () => {
   it.each(membershipScopedCases)(
     "$label returns 404 when caller is not a room member",
     async ({ label, request }) => {
-      // Read GETs no longer open interactive txs — membership miss is on the
-      // default client. Write paths still go through $transaction.
+      // Membership miss is on the default client for read GETs and stream
+      // POST access. Other write paths still go through $transaction.
       roomFindFirstMock.mockResolvedValue(null);
       prismaTransactionMock.mockImplementation(
         async (callback: (tx: unknown) => Promise<unknown>) =>

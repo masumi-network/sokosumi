@@ -39,3 +39,14 @@ Create a Linear issue in the Sokosumi team (`--team SOK`).
 ## When a skill says "fetch the relevant ticket"
 
 `linear issue view <id> --json --no-pager --no-download`. If `linear` is not on PATH, `get_issue` plus `list_comments`.
+
+## Wayfinding operations
+
+Used by `/wayfinder`. The **map** is a single Linear issue with **child** issues as tickets.
+
+- **Map**: a single issue labelled `wayfinder:map`, holding the Notes / Decisions-so-far / Fog body. `linear issue create --no-interactive --no-use-default-template --team SOK --project sokosumi-6357694ddd23 --title "..." --description-file <path> --label wayfinder:map`. Create the team label first if it is missing (`linear label create --team SOK --name wayfinder:map`).
+- **Child ticket**: `linear issue create --no-interactive --no-use-default-template --team SOK --project sokosumi-6357694ddd23 --parent SOK-XXX --title "..." --description-file <path> --label wayfinder:<type>` (`research` / `prototype` / `grilling` / `task`). Once claimed, assign to the driving dev.
+- **Blocking**: Linear's **native relation**, the canonical, UI-visible representation. `linear issue relation add SOK-123 blocked-by SOK-100`. A ticket is unblocked when every blocker is closed.
+- **Frontier query**: `linear issue view <map> --json --no-pager --no-download` — the map's **children**. Drop any with an assignee or an open `blocked-by` (`linear issue relation list <child> --json`). `issue query` has no `--parent` filter. First in map order wins.
+- **Claim**: `linear issue update SOK-555 --assignee self`, the session's first write.
+- **Resolve**: `linear issue comment add SOK-555 --body-file <path>`, then `linear issue update SOK-555 --state Done`, then append a context pointer (gist + link) to the map's Decisions-so-far.

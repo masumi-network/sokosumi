@@ -48,7 +48,6 @@ export function createRegistryClient(
         !response.data.data ||
         response.response?.status !== 200
       ) {
-        console.error("Error in diff sync operation:", response.error);
         return err(response.error ? String(response.error) : "Unknown error");
       }
       return ok(response.data.data.entries);

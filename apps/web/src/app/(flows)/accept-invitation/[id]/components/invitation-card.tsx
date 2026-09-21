@@ -12,8 +12,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PendingInvitationErrorCode } from "@/lib/services";
 import type { PendingInvitationDetail } from "@/lib/services/organization.service";
+import { PendingInvitationErrorCode } from "@/lib/services/organization.service";
 
 import InvitationActions from "./invitation-actions";
 

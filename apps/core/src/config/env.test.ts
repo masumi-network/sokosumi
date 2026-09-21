@@ -1,3 +1,4 @@
+import { TURNSTILE_ALWAYS_PASS_SECRET } from "@sokosumi/utils";
 import type { MockInstance } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -156,6 +157,49 @@ describe("Turnstile deployment configuration", () => {
 
     expect(consoleWarn).toHaveBeenCalledWith(
       expect.stringContaining("TURNSTILE_SECRET_KEY is unset"),
+    );
+  });
+
+  it("refuses to boot production with the always-passes test secret", () => {
+    // Unlike an unset secret, this one serves a captcha that passes every
+    // token, forged ones included, so the endpoints look protected. A warning
+    // in a build log would not be read; production does not start.
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("TURNSTILE_SECRET_KEY", TURNSTILE_ALWAYS_PASS_SECRET);
+
+    expectInvalidEnvironment("always-passes testing secret");
+  });
+
+  it("refuses to boot Vercel production with the always-passes test secret", () => {
+    vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubEnv("TURNSTILE_SECRET_KEY", TURNSTILE_ALWAYS_PASS_SECRET);
+
+    expectInvalidEnvironment("always-passes testing secret");
+  });
+
+  it("warns but boots on a preview holding the always-passes test secret", () => {
+    // Previews are throwaway, and a test key there is what lets an agent drive
+    // the sign-in form without answering a human check. Failing would close
+    // that door along with the hole.
+    vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubEnv("TURNSTILE_SECRET_KEY", TURNSTILE_ALWAYS_PASS_SECRET);
+
+    expect(validateEnv().TURNSTILE_SECRET_KEY).toBe(
+      TURNSTILE_ALWAYS_PASS_SECRET,
+    );
+    expect(consoleWarn).toHaveBeenCalledWith(
+      expect.stringContaining("always-passes testing secret"),
+    );
+  });
+
+  it("stays quiet about the test secret on a local machine", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("TURNSTILE_SECRET_KEY", TURNSTILE_ALWAYS_PASS_SECRET);
+
+    validateEnv();
+
+    expect(consoleWarn).not.toHaveBeenCalledWith(
+      expect.stringContaining("always-passes testing secret"),
     );
   });
 

@@ -6,42 +6,40 @@
     "node": "24.x"
   },
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "default": "./dist/index.js"
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
     },
     "./client": {
-      "types": "./dist/client.d.ts",
-      "import": "./dist/client.js",
-      "default": "./dist/client.js"
+      "types": "./src/client.ts",
+      "import": "./src/client.ts",
+      "default": "./src/client.ts"
     },
     "./repositories": {
-      "types": "./dist/repositories/index.d.ts",
-      "import": "./dist/repositories/index.js",
-      "default": "./dist/repositories/index.js"
+      "types": "./src/repositories/index.ts",
+      "import": "./src/repositories/index.ts",
+      "default": "./src/repositories/index.ts"
     },
     "./helpers": {
-      "types": "./dist/helpers/index.d.ts",
-      "import": "./dist/helpers/index.js",
-      "default": "./dist/helpers/index.js"
+      "types": "./src/helpers/index.ts",
+      "import": "./src/helpers/index.ts",
+      "default": "./src/helpers/index.ts"
     },
     "./types/job": {
-      "types": "./dist/types/job.d.ts",
-      "import": "./dist/types/job.js",
-      "default": "./dist/types/job.js"
+      "types": "./src/types/job.ts",
+      "import": "./src/types/job.ts",
+      "default": "./src/types/job.ts"
     }
   },
   "files": [
-    "dist",
+    "src",
     "prisma/schema.prisma"
   ],
   "scripts": {
-    "build": "tsc",
-    "clean": "rm -rf dist && rm tsconfig.tsbuildinfo",
     "prisma:generate": "pnpm exec prisma generate --no-hints",
     "prisma:migrate:dev": "pnpm exec prisma migrate dev",
     "prisma:migrate:deploy": "pnpm exec prisma migrate deploy",
@@ -71,12 +69,12 @@
     "pg": "8.23.0"
   },
   "devDependencies": {
-    "@types/node": "24.13.5",
+    "@types/node": "24.13.6",
     "@types/pg": "8.23.1",
     "@typescript/typescript6": "6.0.2",
-    "dotenv": "17.4.2",
+    "dotenv": "18.0.1",
     "prisma": "7.10.0",
-    "tsx": "4.23.13",
+    "tsx": "4.23.15",
     "typescript": "7.0.2",
     "vitest": "5.0.1"
   }

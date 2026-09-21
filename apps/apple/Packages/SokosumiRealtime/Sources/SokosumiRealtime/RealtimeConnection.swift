@@ -36,5 +36,10 @@ public protocol RealtimeConnection: AnyObject, Sendable {
   /// Latest presence data for this client. The coordinator throttles; the
   /// transport re-sends it after every (re)authorization.
   func publishPresence(_ data: ChatPresenceMemberData)
+  /// Whether the app is in front of the reader. Enters presence on the
+  /// notifications channel while it is and leaves when it goes behind, so
+  /// Core can hold a notification email back for a reader who is looking
+  /// (SOK-1090). Kept until the channel exists, which is after connect.
+  func setInFront(_ inFront: Bool)
   func disconnect()
 }

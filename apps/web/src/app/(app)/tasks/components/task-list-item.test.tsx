@@ -39,6 +39,7 @@ function buildTask(visibility: TaskVisibility): TaskWithCoworker {
     descriptionPlain: null,
     ownerId: "user-1",
     owner: { id: "user-1", name: "Owner", image: null },
+    project: null,
     assignee: null,
     commentsCount: 0,
     createdAt: "2026-03-01T00:00:00.000Z",
@@ -53,6 +54,14 @@ function buildTask(visibility: TaskVisibility): TaskWithCoworker {
 }
 
 describe("TaskListItem privacy cue", () => {
+  it("uses the hover step past the card surface", () => {
+    render(<TaskListItem task={buildTask(TaskVisibility.PUBLIC)} />);
+
+    expect(
+      screen.getByTestId("task-detail-link").className.split(/\s+/),
+    ).toContain("hover:bg-card-background-hover");
+  });
+
   it("shows the privacy icon beside status for PRIVATE tasks", () => {
     render(<TaskListItem task={buildTask(TaskVisibility.PRIVATE)} />);
 

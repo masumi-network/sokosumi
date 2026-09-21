@@ -1,10 +1,11 @@
 import type { NotificationKind } from "@sokosumi/database";
 import {
+  BILLING_LOW_BALANCE_MESSAGE_KEY,
+  BILLING_PAYMENT_FAILED_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_MENTION_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
   isFollowUpMessageKey,
-  JOB_INPUT_REQUIRED_MESSAGE_KEY,
   NOTIFICATION_CATEGORIES,
   NOTIFICATION_CHANNELS,
   NOTIFICATION_EMAIL_CATEGORIES,
@@ -69,15 +70,6 @@ export const TASK_ATTENTION_MESSAGE_KEYS: readonly string[] = [
  */
 export const TASK_COMPLETED_MESSAGE_KEY = "Notifications.Task.completed";
 
-/** The job keys that wait on the reader. Same split as the task keys. */
-export const JOB_ATTENTION_MESSAGE_KEYS: readonly string[] = [
-  JOB_INPUT_REQUIRED_MESSAGE_KEY,
-  "Notifications.Job.paymentFailed",
-];
-
-/** The key a finished job carries. Its own row for the same reason. */
-export const JOB_COMPLETED_MESSAGE_KEY = "Notifications.Job.completed";
-
 /**
  * The task keys that mean the task has stopped waiting on anybody (SOK-916).
  *
@@ -98,18 +90,18 @@ export const TASK_TERMINAL_MESSAGE_KEYS: readonly string[] = [
 ];
 
 /**
- * The job keys that mean the job has stopped waiting on anybody. Story 16.
+ * The billing keys that wait on the reader (SOK-932).
  *
- * Deliberately only the two the story names. A job also emits
- * `refundResolved` and `disputeResolved`, and each plausibly settles a job
- * whose payment failed, but what they mean for a job that is still running was
- * not established here and guessing would clear an attention row that is still
- * live. Leaving them out costs a stale reminder in a case that already had
- * one; putting them in could cost a real one.
+ * A wallet that ran low stops work once it runs out, and a failed payment
+ * ends the subscription once Stripe gives up retrying. Both are questions
+ * only the reader can answer, so they share the loud row. A receipt for a
+ * top-up and the notice that a subscription ends at period end are read
+ * later or never, and they take the quiet one. As with tasks, a key added
+ * later is an update until it is listed here.
  */
-export const JOB_TERMINAL_MESSAGE_KEYS: readonly string[] = [
-  JOB_COMPLETED_MESSAGE_KEY,
-  "Notifications.Job.failed",
+export const BILLING_ATTENTION_MESSAGE_KEYS: readonly string[] = [
+  BILLING_LOW_BALANCE_MESSAGE_KEY,
+  BILLING_PAYMENT_FAILED_MESSAGE_KEY,
 ];
 
 /**
@@ -136,11 +128,13 @@ export interface NotificationDelivery {
   inApp: boolean;
   osBanner: boolean;
   /**
-   * The reader's inbox (SOK-916).
+   * The reader's inbox (SOK-916, SOK-1090).
    *
-   * Only ever true for a category that sends email at all, which today is
-   * follow-ups alone (`NOTIFICATION_EMAIL_CATEGORIES`). Every other category
-   * has no email to send, so the answer here is no rather than unasked.
+   * Only ever true for a category that sends email at all
+   * (`NOTIFICATION_EMAIL_CATEGORIES`). Every other category has no email to
+   * send, so the answer here is no rather than unasked. Billing news stays
+   * off this list because Stripe already mails those receipts and
+   * cancellations.
    *
    * Unlike the banner there is no account-wide consent gating this. The
    * address is already the one the account signs in with, and the row in the
@@ -164,11 +158,11 @@ export interface NotificationDelivery {
  * Every kind splits by message key, because a reader chooses between an
  * @mention and a direct message, or between a task that waits on them, a task
  * that finished and a task that was canceled, rather than between the kinds a
- * producer happens to emit. Jobs split the same three ways.
+ * producer happens to emit.
  *
  * Null means the defaults apply and nothing is stored against it: a chat key
- * added later that nobody mapped, and BILLING, which no producer emits yet. A
- * row would be a switch that controls nothing, so there is none.
+ * added later that nobody mapped, and JOB, which no producer emits any more
+ * (SOK-930). A row would be a switch that controls nothing, so there is none.
  *
  * Follow-ups are the one exception to the split-by-key rule, and they break it
  * in the other direction: every follow-up key, whatever its kind, answers to
@@ -186,13 +180,6 @@ export function toNotificationCategory(
   }
 
   switch (kind) {
-    case "JOB":
-      if (JOB_ATTENTION_MESSAGE_KEYS.includes(messageKey)) {
-        return "JOB_ATTENTION";
-      }
-      return messageKey === JOB_COMPLETED_MESSAGE_KEY
-        ? "JOB_COMPLETED"
-        : "JOB_UPDATE";
     case "TASK":
       if (TASK_ATTENTION_MESSAGE_KEYS.includes(messageKey)) {
         return "TASK_ATTENTION";
@@ -200,6 +187,10 @@ export function toNotificationCategory(
       return messageKey === TASK_COMPLETED_MESSAGE_KEY
         ? "TASK_COMPLETED"
         : "TASK_UPDATE";
+    case "BILLING":
+      return BILLING_ATTENTION_MESSAGE_KEYS.includes(messageKey)
+        ? "BILLING_ATTENTION"
+        : "BILLING_UPDATE";
     case "SYSTEM":
       return "SYSTEM";
     case "CHAT":

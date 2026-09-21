@@ -49,22 +49,43 @@ vi.mock("@sentry/node", () => ({
   captureException: (...args: unknown[]) => captureExceptionMock(...args),
 }));
 
+const { dispatchNotificationEmailMock, cancelNotificationEmailsMock } =
+  vi.hoisted(() => ({
+    dispatchNotificationEmailMock: vi.fn(),
+    cancelNotificationEmailsMock: vi.fn(),
+  }));
+
+vi.mock("@/helpers/notification-email-dispatch", () => ({
+  EMAILED_NOTIFICATION_COLUMNS: {
+    id: true,
+    emailId: true,
+    emailScheduledAt: true,
+  },
+  dispatchNotificationEmail: (...args: unknown[]) =>
+    dispatchNotificationEmailMock(...args),
+  cancelNotificationEmails: (...args: unknown[]) =>
+    cancelNotificationEmailsMock(...args),
+}));
+
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (promise: Promise<unknown>) => promise,
+}));
+
 const CREATED_AT = new Date("2026-06-18T09:00:00.000Z");
 const READ_AT = new Date("2026-06-18T09:30:00.000Z");
-const JOB_KIND = NotificationKind.JOB;
+const TASK_KIND = NotificationKind.TASK;
 
 const notificationInput: CreateNotificationInput = {
   userId: "user_123",
-  kind: JOB_KIND,
-  referenceId: "job_123",
-  eventId: "job_event_123",
-  messageKey: "Notifications.Job.completed",
+  kind: TASK_KIND,
+  referenceId: "task_123",
+  eventId: "task_event_123",
+  messageKey: "Notifications.Task.completed",
   messageParams: {
-    agentName: "Research Agent",
-    jobName: "Market Analysis",
+    coworkerName: "Ada",
+    taskName: "Market Analysis",
   },
   metadata: {
-    agentId: "agent_123",
     projectId: "project_123",
   },
 };
@@ -85,6 +106,8 @@ function createNotificationRecord(
     readAt: null,
     createdAt: CREATED_AT,
     inApp: true,
+    emailId: null,
+    emailScheduledAt: null,
     ...overrides,
   };
 }
@@ -93,8 +116,10 @@ function createPrismaMock() {
   return {
     notification: {
       create: vi.fn(),
+      findMany: vi.fn().mockResolvedValue([]),
       findUnique: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
       upsert: vi.fn(),
       deleteMany: vi.fn(),
     },
@@ -197,11 +222,11 @@ describe("createNotification", () => {
   it("creates a separate row when the message key differs for the same event", async () => {
     publishNotificationEventMock.mockClear();
     const existing = createNotificationRecord({
-      messageKey: "Notifications.Job.completed",
+      messageKey: "Notifications.Task.completed",
     });
     const created = createNotificationRecord({
       id: "notification_456",
-      messageKey: "Notifications.Job.paymentFailed",
+      messageKey: "Notifications.Task.outOfCredits",
     });
     const prismaMock = createPrismaMock();
     prismaMock.notification.create.mockResolvedValue(created);
@@ -209,7 +234,7 @@ describe("createNotification", () => {
     const result = await createNotification(
       {
         ...notificationInput,
-        messageKey: "Notifications.Job.paymentFailed",
+        messageKey: "Notifications.Task.outOfCredits",
       },
       prismaMock as unknown as typeof prisma,
     );
@@ -221,7 +246,7 @@ describe("createNotification", () => {
         kind: notificationInput.kind,
         referenceId: notificationInput.referenceId,
         eventId: notificationInput.eventId,
-        messageKey: "Notifications.Job.paymentFailed",
+        messageKey: "Notifications.Task.outOfCredits",
         messageParams: JSON.stringify(notificationInput.messageParams),
         metadata: JSON.stringify(notificationInput.metadata),
         inApp: true,
@@ -229,7 +254,7 @@ describe("createNotification", () => {
     });
     expect(publishNotificationEventMock).toHaveBeenCalled();
     expect(prismaMock.notification.findUnique).not.toHaveBeenCalled();
-    expect(existing.messageKey).toBe("Notifications.Job.completed");
+    expect(existing.messageKey).toBe("Notifications.Task.completed");
   });
 
   it("preserves read state when a duplicate emit arrives after mark-read", async () => {
@@ -395,14 +420,15 @@ describe("createNotification push gating", () => {
   ] as const;
 
   /**
-   * The row each kind lands on with this input's message key. Billing has
-   * none: the matrix holds no row for it, so it keeps both channels and there
-   * is nothing for a reader to ask for.
+   * The row each kind lands on with this input's message key. A billing key
+   * the delivery module does not list as attention is an update (SOK-932).
+   * Jobs have no row, since SOK-930 retired theirs along with the
+   * notifications that used them.
    */
   const KIND_CATEGORY: Partial<Record<NotificationKind, string>> = {
-    [NotificationKind.JOB]: "JOB_COMPLETED",
-    [NotificationKind.TASK]: "TASK_UPDATE",
+    [NotificationKind.TASK]: "TASK_COMPLETED",
     [NotificationKind.SYSTEM]: "SYSTEM",
+    [NotificationKind.BILLING]: "BILLING_UPDATE",
   };
 
   for (const kind of NON_CHAT_KINDS) {
@@ -500,8 +526,8 @@ describe("createNotification push gating", () => {
     );
     mockReader({
       preferences: [
-        { category: "JOB_COMPLETED", channel: "IN_APP", enabled: false },
-        { category: "JOB_COMPLETED", channel: "OS_BANNER", enabled: true },
+        { category: "TASK_COMPLETED", channel: "IN_APP", enabled: false },
+        { category: "TASK_COMPLETED", channel: "OS_BANNER", enabled: true },
       ],
     });
 
@@ -530,7 +556,7 @@ describe("createNotification push gating", () => {
     );
     mockReader({
       preferences: [
-        { category: "JOB_COMPLETED", channel: "OS_BANNER", enabled: false },
+        { category: "TASK_COMPLETED", channel: "OS_BANNER", enabled: false },
       ],
     });
 
@@ -585,8 +611,8 @@ describe("createNotification push gating", () => {
     );
     mockReader({
       preferences: [
-        { category: "JOB_COMPLETED", channel: "IN_APP", enabled: false },
-        { category: "JOB_COMPLETED", channel: "OS_BANNER", enabled: false },
+        { category: "TASK_COMPLETED", channel: "IN_APP", enabled: false },
+        { category: "TASK_COMPLETED", channel: "OS_BANNER", enabled: false },
       ],
     });
 
@@ -617,7 +643,106 @@ describe("createNotification push gating", () => {
   });
 });
 
+describe("createNotification email", () => {
+  beforeEach(() => {
+    userFindUniqueMock.mockReset();
+    dispatchNotificationEmailMock.mockReset();
+    publishNotificationEventMock.mockReset();
+    publishNotificationEventMock.mockResolvedValue(undefined);
+  });
+
+  it("hands a new row to the email dispatch when the delivery says inbox", async () => {
+    const notification = createNotificationRecord();
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(notification);
+
+    await createNotification(
+      notificationInput,
+      prismaMock as unknown as typeof prisma,
+      { inApp: true, osBanner: false, email: true },
+    );
+
+    expect(dispatchNotificationEmailMock).toHaveBeenCalledWith(notification);
+  });
+
+  it("dispatches no email when the delivery says no inbox", async () => {
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(
+      createNotificationRecord(),
+    );
+
+    await createNotification(
+      notificationInput,
+      prismaMock as unknown as typeof prisma,
+      { inApp: true, osBanner: false, email: false },
+    );
+
+    expect(dispatchNotificationEmailMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * A finished task emails by default (SOK-1090), so a reader who stored
+   * nothing gets the email, and one who turned that cell off does not.
+   */
+  it("mails a finished task to a reader who stored nothing", async () => {
+    userFindUniqueMock.mockResolvedValue({
+      pushOptIn: false,
+      notificationPreferences: [],
+    });
+    const notification = createNotificationRecord();
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(notification);
+
+    await createNotification(
+      notificationInput,
+      prismaMock as unknown as typeof prisma,
+    );
+
+    expect(dispatchNotificationEmailMock).toHaveBeenCalledWith(notification);
+  });
+
+  it("dispatches no email when the reader turned that cell off", async () => {
+    userFindUniqueMock.mockResolvedValue({
+      pushOptIn: false,
+      notificationPreferences: [
+        { category: "TASK_COMPLETED", channel: "EMAIL", enabled: false },
+      ],
+    });
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockResolvedValue(
+      createNotificationRecord(),
+    );
+
+    await createNotification(
+      notificationInput,
+      prismaMock as unknown as typeof prisma,
+    );
+
+    expect(dispatchNotificationEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("dispatches no email for a duplicate emit, since the first one was mailed", async () => {
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.create.mockRejectedValue(createUniqueViolation());
+    prismaMock.notification.findUnique.mockResolvedValue(
+      createNotificationRecord(),
+    );
+
+    await createNotification(
+      notificationInput,
+      prismaMock as unknown as typeof prisma,
+      { inApp: true, osBanner: false, email: true },
+    );
+
+    expect(dispatchNotificationEmailMock).not.toHaveBeenCalled();
+  });
+});
+
 describe("deletePendingVendorGrantNotifications", () => {
+  beforeEach(() => {
+    cancelNotificationEmailsMock.mockReset();
+  });
+
   it("deletes SYSTEM pending vendor-grant notifications for the grant id", async () => {
     const prismaMock = createPrismaMock();
     prismaMock.notification.deleteMany.mockResolvedValue({ count: 2 });
@@ -636,6 +761,83 @@ describe("deletePendingVendorGrantNotifications", () => {
         kind: NotificationKind.SYSTEM,
       },
     });
+  });
+
+  it("takes back the emails still scheduled for the rows it deletes", async () => {
+    const prismaMock = createPrismaMock();
+    const scheduled = [
+      {
+        id: "notification_admin",
+        emailId: "email_admin",
+        emailScheduledAt: new Date("2026-09-19T10:05:00.000Z"),
+      },
+    ];
+    prismaMock.notification.findMany.mockResolvedValue(scheduled);
+    prismaMock.notification.deleteMany.mockResolvedValue({ count: 1 });
+
+    await deletePendingVendorGrantNotifications(
+      "grant_123",
+      prismaMock as unknown as typeof prisma,
+    );
+
+    // Read before the delete: after it there is nothing left to name.
+    expect(prismaMock.notification.findMany).toHaveBeenCalledWith({
+      where: {
+        referenceId: "grant_123",
+        messageKey: VENDOR_GRANT_PENDING_MESSAGE_KEY,
+        kind: NotificationKind.SYSTEM,
+        emailScheduledAt: { not: null },
+      },
+      select: { id: true, emailId: true, emailScheduledAt: true },
+    });
+    expect(
+      prismaMock.notification.findMany.mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      prismaMock.notification.deleteMany.mock.invocationCallOrder[0] ??
+        Number.POSITIVE_INFINITY,
+    );
+    expect(cancelNotificationEmailsMock).toHaveBeenCalledWith(scheduled);
+  });
+
+  // The dispatcher writes a row's email with an `isRead: false` of its own.
+  // A read that runs before the rows are locked can miss a write that lands
+  // right after it, and the reader is then mailed about a resolved request.
+  it("waits for the rows' locks before it reads their emails", async () => {
+    const prismaMock = createPrismaMock();
+    let releaseLock: () => void = () => {};
+    const locked = new Promise<void>((resolve) => {
+      releaseLock = resolve;
+    });
+
+    prismaMock.notification.updateMany.mockImplementationOnce(async () => {
+      await locked;
+      return { count: 1 };
+    });
+    prismaMock.notification.deleteMany.mockResolvedValue({ count: 1 });
+
+    const pending = deletePendingVendorGrantNotifications(
+      "grant_123",
+      prismaMock as unknown as typeof prisma,
+    );
+
+    await Promise.resolve();
+
+    // Held, not merely called earlier: an `updateMany` nothing waits for is a
+    // Prisma promise that never runs, and the rows would be read unlocked.
+    expect(prismaMock.notification.findMany).not.toHaveBeenCalled();
+
+    releaseLock();
+    await pending;
+
+    expect(prismaMock.notification.updateMany).toHaveBeenCalledWith({
+      where: {
+        referenceId: "grant_123",
+        messageKey: VENDOR_GRANT_PENDING_MESSAGE_KEY,
+        kind: NotificationKind.SYSTEM,
+      },
+      data: { isRead: true },
+    });
+    expect(prismaMock.notification.findMany).toHaveBeenCalled();
   });
 
   it("returns zero when no matching notifications exist", async () => {

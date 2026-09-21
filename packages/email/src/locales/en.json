@@ -50,35 +50,6 @@
     }
   },
   "jobs": {
-    "finalStatus": {
-      "subject": "Sokosumi - {agentName} job {status}",
-      "preview": "Your job for {agentName} is now {status}.",
-      "title": "Job {status}",
-      "greeting": "Hi {name}",
-      "body": "{jobName} for {agentName} is now {status}.",
-      "button": "View job",
-      "linkInstructions": "Or copy and paste this URL into your browser:",
-      "footer": "You're receiving this email because job notifications are enabled for your account.",
-      "fallbackJobName": "Your job",
-      "status": {
-        "completed": "completed",
-        "failed": "failed",
-        "payment_failed": "payment failed",
-        "refund_resolved": "refunded",
-        "dispute_resolved": "dispute resolved"
-      }
-    },
-    "inputRequired": {
-      "subject": "Sokosumi - {agentName} needs your input",
-      "preview": "Your job for {agentName} requires input to continue.",
-      "title": "Action Required",
-      "greeting": "Hi {name}",
-      "body": "Your job {jobName} for {agentName} is waiting for your input to continue.",
-      "bodyWithoutJobName": "Your job for {agentName} is waiting for your input to continue.",
-      "button": "Provide input",
-      "linkInstructions": "Or copy and paste this URL into your browser:",
-      "footer": "You're receiving this email because job notifications are enabled for your account."
-    },
     "failureNotification": {
       "subject": "Job Failure Notification - {jobId}",
       "preview": "Job {jobId} has failed",
@@ -98,15 +69,82 @@
     }
   },
   "notifications": {
-    "followUp": {
+    "shared": {
       "linkInstructions": "Or copy and paste this URL into your browser:",
-      "footer": "You're receiving this email because reminders are switched on in your notification settings.",
       "greeting": "Hi {name}",
       "greetingWithoutName": "Hi",
       "fallbackAuthorName": "Someone",
       "fallbackRoomName": "a conversation",
       "fallbackTaskName": "Your task",
-      "fallbackJobName": "Your job",
+      "fallbackCoworkerName": "a coworker"
+    },
+    "event": {
+      "footer": "You're receiving this email because this notification is switched on in your notification settings.",
+      "mention": {
+        "subject": "Sokosumi - {authorName} mentioned you in {roomName}",
+        "title": "You were mentioned",
+        "body": "{authorName} mentioned you in {roomName}.",
+        "button": "Open the conversation"
+      },
+      "directMessage": {
+        "subject": "Sokosumi - {authorName} sent you a message",
+        "title": "New direct message",
+        "body": "{authorName} sent you a direct message.",
+        "button": "Open the conversation"
+      },
+      "task": {
+        "button": "Open the task",
+        "projectLabel": "Project",
+        "attention": {
+          "title": "A task needs you",
+          "reasons": {
+            "assigned": {
+              "subject": "Sokosumi - You were assigned {taskName}",
+              "body": "You were assigned {taskName}."
+            },
+            "inputRequired": {
+              "subject": "Sokosumi - {coworkerName} needs your input for {taskName}",
+              "body": "{taskName} stopped because {coworkerName} needs your input."
+            },
+            "approvalRequired": {
+              "subject": "Sokosumi - {coworkerName} needs your approval for {taskName}",
+              "body": "{taskName} stopped because {coworkerName} needs your approval."
+            },
+            "authenticationRequired": {
+              "subject": "Sokosumi - {coworkerName} needs you to sign in for {taskName}",
+              "body": "{taskName} stopped because {coworkerName} needs you to sign in somewhere."
+            },
+            "outOfCredits": {
+              "subject": "Sokosumi - {taskName} ran out of credits",
+              "body": "{taskName} stopped because it ran out of credits."
+            },
+            "scheduleRemovedByOperator": {
+              "subject": "Sokosumi - The schedule for {taskName} was removed",
+              "body": "The schedule for {taskName} was removed after a review."
+            }
+          }
+        },
+        "completed": {
+          "subject": "Sokosumi - {coworkerName} completed {taskName}",
+          "title": "Task completed",
+          "body": "{coworkerName} completed {taskName}."
+        }
+      },
+      "accessRequest": {
+        "title": "Access request",
+        "button": "Review the request",
+        "vendor": {
+          "subject": "Sokosumi - {requesterName} requested access to your workspace",
+          "body": "{requesterName} requested vendor access to your workspace."
+        },
+        "coworker": {
+          "subject": "Sokosumi - {requesterName} requested access to your workspace",
+          "body": "{requesterName} requested coworker early access to your workspace."
+        }
+      }
+    },
+    "followUp": {
+      "footer": "You're receiving this email because reminders are switched on in your notification settings.",
       "mention": {
         "subject": "Sokosumi - {authorName} is still waiting for you in {roomName}",
         "preview": "{authorName} mentioned you in {roomName} a day ago.",
@@ -137,20 +175,29 @@
           "scheduleRemovedByOperator": "The schedule for {taskName} was removed after a review a day ago, and you have not opened the notice yet."
         }
       },
-      "job": {
-        "subject": "Sokosumi - {jobName} is still waiting for you",
-        "preview": "{jobName} stopped and asked for you a day ago.",
-        "title": "Still waiting for you",
-        "body": "{jobName} stopped a day ago because it needs you. It is still waiting.",
-        "button": "Open the job",
-        "agentLabel": "Agent",
+      "billing": {
+        "subject": "Sokosumi - Your billing still needs your attention",
+        "preview": "Your billing needed your attention a day ago.",
+        "title": "Still needs your attention",
+        "body": "Your billing needed your attention a day ago, and you have not opened the notice yet.",
+        "button": "Open billing",
         "reasons": {
-          "inputRequired": "{jobName} stopped a day ago because {agentName} needs your input. It is still waiting.",
-          "paymentFailed": "The payment for {jobName} failed a day ago, and you have not opened it yet."
+          "lowBalance": "Your credits were running low a day ago, with {credits} left, and you have not opened the notice yet."
         }
-      },
-      "fallbackCoworkerName": "a coworker",
-      "fallbackAgentName": "the agent"
+      }
+    },
+    "billing": {
+      "linkInstructions": "Or copy and paste this URL into your browser:",
+      "footer": "You're receiving this email because billing alerts are switched on in your notification settings.",
+      "greeting": "Hi {name}",
+      "greetingWithoutName": "Hi",
+      "lowBalance": {
+        "subject": "Sokosumi - Your credits are running low",
+        "preview": "You have {credits} credits left.",
+        "title": "Credits running low",
+        "body": "Your credits are running low. You have {credits} left. Work stops when they run out.",
+        "button": "Add credits"
+      }
     }
   }
 }

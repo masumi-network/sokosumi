@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
 import type { TaskStatus } from "@/lib/types/core-dto";
-import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 import {
   TaskMetadataStatusField,
@@ -176,6 +175,7 @@ interface TaskMetadataProps {
   editable: boolean;
   createdAtLabel: string;
   updatedAtLabel: string;
+  creditsDisplay: string;
 }
 
 export function TaskMetadata({
@@ -188,6 +188,7 @@ export function TaskMetadata({
   editable,
   createdAtLabel,
   updatedAtLabel,
+  creditsDisplay,
 }: TaskMetadataProps) {
   const ownerImage = task.owner.image
     ? resolveIpfsOrHttpUrl(task.owner.image)
@@ -308,7 +309,7 @@ export function TaskMetadata({
             {labels.credits}
           </span>
           <span className="text-right text-sm font-medium tabular-nums">
-            {formatCreditsForDisplay(task.credits)}
+            {creditsDisplay}
           </span>
         </div>
       ) : null}

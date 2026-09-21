@@ -52,25 +52,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const { allowSearchIndexing } = c.req.valid("json");
 
-    const share = await prisma.$transaction(async (tx) => {
-      const job = await requireJobShareCollaboration(c.var, id, tx);
+    const job = await requireJobShareCollaboration(c.var, id, prisma);
 
-      if (job.taskId) {
-        const parentTask = await tx.task.findUnique({
-          where: { id: job.taskId },
-          select: { visibility: true },
-        });
-        if (parentTask?.visibility === TaskVisibility.PRIVATE) {
-          throw badRequest("Private tasks cannot be shared publicly");
-        }
+    if (job.taskId) {
+      const parentTask = await prisma.task.findUnique({
+        where: { id: job.taskId },
+        select: { visibility: true },
+      });
+      if (parentTask?.visibility === TaskVisibility.PRIVATE) {
+        throw badRequest("Private tasks cannot be shared publicly");
       }
+    }
 
-      return await publicShareRepository.upsertForJob(
-        id,
-        allowSearchIndexing,
-        tx,
-      );
-    });
+    const share = await publicShareRepository.upsertForJob(
+      id,
+      allowSearchIndexing,
+      prisma,
+    );
 
     return ok(c, jobShareSchema.parse(share));
   });

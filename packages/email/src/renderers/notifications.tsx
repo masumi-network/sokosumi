@@ -1,0 +1,224 @@
+import { createEmailTranslator } from "../i18n/translate.js";
+import {
+  type ActionEmailFact,
+  renderActionEmail,
+} from "../templates/action-email.js";
+import type {
+  AccessRequestEmailProps,
+  ChatDirectMessageEmailProps,
+  ChatMentionEmailProps,
+  RenderedEmail,
+  TaskAttentionEmailProps,
+  TaskCompletedEmailProps,
+} from "../types.js";
+import {
+  buildGreeting,
+  linkInstructions,
+  nameOr,
+  type TranslateFn,
+} from "./notification-shared.js";
+
+/** Notification emails (SOK-1090). */
+const EVENT_SCOPE = "notifications.event";
+
+interface EventEmailOptions {
+  actionUrl: string;
+  facts?: readonly ActionEmailFact[];
+  quote?: null | string;
+  recipientName?: null | string;
+  t: TranslateFn;
+  words: {
+    body: string;
+    button: string;
+    subject: string;
+    title: string;
+  };
+}
+
+function renderEventEmail({
+  actionUrl,
+  facts,
+  quote,
+  recipientName,
+  t,
+  words,
+}: EventEmailOptions): Promise<RenderedEmail> {
+  const trimmedQuote = quote?.trim();
+
+  return renderActionEmail({
+    actionLabel: words.button,
+    actionUrl,
+    body: words.body,
+    facts,
+    footer: t(`${EVENT_SCOPE}.footer`),
+    greeting: buildGreeting(t, recipientName),
+    linkInstructions: linkInstructions(t),
+    // Preheader is the body so the inbox list does not get a competing
+    // second line.
+    preview: words.body,
+    quote: trimmedQuote ? trimmedQuote : undefined,
+    subject: words.subject,
+    title: words.title,
+  });
+}
+
+/** Someone wrote the reader's name in a named room. */
+export function renderChatMentionEmail({
+  actionUrl,
+  authorName,
+  locale,
+  messagePreview,
+  recipientName,
+  roomName,
+}: ChatMentionEmailProps): Promise<RenderedEmail> {
+  const { t } = createEmailTranslator(locale);
+  const scope = `${EVENT_SCOPE}.mention`;
+  const values = {
+    authorName: nameOr(t, authorName, "fallbackAuthorName"),
+    roomName: nameOr(t, roomName, "fallbackRoomName"),
+  };
+
+  return renderEventEmail({
+    actionUrl,
+    quote: messagePreview,
+    recipientName,
+    t,
+    words: {
+      body: t(`${scope}.body`, values),
+      button: t(`${scope}.button`),
+      subject: t(`${scope}.subject`, values),
+      title: t(`${scope}.title`),
+    },
+  });
+}
+
+/** No room name: a DM room is named after the author. */
+export function renderChatDirectMessageEmail({
+  actionUrl,
+  authorName,
+  locale,
+  messagePreview,
+  recipientName,
+}: ChatDirectMessageEmailProps): Promise<RenderedEmail> {
+  const { t } = createEmailTranslator(locale);
+  const scope = `${EVENT_SCOPE}.directMessage`;
+  const values = { authorName: nameOr(t, authorName, "fallbackAuthorName") };
+
+  return renderEventEmail({
+    actionUrl,
+    quote: messagePreview,
+    recipientName,
+    t,
+    words: {
+      body: t(`${scope}.body`, values),
+      button: t(`${scope}.button`),
+      subject: t(`${scope}.subject`, values),
+      title: t(`${scope}.title`),
+    },
+  });
+}
+
+/** The project a task belongs to, when the notification named one. */
+function projectFact(
+  t: TranslateFn,
+  projectName: null | string | undefined,
+): readonly ActionEmailFact[] | undefined {
+  const trimmedProjectName = projectName?.trim();
+
+  return trimmedProjectName
+    ? [
+        {
+          label: t(`${EVENT_SCOPE}.task.projectLabel`),
+          value: trimmedProjectName,
+        },
+      ]
+    : undefined;
+}
+
+/** Reason picks subject and body so the subject names which of the six it is. */
+export function renderTaskAttentionEmail({
+  actionUrl,
+  coworkerName,
+  locale,
+  projectName,
+  reason,
+  recipientName,
+  taskName,
+}: TaskAttentionEmailProps): Promise<RenderedEmail> {
+  const { t } = createEmailTranslator(locale);
+  const scope = `${EVENT_SCOPE}.task.attention`;
+  const values = {
+    coworkerName: nameOr(t, coworkerName, "fallbackCoworkerName"),
+    taskName: nameOr(t, taskName, "fallbackTaskName"),
+  };
+
+  return renderEventEmail({
+    actionUrl,
+    facts: projectFact(t, projectName),
+    recipientName,
+    t,
+    words: {
+      body: t(`${scope}.reasons.${reason}.body`, values),
+      button: t(`${EVENT_SCOPE}.task.button`),
+      subject: t(`${scope}.reasons.${reason}.subject`, values),
+      title: t(`${scope}.title`),
+    },
+  });
+}
+
+/** A task finished the work the reader asked for. */
+export function renderTaskCompletedEmail({
+  actionUrl,
+  coworkerName,
+  locale,
+  projectName,
+  recipientName,
+  taskName,
+}: TaskCompletedEmailProps): Promise<RenderedEmail> {
+  const { t } = createEmailTranslator(locale);
+  const scope = `${EVENT_SCOPE}.task.completed`;
+  const values = {
+    coworkerName: nameOr(t, coworkerName, "fallbackCoworkerName"),
+    taskName: nameOr(t, taskName, "fallbackTaskName"),
+  };
+
+  return renderEventEmail({
+    actionUrl,
+    facts: projectFact(t, projectName),
+    recipientName,
+    t,
+    words: {
+      body: t(`${scope}.body`, values),
+      button: t(`${EVENT_SCOPE}.task.button`),
+      subject: t(`${scope}.subject`, values),
+      title: t(`${scope}.title`),
+    },
+  });
+}
+
+/** A vendor or a coworker asked for a workspace the reader manages. */
+export function renderAccessRequestEmail({
+  actionUrl,
+  locale,
+  recipientName,
+  request,
+  requesterName,
+}: AccessRequestEmailProps): Promise<RenderedEmail> {
+  const { t } = createEmailTranslator(locale);
+  const scope = `${EVENT_SCOPE}.accessRequest`;
+  const values = {
+    requesterName: nameOr(t, requesterName, "fallbackAuthorName"),
+  };
+
+  return renderEventEmail({
+    actionUrl,
+    recipientName,
+    t,
+    words: {
+      body: t(`${scope}.${request}.body`, values),
+      button: t(`${scope}.button`),
+      subject: t(`${scope}.${request}.subject`, values),
+      title: t(`${scope}.title`),
+    },
+  });
+}

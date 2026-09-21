@@ -1,21 +1,25 @@
 import type { NotificationKind } from "@sokosumi/database";
 import {
-  type JobFollowUpReason,
+  type BillingFollowUpReason,
+  renderBillingFollowUpEmail,
   renderChatDirectMessageFollowUpEmail,
   renderChatMentionFollowUpEmail,
-  renderJobFollowUpEmail,
   renderTaskFollowUpEmail,
-  type TaskFollowUpReason,
 } from "@sokosumi/email";
 import {
+  BILLING_FOLLOW_UP_MESSAGE_KEY,
+  BILLING_PAYMENT_FAILED_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
   CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
-  JOB_FOLLOW_UP_MESSAGE_KEY,
   TASK_FOLLOW_UP_MESSAGE_KEY,
 } from "@sokosumi/utils";
 
 import type { SendEmailInput } from "@/clients/email.client";
-import { getWebAppBaseUrl } from "@/config/env";
+import { taskAttentionReasonOf } from "@/helpers/notification-email";
+import {
+  notificationEmailLink,
+  readString,
+} from "@/helpers/notification-email-link";
 
 /**
  * The reminder email for one follow-up (SOK-916).
@@ -54,96 +58,15 @@ export interface FollowUpEmailInput {
   recipientName: null | string;
 }
 
-/**
- * Why the task or job is waiting, or null when this key has no sentence.
- *
- * Read off the end of the message key, because every attention key Core writes
- * ends in the word the catalogs use: `Notifications.Task.inputRequired` and
- * `notifications.followUp.task.reasons.inputRequired`. A key added to a family
- * later falls through to the family's own body rather than asking the catalog
- * for a sentence nobody has written.
- */
-const TASK_REASONS: readonly TaskFollowUpReason[] = [
-  "approvalRequired",
-  "assigned",
-  "authenticationRequired",
-  "inputRequired",
-  "outOfCredits",
-  "scheduleRemovedByOperator",
-];
+/** Only a low balance mails: Stripe already wrote when a payment failed. */
+const BILLING_REASONS: readonly BillingFollowUpReason[] = ["lowBalance"];
 
-const JOB_REASONS: readonly JobFollowUpReason[] = [
-  "inputRequired",
-  "paymentFailed",
-];
-
-function reasonIn<T extends string>(
-  reasons: readonly T[],
+function billingFollowUpReason(
   sourceMessageKey: string,
-): null | T {
+): BillingFollowUpReason | null {
   const tail = sourceMessageKey.slice(sourceMessageKey.lastIndexOf(".") + 1);
 
-  return reasons.find((reason): reason is T => reason === tail) ?? null;
-}
-
-/**
- * Names the message a chat reminder is about, on the room's own URL.
- *
- * The same parameter web puts there (`CHAT_MESSAGE_PARAM` in
- * `apps/web/src/lib/utils/notification-href.ts`) and the room client reads.
- * Spelled again here rather than shared, because the web module it lives in
- * pulls in vendor-grant helpers this app has no use for. The two must agree;
- * only these three kinds are repeated, and the SYSTEM routing is not.
- */
-const CHAT_MESSAGE_PARAM = "message";
-
-function readString(
-  values: Record<string, unknown> | null | undefined,
-  key: string,
-): null | string {
-  const value = values?.[key];
-
-  return typeof value === "string" ? value : null;
-}
-
-/**
- * Where the reminder opens, absolute so it works from an inbox.
- *
- * Deliberately the same destinations web sends a clicked notification to, so
- * the email and the Notification Center land in the same place. That includes
- * the job fallback: a job whose row carries no agent id has no job URL to
- * build, and web sends the reader to the task list rather than nowhere, so
- * this does too.
- */
-function followUpLink(input: FollowUpEmailInput): string {
-  const base = getWebAppBaseUrl();
-  const reference = encodeURIComponent(input.referenceId);
-
-  switch (input.kind) {
-    case "TASK":
-      return `${base}/tasks/${reference}`;
-
-    case "JOB": {
-      const agentId = readString(input.metadata, "agentId");
-
-      if (!agentId) {
-        return `${base}/tasks`;
-      }
-
-      return `${base}/agents/${encodeURIComponent(agentId)}/jobs/${reference}`;
-    }
-
-    default: {
-      const room = `${base}/chat/rooms/${reference}`;
-      const messageId = readString(input.metadata, "messageId")?.trim();
-
-      if (!messageId) {
-        return room;
-      }
-
-      return `${room}?${CHAT_MESSAGE_PARAM}=${encodeURIComponent(messageId)}`;
-    }
-  }
+  return BILLING_REASONS.find((reason) => reason === tail) ?? null;
 }
 
 /**
@@ -157,7 +80,7 @@ export async function buildFollowUpEmail(
   input: FollowUpEmailInput,
   locale = "en",
 ): Promise<null | SendEmailInput> {
-  const actionUrl = followUpLink(input);
+  const actionUrl = notificationEmailLink(input);
   const recipientName = input.recipientName;
   const shared = { actionUrl, locale, recipientName };
 
@@ -210,28 +133,36 @@ export async function buildFollowUpEmail(
           ...shared,
           coworkerName: readString(input.messageParams, "coworkerName"),
           projectName: readString(input.messageParams, "projectName"),
-          reason: reasonIn(TASK_REASONS, input.sourceMessageKey),
+          reason: taskAttentionReasonOf(input.sourceMessageKey),
           taskName: readString(input.messageParams, "taskName"),
         }),
       );
 
-    case JOB_FOLLOW_UP_MESSAGE_KEY:
+    case BILLING_FOLLOW_UP_MESSAGE_KEY: {
+      // Stripe already mailed the failed payment. The in-app reminder still
+      // lands; this skip is what keeps a second email out of the inbox.
+      if (input.sourceMessageKey === BILLING_PAYMENT_FAILED_MESSAGE_KEY) {
+        return null;
+      }
+
+      const credits = input.messageParams.credits;
+
       return withRecipient(
         input,
-        await renderJobFollowUpEmail({
+        await renderBillingFollowUpEmail({
           ...shared,
-          agentName: readString(input.messageParams, "agentName"),
-          jobName: readString(input.messageParams, "jobName"),
-          reason: reasonIn(JOB_REASONS, input.sourceMessageKey),
+          credits: typeof credits === "number" ? credits : null,
+          reason: billingFollowUpReason(input.sourceMessageKey),
         }),
       );
+    }
 
     default:
       return null;
   }
 }
 
-/** One tag for all four, so a reminder send is one thing to look for in Resend. */
+/** One tag for all reminder families, so a reminder send is one thing to look for in Resend. */
 function withRecipient(
   input: FollowUpEmailInput,
   rendered: { html: string; subject: string },

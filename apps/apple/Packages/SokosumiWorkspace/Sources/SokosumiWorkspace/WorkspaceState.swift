@@ -1,9 +1,12 @@
 import Combine
 import CoreAPI
 import Foundation
+import os
 import SokosumiAuth
 import SokosumiChat
 import SokosumiRealtime
+
+private let logger = Logger(subsystem: "com.sokosumi.app", category: "transcript")
 
 /// App-owned coordinator connecting authentication, chat sessions and realtime.
 /// Package models own reusable behavior; this object orders their lifecycles,
@@ -642,6 +645,7 @@ public final class WorkspaceState: ObservableObject {
       // Web's visibilitychange: hidden publishes afk at once, visible counts as activity.
       presence.setVisible(readAttention.isVisible)
       publishPresence(force: true)
+      realtime?.setInFront(readAttention.isVisible)
     }
   }
 
@@ -677,8 +681,11 @@ public final class WorkspaceState: ObservableObject {
   @discardableResult
   public func sendMessage(_ content: String, attachments: [ComposeAttachment] = [], quote: Components.Schemas.ChatRoomMessageQuote? = nil, auth: AuthState) -> Bool {
     let draft = ComposerContent(content)
-    guard let roomId = transcriptRoomId, draft.canSend, !transcriptLoading,
+    guard let roomId = transcriptRoomId, !transcriptLoading,
           let client = resolveClient(auth: auth) else { return false }
+    // A quote can be the whole message, except in the coworker 1:1 stream,
+    // which needs words to answer.
+    guard draft.canSend(quoted: quote != nil && directStream.roomId != roomId) else { return false }
     timeline.followLatest()
     if directStream.roomId == roomId {
       let generation = transcriptGeneration
@@ -698,7 +705,7 @@ public final class WorkspaceState: ObservableObject {
     outbox.enqueue(shell, send: { [service] in
       try await service.createMessage(
         client: client, roomId: roomId, content: draft.text,
-        clientMessageId: id, mentions: mentions, quoteMessageId: quote?.messageId, organizationSlug: slug
+        clientMessageId: id, mentions: mentions, quote: quote, organizationSlug: slug
       )
     }, confirmed: { [weak self] message in
       guard let self else { return }
@@ -753,6 +760,7 @@ public final class WorkspaceState: ObservableObject {
       onEvent: { event in continuation.yield(event) }
     )
     connection.setMembershipRooms(Set(rooms.map(\.id)))
+    connection.setInFront(readAttention.isVisible)
     realtimeStreamTask?.cancel()
     realtimeStreamTask = Task {
       for await event in stream {
@@ -935,7 +943,7 @@ public final class WorkspaceState: ObservableObject {
       return false
     } catch {
       guard generation == transcriptGeneration else { return false }
-      NSLog("Sokosumi transcript refresh failed: %@", String(describing: error))
+      logger.error("Sokosumi transcript refresh failed: \(String(describing: error), privacy: .public)")
       transcriptError = friendlyMessage(for: error)
       return false
     }
@@ -1041,7 +1049,7 @@ public final class WorkspaceState: ObservableObject {
       transcriptError = transcriptFailureMessage(error, auth: auth)
     } catch {
       guard generation == transcriptGeneration else { return }
-      NSLog("Sokosumi transcript load failed: %@", String(describing: error))
+      logger.error("Sokosumi transcript load failed: \(String(describing: error), privacy: .public)")
       transcriptError = friendlyMessage(for: error)
     }
   }
@@ -1087,6 +1095,22 @@ public final class WorkspaceState: ObservableObject {
     }
   }
 
+  /// Reorder Pinned. A failure of the latest reorder reloads the list: what Core holds is the truth.
+  public func reorderPinnedRooms(_ roomIds: [String], auth: AuthState) async {
+    guard let client = resolveClient(auth: auth) else { return }
+    do {
+      try await sidebar.reorderPinned(roomIds, client: client, organizationSlug: selection?.workspace.organizationSlug)
+    } catch {
+      if let error = error as? ChatServiceError, signOutIfUnauthorized(error, auth: auth) {
+        sidebar.clearActionError()
+        return
+      }
+      // A read that started before the failure may already be running; it must not stand in for the reload.
+      await roomsRefreshTask?.value
+      await refreshRooms(auth: auth)
+    }
+  }
+
   /// Older history page for scroll-up. Merges by message ID; never marks read and never
   /// clears resolved history on failure.
   public func loadOlderMessages(auth: AuthState) {
@@ -1121,7 +1145,7 @@ public final class WorkspaceState: ObservableObject {
       transcriptError = transcriptFailureMessage(error, auth: auth)
     } catch {
       guard generation == transcriptGeneration else { return }
-      NSLog("Sokosumi older messages load failed: %@", String(describing: error))
+      logger.error("Sokosumi older messages load failed: \(String(describing: error), privacy: .public)")
       transcriptError = friendlyMessage(for: error)
     }
   }

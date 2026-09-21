@@ -2,6 +2,11 @@ import * as Sentry from "@sentry/node";
 import type Stripe from "stripe";
 
 import {
+  notifyPaymentFailed,
+  notifySubscriptionEnding,
+  resolveBillingWalletByStripeCustomerId,
+} from "@/helpers/billing-notifications";
+import {
   handleCheckoutSessionCompletedEvent,
   handleSubscriptionDeletedEvent,
 } from "@/services/stripe-backed-subscription.service";
@@ -67,5 +72,64 @@ export async function handleStripeAuthWebhookOnEvent(
     return;
   }
 
+  // The two notifications below are best-effort and never throw: a retry
+  // from Stripe would replay the plugin's own subscription handling for a
+  // notification that cannot be worth it.
+  if (event.type === "invoice.payment_failed") {
+    const invoice = event.data.object;
+    const wallet = await resolveWalletOrReport(invoice.customer, event);
+
+    if (wallet && invoice.id) {
+      await notifyPaymentFailed(wallet, { invoiceId: invoice.id });
+    }
+    return;
+  }
+
+  if (event.type === "customer.subscription.updated") {
+    const subscription = event.data.object;
+    // Stripe lists only the attributes that changed, so a false-to-true flip
+    // is the one shape a cancellation at period end has. A resumed and
+    // re-cancelled subscription flips again and is told again, under the
+    // same event id when the period is the same.
+    const setToEnd =
+      event.data.previous_attributes?.cancel_at_period_end === false &&
+      subscription.cancel_at_period_end;
+
+    if (setToEnd) {
+      const wallet = await resolveWalletOrReport(subscription.customer, event);
+
+      if (wallet) {
+        await notifySubscriptionEnding(wallet, {
+          stripeSubscriptionId: subscription.id,
+          cancelAt: subscription.cancel_at,
+        });
+      }
+    }
+    return;
+  }
+
   console.info(`Unhandled Stripe event type: ${event.type}`);
+}
+
+/** The wallet behind a Stripe customer field, or null with the miss reported. */
+async function resolveWalletOrReport(
+  customer: string | Stripe.Customer | Stripe.DeletedCustomer | null,
+  event: Stripe.Event,
+) {
+  const stripeCustomerId =
+    typeof customer === "string" ? customer : (customer?.id ?? null);
+
+  if (!stripeCustomerId) {
+    return null;
+  }
+
+  try {
+    return await resolveBillingWalletByStripeCustomerId(stripeCustomerId);
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { stripeEventType: event.type },
+      extra: { eventId: event.id, stripeCustomerId },
+    });
+    return null;
+  }
 }

@@ -1,5 +1,6 @@
 import {
   makeChatRoomChannelName,
+  makeChatTypingChannelName,
   makeOrgPresenceChannelName,
   makeUserChatControlChannelName,
   makeUserNotificationsChannelName,
@@ -7,7 +8,11 @@ import {
   type NotificationChannelEnvironment,
 } from "@sokosumi/utils";
 
-type AblyClientCapabilityOp = "subscribe" | "presence" | "push-subscribe";
+type AblyClientCapabilityOp =
+  | "subscribe"
+  | "presence"
+  | "publish"
+  | "push-subscribe";
 
 /**
  * Ably capability ops granted to browser clients. Typed as the exact op union
@@ -34,8 +39,10 @@ export interface BuildAblyClientCapabilityInput {
  * - Chat control: always subscribe (SOK-742 membership revoke)
  * - Org presence: `presence` (enter/update/leave) + `subscribe` (get + presence
  *   events) on presence:org_* (ADR-0003; Ably requires both for roster maps)
- * - Notifications: `subscribe` (realtime feed) + `push-subscribe` (register this
- *   device for closed-app OS banners; ADR-0022)
+ * - Notifications: `subscribe` (realtime feed) + `presence` (a client enters
+ *   while it is in front, so Core can hold a notification email back for a
+ *   reader who is looking; SOK-1090) + `push-subscribe` (register this device
+ *   for closed-app OS banners; ADR-0022)
  */
 export function buildAblyClientCapability({
   userId,
@@ -48,12 +55,15 @@ export function buildAblyClientCapability({
     [`agent_jobs:*:user_${userId}`]: ["subscribe"],
     [makeUserTasksChannelName(userId)]: ["subscribe"],
     [makeUserNotificationsChannelName(userId, notificationChannelEnvironment)]:
-      ["subscribe", "push-subscribe"],
+      ["subscribe", "presence", "push-subscribe"],
     [makeUserChatControlChannelName(userId)]: ["subscribe"],
   };
 
   for (const roomId of roomIds) {
     capability[makeChatRoomChannelName(roomId)] = ["subscribe"];
+    // Typing gets its own channel so `publish` never lands on the message
+    // channel, where a member could forge a chat_room_message (ADR-0033).
+    capability[makeChatTypingChannelName(roomId)] = ["publish", "subscribe"];
   }
 
   for (const organizationId of organizationIds) {

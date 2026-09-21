@@ -19,7 +19,7 @@ vi.mock("next-intl/server", () => ({
       values ? `${key}:${JSON.stringify(values)}` : key,
 }));
 
-vi.mock("@/lib/services", () => ({
+vi.mock("@/lib/services/user.service", () => ({
   userService: {
     getActiveOrganizationId: (...args: unknown[]) =>
       getActiveOrganizationIdMock(...args),

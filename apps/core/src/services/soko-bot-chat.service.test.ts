@@ -59,6 +59,16 @@ vi.mock("@/lib/ably/publish", () => ({
   publishChatRoomsChanged: vi.fn().mockResolvedValue(undefined),
 }));
 
+const { persistChatHumanMentionsMock, emitChatHumanMentionNotificationsMock } =
+  vi.hoisted(() => ({
+    persistChatHumanMentionsMock: vi.fn().mockResolvedValue([]),
+    emitChatHumanMentionNotificationsMock: vi.fn().mockResolvedValue(undefined),
+  }));
+vi.mock("@/helpers/chat-human-mentions", () => ({
+  persistChatHumanMentions: persistChatHumanMentionsMock,
+  emitChatHumanMentionNotifications: emitChatHumanMentionNotificationsMock,
+}));
+
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
 
 import {
@@ -134,6 +144,43 @@ describe("finalizeSokoBotChatTurn", () => {
       data: { content: "The answer is ready.", metadata: expect.any(Object) },
     });
     expect(messageUpdate.mock.calls[0][0].data).not.toHaveProperty("createdAt");
+  });
+
+  it("writes the human mention rows with the answer and notifies once published", async () => {
+    persistChatHumanMentionsMock.mockResolvedValueOnce(["user_1"]);
+
+    await finalizeSokoBotChatTurn("turn-a");
+
+    expect(persistChatHumanMentionsMock).toHaveBeenCalledWith(
+      expect.anything(),
+      {
+        messageId: "response-a",
+        roomId: "room-a",
+        content: "The answer is ready.",
+      },
+    );
+    expect(emitChatHumanMentionNotificationsMock).toHaveBeenCalledWith({
+      messageId: "response-a",
+      mentionedUserIds: ["user_1"],
+    });
+  });
+
+  it("notifies nobody when the answer names no member", async () => {
+    await finalizeSokoBotChatTurn("turn-a");
+
+    expect(persistChatHumanMentionsMock).toHaveBeenCalledOnce();
+    expect(emitChatHumanMentionNotificationsMock).not.toHaveBeenCalled();
+  });
+
+  it("writes no mention rows for a turn that failed", async () => {
+    turnFindUnique.mockResolvedValue(
+      completedTurn({ status: "FAILED", finalAnswer: null }),
+    );
+
+    await finalizeSokoBotChatTurn("turn-a");
+
+    expect(persistChatHumanMentionsMock).not.toHaveBeenCalled();
+    expect(emitChatHumanMentionNotificationsMock).not.toHaveBeenCalled();
   });
 
   it("does not invalidate a completed turn with an empty answer", async () => {
@@ -238,6 +285,47 @@ describe("introduceSokoBot", () => {
 });
 
 describe("deliverSokoBotTurnToDirectRoom", () => {
+  const scheduledTurn = {
+    source: "SCHEDULE",
+    status: "COMPLETED",
+    finalAnswer: "@owner the digest is ready.",
+    userId: "owner",
+    chatMention: null,
+    sokoBotId: "bot-a",
+  };
+
+  it("writes the human mention rows with the answer and notifies once published", async () => {
+    turnFindUnique.mockResolvedValue(scheduledTurn);
+    persistChatHumanMentionsMock.mockResolvedValueOnce(["owner"]);
+
+    await deliverSokoBotTurnToDirectRoom("turn-a");
+
+    expect(persistChatHumanMentionsMock).toHaveBeenCalledWith(
+      expect.anything(),
+      {
+        messageId: "msg-new",
+        roomId: "room-a",
+        content: "@owner the digest is ready.",
+      },
+    );
+    expect(emitChatHumanMentionNotificationsMock).toHaveBeenCalledWith({
+      messageId: "msg-new",
+      mentionedUserIds: ["owner"],
+    });
+  });
+
+  it("notifies nobody when the answer names no member", async () => {
+    turnFindUnique.mockResolvedValue({
+      ...scheduledTurn,
+      finalAnswer: "Here is the digest.",
+    });
+
+    await deliverSokoBotTurnToDirectRoom("turn-a");
+
+    expect(persistChatHumanMentionsMock).toHaveBeenCalledOnce();
+    expect(emitChatHumanMentionNotificationsMock).not.toHaveBeenCalled();
+  });
+
   it("invalidates readers after posting a non-chat turn into the direct room", async () => {
     turnFindUnique.mockResolvedValue({
       source: "SCHEDULE",

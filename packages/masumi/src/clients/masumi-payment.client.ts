@@ -1,15 +1,16 @@
-import type {
-  InputSchemaType,
-  StartPaidJobResponseSchemaType,
-} from "@sokosumi/masumi/schemas";
 import { err, ok, type Result } from "neverthrow";
 
+import type { StartPaidJobResponseSchemaType } from "../schemas/agent/start_job.schema.js";
+import type { InputSchemaType } from "../schemas/input/input.schema.js";
 import { doHexValuesMatch } from "../utils/hex.js";
 import {
   doMasumiPaymentAmountsMatch,
   toMasumiPaymentNodeAmounts,
 } from "../utils/payment-amounts.js";
-import { createX402PaymentMethods } from "./masumi-payment-x402.js";
+import {
+  createX402PaymentMethods,
+  type PaymentClientRequestOptions,
+} from "./masumi-payment-x402.js";
 import { extractNodeErrorMessage, readNodeErrorMessage } from "./node-error.js";
 import { createClient } from "./openapi/generated/payment/client/index.js";
 import {
@@ -23,10 +24,6 @@ import {
   postPurchaseRequestRefund,
   postPurchaseResolveBlockchainIdentifier,
 } from "./openapi/generated/payment/index.js";
-
-interface PaymentClientRequestOptions {
-  signal?: AbortSignal;
-}
 
 const CARDANO_POLICY_ID_PATTERN = /^[0-9a-f]{56}$/;
 
@@ -589,7 +586,6 @@ export function createPaymentClient(
             );
             return recoverDuplicatePurchase(body);
           }
-          console.error("Failed to create purchase request", response.error);
           const status = response.response?.status;
           return err({
             kind: classifyPurchaseFailureKind(status),
@@ -647,11 +643,6 @@ export function createPaymentClient(
               status,
             });
           }
-          console.error(`${logLabel} payment API error`, {
-            network,
-            blockchainIdentifier: input.blockchainIdentifier,
-            error: response.error,
-          });
           // The event is already charged when this error surfaces. Carry the
           // node's status and reason into compensation and alerting.
           return err({
@@ -670,11 +661,6 @@ export function createPaymentClient(
 
         return ok(data);
       } catch (error) {
-        console.error(`${logLabel} unexpected error`, {
-          network,
-          blockchainIdentifier: input.blockchainIdentifier,
-          error,
-        });
         return err({
           kind: "ambiguous",
           message: String(error) || "Failed to create purchase request",

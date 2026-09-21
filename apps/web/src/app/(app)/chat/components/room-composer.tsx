@@ -18,6 +18,7 @@ import { useTranslations } from "next-intl";
 import {
   type Dispatch,
   type FormEvent,
+  type ReactNode,
   type Ref,
   type SetStateAction,
   useCallback,
@@ -96,6 +97,13 @@ export interface RoomComposerAttachment extends RoomMessageComposerAttachment {
 export interface RoomComposerHandle {
   attachFiles: (files: FileList | File[] | null) => void;
   focus: () => void;
+}
+
+/** Edits made in the editor itself, so a focused editor shows them. */
+export interface RoomComposerEditHandle extends RoomComposerHandle {
+  insertText: (text: string) => void;
+  /** Remove the last occurrence of `text`; false when it is not in the editor. */
+  removeLastText: (text: string) => boolean;
 }
 
 function RoomMentionSuggestion({
@@ -340,6 +348,9 @@ export function RoomComposer({
   roomId,
   value,
   onValueChange,
+  onEditorBlur,
+  typingLine,
+  onToolbarInsert,
   mentions,
   usersById,
   usersBySlug,
@@ -366,11 +377,21 @@ export function RoomComposer({
   onOpenDirectMessage,
   openingDirectParticipantKey = null,
 }: {
-  ref?: Ref<RoomComposerHandle>;
+  ref?: Ref<RoomComposerEditHandle>;
   /** When set, attaches mint via room chat file endpoint. */
   roomId?: string;
   value: string;
   onValueChange: Dispatch<SetStateAction<string>>;
+  /** Editor lost focus — one of the four Typing stops (ADR-0033). */
+  onEditorBlur?: () => void;
+  /** The Typing line, handed through to the composer chrome (ADR-0033). */
+  typingLine?: ReactNode;
+  /**
+   * A toolbar control put text in the editor rather than the person typing it.
+   * Fires just before the insertion, so the resulting change can be told apart
+   * from a keystroke — Typing is about text the person typed (ADR-0033).
+   */
+  onToolbarInsert?: () => void;
   mentions: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
   /** Room roster lookups for quote preview / hydrate chips (includes you). */
   usersById?: Map<string, UserMentionLookup>;
@@ -586,6 +607,11 @@ export function RoomComposer({
       focus: () => {
         editorRef.current?.focus();
       },
+      insertText: (text) => {
+        editorRef.current?.insertText(text);
+      },
+      removeLastText: (text) =>
+        editorRef.current?.removeLastText(text) ?? false,
     }),
     [handleFilesSelected],
   );
@@ -613,6 +639,9 @@ export function RoomComposer({
   }
 
   function handleLinkSave(text: string, url: string) {
+    // Third path that puts text in the editor without anyone typing it, after
+    // the emoji picker and quote-restore (ADR-0033).
+    onToolbarInsert?.();
     editorRef.current?.insertLink(text, url);
     editorRef.current?.focus();
   }
@@ -635,6 +664,7 @@ export function RoomComposer({
   return (
     <>
       <RoomMessageComposer
+        typingLine={typingLine}
         formRef={formRef}
         onSubmit={onSubmit}
         withOuterPadding={false}
@@ -797,7 +827,10 @@ export function RoomComposer({
             <RoomComposerEmojiPicker
               title={t("Toolbar.emoji")}
               ariaLabel={t("Toolbar.emoji")}
-              onPick={(emoji) => editorRef.current?.insertText(emoji)}
+              onPick={(emoji) => {
+                onToolbarInsert?.();
+                editorRef.current?.insertText(emoji);
+              }}
             />
             {showMentionShortcut ? (
               <Button
@@ -820,6 +853,7 @@ export function RoomComposer({
           ref={editorRef}
           value={value}
           onChange={onValueChange}
+          onBlur={onEditorBlur}
           onSelectedKeysChange={handleSelectedKeysChange}
           mentions={composerMentions}
           mentionDisplayByKey={mentionDisplay.byKey}

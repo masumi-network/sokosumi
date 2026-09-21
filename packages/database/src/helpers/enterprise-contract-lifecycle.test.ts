@@ -7,6 +7,10 @@ import {
   type Prisma as PrismaType,
 } from "../generated/prisma/client.js";
 import { deriveEnterpriseContractEndDate } from "./enterprise-contract.js";
+import {
+  EnterpriseContractActivationError,
+  EnterpriseContractLifecycleError,
+} from "./enterprise-contract-errors.js";
 import { findPaidSubscriptionsBlockingEnterpriseActivation } from "./enterprise-contract-exclusivity.js";
 import {
   createEnterprisePeriodCreditBucket,
@@ -17,8 +21,6 @@ import {
   activateEnterpriseContract,
   cancelEnterpriseContract,
   completeEnterpriseContractsAfterLastPeriod,
-  EnterpriseContractActivationError,
-  EnterpriseContractLifecycleError,
 } from "./enterprise-contract-lifecycle.js";
 
 const CENTS_PER_MONTH = 600_000_000_000_000n;
@@ -356,6 +358,40 @@ describe("expireCreditBucketsNow", () => {
 });
 
 describe("findPaidSubscriptionsBlockingEnterpriseActivation", () => {
+  it("queries all organization members regardless of seat assignment", async () => {
+    const findManyMembersMock = vi.fn().mockResolvedValue([
+      {
+        seatAssignedAt: new Date("2026-04-01T00:00:00.000Z"),
+        userId: "assigned-1",
+      },
+      { seatAssignedAt: null, userId: "unassigned-1" },
+    ]);
+
+    const tx = {
+      creditBucket: {
+        findFirst: vi.fn().mockResolvedValue(null),
+      },
+      member: {
+        findMany: findManyMembersMock,
+      },
+      subscription: {
+        findFirst: vi.fn().mockResolvedValue(null),
+      },
+    } as unknown as PrismaType.TransactionClient;
+
+    const blocker = await findPaidSubscriptionsBlockingEnterpriseActivation(
+      "org-1",
+      tx,
+    );
+
+    assert.equal(blocker, null);
+    assert.deepEqual(findManyMembersMock.mock.calls[0]?.[0], {
+      orderBy: [{ userId: "asc" }],
+      select: { userId: true },
+      where: { organizationId: "org-1" },
+    });
+  });
+
   it("lists an organization paid subscription with consumable buckets", async () => {
     const findFirstBucketMock = vi
       .fn()

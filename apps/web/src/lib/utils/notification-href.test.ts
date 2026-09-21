@@ -1,4 +1,9 @@
 import {
+  BILLING_CREDITS_ADDED_MESSAGE_KEY,
+  BILLING_FOLLOW_UP_MESSAGE_KEY,
+  BILLING_LOW_BALANCE_MESSAGE_KEY,
+  BILLING_PAYMENT_FAILED_MESSAGE_KEY,
+  BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY,
   CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
   JOB_FOLLOW_UP_MESSAGE_KEY,
   TASK_FOLLOW_UP_MESSAGE_KEY,
@@ -9,6 +14,7 @@ import { COWORKER_ACCESS_PENDING_MESSAGE_KEY } from "@/lib/utils/coworker-access
 import {
   chatRoomMessageHref,
   getNotificationHref,
+  parseChatRoomMessageLink,
 } from "@/lib/utils/notification-href";
 import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@/lib/utils/vendor-grant-notification";
 
@@ -33,6 +39,52 @@ describe("chatRoomMessageHref", () => {
     expect(chatRoomMessageHref("room/with spaces", "a b")).toBe(
       "/chat/rooms/room%2Fwith%20spaces?message=a%20b",
     );
+  });
+});
+
+describe("parseChatRoomMessageLink", () => {
+  const ORIGIN = "https://app.sokosumi.com";
+
+  it("reads back the link Copy link produces", () => {
+    const link = `${ORIGIN}${chatRoomMessageHref("room/1", "msg 1")}`;
+    expect(parseChatRoomMessageLink(link, ORIGIN)).toEqual({
+      roomId: "room/1",
+      messageId: "msg 1",
+    });
+  });
+
+  it("ignores whitespace around the pasted link", () => {
+    expect(
+      parseChatRoomMessageLink(
+        `  ${ORIGIN}/chat/rooms/room-1?message=msg-1\n`,
+        ORIGIN,
+      ),
+    ).toEqual({ roomId: "room-1", messageId: "msg-1" });
+  });
+
+  it.each([
+    ["another origin", "https://evil.example/chat/rooms/room-1?message=msg-1"],
+    ["a relative path", "/chat/rooms/room-1?message=msg-1"],
+    ["a room link without a message", `${ORIGIN}/chat/rooms/room-1`],
+    ["a blank message param", `${ORIGIN}/chat/rooms/room-1?message=%20`],
+    ["a deeper path", `${ORIGIN}/chat/rooms/room-1/files?message=msg-1`],
+    ["an invitation link", `${ORIGIN}/chat/invites/inv-1?message=msg-1`],
+    [
+      "a link inside longer text",
+      `look at ${ORIGIN}/chat/rooms/room-1?message=msg-1`,
+    ],
+    [
+      "two links",
+      `${ORIGIN}/chat/rooms/room-1?message=a ${ORIGIN}/chat/rooms/room-1?message=b`,
+    ],
+    [
+      "credentials in the link",
+      "https://u:p@app.sokosumi.com/chat/rooms/r?message=m",
+    ],
+    ["a malformed room id", `${ORIGIN}/chat/rooms/%E0%A4%A?message=msg-1`],
+    ["plain text", "hello"],
+  ])("does not match %s", (_label, text) => {
+    expect(parseChatRoomMessageLink(text, ORIGIN)).toBeNull();
   });
 });
 
@@ -280,13 +332,73 @@ describe("getNotificationHref", () => {
     ).toBe("/");
   });
 
-  it("falls back to home for BILLING notifications", () => {
+  it("opens the credits tab for a wallet that ran low or was topped up", () => {
+    for (const messageKey of [
+      BILLING_LOW_BALANCE_MESSAGE_KEY,
+      BILLING_CREDITS_ADDED_MESSAGE_KEY,
+    ]) {
+      expect(
+        getNotificationHref({
+          kind: "BILLING",
+          referenceId: "org-1",
+          messageKey,
+          metadata: { roomId: "should-not-route" },
+        }),
+      ).toBe("/billing?tab=credits");
+    }
+  });
+
+  it("opens the subscription tab for a payment or a plan that ends", () => {
+    for (const messageKey of [
+      BILLING_PAYMENT_FAILED_MESSAGE_KEY,
+      BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY,
+    ]) {
+      expect(
+        getNotificationHref({
+          kind: "BILLING",
+          referenceId: "org-1",
+          messageKey,
+          metadata: null,
+        }),
+      ).toBe("/billing?tab=subscription");
+    }
+  });
+
+  /**
+   * The reminder carries only its own key, so it cannot tell a low balance
+   * from a failed payment. It lands on the balance; the reminder email, built
+   * from the source row, lands more exactly.
+   */
+  it("sends a billing reminder to the credits tab", () => {
+    expect(
+      getNotificationHref({
+        kind: "BILLING",
+        referenceId: "org-1",
+        messageKey: BILLING_FOLLOW_UP_MESSAGE_KEY,
+        metadata: { workspaceId: "ws-1" },
+      }),
+    ).toBe("/billing?tab=credits");
+  });
+
+  /** A billing key this build does not know still lands on the balance. */
+  it("sends an unknown billing key to the credits tab", () => {
     expect(
       getNotificationHref({
         kind: "BILLING",
         referenceId: "invoice-1",
         metadata: { roomId: "should-not-route" },
       }),
-    ).toBe("/");
+    ).toBe("/billing?tab=credits");
+  });
+
+  it("sends a present unrecognized billing key to the credits tab", () => {
+    expect(
+      getNotificationHref({
+        kind: "BILLING",
+        referenceId: "invoice-1",
+        messageKey: "billing.not-a-real-key",
+        metadata: { roomId: "should-not-route" },
+      }),
+    ).toBe("/billing?tab=credits");
   });
 });

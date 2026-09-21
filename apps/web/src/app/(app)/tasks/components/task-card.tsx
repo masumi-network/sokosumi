@@ -88,7 +88,7 @@ export function TaskCard({
             ) : null}
 
             <TaskMetaDetails
-              owner={task.owner}
+              project={task.project}
               assignee={task.assignee}
               commentsCount={task.commentsCount}
               createdAt={task.createdAt}

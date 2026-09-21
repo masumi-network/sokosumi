@@ -1,5 +1,5 @@
 import type { InputFileSchemaType } from "@sokosumi/masumi/schemas";
-import type { InputType } from "@sokosumi/masumi/types";
+import { InputType } from "@sokosumi/masumi/types";
 import { CloudUpload, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
@@ -25,7 +25,7 @@ export function FileInput({
   jobInputSchema,
   form,
   controlProps,
-}: JobInputComponentProps<InputType.FILE, InputFileSchemaType>) {
+}: JobInputComponentProps<typeof InputType.FILE, InputFileSchemaType>) {
   const t = useTranslations("Library.JobInput.Form");
 
   const transformedValidations = useMemo(

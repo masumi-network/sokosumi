@@ -20,6 +20,7 @@ import { unprocessableEntity } from "./error";
 import {
   coworkerSummaryFromLoadedRelation,
   organizationSummaryFromLoadedRelation,
+  projectSummaryFromLoadedRelation,
   sokoBotSummaryFromLoadedRelation,
   userSummaryFromLoadedRelation,
 } from "./loaded-relation-summaries";
@@ -469,6 +470,11 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     user: taskOwnerSummary,
     organizationId: task.organizationId,
     projectId: task.projectId,
+    project: projectSummaryFromLoadedRelation(
+      `Task ${task.id}`,
+      task.projectId,
+      task.project ?? null,
+    ),
     organization: taskOrganizationSummary,
     assigneeId: task.assigneeId,
     assigneeSokoBotId: task.assigneeSokoBotId ?? null,

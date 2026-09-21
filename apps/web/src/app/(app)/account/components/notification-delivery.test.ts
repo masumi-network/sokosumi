@@ -11,6 +11,7 @@ import {
   cellsFor,
   type GroupSpec,
   groupPreset,
+  type KindChannels,
   type KindSpec,
   NOTIFICATION_GROUPS,
   type NotificationCategory,
@@ -19,6 +20,7 @@ import {
   presetChanges,
   presetPushes,
   presetStops,
+  type StoredChannel,
   sameChannels,
   withChannel,
 } from "./notification-delivery";
@@ -55,6 +57,14 @@ function categories(kinds: readonly KindSpec[]): NotificationCategory[] {
   return kinds.map((kind) => kind.category);
 }
 
+/** The kinds as the page hands them to a preset: each on the channels given. */
+function rows(
+  kinds: readonly KindSpec[],
+  channels: readonly StoredChannel[] = [],
+): KindChannels[] {
+  return kinds.map((spec) => ({ spec, channels }));
+}
+
 function cells(...rows: [string, string, boolean][]) {
   return rows.map(([category, channel, enabled]) => ({
     category,
@@ -72,10 +82,10 @@ describe("categoryChannels", () => {
     expect(
       categoryChannels(
         cells(
-          ["JOB_ATTENTION", "IN_APP", false],
-          ["JOB_ATTENTION", "OS_BANNER", true],
+          ["TASK_ATTENTION", "IN_APP", false],
+          ["TASK_ATTENTION", "OS_BANNER", true],
         ),
-        "JOB_ATTENTION",
+        "TASK_ATTENTION",
       ),
     ).toEqual(["OS_BANNER"]);
   });
@@ -84,10 +94,10 @@ describe("categoryChannels", () => {
     expect(
       categoryChannels(
         cells(
-          ["JOB_UPDATE", "IN_APP", false],
-          ["JOB_UPDATE", "OS_BANNER", false],
+          ["TASK_UPDATE", "IN_APP", false],
+          ["TASK_UPDATE", "OS_BANNER", false],
         ),
-        "JOB_UPDATE",
+        "TASK_UPDATE",
       ),
     ).toEqual([]);
   });
@@ -129,21 +139,21 @@ describe("cellsFor", () => {
     expect(
       cellsFor(
         cells(
-          ["JOB_ATTENTION", "IN_APP", false],
-          ["JOB_ATTENTION", "OS_BANNER", false],
-          ["JOB_UPDATE", "IN_APP", true],
-          ["JOB_UPDATE", "OS_BANNER", true],
+          ["TASK_ATTENTION", "IN_APP", false],
+          ["TASK_ATTENTION", "OS_BANNER", false],
+          ["TASK_UPDATE", "IN_APP", true],
+          ["TASK_UPDATE", "OS_BANNER", true],
         ),
         [
-          { category: "JOB_ATTENTION", channels: ["IN_APP"] },
-          { category: "JOB_UPDATE", channels: [] },
+          { category: "TASK_ATTENTION", channels: ["IN_APP"] },
+          { category: "TASK_UPDATE", channels: [] },
         ],
       ),
     ).toEqual([
-      { category: "JOB_ATTENTION", channel: "IN_APP", enabled: true },
-      { category: "JOB_ATTENTION", channel: "OS_BANNER", enabled: false },
-      { category: "JOB_UPDATE", channel: "IN_APP", enabled: false },
-      { category: "JOB_UPDATE", channel: "OS_BANNER", enabled: false },
+      { category: "TASK_ATTENTION", channel: "IN_APP", enabled: true },
+      { category: "TASK_ATTENTION", channel: "OS_BANNER", enabled: false },
+      { category: "TASK_UPDATE", channel: "IN_APP", enabled: false },
+      { category: "TASK_UPDATE", channel: "OS_BANNER", enabled: false },
     ]);
   });
 
@@ -151,13 +161,13 @@ describe("cellsFor", () => {
     expect(
       cellsFor(
         cells(
-          ["JOB_ATTENTION", "IN_APP", false],
+          ["TASK_ATTENTION", "IN_APP", false],
           ["CHAT_MENTION", "IN_APP", true],
         ),
-        [{ category: "JOB_ATTENTION", channels: ["IN_APP", "OS_BANNER"] }],
+        [{ category: "TASK_ATTENTION", channels: ["IN_APP", "OS_BANNER"] }],
       ),
     ).toEqual([
-      { category: "JOB_ATTENTION", channel: "IN_APP", enabled: true },
+      { category: "TASK_ATTENTION", channel: "IN_APP", enabled: true },
     ]);
   });
 });
@@ -246,31 +256,56 @@ describe("NOTIFICATION_GROUPS", () => {
   });
 
   /**
-   * A task is work of the same shape as a job, and a reader who has just
+   * The answer reads the same across the card: every group that offers
+   * situations offers the same four, in the same order. A reader who has just
    * answered this question one row above should not have to read a different
    * set of words to answer it again.
    */
-  it("offers the same situations for tasks as for jobs", () => {
-    expect(group("TASK").presets.map((one) => one.id)).toEqual(
-      group("JOB").presets.map((one) => one.id),
-    );
+  it("offers every group the same situations, in the same order", () => {
+    const offered = NOTIFICATION_GROUPS.filter(
+      (one) => one.presets.length > 0,
+    ).map((one) => one.presets.map((preset) => preset.id));
+
+    // Two groups at least, or the loop below compares nothing.
+    expect(offered.length).toBeGreaterThan(1);
+    for (const ids of offered) {
+      expect(ids).toEqual(["MOST", "ESSENTIAL", "APP_ONLY", "OFF"]);
+    }
   });
 
   /**
    * The traffic a reader turns down first is the traffic no press should put
-   * on their phone: what a job reports on its way to an answer, and every
+   * on their phone: what a task reports on its way to an answer, and every
    * message in a room they happen to be in.
    */
   it("sends the traffic a reader turns down first to no device", () => {
     const pushed = NOTIFICATION_GROUPS.flatMap((spec) =>
       spec.presets.flatMap((one) =>
-        (["JOB_UPDATE", "TASK_UPDATE", "CHAT_ROOM_MESSAGE"] as const)
+        (["TASK_UPDATE", "CHAT_ROOM_MESSAGE"] as const)
           .filter((category) => one.reach[category] === "PUSH")
           .map((category) => `${spec.id} ${one.id} ${category}`),
       ),
     );
 
     expect(pushed).toEqual([]);
+  });
+
+  /**
+   * The one billing notice worth interrupting for is also the one a reader
+   * must not lose: a wallet that runs out stops their work. So every stop but
+   * Off keeps it in the app, and the two loud stops put it on the device.
+   */
+  it("keeps billing that waits on the reader at every stop but Off", () => {
+    const reach = group("BILLING").presets.map(
+      (one) => `${one.id} ${one.reach.BILLING_ATTENTION}`,
+    );
+
+    expect(reach).toEqual([
+      "MOST PUSH",
+      "ESSENTIAL PUSH",
+      "APP_ONLY IN_APP",
+      "OFF NONE",
+    ]);
   });
 });
 
@@ -279,15 +314,39 @@ describe("groupPreset", () => {
     expect(
       groupPreset(
         cells(
-          ["JOB_ATTENTION", "IN_APP", true],
-          ["JOB_ATTENTION", "OS_BANNER", true],
-          ["JOB_COMPLETED", "IN_APP", true],
-          ["JOB_COMPLETED", "OS_BANNER", true],
-          ["JOB_UPDATE", "IN_APP", true],
-          ["JOB_UPDATE", "OS_BANNER", false],
+          ["TASK_ATTENTION", "IN_APP", true],
+          ["TASK_ATTENTION", "OS_BANNER", true],
+          ["TASK_COMPLETED", "IN_APP", true],
+          ["TASK_COMPLETED", "OS_BANNER", true],
+          ["TASK_UPDATE", "IN_APP", true],
+          ["TASK_UPDATE", "OS_BANNER", false],
         ),
-        group("JOB").presets,
-        group("JOB").kinds,
+        group("TASK").presets,
+        group("TASK").kinds,
+      ),
+    ).toBe("MOST");
+  });
+
+  /**
+   * No situation writes the email cells, so none of them is read here. A
+   * reader who turned one row's email off is still exactly on Most, and the
+   * rail says so rather than Custom.
+   */
+  it("reads the group by the cells a situation speaks for", () => {
+    expect(
+      groupPreset(
+        cells(
+          ["TASK_ATTENTION", "IN_APP", true],
+          ["TASK_ATTENTION", "OS_BANNER", true],
+          ["TASK_ATTENTION", "EMAIL", false],
+          ["TASK_COMPLETED", "IN_APP", true],
+          ["TASK_COMPLETED", "OS_BANNER", true],
+          ["TASK_COMPLETED", "EMAIL", true],
+          ["TASK_UPDATE", "IN_APP", true],
+          ["TASK_UPDATE", "OS_BANNER", false],
+        ),
+        group("TASK").presets,
+        group("TASK").kinds,
       ),
     ).toBe("MOST");
   });
@@ -297,15 +356,15 @@ describe("groupPreset", () => {
     expect(
       groupPreset(
         cells(
-          ["JOB_ATTENTION", "IN_APP", true],
-          ["JOB_ATTENTION", "OS_BANNER", true],
-          ["JOB_COMPLETED", "IN_APP", true],
-          ["JOB_COMPLETED", "OS_BANNER", false],
-          ["JOB_UPDATE", "IN_APP", true],
-          ["JOB_UPDATE", "OS_BANNER", false],
+          ["TASK_ATTENTION", "IN_APP", true],
+          ["TASK_ATTENTION", "OS_BANNER", true],
+          ["TASK_COMPLETED", "IN_APP", true],
+          ["TASK_COMPLETED", "OS_BANNER", false],
+          ["TASK_UPDATE", "IN_APP", true],
+          ["TASK_UPDATE", "OS_BANNER", false],
         ),
-        group("JOB").presets,
-        group("JOB").kinds,
+        group("TASK").presets,
+        group("TASK").kinds,
       ),
     ).toBe("ESSENTIAL");
   });
@@ -337,15 +396,15 @@ describe("groupPreset", () => {
     expect(
       groupPreset(
         cells(
-          ["JOB_ATTENTION", "IN_APP", false],
-          ["JOB_ATTENTION", "OS_BANNER", true],
-          ["JOB_COMPLETED", "IN_APP", false],
-          ["JOB_COMPLETED", "OS_BANNER", true],
-          ["JOB_UPDATE", "IN_APP", false],
-          ["JOB_UPDATE", "OS_BANNER", true],
+          ["TASK_ATTENTION", "IN_APP", false],
+          ["TASK_ATTENTION", "OS_BANNER", true],
+          ["TASK_COMPLETED", "IN_APP", false],
+          ["TASK_COMPLETED", "OS_BANNER", true],
+          ["TASK_UPDATE", "IN_APP", false],
+          ["TASK_UPDATE", "OS_BANNER", true],
         ),
-        group("JOB").presets,
-        group("JOB").kinds,
+        group("TASK").presets,
+        group("TASK").kinds,
       ),
     ).toBe("CUSTOM");
   });
@@ -359,15 +418,15 @@ describe("groupPreset", () => {
     expect(
       groupPreset(
         cells(
-          ["JOB_ATTENTION", "IN_APP", false],
-          ["JOB_ATTENTION", "OS_BANNER", false],
-          ["JOB_COMPLETED", "IN_APP", false],
-          ["JOB_COMPLETED", "OS_BANNER", false],
-          ["JOB_UPDATE", "IN_APP", false],
-          ["JOB_UPDATE", "OS_BANNER", false],
+          ["TASK_ATTENTION", "IN_APP", false],
+          ["TASK_ATTENTION", "OS_BANNER", false],
+          ["TASK_COMPLETED", "IN_APP", false],
+          ["TASK_COMPLETED", "OS_BANNER", false],
+          ["TASK_UPDATE", "IN_APP", false],
+          ["TASK_UPDATE", "OS_BANNER", false],
         ),
-        [{ id: "OFF", hintKey: "presetJobOffHint", reach: {} }],
-        group("JOB").kinds,
+        [{ id: "OFF", hintKey: "presetTaskOffHint", reach: {} }],
+        group("TASK").kinds,
       ),
     ).toBe("CUSTOM");
   });
@@ -397,40 +456,70 @@ describe("groupPreset", () => {
 
 describe("presetChanges", () => {
   /**
-   * The whole group, every cell of it. The reader's own cells are not read:
-   * that is what lets the rail name the situation the group is in.
+   * The whole group, every cell the situation speaks for. The channels each
+   * kind is on now are not read for those: that is what lets the rail name
+   * the situation the group is in.
    */
   it("writes the situation on every kind of the group", () => {
-    expect(presetChanges(preset("JOB", "MOST"), group("JOB").kinds)).toEqual([
-      { category: "JOB_ATTENTION", channels: ["IN_APP", "OS_BANNER"] },
-      { category: "JOB_COMPLETED", channels: ["IN_APP", "OS_BANNER"] },
-      { category: "JOB_UPDATE", channels: ["IN_APP"] },
+    expect(
+      presetChanges(preset("TASK", "MOST"), rows(group("TASK").kinds)),
+    ).toEqual([
+      { category: "TASK_ATTENTION", channels: ["IN_APP", "OS_BANNER"] },
+      { category: "TASK_COMPLETED", channels: ["IN_APP", "OS_BANNER"] },
+      { category: "TASK_UPDATE", channels: ["IN_APP"] },
     ]);
   });
 
   it("silences the group", () => {
-    expect(presetChanges(preset("CHAT", "OFF"), group("CHAT").kinds)).toEqual([
+    expect(
+      presetChanges(
+        preset("CHAT", "OFF"),
+        rows(group("CHAT").kinds, ["IN_APP", "OS_BANNER"]),
+      ),
+    ).toEqual([
       { category: "CHAT_ROOM_MESSAGE", channels: [] },
       { category: "CHAT_MENTION", channels: [] },
       { category: "CHAT_DIRECT_MESSAGE", channels: [] },
     ]);
   });
 
+  /**
+   * A situation is about Sokosumi and the device, and says nothing about the
+   * inbox. So Off quiets a row and leaves its email as the reader set it,
+   * rather than switching their emails off without saying so.
+   */
+  it("carries each kind's email cell over as it was", () => {
+    const [attention, completed, update] = group("TASK").kinds;
+
+    expect(
+      presetChanges(preset("TASK", "OFF"), [
+        { spec: attention, channels: ["IN_APP", "OS_BANNER", "EMAIL"] },
+        { spec: completed, channels: ["IN_APP"] },
+        { spec: update, channels: ["IN_APP"] },
+      ]),
+    ).toEqual([
+      { category: "TASK_ATTENTION", channels: ["EMAIL"] },
+      { category: "TASK_COMPLETED", channels: [] },
+      { category: "TASK_UPDATE", channels: [] },
+    ]);
+  });
+
   /** A press says nothing about a kind its situation never named. */
   it("leaves a kind the situation does not name alone", () => {
     expect(
-      presetChanges(preset("JOB", "OFF"), [...group("JOB").kinds, MENTION]).map(
-        (change) => change.category,
-      ),
-    ).toEqual(["JOB_ATTENTION", "JOB_COMPLETED", "JOB_UPDATE"]);
+      presetChanges(
+        preset("TASK", "OFF"),
+        rows([...group("TASK").kinds, MENTION]),
+      ).map((change) => change.category),
+    ).toEqual(["TASK_ATTENTION", "TASK_COMPLETED", "TASK_UPDATE"]);
   });
 });
 
 describe("presetPushes", () => {
   it("names the kinds a situation sends to the device", () => {
     expect(
-      categories(presetPushes(preset("JOB", "MOST"), group("JOB").kinds)),
-    ).toEqual(["JOB_ATTENTION", "JOB_COMPLETED"]);
+      categories(presetPushes(preset("TASK", "MOST"), group("TASK").kinds)),
+    ).toEqual(["TASK_ATTENTION", "TASK_COMPLETED"]);
   });
 
   /** Its own word says so, and a list of the whole group under it is noise. */
@@ -460,32 +549,40 @@ describe("presetStops", () => {
   });
 
   it("names none where the situation keeps them all", () => {
-    expect(presetStops(preset("JOB", "MOST"), group("JOB").kinds)).toEqual([]);
+    expect(presetStops(preset("TASK", "MOST"), group("TASK").kinds)).toEqual(
+      [],
+    );
   });
 
   /** Off stops every kind, and the word Off already says that. */
   it("names none where the situation stops them all", () => {
-    expect(presetStops(preset("JOB", "OFF"), group("JOB").kinds)).toEqual([]);
+    expect(presetStops(preset("TASK", "OFF"), group("TASK").kinds)).toEqual([]);
   });
 });
 
 describe("NOTIFICATION_GROUPS", () => {
   /**
-   * A preset writes the reaches it names and nothing else, and `REACH_CHANNELS`
-   * names no email. So a group that both offers presets and stores an email
-   * cell would switch that cell off on every press of a situation, silently.
-   *
-   * Today the reminder row is the only one that stores email and its group
-   * offers no presets. This is what makes adding a preset there fail here
-   * rather than in somebody's inbox (SOK-916).
+   * The rows that draw an email cell are the categories Core mails, and Core
+   * keeps that list (`NOTIFICATION_EMAIL_CATEGORIES`). Web cannot read it,
+   * so this pins the copy: a row moved onto or off that list changes this
+   * test in the same change, rather than drawing a cell Core ignores or
+   * hiding one it reads (SOK-1090, SOK-916).
    */
-  it("offers no preset over a row that stores its own email cell", () => {
-    const offending = NOTIFICATION_GROUPS.filter(
-      (group) =>
-        group.presets.length > 0 &&
-        group.kinds.some((kind) => kind.email === "CHANNEL"),
-    ).map((group) => group.id);
-
-    expect(offending).toEqual([]);
+  it("offers the email cell on the rows Core mails", () => {
+    expect(
+      NOTIFICATION_GROUPS.flatMap((group) =>
+        group.kinds
+          .filter((kind) => kind.email === "CHANNEL")
+          .map((kind) => kind.category),
+      ),
+    ).toEqual([
+      "TASK_ATTENTION",
+      "TASK_COMPLETED",
+      "CHAT_MENTION",
+      "CHAT_DIRECT_MESSAGE",
+      "BILLING_ATTENTION",
+      "SYSTEM",
+      "FOLLOW_UP",
+    ]);
   });
 });

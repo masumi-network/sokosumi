@@ -24,10 +24,14 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRailSelectionBar,
+  SidebarRowSlot,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
 import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
 import { cn } from "@/lib/utils";
+
+import { ProjectsMenuItem } from "./projects-menu-item";
 
 interface MenuItemConfig {
   key: string;
@@ -145,7 +149,7 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
   return (
     <>
       {/* `px-2` here rather than on the item, so a nav row's
-          `SidebarMenuItem` is the same 40px box a Chat row's is and the rail
+          `SidebarMenuItem` is the same box a Chat row's is and the rail
           selection bar's `-right-2` lands on the rail's edge in both. The
           separator spans the rail rather than the row, so it takes that
           padding back with `-mx-2`. */}
@@ -163,6 +167,9 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                 ariaKeyshortcuts,
                 separatorAfter,
               }) => {
+                if (key === "projects") {
+                  return <ProjectsMenuItem key={key} />;
+                }
                 const isActive = href ? isPathActive(href) : false;
 
                 // Collapsed rail hides the label, so every item needs the hint.
@@ -181,8 +188,10 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
 
                 const content = (
                   <>
-                    <Icon className="size-4" aria-hidden />
-                    <span className="flex-1 truncate group-data-[collapsible=icon]:sr-only">
+                    <SidebarRowSlot>
+                      <Icon className="size-4" aria-hidden />
+                    </SidebarRowSlot>
+                    <span className={cn(SIDEBAR_ROW_LABEL_CLASS, "truncate")}>
                       {label}
                     </span>
                   </>
@@ -202,7 +211,6 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                               href={href}
                               aria-current={isActive ? "page" : undefined}
                               className={cn(
-                                "flex min-h-auto w-full items-center gap-2 px-3",
                                 isActive
                                   ? "text-sidebar-accent-foreground"
                                   : "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
@@ -219,7 +227,6 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                           aria-keyshortcuts={ariaKeyshortcuts}
                           tooltip={tooltip}
                           className={cn(
-                            "flex min-h-auto w-full items-center gap-2 px-3",
                             "text-tertiary-foreground dark:text-muted-foreground",
                             "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                           )}
@@ -241,10 +248,7 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                       {isActive ? <SidebarRailSelectionBar /> : null}
                     </SidebarMenuItem>
                     {separatorAfter ? (
-                      <SidebarMenuItem
-                        aria-hidden
-                        className="group-data-[collapsible=icon]:hidden -mx-2 py-2"
-                      >
+                      <SidebarMenuItem aria-hidden className="-mx-2 py-2">
                         <div className="bg-sidebar-border h-px w-full" />
                       </SidebarMenuItem>
                     ) : null}

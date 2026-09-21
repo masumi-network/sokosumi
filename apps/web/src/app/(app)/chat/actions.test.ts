@@ -6,10 +6,12 @@ const { getThreadMock } = vi.hoisted(() => ({
   getThreadMock: vi.fn(),
 }));
 
-vi.mock("@/lib/services", () => ({
+vi.mock("@/lib/services/chat-room.service", () => ({
   chatRoomService: {
     getThread: getThreadMock,
   },
+}));
+vi.mock("@/lib/services/user.service", () => ({
   userService: {},
 }));
 

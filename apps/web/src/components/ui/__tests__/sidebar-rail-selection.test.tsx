@@ -13,7 +13,11 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarRailSelectionBar,
+  SidebarRowSlot,
 } from "@/components/ui/sidebar";
+import {
+  SIDEBAR_ROW_LABEL_CLASS,
+} from "@/components/ui/sidebar-classes";
 
 /**
  * Collapsed to icons, rest, hover and selection all used to render the same
@@ -70,20 +74,18 @@ describe("SidebarMenuButton in the collapsed icon rail", () => {
     );
     // The ring hugs a 32px square: a 40px minimum width used to stretch it
     // 8px wider than the logo's and the account chip's, so the same hover
-    // drew three different boxes down one rail. `min-h-10` is the matching
-    // height floor — `size-8!` sets height, not min-height, so without
-    // `min-h-8!` the box is 32×40. The square centres itself in the group's
-    // 40px (`mx-auto`), or its mark lands 4px left of theirs.
-    expect(button?.className).toContain("group-data-[collapsible=icon]:size-8!");
-    expect(button?.className).toContain("group-data-[collapsible=icon]:min-h-8!");
-    expect(button?.className).toContain("group-data-[collapsible=icon]:mx-auto");
+    // drew three different boxes down one rail. Height is no longer part of
+    // that override — the row is 32px at `md` in both states now, and the
+    // rail only exists at `md` — so the rail sets width alone.
+    expect(button?.className).toContain("group-data-[collapsible=icon]:w-8!");
     expect(button?.className).not.toContain("min-w-10");
-    // And centres what it holds: a 12px left pad only centred a 16px icon
-    // while the box was 40px wide.
+    // 4px left pad, flex-start: same 28px axis as `justify-center` in a
+    // 32px square, but the shrinking name cannot drag the mark to the
+    // centre of a still-wide row.
     expect(button?.className).toContain(
-      "group-data-[collapsible=icon]:justify-center",
+      "group-data-[collapsible=icon]:justify-start!",
     );
-    expect(button?.className).toContain("group-data-[collapsible=icon]:p-0!");
+    expect(button?.className).toContain("group-data-[collapsible=icon]:pl-1!");
     expect(button?.className).not.toContain("p-3!");
     // Expanded, the fill still carries all three, so those rules stay.
     expect(button?.className).toContain("hover:bg-sidebar-accent");
@@ -118,5 +120,192 @@ describe("SidebarRailSelectionBar", () => {
     expect(bar?.className).toContain("bg-primary-solid");
     // Decorative: `aria-current` on the item already states it.
     expect(bar?.getAttribute("aria-hidden")).toBe("true");
+  });
+});
+
+/**
+ * The **Sidebar row** rule (CONTEXT.md), at the primitive that owns it. Rows
+ * used to be a 40px minimum expanded and a 32px square on the rail, so every
+ * row above the first Chat room pushed the list down on a toggle; and each
+ * list built its own leading box by hand, which is how a room's mark ended up
+ * 2px off the nav icons' line. One height and one slot, here, so a new kind
+ * of row cannot drift from either.
+ */
+describe("Sidebar row geometry", () => {
+  function buttonIn(state: "expanded" | "collapsed") {
+    const { container } = render(
+      <SidebarProvider defaultOpen={state === "expanded"}>
+        <Sidebar collapsible="icon">
+          <SidebarContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton>
+                  <SidebarRowSlot>
+                    <svg aria-hidden />
+                  </SidebarRowSlot>
+                  <span>Tasks</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarContent>
+        </Sidebar>
+      </SidebarProvider>,
+    );
+    return container.querySelector('[data-slot="sidebar-menu-button"]');
+  }
+
+  it("is one height in both states: 32px with a pointer, 44px on a phone", () => {
+    const expanded = buttonIn("expanded")?.className ?? "";
+    const collapsed = buttonIn("collapsed")?.className ?? "";
+
+    // The phone sheet is never the rail, so a thumb keeps its 44px target.
+    for (const className of [expanded, collapsed]) {
+      expect(className.split(" ")).toContain("h-11");
+      expect(className.split(" ")).toContain("md:h-8");
+      // The 40px floor the row inherited from a removed hover-to-expand
+      // feature, and the rail square that disagreed with it.
+      expect(className).not.toContain("min-h-10");
+      expect(className).not.toContain("group-data-[collapsible=icon]:size-8!");
+    }
+    // Both states render one element, so the rule cannot differ between them.
+    expect(expanded).toBe(collapsed);
+  });
+
+  it("puts the mark in one 24px slot on one axis in both states", () => {
+    const className = buttonIn("expanded")?.className ?? "";
+
+    // 8px of group padding plus the row's own 8px puts the 24px slot 16px in
+    // — centred 28px from the sidebar's left edge — and the label at 48px.
+    expect(className.split(" ")).toContain("px-2");
+    expect(className.split(" ")).toContain("gap-2");
+    // On the rail the padding drops and the 32px square's own 4px offset puts
+    // the same slot on the same line. `mx-auto` would centre it on the rail's
+    // own centre, which the 1px right border leaves on a half pixel.
+    expect(className).toContain("group-data-[collapsible=icon]:ml-1");
+    expect(className).not.toContain("group-data-[collapsible=icon]:mx-auto");
+  });
+
+  it("renders the slot at one size, with no state of its own", () => {
+    const { container } = render(
+      <SidebarProvider defaultOpen>
+        <SidebarRowSlot>
+          <svg aria-hidden />
+        </SidebarRowSlot>
+      </SidebarProvider>,
+    );
+    const slot = container.querySelector('[data-slot="sidebar-row-slot"]');
+
+    expect(slot?.className.split(" ")).toEqual(
+      expect.arrayContaining([
+        "h-6",
+        // A minimum, not a fixed width: a group Direct's stack of faces grows
+        // the box to the right off the same left edge, so the first face
+        // stays on the axis and only that row's name starts later. A hard
+        // `size-6` let the stack run out of the box and over the name.
+        "min-w-6",
+        "shrink-0",
+        "items-center",
+        "justify-center",
+      ]),
+    );
+    expect(slot?.className.split(" ")).not.toContain("size-6");
+    expect(slot?.className).not.toContain("group-data-[collapsible=icon]:");
+    expect(slot?.className).not.toContain("md:");
+  });
+});
+
+/**
+ * The collapse is a width animation: the panel travels 224px to 56px and each
+ * row's box travels with it. A reader who asks for less motion gets the end
+ * state on the next frame instead — the geometry is identical either way, so
+ * nothing but the travel is lost.
+ */
+describe("Sidebar collapse under prefers-reduced-motion", () => {
+  function renderCollapse() {
+    return render(
+      <SidebarProvider defaultOpen>
+        <Sidebar collapsible="icon">
+          <SidebarContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton>Tasks</SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarContent>
+        </Sidebar>
+      </SidebarProvider>,
+    );
+  }
+
+  it("drops the travel from everything the collapse moves", () => {
+    const { container } = renderCollapse();
+
+    // The gap that reserves the panel's width in the page, the fixed panel
+    // itself, and the row box inside it — every part of the one animation.
+    for (const selector of [
+      '[data-slot="sidebar-gap"]',
+      '[data-slot="sidebar-container"]',
+      '[data-slot="sidebar-menu-button"]',
+    ]) {
+      const el = container.querySelector(selector);
+      expect(el, selector).not.toBeNull();
+      expect(el?.className, selector).toContain("transition-");
+      expect(el?.className.split(/\s+/), selector).toContain(
+        "motion-reduce:transition-none",
+      );
+    }
+  });
+
+  it("moves the gap, the panel and the row on one clock", () => {
+    const { container } = renderCollapse();
+
+    // Rows used Tailwind's 150ms ease-in-out default, so they settled 50ms
+    // before the panel they sit in. One duration and one easing, shared.
+    for (const selector of [
+      '[data-slot="sidebar-gap"]',
+      '[data-slot="sidebar-container"]',
+      '[data-slot="sidebar-menu-button"]',
+    ]) {
+      const tokens = (container.querySelector(selector)?.className ?? "").split(
+        /\s+/,
+      );
+      expect(tokens, selector).toContain("duration-200");
+      expect(tokens, selector).toContain("ease-linear");
+    }
+  });
+
+  it("does not offer to animate a height that no longer changes", () => {
+    const { container } = renderCollapse();
+    const button = container.querySelector('[data-slot="sidebar-menu-button"]');
+
+    // A row is `h-11 md:h-8` in both states now, so `height` in the
+    // transition list could never fire. Margin is in it because the rail
+    // square's 4px offset (`ml-1`) used to snap while width and padding eased.
+    expect(button?.className).toContain("transition-[width,padding,margin]");
+  });
+});
+
+/**
+ * A row's name used `sr-only` on collapse, which clips to 1px on the first
+ * frame — gone long before the width that made room for it. Absolute
+ * positioning then painted the name on top of the mark. The name stays in
+ * the flex flow at the 48px column and its max-width eases to 0 on the same
+ * clock as the panel, so it clips from the right instead of covering the
+ * icon. Reduced motion jumps to the end state.
+ */
+describe("Sidebar row label", () => {
+  it("leaves with the narrowing edge instead of covering the mark", () => {
+    const tokens = SIDEBAR_ROW_LABEL_CLASS.split(/\s+/);
+
+    expect(tokens).toContain("max-w-full");
+    expect(tokens).toContain("overflow-hidden");
+    expect(tokens).toContain("transition-[max-width]");
+    expect(tokens).toContain("duration-200");
+    expect(tokens).toContain("ease-linear");
+    expect(tokens).toContain("motion-reduce:transition-none");
+    expect(tokens).toContain("group-data-[collapsible=icon]:max-w-0");
+    expect(tokens).not.toContain("group-data-[collapsible=icon]:absolute");
+    expect(tokens).not.toContain("group-data-[collapsible=icon]:sr-only");
+    expect(tokens).not.toContain("group-data-[collapsible=icon]:hidden");
   });
 });

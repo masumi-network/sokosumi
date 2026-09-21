@@ -1,7 +1,7 @@
 "use client";
 
 import { VendorGrantCreateForm } from "@/components/vendor-grants/vendor-grant-create-form";
-import { createMyVendorGrant } from "@/lib/actions/account/vendor-grant-action";
+import { createMyVendorGrant } from "@/lib/actions/vendor-grant-action";
 
 interface PersonalVendorGrantFormProps {
   vendors: Array<{ id: string; name: string }>;

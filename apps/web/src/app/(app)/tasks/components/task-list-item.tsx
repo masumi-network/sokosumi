@@ -44,8 +44,8 @@ export function TaskListItem({
         href={`/tasks/${task.id}`}
         className={cn(
           "flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4",
-          "rounded-lg px-4 py-3 transition-colors",
-          "hover:bg-card-background",
+          "rounded-none px-4 py-3 transition-colors",
+          "hover:bg-card-background-hover",
           "active:scale-[0.995]",
           (dragHandleProps?.isDragging || isOverlay) && "bg-senary shadow-sm",
         )}
@@ -73,7 +73,7 @@ export function TaskListItem({
             <TaskPrivateIndicator visibility={task.visibility} />
           </div>
           <TaskMetaDetails
-            owner={task.owner}
+            project={task.project}
             assignee={task.assignee}
             commentsCount={task.commentsCount}
             createdAt={task.createdAt}

@@ -5,6 +5,8 @@ import {
   SokosumiJobStatus,
 } from "@/lib/clients/generated/core";
 
+import { TYPING_STATES } from "./room-typing-model";
+
 export const jobStatusDataSchema = z.object({
   jobId: z.string().min(1),
   jobStatus: z.enum(SokosumiJobStatus),
@@ -193,6 +195,20 @@ export const chatRoomReadEventDataSchema = z.object({
 });
 
 export type ChatRoomReadEventData = z.infer<typeof chatRoomReadEventDataSchema>;
+
+/**
+ * Ably `chat_typing` body (ADR-0033). Carries no display name: the reader
+ * already holds the room roster, and a name on the wire would go stale the
+ * moment somebody renames themselves.
+ *
+ * `parentMessageId` is always null today. It ships now so Thread-scoped Typing
+ * is an additive change rather than a wire break.
+ */
+export const chatTypingEventDataSchema = z.object({
+  userId: z.string().min(1),
+  state: z.enum(TYPING_STATES),
+  parentMessageId: z.string().nullable(),
+});
 
 export function isChatRoomMessageIdEnvelope(
   event: ChatRoomMessageEventData,

@@ -4471,6 +4471,18 @@ export const TaskSchema = {
             format: 'uuid',
             example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
         },
+        project: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectSummary'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: null,
+            description: 'Linked project name and logo. Null when the task has no project.'
+        },
         assigneeId: {
             type: [
                 'string',
@@ -4702,6 +4714,7 @@ export const TaskSchema = {
         'organizationId',
         'organization',
         'projectId',
+        'project',
         'assigneeId',
         'assigneeSokoBotId',
         'assigneeUserId',
@@ -4778,6 +4791,34 @@ export const OrganizationSummarySchema = {
         'id',
         'name',
         'slug'
+    ]
+} as const;
+
+export const ProjectSummarySchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        name: {
+            type: 'string',
+            example: 'Q1 research'
+        },
+        logo: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri',
+            example: 'https://example.public.blob.vercel-storage.com/projects/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa/logos/logo.png'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'logo'
     ]
 } as const;
 
@@ -9584,7 +9625,7 @@ export const ChatRoomMessageQuoteSchema = {
         roomId: {
             type: 'string',
             format: 'uuid',
-            description: 'Source room of a quote sent to the caller\'s Self Direct. Absent when the quoted message is in the same room.',
+            description: 'Source room of a message quoted from another room. Absent when the quoted message is in the same room.',
             example: '550e8400-e29b-41d4-a716-446655440000'
         }
     },
@@ -10227,8 +10268,8 @@ export const CreateChatRoomMessageRequestSchema = {
     properties: {
         content: {
             type: 'string',
-            minLength: 1,
             maxLength: 10000,
+            description: 'Message body. May be empty only when `quote` is set: a quote can be the whole message.',
             example: '@coworker:elena Can you summarize this launch risk?'
         },
         mentionedCoworkerIds: {
@@ -10276,12 +10317,18 @@ export const CreateChatRoomMessageRequestSchema = {
                     type: 'string',
                     format: 'uuid',
                     example: '550e8400-e29b-41d4-a716-446655440000'
+                },
+                roomId: {
+                    type: 'string',
+                    format: 'uuid',
+                    description: 'Room the quoted message is in, when it is not this room. User senders only. Allowed when the sender can read that room and every user member of this room is also a member of it; anything else is a 400.',
+                    example: '550e8400-e29b-41d4-a716-446655440001'
                 }
             },
             required: [
                 'messageId'
             ],
-            description: 'Quote another message in the same room. Snapshot is stored in metadata.quote; does not set parentMessageId.'
+            description: 'Quote another message. Snapshot is stored in metadata.quote; does not set parentMessageId.'
         },
         clientMessageId: {
             type: 'string',
@@ -12956,15 +13003,14 @@ export const NotificationPreferenceSchema = {
         category: {
             type: 'string',
             enum: [
-                'JOB_ATTENTION',
-                'JOB_COMPLETED',
-                'JOB_UPDATE',
                 'TASK_ATTENTION',
                 'TASK_COMPLETED',
                 'TASK_UPDATE',
                 'CHAT_ROOM_MESSAGE',
                 'CHAT_MENTION',
                 'CHAT_DIRECT_MESSAGE',
+                'BILLING_ATTENTION',
+                'BILLING_UPDATE',
                 'SYSTEM',
                 'FOLLOW_UP'
             ],
@@ -14711,11 +14757,28 @@ export const ProjectListItemSchema = {
                     type: 'integer',
                     minimum: 0,
                     example: 1
+                },
+                lastActivityAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z',
+                    description: 'Latest visible task/job event, ready task output or project lifecycle event. Equals createdAt when the project has no activity yet, which is also the list ordering key.'
+                },
+                starredAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z',
+                    description: 'When the reader Pinned this project, or null when they have not. Always resolved for the acting user, so null means unpinned rather than unknown; it is null for every non-user actor, since a Pin belongs to a person. Never an ordering key here — the list stays in activity order and the sidebar flyout is what puts Pins first.'
                 }
             },
             required: [
                 'taskCount',
-                'jobCount'
+                'jobCount',
+                'lastActivityAt',
+                'starredAt'
             ]
         }
     ]
@@ -15132,6 +15195,28 @@ export const ProjectJobStatusCountSchema = {
     ]
 } as const;
 
+export const StarredProjectSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/Project'
+        },
+        {
+            type: 'object',
+            properties: {
+                starredAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z',
+                    description: 'When this reader Pinned the project. Ascending is the order the sidebar flyout draws Pins in.'
+                }
+            },
+            required: [
+                'starredAt'
+            ]
+        }
+    ]
+} as const;
+
 export const AddProjectJobRequestSchema = {
     type: 'object',
     properties: {
@@ -15363,6 +15448,149 @@ export const WorkspaceCalendarItemSchema = {
     ]
 } as const;
 
+export const ProjectCloseStatusSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        projectId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'CLOSING',
+                'CLOSE_FAILED',
+                'CLOSED'
+            ]
+        },
+        cutoffAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        reason: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        attempts: {
+            type: 'integer',
+            minimum: 0
+        },
+        failure: {
+            $ref: '#/components/schemas/ProjectCloseFailure'
+        },
+        completedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        projectRevision: {
+            type: 'integer',
+            minimum: 0
+        },
+        owedOccurrenceCount: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'id',
+        'projectId',
+        'state',
+        'cutoffAt',
+        'reason',
+        'attempts',
+        'failure',
+        'completedAt',
+        'projectRevision',
+        'owedOccurrenceCount'
+    ]
+} as const;
+
+export const ProjectCloseFailureSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        seriesTaskId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        message: {
+            type: 'string'
+        }
+    },
+    required: [
+        'seriesTaskId',
+        'message'
+    ]
+} as const;
+
+export const ProjectCloseRequestSchema = {
+    type: 'object',
+    properties: {
+        operationId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Browser-minted idempotency key for this operation',
+            example: '123e4567-e89b-42d3-a456-426614174000'
+        },
+        expectedProjectRevision: {
+            type: 'integer',
+            minimum: 0
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500,
+            example: 'Campaign completed'
+        }
+    },
+    required: [
+        'operationId',
+        'expectedProjectRevision'
+    ]
+} as const;
+
+export const ProjectCloseRecoveryRequestSchema = {
+    type: 'object',
+    properties: {
+        operationId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Browser-minted idempotency key for this operation',
+            example: '123e4567-e89b-42d3-a456-426614174000'
+        },
+        expectedProjectRevision: {
+            type: 'integer',
+            minimum: 0
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500,
+            example: 'Campaign completed'
+        }
+    },
+    required: [
+        'operationId',
+        'expectedProjectRevision',
+        'reason'
+    ]
+} as const;
+
 export const ProjectNeedsAttentionSchema = {
     type: 'object',
     properties: {
@@ -15391,6 +15619,29 @@ export const ProjectNeedsAttentionSchema = {
         'taskCount',
         'jobCount',
         'items'
+    ]
+} as const;
+
+export const ProjectStarSchema = {
+    type: 'object',
+    properties: {
+        projectId: {
+            type: 'string',
+            format: 'uuid',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        starredAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'projectId',
+        'starredAt'
     ]
 } as const;
 
@@ -16232,16 +16483,16 @@ export const NotificationItemSchema = {
         },
         messageKey: {
             type: 'string',
-            description: 'i18n message key for translation (e.g. Notifications.Job.completed)',
-            example: 'Notifications.Job.completed'
+            description: 'i18n message key for translation (e.g. Notifications.Task.completed)',
+            example: 'Notifications.Task.completed'
         },
         messageParams: {
             type: 'object',
             additionalProperties: {},
             description: 'ICU interpolation parameters for the message',
             example: {
-                agentName: 'Research Agent',
-                jobName: 'Market Analysis'
+                coworkerName: 'Ada',
+                taskName: 'Market Analysis'
             }
         },
         metadata: {
@@ -16302,7 +16553,7 @@ export const NotificationKindSchema = {
         'CHAT'
     ],
     description: 'Notification source domain',
-    example: 'JOB'
+    example: 'TASK'
 } as const;
 
 export const NotificationCountsSchema = {
@@ -19122,6 +19373,18 @@ export const TaskListItemSchema = {
             format: 'uuid',
             example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
         },
+        project: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectSummary'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: null,
+            description: 'Linked project name and logo. Null when the task has no project.'
+        },
         assigneeId: {
             type: [
                 'string',
@@ -19307,6 +19570,7 @@ export const TaskListItemSchema = {
         'organizationId',
         'organization',
         'projectId',
+        'project',
         'assigneeId',
         'assigneeSokoBotId',
         'assigneeUserId',

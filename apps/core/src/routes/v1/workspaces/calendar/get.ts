@@ -22,7 +22,7 @@ import {
   getCalendarTaskWhere,
   parseWorkspaceCalendarQuery,
   readWorkspaceCalendar,
-} from "../[id]/calendar/get.js";
+} from "./read.js";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
