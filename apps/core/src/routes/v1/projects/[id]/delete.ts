@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
+import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { lockCalendarScope } from "@/helpers/calendar-locks";
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -99,6 +100,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
+    await deliverCalendarInvalidationsNow(workspaceContext.workspaceId);
     await deleteProjectBlobs(id);
 
     return ok(c, deleteResponseSchema.parse({ id, deleted: true }));

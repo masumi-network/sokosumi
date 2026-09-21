@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -126,6 +127,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
       await refreshTaskSchedulePlannedOccurrences(tx, updatedTask);
     });
+    await deliverCalendarInvalidationsNow(workspaceId);
 
     return ok(c, mapProjectForApi(project));
   });

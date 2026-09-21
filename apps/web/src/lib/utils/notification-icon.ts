@@ -31,14 +31,14 @@ export function getNotificationIcon(
     return CreditCard;
   }
 
-  if (kind === "JOB" || kind === "TASK") {
+  if (kind === "JOB" || kind === "TASK" || kind === "PROJECT") {
     if (FAILURE_SUFFIXES.some((suffix) => messageKey.endsWith(suffix))) {
       return TriangleAlert;
     }
     if (messageKey.endsWith("Required")) {
       return CircleAlert;
     }
-    if (messageKey.endsWith("completed")) {
+    if (messageKey.endsWith("completed") || messageKey.endsWith("closed")) {
       return CircleCheck;
     }
   }

@@ -18,6 +18,7 @@ export interface CreateAblyClientTokenRequestInput {
   userId: string;
   roomIds: readonly string[];
   organizationIds: readonly string[];
+  workspaceIds: readonly string[];
   /** Opaque tab/device instance id; becomes clientId suffix for multi-device. */
   clientInstanceId: string;
 }
@@ -26,6 +27,7 @@ export async function createAblyClientTokenRequest({
   userId,
   roomIds,
   organizationIds,
+  workspaceIds,
   clientInstanceId,
 }: CreateAblyClientTokenRequestInput): Promise<TokenRequest> {
   if (!isValidAblyClientInstanceId(clientInstanceId)) {
@@ -37,6 +39,7 @@ export async function createAblyClientTokenRequest({
     userId,
     roomIds,
     organizationIds,
+    workspaceIds,
     notificationChannelEnvironment: getNotificationChannelEnvironment(),
   });
 

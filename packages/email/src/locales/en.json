@@ -76,7 +76,8 @@
       "fallbackAuthorName": "Someone",
       "fallbackRoomName": "a conversation",
       "fallbackTaskName": "Your task",
-      "fallbackCoworkerName": "a coworker"
+      "fallbackCoworkerName": "a coworker",
+      "fallbackProjectName": "Your project"
     },
     "event": {
       "footer": "You're receiving this email because this notification is switched on in your notification settings.",
@@ -128,6 +129,43 @@
           "subject": "Sokosumi - {coworkerName} completed {taskName}",
           "title": "Task completed",
           "body": "{coworkerName} completed {taskName}."
+        },
+        "update": {
+          "title": "Task update",
+          "reasons": {
+            "failed": {
+              "subject": "Sokosumi - {taskName} failed",
+              "body": "{taskName} failed."
+            },
+            "canceled": {
+              "subject": "Sokosumi - {taskName} was canceled",
+              "body": "{taskName} was canceled."
+            },
+            "scheduleRepaired": {
+              "subject": "Sokosumi - The schedule for {taskName} was repaired",
+              "body": "The schedule for {taskName} was repaired."
+            },
+            "scheduleRemovedByOperator": {
+              "subject": "Sokosumi - The schedule for {taskName} was removed after review",
+              "body": "The schedule for {taskName} was removed after review."
+            },
+            "scheduleUpdatedByMember": {
+              "subject": "Sokosumi - A teammate updated the schedule for {taskName}",
+              "body": "A teammate updated the schedule for {taskName}."
+            },
+            "scheduleRemovedByMember": {
+              "subject": "Sokosumi - A teammate removed the schedule for {taskName}",
+              "body": "A teammate removed the schedule for {taskName}."
+            },
+            "scheduleSourceChangedByMember": {
+              "subject": "Sokosumi - A teammate moved {taskName} to another calendar source",
+              "body": "A teammate moved {taskName} to another calendar source."
+            },
+            "scheduleOccurrenceChangedByMember": {
+              "subject": "Sokosumi - A teammate changed an occurrence of {taskName}",
+              "body": "A teammate changed an occurrence of {taskName}."
+            }
+          }
         }
       },
       "accessRequest": {
@@ -140,6 +178,19 @@
         "coworker": {
           "subject": "Sokosumi - {requesterName} requested access to your workspace",
           "body": "{requesterName} requested coworker early access to your workspace."
+        }
+      },
+      "project": {
+        "button": "Open project",
+        "closed": {
+          "title": "Project closed",
+          "subject": "Sokosumi - {projectName} is now closed",
+          "body": "{projectName} has finished closing. Open the project to review its history."
+        },
+        "closeFailed": {
+          "title": "Project could not close",
+          "subject": "Sokosumi - {projectName} could not finish closing",
+          "body": "{projectName} could not finish closing after repeated attempts. Open the project to review the problem and retry closing."
         }
       }
     },

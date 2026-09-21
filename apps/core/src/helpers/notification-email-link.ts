@@ -59,6 +59,9 @@ export function notificationEmailLink(
     case "TASK":
       return `${base}/tasks/${reference}`;
 
+    case "PROJECT":
+      return `${base}/projects/${reference}`;
+
     case "CHAT": {
       const room = `${base}/chat/rooms/${reference}`;
       const messageId = readString(input.metadata, "messageId")?.trim();

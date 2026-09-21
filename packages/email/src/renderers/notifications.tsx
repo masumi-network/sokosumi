@@ -7,9 +7,11 @@ import type {
   AccessRequestEmailProps,
   ChatDirectMessageEmailProps,
   ChatMentionEmailProps,
+  ProjectUpdateEmailProps,
   RenderedEmail,
   TaskAttentionEmailProps,
   TaskCompletedEmailProps,
+  TaskUpdateEmailProps,
 } from "../types.js";
 import {
   buildGreeting,
@@ -219,6 +221,56 @@ export function renderAccessRequestEmail({
       button: t(`${scope}.button`),
       subject: t(`${scope}.${request}.subject`, values),
       title: t(`${scope}.title`),
+    },
+  });
+}
+
+/** Schedule changes and other task outcomes, using the existing task destination. */
+export function renderTaskUpdateEmail({
+  actionUrl,
+  locale,
+  projectName,
+  reason,
+  recipientName,
+  taskName,
+}: TaskUpdateEmailProps): Promise<RenderedEmail> {
+  const { t } = createEmailTranslator(locale);
+  const scope = `${EVENT_SCOPE}.task.update`;
+  const values = { taskName: nameOr(t, taskName, "fallbackTaskName") };
+  return renderEventEmail({
+    actionUrl,
+    facts: projectFact(t, projectName),
+    recipientName,
+    t,
+    words: {
+      body: t(`${scope}.reasons.${reason}.body`, values),
+      button: t(`${EVENT_SCOPE}.task.button`),
+      subject: t(`${scope}.reasons.${reason}.subject`, values),
+      title: t(`${scope}.title`),
+    },
+  });
+}
+
+/** The terminal outcome of the project close requested by the reader. */
+export function renderProjectUpdateEmail({
+  actionUrl,
+  locale,
+  outcome,
+  projectName,
+  recipientName,
+}: ProjectUpdateEmailProps): Promise<RenderedEmail> {
+  const { t } = createEmailTranslator(locale);
+  const scope = `${EVENT_SCOPE}.project`;
+  const values = { projectName: nameOr(t, projectName, "fallbackProjectName") };
+  return renderEventEmail({
+    actionUrl,
+    recipientName,
+    t,
+    words: {
+      body: t(`${scope}.${outcome}.body`, values),
+      button: t(`${scope}.button`),
+      subject: t(`${scope}.${outcome}.subject`, values),
+      title: t(`${scope}.${outcome}.title`),
     },
   });
 }

@@ -1,10 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const setPasswordViaCoreMock = vi.fn();
+const resetPasswordViaCoreMock = vi.fn();
+const getResetPasswordTokenMock = vi.fn();
+const clearResetPasswordTokenMock = vi.fn();
 const handleUTMConversionMock = vi.fn();
 
 vi.mock("@/lib/auth/core-auth-http.server", () => ({
   setPasswordViaCore: (...args: unknown[]) => setPasswordViaCoreMock(...args),
+  resetPasswordViaCore: (...args: unknown[]) =>
+    resetPasswordViaCoreMock(...args),
+}));
+
+vi.mock("@/lib/reset-password-token-cookie", () => ({
+  getResetPasswordToken: () => getResetPasswordTokenMock(),
+  clearResetPasswordToken: () => clearResetPasswordTokenMock(),
 }));
 
 vi.mock("@/lib/services/utm.service", () => ({
@@ -70,6 +80,61 @@ describe("createCredentialAccount", () => {
         message: "password already set",
       });
     }
+  });
+});
+
+describe("resetPasswordWithToken", () => {
+  beforeEach(() => {
+    resetPasswordViaCoreMock.mockReset();
+    getResetPasswordTokenMock.mockReset();
+    clearResetPasswordTokenMock.mockReset();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+
+  it("reads the token on the server and clears it after success", async () => {
+    getResetPasswordTokenMock.mockResolvedValue("reset_token_1");
+    resetPasswordViaCoreMock.mockResolvedValue(undefined);
+
+    const { resetPasswordWithToken } = await import("./action");
+    const result = await resetPasswordWithToken({
+      password: "Password-123456",
+      confirmPassword: "Password-123456",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(resetPasswordViaCoreMock).toHaveBeenCalledWith(
+      "Password-123456",
+      "reset_token_1",
+    );
+    expect(clearResetPasswordTokenMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects a submission without the server cookie", async () => {
+    getResetPasswordTokenMock.mockResolvedValue(null);
+
+    const { resetPasswordWithToken } = await import("./action");
+    const result = await resetPasswordWithToken({
+      password: "Password-123456",
+      confirmPassword: "Password-123456",
+    });
+
+    expect(result.ok).toBe(false);
+    expect(resetPasswordViaCoreMock).not.toHaveBeenCalled();
+    expect(clearResetPasswordTokenMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the cookie after a Core request failure so the user can retry", async () => {
+    getResetPasswordTokenMock.mockResolvedValue("reset_token_1");
+    resetPasswordViaCoreMock.mockRejectedValue(new Error("Core unavailable"));
+
+    const { resetPasswordWithToken } = await import("./action");
+    const result = await resetPasswordWithToken({
+      password: "Password-123456",
+      confirmPassword: "Password-123456",
+    });
+
+    expect(result.ok).toBe(false);
+    expect(clearResetPasswordTokenMock).not.toHaveBeenCalled();
   });
 });
 
