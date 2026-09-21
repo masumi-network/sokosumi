@@ -20,7 +20,7 @@ export interface EditChannelParamParams {
    */
   ready: boolean;
   pathname: string;
-  searchParams: ReadonlyURLSearchParams;
+  searchParams: Pick<ReadonlyURLSearchParams, "get" | "has" | "toString">;
   replace: (href: string, options: { scroll: false }) => void;
   /** Open the room's edit dialog. */
   open: () => void;

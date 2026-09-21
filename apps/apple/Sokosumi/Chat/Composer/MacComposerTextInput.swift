@@ -287,11 +287,96 @@
         breakUndoCoalescing()
       }
 
+      /// Replaces a typed `**hi**` with its formatted inner text. Unlike a toolbar
+      /// toggle the caret ends up collapsed after the run, and typing goes on in
+      /// the format around the delimiters, as web's caret leaves the new mark.
+      /// Undo puts the literal delimiters back with the caret after them.
+      private func replaceTyped(_ replacement: NSAttributedString, range: NSRange, surrounding: [NSAttributedString.Key: Any], formats: Bool) {
+        guard let textStorage, NSMaxRange(range) <= textStorage.length else { return }
+        let previous = textStorage.attributedSubstring(from: range)
+        undoManager?.registerUndo(withTarget: self) { input in
+          input.replaceTyped(previous, range: NSRange(location: range.location, length: replacement.length), surrounding: surrounding, formats: !formats)
+        }
+        textStorage.replaceCharacters(in: range, with: replacement)
+        setSelectedRange(NSRange(location: range.location + replacement.length, length: 0))
+        if formats {
+          typingAttributes = surrounding
+        }
+        didChangeText()
+        formattingDidChange?()
+      }
+
+      /// Formats a closed `**hi**`, `~~hi~~`, `_hi_` or `` `hi` `` ending at the caret as its own undo step.
+      func applyInputRule() -> Bool {
+        let text = attributedString()
+        guard !preservesRawDraft, let rule = ComposerInputRule.match(in: text, caret: selectedRange().location) else { return false }
+        breakUndoCoalescing()
+        replaceTyped(MacComposerAttributedText.styled(rule.replacement(in: text)), range: rule.range,
+                     surrounding: text.attributes(at: rule.range.location, effectiveRange: nil), formats: true)
+        breakUndoCoalescing()
+        return true
+      }
+
+      /// Web runs its input rules on every `input` event: typing, paste and deletion. Text
+      /// the app inserts itself (`insertAtCaret`, chips, emoji, a restored draft) is not one.
+      /// Nothing is replaced under an input method; the rule waits for the commit.
+      private func applyInputRuleAfterUserEdit(hadMarkedText: Bool = false) -> Bool {
+        let isReplayingEdit = undoManager?.isUndoing == true || undoManager?.isRedoing == true
+        guard !isReplayingEdit, !hadMarkedText, !hasMarkedText(), selectedRange().length == 0, !caretIsInCode else { return false }
+        return applyInputRule()
+      }
+
+      private func deleting(_ delete: () -> Void) {
+        let hadMarkedText = hasMarkedText()
+        delete()
+        _ = applyInputRuleAfterUserEdit(hadMarkedText: hadMarkedText)
+      }
+
+      override func deleteBackward(_ sender: Any?) {
+        deleting { super.deleteBackward(sender) }
+      }
+
+      override func deleteForward(_ sender: Any?) {
+        deleting { super.deleteForward(sender) }
+      }
+
+      override func deleteWordBackward(_ sender: Any?) {
+        deleting { super.deleteWordBackward(sender) }
+      }
+
+      override func deleteWordForward(_ sender: Any?) {
+        deleting { super.deleteWordForward(sender) }
+      }
+
+      override func deleteToBeginningOfLine(_ sender: Any?) {
+        deleting { super.deleteToBeginningOfLine(sender) }
+      }
+
+      override func deleteToEndOfLine(_ sender: Any?) {
+        deleting { super.deleteToEndOfLine(sender) }
+      }
+
+      override func cut(_ sender: Any?) {
+        deleting { super.cut(sender) }
+      }
+
+      /// `insertAtCaret` inserts through `insertText` as well; only the person's own edits fire an input rule.
+      private var insertsUntypedText = false
+
+      private func insertUntyped(_ text: String) {
+        insertsUntypedText = true
+        defer { insertsUntypedText = false }
+        insertText(text, replacementRange: selectedRange())
+      }
+
       override func insertText(_ insertString: Any, replacementRange: NSRange) {
         let isReplayingEdit = undoManager?.isUndoing == true || undoManager?.isRedoing == true
         clearReferenceTypingAttributes()
         super.insertText(insertString, replacementRange: replacementRange)
         guard !isReplayingEdit, !hasMarkedText(), selectedRange().length == 0, !caretIsInCode else { return }
+        if !insertsUntypedText, applyInputRuleAfterUserEdit() {
+          return
+        }
         if let edit = ComposerEmoji.match(in: string, caret: selectedRange().location) {
           breakUndoCoalescing()
           super.insertText(edit.replacement, replacementRange: edit.range)
@@ -402,7 +487,7 @@
       func insertAtCaret(_ text: String) {
         window?.makeFirstResponder(self)
         breakUndoCoalescing()
-        insertText(text, replacementRange: selectedRange())
+        insertUntyped(text)
         breakUndoCoalescing()
       }
 
