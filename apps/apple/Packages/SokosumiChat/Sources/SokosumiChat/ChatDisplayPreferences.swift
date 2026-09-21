@@ -29,9 +29,9 @@ public final class ChatDisplayPreferences: ObservableObject {
   public func refresh(client: Client) async throws {
     refreshGeneration += 1
     let request = refreshGeneration
-    let value = try await ChatService().showRoomUnreadCount(client: client)
+    let snapshot = try await ChatService().userPreferences(client: client)
     guard request == refreshGeneration, !isSaving, !Task.isCancelled else { return }
-    showsRoomUnreadCount = value
+    showsRoomUnreadCount = snapshot.showRoomUnreadCount
   }
 
   /// Optimistic write with rollback, web `handleToggle`: the switch flips at
@@ -46,9 +46,9 @@ public final class ChatDisplayPreferences: ObservableObject {
     showsRoomUnreadCount = enabled
     isSaving = true
     do {
-      let stored = try await ChatService().updateShowRoomUnreadCount(client: client, enabled: enabled)
+      let stored = try await ChatService().updateUserPreferences(client: client, showRoomUnreadCount: enabled)
       guard request == generation else { return }
-      showsRoomUnreadCount = stored
+      showsRoomUnreadCount = stored.showRoomUnreadCount
       isSaving = false
       refreshGeneration += 1
     } catch {
