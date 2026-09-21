@@ -1,6 +1,9 @@
 import * as Sentry from "@sentry/node";
 import { type Notification, NotificationKind } from "@sokosumi/database";
-import { CHAT_MENTION_MESSAGE_KEY } from "@sokosumi/utils";
+import {
+  CHAT_MENTION_MESSAGE_KEY,
+  CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+} from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 
 import {
@@ -32,10 +35,11 @@ async function clearRevision(id: string, publishId: string) {
   });
 }
 
-async function canReceiveChat(
+async function resolveChatDelivery(
   notification: Notification,
+  params: Record<string, unknown>,
   metadata: Record<string, unknown> | null,
-): Promise<boolean> {
+): Promise<"message" | "room" | "skip"> {
   let room: Awaited<ReturnType<typeof requireChatRoomUserAccess>>;
   try {
     room = await requireChatRoomUserAccess(
@@ -48,7 +52,7 @@ async function canReceiveChat(
       error instanceof HTTPException &&
       (error.status === 403 || error.status === 404)
     ) {
-      return false;
+      return "skip";
     }
     throw error;
   }
@@ -56,35 +60,42 @@ async function canReceiveChat(
     room.userMembers.find((member) => member.userId === notification.userId)
       ?.mutedAt
   ) {
-    return false;
+    return "skip";
   }
   const messageId = metadata?.messageId;
   if (typeof messageId !== "string") {
-    return true;
+    return "message";
   }
   const message = await prisma.chatRoomMessage.findFirst({
-    where: { id: messageId, roomId: notification.referenceId, deletedAt: null },
-    select: { parentMessageId: true },
+    where: { id: messageId, roomId: notification.referenceId },
+    select: { parentMessageId: true, deletedAt: true },
   });
-  if (!message) {
-    return false;
-  }
   if (
-    !message.parentMessageId ||
-    notification.messageKey === CHAT_MENTION_MESSAGE_KEY
+    message?.parentMessageId &&
+    notification.messageKey !== CHAT_MENTION_MESSAGE_KEY
   ) {
-    return true;
-  }
-  const thread = await prisma.chatRoomThreadReadState.findUnique({
-    where: {
-      userId_parentMessageId: {
-        userId: notification.userId,
-        parentMessageId: message.parentMessageId,
+    const thread = await prisma.chatRoomThreadReadState.findUnique({
+      where: {
+        userId_parentMessageId: {
+          userId: notification.userId,
+          parentMessageId: message.parentMessageId,
+        },
       },
-    },
-    select: { mutedAt: true },
-  });
-  return !thread?.mutedAt;
+      select: { mutedAt: true },
+    });
+    if (thread?.mutedAt) return "skip";
+  }
+  if (!message || message.deletedAt) {
+    // A counted room row also represents earlier arrivals. Losing its latest
+    // message must not discard them, but its preview and message link are stale.
+    return notification.messageKey === CHAT_ROOM_MESSAGE_MESSAGE_KEY &&
+      typeof params.count === "number" &&
+      Number.isInteger(params.count) &&
+      params.count > 1
+      ? "room"
+      : "skip";
+  }
+  return "message";
 }
 
 /** Replays the current committed revision. Failed attempts keep the queued row. */
@@ -165,11 +176,11 @@ export async function dispatchNotificationPublish(
         },
       },
     });
-    if (
-      !user ||
-      (notification.kind === NotificationKind.CHAT &&
-        !(await canReceiveChat(notification, metadata)))
-    ) {
+    const chatDelivery =
+      user && notification.kind === NotificationKind.CHAT
+        ? await resolveChatDelivery(notification, params, metadata)
+        : "message";
+    if (!user || chatDelivery === "skip") {
       await clearRevision(notificationId, publishId);
       return "skipped";
     }
@@ -200,6 +211,16 @@ export async function dispatchNotificationPublish(
     }
     if (latest.isRead) {
       delivery.osBanner = false;
+    }
+    if (chatDelivery === "room") {
+      const {
+        authorName: _author,
+        messagePreview: _preview,
+        ...roomParams
+      } = params;
+      const { messageId: _message, ...roomMetadata } = metadata ?? {};
+      latest.messageParams = JSON.stringify(roomParams);
+      latest.metadata = JSON.stringify(roomMetadata);
     }
     const published = await publishNotificationRow(
       { ...latest, inApp: delivery.inApp },

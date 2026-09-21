@@ -284,6 +284,76 @@ describe("notification publish replay", () => {
     expect(await dispatchNotificationPublish("n1", NOW)).toBe("skipped");
     expect(publish).not.toHaveBeenCalled();
   });
+  it("keeps a room aggregate when its latest message was deleted", async () => {
+    chat({
+      messageParams: JSON.stringify({
+        count: 2,
+        roomName: "Updates",
+        authorName: "Deleted author",
+        messagePreview: "Deleted text",
+      }),
+      metadata: JSON.stringify({ messageId: "deleted", workspaceId: "w1" }),
+    });
+    db.chatRoomMessage.findFirst.mockResolvedValue(null);
+
+    expect(await dispatchNotificationPublish("n1", NOW)).toBe("published");
+    const sent = publish.mock.calls[0]?.[0];
+    expect(JSON.parse(sent.messageParams)).toEqual({
+      count: 2,
+      roomName: "Updates",
+    });
+    expect(JSON.parse(sent.metadata)).toEqual({ workspaceId: "w1" });
+    expect(publish.mock.calls[0]?.[1].osBanner).toBe(true);
+  });
+  it.each([0, 1, 1.5, "2", null])(
+    "does not infer an aggregate from count %s",
+    async (count) => {
+      chat({ messageParams: JSON.stringify({ count }) });
+      db.chatRoomMessage.findFirst.mockResolvedValue(null);
+      expect(await dispatchNotificationPublish("n1", NOW)).toBe("skipped");
+      expect(publish).not.toHaveBeenCalled();
+    },
+  );
+  it("does not treat a counted mention as a room aggregate", async () => {
+    chat({
+      messageKey: "Notifications.Chat.mentioned",
+      messageParams: '{"count":2}',
+    });
+    db.chatRoomMessage.findFirst.mockResolvedValue(null);
+    expect(await dispatchNotificationPublish("n1", NOW)).toBe("skipped");
+    expect(publish).not.toHaveBeenCalled();
+  });
+  it("keeps room mute for an aggregate with a deleted latest message", async () => {
+    chat({ messageParams: '{"count":2}' });
+    access.mockResolvedValue({ userMembers: [{ userId: "u1", mutedAt: NOW }] });
+    db.chatRoomMessage.findFirst.mockResolvedValue(null);
+    expect(await dispatchNotificationPublish("n1", NOW)).toBe("skipped");
+    expect(publish).not.toHaveBeenCalled();
+  });
+  it("keeps current push opt-out for a room aggregate fallback", async () => {
+    chat({ messageParams: '{"count":2}' });
+    db.chatRoomMessage.findFirst.mockResolvedValue(null);
+    db.user.findUnique.mockResolvedValue({ ...reader, pushOptIn: false });
+    expect(await dispatchNotificationPublish("n1", NOW)).toBe("published");
+    expect(publish.mock.calls[0]?.[1].osBanner).toBe(false);
+  });
+  it("keeps thread mute for a room aggregate", async () => {
+    chat({ messageParams: '{"count":2}' });
+    db.chatRoomMessage.findFirst.mockResolvedValue({ parentMessageId: "p1" });
+    db.chatRoomThreadReadState.findUnique.mockResolvedValue({ mutedAt: NOW });
+    expect(await dispatchNotificationPublish("n1", NOW)).toBe("skipped");
+    expect(publish).not.toHaveBeenCalled();
+  });
+  it("keeps thread mute when an aggregate's latest reply was deleted", async () => {
+    chat({ messageParams: '{"count":2}' });
+    db.chatRoomMessage.findFirst.mockResolvedValue({
+      parentMessageId: "p1",
+      deletedAt: NOW,
+    });
+    db.chatRoomThreadReadState.findUnique.mockResolvedValue({ mutedAt: NOW });
+    expect(await dispatchNotificationPublish("n1", NOW)).toBe("skipped");
+    expect(publish).not.toHaveBeenCalled();
+  });
   it("suppresses a muted thread", async () => {
     chat();
     db.chatRoomMessage.findFirst.mockResolvedValue({
