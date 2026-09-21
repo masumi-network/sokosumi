@@ -33,6 +33,7 @@ import { ClientSecretField } from "./client-secret-field";
 import type {
   CreateOAuthClientDialogProps,
   CreateOAuthClientFormData,
+  OAuthClientCredentials,
 } from "./types";
 import {
   createOAuthClientSchema,
@@ -48,10 +49,8 @@ export function CreateOAuthClientDialog({
   createClient,
 }: CreateOAuthClientDialogProps) {
   const t = useTranslations("App.Account.OAuthClients");
-  const [createdCredentials, setCreatedCredentials] = useState<{
-    clientId: string;
-    clientSecret: string | null;
-  } | null>(null);
+  const [createdCredentials, setCreatedCredentials] =
+    useState<OAuthClientCredentials | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const schema = createOAuthClientSchema(t);
@@ -85,8 +84,8 @@ export function CreateOAuthClientDialog({
       isPublic: values.isPublic,
     });
 
-    if (result.success && result.data) {
-      setCreatedCredentials(result.data);
+    if (result.ok) {
+      setCreatedCredentials(result.value);
       onSuccess?.(result);
       form.reset();
     }
