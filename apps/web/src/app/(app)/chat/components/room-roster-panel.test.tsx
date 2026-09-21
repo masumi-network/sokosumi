@@ -30,7 +30,7 @@ vi.mock("@/hooks/use-clipboard", () => ({
 const labels = {
   title: "Members",
   humansTitle: "People",
-  agentsTitle: "AI coworkers",
+  agentsTitle: "Coworkers",
   close: "Close members",
   empty: "No members to show.",
   coworkerBadge: "AI coworker",
@@ -140,7 +140,11 @@ describe("RoomRosterPanel", () => {
     expect(screen.getByText("ada@example.com")).toBeTruthy();
     expect(screen.getByText("Hannah")).toBeTruthy();
     expect(screen.getByText("@hannah")).toBeTruthy();
-    expect(screen.getByText("AI coworker")).toBeTruthy();
+    // The section heading says it once; the row no longer repeats it.
+    expect(screen.queryByText("AI coworker")).toBeNull();
+    expect(screen.getByTestId("room-roster-section-agents")).toHaveTextContent(
+      "Coworkers",
+    );
     expect(screen.queryByText("Research assistant")).toBeNull();
 
     await user.click(screen.getByRole("button", { name: "Close members" }));
@@ -397,7 +401,7 @@ describe("RoomRosterPanel", () => {
       ).toHaveTextContent("People");
       expect(
         screen.getByTestId("room-roster-section-agents"),
-      ).toHaveTextContent("AI coworkers");
+      ).toHaveTextContent("Coworkers");
     });
 
     it("names neither when the room is only people", () => {
@@ -405,6 +409,83 @@ describe("RoomRosterPanel", () => {
 
       expect(screen.queryByTestId("room-roster-section-humans")).toBeNull();
       expect(screen.queryByTestId("room-roster-section-agents")).toBeNull();
+    });
+
+    it("counts every human on the People heading, read or not", () => {
+      render(
+        <OrganizationSeatProvider hasAssignedSeat={true}>
+          <RoomRosterPanel
+            participants={[humanAda, humanSelf, coworkerHannah]}
+            currentUserId="user-self"
+            canOpenHumanDirect
+            onOpenDirect={vi.fn()}
+            openingDirectKey={null}
+            onClose={vi.fn()}
+            readStateFor={(id) =>
+              id === "user-ada" ? { kind: "unread" } : null
+            }
+            labels={labels}
+          />
+        </OrganizationSeatProvider>,
+      );
+
+      // Ada has never read, and still counts toward the room's people.
+      expect(
+        screen.getByTestId("room-roster-section-humans"),
+      ).toHaveTextContent("People2");
+      expect(
+        screen.getByTestId("room-roster-section-agents"),
+      ).toHaveTextContent("Coworkers1");
+    });
+
+    it("gathers the never-read under one subheading instead of per row", () => {
+      render(
+        <OrganizationSeatProvider hasAssignedSeat={true}>
+          <RoomRosterPanel
+            participants={[humanAda, humanSelf, coworkerHannah]}
+            currentUserId="user-self"
+            canOpenHumanDirect
+            onOpenDirect={vi.fn()}
+            openingDirectKey={null}
+            onClose={vi.fn()}
+            readStateFor={(id) =>
+              id === "user-ada" ? { kind: "unread" } : null
+            }
+            labels={labels}
+          />
+        </OrganizationSeatProvider>,
+      );
+
+      expect(
+        screen.getByTestId("room-roster-subsection-never-read"),
+      ).toHaveTextContent("Not read yet");
+      // Said once by the heading, never again on the row.
+      expect(screen.queryByTestId("room-roster-read-state")).toBeNull();
+    });
+
+    it("leaves the subheading out when everyone has read", () => {
+      render(
+        <OrganizationSeatProvider hasAssignedSeat={true}>
+          <RoomRosterPanel
+            participants={[humanAda, humanSelf, coworkerHannah]}
+            currentUserId="user-self"
+            canOpenHumanDirect
+            onOpenDirect={vi.fn()}
+            openingDirectKey={null}
+            onClose={vi.fn()}
+            readStateFor={(id) =>
+              id === "user-ada"
+                ? { kind: "read", lastReadAt: new Date("2026-01-01T10:00:00Z") }
+                : null
+            }
+            labels={labels}
+          />
+        </OrganizationSeatProvider>,
+      );
+
+      expect(
+        screen.queryByTestId("room-roster-subsection-never-read"),
+      ).toBeNull();
     });
 
     it("shows the viewer first", () => {

@@ -60,34 +60,34 @@ function idsOf(members: readonly ChatParticipantHoverProfile[]) {
 
 describe("groupRosterMembers", () => {
   it("puts the viewer first among the people", () => {
-    const { humans } = groupRosterMembers(
+    const { people } = groupRosterMembers(
       [human("ada"), human(VIEWER_ID), human("zoe")],
       VIEWER_ID,
       noReads,
     );
 
-    expect(idsOf(humans)).toEqual([VIEWER_ID, "ada", "zoe"]);
+    expect(idsOf(people)).toEqual([VIEWER_ID, "ada", "zoe"]);
   });
 
   it("keeps everyone else in the order they arrived", () => {
-    const { humans } = groupRosterMembers(
+    const { people } = groupRosterMembers(
       [human("zoe"), human("ada"), human("mina")],
       VIEWER_ID,
       noReads,
     );
 
     // No viewer on this roster, and the panel does not re-sort people.
-    expect(idsOf(humans)).toEqual(["zoe", "ada", "mina"]);
+    expect(idsOf(people)).toEqual(["zoe", "ada", "mina"]);
   });
 
   it("separates machines from people, Coworkers and Soko Bots together", () => {
-    const { humans, agents } = groupRosterMembers(
+    const { people, agents } = groupRosterMembers(
       [human("ada"), coworker("elena"), human(VIEWER_ID), sokoBot("bot")],
       VIEWER_ID,
       noReads,
     );
 
-    expect(idsOf(humans)).toEqual([VIEWER_ID, "ada"]);
+    expect(idsOf(people)).toEqual([VIEWER_ID, "ada"]);
     expect(idsOf(agents)).toEqual(["elena", "bot"]);
   });
 
@@ -97,17 +97,17 @@ describe("groupRosterMembers", () => {
       VIEWER_ID,
       noReads,
     );
-    expect(idsOf(onlyAgents.humans)).toEqual([]);
+    expect(idsOf(onlyAgents.people)).toEqual([]);
     expect(idsOf(onlyAgents.agents)).toEqual(["elena"]);
 
     const onlyPeople = groupRosterMembers([human("ada")], VIEWER_ID, noReads);
-    expect(idsOf(onlyPeople.humans)).toEqual(["ada"]);
+    expect(idsOf(onlyPeople.people)).toEqual(["ada"]);
     expect(idsOf(onlyPeople.agents)).toEqual([]);
   });
 
   it("orders the rest of the people by how recently they read", () => {
-    const { humans } = groupRosterMembers(
-      [human("stale"), human(VIEWER_ID), human("fresh"), human("never")],
+    const { people } = groupRosterMembers(
+      [human("stale"), human(VIEWER_ID), human("fresh")],
       VIEWER_ID,
       readsOf({
         stale: "2026-01-01T10:00:00.000Z",
@@ -116,8 +116,42 @@ describe("groupRosterMembers", () => {
         [VIEWER_ID]: "2026-01-01T09:00:00.000Z",
       }),
     );
+    // "never" has no mark at all, so it is not in the read order.
 
-    expect(idsOf(humans)).toEqual([VIEWER_ID, "fresh", "stale", "never"]);
+    expect(idsOf(people)).toEqual([VIEWER_ID, "fresh", "stale"]);
+  });
+
+  it("gathers the never-read at the end, out of the read order", () => {
+    const { people, neverRead } = groupRosterMembers(
+      [human("ada"), human("zoe"), human(VIEWER_ID)],
+      VIEWER_ID,
+      {
+        readStateFor: (id) =>
+          id === "ada"
+            ? { kind: "read", lastReadAt: new Date("2026-01-01T10:00:00.000Z") }
+            : id === "zoe"
+              ? { kind: "unread" }
+              : null,
+      },
+    );
+
+    expect(idsOf(people)).toEqual([VIEWER_ID, "ada"]);
+    expect(idsOf(neverRead)).toEqual(["zoe"]);
+  });
+
+  /**
+   * What a guest sees: the receipts say nothing about anyone, which is not the
+   * same as nobody having read. They get the plain roster back.
+   */
+  it("calls nobody never-read when the receipts are silent", () => {
+    const { people, neverRead } = groupRosterMembers(
+      [human("ada"), human("zoe")],
+      VIEWER_ID,
+      noReads,
+    );
+
+    expect(idsOf(people)).toEqual(["ada", "zoe"]);
+    expect(neverRead).toEqual([]);
   });
 
   it("leaves machines in the order they arrived, having no mark to sort by", () => {
