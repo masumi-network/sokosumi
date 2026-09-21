@@ -1,12 +1,36 @@
 # Chat scrolling performance
 
-## Measured result — 2026-09-21
+## Retry guard follow-up — 2026-09-21
+
+`WorkspaceState.canRetryMention` now rejects rows that are not failed mention shells with a source ID **before** constructing `mentionRetrySources`. Room and thread views share this method. Valid failed shells still use the existing loaded-source and ownership check. `ScrollView`, `LazyVStack`, row rendering, geometry callbacks and the prepared-message projection are unchanged.
+
+A fresh before/after comparison starts at `e7ec006938a2f0a9f419da39e236b2eb24282468`, on the same host and Release configuration as the baseline below. The retained harness now counts calls to the actual source-array getter in its disposable copy. Each lookup cell contains 21 batches of 100 ordinary-message checks:
+
+| Messages | Before: median ms/check | After: median ms/check | Source collections, before / after |
+| --- | ---: | ---: | ---: |
+| 50 | 0.004205 | 0.000265 | 2,100 / 0 |
+| 500 | 0.029067 | 0.000266 | 2,100 / 0 |
+| 2,000 | 0.117340 | 0.000271 | 2,100 / 0 |
+
+At 2,000 messages the real method is about **430× faster for this negative check**, with a flat cost across message counts. The harness-only predicate used in the earlier baseline was cheaper still because it skipped the coordinator call and room check; this table measures the implemented method. The deterministic `--retry-guard` check failed before the change (2,100 source collections) and passes afterward (zero), without a timing threshold. Package tests separately cover ordinary/thinking/orphan rows, missing sources, ownership and room changes, plus valid sources present only in the open thread parent or replies.
+
+In the native 2,000-message plain transcript, the first 120 wheel events built **4,022 source collections before and zero afterward**. Row-body evaluations were **1,527 / 1,526**. One paired Time Profiler capture, scoped to the complete early-scroll phase using unified-log timestamps, recorded **4,329 / 4,107 ms** of main-thread sample weight (about 5.1% less). Phase duration was **5,227 / 5,215 ms**, effectively unchanged. This single pair is descriptive evidence, not a stable overall speedup or presented-frame FPS claim. The remaining prepared-message projection still consumed **377 / 389 ms** of inclusive main-thread sample weight.
+
+Six unprofiled cases (plain and mixed transcripts at 50 / 500 / 2,000 messages) all scrolled more than 400 points and reached the top. Every phase constructed zero retry-source arrays. Each case still prepared once at load and once after the mock reaction, with no preparation during scrolling/idle and no reaction reparsing. Previously realized bottom sentinels stayed inactive during the top sweep. The mixed transcript covers markdown, code, images, unfurls and reactions as well as plain text; the original seven-mix matrix below is retained rather than replaced.
+
+[Follow-up results](scrolling-retry-guard-results.json) retain lookup batch summaries, parsed trace stacks/windows and phase summaries, including bottom-sentinel counts. The [harness](scrolling-performance-harness.md) contains the new counter and exact rerun/check commands. Binary traces remain local. The original failed SwiftUI-template capture led to using the expert skill's Time Profiler workflow for both follow-up captures.
+
+Verification: the workspace test run passes **858 tests, zero failures/skips** (99 app, 1 CoreAPI, 35 Auth, 553 Chat, 48 Realtime, 122 Workspace). The Release measurement app builds; the shared Workspace scheme builds with `IPHONEOS_DEPLOYMENT_TARGET=17.0`. Pinned SwiftFormat and strict uncached SwiftLint pass. The inlined harness extracts and recreates the built probes; Xcode project/package-product linkage is unchanged. All task-owned app hosts exited.
+
+This removes a measured source of main-thread work. **M6 remains open:** live-room responsiveness, the other projection cost and the regression gates below still require acceptance. The first guard does not establish that a `List` conversion is necessary or that all sluggishness is fixed.
+
+## Baseline measurement — 2026-09-21
 
 **Neither the growing row-body workload in candidate (a) nor `PreparedTranscript.prepare` in candidate (b) explains the measured steady-scroll work.** The geometry callback in (c) is also small in the tested path. There is other whole-transcript work on the main actor: `preparedMessages` repeatedly builds its live-message dictionary/projection, and retry eligibility eagerly constructs `mentionRetrySources` for ordinary rows. The native CPU trace attributes 9.66% of main-thread sample weight to `mentionRetryAction(for:)` and 7.97% to `preparedMessages` during scrolling. These are measured contributors, not a claim that removing one will cure every reported hitch.
 
-**Cheapest next fix:** reject messages that are not failed mention shells with a source ID in `WorkspaceState.canRetryMention`, before evaluating `mentionRetrySources`. The isolated negative-case check at 2,000 messages falls from **0.127 ms to 0.000083 ms per call** with that guard in the measurement harness. No product fix was made or measured end to end. Keep the existing eligibility check for valid failed shells; a future patch needs its positive/negative permission tests.
+**Baseline recommendation:** reject messages that are not failed mention shells with a source ID in `WorkspaceState.canRetryMention`, before evaluating `mentionRetrySources`. The isolated negative-case check at 2,000 messages falls from **0.127 ms to 0.000083 ms per call** with that guard in the measurement harness. That baseline session made no product fix or end-to-end comparison. Keep the existing eligibility check for valid failed shells; a future patch needs its positive/negative permission tests.
 
-The original “lazy rows never disappear, therefore live rendered work grows without limit” statement was an unmeasured hypothesis. The counts below reject its **cumulative row-body evaluation** prediction. They do not measure retained heap/state or prove that every offscreen descendant is inactive. M6 remains Todo because no scrolling fix or regression-gate acceptance happened in this session.
+The original “lazy rows never disappear, therefore live rendered work grows without limit” statement was an unmeasured hypothesis. The counts below reject its **cumulative row-body evaluation** prediction. They do not measure retained heap/state or prove that every offscreen descendant is inactive. At the baseline, M6 remained Todo because no scrolling fix or regression-gate acceptance had happened.
 
 ## Method and reproducibility
 
