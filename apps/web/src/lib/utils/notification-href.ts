@@ -88,6 +88,9 @@ export function getNotificationHref(
     case "TASK":
       return `/tasks/${encodeURIComponent(notification.referenceId)}`;
 
+    case "PROJECT":
+      return `/projects/${encodeURIComponent(notification.referenceId)}`;
+
     case "JOB": {
       const agentId = notification.metadata?.agentId;
       if (!agentId || typeof agentId !== "string") {

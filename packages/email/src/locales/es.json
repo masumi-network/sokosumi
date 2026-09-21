@@ -76,7 +76,8 @@
       "fallbackAuthorName": "Alguien",
       "fallbackRoomName": "una conversación",
       "fallbackTaskName": "Tu tarea",
-      "fallbackCoworkerName": "un coworker"
+      "fallbackCoworkerName": "un coworker",
+      "fallbackProjectName": "Tu proyecto"
     },
     "event": {
       "footer": "Recibes este correo porque esta notificación está activada en tus preferencias de notificaciones.",
@@ -128,6 +129,43 @@
           "subject": "Sokosumi - {coworkerName} completó {taskName}",
           "title": "Tarea completada",
           "body": "{coworkerName} completó {taskName}."
+        },
+        "update": {
+          "title": "Actualización de tarea",
+          "reasons": {
+            "failed": {
+              "subject": "Sokosumi - {taskName} falló",
+              "body": "{taskName} falló."
+            },
+            "canceled": {
+              "subject": "Sokosumi - Se canceló {taskName}",
+              "body": "Se canceló {taskName}."
+            },
+            "scheduleRepaired": {
+              "subject": "Sokosumi - Se reparó la programación de {taskName}",
+              "body": "Se reparó la programación de {taskName}."
+            },
+            "scheduleRemovedByOperator": {
+              "subject": "Sokosumi - Se eliminó la programación de {taskName} después de revisarla",
+              "body": "Se eliminó la programación de {taskName} después de revisarla."
+            },
+            "scheduleUpdatedByMember": {
+              "subject": "Sokosumi - Un compañero actualizó la programación de {taskName}",
+              "body": "Un compañero actualizó la programación de {taskName}."
+            },
+            "scheduleRemovedByMember": {
+              "subject": "Sokosumi - Un compañero eliminó la programación de {taskName}",
+              "body": "Un compañero eliminó la programación de {taskName}."
+            },
+            "scheduleSourceChangedByMember": {
+              "subject": "Sokosumi - Un compañero movió {taskName} a otra fuente del calendario",
+              "body": "Un compañero movió {taskName} a otra fuente del calendario."
+            },
+            "scheduleOccurrenceChangedByMember": {
+              "subject": "Sokosumi - Un compañero cambió una ocurrencia de {taskName}",
+              "body": "Un compañero cambió una ocurrencia de {taskName}."
+            }
+          }
         }
       },
       "accessRequest": {
@@ -140,6 +178,19 @@
         "coworker": {
           "subject": "Sokosumi - {requesterName} solicitó acceso a tu espacio de trabajo",
           "body": "{requesterName} solicitó acceso anticipado de coworker a tu espacio de trabajo."
+        }
+      },
+      "project": {
+        "button": "Abrir proyecto",
+        "closed": {
+          "title": "Proyecto cerrado",
+          "subject": "Sokosumi - {projectName} ya está cerrado",
+          "body": "Se completó el cierre de {projectName}. Abre el proyecto para consultar su historial."
+        },
+        "closeFailed": {
+          "title": "No se pudo cerrar el proyecto",
+          "subject": "Sokosumi - No se pudo completar el cierre de {projectName}",
+          "body": "No se pudo completar el cierre de {projectName} tras varios intentos. Abre el proyecto para revisar el problema y volver a intentar cerrarlo."
         }
       }
     },

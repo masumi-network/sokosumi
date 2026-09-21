@@ -1,11 +1,19 @@
 import * as Sentry from "@sentry/node";
-import { type Notification, NotificationKind } from "@sokosumi/database";
+import {
+  type Notification,
+  NotificationKind,
+  type Prisma,
+} from "@sokosumi/database";
 import {
   isFollowUpMessageKey,
   type NotificationCategory,
 } from "@sokosumi/utils";
 
 import { cancelEmail, sendEmail } from "@/clients/email.client";
+import {
+  hasCalendarWorkspaceAccess,
+  lockCalendarWorkspaceMembership,
+} from "@/helpers/calendar-membership-fence";
 import { toNotificationCategory } from "@/helpers/notification-delivery";
 import {
   buildNotificationEmail,
@@ -178,11 +186,14 @@ async function alreadyEmailed(
     select: { messageKey: true },
   });
 
-  return earlier.some((row) =>
-    sameEmailScope(
-      category,
-      toNotificationCategory(notification.kind, row.messageKey),
-    ),
+  return earlier.some(
+    (row) =>
+      (notification.kind !== NotificationKind.PROJECT ||
+        row.messageKey === notification.messageKey) &&
+      sameEmailScope(
+        category,
+        toNotificationCategory(notification.kind, row.messageKey),
+      ),
   );
 }
 
@@ -220,6 +231,7 @@ async function appInFront(notification: Notification): Promise<boolean> {
 export async function dispatchNotificationEmail(
   notification: Notification,
 ): Promise<void> {
+  let unpersistedScheduledEmailId: string | null = null;
   try {
     if (isFollowUpMessageKey(notification.messageKey)) {
       return;
@@ -297,18 +309,31 @@ export async function dispatchNotificationEmail(
     // sees the first's email on its row rather than both passing the check
     // before either has sent. Two instances can still both send; the row's
     // idempotency key does not cover that, since the rows differ.
-    const sent = await withResendGap(async () => {
+    const sendForCurrentRecipient = async (
+      client: Prisma.TransactionClient | typeof prisma,
+    ) => {
       // Read again at this row's turn rather than before it. A room of
       // thirty waits half a second a row, and in that time the reader can
       // read the notification, or the request it is about can be resolved,
       // which takes the row away. Either way the email would ask for
       // something nobody is asking any more.
-      const live = await prisma.notification.findUnique({
+      const live = await client.notification.findUnique({
         where: { id: notification.id },
         select: { isRead: true },
       });
 
       if (!live || live.isRead) {
+        return null;
+      }
+
+      if (
+        notification.workspaceId &&
+        !(await hasCalendarWorkspaceAccess(
+          client,
+          notification.workspaceId,
+          notification.userId,
+        ))
+      ) {
         return null;
       }
 
@@ -329,21 +354,46 @@ export async function dispatchNotificationEmail(
         idempotencyKey: `notification-email/${notification.id}`,
       });
 
+      if (scheduledAt !== null) unpersistedScheduledEmailId = emailId;
+
       // Written only onto a row that is still unread. A row read while the
       // email was being handed over has nothing to cancel it by, so it is
       // cancelled below instead; an email already on its way is left alone.
-      const { count } = await prisma.notification.updateMany({
+      const { count } = await client.notification.updateMany({
         where: { id: notification.id, isRead: false },
         data: { emailId, emailScheduledAt: scheduledAt },
       });
 
       return { emailId, count };
+    };
+    const sent = await withResendGap(() => {
+      const workspaceId = notification.workspaceId;
+      if (!workspaceId) return sendForCurrentRecipient(prisma);
+      // Membership removal must see the provider ID before deleting the row.
+      return prisma.$transaction(async (tx) => {
+        await lockCalendarWorkspaceMembership(tx, workspaceId);
+        return sendForCurrentRecipient(tx);
+      });
     });
 
     if (sent !== null && sent.count === 0 && scheduledAt !== null) {
       await withResendGap(() => cancelEmail(sent.emailId));
     }
+    unpersistedScheduledEmailId = null;
   } catch (error) {
+    if (unpersistedScheduledEmailId) {
+      const emailId = unpersistedScheduledEmailId;
+      try {
+        await withResendGap(() => cancelEmail(emailId));
+      } catch (cancelError) {
+        Sentry.captureException(cancelError, {
+          extra: {
+            emailId,
+            notificationType: "notification-email-rollback-cancel",
+          },
+        });
+      }
+    }
     Sentry.captureException(error, {
       extra: {
         notificationId: notification.id,
@@ -381,6 +431,7 @@ export interface EmailedNotificationRow {
  */
 export async function cancelNotificationEmails(
   rows: readonly EmailedNotificationRow[],
+  options: { retryOnFailure?: boolean } = {},
 ): Promise<void> {
   for (const row of rows) {
     const emailId = row.emailId;
@@ -418,6 +469,7 @@ export async function cancelNotificationEmails(
           notificationType: "notification-email-cancel",
         },
       });
+      if (options.retryOnFailure) throw error;
     }
   }
 }

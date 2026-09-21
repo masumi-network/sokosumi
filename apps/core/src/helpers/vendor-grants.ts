@@ -285,6 +285,7 @@ export async function notifyWorkspaceApproversOfPendingGrant(
         referenceId: params.grantId,
         eventId: params.grantId,
         messageKey: VENDOR_GRANT_PENDING_MESSAGE_KEY,
+        workspaceId: params.workspaceId,
         messageParams: {
           vendorName: vendor?.name ?? params.vendorId,
           vendorSlug: vendor?.slug ?? null,

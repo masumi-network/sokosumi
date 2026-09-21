@@ -17,6 +17,8 @@ export {
   renderAccessRequestEmail,
   renderChatDirectMessageEmail,
   renderChatMentionEmail,
+  renderProjectUpdateEmail,
   renderTaskAttentionEmail,
   renderTaskCompletedEmail,
+  renderTaskUpdateEmail,
 } from "./notifications.js";

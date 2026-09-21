@@ -2,9 +2,11 @@ import {
   makeChatRoomChannelName,
   makeChatTypingChannelName,
   makeOrgPresenceChannelName,
+  makeUserCalendarControlChannelName,
   makeUserChatControlChannelName,
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
+  makeWorkspaceCalendarChannelName,
   type NotificationChannelEnvironment,
 } from "@sokosumi/utils";
 
@@ -30,6 +32,7 @@ export interface BuildAblyClientCapabilityInput {
   userId: string;
   roomIds: readonly string[];
   organizationIds: readonly string[];
+  workspaceIds: readonly string[];
   notificationChannelEnvironment: NotificationChannelEnvironment;
 }
 
@@ -37,6 +40,8 @@ export interface BuildAblyClientCapabilityInput {
  * Ably capabilities for a user session.
  * - Chat rooms: per-membership room id subscribe (SOK-741)
  * - Chat control: always subscribe (SOK-742 membership revoke)
+ * - Calendar workspaces: exact per-workspace, per-user subscribe
+ * - Calendar control: always subscribe so access revocation can detach clients
  * - Org presence: `presence` (enter/update/leave) + `subscribe` (get + presence
  *   events) on presence:org_* (ADR-0003; Ably requires both for roster maps)
  * - Notifications: `subscribe` (realtime feed) + `presence` (a client enters
@@ -48,6 +53,7 @@ export function buildAblyClientCapability({
   userId,
   roomIds,
   organizationIds,
+  workspaceIds,
   notificationChannelEnvironment,
 }: BuildAblyClientCapabilityInput): AblySubscribeCapabilityMap {
   const capability: AblySubscribeCapabilityMap = {
@@ -57,6 +63,7 @@ export function buildAblyClientCapability({
     [makeUserNotificationsChannelName(userId, notificationChannelEnvironment)]:
       ["subscribe", "presence", "push-subscribe"],
     [makeUserChatControlChannelName(userId)]: ["subscribe"],
+    [makeUserCalendarControlChannelName(userId)]: ["subscribe"],
   };
 
   for (const roomId of roomIds) {
@@ -69,6 +76,12 @@ export function buildAblyClientCapability({
   for (const organizationId of organizationIds) {
     capability[makeOrgPresenceChannelName(organizationId)] = [
       "presence",
+      "subscribe",
+    ];
+  }
+
+  for (const workspaceId of workspaceIds) {
+    capability[makeWorkspaceCalendarChannelName(workspaceId, userId)] = [
       "subscribe",
     ];
   }

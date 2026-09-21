@@ -578,9 +578,11 @@ describe("NOTIFICATION_GROUPS", () => {
     ).toEqual([
       "TASK_ATTENTION",
       "TASK_COMPLETED",
+      "TASK_UPDATE",
       "CHAT_MENTION",
       "CHAT_DIRECT_MESSAGE",
       "BILLING_ATTENTION",
+      "PROJECT_UPDATE",
       "SYSTEM",
       "FOLLOW_UP",
     ]);

@@ -14,6 +14,7 @@ describe("buildAblyClientCapability", () => {
       userId: "user_123",
       roomIds: ["room-a", "room-b"],
       organizationIds: [],
+      workspaceIds: ["workspace-personal"],
       notificationChannelEnvironment: NON_PREVIEW_ENVIRONMENT,
     });
 
@@ -26,6 +27,8 @@ describe("buildAblyClientCapability", () => {
         "push-subscribe",
       ],
       "chat_control:user_user_123": ["subscribe"],
+      "calendar_control:user_user_123": ["subscribe"],
+      "calendar:workspace_workspace-personal:user_user_123": ["subscribe"],
       "chat_rooms:room_room-a": ["subscribe"],
       "chat_rooms:room_room-b": ["subscribe"],
       "chat_typing:room_room-a": ["publish", "subscribe"],
@@ -41,6 +44,7 @@ describe("buildAblyClientCapability", () => {
       userId: "user_123",
       roomIds: ["room-a", "room-b"],
       organizationIds: ["org_a"],
+      workspaceIds: [],
       notificationChannelEnvironment: NON_PREVIEW_ENVIRONMENT,
     });
 
@@ -62,6 +66,7 @@ describe("buildAblyClientCapability", () => {
       userId: "user_123",
       roomIds: ["room-a"],
       organizationIds: ["org_a"],
+      workspaceIds: ["workspace-personal", "workspace-org-a"],
       notificationChannelEnvironment: NON_PREVIEW_ENVIRONMENT,
     });
 
@@ -82,6 +87,7 @@ describe("buildAblyClientCapability", () => {
       userId: "user_123",
       roomIds: [],
       organizationIds: [],
+      workspaceIds: [],
       notificationChannelEnvironment: {
         network: "Mainnet",
         vercelEnv: "preview",
@@ -102,6 +108,7 @@ describe("buildAblyClientCapability", () => {
       userId: "user_123",
       roomIds: ["room-a"],
       organizationIds: ["org_a", "org_b"],
+      workspaceIds: ["workspace-org-a", "workspace-org-b"],
       notificationChannelEnvironment: NON_PREVIEW_ENVIRONMENT,
     });
 
@@ -115,6 +122,7 @@ describe("buildAblyClientCapability", () => {
       userId: "user_123",
       roomIds: [],
       organizationIds: [],
+      workspaceIds: [],
       notificationChannelEnvironment: NON_PREVIEW_ENVIRONMENT,
     });
 
@@ -124,6 +132,7 @@ describe("buildAblyClientCapability", () => {
     ).toEqual([]);
     expect(capability["tasks:all:user_user_123"]).toEqual(["subscribe"]);
     expect(capability["chat_control:user_user_123"]).toEqual(["subscribe"]);
+    expect(capability["calendar_control:user_user_123"]).toEqual(["subscribe"]);
   });
 
   it("does not grant the legacy per-user chat_rooms wildcard", () => {
@@ -131,10 +140,30 @@ describe("buildAblyClientCapability", () => {
       userId: "user_123",
       roomIds: ["room-a"],
       organizationIds: [],
+      workspaceIds: [],
       notificationChannelEnvironment: NON_PREVIEW_ENVIRONMENT,
     });
 
     expect(capability["chat_rooms:*:user_user_123"]).toBeUndefined();
     expect(capability["chat_rooms:all:user_user_123"]).toBeUndefined();
+  });
+
+  it("grants only exact user-scoped calendar workspace channels", () => {
+    const capability = buildAblyClientCapability({
+      userId: "user_123",
+      roomIds: [],
+      organizationIds: [],
+      workspaceIds: ["workspace-personal", "workspace-org-a"],
+      notificationChannelEnvironment: NON_PREVIEW_ENVIRONMENT,
+    });
+
+    expect(
+      capability["calendar:workspace_workspace-personal:user_user_123"],
+    ).toEqual(["subscribe"]);
+    expect(
+      capability["calendar:workspace_workspace-org-a:user_user_123"],
+    ).toEqual(["subscribe"]);
+    expect(capability["calendar:*"]).toBeUndefined();
+    expect(capability["calendar:workspace_*:user_user_123"]).toBeUndefined();
   });
 });

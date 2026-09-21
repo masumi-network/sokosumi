@@ -24,6 +24,7 @@ import {
 } from "@/helpers/agent";
 import { calculateCentsFromMasumiAmountStrings } from "@/helpers/agent-cost";
 import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
+import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import {
   conflict,
   errorResponseWithExtensionsSchema,
@@ -506,6 +507,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
         userId: task.ownerId,
         organizationId: task.organizationId,
+        workspaceId: task.workspaceId,
         projectId: task.projectId,
         masumiPayment: payment,
         taskPaymentClaimId,
@@ -527,6 +529,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       event,
       userId,
       organizationId,
+      workspaceId,
       projectId,
       masumiPayment,
       taskPaymentClaimId,
@@ -553,6 +556,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     if (event.status) {
+      await deliverCalendarInvalidationsNow(workspaceId);
       waitUntil(notifyTaskStatusEvent(taskId, event.id, event.status));
     }
 

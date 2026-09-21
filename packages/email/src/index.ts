@@ -3,4 +3,5 @@ export type {
   BillingFollowUpReason,
   JobFailureNotificationEmailProps,
   TaskAttentionReason,
+  TaskUpdateReason,
 } from "./types.js";

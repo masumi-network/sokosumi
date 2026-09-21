@@ -18,6 +18,9 @@ import {
 } from "./notification-email-dispatch";
 
 const {
+  transactionCommitMock,
+  lockCalendarWorkspaceMembershipMock,
+  hasCalendarWorkspaceAccessMock,
   captureExceptionMock,
   captureMessageMock,
   sendEmailMock,
@@ -28,6 +31,9 @@ const {
   notificationUpdateManyMock,
   userFindUniqueMock,
 } = vi.hoisted(() => ({
+  transactionCommitMock: vi.fn(),
+  lockCalendarWorkspaceMembershipMock: vi.fn(),
+  hasCalendarWorkspaceAccessMock: vi.fn(),
   captureExceptionMock: vi.fn(),
   captureMessageMock: vi.fn(),
   sendEmailMock: vi.fn(),
@@ -37,6 +43,11 @@ const {
   notificationFindManyMock: vi.fn(),
   notificationUpdateManyMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/calendar-membership-fence", () => ({
+  hasCalendarWorkspaceAccess: hasCalendarWorkspaceAccessMock,
+  lockCalendarWorkspaceMembership: lockCalendarWorkspaceMembershipMock,
 }));
 
 vi.mock("@sentry/node", () => ({
@@ -53,16 +64,26 @@ vi.mock("@/lib/ably/channel-occupancy", () => ({
   hasAppInFront: (...args: unknown[]) => hasAppInFrontMock(...args),
 }));
 
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
+vi.mock("@/lib/db/prisma", () => {
+  const client = {
     notification: {
       findUnique: notificationFindUniqueMock,
       findMany: notificationFindManyMock,
       updateMany: notificationUpdateManyMock,
     },
     user: { findUnique: userFindUniqueMock },
-  },
-}));
+  };
+  return {
+    default: {
+      ...client,
+      $transaction: async (fn: (tx: typeof client) => unknown) => {
+        const result = await fn(client);
+        await transactionCommitMock();
+        return result;
+      },
+    },
+  };
+});
 
 const NOW = new Date("2026-09-19T10:00:00.000Z");
 const TEN_MINUTES_LATER = new Date("2026-09-19T10:10:00.000Z");
@@ -71,6 +92,8 @@ function mention(overrides: Partial<Notification> = {}): Notification {
   return {
     id: "notification_1",
     userId: "user_1",
+    workspaceId: null,
+    organizationId: null,
     kind: NotificationKind.CHAT,
     referenceId: "room_1",
     eventId: "message_1",
@@ -121,6 +144,9 @@ describe("dispatchNotificationEmail", () => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
     vi.clearAllMocks();
+    hasCalendarWorkspaceAccessMock.mockResolvedValue(true);
+    lockCalendarWorkspaceMembershipMock.mockResolvedValue(undefined);
+    transactionCommitMock.mockResolvedValue(undefined);
     notificationFindUniqueMock.mockResolvedValue({ isRead: false });
     notificationFindManyMock.mockResolvedValue([]);
     notificationUpdateManyMock.mockResolvedValue({ count: 1 });
@@ -135,6 +161,69 @@ describe("dispatchNotificationEmail", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("emails successful closure even when the failure email remains unread", async () => {
+    notificationFindManyMock.mockResolvedValue([
+      { messageKey: "Notifications.Project.closeFailed" },
+    ]);
+    await dispatch(
+      mention({
+        kind: NotificationKind.PROJECT,
+        referenceId: "project_1",
+        messageKey: "Notifications.Project.closed",
+        messageParams: JSON.stringify({ projectName: "Launch" }),
+      }),
+    );
+    expect(sendEmailMock).toHaveBeenCalledWith(
+      expect.objectContaining({ subject: "Sokosumi - Launch is now closed" }),
+    );
+  });
+
+  it("skips calendar emails after workspace access is revoked", async () => {
+    hasCalendarWorkspaceAccessMock.mockResolvedValue(false);
+    await dispatch(
+      finished({
+        workspaceId: "workspace_1",
+        messageKey: "Notifications.Task.scheduleUpdatedByMember",
+      }),
+    );
+    expect(sendEmailMock).not.toHaveBeenCalled();
+    expect(hasCalendarWorkspaceAccessMock).toHaveBeenCalledWith(
+      expect.anything(),
+      "workspace_1",
+      "user_1",
+    );
+  });
+
+  it("delays calendar email while the app is in front", async () => {
+    hasAppInFrontMock.mockResolvedValue(true);
+    await dispatch(
+      finished({
+        workspaceId: "workspace_1",
+        messageKey: "Notifications.Task.scheduleUpdatedByMember",
+      }),
+    );
+    expect(sendEmailMock).toHaveBeenCalledWith(
+      expect.objectContaining({ scheduledAt: "2026-09-19T10:30:00.000Z" }),
+    );
+    expect(lockCalendarWorkspaceMembershipMock).toHaveBeenCalledWith(
+      expect.anything(),
+      "workspace_1",
+    );
+  });
+
+  it("cancels an accepted scheduled email if its transaction cannot commit", async () => {
+    hasAppInFrontMock.mockResolvedValue(true);
+    transactionCommitMock.mockRejectedValueOnce(new Error("commit failed"));
+    await dispatch(
+      finished({
+        workspaceId: "workspace_1",
+        messageKey: "Notifications.Task.scheduleUpdatedByMember",
+      }),
+    );
+    expect(sendEmailMock).toHaveBeenCalledOnce();
+    expect(cancelEmailMock).toHaveBeenCalledWith("email_1");
   });
 
   it("sends the email now when the reader has nothing in front of them", async () => {
@@ -340,7 +429,9 @@ describe("dispatchNotificationEmail", () => {
       { messageKey: TASK_INPUT_REQUIRED_MESSAGE_KEY },
     ]);
 
-    await dispatch(finished({ messageKey: TASK_SCHEDULE_REMOVED_MESSAGE_KEY }));
+    await dispatch(
+      finished({ messageKey: "Notifications.Task.approvalRequired" }),
+    );
 
     expect(sendEmailMock).not.toHaveBeenCalled();
   });
@@ -482,6 +573,9 @@ describe("cancelNotificationEmails", () => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
     vi.clearAllMocks();
+    hasCalendarWorkspaceAccessMock.mockResolvedValue(true);
+    lockCalendarWorkspaceMembershipMock.mockResolvedValue(undefined);
+    transactionCommitMock.mockResolvedValue(undefined);
     notificationUpdateManyMock.mockResolvedValue({ count: 1 });
     cancelEmailMock.mockResolvedValue(undefined);
   });

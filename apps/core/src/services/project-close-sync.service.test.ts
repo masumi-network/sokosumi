@@ -7,8 +7,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   cloneRecurringTaskScheduleOccurrenceMock,
+  deliverCalendarInvalidationsNowMock,
   lockCalendarScopeMock,
   lockTaskRowsMock,
+  notifyProjectCloseTransitionMock,
+  retryMissingProjectCloseNotificationsMock,
   prismaMock,
   projectCloseOperationFindFirstMock,
   projectCloseOperationFindManyMock,
@@ -29,8 +32,11 @@ const {
   txProjectCloseOperationUpdateManyMock,
 } = vi.hoisted(() => ({
   cloneRecurringTaskScheduleOccurrenceMock: vi.fn(),
+  deliverCalendarInvalidationsNowMock: vi.fn(),
   lockCalendarScopeMock: vi.fn(),
   lockTaskRowsMock: vi.fn(),
+  notifyProjectCloseTransitionMock: vi.fn(),
+  retryMissingProjectCloseNotificationsMock: vi.fn(),
   prismaMock: {
     $transaction: vi.fn(),
     projectCloseOperation: {
@@ -61,6 +67,14 @@ const {
 vi.mock("@/helpers/calendar-locks", () => ({
   lockCalendarScope: lockCalendarScopeMock,
   lockTaskRows: lockTaskRowsMock,
+}));
+vi.mock("@/helpers/calendar-invalidation", () => ({
+  deliverCalendarInvalidationsNow: deliverCalendarInvalidationsNowMock,
+}));
+vi.mock("@/helpers/project-close-notifications", () => ({
+  notifyProjectCloseTransition: notifyProjectCloseTransitionMock,
+  retryMissingProjectCloseNotifications:
+    retryMissingProjectCloseNotificationsMock,
 }));
 vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
   retireTaskScheduleFutureOccurrences: retireTaskScheduleFutureOccurrencesMock,
@@ -164,6 +178,7 @@ describe("project close sync", () => {
       canceledCount: 1,
     });
     cloneRecurringTaskScheduleOccurrenceMock.mockResolvedValue("run_123");
+    projectEventCreateMock.mockResolvedValue({ id: "project_event_123" });
     taskScheduleOccurrenceFindFirstMock.mockResolvedValue(null);
   });
 
@@ -308,6 +323,9 @@ describe("project close sync", () => {
         }),
       }),
     );
+    expect(notifyProjectCloseTransitionMock).toHaveBeenCalledWith(
+      "project_event_123",
+    );
   });
 
   it("keeps a series cursor fixed while a bounded owed batch remains", async () => {
@@ -344,6 +362,7 @@ describe("project close sync", () => {
         scheduleRevision: { increment: 1 },
       },
     });
+    expect(notifyProjectCloseTransitionMock).not.toHaveBeenCalled();
   });
 
   it("promotes an owed one-time schedule and records its task status", async () => {
@@ -570,6 +589,24 @@ describe("project close sync", () => {
         },
       }),
     });
+    expect(notifyProjectCloseTransitionMock).toHaveBeenCalledWith(
+      "project_event_123",
+    );
+  });
+
+  it("does not notify for a retryable close batch failure", async () => {
+    taskFindFirstMock
+      .mockResolvedValueOnce({ id: recurringTask.id })
+      .mockResolvedValueOnce({ ...recurringTask, metadata: "invalid" });
+    projectCloseOperationFindFirstMock.mockResolvedValue({
+      attempts: 0,
+      projectId: PROJECT_ID,
+    });
+
+    const result = await projectCloseSyncService.syncProjectCloses(options());
+
+    expect(result.failed).toBe(0);
+    expect(notifyProjectCloseTransitionMock).not.toHaveBeenCalled();
   });
 
   it("refuses to finalize while project-sourced owed work remains", async () => {
