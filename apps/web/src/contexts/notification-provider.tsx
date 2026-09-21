@@ -17,10 +17,10 @@ import { NotificationUrlTargetOpener } from "@/app/components/notification-url-t
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { makeCurrentUserNotificationsChannelName } from "@/lib/ably/current-notifications-channel.client";
-import { healPushSubscription } from "@/lib/ably/push-self-heal.client";
 import type { NotificationEventData } from "@/lib/ably/schema";
 import { useNotificationFrontPresence } from "@/lib/ably/use-notification-front-presence";
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
+import { usePushRecovery } from "@/lib/ably/use-push-recovery";
 import { notificationsBrowserClient } from "@/lib/clients/core.notifications.browser.client";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
 import type {
@@ -185,6 +185,8 @@ export function NotificationFallbackProvider({
 }
 
 interface NotificationProviderProps {
+  sessionId?: string;
+  sessionCreatedAt?: number;
   userId: string;
   children: React.ReactNode;
 }
@@ -226,20 +228,11 @@ function NotificationRealtimeBridge({
  */
 export function NotificationProvider({
   userId,
+  sessionId,
+  sessionCreatedAt,
   children,
 }: NotificationProviderProps) {
-  // A browser that was set up for push and lost its subscription is repaired
-  // here, because this is where a signed-in reader arrives however they got
-  // in. Asks the reader for nothing and leaves a browser that never turned
-  // push on alone.
-  //
-  // Per reader rather than per mount. AuthenticatedAppFrame keys this
-  // provider on session.user.id so a second reader remounts it. The effect
-  // still follows userId, because a same-instance swap (tests, a mount
-  // without that key) would otherwise repair only the first reader.
-  useEffect(() => {
-    void healPushSubscription(userId);
-  }, [userId]);
+  usePushRecovery(userId, sessionId, sessionCreatedAt);
 
   const [state, setState] = useState<NotificationState>({
     notifications: [],

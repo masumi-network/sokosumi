@@ -89,7 +89,7 @@ describe("proxy", () => {
     expect(getSessionCookieMock).not.toHaveBeenCalled();
   });
 
-  it("serves the worker's message catalog without a session", async () => {
+  it("serves every worker import without a session", async () => {
     const { readFileSync } = await import("node:fs");
     const { join } = await import("node:path");
     const { NextRequest } = await import("next/server");
@@ -101,19 +101,23 @@ describe("proxy", () => {
     // catalog without updating `EXCLUDED_PATHS` fails here. This one fails
     // harder than the worker's own path: an import that redirects throws, so
     // worker evaluation fails and the reader gets no push worker at all.
-    const imported = readFileSync(
-      join(process.cwd(), "public", NOTIFICATION_SERVICE_WORKER_URL),
-      "utf8",
-    ).match(/importScripts\("([^"]*)"\);/)?.[1];
-    expect(imported).toBeTruthy();
+    const imported = [
+      ...readFileSync(
+        join(process.cwd(), "public", NOTIFICATION_SERVICE_WORKER_URL),
+        "utf8",
+      ).matchAll(/importScripts\("([^"]*)"\);/g),
+    ].map((match) => match[1]);
+    expect(imported).toHaveLength(2);
     getSessionCookieMock.mockReturnValue(null);
-    const request = new NextRequest(
-      `https://sokosumi-app-preprod-git-codex-evaluate-cookie-prefix-usage.preview.sokosumi.com${imported}`,
-    );
+    for (const path of imported) {
+      const request = new NextRequest(
+        `https://sokosumi-app-preprod-git-codex-evaluate-cookie-prefix-usage.preview.sokosumi.com${path}`,
+      );
 
-    const response = await proxy(request);
+      const response = await proxy(request);
 
-    expect(response?.status).not.toBe(307);
+      expect(response?.status).not.toBe(307);
+    }
     expect(getSessionCookieMock).not.toHaveBeenCalled();
   });
 

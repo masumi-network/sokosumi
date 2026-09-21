@@ -72,15 +72,11 @@ vi.mock("@/lib/utils/notification-service-worker", async (importOriginal) => ({
   },
 }));
 
-vi.mock("@/lib/utils/browser-notification", () => ({
+vi.mock("@/lib/utils/browser-notification", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/lib/utils/browser-notification")
+  >()),
   getBrowserNotificationPermission: () => "granted",
-  shouldShowBrowserNotification: ({
-    isDocumentFocused,
-    isRead,
-  }: {
-    isDocumentFocused: boolean;
-    isRead: boolean;
-  }) => !isRead && !isDocumentFocused,
 }));
 
 const handleNotificationNavigation = vi.fn();
@@ -417,8 +413,8 @@ describe("NotificationToastListener OS banner", () => {
   });
 
   /**
-   * The worker skips its banner only for a page that answers, so a focused tab
-   * without this listener keeps its banner instead of going silent.
+   * The worker routes clicks to pages with a mounted listener. A page that
+   * does not answer cannot receive that click.
    */
   it("answers the worker's query while it is mounted", () => {
     const { unmount } = render(
@@ -507,8 +503,8 @@ describe("NotificationToastListener OS banner", () => {
 });
 
 /**
- * A focused tab shows a toast instead of a banner. Only a request that waits
- * on the reader interrupts this way, because the tab already shows the rest.
+ * Pending access requests keep their interactive toast while focused.
+ * OS banners remain enabled for unread notifications in focused tabs.
  */
 describe("NotificationToastListener in-app toast", () => {
   const PENDING_ACCESS: NotificationEventData = {
@@ -549,14 +545,13 @@ describe("NotificationToastListener in-app toast", () => {
       COWORKER_ACCESS_PENDING_MESSAGE_KEY,
       PENDING_ACCESS.messageParams,
     );
-    expect(showNotification).not.toHaveBeenCalled();
+    expect(showNotification).toHaveBeenCalledTimes(1);
   });
 
   /**
-   * The banner is for a tab the reader is not looking at. A toast on top of a
-   * banner would say the same thing twice.
+   * Ordinary chat arrivals need an OS banner even while the tab is focused.
    */
-  it("leaves a chat message to the banner", async () => {
+  it("shows a chat banner while focused", async () => {
     render(<NotificationToastListener userId="user-1" markRead={markRead} />);
     onNotificationRef.current?.(NOTIFICATION);
 
@@ -564,6 +559,6 @@ describe("NotificationToastListener in-app toast", () => {
       expect(getNotificationServiceWorker).toHaveBeenCalled();
     });
     expect(toast).not.toHaveBeenCalled();
-    expect(showNotification).not.toHaveBeenCalled();
+    expect(showNotification).toHaveBeenCalledTimes(1);
   });
 });

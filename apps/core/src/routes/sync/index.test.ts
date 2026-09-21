@@ -67,6 +67,12 @@ vi.mock("@/config/env", () => ({
   }),
 }));
 
+vi.mock("@/services/notification-publish-sync.service", () => ({
+  retryNotificationPublishes: vi
+    .fn()
+    .mockResolvedValue({ examined: 0, published: 0, skipped: 0 }),
+}));
+
 vi.mock("@/services/notification-follow-up-sync.service", () => ({
   notificationFollowUpSyncService: {
     sendFollowUps: sendFollowUpsMock,

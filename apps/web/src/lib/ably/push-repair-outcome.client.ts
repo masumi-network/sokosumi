@@ -71,6 +71,7 @@ interface RecordPushRepairOutcomeOptions {
    * then say nothing to.
    */
   hadRegistration?: boolean;
+  deliveryHealthy?: boolean;
   /** Captured before activation, so a later sign-out invalidates its result. */
   teardownVersion?: string;
 }
@@ -89,7 +90,10 @@ export async function recordPushRepairOutcome(
   if (teardownVersion !== getPushTeardownVersion()) {
     return;
   }
-  const next = await readPushRepairOutcome(options?.hadRegistration === true);
+  const next = await readPushRepairOutcome(
+    options?.hadRegistration === true,
+    options?.deliveryHealthy,
+  );
   if (teardownVersion !== getPushTeardownVersion()) {
     return;
   }
@@ -106,6 +110,7 @@ export async function recordPushRepairOutcome(
 
 async function readPushRepairOutcome(
   hadRegistration: boolean,
+  deliveryHealthy?: boolean,
 ): Promise<"quiet" | "healthy"> {
   if (
     !isPushSupported() ||
@@ -127,5 +132,10 @@ async function readPushRepairOutcome(
     return "healthy";
   }
 
+  if (
+    deliveryHealthy === false ||
+    (deliveryHealthy === undefined && hasUnresolvedPushRepair())
+  )
+    return "quiet";
   return (await hasWebPushSubscription()) ? "healthy" : "quiet";
 }

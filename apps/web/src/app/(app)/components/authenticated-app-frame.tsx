@@ -88,7 +88,12 @@ export default async function AuthenticatedAppFrame({
     <>
       <AuthSessionHydrator session={session} />
       <OrganizationSeatContext value={hasAssignedSeat}>
-        <NotificationProvider key={session.user.id} userId={session.user.id}>
+        <NotificationProvider
+          key={session.user.id}
+          userId={session.user.id}
+          sessionId={session.session.id}
+          sessionCreatedAt={new Date(session.session.createdAt).getTime()}
+        >
           <OrgPresenceProvider organizationId={activeOrganizationId}>
             <AccountNoticeProvider notice={null} sessionId={session.session.id}>
               <NoticeDialogProvider

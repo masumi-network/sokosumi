@@ -11,15 +11,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   captureExceptionMock,
+  chatRoomMessageFindFirstMock,
+  threadReadStateFindUniqueMock,
   createNotificationMock,
   notificationFindManyMock,
+  notificationUpdateManyMock,
   resolveDeliveryMock,
   sendEmailsMock,
   userFindUniqueMock,
 } = vi.hoisted(() => ({
   captureExceptionMock: vi.fn(),
+  chatRoomMessageFindFirstMock: vi.fn(),
+  threadReadStateFindUniqueMock: vi.fn(),
   createNotificationMock: vi.fn(),
   notificationFindManyMock: vi.fn(),
+  notificationUpdateManyMock: vi.fn(),
   resolveDeliveryMock: vi.fn(),
   sendEmailsMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
@@ -31,8 +37,11 @@ vi.mock("@sentry/node", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    chatRoomMessage: { findFirst: chatRoomMessageFindFirstMock },
+    chatRoomThreadReadState: { findUnique: threadReadStateFindUniqueMock },
     notification: {
       findMany: notificationFindManyMock,
+      updateMany: notificationUpdateManyMock,
     },
     user: {
       findUnique: userFindUniqueMock,
@@ -325,6 +334,11 @@ describe("NotificationFollowUpSyncService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     written = [];
+    chatRoomMessageFindFirstMock.mockResolvedValue({
+      id: "message-1",
+      parentMessageId: null,
+    });
+    threadReadStateFindUniqueMock.mockResolvedValue(null);
     seed([]);
     resolveDeliveryMock.mockResolvedValue({
       inApp: true,
@@ -335,7 +349,12 @@ describe("NotificationFollowUpSyncService", () => {
       email: "reader@example.com",
       name: "Sandro",
     });
-    sendEmailsMock.mockResolvedValue([]);
+    notificationUpdateManyMock.mockResolvedValue({ count: 1 });
+    // Resend answers one id per input, in order, which is what pairs an email
+    // with the reminder row that has to stop being revocable.
+    sendEmailsMock.mockImplementation(async (inputs: readonly unknown[]) =>
+      inputs.map((_, index) => ({ id: `resend_${index}` })),
+    );
     createNotificationMock.mockImplementation(
       async (input: {
         eventId: string;
@@ -368,6 +387,108 @@ describe("NotificationFollowUpSyncService", () => {
         return { notification: { id: input.eventId }, created: true };
       },
     );
+  });
+
+  it.each([CHAT_MENTION_MESSAGE_KEY, CHAT_DIRECT_MESSAGE_MESSAGE_KEY])(
+    "uses a live source when the oldest %s message was deleted",
+    async (messageKey) => {
+      seed([
+        row({ id: "old", messageKey, metadata: { messageId: "deleted" } }),
+        row({
+          id: "new",
+          messageKey,
+          createdAt: JUST_A_DAY,
+          metadata: { messageId: "live" },
+        }),
+      ]);
+      chatRoomMessageFindFirstMock
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: "live" });
+
+      const result = await notificationFollowUpSyncService.sendFollowUps({
+        now,
+      });
+
+      expect(result.sent).toBe(1);
+      expect(createNotificationMock).toHaveBeenCalledTimes(1);
+      expect(firstFollowUpInput()?.metadata).toEqual({ messageId: "live" });
+      expect(chatRoomMessageFindFirstMock).toHaveBeenNthCalledWith(1, {
+        where: { id: "deleted", roomId: "room-1", deletedAt: null },
+        select: { id: true, parentMessageId: true },
+      });
+    },
+  );
+
+  it.each([CHAT_MENTION_MESSAGE_KEY, CHAT_DIRECT_MESSAGE_MESSAGE_KEY])(
+    "uses an unmuted source when the oldest %s thread is muted",
+    async (messageKey) => {
+      seed([
+        row({ id: "old", messageKey, metadata: { messageId: "muted" } }),
+        row({
+          id: "new",
+          messageKey,
+          createdAt: JUST_A_DAY,
+          metadata: { messageId: "live" },
+        }),
+      ]);
+      chatRoomMessageFindFirstMock
+        .mockResolvedValueOnce({ id: "muted", parentMessageId: "thread-muted" })
+        .mockResolvedValueOnce({ id: "live", parentMessageId: "thread-live" });
+      threadReadStateFindUniqueMock
+        .mockResolvedValueOnce({ mutedAt: now })
+        .mockResolvedValueOnce(null);
+
+      const result = await notificationFollowUpSyncService.sendFollowUps({
+        now,
+      });
+      expect(result.sent).toBe(1);
+      expect(createNotificationMock).toHaveBeenCalledTimes(1);
+      expect(firstFollowUpInput()?.metadata).toEqual({ messageId: "live" });
+      expect(threadReadStateFindUniqueMock).toHaveBeenNthCalledWith(1, {
+        where: {
+          userId_parentMessageId: {
+            userId: "reader-1",
+            parentMessageId: "thread-muted",
+          },
+        },
+        select: { mutedAt: true },
+      });
+    },
+  );
+
+  it("leaves the daily key available after a thread lookup fails", async () => {
+    seed([row()]);
+    chatRoomMessageFindFirstMock.mockResolvedValue({
+      id: "message-1",
+      parentMessageId: "thread-1",
+    });
+    threadReadStateFindUniqueMock.mockRejectedValueOnce(
+      new Error("unavailable"),
+    );
+    expect(
+      (await notificationFollowUpSyncService.sendFollowUps({ now })).sent,
+    ).toBe(0);
+    expect(createNotificationMock).not.toHaveBeenCalled();
+    expect(
+      (await notificationFollowUpSyncService.sendFollowUps({ now })).sent,
+    ).toBe(1);
+  });
+
+  it("does not reserve a reminder key when the source lookup fails", async () => {
+    seed([row()]);
+    chatRoomMessageFindFirstMock.mockRejectedValueOnce(
+      new Error("unavailable"),
+    );
+
+    const failed = await notificationFollowUpSyncService.sendFollowUps({ now });
+    expect(failed.sent).toBe(0);
+    expect(createNotificationMock).not.toHaveBeenCalled();
+    expect(captureExceptionMock).toHaveBeenCalled();
+
+    const retried = await notificationFollowUpSyncService.sendFollowUps({
+      now,
+    });
+    expect(retried.sent).toBe(1);
   });
 
   it("reminds a reader of a mention they never opened", async () => {
@@ -1321,6 +1442,24 @@ describe("NotificationFollowUpSyncService", () => {
     // The room and the person waiting, which is what the mention row carried.
     expect(email.subject).toContain("Ada");
     expect(email.subject).toContain("Design");
+  });
+
+  /**
+   * The publish path gives an unsent reminder's shared event id back when the
+   * message it points at is gone. An emailed reminder has to keep it, so the
+   * row has to say that its email left.
+   */
+  it("records the email id on the reminder it emailed", async () => {
+    wantsEmail();
+    seed([row()]);
+
+    const result = await notificationFollowUpSyncService.sendFollowUps({ now });
+
+    expect(result.emailed).toBe(1);
+    expect(notificationUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: written[0]?.eventId, emailId: null },
+      data: { emailId: "resend_0" },
+    });
   });
 
   /**

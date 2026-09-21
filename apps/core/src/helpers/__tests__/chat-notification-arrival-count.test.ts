@@ -1,8 +1,9 @@
 import type { Notification } from "@sokosumi/database";
 import { beforeEach, expect, it, vi } from "vitest";
 
-const { rows, published, reader } = vi.hoisted(() => ({
+const { rows, published, reader, scheduled } = vi.hoisted(() => ({
   rows: [] as Notification[],
+  scheduled: [] as string[],
   published: vi.fn(),
   reader: {
     id: "reader",
@@ -20,6 +21,10 @@ vi.mock("@sentry/node", () => ({ captureException: vi.fn() }));
 vi.mock("@/lib/ably/publish", () => ({
   publishChatRoomsChanged: vi.fn().mockResolvedValue(undefined),
   publishNotificationEvent: published,
+}));
+vi.mock("@/helpers/notification-publish-queue", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../notification-publish-queue")>()),
+  scheduleNotificationPublish: (id: string) => scheduled.push(id),
 }));
 vi.mock("@/lib/db/prisma", () => {
   const notification = {
@@ -86,6 +91,7 @@ vi.mock("@/lib/db/prisma", () => {
 
 import { emitChatMentionNotifications } from "../chat-mention-notifications";
 import { emitChatRoomMessageCreatedEffects } from "../chat-room-message-created-effects";
+import { publishNotificationRow } from "../notifications";
 
 function matches(row: Notification, where: Partial<Notification>) {
   return Object.entries(where).every(
@@ -110,10 +116,28 @@ async function emit(messageId: string, mentioned = true) {
     roomKind: "channel",
     memberUserIds: ["author", "reader"],
   });
+  // Drain the queued rows through the real payload builder. Delivery claims have separate tests.
+  for (const id of scheduled.splice(0)) {
+    const notification = rows.find((item) => item.id === id);
+    if (notification) {
+      await publishNotificationRow(
+        notification,
+        {
+          inApp: notification.inApp,
+          osBanner: notification.publishPush === true,
+          email: false,
+        },
+        notification.publishCreated === true,
+      );
+      notification.publishId = null;
+      notification.publishCreated = null;
+    }
+  }
 }
 
 beforeEach(() => {
   rows.length = 0;
+  scheduled.length = 0;
   published.mockClear();
   const banner = reader.notificationPreferences.find(
     (preference) =>
