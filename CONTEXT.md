@@ -430,7 +430,7 @@ A user of a Thread who authored the parent, has a remaining reply in that Thread
 _Avoid_: Follower, subscriber, treating Look (opened it) as participation
 
 **Room unread**:
-The count of unseen non-self top-level messages in this room after Room last-read. Replies in Threads do not count — they are Thread unread, and they surface on the Thread ([ADR-0037](docs/adr/0037-thread-unread-leaves-room-unread.md)). A User mention inside a Thread is the one exception: it marks the room as well. Replies from before the user joined the room do not count. Drives sidebar **bold**, and an optional numeric affordance a reader opts in to (`showRoomUnreadCount`, off by default, [ADR-0027](docs/adr/0027-room-unread-count-is-a-reader-opt-in.md)). Not the mention badge.
+The count of unseen non-self top-level messages in this room after Room last-read. Replies in Threads do not count — they are Thread unread, and they surface on the Thread ([ADR-0037](docs/adr/0037-thread-unread-leaves-room-unread.md)). A User mention inside a Thread is the one exception: it marks the room as well. Replies from before the user joined the room do not count. Drives sidebar **bold**, and a numeric affordance shown unless the reader switches it off (`hideRoomUnreadCount`, shown by default, [ADR-0038](docs/adr/0038-room-unread-count-is-on-by-default.md); [ADR-0027](docs/adr/0027-room-unread-count-is-a-reader-opt-in.md) for why it is separate from the mention badge). Not the mention badge.
 _Avoid_: Attention, attentionReplyCount, counting thread replies, counting lurker thread replies, using the mention badge as the message unread count
 
 **Unread thread**:
