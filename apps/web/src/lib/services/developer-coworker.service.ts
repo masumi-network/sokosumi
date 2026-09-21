@@ -1,6 +1,6 @@
 import "server-only";
 
-import { coreClient } from "@/lib/clients/core.client";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type { Coworker } from "@/lib/clients/generated/core/types.gen";
 
 function sortOwnedCoworkers(coworkers: Coworker[]): Coworker[] {
@@ -24,8 +24,15 @@ export const developerCoworkerService = (() => {
   }
 
   async function getOwnedCoworkerById(id: string): Promise<Coworker | null> {
-    const coworkers = await listOwnedCoworkers();
-    return coworkers.find((coworker) => coworker.id === id) ?? null;
+    try {
+      const response = await coreClient.getOwnedCoworkerById(id);
+      return response.data;
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   return {

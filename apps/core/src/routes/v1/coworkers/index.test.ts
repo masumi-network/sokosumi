@@ -60,4 +60,23 @@ describe("coworkers routes OpenAPI contract", () => {
     expect(parameterNames).toContain("capability");
     expect(getCoworkersOperation?.responses).toHaveProperty("422");
   });
+
+  it("documents owned-scope filtering for GET /{id}", () => {
+    const doc = coworkersRouter.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: {
+        title: "Coworkers API",
+        version: "1.0.0",
+      },
+    });
+
+    const getCoworkerByIdOperation = doc.paths?.["/{id}"]?.get;
+    const parameterNames = (getCoworkerByIdOperation?.parameters ?? []).map(
+      (parameter) => ("name" in parameter ? parameter.name : null),
+    );
+
+    expect(parameterNames).toContain("scope");
+    expect(getCoworkerByIdOperation?.responses).toHaveProperty("403");
+    expect(getCoworkerByIdOperation?.responses).toHaveProperty("422");
+  });
 });

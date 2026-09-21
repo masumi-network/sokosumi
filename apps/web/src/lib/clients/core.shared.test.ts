@@ -4,6 +4,7 @@ import {
   deleteAdminInvoice as coreDeleteAdminInvoice,
   deleteTasksByIdSchedule as coreDeleteTasksByIdSchedule,
   getCoworkers as coreGetCoworkers,
+  getCoworkersById as coreGetCoworkersById,
   getProjectsByIdClose as coreGetProjectsByIdClose,
   postProjectsByIdClose as corePostProjectsByIdClose,
   postProjectsByIdCloseCancelOwed as corePostProjectsByIdCloseCancelOwed,
@@ -25,6 +26,7 @@ vi.mock("@/lib/clients/generated/core", async (importOriginal) => {
     deleteAdminInvoice: vi.fn(),
     deleteTasksByIdSchedule: vi.fn(),
     getCoworkers: vi.fn(),
+    getCoworkersById: vi.fn(),
     getProjectsByIdClose: vi.fn(),
     postProjectsByIdClose: vi.fn(),
     postProjectsByIdCloseCancelOwed: vi.fn(),
@@ -63,6 +65,27 @@ describe("createCoreClient owned coworkers", () => {
 
     expect(coreGetCoworkers).toHaveBeenCalledWith({
       client: {},
+      query: { scope: "owned" },
+      cache: "no-store",
+    });
+  });
+
+  it("requests owned coworker by id with no-store caching", async () => {
+    vi.mocked(coreGetCoworkersById).mockResolvedValue({
+      data: {
+        data: { id: "cow_1" },
+        meta: { timestamp: new Date(), requestId: "req_1" },
+      },
+      response: { ok: true, status: 200 } as Response,
+    } as never);
+
+    const core = createCoreClient(async () => ({}) as Client);
+
+    await core.getOwnedCoworkerById("cow_1");
+
+    expect(coreGetCoworkersById).toHaveBeenCalledWith({
+      client: {},
+      path: { id: "cow_1" },
       query: { scope: "owned" },
       cache: "no-store",
     });
