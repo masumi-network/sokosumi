@@ -13,7 +13,9 @@ import type {
   ProjectDeleted,
   ProjectListItem,
   ProjectNeedsAttention,
+  ProjectStar,
   ProjectStatsEntry,
+  StarredProject,
   TaskListItem,
 } from "@/lib/clients/generated/core/types.gen";
 
@@ -133,6 +135,45 @@ export const projectService = (() => {
       items: result.data,
       pagination: result.meta?.pagination ?? null,
     };
+  }
+
+  /**
+   * Product UI says Pin; the API and database say star (ADR 0017), which is
+   * why the call below reads `star` and everything around it reads `pin`.
+   */
+  async function pinProject(projectId: string): Promise<ProjectStar> {
+    const result = await coreClient.pinProject(projectId);
+
+    if (!result.data) {
+      throw new Error("Failed to pin project");
+    }
+
+    return result.data;
+  }
+
+  async function unpinProject(projectId: string): Promise<ProjectStar> {
+    const result = await coreClient.unpinProject(projectId);
+
+    if (!result.data) {
+      throw new Error("Failed to unpin project");
+    }
+
+    return result.data;
+  }
+
+  /**
+   * The reader's Pinned projects, oldest Pin first. Separate from
+   * `listProjects` because a Pinned project is usually a quiet one, so it
+   * often sits outside the activity-ordered first page (ADR 0036).
+   */
+  async function listPinnedProjects(): Promise<StarredProject[]> {
+    const result = await coreClient.getPinnedProjects();
+
+    if (!result.data) {
+      throw new Error("Failed to fetch pinned projects");
+    }
+
+    return result.data;
   }
 
   async function createProject(input: CreateProjectInput): Promise<Project> {
@@ -314,6 +355,9 @@ export const projectService = (() => {
     getProjectContextMd,
     getProjectCalendar,
     createProject,
+    pinProject,
+    unpinProject,
+    listPinnedProjects,
     patchProject,
     removeProjectDesignMd,
     deleteProject,
