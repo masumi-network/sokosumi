@@ -445,7 +445,7 @@ export async function sendFollowUps(
       }
 
       try {
-        // A deleted source must not reserve the daily room key ahead of a live one.
+        // Check source eligibility before reserving the shared daily room key.
         const messageId = input.metadata?.messageId;
         if (
           input.kind === NotificationKind.CHAT &&
@@ -457,10 +457,22 @@ export async function sendFollowUps(
               roomId: input.referenceId,
               deletedAt: null,
             },
-            select: { id: true },
+            select: { id: true, parentMessageId: true },
           });
           if (!message) {
             continue;
+          }
+          if (message.parentMessageId) {
+            const thread = await prisma.chatRoomThreadReadState.findUnique({
+              where: {
+                userId_parentMessageId: {
+                  userId: input.userId,
+                  parentMessageId: message.parentMessageId,
+                },
+              },
+              select: { mutedAt: true },
+            });
+            if (thread?.mutedAt) continue;
           }
         }
 

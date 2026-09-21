@@ -12,6 +12,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   captureExceptionMock,
   chatRoomMessageFindFirstMock,
+  threadReadStateFindUniqueMock,
   createNotificationMock,
   notificationFindManyMock,
   resolveDeliveryMock,
@@ -20,6 +21,7 @@ const {
 } = vi.hoisted(() => ({
   captureExceptionMock: vi.fn(),
   chatRoomMessageFindFirstMock: vi.fn(),
+  threadReadStateFindUniqueMock: vi.fn(),
   createNotificationMock: vi.fn(),
   notificationFindManyMock: vi.fn(),
   resolveDeliveryMock: vi.fn(),
@@ -34,6 +36,7 @@ vi.mock("@sentry/node", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     chatRoomMessage: { findFirst: chatRoomMessageFindFirstMock },
+    chatRoomThreadReadState: { findUnique: threadReadStateFindUniqueMock },
     notification: {
       findMany: notificationFindManyMock,
     },
@@ -328,7 +331,11 @@ describe("NotificationFollowUpSyncService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     written = [];
-    chatRoomMessageFindFirstMock.mockResolvedValue({ id: "message-1" });
+    chatRoomMessageFindFirstMock.mockResolvedValue({
+      id: "message-1",
+      parentMessageId: null,
+    });
+    threadReadStateFindUniqueMock.mockResolvedValue(null);
     seed([]);
     resolveDeliveryMock.mockResolvedValue({
       inApp: true,
@@ -399,10 +406,65 @@ describe("NotificationFollowUpSyncService", () => {
       expect(firstFollowUpInput()?.metadata).toEqual({ messageId: "live" });
       expect(chatRoomMessageFindFirstMock).toHaveBeenNthCalledWith(1, {
         where: { id: "deleted", roomId: "room-1", deletedAt: null },
-        select: { id: true },
+        select: { id: true, parentMessageId: true },
       });
     },
   );
+
+  it.each([CHAT_MENTION_MESSAGE_KEY, CHAT_DIRECT_MESSAGE_MESSAGE_KEY])(
+    "uses an unmuted source when the oldest %s thread is muted",
+    async (messageKey) => {
+      seed([
+        row({ id: "old", messageKey, metadata: { messageId: "muted" } }),
+        row({
+          id: "new",
+          messageKey,
+          createdAt: JUST_A_DAY,
+          metadata: { messageId: "live" },
+        }),
+      ]);
+      chatRoomMessageFindFirstMock
+        .mockResolvedValueOnce({ id: "muted", parentMessageId: "thread-muted" })
+        .mockResolvedValueOnce({ id: "live", parentMessageId: "thread-live" });
+      threadReadStateFindUniqueMock
+        .mockResolvedValueOnce({ mutedAt: now })
+        .mockResolvedValueOnce(null);
+
+      const result = await notificationFollowUpSyncService.sendFollowUps({
+        now,
+      });
+      expect(result.sent).toBe(1);
+      expect(createNotificationMock).toHaveBeenCalledTimes(1);
+      expect(firstFollowUpInput()?.metadata).toEqual({ messageId: "live" });
+      expect(threadReadStateFindUniqueMock).toHaveBeenNthCalledWith(1, {
+        where: {
+          userId_parentMessageId: {
+            userId: "reader-1",
+            parentMessageId: "thread-muted",
+          },
+        },
+        select: { mutedAt: true },
+      });
+    },
+  );
+
+  it("leaves the daily key available after a thread lookup fails", async () => {
+    seed([row()]);
+    chatRoomMessageFindFirstMock.mockResolvedValue({
+      id: "message-1",
+      parentMessageId: "thread-1",
+    });
+    threadReadStateFindUniqueMock.mockRejectedValueOnce(
+      new Error("unavailable"),
+    );
+    expect(
+      (await notificationFollowUpSyncService.sendFollowUps({ now })).sent,
+    ).toBe(0);
+    expect(createNotificationMock).not.toHaveBeenCalled();
+    expect(
+      (await notificationFollowUpSyncService.sendFollowUps({ now })).sent,
+    ).toBe(1);
+  });
 
   it("does not reserve a reminder key when the source lookup fails", async () => {
     seed([row()]);
