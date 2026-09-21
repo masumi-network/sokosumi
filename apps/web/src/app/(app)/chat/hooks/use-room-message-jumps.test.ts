@@ -121,6 +121,29 @@ describe("useRoomMessageJumps", () => {
     expect(options.releaseStickToBottomSuppress).toHaveBeenCalledOnce();
   });
 
+  it("retries an explicit target when a transcript change made its snapshot stale", async () => {
+    const stale = { messages: [message()], nextCursor: "older" };
+    const fresh = {
+      messages: [{ ...message(), content: "edited" }],
+      nextCursor: "older",
+    };
+    vi.mocked(listRoomMessagesAction)
+      .mockResolvedValueOnce({ ok: true, value: stale })
+      .mockResolvedValueOnce({ ok: true, value: fresh });
+    landOnRoomMessage.mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const options = params();
+    options.captureSnapshot = vi
+      .fn()
+      .mockReturnValueOnce(() => false)
+      .mockReturnValueOnce(() => true);
+    const { result } = renderHook(() => useRoomMessageJumps(options));
+    await expect(result.current.handleJumpToMessage("message-1")).resolves.toBe(
+      true,
+    );
+    expect(listRoomMessagesAction).toHaveBeenCalledTimes(2);
+    expect(options.mergeRoomJumpWindow).toHaveBeenCalledExactlyOnceWith(fresh);
+  });
+
   it("merges a search hit's window the same way instead of swapping the timeline", async () => {
     const hit = message();
     const page = { messages: [hit], nextCursor: "older" };

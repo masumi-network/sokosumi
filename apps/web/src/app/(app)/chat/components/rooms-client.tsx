@@ -1,9 +1,11 @@
 "use client";
 
 import { CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH } from "@sokosumi/utils";
+import { skipToken, useQuery } from "@tanstack/react-query";
 import { Hash } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import type { MutableRefObject } from "react";
 import {
   type Dispatch,
   type SetStateAction,
@@ -57,6 +59,10 @@ import { useRoomReadAttention } from "@/app/chat/hooks/use-room-read-attention";
 import { useUnreadThreadCount } from "@/app/chat/hooks/use-unread-thread-count";
 import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
 import { getRoomMessageAction } from "@/app/chat/message-actions";
+import type {
+  ChannelTranscriptCache,
+  ChannelTranscriptEntry,
+} from "@/app/chat/utils/channel-transcript-cache";
 import {
   filterTopLevelChatRoomMessages,
   isReplyUnderThreadParent,
@@ -167,6 +173,7 @@ import {
   type ChatRoomMessageLink,
   chatRoomMessageHref,
 } from "@/lib/utils/notification-href";
+import { useChannelCache, useChannelSelection } from "./channel-cache-provider";
 import { MembershipStatusRow } from "./membership-status-row";
 import {
   canOpenHumanDirectFromSelectedRoom,
@@ -205,6 +212,7 @@ import {
   type RoomMessagePage,
   RoomMessagesHydrator,
 } from "./room-messages-hydrator";
+import { RoomOpenLoadingView } from "./room-open-loading-view";
 import { RoomRosterPanel } from "./room-roster-panel";
 import {
   RoomSessionComposer,
@@ -219,8 +227,11 @@ import {
 import { RoomShellRosterHydrator } from "./room-shell-roster-hydrator";
 import { RoomTypingProvider } from "./room-typing-provider";
 import { ThreadPanel } from "./thread-panel";
+import type { TranscriptPosition } from "./transcript-viewport";
 
-interface RoomsClientProps {
+export interface RoomsClientProps {
+  /** Channel history is owned by the client cache, not server navigation. */
+  loadHistoryOnClient?: boolean;
   /** Null in personal workspace. */
   activeOrganization: Organization | null;
   rooms: ChatRoom[];
@@ -306,7 +317,136 @@ function RoomMessageRealtimeBridge({
   return null;
 }
 
-export function RoomsClient({
+interface RetainedTranscriptBinding {
+  entry: ChannelTranscriptEntry;
+  setTranscript: (update: SetStateAction<RoomTranscript>) => void;
+  resolve: (page: RoomMessagePage) => void;
+  refresh: (isCurrent: () => boolean) => Promise<void>;
+  positionChanged: (position: TranscriptPosition) => void;
+  dirty: () => void;
+  captureSnapshot: () => () => boolean;
+}
+
+export function RoomsClient(props: RoomsClientProps) {
+  const cache = useChannelCache();
+  if (cache && props.selectedRoomId && !cache.available(props.selectedRoomId))
+    return <RoomOpenLoadingView />;
+  const channel =
+    props.rooms.find((room) => room.id === props.selectedRoomId)?.kind ===
+    "channel";
+  return cache && channel && props.selectedRoomId ? (
+    <RetainedRoomsClient
+      key={props.selectedRoomId}
+      {...props}
+      cache={cache}
+      roomId={props.selectedRoomId}
+    />
+  ) : (
+    <RoomView key={props.selectedRoomId} {...props} />
+  );
+}
+
+function RetainedRoomsClient({
+  cache,
+  roomId,
+  ...props
+}: RoomsClientProps & { cache: ChannelTranscriptCache; roomId: string }) {
+  const { data } = useQuery<ChannelTranscriptEntry>(
+    {
+      queryKey: cache.key(roomId),
+      enabled: false,
+      queryFn: skipToken,
+      initialData: () => cache.seed(props),
+    },
+    cache.client,
+  );
+  const entry = data ?? cache.seed(props);
+  const lifetime = entry.lifetime;
+  const activeRef = useRef(true);
+  useLayoutEffect(() => {
+    activeRef.current = true;
+    return () => {
+      activeRef.current = false;
+    };
+  }, []);
+  const refreshRef = useRef<() => void>(() => {});
+  const [pending, setPending] = useState<ChatRoomMessage[]>([]);
+  const pendingRef = useRef(pending);
+  pendingRef.current = pending;
+  const transcript = useMemo(
+    () => ({
+      ...entry.transcript,
+      messages: mergeRoomMessages(entry.transcript.messages, pending),
+    }),
+    [entry.transcript, pending],
+  );
+  const binding: RetainedTranscriptBinding = {
+    entry: { ...entry, transcript },
+    setTranscript: (update) => {
+      if (!cache.current(roomId, lifetime)) return;
+      cache.setTranscript(roomId, lifetime, (confirmed) => {
+        const current = {
+          ...confirmed,
+          messages: mergeRoomMessages(confirmed.messages, pendingRef.current),
+        };
+        const next = typeof update === "function" ? update(current) : update;
+        const shells = next.messages.filter(isOutboundLocalMessage);
+        pendingRef.current = shells;
+        setPending(shells);
+        return next;
+      });
+    },
+    resolve: (page) => {
+      cache.update(roomId, lifetime, (current) =>
+        page.failed
+          ? { ...current, failed: !current.resolved }
+          : {
+              ...current,
+              resolved: true,
+              failed: false,
+              transcript: mergeRoomHeadPage(current.transcript, {
+                messages: page.messages,
+                nextCursor: page.nextCursor,
+              }),
+            },
+      );
+    },
+    refresh: async (isCurrent) => {
+      if ((await cache.refresh(roomId, lifetime, isCurrent)) === "stale")
+        refreshRef.current();
+    },
+    positionChanged: (position) => {
+      if (!activeRef.current) return;
+      const previous = cache.get(roomId)?.position;
+      cache.update(roomId, lifetime, (value) => ({ ...value, position }));
+      if (
+        position.visibleMessageIds.some(
+          (id) =>
+            !previous?.visibleMessageIds.includes(id) &&
+            cache.get(roomId)?.dirtyIds.includes(id),
+        )
+      )
+        refreshRef.current();
+    },
+    dirty: () => cache.markDirty(roomId),
+    captureSnapshot: () => {
+      const revision = cache.get(roomId)?.revision;
+      return () => {
+        const valid =
+          cache.current(roomId, lifetime) &&
+          cache.get(roomId)?.revision === revision;
+        if (!valid) refreshRef.current();
+        return valid;
+      };
+    },
+  };
+  useEffect(() => () => cache.markDirty(roomId), [cache, roomId]);
+  return (
+    <RoomView {...props} retained={binding} registerRefresh={refreshRef} />
+  );
+}
+
+function RoomView({
   activeOrganization,
   rooms,
   organizationMembers: organizationMembersProp,
@@ -320,7 +460,12 @@ export function RoomsClient({
   messagesNextCursor,
   messagesPromise,
   rosterPromise,
-}: RoomsClientProps) {
+  retained,
+  registerRefresh,
+}: RoomsClientProps & {
+  retained?: RetainedTranscriptBinding;
+  registerRefresh?: MutableRefObject<() => void>;
+}) {
   const t = useTranslations("App.Channels");
   const tBreadcrumb = useTranslations("Components.Breadcrumb");
   const organizationId = activeOrganization?.id ?? null;
@@ -346,8 +491,14 @@ export function RoomsClient({
     [channelCatalogRooms],
   );
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const routePathname = usePathname();
+  const routeSearchParams = useSearchParams();
+  const selectedPath = useChannelSelection();
+  const pathname = selectedPath?.split("?")[0] ?? routePathname;
+  const searchParams =
+    selectedPath && selectedPath.split("?")[0] !== routePathname
+      ? new URLSearchParams(selectedPath.split("?")[1] ?? "")
+      : routeSearchParams;
   const isApple = useIsApplePlatform();
   const isMobile = useIsMobileMedia();
   const headerRoomSlotHost = useHeaderRoomSlotHost();
@@ -376,12 +527,16 @@ export function RoomsClient({
   // read and updated in place through `messagesState` / `setMessagesState`;
   // what the transcript knows about missing history changes only when a page
   // arrives, through the range merges below.
-  const [transcript, setTranscript] = useState<RoomTranscript>(() =>
-    mergeRoomHeadPage(emptyRoomTranscript(), {
-      messages,
-      nextCursor: messagesNextCursor,
-    }),
+  const [localTranscript, setLocalTranscript] = useState<RoomTranscript>(() =>
+    retained
+      ? emptyRoomTranscript()
+      : mergeRoomHeadPage(emptyRoomTranscript(), {
+          messages,
+          nextCursor: messagesNextCursor,
+        }),
   );
+  const transcript = retained?.entry.transcript ?? localTranscript;
+  const setTranscript = retained?.setTranscript ?? setLocalTranscript;
   const messagesState = transcript.messages;
   const setMessagesState = useCallback(
     (update: SetStateAction<ChatRoomMessage[]>) => {
@@ -469,12 +624,20 @@ export function RoomsClient({
     rosterPromise != null
       ? (deferredRoster?.membersLoadFailed ?? membersLoadFailedProp)
       : membersLoadFailedProp;
-  const messagesPending = deferredHistoryPending;
+  const messagesPending = retained
+    ? !retained.entry.resolved && !retained.entry.failed
+    : deferredHistoryPending;
   const effectiveMessageLoadFailed = messagesPending
     ? false
-    : messageLoadFailedState;
+    : retained
+      ? retained.entry.failed
+      : messageLoadFailedState;
 
   const handleDeferredHistoryResolved = useCallback((page: RoomMessagePage) => {
+    if (retained) {
+      if (!retained.entry.resolved) retained.resolve(page);
+      return;
+    }
     setTranscript((current) =>
       mergeRoomHeadPage(current, {
         messages: page.messages,
@@ -599,10 +762,17 @@ export function RoomsClient({
     scrollToBottom();
   }, [messagesPending, scrollToBottom]);
   const syncedRoomIdRef = useRef<string | null>(null);
-  // RoomsClient stays mounted across /chat/rooms/[id] navigations. Async
-  // handlers must not merge into messagesState after the selection moved.
+  // Async handlers must stop when their room surface is replaced.
   const selectedRoomIdRef = useRef(selectedRoomId);
   selectedRoomIdRef.current = selectedRoomId;
+  useLayoutEffect(() => {
+    selectedRoomIdRef.current = selectedRoomId;
+    return () => {
+      selectedRoomIdRef.current = null;
+      boundaryLoadGenerationRef.current += 1;
+      threadLoadGenerationRef.current += 1;
+    };
+  }, [selectedRoomId]);
 
   // Classic outbound uses pending shells + a queue; composer stays unlocked.
   // Stream rooms still pass isCoworkerStreaming into isSending* props below.
@@ -645,6 +815,10 @@ export function RoomsClient({
   useEffect(() => {
     clearClassicOutboundQueue(classicChannelRefs);
     clearClassicOutboundQueue(classicThreadRefs);
+    return () => {
+      clearClassicOutboundQueue(classicChannelRefs);
+      clearClassicOutboundQueue(classicThreadRefs);
+    };
   }, [selectedRoomId, classicChannelRefs, classicThreadRefs]);
 
   useEffect(() => {
@@ -891,6 +1065,7 @@ export function RoomsClient({
   /** Open room channel attached on a connected client (SOK-986 cadence input). */
   const [selectedRoomHealthy, setSelectedRoomHealthy] = useState(false);
   const handleContinuityLost = useCallback(() => {
+    retained?.dirty();
     refreshLatestRef.current();
     // A reattach that missed events missed thread replies too, and the count
     // has no other way back to the truth.
@@ -1439,6 +1614,7 @@ export function RoomsClient({
   }
 
   useEffect(() => {
+    if (retained) return;
     // Deferred promise owns the first page until hydrate completes.
     if (deferredHistoryPending) {
       syncedRoomIdRef.current = selectedRoomId;
@@ -1509,7 +1685,9 @@ export function RoomsClient({
       // bounded and null on failure, so a late or failed read never replaces
       // newer messages and a failed room read never hides thread data.
       const [result, threadResult] = await Promise.all([
-        fetchRoomMessages(roomId),
+        retained
+          ? retained.refresh(isCurrent).then(() => null)
+          : fetchRoomMessages(roomId),
         threadParentId
           ? fetchRoomMessages(roomId, threadParentId)
           : Promise.resolve(null),
@@ -1545,7 +1723,9 @@ export function RoomsClient({
     refresh: refreshFocusedRoomMessages,
     healthy: selectedRoomHealthy,
     fallbackIntervalMs: ROOM_MESSAGE_FALLBACK_MS,
+    refreshOnMount: Boolean(retained),
   });
+  if (registerRefresh) registerRefresh.current = refreshLatestRef.current;
 
   function mergeUpdatedMessage(updatedMessage: ChatRoomMessage) {
     setMessagesState((current) => {
@@ -1792,6 +1972,7 @@ export function RoomsClient({
       releaseStickToBottomSuppress,
       setSearchHoldOffBottom,
       mergeRoomJumpWindow: applyRoomJumpWindow,
+      captureSnapshot: retained?.captureSnapshot,
       historicalThreadRef,
       replaceThreadWindow,
       handleOpenThreadFromMessage,
@@ -1889,6 +2070,7 @@ export function RoomsClient({
     }
     const roomId = selectedRoom.id;
     const generation = boundaryLoadGenerationRef.current;
+    const snapshotCurrent = retained?.captureSnapshot();
     loadingBoundariesRef.current.add(cursorMessageId);
     setBoundaryStatus((current) => ({
       ...current,
@@ -1906,7 +2088,7 @@ export function RoomsClient({
         if (!isCurrentLoad()) {
           return;
         }
-        if (!result.ok) {
+        if (!result.ok || (snapshotCurrent && !snapshotCurrent())) {
           setBoundaryStatus((current) => ({
             ...current,
             [cursorMessageId]: "failed",
@@ -2872,6 +3054,10 @@ export function RoomsClient({
             rows={transcriptRows}
             renderRow={renderTranscriptRow}
             holdOffBottom={searchHoldOffBottom}
+            initialPosition={
+              searchParams.has("message") ? undefined : retained?.entry.position
+            }
+            onPositionChange={retained?.positionChanged}
           />
         )}
       </>

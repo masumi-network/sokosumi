@@ -43,6 +43,12 @@ vi.mock("@/lib/services/user.service", () => ({
   },
 }));
 
+vi.mock("@/app/chat/components/authenticated-channel-cache", () => ({
+  AuthenticatedChannelCache: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
+}));
+
 // Heavy chrome deps — not exercised by gate redirect tests.
 vi.mock("@/contexts/notification-provider", () => ({
   NotificationProvider: ({ children }: { children: React.ReactNode }) => (

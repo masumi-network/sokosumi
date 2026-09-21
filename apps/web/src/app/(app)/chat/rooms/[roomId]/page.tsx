@@ -2,8 +2,8 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
+import { ChannelRouteBootstrap } from "@/app/chat/components/persistent-channel-view";
 import { RoomOpenLoadingView } from "@/app/chat/components/room-open-loading-view";
-import { RoomsClient } from "@/app/chat/components/rooms-client";
 import { loadRoomMessages } from "@/app/chat/load-room-messages";
 import { loadRoomShellRoster } from "@/app/chat/load-room-shell-roster";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,17 +67,19 @@ function NoOrganizationCard({
 }
 
 /**
- * Real header + live composer as soon as the room is known; history + roster
- * via promises so chrome is not blocked (SOK-778 history; roster deferred
- * for LCP). Instant / Suspense: RoomOpenLoadingView (list bones + disabled
- * composer chrome).
+ * Validate room access and register chrome without waiting for history.
+ * Channels read through their retained client transcript; Direct history
+ * and the roster stream through promises (SOK-778).
  */
 function progressiveRoomOpen(shell: ChatRoomShellProps, roomId: string) {
-  const messagesPromise = loadRoomMessages(roomId);
+  const isChannel =
+    shell.rooms.find((room) => room.id === roomId)?.kind === "channel";
+  const messagesPromise = isChannel ? undefined : loadRoomMessages(roomId);
   const rosterPromise = loadRoomShellRoster(shell.organizationIdForRoster);
 
   return (
-    <RoomsClient
+    <ChannelRouteBootstrap
+      loadHistoryOnClient={isChannel}
       activeOrganization={shell.activeOrganization}
       rooms={shell.rooms}
       organizationMembers={[]}
