@@ -109,6 +109,8 @@
   --color-semantic-warning-quaternary: var(--semantic-warning-quaternary);
   --color-semantic-warning-quinary: var(--semantic-warning-quinary);
   --color-semantic-warning-label: var(--semantic-warning-label);
+  --color-mention-quaternary: var(--mention-quaternary);
+  --color-mention-label: var(--mention-label);
   --color-semantic-warning-foreground: var(--semantic-warning-foreground);
 
   --color-semantic-success: var(--semantic-success);
@@ -460,6 +462,12 @@
   --semantic-warning-quaternary: hsla(25, 100.0%, 90.0%, 1);
   --semantic-warning-quinary: hsla(25, 41.3%, 93.8%, 1);
   --semantic-warning-label: hsla(25, 55.0%, 38.0%, 1);
+  /* What was addressed to the reader: a mention badge, a mentioned Thread
+     row. The warning ramp's amber under its own name, so the meaning is
+     "mention" where it is used and the two can part ways later. Declared in
+     both blocks, because an alias resolves where it is declared. */
+  --mention-quaternary: var(--semantic-warning-quaternary);
+  --mention-label: var(--semantic-warning-label);
   --semantic-warning-foreground: hsla(25, 100%, 98%, 1);
 
   --semantic-success: hsla(142, 72%, 27%, 1);
@@ -659,6 +667,12 @@
   --semantic-warning-quaternary: hsla(43, 62.7%, 17.5%, 1);
   --semantic-warning-quinary: hsla(43, 52.4%, 11.3%, 1);
   --semantic-warning-label: hsla(43, 96.0%, 56.0%, 1);
+  /* What was addressed to the reader: a mention badge, a mentioned Thread
+     row. The warning ramp's amber under its own name, so the meaning is
+     "mention" where it is used and the two can part ways later. Declared in
+     both blocks, because an alias resolves where it is declared. */
+  --mention-quaternary: var(--semantic-warning-quaternary);
+  --mention-label: var(--semantic-warning-label);
   --semantic-warning-foreground: hsla(0, 0%, 4%, 1);
 
   --semantic-success: hsla(142, 71%, 45%, 1);

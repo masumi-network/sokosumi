@@ -46,6 +46,13 @@ interface ChatRoomThreadRowsProps {
   wrapLink?: (link: ReactNode) => ReactNode;
 }
 
+type UnreadThread = NonNullable<ChatRoom["unreadThreads"]>[number];
+
+/** Absent on a room snapshot taken before Core counted it. */
+function mentionCount(thread: UnreadThread): number {
+  return thread.unreadMentionCount ?? 0;
+}
+
 /**
  * The unread Threads of one room, inset under its sidebar row (ADR-0037).
  *
@@ -62,13 +69,6 @@ interface ChatRoomThreadRowsProps {
  * same rows ride a flyout instead, which is portalled out of the sidebar and
  * so out of reach of that rule.
  */
-type UnreadThread = NonNullable<ChatRoom["unreadThreads"]>[number];
-
-/** Absent on a room snapshot taken before Core counted it. */
-function mentionCount(thread: UnreadThread): number {
-  return thread.unreadMentionCount ?? 0;
-}
-
 export function ChatRoomThreadRows({
   room,
   roomLabel,
@@ -112,65 +112,69 @@ export function ChatRoomThreadRows({
         variant === "flyout" && "mx-0 border-l-0 px-0 py-0",
       )}
     >
-      {threads.map((thread) => (
-        <SidebarMenuSubItem key={thread.parentMessageId}>
-          {wrapLink(
-            <SidebarMenuSubButton asChild size="sm" className="pr-1">
-              <Link
-                href={chatRoomMessageHref(room.id, thread.firstUnreadReplyId)}
-                replace={isActive}
-                data-mention={mentionCount(thread) > 0 ? "true" : undefined}
-              >
-                {/* Unread is a tinted icon circle plus weight, the language
+      {threads.map((thread) => {
+        const mentions = mentionCount(thread);
+        return (
+          <SidebarMenuSubItem key={thread.parentMessageId}>
+            {wrapLink(
+              <SidebarMenuSubButton asChild size="sm" className="pr-1">
+                <Link
+                  href={chatRoomMessageHref(room.id, thread.firstUnreadReplyId)}
+                  replace={isActive}
+                  data-mention={mentions > 0 ? "true" : undefined}
+                >
+                  {/* Unread is a tinted icon circle plus weight, the language
                     the notification rows and the thread list already use.
                     Never a dot. */}
-                <span
-                  aria-hidden
-                  className={cn(
-                    "grid size-[1.125rem] shrink-0 place-items-center rounded-full",
-                    // A Thread that names the reader takes the mention's
-                    // amber, so it stands out from the room's other unread
-                    // Threads the way the room's badge does from its count.
-                    mentionCount(thread) > 0
-                      ? "bg-semantic-warning-quaternary text-semantic-warning-label"
-                      : "bg-primary-quaternary text-primary",
-                  )}
-                >
-                  <MessageSquare className="size-[0.6875rem]" />
-                </span>
-                <span className="min-w-0 flex-1 truncate font-semibold">
-                  {formatUnreadThreadsPreview(
-                    thread.parentContent,
-                    mentionNames,
-                  ) || t("untitled")}
-                </span>
-                {mentionCount(thread) > 0 ? (
-                  <span className="shrink-0">
-                    <span aria-hidden>
-                      <MentionCountPill
-                        label={String(mentionCount(thread))}
-                        showGlyph
-                      />
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "grid size-[1.125rem] shrink-0 place-items-center rounded-full",
+                      // A Thread that names the reader takes the mention's
+                      // amber, so it stands out from the room's other unread
+                      // Threads the way the room's badge does from its count.
+                      mentions > 0
+                        ? "bg-mention-quaternary text-mention-label"
+                        : "bg-primary-quaternary text-primary",
+                    )}
+                  >
+                    <MessageSquare className="size-[0.6875rem]" />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate font-semibold">
+                    {formatUnreadThreadsPreview(
+                      thread.parentContent,
+                      mentionNames,
+                    ) || t("untitled")}
+                  </span>
+                  {mentions > 0 ? (
+                    <span className="shrink-0">
+                      <span aria-hidden>
+                        <MentionCountPill
+                          label={String(mentions)}
+                          tone="mention"
+                          showGlyph
+                        />
+                      </span>
+                      <span className="sr-only">
+                        {t("mentions", { count: mentions })}
+                      </span>
                     </span>
+                  ) : null}
+                  {/* In the room badge's own column: a 28px box ending 4px
+                      from the row's edge, its number centred, so a Thread's
+                      count stacks under its room's badge, not outside it. */}
+                  <span className="text-primary w-7 shrink-0 text-center text-[0.6875rem] font-semibold tabular-nums">
+                    <span aria-hidden>{thread.unreadReplyCount}</span>
                     <span className="sr-only">
-                      {t("mentions", { count: mentionCount(thread) })}
+                      {t("unreadReplies", { count: thread.unreadReplyCount })}
                     </span>
                   </span>
-                ) : null}
-                {/* In the room badge's own column: a 28px box ending 4px from
-                    the row's edge, its number centred, so a Thread's count
-                    stacks under its room's badge instead of outside it. */}
-                <span className="text-primary w-7 shrink-0 text-center text-[0.6875rem] font-semibold tabular-nums">
-                  <span aria-hidden>{thread.unreadReplyCount}</span>
-                  <span className="sr-only">
-                    {t("unreadReplies", { count: thread.unreadReplyCount })}
-                  </span>
-                </span>
-              </Link>
-            </SidebarMenuSubButton>,
-          )}
-        </SidebarMenuSubItem>
-      ))}
+                </Link>
+              </SidebarMenuSubButton>,
+            )}
+          </SidebarMenuSubItem>
+        );
+      })}
       {remainder > 0 ? (
         <SidebarMenuSubItem>
           {wrapLink(

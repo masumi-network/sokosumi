@@ -758,14 +758,34 @@ describe("ChatRoomSidebarRow mention badge", () => {
     expect(badge?.querySelector('[data-slot="mention-glyph"]')).not.toBeNull();
   });
 
-  const member = (id: string) =>
-    ({ id, name: id, email: `${id}@x.io`, access: "member" }) as never;
+  // Amber means "you were named". In a Direct of two the count is messages,
+  // so amber there would say something that did not happen.
+  it("keeps a Direct of two's count in the plain unread tone", () => {
+    const badge = badgeOf({
+      kind: "direct",
+      unreadMentionCount: 5,
+      userMembers: [makeUser("a"), makeUser("b")],
+    });
+
+    expect(badge?.querySelector("[data-tone]")).toHaveAttribute(
+      "data-tone",
+      "unread",
+    );
+  });
+
+  it("puts a channel's and a group Direct's count in the mention tone", () => {
+    expect(
+      badgeOf({ kind: "channel", unreadMentionCount: 1 })?.querySelector(
+        "[data-tone]",
+      ),
+    ).toHaveAttribute("data-tone", "mention");
+  });
 
   it("shows the count of a Direct of two without an @", () => {
     const badge = badgeOf({
       kind: "direct",
       unreadMentionCount: 2,
-      userMembers: [member("a"), member("b")],
+      userMembers: [makeUser("a"), makeUser("b")],
     });
 
     expect(badge).toHaveTextContent("2");
@@ -776,15 +796,29 @@ describe("ChatRoomSidebarRow mention badge", () => {
     const badge = badgeOf({
       kind: "direct",
       unreadMentionCount: 2,
-      userMembers: [member("a"), member("b"), member("c")],
+      userMembers: [makeUser("a"), makeUser("b"), makeUser("c")],
     });
 
     expect(badge?.querySelector('[data-slot="mention-glyph"]')).not.toBeNull();
   });
 
-  // The badge shares a 28px hole with the row's menu. `@ 99+` does not fit it
-  // and would run into the room's name.
-  it("drops the @ once the count is capped", () => {
+  // The badge shares a 28px hole with the row's menu, and the glyph takes
+  // 12px of it, so the `@` rides a single digit only.
+  it("keeps the @ up to nine", () => {
+    const badge = badgeOf({ kind: "channel", unreadMentionCount: 9 });
+
+    expect(badge).toHaveTextContent("9");
+    expect(badge?.querySelector('[data-slot="mention-glyph"]')).not.toBeNull();
+  });
+
+  it("drops the @ from ten, where it would crowd the room's name", () => {
+    const badge = badgeOf({ kind: "channel", unreadMentionCount: 10 });
+
+    expect(badge).toHaveTextContent("10");
+    expect(badge?.querySelector('[data-slot="mention-glyph"]')).toBeNull();
+  });
+
+  it("shows a capped count without an @", () => {
     const badge = badgeOf({ kind: "channel", unreadMentionCount: 120 });
 
     expect(badge).toHaveTextContent("99+");
