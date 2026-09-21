@@ -53,17 +53,19 @@ export const jobForStatusComputeSelect = {
   },
 } as const;
 
-export type JobForStatusCompute = Prisma.JobGetPayload<{
+type JobForStatusCompute = Prisma.JobGetPayload<{
   select: typeof jobForStatusComputeSelect;
 }>;
 
-export type JobEventForStatusCompute = JobForStatusCompute["events"][number];
+// biome-ignore lint/correctness/noUnusedVariables: file-private payload alias
+type JobEventForStatusCompute = JobForStatusCompute["events"][number];
 
 export const jobWithPurchase = {
   purchase: true,
 } as const;
 
-export type JobWithPurchase = Prisma.JobGetPayload<{
+// biome-ignore lint/correctness/noUnusedVariables: file-private payload alias
+type JobWithPurchase = Prisma.JobGetPayload<{
   include: typeof jobWithPurchase;
 }>;
 
@@ -71,7 +73,8 @@ export const jobWithTransaction = {
   transaction: true,
 } as const;
 
-export type JobWithTransaction = Prisma.JobGetPayload<{
+// biome-ignore lint/correctness/noUnusedVariables: file-private payload alias
+type JobWithTransaction = Prisma.JobGetPayload<{
   include: typeof jobWithTransaction;
 }>;
 
@@ -123,8 +126,8 @@ export type JobWithListSummaryRelations = Prisma.JobGetPayload<{
   include: typeof jobListSummaryInclude;
 }>;
 
-export type JobEventForListSummary =
-  JobWithListSummaryRelations["events"][number];
+// biome-ignore lint/correctness/noUnusedVariables: file-private payload alias
+type JobEventForListSummary = JobWithListSummaryRelations["events"][number];
 
 const jobWithRefundedTransaction = {
   refundedTransaction: true,
@@ -150,7 +153,8 @@ export const jobWithShare = {
   share: true,
 } as const;
 
-export type JobWithShare = Prisma.JobGetPayload<{
+// biome-ignore lint/correctness/noUnusedVariables: file-private payload alias
+type JobWithShare = Prisma.JobGetPayload<{
   include: typeof jobWithShare;
 }>;
 
@@ -163,11 +167,11 @@ export const jobInclude = {
   ...jobWithShare,
 } as const;
 
-export type JobWithRelations = Prisma.JobGetPayload<{
+type JobWithRelations = Prisma.JobGetPayload<{
   include: typeof jobInclude;
 }>;
 
-export type JobEventWithRelations = Prisma.JobEventGetPayload<{
+type JobEventWithRelations = Prisma.JobEventGetPayload<{
   include: {
     input: true;
     blobs: true;
@@ -225,9 +229,9 @@ type BasePaidJob = {
   identifierFromPurchaser: string;
 };
 
-export type FreeJobWithStatus = Override<BaseJobWithStatus, BaseFreeJob>;
+type FreeJobWithStatus = Override<BaseJobWithStatus, BaseFreeJob>;
 
-export type PaidJobWithStatus = Override<BaseJobWithStatus, BasePaidJob>;
+type PaidJobWithStatus = Override<BaseJobWithStatus, BasePaidJob>;
 
 export const finalizedOnChainJobStatuses: OnChainJobStatus[] = [
   OnChainJobStatus.DISPUTED_WITHDRAWN,
