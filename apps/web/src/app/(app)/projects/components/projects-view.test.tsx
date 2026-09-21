@@ -47,6 +47,8 @@ const labels = {
   counts: { tasks: "Tasks", jobs: "Jobs" },
   lastActivity: "Last activity",
   created: "Created",
+  pin: "Pin project",
+  unpin: "Unpin project",
   filter: { placeholder: "Filter projects", clear: "Clear filter" },
   sortedBy: "Sorted by recent activity",
   noMatches: "No projects match",

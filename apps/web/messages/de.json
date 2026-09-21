@@ -2091,6 +2091,8 @@
         "sortedBy": "Nach letzter Aktivität sortiert",
         "lastActivity": "Letzte Aktivität",
         "created": "Erstellt",
+        "pin": "Projekt anheften",
+        "unpin": "Anheften aufheben",
         "stats": {
           "tasks": "Tasks",
           "jobs": "Jobs",

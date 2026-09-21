@@ -2091,6 +2091,8 @@
         "sortedBy": "Sorted by recent activity",
         "lastActivity": "Last activity",
         "created": "Created",
+        "pin": "Pin project",
+        "unpin": "Unpin project",
         "stats": {
           "tasks": "Tasks",
           "jobs": "Jobs",

@@ -2091,6 +2091,8 @@
         "sortedBy": "Ordenado por actividad reciente",
         "lastActivity": "Última actividad",
         "created": "Creado",
+        "pin": "Fijar proyecto",
+        "unpin": "Desfijar proyecto",
         "stats": {
           "tasks": "Tareas",
           "jobs": "Jobs",

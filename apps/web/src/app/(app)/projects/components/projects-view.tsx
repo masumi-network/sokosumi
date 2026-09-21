@@ -43,6 +43,8 @@ export interface ProjectsViewLabels {
   };
   lastActivity: string;
   created: string;
+  pin: string;
+  unpin: string;
   filter: ProjectsFilterLabels;
   sortedBy: string;
   noMatches: string;
@@ -163,6 +165,8 @@ export function ProjectsView({
                       counts: labels.counts,
                       lastActivity: labels.lastActivity,
                       created: labels.created,
+                      pin: labels.pin,
+                      unpin: labels.unpin,
                     }}
                   />
                 ))}

@@ -71,6 +71,8 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
           },
           lastActivity: t("list.lastActivity"),
           created: t("list.created"),
+          pin: t("list.pin"),
+          unpin: t("list.unpin"),
           filter: {
             placeholder: t("list.filter.placeholder"),
             clear: t("list.filter.clear"),
