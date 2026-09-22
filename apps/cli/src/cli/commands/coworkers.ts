@@ -6,12 +6,8 @@ import {
   updateCoworker,
 } from "../../api/services/coworker-service.js";
 import { fetchOrganizationWorkspaces } from "../../api/services/organization-workspace-service.js";
+import { fetchVendorMemberships } from "../../api/services/vendor-service.js";
 import {
-  createVendor,
-  fetchVendorMemberships,
-} from "../../api/services/vendor-service.js";
-import {
-  assertVendorCreationRequest,
   requireAdministeredVendorForRegistration,
   requireOrganizationWorkspacesForRegistration,
 } from "../registration-authority.js";
@@ -56,13 +52,12 @@ async function buildPayload(
   if (update && vendorId !== undefined)
     throw new Error("--vendor-id is only supported for `coworkers register`");
   if (!update) {
-    const creatingVendor = optionBoolean(options, "create-vendor");
-    if (!vendorId && !creatingVendor) {
+    if (!vendorId) {
       throw new Error(
-        "vendor id is required for `coworkers register` (or pass `--create-vendor --confirm-create-vendor --vendor-name NAME --vendor-slug SLUG`)",
+        "vendor id is required for `coworkers register` (create one first with `sokosumi vendors create --name NAME --slug SLUG`)",
       );
     }
-    if (vendorId) payload.vendorId = vendorId;
+    payload.vendorId = vendorId;
   }
   const values: [string, string][] = [
     ["name", "name"],
@@ -188,37 +183,15 @@ export async function runCoworkersCommand({
     return;
   }
   if (command === "register") {
-    const creatingVendor = optionBoolean(options, "create-vendor");
-    assertVendorCreationRequest({
-      requested: creatingVendor,
-      confirmed: optionBoolean(options, "confirm-create-vendor"),
-    });
     const { organizationWorkspaces } = await fetchOrganizationWorkspaces(
       client,
       signal,
     );
     requireOrganizationWorkspacesForRegistration(organizationWorkspaces);
     const payload = await buildPayload(options, false);
-    if (creatingVendor) {
-      if (payload.vendorId) {
-        throw new Error(
-          "Pass either `--vendor-id` or `--create-vendor`, not both",
-        );
-      }
-      const { vendor } = await createVendor(
-        client,
-        {
-          name: optionString(options, "vendor-name") ?? "",
-          slug: optionString(options, "vendor-slug") ?? "",
-        },
-        signal,
-      );
-      payload.vendorId = vendor.id;
-    } else {
-      const vendorId = String(payload.vendorId);
-      const { vendors } = await fetchVendorMemberships(client, signal);
-      requireAdministeredVendorForRegistration(vendors, vendorId);
-    }
+    const vendorId = String(payload.vendorId);
+    const { vendors } = await fetchVendorMemberships(client, signal);
+    requireAdministeredVendorForRegistration(vendors, vendorId);
     const { coworker } = await createCoworker(client, payload, signal);
     let apiKey: unknown = null;
     if (optionBoolean(options, "create-api-key")) {

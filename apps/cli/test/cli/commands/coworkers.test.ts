@@ -179,7 +179,7 @@ test("TestV67 coworkers register rejects non-admin Vendor before Core create", a
   assert.equal(postCalled, false);
 });
 
-test("TestV67 coworkers register --create-vendor needs confirm then creates Vendor", async () => {
+test("TestV67 coworkers register no longer creates a Vendor; requires --vendor-id", async () => {
   const posts: { path: string; body: unknown }[] = [];
   const client: CoreHttpClient = {
     get: async <T>(path: string) => {
@@ -192,19 +192,7 @@ test("TestV67 coworkers register --create-vendor needs confirm then creates Vend
     },
     post: async <T>(path: string, body?: unknown) => {
       posts.push({ path, body });
-      if (path.includes("/vendors") && !path.includes("/coworkers")) {
-        return {
-          data: {
-            id: "vendor-new",
-            name: "Acme Labs",
-            slug: "acme-labs",
-            role: "admin",
-          },
-        } as T;
-      }
-      return {
-        data: { id: "coworker-1", name: "Ops Agent", vendorId: "vendor-new" },
-      } as T;
+      return { data: {} } as T;
     },
     patch: async <T>() => ({ data: {} }) as T,
     delete: async <T>() => ({ data: {} }) as T,
@@ -218,60 +206,13 @@ test("TestV67 coworkers register --create-vendor needs confirm then creates Vend
         subcommand: "register",
         options: {
           name: "Ops Agent",
-          "create-vendor": true,
           "vendor-name": "Acme Labs",
           "vendor-slug": "acme-labs",
         },
       }),
-    /explicit confirmation/,
+    /vendor id is required/,
   );
   assert.equal(posts.length, 0);
-
-  await assert.rejects(
-    () =>
-      runCoworkersCommand({
-        client,
-        stdout: { write() {} },
-        subcommand: "register",
-        options: {
-          name: "Ops Agent",
-          "vendor-id": "vendor-1",
-          "create-vendor": true,
-          "confirm-create-vendor": true,
-          "vendor-name": "Acme Labs",
-          "vendor-slug": "acme-labs",
-        },
-      }),
-    /either `--vendor-id` or `--create-vendor`/,
-  );
-  assert.equal(posts.length, 0);
-
-  const output: string[] = [];
-  await runCoworkersCommand({
-    client,
-    stdout: { write: (value) => output.push(value) },
-    subcommand: "register",
-    options: {
-      name: "Ops Agent",
-      "create-vendor": true,
-      "confirm-create-vendor": true,
-      "vendor-name": "Acme Labs",
-      "vendor-slug": "acme-labs",
-    },
-  });
-  assert.deepEqual(
-    posts.map((entry) => entry.path),
-    ["/v1/vendors", "/v1/coworkers"],
-  );
-  assert.deepEqual(posts[0]?.body, {
-    name: "Acme Labs",
-    slug: "acme-labs",
-  });
-  assert.equal(
-    (posts[1]?.body as { vendorId?: string } | undefined)?.vendorId,
-    "vendor-new",
-  );
-  assert.match(output.join(""), /Created coworker Ops Agent/);
 });
 
 test("coworkers api-key requires an id", async () => {

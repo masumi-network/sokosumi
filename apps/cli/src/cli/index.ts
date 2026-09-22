@@ -68,8 +68,6 @@ type ValueOptionName =
   | "input-file"
   | "max-credits"
   | "vendor-id"
-  | "vendor-name"
-  | "vendor-slug"
   | "slug";
 
 type CliOptionValue = string | string[];
@@ -116,13 +114,9 @@ interface CliOptions {
   "input-file"?: string;
   "max-credits"?: string;
   "vendor-id"?: string;
-  "vendor-name"?: string;
-  "vendor-slug"?: string;
   slug?: string;
   "api-key-stdin"?: boolean;
   "create-api-key"?: boolean;
-  "create-vendor"?: boolean;
-  "confirm-create-vendor"?: boolean;
   details?: boolean;
 }
 
@@ -161,7 +155,7 @@ const COMMAND_USAGE: Record<(typeof CLI_COMMANDS)[number], string> = {
   "coworkers api-key": "COWORKER_ID [options]",
   "coworkers me": "",
   "vendors me": "",
-  "vendors create": "",
+  "vendors create": "[options]",
   "workspaces list": "",
   "tasks list": "[options]",
   "tasks create": "",
@@ -203,12 +197,7 @@ export const GLOBAL_BOOLEAN_FLAG_BY_TOKEN = {
   "--version": "version",
 } as const satisfies Record<string, keyof CliOptions>;
 
-export const BOOLEAN_OPTION_NAMES = [
-  "create-api-key",
-  "create-vendor",
-  "confirm-create-vendor",
-  "details",
-] as const;
+export const BOOLEAN_OPTION_NAMES = ["create-api-key", "details"] as const;
 
 function formatGlobalOptionHelp(): string[] {
   const booleanLines: string[] = [];
@@ -282,8 +271,6 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "input-file",
   "max-credits",
   "vendor-id",
-  "vendor-name",
-  "vendor-slug",
   "slug",
 ]);
 

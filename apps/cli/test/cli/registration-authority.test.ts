@@ -5,7 +5,6 @@ import type { OrganizationWorkspace } from "../../src/api/models/organization-wo
 import type { Vendor } from "../../src/api/models/vendor.js";
 import {
   administeredVendors,
-  assertVendorCreationRequest,
   describeRegistrationAdminVendorRequirement,
   describeRegistrationWorkspaceRequirement,
   requireAdministeredVendorForRegistration,
@@ -75,19 +74,6 @@ test("TestV67 registration accepts only an administered Vendor", () => {
   );
 });
 
-test("TestV67 Vendor creation needs confirm then allows Core path", () => {
-  assert.doesNotThrow(() =>
-    assertVendorCreationRequest({ requested: false, confirmed: false }),
-  );
-  assert.throws(
-    () => assertVendorCreationRequest({ requested: true, confirmed: false }),
-    /explicit confirmation/,
-  );
-  assert.doesNotThrow(() =>
-    assertVendorCreationRequest({ requested: true, confirmed: true }),
-  );
-});
-
 test("TestV67 registration gate copy tells how to get workspace and Vendor admin", () => {
   assert.match(
     describeRegistrationWorkspaceRequirement("https://app.example.test"),
@@ -103,7 +89,7 @@ test("TestV67 registration gate copy tells how to get workspace and Vendor admin
   );
   assert.match(
     describeRegistrationAdminVendorRequirement("https://app.example.test"),
-    /--create-vendor/,
+    /creating a Coworker still requires a platform admin/,
   );
   assert.match(
     describeRegistrationAdminVendorRequirement("https://app.example.test"),

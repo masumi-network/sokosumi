@@ -48,20 +48,17 @@ export async function runVendorsCommand({
   options,
 }: VendorsCommandContext): Promise<void> {
   if (subcommand === "create") {
-    const { vendor } = await createVendor(
-      client,
-      {
-        name: optionString(options, "name") ?? "",
-        slug: optionString(options, "slug") ?? "",
-      },
-      signal,
-    );
+    const name = optionString(options, "name")?.trim() ?? "";
+    const slug = optionString(options, "slug")?.trim() ?? "";
+    if (!name) throw new Error("Vendor name is required (--name NAME)");
+    if (!slug) throw new Error("Vendor slug is required (--slug SLUG)");
+    const { vendor } = await createVendor(client, { name, slug }, signal);
     if (json) writeJson(stdout, { vendor });
     else {
       writeText(stdout, [
         `Created vendor ${vendor.name || "Unnamed Vendor"} [${vendor.id}]`,
         vendor.slug ? `slug: ${vendor.slug}` : undefined,
-        `role: ${vendor.role ?? "admin"}`,
+        `role: ${vendor.role}`,
       ]);
     }
     return;
