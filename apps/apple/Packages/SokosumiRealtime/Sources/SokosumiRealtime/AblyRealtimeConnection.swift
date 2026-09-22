@@ -1,4 +1,5 @@
 import Ably
+import CoreAPI
 import Foundation
 import SokosumiChat
 
@@ -56,8 +57,8 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
     options.authCallback = { _, callback in
       Task {
         do {
-          let fields = try await tokenSource.next()
-          guard let json = fields.jsonString else {
+          let token = try await tokenSource.next()
+          guard let json = token.artTokenRequestJSON else {
             callback(nil, ablyRealtimeError("Ably token request was empty."))
             return
           }
@@ -389,6 +390,31 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
       lock.withLock { membershipSubscriptions }?.revoke(roomId)
     }
     onEvent(event)
+  }
+}
+
+extension Components.Schemas.AblyTokenRequest {
+  /// Core token JSON for `ARTTokenRequest.fromJson` (timestamps and ttl in milliseconds).
+  var artTokenRequestJSON: String? {
+    var dict: [String: Any] = [
+      "keyName": keyName,
+      "capability": capability,
+      "timestamp": timestamp,
+      "nonce": nonce,
+      "mac": mac
+    ]
+    if let clientId {
+      dict["clientId"] = clientId
+    }
+    if let ttl {
+      dict["ttl"] = ttl
+    }
+    guard let data = try? JSONSerialization.data(withJSONObject: dict),
+          let string = String(data: data, encoding: .utf8)
+    else {
+      return nil
+    }
+    return string
   }
 }
 

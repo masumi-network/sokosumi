@@ -409,28 +409,39 @@ struct ChatRealtimeTests {
   }
 
   @Test func instanceIdIsStablePerInstall() {
-    let store = MemoryAblyClientInstanceIdStore()
-    let first = getOrCreateAblyClientInstanceId(store: store) { "inst_test00000001" }
+    let store = MemoryRealtimeClientInstanceIdStore()
+    let first = getOrCreateRealtimeClientInstanceId(store: store) { "inst_test00000001" }
     #expect(first == "inst_test00000001")
     // Second launch reuses the persisted value even with another generator.
-    let second = getOrCreateAblyClientInstanceId(store: store) { "inst_changed0000002" }
+    let second = getOrCreateRealtimeClientInstanceId(store: store) { "inst_changed0000002" }
     #expect(second == "inst_test00000001")
     #expect(store.load() == "inst_test00000001")
   }
 
+  @Test func instanceIdKeepsExistingUserDefaultsKey() throws {
+    let suite = "sokosumi-realtime-instance-id.\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: suite))
+    defaults.removePersistentDomain(forName: suite)
+    let store = UserDefaultsRealtimeInstanceIdStore(defaults: defaults)
+    let id = getOrCreateRealtimeClientInstanceId(store: store) { "inst_persist000001" }
+    #expect(id == "inst_persist000001")
+    #expect(defaults.string(forKey: "sokosumi.ablyClientInstanceId") == "inst_persist000001")
+    defaults.removePersistentDomain(forName: suite)
+  }
+
   @Test func instanceIdReplacesInvalidPersistedValue() {
-    let store = MemoryAblyClientInstanceIdStore(stored: "bad id!")
-    let id = getOrCreateAblyClientInstanceId(store: store) { "inst_test00000002" }
+    let store = MemoryRealtimeClientInstanceIdStore(stored: "bad id!")
+    let id = getOrCreateRealtimeClientInstanceId(store: store) { "inst_test00000002" }
     #expect(id == "inst_test00000002")
-    #expect(store.load().map(isValidAblyClientInstanceId) == true)
+    #expect(store.load().map(isValidRealtimeClientInstanceId) == true)
   }
 
   @Test func instanceIdValidationMatchesCore() {
-    #expect(isValidAblyClientInstanceId("inst_12345"))
-    #expect(isValidAblyClientInstanceId("aBcDeF09_-"))
-    #expect(!isValidAblyClientInstanceId("short"))
-    #expect(!isValidAblyClientInstanceId("has space!"))
-    #expect(!isValidAblyClientInstanceId(String(repeating: "a", count: 65)))
+    #expect(isValidRealtimeClientInstanceId("inst_12345"))
+    #expect(isValidRealtimeClientInstanceId("aBcDeF09_-"))
+    #expect(!isValidRealtimeClientInstanceId("short"))
+    #expect(!isValidRealtimeClientInstanceId("has space!"))
+    #expect(!isValidRealtimeClientInstanceId(String(repeating: "a", count: 65)))
   }
 
   @Test func fetchAblyTokenPostsInstanceId() async throws {

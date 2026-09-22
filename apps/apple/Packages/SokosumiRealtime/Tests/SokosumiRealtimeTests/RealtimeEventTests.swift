@@ -312,15 +312,15 @@ struct RealtimeEventTests {
   }
 
   @Test func tokenFieldsSerializeForAbly() {
-    let fields = AblyTokenFields(
+    let token = Components.Schemas.AblyTokenRequest(
       keyName: "app.key",
       capability: "{\"chat_rooms:room_x\":[\"subscribe\"]}",
       clientId: "user_1:inst_1",
-      timestampMillis: 1_704_067_200_000,
+      timestamp: 1_704_067_200_000,
       nonce: "n",
       mac: "m"
     )
-    guard let json = fields.jsonString else {
+    guard let json = token.artTokenRequestJSON else {
       Issue.record("expected token JSON")
       return
     }

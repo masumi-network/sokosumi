@@ -196,7 +196,7 @@ private func realtimeState(
   defaults.removePersistentDomain(forName: suite)
   let state = WorkspaceState(
     savedRoom: SavedRoomSelection(defaults: defaults),
-    instanceStore: MemoryAblyClientInstanceIdStore(stored: instanceId)
+    instanceStore: MemoryRealtimeClientInstanceIdStore(stored: instanceId)
   )
   state.setWindowVisible(true, window: realtimeWindow)
   state.clientResolver = { client }
@@ -801,11 +801,11 @@ struct WorkspaceRealtimeTests {
   }
 
   @Test func instanceIdIsStableAcrossStates() {
-    let store = MemoryAblyClientInstanceIdStore()
+    let store = MemoryRealtimeClientInstanceIdStore()
     let first = WorkspaceState(instanceStore: store)
     let second = WorkspaceState(instanceStore: store)
-    #expect(first.ablyClientInstanceId == second.ablyClientInstanceId)
-    #expect(isValidAblyClientInstanceId(first.ablyClientInstanceId))
+    #expect(first.realtimeClientInstanceId == second.realtimeClientInstanceId)
+    #expect(isValidRealtimeClientInstanceId(first.realtimeClientInstanceId))
   }
 
   @Test func tokenMintUsesInstanceIdAndPersonalOmitsOrgHeader() async throws {
