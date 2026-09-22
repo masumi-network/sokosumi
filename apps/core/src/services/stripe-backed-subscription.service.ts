@@ -109,6 +109,18 @@ export async function handleCheckoutSessionCompletedEvent(
     return;
   }
 
+  await reconcileFirstPaidSubscription(stripeSubscriptionId);
+}
+
+export async function handleSubscriptionCreatedEvent(
+  subscription: Stripe.Subscription,
+): Promise<void> {
+  await reconcileFirstPaidSubscription(subscription.id);
+}
+
+async function reconcileFirstPaidSubscription(
+  stripeSubscriptionId: string,
+): Promise<void> {
   const localSubscription =
     await subscriptionRepository.getSubscriptionByStripeSubscriptionId(
       stripeSubscriptionId,

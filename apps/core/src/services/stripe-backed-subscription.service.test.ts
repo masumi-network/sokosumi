@@ -309,6 +309,24 @@ describe("handleCheckoutSessionCompletedEvent", () => {
     );
   });
 
+  it("reconciles a created subscription and auto-assigns its first seats", async () => {
+    const { handleSubscriptionCreatedEvent } = await import(
+      "./stripe-backed-subscription.service"
+    );
+
+    await handleSubscriptionCreatedEvent({ id: "sub_stripe_1" } as never);
+
+    expect(getSubscriptionByStripeSubscriptionIdMock).toHaveBeenCalledWith(
+      "sub_stripe_1",
+      expect.anything(),
+    );
+    expect(autoAssignSeatsOnPaidSubscribeMock).toHaveBeenCalledWith(
+      "org-1",
+      3,
+      expect.anything(),
+    );
+  });
+
   it("skips checkout sessions without a subscription id", async () => {
     const { handleCheckoutSessionCompletedEvent } = await import(
       "./stripe-backed-subscription.service"
