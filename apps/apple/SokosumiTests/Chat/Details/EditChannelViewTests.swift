@@ -56,10 +56,6 @@
         #expect(ChannelEditPermissions.canLeave(room) && model.permissions?.canArchive == manages)
         try await Task.sleep(for: .milliseconds(100))
         host.layoutSubtreeIfNeeded()
-        let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
-        host.cacheDisplay(in: host.bounds, to: bitmap)
-        let png = try #require(bitmap.representation(using: .png, properties: [:]))
-        try png.write(to: FileManager.default.temporaryDirectory.appendingPathComponent("edit-channel-\(manages ? "manager" : "member")-\(dark ? "dark" : "light").png"))
       }
     }
   }

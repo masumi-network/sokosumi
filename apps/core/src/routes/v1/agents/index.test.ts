@@ -135,6 +135,12 @@ describe("agents routes OpenAPI scope contract", () => {
     });
 
     expect(doc.paths?.["/{id}/reviews"]?.get).toBeDefined();
+    expect(
+      getQueryParamFromGetOperation(doc, "/{id}/reviews", "limit"),
+    ).toEqual(expect.objectContaining({ name: "limit", in: "query" }));
+    expect(
+      getQueryParamFromGetOperation(doc, "/{id}/reviews", "offset"),
+    ).toBeUndefined();
 
     const components = doc.components?.schemas as
       | Record<string, { properties?: Record<string, unknown> }>

@@ -3,10 +3,10 @@ import Foundation
 import SokosumiAuth
 import SokosumiChat
 
-public enum ChatNotificationNavigationError: LocalizedError {
+enum ChatNotificationNavigationError: LocalizedError {
   case workspaceUnavailable
 
-  public var errorDescription: String? {
+  var errorDescription: String? {
     "Could not switch to the workspace this notification belongs to."
   }
 }

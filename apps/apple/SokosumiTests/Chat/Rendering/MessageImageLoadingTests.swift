@@ -41,10 +41,8 @@
         remounted.layoutSubtreeIfNeeded()
         #expect(abs(remounted.fittingSize.height - loadedHeight) <= 1, "A returning row must reserve its known image proportions before the download finishes.")
         window.setContentSize(NSSize(width: width, height: loadedHeight))
-        let bitmap = try await waitForImage(in: remounted)
+        try await waitForImage(in: remounted)
         #expect(abs(remounted.fittingSize.height - loadedHeight) <= 1)
-        let png = try #require(bitmap.representation(using: .png, properties: [:]))
-        try png.write(to: URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("chat-image-\(unfurl ? "unfurl" : "attachment")-\(Int(width)).png"))
       }
 
       @Test func unfurlPortraitImageFillsTheTextColumn() async throws {

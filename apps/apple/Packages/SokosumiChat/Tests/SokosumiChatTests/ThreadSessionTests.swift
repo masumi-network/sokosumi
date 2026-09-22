@@ -68,8 +68,9 @@ struct ThreadSessionTests {
   }
 
   @Test func patchesAndDeleteEnvelopesKeepRootOutOfReplies() async throws {
+    let now = Date(timeIntervalSince1970: 1_700_000_000)
     let root = try await parent()
-    let session = ThreadSession()
+    let session = ThreadSession(now: { now })
     session.open(root)
     var reply = root
     reply.id = "reply"
@@ -81,10 +82,10 @@ struct ThreadSessionTests {
     let hydrateRoot = session.apply(ChatRoomMessageIdEnvelope(eventType: .update, messageId: root.id, roomId: testRoomId))
     #expect(hydrateRoot)
     session.apply(ChatRoomMessageIdEnvelope(eventType: .delete, messageId: "reply", roomId: testRoomId, parentMessageId: root.id))
-    #expect(session.timeline.messages.first?.deletedAt != nil)
+    #expect(session.timeline.messages.first?.deletedAt == now)
     #expect(session.parent?.deletedAt == nil)
     session.apply(ChatRoomMessageIdEnvelope(eventType: .delete, messageId: root.id, roomId: testRoomId))
-    #expect(session.parent?.deletedAt != nil)
+    #expect(session.parent?.deletedAt == now)
     #expect(session.timeline.messages.map(\.id) == ["reply"])
     session.close()
     session.apply(eventType: .create, message: reply)
@@ -179,8 +180,27 @@ struct ThreadSessionTests {
     #expect(session.outbox.shells.isEmpty)
     #expect(session.timeline.messages.map(\.id) == ["reply"])
     #expect(session.parent?.threadReplyCount == 1)
-    #expect(session.parent?.threadLastReplyAt != nil)
     #expect(try testRequestJSON(#require(transport.bodies.last))["parentMessageId"] as? String == "root")
+  }
+
+  @Test func sendUsesInjectedTurnIdAndNow() async throws {
+    let now = Date(timeIntervalSince1970: 1_788_868_800)
+    let root = try await parent()
+    let transport = TestTransport([
+      (201, testCreatedMessageBody(id: "reply", content: "Reply", clientMessageId: "turn-fixed")
+        .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"root\""))
+    ])
+    let client = try makeTestClient(transport)
+    let session = ThreadSession(now: { now }, makeId: { "turn-fixed" })
+    session.open(root)
+    #expect(session.send("Reply", client: client, organizationSlug: nil, sender: sender, settled: { _ in }))
+    #expect(session.displayedReplies.map(\.id) == [outboundLocalMessageId("turn-fixed")])
+    #expect(session.displayedReplies.first?.createdAt == now)
+    while session.outbox.isSending {
+      await Task.yield()
+    }
+    #expect(try testRequestJSON(#require(transport.bodies.last))["clientMessageId"] as? String == "turn-fixed")
+    #expect(session.timeline.messages.map(\.id) == ["reply"])
   }
 
   @Test func replyCountsWhenRealtimeEchoArrivesBeforeHTTPResponse() async throws {

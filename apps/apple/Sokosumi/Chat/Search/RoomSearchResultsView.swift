@@ -72,7 +72,9 @@ struct RoomSearchResultsView: View {
               .disabled(jumpingId != nil)
               .onHover {
                 if $0 {
-                  search.select(message.id)
+                  Task { @MainActor in
+                    search.select(message.id)
+                  }
                 }
               }
               .id(message.id)

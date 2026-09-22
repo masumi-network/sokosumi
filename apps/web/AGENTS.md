@@ -404,7 +404,7 @@ export async function createNewItem(data: FormData) {
 import { useTranslations } from 'next-intl';
 
 export function MyComponent() {
-  const t = useTranslations('common');
+  const t = useTranslations('CookieConsent');
   return <h1>{t('title')}</h1>;
 }
 ```

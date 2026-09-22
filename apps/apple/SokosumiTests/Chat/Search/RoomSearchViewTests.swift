@@ -14,8 +14,7 @@
       let (search, _) = try await answeredSearch()
       // The model selects the first hit with each answer, which the view used to be handed as a binding.
       #expect(search.selectedId == "first")
-      let render = try await render(search, query: "matching", jumpingId: loading ? "first" : nil, dark: dark)
-      try render.png.write(to: URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("room-search-\(dark ? "dark" : "light")\(loading ? "-loading" : "").png"))
+      _ = try await render(search, query: "matching", jumpingId: loading ? "first" : nil, dark: dark)
     }
 
     /// Row 23a: while a refined query is out the panel is the settled panel, pixel for pixel — the hits stay
@@ -32,14 +31,13 @@
       #expect(search.isLoading && presentation.isRefining)
       #expect(presentation.placeholder == nil && presentation.results.map(\.id) == ["first", "reply"])
       let stale = try await render(search, query: "matching reply", jumpingId: nil, dark: dark)
-      #expect(differingBytes(stale.pixels, settled.pixels) == 0)
-      Attachment.record(stale.png, named: "room-search-refining-\(dark ? "dark" : "light").png")
+      #expect(differingBytes(stale, settled) == 0)
 
       await transport.release()
       await refining.value
       #expect(search.results.map(\.id) == ["reply"] && search.selectedId == "reply")
       let replaced = try await render(search, query: "matching reply", jumpingId: nil, dark: dark)
-      #expect(differingBytes(replaced.pixels, settled.pixels) > 1000)
+      #expect(differingBytes(replaced, settled) > 1000)
     }
 
     /// Row 23a: with nothing to keep, the first search reads "Searching…".
@@ -54,8 +52,7 @@
       let presentation = search.presentation(for: "matching")
       #expect(presentation.placeholder == .loading && presentation.results.isEmpty && !presentation.isRefining)
       let loading = try await render(search, query: "matching", jumpingId: nil, dark: dark)
-      #expect(differingBytes(loading.pixels, idle.pixels) > 1000)
-      Attachment.record(loading.png, named: "room-search-first-loading-\(dark ? "dark" : "light").png")
+      #expect(differingBytes(loading, idle) > 1000)
       await transport.release()
       await first.value
     }
@@ -92,7 +89,7 @@
       return "{\"data\":\(rows),\"meta\":{\"timestamp\":\"2026-09-15T12:00:00.000Z\",\"requestId\":\"fixture\",\"pagination\":{\"cursor\":null,\"limit\":50,\"total\":\(messages.count),\"nextCursor\":null}}}"
     }
 
-    private func render(_ search: RoomSearch, query: String, jumpingId: String?, dark: Bool) async throws -> (png: Data, pixels: [UInt8]) {
+    private func render(_ search: RoomSearch, query: String, jumpingId: String?, dark: Bool) async throws -> [UInt8] {
       let content = RoomSearchResultsView(search: search, query: query, jumpingId: jumpingId, jumpError: nil, select: { _ in }, retry: {}, close: {})
         .frame(width: 280, height: 420).background(.background)
         .environment(\.colorScheme, dark ? .dark : .light)
@@ -106,8 +103,7 @@
       let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
       host.cacheDisplay(in: host.bounds, to: bitmap)
       let data = try #require(bitmap.bitmapData)
-      let pixels = Array(UnsafeBufferPointer(start: data, count: bitmap.bytesPerRow * bitmap.pixelsHigh))
-      return try (#require(bitmap.representation(using: .png, properties: [:])), pixels)
+      return Array(UnsafeBufferPointer(start: data, count: bitmap.bytesPerRow * bitmap.pixelsHigh))
     }
 
     private func differingBytes(_ lhs: [UInt8], _ rhs: [UInt8]) -> Int {

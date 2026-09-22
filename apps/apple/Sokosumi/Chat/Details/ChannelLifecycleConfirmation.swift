@@ -13,7 +13,7 @@ struct ChannelLifecycleRequest: Identifiable {
 }
 
 /// Runs channel lifecycle requests with web's confirm copy (`edit-channel-dialog.tsx`, `organization-chat-list.client.tsx`).
-/// Restore runs without confirmation, like web. Core rejections (last member, role, not archived) surface in an alert.
+/// Restore runs without confirmation. Core rejections (last member, role, not archived) surface in an alert.
 struct ChannelLifecycleConfirmation: ViewModifier {
   @Binding var request: ChannelLifecycleRequest?
   var completed: () -> Void = {}

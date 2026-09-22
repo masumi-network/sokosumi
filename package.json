@@ -17,7 +17,6 @@
     "web:build": "pnpm --filter web build",
     "core:build": "pnpm --filter core build",
     "masumi:build": "pnpm --filter @sokosumi/masumi build",
-    "packages:build": "pnpm --filter \"./packages/*\" run build",
     "typecheck": "turbo run typecheck",
     "web:typecheck": "pnpm --filter web typecheck",
     "core:typecheck": "pnpm --filter core typecheck",
@@ -50,15 +49,11 @@
     "cloud-agent-db:test": "node --test scripts/cloud-agent-db/__tests__/cloud-agent-db.test.mjs",
     "local-env:test": "node --test scripts/local-env/bootstrap.test.mjs scripts/local-env/portless-dev.test.mjs",
     "ci:test": "node --test scripts/ci/__tests__/turbo-remote-cache.test.mjs scripts/ci/__tests__/doc-script-references.test.mjs scripts/ci/vercel-deploy.test.mjs",
-    "perf:report": "lighthouse https://sokosumi-app-preprod.vercel.app/ --only-categories=performance --output=html --output=json --output-path=./.cursor/sokosumi-perf --chrome-flags='--headless --no-sandbox --disable-gpu'",
-    "perf:report:auth": "node scripts/perf-report-authenticated.mjs",
     "prepare": "husky"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
-    "chrome-launcher": "1.2.1",
     "husky": "9.1.7",
-    "lighthouse": "13.5.0",
     "portless": "0.15.6",
     "tsx": "4.23.15",
     "turbo": "2.11.2"
