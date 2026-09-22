@@ -99,5 +99,21 @@ import Testing
     history.record("not an emoji")
     #expect(history.frequent.map(\.emoji) == ["🎉", "👍"])
     #expect(ReactionEmojiHistory(defaults: defaults).frequent.map(\.emoji) == ["🎉", "👍"])
+    #expect(defaults.dictionary(forKey: "sokosumi.reactionEmojiUseCounts.v1") as? [String: Int] == ["🎉": 2, "👍": 1])
+    #expect(defaults.object(forKey: "chat.reactionEmojiUseCounts") == nil)
+  }
+
+  @Test func usageHistoryMigratesLegacyUserDefaultsKey() throws {
+    let suite = "reaction-history-legacy-\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: suite))
+    defer { defaults.removePersistentDomain(forName: suite) }
+    defaults.set(["😂": 3, "👍": 1], forKey: "chat.reactionEmojiUseCounts")
+    let history = ReactionEmojiHistory(defaults: defaults)
+    #expect(history.frequent.map(\.emoji) == ["😂", "👍"])
+    #expect(defaults.dictionary(forKey: "sokosumi.reactionEmojiUseCounts.v1") as? [String: Int] == ["😂": 3, "👍": 1])
+    #expect(defaults.object(forKey: "chat.reactionEmojiUseCounts") == nil)
+    history.record("❤️")
+    #expect(ReactionEmojiHistory(defaults: defaults).frequent.map(\.emoji) == ["😂", "❤️", "👍"])
+    #expect(defaults.object(forKey: "chat.reactionEmojiUseCounts") == nil)
   }
 }

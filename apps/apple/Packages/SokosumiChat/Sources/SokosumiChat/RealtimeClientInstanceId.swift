@@ -12,8 +12,10 @@ public protocol RealtimeClientInstanceIdStore: Sendable {
 /// `UserDefaults` is thread-safe; the unchecked conformance covers the
 /// missing `Sendable` annotation on `NSUserDefaults`.
 public struct UserDefaultsRealtimeInstanceIdStore: RealtimeClientInstanceIdStore, @unchecked Sendable {
-  /// Existing installs persist under this key; renaming would mint a new device id.
-  private static let key = "sokosumi.ablyClientInstanceId"
+  /// Versioned key. Existing installs used `sokosumi.ablyClientInstanceId`.
+  private static let key = "sokosumi.ablyClientInstanceId.v1"
+  /// Pre-v1 key; renaming without a read would mint a new device id.
+  private static let legacyKey = "sokosumi.ablyClientInstanceId"
   private let defaults: UserDefaults
 
   public init(defaults: UserDefaults = .standard) {
@@ -21,11 +23,17 @@ public struct UserDefaultsRealtimeInstanceIdStore: RealtimeClientInstanceIdStore
   }
 
   public func load() -> String? {
-    defaults.string(forKey: Self.key)
+    if let current = defaults.string(forKey: Self.key) {
+      return current
+    }
+    guard let legacy = defaults.string(forKey: Self.legacyKey) else { return nil }
+    save(legacy)
+    return legacy
   }
 
   public func save(_ id: String) {
     defaults.set(id, forKey: Self.key)
+    defaults.removeObject(forKey: Self.legacyKey)
   }
 }
 
