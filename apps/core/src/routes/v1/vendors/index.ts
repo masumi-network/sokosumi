@@ -4,12 +4,17 @@ import mountListCoworkerAssignments from "./[id]/coworkers/[coworkerId]/assignme
 import mountPutCoworkerAssignment from "./[id]/coworkers/[coworkerId]/assignments/put.js";
 import mountCleanupVendorFiles from "./[id]/files/cleanup/post.js";
 import mountPostVendorFiles from "./[id]/files/post.js";
+import mountRevokeVendorInvite from "./[id]/invites/[inviteId]/delete.js";
+import mountListVendorInvites from "./[id]/invites/get.js";
+import mountCreateVendorInvite from "./[id]/invites/post.js";
 import mountRemoveVendorMember from "./[id]/members/[userId]/delete.js";
 import mountPatchVendorMemberRole from "./[id]/members/[userId]/patch.js";
 import mountListVendorMembers from "./[id]/members/get.js";
-import mountAddVendorMember from "./[id]/members/post.js";
 import mountPatchVendor from "./[id]/patch.js";
 import mountListVendors from "./get.js";
+import mountAcceptVendorInvite from "./invites/[inviteId]/accept/post.js";
+import mountDeclineVendorInvite from "./invites/[inviteId]/decline/post.js";
+import mountListMyVendorInvites from "./invites/get.js";
 import mountListMyVendorMemberships from "./me/get.js";
 import mountCreateVendor from "./post.js";
 
@@ -18,9 +23,15 @@ const app = new OpenAPIHonoWithAuth();
 mountListVendors(app);
 mountCreateVendor(app);
 mountListMyVendorMemberships(app);
+// Static `/invites` routes before the `/{id}/…` param routes.
+mountListMyVendorInvites(app);
+mountAcceptVendorInvite(app);
+mountDeclineVendorInvite(app);
 mountPatchVendor(app);
 mountListVendorMembers(app);
-mountAddVendorMember(app);
+mountCreateVendorInvite(app);
+mountListVendorInvites(app);
+mountRevokeVendorInvite(app);
 mountPatchVendorMemberRole(app);
 mountRemoveVendorMember(app);
 mountListCoworkerAssignments(app);

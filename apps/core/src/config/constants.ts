@@ -95,6 +95,29 @@ export const LIMITS = {
    */
   CHAT_ROOM_GUEST_INVITE_LINK_CREATE_PER_HOUR: 10,
 
+  /**
+   * Maximum live (pending, unexpired) member invitations per vendor. Bounds
+   * email-blast abuse now that any developer can self-create a vendor and
+   * invite members by email.
+   */
+  VENDOR_MEMBER_INVITE_PENDING_LIMIT: 100,
+
+  /**
+   * Maximum vendor member invitations one inviter may create per hour (across
+   * vendors). Complements the per-vendor pending cap for spam protection.
+   */
+  VENDOR_MEMBER_INVITE_CREATE_PER_HOUR: 30,
+
+  /**
+   * Maximum self-service vendors one user may administer. Vendor create is a
+   * one-time cold-start for private Coworker registration, not a namespace to
+   * farm; platform admins create additional vendors via /v1/admin/vendors.
+   */
+  SELF_SERVICE_VENDOR_LIMIT_PER_USER: 1,
+
+  /** Maximum length of a vendor logo string (URL or path). */
+  VENDOR_LOGO_MAX_LENGTH: 2048,
+
   /** Maximum organizations per user */
   ORGANIZATION_LIMIT: 100,
 

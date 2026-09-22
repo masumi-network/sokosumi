@@ -9,7 +9,6 @@ import mountPutCoworkerAssignment from "./[id]/coworkers/[coworkerId]/assignment
 import mountRemoveVendorMember from "./[id]/members/[userId]/delete";
 import mountPatchVendorMemberRole from "./[id]/members/[userId]/patch";
 import mountListVendorMembers from "./[id]/members/get";
-import mountAddVendorMember from "./[id]/members/post";
 import mountPatchVendor from "./[id]/patch";
 import mountListMyVendorMemberships from "./me/get";
 
@@ -114,7 +113,6 @@ function createApp(authContext: AuthVariables["authContext"]) {
   mountListMyVendorMemberships(app);
   mountPatchVendor(app);
   mountListVendorMembers(app);
-  mountAddVendorMember(app);
   mountPatchVendorMemberRole(app);
   mountRemoveVendorMember(app);
   mountListCoworkerAssignments(app);
@@ -306,100 +304,6 @@ describe("vendor admin APIs", () => {
       name: "Dev User",
       role: "developer",
     });
-  });
-
-  it("adds a vendor member by email and defaults role to developer", async () => {
-    mockVendorAdmin();
-    userFindFirstMock.mockResolvedValue({ id: "dev_user" });
-    vendorMemberFindUniqueMock.mockResolvedValue(null);
-
-    const app = createApp(userAuth);
-    const response = await app.request(
-      `http://localhost/${testVendor.id}/members`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: "dev@example.com",
-        }),
-      },
-    );
-    const body = await response.json();
-
-    expect(response.status).toBe(201);
-    expect(vendorMemberCreateMock).toHaveBeenCalledWith({
-      data: {
-        vendorId: testVendor.id,
-        userId: "dev_user",
-        role: "developer",
-      },
-      include: {
-        user: {
-          select: { id: true, email: true, name: true },
-        },
-      },
-    });
-    expect(body.data.role).toBe("developer");
-  });
-
-  it("adds a vendor member as admin when role is provided", async () => {
-    mockVendorAdmin();
-    userFindUniqueMock.mockResolvedValue({ id: "admin_user" });
-    vendorMemberFindUniqueMock.mockResolvedValue(null);
-    vendorMemberCreateMock.mockResolvedValue({
-      role: "admin",
-      user: {
-        id: "admin_user",
-        email: "admin@example.com",
-        name: "Admin User",
-      },
-    });
-
-    const app = createApp(userAuth);
-    const response = await app.request(
-      `http://localhost/${testVendor.id}/members`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: "admin_user",
-          role: "admin",
-        }),
-      },
-    );
-    const body = await response.json();
-
-    expect(response.status).toBe(201);
-    expect(vendorMemberCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          userId: "admin_user",
-          role: "admin",
-        }),
-      }),
-    );
-    expect(body.data.role).toBe("admin");
-  });
-
-  it("rejects add when both userId and email are provided", async () => {
-    mockVendorAdmin();
-
-    const app = createApp(userAuth);
-    const response = await app.request(
-      `http://localhost/${testVendor.id}/members`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: "dev_user",
-          email: "dev@example.com",
-          role: "developer",
-        }),
-      },
-    );
-
-    expect(response.status).toBe(422);
-    expect(vendorMemberCreateMock).not.toHaveBeenCalled();
   });
 
   it("patches vendor member role by user id", async () => {

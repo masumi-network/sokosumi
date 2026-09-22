@@ -1,6 +1,11 @@
 import { z } from "@hono/zod-openapi";
 
-const vendorLogoSchema = z.string().nullable();
+import { LIMITS } from "@/config/constants";
+
+const vendorLogoSchema = z
+  .string()
+  .max(LIMITS.VENDOR_LOGO_MAX_LENGTH)
+  .nullable();
 
 const vendorLogosSchema = z
   .object({
@@ -87,18 +92,51 @@ const userIdentityFields = {
   email: z.string().email().optional().openapi({ example: "dev@example.com" }),
 };
 
-export const addVendorMemberRequestSchema = z
+export const vendorMemberInviteStatusSchema = z
+  .enum(["PENDING", "ACCEPTED", "DECLINED", "REVOKED", "EXPIRED"])
+  .openapi("VendorMemberInviteStatus");
+
+export const createVendorMemberInviteRequestSchema = z
   .object({
-    ...userIdentityFields,
+    email: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .email()
+      .max(320)
+      .openapi({ example: "dev@example.com" }),
     role: vendorMemberRoleSchema.default("developer").openapi({
-      description: "Member role. Defaults to developer when omitted.",
+      description:
+        "Role granted on accept. Defaults to developer when omitted.",
       example: "developer",
     }),
   })
-  .refine(exactlyOneUserIdentity, {
-    message: "Provide exactly one of userId or email",
+  .openapi("CreateVendorMemberInviteRequest");
+
+export const vendorMemberInviteSchema = z
+  .object({
+    id: z.string().openapi({ example: "01960001-0001-7001-8001-000000000001" }),
+    vendorId: z
+      .string()
+      .openapi({ example: "01960001-0001-7001-8001-000000000002" }),
+    email: z.string().email().openapi({ example: "dev@example.com" }),
+    role: vendorMemberRoleSchema,
+    status: vendorMemberInviteStatusSchema,
+    expiresAt: z.date(),
+    createdAt: z.date(),
   })
-  .openapi("AddVendorMemberRequest");
+  .openapi("VendorMemberInvite");
+
+export const myVendorInviteSchema = z
+  .object({
+    id: z.string().openapi({ example: "01960001-0001-7001-8001-000000000001" }),
+    role: vendorMemberRoleSchema,
+    status: vendorMemberInviteStatusSchema,
+    expiresAt: z.date(),
+    createdAt: z.date(),
+    vendor: vendorSchema,
+  })
+  .openapi("MyVendorInvite");
 
 export const patchVendorMemberRoleRequestSchema = z
   .object({
