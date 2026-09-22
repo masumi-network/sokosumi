@@ -228,7 +228,7 @@ describe("prepareTasksForUserDeletion", () => {
         { id: "workspace_personal", userId: "user_delete" },
       ]);
     lockWorkspaceCalendarForErasureMock.mockRejectedValue(
-      new CalendarErasureBlockedError(blocker),
+      new CalendarErasureBlockedError(blocker, "payment-1"),
     );
 
     await expect(
@@ -869,6 +869,38 @@ describe("prepareTasksForUserDeletion", () => {
       }),
     );
   }
+
+  it("preserves the pending-payment support flow for personal workspace erasure", async () => {
+    await useRealPersonalWorkspaceErasure();
+    taskX402PaymentFindFirstMock.mockResolvedValue({
+      id: "x402_personal_pending",
+      status: TaskX402PaymentStatus.PENDING,
+    });
+
+    await expect(
+      prepareTasksForUserDeletion("user_delete", {
+        $transaction: transactionMock,
+      } as never),
+    ).rejects.toMatchObject({
+      body: { code: "TASK_X402_PAYMENT_PENDING" },
+    });
+    expect(captureMessageMock).toHaveBeenCalledWith(
+      "Account deletion blocked by a pending x402 task payment",
+      {
+        level: "error",
+        tags: { error_type: "user_deletion_blocked_by_x402_pending" },
+        extra: {
+          userId: "user_delete",
+          taskX402PaymentId: "x402_personal_pending",
+          resolveEndpoint:
+            "POST /v1/admin/task-x402-payments/x402_personal_pending/resolve",
+        },
+      },
+    );
+    expect(taskX402PaymentDeleteManyMock).not.toHaveBeenCalled();
+    expect(taskDeleteManyMock).not.toHaveBeenCalled();
+    expect(userDeleteManyMock).not.toHaveBeenCalled();
+  });
 
   it("cleans personal task blobs after Calendar erasure cascades file records", async () => {
     await useRealPersonalWorkspaceErasure();

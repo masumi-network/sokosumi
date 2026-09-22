@@ -137,7 +137,7 @@ describe("prepareOrganizationForDeletion", () => {
     queryRaw.mockResolvedValue([{ id: "org-1", stripeCustomerId: null }]);
     workspaceFindUnique.mockResolvedValue({ id: "workspace-1" });
     lockWorkspaceCalendarForErasureMock.mockRejectedValue(
-      new CalendarErasureBlockedError("task_payment_unresolved"),
+      new CalendarErasureBlockedError("task_payment_unresolved", "payment-1"),
     );
 
     let caught: unknown;

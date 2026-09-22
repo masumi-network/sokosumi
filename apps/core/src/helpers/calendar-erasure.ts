@@ -1,13 +1,17 @@
-import type { Prisma } from "@sokosumi/database";
+import { type Prisma, TaskX402PaymentStatus } from "@sokosumi/database";
 
 import { SWEEPABLE_X402_STATUSES } from "@/helpers/task-deletion-payments";
 
 export type CalendarErasureBlocker =
+  | "task_payment_pending"
   | "task_payment_unresolved"
   | "task_payment_authorization_live";
 
 export class CalendarErasureBlockedError extends Error {
-  constructor(readonly blocker: CalendarErasureBlocker) {
+  constructor(
+    readonly blocker: CalendarErasureBlocker,
+    readonly paymentId: string,
+  ) {
     super(blocker);
     this.name = "CalendarErasureBlockedError";
   }
@@ -96,10 +100,15 @@ export async function lockWorkspaceCalendarForErasure(
       task: { workspaceId },
       status: { notIn: SWEEPABLE_X402_STATUSES },
     },
-    select: { id: true },
+    select: { id: true, status: true },
   });
   if (unresolvedPayment) {
-    throw new CalendarErasureBlockedError("task_payment_unresolved");
+    throw new CalendarErasureBlockedError(
+      unresolvedPayment.status === TaskX402PaymentStatus.PENDING
+        ? "task_payment_pending"
+        : "task_payment_unresolved",
+      unresolvedPayment.id,
+    );
   }
 
   const liveAuthorization = await tx.taskX402Payment.findFirst({
@@ -111,7 +120,10 @@ export async function lockWorkspaceCalendarForErasure(
     select: { id: true },
   });
   if (liveAuthorization) {
-    throw new CalendarErasureBlockedError("task_payment_authorization_live");
+    throw new CalendarErasureBlockedError(
+      "task_payment_authorization_live",
+      liveAuthorization.id,
+    );
   }
 
   return true;

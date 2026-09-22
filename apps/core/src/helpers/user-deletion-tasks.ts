@@ -17,6 +17,29 @@ import { deleteTaskFileIfOwned } from "@/lib/blob";
 
 type PrismaClient = ReturnType<typeof createPrismaClient>;
 
+function throwPendingX402PaymentDeletionBlocker(
+  userId: string,
+  paymentId: string,
+): never {
+  Sentry.captureMessage(
+    "Account deletion blocked by a pending x402 task payment",
+    {
+      level: "error",
+      tags: { error_type: "user_deletion_blocked_by_x402_pending" },
+      extra: {
+        userId,
+        taskX402PaymentId: paymentId,
+        resolveEndpoint: `POST /v1/admin/task-x402-payments/${paymentId}/resolve`,
+      },
+    },
+  );
+  throw new APIError("BAD_REQUEST", {
+    code: "TASK_X402_PAYMENT_PENDING",
+    message:
+      "A task payment is still pending; contact support to have it resolved, then delete your account again.",
+  });
+}
+
 /**
  * Clear creator RESTRICT blockers and delete the user in one transaction.
  *
@@ -261,23 +284,10 @@ export async function prepareTasksForUserDeletion(
           // wakes should not have to go find out which lever to pull, and this is
           // a GDPR erasure request stalled until they do.
           if (unresolvedX402Payment.status === TaskX402PaymentStatus.PENDING) {
-            Sentry.captureMessage(
-              "Account deletion blocked by a pending x402 task payment",
-              {
-                level: "error",
-                tags: { error_type: "user_deletion_blocked_by_x402_pending" },
-                extra: {
-                  userId,
-                  taskX402PaymentId: unresolvedX402Payment.id,
-                  resolveEndpoint: `POST /v1/admin/task-x402-payments/${unresolvedX402Payment.id}/resolve`,
-                },
-              },
+            throwPendingX402PaymentDeletionBlocker(
+              userId,
+              unresolvedX402Payment.id,
             );
-            throw new APIError("BAD_REQUEST", {
-              code: "TASK_X402_PAYMENT_PENDING",
-              message:
-                "A task payment is still pending; contact support to have it resolved, then delete your account again.",
-            });
           }
           // A status this code does not recognize: some later deploy added an
           // enum member and this branch has not been taught whether it is
@@ -543,6 +553,9 @@ export async function prepareTasksForUserDeletion(
     // Workspace payment checks run before the account-wide guards.
     // Preserve the account deletion error contract for their blockers.
     if (error instanceof CalendarErasureBlockedError) {
+      if (error.blocker === "task_payment_pending") {
+        throwPendingX402PaymentDeletionBlocker(userId, error.paymentId);
+      }
       throw error.blocker === "task_payment_authorization_live"
         ? new APIError("BAD_REQUEST", {
             code: "TASK_X402_PAYMENT_AUTHORIZATION_LIVE",

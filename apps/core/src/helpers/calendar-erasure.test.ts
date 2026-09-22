@@ -160,7 +160,10 @@ describe("calendar erasure", () => {
     await expect(
       lockWorkspaceCalendarForErasure(tx as never, WORKSPACE_ID),
     ).rejects.toEqual(
-      new CalendarErasureBlockedError("task_payment_authorization_live"),
+      new CalendarErasureBlockedError(
+        "task_payment_authorization_live",
+        "payment-1",
+      ),
     );
     for (const deleteMany of deletionMocks) {
       expect(deleteMany).not.toHaveBeenCalled();
