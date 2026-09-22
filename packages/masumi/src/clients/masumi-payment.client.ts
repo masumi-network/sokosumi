@@ -229,8 +229,14 @@ export function createPaymentClient(
         signal: options.signal,
       });
       if (response.error || !response.data) {
+        // No caller logs this today, but `String(response.error)` is the
+        // node's response body verbatim and the next caller that logs it
+        // would carry an unbounded one. Every other branch in this file is
+        // already capped.
         return err(
-          response.error ? String(response.error) : "Failed to get purchase",
+          response.error
+            ? extractNodeErrorMessage(response.error)
+            : "Failed to get purchase",
         );
       }
       return ok(response.data.data);

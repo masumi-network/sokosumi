@@ -56,6 +56,54 @@ describe("createRegistryClient.getAgentsDiff", () => {
     );
   });
 
+  it("caps a registry error body instead of returning it whole", async () => {
+    // A proxy answering for the registry decides this length. The string is
+    // logged by `agent-sync.service.ts`, so an uncapped one lands on stdout.
+    postRegistryDiffMock.mockResolvedValue({
+      data: undefined,
+      error: "E".repeat(20_000),
+      response: { status: 502 },
+    });
+    const registry = createRegistryClient(
+      "Preprod",
+      "https://registry.example.com",
+      "api-key",
+    );
+
+    const result = await registry.getAgentsDiff(
+      new Date("2026-02-25T00:00:00.000Z"),
+      null,
+      20,
+    );
+
+    expect(result.isErr()).toBe(true);
+    const message = result._unsafeUnwrapErr();
+    expect(message.length).toBeLessThanOrEqual(300);
+    expect(message).toContain("truncated from");
+  });
+
+  it("returns the registry's own error message when it sends one", async () => {
+    postRegistryDiffMock.mockResolvedValue({
+      data: undefined,
+      error: { error: { message: "cursor expired" } },
+      response: { status: 400 },
+    });
+    const registry = createRegistryClient(
+      "Preprod",
+      "https://registry.example.com",
+      "api-key",
+    );
+
+    const result = await registry.getAgentsDiff(
+      new Date("2026-02-25T00:00:00.000Z"),
+      null,
+      20,
+    );
+
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toBe("cursor expired");
+  });
+
   it("remains backward compatible when no options are provided", async () => {
     const registry = createRegistryClient(
       "Mainnet",

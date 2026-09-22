@@ -1,5 +1,6 @@
 import { err, ok, type Result } from "neverthrow";
 
+import { extractNodeErrorMessage } from "./node-error.js";
 import { createClient } from "./openapi/generated/registry/client/index.js";
 import {
   type PostRegistryDiffResponse,
@@ -48,7 +49,15 @@ export function createRegistryClient(
         !response.data.data ||
         response.response?.status !== 200
       ) {
-        return err(response.error ? String(response.error) : "Unknown error");
+        // Not `String(response.error)`: that is the registry's response body
+        // verbatim, and `apps/core/src/services/agent-sync.service.ts` logs
+        // this string. A proxy answering for the registry decides its length
+        // and its content, so the whole page would reach stdout unbounded.
+        return err(
+          response.error
+            ? extractNodeErrorMessage(response.error)
+            : "Unknown error",
+        );
       }
       return ok(response.data.data.entries);
     },
