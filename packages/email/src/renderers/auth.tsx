@@ -27,6 +27,7 @@ interface RenderAuthActionEmailOptions {
   body: string;
   footer: string;
   greeting?: string;
+  lang: string;
   linkInstructions?: string;
   subject: string;
   title: string;
@@ -38,6 +39,7 @@ function renderAuthActionEmail({
   body,
   footer,
   greeting,
+  lang,
   linkInstructions,
   subject,
   title,
@@ -48,8 +50,10 @@ function renderAuthActionEmail({
     body,
     footer,
     greeting: greeting ?? "",
+    lang,
     linkInstructions,
-    preview: subject,
+    // Preheader is the body so the inbox list does not repeat the subject.
+    preview: body,
     subject,
     title,
   });
@@ -60,9 +64,10 @@ export async function renderVerificationEmail({
   name,
   verificationLink,
 }: VerificationEmailProps): Promise<RenderedEmail> {
-  const { t } = createEmailTranslator(locale);
+  const { locale: lang, t } = createEmailTranslator(locale);
 
   return renderAuthActionEmail({
+    lang,
     actionUrl: verificationLink,
     actionLabel: t("auth.verification.button"),
     body: t("auth.verification.message"),
@@ -79,9 +84,10 @@ export async function renderResetPasswordEmail({
   name,
   resetLink,
 }: ResetPasswordEmailProps): Promise<RenderedEmail> {
-  const { t } = createEmailTranslator(locale);
+  const { locale: lang, t } = createEmailTranslator(locale);
 
   return renderAuthActionEmail({
+    lang,
     actionUrl: resetLink,
     actionLabel: t("auth.resetPassword.button"),
     body: t("auth.resetPassword.message"),
@@ -98,9 +104,10 @@ export async function renderMagicLinkEmail({
   magicLink,
   name,
 }: MagicLinkEmailProps): Promise<RenderedEmail> {
-  const { t } = createEmailTranslator(locale);
+  const { locale: lang, t } = createEmailTranslator(locale);
 
   return renderAuthActionEmail({
+    lang,
     actionUrl: magicLink,
     actionLabel: t("auth.magicLink.button"),
     body: t("auth.magicLink.message"),
@@ -120,9 +127,10 @@ export async function renderOrganizationInvitationEmail({
   locale,
   organizationName,
 }: OrganizationInvitationEmailProps): Promise<RenderedEmail> {
-  const { t } = createEmailTranslator(locale);
+  const { locale: lang, t } = createEmailTranslator(locale);
 
   return renderAuthActionEmail({
+    lang,
     actionUrl: invitationLink,
     actionLabel: t("auth.invitation.button"),
     body: t("auth.invitation.message", { organizationName }),
@@ -141,9 +149,10 @@ export async function renderChatRoomInvitationEmail({
   locale,
   organizationName,
 }: ChatRoomInvitationEmailProps): Promise<RenderedEmail> {
-  const { t } = createEmailTranslator(locale);
+  const { locale: lang, t } = createEmailTranslator(locale);
 
   return renderAuthActionEmail({
+    lang,
     actionUrl: invitationLink,
     actionLabel: t("chat.invitation.button"),
     body: t("chat.invitation.message", {

@@ -18,6 +18,7 @@ import type { SendEmailInput } from "@/clients/email.client";
 import { taskAttentionReasonOf } from "@/helpers/notification-email";
 import {
   notificationEmailLink,
+  notificationSettingsLink,
   readString,
 } from "@/helpers/notification-email-link";
 
@@ -91,7 +92,12 @@ export async function buildFollowUpEmail(
 ): Promise<null | SendEmailInput> {
   const actionUrl = notificationEmailLink(input);
   const recipientName = input.recipientName;
-  const shared = { actionUrl, locale, recipientName };
+  const shared = {
+    actionUrl,
+    locale,
+    recipientName,
+    settingsUrl: notificationSettingsLink(),
+  };
 
   switch (input.messageKey) {
     case CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY: {

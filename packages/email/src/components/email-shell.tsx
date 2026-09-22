@@ -4,96 +4,203 @@ import {
   Container,
   Head,
   Heading,
-  Hr,
   Html,
   Preview,
   Section,
-  Tailwind,
   Text,
 } from "react-email";
 
+import {
+  CARD_SHADOW,
+  DARK_CLASS,
+  darkModeCss,
+  FONT_STACK,
+  LIGHT_PALETTE,
+  RADIUS,
+  SPACE,
+  TEXT,
+} from "../theme/index.js";
+
 export interface EmailShellProps {
   children: ReactNode;
-  footer: string;
+  footer: ReactNode;
+  /** Resolved email locale, announced to screen readers. */
+  lang: string;
   maxWidth?: 560 | 600;
   preview: string;
   title: string;
 }
-
-const CONTAINER_CLASS_NAMES = {
-  560: "mx-auto w-full max-w-[560px] overflow-hidden rounded-[24px] border border-solid border-[#e9e3f5] bg-white",
-  600: "mx-auto w-full max-w-[600px] overflow-hidden rounded-[24px] border border-solid border-[#e9e3f5] bg-white",
-} as const;
 
 const EMAIL_KANJI_URL =
   "https://igcd4cnfvuav1zto.public.blob.vercel-storage.com/brand/sokosumi-logo-kanji-black.png";
 const EMAIL_WORDMARK_URL =
   "https://igcd4cnfvuav1zto.public.blob.vercel-storage.com/brand/sokosumi-logo-wordmark-black.png";
 
+/** The brand stripe down the leading edge of every email. */
+const SPINE_WIDTH = 6;
+
+const RESPONSIVE_CSS = `@media only screen and (max-width: 600px) {
+  .sk-pad > tbody > tr > td { padding-left: ${SPACE.md} !important; padding-right: ${SPACE.md} !important; }
+  .${DARK_CLASS.heading} { font-size: 24px !important; line-height: 32px !important; }
+}`;
+
 export function EmailShell({
   children,
   footer,
+  lang,
   maxWidth = 560,
   preview,
   title,
 }: EmailShellProps) {
   return (
-    <Html>
+    <Html lang={lang}>
       <Head>
-        <meta content="light" name="color-scheme" />
-        <meta content="light" name="supported-color-schemes" />
+        <meta content="width=device-width, initial-scale=1" name="viewport" />
+        <meta content="light dark" name="color-scheme" />
+        <meta content="light dark" name="supported-color-schemes" />
+        <title>{title}</title>
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `${darkModeCss()}\n${RESPONSIVE_CSS}`,
+          }}
+        />
       </Head>
-      <Preview>{preview}</Preview>
-      <Tailwind>
-        <Body className="mx-auto my-auto bg-[#f5f3fa] font-sans text-[#17111f]">
-          <Section className="px-[16px] py-[32px]">
-            <Container className={CONTAINER_CLASS_NAMES[maxWidth]}>
-              <Section className="border-b border-solid border-[#ece6f7] bg-[#f8f5ff] px-[28px] py-[18px]">
-                <table
-                  border={0}
-                  cellPadding="0"
-                  cellSpacing="0"
-                  role="presentation"
-                  width="100%"
-                >
-                  <tbody>
-                    <tr>
-                      <td valign="middle">
-                        <img
-                          alt="Sokosumi"
-                          height="20"
-                          src={EMAIL_WORDMARK_URL}
-                          width="156"
-                        />
-                      </td>
-                      <td align="right" valign="middle">
-                        <img
-                          alt="Sokosumi kanji"
-                          height="28"
-                          src={EMAIL_KANJI_URL}
-                          width="14"
-                        />
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </Section>
-              <Section className="px-[28px] py-[32px]">
-                <Heading className="m-0 mb-[10px] p-0 text-left text-[30px] leading-[36px] font-semibold text-[#17111f]">
-                  {title}
-                </Heading>
-                <Hr className="mx-0 mb-[28px] mt-0 w-[64px] border-0 border-t-[3px] border-solid border-[#6a36ff]" />
-                {children}
-              </Section>
-              <Section className="border-t border-solid border-[#ece6f7] bg-[#fcfbff] px-[28px] py-[22px]">
-                <Text className="m-0 text-[12px] leading-[20px] text-[#6f6582]">
-                  {footer}
-                </Text>
-              </Section>
-            </Container>
-          </Section>
-        </Body>
-      </Tailwind>
+      <Preview useTitleTag={false}>{preview}</Preview>
+      <Body
+        className={DARK_CLASS.page}
+        lang={lang}
+        style={{
+          backgroundColor: LIGHT_PALETTE.pageBackground,
+          color: LIGHT_PALETTE.textPrimary,
+          fontFamily: FONT_STACK,
+          margin: 0,
+          padding: 0,
+          WebkitFontSmoothing: "antialiased",
+        }}
+      >
+        <Section
+          className={DARK_CLASS.page}
+          style={{
+            backgroundColor: LIGHT_PALETTE.pageBackground,
+            padding: `${SPACE.xl} ${SPACE.md}`,
+          }}
+        >
+          <Container
+            className={DARK_CLASS.card}
+            style={{
+              backgroundColor: LIGHT_PALETTE.surface,
+              border: `1px solid ${LIGHT_PALETTE.cardBorder}`,
+              borderRadius: RADIUS.card,
+              boxShadow: CARD_SHADOW,
+              margin: "0 auto",
+              maxWidth: `${maxWidth}px`,
+              overflow: "hidden",
+              width: "100%",
+            }}
+          >
+            <table
+              border={0}
+              cellPadding="0"
+              cellSpacing="0"
+              role="presentation"
+              width="100%"
+            >
+              <tbody>
+                <tr>
+                  <td
+                    className={DARK_CLASS.spine}
+                    style={{
+                      backgroundColor: LIGHT_PALETTE.accent,
+                      fontSize: 0,
+                      lineHeight: 0,
+                      width: `${SPINE_WIDTH}px`,
+                    }}
+                    width={SPINE_WIDTH}
+                  >
+                    &nbsp;
+                  </td>
+                  <td valign="top">
+                    <Section
+                      className="sk-pad"
+                      style={{ padding: `${SPACE.lg} ${SPACE.lg} 0` }}
+                    >
+                      <img
+                        alt="Sokosumi"
+                        className={DARK_CLASS.logo}
+                        height="15"
+                        src={EMAIL_WORDMARK_URL}
+                        style={{ border: 0, display: "block" }}
+                        width="117"
+                      />
+                    </Section>
+                    <Section
+                      className="sk-pad"
+                      style={{ padding: `${SPACE.xl} ${SPACE.lg}` }}
+                    >
+                      <Heading
+                        className={DARK_CLASS.heading}
+                        style={{
+                          ...TEXT.heading,
+                          color: LIGHT_PALETTE.textPrimary,
+                          margin: `0 0 ${SPACE.md} 0`,
+                          padding: 0,
+                          textAlign: "left",
+                        }}
+                      >
+                        {title}
+                      </Heading>
+                      {children}
+                    </Section>
+                    <Section
+                      className={`${DARK_CLASS.rule} sk-pad`}
+                      style={{
+                        borderTop: `1px solid ${LIGHT_PALETTE.hairline}`,
+                        padding: `${SPACE.md} ${SPACE.lg} ${SPACE.lg}`,
+                      }}
+                    >
+                      <table
+                        border={0}
+                        cellPadding="0"
+                        cellSpacing="0"
+                        role="presentation"
+                        width="100%"
+                      >
+                        <tbody>
+                          <tr>
+                            <td valign="middle">
+                              <Text
+                                className={DARK_CLASS.textMuted}
+                                style={{
+                                  ...TEXT.micro,
+                                  color: LIGHT_PALETTE.textMuted,
+                                  margin: 0,
+                                  paddingRight: SPACE.md,
+                                }}
+                              >
+                                {footer}
+                              </Text>
+                            </td>
+                            <td align="right" valign="middle" width="14">
+                              <img
+                                alt=""
+                                className={DARK_CLASS.logo}
+                                height="28"
+                                src={EMAIL_KANJI_URL}
+                                style={{ border: 0, display: "block" }}
+                                width="14"
+                              />
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </Section>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </Container>
+        </Section>
+      </Body>
     </Html>
   );
 }

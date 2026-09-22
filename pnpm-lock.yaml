@@ -801,6 +801,9 @@ importers:
       '@typescript/typescript6':
         specifier: 6.0.2
         version: 6.0.2
+      csstype:
+        specifier: 3.2.3
+        version: 3.2.3
       typescript:
         specifier: 7.0.2
         version: 7.0.2
