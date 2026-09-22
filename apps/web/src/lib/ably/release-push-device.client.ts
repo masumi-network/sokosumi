@@ -62,9 +62,12 @@ export function readPushDeviceOwner(): string | null {
 /**
  * Say who this browser's registration belongs to, once it is theirs.
  *
- * Written where the registration is made rather than where the run ends, so
- * the reset's own verification reads the reader it just registered for
- * instead of the reader it took the device from.
+ * Written before the device is bound to this reader's notifications channel,
+ * which is the step that makes it theirs, rather than at the end of the run.
+ * A step after the binding can still throw, and the name left behind would
+ * then be the reader this run took the device from: their next activation
+ * would read a device of their own, skip the replacement, and bind a second
+ * channel beside the first.
  */
 export function rememberPushDeviceOwner(userId: string): void {
   try {

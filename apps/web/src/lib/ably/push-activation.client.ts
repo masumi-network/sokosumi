@@ -138,17 +138,17 @@ async function runActivation(
       : await findPushDeviceFault(client, userId);
     if (await abandonedToTeardown(teardownVersion)) return false;
     if (fault) {
-      // A device held for someone else is not a delivery failure, and saying
-      // so would report one against a browser that was working for them.
-      if (!foreignRegistration) {
-        await recordPushRepairOutcome({
-          hadRegistration: true,
-          teardownVersion,
-          deliveryHealthy: false,
-        }).catch((error) =>
-          console.error("Failed to record push repair", error),
-        );
-      }
+      // Recorded before the destructive steps below, and for a device held
+      // for someone else as much as for a broken one. This call is what arms
+      // the unresolved-repair flag, and a tab closed between the unsubscribe
+      // and the re-registration is exactly the browser that flag is for. A
+      // foreign device costs one such record that reads as a delivery
+      // failure, which is the cheaper of the two wrong answers.
+      await recordPushRepairOutcome({
+        hadRegistration: true,
+        teardownVersion,
+        deliveryHealthy: false,
+      }).catch((error) => console.error("Failed to record push repair", error));
       if (await abandonedToTeardown(teardownVersion)) return false;
       // Only confirmed broken registrations are reset. Network failures leave
       // the working endpoint intact and retry on the next wake.
@@ -170,6 +170,12 @@ async function runActivation(
       }
       if (await abandonedToTeardown(teardownVersion)) return false;
     }
+    // Said before the binding below, not after the run. The binding is what
+    // makes the device this reader's, and a step after it can still throw:
+    // the name would then stay with the reader this run took the device from,
+    // and their next activation would read a device of their own and bind a
+    // second channel to it rather than replacing it.
+    rememberPushDeviceOwner(userId);
     await getNotificationsPushChannel(client, userId).subscribeDevice();
     if (await abandonedToTeardown(teardownVersion)) return false;
 
@@ -180,11 +186,6 @@ async function runActivation(
     if (!repaired) {
       throw new Error("The browser created no push subscription");
     }
-    // A run that found nothing to reset adopts the registration it kept. There
-    // was no evidence of another reader on it: either this reader was already
-    // named, or nobody was, which is every browser registered before the name
-    // was written down.
-    rememberPushDeviceOwner(userId);
     await rememberPushRenewal(client, userId, teardownVersion).catch((error) =>
       console.error("Failed to store push renewal", error),
     );

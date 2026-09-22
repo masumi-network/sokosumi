@@ -508,11 +508,25 @@ describe("activatePush", () => {
       "subscribeDevice",
     ]);
     expect(localStorage.getItem("sokosumi.push.deviceOwner")).toBe("user_1");
-    // Taking the device from its previous reader is not a delivery failure.
-    // Reported as one, it counts a working browser as broken.
-    expect(recordOutcomeMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({ deliveryHealthy: false }),
+  });
+
+  /**
+   * The name has to survive a run that registers and then fails, because the
+   * device is already bound to this reader by then. Left naming the reader
+   * this run took it from, their next activation would read a device of their
+   * own and bind a second channel beside this one.
+   */
+  it("names the reader it bound the device to even when the run then fails", async () => {
+    localStorage.setItem("ably.push.deviceIdentityToken", "their-token");
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_2");
+    hasWebPushSubscriptionMock.mockResolvedValue(false);
+
+    await expect(activatePush("user_1")).rejects.toThrow(
+      "The browser created no push subscription",
     );
+
+    expect(calls).toContain("subscribeDevice");
+    expect(localStorage.getItem("sokosumi.push.deviceOwner")).toBe("user_1");
   });
 
   /**
