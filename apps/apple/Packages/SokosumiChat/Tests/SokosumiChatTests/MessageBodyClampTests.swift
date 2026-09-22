@@ -73,4 +73,34 @@ struct MessageBodyClampTests {
   @Test func anOrdinaryLinkClamps() {
     #expect(MessageMarkdown("hello [site](https://example.com)").clampsLongBody)
   }
+
+  /// A blank line is whitespace, so the two images stay one row and the body clamps.
+  @Test func twoImagesWithABlankLineClamp() {
+    #expect(MessageMarkdown("[a.png](https://cdn.example/a.png)\n\n[b.png](https://cdn.example/b.png)").clampsLongBody)
+  }
+
+  /// Web's raw scan sees the list marker. Each image is its own solo row, so the body is exempt.
+  @Test func twoImagesInAListAreNotClamped() {
+    #expect(!MessageMarkdown("- [a.png](https://cdn.example/a.png)\n- [b.png](https://cdn.example/b.png)").clampsLongBody)
+  }
+
+  /// A quote marker is not whitespace either, even though the parser deletes it.
+  @Test func twoImagesInAQuoteAreNotClamped() {
+    #expect(!MessageMarkdown("> [a.png](https://cdn.example/a.png)\n> [b.png](https://cdn.example/b.png)").clampsLongBody)
+  }
+
+  /// A rule between images is its own block on web and splits the row.
+  @Test func aRuleBetweenImagesDoesNotClamp() {
+    #expect(!MessageMarkdown("[a.png](https://cdn.example/a.png)\n\n---\n\n[b.png](https://cdn.example/b.png)").clampsLongBody)
+  }
+
+  /// A sample link inside a fence is not an attachment.
+  @Test func aLinkInsideAFenceClamps() {
+    #expect(MessageMarkdown("```\n[photo.png](https://cdn.example/photo.png)\n```").clampsLongBody)
+  }
+
+  /// `<img>` is not a Markdown file link. The parsed document still exempts a solo image.
+  @Test func anHTMLImageIsNotClamped() {
+    #expect(!MessageMarkdown("<img src=\"https://cdn.example/photo.png\" alt=\"photo\">").clampsLongBody)
+  }
 }

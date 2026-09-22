@@ -93,17 +93,20 @@ public struct MessageAttachmentSegment: Identifiable, Equatable, Sendable {
   }
 }
 
-public extension MessageMarkdown {
-  /// Web clamps every body at 16 lines unless it holds a large solo image
-  /// (`hasLargeSoloImageAttachment`): attachment links with only whitespace
-  /// between them form one row of chips, and a row of exactly one image is
-  /// drawn large instead. Text alone, a file, or two images side by side clamp.
-  var clampsLongBody: Bool {
-    !attachmentRows.contains { $0.count == 1 && $0[0].kind == .image }
+extension MessageMarkdown {
+  /// Web's `hasLargeSoloImageAttachment` over the linkified source. File links
+  /// with only whitespace between them are one row; list markers, quote markers,
+  /// rules and table pipes are not whitespace, so they split the row. A code
+  /// fence is skipped, so a sample link stays text. When the source has no file
+  /// link, images the scan cannot see (`<img>`) still use the parsed document.
+  static func longBodyClamps(scanning source: String, blocks: [MessageMarkdownBlock]) -> Bool {
+    let groups = MarkdownBareDomains(source).attachmentGroups()
+    let rows = groups.isEmpty ? attachmentRows(in: blocks) : groups
+    return !rows.contains { $0.count == 1 && $0[0].kind == .image }
   }
 
   /// Attachments in document order, grouped where only whitespace separates them.
-  private var attachmentRows: [[MessageAttachment]] {
+  private static func attachmentRows(in blocks: [MessageMarkdownBlock]) -> [[MessageAttachment]] {
     var rows: [[MessageAttachment]] = []
     var open = false
     func walk(_ block: MessageMarkdownBlock) {
