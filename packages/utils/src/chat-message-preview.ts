@@ -548,12 +548,12 @@ function previewOfReadable(
     writePiece(withoutAddresses(readable.slice(read, token.index)), false);
     const key = token[1] ?? "";
 
-    // The slug is read from the cleaned text, so the clean takes `_` out of it
-    // as well: `ada_lovelace` says `adalovelace`. That is a slug already, an
-    // ascii rewrite of a name, and it is only read when the lookup names
-    // nobody. Reading it from the text before the clean instead would let a
-    // slug the room never shows, in a link destination the clean drops, stand
-    // in for the mention beside it.
+    // The slug is read from the cleaned text, and the clean keeps an
+    // underscore between word characters, so `ada_lovelace` says
+    // `ada_lovelace`. It is only read when the lookup names nobody. Reading it
+    // from the text before the clean instead would let a slug the room never
+    // shows, in a link destination the clean drops, stand in for the mention
+    // beside it.
     writePiece(whoAMentionNames(key, token[2] ?? "", mentionNames), true);
     read = token.index + token[0].length;
   }

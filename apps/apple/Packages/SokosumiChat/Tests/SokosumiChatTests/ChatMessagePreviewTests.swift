@@ -13,7 +13,7 @@ struct ChatMessagePreviewTests {
       Bundle.module.url(forResource: "chat-message-preview", withExtension: "json", subdirectory: "Fixtures")
     )
     let examples = try JSONDecoder().decode([Example].self, from: Data(contentsOf: url))
-    #expect(examples.count == 177)
+    #expect(examples.count == 178)
     for example in examples {
       #expect(ChatMessagePreview.text(example.content, names: example.names) == example.expected, "\(example.name)")
     }

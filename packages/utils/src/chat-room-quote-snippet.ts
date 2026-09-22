@@ -68,13 +68,18 @@ function findQuoteAttachmentMatch(content: string): {
 /**
  * A chat message body as plain text: markdown markers gone, a link reduced to
  * its label, horizontal whitespace collapsed, newlines kept.
+ *
+ * An underscore between two word characters opens no emphasis in CommonMark,
+ * so the room prints `COMPOSIO_X_AUTH_CONFIG_ID` whole and the plain text has
+ * to keep those underscores rather than read them as markers.
  */
 export function cleanChatMessageText(content: string): string {
   return content
     .replace(/```[\s\S]*?```/g, " ")
     .replace(/`([^`]+)`/g, "$1")
     .replace(/\[([^\][]+)\]\([^)]+\)/g, "$1")
-    .replace(/[*_~>#]+/g, "")
+    .replace(/[*~>#]+/g, "")
+    .replace(/(?<![0-9A-Za-z])_+|_+(?![0-9A-Za-z])/g, "")
     .replace(/[^\S\n]+/g, " ")
     .trim();
 }

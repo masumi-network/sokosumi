@@ -53,7 +53,10 @@ enum ChatMessagePreview {
     text = replace(#"`{2,}"#, in: text, with: "`")
     text = replace(#"`([^`]+)`"#, in: text, with: "$1")
     text = replace(#"\[([^\]\[]+)\]\([^)]+\)"#, in: text, with: "$1")
-    text = replace(#"[*_~>#]+"#, in: text, with: "")
+    text = replace(#"[*~>#]+"#, in: text, with: "")
+    // An underscore between two word characters opens no emphasis in
+    // CommonMark, so `COMPOSIO_X_AUTH_CONFIG_ID` keeps its underscores here.
+    text = replace(#"(?<![0-9A-Za-z])_+|_+(?![0-9A-Za-z])"#, in: text, with: "")
     return replace(#"[^\S\n]+"#, in: text, with: " ").trimmingCharacters(in: .whitespacesAndNewlines)
   }
 

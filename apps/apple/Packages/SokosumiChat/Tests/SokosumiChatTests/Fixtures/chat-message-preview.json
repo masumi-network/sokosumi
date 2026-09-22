@@ -88,7 +88,13 @@
     "name": "says the slug when a name is missing",
     "content": "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada_lovelace hi",
     "names": {},
-    "expected": "@adalovelace hi"
+    "expected": "@ada_lovelace hi"
+  },
+  {
+    "name": "keeps intraword underscores in an env var name",
+    "content": "I see it seems to be the COMPOSIO_X_AUTH_CONFIG_ID, correct?",
+    "names": {},
+    "expected": "I see it seems to be the COMPOSIO_X_AUTH_CONFIG_ID, correct?"
   },
   {
     "name": "says the slug when a name is missing",
