@@ -14,20 +14,11 @@
       scroll.contentInsets.bottom > 0 && (scroll.documentView?.frame.height ?? 0) > scroll.frame.height
     }
 
-    let clock = ContinuousClock()
-    let deadline = clock.now.advanced(by: .seconds(10))
-    var transcript: NSScrollView?
-    repeat {
-      host.layoutSubtreeIfNeeded()
-      transcript = scrollViews(host).max(by: { $0.frame.height < $1.frame.height })
-      if let transcript, isReady(transcript) {
-        return transcript
+    return try await waitForView(in: host) {
+      guard let scroll = scrollViews(host).max(by: { $0.frame.height < $1.frame.height }), isReady(scroll) else {
+        return nil
       }
-      try await Task.sleep(for: .milliseconds(20))
-    } while clock.now < deadline
-
-    let scroll = try #require(transcript, "Prepared transcript did not appear within 10 seconds")
-    try #require(isReady(scroll), "Prepared transcript did not finish initial layout within 10 seconds")
-    return scroll
+      return scroll
+    }
   }
 #endif

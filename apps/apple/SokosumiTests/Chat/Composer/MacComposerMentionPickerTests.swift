@@ -349,8 +349,9 @@
         window.contentView = host
         window.orderFront(nil)
         defer { window.orderOut(nil) }
-        try await Task.sleep(for: .milliseconds(200))
-        let input = try #require(Self.textView(in: host) as? MacComposerTextInput.InputView)
+        let input = try await waitForView(in: host) {
+          Self.textView(in: host) as? MacComposerTextInput.InputView
+        }
         let scroll = try #require(input.enclosingScrollView)
         // The editor starts focused, as it is when someone is writing.
         #expect(window.makeFirstResponder(input))
@@ -372,8 +373,10 @@
                                                       windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1))
           window.sendEvent(event)
         }
-        try await Task.sleep(for: .milliseconds(300))
-        host.layoutSubtreeIfNeeded()
+        let coordinator = try #require(input.delegate as? MacComposerTextInput.Coordinator)
+        _ = try await waitForView(in: host) {
+          coordinator.parent.commands?.mentionOptions.map(\.id) == mentions.map(\.id) ? input : nil
+        }
         // The click neither took focus from the editor nor ended editing.
         #expect(blurs == 0)
         #expect(window.firstResponder === input)
