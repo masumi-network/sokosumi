@@ -11,13 +11,13 @@ import { DARK_PALETTE } from "./palette.js";
 export const DARK_CLASS = {
   card: "sk-card",
   code: "sk-code",
-  header: "sk-header",
   heading: "sk-heading",
-  footer: "sk-footer",
+  logo: "sk-logo",
   link: "sk-link",
   page: "sk-page",
   panel: "sk-panel",
   quote: "sk-quote",
+  rule: "sk-rule",
   solid: "sk-solid",
   text: "sk-text",
   textMuted: "sk-text-muted",
@@ -30,14 +30,14 @@ export function darkModeCss(): string {
   return `@media (prefers-color-scheme: dark) {
   .${DARK_CLASS.page} { background-color: ${p.pageBackground} !important; }
   .${DARK_CLASS.card} { background-color: ${p.surface} !important; border-color: ${p.cardBorder} !important; }
-  .${DARK_CLASS.header} { background-color: ${p.headerSurface} !important; border-color: ${p.hairline} !important; }
-  .${DARK_CLASS.footer} { background-color: ${p.footerSurface} !important; border-color: ${p.hairline} !important; }
+  .${DARK_CLASS.logo} { filter: invert(1) !important; }
   .${DARK_CLASS.heading} { color: ${p.textPrimary} !important; }
   .${DARK_CLASS.text} { color: ${p.textPrimary} !important; }
   .${DARK_CLASS.textMuted} { color: ${p.textMuted} !important; }
   .${DARK_CLASS.panel} { background-color: ${p.surfaceSubtle} !important; border-color: ${p.hairline} !important; }
   .${DARK_CLASS.quote} { background-color: ${p.surfaceSubtle} !important; border-left-color: ${p.quoteBar} !important; }
   .${DARK_CLASS.code} { background-color: ${p.codeSurface} !important; border-color: ${p.hairline} !important; }
+  .${DARK_CLASS.rule} { border-color: ${p.hairline} !important; }
   .${DARK_CLASS.link} { color: ${p.link} !important; }
   .${DARK_CLASS.solid} { background-color: ${p.accentSolid} !important; color: ${p.accentForeground} !important; }
 }`;

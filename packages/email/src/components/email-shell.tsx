@@ -90,11 +90,10 @@ export function EmailShell({
             }}
           >
             <Section
-              className={`${DARK_CLASS.header} sk-pad`}
+              className={`${DARK_CLASS.rule} sk-pad`}
               style={{
-                backgroundColor: LIGHT_PALETTE.headerSurface,
                 borderBottom: `1px solid ${LIGHT_PALETTE.hairline}`,
-                padding: `${SPACE.md} ${SPACE.lg}`,
+                padding: `${SPACE.lg} ${SPACE.lg} ${SPACE.md}`,
               }}
             >
               <table
@@ -109,6 +108,7 @@ export function EmailShell({
                     <td valign="middle">
                       <img
                         alt="Sokosumi"
+                        className={DARK_CLASS.logo}
                         height="20"
                         src={EMAIL_WORDMARK_URL}
                         style={{ display: "block", border: 0 }}
@@ -118,6 +118,7 @@ export function EmailShell({
                     <td align="right" valign="middle">
                       <img
                         alt="Sokosumi kanji"
+                        className={DARK_CLASS.logo}
                         height="28"
                         src={EMAIL_KANJI_URL}
                         style={{ display: "block", border: 0 }}
@@ -155,11 +156,10 @@ export function EmailShell({
               {children}
             </Section>
             <Section
-              className={`${DARK_CLASS.footer} sk-pad`}
+              className={`${DARK_CLASS.rule} sk-pad`}
               style={{
-                backgroundColor: LIGHT_PALETTE.footerSurface,
                 borderTop: `1px solid ${LIGHT_PALETTE.hairline}`,
-                padding: `${SPACE.lg}`,
+                padding: `${SPACE.md} ${SPACE.lg} ${SPACE.lg}`,
               }}
             >
               <Text

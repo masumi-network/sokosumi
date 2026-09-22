@@ -19,10 +19,6 @@ export interface EmailPalette {
   codeSurface: string;
   /** Divider lines inside the card. */
   hairline: string;
-  /** Logo strip behind the header. Stays light so the black logo reads. */
-  headerSurface: string;
-  /** Strip behind the footer note. */
-  footerSurface: string;
   /** Anchor colour for the copy-and-paste fallback URL. */
   link: string;
   /** Page background behind the card. */
@@ -47,8 +43,6 @@ export const LIGHT_PALETTE: EmailPalette = {
   cardBorder: "#e2e2e2", // --border
   codeSurface: "#ffffff", // --background
   hairline: "#e2e2e2", // --border
-  footerSurface: "#fafafa", // --card-background
-  headerSurface: "#fafafa", // --card-background
   link: "#2b5c78", // --primary
   pageBackground: "#f5f5f5", // --muted
   quoteBar: "#2b5c78", // --primary
@@ -66,8 +60,6 @@ export const DARK_PALETTE: EmailPalette = {
   cardBorder: "#343434", // dark --border
   codeSurface: "#0a0a0a", // dark --background
   hairline: "#343434", // dark --border
-  footerSurface: "#171717", // dark --card-background
-  headerSurface: "#f2f2f2", // stays light: the only logo asset is black
   link: "#5a9dc4", // dark --primary-variant
   pageBackground: "#0a0a0a", // dark --background
   quoteBar: "#5a9dc4", // dark --primary-variant

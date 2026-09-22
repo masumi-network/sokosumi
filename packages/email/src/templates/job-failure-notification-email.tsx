@@ -25,6 +25,11 @@ export interface JobFailureNotificationEmailTemplateProps {
   title: string;
 }
 
+/** The catalogues end each label with a colon; the label style carries it. */
+function withoutTrailingColon(label: string): string {
+  return label.replace(/[:\uff1a]\s*$/, "");
+}
+
 export function JobFailureNotificationEmailTemplate({
   description,
   fields,
@@ -44,39 +49,61 @@ export function JobFailureNotificationEmailTemplate({
       >
         {description}
       </Text>
-      {fields.map((field) => (
-        <Section
-          className={DARK_CLASS.panel}
-          key={field.label}
-          style={{
-            backgroundColor: LIGHT_PALETTE.surfaceSubtle,
-            border: `1px solid ${LIGHT_PALETTE.hairline}`,
-            borderRadius: RADIUS.panel,
-            margin: `0 0 ${SPACE.sm} 0`,
-            padding: `${SPACE.md}`,
-          }}
-        >
-          <Text
-            className={DARK_CLASS.textMuted}
+      <Section
+        className={DARK_CLASS.panel}
+        style={{
+          backgroundColor: LIGHT_PALETTE.surfaceSubtle,
+          border: `1px solid ${LIGHT_PALETTE.hairline}`,
+          borderRadius: RADIUS.panel,
+          padding: `${SPACE.xs} ${SPACE.md}`,
+        }}
+      >
+        {fields.map((field, index) => (
+          <Section
+            className={DARK_CLASS.rule}
+            key={field.label}
             style={{
-              ...TEXT.label,
-              color: LIGHT_PALETTE.textMuted,
-              margin: `0 0 ${SPACE.sm} 0`,
+              borderTop:
+                index === 0 ? "none" : `1px solid ${LIGHT_PALETTE.hairline}`,
+              padding: `${SPACE.md} 0`,
             }}
           >
-            {field.label}
-          </Text>
-          {field.codeBlock ? (
-            <Container
-              className={DARK_CLASS.code}
+            <Text
+              className={DARK_CLASS.textMuted}
               style={{
-                backgroundColor: LIGHT_PALETTE.codeSurface,
-                border: `1px solid ${LIGHT_PALETTE.hairline}`,
-                borderRadius: RADIUS.control,
-                margin: 0,
-                padding: `${SPACE.sm} ${SPACE.md}`,
+                ...TEXT.label,
+                color: LIGHT_PALETTE.textMuted,
+                margin: `0 0 ${SPACE.xs} 0`,
               }}
             >
+              {withoutTrailingColon(field.label)}
+            </Text>
+            {field.codeBlock ? (
+              <Container
+                className={DARK_CLASS.code}
+                style={{
+                  backgroundColor: LIGHT_PALETTE.codeSurface,
+                  border: `1px solid ${LIGHT_PALETTE.hairline}`,
+                  borderRadius: RADIUS.control,
+                  margin: 0,
+                  padding: `${SPACE.sm} ${SPACE.md}`,
+                }}
+              >
+                <Text
+                  className={DARK_CLASS.text}
+                  style={{
+                    ...TEXT.small,
+                    color: LIGHT_PALETTE.textPrimary,
+                    fontFamily: MONO_STACK,
+                    margin: 0,
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-all",
+                  }}
+                >
+                  {field.value}
+                </Text>
+              </Container>
+            ) : (
               <Text
                 className={DARK_CLASS.text}
                 style={{
@@ -84,30 +111,16 @@ export function JobFailureNotificationEmailTemplate({
                   color: LIGHT_PALETTE.textPrimary,
                   fontFamily: MONO_STACK,
                   margin: 0,
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-all",
+                  wordBreak:
+                    field.wordBreak === "break-all" ? "break-all" : "normal",
                 }}
               >
                 {field.value}
               </Text>
-            </Container>
-          ) : (
-            <Text
-              className={DARK_CLASS.text}
-              style={{
-                ...TEXT.small,
-                color: LIGHT_PALETTE.textPrimary,
-                fontFamily: MONO_STACK,
-                margin: 0,
-                wordBreak:
-                  field.wordBreak === "break-all" ? "break-all" : "normal",
-              }}
-            >
-              {field.value}
-            </Text>
-          )}
-        </Section>
-      ))}
+            )}
+          </Section>
+        ))}
+      </Section>
     </EmailShell>
   );
 }
