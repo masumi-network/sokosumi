@@ -5,15 +5,15 @@
 - Amended: 2026-09-20 (consumer-placement spike, then the queue deferral — see both Amendment sections)
 - Renumbered from ADR-0033 on 2026-09-22; that number belongs to Typing. Filename keeps the original slug.
 
-Core keeps its stack: **Hono + `@hono/zod-openapi`, TypeScript, Zod 4, Prisma on Postgres, Better Auth, Vitest, Biome, Turborepo, evlog, Vercel AI SDK**, deployed as a single Vercel function with Fluid compute. We are **not** moving Core to a long-lived container (Fly, Railway, ECS), and the 17 Vercel crons stay as they are. **No change is proposed.** A job queue was investigated in depth and is not justified at the current scope; see the second amendment. Everything else considered was either rejected or found to be already true; see Considered options.
+Core keeps its stack: **Hono + `@hono/zod-openapi`, TypeScript, Zod 4, Prisma on Postgres, Better Auth, Vitest, Biome, Turborepo, evlog, Vercel AI SDK**, deployed as a single Vercel function with Fluid compute. We are **not** moving Core to a long-lived container (Fly, Railway, ECS), and the 20 Vercel crons stay as they are. **No change is proposed.** A job queue was investigated in depth and is not justified at the current scope; see the second amendment. Everything else considered was either rejected or found to be already true; see Considered options.
 
-**Why:** Core reads like an app that wants a process — 17 Vercel cron entries, a hand-rolled Postgres lease lock, Redis coordination, `resumable-stream`, `ioredis`, an in-process Soko Bot runtime. The obvious conclusion is "this should be a container." That conclusion is wrong, and this ADR exists so it is not re-derived every six months.
+**Why:** Core reads like an app that wants a process — 20 Vercel cron entries, a hand-rolled Postgres lease lock, Redis coordination, `resumable-stream`, `ioredis`, an in-process Soko Bot runtime. The obvious conclusion is "this should be a container." That conclusion is wrong, and this ADR exists so it is not re-derived every six months.
 
 Fluid compute is enabled on `sokosumi-core-mainnet` and `sokosumi-core-preprod` (12/12 team projects). It already gives the container's main win: the process is reused across invocations, so one Prisma pool is shared by concurrent requests instead of one pool per request. The evidence that this is sufficient is in the code — after the P2028 incidents (SOKOSUMI-Q9, Q7, CORE-2J), **zero** GET handlers use an interactive transaction, and the 86 route files that still do are all mutations, where a transaction is correct rather than a workaround. What remains is 14 non-test references to `P2028` / `maxWait`: mostly comments and two tuned budgets.
 
 A container would also not remove the Redis machinery. Core scales to multiple instances under load, so [`coworker-stream-lock.ts`](../../apps/core/src/helpers/coworker-stream-lock.ts) (162 lines) and [`sync-lock.service.ts`](../../apps/core/src/services/sync-lock.service.ts) (73 lines) are multi-replica coordination, not serverless workarounds. Only the ~180 lines of in-memory-able state ([`coworker-pending-response-mirror.ts`](../../apps/core/src/helpers/coworker-pending-response-mirror.ts), [`active-ui-stream-room-metadata.ts`](../../apps/core/src/helpers/active-ui-stream-room-metadata.ts)) and `resumable-stream` would collapse, and only if Core ran a single replica — which it should not.
 
-Scheduled work is 17 Vercel crons calling `/sync/*` GET routes, six of them every minute, each contending on one `Lock` row through `syncLockService`. The original text called this "a missing queue" and claimed **no `/sync` tick retries** — that a throw is lost until the next tick fires. **Both claims were wrong**; see the second amendment. A container would not have changed either way.
+Scheduled work is 20 Vercel crons calling `/sync/*` GET routes, nine of them every minute, each contending on one `Lock` row through `syncLockService`. The original text called this "a missing queue" and claimed **no `/sync` tick retries** — that a throw is lost until the next tick fires. **Both claims were wrong**; see the second amendment. A container would not have changed either way.
 
 ## Amendment 2, 2026-09-20: the queue is deferred
 
@@ -51,7 +51,7 @@ No cron, no worker host, no drain loop, no lock. It ships a JS SDK (`@vercel/que
 | 1,000,000 | $2.34 |
 | 10,000,000 | $23.40 |
 
-Compute dominates, and there Queues *saves*: today each of the six every-minute lock keys holds a 95s drain window whether or not work exists, at roughly a 79% duty cycle. Push consumers run only when a message exists. For scale, the whole team billed $68.42 on 2026-09-16, of which Fluid was $10.57 Active CPU plus $5.50 Provisioned Memory — Core's share of that could not be isolated, because the billing tool returns aggregates plus a 100-of-1058-record sample that contained no `sokosumi-core-*` rows.
+Compute dominates, and there Queues *saves*: today each of the nine every-minute lock keys holds a 95s drain window whether or not work exists, at roughly a 79% duty cycle. Push consumers run only when a message exists. For scale, the whole team billed $68.42 on 2026-09-16, of which Fluid was $10.57 Active CPU plus $5.50 Provisioned Memory — Core's share of that could not be isolated, because the billing tool returns aggregates plus a 100-of-1058-record sample that contained no `sokosumi-core-*` rows.
 
 **Two corrections to the original text.** Latency is not "up to 60s": `LOCK_TIMEOUT` (120s) minus `LOCK_TIMEOUT_BUFFER` (25s) gives a **95s drain window** against a 60s cron, so ticks overlap, the later one takes the 409, and the worst-case gap is about **25s**. And `maxDuration: 300` is no longer the ceiling — Vercel functions now run up to **30 minutes**, so a longer window would nearly close that gap.
 
@@ -92,7 +92,7 @@ On `v2beta` itself: the trigger type is `queue/v2beta` under `experimentalTrigge
 
 ## Consequences
 
-- **Nothing changes.** The 17 crons, [`routes/sync/handler.ts`](../../apps/core/src/routes/sync/handler.ts), [`sync-lock.service.ts`](../../apps/core/src/services/sync-lock.service.ts) and the `Lock` Prisma model all stay exactly as they are. No dependency is added and no schema is created.
+- **Nothing changes.** The 20 crons, [`routes/sync/handler.ts`](../../apps/core/src/routes/sync/handler.ts), [`sync-lock.service.ts`](../../apps/core/src/services/sync-lock.service.ts) and the `Lock` Prisma model all stay exactly as they are. No dependency is added and no schema is created.
 - Core stays on Vercel Fluid. Do not reopen the container question without new evidence; the measurements above are the reason.
 - `generate:core:snapshot`, the 18 generated files, and the DTO-drift typecheck step all stay. Web keeps no dependency on `@sokosumi/core`, and the two apps keep building independently.
 - `neverthrow` needs no work. The convention in [`.cursor/rules/neverthrow.mdc`](../../.cursor/rules/neverthrow.mdc) stands as written and is already honoured; do not open a refactor pass against it.

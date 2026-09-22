@@ -217,7 +217,7 @@ them is gone too. What replaces them:
   one owner scope to both `GET /x402/wallets` and `POST /x402/pay`, so a
   wallet the listing returns is a wallet the key is scoped to. The permission
   TIER differs though: the listing is read-authenticated and the charge is
-  pay-authenticated (`packages/payment-core/src/auth.ts`), and read is
+  pay-authenticated (masumi payment-node `payment-core/src/auth.ts`), and read is
   satisfied by `canRead` alone. So readiness still asks the key for
   `canPay === true || canAdmin === true` before it lists anything, and a
   read-only key composes zero pairs instead of a full set whose every charge
