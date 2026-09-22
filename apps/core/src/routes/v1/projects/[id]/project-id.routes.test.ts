@@ -450,91 +450,32 @@ describe("PATCH /projects/{id}", () => {
 describe("DELETE /projects/{id}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    transactionMock.mockImplementation(async (callback) =>
-      callback({
-        $queryRaw: queryRawMock,
-        project: { deleteMany: projectDeleteManyMock },
-        taskScheduleOccurrence: {
-          findFirst: taskScheduleOccurrenceFindFirstMock,
-        },
-      }),
-    );
   });
 
-  it("distinguishes a missing Project from a guarded Project", async () => {
-    projectDeleteManyMock.mockResolvedValue({ count: 0 });
-    queryRawMock
-      .mockResolvedValueOnce([{ id: WORKSPACE_ID }])
-      .mockResolvedValueOnce([]);
+  it("rejects project deletion and leaves the project in place", async () => {
     const app = createApp();
     mountDeleteProject(app);
     const res = await app.request(`http://localhost/${PROJECT_ID}`, {
       method: "DELETE",
     });
-    expect(res.status).toBe(404);
-    expect(deleteProjectBlobsMock).not.toHaveBeenCalled();
+    const body = (await res.json()) as { kind?: string };
 
-    queryRawMock
-      .mockResolvedValueOnce([{ id: WORKSPACE_ID }])
-      .mockResolvedValueOnce([{ id: PROJECT_ID }]);
-    const guardedResponse = await app.request(
-      `http://localhost/${PROJECT_ID}`,
-      { method: "DELETE" },
-    );
-    const guardedBody = (await guardedResponse.json()) as { kind?: string };
-
-    expect(guardedResponse.status).toBe(409);
-    expect(guardedBody.kind).toBe("project_has_calendar_history");
-    expect(projectDeleteManyMock).toHaveBeenCalledWith({
-      where: {
-        id: PROJECT_ID,
-        workspaceId: WORKSPACE_ID,
-        closingAt: null,
-        closedAt: null,
-        closeOperation: { is: null },
-      },
-    });
-    expect(deleteProjectBlobsMock).not.toHaveBeenCalled();
-  });
-
-  it("returns deleted payload", async () => {
-    projectDeleteManyMock.mockResolvedValue({ count: 1 });
-    queryRawMock
-      .mockResolvedValueOnce([{ id: WORKSPACE_ID }])
-      .mockResolvedValueOnce([{ id: PROJECT_ID }]);
-    const app = createApp();
-    mountDeleteProject(app);
-    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
-      method: "DELETE",
-    });
-    expect(res.status).toBe(200);
-    expect(deliverCalendarInvalidationsNowMock).toHaveBeenCalledWith(
-      WORKSPACE_ID,
-    );
-    const body = (await res.json()) as { data: { deleted: boolean } };
-    expect(body.data.deleted).toBe(true);
-    expect(queryRawMock).toHaveBeenCalledTimes(2);
-    expect(transactionMock).toHaveBeenCalledOnce();
-    expect(deleteProjectBlobsMock).toHaveBeenCalledWith(PROJECT_ID);
-  });
-
-  it("returns calendar-history conflict before deleting a project with occurrences", async () => {
-    taskScheduleOccurrenceFindFirstMock.mockResolvedValue({ id: "occ_123" });
-    queryRawMock
-      .mockResolvedValueOnce([{ id: WORKSPACE_ID }])
-      .mockResolvedValueOnce([{ id: PROJECT_ID }]);
-    const app = createApp();
-    mountDeleteProject(app);
-
-    const response = await app.request(`http://localhost/${PROJECT_ID}`, {
-      method: "DELETE",
-    });
-    const body = (await response.json()) as { kind?: string };
-
-    expect(response.status).toBe(409);
-    expect(body.kind).toBe("project_has_calendar_history");
+    expect(res.status).toBe(409);
+    expect(body.kind).toBe("project_deletion_removed");
+    expect(transactionMock).not.toHaveBeenCalled();
     expect(projectDeleteManyMock).not.toHaveBeenCalled();
     expect(deleteProjectBlobsMock).not.toHaveBeenCalled();
+    expect(deliverCalendarInvalidationsNowMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a non-uuid id before the handler", async () => {
+    const app = createApp();
+    mountDeleteProject(app);
+    const res = await app.request("http://localhost/not-a-uuid", {
+      method: "DELETE",
+    });
+
+    expect(res.status).toBe(422);
   });
 
   it("rejects coworker context even with X-Context-User-Id", async () => {
