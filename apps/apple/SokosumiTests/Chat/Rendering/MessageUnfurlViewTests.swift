@@ -48,6 +48,7 @@
         #expect(Self.drawsSomething(bitmap), "The card's text must be drawn.")
         if let lines = try Self.recognizedLines(in: bitmap) {
           #expect(lines.contains { $0.localizedCaseInsensitiveContains("Native link previews") }, "OCR read: \(lines)")
+          #expect(!lines.contains { $0.localizedCaseInsensitiveContains("Preview unavailable") }, "OCR read: \(lines)")
         }
       }
 
@@ -135,6 +136,7 @@
         #expect(Self.drawsSomething(textBitmap))
         if let lines = try Self.recognizedLines(in: textBitmap) {
           #expect(lines.contains { $0.localizedCaseInsensitiveContains("Native link previews") }, "OCR read: \(lines)")
+          #expect(!lines.contains { $0.localizedCaseInsensitiveContains("Preview unavailable") }, "OCR read: \(lines)")
         }
         try Self.record(stack, named: "unfurl-text-fallback-\(dark ? "dark" : "light").png")
       }
