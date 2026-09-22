@@ -213,22 +213,6 @@ describe("WorkspaceCalendar accessibility", () => {
     expect(pushMock).toHaveBeenCalledWith("/tasks/task-1");
   });
 
-  it("opens task creation from the visible create control", async () => {
-    const user = userEvent.setup();
-    renderCalendar("month");
-
-    await user.click(screen.getByRole("button", { name: "create.title" }));
-
-    expect(openCreateTaskModalMock).toHaveBeenCalledWith({
-      projectId: undefined,
-      schedule: {
-        mode: "once",
-        oneTimeLocalIso: "2030-01-02T12:00",
-        timezone: "UTC",
-      },
-    });
-  });
-
   it("announces schedule removal while it is pending", async () => {
     const user = userEvent.setup();
     const request = createDeferred<{

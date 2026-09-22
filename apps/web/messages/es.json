@@ -771,10 +771,16 @@
       "unreadBadgeWithAccountNotice": "{count, plural, =1 {1 notificación sin leer y aviso de cuenta} other {# notificaciones sin leer y aviso de cuenta}}",
       "title": "Notificaciones",
       "pageTitle": "Notificaciones",
+      "pageDescription": "Novedades de tus tareas, agentes y espacio de trabajo.",
       "emptyState": "Aún no hay notificaciones",
+      "emptyStateDescription": "Todavía no ha llegado nada. Los resultados de tareas y las solicitudes del espacio de trabajo aparecen aquí cuando ocurren.",
       "emptyUnreadState": "Estás al día",
+      "emptyUnreadStateDescription": "Aquí no hay nada sin leer. Todo lo leído permanece en Todas.",
       "emptyNeedsYouState": "Nada está esperando por ti",
+      "emptyNeedsYouStateDescription": "Nada espera tu respuesta. Las solicitudes que te necesitan aparecen aquí.",
       "viewAll": "Ver todas las notificaciones",
+      "showAll": "Mostrar todas",
+      "showOlder": "Mostrar notificaciones anteriores",
       "justNow": "Ahora mismo",
       "loading": "Cargando...",
       "markAllRead": "Marcar todas como leídas",
@@ -1533,8 +1539,6 @@
         "approvePartialError": "Se aprobó el acceso de {approved} de {total} proveedores. Algunas aprobaciones fallaron; actualiza e inténtalo de nuevo."
       },
       "Actions": {
-        "add": "Nueva tarea",
-        "addTask": "Nueva tarea",
         "loading": "Cargando...",
         "loadMore": "Cargar más",
         "showGuide": "Show guide"
@@ -6317,7 +6321,6 @@
         "moveNotAllowed": "Solo el propietario de la tarea puede reprogramarla."
       },
       "create": {
-        "title": "Programar una tarea",
         "fab": "Programar una tarea"
       },
       "edit": {
