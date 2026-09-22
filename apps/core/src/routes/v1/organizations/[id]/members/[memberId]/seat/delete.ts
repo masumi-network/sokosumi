@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { MemberRole } from "@sokosumi/database";
+import { memberRepository } from "@sokosumi/database/repositories";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
@@ -8,10 +9,7 @@ import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { organizationSeatUnassignmentSchema } from "@/schemas/organization-seat.schema";
-import {
-  mapSeatRepositoryError,
-  unassignOrganizationMemberSeat,
-} from "@/services/organization-seat.service";
+import { mapSeatRepositoryError } from "@/services/organization-seat.service";
 
 const params = z.object({
   id: z.string().openapi({
@@ -72,7 +70,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
         });
 
-        return unassignOrganizationMemberSeat(organization.id, memberId, tx);
+        const member = await memberRepository.unassignSeat(
+          memberId,
+          organization.id,
+          tx,
+        );
+
+        return {
+          memberId: member.id,
+        };
       });
 
       return ok(c, organizationSeatUnassignmentSchema.parse(result));

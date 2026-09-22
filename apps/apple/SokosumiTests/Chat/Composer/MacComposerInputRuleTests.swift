@@ -326,11 +326,6 @@
           #expect(effective == range)
         }
         #expect(text == typed + "\n")
-        let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
-        host.cacheDisplay(in: host.bounds, to: bitmap)
-        let png = try #require(bitmap.representation(using: .png, properties: [:]))
-        // Recorded on the result bundle, which the app sandbox cannot hide: `xcresulttool export attachments`.
-        Attachment.record(png, named: "composer-input-rules-\(dark ? "dark" : "light").png")
       }
 
       /// Key events through a real window and its own undo manager. The test host never

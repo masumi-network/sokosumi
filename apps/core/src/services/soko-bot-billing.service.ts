@@ -4,7 +4,7 @@ import {
   creditBucketRepository,
   subscriptionRepository,
 } from "@sokosumi/database/repositories";
-import { convertCreditsToCents } from "@sokosumi/utils";
+import { convertCreditsToCents, hasAdminRole } from "@sokosumi/utils";
 
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
@@ -18,13 +18,6 @@ export interface SokoBotUsageChargeResult {
   chargedCents: bigint;
   expectedCents: bigint;
   shortfall: boolean;
-}
-
-function hasAdminRole(role: string | null | undefined): boolean {
-  return (
-    role?.split(",").some((value) => value.trim().toLowerCase() === "admin") ??
-    false
-  );
 }
 
 function sokoBotTurnUsageIdempotencyKey(turnId: string): string {

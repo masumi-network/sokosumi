@@ -64,10 +64,6 @@
         try await Task.sleep(for: .milliseconds(20))
       }
       #expect(host.fittingSize.height < 420)
-      let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
-      host.cacheDisplay(in: host.bounds, to: bitmap)
-      let png = try #require(bitmap.representation(using: .png, properties: [:]))
-      try png.write(to: URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("mention-shells-\(dark ? "dark" : "light").png"))
     }
   }
 #endif

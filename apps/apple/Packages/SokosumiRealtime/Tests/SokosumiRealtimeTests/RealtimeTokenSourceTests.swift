@@ -1,9 +1,10 @@
+import CoreAPI
 import Foundation
 @testable import SokosumiRealtime
 import Testing
 
-private func sourceToken(_ nonce: String) -> AblyTokenFields {
-  .init(keyName: "test.key", capability: "{}", timestampMillis: 1, nonce: nonce, mac: "test")
+private func sourceToken(_ nonce: String) -> Components.Schemas.AblyTokenRequest {
+  .init(keyName: "test.key", capability: "{}", timestamp: 1, nonce: nonce, mac: "test")
 }
 
 private actor TokenProbe {
@@ -15,7 +16,7 @@ private actor TokenProbe {
     self.paused = paused
   }
 
-  func next(_ slug: String?) async -> AblyTokenFields {
+  func next(_ slug: String?) async -> Components.Schemas.AblyTokenRequest {
     slugs.append(slug)
     if paused {
       await withCheckedContinuation { continuation = $0 }

@@ -37,10 +37,6 @@
         #expect(loads == 1)
         try await Task.sleep(for: .milliseconds(200))
         host.layoutSubtreeIfNeeded()
-        let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
-        host.cacheDisplay(in: host.bounds, to: bitmap)
-        let png = try #require(bitmap.representation(using: .png, properties: [:]))
-        try png.write(to: URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("start-direct-\(dark ? "dark" : "light").png"))
       }
     }
   }
