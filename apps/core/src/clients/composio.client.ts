@@ -1,6 +1,7 @@
 import { Composio } from "@composio/core";
 
 import { getEnv } from "@/config/env";
+import { tryUseLogger } from "@/lib/evlog";
 
 let instance: Composio | null | undefined;
 
@@ -22,6 +23,14 @@ export class ComposioConfigError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "ComposioConfigError";
+    const env = getEnv();
+    tryUseLogger()?.set({
+      composio: {
+        failure: "missing_configuration",
+        apiKeyConfigured: Boolean(env.COMPOSIO_API_KEY),
+        xAuthConfigConfigured: Boolean(env.COMPOSIO_X_AUTH_CONFIG_ID),
+      },
+    });
   }
 }
 
@@ -113,6 +122,71 @@ async function projectComposioFetch(
   }
 }
 
+/** Provider text can echo credentials. Only fixed diagnostic labels reach logs. */
+function recordComposioResponseFailure(
+  response: Response,
+  operation: string,
+  body: unknown,
+  failure: "http_error" | "invalid_response",
+): void {
+  const payload = record(body);
+  const error = record(payload?.error);
+  const details = Array.isArray(payload?.detail)
+    ? payload.detail.slice(0, 20)
+    : [];
+  const messages = [
+    payload?.message,
+    typeof payload?.error === "string" ? payload.error : undefined,
+    error?.message,
+    error?.code,
+    payload?.detail,
+    ...details.map((detail) => record(detail)?.msg),
+  ].filter((value): value is string => typeof value === "string");
+  const text = messages.map((value) => value.slice(0, 2000)).join(" ");
+  const fields = {
+    auth_config_id: /auth[ _-]?config/i,
+    callback_url: /callback|redirect[ _-]?url/i,
+    user_id: /user[ _-]?id/i,
+    account_type: /account[ _-]?type|shared[ _-]?(?:account|connection)/i,
+    acl_config_for_shared: /acl|allowed[ _-]?user/i,
+    session_uri: /session[ _-]?uri/i,
+  };
+  const reasons = {
+    not_found: /not[ _-]?found|does not exist/i,
+    invalid: /invalid|validation/i,
+    required: /required|missing/i,
+    unsupported: /unsupported|not supported|not allowed/i,
+    expired: /expired/i,
+    disabled: /disabled/i,
+    unauthorized: /unauthori[sz]ed|forbidden|permission|access denied/i,
+  };
+  const validationFields = details.flatMap((detail) => {
+    const loc = record(detail)?.loc;
+    return Array.isArray(loc)
+      ? loc.filter(
+          (part): part is string =>
+            typeof part === "string" && Object.hasOwn(fields, part),
+        )
+      : [];
+  });
+  tryUseLogger()?.set({
+    composio: {
+      operation,
+      failure,
+      upstreamStatus: response.status,
+      fields: Object.entries(fields)
+        .filter(
+          ([field, pattern]) =>
+            pattern.test(text) || validationFields.includes(field),
+        )
+        .map(([field]) => field),
+      reasons: Object.entries(reasons)
+        .filter(([, pattern]) => pattern.test(text))
+        .map(([reason]) => reason),
+    },
+  });
+}
+
 async function projectComposioResponse<T>(
   response: Response,
   context: string,
@@ -125,6 +199,7 @@ async function projectComposioResponse<T>(
     body = text;
   }
   if (!response.ok) {
+    recordComposioResponseFailure(response, context, body, "http_error");
     throw new ComposioApiError(
       response.status,
       undefined,
@@ -164,6 +239,12 @@ function record(value: unknown): Record<string, unknown> | null {
 }
 
 function projectResponseError(response: Response, context: string): never {
+  recordComposioResponseFailure(
+    response,
+    context,
+    undefined,
+    "invalid_response",
+  );
   throw new ComposioApiError(
     response.status,
     undefined,
