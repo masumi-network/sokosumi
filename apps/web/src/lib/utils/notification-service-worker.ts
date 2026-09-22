@@ -256,12 +256,19 @@ export function isPushSupported(): boolean {
  * cannot do this: they are one Add to Home Screen away from it, and the
  * generic "this browser cannot" is the wrong thing to tell them.
  *
- * `navigator.standalone` answers all of it, and answers nothing else. WebKit
- * on iOS and iPadOS is the only engine that defines it, so its absence is the
- * whole of "not an Apple handheld": an Android in-app web view and a
- * touchscreen laptop both have touch and neither has this. Its value then
- * separates the two Apple cases, a tab from an installed app, which is the
- * line this is drawn on.
+ * `navigator.standalone` is what this asks. Safari for iOS and iPadOS defines
+ * it and no engine off those platforms does, so an Android in-app web view
+ * and a touchscreen laptop are both out: each has touch, which is why this
+ * does not ask about touch, and neither has this. Its value then separates
+ * the two Apple cases, a tab from an installed app, which is the line this is
+ * drawn on.
+ *
+ * The property belongs to the browser rather than to the platform, and the
+ * cases it does not cover follow from that. Since 16.4 a third-party browser
+ * on iOS can add a web app to the Home Screen too, and one that leaves this
+ * undefined reads here as any other platform: its reader keeps the message
+ * they get today rather than gaining a wrong one. Whether an embedded web
+ * view sets it, and to what, is not determined.
  *
  * Nothing here reads the user agent. iPadOS sends Safari's macOS string, and
  * a reader who taps Request Desktop Website gives an iPhone the same, so
