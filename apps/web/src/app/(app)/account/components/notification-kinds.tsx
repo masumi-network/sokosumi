@@ -83,8 +83,11 @@ function FoldRow({
             className="text-muted-foreground size-4 shrink-0 duration-200 ease-out group-data-[state=open]:rotate-90 motion-safe:transition-transform"
             aria-hidden="true"
           />
+          {/* The name carries the weight. The line under it is the same size
+              and longer, so at one weight the two were told apart by colour
+              alone. */}
           <span className="min-w-0">
-            <span className="block text-sm leading-5">{name}</span>
+            <span className="block text-sm leading-5 font-medium">{name}</span>
             <span
               id={descriptionId}
               className="text-muted-foreground block text-sm leading-5"

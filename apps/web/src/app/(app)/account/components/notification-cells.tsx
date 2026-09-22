@@ -469,6 +469,8 @@ export function ChannelGrid({
         >
           {showNames ? (
             <div className="min-w-0 pr-3 pl-6 break-words @xl:flex-1 @xl:pl-10">
+              {/* At 400 under a group name at 500, so a kind reads as
+                  belonging to the group above it. */}
               <p className="text-sm leading-5">{t(kind.spec.labelKey)}</p>
               <p className="text-muted-foreground text-sm leading-5">
                 {t(kind.spec.hintKey)}

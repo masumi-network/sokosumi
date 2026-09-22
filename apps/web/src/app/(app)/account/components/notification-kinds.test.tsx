@@ -846,6 +846,23 @@ describe("NotificationKinds", () => {
   });
 
   /**
+   * A row's name is a title over a longer line of the same size. At one
+   * weight the two are told apart by colour alone, so the name takes the
+   * weight, and a kind inside an open group does not.
+   */
+  it("gives a group's name the weight and leaves its kinds without it", async () => {
+    renderKinds();
+
+    expect(
+      within(groupTrigger("groupChat")).getByText("groupChat"),
+    ).toHaveClass("font-medium");
+
+    await openGroup("groupChat");
+
+    expect(screen.getByText("kindChatMention")).not.toHaveClass("font-medium");
+  });
+
+  /**
    * The rows have a heading of their own, under the card's. A reader moving
    * by heading passes the card's title and would otherwise land in the middle
    * of thirty cells with nothing having named them.
