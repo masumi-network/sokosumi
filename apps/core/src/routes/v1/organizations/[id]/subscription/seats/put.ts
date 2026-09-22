@@ -23,6 +23,7 @@ import {
   organizationSubscriptionSeatsSchema,
   updateOrganizationSubscriptionSeatsSchema,
 } from "@/schemas/subscription.schema";
+import { SEAT_CHANGE_CONFLICT_MESSAGE } from "@/services/organization-seat.service";
 
 const params = z.object({
   id: z.string().openapi({
@@ -70,15 +71,10 @@ const route = createRoute({
       "Forbidden - You must be an organization owner or admin",
     ),
     404: jsonErrorResponse("Not Found - Organization not found"),
-    409: jsonErrorResponse(
-      "Conflict - A concurrent seat change kept winning the race",
-    ),
+    409: jsonErrorResponse("Conflict"),
     500: jsonErrorResponse("Internal Server Error"),
   },
 });
-
-const SEAT_CHANGE_CONFLICT_MESSAGE =
-  "Seat update lost a concurrent update. Try again.";
 
 /**
  * Pushes the new quantity to the first Stripe subscription item, invoicing

@@ -11,7 +11,10 @@ import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { adminOrganizationMemberIdParamSchema } from "@/schemas/admin.schema";
 import { organizationSeatAssignmentSchema } from "@/schemas/organization-seat.schema";
-import { mapSeatRepositoryError } from "@/services/organization-seat.service";
+import {
+  mapSeatRepositoryError,
+  SEAT_ASSIGNMENT_CONFLICT_MESSAGE,
+} from "@/services/organization-seat.service";
 
 const route = createRoute({
   method: "put",
@@ -71,7 +74,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           memberId: member.id,
           seatAssignedAt: member.seatAssignedAt,
         };
-      }, "Seat assignment lost a concurrent update. Try again.");
+      }, SEAT_ASSIGNMENT_CONFLICT_MESSAGE);
 
       return ok(c, organizationSeatAssignmentSchema.parse(result));
     } catch (error) {

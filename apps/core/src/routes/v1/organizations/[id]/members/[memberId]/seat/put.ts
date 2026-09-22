@@ -11,7 +11,10 @@ import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { organizationSeatAssignmentSchema } from "@/schemas/organization-seat.schema";
-import { mapSeatRepositoryError } from "@/services/organization-seat.service";
+import {
+  mapSeatRepositoryError,
+  SEAT_ASSIGNMENT_CONFLICT_MESSAGE,
+} from "@/services/organization-seat.service";
 
 const params = z.object({
   id: z.string().openapi({
@@ -56,9 +59,7 @@ const route = createRoute({
       "Forbidden - You must be an organization owner or admin",
     ),
     404: jsonErrorResponse("Not Found - Organization or member not found"),
-    409: jsonErrorResponse(
-      "Conflict - A concurrent seat change kept winning the race",
-    ),
+    409: jsonErrorResponse("Conflict"),
     500: jsonErrorResponse("Internal Server Error"),
   },
 });
@@ -101,7 +102,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           memberId: member.id,
           seatAssignedAt: member.seatAssignedAt,
         };
-      }, "Seat assignment lost a concurrent update. Try again.");
+      }, SEAT_ASSIGNMENT_CONFLICT_MESSAGE);
 
       return ok(c, organizationSeatAssignmentSchema.parse(result));
     } catch (error) {

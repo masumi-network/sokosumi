@@ -44,6 +44,31 @@ describe("toSubscriptionSeatsActionError", () => {
       },
     },
     {
+      label: "concurrency_conflict",
+      error: new CoreApiRequestError(
+        "Seat update lost a concurrent update. Try again.",
+        {
+          kind: "concurrency_conflict",
+          status: 409,
+        },
+      ),
+      expected: {
+        code: CommonErrorCode.BAD_INPUT,
+        message: "Another seat change was in progress. Try again.",
+      },
+    },
+    {
+      label: "a 409 without a kind",
+      error: new CoreApiRequestError(
+        "Seat update lost a concurrent update. Try again.",
+        { status: 409 },
+      ),
+      expected: {
+        code: CommonErrorCode.BAD_INPUT,
+        message: "Another seat change was in progress. Try again.",
+      },
+    },
+    {
       label: "subscription_seats_below_assigned",
       error: new CoreApiRequestError(
         "Purchased seats (3) must be at least 4 to cover all assigned members",

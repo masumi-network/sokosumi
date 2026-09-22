@@ -28272,7 +28272,7 @@ export type PutOrganizationsByIdMembersByMemberIdSeatErrors = {
         };
     };
     /**
-     * Conflict - A concurrent seat change kept winning the race
+     * Conflict
      */
     409: {
         error: string;
@@ -30267,7 +30267,7 @@ export type PutOrganizationsByIdSubscriptionSeatsErrors = {
         };
     };
     /**
-     * Conflict - A concurrent seat change kept winning the race
+     * Conflict
      */
     409: {
         error: string;

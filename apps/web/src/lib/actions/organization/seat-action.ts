@@ -30,8 +30,12 @@ function parseSeatActionError(error: unknown): ActionError {
       };
     }
 
+    // CONFLICT is Core losing the serialization race on the seat write
+    // (SOK-1007). There is no conflict code, and the message tells the user
+    // to retry, so it travels as BAD_INPUT like the other recoverable errors.
     if (
       errorWithStatus.status === "BAD_REQUEST" ||
+      errorWithStatus.status === "CONFLICT" ||
       errorWithStatus.status === "NOT_FOUND"
     ) {
       return {
