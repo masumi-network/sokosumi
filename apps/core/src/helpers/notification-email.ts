@@ -24,6 +24,7 @@ import type { SendEmailInput } from "@/clients/email.client";
 import { TASK_COMPLETED_MESSAGE_KEY } from "@/helpers/notification-delivery";
 import {
   notificationEmailLink,
+  notificationSettingsLink,
   readString,
 } from "@/helpers/notification-email-link";
 
@@ -180,7 +181,12 @@ export async function buildNotificationEmail(
   locale = "en",
 ): Promise<null | SendEmailInput> {
   const actionUrl = notificationEmailLink(input);
-  const shared = { actionUrl, locale, recipientName: input.recipientName };
+  const shared = {
+    actionUrl,
+    locale,
+    recipientName: input.recipientName,
+    settingsUrl: notificationSettingsLink(),
+  };
   const params = input.messageParams;
 
   switch (input.messageKey) {

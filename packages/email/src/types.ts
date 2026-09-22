@@ -52,6 +52,8 @@ export interface JobFailureNotificationEmailProps extends LocalizedEmailProps {
 export interface NotificationEmailProps extends LocalizedEmailProps {
   actionUrl: string;
   recipientName?: null | string;
+  /** Notification settings page, linked from the footer note. */
+  settingsUrl?: null | string;
 }
 
 interface QuotedChatMessage {

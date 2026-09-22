@@ -149,7 +149,10 @@ import {
 } from "./room-helpers";
 import { RoomMessageMarkdown } from "./room-mention-markdown";
 import { SokoBotChainBadge } from "./soko-bot-chain-badge";
-import { SokoBotMessageFooter } from "./soko-bot-message-footer";
+import {
+  hasSokoBotMessageFooter,
+  SokoBotMessageFooter,
+} from "./soko-bot-message-footer";
 
 type UserMentionLookup = Pick<ChatRoomUserParticipant, "id" | "name">;
 type RoomMessageQuoteSnapshot = Exclude<ChatRoomMessageQuote, null>;
@@ -157,6 +160,29 @@ type RoomQuoteAttachment = Exclude<ChatRoomMessageQuoteAttachment, null>;
 
 /** Collapsed preview height for primary message bodies (taller than quotes). */
 const MESSAGE_BODY_CLAMP_CLASS = "line-clamp-[16]";
+
+/**
+ * Keeps the last line of a body clear of the Seen by faces in the row's
+ * bottom-right corner. Inline, so it shortens that one line instead of
+ * every line — a phone body column is ~310px, and reserving on the column
+ * cost a quarter of it on the newest message in the room.
+ *
+ * Rem, not px: the faces and the touch inset scale with Dynamic Type.
+ * Three plus the `+N` is 3.25rem, and below md the target reaches another
+ * 0.875rem left (4.125rem, 66px at the default root).
+ */
+const SEEN_BY_INLINE_RESERVE_CLASS =
+  "inline-block h-1 w-[4.125rem] align-baseline";
+
+function SeenByInlineReserve() {
+  return (
+    <span
+      aria-hidden="true"
+      data-testid="seen-by-inline-reserve"
+      className={SEEN_BY_INLINE_RESERVE_CLASS}
+    />
+  );
+}
 
 interface MessageEditedLabelProps {
   editedAt: Date | string;
@@ -770,7 +796,12 @@ function ChannelMessageBody({
         className={cn(
           "min-w-0 max-w-full",
           expanded || skipBodyClamp ? null : MESSAGE_BODY_CLAMP_CLASS,
-          trailing ? "[&_.prose]:contents [&_p:last-of-type]:inline" : null,
+          // Last p is inline so the reserve shares its last line. Inline
+          // boxes drop vertical margin, which would swallow [&_p+p]:mt-3
+          // (the blank line). The previous block p keeps that gap.
+          trailing
+            ? "[&_.prose]:contents [&_p:last-of-type]:inline [&_p:has(+_p:last-of-type)]:mb-3"
+            : null,
         )}
       >
         <ChannelMessageText
@@ -2395,6 +2426,28 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   const showEdited = !isDeleted && editedAt != null;
   const showPinned = !isDeleted && isPinned;
   const quote = message.quote;
+  // Faces sit in the row's bottom-right corner. Anything actually rendered
+  // after the text — reactions, a thread link, an unfurl, the Soko Bot
+  // footer, a failed send — already clears it, so those rows reserve
+  // nothing. Unfurls and the footer are omitted once the message is deleted.
+  const hasReactionRow =
+    !isDeleted && !isOutboundLocal && message.reactions.length > 0;
+  const hasThreadLink =
+    showThreadButton &&
+    !isOutboundLocal &&
+    message.threadReplyCount > 0 &&
+    onOpenThread != null;
+  const hasUnfurlRow = !isDeleted && (message.unfurls ?? []).length > 0;
+  const hasSokoBotFooter =
+    !isDeleted && hasSokoBotMessageFooter(message.metadata);
+  const bodyEndsTheRow =
+    seenBy != null &&
+    !isEditing &&
+    !hasReactionRow &&
+    !hasThreadLink &&
+    !hasUnfurlRow &&
+    !hasSokoBotFooter &&
+    outboundStatus !== "failed";
   const [sheetOpen, setSheetOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   // Neither overlay is mounted until first opened. A closed Radix dialog
@@ -2581,15 +2634,9 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         className={cn(
           "min-w-0 max-w-full flex-1 overflow-x-clip",
           isContinuation ? "space-y-1" : "space-y-1.5",
-          // The one reservation left, and only on the row that needs it: the
-          // faces sit in this corner, and with the text now running full
-          // width a long last line would otherwise run under them.
-          //
-          // Wide enough for what the corner actually occupies, which is more
-          // than the faces: three of them plus the `+N` is 52px, and below
-          // md the touch target reaches 14px further left again. 66px of
-          // reach, so 80px of reserve.
-          seenBy && "pe-20",
+          // No reserve here: padding on the column shortens every line to
+          // protect the one that can collide. The reserve is inline, on the
+          // last line only — see SEEN_BY_INLINE_RESERVE_CLASS.
         )}
       >
         {isContinuation ? (
@@ -2634,6 +2681,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
           {isDeleted ? (
             <p className="text-muted-foreground italic">
               {tChannels("Message.deleted")}
+              {bodyEndsTheRow ? <SeenByInlineReserve /> : null}
             </p>
           ) : (
             <>
@@ -2714,8 +2762,13 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                       />
                     </div>
                   ) : null}
-                  {/* Send to yourself posts only a quote, so there is no body. */}
-                  {quote && !message.content.trim() ? null : (
+                  {/* Send to yourself posts only a quote, so there is no body.
+                      The card still ends the row, so the reserve follows it. */}
+                  {quote && !message.content.trim() ? (
+                    bodyEndsTheRow ? (
+                      <SeenByInlineReserve />
+                    ) : null
+                  ) : (
                     <ChannelMessageBody
                       messageId={message.id}
                       content={message.content}
@@ -2731,11 +2784,19 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                       onOpenDirectMessage={onOpenDirectMessage}
                       openingDirectParticipantKey={openingDirectParticipantKey}
                       trailing={
-                        isContinuation && showEdited && editedAt != null ? (
-                          <MessageEditedLabel
-                            editedAt={editedAt}
-                            className="ms-1.5 inline-flex h-6 items-center"
-                          />
+                        (isContinuation && showEdited && editedAt != null) ||
+                        bodyEndsTheRow ? (
+                          <>
+                            {isContinuation &&
+                            showEdited &&
+                            editedAt != null ? (
+                              <MessageEditedLabel
+                                editedAt={editedAt}
+                                className="ms-1.5 inline-flex h-6 items-center"
+                              />
+                            ) : null}
+                            {bodyEndsTheRow ? <SeenByInlineReserve /> : null}
+                          </>
                         ) : null
                       }
                     />
