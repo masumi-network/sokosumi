@@ -27,7 +27,7 @@ import {
 import {
   forgetAblyPushRegistration,
   forgetUnfinishedPushTeardown,
-  hasAblyPushRegistration,
+  hasAblyPushDeviceId,
   hasUnfinishedPushTeardown,
   notePushTeardownStarted,
   readPushDeviceOwner,
@@ -113,15 +113,23 @@ async function runActivation(
   if (getPushTeardownVersion() !== teardownVersion) {
     return false;
   }
-  // Asked before anything registers, because `activate()` writes a token of
-  // its own and the answer would then read as this reader's work. A
-  // registration this browser already held, under any name but this reader's,
-  // is one to replace rather than join: an unnamed one is every browser
+  // Asked before anything below runs. `ably@2.28.0` mints a device id the
+  // first time it loads the local device (`build/ably.js:2693`), which
+  // `activate()` does, so an answer read later would call the id this run
+  // just minted a device taken from someone else. Reading it here needs no
+  // view of where in that sequence the mint lands.
+  //
+  // A device this browser already held, under any name but this reader's, is
+  // one to replace rather than join. An unnamed one is every browser
   // registered before the name was written down, and Ably cannot settle it
-  // either way, since the health check reads the device as itself and such a
-  // read carries no clientId (SOK-1152).
+  // either way: the health check reads the device as itself, and such a read
+  // carries no clientId (SOK-1152).
+  //
+  // The id rather than the identity token, because the id is what a channel
+  // subscription is keyed on (`build/push.js:74-77`) and the id is what
+  // survives a release the sign-out cap cut short.
   const foreignRegistration =
-    hasAblyPushRegistration() && readPushDeviceOwner() !== userId;
+    hasAblyPushDeviceId() && readPushDeviceOwner() !== userId;
 
   const restorePermissionRequest = answerPermissionFromStoredValue();
   try {

@@ -175,16 +175,18 @@ describe("deactivatePush", () => {
   });
 
   /**
-   * The name outliving the registration would tell the next reader that a
-   * device nobody holds is still someone else's, and every activation here
-   * would replace a registration that is not there.
+   * The name outlives the teardown, because what it names does. A release
+   * drops the identity token and leaves the device id, and a release the cap
+   * cuts short leaves the record on Ably with this reader's channel still
+   * bound to it. Forgetting the name there would hand the next reader an
+   * unclaimed device and bind them beside this reader.
    */
-  it("forgets which reader the device belonged to", async () => {
+  it("keeps the name of the reader the device was registered for", async () => {
     localStorage.setItem("sokosumi.push.deviceOwner", "user_1");
 
     await deactivatePush("user_1");
 
-    expect(localStorage.getItem("sokosumi.push.deviceOwner")).toBeNull();
+    expect(localStorage.getItem("sokosumi.push.deviceOwner")).toBe("user_1");
   });
 
   it("drops the browser subscription as well as the Ably device", async () => {
@@ -494,7 +496,7 @@ describe("activatePush", () => {
    * it would bind this reader's channel beside theirs on one device.
    */
   it("replaces a registration this browser holds for another reader", async () => {
-    localStorage.setItem("ably.push.deviceIdentityToken", "their-token");
+    localStorage.setItem("ably.push.deviceId", "their-device");
     localStorage.setItem("sokosumi.push.deviceOwner", "user_2");
     hasWebPushSubscriptionMock.mockResolvedValue(true);
 
@@ -517,7 +519,7 @@ describe("activatePush", () => {
    * own and bind a second channel beside this one.
    */
   it("names the reader it bound the device to even when the run then fails", async () => {
-    localStorage.setItem("ably.push.deviceIdentityToken", "their-token");
+    localStorage.setItem("ably.push.deviceId", "their-device");
     localStorage.setItem("sokosumi.push.deviceOwner", "user_2");
     hasWebPushSubscriptionMock.mockResolvedValue(false);
 
@@ -535,7 +537,7 @@ describe("activatePush", () => {
    * adopted, once, and named afterwards.
    */
   it("replaces a registration whose reader was never recorded", async () => {
-    localStorage.setItem("ably.push.deviceIdentityToken", "old-token");
+    localStorage.setItem("ably.push.deviceId", "old-device");
     hasWebPushSubscriptionMock.mockResolvedValue(true);
 
     await expect(activatePush("user_1")).resolves.toBe(true);
@@ -556,6 +558,37 @@ describe("activatePush", () => {
    * beforehand, so it has no reader to take the device from.
    */
   it("names a browser that held no registration without replacing anything", async () => {
+    await expect(activatePush("user_1")).resolves.toBe(true);
+
+    expect(calls).toEqual(["activate", "subscribeDevice"]);
+    expect(localStorage.getItem("sokosumi.push.deviceOwner")).toBe("user_1");
+  });
+
+  /**
+   * The bind is the step that makes the device this reader's, so the name has
+   * to be down before it, not merely before the checks that follow it. A bind
+   * that reaches Ably and then rejects is the case that tells the two apart.
+   */
+  it("names the reader before binding, even when the bind then fails", async () => {
+    localStorage.setItem("ably.push.deviceId", "their-device");
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_2");
+    subscribeDeviceMock.mockRejectedValueOnce(new Error("ably said no"));
+
+    await expect(activatePush("user_1")).rejects.toThrow("ably said no");
+
+    expect(localStorage.getItem("sokosumi.push.deviceOwner")).toBe("user_1");
+  });
+
+  /**
+   * The SDK mints a device id for a browser that never had one, so an
+   * ownership answer read after that point would call every first activation
+   * a device taken from someone else and reset it for nothing.
+   */
+  it("does not replace a device the run itself minted", async () => {
+    activateMock.mockImplementation(async () => {
+      localStorage.setItem("ably.push.deviceId", "fresh-device");
+    });
+
     await expect(activatePush("user_1")).resolves.toBe(true);
 
     expect(calls).toEqual(["activate", "subscribeDevice"]);

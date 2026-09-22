@@ -34,6 +34,29 @@ const UNRESOLVED_PUSH_REPAIR_KEY = "sokosumi.push.unresolvedRepair";
 const PUSH_DEVICE_OWNER_KEY = "sokosumi.push.deviceOwner";
 
 /**
+ * The id `ably@2.28.0` keeps for this browser's device (`build/push.js:263`).
+ *
+ * Asked instead of the identity token when the question is who a device
+ * belongs to, because the id is what a channel subscription is keyed on
+ * (`build/push.js:74-77`) and the id is what outlives a release. Only a
+ * deregistration that lands calls `resetId()`; one the sign-out cap cuts
+ * leaves the id in storage beside a device record Ably still holds, with the
+ * previous reader's channel still bound to it. Registering again reuses that
+ * id, so the next reader's channel joins theirs rather than replacing it.
+ */
+const ABLY_DEVICE_ID_KEY = "ably.push.deviceId";
+
+/** Whether this browser has ever been given a device id. */
+export function hasAblyPushDeviceId(): boolean {
+  try {
+    return localStorage.getItem(ABLY_DEVICE_ID_KEY) !== null;
+  } catch {
+    // Reading storage throws outright where the browser blocks site data.
+    return false;
+  }
+}
+
+/**
  * The reader this browser's Ably registration was last registered for.
  *
  * Ably's own answer cannot be used for this. The registration carries a
@@ -68,6 +91,13 @@ export function readPushDeviceOwner(): string | null {
  * then be the reader this run took the device from: their next activation
  * would read a device of their own, skip the replacement, and bind a second
  * channel beside the first.
+ *
+ * Nothing erases it, because nothing here can erase what it names. Forgetting
+ * the registration drops the identity token and leaves the device id, so a
+ * name dropped with the token would leave the next reader reading an
+ * unclaimed device and joining the previous reader's channel on it. The name
+ * is replaced by whoever registers next, which is the only event that changes
+ * the answer.
  */
 export function rememberPushDeviceOwner(userId: string): void {
   try {
@@ -135,10 +165,6 @@ export function forgetAblyPushRegistration(): void {
   try {
     localStorage.removeItem(ABLY_DEVICE_IDENTITY_TOKEN_KEY);
     localStorage.removeItem(PUSH_TEARDOWN_STARTED_KEY);
-    // The registration this named is gone, so the name must go with it. Left
-    // behind, it would tell the next reader that a device nobody holds is
-    // still someone else's.
-    localStorage.removeItem(PUSH_DEVICE_OWNER_KEY);
   } catch {
     // Writing storage throws outright where the browser blocks site data.
     // Such a browser carries no token to begin with.
