@@ -339,6 +339,28 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     );
   });
 
+  it("returns 409 when every seat write loses the serialization race", async () => {
+    setMembership("owner");
+    memberFindManyMock.mockResolvedValue([]);
+    transactionMock.mockRejectedValue(
+      Object.assign(new Error("Transaction failed"), { code: "P2034" }),
+    );
+
+    vi.useFakeTimers();
+    try {
+      const pending = updateSeats("org_123", 1);
+      await vi.runAllTimersAsync();
+      const response = await pending;
+
+      expect(response.status).toBe(409);
+      expect(await response.text()).toContain(
+        "Seat update lost a concurrent update. Try again.",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("reports the cleanup failure but still surfaces the persist error", async () => {
     setMembership("owner");
     memberFindManyMock.mockResolvedValue([]);
