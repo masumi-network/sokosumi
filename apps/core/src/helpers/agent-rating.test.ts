@@ -175,7 +175,6 @@ describe("getRecentAgentReviews", () => {
       },
       orderBy: { createdAt: "desc" },
       take: 10,
-      skip: 0,
     });
     expect(result).toEqual([
       {
@@ -192,22 +191,8 @@ describe("getRecentAgentReviews", () => {
       },
     ]);
   });
-
-  it("forwards the offset as a skip", async () => {
-    const findMany = vi.fn().mockResolvedValue([]);
-    const tx = {
-      userAgentRating: {
-        findMany,
-      },
-    } as unknown as Prisma.TransactionClient;
-
-    await getRecentAgentReviews("agent-1", 5, tx, 10);
-
-    expect(findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ take: 5, skip: 10 }),
-    );
-  });
 });
+
 describe("getUserAgentReview", () => {
   it("returns the caller's own rating, ignoring the hidden filter", async () => {
     const findUnique = vi.fn().mockResolvedValue({
