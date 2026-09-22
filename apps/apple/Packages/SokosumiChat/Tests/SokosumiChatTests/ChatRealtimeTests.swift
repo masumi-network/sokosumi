@@ -368,11 +368,14 @@ struct ChatRealtimeTests {
         metadata: "{\"client_message_id\":\"turn-x\"}"
       )
     ])
-    let tombstoned = applyRealtimeTombstone(messages: existing, messageId: "550e8400-e29b-41d4-a716-446655440613")
+    let now = Date(timeIntervalSince1970: 1_700_000_000)
+    let tombstoned = applyRealtimeTombstone(
+      messages: existing, messageId: "550e8400-e29b-41d4-a716-446655440613", now: now
+    )
     #expect(tombstoned.count == 1)
     #expect(tombstoned[0].id == "550e8400-e29b-41d4-a716-446655440613")
     #expect(tombstoned[0].content.isEmpty)
-    #expect(tombstoned[0].deletedAt != nil)
+    #expect(tombstoned[0].deletedAt == now)
     #expect(tombstoned[0].metadata == nil)
     #expect(messageSenderName(tombstoned[0].sender) == ada)
   }
