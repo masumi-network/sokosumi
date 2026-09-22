@@ -535,9 +535,10 @@ describe("project.service", () => {
 
       await expect(
         projectService.listSocialPosts("project-1"),
-      ).resolves.toEqual([post]);
+      ).resolves.toEqual({ posts: [post], nextCursor: null });
       expect(coreClientMock.getProjectsByIdSocialPosts).toHaveBeenCalledWith(
         "project-1",
+        { status: undefined, cursor: undefined, limit: 20 },
       );
     });
 

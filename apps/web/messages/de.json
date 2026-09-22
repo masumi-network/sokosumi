@@ -2264,6 +2264,8 @@
         }
       },
       "SocialPosts": {
+        "loadMore": "Mehr laden",
+        "loading": "Wird geladen…",
         "title": "Social-Media-Beiträge",
         "description": "Entwirf Textbeiträge für X und plane sie aus diesem Projekt heraus.",
         "newPost": "Neuer Beitrag",

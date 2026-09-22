@@ -14,6 +14,10 @@ import type {
   SocialPost,
 } from "@/lib/clients/generated/core/types.gen";
 
+import { loadMoreSocialPosts } from "./actions";
+
+vi.mock("./actions", () => ({ loadMoreSocialPosts: vi.fn() }));
+
 const { refreshMock, toastErrorMock, toastSuccessMock } = vi.hoisted(() => ({
   refreshMock: vi.fn(),
   toastErrorMock: vi.fn(),
@@ -22,6 +26,8 @@ const { refreshMock, toastErrorMock, toastSuccessMock } = vi.hoisted(() => ({
 
 const MESSAGES: Record<string, string> = {
   title: "Social posts",
+  loadMore: "Load more",
+  loading: "Loading…",
   description: "Draft text posts for X and schedule them from this Project.",
   newPost: "New post",
   moreActions: "Post actions",
@@ -552,5 +558,82 @@ describe("ProjectSocialPosts", () => {
       );
     });
     expect(refreshMock).toHaveBeenCalledOnce();
+  });
+  it("loads more history without replacing drafts or upcoming posts", async () => {
+    const user = userEvent.setup();
+    vi.mocked(loadMoreSocialPosts).mockResolvedValue({
+      posts: [
+        buildPost({ id: "older", status: "CANCELED", text: "Older history" }),
+      ],
+      nextCursor: null,
+    });
+    render(
+      <ProjectSocialPosts
+        projectId={PROJECT_ID}
+        connections={[buildConnection()]}
+        posts={[buildPost(), SCHEDULED_POST]}
+        nextCursors={{ history: "history-cursor" }}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Load more" }));
+    await waitFor(() =>
+      expect(screen.getByText("Older history")).toBeVisible(),
+    );
+    expect(loadMoreSocialPosts).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      section: "history",
+      cursor: "history-cursor",
+    });
+    expect(screen.getByTestId("social-post-post-draft")).toBeVisible();
+    expect(
+      screen.getByTestId(`social-post-${SCHEDULED_POST.id}`),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Load more" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("closes a conflicted editor and uses the refreshed revision when reopened", async () => {
+    const user = userEvent.setup();
+    const original = buildPost({ revision: 4 });
+    vi.mocked(updateProjectSocialPost).mockResolvedValueOnce({
+      ok: false,
+      error: {
+        code: "BAD_INPUT",
+        message: "Social post was modified, reload and retry",
+      },
+    });
+    const { rerender } = render(
+      <ProjectSocialPosts
+        projectId={PROJECT_ID}
+        connections={[buildConnection()]}
+        posts={[original]}
+      />,
+    );
+    await openRowMenu(user, original.id);
+    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+    await user.click(screen.getByRole("button", { name: "Save draft" }));
+    await waitFor(() => expect(refreshMock).toHaveBeenCalled());
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    const refreshed = { ...original, revision: 5 };
+    rerender(
+      <ProjectSocialPosts
+        projectId={PROJECT_ID}
+        connections={[buildConnection()]}
+        posts={[refreshed]}
+      />,
+    );
+    vi.mocked(updateProjectSocialPost).mockResolvedValueOnce({
+      ok: true,
+      value: { ...refreshed, revision: 6 },
+    });
+    await openRowMenu(user, original.id);
+    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+    await user.click(screen.getByRole("button", { name: "Save draft" }));
+    await waitFor(() =>
+      expect(updateProjectSocialPost).toHaveBeenLastCalledWith(
+        expect.objectContaining({ revision: 5 }),
+      ),
+    );
   });
 });

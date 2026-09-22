@@ -34,7 +34,7 @@ vi.mock("@/lib/calendar-beta-access.server", () => ({
 vi.mock("@/lib/services/project.service", () => ({
   projectService: {
     getProjectById: (projectId: string) => getProjectByIdMock(projectId),
-    listSocialPosts: (projectId: string) => listSocialPostsMock(projectId),
+    listSocialPosts: (...args: unknown[]) => listSocialPostsMock(...args),
     listSocialConnections: (projectId: string) =>
       listSocialConnectionsMock(projectId),
   },
@@ -81,7 +81,7 @@ describe("ProjectSocialPage", () => {
     vi.clearAllMocks();
     hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(true);
     getProjectByIdMock.mockResolvedValue(PROJECT);
-    listSocialPostsMock.mockResolvedValue([]);
+    listSocialPostsMock.mockResolvedValue({ posts: [], nextCursor: null });
     listSocialConnectionsMock.mockResolvedValue([]);
   });
 
@@ -112,7 +112,10 @@ describe("ProjectSocialPage", () => {
     const posts = [{ id: "post-1" }];
     const active = buildConnection("active", "connection-1");
     const disconnected = buildConnection("disconnected", "connection-2");
-    listSocialPostsMock.mockResolvedValue(posts);
+    listSocialPostsMock.mockResolvedValueOnce({
+      posts,
+      nextCursor: "next-upcoming",
+    });
     listSocialConnectionsMock.mockResolvedValue([active, disconnected]);
 
     render(
@@ -122,7 +125,16 @@ describe("ProjectSocialPage", () => {
     );
 
     expect(getProjectByIdMock).toHaveBeenCalledWith(PROJECT.id);
-    expect(listSocialPostsMock).toHaveBeenCalledWith(PROJECT.id);
+    expect(listSocialPostsMock).toHaveBeenCalledTimes(3);
+    expect(listSocialPostsMock).toHaveBeenCalledWith(PROJECT.id, {
+      statuses: ["DRAFT"],
+    });
+    expect(listSocialPostsMock).toHaveBeenCalledWith(PROJECT.id, {
+      statuses: ["SCHEDULED", "PUBLISHING"],
+    });
+    expect(listSocialPostsMock).toHaveBeenCalledWith(PROJECT.id, {
+      statuses: ["PUBLISHED", "FAILED", "MISSED", "CANCELED"],
+    });
     expect(listSocialConnectionsMock).toHaveBeenCalledWith(PROJECT.id);
     expect(screen.getByRole("link", { name: "backToProject" })).toHaveAttribute(
       "href",

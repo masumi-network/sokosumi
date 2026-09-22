@@ -1,7 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
 import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
-import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import {
+  jsonErrorResponse,
+  jsonPaginatedSuccessResponse,
+} from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
@@ -31,7 +34,10 @@ const route = withOrganizationSlugHeaderParameter(
       query: listSocialPostsQuerySchema,
     },
     responses: {
-      200: jsonSuccessResponse(z.array(socialPostSchema), "Social posts"),
+      200: jsonPaginatedSuccessResponse(
+        z.array(socialPostSchema),
+        "Social posts",
+      ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
@@ -47,15 +53,17 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     await requireCalendarBetaAccess(userContext.userId, prisma);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");
-    const { status: statuses } = c.req.valid("query");
+    const { status: statuses, cursor, limit } = c.req.valid("query");
 
     try {
-      const posts = await listSocialPosts({
+      const { posts, pagination } = await listSocialPosts({
         projectId,
         workspaceId: workspaceContext.workspaceId,
         statuses,
+        cursor,
+        limit,
       });
-      return ok(c, z.array(socialPostSchema).parse(posts));
+      return ok(c, z.array(socialPostSchema).parse(posts), pagination);
     } catch (error) {
       return mapSocialPostServiceError(error);
     }

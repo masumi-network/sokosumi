@@ -2264,6 +2264,8 @@
         }
       },
       "SocialPosts": {
+        "loadMore": "Cargar más",
+        "loading": "Cargando…",
         "title": "Publicaciones sociales",
         "description": "Redacta publicaciones de texto para X y prográmalas desde este proyecto.",
         "newPost": "Nueva publicación",

@@ -34095,6 +34095,14 @@ export type GetProjectsByIdSocialPostsData = {
     };
     query?: {
         /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        /**
          * Comma-separated Social post statuses to include
          */
         status?: string;
@@ -34191,7 +34199,7 @@ export type GetProjectsByIdSocialPostsResponses = {
         meta: {
             timestamp: Date;
             requestId: string;
-            pagination?: PaginationMetadata;
+            pagination: PaginationMetadata;
         };
     };
 };
