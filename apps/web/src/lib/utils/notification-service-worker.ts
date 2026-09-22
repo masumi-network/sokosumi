@@ -263,12 +263,12 @@ export function isPushSupported(): boolean {
  * the two Apple cases, a tab from an installed app, which is the line this is
  * drawn on.
  *
- * The property belongs to the browser rather than to the platform, and the
- * cases it does not cover follow from that. Since 16.4 a third-party browser
- * on iOS can add a web app to the Home Screen too, and one that leaves this
- * undefined reads here as any other platform: its reader keeps the message
- * they get today rather than gaining a wrong one. Whether an embedded web
- * view sets it, and to what, is not determined.
+ * The property belongs to the browser rather than to the platform, so a
+ * third-party browser on iOS may not set it, and since 16.4 those can add a
+ * web app to the Home Screen too. `isAppleBrowserUserAgent` picks those up,
+ * and only where the property is absent. Whether an embedded web view sets
+ * it, and to what, is not determined; one that set it to false would put an
+ * instruction in front of a reader whose share sheet cannot carry it out.
  *
  * Nothing here reads the user agent. iPadOS sends Safari's macOS string, and
  * a reader who taps Request Desktop Website gives an iPhone the same, so
@@ -284,10 +284,44 @@ export function isPushInstallable(): boolean {
     return false;
   }
 
-  // Undefined is every other platform, true is the installed app, and false is
-  // the one reader this is for.
-  return readAppleStandalone() === false;
+  const standalone = readAppleStandalone();
+  // True is the installed app and false is the reader this is for. Undefined
+  // is every other platform, and the browsers on this one that do not set it.
+  if (standalone !== undefined) {
+    return standalone === false;
+  }
+
+  return isAppleBrowserUserAgent();
 }
+
+/**
+ * Whether the user agent names a browser that exists on iOS and iPadOS alone.
+ *
+ * The one user-agent read here, and the last resort: it runs only where
+ * `navigator.standalone` is absent, so on a browser that sets the property
+ * this never runs and decides nothing. Since 16.4 a third-party browser on
+ * iOS can add a web app to the Home Screen, and no feature separates one from
+ * an Android web view, which has the same service worker, the same missing
+ * push and the same touch. The name is what is left.
+ *
+ * Each token exists on iOS alone. Desktop Chrome says `Chrome`, desktop Edge
+ * `Edg`, desktop Firefox `Firefox`, and none of the three says these. An
+ * in-app web view on any platform says none of them either, which is why this
+ * is a list of browsers rather than a test for WebKit.
+ *
+ * A reader who asked for the desktop site drops the token and keeps today's
+ * message. That is the same limit `navigator.standalone` has, and the same
+ * direction to fail in: a reader told nothing new, rather than one told to
+ * tap a button their browser does not have.
+ */
+function isAppleBrowserUserAgent(): boolean {
+  return APPLE_ONLY_BROWSER_TOKENS.some((token) =>
+    navigator.userAgent.includes(token),
+  );
+}
+
+/** Chrome, Firefox and Edge for iOS, which ship under names of their own. */
+const APPLE_ONLY_BROWSER_TOKENS = ["CriOS", "FxiOS", "EdgiOS"] as const;
 
 /**
  * `navigator.standalone`, which is not in the DOM library because no standard
