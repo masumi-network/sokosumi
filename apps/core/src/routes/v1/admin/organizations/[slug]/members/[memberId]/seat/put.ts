@@ -7,6 +7,7 @@ import { internalServerError, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { adminOrganizationMemberIdParamSchema } from "@/schemas/admin.schema";
 import { organizationSeatAssignmentSchema } from "@/schemas/organization-seat.schema";
@@ -30,6 +31,7 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("Conflict"),
     500: jsonErrorResponse("Internal Server Error"),
   },
 });
@@ -44,7 +46,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     try {
-      const result = await prisma.$transaction(async (tx) => {
+      // Serializable so the capacity count and the seat write commit as one
+      // unit (SOK-1007): two concurrent assignments cannot both read the same
+      // count, both pass the capacity check and both write.
+      const result = await serializableTransaction(async (tx) => {
         const billingPlan = await resolveOrganizationBillingPlan(
           organization.id,
           tx,
@@ -66,7 +71,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           memberId: member.id,
           seatAssignedAt: member.seatAssignedAt,
         };
-      });
+      }, "Seat assignment lost a concurrent update. Try again.");
 
       return ok(c, organizationSeatAssignmentSchema.parse(result));
     } catch (error) {

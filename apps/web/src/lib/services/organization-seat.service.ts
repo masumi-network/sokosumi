@@ -8,6 +8,9 @@ import { APIError } from "better-auth/api";
 
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
+/** Core's `kind` for a serializable-transaction conflict (SOK-1007). */
+const CONCURRENCY_CONFLICT_KIND = "concurrency_conflict";
+
 export interface OrganizationSeatSummary {
   assignedCount: number;
   memberCount: number;
@@ -26,7 +29,8 @@ export interface OrganizationSeatSummary {
  *
  * Disambiguation matches the machine-readable `kind` from the Core error
  * envelope first; the legacy status(+message) checks remain as a fallback for
- * responses without a kind.
+ * responses without a kind. A 409 means Core lost the serialization race on
+ * the seat write; the same request is safe to retry unchanged.
  */
 function mapCoreSeatWriteError(error: unknown): never {
   if (!(error instanceof CoreApiRequestError)) {
@@ -59,6 +63,12 @@ function mapCoreSeatWriteError(error: unknown): never {
   ) {
     throw new APIError("BAD_REQUEST", {
       message: error.message,
+    });
+  }
+
+  if (error.kind === CONCURRENCY_CONFLICT_KIND || error.status === 409) {
+    throw new APIError("CONFLICT", {
+      message: "Another seat change was in progress. Try again.",
     });
   }
 

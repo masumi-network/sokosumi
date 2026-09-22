@@ -268,6 +268,17 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     expect(memberUpdateMock.mock.calls[0]?.[0].data.seatAssignedAt).toBeNull();
   });
 
+  it("persists the seat change in a serializable transaction", async () => {
+    setMembership("owner");
+
+    const response = await updateSeats("org_123", 5);
+
+    expect(response.status).toBe(200);
+    expect(transactionMock).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: "Serializable",
+    });
+  });
+
   it("unassigns overflow if the local seat write fails after Stripe", async () => {
     setMembership("owner");
     memberFindManyMock.mockResolvedValue([

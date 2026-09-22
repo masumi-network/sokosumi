@@ -9699,6 +9699,21 @@ export type AssignAdminOrganizationMemberSeatErrors = {
         };
     };
     /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Internal Server Error
      */
     500: {
@@ -28257,6 +28272,21 @@ export type PutOrganizationsByIdMembersByMemberIdSeatErrors = {
         };
     };
     /**
+     * Conflict - A concurrent seat change kept winning the race
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Internal Server Error
      */
     500: {
@@ -30225,6 +30255,21 @@ export type PutOrganizationsByIdSubscriptionSeatsErrors = {
      * Not Found - Organization not found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - A concurrent seat change kept winning the race
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;

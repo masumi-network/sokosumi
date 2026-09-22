@@ -255,6 +255,37 @@ describe("PUT /organizations/{id}/members/{memberId}/seat", () => {
     expect(ensureLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
   });
 
+  it("assigns the seat in a serializable transaction", async () => {
+    setMembership("owner");
+
+    const response = await assignSeat("org_123", "member_456");
+
+    expect(response.status).toBe(200);
+    expect(transactionMock).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: "Serializable",
+    });
+  });
+
+  it("returns 409 when the assignment keeps losing the serialization race", async () => {
+    setMembership("owner");
+    transactionMock.mockRejectedValue(
+      Object.assign(new Error("Transaction failed"), { code: "P2034" }),
+    );
+    vi.useFakeTimers();
+    try {
+      const pending = assignSeat("org_123", "member_456");
+      await vi.runAllTimersAsync();
+      const response = await pending;
+
+      expect(response.status).toBe(409);
+      expect(await response.text()).toContain(
+        "Seat assignment lost a concurrent update. Try again.",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("returns 404 when the member does not exist", async () => {
     setMembership("owner");
     assignSeatMock.mockRejectedValue(new Error("Member not found"));

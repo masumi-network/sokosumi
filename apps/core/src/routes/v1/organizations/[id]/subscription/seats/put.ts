@@ -16,6 +16,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import {
@@ -69,9 +70,15 @@ const route = createRoute({
       "Forbidden - You must be an organization owner or admin",
     ),
     404: jsonErrorResponse("Not Found - Organization not found"),
+    409: jsonErrorResponse(
+      "Conflict - A concurrent seat change kept winning the race",
+    ),
     500: jsonErrorResponse("Internal Server Error"),
   },
 });
+
+const SEAT_CHANGE_CONFLICT_MESSAGE =
+  "Seat update lost a concurrent update. Try again.";
 
 /**
  * Pushes the new quantity to the first Stripe subscription item, invoicing
@@ -99,12 +106,17 @@ async function increaseStripeSubscriptionSeats(
   );
 }
 
+/**
+ * Serializable so the purchased-seat write and the overflow unassign commit
+ * as one unit (SOK-1007): a concurrent seat assignment cannot read the old
+ * capacity, pass its check and land after the reduction.
+ */
 async function persistPurchasedSeatsAndUnassignOverflow(params: {
   subscriptionId: string;
   organizationId: string;
   seats: number;
 }): Promise<void> {
-  await prisma.$transaction(async (tx) => {
+  await serializableTransaction(async (tx) => {
     await tx.subscription.update({
       where: { id: params.subscriptionId },
       data: { seats: params.seats },
@@ -114,7 +126,7 @@ async function persistPurchasedSeatsAndUnassignOverflow(params: {
       params.seats,
       tx,
     );
-  });
+  }, SEAT_CHANGE_CONFLICT_MESSAGE);
 }
 
 export default function mount(app: OpenAPIHonoWithAuth) {
@@ -205,9 +217,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           seats,
         });
       } catch {
-        await prisma.$transaction(async (tx) => {
+        await serializableTransaction(async (tx) => {
           await unassignSeatsOverPurchasedCapacity(organization.id, seats, tx);
-        });
+        }, SEAT_CHANGE_CONFLICT_MESSAGE);
         throw error;
       }
     }
