@@ -428,7 +428,21 @@ struct ChatRealtimeTests {
     let store = UserDefaultsRealtimeInstanceIdStore(defaults: defaults)
     let id = getOrCreateRealtimeClientInstanceId(store: store) { "inst_persist000001" }
     #expect(id == "inst_persist000001")
-    #expect(defaults.string(forKey: "sokosumi.ablyClientInstanceId") == "inst_persist000001")
+    #expect(defaults.string(forKey: "sokosumi.ablyClientInstanceId.v1") == "inst_persist000001")
+    #expect(defaults.string(forKey: "sokosumi.ablyClientInstanceId") == nil)
+    defaults.removePersistentDomain(forName: suite)
+  }
+
+  @Test func instanceIdMigratesLegacyUserDefaultsKey() throws {
+    let suite = "sokosumi-realtime-instance-id.\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: suite))
+    defaults.removePersistentDomain(forName: suite)
+    defaults.set("inst_legacy0000001", forKey: "sokosumi.ablyClientInstanceId")
+    let store = UserDefaultsRealtimeInstanceIdStore(defaults: defaults)
+    let id = getOrCreateRealtimeClientInstanceId(store: store) { "inst_changed0000002" }
+    #expect(id == "inst_legacy0000001")
+    #expect(defaults.string(forKey: "sokosumi.ablyClientInstanceId.v1") == "inst_legacy0000001")
+    #expect(defaults.string(forKey: "sokosumi.ablyClientInstanceId") == nil)
     defaults.removePersistentDomain(forName: suite)
   }
 
