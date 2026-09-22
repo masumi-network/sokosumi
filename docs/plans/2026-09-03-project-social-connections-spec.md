@@ -36,7 +36,7 @@ The initial release creates the foundation only. It does not compose, post, uplo
 16. As a coworker, orchestrator, or API-key caller, I cannot initiate, inspect, reconnect, replace, or disconnect a Project social connection, so that external publishing credentials remain human-managed.
 17. As a human outside the Project's Workspace, I cannot learn whether or which X accounts that Project uses, so that Project social identity remains private.
 18. As a support engineer, I can investigate a connection lifecycle from non-secret audit records, so that failed or revoked connections are diagnosable without exposing OAuth values.
-19. As a Project owner, I expect a future Project close to disable and disconnect its Social connections while retaining non-executable audit records, so that a terminal Project keeps no publishing authority.
+19. As a Project owner, I expect Project close to disable and disconnect its Social connections while retaining non-executable audit records, so that a terminal Project keeps no publishing authority.
 20. As a security reviewer, I want Composio and X secrets to remain server-side, so that browser clients and automation actors never receive reusable publishing credentials.
 
 ## Implementation Decisions
@@ -49,10 +49,10 @@ The initial release creates the foundation only. It does not compose, post, uplo
 - **Identity-safe OAuth.** Core authorizes the Project and creates the intent before returning a Composio-hosted link. The intent binds the Project, initiating human, provider, custom X auth configuration, expected connection, and callback completion. Callback identity verification must prove the same human identity that initiated the flow. Core validates the completed account against the intent before persisting it.
 - **Reconnect and replace.** Reconnect authorizes the same external X identity only. Replace first removes the old Project authorization and then initiates a distinct connection flow; it may not mutate an existing connection into a different identity.
 - **Disconnect and provider revocation.** Disconnect immediately makes the Project social connection non-executable and writes an audit record. It must not affect another Project's valid authorization. Provider-side revocation runs only when no remaining Project social connection references that underlying Composio connection. A failed provider revocation remains visible in the audit record while local use stays blocked.
-- **Project lifecycle.** A future Project-close command must use the same disconnect lifecycle for every active Project social connection. Creating a Project-close feature is not part of this release because no such product command exists today.
+- **Project lifecycle.** The existing Project-close command disconnects social connections locally, expires pending OAuth intents, and retries provider cleanup before marking the Project closed. Closing or closed Projects reject new connections and finalization. Projects with social connection history or pending intents must be closed rather than deleted, preserving audit records.
 - **Composio boundary.** Core uses Composio's current API for a customer-owned X OAuth application and custom X auth configuration. Composio stores and refreshes provider tokens; Core remains the authority for all Project checks, scheduler permission, state transitions, and audit data. Use a stable user-scoped connector identity for callback verification and a Core-only Project executor identity for later restricted posting sessions.
 - **Least privilege.** Use X's post-related OAuth scopes plus renewable access, but do not request media scope until media publishing exists. The initial identity session pins one connected account and enables only `TWITTER_USER_LOOKUP_ME`; future publishing sessions enable only the post-creation tool. No session may expose broad toolkit discovery, proxy execution, sandbox, triggers, or browser-exposed Composio keys.
-- **Audit.** Record connect, reconnect, replace, disconnect, provider-revocation outcome, and future Project-close actions with the Project, connection, external identity, actor or scheduler, timestamps, and non-secret provider outcome. The release writes this data but does not add a history UI.
+- **Audit.** Record connect, reconnect, replace, disconnect, provider-revocation outcome, and Project-close actions with the Project, connection, external identity, actor or scheduler, timestamps, and non-secret provider outcome. The release writes this data but does not add a history UI.
 - **Web to Core boundary.** Add documented Core endpoints and regenerate the Web Core client. Web coordinates popup state and Project-settings feedback through its service/action layer; it does not access Prisma, Composio, X, or OAuth values directly.
 - **Operational configuration.** Each environment needs its own customer-owned X developer application and Composio custom X auth configuration. Core receives only the scoped Composio project API key and X auth-config identifier. X app setup, billing plan, callback registration, scoped Composio permissions, IP policy, and Composio data-retention configuration are deployment prerequisites.
 
@@ -77,7 +77,6 @@ The initial release creates the foundation only. It does not compose, post, uplo
 - Supporting providers other than X or exposing a generic provider marketplace.
 - Showing cross-Project or cross-Workspace account inventory.
 - A Project social-connection history UI or end-user audit-log page.
-- Building the missing Project-close command itself.
 - Automating X developer-account approval, X API plan purchase, Composio custom auth-config setup, provider callback registration, or production secrets provisioning.
 
 ## Further Notes

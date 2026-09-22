@@ -64,6 +64,17 @@ const {
   txProjectCloseOperationUpdateManyMock: vi.fn(),
 }));
 
+const { getPendingSocialRevocationMock, revokeSocialForCloseMock } = vi.hoisted(
+  () => ({
+    getPendingSocialRevocationMock: vi.fn(),
+    revokeSocialForCloseMock: vi.fn(),
+  }),
+);
+vi.mock("@/services/project-social-connections.service", () => ({
+  getPendingProjectSocialRevocation: getPendingSocialRevocationMock,
+  revokeProjectSocialConnectionForClose: revokeSocialForCloseMock,
+}));
+
 vi.mock("@/helpers/calendar-locks", () => ({
   lockCalendarScope: lockCalendarScopeMock,
   lockTaskRows: lockTaskRowsMock,
@@ -158,6 +169,8 @@ function options() {
 describe("project close sync", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getPendingSocialRevocationMock.mockReset().mockResolvedValue(null);
+    revokeSocialForCloseMock.mockReset().mockResolvedValue(undefined);
     prismaMock.$transaction = transactionMock;
     prismaMock.projectCloseOperation.findFirst =
       projectCloseOperationFindFirstMock;
@@ -670,6 +683,124 @@ describe("project close sync", () => {
         }),
       }),
     );
+  });
+
+  it("waits for social authorization revocation before closing the project", async () => {
+    const pending = { connectedAccountId: "ca_project" };
+    taskFindFirstMock.mockResolvedValue(null);
+    getPendingSocialRevocationMock.mockResolvedValueOnce(pending);
+    let finishRevocation: (() => void) | undefined;
+    revokeSocialForCloseMock.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishRevocation = resolve;
+        }),
+    );
+
+    const sync = projectCloseSyncService.syncProjectCloses(options());
+    await vi.waitFor(() =>
+      expect(revokeSocialForCloseMock).toHaveBeenCalledWith(pending),
+    );
+
+    expect(projectUpdateMock).not.toHaveBeenCalled();
+    expect(notifyProjectCloseTransitionMock).not.toHaveBeenCalled();
+    finishRevocation?.();
+    const result = await sync;
+
+    expect(result).toMatchObject({ closed: 1, failed: 0 });
+    expect(projectUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: PROJECT_ID },
+        data: expect.objectContaining({ closedAt: expect.any(Date) }),
+      }),
+    );
+    expect(notifyProjectCloseTransitionMock).toHaveBeenCalledWith(
+      "project_event_123",
+    );
+  });
+
+  it("keeps a failed social revocation retryable without closing the project", async () => {
+    const pending = { connectedAccountId: "ca_project" };
+    taskFindFirstMock.mockResolvedValue(null);
+    projectCloseOperationFindFirstMock.mockResolvedValue({
+      attempts: 0,
+      projectId: PROJECT_ID,
+    });
+    getPendingSocialRevocationMock.mockResolvedValueOnce(pending);
+    revokeSocialForCloseMock.mockRejectedValueOnce(
+      new Error("Provider unavailable"),
+    );
+
+    const result = await projectCloseSyncService.syncProjectCloses(options());
+
+    expect(result).toMatchObject({ closed: 0, failed: 0 });
+    expect(projectUpdateMock).not.toHaveBeenCalled();
+    expect(notifyProjectCloseTransitionMock).not.toHaveBeenCalled();
+    expect(txProjectCloseOperationUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: CLOSE_ID,
+          leaseToken: expect.any(String),
+        }),
+        data: expect.objectContaining({
+          state: ProjectCloseOperationState.CLOSING,
+          attempts: 1,
+          leaseToken: null,
+          leasedAt: null,
+          nextAttemptAt: expect.any(Date),
+          failureSummary: {
+            seriesTaskId: null,
+            message: "Project work could not be closed",
+          },
+        }),
+      }),
+    );
+    expect(projectEventCreateMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ kind: "CLOSE_FINALIZED" }),
+      }),
+    );
+
+    getPendingSocialRevocationMock.mockResolvedValueOnce(pending);
+    const retry = await projectCloseSyncService.syncProjectCloses(options());
+
+    expect(revokeSocialForCloseMock).toHaveBeenCalledTimes(2);
+    expect(retry.closed).toBe(1);
+  });
+
+  it("bounds social revocation batches to ten and resumes before closing", async () => {
+    taskFindFirstMock.mockResolvedValue(null);
+    for (let index = 0; index < 11; index += 1) {
+      getPendingSocialRevocationMock.mockResolvedValueOnce({
+        connectedAccountId: `ca_${index}`,
+      });
+    }
+
+    const first = await projectCloseSyncService.syncProjectCloses(options());
+
+    expect(first.closed).toBe(0);
+    expect(revokeSocialForCloseMock).toHaveBeenCalledTimes(10);
+    expect(projectUpdateMock).not.toHaveBeenCalled();
+    expect(projectCloseOperationUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        id: CLOSE_ID,
+        state: ProjectCloseOperationState.CLOSING,
+        leaseToken: expect.any(String),
+      },
+      data: {
+        leaseToken: null,
+        leasedAt: null,
+        nextAttemptAt: expect.any(Date),
+      },
+    });
+
+    const second = await projectCloseSyncService.syncProjectCloses(options());
+
+    expect(revokeSocialForCloseMock).toHaveBeenCalledTimes(11);
+    expect(revokeSocialForCloseMock).toHaveBeenLastCalledWith({
+      connectedAccountId: "ca_10",
+    });
+    expect(second.closed).toBe(1);
   });
 
   it("releases claims it cannot start before the deadline", async () => {

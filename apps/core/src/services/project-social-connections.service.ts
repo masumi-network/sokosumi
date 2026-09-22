@@ -1,12 +1,16 @@
+import type { Prisma } from "@sokosumi/database";
+
 import {
   ComposioApiError,
   ComposioConfigError,
+  deleteProjectXConnectionIntent,
   getConnectedXIdentity,
   getProjectXConnectedAccount,
   initiateProjectXConnection,
   revokeProjectXConnection,
 } from "@/clients/composio.client";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
+import { lockCalendarScope } from "@/helpers/calendar-locks";
 import { conflict, notFound } from "@/helpers/error";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
@@ -173,17 +177,33 @@ function isLiveIntent(
   );
 }
 
-async function requireScopedProject(input: {
-  projectId: string;
-  workspaceId: string;
-}): Promise<void> {
-  const project = await prisma.project.findFirst({
+async function requireScopedProject(
+  input: { projectId: string; workspaceId: string },
+  client: Pick<Prisma.TransactionClient, "project"> = prisma,
+  requireOpen = false,
+): Promise<void> {
+  const project = await client.project.findFirst({
     where: { id: input.projectId, workspaceId: input.workspaceId },
-    select: { id: true },
+    select: { id: true, closingAt: true, closedAt: true },
   });
   if (!project) {
     throw notFound("Project not found");
   }
+  if (requireOpen && (project.closingAt || project.closedAt)) {
+    throw conflict(
+      "Cannot connect social accounts to a closing or closed Project",
+    );
+  }
+}
+
+async function requireLockedOpenProject(
+  tx: Prisma.TransactionClient,
+  input: { projectId: string; workspaceId: string },
+): Promise<void> {
+  if (!(await lockCalendarScope(tx, input.workspaceId, [input.projectId]))) {
+    throw notFound("Project not found");
+  }
+  await requireScopedProject(input, tx, true);
 }
 
 async function requireTargetConnection(input: {
@@ -260,7 +280,7 @@ async function refreshActiveConnectionStatus(
 export async function initiateProjectSocialConnection(
   input: InitiateProjectSocialConnectionInput,
 ): Promise<{ connectionId: string; redirectUrl: string }> {
-  await requireScopedProject(input);
+  await requireScopedProject(input, prisma, true);
   if (input.action === "connect" && input.socialConnectionId) {
     throw conflict("A new connection cannot target an existing social account");
   }
@@ -272,6 +292,7 @@ export async function initiateProjectSocialConnection(
   const authConfigId = requireProjectXAuthConfigId();
   if (input.action === "replace") {
     const retiredConnection = await serializableTransaction(async (tx) => {
+      await requireLockedOpenProject(tx, input);
       const target = await tx.projectSocialConnection.findFirst({
         where: {
           id: input.socialConnectionId ?? "",
@@ -283,29 +304,12 @@ export async function initiateProjectSocialConnection(
       }
       requireInitiationTargetState(target, "replace");
 
-      await tx.projectSocialConnection.update({
-        where: { id: target.id },
-        data: {
-          status: "disconnected",
-          activeExternalAccountKey: null,
-          disconnectedAt: new Date(),
-        },
-      });
-      const audit = await tx.projectSocialConnectionAudit.create({
-        data: {
-          projectSocialConnectionId: target.id,
-          action: "replace_retire",
-          actorId: input.userId,
-          externalAccountId: target.externalAccountId,
-          externalHandle: target.externalHandle,
-          providerOutcome: "local_disconnect",
-        },
-      });
-      return {
-        auditId: audit.id,
-        connectedAccountId: target.composioConnectedAccountId,
-        socialConnectionId: target.id,
-      };
+      return retireProjectSocialConnection(
+        tx,
+        target,
+        input.userId,
+        "replace_retire",
+      );
     }, "Project social connection changed. Please retry.");
 
     await revokeRetiredProjectXConnection(retiredConnection);
@@ -317,18 +321,29 @@ export async function initiateProjectSocialConnection(
     executorUserId: projectExecutorUserId(input.projectId),
     callbackUrl: `${getWebAppBaseUrl()}/composio/callback`,
   });
-  await prisma.projectSocialConnectionIntent.create({
-    data: {
-      connectionId: connection.connectionId,
-      projectId: input.projectId,
-      initiatingUserId: input.userId,
-      provider: input.provider,
-      action: input.action,
-      socialConnectionId: input.socialConnectionId ?? null,
-      authConfigId,
-      expiresAt: new Date(Date.now() + INTENT_TTL_MS),
-    },
-  });
+  try {
+    await serializableTransaction(async (tx) => {
+      await requireLockedOpenProject(tx, input);
+      await tx.projectSocialConnectionIntent.create({
+        data: {
+          connectionId: connection.connectionId,
+          projectId: input.projectId,
+          initiatingUserId: input.userId,
+          provider: input.provider,
+          action: input.action,
+          socialConnectionId: input.socialConnectionId ?? null,
+          authConfigId,
+          expiresAt: new Date(Date.now() + INTENT_TTL_MS),
+        },
+      });
+    }, "Project changed while connecting a social account");
+  } catch (error) {
+    // The hosted link has not left Core, so this unclaimed account cannot be used.
+    await deleteProjectXConnectionIntent({
+      connectedAccountId: connection.connectionId,
+    });
+    throw error;
+  }
 
   return connection;
 }
@@ -336,7 +351,7 @@ export async function initiateProjectSocialConnection(
 export async function finalizeProjectSocialConnection(
   input: FinalizeProjectSocialConnectionInput,
 ): Promise<ProjectSocialConnectionSummary> {
-  await requireScopedProject(input);
+  await requireScopedProject(input, prisma, true);
   const intent = await prisma.projectSocialConnectionIntent.findUnique({
     where: { connectionId: input.connectionId },
   });
@@ -365,6 +380,7 @@ export async function finalizeProjectSocialConnection(
   });
   const { summary, retiredConnection } = await serializableTransaction(
     async (tx) => {
+      await requireLockedOpenProject(tx, input);
       const now = new Date();
       const currentIntent = await tx.projectSocialConnectionIntent.findUnique({
         where: { connectionId: input.connectionId },
@@ -576,31 +592,34 @@ export async function disconnectProjectSocialConnection(
   }
 
   const now = new Date();
-  const { auditId, connection } = await serializableTransaction(async (tx) => {
-    const disconnectedConnection = await tx.projectSocialConnection.update({
-      where: { id: existing.id },
-      data: {
-        status: "disconnected",
-        activeExternalAccountKey: null,
-        disconnectedAt: now,
-      },
-    });
-    const audit = await tx.projectSocialConnectionAudit.create({
-      data: {
-        projectSocialConnectionId: existing.id,
-        action: "disconnect",
-        actorId: input.userId,
-        externalAccountId: existing.externalAccountId,
-        externalHandle: existing.externalHandle,
-        providerOutcome: "local_disconnect",
-      },
-    });
-    return { auditId: audit.id, connection: disconnectedConnection };
-  }, "Project social connection changed. Please retry.");
+  const { auditId, connectedAccountId, connection } =
+    await serializableTransaction(async (tx) => {
+      if (!(await lockCalendarScope(tx, input.workspaceId, [input.projectId])))
+        throw notFound("Project not found");
+      const current = await tx.projectSocialConnection.findUnique({
+        where: { id: existing.id },
+      });
+      if (!current) throw notFound("Project social connection not found");
+      const retired = await retireProjectSocialConnection(
+        tx,
+        current,
+        input.userId,
+        "disconnect",
+      );
+      return {
+        ...retired,
+        connection: {
+          ...current,
+          status: "disconnected",
+          activeExternalAccountKey: null,
+          disconnectedAt: now,
+        },
+      };
+    }, "Project social connection changed. Please retry.");
 
   const providerRevocation = await revokeRetiredProjectXConnection({
     auditId,
-    connectedAccountId: existing.composioConnectedAccountId,
+    connectedAccountId,
     socialConnectionId: existing.id,
   });
   return {
@@ -612,4 +631,136 @@ export async function disconnectProjectSocialConnection(
           ? "failed"
           : "skipped",
   };
+}
+
+interface RetiredProjectSocialConnection {
+  auditId: string;
+  connectedAccountId: string;
+  socialConnectionId: string;
+}
+
+async function retireProjectSocialConnection(
+  tx: Prisma.TransactionClient,
+  connection: ProjectSocialConnectionRecord,
+  actorId: string,
+  action: "disconnect" | "replace_retire" | "project_close",
+): Promise<RetiredProjectSocialConnection> {
+  await tx.projectSocialConnection.update({
+    where: { id: connection.id },
+    data: {
+      status: "disconnected",
+      activeExternalAccountKey: null,
+      disconnectedAt: new Date(),
+    },
+  });
+  const audit = await tx.projectSocialConnectionAudit.create({
+    data: {
+      projectSocialConnectionId: connection.id,
+      action,
+      actorId,
+      externalAccountId: connection.externalAccountId,
+      externalHandle: connection.externalHandle,
+      providerOutcome: "local_disconnect",
+    },
+  });
+  return {
+    auditId: audit.id,
+    connectedAccountId: connection.composioConnectedAccountId,
+    socialConnectionId: connection.id,
+  };
+}
+
+/** Called inside the transaction that marks the locked Project as closing. */
+export async function retireProjectSocialConnectionsForClose(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+  actorId: string,
+): Promise<void> {
+  const connections = await tx.projectSocialConnection.findMany({
+    where: {
+      projectId,
+      OR: [
+        { status: { not: "disconnected" } },
+        {
+          audits: {
+            some: {
+              action: { in: ["disconnect", "replace_retire"] },
+              providerOutcome: {
+                in: ["local_disconnect", "revocation_failed"],
+              },
+            },
+          },
+        },
+      ],
+    },
+  });
+  for (const connection of connections) {
+    await retireProjectSocialConnection(
+      tx,
+      connection,
+      actorId,
+      "project_close",
+    );
+  }
+  await tx.projectSocialConnectionIntent.updateMany({
+    where: { projectId },
+    data: { expiresAt: new Date() },
+  });
+}
+
+interface ProjectSocialRevocation {
+  connectedAccountId: string;
+  retirement?: RetiredProjectSocialConnection;
+}
+
+/** Audit outcomes and expired intents retain provider cleanup work across retries. */
+export async function getPendingProjectSocialRevocation(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+): Promise<ProjectSocialRevocation | null> {
+  const audit = await tx.projectSocialConnectionAudit.findFirst({
+    where: {
+      action: "project_close",
+      providerOutcome: { in: ["local_disconnect", "revocation_failed"] },
+      projectSocialConnection: { projectId },
+    },
+    orderBy: { id: "asc" },
+    include: { projectSocialConnection: true },
+  });
+  if (audit) {
+    const connection = audit.projectSocialConnection;
+    return {
+      connectedAccountId: connection.composioConnectedAccountId,
+      retirement: {
+        auditId: audit.id,
+        socialConnectionId: connection.id,
+        connectedAccountId: connection.composioConnectedAccountId,
+      },
+    };
+  }
+  const intent = await tx.projectSocialConnectionIntent.findFirst({
+    where: { projectId },
+    orderBy: { connectionId: "asc" },
+    select: { connectionId: true },
+  });
+  return intent ? { connectedAccountId: intent.connectionId } : null;
+}
+
+export async function revokeProjectSocialConnectionForClose(
+  pending: ProjectSocialRevocation,
+): Promise<void> {
+  if (pending.retirement) {
+    if (
+      (await revokeRetiredProjectXConnection(pending.retirement)) === "failed"
+    ) {
+      throw new Error("Social account authorization could not be revoked");
+    }
+    return;
+  }
+  await deleteProjectXConnectionIntent({
+    connectedAccountId: pending.connectedAccountId,
+  });
+  await prisma.projectSocialConnectionIntent.deleteMany({
+    where: { connectionId: pending.connectedAccountId },
+  });
 }

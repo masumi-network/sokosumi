@@ -84,4 +84,49 @@ describe("initiateProjectXConnection", () => {
       httpStatus: 503,
     });
   });
+  it.each([200, 404])(
+    "permanently deletes unfinished accounts idempotently (%s)",
+    async (status) => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValue(new Response("{}", { status }));
+      vi.stubGlobal("fetch", fetchMock);
+      const { deleteProjectXConnectionIntent } = await import(
+        "./composio.client"
+      );
+      await deleteProjectXConnectionIntent({ connectedAccountId: "ca_123" });
+      expect(fetchMock).toHaveBeenCalledWith(
+        new URL(
+          "https://backend.composio.dev/api/v3.1/connected_accounts/ca_123?revoke_on_delete=true",
+        ),
+        expect.objectContaining({ method: "DELETE" }),
+      );
+    },
+  );
+
+  it.each(["REVOKED", "ACTIVE"])(
+    "verifies account status after a revoke conflict (%s)",
+    async (status) => {
+      vi.stubGlobal(
+        "fetch",
+        vi
+          .fn()
+          .mockResolvedValueOnce(new Response("{}", { status: 409 }))
+          .mockResolvedValueOnce(
+            new Response(
+              JSON.stringify({
+                id: "ca_123",
+                status,
+                toolkit: { slug: "twitter" },
+                auth_config: { id: "ac_x" },
+              }),
+            ),
+          ),
+      );
+      const { revokeProjectXConnection } = await import("./composio.client");
+      const result = revokeProjectXConnection({ connectedAccountId: "ca_123" });
+      if (status === "REVOKED") await expect(result).resolves.toBeUndefined();
+      else await expect(result).rejects.toMatchObject({ httpStatus: 409 });
+    },
+  );
 });

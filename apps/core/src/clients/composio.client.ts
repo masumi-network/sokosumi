@@ -385,5 +385,25 @@ export async function revokeProjectXConnection(input: {
     `/api/v3.1/connected_accounts/${encodeURIComponent(input.connectedAccountId)}/revoke`,
     { method: "POST" },
   );
+  if (response.status === 404) return;
+  if (response.status === 409) {
+    const account = await getProjectXConnectedAccount(input.connectedAccountId);
+    if (account.status === "REVOKED") return;
+  }
   await projectComposioResponse(response, "revoke Project X connection");
+}
+
+/** Permanently invalidates an unfinished OAuth link, including future redemption. */
+export async function deleteProjectXConnectionIntent(input: {
+  connectedAccountId: string;
+}): Promise<void> {
+  const response = await projectComposioFetch(
+    `/api/v3.1/connected_accounts/${encodeURIComponent(input.connectedAccountId)}?revoke_on_delete=true`,
+    { method: "DELETE" },
+  );
+  if (response.status === 404) return;
+  await projectComposioResponse(
+    response,
+    "delete unfinished Project X connection",
+  );
 }

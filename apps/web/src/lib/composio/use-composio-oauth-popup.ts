@@ -9,16 +9,13 @@ import {
   getComposioOAuthBroadcastChannelName,
   getComposioOAuthPopupName,
   isComposioOAuthCallbackPayload,
-  readPopupClosed,
 } from "@/lib/composio/oauth-popup-protocol";
 
 const POPUP_FEATURES = "popup=yes,width=560,height=720,noopener=no";
-const POPUP_POLL_INTERVAL_MS = 500;
 const POPUP_TIMEOUT_MS = 5 * 60 * 1000;
 
 export type ComposioOAuthPopupWaitResult =
   | { kind: "callback"; payload: ComposioOAuthCallbackPayload }
-  | { kind: "closed" }
   | { kind: "timeout" }
   | { kind: "cancelled" };
 
@@ -42,7 +39,6 @@ interface ActivePopupFlow {
 }
 
 function closePopup(popup: Window): void {
-  if (readPopupClosed(popup) === true) return;
   try {
     popup.close();
   } catch {
@@ -74,16 +70,11 @@ function waitForOAuthCallback(
   flow.waitPromise = new Promise((resolve) => {
     let settled = false;
     let channel: BroadcastChannel | null = null;
-    let poller: number | null = null;
     let timeout: number | null = null;
 
     function cleanup(): void {
       window.removeEventListener("message", onMessage);
       channel?.close();
-      if (poller !== null) {
-        window.clearInterval(poller);
-        poller = null;
-      }
       if (timeout !== null) {
         window.clearTimeout(timeout);
         timeout = null;
@@ -137,11 +128,8 @@ function waitForOAuthCallback(
       channel?.close();
       channel = null;
     }
-    poller = window.setInterval(() => {
-      if (readPopupClosed(flow.popup) === true) {
-        settle({ kind: "closed" });
-      }
-    }, POPUP_POLL_INTERVAL_MS);
+    // COOP can report popup.closed while the authorization window is still open.
+    // Keep listening until a callback, unmount, or the bounded timeout.
     timeout = window.setTimeout(() => {
       settle({ kind: "timeout" });
     }, POPUP_TIMEOUT_MS);

@@ -152,10 +152,6 @@ export function ProjectSocialAccounts({
           const callback = await flow.waitForCallback();
 
           if (callback.kind === "cancelled") return;
-          if (callback.kind === "closed") {
-            showFeedback({ kind: "error", message: t("errors.popupClosed") });
-            return;
-          }
           if (callback.kind === "timeout") {
             showFeedback({ kind: "error", message: t("errors.timeout") });
             return;
@@ -169,7 +165,7 @@ export function ProjectSocialAccounts({
             });
             return;
           }
-          if (payload.connectionId !== connectionId) {
+          if (payload.connectionId && payload.connectionId !== connectionId) {
             showFeedback({
               kind: "error",
               message: t("errors.legacyCallback"),

@@ -2249,7 +2249,6 @@
         "errors": {
           "inFlight": "Another X account action is already in progress.",
           "popupBlocked": "Your browser blocked the X authorization window. Allow popups and try again.",
-          "popupClosed": "The X authorization window was closed before setup finished. Try again.",
           "timeout": "X authorization took too long. Try again.",
           "providerCallback": "X authorization did not complete. Return to the Project's Social page and try again.",
           "legacyCallback": "This OAuth callback cannot verify your X account. Update the Composio callback setup and try again.",
