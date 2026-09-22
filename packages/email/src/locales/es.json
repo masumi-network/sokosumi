@@ -13,7 +13,7 @@
       "subject": "Sokosumi - Verificar dirección de email",
       "title": "Verifica tu dirección de email",
       "greeting": "Hola {name}",
-      "message": "Por favor, verifica tu dirección de email haciendo clic en el botón de abajo. Así garantizamos la seguridad de tu cuenta.",
+      "message": "Verifica tu dirección de email con el botón de abajo. Así mantenemos tu cuenta segura.",
       "button": "Verificar email",
       "linkInstructions": "O copia esta URL y pégala en tu navegador:",
       "footer": "Si no creaste una cuenta, puedes ignorar este email."
@@ -22,7 +22,7 @@
       "subject": "Sokosumi - Invitación a organización",
       "title": "Únete a {invitorUsername} en {organizationName}",
       "greeting": "Hola",
-      "message": "Has recibido una invitación para unirte a {organizationName} en Sokosumi. Haz clic en el botón de abajo para aceptarla.",
+      "message": "Has recibido una invitación para unirte a {organizationName} en Sokosumi. Acepta la invitación con el botón de abajo.",
       "button": "Aceptar invitación",
       "linkInstructions": "O copia esta URL y pégala en tu navegador:",
       "footer": "Si no solicitaste esta invitación, puedes ignorar este email."
@@ -43,7 +43,7 @@
       "subject": "Sokosumi - Invitación a canal",
       "title": "Únete a {channelName} en {organizationName}",
       "greeting": "Hola",
-      "message": "{invitorUsername} te ha invitado a unirte a {channelName} de {organizationName} en Sokosumi. Haz clic en el botón de abajo para aceptar la invitación.",
+      "message": "{invitorUsername} te ha invitado a unirte a {channelName} de {organizationName} en Sokosumi. Acepta la invitación con el botón de abajo.",
       "button": "Aceptar invitación",
       "linkInstructions": "O copia esta URL y pégala en tu navegador:",
       "footer": "Si no solicitaste esta invitación, puedes ignorar este email."
@@ -51,9 +51,9 @@
   },
   "jobs": {
     "failureNotification": {
-      "subject": "Notificación de error de job - {jobId}",
+      "subject": "Sokosumi - El job {jobId} ha fallado",
       "preview": "El job {jobId} ha fallado",
-      "title": "Notificación de error de job",
+      "title": "Tu job ha fallado",
       "description": "Un job ha fallado. Aquí están los detalles técnicos:",
       "network": "Red:",
       "agentName": "Nombre del Agent:",

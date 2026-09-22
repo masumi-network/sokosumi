@@ -127,7 +127,7 @@ describe("email renderers", () => {
       resultHash: "result-hash",
     });
 
-    expect(rendered.subject).toBe("Job Failure Notification - job-id");
+    expect(rendered.subject).toBe("Sokosumi - Job job-id failed");
     expect(rendered.html).toContain("agent-blockchain-id");
     expect(rendered.html).toContain("&quot;error&quot;: &quot;failure&quot;");
     expect(rendered.html).toContain("result-hash");
