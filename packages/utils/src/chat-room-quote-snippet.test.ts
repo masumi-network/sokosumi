@@ -117,6 +117,46 @@ describe("buildRoomQuoteSnippetParts", () => {
 
 describe("cleanChatMessageText", () => {
   /**
+   * CommonMark does not open emphasis on an underscore flanked by word
+   * characters, so an env var name is literal text and has to survive.
+   */
+  it("keeps intraword underscores in an env var name", () => {
+    expect(
+      cleanChatMessageText(
+        "I see it seems to be the COMPOSIO_X_AUTH_CONFIG_ID, correct?",
+      ),
+    ).toBe("I see it seems to be the COMPOSIO_X_AUTH_CONFIG_ID, correct?");
+  });
+
+  it("keeps intraword underscores inside emphasis", () => {
+    expect(cleanChatMessageText("**COMPOSIO_X_AUTH_CONFIG_ID** is unset")).toBe(
+      "COMPOSIO_X_AUTH_CONFIG_ID is unset",
+    );
+  });
+
+  it("still strips underscore emphasis around a word", () => {
+    expect(cleanChatMessageText("this is _very_ important")).toBe(
+      "this is very important",
+    );
+  });
+
+  /**
+   * A `+` gives characters back to a lookahead, so matching an underscore run
+   * from the middle deleted `foo__bar` while the room still printed both.
+   */
+  it("keeps a doubled underscore between words", () => {
+    expect(cleanChatMessageText("use foo__bar here")).toBe("use foo__bar here");
+  });
+
+  it("keeps an underscore between non-ascii letters", () => {
+    expect(cleanChatMessageText("变量_名")).toBe("变量_名");
+  });
+
+  it("still strips strong underscore emphasis", () => {
+    expect(cleanChatMessageText("call __init__ now")).toBe("call init now");
+  });
+
+  /**
    * A label stops at a bracket, so an unclosed `[` in front of a link is not
    * read as the start of that link's label. Reading it that way would put the
    * words of the broken bracket inside the label and drop the real one.
