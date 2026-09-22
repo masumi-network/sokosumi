@@ -109,7 +109,6 @@ export const getRecentAgentReviews = async (
   agentId: string,
   limit: number,
   tx: Prisma.TransactionClient,
-  offset: number = 0,
 ): Promise<AgentReview[]> => {
   const ratings = await tx.userAgentRating.findMany({
     where: {
@@ -128,7 +127,6 @@ export const getRecentAgentReviews = async (
     },
     orderBy: { createdAt: "desc" },
     take: limit,
-    skip: offset,
   });
 
   return ratings.map((rating) =>
