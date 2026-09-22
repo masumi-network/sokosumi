@@ -23485,9 +23485,20 @@ export type PostEnterpriseContractsByIdActivateErrors = {
         };
     };
     /**
-     * Activation blocked by an active organization subscription (see blocker in response body)
+     * Conflict. Branch on `kind`: enterprise_activation_blocked (an active organization subscription blocks activation, see blocker in the response body), concurrency_conflict (serializable-transaction contention while assigning seats, retry the SAME request unchanged).
      */
-    409: EnterpriseContractActivationConflictResponse;
+    409: EnterpriseContractActivationConflictResponse | {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unprocessable Entity
      */

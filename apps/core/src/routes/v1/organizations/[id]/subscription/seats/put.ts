@@ -213,9 +213,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           seats,
         });
       } catch {
-        await serializableTransaction(async (tx) => {
+        // Last-resort cleanup after both persist attempts failed. It stays on
+        // the default isolation level on purpose: a serialization failure here
+        // would throw its own 409 and destroy the error that actually explains
+        // the failure, reporting a hard fault as a transient one.
+        await prisma.$transaction(async (tx) => {
           await unassignSeatsOverPurchasedCapacity(organization.id, seats, tx);
-        }, SEAT_CHANGE_CONFLICT_MESSAGE);
+        });
         throw error;
       }
     }

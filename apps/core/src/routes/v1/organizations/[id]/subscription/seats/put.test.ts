@@ -274,7 +274,10 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     const response = await updateSeats("org_123", 5);
 
     expect(response.status).toBe(200);
-    expect(transactionMock).toHaveBeenCalledWith(expect.any(Function), {
+    // Not toHaveBeenCalledWith: that passes when any one call matches, so it
+    // would stay green if a later write dropped back to the default level.
+    expect(transactionMock.mock.calls).toHaveLength(1);
+    expect(transactionMock.mock.calls[0]?.[1]).toEqual({
       isolationLevel: "Serializable",
     });
   });

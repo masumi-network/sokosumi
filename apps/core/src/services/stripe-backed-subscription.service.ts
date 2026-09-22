@@ -9,6 +9,8 @@ import { subscriptionRepository } from "@sokosumi/database/repositories";
 import type Stripe from "stripe";
 
 import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
+import { SEAT_RECONCILIATION_CONFLICT_MESSAGE } from "@/services/organization-seat.service";
 
 interface StripeBackedSubscriptionForReconciliation {
   id: string;
@@ -34,7 +36,11 @@ export async function reconcileActiveStripeBackedSubscription(
   }
 
   const settledAt = new Date();
-  await prisma.$transaction(async (tx) => {
+  // Serializable so the seat reconciliation commits as one unit (SOK-1007).
+  // Postgres only aborts a serialization anomaly when both sides run at this
+  // level, so an auto-assign here has to match the assignment routes or it can
+  // still push an organization past its purchased seats.
+  await serializableTransaction(async (tx) => {
     await tx.subscription.updateMany({
       where: {
         id: {
@@ -89,7 +95,7 @@ export async function reconcileActiveStripeBackedSubscription(
       localSubscription.seats,
       tx,
     );
-  });
+  }, SEAT_RECONCILIATION_CONFLICT_MESSAGE);
 }
 
 export async function handleCheckoutSessionCompletedEvent(
