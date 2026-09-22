@@ -15,8 +15,6 @@ export interface EmailPalette {
   accentSolid: string;
   /** Border around the email card. */
   cardBorder: string;
-  /** Monospace block inside a field card. */
-  codeSurface: string;
   /** Divider lines inside the card. */
   hairline: string;
   /** Anchor colour for the copy-and-paste fallback URL. */
@@ -41,7 +39,6 @@ export const LIGHT_PALETTE: EmailPalette = {
   accentForeground: "#fafafa", // --primary-solid-foreground
   accentSolid: "#2b5c78", // --primary-solid
   cardBorder: "#e2e2e2", // --border
-  codeSurface: "#ffffff", // --background
   hairline: "#e2e2e2", // --border
   link: "#2b5c78", // --primary
   pageBackground: "#f5f5f5", // --muted
@@ -58,7 +55,6 @@ export const DARK_PALETTE: EmailPalette = {
   accentForeground: "#fafafa", // dark --primary-solid-foreground
   accentSolid: "#336d8f", // dark --primary-solid
   cardBorder: "#343434", // dark --border
-  codeSurface: "#0a0a0a", // dark --background
   hairline: "#343434", // dark --border
   link: "#5a9dc4", // dark --primary-variant
   pageBackground: "#0a0a0a", // dark --background

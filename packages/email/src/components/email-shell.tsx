@@ -41,7 +41,7 @@ const SPINE_WIDTH = 6;
 
 const RESPONSIVE_CSS = `@media only screen and (max-width: 600px) {
   .sk-pad > tbody > tr > td { padding-left: ${SPACE.md} !important; padding-right: ${SPACE.md} !important; }
-  .sk-heading { font-size: 24px !important; line-height: 32px !important; }
+  .${DARK_CLASS.heading} { font-size: 24px !important; line-height: 32px !important; }
 }`;
 
 export function EmailShell({

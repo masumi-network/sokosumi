@@ -73,7 +73,6 @@ export function nameOr(
     : t(`${NOTIFICATION_SHARED_SCOPE}.${fallbackKey}`);
 }
 
-/** The "or paste this URL" line, the same in every notification email. */
 /**
  * The footer note, with `<settings>` resolved.
  *
@@ -94,6 +93,7 @@ export function footerNote(
   });
 }
 
+/** The "or paste this URL" line, the same in every notification email. */
 export function linkInstructions(t: TranslateFn): string {
   return t(`${NOTIFICATION_SHARED_SCOPE}.linkInstructions`);
 }
