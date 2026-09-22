@@ -53,4 +53,4 @@ docs(readme): update setup instructions
 - **Links**: Reference Linear or GitHub issues
 - **Verification**: List steps (e.g., `pnpm test`, `pnpm build`)
 - **Screenshots**: Attach for UI updates
-- **Schema Changes**: Flag migration filenames and mention data scripts (`pnpm data-migration:<name>`)
+- **Schema Changes**: Flag migration filenames and mention data scripts (`pnpm --filter @sokosumi/database data-migration:<name>`). Root only aliases `pnpm data-migration:org-only-personal-workspaces`.
