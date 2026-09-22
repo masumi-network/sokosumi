@@ -1,6 +1,6 @@
 #if os(macOS)
   import AppKit
-  import Testing
+  import Testing // Required by waitForView's default source-location macro at the call site.
 
   /// Preparation is asynchronous; a fixed sleep can find only the composer
   /// or the thread's loading view on a busy CI host.
@@ -14,20 +14,15 @@
       scroll.contentInsets.bottom > 0 && (scroll.documentView?.frame.height ?? 0) > scroll.frame.height
     }
 
-    let clock = ContinuousClock()
-    let deadline = clock.now.advanced(by: .seconds(10))
     var transcript: NSScrollView?
-    repeat {
-      host.layoutSubtreeIfNeeded()
+    return try await waitForView(in: host, timeoutMessage: transcript.map {
+      "Prepared transcript did not finish initial layout: bottom inset \($0.contentInsets.bottom), document height \($0.documentView?.frame.height ?? 0), viewport height \($0.frame.height)"
+    } ?? "Prepared transcript did not appear") {
       transcript = scrollViews(host).max(by: { $0.frame.height < $1.frame.height })
-      if let transcript, isReady(transcript) {
-        return transcript
+      guard let scroll = transcript, isReady(scroll) else {
+        return nil
       }
-      try await Task.sleep(for: .milliseconds(20))
-    } while clock.now < deadline
-
-    let scroll = try #require(transcript, "Prepared transcript did not appear within 10 seconds")
-    try #require(isReady(scroll), "Prepared transcript did not finish initial layout within 10 seconds")
-    return scroll
+      return scroll
+    }
   }
 #endif
