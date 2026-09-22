@@ -404,6 +404,20 @@ interface InvoiceCreditOwner {
   userId: string | null;
 }
 
+type PermanentUnknownInvoiceCustomerReason =
+  | "customer_deleted"
+  | "resource_missing"
+  | "no_owner"
+  | "email_linked_other_customer"
+  | "owner_gone_p2025";
+
+type InvoiceCreditOwnerResolveResult =
+  | { kind: "resolved"; owner: InvoiceCreditOwner }
+  | {
+      kind: "permanent_miss";
+      reason: PermanentUnknownInvoiceCustomerReason;
+    };
+
 function isStripeResourceMissing(error: unknown): boolean {
   return (
     error !== null &&
@@ -451,18 +465,27 @@ async function writeBackOrganizationStripeCustomerId(
 
 async function retrieveStripeCustomerForInvoice(
   stripeCustomerId: string,
-): Promise<Stripe.Customer | null> {
+): Promise<
+  | { kind: "customer"; customer: Stripe.Customer }
+  | {
+      kind: "permanent_miss";
+      reason: Extract<
+        PermanentUnknownInvoiceCustomerReason,
+        "customer_deleted" | "resource_missing"
+      >;
+    }
+> {
   try {
     const customer = await stripeClient.retrieveCustomer(stripeCustomerId);
     if (customer.deleted) {
-      return null;
+      return { kind: "permanent_miss", reason: "customer_deleted" };
     }
-    return customer;
+    return { kind: "customer", customer };
   } catch (error) {
     // Missing/deleted on Stripe is permanent. Timeouts, 5xx, and rate limits
     // stay thrown so Stripe retries.
     if (isStripeResourceMissing(error)) {
-      return null;
+      return { kind: "permanent_miss", reason: "resource_missing" };
     }
     throw error;
   }
@@ -470,14 +493,19 @@ async function retrieveStripeCustomerForInvoice(
 
 async function resolveOwnerFromStripeCustomer(
   customer: Stripe.Customer,
-): Promise<InvoiceCreditOwner | null> {
+): Promise<InvoiceCreditOwnerResolveResult> {
   const metadata = customer.metadata;
   if (metadata?.customerType === "user" && metadata.userId) {
     const written = await writeBackUserStripeCustomerId(
       metadata.userId,
       customer.id,
     );
-    return written ? { organizationId: null, userId: metadata.userId } : null;
+    return written
+      ? {
+          kind: "resolved",
+          owner: { organizationId: null, userId: metadata.userId },
+        }
+      : { kind: "permanent_miss", reason: "owner_gone_p2025" };
   }
 
   if (metadata?.customerType === "organization" && metadata.organizationId) {
@@ -486,13 +514,16 @@ async function resolveOwnerFromStripeCustomer(
       customer.id,
     );
     return written
-      ? { organizationId: metadata.organizationId, userId: null }
-      : null;
+      ? {
+          kind: "resolved",
+          owner: { organizationId: metadata.organizationId, userId: null },
+        }
+      : { kind: "permanent_miss", reason: "owner_gone_p2025" };
   }
 
   const email = customer.email?.trim();
   if (!email) {
-    return null;
+    return { kind: "permanent_miss", reason: "no_owner" };
   }
 
   const user = await prisma.user.findFirst({
@@ -500,28 +531,33 @@ async function resolveOwnerFromStripeCustomer(
     select: { id: true, stripeCustomerId: true },
   });
   if (!user) {
-    return null;
+    return { kind: "permanent_miss", reason: "no_owner" };
   }
   if (user.stripeCustomerId && user.stripeCustomerId !== customer.id) {
-    return null;
+    return { kind: "permanent_miss", reason: "email_linked_other_customer" };
   }
   if (!user.stripeCustomerId) {
     const written = await writeBackUserStripeCustomerId(user.id, customer.id);
-    return written ? { organizationId: null, userId: user.id } : null;
+    return written
+      ? { kind: "resolved", owner: { organizationId: null, userId: user.id } }
+      : { kind: "permanent_miss", reason: "owner_gone_p2025" };
   }
 
-  return { organizationId: null, userId: user.id };
+  return { kind: "resolved", owner: { organizationId: null, userId: user.id } };
 }
 
 async function resolveInvoiceCreditOwner(
   stripeCustomerId: string,
-): Promise<InvoiceCreditOwner | null> {
+): Promise<InvoiceCreditOwnerResolveResult> {
   const user = await userRepository.getUserByStripeCustomerId(
     stripeCustomerId,
     prisma,
   );
   if (user) {
-    return { organizationId: null, userId: user.id };
+    return {
+      kind: "resolved",
+      owner: { organizationId: null, userId: user.id },
+    };
   }
 
   const organization =
@@ -530,19 +566,23 @@ async function resolveInvoiceCreditOwner(
       prisma,
     );
   if (organization) {
-    return { organizationId: organization.id, userId: null };
+    return {
+      kind: "resolved",
+      owner: { organizationId: organization.id, userId: null },
+    };
   }
 
-  const customer = await retrieveStripeCustomerForInvoice(stripeCustomerId);
-  if (!customer) {
-    return null;
+  const retrieved = await retrieveStripeCustomerForInvoice(stripeCustomerId);
+  if (retrieved.kind === "permanent_miss") {
+    return retrieved;
   }
 
-  return await resolveOwnerFromStripeCustomer(customer);
+  return await resolveOwnerFromStripeCustomer(retrieved.customer);
 }
 
 function capturePermanentUnknownInvoiceCustomer(params: {
   invoiceId: string;
+  reason: PermanentUnknownInvoiceCustomerReason;
   stripeCustomerId: string;
 }): void {
   Sentry.captureException(
@@ -552,10 +592,12 @@ function capturePermanentUnknownInvoiceCustomer(params: {
     {
       extra: {
         invoiceId: params.invoiceId,
+        reason: params.reason,
         stripeCustomerId: params.stripeCustomerId,
       },
       tags: {
         context: "invoice_paid_unknown_customer",
+        reason: params.reason,
         stripeEventType: "invoice.paid",
       },
     },
@@ -583,17 +625,18 @@ export async function handleInvoicePaidEvent(
       ? invoice.customer
       : invoice.customer.id;
 
-  const owner = await resolveInvoiceCreditOwner(stripeCustomerId);
-  if (!owner) {
+  const resolved = await resolveInvoiceCreditOwner(stripeCustomerId);
+  if (resolved.kind === "permanent_miss") {
     capturePermanentUnknownInvoiceCustomer({
       invoiceId,
+      reason: resolved.reason,
       stripeCustomerId,
     });
     return;
   }
 
-  const userId = owner.userId;
-  const organizationId = owner.organizationId;
+  const userId = resolved.owner.userId;
+  const organizationId = resolved.owner.organizationId;
   let purchasedSeats = 1;
 
   if (organizationId) {
