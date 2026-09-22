@@ -242,8 +242,9 @@ function MentionBadge({
    * `resolveRoomAttention` only reports this when there is no badge, and it
    * takes the badge's slot: same column, same crossfade with the menu. Muted
    * text and no pill, because it is the one number on the sidebar that is
-   * not about the reader. It caps like the badge, so a loud room cannot
-   * reflow the row.
+   * not about the reader, at the pill's own 10px and weight, so the two read
+   * as one family rather than the count looming over the mention. It caps
+   * like the badge, so a loud room cannot reflow the row.
    */
   unreadTextCount: number;
   crossfadesWithMenu: boolean;
@@ -268,7 +269,7 @@ function MentionBadge({
       {count > 0 ? (
         <MentionCountPill count={count} />
       ) : (
-        <span className="text-muted-foreground text-xs tabular-nums">
+        <span className="text-muted-foreground text-[0.625rem] leading-4 font-semibold tabular-nums">
           {roomCountLabel(unreadTextCount)}
         </span>
       )}
