@@ -183,7 +183,7 @@ export const userPreferencesResponseSchema = z.object({
   showRoomUnreadCount: z.boolean().openapi({
     description:
       "Whether chat sidebar rows show a room's unread message count. On unless the reader switched it off (ADR-0038). Display only: it changes no notification delivery",
-    example: false,
+    example: true,
   }),
   notificationPreferences: z.array(notificationPreferenceSchema).openapi({
     description:
