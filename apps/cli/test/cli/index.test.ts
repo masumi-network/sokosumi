@@ -13,7 +13,6 @@ import {
 import type { BrowserLoginOptions } from "../../src/auth/oauth.js";
 import { CLI_COMMANDS } from "../../src/cli/commands/discover.js";
 import {
-  BOOLEAN_OPTION_NAMES,
   GLOBAL_BOOLEAN_FLAG_BY_TOKEN,
   GLOBAL_VALUE_OPTIONS,
   parseArgv,
@@ -220,9 +219,10 @@ test("help lists CLI_COMMANDS and every parseArgv global flag", async () => {
   for (const name of GLOBAL_VALUE_OPTIONS) {
     assert.match(help, new RegExp(`--${escape(name)}\\b`));
   }
-  for (const name of BOOLEAN_OPTION_NAMES) {
-    assert.match(help, new RegExp(`--${escape(name)}\\b`));
-  }
+
+  const globalIndex = help.indexOf("Global options:");
+  assert.notEqual(globalIndex, -1);
+  assert.doesNotMatch(help.slice(0, globalIndex), / --/);
 
   const parsed = parseArgv([
     "--preprod",
