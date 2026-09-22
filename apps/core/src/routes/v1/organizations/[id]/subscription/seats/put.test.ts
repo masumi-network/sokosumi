@@ -21,6 +21,7 @@ const {
   memberFindManyMock,
   memberUpdateMock,
   transactionMock,
+  captureExceptionMock,
   retrieveSubscriptionWithItemsMock,
   updateSubscriptionItemQuantityMock,
 } = vi.hoisted(() => ({
@@ -32,8 +33,13 @@ const {
   memberFindManyMock: vi.fn(),
   memberUpdateMock: vi.fn(),
   transactionMock: vi.fn(),
+  captureExceptionMock: vi.fn(),
   retrieveSubscriptionWithItemsMock: vi.fn(),
   updateSubscriptionItemQuantityMock: vi.fn(),
+}));
+
+vi.mock("@sentry/node", () => ({
+  captureException: (...args: unknown[]) => captureExceptionMock(...args),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -331,6 +337,46 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     expect(memberUpdateMock.mock.calls.map((call) => call[0].where.id)).toEqual(
       ["m-newest"],
     );
+  });
+
+  it("reports the cleanup failure but still surfaces the persist error", async () => {
+    setMembership("owner");
+    memberFindManyMock.mockResolvedValue([]);
+
+    let transactionCalls = 0;
+    transactionMock.mockImplementation(async () => {
+      transactionCalls += 1;
+      // Both persist attempts fail, then the cleanup loses every
+      // serialization race and raises its own 409.
+      if (transactionCalls <= 2) {
+        throw new Error("local seat write failed");
+      }
+      throw Object.assign(new Error("Transaction failed"), { code: "P2034" });
+    });
+
+    vi.useFakeTimers();
+    try {
+      const pending = updateSeats("org_123", 1);
+      await vi.runAllTimersAsync();
+      const response = await pending;
+
+      // 500 from the persist failure, not the cleanup's 409: the caller needs
+      // the error that explains why the seat write never landed.
+      expect(response.status).toBe(500);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    // The cleanup runs serializable too: a read committed cleanup can lose
+    // the race with a concurrent assignment and leave the organization above
+    // the seat count Stripe now bills for.
+    expect(transactionMock.mock.calls[2]?.[1]).toEqual({
+      isolationLevel: "Serializable",
+    });
+    expect(captureExceptionMock.mock.calls).toHaveLength(1);
+    expect(captureExceptionMock.mock.calls[0]?.[1]).toMatchObject({
+      tags: { context: "organization_seat_reduction_cleanup" },
+    });
   });
 
   it("persists seats on retry when the first local write fails after Stripe", async () => {

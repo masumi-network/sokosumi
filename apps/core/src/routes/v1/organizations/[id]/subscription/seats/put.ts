@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import * as Sentry from "@sentry/node";
 import { MemberRole } from "@sokosumi/database";
 import {
   assertOrganizationSubscriptionChangeAllowed,
@@ -213,13 +214,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           seats,
         });
       } catch {
-        // Last-resort cleanup after both persist attempts failed. It stays on
-        // the default isolation level on purpose: a serialization failure here
-        // would throw its own 409 and destroy the error that actually explains
-        // the failure, reporting a hard fault as a transient one.
-        await prisma.$transaction(async (tx) => {
-          await unassignSeatsOverPurchasedCapacity(organization.id, seats, tx);
-        });
+        // Last-resort cleanup after both persist attempts failed. Stripe
+        // already bills the new seat count, so the overflow has to go even
+        // though the seat write did not land. Its own failure is reported and
+        // then dropped: the caller needs the error that explains the failed
+        // persist, not whatever the cleanup hit on top of it.
+        try {
+          await serializableTransaction(async (tx) => {
+            await unassignSeatsOverPurchasedCapacity(
+              organization.id,
+              seats,
+              tx,
+            );
+          }, SEAT_CHANGE_CONFLICT_MESSAGE);
+        } catch (cleanupError) {
+          Sentry.captureException(cleanupError, {
+            tags: { context: "organization_seat_reduction_cleanup" },
+            extra: { organizationId: organization.id, seats },
+          });
+        }
         throw error;
       }
     }
