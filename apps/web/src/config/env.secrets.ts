@@ -41,7 +41,6 @@ const envSecretsSchema = z.object({
     .pipe(z.url())
     .optional(),
   VERCEL_GIT_COMMIT_REF: z.string().optional(),
-  VERCEL_IMAGES_UPLOAD_DIR: z.string().default("images"),
 
   MASUMI_DESIGN_MD_API_KEY: z.string().min(1).optional(),
   MASUMI_DESIGN_MD_API_URL: z
