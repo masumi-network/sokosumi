@@ -16,6 +16,11 @@ const findOutOfCreditsTasksMock = vi.fn();
 const updateTaskMock = vi.fn();
 const updateNotificationsMock = vi.fn();
 const resolveOrganizationBillingPlanMock = vi.fn();
+const retrieveCustomerMock = vi.fn();
+const captureExceptionMock = vi.fn();
+const userUpdateMock = vi.fn();
+const organizationUpdateMock = vi.fn();
+const userFindUniqueMock = vi.fn();
 
 const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) =>
   callback({
@@ -37,6 +42,16 @@ const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) =>
 );
 
 const notifyInvoicePaidMock = vi.fn();
+
+vi.mock("@sentry/node", () => ({
+  captureException: (...args: unknown[]) => captureExceptionMock(...args),
+}));
+
+vi.mock("@/clients/stripe.client", () => ({
+  stripeClient: {
+    retrieveCustomer: (...args: unknown[]) => retrieveCustomerMock(...args),
+  },
+}));
 
 vi.mock("@/helpers/billing-notifications", () => ({
   notifyInvoicePaid: (...args: unknown[]) => notifyInvoicePaidMock(...args),
@@ -83,6 +98,13 @@ vi.mock("@/lib/db/prisma", () => ({
     creditBucket: {
       findUnique: (...args: unknown[]) =>
         findExistingOrganizationInvoiceSubscriptionBucketMock(...args),
+    },
+    organization: {
+      update: (...args: unknown[]) => organizationUpdateMock(...args),
+    },
+    user: {
+      findUnique: (...args: unknown[]) => userFindUniqueMock(...args),
+      update: (...args: unknown[]) => userUpdateMock(...args),
     },
   },
 }));
@@ -262,13 +284,103 @@ describe("handleInvoicePaidEvent", () => {
     createTransactionMock.mockResolvedValue({});
     findOutOfCreditsTasksMock.mockResolvedValue([]);
     updateTaskMock.mockResolvedValue({});
+    retrieveCustomerMock.mockResolvedValue({
+      deleted: false,
+      email: null,
+      id: "cus_1",
+      metadata: {},
+    });
+    userUpdateMock.mockResolvedValue({ id: "user-1" });
+    organizationUpdateMock.mockResolvedValue({ id: "org-1" });
+    userFindUniqueMock.mockResolvedValue(null);
   });
 
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it("throws for an unknown Stripe customer so the webhook responds 5xx and Stripe retries", async () => {
+  it("writes back a Stripe customer id from metadata and grants credits", async () => {
+    getUserByStripeCustomerIdMock.mockResolvedValue(null);
+    getOrganizationByStripeCustomerIdMock.mockResolvedValue(null);
+    retrieveCustomerMock.mockResolvedValue({
+      deleted: false,
+      email: null,
+      id: "cus_1",
+      metadata: { customerType: "user", userId: "user-1" },
+    });
+
+    const { handleInvoicePaidEvent } = await import(
+      "./stripe-invoice-credit.service"
+    );
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        billingReason: "manual",
+        id: "in_lagged_writeback",
+        lines: [{ productId: "prod_credit", quantity: 1 }],
+        metadata: { credits: "100" },
+      }) as never,
+    );
+
+    expect(retrieveCustomerMock).toHaveBeenCalledWith("cus_1");
+    expect(userUpdateMock).toHaveBeenCalledWith({
+      where: { id: "user-1" },
+      data: { stripeCustomerId: "cus_1" },
+    });
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+
+    const createCall = createTransactionMock.mock
+      .calls[0][0] as CreatedTransactionCall;
+    expect(createCall.data.sourceCreditBucket.create.referenceId).toBe(
+      buildUserInvoiceCreditReferenceId(
+        "user-1",
+        "in_lagged_writeback",
+        "topup",
+      ),
+    );
+  });
+
+  it("writes back a Stripe customer id from email and grants credits", async () => {
+    getUserByStripeCustomerIdMock.mockResolvedValue(null);
+    getOrganizationByStripeCustomerIdMock.mockResolvedValue(null);
+    retrieveCustomerMock.mockResolvedValue({
+      deleted: false,
+      email: "ada@example.com",
+      id: "cus_1",
+      metadata: {},
+    });
+    userFindUniqueMock.mockResolvedValue({
+      id: "user-1",
+      stripeCustomerId: null,
+    });
+
+    const { handleInvoicePaidEvent } = await import(
+      "./stripe-invoice-credit.service"
+    );
+
+    await handleInvoicePaidEvent(
+      createInvoice({
+        billingReason: "manual",
+        id: "in_email_writeback",
+        lines: [{ productId: "prod_credit", quantity: 1 }],
+        metadata: { credits: "100" },
+      }) as never,
+    );
+
+    expect(userFindUniqueMock).toHaveBeenCalledWith({
+      where: { email: "ada@example.com" },
+      select: { id: true, stripeCustomerId: true },
+    });
+    expect(userUpdateMock).toHaveBeenCalledWith({
+      where: { id: "user-1" },
+      data: { stripeCustomerId: "cus_1" },
+    });
+    expect(createTransactionMock).toHaveBeenCalledTimes(1);
+    expect(captureExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("acks a permanently unknown Stripe customer after capturing to Sentry", async () => {
     getUserByStripeCustomerIdMock.mockResolvedValue(null);
     getOrganizationByStripeCustomerIdMock.mockResolvedValue(null);
 
@@ -285,11 +397,50 @@ describe("handleInvoicePaidEvent", () => {
           metadata: { credits: "100" },
         }) as never,
       ),
-    ).rejects.toThrow(
-      "Stripe customer cus_1 not found in our system for invoice in_unknown_customer",
+    ).resolves.toBeUndefined();
+
+    expect(retrieveCustomerMock).toHaveBeenCalledWith("cus_1");
+    expect(transactionMock).not.toHaveBeenCalled();
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message:
+          "Stripe customer cus_1 is not linked to a user or organization for invoice in_unknown_customer",
+      }),
+      {
+        extra: {
+          invoiceId: "in_unknown_customer",
+          stripeCustomerId: "cus_1",
+        },
+        tags: {
+          context: "invoice_paid_unknown_customer",
+          stripeEventType: "invoice.paid",
+        },
+      },
+    );
+  });
+
+  it("throws when Stripe customer lookup fails transiently so the webhook retries", async () => {
+    getUserByStripeCustomerIdMock.mockResolvedValue(null);
+    getOrganizationByStripeCustomerIdMock.mockResolvedValue(null);
+    retrieveCustomerMock.mockRejectedValue(new Error("socket hang up"));
+
+    const { handleInvoicePaidEvent } = await import(
+      "./stripe-invoice-credit.service"
     );
 
+    await expect(
+      handleInvoicePaidEvent(
+        createInvoice({
+          billingReason: "manual",
+          id: "in_stripe_blip",
+          lines: [{ productId: "prod_credit", quantity: 1 }],
+          metadata: { credits: "100" },
+        }) as never,
+      ),
+    ).rejects.toThrow("socket hang up");
+
     expect(transactionMock).not.toHaveBeenCalled();
+    expect(captureExceptionMock).not.toHaveBeenCalled();
   });
 
   it("does not grant subscription credits for unpaid subscription_update invoices", async () => {
