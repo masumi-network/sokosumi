@@ -133,7 +133,7 @@ export function ChatRoomThreadRows({
                     className={cn(
                       "grid size-[1.125rem] shrink-0 place-items-center rounded-full",
                       mentions > 0
-                        ? "bg-primary-quaternary text-primary"
+                        ? "bg-primary-quaternary text-primary-variant"
                         : "bg-sidebar-accent text-muted-foreground",
                     )}
                   >
