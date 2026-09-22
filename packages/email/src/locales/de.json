@@ -54,7 +54,7 @@
       "subject": "Sokosumi - Job {jobId} fehlgeschlagen",
       "preview": "Job {jobId} ist fehlgeschlagen",
       "title": "Dein Job ist fehlgeschlagen",
-      "description": "Ein Job ist fehlgeschlagen. Hier sind die technischen Details:",
+      "description": "Das hat der Job gemeldet.",
       "network": "Netzwerk:",
       "agentName": "Agent-Name:",
       "agentId": "Agent-ID:",

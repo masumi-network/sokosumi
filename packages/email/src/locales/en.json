@@ -54,7 +54,7 @@
       "subject": "Sokosumi - Job {jobId} failed",
       "preview": "Job {jobId} has failed",
       "title": "Your job failed",
-      "description": "A job has failed. Here are the technical details:",
+      "description": "Here is what the job reported.",
       "network": "Network:",
       "agentName": "Agent Name:",
       "agentId": "Agent ID:",

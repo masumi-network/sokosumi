@@ -55,17 +55,17 @@ export function EmailShell({
   return (
     <Html lang={lang}>
       <Head>
-        <meta content="text/html; charset=UTF-8" httpEquiv="Content-Type" />
         <meta content="width=device-width, initial-scale=1" name="viewport" />
         <meta content="light dark" name="color-scheme" />
         <meta content="light dark" name="supported-color-schemes" />
+        <title>{title}</title>
         <style
           dangerouslySetInnerHTML={{
             __html: `${darkModeCss()}\n${RESPONSIVE_CSS}`,
           }}
         />
       </Head>
-      <Preview>{preview}</Preview>
+      <Preview useTitleTag={false}>{preview}</Preview>
       <Body
         className={DARK_CLASS.page}
         lang={lang}
@@ -138,7 +138,7 @@ export function EmailShell({
                       style={{ padding: `${SPACE.xl} ${SPACE.lg}` }}
                     >
                       <Heading
-                        className={`${DARK_CLASS.heading} sk-heading`}
+                        className={DARK_CLASS.heading}
                         style={{
                           ...TEXT.heading,
                           color: LIGHT_PALETTE.textPrimary,

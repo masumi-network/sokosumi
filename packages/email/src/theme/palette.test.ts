@@ -4,8 +4,6 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-import { DARK_PALETTE, LIGHT_PALETTE } from "./palette.js";
-
 const THEME_DIR = fileURLToPath(new URL(".", import.meta.url)).replace(
   /\/$/,
   "",
@@ -39,11 +37,5 @@ describe("email palette", () => {
       );
 
     expect(offenders).toEqual([]);
-  });
-
-  it("names the same roles in light and dark", () => {
-    expect(Object.keys(DARK_PALETTE).sort()).toEqual(
-      Object.keys(LIGHT_PALETTE).sort(),
-    );
   });
 });

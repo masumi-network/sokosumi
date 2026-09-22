@@ -54,7 +54,7 @@
       "subject": "Sokosumi - El job {jobId} ha fallado",
       "preview": "El job {jobId} ha fallado",
       "title": "Tu job ha fallado",
-      "description": "Un job ha fallado. Aquí están los detalles técnicos:",
+      "description": "Esto es lo que informó el job.",
       "network": "Red:",
       "agentName": "Nombre del Agent:",
       "agentId": "ID del Agent:",
