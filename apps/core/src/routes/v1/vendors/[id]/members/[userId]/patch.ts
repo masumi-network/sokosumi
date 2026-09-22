@@ -7,7 +7,6 @@ import { mapVendorMember } from "@/helpers/vendor";
 import {
   assertCanRemoveOrDemoteVendorAdmin,
   requireVendorAdminMembership,
-  resolveUserIdFromUserIdOrEmail,
 } from "@/helpers/vendor-membership";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -25,7 +24,7 @@ const params = z.object({
   }),
   userId: z.string().openapi({
     param: { name: "userId", in: "path" },
-    description: "Member user ID or email address",
+    description: "Member user ID",
     example: "user_123",
   }),
 });
@@ -35,7 +34,7 @@ const route = createRoute({
   path: "/{id}/members/{userId}",
   operationId: "patchVendorMemberRole",
   description:
-    "Change a vendor member role between admin and developer (vendor admin only). Path accepts user ID or email. Cannot demote the last admin.",
+    "Change a vendor member role between admin and developer by user ID (vendor admin only). Cannot demote the last admin.",
   tags: ["Vendors"],
   request: {
     params,
@@ -70,23 +69,20 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { id, userId: userIdOrEmail } = c.req.valid("param");
+    const { id, userId } = c.req.valid("param");
     const body = c.req.valid("json");
     const userAuth = requireUserAuthContext(c.var.authContext);
 
     await requireVendorAdminMembership(userAuth.userId, id);
 
-    const targetUserId = await resolveUserIdFromUserIdOrEmail(userIdOrEmail);
-
-    // Serializable so the role read, the last-admin check and the update
-    // commit as one unit (SOK-1024): a concurrent demote/remove cannot both
-    // pass the guard.
+    // Serializable so the role read, the last-admin check, and the update
+    // commit as one unit (SOK-1024).
     const member = await serializableTransaction(async (tx) => {
       const existing = await tx.vendorMember.findUnique({
         where: {
           vendorId_userId: {
             vendorId: id,
-            userId: targetUserId,
+            userId,
           },
         },
         select: { role: true },
@@ -96,14 +92,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       if (existing.role === "admin" && body.role !== "admin") {
-        await assertCanRemoveOrDemoteVendorAdmin(id, targetUserId, tx);
+        await assertCanRemoveOrDemoteVendorAdmin(id, userId, tx);
       }
 
       return tx.vendorMember.update({
         where: {
           vendorId_userId: {
             vendorId: id,
-            userId: targetUserId,
+            userId,
           },
         },
         data: {

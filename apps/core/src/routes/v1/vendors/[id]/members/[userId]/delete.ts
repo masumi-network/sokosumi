@@ -4,7 +4,6 @@ import { jsonErrorResponse } from "@/helpers/openapi";
 import {
   assertCanRemoveOrDemoteVendorAdmin,
   requireVendorAdminMembership,
-  resolveUserIdFromUserIdOrEmail,
 } from "@/helpers/vendor-membership";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -18,7 +17,7 @@ const params = z.object({
   }),
   userId: z.string().openapi({
     param: { name: "userId", in: "path" },
-    description: "Member user ID or email address",
+    description: "Member user ID",
     example: "user_123",
   }),
 });
@@ -28,7 +27,7 @@ const route = createRoute({
   path: "/{id}/members/{userId}",
   operationId: "removeVendorMember",
   description:
-    "Remove a vendor member (vendor admin only). Path accepts user ID or email. Also removes that user's coworker assignments for this vendor. Cannot remove the last admin.",
+    "Remove a vendor member by user ID (vendor admin only). Also removes that user's coworker assignments for this vendor. Cannot remove the last admin.",
   tags: ["Vendors"],
   request: {
     params,
@@ -47,21 +46,18 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { id, userId: userIdOrEmail } = c.req.valid("param");
+    const { id, userId } = c.req.valid("param");
     const userAuth = requireUserAuthContext(c.var.authContext);
 
     await requireVendorAdminMembership(userAuth.userId, id);
 
-    const targetUserId = await resolveUserIdFromUserIdOrEmail(userIdOrEmail);
-
-    // Serializable so the last-admin check (which also 404s a missing member)
-    // and the delete commit as one unit (SOK-1024): a concurrent demote/remove
-    // cannot both pass the guard.
+    // Serializable so the last-admin check and the delete commit as one unit
+    // (SOK-1024).
     await serializableTransaction(async (tx) => {
-      await assertCanRemoveOrDemoteVendorAdmin(id, targetUserId, tx);
+      await assertCanRemoveOrDemoteVendorAdmin(id, userId, tx);
       await tx.coworkerAssignment.deleteMany({
         where: {
-          userId: targetUserId,
+          userId,
           coworker: { vendorId: id },
         },
       });
@@ -69,7 +65,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where: {
           vendorId_userId: {
             vendorId: id,
-            userId: targetUserId,
+            userId,
           },
         },
       });

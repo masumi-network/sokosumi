@@ -9,11 +9,6 @@ import {
   type UserAuthenticationContext,
 } from "@/middleware/auth";
 
-export interface VendorUserIdentity {
-  userId?: string;
-  email?: string;
-}
-
 export function buildAccessibleCoworkerMembershipOr(
   userId: string,
 ): Prisma.CoworkerWhereInput[] {
@@ -139,53 +134,6 @@ export async function requireCoworkerBelongsToVendor(
   if (!coworker) {
     throw notFound("Coworker not found");
   }
-}
-
-/**
- * Resolve an existing user from exactly one of `userId` or `email`.
- * Email match is case-insensitive.
- */
-export async function resolveUserIdFromIdentity(
-  identity: VendorUserIdentity,
-): Promise<string> {
-  if (identity.userId !== undefined && identity.email === undefined) {
-    const user = await prisma.user.findUnique({
-      where: { id: identity.userId },
-      select: { id: true },
-    });
-    if (!user) {
-      throw notFound("User not found");
-    }
-    return user.id;
-  }
-
-  if (identity.email !== undefined && identity.userId === undefined) {
-    const email = identity.email.trim();
-    const user = await prisma.user.findFirst({
-      where: { email: { equals: email, mode: "insensitive" } },
-      select: { id: true },
-    });
-    if (!user) {
-      throw notFound("User not found");
-    }
-    return user.id;
-  }
-
-  throw badRequest("Provide exactly one of userId or email");
-}
-
-/**
- * Resolve a path segment that may be a user id or an email address.
- * Values containing `@` are treated as email (after URI decoding).
- */
-export async function resolveUserIdFromUserIdOrEmail(
-  userIdOrEmail: string,
-): Promise<string> {
-  const value = decodeURIComponent(userIdOrEmail).trim();
-  if (value.includes("@")) {
-    return resolveUserIdFromIdentity({ email: value });
-  }
-  return resolveUserIdFromIdentity({ userId: value });
 }
 
 /**

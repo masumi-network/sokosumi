@@ -33,8 +33,8 @@ export function describeRegistrationWorkspaceRequirement(
  * How to become a Vendor admin before registration.
  *
  * Primary unblock: create a Vendor (`sokosumi vendors create` / Core
- * `POST /v1/vendors`) or ask an existing Vendor admin to add you as admin
- * (`POST /v1/vendors/{id}/members` with role admin, or promote via patch).
+ * `POST /v1/vendors`) or ask an existing Vendor admin to invite you
+ * (`POST /v1/vendors/{id}/invites`). Coworker create is still platform-admin only.
  * Web Developer → Vendors is hidden unless you already have admin membership
  * (`getDeveloperVendorAdminAccess`); do not send blocked users there.
  */

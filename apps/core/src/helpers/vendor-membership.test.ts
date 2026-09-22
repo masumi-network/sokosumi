@@ -10,8 +10,6 @@ import {
   requireCoworkerBelongsToVendor,
   requireVendorAdminMembership,
   requireVendorAdminOrPlatformAdmin,
-  resolveUserIdFromIdentity,
-  resolveUserIdFromUserIdOrEmail,
 } from "./vendor-membership";
 
 const {
@@ -19,15 +17,11 @@ const {
   vendorMemberFindFirstMock,
   vendorMemberCountMock,
   coworkerFindFirstMock,
-  userFindUniqueMock,
-  userFindFirstMock,
 } = vi.hoisted(() => ({
   vendorFindUniqueMock: vi.fn(),
   vendorMemberFindFirstMock: vi.fn(),
   vendorMemberCountMock: vi.fn(),
   coworkerFindFirstMock: vi.fn(),
-  userFindUniqueMock: vi.fn(),
-  userFindFirstMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -41,10 +35,6 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     coworker: {
       findFirst: coworkerFindFirstMock,
-    },
-    user: {
-      findUnique: userFindUniqueMock,
-      findFirst: userFindFirstMock,
     },
   },
 }));
@@ -256,60 +246,6 @@ describe("requireCoworkerBelongsToVendor", () => {
       status: 404,
       message: "Coworker not found",
     });
-  });
-});
-
-describe("resolveUserIdFromIdentity", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("resolves by userId", async () => {
-    userFindUniqueMock.mockResolvedValue({ id: "user_123" });
-
-    await expect(
-      resolveUserIdFromIdentity({ userId: "user_123" }),
-    ).resolves.toBe("user_123");
-  });
-
-  it("resolves by email case-insensitively", async () => {
-    userFindFirstMock.mockResolvedValue({ id: "user_123" });
-
-    await expect(
-      resolveUserIdFromIdentity({ email: "Dev@Example.com" }),
-    ).resolves.toBe("user_123");
-    expect(userFindFirstMock).toHaveBeenCalledWith({
-      where: {
-        email: { equals: "Dev@Example.com", mode: "insensitive" },
-      },
-      select: { id: true },
-    });
-  });
-
-  it("throws when both identifiers are provided", async () => {
-    await expect(
-      resolveUserIdFromIdentity({
-        userId: "user_123",
-        email: "dev@example.com",
-      }),
-    ).rejects.toMatchObject({
-      status: 400,
-      message: "Provide exactly one of userId or email",
-    });
-  });
-});
-
-describe("resolveUserIdFromUserIdOrEmail", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("treats values with @ as email", async () => {
-    userFindFirstMock.mockResolvedValue({ id: "user_123" });
-
-    await expect(
-      resolveUserIdFromUserIdOrEmail("dev%40example.com"),
-    ).resolves.toBe("user_123");
   });
 });
 

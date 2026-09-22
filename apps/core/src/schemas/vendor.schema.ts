@@ -80,18 +80,6 @@ export const vendorMemberSchema = z
   })
   .openapi("VendorMember");
 
-function exactlyOneUserIdentity(data: {
-  userId?: string;
-  email?: string;
-}): boolean {
-  return (data.userId !== undefined) !== (data.email !== undefined);
-}
-
-const userIdentityFields = {
-  userId: z.string().min(1).optional().openapi({ example: "user_123" }),
-  email: z.string().email().optional().openapi({ example: "dev@example.com" }),
-};
-
 export const vendorMemberInviteStatusSchema = z
   .enum(["PENDING", "ACCEPTED", "DECLINED", "REVOKED", "EXPIRED"])
   .openapi("VendorMemberInviteStatus");
@@ -155,9 +143,8 @@ export const patchVendorAdminRequestSchema = z
   .openapi("PatchVendorAdminRequest");
 
 export const assignCoworkerRequestSchema = z
-  .object(userIdentityFields)
-  .refine(exactlyOneUserIdentity, {
-    message: "Provide exactly one of userId or email",
+  .object({
+    userId: z.string().min(1).openapi({ example: "user_123" }),
   })
   .openapi("AssignCoworkerRequest");
 
