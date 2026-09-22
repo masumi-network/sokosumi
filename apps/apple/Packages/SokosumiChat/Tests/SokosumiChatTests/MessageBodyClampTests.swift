@@ -103,4 +103,35 @@ struct MessageBodyClampTests {
   @Test func anHTMLImageIsNotClamped() {
     #expect(!MessageMarkdown("<img src=\"https://cdn.example/photo.png\" alt=\"photo\">").clampsLongBody)
   }
+
+  /// A backtick run inside a fence line does not close the fence (CommonMark: a closer starts its own
+  /// line), so the image link that follows it is still code and the body clamps.
+  @Test func aBacktickRunInsideAFenceDoesNotEndTheSkip() {
+    let source = longText + "\n\n```\nwrap samples in ``` fences\n![photo](https://cdn.example/photo.png)\n```"
+    #expect(MessageMarkdown(source).clampsLongBody)
+  }
+
+  /// A closer indented up to three spaces still closes; the solo image after it exempts the body.
+  @Test func anIndentedCloserEndsTheFence() {
+    let source = "```\n[sample.png](https://cdn.example/sample.png)\n  ```\n\n![photo](https://cdn.example/photo.png)"
+    #expect(!MessageMarkdown(source).clampsLongBody)
+  }
+
+  /// A closer with text after the run is not a closer.
+  @Test func aCloserFollowedByTextDoesNotEndTheFence() {
+    let source = "```\n[sample.png](https://cdn.example/sample.png)\n``` not yet\n![photo](https://cdn.example/photo.png)\n```"
+    #expect(MessageMarkdown(source).clampsLongBody)
+  }
+
+  /// A fence without a closer runs to the end of the body.
+  @Test func anUnclosedFenceRunsToTheEnd() {
+    let source = "```\ntext\n![photo](https://cdn.example/photo.png)"
+    #expect(MessageMarkdown(source).clampsLongBody)
+  }
+
+  /// Indented (four-space) code is scanned like any text. Web's raw scan counts a link there too;
+  /// the fenced-code skip above is the only deviation from web.
+  @Test func aSoloImageInIndentedCodeIsNotClamped() {
+    #expect(!MessageMarkdown(longText + "\n\n    [photo.png](https://cdn.example/photo.png)").clampsLongBody)
+  }
 }

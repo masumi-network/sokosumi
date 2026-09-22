@@ -94,7 +94,12 @@ struct MarkdownBareDomains {
           index += 1
         }
         let closeLength = index - closeStart
-        if length >= 3 ? closeLength >= length : closeLength == length {
+        // A fence closes only on its own line: at most three spaces before the
+        // run, at least the opener's length, nothing but whitespace after it.
+        let closes = length >= 3
+          ? closeLength >= length && isClosingFenceLine(closeStart, runEnd: index)
+          : closeLength == length
+        if closes {
           return index
         }
         index = closeStart + 1
@@ -208,6 +213,16 @@ struct MarkdownBareDomains {
     guard character == "`" else { return nil }
     let end = codeEnd(start: start, openingEnd: openingEnd, character: character)
     return end > start ? end : nil
+  }
+
+  private func isClosingFenceLine(_ runStart: Int, runEnd: Int) -> Bool {
+    guard isAtFencePosition(runStart) else { return false }
+    var index = runEnd
+    while index < text.count, text[index] != "\n" {
+      guard text[index] == " " || text[index] == "\t" else { return false }
+      index += 1
+    }
+    return true
   }
 
   private func isAtFencePosition(_ start: Int) -> Bool {
