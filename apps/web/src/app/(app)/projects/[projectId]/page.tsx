@@ -109,7 +109,6 @@ export default async function ProjectDetailPage({
                       moreActions: t("actions.moreActions"),
                       edit: t("actions.edit"),
                       close: t("actions.close"),
-                      delete: t("actions.delete"),
                       closeDialog: {
                         title: t("close.dialog.title"),
                         description: t("close.dialog.description"),
@@ -119,13 +118,6 @@ export default async function ProjectDetailPage({
                         cancel: t("close.dialog.cancel"),
                         success: t("close.dialog.success"),
                         error: t("close.dialog.error"),
-                      },
-                      deleteDialog: {
-                        title: t("deleteDialog.title"),
-                        description: t("deleteDialog.description"),
-                        confirm: t("deleteDialog.confirm"),
-                        cancel: t("deleteDialog.cancel"),
-                        error: t("errors.delete"),
                       },
                     }}
                   />

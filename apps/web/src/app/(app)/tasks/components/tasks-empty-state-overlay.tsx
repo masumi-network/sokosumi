@@ -57,28 +57,19 @@ function selectListMobileCreateFabTarget(): HTMLElement | null {
   return shell.querySelector("button") ?? shell;
 }
 
-/**
- * Prefer a visible column add control, then (on mobile) the list create FAB,
- * then the header add button. Skip zero-size nodes (e.g. `hidden md:inline-flex`
- * header control still in the DOM below `md`).
- */
+/** Use the sidebar action on desktop and the floating action on mobile. */
 export function selectTasksEmptyStateAddTaskTarget(
   surface: TasksEmptyStateTargetSurface = "desktop",
 ): HTMLElement | null {
-  const column = document.querySelector<HTMLElement>(
-    "[data-tasks-add-task-column-anchor]",
-  );
-  if (hasLayoutBox(column)) return column;
-
   if (surface === "mobile") {
     const fab = selectListMobileCreateFabTarget();
     if (hasLayoutBox(fab)) return fab;
   }
 
-  const header = document.querySelector<HTMLElement>(
-    "[data-tasks-add-task-header-anchor]",
+  const sidebar = document.querySelector<HTMLElement>(
+    "[data-sidebar-new-task]",
   );
-  if (hasLayoutBox(header)) return header;
+  if (hasLayoutBox(sidebar)) return sidebar;
 
   return null;
 }

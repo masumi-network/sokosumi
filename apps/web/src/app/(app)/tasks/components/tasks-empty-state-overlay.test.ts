@@ -61,9 +61,9 @@ describe("selectTasksEmptyStateAddTaskTarget", () => {
     vi.restoreAllMocks();
   });
 
-  it("skips a zero-size header and selects the mobile create FAB", () => {
+  it("skips a zero-size sidebar action and selects the mobile create FAB", () => {
     const header = document.createElement("button");
-    header.setAttribute("data-tasks-add-task-header-anchor", "");
+    header.setAttribute("data-sidebar-new-task", "");
     mockLayoutBox(header, { width: 0, height: 0, top: 0, left: 0 });
 
     const fabShell = document.createElement("div");
@@ -77,9 +77,9 @@ describe("selectTasksEmptyStateAddTaskTarget", () => {
     expect(selectTasksEmptyStateAddTaskTarget("mobile")).toBe(fabButton);
   });
 
-  it("prefers a visible column add control over the FAB", () => {
+  it("prefers the FAB on mobile", () => {
     const column = document.createElement("button");
-    column.setAttribute("data-tasks-add-task-column-anchor", "");
+    column.setAttribute("data-sidebar-new-task", "");
     mockLayoutBox(column, { width: 120, height: 32, top: 200, left: 24 });
 
     const fabShell = document.createElement("div");
@@ -90,12 +90,12 @@ describe("selectTasksEmptyStateAddTaskTarget", () => {
 
     document.body.append(column, fabShell);
 
-    expect(selectTasksEmptyStateAddTaskTarget("mobile")).toBe(column);
+    expect(selectTasksEmptyStateAddTaskTarget("mobile")).toBe(fabButton);
   });
 
-  it("does not use the FAB on desktop when the header is visible", () => {
+  it("does not use the FAB on desktop when the sidebar action is visible", () => {
     const header = document.createElement("button");
-    header.setAttribute("data-tasks-add-task-header-anchor", "");
+    header.setAttribute("data-sidebar-new-task", "");
     mockLayoutBox(header, { width: 96, height: 32, top: 16, left: 800 });
 
     const fabShell = document.createElement("div");

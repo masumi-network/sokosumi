@@ -23,6 +23,21 @@ export function chatRoomEditHref(roomId: string): string {
 }
 
 /**
+ * Asks a room to open its thread list, on the room's own URL.
+ *
+ * The sidebar lists at most three unread Threads under a room and states the
+ * rest in an overflow row (ADR-0037). That row lives in the app sidebar, and
+ * the thread list is a panel of the room, so it asks the way the edit dialog
+ * is asked for. Read once and taken back off the URL.
+ */
+export const CHAT_THREAD_LIST_PARAM = "threads";
+
+/** In-app href for a room, with its thread list asked to open. */
+export function chatRoomThreadListHref(roomId: string): string {
+  return `${chatRoomHref(roomId)}?${CHAT_THREAD_LIST_PARAM}=1`;
+}
+
+/**
  * Next.js BFF for room-keyed Core chat stream APIs.
  *
  * - `GET ${CHAT_API_PATH}?roomId=…` → Core `/v1/chats/rooms/{roomId}/stream/messages`

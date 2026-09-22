@@ -164,7 +164,9 @@ export function NotificationBrowserPermissionPrimer({
   }
 
   const cardClassName = cn(
-    "border-border bg-card-background flex flex-col gap-2 rounded-md border p-3",
+    // gap-3, because the action under a stacked title and description is a
+    // separate move rather than a third line of the same block.
+    "border-border bg-card-background flex flex-col gap-3 rounded-md border p-3",
     variant === "page" && "sm:flex-row sm:items-center sm:justify-between",
     className,
   );

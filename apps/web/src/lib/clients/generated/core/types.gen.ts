@@ -2305,9 +2305,40 @@ export type ChatRoom = {
     createdAt: Date;
     updatedAt: Date;
     /**
-     * Unread messages from others: top-level after room lastReadAt, plus thread replies in Threads the viewer Participates in after per-thread look baseline (thread lastReadAt, else room join createdAt). Soft-deleted excluded. ADR-0013.
+     * Total unread from others: channelUnreadCount + threadUnreadCount. Prefer the two halves; this stays the sum for existing clients. Soft-deleted excluded. ADR-0013, ADR-0037.
      */
     unreadCount: number;
+    /**
+     * Room unread: non-self top-level messages after room lastReadAt. Excludes Thread replies. Drives sidebar bold. ADR-0037.
+     */
+    channelUnreadCount?: number;
+    /**
+     * Thread unread: non-self replies in Threads the viewer Participates in, after the per-Thread Look baseline (thread lastReadAt, else room join createdAt), less Muted threads that do not mention them. Surfaces on the Thread, never on the channel. ADR-0013, ADR-0030, ADR-0037.
+     */
+    threadUnreadCount?: number;
+    /**
+     * How many Threads in this room are Thread unread for the viewer. Counts Threads, where threadUnreadCount counts replies. States what `unreadThreads` leaves out past its cap. ADR-0037.
+     */
+    unreadThreadCount?: number;
+    /**
+     * Up to 3 unread Threads in this room, newest unread reply first, for the sidebar's inset rows. Same eligibility as threadUnreadCount. `unreadThreadCount` is the true number; this list is capped. ADR-0037.
+     */
+    unreadThreads?: Array<{
+        parentMessageId: string;
+        /**
+         * The oldest reply still unread in this Thread: where opening it lands.
+         */
+        firstUnreadReplyId: string;
+        /**
+         * The parent message's raw content, cut to 1000 characters. May hold mention tokens and may be empty; the client builds the label.
+         */
+        parentContent: string;
+        unreadReplyCount: number;
+        /**
+         * How many of this Thread's unread replies name the viewer. Counted from the replies, so a Look clears it; the room's unreadMentionCount is counted from notifications, which Room last-read clears.
+         */
+        unreadMentionCount?: number;
+    }>;
     /**
      * Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.
      */
@@ -2568,6 +2599,10 @@ export type ChatRoomPinnedMessageListItem = {
         mentions: Array<ChatRoomMessageMention>;
         reactions: Array<ChatRoomMessageReaction>;
         threadReplyCount: number;
+        /**
+         * Non-self replies under this parent the viewer has not cleared: Participant-gated and mute-gated, after the per-thread look baseline. 0 for lurkers and for viewers with no unread. Present only on the message list; absent from realtime events and single-message responses, which do not compute it. ADR-0013, ADR-0030, ADR-0037.
+         */
+        threadUnreadReplyCount?: number;
         threadLastReplyAt: Date | null;
         metadata: {
             [key: string]: unknown;
@@ -2784,6 +2819,10 @@ export type ChatRoomMessage = {
     mentions: Array<ChatRoomMessageMention>;
     reactions: Array<ChatRoomMessageReaction>;
     threadReplyCount: number;
+    /**
+     * Non-self replies under this parent the viewer has not cleared: Participant-gated and mute-gated, after the per-thread look baseline. 0 for lurkers and for viewers with no unread. Present only on the message list; absent from realtime events and single-message responses, which do not compute it. ADR-0013, ADR-0030, ADR-0037.
+     */
+    threadUnreadReplyCount?: number;
     threadLastReplyAt: Date | null;
     metadata: {
         [key: string]: unknown;
@@ -4725,11 +4764,6 @@ export type PatchProjectRequest = {
     description?: string | null;
     websiteUrl?: string | null;
     logo?: string | null;
-};
-
-export type ProjectDeleted = {
-    id: string;
-    deleted: true;
 };
 
 export type Job = {
@@ -10466,6 +10500,21 @@ export type ListAdminTaskPaymentClaimsRequiringReviewErrors = {
             method: string;
         };
     };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type ListAdminTaskPaymentClaimsRequiringReviewError = ListAdminTaskPaymentClaimsRequiringReviewErrors[keyof ListAdminTaskPaymentClaimsRequiringReviewErrors];
@@ -11821,10 +11870,6 @@ export type GetAgentsByIdReviewsData = {
          * Maximum number of commented reviews to return
          */
         limit?: number;
-        /**
-         * Number of commented reviews to skip
-         */
-        offset?: number | null;
     };
     url: '/agents/{id}/reviews';
 };
@@ -24766,7 +24811,7 @@ export type GetUsersByIdPreferencesResponses = {
              */
             pushOptIn: boolean;
             /**
-             * Whether chat sidebar rows show a room's unread message count. Display only: it changes no notification delivery
+             * Whether chat sidebar rows show a room's unread message count. On unless the reader switched it off (ADR-0038). Display only: it changes no notification delivery
              */
             showRoomUnreadCount: boolean;
             /**
@@ -24795,7 +24840,7 @@ export type PatchUsersByIdPreferencesData = {
          */
         pushOptIn?: boolean;
         /**
-         * Whether chat sidebar rows show a room's unread message count. Display only: it changes no notification delivery
+         * Whether chat sidebar rows show a room's unread message count. On unless the reader switched it off (ADR-0038). Display only: it changes no notification delivery
          */
         showRoomUnreadCount?: boolean;
         /**
@@ -24899,7 +24944,7 @@ export type PatchUsersByIdPreferencesResponses = {
              */
             pushOptIn: boolean;
             /**
-             * Whether chat sidebar rows show a room's unread message count. Display only: it changes no notification delivery
+             * Whether chat sidebar rows show a room's unread message count. On unless the reader switched it off (ADR-0038). Display only: it changes no notification delivery
              */
             showRoomUnreadCount: boolean;
             /**
@@ -32815,21 +32860,6 @@ export type DeleteProjectsByIdErrors = {
         };
     };
     /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
      * Conflict
      */
     409: {
@@ -32847,22 +32877,6 @@ export type DeleteProjectsByIdErrors = {
 };
 
 export type DeleteProjectsByIdError = DeleteProjectsByIdErrors[keyof DeleteProjectsByIdErrors];
-
-export type DeleteProjectsByIdResponses = {
-    /**
-     * Project deleted
-     */
-    200: {
-        data: ProjectDeleted;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type DeleteProjectsByIdResponse = DeleteProjectsByIdResponses[keyof DeleteProjectsByIdResponses];
 
 export type GetProjectsByIdData = {
     body?: never;

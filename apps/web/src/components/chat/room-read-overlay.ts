@@ -1,7 +1,17 @@
+import type { ChatRoom } from "@/lib/clients/generated/core";
+
+import type { RoomAttentionCounts } from "./room-attention";
+
 /** Session attention snapshots protect remounts from stale server props. */
 interface RoomReadOverlay {
   updatedAtMs: number;
   unreadCount: number;
+  /** The two halves of `unreadCount` (ADR-0037); absent on older snapshots. */
+  channelUnreadCount?: number;
+  threadUnreadCount?: number;
+  /** The room's unread Threads, which a Look changes as it does the counts. */
+  unreadThreadCount?: number;
+  unreadThreads?: ChatRoom["unreadThreads"];
   unreadMentionCount: number;
   markedUnread: boolean;
   revision: number;
@@ -12,12 +22,12 @@ interface RoomReadOverlay {
   } | null;
 }
 
-interface RoomAttentionFields {
+interface RoomAttentionFields extends RoomAttentionCounts {
   id: string;
   updatedAt: string | Date;
-  unreadCount: number;
-  unreadMentionCount: number;
   markedUnread: boolean;
+  unreadThreadCount?: number;
+  unreadThreads?: ChatRoom["unreadThreads"];
 }
 
 const overlaysByRoomId = new Map<string, RoomReadOverlay>();
@@ -38,6 +48,10 @@ function storeAttention(
   overlaysByRoomId.set(room.id, {
     updatedAtMs: toUpdatedAtMs(room.updatedAt),
     unreadCount: room.unreadCount,
+    channelUnreadCount: room.channelUnreadCount,
+    threadUnreadCount: room.threadUnreadCount,
+    unreadThreadCount: room.unreadThreadCount,
+    unreadThreads: room.unreadThreads,
     unreadMentionCount: room.unreadMentionCount,
     markedUnread: room.markedUnread,
     revision: nextRevision,
@@ -63,6 +77,14 @@ function applyAttention<T extends RoomAttentionFields>(
   return {
     ...room,
     unreadCount: overlay.unreadCount,
+    // Bold follows the channel half, so a stale one would re-bold a room the
+    // overlay exists to keep read.
+    channelUnreadCount: overlay.channelUnreadCount,
+    threadUnreadCount: overlay.threadUnreadCount,
+    // A snapshot stored without the list says nothing about it, so the
+    // room's own list stands.
+    unreadThreadCount: overlay.unreadThreadCount ?? room.unreadThreadCount,
+    unreadThreads: overlay.unreadThreads ?? room.unreadThreads,
     unreadMentionCount: overlay.unreadMentionCount,
     markedUnread: overlay.markedUnread,
   };
