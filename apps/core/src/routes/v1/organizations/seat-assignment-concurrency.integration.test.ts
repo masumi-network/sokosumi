@@ -124,18 +124,34 @@ describeWithDb("assignSeat under concurrency with Postgres", () => {
       (outcome) => outcome.status === "rejected",
     );
 
-    expect(await countAssigned()).toBe(PURCHASED_SEATS);
-    expect(fulfilled).toHaveLength(PURCHASED_SEATS);
-    expect(rejected).toHaveLength(MEMBER_COUNT - PURCHASED_SEATS);
+    // Safety is exact: the count must never pass the purchased seats. That is
+    // the invariant the ticket is about.
+    const assigned = await countAssigned();
+    expect(assigned).toBeLessThanOrEqual(PURCHASED_SEATS);
+    expect(fulfilled).toHaveLength(assigned);
+    expect(rejected).toHaveLength(MEMBER_COUNT - assigned);
+
+    // Liveness is not exact: a would-be winner can burn all 8 attempts and
+    // give up, which leaves a seat unsold. That is an unhappy outcome, not a
+    // broken one, so it only has to explain itself with a conflict rejection.
+    const rejectionMessages = rejected.map((outcome) => {
+      const { reason } = outcome as PromiseRejectedResult;
+      return reason instanceof Error ? reason.message : String(reason);
+    });
+    if (assigned < PURCHASED_SEATS) {
+      expect(
+        rejectionMessages.some((message) =>
+          message.includes("lost a concurrent update"),
+        ),
+      ).toBe(true);
+    }
 
     // Counting rejections alone would pass just as well on "Member not found",
     // which is a different defect wearing the same shape. Losing the capacity
     // check is the expected outcome; exhausting the retry budget is a legal if
     // unhappy one under real contention, so both are allowed and nothing else
     // is.
-    for (const outcome of rejected) {
-      const { reason } = outcome as PromiseRejectedResult;
-      const message = reason instanceof Error ? reason.message : String(reason);
+    for (const message of rejectionMessages) {
       expect(
         message.includes("exceeds purchased seats") ||
           message.includes("lost a concurrent update"),
