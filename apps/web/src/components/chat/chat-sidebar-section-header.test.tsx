@@ -243,4 +243,19 @@ describe("ChatSidebarSectionContent", () => {
     expect(classes).toContain("-mx-2");
     expect(classes).toContain("px-2");
   });
+
+  it("heightens the clip box by the rail ring the first and last row wear", () => {
+    // Regression: the rows fill the box top to bottom, so the clip used to
+    // land on the outermost row's own edge and cut the collapsed rail's
+    // `ring-2` there — the last room in a section rendered open-bottomed on
+    // hover. The margin/padding pair cancels out, so nothing else moves.
+    const { container } = render(<Section />);
+    const classes =
+      container
+        .querySelector('[data-slot="collapsible-content"]')
+        ?.className.split(/\s+/) ?? [];
+
+    expect(classes).toContain("-my-0.5");
+    expect(classes).toContain("py-0.5");
+  });
 });
