@@ -113,7 +113,8 @@ import Testing
     #expect(defaults.dictionary(forKey: "sokosumi.reactionEmojiUseCounts.v1") as? [String: Int] == ["😂": 3, "👍": 1])
     #expect(defaults.object(forKey: "chat.reactionEmojiUseCounts") == nil)
     history.record("❤️")
-    #expect(ReactionEmojiHistory(defaults: defaults).frequent.map(\.emoji) == ["😂", "❤️", "👍"])
+    // Equal-count ties break by catalog name (thumbs-up before heart).
+    #expect(ReactionEmojiHistory(defaults: defaults).frequent.map(\.emoji) == ["😂", "👍", "❤️"])
     #expect(defaults.object(forKey: "chat.reactionEmojiUseCounts") == nil)
   }
 }
