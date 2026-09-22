@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { BellRing } from "lucide-react";
+import { BellRing, type LucideIcon, Share } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState, useSyncExternalStore } from "react";
@@ -24,6 +24,7 @@ import {
   subscribeBrowserNotificationPermission,
 } from "@/lib/utils/browser-notification";
 import {
+  isPushInstallable,
   isPushSupported,
   isServiceWorkerSupported,
 } from "@/lib/utils/notification-service-worker";
@@ -33,18 +34,24 @@ import { NOTIFICATION_PREFERENCES_HREF } from "../account/constants";
 /**
  * The most this browser can do, which decides what the card offers.
  *
- * `push` links to the settings. `in-app` asks for the permission here,
- * because the account page cannot subscribe this browser and the
- * permission still buys the banners the app renders while a tab is open.
- * `none` has no worker to render through, and ADR-0023 makes that
- * registration the only renderer, so the card offers nothing rather than a
- * permission that would show no banner.
+ * `push` links to the settings. `install` is an iPhone or iPad outside the
+ * installed app, where WebKit gives Home Screen web apps push and a tab
+ * nothing, so the way through is the install and not a permission. `in-app`
+ * asks for the permission here, because the account page cannot subscribe
+ * this browser and the permission still buys the banners the app renders
+ * while a tab is open. `none` has no worker to render through, and ADR-0023
+ * makes that registration the only renderer, so the card offers nothing
+ * rather than a permission that would show no banner.
  */
-type PrimerCapability = "push" | "in-app" | "none";
+type PrimerCapability = "push" | "install" | "in-app" | "none";
 
 function readCapability(): PrimerCapability {
   if (isPushSupported()) {
     return "push";
+  }
+
+  if (isPushInstallable()) {
+    return "install";
   }
 
   return isServiceWorkerSupported() ? "in-app" : "none";
@@ -156,7 +163,6 @@ export function NotificationBrowserPermissionPrimer({
 
   if (
     permission === null ||
-    permission === "unsupported" ||
     // Nothing here can show a banner, so there is nothing to offer or explain.
     capability === "none"
   ) {
@@ -175,14 +181,17 @@ export function NotificationBrowserPermissionPrimer({
     title,
     description,
     action,
+    icon: Icon = BellRing,
   }: {
     title: string;
     description: string;
     action?: React.ReactNode;
+    /** The bell stands for a notification. One card is about a gesture. */
+    icon?: LucideIcon;
   }) => (
     <div className={cardClassName}>
       <div className="flex min-w-0 items-start gap-2">
-        <BellRing className="text-primary mt-0.5 size-4 shrink-0" />
+        <Icon className="text-primary mt-0.5 size-4 shrink-0" />
         <div className="min-w-0 space-y-1">
           <p className="text-sm leading-snug font-medium">{title}</p>
           <p className="text-muted-foreground text-xs leading-relaxed">
@@ -193,6 +202,33 @@ export function NotificationBrowserPermissionPrimer({
       {action}
     </div>
   );
+
+  /**
+   * An iPhone or iPad reading this in a tab.
+   *
+   * It comes before the permission gate below, and it is the reason that gate
+   * is no longer part of the bail above: iOS Safari ships no Notification API
+   * outside the installed app, so this card would read `unsupported` and draw
+   * nothing on the one platform it has an answer for.
+   *
+   * No press. Nothing can put this app on a Home Screen for the reader, and
+   * the settings page has less than nothing to offer them: its Push cells
+   * write the account, so a trip there would record consent that wakes their
+   * other devices and leaves this one silent.
+   */
+  if (capability === "install") {
+    return card({
+      title: t("browserPermissionInstallTitle"),
+      description: t("browserPermissionInstallDescription"),
+      icon: Share,
+    });
+  }
+
+  // Past here every branch needs a permission to report or to ask for, and
+  // this browser has no API holding one.
+  if (permission === "unsupported") {
+    return null;
+  }
 
   /**
    * A browser the reader set up for push, that stopped receiving it.

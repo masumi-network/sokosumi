@@ -4,6 +4,7 @@ import {
   answerShowsNotificationsQuery,
   clearNotificationTargetFromUrl,
   getNotificationServiceWorkerUrl,
+  isPushInstallable,
   NOTIFICATION_CLICK_MESSAGE,
   NOTIFICATION_ICON_PATH,
   NOTIFICATION_SERVICE_WORKER_URL,
@@ -891,5 +892,209 @@ describe("clearNotificationTargetFromUrl", () => {
 
     expect(window.location.search).toBe("?keep=1");
     expect(window.history.length).toBe(before);
+  });
+});
+
+/** What an iPad sends, and what Request Desktop Website gives an iPhone. */
+const DESKTOP_MAC_USER_AGENT =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15";
+
+describe("isPushInstallable", () => {
+  const originalPushManager = Object.getOwnPropertyDescriptor(
+    window,
+    "PushManager",
+  );
+
+  /**
+   * A browser described by what it has, which is how the read describes one.
+   *
+   * `standalone` takes the three values the property really has: absent on
+   * every engine but WebKit for iOS and iPadOS, false in a tab there, true in
+   * the installed app.
+   */
+  function stubBrowser({
+    push,
+    standalone,
+    userAgent = DESKTOP_MAC_USER_AGENT,
+  }: {
+    push: boolean;
+    standalone: boolean | undefined;
+    userAgent?: string;
+  }) {
+    Object.defineProperty(navigator, "userAgent", {
+      configurable: true,
+      value: userAgent,
+    });
+    stubServiceWorker({});
+    stubPermission("default");
+    if (push) {
+      Object.defineProperty(window, "PushManager", {
+        configurable: true,
+        value: class {},
+      });
+    } else {
+      Reflect.deleteProperty(window, "PushManager");
+    }
+    if (standalone === undefined) {
+      Reflect.deleteProperty(navigator, "standalone");
+    } else {
+      Object.defineProperty(navigator, "standalone", {
+        configurable: true,
+        value: standalone,
+      });
+    }
+  }
+
+  afterEach(() => {
+    if (originalPushManager) {
+      Object.defineProperty(window, "PushManager", originalPushManager);
+    } else {
+      Reflect.deleteProperty(window, "PushManager");
+    }
+    Reflect.deleteProperty(navigator, "standalone");
+    // Deleted rather than put back. `userAgent` lives on the prototype, so
+    // there is no own descriptor to save, and a saved `undefined` restored
+    // nothing: the stub outlived the test that set it.
+    Reflect.deleteProperty(navigator, "userAgent");
+  });
+
+  it("offers the install to an iPhone tab outside the installed app", () => {
+    stubBrowser({ push: false, standalone: false });
+
+    expect(isPushInstallable()).toBe(true);
+  });
+
+  /**
+   * The read has to survive the user agent, because on an iPad it is Safari's
+   * macOS one and on an iPhone it is whatever Request Desktop Website makes
+   * it. This case is the previous one wearing a desktop string, so it fails
+   * the day anyone puts a user-agent test in front of the property.
+   */
+  it("offers it to an iPad asking for the desktop site", () => {
+    // The default user agent here is Safari's macOS one, which is what an
+    // iPad sends. The property answers over it.
+    stubBrowser({ push: false, standalone: false });
+
+    expect(isPushInstallable()).toBe(true);
+  });
+
+  /**
+   * Since 16.4 these can add a web app to the Home Screen too, and they may
+   * not set the property Safari sets. Nothing about the browser separates one
+   * from an Android web view, so the name is the only thing left to read, and
+   * it is read here alone: where the property answers, this never runs.
+   */
+  it.each([
+    [
+      "Chrome for iOS",
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/120.0.0.0 Mobile/15E148 Safari/604.1",
+    ],
+    [
+      "Firefox for iOS",
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/121.0 Mobile/15E148 Safari/605.1.15",
+    ],
+    [
+      "Edge for iOS",
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) EdgiOS/120.0.0.0 Mobile/15E148 Safari/605.1.15",
+    ],
+  ])("offers it to %s, which sets no standalone property", (_name, agent) => {
+    stubBrowser({ push: false, standalone: undefined, userAgent: agent });
+
+    expect(isPushInstallable()).toBe(true);
+  });
+
+  /**
+   * The names that must not match. Desktop Chrome says `Chrome`, desktop Edge
+   * `Edg`, Android Chrome `Chrome` with `Android`: a token test that caught
+   * any of them would put an iPhone instruction on a platform the ticket puts
+   * out of scope.
+   */
+  it.each([
+    [
+      "desktop Chrome",
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    ],
+    [
+      "desktop Edge",
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
+    ],
+    [
+      "Android Chrome",
+      "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+    ],
+    [
+      "an Android in-app web view",
+      "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/120.0.0.0 Mobile Safari/537.36 [FB_IAB/FB4A]",
+    ],
+  ])("stays quiet on %s", (_name, agent) => {
+    stubBrowser({ push: false, standalone: undefined, userAgent: agent });
+
+    expect(isPushInstallable()).toBe(false);
+  });
+
+  /**
+   * Chrome for iOS keeps its token when the reader asks for the desktop site,
+   * and the rest of the string becomes Safari's macOS one. The reader is on
+   * the same phone either way, so the answer must not move.
+   */
+  it("offers it to Chrome for iOS asking for the desktop site", () => {
+    stubBrowser({
+      push: false,
+      standalone: undefined,
+      userAgent:
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_5) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/85 Version/11.1.1 Safari/605.1.15",
+    });
+
+    expect(isPushInstallable()).toBe(true);
+  });
+
+  /**
+   * The property wins where it is set. An installed app that named itself in
+   * the user agent must not be sent to install itself again.
+   */
+  it("lets the property overrule the name it ships under", () => {
+    stubBrowser({
+      push: false,
+      standalone: true,
+      userAgent:
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/120.0.0.0 Mobile/15E148 Safari/604.1",
+    });
+
+    expect(isPushInstallable()).toBe(false);
+  });
+
+  /**
+   * Every engine that is not WebKit for iOS, which is one case because the
+   * property is missing on all of them: an Android in-app web view, a
+   * touchscreen laptop on a browser too old for push, a plain desktop. The
+   * first two have a service worker, no push and five touch points, and are
+   * the reason this asks for the Apple property rather than for touch.
+   */
+  it("stays quiet wherever neither the property nor a name says iOS", () => {
+    stubBrowser({ push: false, standalone: undefined });
+
+    expect(isPushInstallable()).toBe(false);
+  });
+
+  it("stays quiet inside an installed app that still has no push", () => {
+    // iOS below 16.4. The app is on the Home Screen already, so telling the
+    // reader to put it there would name a step they have taken.
+    stubBrowser({ push: false, standalone: true });
+
+    expect(isPushInstallable()).toBe(false);
+  });
+
+  it("stays quiet where push already works", () => {
+    stubBrowser({ push: true, standalone: false });
+
+    expect(isPushInstallable()).toBe(false);
+  });
+
+  it("stays quiet with no service worker to receive through", () => {
+    stubBrowser({ push: false, standalone: false });
+    stubServiceWorker(undefined);
+    Reflect.deleteProperty(navigator, "serviceWorker");
+
+    expect(isPushInstallable()).toBe(false);
   });
 });
