@@ -473,15 +473,54 @@ describe("publishXPost", () => {
     });
   });
 
-  it("raises a tool error when no post id comes back", async () => {
+  it("marks the result uncertain when no post id comes back", async () => {
     stubSession(() => new Response(JSON.stringify({ data: { text: "x" } })));
-    const { ComposioToolError, publishXPost } = await import(
+    const { ComposioPublishOutcomeUnknownError, publishXPost } = await import(
       "./composio.client"
     );
 
     await expect(publishXPost(publishInput)).rejects.toBeInstanceOf(
-      ComposioToolError,
+      ComposioPublishOutcomeUnknownError,
     );
+  });
+
+  it("does not allow automatic retries after a create-post transport timeout", async () => {
+    stubSession(() => {
+      throw new DOMException("Timed out", "TimeoutError");
+    });
+    const { ComposioPublishOutcomeUnknownError, publishXPost } = await import(
+      "./composio.client"
+    );
+    await expect(publishXPost(publishInput)).rejects.toBeInstanceOf(
+      ComposioPublishOutcomeUnknownError,
+    );
+  });
+
+  it.each([500, 502, 503])(
+    "treats create-post HTTP %s as an uncertain external outcome",
+    async (status) => {
+      stubSession(() => new Response("unavailable", { status }));
+      const { ComposioPublishOutcomeUnknownError, publishXPost } = await import(
+        "./composio.client"
+      );
+      await expect(publishXPost(publishInput)).rejects.toBeInstanceOf(
+        ComposioPublishOutcomeUnknownError,
+      );
+    },
+  );
+
+  it("preserves retryable errors before the create-post request starts", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response("unavailable", { status: 503 })),
+    );
+    const { ComposioApiError, publishXPost } = await import(
+      "./composio.client"
+    );
+    await expect(publishXPost(publishInput)).rejects.toMatchObject({
+      constructor: ComposioApiError,
+      httpStatus: 503,
+    });
   });
 
   it("deletes the session when the execute call fails upstream", async () => {

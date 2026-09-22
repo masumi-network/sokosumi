@@ -79,6 +79,16 @@ export class ComposioToolError extends Error {
   }
 }
 
+/** The create-post request may have succeeded; repeating it could publish twice. */
+export class ComposioPublishOutcomeUnknownError extends Error {
+  constructor() {
+    super(
+      "The publishing result could not be confirmed. Check X before retrying to avoid a duplicate post.",
+    );
+    this.name = "ComposioPublishOutcomeUnknownError";
+  }
+}
+
 export type ComposioConnectionStatus =
   | "INITIALIZING"
   | "INITIATED"
@@ -580,11 +590,24 @@ export async function publishXPost(input: {
       });
     }
     if (!post || typeof post.id !== "string" || !post.id) {
-      throw new ComposioToolError({
-        message: "X publish returned no post id",
-      });
+      throw new ComposioPublishOutcomeUnknownError();
     }
     return { externalId: post.id };
+  } catch (error) {
+    if (error instanceof ComposioApiError && error.httpStatus < 500)
+      throw error;
+    if (
+      error instanceof ComposioToolError &&
+      (error.providerStatus === 429 ||
+        (error.providerStatus !== null && error.providerStatus < 500) ||
+        (!/time.?out|timed out|temporarily|\b5\d\d\b/i.test(
+          error.providerMessage ?? "",
+        ) &&
+          error.providerStatus === null))
+    ) {
+      throw error;
+    }
+    throw new ComposioPublishOutcomeUnknownError();
   } finally {
     await deleteProjectXSession(
       session.session_id,

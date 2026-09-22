@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ComposioApiError, ComposioToolError } from "@/clients/composio.client";
+import {
+  ComposioApiError,
+  ComposioPublishOutcomeUnknownError,
+  ComposioToolError,
+} from "@/clients/composio.client";
 
 const {
+  attemptFindFirstMock,
   attemptAggregateMock,
   attemptCreateMock,
   attemptUpdateMock,
@@ -11,6 +16,7 @@ const {
   socialPostFindFirstMock,
   socialPostUpdateManyMock,
 } = vi.hoisted(() => ({
+  attemptFindFirstMock: vi.fn(),
   attemptAggregateMock: vi.fn(),
   attemptCreateMock: vi.fn(),
   attemptUpdateMock: vi.fn(),
@@ -27,6 +33,7 @@ vi.mock("@/lib/db/prisma", () => ({
       updateMany: socialPostUpdateManyMock,
     },
     socialPostPublishAttempt: {
+      findFirst: attemptFindFirstMock,
       aggregate: attemptAggregateMock,
       create: attemptCreateMock,
       update: attemptUpdateMock,
@@ -103,6 +110,7 @@ describe("social post publisher service", () => {
       .mockResolvedValueOnce(duePost)
       .mockResolvedValue(null);
     socialPostUpdateManyMock.mockResolvedValue({ count: 1 });
+    attemptFindFirstMock.mockResolvedValue(null);
     attemptAggregateMock.mockResolvedValue({ _max: { attempt: null } });
     attemptCreateMock.mockResolvedValue({ id: ATTEMPT_ID });
     attemptUpdateMock.mockResolvedValue({ id: ATTEMPT_ID });
@@ -225,7 +233,12 @@ describe("social post publisher service", () => {
     );
   });
 
-  it("recovers a post whose lease expired and re-claims it under a new lease", async () => {
+  it("recovers a recorded success after a crash before settling without republishing", async () => {
+    attemptFindFirstMock.mockResolvedValue({
+      outcome: "succeeded",
+      externalId: "1907",
+      finishedAt: NOW,
+    });
     socialPostFindFirstMock.mockReset();
     socialPostFindFirstMock
       .mockResolvedValueOnce({
@@ -246,11 +259,65 @@ describe("social post publisher service", () => {
       status: "PUBLISHING",
       revision: 2,
     });
+    expect(publishXPostMock).not.toHaveBeenCalled();
+    expect(settleCall().data).toMatchObject({
+      status: "PUBLISHED",
+      publishedExternalId: "1907",
+    });
     expect(claimCall().data.leaseToken).not.toBe("stale-lease");
     expect(settleCall().where).toEqual({
       id: POST_ID,
       leaseToken: claimCall().data.leaseToken,
     });
+  });
+
+  it.each([null, { outcome: null, externalId: null, finishedAt: null }])(
+    "requires verification for an expired lease with an uncertain result %j",
+    async (attempt) => {
+      attemptFindFirstMock.mockResolvedValue(attempt);
+      socialPostFindFirstMock
+        .mockReset()
+        .mockResolvedValueOnce({ ...duePost, status: "PUBLISHING" })
+        .mockResolvedValue(null);
+      const { publishDueSocialPosts } = await loadService();
+      expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+        failed: 1,
+        published: 0,
+      });
+      expect(publishXPostMock).not.toHaveBeenCalled();
+      expect(settleCall().data.lastError).toContain("Check X before retrying");
+    },
+  );
+
+  it("does not retry an ambiguous create-post timeout", async () => {
+    publishXPostMock.mockRejectedValue(
+      new ComposioPublishOutcomeUnknownError(),
+    );
+    const { publishDueSocialPosts } = await loadService();
+    expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+      failed: 1,
+      retried: 0,
+    });
+    expect(settleCall().data.lastError).toContain("Check X before retrying");
+  });
+
+  it("does not publish a retry delayed beyond fifteen minutes by a cron outage", async () => {
+    socialPostFindFirstMock
+      .mockReset()
+      .mockResolvedValueOnce({
+        ...duePost,
+        attemptCount: 1,
+        scheduledAt: new Date(NOW.getTime() - 2 * 60 * 60_000),
+        nextAttemptAt: new Date(NOW.getTime() - 119 * 60_000),
+      })
+      .mockResolvedValue(null);
+    const { publishDueSocialPosts } = await loadService();
+    expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+      failed: 1,
+      published: 0,
+    });
+    expect(publishXPostMock).not.toHaveBeenCalled();
+    expect(settleCall().data.lastError).toContain("retry window expired");
   });
 
   it("marks a post missed when first seen over an hour late, without calling X", async () => {
@@ -292,7 +359,7 @@ describe("social post publisher service", () => {
     });
   });
 
-  it("still attempts a late post that already has an attempt", async () => {
+  it("expires a retry instead of publishing more than an hour late", async () => {
     socialPostFindFirstMock.mockReset();
     socialPostFindFirstMock
       .mockResolvedValueOnce({
@@ -305,8 +372,8 @@ describe("social post publisher service", () => {
 
     const result = await publishDueSocialPosts(syncContext);
 
-    expect(result).toMatchObject({ published: 1, missed: 0 });
-    expect(publishXPostMock).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ failed: 1, published: 0, missed: 0 });
+    expect(publishXPostMock).not.toHaveBeenCalled();
   });
 
   it.each([

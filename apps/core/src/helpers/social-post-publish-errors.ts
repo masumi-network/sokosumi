@@ -1,4 +1,8 @@
-import { ComposioApiError, ComposioToolError } from "@/clients/composio.client";
+import {
+  ComposioApiError,
+  ComposioPublishOutcomeUnknownError,
+  ComposioToolError,
+} from "@/clients/composio.client";
 
 const SUMMARY_LIMIT = 300;
 const UNKNOWN_SUMMARY = "Unexpected error while publishing";
@@ -67,6 +71,9 @@ function classifyToolError(
 export function classifyPublishError(
   error: unknown,
 ): PublishErrorClassification {
+  if (error instanceof ComposioPublishOutcomeUnknownError) {
+    return { kind: "unknown", transient: false, summary: error.message };
+  }
   if (error instanceof ComposioApiError) return classifyApiError(error);
   if (error instanceof ComposioToolError) return classifyToolError(error);
   return {

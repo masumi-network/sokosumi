@@ -77,6 +77,7 @@ interface ClaimedPost {
   scheduledAt: Date | null;
   attemptCount: number;
   leaseToken: string;
+  recoveringLease?: boolean;
   socialConnection: PublisherPostRecord["socialConnection"];
 }
 
@@ -165,6 +166,47 @@ async function attemptPublish(
   options: AttemptOptions,
 ): Promise<AttemptOutcome> {
   const now = new Date();
+
+  if (post.recoveringLease) {
+    const previous = await prisma.socialPostPublishAttempt.findFirst({
+      where: { socialPostId: post.id },
+      orderBy: { attempt: "desc" },
+      select: { outcome: true, externalId: true, finishedAt: true },
+    });
+    if (previous?.outcome === "succeeded" && previous.externalId) {
+      const settled = await settle(post, {
+        status: "PUBLISHED",
+        publishedAt: previous.finishedAt ?? now,
+        publishedExternalId: previous.externalId,
+        publishedUrl: publishedUrl(
+          post.socialConnection?.externalHandle ?? null,
+          previous.externalId,
+        ),
+        lastError: null,
+        attemptCount: post.attemptCount + 1,
+      });
+      return settled ? "published" : "skipped";
+    }
+    const settled = await settle(post, {
+      status: "FAILED",
+      lastError:
+        "The previous publishing attempt could not be confirmed. Check X before retrying to avoid a duplicate post.",
+    });
+    return settled ? "failed" : "skipped";
+  }
+
+  if (
+    post.attemptCount > 0 &&
+    post.scheduledAt &&
+    now.getTime() > post.scheduledAt.getTime() + RETRY_WINDOW_MS
+  ) {
+    const settled = await settle(post, {
+      status: "FAILED",
+      lastError:
+        "The publishing retry window expired. Reschedule or publish the post manually.",
+    });
+    return settled ? "failed" : "skipped";
+  }
 
   if (
     post.attemptCount === 0 &&
@@ -320,6 +362,7 @@ async function claimDuePost(): Promise<ClaimResult> {
       scheduledAt: candidate.scheduledAt,
       attemptCount: candidate.attemptCount,
       leaseToken,
+      recoveringLease: candidate.status === "PUBLISHING",
       socialConnection: candidate.socialConnection,
     },
   };
