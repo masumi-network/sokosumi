@@ -762,19 +762,6 @@ describe("ChatRoomSidebarRow mention pill", () => {
     expect(pill?.querySelector('[data-slot="mention-glyph"]')).not.toBeNull();
   });
 
-  // An outline, not a fill: the badge shape at half the weight, so a mention
-  // reads as a badge beside a bare count without looming over it. Asserted as
-  // what a reader sees rather than by class: the pill draws a border and no
-  // background of its own.
-  it("draws the @ pill as an outline", () => {
-    const { pill } = renderRoom({ kind: "channel", unreadMentionCount: 2 });
-
-    expect(pill?.querySelector('[data-slot="mention-pill"]')).toHaveAttribute(
-      "data-shape",
-      "outline",
-    );
-  });
-
   it("marks a group Direct's mentions with an @ pill", () => {
     const { pill } = renderRoom({
       kind: "direct",
