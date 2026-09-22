@@ -48,8 +48,14 @@ const CELL_OFF =
  * Nothing to press, and the lightest of the three: a filled cell is on, an
  * outlined one is off, and this one carries no box at all. A border here would
  * make the one cell that cannot be pressed the most drawn of the row.
+ *
+ * The icon is a step lighter than the one in an off cell as well. Without it
+ * the two differ by the border alone, so the only thing separating "off" from
+ * "not available here" is a line that measures under 3:1 on the fold (2.87
+ * light, 2.72 dark), and a reader who reads the icon rather than the box sees
+ * no difference at all.
  */
-const CELL_DEAD = "text-muted-foreground cursor-default border-transparent";
+const CELL_DEAD = "text-disabled-foreground cursor-default border-transparent";
 /**
  * The column a cell stands in, holding one width for the cell and its name.
  *

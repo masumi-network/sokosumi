@@ -2587,6 +2587,9 @@ describe("NotificationKinds", () => {
 
       expect(dead).toHaveAttribute("aria-disabled", "true");
       expect(dead).not.toHaveAttribute("aria-pressed");
+      // A step lighter than an off cell. Without it the two differ by the
+      // border alone, and a reader who reads the icon sees no difference.
+      expect(dead).toHaveClass("text-disabled-foreground");
       expect(describedBy(dead)).toBe("marketingEmailOnlyHint");
     }
 
@@ -2595,6 +2598,9 @@ describe("NotificationKinds", () => {
     });
 
     expect(email).toHaveAttribute("aria-pressed", "false");
+    // The off cell it is lighter than.
+    expect(email).toHaveClass("text-muted-foreground");
+    expect(email).not.toHaveClass("text-disabled-foreground");
     // Described by the row's own visible line rather than by a copy of it.
     // Undescribed, this one live control would be the only cell of the row a
     // reader meets with nothing said about it, between two dead ones that
