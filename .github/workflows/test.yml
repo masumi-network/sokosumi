@@ -66,7 +66,7 @@ jobs:
         target:
           - { name: Web, command: "pnpm exec turbo run test:ci --filter=web", filter: js }
           - { name: Core, command: "pnpm exec turbo run test:ci --filter=@sokosumi/core", filter: js }
-          - { name: CLI, command: "pnpm exec turbo run test:ci --filter=./apps/cli", filter: cli }
+          - { name: CLI, command: "pnpm exec turbo run test:ci --filter=@sokosumi/cli", filter: cli }
           - { name: Packages, command: 'pnpm exec turbo run test:ci --filter="./packages/*"', filter: js }
           - { name: Local env, command: "pnpm local-env:test", filter: js }
           - { name: CI config, command: "pnpm ci:test", filter: js }
@@ -105,7 +105,7 @@ jobs:
       # alone, which strips types rather than checking them.
       - name: Typecheck the CLI
         if: matrix.target.name == 'CLI' && (needs.changes.outputs.cli == 'true' || github.event_name == 'workflow_dispatch')
-        run: pnpm --filter ./apps/cli typecheck
+        run: pnpm --filter @sokosumi/cli typecheck
 
       - name: Lint the CLI
         if: matrix.target.name == 'CLI' && (needs.changes.outputs.cli == 'true' || github.event_name == 'workflow_dispatch')
@@ -117,7 +117,7 @@ jobs:
       - name: Smoke the built CLI
         if: matrix.target.name == 'CLI' && (needs.changes.outputs.cli == 'true' || github.event_name == 'workflow_dispatch')
         run: |
-          pnpm --filter ./apps/cli build
+          pnpm --filter @sokosumi/cli build
           node apps/cli/dist/bin/sokosumi.js --version
 
       - name: Test job sync against PostgreSQL
