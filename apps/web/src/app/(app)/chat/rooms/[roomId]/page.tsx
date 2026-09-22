@@ -16,6 +16,19 @@ interface ChatRoomPageProps {
   params: Promise<{ roomId: string }>;
 }
 
+/**
+ * Sentinel only — never a real room. This Instant route already has a
+ * non-empty loading shell (`Suspense` + loading view). Without at least one
+ * generateStaticParams child, cacheComponents leaves `roomId` not
+ * remaining-prerenderable; Vercel then strips it to the `[roomId]`
+ * placeholder on resume and throws E592 (SOKOSUMI-RF / next.js#98647). The
+ * sentinel marks `roomId` remaining-prerenderable. The dynamic entry can
+ * still be `fallback: "/chat/rooms/[roomId]"` with postponed state.
+ */
+export function generateStaticParams() {
+  return [{ roomId: "00000000-0000-4000-8000-000000000000" }];
+}
+
 interface ChatRoomShellProps {
   activeOrganization: Organization | null;
   rooms: ChatRoom[];
