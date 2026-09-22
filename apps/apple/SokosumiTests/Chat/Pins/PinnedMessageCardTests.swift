@@ -63,7 +63,7 @@
         snippet: String(repeating: "A long quoted paragraph that has to clamp inside the pin. ", count: 30)
       )
       let measurements = try await render([("A short **pinned message**.", nil), (" \n", ada), ("", longQuote), ("", nil),
-                                          ("Written over a quote.", ada)], width: width, dark: dark)
+                                           ("Written over a quote.", ada)], width: width, dark: dark)
       let written = measurements[0].height, quoted = measurements[1].height, blank = measurements[3].height
       // The quote adds its author line and the block's inset to what a one-line body takes.
       #expect(quoted > written + 20)
