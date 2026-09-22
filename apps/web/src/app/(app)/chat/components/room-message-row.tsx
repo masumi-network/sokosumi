@@ -2253,9 +2253,13 @@ function MessageMetaFooter({
             "text-primary hover:text-primary-hover -mx-1 mt-1 min-h-9 px-1 text-xs font-medium sm:mt-1 sm:min-h-0",
             // Unread reads as a bar, not a badge: the tint plus an inset left
             // rule gives the count an edge to sit against without adding a
-            // second mark to a row that already carries reactions.
+            // second mark to a row that already carries reactions. The rule
+            // has no colour of its own, so it follows the text, hover too.
+            // `-quaternary` and `-variant` are the sidebar mention pill's pair:
+            // the `-quinary` tint sat 6% above the dark background and read as
+            // a faint outline round cramped text, not as a bar.
             unreadReplyCount > 0 &&
-              "bg-primary-quinary shadow-primary-tertiary rounded-md px-2 font-semibold shadow-[inset_2px_0_0]",
+              "bg-primary-quaternary text-primary-variant inline-flex items-center rounded-lg px-2.5 py-1 font-semibold shadow-[inset_2px_0_0]",
           )}
           onClick={() => onOpenThread(message)}
         >
