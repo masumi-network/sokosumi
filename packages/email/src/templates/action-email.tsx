@@ -70,19 +70,17 @@ export function ActionEmailTemplate({
       </Text>
       {quote ? (
         <Container
-          className={DARK_CLASS.quote}
+          className={DARK_CLASS.rule}
           style={{
-            backgroundColor: LIGHT_PALETTE.surfaceSubtle,
-            borderLeft: `3px solid ${LIGHT_PALETTE.quoteBar}`,
-            borderRadius: `0 ${RADIUS.panel} ${RADIUS.panel} 0`,
+            borderLeft: `2px solid ${LIGHT_PALETTE.quoteBar}`,
             margin: `0 0 ${SPACE.lg} 0`,
-            padding: `${SPACE.md}`,
+            padding: `${SPACE.xs} 0 ${SPACE.xs} ${SPACE.md}`,
           }}
         >
           <Text
             className={DARK_CLASS.text}
             style={{
-              ...TEXT.small,
+              ...TEXT.body,
               color: LIGHT_PALETTE.textPrimary,
               fontStyle: "italic",
               margin: 0,
@@ -138,13 +136,9 @@ export function ActionEmailTemplate({
         </Button>
       </Section>
       <Container
-        className={DARK_CLASS.panel}
         style={{
-          backgroundColor: LIGHT_PALETTE.surfaceSubtle,
-          border: `1px solid ${LIGHT_PALETTE.hairline}`,
-          borderRadius: RADIUS.panel,
           margin: 0,
-          padding: `${SPACE.md}`,
+          padding: 0,
         }}
       >
         <Text

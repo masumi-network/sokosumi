@@ -4,7 +4,6 @@ import {
   Container,
   Head,
   Heading,
-  Hr,
   Html,
   Preview,
   Section,
@@ -36,6 +35,9 @@ const EMAIL_KANJI_URL =
   "https://igcd4cnfvuav1zto.public.blob.vercel-storage.com/brand/sokosumi-logo-kanji-black.png";
 const EMAIL_WORDMARK_URL =
   "https://igcd4cnfvuav1zto.public.blob.vercel-storage.com/brand/sokosumi-logo-wordmark-black.png";
+
+/** The brand stripe down the leading edge of every email. */
+const SPINE_WIDTH = 6;
 
 const RESPONSIVE_CSS = `@media only screen and (max-width: 600px) {
   .sk-pad { padding-left: ${SPACE.md} !important; padding-right: ${SPACE.md} !important; }
@@ -94,90 +96,106 @@ export function EmailShell({
               width: "100%",
             }}
           >
-            <Section
-              className={`${DARK_CLASS.rule} sk-pad`}
-              style={{
-                borderBottom: `1px solid ${LIGHT_PALETTE.hairline}`,
-                padding: `${SPACE.lg} ${SPACE.lg} ${SPACE.md}`,
-              }}
+            <table
+              border={0}
+              cellPadding="0"
+              cellSpacing="0"
+              role="presentation"
+              width="100%"
             >
-              <table
-                border={0}
-                cellPadding="0"
-                cellSpacing="0"
-                role="presentation"
-                width="100%"
-              >
-                <tbody>
-                  <tr>
-                    <td valign="middle">
+              <tbody>
+                <tr>
+                  <td
+                    className={DARK_CLASS.spine}
+                    style={{
+                      backgroundColor: LIGHT_PALETTE.accent,
+                      fontSize: 0,
+                      lineHeight: 0,
+                      width: `${SPINE_WIDTH}px`,
+                    }}
+                    width={SPINE_WIDTH}
+                  >
+                    &nbsp;
+                  </td>
+                  <td valign="top">
+                    <Section
+                      className="sk-pad"
+                      style={{ padding: `${SPACE.lg} ${SPACE.lg} 0` }}
+                    >
                       <img
                         alt="Sokosumi"
                         className={DARK_CLASS.logo}
                         height="20"
                         src={EMAIL_WORDMARK_URL}
-                        style={{ display: "block", border: 0 }}
+                        style={{ border: 0, display: "block" }}
                         width="156"
                       />
-                    </td>
-                    <td align="right" valign="middle">
-                      <img
-                        alt=""
-                        className={DARK_CLASS.logo}
-                        height="28"
-                        src={EMAIL_KANJI_URL}
-                        style={{ display: "block", border: 0 }}
-                        width="14"
-                      />
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </Section>
-            <Section
-              className="sk-pad"
-              style={{ padding: `${SPACE.xl} ${SPACE.lg}` }}
-            >
-              <Heading
-                className={`${DARK_CLASS.heading} sk-heading`}
-                style={{
-                  ...TEXT.heading,
-                  color: LIGHT_PALETTE.textPrimary,
-                  margin: `0 0 ${SPACE.sm} 0`,
-                  padding: 0,
-                  textAlign: "left",
-                }}
-              >
-                {title}
-              </Heading>
-              <Hr
-                style={{
-                  border: 0,
-                  borderTop: `3px solid ${LIGHT_PALETTE.accent}`,
-                  margin: `0 0 ${SPACE.lg} 0`,
-                  width: "56px",
-                }}
-              />
-              {children}
-            </Section>
-            <Section
-              className={`${DARK_CLASS.rule} sk-pad`}
-              style={{
-                borderTop: `1px solid ${LIGHT_PALETTE.hairline}`,
-                padding: `${SPACE.md} ${SPACE.lg} ${SPACE.lg}`,
-              }}
-            >
-              <Text
-                className={DARK_CLASS.textMuted}
-                style={{
-                  ...TEXT.micro,
-                  color: LIGHT_PALETTE.textMuted,
-                  margin: 0,
-                }}
-              >
-                {footer}
-              </Text>
-            </Section>
+                    </Section>
+                    <Section
+                      className="sk-pad"
+                      style={{ padding: `${SPACE.xl} ${SPACE.lg}` }}
+                    >
+                      <Heading
+                        className={`${DARK_CLASS.heading} sk-heading`}
+                        style={{
+                          ...TEXT.heading,
+                          color: LIGHT_PALETTE.textPrimary,
+                          margin: `0 0 ${SPACE.md} 0`,
+                          padding: 0,
+                          textAlign: "left",
+                        }}
+                      >
+                        {title}
+                      </Heading>
+                      {children}
+                    </Section>
+                    <Section
+                      className={`${DARK_CLASS.rule} sk-pad`}
+                      style={{
+                        borderTop: `1px solid ${LIGHT_PALETTE.hairline}`,
+                        padding: `${SPACE.md} ${SPACE.lg} ${SPACE.lg}`,
+                      }}
+                    >
+                      <table
+                        border={0}
+                        cellPadding="0"
+                        cellSpacing="0"
+                        role="presentation"
+                        width="100%"
+                      >
+                        <tbody>
+                          <tr>
+                            <td valign="middle">
+                              <Text
+                                className={DARK_CLASS.textMuted}
+                                style={{
+                                  ...TEXT.micro,
+                                  color: LIGHT_PALETTE.textMuted,
+                                  margin: 0,
+                                  paddingRight: SPACE.md,
+                                }}
+                              >
+                                {footer}
+                              </Text>
+                            </td>
+                            <td align="right" valign="middle" width="14">
+                              <img
+                                alt=""
+                                className={DARK_CLASS.logo}
+                                height="28"
+                                src={EMAIL_KANJI_URL}
+                                style={{ border: 0, display: "block" }}
+                                width="14"
+                              />
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </Section>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </Container>
         </Section>
       </Body>

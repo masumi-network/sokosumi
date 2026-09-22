@@ -19,6 +19,7 @@ export const DARK_CLASS = {
   quote: "sk-quote",
   rule: "sk-rule",
   solid: "sk-solid",
+  spine: "sk-spine",
   text: "sk-text",
   textMuted: "sk-text-muted",
 } as const;
@@ -39,6 +40,7 @@ export function darkModeCss(): string {
   .${DARK_CLASS.code} { background-color: ${p.codeSurface} !important; border-color: ${p.hairline} !important; }
   .${DARK_CLASS.rule} { border-color: ${p.hairline} !important; }
   .${DARK_CLASS.link} { color: ${p.link} !important; }
+  .${DARK_CLASS.spine} { background-color: ${p.accent} !important; }
   .${DARK_CLASS.solid} { background-color: ${p.accentSolid} !important; color: ${p.accentForeground} !important; }
 }`;
 }

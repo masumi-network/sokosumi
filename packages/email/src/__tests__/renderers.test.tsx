@@ -75,9 +75,7 @@ describe("email renderers", () => {
     expect(rendered.html).toContain(
       `background-color:${LIGHT_PALETTE.accentSolid}`,
     );
-    expect(rendered.html).toContain(
-      `background-color:${LIGHT_PALETTE.surfaceSubtle}`,
-    );
+    expect(rendered.html).toContain(`background-color:${LIGHT_PALETTE.accent}`);
     expect(rendered.html).toContain("Hello Andreas");
     expect(rendered.html).not.toContain("one-time token");
     expect(rendered.html).not.toContain("secret-token");
