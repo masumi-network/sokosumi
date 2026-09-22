@@ -18,9 +18,10 @@ import { fetchVendorMemberships } from "../api/services/vendor-service.js";
 import {
   type AuthEnvironment,
   type AuthManager,
-  getAuthManager,
 } from "../auth/auth-manager.js";
 import {
+  type AuthManagerFactory,
+  createSessionAuthManager,
   type InitialAuthState,
   resolveInitialAuth,
   selectBootRoute,
@@ -30,7 +31,6 @@ import {
   MAINNET_API_URL,
   PREPROD_API_URL,
   resolveCliConfig,
-  resolveTargetScope,
   sanitizeApiUrl,
   targetFromUserApiKey,
   USER_API_KEY_PREFIX_BY_TARGET,
@@ -125,24 +125,6 @@ export function oauthCallbackDisplayUri(
     ? callbackPath
     : `/${callbackPath}`;
   return `http://${OAUTH_LOOPBACK_HOST}:${port}${normalizedPath}`;
-}
-
-type AuthManagerFactory = (options: {
-  targetScope: string;
-  clientId: string;
-  environment: AuthEnvironment;
-}) => AuthManager;
-
-function getManagerForConfig(
-  config: CliTargetConfig,
-  env: AuthEnvironment,
-  authManagerFactory: AuthManagerFactory = getAuthManager,
-): AuthManager {
-  return authManagerFactory({
-    targetScope: resolveTargetScope(config.target, config.apiUrl),
-    clientId: config.clientId,
-    environment: env,
-  });
 }
 
 export function resolveHostedTargetConfig(
@@ -443,7 +425,11 @@ function StatusApp({
     () =>
       selectedConfig.apiUrl === config.apiUrl
         ? authManager
-        : getManagerForConfig(selectedConfig, env, authManagerFactory),
+        : createSessionAuthManager({
+            config: selectedConfig,
+            environment: env,
+            authManagerFactory,
+          }),
     [authManager, authManagerFactory, config.apiUrl, env, selectedConfig],
   );
   const coreClient = useMemo(
@@ -589,7 +575,11 @@ function StatusApp({
   };
 
   const startOAuthLogin = (loginConfig: CliTargetConfig) => {
-    const manager = getManagerForConfig(loginConfig, env, authManagerFactory);
+    const manager = createSessionAuthManager({
+      config: loginConfig,
+      environment: env,
+      authManagerFactory,
+    });
     const controller = new AbortController();
     const attempt = ++oauthAttempt.current;
     abortController.current = controller;
@@ -639,7 +629,11 @@ function StatusApp({
     loginConfig: CliTargetConfig,
     loginTargetExplicit: boolean,
   ) => {
-    const manager = getManagerForConfig(loginConfig, env, authManagerFactory);
+    const manager = createSessionAuthManager({
+      config: loginConfig,
+      environment: env,
+      authManagerFactory,
+    });
     const controller = new AbortController();
     const attempt = ++apiKeyLoginAttempt.current;
     abortController.current = controller;
@@ -1323,8 +1317,12 @@ export async function renderStatusApp({
   targetExplicit = false,
   networkSelectionLocked = false,
 }: StatusAppOptions = {}): Promise<{ tui: true }> {
-  const manager =
-    authManager || getManagerForConfig(config, env, authManagerFactory);
+  const manager = createSessionAuthManager({
+    config,
+    environment: env,
+    authManager,
+    authManagerFactory,
+  });
   const { waitUntilExit } = render(
     React.createElement(StatusApp, {
       authManager: manager,
