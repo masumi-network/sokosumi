@@ -94,11 +94,41 @@ public struct MessageAttachmentSegment: Identifiable, Equatable, Sendable {
 }
 
 public extension MessageMarkdown {
-  var containsAttachments: Bool {
-    func walk(_ block: MessageMarkdownBlock) -> Bool {
-      MessageAttachmentSegment.split(block.text).contains { $0.attachment != nil }
-        || block.children.contains(where: walk)
+  /// Web clamps every body at 16 lines unless it holds a large solo image
+  /// (`hasLargeSoloImageAttachment`): attachment links with only whitespace
+  /// between them form one row of chips, and a row of exactly one image is
+  /// drawn large instead. Text alone, a file, or two images side by side clamp.
+  var clampsLongBody: Bool {
+    !attachmentRows.contains { $0.count == 1 && $0[0].kind == .image }
+  }
+
+  /// Attachments in document order, grouped where only whitespace separates them.
+  private var attachmentRows: [[MessageAttachment]] {
+    var rows: [[MessageAttachment]] = []
+    var open = false
+    func walk(_ block: MessageMarkdownBlock) {
+      guard block.children.isEmpty else {
+        block.children.forEach(walk)
+        return
+      }
+      if case .codeBlock = block.kind {
+        open = false
+        return
+      }
+      for segment in MessageAttachmentSegment.split(block.text) {
+        if let attachment = segment.attachment {
+          if open {
+            rows[rows.count - 1].append(attachment)
+          } else {
+            rows.append([attachment])
+            open = true
+          }
+        } else if !String(segment.text.characters).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+          open = false
+        }
+      }
     }
-    return blocks.contains(where: walk)
+    blocks.forEach(walk)
+    return rows
   }
 }
