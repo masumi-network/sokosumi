@@ -14,6 +14,7 @@ const {
   updateManyMock,
   workspaceUpdateManyMock,
   workspaceFindUniqueMock,
+  inTransaction,
 } = vi.hoisted(() => ({
   cancelNotificationEmailsMock: vi.fn(),
   deleteManyMock: vi.fn(),
@@ -28,6 +29,7 @@ const {
   updateManyMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   workspaceUpdateManyMock: vi.fn(),
+  inTransaction: { value: false },
 }));
 
 vi.mock("@/helpers/notification-email-dispatch", () => ({
@@ -56,7 +58,14 @@ vi.mock("@/lib/db/prisma", () => {
     },
   };
   transactionMock.mockImplementation(
-    async (operation: (tx: typeof client) => unknown) => operation(client),
+    async (operation: (tx: typeof client) => unknown) => {
+      inTransaction.value = true;
+      try {
+        return await operation(client);
+      } finally {
+        inTransaction.value = false;
+      }
+    },
   );
   return { default: { ...client, $transaction: transactionMock } };
 });
@@ -84,6 +93,7 @@ const WORKSPACE = {
 describe("calendarInvalidationOutboxService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    inTransaction.value = false;
     cancelNotificationEmailsMock.mockResolvedValue(undefined);
     findManyMock.mockResolvedValue([{ id: OUTBOX_ROW.id, attempts: 0 }]);
     findUniqueMock.mockResolvedValue(OUTBOX_ROW);
@@ -392,6 +402,31 @@ describe("calendarInvalidationOutboxService", () => {
 
     expect(publishMock).not.toHaveBeenCalled();
     expect(publishAccessRevokedMock).not.toHaveBeenCalled();
+  });
+
+  it("publishes Ably after the membership-fence transaction commits", async () => {
+    let publishedInsideTransaction = false;
+    publishMock.mockImplementation(async () => {
+      if (inTransaction.value) {
+        publishedInsideTransaction = true;
+      }
+    });
+    publishAccessRevokedMock.mockImplementation(async () => {
+      if (inTransaction.value) {
+        publishedInsideTransaction = true;
+      }
+    });
+    const { calendarInvalidationOutboxService } = await import(
+      "./calendar-invalidation-outbox.service"
+    );
+
+    await calendarInvalidationOutboxService.syncInvalidations({
+      shouldContinue: () => true,
+      maxBatches: 1,
+    });
+
+    expect(publishMock).toHaveBeenCalledOnce();
+    expect(publishedInsideTransaction).toBe(false);
   });
 
   it("retries a failed publish without marking the row published", async () => {
