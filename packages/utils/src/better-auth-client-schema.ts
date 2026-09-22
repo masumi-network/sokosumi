@@ -21,13 +21,6 @@ export const betterAuthUserAdditionalFields = {
     required: false,
     defaultValue: false,
   },
-  // Superseded by `hideRoomUnreadCount` (ADR-0038). Neither read nor written;
-  // declared while its column exists, and removed with it.
-  showRoomUnreadCount: {
-    type: "boolean",
-    required: false,
-    defaultValue: false,
-  },
   logo: {
     type: "string",
     required: false,
