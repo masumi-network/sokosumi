@@ -15688,26 +15688,6 @@ export const PatchProjectRequestSchema = {
     }
 } as const;
 
-export const ProjectDeletedSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        deleted: {
-            type: 'boolean',
-            enum: [
-                true
-            ]
-        }
-    },
-    required: [
-        'id',
-        'deleted'
-    ]
-} as const;
-
 export const JobSchema = {
     type: 'object',
     properties: {

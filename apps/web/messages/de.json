@@ -2225,7 +2225,8 @@
           "removed": "Markenkontext entfernt",
           "removeDialog": {
             "title": "Markenkontext entfernen?",
-            "description": "Dadurch wird die DESIGN.md-Datei des Projekts entfernt."
+            "description": "Dadurch wird die DESIGN.md-Datei des Projekts entfernt.",
+            "cancel": "Abbrechen"
           },
           "upload": "Hochladen",
           "moreActions": "Brand-Aktionen"
@@ -2316,7 +2317,6 @@
           "viewDetails": "Details anzeigen",
           "edit": "Bearbeiten",
           "close": "Projekt schließen",
-          "delete": "Löschen",
           "remove": "Entfernen",
           "confirmRemoveJob": "Diesen Job aus dem Projekt entfernen?"
         },
@@ -2365,16 +2365,9 @@
             }
           }
         },
-        "deleteDialog": {
-          "title": "Projekt löschen",
-          "description": "Dieses Projekt wird gelöscht. Verknüpfte Tasks und Jobs bleiben außerhalb des Projekts verfügbar.",
-          "confirm": "Löschen",
-          "cancel": "Abbrechen"
-        },
         "errors": {
           "create": "Projekt konnte nicht erstellt werden",
           "update": "Projekt konnte nicht aktualisiert werden",
-          "delete": "Projekt konnte nicht gelöscht werden",
           "addJob": "Job konnte nicht hinzugefügt werden",
           "removeJob": "Job konnte nicht entfernt werden",
           "addTask": "Task konnte nicht hinzugefügt werden",
