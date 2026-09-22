@@ -37,7 +37,7 @@ public func parseUserId(fromAblyPresenceClientId clientId: String) -> String? {
   guard let separator = clientId.firstIndex(of: ":"), separator > clientId.startIndex else { return nil }
   let userId = String(clientId[..<separator])
   let instanceId = String(clientId[clientId.index(after: separator)...])
-  guard !userId.isEmpty, isValidAblyClientInstanceId(instanceId) else { return nil }
+  guard !userId.isEmpty, isValidRealtimeClientInstanceId(instanceId) else { return nil }
   return userId
 }
 
