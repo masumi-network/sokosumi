@@ -118,7 +118,7 @@ public struct AblyTokenFields: Equatable, Sendable {
 /// unparseable, for another room, or for push (out of scope) is ignored —
 /// the transcript only moves on proof, never on hope. Presence arrives
 /// through `OrgPresenceChannel`, not as messages.
-public func resolveRealtimeDelivery(channel: String, event eventName: String, data: Any) -> ResolvedRealtimeDelivery {
+func resolveRealtimeDelivery(channel: String, event eventName: String, data: Any) -> ResolvedRealtimeDelivery {
   if let named = resolveNamedDelivery(channel: channel, event: eventName, data: data) {
     return named
   }
