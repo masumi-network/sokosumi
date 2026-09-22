@@ -173,7 +173,7 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                 const isActive = href ? isPathActive(href) : false;
                 const newTaskClassName =
                   key === "new-task"
-                    ? "bg-secondary text-secondary-foreground hover:bg-secondary/90 hover:text-secondary-foreground active:bg-secondary/90 active:text-secondary-foreground"
+                    ? "bg-secondary text-secondary-foreground hover:bg-secondary-hover hover:text-secondary-foreground active:bg-secondary-hover active:text-secondary-foreground"
                     : undefined;
 
                 // Collapsed rail hides the label, so every item needs the hint.
