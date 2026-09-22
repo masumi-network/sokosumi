@@ -71,7 +71,6 @@ struct ConversationSidebarView: View {
               }
             }
           }
-          // Channels section only for organization workspaces, mirroring web.
           if workspaces.selection?.workspace.organizationId != nil {
             Section {
               sectionHeader("Channels", section: .channels, closedAttention: resolveSectionAttention(partitioned.channels))
@@ -642,7 +641,7 @@ struct DirectRoomAvatarStack: View {
   private static let markSize: CGFloat = 8
 
   let participants: [DirectRoomAvatarParticipant]
-  /// Self Directs show no mark, like web.
+  /// Self Directs show no mark.
   var showsPresence = true
   /// Live org map (userId → online/afk); humans fall back to their snapshot.
   var livePresence: [String: Components.Schemas.ChatRoomPresence] = [:]
