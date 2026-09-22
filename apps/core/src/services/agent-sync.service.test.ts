@@ -8,6 +8,7 @@ import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CARDANO_V2_RAIL_READINESS_KEY } from "@/helpers/agent";
+import { REDACTED_SECRET } from "@/lib/secret-redaction";
 
 import { READINESS_BUDGET } from "./agent-sync.readiness.js";
 
@@ -302,6 +303,14 @@ const V2_AGENT_ROOT = `67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b$
 function createV2AgentIdentifier(version: number): string {
   return `${V2_AGENT_ROOT}${version.toString(16).padStart(6, "0")}`;
 }
+
+/**
+ * Assigned at module scope, because `getEnvSecrets` scans `process.env` once
+ * and caches the result. A variable set inside a test body would arrive after
+ * the first redacted log had already populated that cache.
+ */
+const ENV_SECRET = "sok1011-registry-secret-value";
+process.env.SOK_1011_REGISTRY_API_KEY = ENV_SECRET;
 
 describe("agentSyncService.syncRegistryAgents", () => {
   beforeEach(() => {
@@ -929,6 +938,32 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(tagUpsertMock).not.toHaveBeenCalled();
     expect(agentCreateMock).not.toHaveBeenCalled();
     expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
+  });
+
+  it("masks an env secret echoed in the registry diff error", async () => {
+    const agentSyncService = await getAgentSyncService();
+    // The registry client caps this string; its content is still the far
+    // side's. A proxy that echoes request headers puts the API key in it.
+    getAgentsDiffMock.mockResolvedValue(
+      err(`502 upstream rejected token=${ENV_SECRET}`),
+    );
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      await agentSyncService.syncRegistryAgents(
+        AGENTS_SYNC_METADATA_KEY,
+        createSyncExecutionOptions(),
+      );
+
+      const logged = errorSpy.mock.calls.find(
+        (call) => call[0] === "[sync/agents] Error in diff sync operation:",
+      );
+      expect(logged).toBeDefined();
+      expect(String(logged?.[1])).not.toContain(ENV_SECRET);
+      expect(String(logged?.[1])).toContain(REDACTED_SECRET);
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it("stops downstream writes when cancellation is requested mid-run", async () => {
