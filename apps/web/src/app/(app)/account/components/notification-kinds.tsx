@@ -318,9 +318,9 @@ function NewsRow({ news }: { news: EmailChoice }) {
  *
  * One control per decision: a group that a reader settles at once carries the
  * group's own answers, and the kinds under it stay separately selectable. Open
- * a row and it becomes a grid, because a channel is a place rather than a
- * volume: an entry in Sokosumi, a push on the device, and an email are three
- * of them.
+ * such a row and it becomes a grid, and a row that is one notification carries
+ * its cells already, because a channel is a place rather than a volume: an
+ * entry in Sokosumi, a push on the device, and an email are three of them.
  *
  * Everything Sokosumi sends answers here, including the switches that used to
  * sit under the card. Push is no longer a preference of its own: asking for
@@ -341,15 +341,17 @@ export function NotificationKinds({ news }: { news: EmailChoice }) {
   // rather than blanking and coming back.
   const showKinds = !choices.loading && choices.groups.length > 0;
 
-  // A group of one kind is answered on its row, under one head, and the rest
-  // fold. The groups come ordered with every folding one first, so splitting
-  // them keeps the order a reader meets them in.
+  // A group made of one kind is answered on its row, under one head, and the
+  // rest fold. Decided by what the group is made of rather than by what Core
+  // answered for it: a group Core answered only one kind of stays a fold in
+  // its place, where a reader expects it. NOTIFICATION_GROUPS lists every
+  // group of several kinds first, so the split keeps the order.
   const groups = showKinds ? choices.groups : [];
-  const folding = groups.filter((group) => group.kinds.length > 1);
+  const folding = groups.filter((group) => group.spec.kinds.length > 1);
   const single = groups.flatMap((group) => {
     const [kind] = group.kinds;
 
-    return group.kinds.length === 1 && kind ? [{ group, kind }] : [];
+    return group.spec.kinds.length === 1 && kind ? [{ group, kind }] : [];
   });
 
   const readNote = choices.failed

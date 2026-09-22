@@ -51,9 +51,9 @@ const CELL_OFF =
  *
  * The icon is a step lighter than the one in an off cell as well. Without it
  * the two differ by the border alone, so the only thing separating "off" from
- * "not available here" is a line that measures under 3:1 on the fold (2.87
- * light, 2.72 dark), and a reader who reads the icon rather than the box sees
- * no difference at all.
+ * "not available here" is a line measuring about 3:1 on the card (3.00 light,
+ * 3.01 dark), and a reader who reads the icon rather than the box sees no
+ * difference at all.
  */
 const CELL_DEAD = "text-disabled-foreground cursor-default border-transparent";
 /**
@@ -469,9 +469,8 @@ export function ChannelGrid({
 
   return (
     // The rule under the column names is what makes them a head rather than a
-    // band of loose words, and a group of one kind has the same head as a
-    // group of five. Between rows it only ever falls where there is a second
-    // row to divide from.
+    // band of loose words. Between rows it only ever falls where there is a
+    // second row to divide from.
     <div className="divide-y">
       {heads}
       {kinds.map((kind) => (

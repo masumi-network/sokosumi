@@ -915,6 +915,70 @@ describe("NotificationKinds", () => {
   });
 
   /**
+   * Whether a row folds is decided by what the group is made of, not by how
+   * much of it Core answered. A Tasks group Core answered one kind of is still
+   * Tasks, in its place above the head, not a row among the ones under it.
+   */
+  it("keeps a group Core answered in part as a fold in its place", () => {
+    renderKinds(
+      MATRIX.filter(
+        (cell) =>
+          cell.category !== "TASK_COMPLETED" && cell.category !== "TASK_UPDATE",
+      ),
+    );
+
+    const task = groupTrigger("groupTask");
+    const band = rowsHead().parentElement!;
+
+    expect(task).toHaveAttribute("data-slot", "collapsible-trigger");
+    expect(
+      task.compareDocumentPosition(band) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // And only there: its one kind is not drawn a second time as a row on the
+    // card. Closed, the fold holds nothing.
+    expect(
+      screen.queryByRole("group", {
+        name: "deliveryAriaLabel kindTaskAttention",
+      }),
+    ).toBeNull();
+  });
+
+  /**
+   * Every row of the box starts its name at one edge and ends its answer at
+   * another, whether it folds or not, and the head over the rows on the card
+   * is drawn as a band of the box, padded like the rows under it.
+   */
+  it("lines the rows on the card up with the rows that fold", async () => {
+    renderKinds();
+
+    const flatName = screen.getByText("kindSystem");
+    const band = rowsHead().parentElement!;
+
+    expect(flatName).toHaveClass("font-medium");
+    expect(flatName.parentElement).toHaveClass("pl-6");
+    expect(
+      screen.getByRole("group", { name: "deliveryAriaLabel kindSystem" })
+        .parentElement,
+    ).toHaveClass("self-end", "@xl:self-auto");
+    expect(band).toHaveClass("bg-card-background", "px-4");
+
+    // Inside an open group the names sit a step deeper, under the group's
+    // own, and the word over them starts there too.
+    await openGroup("groupChat");
+
+    const foldHead = within(fold("groupChat")).getByRole("group", {
+      name: "channelsLegendLabel",
+    });
+
+    expect(within(foldHead).getByText("channelsKindLabel")).toHaveClass(
+      "@xl:pl-10",
+    );
+    expect(screen.getByText("kindChatMention").parentElement).toHaveClass(
+      "@xl:pl-10",
+    );
+  });
+
+  /**
    * Before the read lands the box holds the marketing row alone. Its cells
    * stand on the row, so the head over it names something a reader can see.
    */
