@@ -97,3 +97,16 @@ export function extractNodeErrorMessage(error: unknown): string {
     return truncateFallback(String(error));
   }
 }
+
+/**
+ * {@link extractNodeErrorMessage}, capped in every branch.
+ *
+ * The carve-out that returns the node's OWN message whole exists because two
+ * callers echo that sentence to a coworker. A caller that only LOGS the value
+ * gains nothing from it and inherits its hazard: whatever answers for the
+ * node picks the SHAPE of the body as well as its length, so an
+ * envelope-shaped 20 kB message walks straight past the fallback cap.
+ */
+export function extractNodeErrorMessageForLog(error: unknown): string {
+  return truncateFallback(extractNodeErrorMessage(error));
+}

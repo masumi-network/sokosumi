@@ -11,7 +11,11 @@ import {
   createX402PaymentMethods,
   type PaymentClientRequestOptions,
 } from "./masumi-payment-x402.js";
-import { extractNodeErrorMessage, readNodeErrorMessage } from "./node-error.js";
+import {
+  extractNodeErrorMessage,
+  extractNodeErrorMessageForLog,
+  readNodeErrorMessage,
+} from "./node-error.js";
 import { createClient } from "./openapi/generated/payment/client/index.js";
 import {
   type GetPurchaseDiffResponses,
@@ -233,9 +237,11 @@ export function createPaymentClient(
         // node's response body verbatim and the next caller that logs it
         // would carry an unbounded one. Every other branch in this file is
         // already capped.
+        //
+        // The ForLog variant, because no caller echoes this value either.
         return err(
           response.error
-            ? extractNodeErrorMessage(response.error)
+            ? extractNodeErrorMessageForLog(response.error)
             : "Failed to get purchase",
         );
       }

@@ -82,6 +82,33 @@ describe("createRegistryClient.getAgentsDiff", () => {
     expect(message).toContain("truncated from");
   });
 
+  it("caps an envelope-shaped error message too", async () => {
+    // The far side picks the SHAPE of its body as well as its length. An
+    // error wearing the registry's own `{ error: { message } }` envelope
+    // bypasses a cap that only guards the fallback dump.
+    postRegistryDiffMock.mockResolvedValue({
+      data: undefined,
+      error: { error: { message: "E".repeat(20_000) } },
+      response: { status: 502 },
+    });
+    const registry = createRegistryClient(
+      "Preprod",
+      "https://registry.example.com",
+      "api-key",
+    );
+
+    const result = await registry.getAgentsDiff(
+      new Date("2026-02-25T00:00:00.000Z"),
+      null,
+      20,
+    );
+
+    expect(result.isErr()).toBe(true);
+    const message = result._unsafeUnwrapErr();
+    expect(message.length).toBeLessThanOrEqual(300);
+    expect(message).toContain("truncated from");
+  });
+
   it("returns the registry's own error message when it sends one", async () => {
     postRegistryDiffMock.mockResolvedValue({
       data: undefined,

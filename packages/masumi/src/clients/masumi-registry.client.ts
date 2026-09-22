@@ -1,6 +1,6 @@
 import { err, ok, type Result } from "neverthrow";
 
-import { extractNodeErrorMessage } from "./node-error.js";
+import { extractNodeErrorMessageForLog } from "./node-error.js";
 import { createClient } from "./openapi/generated/registry/client/index.js";
 import {
   type PostRegistryDiffResponse,
@@ -53,9 +53,13 @@ export function createRegistryClient(
         // verbatim, and `apps/core/src/services/agent-sync.service.ts` logs
         // this string. A proxy answering for the registry decides its length
         // and its content, so the whole page would reach stdout unbounded.
+        //
+        // The ForLog variant, because no caller echoes this value. The plain
+        // one returns an envelope-shaped message whole, which leaves the far
+        // side free to pick the length after all.
         return err(
           response.error
-            ? extractNodeErrorMessage(response.error)
+            ? extractNodeErrorMessageForLog(response.error)
             : "Unknown error",
         );
       }
