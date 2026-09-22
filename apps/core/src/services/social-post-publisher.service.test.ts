@@ -160,6 +160,58 @@ describe("social post publisher service", () => {
     );
   });
 
+  it("aborts provider work at the execution deadline and settles before the lease expires", async () => {
+    vi.useRealTimers();
+    const now = Date.now();
+    socialPostFindFirstMock
+      .mockReset()
+      .mockResolvedValueOnce({ ...duePost, scheduledAt: new Date(now - 1_000) })
+      .mockResolvedValue(null);
+    publishXPostMock.mockImplementation(
+      ({ signal }: { signal: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          signal.addEventListener("abort", () => reject(signal.reason), {
+            once: true,
+          });
+        }),
+    );
+    const { publishDueSocialPosts } = await loadService();
+    await publishDueSocialPosts({ ...syncContext, deadlineMs: now + 20_100 });
+    expect(publishXPostMock).toHaveBeenCalledOnce();
+    expect(settleCall().data.leaseToken).toBeNull();
+    expect(settleCall().data.status).not.toBe("PUBLISHING");
+  });
+
+  it("does not claim another post when only settlement time remains", async () => {
+    const { publishDueSocialPosts } = await loadService();
+    const result = await publishDueSocialPosts({
+      ...syncContext,
+      deadlineMs: Date.now() + 19_000,
+    });
+    expect(result.claimed).toBe(0);
+    expect(socialPostFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("cancels a media download without publishing and durably settles the attempt", async () => {
+    const controller = new AbortController();
+    socialPostFindFirstMock
+      .mockReset()
+      .mockResolvedValueOnce({ ...duePost, media: [IMAGE_REF] })
+      .mockResolvedValue(null);
+    ssrfSafeFetchMock.mockImplementation(async (_url, options) => {
+      controller.abort();
+      options.signal.throwIfAborted();
+    });
+    const { publishDueSocialPosts } = await loadService();
+    await publishDueSocialPosts({
+      ...syncContext,
+      abortSignal: controller.signal,
+    });
+    expect(publishXPostMock).not.toHaveBeenCalled();
+    expect(settleCall().data.leaseToken).toBeNull();
+    expect(settleCall().data.status).not.toBe("PUBLISHING");
+  });
+
   it("claims a due post, publishes it, and records the attempt", async () => {
     const { publishDueSocialPosts } = await loadService();
 
@@ -218,6 +270,7 @@ describe("social post publisher service", () => {
       executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
       text: "Hello world",
       media: [],
+      signal: expect.any(AbortSignal),
     });
     expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
     expect(attemptUpdateMock).toHaveBeenCalledWith({
@@ -765,15 +818,18 @@ describe("social post publisher service", () => {
         media: [
           {
             bytes: new Uint8Array([1, 2, 3]),
+            name: IMAGE_REF.name,
             mimeType: "image/png",
             kind: "image",
           },
           {
             bytes: new Uint8Array([4, 5, 6]),
+            name: "second.png",
             mimeType: "image/png",
             kind: "image",
           },
         ],
+        signal: expect.any(AbortSignal),
       });
       expect(attemptUpdateMock).toHaveBeenCalledWith({
         where: { id: ATTEMPT_ID },

@@ -1,4 +1,7 @@
+import { createHash } from "node:crypto";
+import { setTimeout as delay } from "node:timers/promises";
 import { Composio } from "@composio/core";
+import { ssrfSafeFetch } from "@sokosumi/net";
 import type { SocialPostMediaKind } from "@sokosumi/utils";
 
 import { getEnv } from "@/config/env";
@@ -161,10 +164,17 @@ function getProjectComposioConfig(): { apiKey: string; baseUrl: string } {
 
 async function projectComposioFetch(
   path: string,
-  init: { jsonBody?: unknown } & RequestInit = {},
+  init: { jsonBody?: unknown; timeoutMs?: number } & RequestInit = {},
 ): Promise<Response> {
   const { apiKey, baseUrl } = getProjectComposioConfig();
-  const { jsonBody, headers: initHeaders, ...requestInit } = init;
+  const {
+    jsonBody,
+    headers: initHeaders,
+    signal,
+    timeoutMs = 15_000,
+    ...requestInit
+  } = init;
+  signal?.throwIfAborted();
   const headers = new Headers(initHeaders);
   headers.set("x-api-key", apiKey);
   if (jsonBody !== undefined) headers.set("Content-Type", "application/json");
@@ -174,7 +184,9 @@ async function projectComposioFetch(
       body: jsonBody === undefined ? undefined : JSON.stringify(jsonBody),
       cache: "no-store",
       headers,
-      signal: AbortSignal.timeout(15_000),
+      signal: signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)])
+        : AbortSignal.timeout(timeoutMs),
     });
   } catch (error) {
     if (
@@ -548,9 +560,8 @@ function toolErrorStatus(value: unknown): number | null {
 }
 
 type XPublishToolSlug =
-  | "TWITTER_INITIALIZE_MEDIA_UPLOAD"
-  | "TWITTER_APPEND_MEDIA_UPLOAD"
-  | "TWITTER_FINALIZE_MEDIA_UPLOAD"
+  | "TWITTER_UPLOAD_MEDIA"
+  | "TWITTER_UPLOAD_LARGE_MEDIA"
   | "TWITTER_GET_MEDIA_UPLOAD_STATUS"
   | typeof X_CREATE_POST_TOOL_SLUG;
 
@@ -559,17 +570,13 @@ const X_PUBLISH_TOOL_STEPS: Record<
   XPublishToolSlug,
   { context: string; refused: string }
 > = {
-  TWITTER_INITIALIZE_MEDIA_UPLOAD: {
-    context: "initialize X media upload",
+  TWITTER_UPLOAD_MEDIA: {
+    context: "upload X image",
+    refused: "X refused the image upload",
+  },
+  TWITTER_UPLOAD_LARGE_MEDIA: {
+    context: "upload X video or GIF",
     refused: "X refused the media upload",
-  },
-  TWITTER_APPEND_MEDIA_UPLOAD: {
-    context: "append X media upload",
-    refused: "X refused a media chunk",
-  },
-  TWITTER_FINALIZE_MEDIA_UPLOAD: {
-    context: "finalize X media upload",
-    refused: "X refused to finalize the media upload",
   },
   TWITTER_GET_MEDIA_UPLOAD_STATUS: {
     context: "check X media upload status",
@@ -584,20 +591,15 @@ const X_PUBLISH_TOOL_SLUGS = Object.keys(
   X_PUBLISH_TOOL_STEPS,
 ) as XPublishToolSlug[];
 
-/** X accepts media in chunks of at most 4 MiB. */
-const MEDIA_CHUNK_BYTES = 4 * 1024 * 1024;
 const MEDIA_PROCESSING_DEFAULT_WAIT_MS = 2_000;
 /** X can take up to two minutes to process a video or GIF. */
 const MEDIA_PROCESSING_TIMEOUT_MS = 120_000;
 
 export interface PublishXMediaInput {
-  bytes: Uint8Array;
+  bytes: Uint8Array<ArrayBuffer>;
+  name?: string;
   mimeType: string;
   kind: SocialPostMediaKind;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function mediaCategory(kind: SocialPostMediaKind): string {
@@ -635,11 +637,17 @@ async function executePublishTool(
   sessionId: string,
   toolSlug: XPublishToolSlug,
   args: Record<string, unknown>,
+  signal?: AbortSignal,
 ): Promise<Record<string, unknown> | null> {
   const step = X_PUBLISH_TOOL_STEPS[toolSlug];
   const response = await projectComposioFetch(
     `/api/v3.1/tool_router/session/${encodeURIComponent(sessionId)}/execute`,
-    { method: "POST", jsonBody: { tool_slug: toolSlug, arguments: args } },
+    {
+      method: "POST",
+      jsonBody: { tool_slug: toolSlug, arguments: args },
+      timeoutMs: toolSlug === "TWITTER_UPLOAD_LARGE_MEDIA" ? 120_000 : 15_000,
+      signal,
+    },
   );
   const result = await projectComposioResponse<{
     data?: unknown;
@@ -675,42 +683,18 @@ function processingState(
   };
 }
 
-/** Finalizes a media upload; Composio mirrors X v2 but the id parameter name has varied. */
-async function finalizeMediaUpload(
-  sessionId: string,
-  mediaId: string,
-): Promise<Record<string, unknown> | null> {
-  try {
-    return await executePublishTool(
-      sessionId,
-      "TWITTER_FINALIZE_MEDIA_UPLOAD",
-      { id: mediaId },
-    );
-  } catch (error) {
-    if (!(error instanceof ComposioToolError)) throw error;
-    try {
-      const result = await executePublishTool(
-        sessionId,
-        "TWITTER_FINALIZE_MEDIA_UPLOAD",
-        { media_id: mediaId },
-      );
-      console.info(
-        "[composio] TWITTER_FINALIZE_MEDIA_UPLOAD accepted media_id, not id",
-      );
-      return result;
-    } catch {
-      throw error;
-    }
-  }
-}
-
 /** Waits for X to finish processing a media upload, polling within a bounded window. */
 async function awaitMediaProcessing(
   sessionId: string,
   mediaId: string,
-  finalizeResult: Record<string, unknown> | null,
+  uploadResult: Record<string, unknown> | null,
+  requiresProcessing: boolean,
+  signal?: AbortSignal,
 ): Promise<void> {
-  let processing = processingState(finalizeResult);
+  let processing = processingState(uploadResult);
+  if (!processing && requiresProcessing) {
+    processing = { state: "pending", waitMs: 0, errorMessage: null };
+  }
   const startedAt = Date.now();
   while (processing && processing.state !== "succeeded") {
     if (processing.state === "failed") {
@@ -726,50 +710,103 @@ async function awaitMediaProcessing(
         providerMessage: "Media processing timed out",
       });
     }
-    await sleep(Math.min(processing.waitMs, remainingMs));
-    processing = processingState(
-      await executePublishTool(sessionId, "TWITTER_GET_MEDIA_UPLOAD_STATUS", {
-        media_id: mediaId,
-      }),
+    await delay(
+      Math.min(Math.max(processing.waitMs, 1_000), remainingMs),
+      undefined,
+      { signal },
     );
+    signal?.throwIfAborted();
+    processing = processingState(
+      await executePublishTool(
+        sessionId,
+        "TWITTER_GET_MEDIA_UPLOAD_STATUS",
+        {
+          media_id: mediaId,
+        },
+        signal,
+      ),
+    );
+    if (!processing) {
+      throw new ComposioToolError({
+        message: "X did not confirm media processing completion",
+      });
+    }
   }
 }
 
+/**
+ * Stage validated bytes as FileUploadable, not a session path. The SDK's public
+ * files.upload cannot accept cancellation; use its presign protocol here.
+ * https://docs.composio.dev/reference/api-reference/files/postFilesUploadRequest
+ * https://docs.composio.dev/toolkits/twitter (UPLOAD_MEDIA / UPLOAD_LARGE_MEDIA)
+ */
 async function uploadXMedia(
   sessionId: string,
   media: PublishXMediaInput,
+  signal?: AbortSignal,
 ): Promise<string> {
-  const initialized = await executePublishTool(
-    sessionId,
-    "TWITTER_INITIALIZE_MEDIA_UPLOAD",
+  const toolSlug =
+    media.kind === "image"
+      ? "TWITTER_UPLOAD_MEDIA"
+      : "TWITTER_UPLOAD_LARGE_MEDIA";
+  const name = media.name ?? "attachment";
+  const stagingResponse = await projectComposioFetch(
+    "/api/v3.1/files/upload/request",
     {
-      media_type: media.mimeType,
-      total_bytes: media.bytes.length,
-      media_category: mediaCategory(media.kind),
+      method: "POST",
+      signal,
+      jsonBody: {
+        toolkit_slug: "twitter",
+        tool_slug: toolSlug,
+        filename: name,
+        mimetype: media.mimeType,
+        md5: createHash("md5").update(media.bytes).digest("hex"),
+      },
     },
   );
-  const mediaId = mediaIdOf(initialized);
-  if (!mediaId) {
+  const staging = await projectComposioResponse<{
+    key?: string;
+    new_presigned_url?: string;
+  }>(stagingResponse, "stage X media");
+  if (!staging.key || !staging.new_presigned_url)
+    projectResponseError(stagingResponse, "stage X media");
+  signal?.throwIfAborted();
+  const uploaded = await ssrfSafeFetch(staging.new_presigned_url, {
+    method: "PUT",
+    headers: { "Content-Type": media.mimeType },
+    body: media.bytes,
+    maxResponseBytes: 64 * 1024,
+    signal: signal
+      ? AbortSignal.any([signal, AbortSignal.timeout(60_000)])
+      : AbortSignal.timeout(60_000),
+  });
+  if (!uploaded.ok)
+    throw new ComposioApiError(
+      uploaded.status,
+      undefined,
+      "Could not stage X media",
+    );
+  const result = await executePublishTool(
+    sessionId,
+    toolSlug,
+    {
+      media: { name, mimetype: media.mimeType, s3key: staging.key },
+      media_category: mediaCategory(media.kind),
+    },
+    signal,
+  );
+  const mediaId = mediaIdOf(result);
+  if (!mediaId)
     throw new ComposioToolError({
       message: "X media upload returned no media id",
     });
-  }
-
-  for (
-    let offset = 0, segment = 0;
-    offset < media.bytes.length;
-    offset += MEDIA_CHUNK_BYTES, segment += 1
-  ) {
-    const chunk = media.bytes.subarray(offset, offset + MEDIA_CHUNK_BYTES);
-    await executePublishTool(sessionId, "TWITTER_APPEND_MEDIA_UPLOAD", {
-      id: mediaId,
-      media: Buffer.from(chunk).toString("base64"),
-      segment_index: segment,
-    });
-  }
-
-  const finalized = await finalizeMediaUpload(sessionId, mediaId);
-  await awaitMediaProcessing(sessionId, mediaId, finalized);
+  await awaitMediaProcessing(
+    sessionId,
+    mediaId,
+    result,
+    media.kind !== "image",
+    signal,
+  );
   return mediaId;
 }
 
@@ -785,17 +822,26 @@ export async function publishXPost(input: {
   executorUserId: string;
   text: string;
   media: PublishXMediaInput[];
+  signal?: AbortSignal;
 }): Promise<PublishedXPost> {
   const createResponse = await projectComposioFetch(
     "/api/v3.1/tool_router/session",
     {
       method: "POST",
+      signal: input.signal,
       jsonBody: {
         user_id: input.executorUserId,
         toolkits: { enable: ["twitter"] },
         connected_accounts: { twitter: [input.connectedAccountId] },
         manage_connections: { enable: false, enable_connection_removal: false },
-        tools: { twitter: { enable: [...X_PUBLISH_TOOL_SLUGS] } },
+        tools: {
+          twitter: {
+            enable:
+              input.media.length > 0
+                ? [...X_PUBLISH_TOOL_SLUGS]
+                : [X_CREATE_POST_TOOL_SLUG],
+          },
+        },
         workbench: { enable: false, enable_proxy_execution: false },
         search: { enable: false },
         execute: { enable_multi_execute: false },
@@ -811,7 +857,9 @@ export async function publishXPost(input: {
   try {
     const mediaIds: string[] = [];
     for (const media of input.media) {
-      mediaIds.push(await uploadXMedia(session.session_id, media));
+      mediaIds.push(
+        await uploadXMedia(session.session_id, media, input.signal),
+      );
     }
     try {
       const post = await executePublishTool(
@@ -821,6 +869,7 @@ export async function publishXPost(input: {
           ...(input.text ? { text: input.text } : {}),
           ...(mediaIds.length > 0 ? { media_media_ids: mediaIds } : {}),
         },
+        input.signal,
       );
       if (!post || typeof post.id !== "string" || !post.id) {
         throw new ComposioPublishOutcomeUnknownError();
