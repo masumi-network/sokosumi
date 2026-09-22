@@ -13,7 +13,7 @@
       "subject": "Sokosumi - E-Mail-Adresse bestätigen",
       "title": "Deine E-Mail-Adresse bestätigen",
       "greeting": "Hallo {name}",
-      "message": "Bitte bestätige deine E-Mail-Adresse, indem du auf den Button unten klickst. So stellen wir die Sicherheit deines Accounts sicher.",
+      "message": "Bestätige deine E-Mail-Adresse über den Button unten. So bleibt dein Account sicher.",
       "button": "E-Mail bestätigen",
       "linkInstructions": "Oder kopiere diese URL und füge sie in deinen Browser ein:",
       "footer": "Wenn du kein Konto erstellt hast, kannst du diese E-Mail ignorieren."
@@ -22,7 +22,7 @@
       "subject": "Sokosumi - Organisationseinladung",
       "title": "Tritt {invitorUsername} bei {organizationName} bei",
       "greeting": "Hallo",
-      "message": "Du wurdest eingeladen, {organizationName} auf Sokosumi beizutreten. Klicke auf den Button unten, um die Einladung anzunehmen.",
+      "message": "Du wurdest eingeladen, {organizationName} auf Sokosumi beizutreten. Nimm die Einladung über den Button unten an.",
       "button": "Einladung annehmen",
       "linkInstructions": "Oder kopiere diese URL und füge sie in deinen Browser ein:",
       "footer": "Wenn du diese Einladung nicht angefordert hast, kannst du diese E-Mail ignorieren."
@@ -43,7 +43,7 @@
       "subject": "Sokosumi - Channel-Einladung",
       "title": "Tritt {channelName} bei {organizationName} bei",
       "greeting": "Hallo",
-      "message": "{invitorUsername} hat dich eingeladen, dem Channel {channelName} von {organizationName} auf Sokosumi beizutreten. Klicke auf den Button unten, um die Einladung anzunehmen.",
+      "message": "{invitorUsername} hat dich eingeladen, dem Channel {channelName} von {organizationName} auf Sokosumi beizutreten. Nimm die Einladung über den Button unten an.",
       "button": "Einladung annehmen",
       "linkInstructions": "Oder kopiere diese URL und füge sie in deinen Browser ein:",
       "footer": "Wenn du diese Einladung nicht angefordert hast, kannst du diese E-Mail ignorieren."
@@ -51,10 +51,10 @@
   },
   "jobs": {
     "failureNotification": {
-      "subject": "Job-Fehlerbenachrichtigung - {jobId}",
+      "subject": "Sokosumi - Job {jobId} fehlgeschlagen",
       "preview": "Job {jobId} ist fehlgeschlagen",
-      "title": "Job-Fehlerbenachrichtigung",
-      "description": "Ein Job ist fehlgeschlagen. Hier sind die technischen Details:",
+      "title": "Dein Job ist fehlgeschlagen",
+      "description": "Das hat der Job gemeldet.",
       "network": "Netzwerk:",
       "agentName": "Agent-Name:",
       "agentId": "Agent-ID:",
@@ -80,7 +80,7 @@
       "fallbackProjectName": "Dein Projekt"
     },
     "event": {
-      "footer": "Du erhältst diese E-Mail, weil diese Benachrichtigung in deinen Benachrichtigungseinstellungen aktiviert ist.",
+      "footer": "Du erhältst diese E-Mail, weil diese Benachrichtigung in <settings>deinen Benachrichtigungseinstellungen</settings> aktiviert ist.",
       "mention": {
         "subject": "Sokosumi - {authorName} hat dich in {roomName} erwähnt",
         "title": "Du wurdest erwähnt",
@@ -212,7 +212,7 @@
       }
     },
     "followUp": {
-      "footer": "Du erhältst diese E-Mail, weil Erinnerungen in deinen Benachrichtigungseinstellungen aktiviert sind.",
+      "footer": "Du erhältst diese E-Mail, weil Erinnerungen in <settings>deinen Benachrichtigungseinstellungen</settings> aktiviert sind.",
       "mention": {
         "subject": "Sokosumi - {authorName} wartet weiterhin auf dich in {roomName}",
         "preview": "{authorName} hat dich vor einem Tag in {roomName} erwähnt.",
@@ -270,7 +270,7 @@
     },
     "billing": {
       "linkInstructions": "Oder kopiere diese URL in deinen Browser:",
-      "footer": "Du erhältst diese E-Mail, weil Abrechnungshinweise in deinen Benachrichtigungseinstellungen aktiviert sind.",
+      "footer": "Du erhältst diese E-Mail, weil Abrechnungshinweise in <settings>deinen Benachrichtigungseinstellungen</settings> aktiviert sind.",
       "greeting": "Hallo {name}",
       "greetingWithoutName": "Hallo",
       "lowBalance": {

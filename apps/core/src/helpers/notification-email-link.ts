@@ -24,6 +24,11 @@ export interface NotificationEmailLinkInput {
  */
 const CHAT_MESSAGE_PARAM = "message";
 
+/** Where the footer note sends a reader who wants to change what arrives. */
+export function notificationSettingsLink(): string {
+  return `${getWebAppBaseUrl()}/account/notifications`;
+}
+
 /** One string field of a stored JSON column, or null when it is not one. */
 export function readString(
   values: Record<string, unknown> | null | undefined,
