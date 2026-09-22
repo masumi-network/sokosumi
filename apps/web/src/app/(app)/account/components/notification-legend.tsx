@@ -300,11 +300,15 @@ export function ChannelLegendScope({ children }: { children: ReactNode }) {
 
 export function ChannelLegend({
   pushBlock,
-  named = false,
+  named,
 }: {
   pushBlock: PushBlock | null;
-  /** The rows under this head carry their kind's name. */
-  named?: boolean;
+  /**
+   * What the names in the left column under this head are, so the word over
+   * them starts where they do: a kind inside a fold, indented under its group,
+   * or a row of the box itself.
+   */
+  named?: "kind" | "row";
 }) {
   const t = useTranslations("App.Account.Notifications");
   const shared = useContext(OpenExplainer);
@@ -349,9 +353,14 @@ export function ChannelLegend({
       className="text-muted-foreground flex items-end justify-end gap-2 pt-2.5 pb-1.5 text-xs"
     >
       {named ? (
-        // Lined up with the kind names below it, which is the whole of what it
-        // is doing here.
-        <span className="hidden min-w-0 flex-1 pr-3 pl-6 @xl:block @xl:pl-10">
+        // Lined up with the names below it, which is the whole of what it is
+        // doing here.
+        <span
+          className={cn(
+            "hidden min-w-0 flex-1 pr-3 pl-6 @xl:block",
+            named === "kind" && "@xl:pl-10",
+          )}
+        >
           {t("channelsKindLabel")}
         </span>
       ) : null}

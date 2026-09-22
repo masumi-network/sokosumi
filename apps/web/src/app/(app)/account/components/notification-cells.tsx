@@ -253,7 +253,7 @@ export function EmailCell({
  * cannot see the row would otherwise never learn. So every change says where
  * the kind now arrives, once, in the reader's own words.
  */
-function KindCells({
+export function KindCells({
   kind,
   pushBlock,
   onToggle,
@@ -439,19 +439,17 @@ function KindCells({
  * carries every channel, so a reader compares along a row as well as down a
  * column, and no kind's answer sits somewhere else.
  *
- * `showNames` is off for a group of one kind, whose name is already the row
- * the grid sits in.
+ * Only a group of more than one kind folds, so every row here is named. A
+ * group of one is a row of the box itself, with its cells on it.
  */
 export function ChannelGrid({
   kinds,
   pushBlock,
-  showNames,
   heads,
   onToggle,
 }: {
   kinds: readonly KindChoice[];
   pushBlock: PushBlock | null;
-  showNames: boolean;
   /** The column names, drawn once above the rows. */
   heads?: ReactNode;
   onToggle: (kind: KindChoice, channel: StoredChannel, on: boolean) => void;
@@ -473,16 +471,14 @@ export function ChannelGrid({
           key={kind.spec.category}
           className="flex flex-col gap-2 py-2 @xl:flex-row @xl:items-center @xl:justify-end @xl:gap-2"
         >
-          {showNames ? (
-            <div className="min-w-0 pr-3 pl-6 break-words @xl:flex-1 @xl:pl-10">
-              {/* At 400 under a group name at 500, so a kind reads as
-                  belonging to the group above it. */}
-              <p className="text-sm leading-5">{t(kind.spec.labelKey)}</p>
-              <p className="text-muted-foreground text-sm leading-5">
-                {t(kind.spec.hintKey)}
-              </p>
-            </div>
-          ) : null}
+          <div className="min-w-0 pr-3 pl-6 break-words @xl:flex-1 @xl:pl-10">
+            {/* At 400 under a group name at 500, so a kind reads as
+                belonging to the group above it. */}
+            <p className="text-sm leading-5">{t(kind.spec.labelKey)}</p>
+            <p className="text-muted-foreground text-sm leading-5">
+              {t(kind.spec.hintKey)}
+            </p>
+          </div>
           <KindCells
             kind={kind}
             pushBlock={pushBlock}
