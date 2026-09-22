@@ -913,7 +913,10 @@ public final class WorkspaceState: ObservableObject {
   public func refreshTranscript(auth: AuthState) {
     guard transcriptRoomId != nil else { return }
     guard !directStream.isBusy || thread.parent != nil else { return }
-    if transcriptLoading || transcriptLoadingOlder || transcriptRefreshing || transcriptLoadTask != nil || olderPageTask != nil || transcriptRefreshTask != nil {
+    // A gap page in flight does not drop the refresh: the timeline holds it
+    // and runs it once the gap settles (`RoomTimeline.pendingLatestRefresh`).
+    if transcriptLoading || transcriptLoadingOlder || (transcriptRefreshing && !timeline.isFillingGap)
+      || transcriptLoadTask != nil || olderPageTask != nil || transcriptRefreshTask != nil {
       return
     }
     let generation = transcriptGeneration

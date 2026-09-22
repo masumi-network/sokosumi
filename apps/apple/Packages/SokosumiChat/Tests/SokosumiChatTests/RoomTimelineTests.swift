@@ -30,6 +30,47 @@ private actor PausedHistoryTransport: ClientTransport {
   }
 }
 
+/// Scripted pages whose `heldRequest` (1-based) waits for `release()`, so a
+/// second page can be requested while one is in flight.
+private actor HeldPageTransport: ClientTransport {
+  private var responses: [(Int, String)]
+  private let heldRequest: Int
+  private(set) var paths: [String] = []
+  private var gate: CheckedContinuation<Void, Never>?
+  private var observer: CheckedContinuation<Void, Never>?
+  private var released = false
+
+  init(_ responses: [(Int, String)], holding heldRequest: Int) {
+    self.responses = responses
+    self.heldRequest = heldRequest
+  }
+
+  func waitForHeldRequest() async {
+    if gate != nil {
+      return
+    }
+    await withCheckedContinuation { observer = $0 }
+  }
+
+  func release() {
+    released = true
+    gate?.resume()
+    gate = nil
+  }
+
+  func send(_ request: HTTPRequest, body _: HTTPBody?, baseURL _: URL, operationID _: String) async throws -> (HTTPResponse, HTTPBody?) {
+    paths.append(request.path ?? "")
+    if paths.count == heldRequest, !released {
+      await withCheckedContinuation { gate = $0
+        observer?.resume()
+        observer = nil
+      }
+    }
+    let next = responses.removeFirst()
+    return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
+  }
+}
+
 @MainActor
 struct RoomTimelineTests {
   private func client(_ transport: some ClientTransport) -> Client {
@@ -307,6 +348,89 @@ struct RoomTimelineTests {
     #expect(timeline.failedPage == .older)
     #expect(timeline.oldestBoundaryStatus == .failed)
     #expect(timeline.hasMore)
+  }
+
+  /// Review follow-up (04a): a latest refresh (realtime envelope, recovery poll) that arrives while a
+  /// gap page holds the timeline is not dropped; it runs through the latest-page path once the gap settles.
+  @Test(arguments: [false, true])
+  func latestRefreshRequestedDuringAGapPageRunsOnceItSettles(gapFails: Bool) async throws {
+    let transport = HeldPageTransport([
+      (200, testMessagesPageBody(messages: [row("z", content: "Latest")], nextCursor: "z")),
+      (200, testMessagesPageBody(messages: [row("a", content: "Pinned")], nextCursor: "a")),
+      gapFails ? (500, "{}") : (200, testMessagesPageBody(messages: [row("a", content: "Pinned"), row("m", content: "Between")], nextCursor: "a")),
+      (200, testMessagesPageBody(messages: [row("z", content: "Latest"), row("zz", content: "Live")], nextCursor: "z"))
+    ], holding: 3)
+    let timeline = RoomTimeline()
+    timeline.reset(roomId: testRoomId)
+    for page in [RoomTimeline.Page.initial, .around("a")] {
+      #expect(try await timeline.loadPage(page, client: client(transport), organizationSlug: nil, generation: timeline.generation))
+    }
+    let gap = Task { try await timeline.loadPage(.boundary("z"), client: client(transport), organizationSlug: nil, generation: timeline.generation) }
+    await transport.waitForHeldRequest()
+    #expect(timeline.isRefreshing)
+    #expect(try await !timeline.loadPage(.latest, client: client(transport), organizationSlug: nil, generation: timeline.generation))
+    #expect(timeline.pendingLatestRefresh)
+    #expect(try await !timeline.loadPage(.latest, client: client(transport), organizationSlug: nil, generation: timeline.generation))
+    #expect(await transport.paths.count == 3, "The refresh waits; nothing is fetched beside the gap page.")
+    await transport.release()
+    if gapFails {
+      await #expect(throws: (any Error).self) { try await gap.value }
+      #expect(timeline.boundaryLoads.status(of: "z") == .failed)
+    } else {
+      #expect(try await gap.value)
+      #expect(timeline.historyGapMessageIds.isEmpty)
+    }
+    #expect(!timeline.pendingLatestRefresh)
+    let paths = await transport.paths
+    try #require(paths.count == 4, "Requested twice during the gap page, run once after it: \(paths)")
+    #expect(paths[2].contains("cursor=z"))
+    #expect(!paths[3].contains("cursor=") && !paths[3].contains("around="), "The deferred refresh is the latest page: \(paths[3])")
+    #expect(timeline.messages.map(\.id) == (gapFails ? ["a", "z", "zz"] : ["a", "m", "z", "zz"]))
+    #expect(!timeline.isRefreshing)
+  }
+
+  @Test func deferredLatestRefreshIsDroppedWhenTheRoomChanges() async throws {
+    let transport = HeldPageTransport([
+      (200, testMessagesPageBody(messages: [row("z", content: "Latest")], nextCursor: "z")),
+      (200, testMessagesPageBody(messages: [row("a", content: "Pinned")], nextCursor: "a")),
+      (200, testMessagesPageBody(messages: [row("a", content: "Pinned"), row("m", content: "Between")], nextCursor: "a")),
+      (200, testMessagesPageBody(messages: [row("zz", content: "Live")], nextCursor: "zz"))
+    ], holding: 3)
+    let timeline = RoomTimeline()
+    timeline.reset(roomId: testRoomId)
+    for page in [RoomTimeline.Page.initial, .around("a")] {
+      try await timeline.loadPage(page, client: client(transport), organizationSlug: nil, generation: timeline.generation)
+    }
+    let gap = Task { try await timeline.loadPage(.boundary("z"), client: client(transport), organizationSlug: nil, generation: timeline.generation) }
+    await transport.waitForHeldRequest()
+    #expect(try await !timeline.loadPage(.latest, client: client(transport), organizationSlug: nil, generation: timeline.generation))
+    #expect(timeline.pendingLatestRefresh)
+    timeline.reset(roomId: "other-room")
+    #expect(!timeline.pendingLatestRefresh)
+    await transport.release()
+    #expect(try await gap.value == false)
+    #expect(await transport.paths.count == 3, "A refresh for the room that was left never runs.")
+    #expect(timeline.messages.isEmpty)
+  }
+
+  /// Pins the older-page case as it is: a refresh during an older page is refused and not deferred.
+  @Test func latestRefreshDuringAnOlderPageStaysRefused() async throws {
+    let transport = HeldPageTransport([
+      (200, testMessagesPageBody(messages: [row("b", content: "Newer")], nextCursor: "older")),
+      (200, testMessagesPageBody(messages: [row("a", content: "Older")], nextCursor: nil)),
+      (200, testMessagesPageBody(messages: [row("c", content: "Live")], nextCursor: nil))
+    ], holding: 2)
+    let timeline = RoomTimeline()
+    timeline.reset(roomId: testRoomId)
+    try await timeline.loadPage(.initial, client: client(transport), organizationSlug: nil, generation: timeline.generation)
+    let older = Task { try await timeline.loadPage(.older, client: client(transport), organizationSlug: nil, generation: timeline.generation) }
+    await transport.waitForHeldRequest()
+    #expect(try await !timeline.loadPage(.latest, client: client(transport), organizationSlug: nil, generation: timeline.generation))
+    #expect(!timeline.pendingLatestRefresh)
+    await transport.release()
+    #expect(try await older.value)
+    #expect(await transport.paths.count == 2)
+    #expect(timeline.messages.map(\.id) == ["a", "b"])
   }
 
   @Test func resetForgetsGapLoads() async throws {
