@@ -172,11 +172,28 @@ describe("GitHub OIDC remote cache wiring", () => {
     const lint = await readRepoFile(".github", "workflows", "lint.yml");
     const test = await readRepoFile(".github", "workflows", "test.yml");
 
-    for (const [file, yaml, jobId] of [
-      ["build.yml", build, "build"],
-      ["lint.yml", lint, "biome"],
-      ["lint.yml", lint, "typecheck"],
-      ["test.yml", test, "test"],
+    for (const [file, yaml, jobId, gate] of [
+      [
+        "build.yml",
+        build,
+        "build",
+        /if: needs\.changes\.outputs\.js == 'true'/,
+      ],
+      ["lint.yml", lint, "biome", /if: needs\.changes\.outputs\.js == 'true'/],
+      [
+        "lint.yml",
+        lint,
+        "typecheck",
+        /if: needs\.changes\.outputs\.js == 'true'/,
+      ],
+      // test.yml indexes the filter per matrix leg so CLI can gate on its
+      // own path filter while the rest still gate on `js`.
+      [
+        "test.yml",
+        test,
+        "test",
+        /if: needs\.changes\.outputs\[matrix\.target\.filter\] == 'true'/,
+      ],
     ]) {
       const block = jobBlock(yaml, jobId);
       const header = block.split(/\n    steps:\n/)[0];
@@ -187,9 +204,76 @@ describe("GitHub OIDC remote cache wiring", () => {
       );
       assert.match(
         block,
-        /if: needs\.changes\.outputs\.js == 'true'/,
-        `${file} job ${jobId} must gate work steps on the JS path filter`,
+        gate,
+        `${file} job ${jobId} must gate work steps on the path filter`,
       );
+    }
+  });
+
+  it("Test CLI runs only when apps/cli changes", async () => {
+    const test = await readRepoFile(".github", "workflows", "test.yml");
+    const filter = await readRepoFile(".github", "js-paths-filter.yml");
+
+    // A single positive pattern, so `predicate-quantifier: every` at the
+    // call site behaves the same as the default `some`.
+    assert.match(filter, /^cli:\n  - "apps\/cli\/\*\*"$/m);
+    assert.match(jobBlock(test, "changes"), /steps\.filter\.outputs\.cli/);
+
+    const block = jobBlock(test, "test");
+    assert.match(block, /name: CLI,[^}]*filter: cli/);
+    for (const name of [
+      "Web",
+      "Core",
+      "Packages",
+      "Local env",
+      "CI config",
+      "Cloud agent db",
+    ]) {
+      assert.match(
+        block,
+        new RegExp(`name: ${name},[^}]*filter: js`),
+        `matrix target ${name} must stay on the js filter`,
+      );
+    }
+
+    // The built-binary smoke step is CLI-only, so it follows the CLI filter
+    // rather than the repo-wide js one.
+    assert.match(
+      block,
+      /Smoke the built CLI\n\s+if: matrix\.target\.name == 'CLI' && \(needs\.changes\.outputs\.cli == 'true'/,
+    );
+  });
+
+  it("CLI-only PRs skip the rest of CI", async () => {
+    const filter = await readRepoFile(".github", "js-paths-filter.yml");
+
+    // Build / Biome / Typecheck and the other test legs all gate on `js`,
+    // so excluding apps/cli here is what makes a CLI-only PR skip them.
+    assert.match(filter, /^js:\n(?:  - .*\n)*  - "!apps\/cli\/\*\*"$/m);
+  });
+
+  it("Test CLI carries the checks the js-gated jobs no longer run for it", async () => {
+    const test = await readRepoFile(".github", "workflows", "test.yml");
+    const block = jobBlock(test, "test");
+
+    // apps/cli is excluded from `js`, so root `pnpm typecheck` and
+    // `pnpm check` never see it on a CLI-only PR. tsx strips types rather
+    // than checking them, so without these the CLI loses type and lint
+    // coverage entirely. Root `pnpm build` is covered by the smoke step.
+    for (const [name, command] of [
+      ["Typecheck the CLI", /pnpm --filter \.\/apps\/cli typecheck/],
+      ["Lint the CLI", /biome check apps\/cli/],
+    ]) {
+      const step = block.match(
+        new RegExp(`- name: ${name}\\n([\\s\\S]*?)(?=\\n      - name:|$)`),
+      );
+      assert.ok(step, `missing step ${name}`);
+      assert.match(
+        step[1],
+        /if: matrix\.target\.name == 'CLI' && \(needs\.changes\.outputs\.cli == 'true'/,
+        `step ${name} must gate on the CLI filter`,
+      );
+      assert.match(step[1], command, `step ${name} runs the wrong command`);
     }
   });
 

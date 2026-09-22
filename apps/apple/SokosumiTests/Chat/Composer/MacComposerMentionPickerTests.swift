@@ -382,12 +382,6 @@
         // The list is open: Down and Up are consumed, and leave the first row highlighted again.
         #expect(input.suggestionKeyHandler?(125) == true)
         #expect(input.suggestionKeyHandler?(126) == true)
-        try await Task.sleep(for: .milliseconds(100))
-        let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
-        host.cacheDisplay(in: host.bounds, to: bitmap)
-        let png = try #require(bitmap.representation(using: .png, properties: [:]))
-        // Recorded on the result bundle, which the app sandbox cannot hide: `xcresulttool export attachments`.
-        Attachment.record(png, named: "composer-mention-button-picker-\(dark ? "dark" : "light").png")
       }
 
       private static func textView(in view: NSView) -> NSTextView? {
