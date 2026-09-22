@@ -1533,8 +1533,6 @@
         "approvePartialError": "Approved {approved} of {total} vendors. Some approvals failed — refresh and try again."
       },
       "Actions": {
-        "add": "New Task",
-        "addTask": "New Task",
         "loading": "Loading...",
         "loadMore": "Load More",
         "showGuide": "Show guide"
@@ -6317,7 +6315,6 @@
         "moveNotAllowed": "Only the task owner can reschedule it."
       },
       "create": {
-        "title": "Schedule a task",
         "fab": "Schedule a task"
       },
       "edit": {

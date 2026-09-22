@@ -171,6 +171,10 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                   return <ProjectsMenuItem key={key} />;
                 }
                 const isActive = href ? isPathActive(href) : false;
+                const newTaskClassName =
+                  key === "new-task"
+                    ? "bg-secondary text-secondary-foreground hover:bg-secondary-hover hover:text-secondary-foreground active:bg-secondary-hover active:text-secondary-foreground data-[state=open]:hover:bg-secondary-hover data-[state=open]:hover:text-secondary-foreground group-data-[collapsible=icon]:hover:bg-secondary-hover group-data-[collapsible=icon]:active:bg-secondary-hover"
+                    : undefined;
 
                 // Collapsed rail hides the label, so every item needs the hint.
                 const tooltip = shortcutLabel
@@ -204,6 +208,10 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                         <SidebarMenuButton
                           asChild
                           isActive={isActive}
+                          data-sidebar-new-task={
+                            key === "new-task" ? "" : undefined
+                          }
+                          className={newTaskClassName}
                           tooltip={tooltip}
                         >
                           <SheetClose asChild>
@@ -211,9 +219,11 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                               href={href}
                               aria-current={isActive ? "page" : undefined}
                               className={cn(
-                                isActive
-                                  ? "text-sidebar-accent-foreground"
-                                  : "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                                key === "new-task"
+                                  ? newTaskClassName
+                                  : isActive
+                                    ? "text-sidebar-accent-foreground"
+                                    : "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                               )}
                             >
                               {content}
@@ -224,11 +234,14 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                         <SidebarMenuButton
                           type="button"
                           onClick={onClick}
+                          data-sidebar-new-task={
+                            key === "new-task" ? "" : undefined
+                          }
                           aria-keyshortcuts={ariaKeyshortcuts}
                           tooltip={tooltip}
                           className={cn(
-                            "text-tertiary-foreground dark:text-muted-foreground",
-                            "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                            newTaskClassName ??
+                              "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                           )}
                         >
                           {content}
