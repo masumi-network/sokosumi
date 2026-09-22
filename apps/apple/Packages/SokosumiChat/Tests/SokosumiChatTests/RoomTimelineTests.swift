@@ -271,6 +271,44 @@ struct RoomTimelineTests {
     #expect(transport.requests[3].request.path?.contains("cursor=z") == true)
   }
 
+  /// A gap load is not a retry of the older page. Clearing that failure would
+  /// re-arm automatic older loading and drop the row's Try again.
+  @Test func boundaryPageKeepsAnOlderPageFailure() async throws {
+    let transport = TestTransport([
+      (200, testMessagesPageBody(messages: [row("z", content: "Latest")], nextCursor: "z")),
+      (200, testMessagesPageBody(messages: [row("a", content: "Pinned")], nextCursor: "a")),
+      (500, "{}"),
+      (500, "{}"),
+      (200, testMessagesPageBody(messages: [row("a", content: "Pinned"), row("m", content: "Between")], nextCursor: "a"))
+    ])
+    let timeline = RoomTimeline()
+    timeline.reset(roomId: testRoomId)
+    for page in [RoomTimeline.Page.initial, .around("a")] {
+      #expect(try await timeline.loadPage(page, client: client(transport), organizationSlug: nil, generation: timeline.generation))
+    }
+    await #expect(throws: (any Error).self) {
+      try await timeline.loadPage(.older, client: client(transport), organizationSlug: nil, generation: timeline.generation)
+    }
+    let olderFailure = try #require(timeline.errorMessage)
+    #expect(timeline.failedPage == .older)
+    #expect(timeline.oldestBoundaryStatus == .failed)
+
+    await #expect(throws: (any Error).self) {
+      try await timeline.loadPage(.boundary("z"), client: client(transport), organizationSlug: nil, generation: timeline.generation)
+    }
+    #expect(timeline.boundaryLoads.status(of: "z") == .failed)
+    #expect(timeline.errorMessage == olderFailure)
+    #expect(timeline.failedPage == .older)
+    #expect(timeline.oldestBoundaryStatus == .failed)
+
+    #expect(try await timeline.loadPage(.boundary("z"), client: client(transport), organizationSlug: nil, generation: timeline.generation))
+    #expect(timeline.historyGapMessageIds.isEmpty)
+    #expect(timeline.errorMessage == olderFailure)
+    #expect(timeline.failedPage == .older)
+    #expect(timeline.oldestBoundaryStatus == .failed)
+    #expect(timeline.hasMore)
+  }
+
   @Test func resetForgetsGapLoads() async throws {
     let transport = TestTransport([
       (200, testMessagesPageBody(messages: [row("z", content: "Latest")], nextCursor: "z")),

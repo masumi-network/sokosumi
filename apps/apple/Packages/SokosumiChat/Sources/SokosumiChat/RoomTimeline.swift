@@ -137,9 +137,12 @@ public final class RoomTimeline: ObservableObject {
     isLoading = kind == .initial
     isLoadingOlder = kind == .older
     isRefreshing = kind != .initial && kind != .older
-    errorMessage = nil
+    // A gap page must not dismiss an older or latest failure. `errorMessage`
+    // is what keeps automatic older loading off until the reader asks again.
     if case let .boundary(cursorMessageId) = kind {
       boundaryLoads.begin(cursorMessageId)
+    } else {
+      errorMessage = nil
     }
   }
 
@@ -186,6 +189,10 @@ public final class RoomTimeline: ObservableObject {
     boundaryLoads.retain(historyGapMessageIds)
     hasLoadedHistory = true
     hasMore = cursor != nil
+    // A filled gap is not a retry of the older or latest page.
+    if case .boundary = kind {
+      return
+    }
     errorMessage = nil
     failedPage = nil
   }
