@@ -11,7 +11,7 @@ const THEME_DIR = fileURLToPath(new URL(".", import.meta.url)).replace(
   "",
 );
 const SRC_DIR = join(THEME_DIR, "..");
-const HEX_PATTERN = /#[0-9a-fA-F]{3,8}\b/g;
+const COLOUR_PATTERN = /#[0-9a-fA-F]{3,8}\b|\brgba?\(/g;
 
 function sourceFiles(directory: string): string[] {
   return readdirSync(directory).flatMap((entry) => {
@@ -29,7 +29,7 @@ describe("email palette", () => {
   it("is the only place a colour literal appears", () => {
     const offenders = sourceFiles(SRC_DIR)
       .map((path) => ({
-        hits: readFileSync(path, "utf8").match(HEX_PATTERN),
+        hits: readFileSync(path, "utf8").match(COLOUR_PATTERN),
         path,
       }))
       .filter((file) => file.hits !== null)

@@ -10,7 +10,6 @@ import { DARK_PALETTE } from "./palette.js";
  */
 export const DARK_CLASS = {
   card: "sk-card",
-  code: "sk-code",
   heading: "sk-heading",
   logo: "sk-logo",
   link: "sk-link",
@@ -36,8 +35,7 @@ export function darkModeCss(): string {
   .${DARK_CLASS.text} { color: ${p.textPrimary} !important; }
   .${DARK_CLASS.textMuted} { color: ${p.textMuted} !important; }
   .${DARK_CLASS.panel} { background-color: ${p.surfaceSubtle} !important; border-color: ${p.hairline} !important; }
-  .${DARK_CLASS.quote} { background-color: ${p.surfaceSubtle} !important; border-left-color: ${p.quoteBar} !important; }
-  .${DARK_CLASS.code} { background-color: ${p.codeSurface} !important; border-color: ${p.hairline} !important; }
+  .${DARK_CLASS.quote} { border-left-color: ${p.quoteBar} !important; }
   .${DARK_CLASS.rule} { border-color: ${p.hairline} !important; }
   .${DARK_CLASS.link} { color: ${p.link} !important; }
   .${DARK_CLASS.spine} { background-color: ${p.accent} !important; }

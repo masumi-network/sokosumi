@@ -72,7 +72,7 @@ export function ActionEmailTemplate({
       </Text>
       {quote ? (
         <Container
-          className={DARK_CLASS.rule}
+          className={DARK_CLASS.quote}
           style={{
             borderLeft: `2px solid ${LIGHT_PALETTE.quoteBar}`,
             margin: `0 0 ${SPACE.lg} 0`,

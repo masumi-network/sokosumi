@@ -15,7 +15,6 @@ export interface JobFailureField {
   codeBlock?: boolean;
   label: string;
   value: string;
-  wordBreak?: "break-all" | "normal";
 }
 
 export interface JobFailureNotificationEmailTemplateProps {
@@ -122,8 +121,6 @@ export function JobFailureNotificationEmailTemplate({
                   color: LIGHT_PALETTE.textPrimary,
                   fontFamily: MONO_STACK,
                   margin: 0,
-                  wordBreak:
-                    field.wordBreak === "break-all" ? "break-all" : "normal",
                 }}
               >
                 {field.value}

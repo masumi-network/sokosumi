@@ -40,7 +40,7 @@ const EMAIL_WORDMARK_URL =
 const SPINE_WIDTH = 6;
 
 const RESPONSIVE_CSS = `@media only screen and (max-width: 600px) {
-  .sk-pad { padding-left: ${SPACE.md} !important; padding-right: ${SPACE.md} !important; }
+  .sk-pad > tbody > tr > td { padding-left: ${SPACE.md} !important; padding-right: ${SPACE.md} !important; }
   .sk-heading { font-size: 24px !important; line-height: 32px !important; }
 }`;
 
@@ -56,6 +56,7 @@ export function EmailShell({
     <Html lang={lang}>
       <Head>
         <meta content="text/html; charset=UTF-8" httpEquiv="Content-Type" />
+        <meta content="width=device-width, initial-scale=1" name="viewport" />
         <meta content="light dark" name="color-scheme" />
         <meta content="light dark" name="supported-color-schemes" />
         <style
@@ -67,6 +68,7 @@ export function EmailShell({
       <Preview>{preview}</Preview>
       <Body
         className={DARK_CLASS.page}
+        lang={lang}
         style={{
           backgroundColor: LIGHT_PALETTE.pageBackground,
           color: LIGHT_PALETTE.textPrimary,

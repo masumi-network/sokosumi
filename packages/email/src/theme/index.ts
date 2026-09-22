@@ -5,7 +5,6 @@ export {
   CARD_SHADOW,
   FONT_STACK,
   MONO_STACK,
-  nestedRadius,
   RADIUS,
   SPACE,
   TEXT,

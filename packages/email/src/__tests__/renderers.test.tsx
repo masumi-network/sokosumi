@@ -27,7 +27,9 @@ describe("email renderers", () => {
     expect(rendered.html).toContain(
       'src="https://igcd4cnfvuav1zto.public.blob.vercel-storage.com/brand/sokosumi-logo-wordmark-black.png"',
     );
-    expect(rendered.html).toContain('alt=""');
+    expect(rendered.html).toMatch(
+      /<img alt=""[^>]*sokosumi-logo-kanji-black\.png/,
+    );
     expect(rendered.html).toContain('lang="en"');
     expect(rendered.html).toContain('alt="Sokosumi"');
     expect(rendered.html).toContain(
@@ -49,6 +51,7 @@ describe("email renderers", () => {
     });
 
     expect(rendered.subject).toBe("Sokosumi - Passwort zurücksetzen");
+    expect(rendered.html).not.toContain('lang="en"');
     expect(rendered.html).toContain('lang="de"');
     expect(rendered.html).toContain("Hallo Andreas");
     expect(rendered.html).toContain("Dein Passwort zur\u00fccksetzen");
@@ -74,9 +77,11 @@ describe("email renderers", () => {
 
     expect(rendered.subject).toBe("Sokosumi - Sign in to your account");
     expect(rendered.html).toContain(
-      `background-color:${LIGHT_PALETTE.accentSolid}`,
+      `background-color:${LIGHT_PALETTE.accentSolid};border-radius:10px`,
     );
-    expect(rendered.html).toContain(`background-color:${LIGHT_PALETTE.accent}`);
+    expect(rendered.html).toContain(
+      `background-color:${LIGHT_PALETTE.accent};font-size:0`,
+    );
     expect(rendered.html).toContain("Hello Andreas");
     expect(rendered.html).not.toContain("one-time token");
     expect(rendered.html).not.toContain("secret-token");
