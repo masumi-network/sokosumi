@@ -1,7 +1,7 @@
 import CoreAPI
 import Foundation
 import SokosumiChat
-import SokosumiRealtime
+@testable import SokosumiRealtime
 import Testing
 
 private let roomId = "550e8400-e29b-41d4-a716-446655440800"
