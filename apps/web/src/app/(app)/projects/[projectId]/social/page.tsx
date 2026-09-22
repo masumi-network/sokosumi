@@ -8,6 +8,9 @@ import { PROJECTS_DETAIL_SHELL_CLASS } from "@/app/projects/constants";
 import { hasCurrentUserCalendarBetaAccess } from "@/lib/calendar-beta-access.server";
 import { projectService } from "@/lib/services/project.service";
 
+// Wait for the current session and project access before rendering this page.
+export const instant = false;
+
 interface ProjectSocialPageProps {
   params: Promise<{ projectId: string }>;
 }
