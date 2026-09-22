@@ -148,30 +148,28 @@ export interface CliResult {
 }
 
 const COMMAND_USAGE: Record<(typeof CLI_COMMANDS)[number], string> = {
-  discover: "[--json]",
-  "auth login": "[--json]",
-  "auth status": "[--json]",
-  "auth logout": "[--json]",
-  "agents list": "[--search TEXT] [--limit N] [--json]",
-  "agents hire": "AGENT_ID --input-json JSON [--max-credits N]",
-  "coworkers list": "[--scope SCOPE] [--capability CAPABILITY]",
-  "coworkers register":
-    "[--vendor-id ID] [--create-api-key] [--create-vendor --confirm-create-vendor] [options]",
+  discover: "",
+  "auth login": "",
+  "auth status": "",
+  "auth logout": "",
+  "agents list": "",
+  "agents hire": "AGENT_ID",
+  "coworkers list": "",
+  "coworkers register": "[options]",
   "coworkers update": "COWORKER_ID [options]",
   "coworkers api-key": "COWORKER_ID [options]",
   "coworkers me": "",
   "vendors me": "",
   "workspaces list": "",
   "tasks list": "[options]",
-  "tasks create": "--coworker-id ID --description TEXT",
+  "tasks create": "",
   "tasks get": "TASK_ID",
   "tasks events": "TASK_ID",
   "tasks jobs": "TASK_ID",
-  "tasks comment": "TASK_ID [--comment TEXT] [--status STATUS]",
-  "jobs list": "[--search TEXT] [--limit N]",
-  "jobs get": "JOB_ID [--details]",
-  "jobs input":
-    "JOB_ID --event-id EVENT_ID [--input-json JSON|--input-file FILE]",
+  "tasks comment": "TASK_ID",
+  "jobs list": "",
+  "jobs get": "JOB_ID",
+  "jobs input": "JOB_ID",
 };
 
 export const GLOBAL_VALUE_OPTIONS = [
