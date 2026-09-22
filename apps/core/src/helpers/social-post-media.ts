@@ -91,13 +91,19 @@ function kindLabel(kind: SocialPostMediaKind): string {
 
 async function downloadOne(
   ref: SocialPostMediaRef,
+  signal?: AbortSignal,
 ): Promise<PublishXMediaInput> {
   const maxBytes = socialPostMediaMaxBytes(ref.kind);
   let response: Response;
   try {
     response = await ssrfSafeFetch(ref.fileUrl, {
       maxResponseBytes: maxBytes,
-      signal: AbortSignal.timeout(MEDIA_DOWNLOAD_TIMEOUT_MS),
+      signal: signal
+        ? AbortSignal.any([
+            signal,
+            AbortSignal.timeout(MEDIA_DOWNLOAD_TIMEOUT_MS),
+          ])
+        : AbortSignal.timeout(MEDIA_DOWNLOAD_TIMEOUT_MS),
     });
   } catch (error) {
     if (error instanceof SsrfError && /maxResponseBytes/.test(error.message)) {
@@ -128,7 +134,7 @@ async function downloadOne(
       `Media file "${ref.name}" is too large for X`,
     );
   }
-  return { bytes, mimeType: servedMime, kind: ref.kind };
+  return { bytes, name: ref.name, mimeType: servedMime, kind: ref.kind };
 }
 
 /**
@@ -137,10 +143,12 @@ async function downloadOne(
  */
 export async function downloadSocialPostMedia(
   media: readonly SocialPostMediaRef[],
+  signal?: AbortSignal,
 ): Promise<PublishXMediaInput[]> {
   const downloaded: PublishXMediaInput[] = [];
   for (const ref of media) {
-    downloaded.push(await downloadOne(ref));
+    signal?.throwIfAborted();
+    downloaded.push(await downloadOne(ref, signal));
   }
   return downloaded;
 }
