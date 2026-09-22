@@ -23,8 +23,6 @@ export interface SessionUser {
   termsAccepted: boolean;
   marketingOptIn: boolean;
   hideRoomUnreadCount?: boolean | null;
-  /** @deprecated Superseded by `hideRoomUnreadCount` (ADR-0038). */
-  showRoomUnreadCount?: boolean | null;
   logo?: string | null;
   metadata?: string | null;
   stripeCustomerId?: string | null;

@@ -25,4 +25,16 @@ describe("betterAuthOrganizationAdditionalFields", () => {
       input: false,
     });
   });
+
+  // ADR-0038's contract step. Declaring a field Better Auth cannot store
+  // would break sign-in; forgetting to remove it would keep a dead column's
+  // name in every session.
+  it("no longer declares the superseded showRoomUnreadCount", () => {
+    expect(betterAuthUserAdditionalFields).not.toHaveProperty(
+      "showRoomUnreadCount",
+    );
+    expect(betterAuthUserAdditionalFields).toHaveProperty(
+      "hideRoomUnreadCount",
+    );
+  });
 });

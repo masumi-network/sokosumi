@@ -57,21 +57,4 @@ describe("useShowRoomUnreadCount", () => {
       false,
     );
   });
-
-  // The superseded field is still on old sessions. It must not count.
-  it("ignores the superseded opt-in field", () => {
-    useSessionMock.mockReturnValue({
-      data: {
-        user: {
-          id: "user-1",
-          showRoomUnreadCount: false,
-          hideRoomUnreadCount: false,
-        },
-      },
-    });
-
-    expect(renderHook(() => useShowRoomUnreadCount()).result.current).toBe(
-      true,
-    );
-  });
 });

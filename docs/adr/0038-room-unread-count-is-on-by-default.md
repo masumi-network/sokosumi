@@ -17,7 +17,7 @@ A chat sidebar row shows its numeric **Room unread** unless the reader switched 
 
 **What the switch says.** Its description read "Muted chats and the chat you have open stay quiet", which ADR-0027's correction of 2026-09-11 had already made untrue: the open chat is not quiet, only a muted one is. It now reads "Shown on every chat with unread messages. Muted chats stay quiet, and your notifications do not change."
 
-**Expand only.** The old column stays in the table, neither read nor written, so a rollback finds every reader's old value where it left it. Removing it, and the Better Auth field declared for it, is a separate migration that needs its own authorization. Until then a reader who had opted in under ADR-0027 and a reader who had not are both simply shown the count.
+**Expand, then contract.** The first migration (`20260921233000`) only adds the new column. The old one stays in the table, neither read nor written, so a rollback of that deploy finds every reader's old value where it left it. A second migration (`20260922090000`, authorized on its own) drops the old column and the Better Auth field declared for it; it must not run while a Core older than the first migration's is still serving, since that Core selects the column on every preferences read. Once it has run there is nothing to roll back to: the value it held was the ADR-0027 opt-in, which the new default made moot for every reader.
 
 **Known limitation, carried from ADR-0026 and ADR-0027:** an in-flight back-navigation can paint fully-read and then leftover, which a reader sees as the number moving once. Under ADR-0027 only readers who asked for the number saw that. Now everyone who has not switched it off does.
 
