@@ -445,6 +445,104 @@ describe("activatePush", () => {
     localStorage.clear();
   });
 
+  it("stops before binding when the device owner cannot be saved", async () => {
+    // No device id: a run that finds one takes the replacement path, and that
+    // path drops the browser subscription itself. The drop under test is the
+    // one in the abort, so nothing may consume it first.
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_2");
+    // Seeded because `activate()` is a stub here. The real one writes the
+    // token, and a reader who reached this run has a preference recorded.
+    localStorage.setItem("ably.push.deviceIdentityToken", "token");
+    localStorage.setItem(
+      "sokosumi.push.preference",
+      JSON.stringify({ userId: "user_1", suspended: false }),
+    );
+    // `activate()` leaves a browser subscription behind, and the abort has to
+    // take it with it, so the run has one to drop.
+    const unsubscribe = vi.fn().mockResolvedValue(true);
+    // Once, not for the whole describe: `clearAllMocks` between tests clears
+    // calls and keeps implementations, so a lasting one would answer the later
+    // cases here that expect this browser to hold no subscription.
+    getSubscriptionMock.mockResolvedValueOnce({ unsubscribe });
+    getNotificationServiceWorkerMock.mockResolvedValueOnce({
+      pushManager: { getSubscription: getSubscriptionMock },
+    });
+    // Read at the moment the record runs. Forgetting the token clears the
+    // unresolved-repair flag that recording arms, so the record has to come
+    // after it, and only the order at call time says which one ran first.
+    let tokenWhenRecorded: string | null = "token";
+    recordOutcomeMock.mockImplementationOnce(async () => {
+      tokenWhenRecorded = localStorage.getItem("ably.push.deviceIdentityToken");
+    });
+    const failure = new DOMException("Storage unavailable", "SecurityError");
+    const setItem = localStorage.setItem.bind(localStorage);
+    const storage = vi
+      .spyOn(localStorage, "setItem")
+      .mockImplementation((key, value) => {
+        if (key === "sokosumi.push.deviceOwner") throw failure;
+        setItem(key, value);
+      });
+
+    try {
+      await expect(activatePush("user_1")).rejects.toBe(failure);
+      expect(subscribeDeviceMock).not.toHaveBeenCalled();
+      expect(tokenWhenRecorded).toBeNull();
+      expect(localStorage.getItem("sokosumi.push.deviceOwner")).toBe("user_2");
+      // The switch and the repair check both read the browser subscription.
+      // Left behind, it would say push is on for a device bound to nothing.
+      expect(unsubscribe).toHaveBeenCalledTimes(1);
+      expect(localStorage.getItem("sokosumi.push.preference")).toBeNull();
+      expect(localStorage.getItem("ably.push.deviceIdentityToken")).toBeNull();
+      // The reader keeps nothing that would say push broke here, so the
+      // notice has to be recorded on the way out (SOK-929).
+      expect(recordOutcomeMock).toHaveBeenCalledWith({
+        hadRegistration: true,
+        teardownVersion: expect.any(String),
+        deliveryHealthy: false,
+      });
+    } finally {
+      storage.mockRestore();
+    }
+
+    await expect(activatePush("user_1")).resolves.toBe(true);
+    expect(localStorage.getItem("sokosumi.push.deviceOwner")).toBe("user_1");
+    expect(subscribeDeviceMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports the storage failure when the subscription drop also fails", async () => {
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_2");
+    const unsubscribeFailure = new Error("unsubscribe failed");
+    getSubscriptionMock.mockResolvedValueOnce({
+      unsubscribe: vi.fn().mockRejectedValue(unsubscribeFailure),
+    });
+    getNotificationServiceWorkerMock.mockResolvedValueOnce({
+      pushManager: { getSubscription: getSubscriptionMock },
+    });
+    const failure = new DOMException("Storage unavailable", "SecurityError");
+    const setItem = localStorage.setItem.bind(localStorage);
+    const storage = vi
+      .spyOn(localStorage, "setItem")
+      .mockImplementation((key, value) => {
+        if (key === "sokosumi.push.deviceOwner") throw failure;
+        setItem(key, value);
+      });
+    const reported = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      // The caller logs what it catches, and the storage failure is the one
+      // that says why the run stopped. A drop that fails on the way out is a
+      // second fact, not a replacement for the first.
+      await expect(activatePush("user_1")).rejects.toBe(failure);
+      expect(reported).toHaveBeenCalledWith(
+        "Failed to drop the push subscription",
+        unsubscribeFailure,
+      );
+    } finally {
+      storage.mockRestore();
+      reported.mockRestore();
+    }
+  });
+
   /**
    * A note that a teardown was cut short reads as push off, and turning push
    * on is the reader saying the opposite. Left there, the repair would decline
