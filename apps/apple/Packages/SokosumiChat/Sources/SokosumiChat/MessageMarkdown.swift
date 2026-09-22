@@ -84,19 +84,28 @@ private struct MarkdownBlockBuilder {
     return result
   }
 
-  mutating func block(_ node: any Markup, kind override: PresentationIntent.Kind? = nil) -> MessageMarkdownBlock {
+  mutating func block(
+    _ node: any Markup,
+    kind override: PresentationIntent.Kind? = nil,
+    tableColumnCount: Int = 0
+  ) -> MessageMarkdownBlock {
     nextID += 1
     var result = MessageMarkdownBlock(id: nextID, kind: override ?? kind(node))
     if let code = node as? CodeBlock {
       result.text = AttributedString(code.code)
     } else if let table = node as? Markdown.Table {
-      result.children = [block(table.head, kind: .tableHeaderRow)]
+      let columnCount = table.columnAlignments.count
+      result.children = [block(table.head, kind: .tableHeaderRow, tableColumnCount: columnCount)]
       result.children += table.body.children.enumerated().map { index, row in
-        block(row, kind: .tableRow(rowIndex: index + 1))
+        block(row, kind: .tableRow(rowIndex: index + 1), tableColumnCount: columnCount)
       }
     } else if node is Markdown.Table.Head || node is Markdown.Table.Row {
       result.children = node.children.enumerated().map { index, cell in
         block(cell, kind: .tableCell(columnIndex: index))
+      }
+      while result.children.count < tableColumnCount {
+        nextID += 1
+        result.children.append(MessageMarkdownBlock(id: nextID, kind: .tableCell(columnIndex: result.children.count)))
       }
     } else if node is OrderedList || node is UnorderedList {
       let start = Int((node as? OrderedList)?.startIndex ?? 1)
