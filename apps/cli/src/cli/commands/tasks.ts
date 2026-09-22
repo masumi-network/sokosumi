@@ -7,7 +7,6 @@ import {
   fetchTasks,
 } from "../../api/services/task-service.js";
 import {
-  applyListFilters,
   type CommandContext,
   type CommandOptions,
   formatDate,
@@ -171,23 +170,9 @@ export async function runTasksCommand({
       },
       signal,
     );
-    const filtered = applyListFilters(tasks, {
-      search: option(options, "search", "q"),
-      limit,
-      fields: (item) => {
-        const value = record(item);
-        return [
-          value.id,
-          value.name,
-          value.description,
-          value.status,
-          value.coworkerId,
-          value.coworkerName,
-        ];
-      },
-    });
-    if (json) writeJson(stdout, { tasks: filtered });
-    else printTaskList(stdout, filtered);
+    const listed = limit === undefined ? tasks : tasks.slice(0, limit);
+    if (json) writeJson(stdout, { tasks: listed });
+    else printTaskList(stdout, listed);
     return;
   }
   if (command === "create") {
