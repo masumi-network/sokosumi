@@ -1,6 +1,6 @@
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { REDACTED_SECRET } from "@/lib/secret-redaction";
 import {
   PURCHASE_REGISTRATION_ATTEMPTS,
   registerJobPurchase,
@@ -70,6 +70,14 @@ beforeEach(() => {
   createJobPurchaseMock.mockResolvedValue({ id: "purchase_1" });
 });
 
+/**
+ * Assigned at module scope, because `getEnvSecrets` scans `process.env` once
+ * and caches the result. A variable set inside a test body would arrive after
+ * the first redacted log had already populated that cache.
+ */
+const ENV_SECRET = "sok1011-purchase-secret-value";
+process.env.SOK_1011_PAYMENT_API_KEY = ENV_SECRET;
+
 describe("registerJobPurchase", () => {
   it("stores the purchase the node returns", async () => {
     createPurchaseMock.mockResolvedValue(ok({ id: "node-purchase" }));
@@ -110,6 +118,34 @@ describe("registerJobPurchase", () => {
     expect(delays).toEqual([250]);
     expect(createJobPurchaseMock).toHaveBeenCalledTimes(1);
     expect(sentryCaptureExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("masks an env secret the node echoed back in its failure message", async () => {
+    // A gateway answering for the payment node can echo the request headers,
+    // and `extractNodeErrorMessage` dumps that body into `message`.
+    createPurchaseMock.mockResolvedValue(
+      err({
+        kind: "permanent",
+        message: `400 {"sent":{"token":"${ENV_SECRET}"}}`,
+        status: 400,
+      }),
+    );
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      await registerJobPurchase(params, { sleep: createSleepSpy().sleep });
+
+      const logged = warnSpy.mock.calls.find(
+        (call) =>
+          call[0] === "[registerJobPurchase] purchase registration failed",
+      );
+      expect(logged).toBeDefined();
+      const payload = logged?.[1] as { error: string };
+      expect(payload.error).not.toContain(ENV_SECRET);
+      expect(payload.error).toContain(REDACTED_SECRET);
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it("does not retry a permanent rejection", async () => {

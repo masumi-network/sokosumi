@@ -54,6 +54,7 @@ import { getSelectableTaskStatuses } from "@/helpers/task-selectable-statuses";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { getEnvSecrets, redactDeep } from "@/lib/secret-redaction";
 import { isAgentAuthContext, requireUserContext } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 import { projectMemoryService } from "@/services/project-memory.service";
@@ -646,12 +647,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             return;
           }
           if (result.status === "retry_scheduled") {
-            console.warn("[tasks] masumi task payment: retry scheduled", {
-              taskId,
-              taskEventId,
-              claimId: taskPaymentClaimId,
-              reason: result.reason,
-            });
+            // `result.reason` carries the payment client's failure message,
+            // which dumps the far side's response body. Length-capped by
+            // MAX_FAILURE_REASON_LENGTH, but a cap is not a redaction.
+            console.warn(
+              "[tasks] masumi task payment: retry scheduled",
+              redactDeep(
+                {
+                  taskId,
+                  taskEventId,
+                  claimId: taskPaymentClaimId,
+                  reason: result.reason,
+                },
+                getEnvSecrets(),
+              ),
+            );
           }
         } catch (error) {
           // Durable PENDING claim remains recoverable by cron. Never refund an
