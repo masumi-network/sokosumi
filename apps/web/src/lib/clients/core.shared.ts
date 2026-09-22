@@ -143,7 +143,6 @@ import {
   deleteMySokoBotSchedule as coreDeleteMySokoBotSchedule,
   deleteOrganizationsByIdInviteLinksByToken as coreDeleteOrganizationsByIdInviteLinksByToken,
   deleteOrganizationsByIdMembersByMemberIdSeat as coreDeleteOrganizationsByIdMembersByMemberIdSeat,
-  deleteProjectsById as coreDeleteProjectsById,
   deleteProjectsByIdDesignMd as coreDeleteProjectsByIdDesignMd,
   deleteProjectsByIdJobsByJobId as coreDeleteProjectsByIdJobsByJobId,
   deleteProjectsByIdStar as coreDeleteProjectsByIdStar,
@@ -3002,18 +3001,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function deleteProjectsById(id: string) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreDeleteProjectsById({
-          client,
-          path: { id },
-        }),
-      "Failed to delete project",
-    );
-  }
-
   async function postProjectsByIdClose(
     id: string,
     body: NonNullable<PostProjectsByIdCloseData["body"]>,
@@ -5199,7 +5186,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     createTaskLink,
     createTaskEvent,
     deleteJobShare,
-    deleteProjectsById,
     deleteProjectsByIdDesignMd,
     deleteProjectsByIdJobsByJobId,
     deleteProjectsByIdTasksByTaskId,

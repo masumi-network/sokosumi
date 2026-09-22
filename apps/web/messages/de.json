@@ -2225,7 +2225,8 @@
           "removed": "Markenkontext entfernt",
           "removeDialog": {
             "title": "Markenkontext entfernen?",
-            "description": "Dadurch wird die DESIGN.md-Datei des Projekts entfernt."
+            "description": "Dadurch wird die DESIGN.md-Datei des Projekts entfernt.",
+            "cancel": "Abbrechen"
           },
           "upload": "Hochladen",
           "moreActions": "Brand-Aktionen"
@@ -2316,7 +2317,6 @@
           "viewDetails": "Details anzeigen",
           "edit": "Bearbeiten",
           "close": "Projekt schließen",
-          "delete": "Löschen",
           "remove": "Entfernen",
           "confirmRemoveJob": "Diesen Job aus dem Projekt entfernen?"
         },
@@ -2365,16 +2365,9 @@
             }
           }
         },
-        "deleteDialog": {
-          "title": "Projekt löschen",
-          "description": "Dieses Projekt wird gelöscht. Verknüpfte Tasks und Jobs bleiben außerhalb des Projekts verfügbar.",
-          "confirm": "Löschen",
-          "cancel": "Abbrechen"
-        },
         "errors": {
           "create": "Projekt konnte nicht erstellt werden",
           "update": "Projekt konnte nicht aktualisiert werden",
-          "delete": "Projekt konnte nicht gelöscht werden",
           "addJob": "Job konnte nicht hinzugefügt werden",
           "removeJob": "Job konnte nicht entfernt werden",
           "addTask": "Task konnte nicht hinzugefügt werden",
@@ -4240,7 +4233,7 @@
       "ChatDisplay": {
         "title": "Chat-Anzeige",
         "roomUnreadCountTitle": "Anzahl ungelesener Nachrichten anzeigen",
-        "roomUnreadCountDescription": "Stummgeschaltete Chats und der geöffnete Chat bleiben ruhig. An deinen Benachrichtigungen ändert sich nichts.",
+        "roomUnreadCountDescription": "Wird bei jedem Chat mit ungelesenen Nachrichten angezeigt. Stummgeschaltete Chats bleiben ruhig, und an deinen Benachrichtigungen ändert sich nichts.",
         "loading": "Einstellung wird gespeichert...",
         "error": "Die Änderung konnte nicht gespeichert werden. Prüfe deine Verbindung und versuche es erneut.",
         "roomUnreadCountEnabledSuccess": "Anzahl ungelesener Nachrichten aktiviert",
@@ -5451,6 +5444,13 @@
         "afk": "Away",
         "offline": "Offline"
       },
+      "ThreadRows": {
+        "label": "Ungelesene Threads in {name}",
+        "unreadReplies": "{count, plural, one {# ungelesene Antwort} other {# ungelesene Antworten}}",
+        "moreThreads": "{count, plural, one {# weiterer ungelesener Thread} other {# weitere ungelesene Threads}}",
+        "mentions": "{count, plural, one {# Erwähnung} other {# Erwähnungen}}",
+        "untitled": "Thread"
+      },
       "Thread": {
         "title": "Thread",
         "open": "Open thread",
@@ -5460,6 +5460,7 @@
         "empty": "No replies yet",
         "replyPlaceholder": "Reply in thread",
         "replyCount": "{count, plural, one {# reply} other {# replies}}",
+        "newReplyCount": "{count, plural, one {# neue Antwort} other {# neue Antworten}}",
         "mute": "Thread stummschalten",
         "unmute": "Stummschaltung aufheben",
         "muted": "Stummgeschaltet"

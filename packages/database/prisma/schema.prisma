@@ -67,7 +67,7 @@ model User {
 
   // Chat display preferences. Not delivery: these change what the reader sees,
   // never which notifications are created or sent.
-  showRoomUnreadCount Boolean @default(false) // Whether chat sidebar rows show a room's unread message count
+  hideRoomUnreadCount Boolean @default(false) // Whether the reader switched off the unread message count on chat sidebar rows. Shown by default (ADR-0038)
 
   // UTM Attribution
   utmAttribution UTMAttribution?

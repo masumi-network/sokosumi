@@ -36,6 +36,8 @@ import {
 import {
   getChatRoomUnreadCounts,
   getChatRoomUnreadMentionCounts,
+  listUnreadThreadsOfRoomsWithThreadUnread,
+  unreadCountFields,
 } from "./room-unread";
 
 /**
@@ -178,15 +180,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           .filter((id): id is string => id != null),
       ),
     ];
+    // Started here so the unread Threads can wait on it alone, beside the
+    // other reads rather than after them.
+    const unreadCountsRead = getChatRoomUnreadCounts(roomIds, userId, prisma);
     const [
       unreadCounts,
+      unreadThreads,
       unreadMentionCounts,
       sidebarFlags,
       pinnedMessageCounts,
       peerInActiveOrganizationFlags,
       organizations,
     ] = await Promise.all([
-      getChatRoomUnreadCounts(roomIds, userId, prisma),
+      unreadCountsRead,
+      unreadCountsRead.then((counts) =>
+        listUnreadThreadsOfRoomsWithThreadUnread(counts, userId, prisma),
+      ),
       getChatRoomUnreadMentionCounts(roomIds, userId, prisma),
       getChatRoomSidebarFlags(roomIds, userId, prisma),
       getChatRoomPinnedMessageCounts(roomIds, prisma),
@@ -218,7 +227,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         rooms.map((room) => {
           const flags = sidebarFlags.get(room.id);
           return mapChatRoom(room, userId, {
-            unreadCount: unreadCounts.get(room.id) ?? 0,
+            ...unreadCountFields(unreadCounts.get(room.id)),
+            unreadThreads: unreadThreads.get(room.id),
             unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
             starredAt: flags?.starredAt ?? null,
             pinnedMessageCount: pinnedMessageCounts.get(room.id) ?? 0,

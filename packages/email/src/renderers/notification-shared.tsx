@@ -1,4 +1,8 @@
+import type { ReactNode } from "react";
+import { Link } from "react-email";
+
 import type { createEmailTranslator } from "../i18n/translate.js";
+import { DARK_CLASS, LIGHT_PALETTE } from "../theme/index.js";
 
 /**
  * The catalog entries every notification email draws on.
@@ -11,6 +15,19 @@ import type { createEmailTranslator } from "../i18n/translate.js";
 export const NOTIFICATION_SHARED_SCOPE = "notifications.shared";
 
 export type TranslateFn = ReturnType<typeof createEmailTranslator>["t"];
+export type RichFn = ReturnType<typeof createEmailTranslator>["rich"];
+
+function SettingsLink({ children, url }: { children: ReactNode; url: string }) {
+  return (
+    <Link
+      className={DARK_CLASS.link}
+      href={url}
+      style={{ color: LIGHT_PALETTE.link, textDecoration: "underline" }}
+    >
+      {children}
+    </Link>
+  );
+}
 
 /**
  * The reader's name, or a greeting that does without one.
@@ -54,6 +71,26 @@ export function nameOr(
   return trimmedValue
     ? trimmedValue
     : t(`${NOTIFICATION_SHARED_SCOPE}.${fallbackKey}`);
+}
+
+/**
+ * The footer note, with `<settings>` resolved.
+ *
+ * The phrase is linked when the caller knows where the settings live, and is
+ * plain text when it does not. The sentence is never assembled from pieces,
+ * so word order stays with the catalogue.
+ */
+export function footerNote(
+  rich: RichFn,
+  key: string,
+  settingsUrl?: null | string,
+): ReactNode {
+  const url = settingsUrl?.trim();
+
+  return rich(key, {
+    settings: (chunks: ReactNode) =>
+      url ? <SettingsLink url={url}>{chunks}</SettingsLink> : chunks,
+  });
 }
 
 /** The "or paste this URL" line, the same in every notification email. */

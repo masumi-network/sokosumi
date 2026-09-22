@@ -25,6 +25,7 @@ export const CORE_API_ERROR_KINDS = {
   LAST_WORKSPACE: "last_workspace",
   PERSONAL_WORKSPACE_MISSING: "personal_workspace_missing",
   PROJECT_HAS_CALENDAR_HISTORY: "project_has_calendar_history",
+  PROJECT_DELETION_REMOVED: "project_deletion_removed",
   IDEMPOTENCY_CONFLICT: "idempotency_conflict",
   SCHEDULE_ACTIVE: "schedule_active",
   SCHEDULE_CURSOR_STALE: "schedule_cursor_stale",

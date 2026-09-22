@@ -85,6 +85,11 @@ function FeedbackButtons({ turnId }: { turnId: string }) {
   );
 }
 
+/** True when `SokoBotMessageFooter` will render (it always shows the thumbs). */
+export function hasSokoBotMessageFooter(metadata: unknown): boolean {
+  return readSokoBotMetadata(metadata) != null;
+}
+
 /**
  * Under a Soko Bot reply: approvals it is waiting on (resolved on the
  * assistant console) and the Tasks it created in this turn.

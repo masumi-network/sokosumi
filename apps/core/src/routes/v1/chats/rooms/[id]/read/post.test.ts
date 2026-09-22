@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
+import { answerRoomUnreadReads } from "@/test-fixtures/chat-room-unread";
 
 import mountMarkChatRoomRead from "./post";
 
@@ -156,6 +157,13 @@ function room() {
   };
 }
 
+function mockUnreadCounts(
+  rows: Array<Record<string, unknown>>,
+  threads: Array<Record<string, unknown>> = [],
+) {
+  answerRoomUnreadReads(queryRawUnsafeMock, rows, threads);
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   prismaTransactionMock.mockImplementation(async (cb) => cb(tx));
@@ -267,7 +275,7 @@ describe("POST /chats/rooms/{id}/read", () => {
   });
 
   it("returns remaining thread unreadCount after room mark-read", async () => {
-    queryRawUnsafeMock.mockResolvedValue([{ roomId: ROOM_ID, unreadCount: 2 }]);
+    mockUnreadCounts([{ roomId: ROOM_ID, source: "thread", unreadCount: 2 }]);
 
     const response = await createApp(userAuthContext).request(
       `/${ROOM_ID}/read`,
@@ -278,6 +286,10 @@ describe("POST /chats/rooms/{id}/read", () => {
     const body = await response.json();
     expect(body.data).toMatchObject({
       id: ROOM_ID,
+      // Reading the channel empties the channel's half. What is left belongs
+      // to Threads, which only a Look clears (ADR-0037).
+      channelUnreadCount: 0,
+      threadUnreadCount: 2,
       unreadCount: 2,
       unreadMentionCount: 0,
       markedUnread: false,
