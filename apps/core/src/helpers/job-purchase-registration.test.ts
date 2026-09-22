@@ -148,6 +148,35 @@ describe("registerJobPurchase", () => {
     }
   });
 
+  it("caps the redacted failure message written to stdout", async () => {
+    createPurchaseMock.mockResolvedValue(
+      err({
+        kind: "permanent",
+        message: `${ENV_SECRET} ${"x".repeat(20_000)}`,
+        status: 400,
+      }),
+    );
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      await registerJobPurchase(params, { sleep: createSleepSpy().sleep });
+      const logged = warnSpy.mock.calls.find(
+        (call) =>
+          call[0] === "[registerJobPurchase] purchase registration failed",
+      );
+      expect(logged).toBeDefined();
+      expect(logged?.[1]).toEqual(
+        expect.objectContaining({
+          error: expect.stringContaining(REDACTED_SECRET),
+        }),
+      );
+      const payload = logged?.[1] as { error: string };
+      expect(payload.error.length).toBeLessThanOrEqual(2_000);
+      expect(payload.error).not.toContain(ENV_SECRET);
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
   it("does not retry a permanent rejection", async () => {
     // A permanent rejection is the node refusing this exact payload, so every
     // retry would be refused identically.

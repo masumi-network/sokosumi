@@ -9,6 +9,7 @@ import { paymentClient } from "@/clients/masumi-payment.client";
 import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
 import prisma from "@/lib/db/prisma";
 import { getEnvSecrets, redactDeep } from "@/lib/secret-redaction";
+import { formatUpstreamErrorForLog } from "@/lib/upstream-error-log";
 
 /**
  * How many times the hire path posts the purchase before it gives up.
@@ -147,7 +148,7 @@ export async function registerJobPurchase(
         agentId: params.agentId,
         attempts: attemptsMade,
         kind: failure.kind,
-        error: failure.message,
+        error: formatUpstreamErrorForLog(failure.message),
       },
       getEnvSecrets(),
     ),

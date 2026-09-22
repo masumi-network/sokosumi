@@ -55,6 +55,7 @@ import { publishTaskEventData } from "@/lib/ably/publish";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { getEnvSecrets, redactDeep } from "@/lib/secret-redaction";
+import { formatUpstreamErrorForLog } from "@/lib/upstream-error-log";
 import { isAgentAuthContext, requireUserContext } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 import { projectMemoryService } from "@/services/project-memory.service";
@@ -647,9 +648,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             return;
           }
           if (result.status === "retry_scheduled") {
-            // `result.reason` carries the payment client's failure message,
-            // which dumps the far side's response body. Length-capped by
-            // MAX_FAILURE_REASON_LENGTH, but a cap is not a redaction.
+            // The processor returns the full reason. Redact it before applying
+            // the stdout cap; the database cap does not protect this log.
             console.warn(
               "[tasks] masumi task payment: retry scheduled",
               redactDeep(
@@ -657,7 +657,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                   taskId,
                   taskEventId,
                   claimId: taskPaymentClaimId,
-                  reason: result.reason,
+                  reason: formatUpstreamErrorForLog(result.reason),
                 },
                 getEnvSecrets(),
               ),
