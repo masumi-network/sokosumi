@@ -40,6 +40,7 @@ function remoteDevice(state = "Active", endpoint = ENDPOINT) {
 describe("findPushDeviceFault", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     getWorker.mockResolvedValue({
       pushManager: { getSubscription },
     });
@@ -116,7 +117,7 @@ describe("findPushDeviceFault", () => {
   // SOK-1152: a device-authenticated read carries no clientId, so treating
   // absence as a foreign device left the repair resetting a healthy
   // registration for as long as the reader kept pressing.
-  it.each([undefined, null])(
+  it.each([undefined, null, ""])(
     "keeps a registration Ably reports without a clientId: %s",
     async (clientId) => {
       request.mockResolvedValue({
@@ -127,6 +128,19 @@ describe("findPushDeviceFault", () => {
       expect(await findPushDeviceFault(client, "reader")).toBeNull();
     },
   );
+
+  // SOK-1152: the only ownership answer this check can rely on. Ably reports
+  // none, so a browser two readers share is guarded from here or nowhere.
+  it("resets a registration this browser made for another reader", async () => {
+    localStorage.setItem("sokosumi.push.deviceOwner", "other-reader");
+    expect(await findPushDeviceFault(client, "reader")).toBe("another-reader");
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it("keeps a registration this browser made for this reader", async () => {
+    localStorage.setItem("sokosumi.push.deviceOwner", "reader");
+    expect(await findPushDeviceFault(client, "reader")).toBeNull();
+  });
 
   it("rejects an unknown remote push state instead of calling it healthy", async () => {
     request.mockResolvedValue({

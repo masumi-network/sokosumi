@@ -31,6 +31,49 @@ import { isPushWorkPending, notePushTeardown } from "./push-work-queue.client";
  */
 const ABLY_DEVICE_IDENTITY_TOKEN_KEY = "ably.push.deviceIdentityToken";
 const UNRESOLVED_PUSH_REPAIR_KEY = "sokosumi.push.unresolvedRepair";
+const PUSH_DEVICE_OWNER_KEY = "sokosumi.push.deviceOwner";
+
+/**
+ * The reader this browser's Ably registration was last registered for.
+ *
+ * Ably's own answer cannot be used for this. The registration carries a
+ * clientId, but the health check reads it authenticated as the device rather
+ * than with `push-admin`, and such a read comes back without the field
+ * (SOK-1152). Asking Ably who owns the device therefore returns nothing
+ * whichever reader asks, so the answer has to be kept here.
+ *
+ * What it guards is a browser two readers share. An explicit sign-out
+ * releases the registration, but a session that expires on its own releases
+ * nothing, by design: the reader who comes back finds push still on. The
+ * token left behind is the previous reader's, and an activation that reused
+ * it would subscribe the next reader's channel beside the previous reader's
+ * on one device, which delivers both readers' banners to whoever holds the
+ * browser.
+ */
+export function readPushDeviceOwner(): string | null {
+  try {
+    return localStorage.getItem(PUSH_DEVICE_OWNER_KEY);
+  } catch {
+    // A browser that blocks site data carries no registration to own.
+    return null;
+  }
+}
+
+/**
+ * Say who this browser's registration belongs to, once it is theirs.
+ *
+ * Written where the registration is made rather than where the run ends, so
+ * the reset's own verification reads the reader it just registered for
+ * instead of the reader it took the device from.
+ */
+export function rememberPushDeviceOwner(userId: string): void {
+  try {
+    localStorage.setItem(PUSH_DEVICE_OWNER_KEY, userId);
+  } catch {
+    // The activation still holds for this page. What is lost is the guard on
+    // the next one, which fails open exactly as it did before it existed.
+  }
+}
 
 /** A failed repair may remove Ably's token before it restores the subscription. */
 export function hasUnresolvedPushRepair(): boolean {
@@ -89,6 +132,10 @@ export function forgetAblyPushRegistration(): void {
   try {
     localStorage.removeItem(ABLY_DEVICE_IDENTITY_TOKEN_KEY);
     localStorage.removeItem(PUSH_TEARDOWN_STARTED_KEY);
+    // The registration this named is gone, so the name must go with it. Left
+    // behind, it would tell the next reader that a device nobody holds is
+    // still someone else's.
+    localStorage.removeItem(PUSH_DEVICE_OWNER_KEY);
   } catch {
     // Writing storage throws outright where the browser blocks site data.
     // Such a browser carries no token to begin with.

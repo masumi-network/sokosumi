@@ -23,8 +23,13 @@ const needsResetMock = vi.fn();
 const getDeviceMock = vi.fn();
 vi.mock("./push-device-health.client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./push-device-health.client")>()),
-  findPushDeviceFault: async () =>
-    (await needsResetMock()) ? "delivery-failed" : null,
+  findPushDeviceFault: async () => {
+    const answer: unknown = await needsResetMock();
+    // A string is the fault itself, so a test can arm two different ones and
+    // tell which read reported which.
+    if (typeof answer === "string") return answer;
+    return answer ? "delivery-failed" : null;
+  },
 }));
 const recordOutcomeMock = vi.fn<(...args: unknown[]) => Promise<void>>(
   async () => {},
@@ -468,6 +473,23 @@ describe("activatePush", () => {
 
     expect(calls).toEqual(["activate", "unsubscribeBrowser", "deactivate"]);
     expect(localStorage.getItem("sokosumi.push.teardownStarted")).toBe("1");
+  });
+
+  /**
+   * SOK-1152 was diagnosed from this message and nothing else. A registration
+   * that stays broken through a reset is the one failure no retry clears, so
+   * the message has to say which state held, and whether the reset changed it.
+   */
+  it("names both faults when a reset leaves the registration unhealthy", async () => {
+    needsResetMock
+      .mockReset()
+      .mockResolvedValueOnce("endpoint-moved")
+      .mockResolvedValue("another-reader");
+    hasWebPushSubscriptionMock.mockResolvedValue(true);
+
+    await expect(activatePush("user_1")).rejects.toThrow(
+      "The push device registration is still unhealthy: another-reader (was endpoint-moved)",
+    );
   });
 
   /**

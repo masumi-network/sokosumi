@@ -29,6 +29,7 @@ import {
   forgetUnfinishedPushTeardown,
   hasUnfinishedPushTeardown,
   notePushTeardownStarted,
+  rememberPushDeviceOwner,
 } from "./release-push-device.client";
 
 interface ActivatePushOptions {
@@ -136,6 +137,9 @@ async function runActivation(
       if (await abandonedToTeardown(teardownVersion)) return false;
       if (repairOvertakenAcrossTabs(readerInitiated)) return false;
       await client.push.activate();
+      // The device the reset took away is gone, and this call registered a new
+      // one for this reader. Said before the check below, which reads it.
+      rememberPushDeviceOwner(userId);
       if (await abandonedToTeardown(teardownVersion)) return false;
       const remainingFault = await findPushDeviceFault(client, userId);
       if (remainingFault) {
@@ -159,6 +163,11 @@ async function runActivation(
     if (!repaired) {
       throw new Error("The browser created no push subscription");
     }
+    // A run that found nothing to reset adopts the registration it kept. There
+    // was no evidence of another reader on it: either this reader was already
+    // named, or nobody was, which is every browser registered before the name
+    // was written down.
+    rememberPushDeviceOwner(userId);
     await rememberPushRenewal(client, userId, teardownVersion).catch((error) =>
       console.error("Failed to store push renewal", error),
     );
