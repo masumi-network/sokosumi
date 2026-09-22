@@ -248,6 +248,40 @@ export function isPushSupported(): boolean {
   );
 }
 
+/**
+ * Whether installing this app is what stands between this browser and push.
+ *
+ * True on an iPhone or iPad outside the installed web app. WebKit ships Web
+ * Push to Home Screen web apps alone, so the reader is not on a browser that
+ * cannot do this: they are one Add to Home Screen away from it, and the
+ * generic "this browser cannot" is the wrong thing to tell them.
+ *
+ * The touch count is the signal, not the user agent. iPadOS sends Safari's
+ * macOS string, and a reader who taps Request Desktop Website gets it on an
+ * iPhone too, so anything read off that string answers false for exactly the
+ * devices this is for. `maxTouchPoints` is 5 on both and 0 on a desktop.
+ *
+ * Standalone display mode is the last gate, and it only does anything below
+ * iOS 16.4: above it, an installed app has push and never reaches here. Below
+ * it, an installed app still has none, and naming a step the reader has
+ * already taken would read as the app not knowing where it was running.
+ */
+export function isPushInstallable(): boolean {
+  if (isPushSupported() || !isServiceWorkerSupported()) {
+    return false;
+  }
+
+  return navigator.maxTouchPoints > 0 && !isStandaloneDisplay();
+}
+
+/** Whether this page is the installed app rather than a browser tab. */
+function isStandaloneDisplay(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(display-mode: standalone)").matches
+  );
+}
+
 async function register(): Promise<ServiceWorkerRegistration | null> {
   try {
     const registration = await navigator.serviceWorker.register(

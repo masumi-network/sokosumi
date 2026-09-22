@@ -4,6 +4,7 @@ import {
   answerShowsNotificationsQuery,
   clearNotificationTargetFromUrl,
   getNotificationServiceWorkerUrl,
+  isPushInstallable,
   NOTIFICATION_CLICK_MESSAGE,
   NOTIFICATION_ICON_PATH,
   NOTIFICATION_SERVICE_WORKER_URL,
@@ -891,5 +892,116 @@ describe("clearNotificationTargetFromUrl", () => {
 
     expect(window.location.search).toBe("?keep=1");
     expect(window.history.length).toBe(before);
+  });
+});
+
+describe("isPushInstallable", () => {
+  const originalPushManager = Object.getOwnPropertyDescriptor(
+    window,
+    "PushManager",
+  );
+  const originalMaxTouchPoints = Object.getOwnPropertyDescriptor(
+    Navigator.prototype,
+    "maxTouchPoints",
+  );
+  const originalMatchMedia = Object.getOwnPropertyDescriptor(
+    window,
+    "matchMedia",
+  );
+
+  /**
+   * A browser shaped like the one the read is about, described by what it has
+   * rather than by what it calls itself. Every case below starts from an
+   * iPhone and changes the one property under test, so a case that passes
+   * names the property that carried it.
+   */
+  function stubBrowser({
+    push,
+    touchPoints,
+    standalone,
+  }: {
+    push: boolean;
+    touchPoints: number;
+    standalone: boolean;
+  }) {
+    stubServiceWorker({});
+    stubPermission("default");
+    if (push) {
+      Object.defineProperty(window, "PushManager", {
+        configurable: true,
+        value: class {},
+      });
+    } else {
+      Reflect.deleteProperty(window, "PushManager");
+    }
+    Object.defineProperty(Navigator.prototype, "maxTouchPoints", {
+      configurable: true,
+      get: () => touchPoints,
+    });
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: (query: string) => ({
+        matches: query === "(display-mode: standalone)" && standalone,
+        media: query,
+      }),
+    });
+  }
+
+  afterEach(() => {
+    if (originalPushManager) {
+      Object.defineProperty(window, "PushManager", originalPushManager);
+    } else {
+      Reflect.deleteProperty(window, "PushManager");
+    }
+    if (originalMaxTouchPoints) {
+      Object.defineProperty(
+        Navigator.prototype,
+        "maxTouchPoints",
+        originalMaxTouchPoints,
+      );
+    }
+    if (originalMatchMedia) {
+      Object.defineProperty(window, "matchMedia", originalMatchMedia);
+    }
+  });
+
+  it("offers the install to an iPhone tab outside the installed app", () => {
+    stubBrowser({ push: false, touchPoints: 5, standalone: false });
+
+    expect(isPushInstallable()).toBe(true);
+  });
+
+  it("offers it to an iPad asking for the desktop site", () => {
+    stubBrowser({ push: false, touchPoints: 5, standalone: false });
+    // iPadOS sends Safari's macOS string here, and the read still answers
+    // true. A user-agent test would answer false and leave every iPad on the
+    // dead end this ticket is about.
+    Object.defineProperty(navigator, "userAgent", {
+      configurable: true,
+      value:
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+    });
+
+    expect(isPushInstallable()).toBe(true);
+  });
+
+  it("stays quiet on a desktop browser that has no push", () => {
+    stubBrowser({ push: false, touchPoints: 0, standalone: false });
+
+    expect(isPushInstallable()).toBe(false);
+  });
+
+  it("stays quiet inside an installed app that still has no push", () => {
+    // iOS below 16.4. The app is on the Home Screen already, so telling the
+    // reader to put it there would name a step they have taken.
+    stubBrowser({ push: false, touchPoints: 5, standalone: true });
+
+    expect(isPushInstallable()).toBe(false);
+  });
+
+  it("stays quiet where push already works", () => {
+    stubBrowser({ push: true, touchPoints: 5, standalone: false });
+
+    expect(isPushInstallable()).toBe(false);
   });
 });
