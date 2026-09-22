@@ -241,7 +241,7 @@ export function createPaymentClient(
         // The ForLog variant, because no caller echoes this value either.
         return err(
           response.error
-            ? extractNodeErrorMessageForLog(response.error)
+            ? extractNodeErrorMessageForLog(response.error, apiKey)
             : "Failed to get purchase",
         );
       }
@@ -367,7 +367,7 @@ export function createPaymentClient(
       }
       return err({
         kind: "ambiguous",
-        message: `Failed to resolve task purchase (status ${status ?? "unknown"}): ${extractNodeErrorMessage(response.error)}`,
+        message: `Failed to resolve task purchase (status ${status ?? "unknown"}): ${extractNodeErrorMessage(response.error, apiKey)}`,
         status,
       });
     } catch (error) {
@@ -434,10 +434,10 @@ export function createPaymentClient(
           !response.data ||
           response.response?.status !== 200
         ) {
-          const nodeErrorMessage = readNodeErrorMessage(response.error);
+          const nodeErrorMessage = readNodeErrorMessage(response.error, apiKey);
           return err({
             hasNodeErrorEnvelope: nodeErrorMessage !== null,
-            message: `purchase-diff ${status ?? "unknown"}: ${nodeErrorMessage ?? extractNodeErrorMessage(response.error)}`,
+            message: `purchase-diff ${status ?? "unknown"}: ${nodeErrorMessage ?? extractNodeErrorMessage(response.error, apiKey)}`,
             status,
           });
         }
@@ -488,7 +488,7 @@ export function createPaymentClient(
         });
         if (response.error || !response.data) {
           return err(
-            `rail-readiness ${response.response?.status ?? "unknown"}: ${extractNodeErrorMessage(response.error)}`,
+            `rail-readiness ${response.response?.status ?? "unknown"}: ${extractNodeErrorMessage(response.error, apiKey)}`,
           );
         }
         const cardanoV2Rail = response.data.data.Rails.find(
@@ -601,7 +601,7 @@ export function createPaymentClient(
           const status = response.response?.status;
           return err({
             kind: classifyPurchaseFailureKind(status),
-            message: `Failed to create purchase request (status ${status ?? "unknown"}): ${extractNodeErrorMessage(response.error)}`,
+            message: `Failed to create purchase request (status ${status ?? "unknown"}): ${extractNodeErrorMessage(response.error, apiKey)}`,
             status,
           });
         }
@@ -659,7 +659,7 @@ export function createPaymentClient(
           // node's status and reason into compensation and alerting.
           return err({
             kind: classifyPurchaseFailureKind(status),
-            message: `Failed to create purchase request (status ${status ?? "unknown"}): ${extractNodeErrorMessage(response.error)}`,
+            message: `Failed to create purchase request (status ${status ?? "unknown"}): ${extractNodeErrorMessage(response.error, apiKey)}`,
             status,
           });
         }

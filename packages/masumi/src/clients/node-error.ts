@@ -11,7 +11,10 @@
  *  - the coworker-facing echo of a node 400, which must repeat the node's own
  *    sentence and never the whole-body JSON dump below.
  */
-export function readNodeErrorMessage(error: unknown): string | null {
+export function readNodeErrorMessage(
+  error: unknown,
+  apiKey = "",
+): string | null {
   if (
     typeof error === "object" &&
     error !== null &&
@@ -21,7 +24,7 @@ export function readNodeErrorMessage(error: unknown): string | null {
     "message" in error.error &&
     typeof error.error.message === "string"
   ) {
-    return error.error.message;
+    return redactApiKey(error.error.message, apiKey);
   }
   return null;
 }
@@ -37,6 +40,7 @@ export function readNodeErrorMessage(error: unknown): string | null {
  * node's OWN message is returned whole because callers echo it.
  */
 const MAX_FALLBACK_MESSAGE_LENGTH = 300;
+const REDACTED_API_KEY = "[redacted:api-key]";
 
 function truncateFallback(dump: string): string {
   if (dump.length <= MAX_FALLBACK_MESSAGE_LENGTH) {
@@ -75,8 +79,8 @@ const NO_ERROR_DETAIL = "(no error detail)";
  * `JSON.stringify` is `"{}"` — that is the SOKOSUMI-CORE-2Z title
  * `rail-readiness unknown: {}`. Those must use `String(error)`.
  */
-export function extractNodeErrorMessage(error: unknown): string {
-  const message = readNodeErrorMessage(error);
+export function extractNodeErrorMessage(error: unknown, apiKey = ""): string {
+  const message = readNodeErrorMessage(error, apiKey);
   if (message !== null) {
     return message;
   }
@@ -87,14 +91,19 @@ export function extractNodeErrorMessage(error: unknown): string {
     // the cause names the layer that failed but never why. One level is
     // enough: that is where undici puts the syscall error.
     return truncateFallback(
-      error.cause === undefined ? String(error) : `${error}: ${error.cause}`,
+      redactApiKey(
+        error.cause === undefined ? String(error) : `${error}: ${error.cause}`,
+        apiKey,
+      ),
     );
   }
   try {
     const dump = JSON.stringify(error) ?? String(error);
-    return truncateFallback(dump === "{}" ? NO_ERROR_DETAIL : dump);
+    return truncateFallback(
+      redactApiKey(dump === "{}" ? NO_ERROR_DETAIL : dump, apiKey),
+    );
   } catch {
-    return truncateFallback(String(error));
+    return truncateFallback(redactApiKey(String(error), apiKey));
   }
 }
 
@@ -107,6 +116,23 @@ export function extractNodeErrorMessage(error: unknown): string {
  * node picks the SHAPE of the body as well as its length, so an
  * envelope-shaped 20 kB message walks straight past the fallback cap.
  */
-export function extractNodeErrorMessageForLog(error: unknown): string {
-  return truncateFallback(extractNodeErrorMessage(error));
+export function extractNodeErrorMessageForLog(
+  error: unknown,
+  apiKey = "",
+): string {
+  return truncateFallback(extractNodeErrorMessage(error, apiKey));
+}
+
+/** Mask the request credential before any truncation, including short keys. */
+function redactApiKey(text: string, apiKey: string): string {
+  if (!apiKey) {
+    return text;
+  }
+  // JSON dumps escape quotes and backslashes in the credential.
+  const escapedKey = JSON.stringify(apiKey).slice(1, -1);
+  return text
+    .split(escapedKey)
+    .join(REDACTED_API_KEY)
+    .split(apiKey)
+    .join(REDACTED_API_KEY);
 }

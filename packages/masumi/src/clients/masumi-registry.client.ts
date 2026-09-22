@@ -59,7 +59,7 @@ export function createRegistryClient(
         // side free to pick the length after all.
         return err(
           response.error
-            ? extractNodeErrorMessageForLog(response.error)
+            ? extractNodeErrorMessageForLog(response.error, apiKey)
             : "Unknown error",
         );
       }
