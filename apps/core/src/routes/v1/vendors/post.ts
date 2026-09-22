@@ -1,9 +1,10 @@
 import { createRoute } from "@hono/zod-openapi";
 
-import { conflict } from "@/helpers/error";
+import { LIMITS } from "@/config/constants";
+import { conflict, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { isSlugUniqueConstraintError } from "@/helpers/prisma";
-import { created } from "@/helpers/response";
+import { created, ok } from "@/helpers/response";
 import { mapVendor, vendorLogoCreateData } from "@/helpers/vendor";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -52,6 +53,10 @@ const route = createRoute({
         },
       },
     ),
+    200: jsonSuccessResponse(
+      vendorMembershipSchema,
+      "The vendor you already administer, returned when you re-create the same slug",
+    ),
     400: jsonErrorResponse("Bad Request - validation failed"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
@@ -64,12 +69,64 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const body = c.req.valid("json");
     const userAuth = requireUserAuthContext(c.var.authContext);
 
+    // Server-side match to the CLI registration gate: a self-service vendor
+    // requires an organization workspace (an org membership).
+    const organizationCount = await prisma.member.count({
+      where: { userId: userAuth.userId },
+    });
+    if (organizationCount === 0) {
+      throw forbidden(
+        "Creating a vendor requires an organization workspace. Create or join an organization first.",
+      );
+    }
+
+    // Idempotent owner retry: if the slug is taken by a vendor the caller
+    // already administers, return it instead of 409. Checked before the cap so
+    // a repeat create does not trip the per-user limit.
+    const slugOwner = await prisma.vendor.findUnique({
+      where: { slug: body.slug },
+      include: {
+        vendorMembers: {
+          where: { userId: userAuth.userId, role: "admin" },
+          select: { id: true },
+        },
+      },
+    });
+    if (slugOwner) {
+      if (slugOwner.vendorMembers.length > 0) {
+        return ok(
+          c,
+          vendorMembershipSchema.parse({
+            ...mapVendor(slugOwner),
+            role: "admin",
+          }),
+        );
+      }
+      throw conflict(
+        "Vendor slug already exists. Please choose a different slug.",
+      );
+    }
+
+    // Cap self-service vendors per user (one-time cold-start, not a namespace).
+    const selfServiceCount = await prisma.vendor.count({
+      where: { createdByUserId: userAuth.userId },
+    });
+    if (selfServiceCount >= LIMITS.SELF_SERVICE_VENDOR_LIMIT_PER_USER) {
+      throw conflict(
+        `You can create at most ${LIMITS.SELF_SERVICE_VENDOR_LIMIT_PER_USER} vendor. Use the vendor you already administer, or ask a platform admin to create another.`,
+      );
+    }
+
     try {
       const vendor = await prisma.$transaction(async (tx) => {
         const createdVendor = await tx.vendor.create({
           data: {
             name: body.name,
             slug: body.slug,
+            createdByUserId: userAuth.userId,
+            // Self-service vendors stay off the global grant picker until a
+            // platform admin lists them.
+            listed: false,
             ...vendorLogoCreateData(body.logos),
           },
         });

@@ -15,20 +15,34 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { vendorCreateMock, vendorMemberCreateMock, transactionMock } =
-  vi.hoisted(() => ({
-    vendorCreateMock: vi.fn(),
-    vendorMemberCreateMock: vi.fn(),
-    transactionMock: vi.fn(),
-  }));
+const {
+  vendorCreateMock,
+  vendorMemberCreateMock,
+  vendorCountMock,
+  vendorFindUniqueMock,
+  memberCountMock,
+  transactionMock,
+} = vi.hoisted(() => ({
+  vendorCreateMock: vi.fn(),
+  vendorMemberCreateMock: vi.fn(),
+  vendorCountMock: vi.fn(),
+  vendorFindUniqueMock: vi.fn(),
+  memberCountMock: vi.fn(),
+  transactionMock: vi.fn(),
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     vendor: {
       create: vendorCreateMock,
+      count: vendorCountMock,
+      findUnique: vendorFindUniqueMock,
     },
     vendorMember: {
       create: vendorMemberCreateMock,
+    },
+    member: {
+      count: memberCountMock,
     },
     $transaction: transactionMock,
   },
@@ -69,6 +83,9 @@ describe("POST /vendors", () => {
       userId: "user_dev",
       role: "admin",
     });
+    memberCountMock.mockResolvedValue(1);
+    vendorCountMock.mockResolvedValue(0);
+    vendorFindUniqueMock.mockResolvedValue(null);
     transactionMock.mockImplementation(
       async (callback: (tx: unknown) => Promise<unknown>) =>
         callback({
@@ -98,6 +115,8 @@ describe("POST /vendors", () => {
       data: {
         name: "Acme Labs",
         slug: "acme-labs",
+        createdByUserId: "user_dev",
+        listed: false,
         logoLight: null,
         logoDark: null,
       },
@@ -158,5 +177,104 @@ describe("POST /vendors", () => {
     });
 
     expect(response.status).toBe(409);
+  });
+
+  it("requires an organization workspace", async () => {
+    memberCountMock.mockResolvedValue(0);
+
+    const app = createApp({
+      actor: "user",
+      userId: "user_dev",
+      organizationId: null,
+      role: "user",
+    });
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Acme Labs", slug: "acme-labs" }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(vendorCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("caps self-service vendors per user", async () => {
+    vendorCountMock.mockResolvedValue(1);
+
+    const app = createApp({
+      actor: "user",
+      userId: "user_dev",
+      organizationId: null,
+      role: "user",
+    });
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Acme Labs", slug: "acme-labs" }),
+    });
+
+    expect(response.status).toBe(409);
+    expect(vendorCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns the existing vendor when its admin re-creates the same slug", async () => {
+    vendorFindUniqueMock.mockResolvedValue({
+      ...testVendor,
+      slug: "acme-labs",
+      logoLight: null,
+      logoDark: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      vendorMembers: [{ id: "vm_admin" }],
+    });
+
+    const app = createApp({
+      actor: "user",
+      userId: "user_dev",
+      organizationId: null,
+      role: "user",
+    });
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Acme Labs", slug: "acme-labs" }),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data.role).toBe("admin");
+    expect(body.data.slug).toBe("acme-labs");
+    expect(vendorCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("409s when the slug belongs to a vendor the caller does not administer", async () => {
+    vendorFindUniqueMock.mockResolvedValue({
+      ...testVendor,
+      slug: "acme-labs",
+      logoLight: null,
+      logoDark: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      vendorMembers: [],
+    });
+
+    const app = createApp({
+      actor: "user",
+      userId: "user_dev",
+      organizationId: null,
+      role: "user",
+    });
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Acme Labs", slug: "acme-labs" }),
+    });
+
+    expect(response.status).toBe(409);
+    expect(vendorCreateMock).not.toHaveBeenCalled();
   });
 });
