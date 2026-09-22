@@ -162,7 +162,7 @@ export function ChatRoomThreadRows({
                       ) : (
                         <span
                           data-slot="thread-unread-count"
-                          className="text-muted-foreground text-xs tabular-nums"
+                          className="text-muted-foreground text-[0.625rem] leading-4 font-semibold tabular-nums"
                         >
                           {roomCountLabel(thread.unreadReplyCount)}
                         </span>
