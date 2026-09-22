@@ -239,15 +239,22 @@
 
       func applyBlockFormat(_ format: ComposerBlockFormat) {
         guard !hasMarkedText(), !preservesRawDraft else { return }
-        let selection = selectedRange()
-        let range = format == .codeBlock ? selection : (string as NSString).paragraphRange(for: selection)
-        let selected = attributedString().attributedSubstring(from: range)
-        let replacement = MacComposerAttributedText.styled(format.applying(to: selected))
+        // The model sees the whole text: a code block toggles off from anywhere inside it.
+        let edit = format.edit(in: attributedString(), selection: selectedRange())
         breakUndoCoalescing()
-        replaceFormatting(replacement, range: range)
-        let caret = range.location + replacement.length - (replacement.string.hasSuffix("\n") ? 1 : 0)
-        setSelectedRange(NSRange(location: caret, length: 0))
+        replaceFormatting(MacComposerAttributedText.styled(edit.replacement), range: edit.range)
+        setSelectedRange(NSRange(location: edit.caret, length: 0))
+        // The caret types into the block it was left in: a fresh block's first character
+        // would otherwise take the attributes of the text before the block.
+        if format == .codeBlock, let textStorage, textStorage.length > 0 {
+          typingAttributes = textStorage.attributes(at: min(edit.caret, textStorage.length - 1), effectiveRange: nil)
+        }
         breakUndoCoalescing()
+        // Web calls `handleInput` after this toggle, so its input rule runs at the caret: a
+        // closed pair ending the unwrapped text formats. Inside a block it never does.
+        if format == .codeBlock {
+          _ = applyInputRuleAfterUserEdit()
+        }
       }
 
       private func replaceFormatting(_ replacement: NSAttributedString, range: NSRange) {
