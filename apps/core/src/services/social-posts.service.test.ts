@@ -6,6 +6,7 @@ const {
   socialPostCreateMock,
   socialPostFindFirstMock,
   socialPostFindManyMock,
+  socialPostCountMock,
   socialPostUpdateManyMock,
 } = vi.hoisted(() => ({
   projectFindFirstMock: vi.fn(),
@@ -13,6 +14,7 @@ const {
   socialPostCreateMock: vi.fn(),
   socialPostFindFirstMock: vi.fn(),
   socialPostFindManyMock: vi.fn(),
+  socialPostCountMock: vi.fn(),
   socialPostUpdateManyMock: vi.fn(),
 }));
 
@@ -24,6 +26,7 @@ vi.mock("@/lib/db/prisma", () => ({
       create: socialPostCreateMock,
       findFirst: socialPostFindFirstMock,
       findMany: socialPostFindManyMock,
+      count: socialPostCountMock,
       updateMany: socialPostUpdateManyMock,
     },
   },
@@ -100,6 +103,7 @@ describe("social posts service", () => {
     projectFindFirstMock.mockResolvedValue({ id: PROJECT_ID });
     socialConnectionFindFirstMock.mockResolvedValue(activeConnection);
     socialPostFindManyMock.mockResolvedValue([draftPost]);
+    socialPostCountMock.mockResolvedValue(1);
     socialPostFindFirstMock.mockResolvedValue(draftPost);
     socialPostCreateMock.mockResolvedValue(draftPost);
     socialPostUpdateManyMock.mockResolvedValue({ count: 1 });
@@ -120,7 +124,7 @@ describe("social posts service", () => {
     expect(socialPostFindManyMock).not.toHaveBeenCalled();
   });
 
-  it("lists posts scheduled-first with derived capability flags", async () => {
+  it("lists a bounded page with derived capability flags", async () => {
     const { listSocialPosts } = await loadService();
 
     const posts = await listSocialPosts({
@@ -136,14 +140,11 @@ describe("social posts service", () => {
           workspaceId: WORKSPACE_ID,
           status: { in: ["DRAFT", "SCHEDULED"] },
         },
-        orderBy: [
-          { scheduledAt: { sort: "asc", nulls: "last" } },
-          { createdAt: "desc" },
-        ],
-        take: 200,
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        take: 21,
       }),
     );
-    expect(posts).toEqual([
+    expect(posts.posts).toEqual([
       expect.objectContaining({
         id: POST_ID,
         provider: "x",
@@ -155,6 +156,51 @@ describe("social posts service", () => {
         canCancel: true,
       }),
     ]);
+  });
+
+  it("paginates a filtered section independently of its history", async () => {
+    const rows = Array.from({ length: 21 }, (_, index) => ({
+      ...draftPost,
+      id: `post-${index}`,
+    }));
+    socialPostFindManyMock.mockResolvedValue(rows);
+    socialPostCountMock.mockResolvedValue(25);
+    const { listSocialPosts } = await loadService();
+    const result = await listSocialPosts({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      statuses: ["DRAFT"],
+      cursor: "previous",
+      limit: 20,
+    });
+    expect(result.posts).toHaveLength(20);
+    expect(result.pagination).toEqual({
+      cursor: "previous",
+      limit: 20,
+      total: 25,
+      nextCursor: "post-19",
+    });
+    expect(socialPostFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          status: { in: ["DRAFT"] },
+        },
+        cursor: { id: "previous" },
+        skip: 1,
+        take: 21,
+      }),
+    );
+    socialPostFindManyMock.mockResolvedValue(rows.slice(0, 5));
+    const last = await listSocialPosts({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      statuses: ["DRAFT"],
+      cursor: "post-19",
+      limit: 20,
+    });
+    expect(last.pagination.nextCursor).toBeNull();
   });
 
   it("returns not found for a post in another Project", async () => {

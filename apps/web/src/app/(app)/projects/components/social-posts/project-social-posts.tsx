@@ -4,7 +4,7 @@ import { CalendarClock, MoreHorizontal, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import type { SocialPostComposerMode } from "@/app/projects/components/social-posts/social-post-composer-dialog";
 import { SocialPostComposerDialog } from "@/app/projects/components/social-posts/social-post-composer-dialog";
@@ -31,25 +31,17 @@ import { cancelProjectSocialPost } from "@/lib/actions/project/action";
 import type {
   ProjectSocialConnection,
   SocialPost,
-  SocialPostStatus,
 } from "@/lib/clients/generated/core/types.gen";
+import { loadMoreSocialPosts } from "./actions";
+import { SECTION_ORDER, SECTION_STATUSES, type SectionKey } from "./constants";
 
 interface ProjectSocialPostsProps {
   /** Active connections only; drives the account picker and the empty state. */
   connections: ProjectSocialConnection[];
   posts: SocialPost[];
+  nextCursors?: Partial<Record<SectionKey, string | null>>;
   projectId: string;
 }
-
-type SectionKey = "upcoming" | "drafts" | "history";
-
-const SECTION_STATUSES: Record<SectionKey, readonly SocialPostStatus[]> = {
-  upcoming: ["SCHEDULED", "PUBLISHING"],
-  drafts: ["DRAFT"],
-  history: ["PUBLISHED", "FAILED", "MISSED", "CANCELED"],
-};
-
-const SECTION_ORDER: SectionKey[] = ["upcoming", "drafts", "history"];
 
 function timeOf(value: Date | null): number {
   return value ? new Date(value).getTime() : 0;
@@ -82,6 +74,7 @@ function upsertPost(posts: SocialPost[], next: SocialPost): SocialPost[] {
 export function ProjectSocialPosts({
   connections,
   posts: initialPosts,
+  nextCursors,
   projectId,
 }: ProjectSocialPostsProps) {
   const router = useRouter();
@@ -89,9 +82,14 @@ export function ProjectSocialPosts({
   const formatter = useFormatter();
   const [syncedPosts, setSyncedPosts] = useState(initialPosts);
   const [posts, setPosts] = useState(initialPosts);
+  const [cursors, setCursors] = useState(nextCursors ?? {});
+  const [loadingSection, setLoadingSection] = useState<SectionKey | null>(null);
+  const sourceRef = useRef(initialPosts);
+  sourceRef.current = initialPosts;
   if (syncedPosts !== initialPosts) {
     setSyncedPosts(initialPosts);
     setPosts(initialPosts);
+    setCursors(nextCursors ?? {});
   }
   const [composer, setComposer] = useState<SocialPostComposerMode | null>(null);
   const [cancelTarget, setCancelTarget] = useState<SocialPost | null>(null);
@@ -102,10 +100,29 @@ export function ProjectSocialPosts({
   function handleActionError(error: ActionError): void {
     if (isRevisionConflict(error)) {
       toast.error(t("toasts.conflict"));
+      setComposer(null);
+      setCancelTarget(null);
       router.refresh();
       return;
     }
     toast.error(error.message || t("toasts.failed"));
+  }
+
+  async function handleLoadMore(section: SectionKey): Promise<void> {
+    const cursor = cursors[section];
+    if (!cursor || loadingSection) return;
+    const source = initialPosts;
+    setLoadingSection(section);
+    try {
+      const page = await loadMoreSocialPosts({ projectId, section, cursor });
+      if (sourceRef.current !== source) return;
+      setPosts((current) => page.posts.reduce(upsertPost, current));
+      setCursors((current) => ({ ...current, [section]: page.nextCursor }));
+    } catch {
+      toast.error(t("toasts.failed"));
+    } finally {
+      setLoadingSection(null);
+    }
   }
 
   function handleSaved(post: SocialPost): void {
@@ -300,6 +317,19 @@ export function ProjectSocialPosts({
                 })}
               </ul>
             )}
+            {cursors[section] ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={loadingSection !== null}
+                onClick={() => {
+                  void handleLoadMore(section);
+                }}
+              >
+                {loadingSection === section ? t("loading") : t("loadMore")}
+              </Button>
+            ) : null}
           </section>
         );
       })}

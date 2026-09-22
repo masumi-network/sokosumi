@@ -22,6 +22,7 @@ import type {
   ProjectStatsEntry,
   ScheduleSocialPostRequest,
   SocialPost,
+  SocialPostStatus,
   StarredProject,
   TaskListItem,
   UpdateSocialPostRequest,
@@ -292,9 +293,22 @@ export const projectService = (() => {
     return result.data;
   }
 
-  async function listSocialPosts(projectId: string): Promise<SocialPost[]> {
-    const result = await coreClient.getProjectsByIdSocialPosts(projectId);
-    return result.data;
+  async function listSocialPosts(
+    projectId: string,
+    params: {
+      statuses?: readonly SocialPostStatus[];
+      cursor?: string | null;
+    } = {},
+  ): Promise<{ posts: SocialPost[]; nextCursor: string | null }> {
+    const result = await coreClient.getProjectsByIdSocialPosts(projectId, {
+      status: params.statuses?.join(","),
+      cursor: params.cursor ?? undefined,
+      limit: 20,
+    });
+    return {
+      posts: result.data,
+      nextCursor: result.meta?.pagination?.nextCursor ?? null,
+    };
   }
 
   async function getSocialPost(

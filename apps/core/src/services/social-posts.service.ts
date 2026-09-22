@@ -7,9 +7,13 @@ import {
   internalServerError,
   notFound,
 } from "@/helpers/error";
+import {
+  createPaginationMeta,
+  parseCursorPagination,
+} from "@/helpers/pagination";
 import prisma from "@/lib/db/prisma";
+import type { CursorPaginationMeta } from "@/schemas/pagination.schema";
 
-const LIST_LIMIT = 200;
 /** A post must be scheduled at least this far ahead so the publisher can pick it up. */
 const MIN_SCHEDULE_LEAD_MS = 60 * 1000;
 const REVISION_CONFLICT_MESSAGE = "Social post was modified, reload and retry";
@@ -79,6 +83,8 @@ interface ProjectScope {
 
 export interface ListSocialPostsInput extends ProjectScope {
   statuses?: readonly SocialPostStatus[];
+  cursor?: string;
+  limit?: number;
 }
 
 export interface GetSocialPostInput extends ProjectScope {
@@ -274,22 +280,40 @@ async function writeWithRevision(
 
 export async function listSocialPosts(
   input: ListSocialPostsInput,
-): Promise<SocialPostSummary[]> {
+): Promise<{ posts: SocialPostSummary[]; pagination: CursorPaginationMeta }> {
   await requireScopedProject(input);
-  const posts = await prisma.socialPost.findMany({
-    where: {
-      projectId: input.projectId,
-      workspaceId: input.workspaceId,
-      ...(input.statuses ? { status: { in: [...input.statuses] } } : {}),
-    },
-    include: socialPostInclude,
-    orderBy: [
-      { scheduledAt: { sort: "asc", nulls: "last" } },
-      { createdAt: "desc" },
-    ],
-    take: LIST_LIMIT,
-  });
-  return posts.map(mapSocialPost);
+  const { cursor, take, skip } = parseCursorPagination(input);
+  const where: Prisma.SocialPostWhereInput = {
+    projectId: input.projectId,
+    workspaceId: input.workspaceId,
+    ...(input.statuses ? { status: { in: [...input.statuses] } } : {}),
+  };
+  const upcoming = input.statuses?.every(
+    (status) => status === "SCHEDULED" || status === "PUBLISHING",
+  );
+  const [rows, count] = await Promise.all([
+    prisma.socialPost.findMany({
+      where,
+      include: socialPostInclude,
+      orderBy: upcoming
+        ? [{ scheduledAt: "asc" }, { id: "asc" }]
+        : [{ updatedAt: "desc" }, { id: "desc" }],
+      take: take + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip } : {}),
+    }),
+    prisma.socialPost.count({ where }),
+  ]);
+  const posts = rows.slice(0, take).map(mapSocialPost);
+  return {
+    posts,
+    pagination: createPaginationMeta(
+      posts,
+      count,
+      take,
+      rows.length > take,
+      cursor,
+    ),
+  };
 }
 
 export async function getSocialPost(

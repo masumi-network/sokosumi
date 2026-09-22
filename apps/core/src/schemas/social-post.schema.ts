@@ -1,7 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import { isValidTimezone, SOCIAL_POST_TEXT_LIMITS } from "@sokosumi/utils";
-
 import { dateTimeSchema } from "@/helpers/datetime";
+import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import {
   projectSocialConnectionProjectParamsSchema,
   projectSocialConnectionSchema,
@@ -139,7 +139,7 @@ function isSocialPostStatus(
   return (SOCIAL_POST_STATUSES as readonly string[]).includes(value);
 }
 
-export const listSocialPostsQuerySchema = z.object({
+export const listSocialPostsQuerySchema = cursorPaginationQuerySchema.extend({
   status: z
     .string()
     .optional()

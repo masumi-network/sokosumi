@@ -194,7 +194,10 @@ describe("Project social post routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireCalendarBetaAccessMock.mockResolvedValue(undefined);
-    listSocialPostsMock.mockResolvedValue([draftPost]);
+    listSocialPostsMock.mockResolvedValue({
+      posts: [draftPost],
+      pagination: { cursor: null, nextCursor: null, limit: 20, total: 1 },
+    });
     createSocialPostMock.mockResolvedValue(draftPost);
     getSocialPostMock.mockResolvedValue(draftPost);
     updateSocialPostMock.mockResolvedValue({ ...draftPost, revision: 1 });
@@ -283,11 +286,15 @@ describe("Project social post routes", () => {
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
       statuses: undefined,
+      cursor: undefined,
+      limit: 20,
     });
     expect(listSocialPostsMock).toHaveBeenNthCalledWith(2, {
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
       statuses: ["DRAFT", "SCHEDULED"],
+      cursor: undefined,
+      limit: 20,
     });
   });
 
