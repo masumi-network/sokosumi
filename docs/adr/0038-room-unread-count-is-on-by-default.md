@@ -2,7 +2,8 @@
 
 - Status: Accepted
 - Date: 2026-09-22
-- Supersedes the default in [ADR-0027](./0027-room-unread-count-is-a-reader-opt-in.md) (room unread count is a reader opt-in). Relates to [ADR-0037](./0037-thread-unread-leaves-room-unread.md) (thread unread leaves room unread).
+- Supersedes: the default in [ADR-0027](./0027-room-unread-count-is-a-reader-opt-in.md) (room unread count is a reader opt-in), and with it the last of [ADR-0026](./0026-room-unread-chrome-follows-history-resolved.md)'s rejection of a number on the row
+- Relates to: [ADR-0037](./0037-thread-unread-leaves-room-unread.md) (thread unread leaves room unread), which is what made the number safe to show
 
 A chat sidebar row shows its numeric **Room unread** unless the reader switched it off. ADR-0027 made that number an opt-in, off by default. It is now on by default, and the reader's switch in Settings turns it off.
 
@@ -13,6 +14,8 @@ A chat sidebar row shows its numeric **Room unread** unless the reader switched 
 **The wire field keeps its name.** `GET` and `PATCH /v1/users/{id}/preferences` still speak `showRoomUnreadCount`. Core derives it as `!hideRoomUnreadCount` on read and stores the inverse on write. No client has to move, the Apple app included, and it picks up the new default with the rest. The web writes through Better Auth rather than that route, so it writes `hideRoomUnreadCount` directly and reads it off the session.
 
 **A session that has not loaded reads as off.** Only the session knows whether this reader switched the count off, so the sidebar waits for it rather than flash a count at someone who said no. A session minted before the field existed carries no value for it; that reader never chose either, and gets the default.
+
+**What the switch says.** Its description read "Muted chats and the chat you have open stay quiet", which ADR-0027's correction of 2026-09-11 had already made untrue: the open chat is not quiet, only a muted one is. It now reads "Shown on every chat with unread messages. Muted chats stay quiet, and your notifications do not change."
 
 **Expand only.** The old column stays in the table, neither read nor written, so a rollback finds every reader's old value where it left it. Removing it, and the Better Auth field declared for it, is a separate migration that needs its own authorization. Until then a reader who had opted in under ADR-0027 and a reader who had not are both simply shown the count.
 

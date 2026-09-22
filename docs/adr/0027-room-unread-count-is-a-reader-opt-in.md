@@ -1,10 +1,10 @@
 # ADR 0027: Room unread count is a reader opt-in
 
-- Status: Partially superseded by [ADR-0038](./0038-room-unread-count-is-on-
-  by-default.md). The default, off, is superseded: the count is on unless the
-  reader switches it off, stored as `hideRoomUnreadCount`. Everything else
-  stands, in particular that the count is a field of its own beside the
-  mention badge and never the badge's meaning.
+- Status: Partially superseded by [ADR-0038](./0038-room-unread-count-is-on-by-default.md).
+  The default, off, is superseded: the count is on unless the reader switches
+  it off, stored as `hideRoomUnreadCount`. Everything else stands, in
+  particular that the count is a field of its own beside the mention badge and
+  never the badge's meaning.
 - Date: 2026-09-07
 
 A reader may switch on a numeric **Room unread** on chat sidebar rows. It is
