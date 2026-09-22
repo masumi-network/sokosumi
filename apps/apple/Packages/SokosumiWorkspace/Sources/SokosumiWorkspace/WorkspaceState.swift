@@ -122,6 +122,9 @@ public final class WorkspaceState: ObservableObject {
   private(set) var transcriptLoadTask: Task<Void, Never>?
   private(set) var olderPageTask: Task<Void, Never>?
   private(set) var transcriptRefreshTask: Task<Void, Never>?
+  /// The chained gap-page loads (row 04a); `historyGapRequest` tells the last one to clear it.
+  var historyGapTask: Task<Void, Never>?
+  var historyGapRequest = 0
   private var timelineObservation: AnyCancellable?
 
   /// Room the transcript pane shows. Nil clears the pane.
@@ -590,6 +593,7 @@ public final class WorkspaceState: ObservableObject {
     transcriptLoadTask = nil
     olderPageTask = nil
     transcriptRefreshTask = nil
+    historyGapTask = nil
     realtime?.watchRoom(nil)
     transcriptError = nil
     clearOutbound()
@@ -613,6 +617,7 @@ public final class WorkspaceState: ObservableObject {
     timeline.reset(roomId: room.id)
     olderPageTask = nil
     transcriptRefreshTask = nil
+    historyGapTask = nil
     let generation = transcriptGeneration
     clearOutbound()
     realtime?.watchRoom(room.id)

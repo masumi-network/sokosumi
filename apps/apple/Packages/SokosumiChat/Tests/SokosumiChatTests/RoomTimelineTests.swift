@@ -234,6 +234,85 @@ struct RoomTimelineTests {
     #expect(timeline.cursor == "a")
   }
 
+  /// Row 04a: a gap's failure is the row's own state, not the transcript error a banner or an alert would show.
+  @Test func gapFailureStaysOnItsRowAndTryAgainFillsTheGap() async throws {
+    let transport = TestTransport([
+      (200, testMessagesPageBody(messages: [row("z", content: "Latest")], nextCursor: "z")),
+      (200, testMessagesPageBody(messages: [row("a", content: "Pinned")], nextCursor: "a")),
+      (500, "{}"),
+      (200, testMessagesPageBody(messages: [row("a", content: "Pinned"), row("m", content: "Between")], nextCursor: "a"))
+    ])
+    let timeline = RoomTimeline()
+    timeline.reset(roomId: testRoomId)
+    for page in [RoomTimeline.Page.initial, .around("a")] {
+      #expect(try await timeline.loadPage(page, client: client(transport), organizationSlug: nil, generation: timeline.generation))
+    }
+    #expect(timeline.historyGapMessageIds == ["z"])
+    #expect(timeline.boundaryLoads.status(of: "z") == .idle)
+
+    await #expect(throws: (any Error).self) {
+      try await timeline.loadPage(.boundary("z"), client: client(transport), organizationSlug: nil, generation: timeline.generation)
+    }
+    #expect(timeline.boundaryLoads.status(of: "z") == .failed)
+    #expect(timeline.errorMessage == nil, "The row carries the failure; the transcript banner stays quiet.")
+    #expect(timeline.failedPage == nil)
+    #expect(timeline.historyGapMessageIds == ["z"], "The gap is kept for Try again.")
+    #expect(timeline.messages.map(\.id) == ["a", "z"])
+    #expect(!timeline.isRefreshing)
+
+    let retried = timeline.boundaryLoads.begin("z")
+    #expect(retried)
+    #expect(timeline.boundaryLoads.status(of: "z") == .loading)
+    #expect(try await timeline.loadPage(.boundary("z"), client: client(transport), organizationSlug: nil, generation: timeline.generation))
+    #expect(timeline.boundaryLoads.status(of: "z") == .idle)
+    #expect(timeline.historyGapMessageIds.isEmpty, "The page reached the jump window, so the ranges joined.")
+    #expect(timeline.messages.map(\.id) == ["a", "m", "z"])
+    #expect(transport.requests[2].request.path?.contains("cursor=z") == true)
+    #expect(transport.requests[3].request.path?.contains("cursor=z") == true)
+  }
+
+  @Test func resetForgetsGapLoads() async throws {
+    let transport = TestTransport([
+      (200, testMessagesPageBody(messages: [row("z", content: "Latest")], nextCursor: "z")),
+      (200, testMessagesPageBody(messages: [row("a", content: "Pinned")], nextCursor: "a")),
+      (500, "{}")
+    ])
+    let timeline = RoomTimeline()
+    timeline.reset(roomId: testRoomId)
+    for page in [RoomTimeline.Page.initial, .around("a")] {
+      try await timeline.loadPage(page, client: client(transport), organizationSlug: nil, generation: timeline.generation)
+    }
+    timeline.boundaryLoads.setVisible("z", true)
+    _ = try? await timeline.loadPage(.boundary("z"), client: client(transport), organizationSlug: nil, generation: timeline.generation)
+    #expect(timeline.boundaryLoads.status(of: "z") == .failed)
+    timeline.reset(roomId: "other-room")
+    #expect(timeline.boundaryLoads == TranscriptBoundaryLoads())
+    #expect(timeline.historyGapMessageIds.isEmpty)
+  }
+
+  /// The row above the oldest range reads its state from the older page, which keeps the transcript error for the auto-load guard.
+  @Test func oldestBoundaryStatusFollowsTheOlderPage() async throws {
+    let transport = TestTransport([
+      (200, testMessagesPageBody(messages: [row("b", content: "Newer")], nextCursor: "older")),
+      (500, "{}"),
+      (200, testMessagesPageBody(messages: [row("a", content: "Older")], nextCursor: nil))
+    ])
+    let timeline = RoomTimeline()
+    timeline.reset(roomId: testRoomId)
+    try await timeline.loadPage(.initial, client: client(transport), organizationSlug: nil, generation: timeline.generation)
+    #expect(timeline.oldestBoundaryStatus == .idle)
+    await #expect(throws: (any Error).self) {
+      try await timeline.loadPage(.older, client: client(transport), organizationSlug: nil, generation: timeline.generation)
+    }
+    #expect(timeline.oldestBoundaryStatus == .failed)
+    #expect(timeline.errorMessage != nil)
+    #expect(timeline.hasMore)
+    try await timeline.loadPage(.older, client: client(transport), organizationSlug: nil, generation: timeline.generation)
+    #expect(timeline.oldestBoundaryStatus == .idle)
+    #expect(!timeline.hasMore)
+    #expect(timeline.errorMessage == nil)
+  }
+
   @Test func unavailableJumpPreservesCurrentWindow() async throws {
     let transport = TestTransport([
       (200, testMessagesPageBody(messages: [row("new", content: "Latest")], nextCursor: "cursor")),
