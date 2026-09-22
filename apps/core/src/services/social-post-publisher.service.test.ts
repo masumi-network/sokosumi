@@ -162,6 +162,7 @@ describe("social post publisher service", () => {
 
   it("aborts provider work at the execution deadline and settles before the lease expires", async () => {
     vi.useRealTimers();
+    const { publishDueSocialPosts } = await loadService();
     const now = Date.now();
     socialPostFindFirstMock
       .mockReset()
@@ -175,7 +176,6 @@ describe("social post publisher service", () => {
           });
         }),
     );
-    const { publishDueSocialPosts } = await loadService();
     await publishDueSocialPosts({ ...syncContext, deadlineMs: now + 20_100 });
     expect(publishXPostMock).toHaveBeenCalledOnce();
     expect(settleCall().data.leaseToken).toBeNull();
