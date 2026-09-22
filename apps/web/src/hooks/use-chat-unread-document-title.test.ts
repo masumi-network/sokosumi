@@ -168,4 +168,44 @@ describe("useChatUnreadDocumentTitle", () => {
 
     expect(document.title).toBe("Sokosumi - Chat");
   });
+  it("keeps the chat title when navigation temporarily writes the app default", async () => {
+    renderHook(() => useChatUnreadDocumentTitle(2, "Sokosumi - Chat"));
+
+    await act(async () => {
+      document.title = "Sokosumi - Marketplace for human-to-agent interactions";
+      await Promise.resolve();
+    });
+    expect(document.title).toBe("(2) Sokosumi - Chat");
+
+    await act(async () => {
+      document.querySelector("title")!.textContent =
+        "Sokosumi - Marketplace for human-to-agent interactions";
+      await Promise.resolve();
+    });
+    expect(document.title).toBe("(2) Sokosumi - Chat");
+  });
+
+  it("uses destination metadata when leaving chat, even if it arrived first", async () => {
+    const { rerender } = renderHook<void, { title?: string; unread: number }>(
+      ({ title, unread }) => useChatUnreadDocumentTitle(unread, title),
+      { initialProps: { title: "Sokosumi - Chat", unread: 1 } },
+    );
+    await act(async () => {
+      document.title = "Sokosumi - Tasks";
+      await Promise.resolve();
+    });
+    rerender({ title: "Sokosumi - Chat", unread: 2 });
+    expect(document.title).toBe("(2) Sokosumi - Chat");
+    rerender({ title: undefined, unread: 2 });
+    expect(document.title).toBe("(2) Sokosumi - Tasks");
+  });
+
+  it("updates the stable title when the locale or unread count changes", () => {
+    const { rerender } = renderHook(
+      ({ title, unread }) => useChatUnreadDocumentTitle(unread, title),
+      { initialProps: { title: "Sokosumi - Chat", unread: 2 } },
+    );
+    rerender({ title: "Sokosumi - Chats", unread: 0 });
+    expect(document.title).toBe("Sokosumi - Chats");
+  });
 });

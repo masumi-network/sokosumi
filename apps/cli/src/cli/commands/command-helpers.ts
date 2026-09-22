@@ -258,10 +258,6 @@ export function maskSecret(value: unknown): string {
   return token ? `${token.slice(0, 8)}..${token.slice(-4)}` : "(none)";
 }
 
-export function isJson(context: Pick<CommandContext, "json">): boolean {
-  return context.json === true;
-}
-
 export function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)

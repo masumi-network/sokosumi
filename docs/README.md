@@ -11,6 +11,15 @@ This directory contains documentation for the Sokosumi monorepo.
 
 ## Agent tooling
 
+Root [`AGENTS.md`](../AGENTS.md) is the loading table. Task-specific instructions:
+
+- [`agents/architecture.md`](./agents/architecture.md) — architecture, generated files, shared packages, Database Access
+- [`agents/coding-conventions.md`](./agents/coding-conventions.md) — TypeScript, lint, tests
+- [`agents/web-ui.md`](./agents/web-ui.md) — Web UI, styling, React conventions
+- [`agents/local-development.md`](./agents/local-development.md) — install, env/DB, launch, browser verification
+- [`agents/cloud-environment.md`](./agents/cloud-environment.md) — Cursor Cloud VM, local Postgres fallback
+- [`agents/delivery.md`](./agents/delivery.md) — commits, CI, pull requests
+- [`agents/skill-routing.md`](./agents/skill-routing.md) — skills, Linear, domain docs, Soko Bot
 - [`agents/issue-tracker.md`](./agents/issue-tracker.md)
 - [`agents/triage-labels.md`](./agents/triage-labels.md)
 - [`agents/domain.md`](./agents/domain.md)

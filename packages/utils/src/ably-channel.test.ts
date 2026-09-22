@@ -1,15 +1,21 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  CALENDAR_ACCESS_REVOKED_EVENT_NAME,
+  CALENDAR_INVALIDATED_EVENT_NAME,
   makeAgentJobsChannelName,
   makeChatRoomChannelName,
   makeChatTypingChannelName,
   makeOrgPresenceChannelName,
+  makeUserCalendarControlChannelName,
   makeUserChatControlChannelName,
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
+  makeWorkspaceCalendarChannelName,
   parseChatRoomIdFromChannelName,
   parseOrganizationIdFromPresenceChannelName,
+  parseUserIdFromCalendarControlChannelName,
+  parseWorkspaceCalendarChannelName,
 } from "./ably-channel";
 
 describe("makeUserNotificationsChannelName", () => {
@@ -74,6 +80,62 @@ describe("makeUserChatControlChannelName", () => {
     expect(makeUserChatControlChannelName("user_123")).toBe(
       "chat_control:user_user_123",
     );
+  });
+});
+
+describe("calendar channel names", () => {
+  it("round-trips a user-scoped workspace channel", () => {
+    const channelName = makeWorkspaceCalendarChannelName(
+      "workspace_123",
+      "user_123",
+    );
+
+    expect(channelName).toBe("calendar:workspace_workspace_123:user_user_123");
+    expect(parseWorkspaceCalendarChannelName(channelName)).toEqual({
+      workspaceId: "workspace_123",
+      userId: "user_123",
+    });
+  });
+
+  it("rejects malformed workspace channels", () => {
+    expect(
+      parseWorkspaceCalendarChannelName("calendar:workspace_:user_user_123"),
+    ).toBeNull();
+    expect(
+      parseWorkspaceCalendarChannelName(
+        "calendar:workspace_workspace_123:user_",
+      ),
+    ).toBeNull();
+    expect(
+      parseWorkspaceCalendarChannelName(
+        "calendar:workspace_workspace_123:user_user_123:extra",
+      ),
+    ).toBeNull();
+  });
+
+  it("round-trips the user calendar control channel", () => {
+    const channelName = makeUserCalendarControlChannelName("user_123");
+
+    expect(channelName).toBe("calendar_control:user_user_123");
+    expect(parseUserIdFromCalendarControlChannelName(channelName)).toBe(
+      "user_123",
+    );
+  });
+
+  it("rejects malformed calendar control channels", () => {
+    expect(
+      parseUserIdFromCalendarControlChannelName("calendar_control:user_"),
+    ).toBeNull();
+    expect(
+      parseUserIdFromCalendarControlChannelName(
+        "calendar_control:user_user_123:extra",
+      ),
+    ).toBeNull();
+  });
+
+  it("exports canonical event names", () => {
+    expect(CALENDAR_INVALIDATED_EVENT_NAME).toBe("calendar_invalidated");
+    expect(CALENDAR_ACCESS_REVOKED_EVENT_NAME).toBe("calendar_access_revoked");
   });
 });
 

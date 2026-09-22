@@ -121,6 +121,7 @@ function room() {
     ],
     coworkerMembers: [],
     sokoBotMembers: [],
+    readStates: [],
   };
 }
 

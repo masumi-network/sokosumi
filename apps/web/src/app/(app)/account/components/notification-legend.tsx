@@ -181,6 +181,16 @@ function ChannelExplainer({
       </PopoverTrigger>
       <PopoverContent
         align="center"
+        // Above the name rather than below it. The legend is the head of the
+        // grid it explains, so a panel opening downwards lands on the very
+        // cells the reader came to press: 288px of sentences over the In app,
+        // Push and Email columns of the first rows under it.
+        //
+        // Radix still flips back down when the legend is too near the top of
+        // the viewport to hold the panel. That is left on: a panel clipped by
+        // the top edge says less than one standing over a row, and the reader
+        // can scroll away from the flip.
+        side="top"
         className="w-72 space-y-1.5 p-3 text-xs"
         // The panel takes the close over from the name. The pointer arrives
         // here inside the wait the leave started, and this stops it; leaving

@@ -14,7 +14,6 @@ import {
   getBrowserNotificationPermission,
   shouldShowBrowserNotification,
 } from "@/lib/utils/browser-notification";
-import { isPendingCoworkerAccessNotification } from "@/lib/utils/coworker-access-notification";
 import { buildNotificationBannerContent } from "@/lib/utils/notification-banner";
 import { getNotificationIcon } from "@/lib/utils/notification-icon";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
@@ -27,7 +26,11 @@ import {
   subscribeNotificationClicks,
   toNotificationTarget,
 } from "@/lib/utils/notification-service-worker";
-import { isPendingVendorGrantNotification } from "@/lib/utils/vendor-grant-notification";
+import {
+  COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+  isPendingWorkspaceApprovalNotification,
+  VENDOR_GRANT_PENDING_MESSAGE_KEY,
+} from "@/lib/utils/workspace-approval";
 
 import { useOpenNotification } from "./use-open-notification";
 
@@ -69,9 +72,14 @@ function PendingAccessNotificationToast({
   message,
   onOpen,
 }: PendingAccessNotificationToastProps) {
-  const showVendorGrantActions = isPendingVendorGrantNotification(notification);
-  const showCoworkerAccessActions =
-    isPendingCoworkerAccessNotification(notification);
+  const showVendorGrantActions = isPendingWorkspaceApprovalNotification(
+    notification,
+    VENDOR_GRANT_PENDING_MESSAGE_KEY,
+  );
+  const showCoworkerAccessActions = isPendingWorkspaceApprovalNotification(
+    notification,
+    COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+  );
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-1">
@@ -147,15 +155,20 @@ export function NotificationToastListener({
         notification.osBanner &&
         shouldShowBrowserNotification({
           permission,
-          isDocumentFocused,
           isRead: notification.isRead,
         });
       const showPendingAccessToast =
         isDocumentFocused &&
         notification.inApp &&
         !notification.isRead &&
-        (isPendingVendorGrantNotification(notification) ||
-          isPendingCoworkerAccessNotification(notification));
+        (isPendingWorkspaceApprovalNotification(
+          notification,
+          VENDOR_GRANT_PENDING_MESSAGE_KEY,
+        ) ||
+          isPendingWorkspaceApprovalNotification(
+            notification,
+            COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+          ));
 
       if (!showBrowser && !showPendingAccessToast) {
         return;
@@ -191,8 +204,8 @@ export function NotificationToastListener({
             );
           }
         });
-        return;
       }
+      if (!showPendingAccessToast) return;
 
       const message = formatMessage(
         notification.messageKey,
@@ -228,9 +241,8 @@ export function NotificationToastListener({
   });
 
   /**
-   * The worker asks before it skips a banner. Answering yes while the channel
-   * is detached would drop the notification twice over: no banner from the
-   * worker, and no in-app update either.
+   * Reply to identify this page as a handler for notification clicks. The
+   * worker routes clicks to a mounted listener even when its channel is down.
    */
   const showsNotifications = useEffectEvent(() => isReceivingNotifications());
 

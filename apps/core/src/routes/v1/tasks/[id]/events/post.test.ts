@@ -26,6 +26,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 const {
   calculateCentsFromMasumiAmountStringsMock,
   createNotificationMock,
+  deliverCalendarInvalidationsNowMock,
   processTaskPaymentClaimMock,
   createTaskPaymentClaimMock,
   createTaskEventTransactionMock,
@@ -46,6 +47,7 @@ const {
 } = vi.hoisted(() => ({
   calculateCentsFromMasumiAmountStringsMock: vi.fn(),
   createNotificationMock: vi.fn(),
+  deliverCalendarInvalidationsNowMock: vi.fn(),
   processTaskPaymentClaimMock: vi.fn(),
   createTaskPaymentClaimMock: vi.fn(),
   createTaskEventTransactionMock: vi.fn(),
@@ -72,6 +74,10 @@ const {
   requireTaskCancelAccessMock: vi.fn(),
   removeTaskSchedulePlannedOccurrencesMock: vi.fn(),
   waitUntilCapturedPromises: [] as Promise<unknown>[],
+}));
+
+vi.mock("@/helpers/calendar-invalidation", () => ({
+  deliverCalendarInvalidationsNow: deliverCalendarInvalidationsNowMock,
 }));
 
 vi.mock("@/helpers/access-control", () => ({
@@ -247,6 +253,7 @@ function createTask(
     assigneeUserId: string | null;
     status: TaskStatus;
     ownerId: string;
+    workspaceId: string;
     projectId: string | null;
     metadata: string | null;
     nextRunAt: Date | null;
@@ -260,6 +267,7 @@ function createTask(
     assigneeSokoBotId: null,
     assigneeUserId: null,
     ownerId: USER_ID,
+    workspaceId: "ws_123",
     organizationId: null,
     projectId: null,
     metadata: null,
@@ -450,6 +458,7 @@ describe("POST /{id}/events", () => {
     });
 
     expect(response.status).toBe(201);
+    expect(deliverCalendarInvalidationsNowMock).toHaveBeenCalledWith("ws_123");
     expect(tx.taskEvent.create).toHaveBeenCalled();
     expect(tx.task.updateMany).toHaveBeenCalled();
   });
@@ -495,6 +504,7 @@ describe("POST /{id}/events", () => {
     expect(notifyLowBalanceAfterChargeMock).not.toHaveBeenCalled();
     expect(createNotificationMock).toHaveBeenCalledWith({
       userId: USER_ID,
+      workspaceId: "ws_123",
       kind: NotificationKind.TASK,
       referenceId: TASK_ID,
       eventId: "event_input_required",

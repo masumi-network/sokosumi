@@ -27,6 +27,7 @@ import { type AuthLoginOptions, runAuthLogin } from "./auth-login.js";
 import { runAuthLogout } from "./auth-logout.js";
 import { runAuthStatus } from "./auth-status.js";
 import { runAgentsCommand } from "./commands/agents.js";
+import type { CommandOutput } from "./commands/command-helpers.js";
 import { runCoworkersCommand } from "./commands/coworkers.js";
 import { CLI_COMMANDS, runDiscoverCommand } from "./commands/discover.js";
 import { runJobsCommand } from "./commands/jobs.js";
@@ -34,10 +35,6 @@ import { runTasksCommand } from "./commands/tasks.js";
 import { runVendorsCommand } from "./commands/vendors.js";
 import { runWorkspacesCommand } from "./commands/workspaces.js";
 import { CLI_VERSION } from "./metadata.js";
-
-interface TextOutput {
-  write(value: string): unknown;
-}
 
 type ValueOptionName =
   | "auth-url"
@@ -123,12 +120,14 @@ interface CliOptions {
   "vendor-id"?: string;
   "api-key-stdin"?: boolean;
   "create-api-key"?: boolean;
+  "create-vendor"?: boolean;
+  "confirm-create-vendor"?: boolean;
   details?: boolean;
 }
 
 export interface CliDependencies {
   env?: AuthEnvironment;
-  stdout?: TextOutput;
+  stdout?: CommandOutput;
   tuiFn?: (options: StatusAppOptions) => Promise<CliResult> | CliResult;
   authManager?: AuthManager;
   coreClient?: CoreHttpClient;
@@ -156,7 +155,8 @@ const COMMAND_USAGE: Record<(typeof CLI_COMMANDS)[number], string> = {
   "agents list": "[--search TEXT] [--limit N] [--json]",
   "agents hire": "AGENT_ID --input-json JSON [--max-credits N]",
   "coworkers list": "[--scope SCOPE] [--capability CAPABILITY]",
-  "coworkers register": "[--vendor-id ID] [--create-api-key] [options]",
+  "coworkers register":
+    "[--vendor-id ID] [--create-api-key] [--create-vendor --confirm-create-vendor] [options]",
   "coworkers update": "COWORKER_ID [options]",
   "coworkers api-key": "COWORKER_ID [options]",
   "coworkers me": "",
@@ -203,7 +203,12 @@ export const GLOBAL_BOOLEAN_FLAG_BY_TOKEN = {
   "--version": "version",
 } as const satisfies Record<string, keyof CliOptions>;
 
-export const BOOLEAN_OPTION_NAMES = ["create-api-key", "details"] as const;
+export const BOOLEAN_OPTION_NAMES = [
+  "create-api-key",
+  "create-vendor",
+  "confirm-create-vendor",
+  "details",
+] as const;
 
 function formatGlobalOptionHelp(): string[] {
   const booleanLines: string[] = [];
@@ -429,7 +434,7 @@ function getCoreClient(
 }
 
 function writeJsonError(
-  stdout: TextOutput,
+  stdout: CommandOutput,
   error: unknown,
   environment?: AuthEnvironment,
 ): void {

@@ -17,7 +17,6 @@ import SwiftUI
     @State private var showsThreads = false
     @State private var showsMembers = false
     @State private var query = ""
-    @State private var selectedId: String?
     @State private var jumpingId: String?
     @State private var jumpError: String?
     @State private var retry = 0
@@ -56,13 +55,10 @@ import SwiftUI
         }
         .task(id: request) {
           jumpError = nil
-          selectedId = nil
           guard showsSearch else { search.reset()
             return
           }
           await workspaces.searchMessages(query, roomId: roomId, search: search, auth: auth)
-          guard !Task.isCancelled else { return }
-          selectedId = search.results.first?.id
         }
         .onChange(of: scope) { _, _ in
           closeSearch()
@@ -85,7 +81,7 @@ import SwiftUI
         }, older: { updateThreads(.older) }, markAllRead: { updateThreads(.markAllRead) },
         retry: { updateThreads(.load) }, close: { showsThreads = false })
       } else if showsSearch {
-        RoomSearchResultsView(search: search, query: query, selectedId: $selectedId,
+        RoomSearchResultsView(search: search, query: query,
                               jumpingId: jumpingId, jumpError: jumpError,
                               select: select, retry: { retry += 1 }, close: closeSearch)
       } else if let room, showsPins {
@@ -135,7 +131,7 @@ import SwiftUI
           .help("Find in conversation (⌘F)")
           if showsSearch {
             RoomSearchField(query: $query, isJumping: jumpingId != nil,
-                            submit: selectCurrentResult, move: moveSelection, close: closeSearch)
+                            submit: selectCurrentResult, move: search.moveSelection(by:), close: closeSearch)
           }
         }
       }
@@ -198,20 +194,14 @@ import SwiftUI
       showsSearch = false
     }
 
-    private func moveSelection(_ direction: Int) {
-      let rows = search.results
-      guard !rows.isEmpty else { return }
-      let index = rows.firstIndex { $0.id == selectedId } ?? (direction > 0 ? -1 : 0)
-      selectedId = rows[(index + direction + rows.count) % rows.count].id
-    }
-
     private func selectCurrentResult() {
-      guard let hit = search.results.first(where: { $0.id == selectedId }) else { return }
+      guard let hit = search.selectedResult else { return }
       select(hit)
     }
 
     private func select(_ hit: Components.Schemas.ChatRoomMessage) {
-      guard jumpingId == nil, !search.isLoading, search.query == query.trimmingCharacters(in: .whitespacesAndNewlines) else { return }
+      // Web opens a hit that is still showing even while a refined query is pending.
+      guard jumpingId == nil, search.presentation(for: query).results.contains(where: { $0.id == hit.id }) else { return }
       jumpingId = hit.id
       jumpError = nil
       let expectedScope = scope

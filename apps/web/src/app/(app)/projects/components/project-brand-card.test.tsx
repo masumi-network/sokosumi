@@ -51,8 +51,7 @@ vi.mock("@/lib/actions/project/action", () => ({
   removeProjectDesignMd: vi.fn(),
 }));
 
-vi.mock("@/components/design-md", () => ({
-  DESIGN_MD_TRANSLATION_NAMESPACE: "App.DesignMd",
+vi.mock("@/components/design-md/design-md-upload-trigger", () => ({
   DesignMdUploadTrigger: ({
     onSaved,
     onUploadingChange,
@@ -82,6 +81,8 @@ vi.mock("@/components/design-md", () => ({
       </button>
     </>
   ),
+}));
+vi.mock("@/components/design-md/use-design-md-generation", () => ({
   useDesignMdGeneration: () => ({
     errorMessage: null,
     generate: generateMock,

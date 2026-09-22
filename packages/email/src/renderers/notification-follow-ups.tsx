@@ -17,44 +17,21 @@ import {
   type TranslateFn,
 } from "./notification-shared.js";
 
-/**
- * The reminder emails (SOK-916).
- *
- * One per family rather than one for all three. A mention, a direct message
- * and a task that stopped for you are three different things to the reader,
- * and a single "you have an unread notification" would say less than the
- * notification it is reminding them about.
- *
- * Each is the same shape underneath: the existing action email, which every
- * other transactional email in this package already uses. The families differ
- * in their words and their button, not in their layout, so none of them brings
- * a template of its own.
- *
- * The words live in the three locale catalogs under `notifications.followUp`.
- * The caller chooses the locale, as with every renderer here. Today Core has
- * nothing better to pass than English, because `User` carries no locale, which
- * is a gap named in the spec rather than one this file can close.
- */
-
+/** Reminder emails (SOK-916). */
 const FOLLOW_UP_SCOPE = "notifications.followUp";
 
 interface FollowUpEmailOptions {
   actionUrl: string;
   facts?: readonly ActionEmailFact[];
-  family: "billing" | "directMessage" | "mention" | "task";
+  family:
+    | "billing"
+    | "directMessage"
+    | "directMessageMany"
+    | "mention"
+    | "mentionMany"
+    | "task";
   quote?: null | string;
-  /**
-   * Why the thing is waiting, named by the notification that started it.
-   *
-   * A task stops for six different reasons, and "it needs you" says none of
-   * them. The reminder is stored under one message key per family so that a
-   * task asking twice in a day is still one reminder, so the reason comes from
-   * the source row rather than from the reminder.
-   *
-   * Absent when the source key is one this catalog has no sentence for, which
-   * leaves the family's own body. A union rather than a string, so a key with
-   * no sentence cannot reach the catalog and fail to resolve.
-   */
+  /** Source-row catalog key; omitted when the catalog has no sentence for it. */
   reason?: null | string;
   recipientName?: null | string;
   t: TranslateFn;
@@ -85,10 +62,8 @@ function renderFollowUpEmail({
     footer: t(`${FOLLOW_UP_SCOPE}.footer`),
     greeting: buildGreeting(t, recipientName),
     linkInstructions: linkInstructions(t),
-    // The preheader is the family's own line only when the body is too. A
-    // reason sentence says the task was assigned, or that a payment failed,
-    // and the family preheader says the opposite ("stopped and asked for
-    // you"), so the two lines would contradict each other inside one email.
+    // Preheader uses the family line only when the body does; a reason
+    // sentence would contradict it.
     preview: reason ? body : t(`${scope}.preview`, values),
     quote: trimmedQuote ? trimmedQuote : undefined,
     subject: t(`${scope}.subject`, values),
@@ -96,7 +71,25 @@ function renderFollowUpEmail({
   });
 }
 
-/** A mention in a named room that the reader never opened. */
+/**
+ * Whether this reminder stands for more rows than the one it was written
+ * from. A tally that is not a whole number above one reads as one.
+ */
+function standsForSeveral(unreadCount?: null | number): boolean {
+  return (
+    typeof unreadCount === "number" &&
+    Number.isInteger(unreadCount) &&
+    unreadCount > 1
+  );
+}
+
+/**
+ * A mention in a named room that the reader never opened.
+ *
+ * One mention is quoted, the way the event email quoted it. Several are
+ * counted and none is quoted, because no one of them speaks for the rest
+ * (SOK-1142).
+ */
 export function renderChatMentionFollowUpEmail({
   actionUrl,
   authorName,
@@ -104,45 +97,49 @@ export function renderChatMentionFollowUpEmail({
   messagePreview,
   recipientName,
   roomName,
+  unreadCount,
 }: ChatMentionFollowUpEmailProps): Promise<RenderedEmail> {
   const { t } = createEmailTranslator(locale);
+  const many = standsForSeveral(unreadCount);
+  const room = nameOr(t, roomName, "fallbackRoomName");
 
   return renderFollowUpEmail({
     actionUrl,
-    family: "mention",
-    quote: messagePreview,
+    family: many ? "mentionMany" : "mention",
+    quote: many ? null : messagePreview,
     recipientName,
     t,
-    values: {
-      authorName: nameOr(t, authorName, "fallbackAuthorName"),
-      roomName: nameOr(t, roomName, "fallbackRoomName"),
-    },
+    values: many
+      ? { count: String(unreadCount), roomName: room }
+      : {
+          authorName: nameOr(t, authorName, "fallbackAuthorName"),
+          roomName: room,
+        },
   });
 }
 
-/**
- * A direct message the reader never opened.
- *
- * No room name, deliberately. A room of two is named after the other person,
- * who here is the author, so naming it would name them twice. The in-app
- * reminder makes the same choice.
- */
+/** No room name: a DM room is named after the author. */
 export function renderChatDirectMessageFollowUpEmail({
   actionUrl,
   authorName,
   locale,
   messagePreview,
   recipientName,
+  unreadCount,
 }: ChatDirectMessageFollowUpEmailProps): Promise<RenderedEmail> {
   const { t } = createEmailTranslator(locale);
+  const many = standsForSeveral(unreadCount);
+  const author = nameOr(t, authorName, "fallbackAuthorName");
 
   return renderFollowUpEmail({
     actionUrl,
-    family: "directMessage",
-    quote: messagePreview,
+    family: many ? "directMessageMany" : "directMessage",
+    quote: many ? null : messagePreview,
     recipientName,
     t,
-    values: { authorName: nameOr(t, authorName, "fallbackAuthorName") },
+    values: many
+      ? { authorName: author, count: String(unreadCount) }
+      : { authorName: author },
   });
 }
 

@@ -7,37 +7,50 @@ import SwiftUI
 #if os(macOS)
   struct ReplyThreadView: View {
     @EnvironmentObject private var workspaces: WorkspaceState
-    @EnvironmentObject private var auth: AuthState
     @State private var preparedTranscript: PreparedTranscript?
-
-    private var preparationScope: [String] {
-      [workspaces.currentUserId, workspaces.selectionId ?? "", workspaces.transcriptRoomId ?? "", workspaces.thread.parent?.id ?? "", String(workspaces.thread.timeline.generation)]
-    }
+    /// Publish the page controls with prepared replies, including empty final pages.
+    @State private var preparedHasMore = false
 
     private var preparationInput: PreparedTranscript.Input {
       let room = workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }
-      return .init(scope: preparationScope,
+      return .init(scope: [workspaces.currentUserId, workspaces.selectionId ?? "", workspaces.transcriptRoomId ?? "", workspaces.thread.parent?.id ?? "", String(workspaces.thread.timeline.generation)],
                    messages: (workspaces.displayedThreadParent.map { [$0] } ?? []) + workspaces.displayedThreadReplies,
                    mentions: room.map(MessageMentions.init), channels: workspaces.composerChannels, baseURL: CoreSettings.webBaseURL)
     }
 
-    private var preparedMessages: [Components.Schemas.ChatRoomMessage] {
-      guard preparedTranscript?.input.scope == preparationScope else { return [] }
-      let snapshot = preparedTranscript?.input.messages ?? []
-      // Markdown is prepared async; chips must follow the live overlay now.
-      let liveRows = (workspaces.displayedThreadParent.map { [$0] } ?? []) + workspaces.displayedThreadReplies
-      let live = Dictionary(liveRows.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
-      return snapshot.map { live[$0.id] ?? $0 }
+    var body: some View {
+      let input = preparationInput
+      let prepared = preparedTranscript.flatMap { $0.input.scope == input.scope ? $0 : nil }
+      ReplyThreadContent(messages: prepared?.overlaying(input.messages) ?? [], preparedTranscript: prepared,
+                         preparationScope: input.scope, preparedHasMore: preparedHasMore)
+        .onChange(of: workspaces.thread.timeline.hasMore) { _, hasMore in
+          if preparedTranscript?.input == input {
+            preparedHasMore = hasMore
+          }
+        }
+        .task(id: input) {
+          let hasMore = workspaces.thread.timeline.hasMore
+          guard let prepared = try? await PreparedTranscript.prepare(input, reusing: preparedTranscript), !Task.isCancelled else { return }
+          preparedTranscript = prepared
+          preparedHasMore = hasMore
+        }
     }
+  }
 
-    private var readyJump: ThreadSession.JumpTarget? {
+  private struct ReplyThreadContent: View {
+    @EnvironmentObject private var workspaces: WorkspaceState
+    @EnvironmentObject private var auth: AuthState
+    let messages: [Components.Schemas.ChatRoomMessage]
+    let preparedTranscript: PreparedTranscript?
+    let preparationScope: [String]
+    let preparedHasMore: Bool
+
+    private func readyJump(in messages: [Components.Schemas.ChatRoomMessage]) -> ThreadSession.JumpTarget? {
       guard let target = workspaces.thread.jumpTarget,
-            preparedMessages.contains(where: { $0.id == target.messageId }) else { return nil }
+            messages.contains(where: { $0.id == target.messageId }) else { return nil }
       return target
     }
 
-    // Update the header controls together with prepared replies, including empty final pages.
-    @State private var preparedHasMore = false
     @State private var scrollIntent = TimelineScrollIntent()
     @State private var olderBoundaryVisible = false
     @State private var visibleMessageID: String?
@@ -96,21 +109,11 @@ import SwiftUI
           userIsScrolling = false
           pendingBottomAlignment = false
         }
-        .onChange(of: workspaces.thread.timeline.hasMore) { _, hasMore in
-          if preparedTranscript?.input == preparationInput {
-            preparedHasMore = hasMore
-          }
-        }
-        .task(id: preparationInput) {
-          let hasMore = workspaces.thread.timeline.hasMore
-          guard let prepared = try? await PreparedTranscript.prepare(preparationInput, reusing: preparedTranscript), !Task.isCancelled else { return }
-          preparedTranscript = prepared
-          preparedHasMore = hasMore
-        }
     }
 
     @ViewBuilder private var content: some View {
-      if let parent = preparedMessages.first {
+      if let parent = messages.first {
+        let jumpTarget = readyJump(in: messages)
         let currentRoom = workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }
         let channels = workspaces.composerChannels
         ScrollViewReader { proxy in
@@ -148,7 +151,7 @@ import SwiftUI
               }
               .font(.caption)
               .frame(minHeight: 24)
-              replies(channels: channels, room: currentRoom)
+              replies(messages: Array(messages.dropFirst()), channels: channels, room: currentRoom)
               Color.clear.frame(height: 17).id("thread-bottom")
             }
             .scrollTargetLayout()
@@ -158,8 +161,8 @@ import SwiftUI
           .scrollPosition(id: $visibleMessageID, anchor: .bottom)
           .defaultScrollAnchor(.bottom, for: .initialOffset)
           .defaultScrollAnchor(scrollIntent.followsLatest ? .bottom : nil, for: .sizeChanges)
-          .task(id: readyJump) {
-            guard let target = readyJump else { return }
+          .task(id: jumpTarget) {
+            guard let target = jumpTarget else { return }
             scrollIntent.readOlder()
             pendingBottomAlignment = false
             proxy.scrollTo(target.messageId, anchor: .center)
@@ -190,7 +193,7 @@ import SwiftUI
               }
             }
           }
-          .onChange(of: preparedMessages.last?.id) { _, _ in
+          .onChange(of: messages.last?.id) { _, _ in
             if scrollIntent.followsLatest {
               proxy.scrollTo("thread-bottom", anchor: .bottom)
             }
@@ -251,7 +254,7 @@ import SwiftUI
       }
     }
 
-    @ViewBuilder private func replies(channels: [ComposerChannel], room: Components.Schemas.ChatRoom?) -> some View {
+    @ViewBuilder private func replies(messages: [Components.Schemas.ChatRoomMessage], channels: [ComposerChannel], room: Components.Schemas.ChatRoom?) -> some View {
       let timeline = workspaces.thread.timeline
       if timeline.isLoading {
         ProgressView("Loading replies…")
@@ -264,7 +267,6 @@ import SwiftUI
            let error = workspaces.directStream.errorMessage {
           Text(error).foregroundStyle(.secondary)
         }
-        let messages = Array(preparedMessages.dropFirst())
         if messages.isEmpty, timeline.errorMessage == nil {
           Text("No replies yet.").foregroundStyle(.secondary)
         }

@@ -9,6 +9,31 @@ import SwiftUI
   /// day separator pills, membership status rows, and a native composer.
   struct RoomTimelineView: View {
     @EnvironmentObject private var workspaces: WorkspaceState
+    @State private var preparedTranscript: PreparedTranscript?
+    let roomId: String
+
+    private var preparationInput: PreparedTranscript.Input {
+      let room = workspaces.rooms.first { $0.id == roomId }
+      return .init(scope: [workspaces.currentUserId, workspaces.selectionId ?? "", roomId, String(workspaces.timeline.generation)],
+                   messages: workspaces.displayedTranscript, mentions: room.map(MessageMentions.init),
+                   channels: workspaces.composerChannels, baseURL: CoreSettings.webBaseURL)
+    }
+
+    var body: some View {
+      let input = preparationInput
+      let prepared = preparedTranscript.flatMap { $0.input.scope == input.scope ? $0 : nil }
+      // Keep scroll state below this boundary so scrolling does not rebuild the projection.
+      RoomTranscriptContent(roomId: roomId, messages: prepared?.overlaying(input.messages) ?? [],
+                            hasLiveMessages: !input.messages.isEmpty, preparedTranscript: prepared)
+        .task(id: input) {
+          guard let prepared = try? await PreparedTranscript.prepare(input, reusing: preparedTranscript), !Task.isCancelled else { return }
+          preparedTranscript = prepared
+        }
+    }
+  }
+
+  private struct RoomTranscriptContent: View {
+    @EnvironmentObject private var workspaces: WorkspaceState
     @EnvironmentObject private var auth: AuthState
     /// Eager first layout can report near-top before the bottom anchor
     /// lands. Require a trip away from the top before auto-loading.
@@ -24,27 +49,10 @@ import SwiftUI
     @State private var scrollPosition = ScrollPosition(idType: String.self)
     @State private var quoteFocusRequest: String?
 
-    @State private var preparedTranscript: PreparedTranscript?
-
-    private var preparationScope: [String] {
-      [workspaces.currentUserId, workspaces.selectionId ?? "", roomId, String(workspaces.timeline.generation)]
-    }
-
-    private var preparationInput: PreparedTranscript.Input {
-      .init(scope: preparationScope,
-            messages: workspaces.displayedTranscript, mentions: room.map(MessageMentions.init),
-            channels: workspaces.composerChannels, baseURL: CoreSettings.webBaseURL)
-    }
-
-    private var preparedMessages: [Components.Schemas.ChatRoomMessage] {
-      guard preparedTranscript?.input.scope == preparationScope else { return [] }
-      let snapshot = preparedTranscript?.input.messages ?? []
-      // Markdown is prepared async; chips must follow the live overlay now.
-      let live = Dictionary(workspaces.displayedTranscript.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
-      return snapshot.map { live[$0.id] ?? $0 }
-    }
-
     let roomId: String
+    let messages: [Components.Schemas.ChatRoomMessage]
+    let hasLiveMessages: Bool
+    let preparedTranscript: PreparedTranscript?
 
     private var room: Components.Schemas.ChatRoom? {
       workspaces.rooms.first { $0.id == roomId }
@@ -77,10 +85,6 @@ import SwiftUI
 
     var body: some View {
       transcriptBody
-        .task(id: preparationInput) {
-          guard let prepared = try? await PreparedTranscript.prepare(preparationInput, reusing: preparedTranscript), !Task.isCancelled else { return }
-          preparedTranscript = prepared
-        }
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         .safeAreaInset(edge: .bottom, spacing: 0) {
           ChatComposerView(
@@ -136,7 +140,7 @@ import SwiftUI
       if workspaces.transcriptRoomId != roomId || workspaces.transcriptLoading {
         ProgressView("Loading messages…")
           .frame(maxWidth: .infinity, maxHeight: .infinity)
-      } else if workspaces.displayedTranscript.isEmpty {
+      } else if !hasLiveMessages {
         if let error = workspaces.transcriptError {
           transcriptError(error, retryOlder: false)
         } else {
@@ -147,14 +151,15 @@ import SwiftUI
           )
           .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-      } else if preparedMessages.isEmpty {
+      } else if messages.isEmpty {
         ProgressView("Loading messages…").frame(maxWidth: .infinity, maxHeight: .infinity)
       } else {
-        messageList
+        messageList(messages: messages)
       }
     }
 
-    private var messageList: some View {
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
+    private func messageList(messages: [Components.Schemas.ChatRoomMessage]) -> some View {
       // Realize nearby rows only: laying out every rich message makes each
       // scroll event expensive. Keep each message unary and anchored by ID.
       let transcriptRoom = room
@@ -186,7 +191,6 @@ import SwiftUI
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 12)
             }
-            let messages = preparedMessages
             let gaps = workspaces.timeline.historyGapMessageIds
             ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
               let previous = index > 0 ? messages[index - 1] : nil
@@ -282,7 +286,7 @@ import SwiftUI
         }
         .scrollPosition($scrollPosition)
         .defaultScrollAnchor(scrollIntent.followsLatest ? .bottom : nil, for: .sizeChanges)
-        .onChange(of: preparedMessages.contains(where: { $0.id == quoteTarget }) ? quoteTarget : nil, initial: true) { _, target in
+        .onChange(of: messages.contains(where: { $0.id == quoteTarget }) ? quoteTarget : nil, initial: true) { _, target in
           guard let target else { return }
           guard workspaces.displayedTranscript.contains(where: { $0.id == target }) else {
             quoteTarget = nil
@@ -304,7 +308,7 @@ import SwiftUI
             highlightedId = nil
           }
         }
-        .onChange(of: preparedMessages.last?.id) { _, _ in
+        .onChange(of: messages.last?.id) { _, _ in
           if scrollIntent.followsLatest, workspaces.timeline.historicalAnchor == nil {
             proxy.scrollTo("timeline-bottom", anchor: .bottom)
           }

@@ -3,6 +3,7 @@
 import { MessageCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ChatComposeSokoBot } from "@/app/chat/actions";
+import type { RoomReadReceipts } from "@/app/chat/hooks/use-room-read-receipts";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
 import { ChannelDiscoverabilityIcon } from "@/components/chat/channel-discoverability-icon";
 import { DirectRoomAvatarStack } from "@/components/chat/direct-room-avatar-stack";
@@ -17,6 +18,7 @@ import type {
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 import { EditChannelDialog } from "./edit-channel-dialog";
+import { orderRosterByReadRecency } from "./order-roster-by-read-recency";
 import { PinnedMessagesHeaderButton } from "./pinned-messages-panel";
 import { getRoomParticipantPreviews } from "./room-helpers";
 import { ROOM_ROSTER_PANEL_ID } from "./room-roster-panel";
@@ -27,13 +29,24 @@ function RoomParticipantStack({
   room,
   rosterOpen,
   onToggleRoster,
+  readReceipts,
 }: {
   room: ChatRoom;
   rosterOpen: boolean;
   onToggleRoster: () => void;
+  readReceipts: RoomReadReceipts;
 }) {
   const t = useTranslations("App.Channels");
-  const participants = getRoomParticipantPreviews(room);
+  // One stack, two facts. It is the roster — everyone, the viewer and the
+  // machines included — but ordered most-recent-read first, so the faces that
+  // fit are the freshest readers and the panel it opens names the rest with
+  // their read times. Read state is deliberately not a second badge on the
+  // face: presence already owns that corner, and two marks on a 24px circle
+  // is mush.
+  const participants = orderRosterByReadRecency(
+    getRoomParticipantPreviews(room),
+    readReceipts,
+  );
   const visibleParticipants = participants.slice(0, 4);
   const remainingCount = participants.length - visibleParticipants.length;
 
@@ -55,7 +68,7 @@ function RoomParticipantStack({
       {visibleParticipants.map((participant, index) => (
         <span
           key={`${participant.kind}-${participant.id}`}
-          className="relative inline-flex size-6 shrink-0 md:size-7"
+          className="relative inline-flex size-6 shrink-0"
           style={{ zIndex: visibleParticipants.length - index }}
         >
           <Avatar className="ring-border size-full shadow-xs ring-1">
@@ -88,7 +101,7 @@ function RoomParticipantStack({
       ))}
       {remainingCount > 0 ? (
         <span
-          className="bg-muted text-muted-foreground ring-border relative inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-medium shadow-xs ring-1 md:size-7"
+          className="bg-muted text-muted-foreground ring-border relative inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-medium shadow-xs ring-1"
           style={{ zIndex: 0 }}
           aria-hidden
         >
@@ -129,6 +142,8 @@ export interface RoomHeaderChromeProps {
   onEditOpenChange: (open: boolean) => void;
   /** When false, skip avatar stack so title can paint without it. */
   showParticipants: boolean;
+  /** Seen by — who on the roster has read this room. */
+  readReceipts: RoomReadReceipts;
 }
 
 export function RoomHeaderChrome({
@@ -157,6 +172,7 @@ export function RoomHeaderChrome({
   editOpen,
   onEditOpenChange,
   showParticipants,
+  readReceipts,
 }: RoomHeaderChromeProps) {
   const t = useTranslations("App.Channels");
   const trimmedTopic = room.topic?.trim() ?? "";
@@ -227,7 +243,9 @@ export function RoomHeaderChrome({
           </>
         )}
       </div>
-      <div className="flex shrink-0 items-center gap-1">
+      {/* pe-0.5: the row above clips overflow and ends flush with this
+          group, which shaved the ring off the last face. */}
+      <div className="flex shrink-0 items-center gap-1 pe-0.5">
         <div className="flex items-center">
           <RoomSearchPanel
             key={room.id}
@@ -270,6 +288,7 @@ export function RoomHeaderChrome({
             room={room}
             rosterOpen={rosterOpen}
             onToggleRoster={onToggleRoster}
+            readReceipts={readReceipts}
           />
         ) : null}
       </div>

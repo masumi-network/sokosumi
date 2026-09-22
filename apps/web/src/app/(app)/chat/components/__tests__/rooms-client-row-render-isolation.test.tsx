@@ -11,7 +11,7 @@ import type { RoomComposerHandle } from "@/app/chat/components/room-composer";
 import { RoomsClient } from "@/app/chat/components/rooms-client";
 import { clearMembershipVisibleRoomsSnapshot } from "@/components/chat/membership-visible-rooms-store";
 import { clearRoomReadOverlays } from "@/components/chat/room-read-overlay";
-import { chatRoomMessageEventDataSchema } from "@/lib/ably";
+import { chatRoomMessageEventDataSchema } from "@/lib/ably/schema";
 import { useChatRoomRealtime } from "@/lib/ably/use-chat-room-realtime";
 import type {
   ChatRoom,

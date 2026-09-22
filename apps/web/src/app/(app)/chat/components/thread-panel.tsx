@@ -301,7 +301,6 @@ export function ThreadPanel({
               isParent ? undefined : outboundSentTickIds?.has(message.id)
             }
             showThreadButton={false}
-            reserveHoverActionGutter={false}
             isContinuation={
               isParent ? false : isMessageContinuation(previousMessage, message)
             }

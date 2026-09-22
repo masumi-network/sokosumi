@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
+import { ProjectPinButton } from "@/app/projects/components/project-pin-button";
 import {
   type ProjectResourceCountPillLabels,
   ProjectResourceCountPills,
@@ -14,6 +15,9 @@ interface ProjectListItemLabels {
   counts: ProjectResourceCountPillLabels;
   lastActivity: string;
   created: string;
+  pin: string;
+  unpin: string;
+  pinError: string;
 }
 
 interface ProjectListItemProps {
@@ -34,15 +38,24 @@ export function ProjectListItem({ project, labels }: ProjectListItemProps) {
     new Date(project.createdAt).getTime();
 
   return (
-    <article className={PROJECTS_LIST_ROW_LAYOUT_CLASS}>
+    // The Pin button cannot live inside the link — a button nested in an
+    // anchor is invalid and the click would navigate instead of pinning — so
+    // the row becomes a flex pair: the link takes the space, the button sits
+    // beside it and keeps its own hit area.
+    <article
+      className={cn(
+        PROJECTS_LIST_ROW_LAYOUT_CLASS,
+        "hover:bg-card-background-hover flex flex-row items-center pr-2 transition-colors",
+      )}
+    >
       <Link
         href={`/projects/${project.id}`}
         className={cn(
           // Square by design: the row runs the full width of the card, so its
           // own radius would round the hover fill inside straight dividers.
           // The card's overflow-hidden rounds the first and last rows for us.
-          "flex min-w-0 flex-row items-center gap-4 rounded-none px-4 py-3 transition-colors",
-          "hover:bg-card-background-hover active:scale-[0.995]",
+          "flex min-w-0 flex-1 flex-row items-center gap-4 rounded-none px-4 py-3",
+          "active:scale-[0.995]",
         )}
       >
         <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -74,6 +87,17 @@ export function ProjectListItem({ project, labels }: ProjectListItemProps) {
           </span>
         </div>
       </Link>
+
+      <ProjectPinButton
+        projectId={project.id}
+        isPinned={project.starredAt != null}
+        isClosed={project.closingAt != null || project.closedAt != null}
+        labels={{
+          pin: labels.pin,
+          unpin: labels.unpin,
+          error: labels.pinError,
+        }}
+      />
     </article>
   );
 }

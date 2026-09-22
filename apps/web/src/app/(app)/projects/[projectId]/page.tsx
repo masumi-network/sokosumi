@@ -9,6 +9,7 @@ import { ProjectBriefing } from "@/app/projects/components/project-briefing";
 import { ProjectCloseStatusCard } from "@/app/projects/components/project-close-status";
 import { ProjectDetailActions } from "@/app/projects/components/project-detail-actions";
 import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
+import { ProjectDetailPinButton } from "@/app/projects/components/project-detail-pin-button";
 import { ProjectLatestUpdate } from "@/app/projects/components/project-latest-update";
 import { ProjectMemoryRow } from "@/app/projects/components/project-memory-row";
 import { ProjectModuleTiles } from "@/app/projects/components/project-module-tiles";
@@ -41,6 +42,7 @@ export default async function ProjectDetailPage({
     closeStatus,
     t,
     tHistory,
+    tList,
     tListStats,
     tTaskFilters,
     formatter,
@@ -51,6 +53,7 @@ export default async function ProjectDetailPage({
       : Promise.resolve(null),
     getTranslations("App.Projects.Detail"),
     getTranslations("App.History.Row"),
+    getTranslations("App.Projects.list"),
     getTranslations("App.Projects.list.stats"),
     getTranslations("App.Tasks.Filters"),
     getFormatter(),
@@ -86,36 +89,47 @@ export default async function ProjectDetailPage({
                 },
               ]}
               actions={
-                <ProjectDetailActions
-                  projectId={project.id}
-                  projectRevision={project.projectRevision}
-                  isClosingOrClosed={Boolean(
-                    project.closingAt || project.closedAt,
-                  )}
-                  labels={{
-                    moreActions: t("actions.moreActions"),
-                    edit: t("actions.edit"),
-                    close: t("actions.close"),
-                    delete: t("actions.delete"),
-                    closeDialog: {
-                      title: t("close.dialog.title"),
-                      description: t("close.dialog.description"),
-                      reasonLabel: t("close.dialog.reasonLabel"),
-                      reasonPlaceholder: t("close.dialog.reasonPlaceholder"),
-                      confirm: t("close.dialog.confirm"),
-                      cancel: t("close.dialog.cancel"),
-                      success: t("close.dialog.success"),
-                      error: t("close.dialog.error"),
-                    },
-                    deleteDialog: {
-                      title: t("deleteDialog.title"),
-                      description: t("deleteDialog.description"),
-                      confirm: t("deleteDialog.confirm"),
-                      cancel: t("deleteDialog.cancel"),
-                      error: t("errors.delete"),
-                    },
-                  }}
-                />
+                <div className="flex items-center gap-1">
+                  <ProjectDetailPinButton
+                    projectId={project.id}
+                    isClosed={Boolean(project.closingAt || project.closedAt)}
+                    labels={{
+                      pin: tList("pin"),
+                      unpin: tList("unpin"),
+                      error: tList("pinError"),
+                    }}
+                  />
+                  <ProjectDetailActions
+                    projectId={project.id}
+                    projectRevision={project.projectRevision}
+                    isClosingOrClosed={Boolean(
+                      project.closingAt || project.closedAt,
+                    )}
+                    labels={{
+                      moreActions: t("actions.moreActions"),
+                      edit: t("actions.edit"),
+                      close: t("actions.close"),
+                      delete: t("actions.delete"),
+                      closeDialog: {
+                        title: t("close.dialog.title"),
+                        description: t("close.dialog.description"),
+                        reasonLabel: t("close.dialog.reasonLabel"),
+                        reasonPlaceholder: t("close.dialog.reasonPlaceholder"),
+                        confirm: t("close.dialog.confirm"),
+                        cancel: t("close.dialog.cancel"),
+                        success: t("close.dialog.success"),
+                        error: t("close.dialog.error"),
+                      },
+                      deleteDialog: {
+                        title: t("deleteDialog.title"),
+                        description: t("deleteDialog.description"),
+                        confirm: t("deleteDialog.confirm"),
+                        cancel: t("deleteDialog.cancel"),
+                        error: t("errors.delete"),
+                      },
+                    }}
+                  />
+                </div>
               }
             />
 

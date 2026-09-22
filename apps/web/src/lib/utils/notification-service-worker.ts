@@ -224,6 +224,11 @@ export interface ShowNotificationInput {
 let registrationPromise: Promise<ServiceWorkerRegistration | null> | null =
   null;
 
+/** A storage failure can require unregistering the push worker during logout. */
+export function forgetNotificationServiceWorker(): void {
+  registrationPromise = null;
+}
+
 export function isServiceWorkerSupported(): boolean {
   return typeof navigator !== "undefined" && "serviceWorker" in navigator;
 }
@@ -372,47 +377,16 @@ export async function closeNotificationGroup(
 }
 
 /**
- * Whether showing this banner replaces a *different* notification, and so owes
- * the reader a second alert.
- *
- * A room is one tag, so two things replace a banner there and only one of them
- * should make a sound. A newer message replacing an older one is the reason
- * `renotify` exists. The push catching up with the banner this page already
- * drew is the same notification arriving down the other transport, and the two
- * collapse by tag on purpose; re-alerting for that would sound twice for one
- * message.
- *
- * Identity rather than timing, so a page banner and the push that catches up
- * with it agree however they are ordered, as long as one has been shown before
- * the other asks. When both read before either shows, which is possible on an
- * unfocused tab where the push and the Ably event land together, both see the
- * older notification and both re-alert. That is one extra sound on a message
- * that made none at all before, and closing it would need the two sources to
- * agree with each other rather than with the screen.
- *
- * A push that arrives late for a notification the page has already replaced is
- * the same kind of disagreement in the other direction: identity says the two
- * differ, so it re-alerts and puts the older content back on screen. The tag
- * collapse did that replacement before this change too; what is new is the
- * sound on it. Ordering the two by `createdAt` would miss every banner drawn
- * before that field existed, which are the ones a reader has had on screen
- * longest.
- *
- * Outside chat the tag is the notification id itself, so the displayed banner
- * matches and this answers false, unless that banner's data no longer parses.
- * One drawn by an older build re-alerts once, which is the safe direction.
- *
- * Both failure directions answer false. Nothing displayed means nothing is
- * being replaced, and a fresh banner alerts on its own. A lookup that throws
- * is a guess, and a missed sound is recoverable where a doubled one is not.
- *
- * The worker keeps its own copy of this rule, because it renders the banner
- * for a closed app and cannot import from here.
+ * New chat messages can share one notification row. Compare message IDs so
+ * each arrival alerts, while push and realtime copies of that arrival do not.
+ * Older banners without message identity re-alert rather than hide an arrival.
+ * A failed lookup also prefers an extra alert. Other kinds deduplicate by row ID.
+ * The static worker mirrors this rule because it cannot import TypeScript.
  */
 async function shouldRenotify(
   registration: ServiceWorkerRegistration,
   tag: string,
-  id: string,
+  incoming: NotificationTarget,
 ): Promise<boolean> {
   try {
     const banners = await registration.getNotifications({ tag });
@@ -422,11 +396,19 @@ async function shouldRenotify(
 
     return !banners.some((banner) => {
       const target = notificationTargetSchema.safeParse(banner.data);
-      return target.success && target.data.id === id;
+      if (!target.success || target.data.id !== incoming.id) return false;
+      if (incoming.kind !== NotificationKind.CHAT) return true;
+      const previousMessageId = target.data.metadata?.messageId;
+      const incomingMessageId = incoming.metadata?.messageId;
+      return (
+        typeof previousMessageId === "string" &&
+        previousMessageId.length > 0 &&
+        previousMessageId === incomingMessageId
+      );
     });
   } catch (error) {
     console.error("Failed to read the displayed notifications", error);
-    return false;
+    return true;
   }
 }
 
@@ -463,7 +445,7 @@ export async function showNotification({
       data: target,
       // Left off entirely rather than sent as false: false is the default, and
       // a browser that does not know the option reads no flag either way.
-      ...((await shouldRenotify(registration, tag, target.id)) && {
+      ...((await shouldRenotify(registration, tag, target)) && {
         renotify: true,
       }),
     });

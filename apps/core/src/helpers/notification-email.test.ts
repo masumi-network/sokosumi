@@ -13,6 +13,7 @@ import {
   type NotificationEmailInput,
   notificationEmailDelayMs,
   taskAttentionReasonOf,
+  taskUpdateReasonOf,
 } from "./notification-email";
 
 const BASE = "https://example.com";
@@ -56,13 +57,16 @@ describe("notificationEmailDelayMs", () => {
     expect(notificationEmailDelayMs("CHAT_DIRECT_MESSAGE")).toBe(5 * 60_000);
     expect(notificationEmailDelayMs("SYSTEM")).toBe(5 * 60_000);
     expect(notificationEmailDelayMs("CHAT_MENTION")).toBe(10 * 60_000);
+    expect(notificationEmailDelayMs("CHAT_ROOM_MESSAGE")).toBe(10 * 60_000);
     expect(notificationEmailDelayMs("TASK_ATTENTION")).toBe(10 * 60_000);
     expect(notificationEmailDelayMs("TASK_COMPLETED")).toBe(30 * 60_000);
+    expect(notificationEmailDelayMs("TASK_UPDATE")).toBe(30 * 60_000);
+    expect(notificationEmailDelayMs("PROJECT_UPDATE")).toBe(10 * 60_000);
   });
 
   it("has no delay for a category that is not emailed at the event", () => {
-    expect(notificationEmailDelayMs("CHAT_ROOM_MESSAGE")).toBeNull();
-    expect(notificationEmailDelayMs("TASK_UPDATE")).toBeNull();
+    // Billing news is the one row Core never mails: Stripe already sends it.
+    expect(notificationEmailDelayMs("BILLING_UPDATE")).toBeNull();
     // The sync mails the reminders on its own schedule.
     expect(notificationEmailDelayMs("FOLLOW_UP")).toBeNull();
     expect(notificationEmailDelayMs(null)).toBeNull();
@@ -82,6 +86,22 @@ describe("taskAttentionReasonOf", () => {
   it("has no reason for a key outside the family", () => {
     expect(taskAttentionReasonOf("Notifications.Task.completed")).toBeNull();
     expect(taskAttentionReasonOf("Notifications.Task.newReason")).toBeNull();
+  });
+});
+
+describe("taskUpdateReasonOf", () => {
+  it("reads the reason off the end of an update key", () => {
+    expect(taskUpdateReasonOf("Notifications.Task.canceled")).toBe("canceled");
+    expect(taskUpdateReasonOf("Notifications.Task.failed")).toBe("failed");
+    expect(taskUpdateReasonOf("Notifications.Task.scheduleRepaired")).toBe(
+      "scheduleRepaired",
+    );
+  });
+
+  it("falls back to the generic sentence for a key it does not know", () => {
+    expect(taskUpdateReasonOf("Notifications.Task.somethingLater")).toBe(
+      "updated",
+    );
   });
 });
 
@@ -201,18 +221,92 @@ describe("buildNotificationEmail", () => {
     expect(textIn(email?.html ?? "")).toContain("coworker early access");
   });
 
-  it("has no email for a key inside a category that does not mail", async () => {
-    await expect(
-      buildNotificationEmail(
-        input({ messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY }),
-      ),
-    ).resolves.toBeNull();
-    await expect(
-      buildNotificationEmail(
+  it("shows the one unread room message it was written for", async () => {
+    const email = await buildNotificationEmail(
+      input({ messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY }),
+    );
+
+    expect(email?.subject).toBe("Sokosumi - Ada wrote in Design");
+    expect(linkIn(email?.html ?? "")).toBe(
+      `${BASE}/chat/rooms/room-1?message=message-1`,
+    );
+    expect(textIn(email?.html ?? "")).toContain("Ada wrote in Design.");
+  });
+
+  /**
+   * The tally the counting write keeps. Once a second message joins the row,
+   * no one of them speaks for the rest, so the email counts them instead of
+   * showing the first (SOK-1142).
+   */
+  it("counts the unread room messages once the row stands for several", async () => {
+    const email = await buildNotificationEmail(
+      input({
+        messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+        messageParams: {
+          authorName: "Ada",
+          count: 4,
+          messagePreview: "Can you check this?",
+          roomName: "Design",
+        },
+      }),
+    );
+
+    expect(email?.subject).toBe("Sokosumi - 4 unread messages in Design");
+    expect(textIn(email?.html ?? "")).toContain(
+      "You have 4 unread messages in Design.",
+    );
+    expect(textIn(email?.html ?? "")).not.toContain("Ada");
+    expect(textIn(email?.html ?? "")).not.toContain("Can you check this?");
+  });
+
+  /** A count an older build could have written is not trusted as a tally. */
+  it("reads a tally that is not a whole number above one as one message", async () => {
+    for (const count of [1, 0, -2, 1.5, "3"]) {
+      const email = await buildNotificationEmail(
         input({
-          kind: NotificationKind.TASK,
-          messageKey: "Notifications.Task.canceled",
+          messageKey: CHAT_ROOM_MESSAGE_MESSAGE_KEY,
+          messageParams: { authorName: "Ada", count, roomName: "Design" },
         }),
+      );
+
+      expect(email?.subject).toBe("Sokosumi - Ada wrote in Design");
+    }
+  });
+
+  it("says what changed on a task that asked nothing of the reader", async () => {
+    const email = await buildNotificationEmail(
+      input({
+        kind: NotificationKind.TASK,
+        referenceId: "task-1",
+        messageKey: "Notifications.Task.canceled",
+        messageParams: { projectName: "Launch", taskName: "Pricing review" },
+        metadata: null,
+      }),
+    );
+
+    expect(email?.subject).toBe("Sokosumi - Pricing review was canceled");
+    expect(linkIn(email?.html ?? "")).toBe(`${BASE}/tasks/task-1`);
+    expect(textIn(email?.html ?? "")).toContain("Launch");
+  });
+
+  it("gives a task key it does not know the generic sentence", async () => {
+    const email = await buildNotificationEmail(
+      input({
+        kind: NotificationKind.TASK,
+        referenceId: "task-1",
+        messageKey: "Notifications.Task.somethingLater",
+        messageParams: { taskName: "Pricing review" },
+        metadata: null,
+      }),
+    );
+
+    expect(email?.subject).toBe("Sokosumi - Pricing review changed");
+  });
+
+  it("has no email for a chat key nobody mapped", async () => {
+    await expect(
+      buildNotificationEmail(
+        input({ messageKey: "Notifications.Chat.somethingLater" }),
       ),
     ).resolves.toBeNull();
   });
@@ -226,5 +320,55 @@ describe("buildNotificationEmail", () => {
         }),
       ),
     ).resolves.toBeNull();
+  });
+});
+
+describe("calendar and project notification emails", () => {
+  it.each([
+    ["scheduleUpdatedByMember", "A teammate updated the schedule for Report"],
+    ["scheduleRemovedByMember", "A teammate removed the schedule for Report"],
+    [
+      "scheduleSourceChangedByMember",
+      "A teammate moved Report to another calendar source",
+    ],
+    [
+      "scheduleOccurrenceChangedByMember",
+      "A teammate changed an occurrence of Report",
+    ],
+    ["scheduleRepaired", "The schedule for Report was repaired"],
+    [
+      "scheduleRemovedByOperator",
+      "The schedule for Report was removed after review",
+    ],
+    ["failed", "Report failed"],
+    ["canceled", "Report was canceled"],
+  ])("renders %s with its task link", async (reason, message) => {
+    const email = await buildNotificationEmail(
+      input({
+        kind: NotificationKind.TASK,
+        referenceId: "task/1",
+        messageKey: `Notifications.Task.${reason}`,
+        messageParams: { taskName: "Report" },
+      }),
+    );
+    expect(email?.subject).toBe(`Sokosumi - ${message}`);
+    expect(textIn(email?.html ?? "")).toContain(message);
+    expect(linkIn(email?.html ?? "")).toBe(`${BASE}/tasks/task%2F1`);
+  });
+
+  it.each([
+    ["closed", "Launch is now closed"],
+    ["closeFailed", "Launch could not finish closing"],
+  ])("renders project %s with its project link", async (outcome, message) => {
+    const email = await buildNotificationEmail(
+      input({
+        kind: NotificationKind.PROJECT,
+        referenceId: "project/1",
+        messageKey: `Notifications.Project.${outcome}`,
+        messageParams: { projectName: "Launch" },
+      }),
+    );
+    expect(email?.subject).toBe(`Sokosumi - ${message}`);
+    expect(linkIn(email?.html ?? "")).toBe(`${BASE}/projects/project%2F1`);
   });
 });

@@ -5,11 +5,17 @@ import {
   fetchCurrentCoworker,
   updateCoworker,
 } from "../../api/services/coworker-service.js";
+import { fetchOrganizationWorkspaces } from "../../api/services/organization-workspace-service.js";
+import { fetchVendorMemberships } from "../../api/services/vendor-service.js";
+import {
+  assertVendorCreationRequest,
+  requireAdministeredVendorForRegistration,
+  requireOrganizationWorkspacesForRegistration,
+} from "../registration-authority.js";
 import {
   applyListFilters,
   type CommandContext,
   type CommandOptions,
-  isJson,
   maskSecret,
   mergeChannels,
   normalizeCapabilities,
@@ -170,17 +176,25 @@ export async function runCoworkersCommand({
         ];
       },
     });
-    if (isJson({ json })) writeJson(stdout, { coworkers: filtered });
+    if (json) writeJson(stdout, { coworkers: filtered });
     else printCoworkerList(stdout, filtered);
     return;
   }
   if (command === "register") {
-    const payload = await buildPayload(options, false);
-    const { coworker } = await createCoworker(
+    assertVendorCreationRequest({
+      requested: optionBoolean(options, "create-vendor"),
+      confirmed: optionBoolean(options, "confirm-create-vendor"),
+    });
+    const { organizationWorkspaces } = await fetchOrganizationWorkspaces(
       client,
-      payload as Parameters<typeof createCoworker>[1],
       signal,
     );
+    requireOrganizationWorkspacesForRegistration(organizationWorkspaces);
+    const payload = await buildPayload(options, false);
+    const vendorId = String(payload.vendorId);
+    const { vendors } = await fetchVendorMemberships(client, signal);
+    requireAdministeredVendorForRegistration(vendors, vendorId);
+    const { coworker } = await createCoworker(client, payload, signal);
     let apiKey: unknown = null;
     if (optionBoolean(options, "create-api-key")) {
       const result = await createCoworkerApiKey(
@@ -194,7 +208,7 @@ export async function runCoworkersCommand({
       );
       apiKey = result.apiKey;
     }
-    if (isJson({ json })) writeJson(stdout, { coworker, apiKey });
+    if (json) writeJson(stdout, { coworker, apiKey });
     else {
       const coworkerValue = record(coworker);
       writeText(stdout, [
@@ -224,12 +238,10 @@ export async function runCoworkersCommand({
     const { coworker } = await updateCoworker(
       client,
       id,
-      (await buildPayload(options, true)) as Parameters<
-        typeof updateCoworker
-      >[2],
+      await buildPayload(options, true),
       signal,
     );
-    if (isJson({ json })) writeJson(stdout, { coworker });
+    if (json) writeJson(stdout, { coworker });
     else
       printCoworker(
         stdout,
@@ -250,7 +262,7 @@ export async function runCoworkersCommand({
       },
       signal,
     );
-    if (isJson({ json })) writeJson(stdout, { coworkerId: id, apiKey });
+    if (json) writeJson(stdout, { coworkerId: id, apiKey });
     else
       writeText(stdout, [
         `Created API key for coworker ${id}`,
@@ -265,7 +277,7 @@ export async function runCoworkersCommand({
   }
   if (command === "me") {
     const { coworker } = await fetchCurrentCoworker(client, signal);
-    if (isJson({ json })) writeJson(stdout, { coworker });
+    if (json) writeJson(stdout, { coworker });
     else printCoworker(stdout, coworker);
     return;
   }

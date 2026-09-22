@@ -52,5 +52,5 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 - [Tasks board](./tasks-board.md) — `/tasks` task manager shell (kanban / tabs).
 - [Projects](./projects.md) — `/projects` list or empty state.
 - [Files](./files.md) — `/drive` Recents / browse (desktop main nav **Files**; personal tab **My Files**).
-- [Jobs history](./jobs-history.md) — `/history` unified History (tasks + jobs) for the signed-in user.
+- [History](./history.md) — `/history` unified History (tasks + jobs) for the signed-in user.
 - [Sign up](./sign-up.md) — disposable account creation when fixtures are absent.

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { WorkspaceGateErrorCode } from "@/lib/actions/errors";
+import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspace-gate";
 
 import { DeletePersonalWorkspaceForm } from "./delete-personal-workspace-form";
 

@@ -1,5 +1,5 @@
 import type { FormData } from "@/lib/form";
-import type { OrganizationInformationFormSchemaType } from "@/lib/schemas";
+import type { OrganizationInformationFormSchemaType } from "@/lib/schemas/organization";
 
 export const organizationInformationFormData: FormData<
   OrganizationInformationFormSchemaType,

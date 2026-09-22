@@ -7,7 +7,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { CoworkerWorkspaceAccess } from "@/lib/clients/generated/core";
-import { coworkerAccessStatusMessageKey } from "@/lib/utils/coworker-access-display";
+import { workspaceApprovalStatusMessageKey } from "@/lib/utils/workspace-approval";
 
 interface WorkspaceAccessRowProps {
   row: CoworkerWorkspaceAccess;
@@ -68,7 +68,7 @@ export function WorkspaceAccessRow({
       </div>
       <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
         <Badge variant="secondary" className="h-5 w-fit px-1.5 text-xs">
-          {t(coworkerAccessStatusMessageKey(row.status))}
+          {t(workspaceApprovalStatusMessageKey(row.status))}
         </Badge>
         {canRevoke ? (
           <Button

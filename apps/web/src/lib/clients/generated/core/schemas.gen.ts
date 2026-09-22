@@ -8657,6 +8657,15 @@ export const ChatRoomUserParticipantSchema = {
                     description: 'Room membership kind: `"member"` (host-org participant) or `"guest"` (external channel only).'
                 }
             ]
+        },
+        lastReadAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Room last-read for this member (Room read receipt) on a room roster entry. Null when the member has never opened the room, and null for every member when the viewer\'s room access is `guest`. Absent on message senders.'
         }
     },
     required: [
@@ -12997,6 +13006,7 @@ export const NotificationPreferenceSchema = {
                 'TASK_ATTENTION',
                 'TASK_COMPLETED',
                 'TASK_UPDATE',
+                'PROJECT_UPDATE',
                 'CHAT_ROOM_MESSAGE',
                 'CHAT_MENTION',
                 'CHAT_DIRECT_MESSAGE',
@@ -14754,12 +14764,22 @@ export const ProjectListItemSchema = {
                     format: 'date-time',
                     example: '2021-01-01T00:00:00.000Z',
                     description: 'Latest visible task/job event, ready task output or project lifecycle event. Equals createdAt when the project has no activity yet, which is also the list ordering key.'
+                },
+                starredAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z',
+                    description: 'When the reader Pinned this project, or null when they have not. Always resolved for the acting user, so null means unpinned rather than unknown; it is null for every non-user actor, since a Pin belongs to a person. Never an ordering key here — the list stays in activity order and the sidebar flyout is what puts Pins first.'
                 }
             },
             required: [
                 'taskCount',
                 'jobCount',
-                'lastActivityAt'
+                'lastActivityAt',
+                'starredAt'
             ]
         }
     ]
@@ -15176,6 +15196,28 @@ export const ProjectJobStatusCountSchema = {
     ]
 } as const;
 
+export const StarredProjectSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/Project'
+        },
+        {
+            type: 'object',
+            properties: {
+                starredAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z',
+                    description: 'When this reader Pinned the project. Ascending is the order the sidebar flyout draws Pins in.'
+                }
+            },
+            required: [
+                'starredAt'
+            ]
+        }
+    ]
+} as const;
+
 export const AddProjectJobRequestSchema = {
     type: 'object',
     properties: {
@@ -15578,6 +15620,29 @@ export const ProjectNeedsAttentionSchema = {
         'taskCount',
         'jobCount',
         'items'
+    ]
+} as const;
+
+export const ProjectStarSchema = {
+    type: 'object',
+    properties: {
+        projectId: {
+            type: 'string',
+            format: 'uuid',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        starredAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'projectId',
+        'starredAt'
     ]
 } as const;
 
@@ -16486,7 +16551,8 @@ export const NotificationKindSchema = {
         'TASK',
         'BILLING',
         'SYSTEM',
-        'CHAT'
+        'CHAT',
+        'PROJECT'
     ],
     description: 'Notification source domain',
     example: 'TASK'
@@ -21371,6 +21437,56 @@ export const WorkspaceCalendarSourceSchema = {
         'paletteToken',
         'isSchedulable'
     ]
+} as const;
+
+export const CalendarIdentityLabelsSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/CalendarIdentityLabel'
+    }
+} as const;
+
+export const CalendarIdentityLabelSchema = {
+    type: 'object',
+    properties: {
+        ref: {
+            type: 'string'
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'current_member',
+                'former_member',
+                'unknown'
+            ]
+        },
+        label: {
+            type: 'string'
+        }
+    },
+    required: [
+        'ref',
+        'state'
+    ]
+} as const;
+
+export const CalendarIdentityLabelsRequestSchema = {
+    type: 'object',
+    properties: {
+        refs: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 255
+            },
+            maxItems: 50
+        }
+    },
+    required: [
+        'refs'
+    ],
+    additionalProperties: false
 } as const;
 
 export const WorkspaceOrganizationSchema = {

@@ -252,8 +252,11 @@ struct RoomReadAttentionTests {
     #expect(state.applying(to: [room])[0].unreadCount == 4)
   }
 
-  @Test func activeAndMutedChromeSuppressUnreadAttention() {
-    #expect(resolveRoomAttention(unreadCount: 5, unreadMentionCount: 2, isActive: true).badgeCount == 0)
+  /// Was `activeAndMutedChromeSuppressUnreadAttention`: its first line asserted no badge for
+  /// `isActive`. Web dropped the open-room rule (#4441), so only mute suppresses the chrome.
+  @Test func onlyMutedChromeSuppressesUnreadAttention() {
+    #expect(resolveRoomAttention(unreadCount: 5, unreadMentionCount: 2) == .init(bold: true, badgeCount: 2))
+    #expect(resolveRoomAttention(unreadCount: 5, unreadMentionCount: 2, isMuted: true) == .init(bold: false, badgeCount: 0))
     #expect(!resolveRoomAttention(unreadCount: 0, unreadMentionCount: 0, markedUnread: true, isMuted: true).bold)
     #expect(resolveRoomAttention(unreadCount: 0, unreadMentionCount: 0, markedUnread: true).bold)
   }

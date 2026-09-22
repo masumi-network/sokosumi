@@ -10,13 +10,15 @@ import {
 } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
-import { COWORKER_ACCESS_PENDING_MESSAGE_KEY } from "@/lib/utils/coworker-access-notification";
 import {
   chatRoomMessageHref,
   getNotificationHref,
   parseChatRoomMessageLink,
 } from "@/lib/utils/notification-href";
-import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@/lib/utils/vendor-grant-notification";
+import {
+  COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+  VENDOR_GRANT_PENDING_MESSAGE_KEY,
+} from "@/lib/utils/workspace-approval";
 
 describe("chatRoomMessageHref", () => {
   it("builds a room message link", () => {
@@ -117,6 +119,16 @@ describe("getNotificationHref", () => {
         metadata: null,
       }),
     ).toBe("/tasks/task-1");
+  });
+
+  it("returns project href", () => {
+    expect(
+      getNotificationHref({
+        kind: "PROJECT",
+        referenceId: "project/one",
+        metadata: null,
+      }),
+    ).toBe("/projects/project%2Fone");
   });
 
   it("deep-links CHAT notifications to the message", () => {

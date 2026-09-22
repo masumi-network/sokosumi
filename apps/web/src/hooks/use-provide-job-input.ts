@@ -5,12 +5,12 @@ import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
-import { CommonErrorCode } from "@/lib/actions/errors";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { provideJobInput } from "@/lib/actions/job/action";
 import {
   type JobInputsFormSchemaType,
   prepareInputValues,
-} from "@/lib/job-input";
+} from "@/lib/job-input/form";
 import { mergeReadonlyInputValues } from "@/lib/utils/job-input-transformers";
 import {
   getUserFileUploadErrorMessage,

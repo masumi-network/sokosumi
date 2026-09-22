@@ -30,8 +30,7 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 
-vi.mock("@/components/design-md", () => ({
-  DESIGN_MD_TRANSLATION_NAMESPACE: "App.DesignMd",
+vi.mock("@/components/design-md/use-design-md-generation", () => ({
   useDesignMdGeneration: () => ({
     status: "idle",
     generate: vi.fn(),

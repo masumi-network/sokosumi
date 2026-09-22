@@ -5,6 +5,15 @@ import {
   isPushSupported,
 } from "@/lib/utils/notification-service-worker";
 
+import {
+  forgetPushPreference,
+  hasPushPreference,
+  rememberPushPreference,
+  wantsPushHere,
+} from "./push-preference.client";
+
+import { revokePushRenewal } from "./push-renewal.client";
+
 import { isPushWorkPending, notePushTeardown } from "./push-work-queue.client";
 
 /**
@@ -235,10 +244,27 @@ export async function releasePushDeviceOnSignOut(
       return;
     }
 
+    // The second arm carries a reader from before preferences existed: a
+    // registration with no preference beside it is the only trace of the
+    // consent they gave. A teardown already under way is the one case where
+    // that trace lies. `deactivatePush` forgets the preference first and
+    // clears the registration at the end of its asynchronous work, so a
+    // sign-out inside that window reads the same shape and would write the
+    // consent this reader just withdrew back for the next session to resume.
+    if (
+      wantsPushHere(userId) ||
+      (!hasPushPreference() &&
+        hasAblyPushRegistration() &&
+        !hasUnfinishedPushTeardown())
+    ) {
+      rememberPushPreference(userId, true);
+    }
+
     // Cancel work already running in another tab even when this tab reads
     // no subscription or token during that activation's reset.
     notePushTeardown();
     notePushTeardownStarted();
+    await revokePushRenewal();
 
     // Asked before the reads below, because it says whether they can be
     // believed. An activation clears both the subscription and the token
@@ -259,7 +285,7 @@ export async function releasePushDeviceOnSignOut(
     // the sign-out go before this settles. The alternative for a late
     // rejection is no handler at all.
     await waitForRelease(
-      deactivatePush(userId).catch((error) => {
+      deactivatePush(userId, { preservePreference: true }).catch((error) => {
         console.error("Failed to release the push device on sign out", error);
       }),
     );
@@ -310,6 +336,7 @@ export async function releasePushDeviceOnSignOut(
  * record on Ably, which its own delivery prunes.
  */
 export async function dropBrowserPushSubscriptionOnAccountDeletion(): Promise<void> {
+  forgetPushPreference();
   try {
     // Said before anything is read, and whatever the reads would have said.
     // A token beside a browser with no subscription is the one shape
@@ -320,6 +347,7 @@ export async function dropBrowserPushSubscriptionOnAccountDeletion(): Promise<vo
     // sign in here gets push turned on for them over a deleted account's
     // device. Both calls are local and cannot fail on the network.
     notePushTeardown();
+    await revokePushRenewal();
     forgetAblyPushRegistration();
 
     // Both reads are local too, so a reader who never enabled push pays

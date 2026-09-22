@@ -199,11 +199,14 @@ public final class ConversationSidebar: ObservableObject {
     }
   }
 
-  public func perform(_ action: Action, roomId: String, client: Client, organizationSlug: String?) async throws {
+  public func perform(
+    _ action: Action, roomId: String, client: Client, organizationSlug: String?,
+    now: Date = Date(), makeId: () -> UUID = UUID.init
+  ) async throws {
     guard canPerform(action, roomId: roomId), let room = rooms.first(where: { $0.id == roomId }) else { return }
-    let token = UUID()
+    let token = makeId()
     let previousDate = action.dateField.flatMap { room[keyPath: $0] }
-    let optimisticDate: Date? = action == .pin || action == .mute ? Date() : nil
+    let optimisticDate: Date? = action == .pin || action == .mute ? now : nil
     pendingActions[roomId] = PendingAction(token: token, action: action, previousDate: previousDate, optimisticDate: optimisticDate)
     actionError = nil
     patchDate(roomId: roomId, action: action, date: optimisticDate)
@@ -233,12 +236,14 @@ public final class ConversationSidebar: ObservableObject {
   /// Web's `handleReorderPinned`: the order shows at once, the latest reorder wins, and a failure of the
   /// latest one throws so the coordinator reloads the list, because an earlier overlapping reorder may
   /// have landed and no local snapshot is safe to put back.
-  public func reorderPinned(_ roomIds: [String], client: Client, organizationSlug: String?) async throws {
+  public func reorderPinned(
+    _ roomIds: [String], client: Client, organizationSlug: String?, now: Date = Date()
+  ) async throws {
     reorderRequest += 1
     let request = reorderRequest
     // Local sort keys, one millisecond apart and all in the past like Core's, so a room pinned right
     // after still lands at the end.
-    let base = Date().addingTimeInterval(-Double(roomIds.count) / 1000)
+    let base = now.addingTimeInterval(-Double(roomIds.count) / 1000)
     pendingPinnedOrder = Dictionary(
       roomIds.enumerated().map { ($1, base.addingTimeInterval(Double($0) / 1000)) }, uniquingKeysWith: { first, _ in first }
     )

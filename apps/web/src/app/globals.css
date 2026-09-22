@@ -1028,6 +1028,12 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
    the mark when it ends. */
 [data-chat-message-list] {
   --chat-jump-hold: 4500ms;
+  /* A reader scroll ends the hold early. The mark and the spotlight fade out
+     over this rather than being cut, which reads as a snap. Keep in sync with
+     ROOM_MESSAGE_HIGHLIGHT_LEAVE_MS in
+     apps/web/src/app/(app)/chat/utils/room-message-highlight.ts, which drops
+     the mark when it ends. */
+  --chat-jump-leave: 320ms;
   --chat-jump-dim-opacity: 0.5;
   --chat-jump-dim-blur: 1.5px;
 }
@@ -1040,7 +1046,7 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
   --chat-jump-dim-blur: 2.5px;
 }
 
-[data-message-id][data-search-landed="true"] {
+[data-message-id][data-search-landed] {
   /* Dark runs stronger: a light primary over a 4% ground lifts far less than
      the same mix of a saturated primary over white. */
   --chat-jump-wash-lead: 16%;
@@ -1048,7 +1054,7 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
   --chat-jump-wash-edge: 10%;
 }
 
-.dark [data-message-id][data-search-landed="true"] {
+.dark [data-message-id][data-search-landed] {
   --chat-jump-wash-lead: 26%;
   --chat-jump-wash-mid: 20%;
   --chat-jump-wash-edge: 18%;
@@ -1056,7 +1062,7 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
 
 /* Wash: tint holds its strength all the way to the right edge so a wide row
    stays marked instead of trailing off. Opens from the centre. */
-[data-message-id][data-search-landed="true"]::before {
+[data-message-id][data-search-landed]::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -1076,7 +1082,7 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
 }
 
 /* Rail: marks where the row starts. */
-[data-message-id][data-search-landed="true"]::after {
+[data-message-id][data-search-landed]::after {
   content: "";
   position: absolute;
   top: 0.1875rem;
@@ -1091,9 +1097,23 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
 
 /* Spotlight: the rest of the transcript steps back while the hold lasts. It
    runs on the same timeline as the mark, so the dim never outlives it. */
-[data-chat-message-list]:has([data-search-landed="true"])
-[data-message-id]:not([data-search-landed="true"]) {
+[data-chat-message-list]:has([data-search-landed])
+[data-message-id]:not([data-search-landed]) {
   animation: chat-jump-dim var(--chat-jump-hold) ease-out forwards;
+}
+
+/* Leaving: the reader scrolled, so the hold ends early. The wash, the rail and
+   the spotlight run out on one short clock rather than being cut off mid
+   animation. Written after the rules above, which carry the same weight, so
+   these replace the hold's animation while the mark is still on the row. */
+[data-message-id][data-search-landed="leaving"]::before,
+[data-message-id][data-search-landed="leaving"]::after {
+  animation: chat-jump-leave var(--chat-jump-leave) ease-out forwards;
+}
+
+[data-chat-message-list]:has([data-search-landed="leaving"])
+  [data-message-id]:not([data-search-landed]) {
+  animation: chat-jump-undim var(--chat-jump-leave) ease-out forwards;
 }
 
 @keyframes chat-jump-wash {
@@ -1136,6 +1156,26 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
   }
 }
 
+/* The leave pair. Both start from the state the hold keeps for most of its
+   run, which is where a reader scroll finds them: the mark at full strength,
+   the other rows stepped back. */
+@keyframes chat-jump-leave {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes chat-jump-undim {
+  from {
+    opacity: var(--chat-jump-dim-opacity);
+    filter: blur(var(--chat-jump-dim-blur));
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
 @keyframes chat-jump-rail {
   0% {
     opacity: 0;
@@ -1159,15 +1199,22 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
    no spotlight — dimming the surrounding text would take it under the contrast
    floor for the whole hold, which the rail and wash already do without. */
 @media (prefers-reduced-motion: reduce) {
-  [data-message-id][data-search-landed="true"]::before,
-  [data-message-id][data-search-landed="true"]::after {
+  [data-message-id][data-search-landed]::before,
+  [data-message-id][data-search-landed]::after {
     animation: none;
     opacity: 1;
     transform: none;
   }
 
-  [data-chat-message-list]:has([data-search-landed="true"])
-    [data-message-id]:not([data-search-landed="true"]) {
+  /* Leaving drops the mark where the hold would have dropped it: at once, with
+     nothing to watch on the way out. */
+  [data-message-id][data-search-landed="leaving"]::before,
+  [data-message-id][data-search-landed="leaving"]::after {
+    opacity: 0;
+  }
+
+  [data-chat-message-list]:has([data-search-landed])
+    [data-message-id]:not([data-search-landed]) {
     animation: none;
     opacity: 1;
     filter: none;

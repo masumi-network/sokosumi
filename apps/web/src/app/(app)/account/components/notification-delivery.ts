@@ -91,13 +91,13 @@ export const PUSH_BLOCK_HINT_KEY: Record<PushBlock, string> = {
 };
 
 /**
- * Where a row's email answer is kept: this matrix, or nowhere.
+ * Where a row's email answer is kept: this matrix, or somewhere else.
  *
  * Two rather than a boolean, so a cell knows whether it can be pressed at all.
  * A third value stood for the job rows, which wrote one account-wide switch.
  * SOK-930 took the job notifications away, and the switch with them.
  */
-export type EmailControl = "CHANNEL" | "NONE";
+export type EmailControl = "CHANNEL" | "EXTERNAL";
 
 export interface KindSpec {
   category: NotificationCategory;
@@ -113,13 +113,12 @@ export interface KindSpec {
    * Push, on the `EMAIL` channel, so it is the reader's answer for that row
    * alone and nothing else moves with it.
    *
-   * `NONE` is every message in a room, the other task updates, and billing
-   * news. Nothing mails them, and the row says so rather than offering a
-   * control that would reach nothing. Stripe already writes those receipts
-   * and cancellations. Core's `NOTIFICATION_EMAIL_CATEGORIES` is the list
-   * this has to agree with: a row marked `CHANNEL` there and `NONE` here
-   * hides a cell Core reads, and the other way round draws a cell Core
-   * ignores.
+   * `EXTERNAL` is a row somebody else mails. The cell shows the email as
+   * always on and cannot be pressed, because there is nothing here to
+   * configure: Stripe already writes those receipts and cancellations. Core's
+   * `NOTIFICATION_EMAIL_CATEGORIES` is the list `CHANNEL` has to agree with:
+   * a row on that list and not marked `CHANNEL` here hides a cell Core reads,
+   * and the other way round draws a cell Core ignores.
    */
   email: EmailControl;
 }
@@ -236,7 +235,7 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         category: "TASK_UPDATE",
         labelKey: "kindTaskUpdate",
         hintKey: "kindTaskUpdateHint",
-        email: "NONE",
+        email: "CHANNEL",
       },
     ],
     // The same four ids every other group offers, and deliberately: a reader
@@ -290,7 +289,7 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         category: "CHAT_ROOM_MESSAGE",
         labelKey: "kindChatRoomMessage",
         hintKey: "kindChatRoomMessageHint",
-        email: "NONE",
+        email: "CHANNEL",
       },
       {
         category: "CHAT_MENTION",
@@ -364,7 +363,7 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         category: "BILLING_UPDATE",
         labelKey: "kindBillingUpdate",
         hintKey: "kindBillingUpdateHint",
-        email: "NONE",
+        email: "EXTERNAL",
       },
     ],
     // The task ladder with one rung fewer: two rows, so Most and Essential
@@ -405,6 +404,19 @@ export const NOTIFICATION_GROUPS: readonly GroupSpec[] = [
         },
       },
     ],
+  },
+  {
+    id: "PROJECT",
+    labelKey: "kindProjectUpdate",
+    kinds: [
+      {
+        category: "PROJECT_UPDATE",
+        labelKey: "kindProjectUpdate",
+        hintKey: "kindProjectUpdateHint",
+        email: "CHANNEL",
+      },
+    ],
+    presets: [],
   },
   {
     id: "SYSTEM",

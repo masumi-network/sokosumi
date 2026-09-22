@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { CommonErrorCode } from "@/lib/actions/errors";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { upgradePersonalSubscription } from "@/lib/actions/subscription/action";
 import { fireGTMEvent } from "@/lib/gtm-events";
 

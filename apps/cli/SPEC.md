@@ -26,7 +26,7 @@
 
 ## §I INTERFACES
 
-- cmd: `sokosumi` (no args) → Ink: auth method → OAuth target or API-key target detection → signed-in Register a Coworker, Vendors, Workspaces, Manage Coworker, Sign out
+- cmd: `sokosumi` (no args) → Ink: auth method → OAuth target or API-key target detection → signed-in Register a Coworker, Vendors, Workspaces, Sign out
 - cmd: `auth login` → browser OAuth or env/stdin user API key
 - cmd: `auth status` → text/JSON auth state
 - cmd: `auth logout` → clear target-scoped local credentials; server key revocation separate
@@ -40,7 +40,7 @@
 - headless JSON fields: `authenticated`, `authMethod`, `apiKeyAvailable`, `target`, `apiUrl`, `expiresAt`
 - pkg: private workspace `sokosumi` @ `apps/cli` → source build emits bin `sokosumi`; npm publication ⊥ current slice
 
-[PROPOSED] Runtime connection, delegated auth, chat transport, general x402 purchase, and seller settlement interfaces need approved Core/runtime contracts before implementation. No new command or credential type is advertised here.
+[VERIFIED: ADR 0005, 2026-09-21] Runtime identity/invocation contract approved: runtime bearer ∈ `coworker_*` only; developer OAuth/user API keys ⊥ runtime Core calls; session grant ⊥ identity; no short-lived developer-delegation JWT. Chat transport, general x402 purchase, and seller settlement interfaces still need their own approved contracts before implementation.
 
 ## §V INVARIANTS
 V1: CLI auth ∈ {OAuth access token, OAuth refresh token, user API key}. ⊥ session cookie. ⊥ `coworker_*` key.
@@ -121,9 +121,16 @@ V74: seller submits usage pricing with waitlist application; new public price ve
 V75: x402 funding explicitly selected ∈ {workspace credits, runtime-held wallet}; no silent fallback. Supported rails/assets, authorization, spending limits still apply to external services.
 V76: customer debit ≠ seller settlement; paid-graduation evidence must prove service delivery and intended seller receipt. Coworker-reported amount alone is not customer price authorization.
 V77: public paid runtime isolated from developer credentials; trusted private same-user session not advertised as isolated. Container/cloud label alone proves nothing.
-V78: runtime secrets never in argv, model-visible output, logs, or non-secret config; ephemeral secrets in memory, persistent secrets in OS vault; delivery contract requires approval.
+V78: runtime secrets never in argv, model-visible output, logs, or non-secret config; session-only → memory; retained/hosted → OS vault (ADR 0005).
 V79: `vendors me` → preserve Vendor memberships + roles; registration selection later requires role = `admin`; `workspaces list` identity = `organizationId`; organization metadata ∉ output; non-array list or missing required identity → fail; `--json` → one document.
 V80: shared discovery handler ! exact subcommand before Core call; bare `vendors` / `workspaces` → reject.
+
+[VERIFIED: ADR 0005, 2026-09-21]
+V81: runtime bearer ∈ `coworker_*` only; developer OAuth/user API key (`soko_*`, incl. SOK-1135 mint) ⊥ runtime Core calls; short-lived developer-delegation JWT ⊥ approved contract (ADR 0005).
+V82: session grant ⊥ Coworker identity and key material; expiry/disconnect remove temporary authority only; reconnect requires authorization (ADR 0005).
+V83: mint/rotate/revoke `coworker_*` ∈ developer auth only (interactive or headless); runtime ⊥ self-mint (ADR 0005).
+V84: CLI/TUI/skill share in-process handlers; ⊥ recursive CLI entrypoint; runtime adapters → Core HTTP with `coworker_*` (ADR 0005).
+V85: `coworkers register` requires ≥1 organization workspace and `--vendor-id` ∈ administered (`admin`) memberships; foreign/non-admin Vendor ⊥ before Core create; `--create-vendor` requires `--confirm-create-vendor` then refuses (no Core developer self-service create); blocked copy → ask existing Vendor admin to add you as admin (platform admin create = fallback).
 
 ## §T TASKS
 
@@ -157,7 +164,7 @@ T26|x|remove npm-global updater, prompt, tests, and runtime package-manager call
 T27|.|DEFERRED 2026-09-18; not completed or integration prerequisite: redesign Ink TUI against external v1 bundle: terminal chrome, sign-in, tabs/workspace, state variants, PTY widths|V40,V41,I
 T28|~|align CLI React types pin with workspace and sync lockfile|V64
 
-T29|.|approve runtime identity/invocation contract; evaluate delegation without changing developer-key guards|V1,V6,V58,V66,V77,V78
+T29|x|approve runtime identity/invocation contract; reject short-lived developer-delegation JWT; keep developer-key guards|V1,V6,V58,V66,V77,V78,V81,V82,V83,V84
 T30|.|Core prerequisites and CLI private setup: Vendor/workspace authority, self-service registration, session lifecycle|V67,V68,V70
 T31|.|active-session Task/Job operations and automatic worker; prove recovery and authorization separately|V66,V69,V77,V78
 T32|.|approve chat transport; implement permitted direct/chat-channel/group participation and revocation|V69,V70,V77
@@ -165,6 +172,7 @@ T33|.|approve Masumi funding/custody contract; general x402 services within auth
 T34|.|Core seller usage-price authorization, version review, settlement and controlled payment evidence|V73,V74,V76
 T35|.|Core readiness derivation, capability evidence, waitlist review; CLI exposes status without self-approval|V70,V71,V72
 T36|x|CLI read-only administered Vendor + organization-workspace discovery|V18,V19,V42,V67,V79,V80,I
+T37|x|CLI registration gates: workspace required, admin Vendor only, refuse inventing Vendor create|V67,V79,V85,I
 
 ## §B BUGS
 

@@ -3,15 +3,14 @@ import type { VendorGrant } from "@/lib/clients/generated/core";
 import { userService } from "@/lib/services/user.service";
 import { vendorGrantService } from "@/lib/services/vendor-grant.service";
 import {
-  buildVendorGrantReviewHref,
-  canApproveVendorGrants,
-  resolveViewerOrganizationMembership,
-} from "@/lib/utils/vendor-grant-approval";
-import {
+  buildWorkspaceApprovalReviewHref,
+  canApproveWorkspaceAccess,
   getPendingVendorIds,
   groupVendorGrantsByVendor,
-  isGrantPending,
-} from "@/lib/utils/vendor-grant-display";
+  isWorkspaceApprovalPending,
+  resolveViewerOrganizationMembership,
+  VENDOR_GRANT_REVIEW_HASH,
+} from "@/lib/utils/workspace-approval";
 
 import { TasksPendingVendorGrantBanner } from "./tasks-pending-vendor-grant-banner";
 
@@ -38,7 +37,7 @@ export async function TasksPendingVendorGrantBannerSlot({
     organizationId,
     members,
   );
-  const canApprove = canApproveVendorGrants({
+  const canApprove = canApproveWorkspaceAccess({
     organizationId,
     isAuthenticated: true,
     viewerMembership,
@@ -61,7 +60,7 @@ export async function TasksPendingVendorGrantBannerSlot({
   }
 
   const pendingEntries = groupVendorGrantsByVendor(pendingGrants).filter(
-    (entry) => isGrantPending(entry),
+    (entry) => isWorkspaceApprovalPending(entry.grant?.status),
   );
 
   if (pendingEntries.length === 0) {
@@ -72,9 +71,10 @@ export async function TasksPendingVendorGrantBannerSlot({
     ? getPendingVendorIds(pendingEntries)
     : [];
 
-  const reviewHref = buildVendorGrantReviewHref({
+  const reviewHref = buildWorkspaceApprovalReviewHref({
     organizationId,
     organizationSlug: viewerMembership?.organization.slug,
+    hash: VENDOR_GRANT_REVIEW_HASH,
   });
 
   return (

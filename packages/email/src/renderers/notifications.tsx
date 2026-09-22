@@ -7,9 +7,12 @@ import type {
   AccessRequestEmailProps,
   ChatDirectMessageEmailProps,
   ChatMentionEmailProps,
+  ChatRoomMessageEmailProps,
+  ProjectUpdateEmailProps,
   RenderedEmail,
   TaskAttentionEmailProps,
   TaskCompletedEmailProps,
+  TaskUpdateEmailProps,
 } from "../types.js";
 import {
   buildGreeting,
@@ -18,24 +21,7 @@ import {
   type TranslateFn,
 } from "./notification-shared.js";
 
-/**
- * The notification emails (SOK-1090).
- *
- * One per thing the reader is told about: a mention, a direct message, a task
- * that stopped for them, a task that finished, and someone asking for access
- * to a workspace they manage. Each says what the in-app notification says and
- * opens where it opens, so the inbox and the Notification Center never
- * disagree about the same row.
- *
- * All five are the action email every other transactional email here uses.
- * They differ in their words and their button, not in their layout. The words
- * live under `notifications.event` in the three catalogs; the reminders a day
- * later (SOK-916) live beside them under `notifications.followUp`.
- *
- * The caller chooses the locale. Today Core passes English, because `User`
- * carries no locale column (SOK-1096).
- */
-
+/** Notification emails (SOK-1090). */
 const EVENT_SCOPE = "notifications.event";
 
 interface EventEmailOptions {
@@ -44,7 +30,6 @@ interface EventEmailOptions {
   quote?: null | string;
   recipientName?: null | string;
   t: TranslateFn;
-  /** The catalog entry for the words: subject, body and button. */
   words: {
     body: string;
     button: string;
@@ -71,9 +56,8 @@ function renderEventEmail({
     footer: t(`${EVENT_SCOPE}.footer`),
     greeting: buildGreeting(t, recipientName),
     linkInstructions: linkInstructions(t),
-    // The preheader is the body. A fresh notification has one sentence to
-    // say, and a second line saying it differently would only compete with
-    // the first in the inbox list.
+    // Preheader is the body so the inbox list does not get a competing
+    // second line.
     preview: words.body,
     quote: trimmedQuote ? trimmedQuote : undefined,
     subject: words.subject,
@@ -111,13 +95,7 @@ export function renderChatMentionEmail({
   });
 }
 
-/**
- * Someone messaged the reader one to one.
- *
- * No room name, deliberately. A room of two is named after the other person,
- * who here is the author, so naming it would name them twice. The in-app
- * notification makes the same choice.
- */
+/** No room name: a DM room is named after the author. */
 export function renderChatDirectMessageEmail({
   actionUrl,
   authorName,
@@ -143,6 +121,50 @@ export function renderChatDirectMessageEmail({
   });
 }
 
+/**
+ * One unread message, or a count of them.
+ *
+ * A single message is the whole of what is waiting, so the email shows it:
+ * who wrote and what they wrote, the way a mention does. Two or more have no
+ * one message that speaks for the rest, so the email counts them and quotes
+ * nobody. A count that is missing reads as one, because the row an email is
+ * built from stands for one message until a second joins it.
+ */
+export function renderChatRoomMessageEmail({
+  actionUrl,
+  authorName,
+  locale,
+  messagePreview,
+  recipientName,
+  roomName,
+  unreadCount,
+}: ChatRoomMessageEmailProps): Promise<RenderedEmail> {
+  const { t } = createEmailTranslator(locale);
+  const scope = `${EVENT_SCOPE}.roomMessage`;
+  const room = nameOr(t, roomName, "fallbackRoomName");
+  const many = typeof unreadCount === "number" && unreadCount > 1;
+  const variant = many ? `${scope}.many` : `${scope}.one`;
+  const values: Record<string, string> = many
+    ? { count: String(unreadCount), roomName: room }
+    : {
+        authorName: nameOr(t, authorName, "fallbackAuthorName"),
+        roomName: room,
+      };
+
+  return renderEventEmail({
+    actionUrl,
+    quote: many ? null : messagePreview,
+    recipientName,
+    t,
+    words: {
+      body: t(`${variant}.body`, values),
+      button: t(`${scope}.button`),
+      subject: t(`${variant}.subject`, values),
+      title: t(`${variant}.title`),
+    },
+  });
+}
+
 /** The project a task belongs to, when the notification named one. */
 function projectFact(
   t: TranslateFn,
@@ -160,14 +182,7 @@ function projectFact(
     : undefined;
 }
 
-/**
- * A task stopped and needs the reader: input, approval, a sign-in, credits,
- * an assignment, or a schedule an operator removed.
- *
- * The reason picks the subject and the body, because "a task needs you" says
- * nothing about which of the six it is, and the reader decides from the
- * subject line whether to open it now.
- */
+/** Reason picks subject and body so the subject names which of the six it is. */
 export function renderTaskAttentionEmail({
   actionUrl,
   coworkerName,
@@ -228,6 +243,37 @@ export function renderTaskCompletedEmail({
   });
 }
 
+/**
+ * Schedule changes and other task outcomes, using the existing task
+ * destination. Reason picks the sentence; `updated` is the fallback for a key
+ * nobody has written one for.
+ */
+export function renderTaskUpdateEmail({
+  actionUrl,
+  locale,
+  projectName,
+  reason,
+  recipientName,
+  taskName,
+}: TaskUpdateEmailProps): Promise<RenderedEmail> {
+  const { t } = createEmailTranslator(locale);
+  const scope = `${EVENT_SCOPE}.task.update`;
+  const values = { taskName: nameOr(t, taskName, "fallbackTaskName") };
+
+  return renderEventEmail({
+    actionUrl,
+    facts: projectFact(t, projectName),
+    recipientName,
+    t,
+    words: {
+      body: t(`${scope}.reasons.${reason}.body`, values),
+      button: t(`${EVENT_SCOPE}.task.button`),
+      subject: t(`${scope}.reasons.${reason}.subject`, values),
+      title: t(`${scope}.title`),
+    },
+  });
+}
+
 /** A vendor or a coworker asked for a workspace the reader manages. */
 export function renderAccessRequestEmail({
   actionUrl,
@@ -251,6 +297,30 @@ export function renderAccessRequestEmail({
       button: t(`${scope}.button`),
       subject: t(`${scope}.${request}.subject`, values),
       title: t(`${scope}.title`),
+    },
+  });
+}
+
+/** The terminal outcome of the project close requested by the reader. */
+export function renderProjectUpdateEmail({
+  actionUrl,
+  locale,
+  outcome,
+  projectName,
+  recipientName,
+}: ProjectUpdateEmailProps): Promise<RenderedEmail> {
+  const { t } = createEmailTranslator(locale);
+  const scope = `${EVENT_SCOPE}.project`;
+  const values = { projectName: nameOr(t, projectName, "fallbackProjectName") };
+  return renderEventEmail({
+    actionUrl,
+    recipientName,
+    t,
+    words: {
+      body: t(`${scope}.${outcome}.body`, values),
+      button: t(`${scope}.button`),
+      subject: t(`${scope}.${outcome}.subject`, values),
+      title: t(`${scope}.${outcome}.title`),
     },
   });
 }

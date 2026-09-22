@@ -131,6 +131,14 @@ export const chatRoomInclude = {
     },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   },
+  /**
+   * Room read receipts. Loaded on every room-returning route, including the
+   * paginated list that does not render them: one include, one mapper, one
+   * test, and Prisma fetches it in the same query as the roster. `markedUnread`
+   * is deliberately not read here — a reader's private reminder does not rewind
+   * their Room last-read, so it must not rewind what others see.
+   */
+  readStates: { select: { userId: true, lastReadAt: true } },
 } as const satisfies Prisma.ChatRoomInclude;
 
 export const chatRoomMessageInclude = {
@@ -246,6 +254,15 @@ export function mapChatRoom(
     peerInActiveOrganization = false,
   } = attention;
 
+  const myAccess = resolveMyAccess(room, currentUserId, myAccessOverride);
+  // Read times do not cross the organization boundary: a guest viewer on an
+  // External channel sees no Room read receipts at all, their own included.
+  const lastReadByUserId = new Map<string, Date>(
+    myAccess === "guest"
+      ? []
+      : room.readStates.map((state) => [state.userId, state.lastReadAt]),
+  );
+
   return {
     id: room.id,
     organizationId: room.organizationId,
@@ -270,7 +287,9 @@ export function mapChatRoom(
     mutedAt,
     markedUnread,
     peerInActiveOrganization,
-    myAccess: resolveMyAccess(room, currentUserId, myAccessOverride),
+    myAccess,
+    // Driven by the roster, not by the read-state table: a member who left
+    // keeps their row but vanishes from the receipts with no cleanup.
     userMembers: room.userMembers.map((member) => ({
       id: member.user.id,
       name: member.user.name,
@@ -279,6 +298,7 @@ export function mapChatRoom(
       presence: resolveUserPresence(member.user, currentUserId),
       access:
         member.access === "guest" ? ("guest" as const) : ("member" as const),
+      lastReadAt: lastReadByUserId.get(member.userId) ?? null,
     })),
     coworkerMembers: room.coworkerMembers.map(({ coworker }) => ({
       id: coworker.id,
@@ -1035,16 +1055,6 @@ export function canManageChatRoomLifecycle(options: {
   role: string;
 }): boolean {
   return isOrganizationOwnerOrAdmin(options.role);
-}
-
-/**
- * Permanent delete removes the room and cascaded children for everyone.
- * Same elevation as archive/restore — organization owner/admin only.
- */
-export function canPermanentlyDeleteChatRoom(options: {
-  role: string;
-}): boolean {
-  return canManageChatRoomLifecycle(options);
 }
 
 export function chatRoomPatchTouchesSettings(body: {

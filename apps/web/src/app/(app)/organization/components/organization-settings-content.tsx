@@ -13,7 +13,7 @@ import { OrganizationVendorGrants } from "@/app/organizations/[organizationSlug]
 import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
 import { BillingPortalErrorToast } from "@/components/billing/billing-portal-error-toast";
 import MembersTable from "@/components/members-table/members-table";
-import { OrganizationRoleBadge } from "@/components/organizations";
+import { OrganizationRoleBadge } from "@/components/organizations/role-badge";
 import { coreClient } from "@/lib/clients/core.client";
 import type {
   OrganizationDeletionEvaluation,

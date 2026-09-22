@@ -11,6 +11,76 @@ import {
 } from "./notification-read.js";
 import { createNotification } from "./notifications.js";
 
+export interface NotifyTaskCalendarActionInput {
+  taskId: string;
+  taskName: string;
+  ownerId: string;
+  actorUserId: string | null;
+  eventId: string;
+  messageKey: string;
+  action: string;
+}
+
+/**
+ * Notifies a Task owner about another member's Calendar change after the
+ * mutation commits. The fresh Task lookup is intentionally constrained by the
+ * owner's current Workspace access so a departed organization member cannot
+ * receive a notification that reveals Task details.
+ */
+export async function notifyTaskCalendarAction(
+  input: NotifyTaskCalendarActionInput,
+): Promise<void> {
+  if (!input.actorUserId || input.ownerId === input.actorUserId) {
+    return;
+  }
+
+  try {
+    const accessibleTask = await prisma.task.findFirst({
+      where: {
+        id: input.taskId,
+        ownerId: input.ownerId,
+        archivedAt: null,
+        workspace: {
+          OR: [
+            { userId: input.ownerId },
+            {
+              organization: {
+                members: { some: { userId: input.ownerId } },
+              },
+            },
+          ],
+        },
+      },
+      select: { id: true, workspaceId: true },
+    });
+    if (!accessibleTask) {
+      return;
+    }
+
+    await createNotification({
+      userId: input.ownerId,
+      kind: NotificationKind.TASK,
+      referenceId: input.taskId,
+      eventId: input.eventId,
+      messageKey: input.messageKey,
+      messageParams: { taskName: input.taskName },
+      metadata: { workspaceId: accessibleTask.workspaceId },
+      workspaceId: accessibleTask.workspaceId,
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      extra: {
+        taskId: input.taskId,
+        eventId: input.eventId,
+        ownerId: input.ownerId,
+        actorUserId: input.actorUserId,
+        action: input.action,
+        notificationType: "task-calendar-notification",
+      },
+    });
+  }
+}
+
 function taskNotificationPayload(task: {
   name: string | null;
   projectId: string | null;
@@ -161,6 +231,7 @@ export async function dispatchTaskNotification(
       messageKey,
       messageParams,
       metadata,
+      ...(task.workspaceId ? { workspaceId: task.workspaceId } : {}),
     });
   } catch (error) {
     Sentry.captureException(error, {
@@ -270,6 +341,7 @@ export async function notifyTaskHumanAssignee(
       messageKey: TASK_ASSIGNED_MESSAGE_KEY,
       messageParams,
       metadata,
+      ...(task.workspaceId ? { workspaceId: task.workspaceId } : {}),
     });
   } catch (error) {
     Sentry.captureException(error, {

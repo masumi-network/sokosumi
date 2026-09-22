@@ -134,7 +134,7 @@ describe("GET /projects/starred", () => {
     expect((await res.json()).data[0]?.starredAt).toBe(starredAt.toISOString());
   });
 
-  it("leaves out closed projects and other workspaces", async () => {
+  it("scopes to the workspace and keeps closed Pins, so a project page can Unpin", async () => {
     await createApp().request("http://localhost/starred");
 
     expect(projectStarFindManyMock).toHaveBeenCalledWith(
@@ -143,7 +143,6 @@ describe("GET /projects/starred", () => {
           userId: "user_123",
           project: {
             workspaceId: WORKSPACE_CONTEXT.workspaceId,
-            closedAt: null,
           },
         },
       }),
