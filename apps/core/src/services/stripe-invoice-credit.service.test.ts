@@ -20,7 +20,7 @@ const retrieveCustomerMock = vi.fn();
 const captureExceptionMock = vi.fn();
 const userUpdateMock = vi.fn();
 const organizationUpdateMock = vi.fn();
-const userFindUniqueMock = vi.fn();
+const userFindByEmailMock = vi.fn();
 
 const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) =>
   callback({
@@ -103,7 +103,7 @@ vi.mock("@/lib/db/prisma", () => ({
       update: (...args: unknown[]) => organizationUpdateMock(...args),
     },
     user: {
-      findUnique: (...args: unknown[]) => userFindUniqueMock(...args),
+      findFirst: (...args: unknown[]) => userFindByEmailMock(...args),
       update: (...args: unknown[]) => userUpdateMock(...args),
     },
   },
@@ -292,7 +292,7 @@ describe("handleInvoicePaidEvent", () => {
     });
     userUpdateMock.mockResolvedValue({ id: "user-1" });
     organizationUpdateMock.mockResolvedValue({ id: "org-1" });
-    userFindUniqueMock.mockResolvedValue(null);
+    userFindByEmailMock.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -346,11 +346,11 @@ describe("handleInvoicePaidEvent", () => {
     getOrganizationByStripeCustomerIdMock.mockResolvedValue(null);
     retrieveCustomerMock.mockResolvedValue({
       deleted: false,
-      email: "ada@example.com",
+      email: "Ada@Example.com",
       id: "cus_1",
       metadata: {},
     });
-    userFindUniqueMock.mockResolvedValue({
+    userFindByEmailMock.mockResolvedValue({
       id: "user-1",
       stripeCustomerId: null,
     });
@@ -368,8 +368,10 @@ describe("handleInvoicePaidEvent", () => {
       }) as never,
     );
 
-    expect(userFindUniqueMock).toHaveBeenCalledWith({
-      where: { email: "ada@example.com" },
+    expect(userFindByEmailMock).toHaveBeenCalledWith({
+      where: {
+        email: { equals: "Ada@Example.com", mode: "insensitive" },
+      },
       select: { id: true, stripeCustomerId: true },
     });
     expect(userUpdateMock).toHaveBeenCalledWith({

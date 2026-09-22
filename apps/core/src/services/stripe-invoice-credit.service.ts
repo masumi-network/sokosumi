@@ -495,8 +495,8 @@ async function resolveOwnerFromStripeCustomer(
     return null;
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email },
+  const user = await prisma.user.findFirst({
+    where: { email: { equals: email, mode: "insensitive" } },
     select: { id: true, stripeCustomerId: true },
   });
   if (!user) {
