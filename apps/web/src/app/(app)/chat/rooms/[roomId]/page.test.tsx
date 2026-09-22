@@ -122,7 +122,7 @@ function neverResolvingPromise<T>(): Promise<T> {
 }
 
 describe("ChatRoomPage generateStaticParams sentinel", () => {
-  it("returns one UUID so cacheComponents does not emit an empty PPR shell", () => {
+  it("returns one concrete roomId child", () => {
     expect(generateStaticParams()).toEqual([
       { roomId: "00000000-0000-4000-8000-000000000000" },
     ]);
