@@ -459,7 +459,7 @@ function capPreview(preview: string): string {
  * they now ask the same question of the same string.
  *
  * The clean deletes characters as well as marks, so it can spell a key the
- * sender did not write: `@<uuid-with-an-_-in-it>` cleans into a mention. Every
+ * sender did not write: `@<uuid-with-a-*-in-it>` cleans into a mention. Every
  * rule here reads that same token, so they still agree about it, and a key
  * that names nobody is a lookup that finds nothing. It costs a caller that
  * asks for a named preview the whole line, which is the price of never
@@ -525,8 +525,8 @@ function previewOfReadable(
   mentionNames?: ReadonlyMap<string, string>,
 ): string {
   // The names go in after that clean. A name is a person's to spell and the
-  // clean takes `* _ ~ > #` out of whatever it is handed, which is what would
-  // make `R_D` read as `RD` on a banner.
+  // clean takes `* ~ > #` out of whatever it is handed, which is what would
+  // make `R*D` read as `RD` on a banner.
   const pieces: string[] = [];
   const nameSpans: Array<[number, number]> = [];
   let read = 0;
