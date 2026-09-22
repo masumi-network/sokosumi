@@ -5,18 +5,13 @@ import {
 import {
   type AuthEnvironment,
   type AuthManager,
-  getAuthManager,
 } from "../auth/auth-manager.js";
-import { resolveInitialAuth } from "../auth/bootstrap.js";
 import {
-  type CliTargetConfig,
-  MAINNET_API_URL,
-  PREPROD_API_URL,
-  resolveCliConfig,
-  resolveTargetScope,
-  targetFromUserApiKey,
-} from "../auth/config.js";
-import { loadCliEnvironment } from "../config/loader.js";
+  bootstrapCliSession,
+  type CliSession,
+  requireAuthenticatedSession,
+} from "../auth/bootstrap.js";
+import { type CliTargetConfig } from "../auth/config.js";
 import { redactErrorMessage } from "../error-redaction.js";
 import {
   isNetworkSelectionLocked,
@@ -362,71 +357,19 @@ export function parseArgv(argv: string[]): ParsedArgv {
   return { positionals, options };
 }
 
-function applyGlobalEnv(
-  env: AuthEnvironment,
-  options: CliOptions,
-): AuthEnvironment {
-  const next: Record<string, string | undefined> = { ...env };
-  if (options.preprod) next.SOKOSUMI_API_URL = PREPROD_API_URL;
-  if (options["api-url"]) next.SOKOSUMI_API_URL = options["api-url"];
-  return next;
-}
-
-function resolveCommandConfig(
-  env: AuthEnvironment,
-  options: CliOptions,
-): CliTargetConfig {
-  const detectedApiKeyTarget = targetFromUserApiKey(
-    String(env.SOKOSUMI_API_KEY || ""),
-  );
-  const explicitApiUrl = options["api-url"];
-  const apiUrl =
-    explicitApiUrl ||
-    (options.preprod
-      ? PREPROD_API_URL
-      : env.SOKOSUMI_API_URL ||
-        (detectedApiKeyTarget === "preprod"
-          ? PREPROD_API_URL
-          : MAINNET_API_URL));
-  return resolveCliConfig({
-    env,
-    apiUrl,
-    authBaseUrl: options["auth-url"],
-    clientId: options["client-id"],
-    preprod: options.preprod,
-  });
-}
-
-function getManager(
-  config: CliTargetConfig,
-  env: AuthEnvironment,
-  authManager?: AuthManager,
-): AuthManager {
-  return (
-    authManager ||
-    getAuthManager({
-      targetScope: resolveTargetScope(config.target, config.apiUrl),
-      clientId: config.clientId,
-      environment: env,
-    })
-  );
-}
-
 function getCoreClient(
-  config: CliTargetConfig,
-  env: AuthEnvironment,
+  session: CliSession,
   dependencies: CliDependencies,
 ): CoreHttpClient {
-  const manager = getManager(config, env, dependencies.authManager);
   return (
     dependencies.coreClient ||
     createCoreHttpClient({
-      apiUrl: config.apiUrl,
-      authManager: manager,
-      authBaseUrl: config.authBaseUrl,
-      clientId: config.clientId,
-      clientSecret: config.clientSecret,
-      environment: env,
+      apiUrl: session.config.apiUrl,
+      authManager: session.authManager,
+      authBaseUrl: session.config.authBaseUrl,
+      clientId: session.config.clientId,
+      clientSecret: session.config.clientSecret,
+      environment: session.env,
     })
   );
 }
@@ -467,25 +410,23 @@ export async function runCli(
     return { version: CLI_VERSION };
   }
 
-  let env: AuthEnvironment;
-  let config: CliTargetConfig;
+  let session: CliSession;
   try {
-    env = applyGlobalEnv(
-      loadCliEnvironment({
-        environment: dependencies.env || process.env,
-        loadFiles: dependencies.env === undefined,
-      }),
-      options,
-    );
-    config = resolveCommandConfig(env, options);
+    session = bootstrapCliSession({
+      environment: dependencies.env || process.env,
+      loadFiles: dependencies.env === undefined,
+      preprod: options.preprod,
+      apiUrl: options["api-url"],
+      authUrl: options["auth-url"],
+      clientId: options["client-id"],
+      authManager: dependencies.authManager,
+    });
   } catch (error) {
     if (options.json)
       writeJsonError(stdout, error, dependencies.env || process.env);
     throw error;
   }
-  const targetExplicit = Boolean(
-    options.preprod || options["api-url"] || env.SOKOSUMI_API_URL,
-  );
+  const { env, config, targetExplicit, authManager } = session;
   const networkSelectionLocked = isNetworkSelectionLocked(config, {
     preprod: options.preprod,
     apiUrl: options["api-url"],
@@ -493,7 +434,6 @@ export async function runCli(
 
   try {
     if (positionals.length === 0) {
-      const authManager = getManager(config, env, dependencies.authManager);
       const tuiFn = dependencies.tuiFn || renderStatusApp;
       return await tuiFn({
         authManager,
@@ -522,21 +462,11 @@ export async function runCli(
       throw new Error(`Unexpected argument: ${rest[0]}`);
     }
     if (CORE_COMMAND_SECTIONS.has(section)) {
-      const auth = await resolveInitialAuth({
-        authManager: getManager(config, env, dependencies.authManager),
-        config,
-        environment: env,
-        targetExplicit,
-      });
-      if (!auth.authenticated) {
-        throw new Error(
-          "Authentication required. Run `sokosumi auth login` first.",
-        );
-      }
+      await requireAuthenticatedSession(session);
     }
     if (section === "discover" && command === undefined) {
       await runDiscoverCommand({
-        client: getCoreClient(config, env, dependencies),
+        client: getCoreClient(session, dependencies),
         config,
         stdout,
         json: options.json,
@@ -548,7 +478,7 @@ export async function runCli(
       (command === undefined || command === "list" || command === "hire")
     ) {
       await runAgentsCommand({
-        client: getCoreClient(config, env, dependencies),
+        client: getCoreClient(session, dependencies),
         stdout,
         json: options.json,
         subcommand: command,
@@ -563,7 +493,7 @@ export async function runCli(
         ["list", "register", "update", "api-key", "me"].includes(command))
     ) {
       await runCoworkersCommand({
-        client: getCoreClient(config, env, dependencies),
+        client: getCoreClient(session, dependencies),
         stdout,
         json: options.json,
         subcommand: command,
@@ -578,7 +508,7 @@ export async function runCli(
       positionalId === undefined
     ) {
       await runVendorsCommand({
-        client: getCoreClient(config, env, dependencies),
+        client: getCoreClient(session, dependencies),
         stdout,
         json: options.json,
         subcommand: command,
@@ -591,7 +521,7 @@ export async function runCli(
       positionalId === undefined
     ) {
       await runWorkspacesCommand({
-        client: getCoreClient(config, env, dependencies),
+        client: getCoreClient(session, dependencies),
         stdout,
         json: options.json,
         subcommand: command,
@@ -606,7 +536,7 @@ export async function runCli(
         ))
     ) {
       await runTasksCommand({
-        client: getCoreClient(config, env, dependencies),
+        client: getCoreClient(session, dependencies),
         stdout,
         json: options.json,
         subcommand: command,
@@ -620,7 +550,7 @@ export async function runCli(
       (command === undefined || ["list", "get", "input"].includes(command))
     ) {
       await runJobsCommand({
-        client: getCoreClient(config, env, dependencies),
+        client: getCoreClient(session, dependencies),
         stdout,
         json: options.json,
         subcommand: command,
