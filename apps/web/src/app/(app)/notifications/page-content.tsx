@@ -24,13 +24,13 @@ export function NotificationsPageContent() {
 
   return (
     <div className="flex flex-col gap-5 pb-4">
-      {notice !== null ? <AccountNoticeRow /> : null}
-      <NotificationBrowserPermissionPrimer variant="page" />
-      {/* The heading names the page for a reader who arrived by keyboard or
-          by screen reader, where the breadcrumb is chrome rather than the
-          page's own title. Mark all read rides on the same row: the button
-          outlives the last unread row, and a row of its own would collapse
-          under the reader's pointer the moment that row was read. */}
+      {/* The heading comes first, before anything the page has to say. A
+          notice or a push primer above it pushed the page's own title into
+          the middle of the screen, so the first thing a reader met was an
+          aside about a setting. Mark all read rides on the heading row: the
+          button outlives the last unread row, and a row of its own would
+          collapse under the reader's pointer the moment that row was
+          read. */}
       <div
         data-testid="notifications-page-header"
         className="flex flex-wrap items-start justify-between gap-3"
@@ -67,6 +67,8 @@ export function NotificationsPageContent() {
           </Button>
         ) : null}
       </div>
+      {notice !== null ? <AccountNoticeRow /> : null}
+      <NotificationBrowserPermissionPrimer variant="page" />
       {/* The strip is the card's top edge, so it reads as this card's own
           control and not as page navigation. The card stays out only when
           the list has nothing to say under an account notice, and then

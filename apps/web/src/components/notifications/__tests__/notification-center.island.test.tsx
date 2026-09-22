@@ -84,8 +84,13 @@ vi.mock("@/contexts/account-notice-provider", () => ({
 vi.mock("@/app/components/account-notice-row", () => ({
   AccountNoticeRow: () => <p>account notice</p>,
 }));
+// A marker rather than null: the primer's own states belong to its own
+// test, but where the frame puts it is this file's business, and a null
+// mock cannot be found to be in the wrong place.
 vi.mock("@/app/components/notification-browser-permission-primer", () => ({
-  NotificationBrowserPermissionPrimer: () => null,
+  NotificationBrowserPermissionPrimer: () => (
+    <div data-testid="notification-permission-primer" />
+  ),
 }));
 vi.mock("@/lib/utils/notification-message", () => ({
   // The key, unless the row carries a label: rows that share a real key
@@ -1264,6 +1269,26 @@ describe("Notification Center view filter", () => {
       });
     },
   );
+
+  // The page names itself before it says anything else. A notice or a push
+  // primer above the heading pushed the title down the screen, so the first
+  // thing a reader met was an aside about a setting.
+  it("puts the page heading above every notice on it", async () => {
+    accountNoticeMock.mockReturnValue({ notice: { tone: "warning" } });
+    getNotificationsMock.mockResolvedValue(
+      page([row("mine", { isRead: true })]),
+    );
+
+    await renderPage();
+
+    const header = screen.getByTestId("notifications-page-header");
+    const notice = screen.getByText("account notice");
+
+    expect(header.parentElement?.firstElementChild).toBe(header);
+    expect(
+      header.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
 
   it("leaves both empty states out under an account notice", async () => {
     accountNoticeMock.mockReturnValue({ notice: { tone: "warning" } });

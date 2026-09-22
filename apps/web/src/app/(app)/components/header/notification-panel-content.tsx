@@ -75,11 +75,14 @@ export function NotificationPanelContent({
       {/* The strip carries the line under it, so it stands in for the
           separator between the header and the list. */}
       <NotificationCenterViewFilter />
-      {/* No margin below: the list's first row and the empty state bring
-          their own padding, and a gap on top of that sat the empty state's
-          text above the middle of the space it had. */}
+      {/* The rows below bring their own padding, but a card sitting flush
+          on the first one reads as part of the list, so 8px separates the
+          two. When a notice leaves a view with nothing to list, the list
+          renders nothing and the scroll box hides itself, and this margin
+          then falls between the card and the View all footer, which is the
+          one place it stacks with padding of its own. */}
       <NotificationBrowserPermissionPrimer
-        className="mx-4 mt-3"
+        className="mx-4 mt-3 mb-2"
         onNavigate={onClose}
       />
       {/* The scroll container the boundary row watches: reaching the end of
