@@ -124,6 +124,28 @@ describe("GitHub OIDC remote cache wiring", () => {
     assert.match(matrixCommand(test, "Packages"), /packages\/\*/);
   });
 
+  it("advisory matrix targets include local env, CI config, and cloud-agent-db", async () => {
+    const test = await readRepoFile(".github", "workflows", "test.yml");
+    assert.equal(matrixCommand(test, "Local env"), "pnpm local-env:test");
+    assert.equal(matrixCommand(test, "CI config"), "pnpm ci:test");
+    assert.equal(
+      matrixCommand(test, "Cloud agent db"),
+      "pnpm cloud-agent-db:test",
+    );
+  });
+
+  it("CI config also runs on markdown-only PRs", async () => {
+    const test = await readRepoFile(".github", "workflows", "test.yml");
+    const filter = await readRepoFile(".github", "js-paths-filter.yml");
+    assert.match(filter, /^docs:\n  - "\*\*\/\*\.md"$/m);
+    assert.match(jobBlock(test, "changes"), /steps\.filter\.outputs\.docs/);
+    const block = jobBlock(test, "test");
+    assert.match(
+      block,
+      /matrix\.target\.name == 'CI config' && needs\.changes\.outputs\.docs == 'true'/,
+    );
+  });
+
   it("pins Neon teardown to trusted default-branch checkout", async () => {
     const workflow = await readRepoFile(
       ".github",
