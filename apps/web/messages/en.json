@@ -2225,7 +2225,8 @@
           "removed": "Brand context removed",
           "removeDialog": {
             "title": "Remove brand context?",
-            "description": "This removes the project's DESIGN.md file."
+            "description": "This removes the project's DESIGN.md file.",
+            "cancel": "Cancel"
           },
           "upload": "Upload",
           "moreActions": "Brand actions"

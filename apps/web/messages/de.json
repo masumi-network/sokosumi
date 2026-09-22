@@ -2225,7 +2225,8 @@
           "removed": "Markenkontext entfernt",
           "removeDialog": {
             "title": "Markenkontext entfernen?",
-            "description": "Dadurch wird die DESIGN.md-Datei des Projekts entfernt."
+            "description": "Dadurch wird die DESIGN.md-Datei des Projekts entfernt.",
+            "cancel": "Abbrechen"
           },
           "upload": "Hochladen",
           "moreActions": "Brand-Aktionen"

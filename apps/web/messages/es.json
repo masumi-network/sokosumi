@@ -2225,7 +2225,8 @@
           "removed": "Contexto de marca eliminado",
           "removeDialog": {
             "title": "¿Quitar el contexto de marca?",
-            "description": "Esto elimina el archivo DESIGN.md del proyecto."
+            "description": "Esto elimina el archivo DESIGN.md del proyecto.",
+            "cancel": "Cancelar"
           },
           "upload": "Subir",
           "moreActions": "Acciones de marca"
