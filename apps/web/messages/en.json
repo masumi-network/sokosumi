@@ -5624,10 +5624,12 @@
         "error": "Could not load threads. Try again.",
         "markAllReadError": "Could not mark unread threads as read. Try again.",
         "loadOlder": "Load older threads",
+        "groupUnread": "Unread",
+        "groupEarlier": "Earlier",
         "startedBy": "Started by {name}",
-        "unreadReplies": "{count, plural, one {# unread reply} other {# unread replies}}",
         "unreadThreads": "{count, plural, one {# unread thread} other {# unread threads}}",
-        "unreadThreadsCapped": "More than {max} unread threads"
+        "unreadThreadsCapped": "More than {max} unread threads",
+        "newReplies": "{count, plural, one {# new} other {# new}}"
       },
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# unread message} other {# unread messages}}",

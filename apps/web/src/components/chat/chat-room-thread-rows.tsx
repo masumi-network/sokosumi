@@ -1,6 +1,5 @@
 "use client";
 
-import { AtSign, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
@@ -13,6 +12,7 @@ import {
 import { formatUnreadThreadsPreview } from "@/app/chat/utils/unread-threads-preview";
 import { MentionCountPill } from "@/components/chat/mention-count-pill";
 import { roomCountLabel } from "@/components/chat/room-count-label";
+import { ThreadIconCircle } from "@/components/chat/thread-icon-circle";
 import {
   SidebarMenuSub,
   SidebarMenuSubButton,
@@ -128,21 +128,10 @@ export function ChatRoomThreadRows({
                       neutral circle, so the list under a room stays quiet; a
                       Thread that names the reader gets the primary one with
                       an `@`, the only colour on the row besides its pill. */}
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "grid size-[1.125rem] shrink-0 place-items-center rounded-full",
-                      mentions > 0
-                        ? "bg-primary-quaternary text-primary-variant"
-                        : "bg-sidebar-accent text-muted-foreground",
-                    )}
-                  >
-                    {mentions > 0 ? (
-                      <AtSign className="size-[0.6875rem]" />
-                    ) : (
-                      <MessageSquare className="size-[0.6875rem]" />
-                    )}
-                  </span>
+                  <ThreadIconCircle
+                    tone={mentions > 0 ? "attention" : "quiet"}
+                    glyph={mentions > 0 ? "mention" : "thread"}
+                  />
                   <span className="min-w-0 flex-1 truncate font-semibold">
                     {formatUnreadThreadsPreview(
                       thread.parentContent,

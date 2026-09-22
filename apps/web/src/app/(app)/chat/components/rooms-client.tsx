@@ -3399,9 +3399,11 @@ function RoomView({
                   error: t("UnreadThreads.error"),
                   markAllReadError: t("UnreadThreads.markAllReadError"),
                   loadOlder: t("UnreadThreads.loadOlder"),
+                  groupUnread: t("UnreadThreads.groupUnread"),
+                  groupEarlier: t("UnreadThreads.groupEarlier"),
                   startedBy: (name) => t("UnreadThreads.startedBy", { name }),
-                  unreadReplies: (count) =>
-                    t("UnreadThreads.unreadReplies", { count }),
+                  newReplies: (count) =>
+                    t("UnreadThreads.newReplies", { count }),
                   replies: (count) => t("Thread.replyCount", { count }),
                   close: t("UnreadThreads.close"),
                   muted: t("Thread.muted"),
