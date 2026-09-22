@@ -108,6 +108,17 @@ public func membershipStatusText(_ message: Components.Schemas.ChatRoomMessage) 
   }
 }
 
+/// True when a link preview card renders at all: it has an image URL or a
+/// description, so a title-only card stays hidden. Decided on the persisted
+/// card, never on whether its image later loads. Mirrors web
+/// `unfurlCardHasPreviewContent`.
+public func unfurlCardHasPreviewContent(_ card: Components.Schemas.ChatRoomMessageUnfurl) -> Bool {
+  func hasText(_ value: String?) -> Bool {
+    !(value ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+  }
+  return hasText(card.imageUrl) || hasText(card.description)
+}
+
 /// Initials for avatar fallbacks: first letters of the first two words,
 /// uppercased; "?" when there is nothing to take them from.
 public func initials(for name: String) -> String {
