@@ -153,7 +153,7 @@ describeWithDb("thread mute against Postgres", () => {
 
   async function roomUnread() {
     const counts = await getChatRoomUnreadCounts([ROOM_ID], READER_ID, prisma!);
-    return counts.get(ROOM_ID) ?? 0;
+    return counts.get(ROOM_ID)?.total ?? 0;
   }
 
   async function unreadRepliesOn(parentMessageId: string) {
@@ -344,7 +344,7 @@ describeWithDb("thread mute against Postgres", () => {
         LURKER_ID,
         prisma!,
       );
-      return counts.get(ROOM_ID) ?? 0;
+      return counts.get(ROOM_ID)?.total ?? 0;
     }
 
     // The lurker still has the two top-level parents waiting. Only the thread

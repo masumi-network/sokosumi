@@ -23,6 +23,8 @@ const actions = vi.hoisted(() => ({
   markOrganizationChatRoomReadAction: vi.fn(),
 }));
 
+const { mockSearch } = vi.hoisted(() => ({ mockSearch: { current: "" } }));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: vi.fn(),
@@ -30,7 +32,7 @@ vi.mock("next/navigation", () => ({
     refresh: vi.fn(),
   }),
   usePathname: () => "/chat/rooms/room-channel",
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(mockSearch.current),
 }));
 
 vi.mock("next-intl", () => ({
@@ -176,11 +178,16 @@ vi.mock("../room-message-row", () => ({
     <button
       type="button"
       data-testid={`open-thread-${message.id}`}
+      data-unread-replies={message.threadUnreadReplyCount ?? 0}
       onClick={() => onOpenThread?.(message)}
     >
       {message.content}
     </button>
   ),
+}));
+
+vi.mock("../thread-list-panel", () => ({
+  ThreadListPanel: () => <aside data-testid="thread-list-panel" />,
 }));
 
 /** Capture loading/replies so the race is asserted at the real seam. */
@@ -340,6 +347,7 @@ const baseProps = {
 describe("RoomsClient thread open loading race", () => {
   beforeEach(() => {
     mockSearchHit.current = null;
+    mockSearch.current = "";
     actions.markThreadReadAction.mockReset();
     actions.listThreadMessagesAction.mockReset();
     actions.markOrganizationChatRoomReadAction.mockReset();
@@ -400,6 +408,53 @@ describe("RoomsClient thread open loading race", () => {
     });
     expect(screen.getByTestId("thread-loading").textContent).toBe("false");
     expect(screen.getByTestId("thread-reply-count").textContent).toBe("2");
+  });
+
+  it("clears the parent's unread replies once the thread has been looked at", async () => {
+    actions.markThreadReadAction.mockResolvedValue({
+      ok: true as const,
+      value: { lookedAt: new Date().toISOString() },
+    });
+    actions.listThreadMessagesAction.mockResolvedValue({
+      ok: true as const,
+      value: { messages: [replyMessage("r1")], nextCursor: null },
+    });
+
+    render(
+      <RoomsClient
+        {...baseProps}
+        messages={[{ ...parentMessage(), threadUnreadReplyCount: 2 }]}
+      />,
+    );
+    const row = screen.getByTestId("open-thread-parent-1");
+    expect(row.getAttribute("data-unread-replies")).toBe("2");
+
+    fireEvent.click(row);
+
+    await waitFor(() => {
+      expect(
+        screen
+          .getByTestId("open-thread-parent-1")
+          .getAttribute("data-unread-replies"),
+      ).toBe("0");
+    });
+  });
+
+  // The sidebar's overflow row asks for the thread list on the room's URL.
+  it("opens the thread list the URL asks for", async () => {
+    mockSearch.current = "threads=1";
+
+    render(<RoomsClient {...baseProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("thread-list-panel")).toBeTruthy();
+    });
+  });
+
+  it("opens no thread list when the URL asks for nothing", () => {
+    render(<RoomsClient {...baseProps} />);
+
+    expect(screen.queryByTestId("thread-list-panel")).toBeNull();
   });
 
   it("invalidates in-flight load when the panel is closed mid-fetch", async () => {

@@ -43,7 +43,11 @@ interface ThreadListPanelProps {
   labels: ThreadListPanelLabels;
   onOpenThread: (parent: ChatRoomMessage) => boolean | Promise<boolean>;
   onClose: () => void;
-  onAllThreadsLooked?: () => void;
+  /**
+   * Mark all reached Core. Names the loaded threads it left unread: Core skips
+   * muted threads even when a mention in them is still unread (SOK-1087).
+   */
+  onAllThreadsLooked?: (stillUnreadParentIds: string[]) => void;
 }
 
 export function ThreadListPanel({
@@ -147,7 +151,13 @@ export function ThreadListPanel({
         setError(result.error.message || labels.markAllReadError);
         return;
       }
-      onAllThreadsLooked?.();
+      onAllThreadsLooked?.(
+        items
+          .filter(
+            (item) => item.mutedAt != null && threadNeedsOverviewUnread(item),
+          )
+          .map((item) => item.parentMessage.id),
+      );
       await loadFirstPage();
     } catch {
       setError(labels.markAllReadError);

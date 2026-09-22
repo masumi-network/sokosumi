@@ -35,6 +35,8 @@ import {
   assertChatRoomContentMessage,
   readMembershipFromMetadata,
 } from "./membership-status";
+// Type only: `room-unread` imports this module at runtime.
+import type { ChatRoomUnreadThreads } from "./room-unread";
 
 export const chatRoomUserSelect = {
   id: true,
@@ -206,7 +208,14 @@ function resolveUserPresence(
 }
 
 export interface MapChatRoomAttentionOptions {
+  /** The sum: `channelUnreadCount + threadUnreadCount`. */
   unreadCount?: number;
+  /** Room unread: top-level messages after Room last-read (ADR-0037). */
+  channelUnreadCount?: number;
+  /** Thread unread: gated replies after each Thread's Look (ADR-0037). */
+  threadUnreadCount?: number;
+  /** The room's unread Threads for the sidebar, capped, with the true count. */
+  unreadThreads?: ChatRoomUnreadThreads;
   unreadMentionCount?: number;
   starredAt?: Date | null;
   pinnedMessageCount?: number;
@@ -244,6 +253,12 @@ export function mapChatRoom(
 ) {
   const {
     unreadCount = 0,
+    threadUnreadCount = 0,
+    // A caller that states only the sum gets it as Room unread. Bold follows
+    // this half, so the other default, zero, would quietly stop a row bolding
+    // while its total said otherwise.
+    channelUnreadCount = Math.max(0, unreadCount - threadUnreadCount),
+    unreadThreads = { threads: [], unreadThreadCount: 0 },
     unreadMentionCount = 0,
     starredAt = null,
     pinnedMessageCount = 0,
@@ -281,6 +296,10 @@ export function mapChatRoom(
     createdAt: room.createdAt,
     updatedAt: room.updatedAt,
     unreadCount,
+    channelUnreadCount,
+    threadUnreadCount,
+    unreadThreadCount: unreadThreads.unreadThreadCount,
+    unreadThreads: unreadThreads.threads,
     unreadMentionCount,
     starredAt,
     pinnedMessageCount,
@@ -508,6 +527,9 @@ export async function mapChatRoomWithSidebarFlags(
   tx: Prisma.TransactionClient | typeof prisma,
   attention: {
     unreadCount?: number;
+    channelUnreadCount?: number;
+    threadUnreadCount?: number;
+    unreadThreads?: ChatRoomUnreadThreads;
     unreadMentionCount?: number;
     activeOrganizationId?: string | null;
     organizationName?: string | null;
@@ -528,6 +550,9 @@ export async function mapChatRoomWithSidebarFlags(
 
   return mapChatRoom(room, userId, {
     unreadCount: attention.unreadCount ?? 0,
+    channelUnreadCount: attention.channelUnreadCount,
+    threadUnreadCount: attention.threadUnreadCount,
+    unreadThreads: attention.unreadThreads,
     unreadMentionCount: attention.unreadMentionCount ?? 0,
     starredAt: flags?.starredAt ?? null,
     pinnedMessageCount: pinnedMessageCounts.get(room.id) ?? 0,
@@ -541,6 +566,14 @@ export async function mapChatRoomWithSidebarFlags(
 export function mapChatRoomMessage(
   message: ChatRoomMessageWithSender,
   currentUserId?: string,
+  /**
+   * The viewer's unread replies under this parent. Passed in rather than
+   * derived: it depends on the viewer's Look baseline and Participant status,
+   * which the Prisma include cannot express. Left out of the payload when the
+   * caller did not compute it, so a client can tell "none unread" from "not
+   * known here" and keep the count it already has.
+   */
+  threadUnreadReplyCount?: number,
 ) {
   const sender = (() => {
     if (message.senderUser) {
@@ -644,6 +677,7 @@ export function mapChatRoomMessage(
           reactors: reaction.reactors,
         })),
     threadReplyCount: message._count.replies,
+    ...(threadUnreadReplyCount === undefined ? {} : { threadUnreadReplyCount }),
     threadLastReplyAt: message.replies[0]?.createdAt ?? null,
     metadata: isDeleted ? null : publicChatRoomMessageMetadata(metadata),
     quote: isDeleted ? null : readQuoteFromMetadata(metadata),

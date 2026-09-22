@@ -24,6 +24,7 @@ const {
   messageFindManyMock,
   messageCountMock,
   prismaTransactionMock,
+  queryRawUnsafeMock,
   listStaleSentChatRoomMentionIdsMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -33,6 +34,7 @@ const {
   messageFindManyMock: vi.fn(),
   messageCountMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  queryRawUnsafeMock: vi.fn(),
   listStaleSentChatRoomMentionIdsMock: vi.fn(),
 }));
 
@@ -53,6 +55,7 @@ vi.mock("@/lib/db/prisma", () => ({
       count: messageCountMock,
     },
     $transaction: prismaTransactionMock,
+    $queryRawUnsafe: queryRawUnsafeMock,
   },
 }));
 
@@ -98,6 +101,19 @@ function createApp(authContext: AuthVariables["authContext"]) {
   app.onError(errorHandler);
   mountGetChatRoomMessages(app);
   return app;
+}
+
+/** One row of the viewer's unread-thread aggregate, as the database returns it. */
+function unreadThreadRow(parentMessageId: string, unreadReplyCount: number) {
+  return {
+    parentMessageId,
+    replyCount: unreadReplyCount,
+    lastReplyAt: new Date("2026-01-05T00:00:00.000Z"),
+    unreadReplyCount,
+    lastUnreadReplyAt: new Date("2026-01-05T00:00:00.000Z"),
+    hasLooked: false,
+    mutedAt: null,
+  };
 }
 
 const userAuthContext: AuthVariables["authContext"] = {
@@ -146,6 +162,8 @@ beforeEach(() => {
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
   messageFindManyMock.mockResolvedValue([message()]);
   messageCountMock.mockResolvedValue(1);
+  queryRawUnsafeMock.mockReset();
+  queryRawUnsafeMock.mockResolvedValue([]);
   listStaleSentChatRoomMentionIdsMock.mockResolvedValue([]);
   assertChatMessageReadBudgetMock.mockResolvedValue(undefined);
 });
@@ -463,6 +481,109 @@ describe("GET /chats/rooms/{id}/messages", () => {
       OLDER_MESSAGE_ID,
       PARENT_MESSAGE_ID,
       NEWER_MESSAGE_ID,
+    ]);
+  });
+
+  it("reports the viewer's unread reply count on each thread parent", async () => {
+    const unreadParent = {
+      ...message(),
+      id: PARENT_MESSAGE_ID,
+      createdAt: new Date("2026-01-02T00:00:00.000Z"),
+      _count: { replies: 5 },
+    };
+    // A busy thread the viewer only lurks in: no aggregate row comes back for
+    // it, so it must read 0 rather than its reply count.
+    const lurkedParent = {
+      ...message(),
+      id: OLDER_MESSAGE_ID,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      _count: { replies: 20 },
+    };
+    messageFindManyMock.mockResolvedValue([unreadParent, lurkedParent]);
+    messageCountMock.mockResolvedValue(2);
+    queryRawUnsafeMock.mockResolvedValue([
+      unreadThreadRow(PARENT_MESSAGE_ID, 2),
+    ]);
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/messages`,
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data).toEqual([
+      expect.objectContaining({
+        id: OLDER_MESSAGE_ID,
+        threadReplyCount: 20,
+        threadUnreadReplyCount: 0,
+      }),
+      expect.objectContaining({
+        id: PARENT_MESSAGE_ID,
+        threadReplyCount: 5,
+        threadUnreadReplyCount: 2,
+      }),
+    ]);
+  });
+
+  it("skips the unread thread read for a page with no threads", async () => {
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/messages`,
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data[0].threadUnreadReplyCount).toBe(0);
+    expect(queryRawUnsafeMock).not.toHaveBeenCalled();
+  });
+
+  it("reports no unread reply count on search hits", async () => {
+    messageFindManyMock.mockResolvedValue([
+      { ...message(), id: PARENT_MESSAGE_ID, _count: { replies: 5 } },
+    ]);
+    queryRawUnsafeMock.mockResolvedValue([
+      unreadThreadRow(PARENT_MESSAGE_ID, 2),
+    ]);
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/messages?q=Hello`,
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data[0]).toMatchObject({
+      id: PARENT_MESSAGE_ID,
+      threadReplyCount: 5,
+      threadUnreadReplyCount: 0,
+    });
+    expect(queryRawUnsafeMock).not.toHaveBeenCalled();
+  });
+
+  it("reports the unread reply count inside an around window", async () => {
+    const center = {
+      ...message(),
+      id: PARENT_MESSAGE_ID,
+      createdAt: new Date("2026-01-02T00:00:00.000Z"),
+      _count: { replies: 4 },
+    };
+    messageFindFirstMock.mockResolvedValue(center);
+    messageFindManyMock.mockResolvedValue([]);
+    messageCountMock.mockResolvedValue(1);
+    queryRawUnsafeMock.mockResolvedValue([
+      unreadThreadRow(PARENT_MESSAGE_ID, 3),
+    ]);
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/messages?around=${PARENT_MESSAGE_ID}&limit=3`,
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data).toEqual([
+      expect.objectContaining({
+        id: PARENT_MESSAGE_ID,
+        threadReplyCount: 4,
+        threadUnreadReplyCount: 3,
+      }),
     ]);
   });
 
