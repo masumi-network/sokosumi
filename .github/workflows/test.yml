@@ -25,6 +25,7 @@ jobs:
       pull-requests: read
     outputs:
       js: ${{ steps.filter.outputs.js }}
+      docs: ${{ steps.filter.outputs.docs }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -46,9 +47,10 @@ jobs:
     # Packages), which the branch ruleset requires. Gating is per-step
     # below, so docs-only PRs report fast successes instead of one
     # `Test ${{ matrix.target.name }}` skip placeholder that satisfies
-    # none of the required contexts. Test CLI, Test Local env, and
-    # Test CI config share this matrix but are advisory — not merge
-    # gates. See docs/agents/delivery.md.
+    # none of the required contexts. Test CLI, Test Local env, Test CI
+    # config, and Test Cloud agent db share this matrix but are
+    # advisory — not merge gates. See docs/agents/delivery.md. Test CI
+    # config still runs on markdown-only PRs (doc-script check).
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -63,6 +65,7 @@ jobs:
           - { name: Packages, command: 'pnpm exec turbo run test:ci --filter="./packages/*"' }
           - { name: Local env, command: "pnpm local-env:test" }
           - { name: CI config, command: "pnpm ci:test" }
+          - { name: Cloud agent db, command: "pnpm cloud-agent-db:test" }
     services:
       postgres:
         image: ${{ (matrix.target.name == 'Packages' || matrix.target.name == 'Core') && 'postgres:17' || '' }}
@@ -82,13 +85,13 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Setup
-        if: needs.changes.outputs.js == 'true' || github.event_name == 'workflow_dispatch'
+        if: needs.changes.outputs.js == 'true' || (matrix.target.name == 'CI config' && needs.changes.outputs.docs == 'true') || github.event_name == 'workflow_dispatch'
         uses: ./.github/actions/setup
         with:
           turbo_team: ${{ vars.TURBO_TEAM }}
 
       - name: Run Tests
-        if: needs.changes.outputs.js == 'true' || github.event_name == 'workflow_dispatch'
+        if: needs.changes.outputs.js == 'true' || (matrix.target.name == 'CI config' && needs.changes.outputs.docs == 'true') || github.event_name == 'workflow_dispatch'
         run: ${{ matrix.target.command }}
 
       # Build and launch the compiled binary: the Build job builds it but never
