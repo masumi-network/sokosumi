@@ -32,7 +32,7 @@ import type { KindChoice } from "./use-notification-delivery";
  * the finger has already made, which is the one part of it a reader feels.
  */
 const CELL =
-  "focus-visible:border-ring focus-visible:ring-ring-halo flex size-9 shrink-0 items-center justify-center rounded-md border transition-[color,background-color,border-color,scale] ease-out outline-none focus-visible:ring-[3px]";
+  "focus-visible:border-ring focus-visible:ring-ring-halo flex size-8 shrink-0 items-center justify-center rounded-md border transition-[color,background-color,border-color,scale] ease-out outline-none focus-visible:ring-[3px]";
 /**
  * The squeeze a cell gives back while it is held.
  *
@@ -79,7 +79,7 @@ export const CELL_TRACK = "flex w-12 shrink-0 justify-center @xl:w-18";
  *
  * Three tracks and the two `gap-2` between them: 3 x 48 + 16 is 160px, and
  * from `@xl` 3 x 72 + 16 is 232px. Kept here, next to the track it is derived
- * from, because the two cannot drift apart without the answers down the box
+ * from, because the two cannot drift apart without the answers down the card
  * ending at two widths.
  */
 export const CELL_TRACK_SPAN = "w-40 @xl:w-58";
@@ -451,7 +451,7 @@ export function KindCells({
  * column, and no kind's answer sits somewhere else.
  *
  * Only a group of more than one kind folds, so every row here is named. A
- * group of one is a row of the box itself, with its cells on it.
+ * group of one is a row on the card itself, with its cells on it.
  */
 export function ChannelGrid({
   kinds,

@@ -308,7 +308,7 @@ export function ChannelLegend({
   /**
    * What the names in the left column under this head are, so the word over
    * them starts where they do: a kind inside a fold, indented under its group,
-   * or a row of the box itself.
+   * or a row on the card itself.
    */
   named?: "kind" | "row";
 }) {

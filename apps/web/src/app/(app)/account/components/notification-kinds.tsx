@@ -202,7 +202,7 @@ function GroupRows({
  *
  * The name starts where a folding row's name does, past the chevron's column:
  * `pl-6` is the `size-4` mark and the `gap-2` beside it. Without it the names
- * down the box would start at two different edges.
+ * down the card would start at two different edges.
  */
 function FlatRow({
   name,
@@ -423,27 +423,36 @@ export function NotificationKinds({ news }: { news: EmailChoice }) {
           onSilence={choices.device.onSilence}
         />
       ) : null}
-      {/* One open explanation for the whole box. A pointer sweeping down a
+      {/* One open explanation for both boxes. A pointer sweeping down a
           column crosses the names of every head on it, and each legend
           holding its own would leave the one it came from standing. */}
       <ChannelLegendScope>
-        {/* `overflow-hidden` because the head can be the first thing in the
-            box, before the groups arrive, and its fill would stand outside
-            the border's curve. */}
+        {/* Two boxes, because they are two kinds of row. A group answers with
+            one word and opens on its own grid; a row below answers with its
+            cells, under the head that names them. In one box the head stood
+            in the middle of the list, over the fold above it as much as the
+            rows under it, and read as a row that had lost its cells. As the
+            top edge of a box of its own it is that box's head and nothing
+            else's.
+
+            `overflow-hidden` on both: an open fold at the bottom of the first
+            and the head at the top of the second each carry a fill that would
+            stand outside the border's curve. */}
+        {folding.length > 0 ? (
+          <div className="divide-y overflow-hidden rounded-lg border">
+            {folding.map((group) => (
+              <GroupRows
+                key={group.spec.id}
+                group={group}
+                pushBlock={choices.pushBlock}
+                choices={choices}
+              />
+            ))}
+          </div>
+        ) : null}
+        {/* Drawn whether or not the read landed: the marketing row is always
+            here, and so are its three cells. */}
         <div className="divide-y overflow-hidden rounded-lg border">
-          {folding.map((group) => (
-            <GroupRows
-              key={group.spec.id}
-              group={group}
-              pushBlock={choices.pushBlock}
-              choices={choices}
-            />
-          ))}
-          {/* The head of every row below it, and the rows below it answer on
-              the row. A group above names its own columns when it opens, so
-              this one is not doing that job for it. Drawn whether or not the
-              read landed: the marketing row is always here, and so are its
-              three cells. */}
           <div className="bg-card-background px-4">
             <ChannelLegend pushBlock={choices.pushBlock} named="row" />
           </div>

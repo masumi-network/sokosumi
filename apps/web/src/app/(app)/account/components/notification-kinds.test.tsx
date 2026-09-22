@@ -725,19 +725,33 @@ describe("NotificationKinds", () => {
    * The rows that answer on the card have a head directly over them, ruled
    * off like any other row of the box: a line of loose words over the cells
    * reads as something that fell off the row above. Directly over them, so
-   * the first of them is the row under the rule.
+   * the first of them is the row under the rule, and at the top of a box of
+   * their own, so it is not read as a head over the groups that fold.
    */
   it("heads the rows that answer on the card, directly above them", () => {
     renderKinds();
 
     const band = rowsHead().parentElement;
+    const box = band?.parentElement;
 
-    expect(band?.parentElement).toHaveClass("divide-y");
+    expect(box).toHaveClass("divide-y", "rounded-lg", "border");
     expect(
       within(band?.nextElementSibling as HTMLElement).getByRole("group", {
         name: "deliveryAriaLabel kindSystem",
       }),
     ).toBeInTheDocument();
+    // The top edge of a box of its own, so it heads nothing but the rows
+    // under it: the groups that fold stand in the box before it.
+    expect(box?.firstElementChild).toBe(band);
+    expect(box?.querySelector('[data-slot="collapsible"]')).toBeNull();
+    expect(box?.previousElementSibling).toContainElement(
+      groupTrigger("groupChat"),
+    );
+    expect(box?.previousElementSibling).toHaveClass(
+      "overflow-hidden",
+      "rounded-lg",
+      "border",
+    );
     // And the word over the names starts where they do, not at a kind's
     // deeper indent inside a fold.
     const label = within(rowsHead()).getByText("channelsKindLabel");
@@ -1402,7 +1416,7 @@ describe("NotificationKinds", () => {
 
     const cells = screen
       .getAllByRole("button")
-      .filter((button) => button.className.includes("size-9"));
+      .filter((button) => button.className.includes("size-8"));
 
     expect(cells.length).toBeGreaterThan(0);
     for (const cell of cells) {
@@ -1425,7 +1439,7 @@ describe("NotificationKinds", () => {
 
     const cells = screen
       .getAllByRole("button")
-      .filter((button) => button.className.includes("size-9"));
+      .filter((button) => button.className.includes("size-8"));
 
     expect(cells.length).toBeGreaterThan(0);
     for (const cell of cells) {

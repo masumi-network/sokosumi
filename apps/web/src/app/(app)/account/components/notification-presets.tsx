@@ -39,10 +39,10 @@ const CUSTOM_HINT_KEY = "presetCustomHint";
 /**
  * What a group is set to, and what it opens.
  *
- * Square-cornered like the box it sits in and the cells below it, and no
- * wider than the word it is showing. It carries the mark of the situation on
- * the left and the mark of a menu on the right, so it reads as one control
- * rather than as a word that happens to be tinted.
+ * Square-cornered like the box it sits in and the cells below it. It
+ * carries the mark of the situation on the left and the mark of a menu on
+ * the right, so it reads as one control rather than as a word that happens
+ * to be tinted.
  *
  * The properties it may animate are named, the way the cells name theirs: it
  * takes the colours of Custom the moment a cell below it disagrees with the
@@ -51,7 +51,7 @@ const CUSTOM_HINT_KEY = "presetCustomHint";
  * that fades in trails a reader who is tabbing.
  */
 /*
- * It spans the three columns it answers for, so every answer in the box, a
+ * It spans the three columns it answers for, so every answer on the card, a
  * preset or a row of cells, is one width and ends at one edge. Sized to its
  * word instead, the three presets stood at three widths down the right side.
  */
