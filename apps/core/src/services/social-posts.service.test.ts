@@ -738,7 +738,7 @@ describe("social posts service", () => {
       ]);
       const { listSocialPosts } = await loadService();
 
-      const posts = await listSocialPosts({
+      const { posts } = await listSocialPosts({
         projectId: PROJECT_ID,
         workspaceId: WORKSPACE_ID,
       });
