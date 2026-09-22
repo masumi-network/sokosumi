@@ -129,7 +129,7 @@ public final class RoomOutbox: ObservableObject {
     switch result {
     case let .success(message):
       // A realtime echo may already have removed the shell. The send still
-      // succeeded, so confirm it like web does.
+      // succeeded, so confirm it.
       if let shell = shells.first(where: { $0.clientTurnId == id }) {
         recordConfirmation(message.id, shell: shell)
         shells.removeAll { $0.clientTurnId == id }
