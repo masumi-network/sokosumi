@@ -25,9 +25,11 @@ public final class RoomOutbox: ObservableObject {
   private var request: Task<Void, Never>?
   private var timer: Task<Void, Never>?
   private let timeout: Duration
+  private let now: () -> Date
 
-  public init(timeout: Duration = .seconds(30)) {
+  public init(timeout: Duration = .seconds(30), now: @escaping () -> Date = Date.init) {
     self.timeout = timeout
+    self.now = now
   }
 
   public func enqueue(
@@ -80,12 +82,12 @@ public final class RoomOutbox: ObservableObject {
   }
 
   private func recordConfirmation(_ messageId: String, shell: OutboundShell) {
-    let now = Date()
-    guard now.timeIntervalSince(shell.createdAt) >= 0.5 else { return }
-    sentAt[messageId] = now
+    let confirmedAt = now()
+    guard confirmedAt.timeIntervalSince(shell.createdAt) >= 0.5 else { return }
+    sentAt[messageId] = confirmedAt
     Task { [weak self] in
       try? await Task.sleep(for: .milliseconds(1600))
-      guard self?.sentAt[messageId] == now else { return }
+      guard self?.sentAt[messageId] == confirmedAt else { return }
       self?.sentAt[messageId] = nil
     }
   }
