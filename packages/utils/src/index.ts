@@ -13,9 +13,6 @@ export {
   type NotificationChannelEnvironment,
   parseChatRoomIdFromChannelName,
   parseOrganizationIdFromPresenceChannelName,
-  parseUserIdFromCalendarControlChannelName,
-  parseWorkspaceCalendarChannelName,
-  type WorkspaceCalendarChannelIdentity,
 } from "./ably-channel.js";
 export {
   AUTH_CAPTCHA_ACTION,

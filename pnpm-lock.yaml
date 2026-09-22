@@ -786,6 +786,9 @@ importers:
         specifier: 4.14.5
         version: 4.14.5(react@19.3.0)
     devDependencies:
+      '@sokosumi/utils':
+        specifier: workspace:*
+        version: link:../utils
       '@types/node':
         specifier: 24.13.6
         version: 24.13.6
