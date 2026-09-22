@@ -445,6 +445,31 @@ describe("activatePush", () => {
     localStorage.clear();
   });
 
+  it("stops before binding when the device owner cannot be saved", async () => {
+    localStorage.setItem("ably.push.deviceId", "existing-device");
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_2");
+    const failure = new DOMException("Storage unavailable", "SecurityError");
+    const setItem = localStorage.setItem.bind(localStorage);
+    const storage = vi
+      .spyOn(localStorage, "setItem")
+      .mockImplementation((key, value) => {
+        if (key === "sokosumi.push.deviceOwner") throw failure;
+        setItem(key, value);
+      });
+
+    try {
+      await expect(activatePush("user_1")).rejects.toBe(failure);
+      expect(subscribeDeviceMock).not.toHaveBeenCalled();
+      expect(localStorage.getItem("sokosumi.push.deviceOwner")).toBe("user_2");
+    } finally {
+      storage.mockRestore();
+    }
+
+    await expect(activatePush("user_1")).resolves.toBe(true);
+    expect(localStorage.getItem("sokosumi.push.deviceOwner")).toBe("user_1");
+    expect(subscribeDeviceMock).toHaveBeenCalledTimes(1);
+  });
+
   /**
    * A note that a teardown was cut short reads as push off, and turning push
    * on is the reader saying the opposite. Left there, the repair would decline
