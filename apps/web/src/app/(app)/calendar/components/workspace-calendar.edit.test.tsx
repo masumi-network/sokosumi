@@ -673,61 +673,6 @@ describe("WorkspaceCalendar editing", () => {
     });
   });
 
-  it("opens calendar scheduling for the visible calendar date", async () => {
-    const user = userEvent.setup();
-    render(
-      <NuqsTestingAdapter searchParams="?timezone=Pacific%2FKiritimati&view=agenda">
-        <WorkspaceCalendar
-          coworkers={[{ id: "coworker-1", name: "Ada" }]}
-          initialDate="2030-01-02"
-          items={[ITEM]}
-          sources={SOURCES}
-        />
-      </NuqsTestingAdapter>,
-    );
-
-    const createButton = screen.getByRole("button", {
-      name: "create.title",
-    });
-
-    await user.click(createButton);
-
-    expect(openCreateTaskModalMock).toHaveBeenCalledWith({
-      projectId: undefined,
-      schedule: {
-        mode: "once",
-        oneTimeLocalIso: "2030-01-02T12:00",
-        timezone: "Pacific/Kiritimati",
-      },
-    });
-  });
-
-  it("opens agenda create with a schedulable once-time when noon is already past", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-09-08T16:01:43.868Z"));
-    render(
-      <NuqsTestingAdapter searchParams="?timezone=Europe%2FPrague&view=agenda">
-        <WorkspaceCalendar
-          coworkers={[{ id: "coworker-1", name: "Ada" }]}
-          initialDate="2026-09-08"
-          items={[ITEM]}
-          sources={SOURCES}
-        />
-      </NuqsTestingAdapter>,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "create.title" }));
-
-    const schedule = openCreateTaskModalMock.mock.calls.at(-1)?.[0] as {
-      schedule: TaskScheduleSelection;
-    };
-    expect(schedule.schedule.oneTimeLocalIso).toBe("2026-09-08T18:06");
-    expect(selectionToApiBody(schedule.schedule)).toEqual({
-      mode: "once",
-      runAt: new Date("2026-09-08T16:06:00.000Z"),
-    });
-  });
-
   it("prefills the active Workspace source on the workspace Calendar", async () => {
     const user = userEvent.setup();
     render(

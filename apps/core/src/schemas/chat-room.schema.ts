@@ -16,6 +16,21 @@ const MAX_ROOM_MEMBERS = 500;
 const MAX_ROOM_COWORKERS = 50;
 const MAX_ROOM_SOKO_BOTS = 50;
 
+/**
+ * How many unread Threads a room lists for the sidebar before the overflow
+ * row takes over. Three, because past that the channel list stops being a
+ * list of channels (ADR-0037).
+ */
+export const CHAT_ROOM_UNREAD_THREAD_CAP = 3;
+
+/**
+ * How much of a parent message the list carries. A label shows far less, but
+ * it is built from this after mention tokens and links are rewritten, and a
+ * message that opens with a few of those is mostly markup: a short cut would
+ * end inside a token and put a raw id on the row.
+ */
+export const CHAT_ROOM_UNREAD_THREAD_CONTENT_CHARS = 1000;
+
 export const chatRoomPresenceSchema = z
   .enum(["online", "afk", "offline"])
   .openapi("ChatRoomPresence");
@@ -182,9 +197,47 @@ export const chatRoomSchema = z
     updatedAt: dateTimeSchema,
     unreadCount: z.number().int().min(0).openapi({
       description:
-        "Unread messages from others: top-level after room lastReadAt, plus thread replies in Threads the viewer Participates in after per-thread look baseline (thread lastReadAt, else room join createdAt). Soft-deleted excluded. ADR-0013.",
+        "Total unread from others: channelUnreadCount + threadUnreadCount. Prefer the two halves; this stays the sum for existing clients. Soft-deleted excluded. ADR-0013, ADR-0037.",
+      example: 5,
+    }),
+    channelUnreadCount: z.number().int().min(0).default(0).openapi({
+      description:
+        "Room unread: non-self top-level messages after room lastReadAt. Excludes Thread replies. Drives sidebar bold. ADR-0037.",
       example: 2,
     }),
+    threadUnreadCount: z.number().int().min(0).default(0).openapi({
+      description:
+        "Thread unread: non-self replies in Threads the viewer Participates in, after the per-Thread Look baseline (thread lastReadAt, else room join createdAt), less Muted threads that do not mention them. Surfaces on the Thread, never on the channel. ADR-0013, ADR-0030, ADR-0037.",
+      example: 3,
+    }),
+    unreadThreadCount: z.number().int().min(0).default(0).openapi({
+      description:
+        "How many Threads in this room are Thread unread for the viewer. Counts Threads, where threadUnreadCount counts replies. States what `unreadThreads` leaves out past its cap. ADR-0037.",
+      example: 4,
+    }),
+    unreadThreads: z
+      .array(
+        z.object({
+          parentMessageId: z.string().uuid(),
+          firstUnreadReplyId: z.string().uuid().openapi({
+            description:
+              "The oldest reply still unread in this Thread: where opening it lands.",
+          }),
+          parentContent: z.string().openapi({
+            description: `The parent message's raw content, cut to ${CHAT_ROOM_UNREAD_THREAD_CONTENT_CHARS} characters. May hold mention tokens and may be empty; the client builds the label.`,
+          }),
+          unreadReplyCount: z.number().int().min(1),
+          unreadMentionCount: z.number().int().min(0).default(0).openapi({
+            description:
+              "How many of this Thread's unread replies name the viewer. Counted from the replies, so a Look clears it; the room's unreadMentionCount is counted from notifications, which Room last-read clears.",
+          }),
+        }),
+      )
+      .max(CHAT_ROOM_UNREAD_THREAD_CAP)
+      .default([])
+      .openapi({
+        description: `Up to ${CHAT_ROOM_UNREAD_THREAD_CAP} unread Threads in this room, newest unread reply first, for the sidebar's inset rows. Same eligibility as threadUnreadCount. \`unreadThreadCount\` is the true number; this list is capped. ADR-0037.`,
+      }),
     unreadMentionCount: z.number().int().min(0).openapi({
       description:
         "Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.",
@@ -573,6 +626,11 @@ export const chatRoomMessageSchema = z
     mentions: z.array(chatRoomMessageMentionSchema),
     reactions: z.array(chatRoomMessageReactionSchema),
     threadReplyCount: z.number().int().min(0),
+    threadUnreadReplyCount: z.number().int().min(0).optional().openapi({
+      description:
+        "Non-self replies under this parent the viewer has not cleared: Participant-gated and mute-gated, after the per-thread look baseline. 0 for lurkers and for viewers with no unread. Present only on the message list; absent from realtime events and single-message responses, which do not compute it. ADR-0013, ADR-0030, ADR-0037.",
+      example: 2,
+    }),
     threadLastReplyAt: dateTimeSchema.nullable(),
     metadata: z.record(z.string(), z.any()).nullable(),
     quote: chatRoomMessageQuoteSchema.nullable(),

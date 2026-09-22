@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 const coreClientMock = {
-  deleteProjectsById: vi.fn(),
   deleteProjectsByIdJobsByJobId: vi.fn(),
   deleteProjectsByIdTasksByTaskId: vi.fn(),
   getProjects: vi.fn(),
@@ -227,14 +226,11 @@ describe("project.service", () => {
     );
   });
 
-  it("creates, updates, and deletes projects via Core", async () => {
+  it("creates and updates projects via Core", async () => {
     const project = buildProject();
     coreClientMock.postProjects.mockResolvedValue({ data: project });
     coreClientMock.patchProjectsById.mockResolvedValue({
       data: buildProject({ name: "Updated launch plan" }),
-    });
-    coreClientMock.deleteProjectsById.mockResolvedValue({
-      data: { id: "project-1", deleted: true },
     });
 
     const { projectService } = await import("./project.service");
@@ -245,7 +241,6 @@ describe("project.service", () => {
     const updated = await projectService.patchProject("project-1", {
       name: "Updated launch plan",
     });
-    const deleted = await projectService.deleteProject("project-1");
 
     expect(coreClientMock.postProjects).toHaveBeenCalledWith({
       name: "Launch plan",
@@ -255,10 +250,8 @@ describe("project.service", () => {
     expect(coreClientMock.patchProjectsById).toHaveBeenCalledWith("project-1", {
       name: "Updated launch plan",
     });
-    expect(coreClientMock.deleteProjectsById).toHaveBeenCalledWith("project-1");
     expect(created).toEqual(project);
     expect(updated).toEqual(buildProject({ name: "Updated launch plan" }));
-    expect(deleted).toEqual({ id: "project-1", deleted: true });
   });
 
   it("closes and recovers projects via Core", async () => {

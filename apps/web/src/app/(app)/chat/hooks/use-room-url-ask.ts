@@ -10,7 +10,7 @@ import {
 } from "@/app/chat/utils/chat-route-base";
 import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
 
-export interface EditChannelParamParams {
+export interface RoomUrlAskParams {
   /** The room on screen, or null before one is selected. */
   roomId: string | null;
   /**
@@ -22,12 +22,23 @@ export interface EditChannelParamParams {
   pathname: string;
   searchParams: Pick<ReadonlyURLSearchParams, "get" | "has" | "toString">;
   replace: (href: string, options: { scroll: false }) => void;
-  /** Open the room's edit dialog. */
+  /** Open what the parameter asks for: the room's edit dialog by default. */
   open: () => void;
+  /**
+   * The parameter that asks. The edit dialog's by default; the sidebar's
+   * thread overflow row asks for the thread list the same way, under its own.
+   */
+  param?: string;
 }
 
 /**
- * Open the edit dialog the URL asks for, once per arrival at it.
+ * Open what the room's URL asks for, once per arrival at it.
+ *
+ * Two things ask this way, each under its own parameter: a channel row's
+ * Edit item asks for the edit dialog, and the sidebar's thread overflow row
+ * asks for the thread list. The rest of this comment tells the edit dialog's
+ * story, which is where the rule came from; the thread list follows it
+ * unchanged.
  *
  * A channel row's overflow menu cannot open the dialog where it stands: the
  * app sidebar holds the room and nothing else, while the dialog needs the org
@@ -38,16 +49,17 @@ export interface EditChannelParamParams {
  * request, not a state: a reader who closes the dialog and reloads is not
  * asking for it again, and a reader who picks Edit a second time is.
  */
-export function useEditChannelParam({
+export function useRoomUrlAsk({
   roomId,
   ready,
   pathname,
   searchParams,
   replace,
   open,
-}: EditChannelParamParams): void {
+  param = CHAT_EDIT_CHANNEL_PARAM,
+}: RoomUrlAskParams): void {
   const openedRoomRef = useRef<string | null>(null);
-  const asked = searchParams.get(CHAT_EDIT_CHANNEL_PARAM) != null;
+  const asked = searchParams.get(param) != null;
 
   useEffect(() => {
     // Nothing asked for. Whatever was opened is behind the reader, so the
@@ -86,8 +98,8 @@ export function useEditChannelParam({
 
     openedRoomRef.current = roomId;
     const remaining = new URLSearchParams(searchParams.toString());
-    remaining.delete(CHAT_EDIT_CHANNEL_PARAM);
+    remaining.delete(param);
     replace(pathWithSearch(pathname, remaining), { scroll: false });
     open();
-  }, [asked, roomId, ready, searchParams, pathname, replace, open]);
+  }, [asked, roomId, ready, searchParams, pathname, replace, open, param]);
 }

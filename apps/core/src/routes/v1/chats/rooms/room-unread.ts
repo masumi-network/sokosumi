@@ -1,6 +1,10 @@
 import { NotificationKind, type Prisma } from "@sokosumi/database";
 
 import { CHAT_ROOM_BADGE_MESSAGE_KEYS } from "@/helpers/notification-delivery";
+import {
+  CHAT_ROOM_UNREAD_THREAD_CAP,
+  CHAT_ROOM_UNREAD_THREAD_CONTENT_CHARS,
+} from "@/schemas/chat-room.schema";
 
 import {
   chatRoomMessageInclude,
@@ -82,7 +86,86 @@ function sqlThreadReplyPagesViewer(userIdSql: string): string {
 }
 
 /**
- * Per-room unread message counts for sidebar attention.
+ * SQL `FROM … WHERE` for every reply that is Thread unread to the viewer.
+ *
+ * One fragment for the room's Thread unread number and for the sidebar's
+ * list of unread Threads, so a Thread can never be listed while contributing
+ * nothing to the number, or the reverse (ADR-0037). Exposes the `reply`,
+ * `parent`, `thread_read` and `room_read` aliases.
+ */
+function sqlUnreadThreadReplies(
+  roomIdPlaceholders: string,
+  userIdSql: string,
+): string {
+  return `FROM "chat_room_message" reply
+      INNER JOIN "chat_room_message" parent
+        ON parent.id = reply."parentMessageId"
+        AND parent."roomId" = reply."roomId"
+      LEFT JOIN "chat_room_thread_read_state" thread_read
+        ON thread_read."parentMessageId" = parent.id
+        AND thread_read."userId" = ${userIdSql}
+      LEFT JOIN "chat_room_read_state" room_read
+        ON room_read."roomId" = reply."roomId"
+        AND room_read."userId" = ${userIdSql}
+      WHERE reply."roomId" IN (${roomIdPlaceholders})
+        AND reply."parentMessageId" IS NOT NULL
+        AND reply."deletedAt" IS NULL
+        AND parent."deletedAt" IS NULL
+        AND parent."parentMessageId" IS NULL
+        AND ${sqlThreadReplyPagesViewer(userIdSql)}
+        AND ${sqlMessageAttentionAt("reply")} > COALESCE(
+          thread_read."lastReadAt",
+          room_read."createdAt",
+          '-infinity'::timestamp
+        )
+        AND (reply."senderUserId" IS NULL OR reply."senderUserId" <> ${userIdSql})`;
+}
+
+/**
+ * A room's unread, as its two addends: Room unread and Thread unread
+ * (ADR-0037).
+ *
+ * `channel` is what Room last-read clears. `thread` is what Looking a Thread
+ * clears. They are reported separately because a reader who clears a channel
+ * must see its mark go quiet, and folding the two made that impossible.
+ * `total` is the sum, which is what `unreadCount` has always meant on the wire.
+ */
+export interface ChatRoomUnreadBreakdown {
+  channel: number;
+  thread: number;
+  total: number;
+}
+
+export function emptyChatRoomUnreadBreakdown(): ChatRoomUnreadBreakdown {
+  return { channel: 0, thread: 0, total: 0 };
+}
+
+/**
+ * The three unread fields a room summary carries, from one breakdown.
+ *
+ * `unreadCount` stays the total so existing clients keep their meaning; the
+ * two halves are additive (ADR-0037). A room with nothing unread is absent
+ * from the map, and reads as zero in all three. One helper so the routes that
+ * build a summary cannot drift from each other.
+ */
+export function unreadCountFields(
+  breakdown: ChatRoomUnreadBreakdown | undefined,
+): {
+  unreadCount: number;
+  channelUnreadCount: number;
+  threadUnreadCount: number;
+} {
+  const { channel, thread, total } =
+    breakdown ?? emptyChatRoomUnreadBreakdown();
+  return {
+    unreadCount: total,
+    channelUnreadCount: channel,
+    threadUnreadCount: thread,
+  };
+}
+
+/**
+ * Per-room unread message counts for sidebar attention, one per leg.
  *
  * Dual baseline (matches the two read-state tables):
  * - Top-level messages (`parentMessageId IS NULL`): after room `lastReadAt`
@@ -99,7 +182,7 @@ export async function getChatRoomUnreadCounts(
   roomIds: readonly string[],
   userId: string,
   tx: Prisma.TransactionClient,
-): Promise<Map<string, number>> {
+): Promise<Map<string, ChatRoomUnreadBreakdown>> {
   const uniqueRoomIds = normalizeUniqueStrings(roomIds);
   if (uniqueRoomIds.length === 0) {
     return new Map();
@@ -111,14 +194,19 @@ export async function getChatRoomUnreadCounts(
   const userIdPlaceholder = `$${uniqueRoomIds.length + 1}`;
 
   const rows = await tx.$queryRawUnsafe<
-    Array<{ roomId: string; unreadCount: number | bigint }>
+    Array<{
+      roomId: string;
+      source: "channel" | "thread";
+      unreadCount: number | bigint;
+    }>
   >(
     `
     SELECT
       combined."roomId" AS "roomId",
+      combined.source AS "source",
       COUNT(*)::int AS "unreadCount"
     FROM (
-      SELECT message.id, message."roomId"
+      SELECT message.id, message."roomId", 'channel'::text AS source
       FROM "chat_room_message" message
       LEFT JOIN "chat_room_read_state" read_state
         ON read_state."roomId" = message."roomId"
@@ -131,37 +219,194 @@ export async function getChatRoomUnreadCounts(
 
       UNION ALL
 
-      SELECT reply.id, reply."roomId"
-      FROM "chat_room_message" reply
-      INNER JOIN "chat_room_message" parent
-        ON parent.id = reply."parentMessageId"
-        AND parent."roomId" = reply."roomId"
-      LEFT JOIN "chat_room_thread_read_state" thread_read
-        ON thread_read."parentMessageId" = parent.id
-        AND thread_read."userId" = ${userIdPlaceholder}
-      LEFT JOIN "chat_room_read_state" room_read
-        ON room_read."roomId" = reply."roomId"
-        AND room_read."userId" = ${userIdPlaceholder}
-      WHERE reply."roomId" IN (${roomIdPlaceholders})
-        AND reply."parentMessageId" IS NOT NULL
-        AND reply."deletedAt" IS NULL
-        AND parent."deletedAt" IS NULL
-        AND parent."parentMessageId" IS NULL
-        AND ${sqlThreadReplyPagesViewer(userIdPlaceholder)}
-        AND ${sqlMessageAttentionAt("reply")} > COALESCE(
-          thread_read."lastReadAt",
-          room_read."createdAt",
-          '-infinity'::timestamp
-        )
-        AND (reply."senderUserId" IS NULL OR reply."senderUserId" <> ${userIdPlaceholder})
+      SELECT reply.id, reply."roomId", 'thread'::text AS source
+      ${sqlUnreadThreadReplies(roomIdPlaceholders, userIdPlaceholder)}
     ) combined
-    GROUP BY combined."roomId"
+    GROUP BY combined."roomId", combined.source
   `,
     ...uniqueRoomIds,
     userId,
   );
 
-  return new Map(rows.map((row) => [row.roomId, Number(row.unreadCount)]));
+  const byRoom = new Map<string, ChatRoomUnreadBreakdown>();
+  for (const row of rows) {
+    const breakdown = byRoom.get(row.roomId) ?? emptyChatRoomUnreadBreakdown();
+    // The source literals are the breakdown's own keys, so a leg can only
+    // land in its own half.
+    breakdown[row.source] = Number(row.unreadCount);
+    breakdown.total = breakdown.channel + breakdown.thread;
+    byRoom.set(row.roomId, breakdown);
+  }
+  return byRoom;
+}
+
+export interface ChatRoomUnreadThreadPreview {
+  parentMessageId: string;
+  /** Where opening the Thread lands: the oldest reply still unread. */
+  firstUnreadReplyId: string;
+  /** The parent's raw content, cut short. The client builds the label. */
+  parentContent: string;
+  unreadReplyCount: number;
+  /** How many of those unread replies name the viewer. */
+  unreadMentionCount: number;
+}
+
+export interface ChatRoomUnreadThreads {
+  /** Newest unread reply first, at most `CHAT_ROOM_UNREAD_THREAD_CAP`. */
+  threads: ChatRoomUnreadThreadPreview[];
+  /** Every unread Thread in the room, so the overflow can state the rest. */
+  unreadThreadCount: number;
+}
+
+export function emptyChatRoomUnreadThreads(): ChatRoomUnreadThreads {
+  return { threads: [], unreadThreadCount: 0 };
+}
+
+/**
+ * The top unread Threads per room, for the sidebar's inset rows.
+ *
+ * Ranked by newest unread reply and capped per room. Eligibility is
+ * `sqlUnreadThreadReplies`, the same fragment the Thread unread number counts.
+ */
+export async function listChatRoomUnreadThreads(
+  roomIds: readonly string[],
+  userId: string,
+  tx: Prisma.TransactionClient,
+): Promise<Map<string, ChatRoomUnreadThreads>> {
+  const uniqueRoomIds = normalizeUniqueStrings(roomIds);
+  if (uniqueRoomIds.length === 0) {
+    return new Map();
+  }
+
+  const roomIdPlaceholders = uniqueRoomIds
+    .map((_, index) => `$${index + 1}::uuid`)
+    .join(", ");
+  const userIdPlaceholder = `$${uniqueRoomIds.length + 1}`;
+  const attentionAt = sqlMessageAttentionAt("reply");
+
+  const rows = await tx.$queryRawUnsafe<
+    Array<{
+      roomId: string;
+      parentMessageId: string;
+      firstUnreadReplyId: string;
+      parentContent: string;
+      unreadReplyCount: number | bigint;
+      unreadMentionCount: number | bigint;
+      unreadThreadCount: number | bigint;
+    }>
+  >(
+    `
+    WITH unread AS (
+      SELECT
+        parent."roomId" AS "roomId",
+        parent.id AS "parentMessageId",
+        (ARRAY_AGG(reply.id ORDER BY ${attentionAt} ASC, reply.id ASC))[1]
+          AS "firstUnreadReplyId",
+        LEFT(parent.content, ${CHAT_ROOM_UNREAD_THREAD_CONTENT_CHARS})
+          AS "parentContent",
+        COUNT(*)::int AS "unreadReplyCount",
+        COUNT(*) FILTER (
+          WHERE EXISTS (
+            SELECT 1
+            FROM "chat_room_user_mention" named
+            WHERE named."userId" = ${userIdPlaceholder}
+              AND named."messageId" = reply.id
+          )
+        )::int AS "unreadMentionCount",
+        MAX(${attentionAt}) AS "lastUnreadAt"
+      ${sqlUnreadThreadReplies(roomIdPlaceholders, userIdPlaceholder)}
+      -- parent.id is the primary key, so its other columns ride along.
+      GROUP BY parent.id
+    ),
+    ranked AS (
+      SELECT
+        unread.*,
+        COUNT(*) OVER (PARTITION BY unread."roomId")::int
+          AS "unreadThreadCount",
+        ROW_NUMBER() OVER (
+          PARTITION BY unread."roomId"
+          ORDER BY unread."lastUnreadAt" DESC, unread."parentMessageId" DESC
+        ) AS rank
+      FROM unread
+    )
+    SELECT
+      "roomId",
+      "parentMessageId",
+      "firstUnreadReplyId",
+      "parentContent",
+      "unreadReplyCount",
+      "unreadMentionCount",
+      "unreadThreadCount"
+    FROM ranked
+    WHERE rank <= ${CHAT_ROOM_UNREAD_THREAD_CAP}
+    ORDER BY "roomId", rank
+  `,
+    ...uniqueRoomIds,
+    userId,
+  );
+
+  const byRoom = new Map<string, ChatRoomUnreadThreads>();
+  for (const row of rows) {
+    const entry = byRoom.get(row.roomId) ?? emptyChatRoomUnreadThreads();
+    entry.unreadThreadCount = Number(row.unreadThreadCount);
+    entry.threads.push({
+      parentMessageId: row.parentMessageId,
+      firstUnreadReplyId: row.firstUnreadReplyId,
+      parentContent: row.parentContent,
+      unreadReplyCount: Number(row.unreadReplyCount),
+      unreadMentionCount: Number(row.unreadMentionCount ?? 0),
+    });
+    byRoom.set(row.roomId, entry);
+  }
+  return byRoom;
+}
+
+/**
+ * The unread Threads of the rooms that have any, going by their counts.
+ *
+ * The list is a second scan of the same replies the counts just read, so it
+ * is kept to the rooms where that scan can find something. The sidebar polls
+ * the room list, and most polls find no Thread unread at all.
+ */
+export async function listUnreadThreadsOfRoomsWithThreadUnread(
+  unreadCounts: ReadonlyMap<string, ChatRoomUnreadBreakdown>,
+  userId: string,
+  tx: Prisma.TransactionClient,
+): Promise<Map<string, ChatRoomUnreadThreads>> {
+  const roomIds = [...unreadCounts]
+    .filter(([, breakdown]) => breakdown.thread > 0)
+    .map(([roomId]) => roomId);
+  return listChatRoomUnreadThreads(roomIds, userId, tx);
+}
+
+/**
+ * Everything unread a single room's summary carries: the three counts, and
+ * the room's unread Threads for the sidebar.
+ *
+ * The single-room routes feed the sidebar too. A room read, a Look, a star
+ * or a mute answers with the room, and the row is redrawn from that answer,
+ * so an answer without the Threads would empty the row's inset list. The
+ * Threads are read only when the room has Thread unread, which most do not.
+ */
+export async function roomUnreadFields(
+  breakdown: ChatRoomUnreadBreakdown | undefined,
+  roomId: string,
+  userId: string,
+  tx: Prisma.TransactionClient,
+): Promise<
+  ReturnType<typeof unreadCountFields> & {
+    unreadThreads: ChatRoomUnreadThreads;
+  }
+> {
+  const unreadThreads = await listUnreadThreadsOfRoomsWithThreadUnread(
+    new Map(breakdown ? [[roomId, breakdown]] : []),
+    userId,
+    tx,
+  );
+  return {
+    ...unreadCountFields(breakdown),
+    unreadThreads: unreadThreads.get(roomId) ?? emptyChatRoomUnreadThreads(),
+  };
 }
 
 export interface ChatRoomThreadAggregate {

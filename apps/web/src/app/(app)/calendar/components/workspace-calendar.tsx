@@ -31,7 +31,6 @@ import {
   Clock3,
   Ellipsis,
   FolderKanban,
-  Plus,
   Sparkles,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -1571,17 +1570,6 @@ export function WorkspaceCalendar({
             selectedSourceId !== null
           }
         />
-        {canCreate ? (
-          <Button
-            className="ml-auto hidden md:inline-flex"
-            size="sm"
-            variant="primary"
-            onClick={handleAgendaCreate}
-          >
-            <Plus aria-hidden />
-            {t("create.title")}
-          </Button>
-        ) : null}
       </div>
       {canCreate ? (
         <ListMobileCreateFab
