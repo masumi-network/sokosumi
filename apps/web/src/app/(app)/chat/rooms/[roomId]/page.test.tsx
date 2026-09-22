@@ -53,7 +53,7 @@ vi.mock("@/app/chat/components/rooms-client", () => ({
 
 import type { ChatRoom } from "@/lib/clients/generated/core";
 
-import { ChatRoomPageContent } from "./page";
+import { ChatRoomPageContent, generateStaticParams } from "./page";
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const ORG_A = "org_a";
@@ -120,6 +120,14 @@ function neverResolvingPromise<T>(): Promise<T> {
     /* intentional hang for progressive-shell assertions */
   });
 }
+
+describe("ChatRoomPage generateStaticParams sentinel", () => {
+  it("returns one concrete roomId child", () => {
+    expect(generateStaticParams()).toEqual([
+      { roomId: "00000000-0000-4000-8000-000000000000" },
+    ]);
+  });
+});
 
 describe("ChatRoomPage org deep-link guard", () => {
   beforeEach(() => {
