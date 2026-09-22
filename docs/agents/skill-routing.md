@@ -5,7 +5,7 @@ Commands and backticked paths are relative to the repository root unless stated 
 
 ## Agent skills
 
-First-party sources in `skills/` are only `branch-bugbot-gate`, `linear-requirement`, and `translations`. `.agents/skills/<name>` is a symlink to that tree for those three (`.claude/skills` already symlinks to `.agents`). Other named flows live under `.agents/skills/`. For app work, resolve `apps/<app>/.agents/skills/<name>/` first, then `.agents/skills/<name>/`, then `skills/<name>/`. Read an app skill by path when it is absent from a root-started session’s catalog. Third-party installs live only under `.agents/skills/` — at the repo root for shared skills, or under `apps/<app>/.agents/skills/` (with `apps/<app>/skills-lock.json` beside it) when the skill is scoped to one app, mirroring `apps/core/.agents/skills/`. Web UI implement/review: follow [`apps/web/AGENTS.md`](../../apps/web/AGENTS.md) and the Jakub skills under [`apps/web/.agents/skills/better-ui/`](../../apps/web/.agents/skills/better-ui/) (and siblings `better-typography`, `better-colors`, `better-accessibility`, `better-layout`, `better-writing`, `better-interface`, `interface-review`, `explain-interface`, `variant`, `break`).
+First-party sources in `skills/` are only `linear-requirement` and `translations`. `.agents/skills/<name>` is a symlink to that tree for those two (`.claude/skills` already symlinks to `.agents`). Other named flows live under `.agents/skills/`. For app work, resolve `apps/<app>/.agents/skills/<name>/` first, then `.agents/skills/<name>/`, then `skills/<name>/`. Read an app skill by path when it is absent from a root-started session’s catalog. Third-party installs live only under `.agents/skills/` — at the repo root for shared skills, or under `apps/<app>/.agents/skills/` (with `apps/<app>/skills-lock.json` beside it) when the skill is scoped to one app, mirroring `apps/core/.agents/skills/`. Web UI implement/review: follow [`apps/web/AGENTS.md`](../../apps/web/AGENTS.md) and the Jakub skills under [`apps/web/.agents/skills/better-ui/`](../../apps/web/.agents/skills/better-ui/) (and siblings `better-typography`, `better-colors`, `better-accessibility`, `better-layout`, `better-writing`, `better-interface`, `interface-review`, `explain-interface`, `variant`, `break`).
 
 ### Manage installations with the skills CLI
 
@@ -41,10 +41,6 @@ Native SwiftUI work uses `swiftui-expert-skill` (from `avdlee/swiftui-agent-skil
 ### Ask Matt
 
 Main engineering flow. See [`.agents/skills/ask-matt/`](../../.agents/skills/ask-matt/) when choosing how to grill, spec, ticket, or implement.
-
-### Branch Bugbot gate
-
-Optional standalone skill: [`branch-bugbot-gate`](../../skills/branch-bugbot-gate/). Run on demand after a PR exists for local verify, CI green, and Bugbot (fix High; Medium for human review).
 
 ### Caveman
 
