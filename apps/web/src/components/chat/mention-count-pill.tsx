@@ -14,25 +14,14 @@ const MENTION_COUNT_CAP = 9;
  *
  * The sidebar has two marks. A muted number says how much is unread, the same
  * way for a channel, a Direct and a Thread. This pill says the reader was
- * named: a primary `@` and count in a hairline ring, the one spot of colour
- * on a row, the same shape and hue as the collapsed rail's mention pill. A
- * row draws one or the other.
+ * named: tinted primary with an `@`, the one spot of colour on a row, matching
+ * the collapsed rail's mention pill. A row draws one or the other.
  *
- * An outline rather than a fill. Beside a bare muted count a filled pill of
- * the same size read as the heavier of the two, when the two are meant to be
- * one family with one of them named. The ring keeps the badge shape at about
- * half the weight. The ring is the text's own colour: the ramp's border
- * step, `-tertiary`, measures 1.5:1 on the sidebar ground, a boundary the
- * eye would lose, where `-variant` measures 6:1 dark and 6.9:1 light.
- *
- * `text-primary-variant`, not `text-primary`: the text sits on the sidebar
- * ground, where `--primary` is 4.71:1 in dark mode, but on the row's hover
- * fill it drops under the 4.5:1 floor for text this small; `-variant` is
- * that ramp's lighter step and equals `--primary` in light mode. The Soko
- * Bot status badge pairs the same tokens.
- *
- * The ring takes 1px a side, so the padding gives it back: "@ 9+" has to
- * stay inside the room row's 28px hole.
+ * `text-primary-variant`, not `text-primary`: on the `-quaternary` tint in
+ * dark mode `--primary` measures 3.83:1, under the 4.5:1 floor for text this
+ * small (`globals.css` records the pair). `-variant` is that ramp's lighter
+ * step, 4.91:1 there, and equals `--primary` in light mode, 5.49:1. The Soko
+ * Bot status badge already pairs the two the same way.
  *
  * `shrink-0`, so a label too wide for the room's hole shows as too wide rather
  * than being squeezed to fit and measured as fitting.
@@ -41,8 +30,7 @@ export function MentionCountPill({ count }: { count: number }) {
   return (
     <span
       data-slot="mention-pill"
-      data-shape="outline"
-      className="border-primary-variant text-primary-variant inline-flex min-w-4.5 shrink-0 items-center justify-center gap-px rounded-full border px-[0.125rem] text-[0.625rem] leading-4 font-semibold tabular-nums"
+      className="bg-primary-quaternary text-primary-variant inline-flex min-w-4.5 shrink-0 items-center justify-center gap-px rounded-full px-[0.1875rem] text-[0.625rem] leading-4 font-semibold tabular-nums"
     >
       <AtSign
         data-slot="mention-glyph"
