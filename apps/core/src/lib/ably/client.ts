@@ -2,13 +2,20 @@ import { Rest } from "ably";
 
 import { getEnv } from "@/config/env";
 
+function createRest(key: string) {
+  return new Rest({
+    key,
+    // Node defaults to msgpack. A JSON or padded REST body then throws
+    // `${n} trailing bytes` from Ably's decoder (SOKOSUMI-CORE-3T).
+    useBinaryProtocol: false,
+  });
+}
+
 let restClient: Rest | null = null;
 
 export function getRestClient() {
   if (!restClient) {
-    restClient = new Rest({
-      key: getEnv().ABLY_PUBLISH_ONLY_KEY,
-    });
+    restClient = createRest(getEnv().ABLY_PUBLISH_ONLY_KEY);
   }
   return restClient;
 }
@@ -25,9 +32,7 @@ let subscribeRestClient: Rest | null = null;
  */
 export function getSubscribeRestClient(): Rest {
   if (!subscribeRestClient) {
-    subscribeRestClient = new Rest({
-      key: getEnv().ABLY_SUBSCRIBE_ONLY_KEY,
-    });
+    subscribeRestClient = createRest(getEnv().ABLY_SUBSCRIBE_ONLY_KEY);
   }
   return subscribeRestClient;
 }
