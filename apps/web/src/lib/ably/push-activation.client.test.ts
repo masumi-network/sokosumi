@@ -174,6 +174,19 @@ describe("deactivatePush", () => {
     expect(deactivateMock).toHaveBeenCalledTimes(1);
   });
 
+  /**
+   * The name outliving the registration would tell the next reader that a
+   * device nobody holds is still someone else's, and every activation here
+   * would replace a registration that is not there.
+   */
+  it("forgets which reader the device belonged to", async () => {
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_1");
+
+    await deactivatePush("user_1");
+
+    expect(localStorage.getItem("sokosumi.push.deviceOwner")).toBeNull();
+  });
+
   it("drops the browser subscription as well as the Ably device", async () => {
     await deactivatePush("user_1");
 
@@ -473,6 +486,66 @@ describe("activatePush", () => {
 
     expect(calls).toEqual(["activate", "unsubscribeBrowser", "deactivate"]);
     expect(localStorage.getItem("sokosumi.push.teardownStarted")).toBe("1");
+  });
+
+  /**
+   * SOK-1152: a browser two readers share. An expired session releases
+   * nothing, so the previous reader's registration is still here, and joining
+   * it would bind this reader's channel beside theirs on one device.
+   */
+  it("replaces a registration this browser holds for another reader", async () => {
+    localStorage.setItem("ably.push.deviceIdentityToken", "their-token");
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_2");
+    hasWebPushSubscriptionMock.mockResolvedValue(true);
+
+    await expect(activatePush("user_1")).resolves.toBe(true);
+
+    expect(calls).toEqual([
+      "activate",
+      "unsubscribeBrowser",
+      "deactivate",
+      "activate",
+      "subscribeDevice",
+    ]);
+    expect(localStorage.getItem("sokosumi.push.deviceOwner")).toBe("user_1");
+    // Taking the device from its previous reader is not a delivery failure.
+    // Reported as one, it counts a working browser as broken.
+    expect(recordOutcomeMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ deliveryHealthy: false }),
+    );
+  });
+
+  /**
+   * Every browser registered before the name was written down. Ably cannot
+   * say who it belongs to, so the registration is replaced rather than
+   * adopted, once, and named afterwards.
+   */
+  it("replaces a registration whose reader was never recorded", async () => {
+    localStorage.setItem("ably.push.deviceIdentityToken", "old-token");
+    hasWebPushSubscriptionMock.mockResolvedValue(true);
+
+    await expect(activatePush("user_1")).resolves.toBe(true);
+
+    expect(calls).toEqual([
+      "activate",
+      "unsubscribeBrowser",
+      "deactivate",
+      "activate",
+      "subscribeDevice",
+    ]);
+    expect(localStorage.getItem("sokosumi.push.deviceOwner")).toBe("user_1");
+  });
+
+  /**
+   * The cost of the two above must fall on a browser that held a
+   * registration, and on no one else. A first activation registers nothing
+   * beforehand, so it has no reader to take the device from.
+   */
+  it("names a browser that held no registration without replacing anything", async () => {
+    await expect(activatePush("user_1")).resolves.toBe(true);
+
+    expect(calls).toEqual(["activate", "subscribeDevice"]);
+    expect(localStorage.getItem("sokosumi.push.deviceOwner")).toBe("user_1");
   });
 
   /**

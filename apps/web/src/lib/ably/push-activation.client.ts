@@ -27,8 +27,10 @@ import {
 import {
   forgetAblyPushRegistration,
   forgetUnfinishedPushTeardown,
+  hasAblyPushRegistration,
   hasUnfinishedPushTeardown,
   notePushTeardownStarted,
+  readPushDeviceOwner,
   rememberPushDeviceOwner,
 } from "./release-push-device.client";
 
@@ -111,6 +113,16 @@ async function runActivation(
   if (getPushTeardownVersion() !== teardownVersion) {
     return false;
   }
+  // Asked before anything registers, because `activate()` writes a token of
+  // its own and the answer would then read as this reader's work. A
+  // registration this browser already held, under any name but this reader's,
+  // is one to replace rather than join: an unnamed one is every browser
+  // registered before the name was written down, and Ably cannot settle it
+  // either way, since the health check reads the device as itself and such a
+  // read carries no clientId (SOK-1152).
+  const foreignRegistration =
+    hasAblyPushRegistration() && readPushDeviceOwner() !== userId;
+
   const restorePermissionRequest = answerPermissionFromStoredValue();
   try {
     const client = await createAblyPushClient(userId);
@@ -121,14 +133,22 @@ async function runActivation(
       return false;
     await client.push.activate();
     if (await abandonedToTeardown(teardownVersion)) return false;
-    const fault = await findPushDeviceFault(client, userId);
+    const fault = foreignRegistration
+      ? "another-reader"
+      : await findPushDeviceFault(client, userId);
     if (await abandonedToTeardown(teardownVersion)) return false;
     if (fault) {
-      await recordPushRepairOutcome({
-        hadRegistration: true,
-        teardownVersion,
-        deliveryHealthy: false,
-      }).catch((error) => console.error("Failed to record push repair", error));
+      // A device held for someone else is not a delivery failure, and saying
+      // so would report one against a browser that was working for them.
+      if (!foreignRegistration) {
+        await recordPushRepairOutcome({
+          hadRegistration: true,
+          teardownVersion,
+          deliveryHealthy: false,
+        }).catch((error) =>
+          console.error("Failed to record push repair", error),
+        );
+      }
       if (await abandonedToTeardown(teardownVersion)) return false;
       // Only confirmed broken registrations are reset. Network failures leave
       // the working endpoint intact and retry on the next wake.
@@ -137,9 +157,6 @@ async function runActivation(
       if (await abandonedToTeardown(teardownVersion)) return false;
       if (repairOvertakenAcrossTabs(readerInitiated)) return false;
       await client.push.activate();
-      // The device the reset took away is gone, and this call registered a new
-      // one for this reader. Said before the check below, which reads it.
-      rememberPushDeviceOwner(userId);
       if (await abandonedToTeardown(teardownVersion)) return false;
       const remainingFault = await findPushDeviceFault(client, userId);
       if (remainingFault) {

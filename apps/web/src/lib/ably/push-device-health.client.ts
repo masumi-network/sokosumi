@@ -5,8 +5,6 @@ import * as z from "zod";
 
 import { getExistingNotificationServiceWorker } from "@/lib/utils/notification-service-worker";
 
-import { readPushDeviceOwner } from "./release-push-device.client";
-
 const deviceSchema = z.object({
   clientId: z.string().nullish(),
   push: z.object({
@@ -48,13 +46,6 @@ export async function findPushDeviceFault(
   client: Ably.Rest,
   userId: string,
 ): Promise<PushDeviceFault | null> {
-  // Asked first, and asked locally. A registration this browser made for
-  // someone else must be replaced rather than joined, whatever Ably reports
-  // about it, and Ably reports nothing about it: the read below authenticates
-  // as the device, which comes back without a clientId.
-  const owner = readPushDeviceOwner();
-  if (owner && owner !== userId) return "another-reader";
-
   const registration = await getExistingNotificationServiceWorker();
   const subscription = await registration?.pushManager.getSubscription();
   if (!subscription) return "no-browser-subscription";

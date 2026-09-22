@@ -129,19 +129,6 @@ describe("findPushDeviceFault", () => {
     },
   );
 
-  // SOK-1152: the only ownership answer this check can rely on. Ably reports
-  // none, so a browser two readers share is guarded from here or nowhere.
-  it("resets a registration this browser made for another reader", async () => {
-    localStorage.setItem("sokosumi.push.deviceOwner", "other-reader");
-    expect(await findPushDeviceFault(client, "reader")).toBe("another-reader");
-    expect(request).not.toHaveBeenCalled();
-  });
-
-  it("keeps a registration this browser made for this reader", async () => {
-    localStorage.setItem("sokosumi.push.deviceOwner", "reader");
-    expect(await findPushDeviceFault(client, "reader")).toBeNull();
-  });
-
   it("rejects an unknown remote push state instead of calling it healthy", async () => {
     request.mockResolvedValue({
       statusCode: 200,
