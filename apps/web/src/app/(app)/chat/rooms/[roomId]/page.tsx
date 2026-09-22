@@ -16,6 +16,16 @@ interface ChatRoomPageProps {
   params: Promise<{ roomId: string }>;
 }
 
+/**
+ * Sentinel only — never a real room. Without at least one generateStaticParams
+ * child, cacheComponents emits an empty PPR shell + postponed state for this
+ * blocking [roomId] segment; resume with fallback params throws E592
+ * (SOKOSUMI-RF / next.js#98647).
+ */
+export function generateStaticParams() {
+  return [{ roomId: "00000000-0000-4000-8000-000000000000" }];
+}
+
 interface ChatRoomShellProps {
   activeOrganization: Organization | null;
   rooms: ChatRoom[];
