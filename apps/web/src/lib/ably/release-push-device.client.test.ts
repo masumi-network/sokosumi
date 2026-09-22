@@ -532,7 +532,9 @@ it("forgets durable consent when the account is deleted", async () => {
 });
 
 describe("hasAblyPushDeviceId", () => {
-  // The describe above leaves a storage spy of its own behind.
+  // The describes above spy on storage. Theirs are restored on their way out,
+  // so this restores nothing today; it is here because these cases read
+  // storage and would answer through such a spy if one ever outlived its own.
   beforeEach(() => {
     vi.restoreAllMocks();
     localStorage.clear();
