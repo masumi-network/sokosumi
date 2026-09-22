@@ -10,18 +10,22 @@ const subscriptionUpdateManyMock = vi.fn();
 const organizationFindUniqueMock = vi.fn();
 const memberAssignedCountMock = vi.fn();
 
-const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) =>
-  callback({
-    subscription: {
-      updateMany: (...args: unknown[]) => subscriptionUpdateManyMock(...args),
-    },
-    organization: {
-      findUnique: (...args: unknown[]) => organizationFindUniqueMock(...args),
-    },
-    member: {
-      count: (...args: unknown[]) => memberAssignedCountMock(...args),
-    },
-  }),
+const transactionMock = vi.fn(
+  async (
+    callback: (tx: unknown) => unknown,
+    _options?: { isolationLevel?: string },
+  ) =>
+    callback({
+      subscription: {
+        updateMany: (...args: unknown[]) => subscriptionUpdateManyMock(...args),
+      },
+      organization: {
+        findUnique: (...args: unknown[]) => organizationFindUniqueMock(...args),
+      },
+      member: {
+        count: (...args: unknown[]) => memberAssignedCountMock(...args),
+      },
+    }),
 );
 
 vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
@@ -50,8 +54,8 @@ vi.mock("@sokosumi/database/repositories", () => ({
 vi.mock("@/lib/db/prisma", () => ({
   __esModule: true,
   default: {
-    $transaction: (callback: (tx: unknown) => unknown) =>
-      transactionMock(callback),
+    $transaction: (...args: unknown[]) =>
+      (transactionMock as unknown as (...a: unknown[]) => unknown)(...args),
   },
 }));
 
@@ -122,6 +126,33 @@ describe("reconcileActiveStripeBackedSubscription", () => {
       5,
       expect.anything(),
     );
+  });
+
+  it("reconciles seats in a serializable transaction", async () => {
+    organizationFindUniqueMock.mockResolvedValue({ id: "org-enterprise" });
+
+    const { reconcileActiveStripeBackedSubscription } = await import(
+      "./stripe-backed-subscription.service"
+    );
+
+    await reconcileActiveStripeBackedSubscription(
+      {
+        id: "sub_local_paid",
+        plan: "pro",
+        referenceId: "org-enterprise",
+        seats: 5,
+        status: "active",
+        stripeSubscriptionId: "sub_enterprise",
+      },
+      { autoAssignIfUnassigned: true },
+    );
+
+    // Postgres only aborts a serialization anomaly when both sides run at this
+    // level, so this write has to match the seat assignment routes (SOK-1007).
+    expect(transactionMock.mock.calls).toHaveLength(1);
+    expect(transactionMock.mock.calls[0]?.[1]).toEqual({
+      isolationLevel: "Serializable",
+    });
   });
 
   it("auto-assigns seats on first paid even when no local-free rows close", async () => {
