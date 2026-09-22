@@ -17,7 +17,6 @@ const projectServiceMock = {
   cancelProjectCloseOwedWork: vi.fn(),
   closeProject: vi.fn(),
   createProject: vi.fn(),
-  deleteProject: vi.fn(),
   getProjectContextMd: vi.fn(),
   patchProject: vi.fn(),
   removeProjectDesignMd: vi.fn(),
@@ -213,24 +212,6 @@ describe("project actions", () => {
       name: "Updated launch plan",
       briefing: null,
     });
-    expect(revalidatePath).toHaveBeenCalledWith("/projects");
-    expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1");
-    expect(result).toEqual({ projectId: "project-1" });
-  });
-
-  it("deletes a project and revalidates list and detail routes", async () => {
-    projectServiceMock.deleteProject.mockResolvedValue({
-      id: "project-1",
-      deleted: true,
-    });
-
-    const { deleteProject } = await import("./action");
-    const { revalidatePath } = await import("next/cache");
-    const result = await deleteProject({
-      projectId: "project-1",
-    });
-
-    expect(projectServiceMock.deleteProject).toHaveBeenCalledWith("project-1");
     expect(revalidatePath).toHaveBeenCalledWith("/projects");
     expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1");
     expect(result).toEqual({ projectId: "project-1" });

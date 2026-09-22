@@ -2316,7 +2316,6 @@
           "viewDetails": "Ver detalles",
           "edit": "Editar",
           "close": "Cerrar proyecto",
-          "delete": "Eliminar",
           "remove": "Quitar",
           "confirmRemoveJob": "¿Quitar este job del proyecto?"
         },
@@ -2365,16 +2364,9 @@
             }
           }
         },
-        "deleteDialog": {
-          "title": "Eliminar proyecto",
-          "description": "Esto eliminará el proyecto. Las tareas y jobs vinculados seguirán disponibles fuera del proyecto.",
-          "confirm": "Eliminar",
-          "cancel": "Cancelar"
-        },
         "errors": {
           "create": "No se pudo crear el proyecto",
           "update": "No se pudo actualizar el proyecto",
-          "delete": "No se pudo eliminar el proyecto",
           "addJob": "No se pudo añadir el job",
           "removeJob": "No se pudo quitar el job",
           "addTask": "No se pudo añadir la tarea",

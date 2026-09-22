@@ -4727,11 +4727,6 @@ export type PatchProjectRequest = {
     logo?: string | null;
 };
 
-export type ProjectDeleted = {
-    id: string;
-    deleted: true;
-};
-
 export type Job = {
     id: string;
     createdAt: Date;
@@ -10466,6 +10461,21 @@ export type ListAdminTaskPaymentClaimsRequiringReviewErrors = {
             method: string;
         };
     };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type ListAdminTaskPaymentClaimsRequiringReviewError = ListAdminTaskPaymentClaimsRequiringReviewErrors[keyof ListAdminTaskPaymentClaimsRequiringReviewErrors];
@@ -11821,10 +11831,6 @@ export type GetAgentsByIdReviewsData = {
          * Maximum number of commented reviews to return
          */
         limit?: number;
-        /**
-         * Number of commented reviews to skip
-         */
-        offset?: number | null;
     };
     url: '/agents/{id}/reviews';
 };
@@ -32815,21 +32821,6 @@ export type DeleteProjectsByIdErrors = {
         };
     };
     /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
      * Conflict
      */
     409: {
@@ -32847,22 +32838,6 @@ export type DeleteProjectsByIdErrors = {
 };
 
 export type DeleteProjectsByIdError = DeleteProjectsByIdErrors[keyof DeleteProjectsByIdErrors];
-
-export type DeleteProjectsByIdResponses = {
-    /**
-     * Project deleted
-     */
-    200: {
-        data: ProjectDeleted;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type DeleteProjectsByIdResponse = DeleteProjectsByIdResponses[keyof DeleteProjectsByIdResponses];
 
 export type GetProjectsByIdData = {
     body?: never;

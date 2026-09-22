@@ -2316,7 +2316,6 @@
           "viewDetails": "View details",
           "edit": "Edit",
           "close": "Close project",
-          "delete": "Delete",
           "remove": "Remove",
           "confirmRemoveJob": "Remove this job from the project?"
         },
@@ -2365,16 +2364,9 @@
             }
           }
         },
-        "deleteDialog": {
-          "title": "Delete project",
-          "description": "This will delete the project. Linked tasks and jobs will remain available outside the project.",
-          "confirm": "Delete",
-          "cancel": "Cancel"
-        },
         "errors": {
           "create": "Failed to create project",
           "update": "Failed to update project",
-          "delete": "Failed to delete project",
           "addJob": "Failed to add job",
           "removeJob": "Failed to remove job",
           "addTask": "Failed to add task",
