@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { completeComposioAuthCallbackAction } from "@/lib/actions/composio/action";
-import type { ActionError } from "@/lib/actions/errors";
+import type { ActionError } from "@/lib/actions/errors/action-error";
 import {
   disconnectProjectSocialConnection,
   finalizeProjectSocialConnection,
