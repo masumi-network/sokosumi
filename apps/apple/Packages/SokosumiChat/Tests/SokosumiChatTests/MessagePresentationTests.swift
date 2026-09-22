@@ -88,4 +88,20 @@ struct MessagePresentationTests {
     #expect(initials(for: "") == "?")
     #expect(initials(for: "  ") == "?")
   }
+
+  // Web `unfurlCardHasPreviewContent` (packages/utils/src/unfurl-urls.test.ts), case for case.
+
+  @Test func unfurlCardHasPreviewContentIsFalseForTitleOnlyCards() {
+    #expect(unfurlCardHasPreviewContent(unfurlCard(imageUrl: nil, description: nil)) == false)
+    #expect(unfurlCardHasPreviewContent(unfurlCard(imageUrl: "  ", description: "  ")) == false)
+  }
+
+  @Test func unfurlCardHasPreviewContentIsTrueWhenAnImageOrDescriptionIsPresent() {
+    #expect(unfurlCardHasPreviewContent(unfurlCard(imageUrl: "https://cdn.example/i.png", description: nil)) == true)
+    #expect(unfurlCardHasPreviewContent(unfurlCard(imageUrl: nil, description: "A short summary")) == true)
+  }
+
+  private func unfurlCard(imageUrl: String?, description: String?) -> Components.Schemas.ChatRoomMessageUnfurl {
+    .init(url: "https://example.com/article", title: "Example Article", description: description, imageUrl: imageUrl, siteName: "Example")
+  }
 }
