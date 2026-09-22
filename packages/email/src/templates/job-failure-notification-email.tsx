@@ -1,6 +1,14 @@
 import { Container, Section, Text } from "react-email";
 
 import { EmailShell } from "../components/email-shell.js";
+import {
+  DARK_CLASS,
+  LIGHT_PALETTE,
+  MONO_STACK,
+  RADIUS,
+  SPACE,
+  TEXT,
+} from "../theme/index.js";
 
 export interface JobFailureField {
   codeBlock?: boolean;
@@ -26,30 +34,74 @@ export function JobFailureNotificationEmailTemplate({
 }: JobFailureNotificationEmailTemplateProps) {
   return (
     <EmailShell footer={footer} maxWidth={600} preview={preview} title={title}>
-      <Text className="m-0 mb-[24px] text-[16px] leading-[28px] text-[#30263f]">
+      <Text
+        className={DARK_CLASS.text}
+        style={{
+          ...TEXT.body,
+          color: LIGHT_PALETTE.textPrimary,
+          margin: `0 0 ${SPACE.lg} 0`,
+        }}
+      >
         {description}
       </Text>
       {fields.map((field) => (
         <Section
+          className={DARK_CLASS.panel}
           key={field.label}
-          className="mb-[14px] rounded-[16px] border border-solid border-[#ece6f7] bg-[#fbfaff] px-[16px] py-[14px]"
+          style={{
+            backgroundColor: LIGHT_PALETTE.surfaceSubtle,
+            border: `1px solid ${LIGHT_PALETTE.hairline}`,
+            borderRadius: RADIUS.panel,
+            margin: `0 0 ${SPACE.sm} 0`,
+            padding: `${SPACE.md}`,
+          }}
         >
-          <Text className="m-0 mb-[8px] text-[13px] leading-[18px] font-semibold tracking-[0.04em] text-[#6a36ff] uppercase">
+          <Text
+            className={DARK_CLASS.textMuted}
+            style={{
+              ...TEXT.label,
+              color: LIGHT_PALETTE.textMuted,
+              margin: `0 0 ${SPACE.sm} 0`,
+            }}
+          >
             {field.label}
           </Text>
           {field.codeBlock ? (
-            <Container className="rounded-[12px] border border-solid border-[#dfd7f2] bg-white p-[12px]">
-              <Text className="m-0 whitespace-pre-wrap break-all font-mono text-[13px] leading-[20px] text-[#30263f]">
+            <Container
+              className={DARK_CLASS.code}
+              style={{
+                backgroundColor: LIGHT_PALETTE.codeSurface,
+                border: `1px solid ${LIGHT_PALETTE.hairline}`,
+                borderRadius: RADIUS.control,
+                margin: 0,
+                padding: `${SPACE.sm} ${SPACE.md}`,
+              }}
+            >
+              <Text
+                className={DARK_CLASS.text}
+                style={{
+                  ...TEXT.small,
+                  color: LIGHT_PALETTE.textPrimary,
+                  fontFamily: MONO_STACK,
+                  margin: 0,
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-all",
+                }}
+              >
                 {field.value}
               </Text>
             </Container>
           ) : (
             <Text
-              className={
-                field.wordBreak === "break-all"
-                  ? "m-0 break-all font-mono text-[14px] leading-[22px] text-[#30263f]"
-                  : "m-0 font-mono text-[14px] leading-[22px] text-[#30263f]"
-              }
+              className={DARK_CLASS.text}
+              style={{
+                ...TEXT.small,
+                color: LIGHT_PALETTE.textPrimary,
+                fontFamily: MONO_STACK,
+                margin: 0,
+                wordBreak:
+                  field.wordBreak === "break-all" ? "break-all" : "normal",
+              }}
             >
               {field.value}
             </Text>

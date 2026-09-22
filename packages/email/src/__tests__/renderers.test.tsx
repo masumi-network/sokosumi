@@ -9,6 +9,7 @@ import {
   renderResetPasswordEmail,
   renderVerificationEmail,
 } from "../index.js";
+import { DARK_PALETTE, LIGHT_PALETTE } from "../theme/index.js";
 
 describe("email renderers", () => {
   it("renders verification emails with a subject and html body", async () => {
@@ -27,7 +28,12 @@ describe("email renderers", () => {
     );
     expect(rendered.html).toContain('alt="Sokosumi kanji"');
     expect(rendered.html).toContain('alt="Sokosumi"');
-    expect(rendered.html).toContain("background-color:rgb(245,243,250)");
+    expect(rendered.html).toContain(
+      `background-color:${LIGHT_PALETTE.pageBackground}`,
+    );
+    expect(rendered.html).toContain(
+      `background-color: ${DARK_PALETTE.surface} !important`,
+    );
     expect(rendered.html).toContain("Verify your email address");
     expect(rendered.html).toContain("Hello Andreas");
     expect(rendered.html).toContain("https://example.com/verify");
@@ -64,8 +70,12 @@ describe("email renderers", () => {
     });
 
     expect(rendered.subject).toBe("Sokosumi - Sign in to your account");
-    expect(rendered.html).toContain("background-color:rgb(106,54,255)");
-    expect(rendered.html).toContain("background-color:rgb(248,245,255)");
+    expect(rendered.html).toContain(
+      `background-color:${LIGHT_PALETTE.accentSolid}`,
+    );
+    expect(rendered.html).toContain(
+      `background-color:${LIGHT_PALETTE.surfaceSubtle}`,
+    );
     expect(rendered.html).toContain("Hello Andreas");
     expect(rendered.html).not.toContain("one-time token");
     expect(rendered.html).not.toContain("secret-token");

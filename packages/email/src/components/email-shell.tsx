@@ -8,9 +8,18 @@ import {
   Html,
   Preview,
   Section,
-  Tailwind,
   Text,
 } from "react-email";
+
+import {
+  DARK_CLASS,
+  darkModeCss,
+  FONT_STACK,
+  LIGHT_PALETTE,
+  RADIUS,
+  SPACE,
+  TEXT,
+} from "../theme/index.js";
 
 export interface EmailShellProps {
   children: ReactNode;
@@ -20,15 +29,15 @@ export interface EmailShellProps {
   title: string;
 }
 
-const CONTAINER_CLASS_NAMES = {
-  560: "mx-auto w-full max-w-[560px] overflow-hidden rounded-[24px] border border-solid border-[#e9e3f5] bg-white",
-  600: "mx-auto w-full max-w-[600px] overflow-hidden rounded-[24px] border border-solid border-[#e9e3f5] bg-white",
-} as const;
-
 const EMAIL_KANJI_URL =
   "https://igcd4cnfvuav1zto.public.blob.vercel-storage.com/brand/sokosumi-logo-kanji-black.png";
 const EMAIL_WORDMARK_URL =
   "https://igcd4cnfvuav1zto.public.blob.vercel-storage.com/brand/sokosumi-logo-wordmark-black.png";
+
+const RESPONSIVE_CSS = `@media only screen and (max-width: 600px) {
+  .sk-pad { padding-left: ${SPACE.md} !important; padding-right: ${SPACE.md} !important; }
+  .sk-heading { font-size: 24px !important; line-height: 32px !important; }
+}`;
 
 export function EmailShell({
   children,
@@ -38,62 +47,135 @@ export function EmailShell({
   title,
 }: EmailShellProps) {
   return (
-    <Html>
+    <Html lang="en">
       <Head>
-        <meta content="light" name="color-scheme" />
-        <meta content="light" name="supported-color-schemes" />
+        <meta content="text/html; charset=UTF-8" httpEquiv="Content-Type" />
+        <meta content="light dark" name="color-scheme" />
+        <meta content="light dark" name="supported-color-schemes" />
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `${darkModeCss()}\n${RESPONSIVE_CSS}`,
+          }}
+        />
       </Head>
       <Preview>{preview}</Preview>
-      <Tailwind>
-        <Body className="mx-auto my-auto bg-[#f5f3fa] font-sans text-[#17111f]">
-          <Section className="px-[16px] py-[32px]">
-            <Container className={CONTAINER_CLASS_NAMES[maxWidth]}>
-              <Section className="border-b border-solid border-[#ece6f7] bg-[#f8f5ff] px-[28px] py-[18px]">
-                <table
-                  border={0}
-                  cellPadding="0"
-                  cellSpacing="0"
-                  role="presentation"
-                  width="100%"
-                >
-                  <tbody>
-                    <tr>
-                      <td valign="middle">
-                        <img
-                          alt="Sokosumi"
-                          height="20"
-                          src={EMAIL_WORDMARK_URL}
-                          width="156"
-                        />
-                      </td>
-                      <td align="right" valign="middle">
-                        <img
-                          alt="Sokosumi kanji"
-                          height="28"
-                          src={EMAIL_KANJI_URL}
-                          width="14"
-                        />
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </Section>
-              <Section className="px-[28px] py-[32px]">
-                <Heading className="m-0 mb-[10px] p-0 text-left text-[30px] leading-[36px] font-semibold text-[#17111f]">
-                  {title}
-                </Heading>
-                <Hr className="mx-0 mb-[28px] mt-0 w-[64px] border-0 border-t-[3px] border-solid border-[#6a36ff]" />
-                {children}
-              </Section>
-              <Section className="border-t border-solid border-[#ece6f7] bg-[#fcfbff] px-[28px] py-[22px]">
-                <Text className="m-0 text-[12px] leading-[20px] text-[#6f6582]">
-                  {footer}
-                </Text>
-              </Section>
-            </Container>
-          </Section>
-        </Body>
-      </Tailwind>
+      <Body
+        className={DARK_CLASS.page}
+        style={{
+          backgroundColor: LIGHT_PALETTE.pageBackground,
+          color: LIGHT_PALETTE.textPrimary,
+          fontFamily: FONT_STACK,
+          margin: 0,
+          padding: 0,
+          WebkitFontSmoothing: "antialiased",
+        }}
+      >
+        <Section
+          className={DARK_CLASS.page}
+          style={{
+            backgroundColor: LIGHT_PALETTE.pageBackground,
+            padding: `${SPACE.xl} ${SPACE.md}`,
+          }}
+        >
+          <Container
+            className={DARK_CLASS.card}
+            style={{
+              backgroundColor: LIGHT_PALETTE.surface,
+              border: `1px solid ${LIGHT_PALETTE.cardBorder}`,
+              borderRadius: RADIUS.card,
+              margin: "0 auto",
+              maxWidth: `${maxWidth}px`,
+              overflow: "hidden",
+              width: "100%",
+            }}
+          >
+            <Section
+              className={`${DARK_CLASS.header} sk-pad`}
+              style={{
+                backgroundColor: LIGHT_PALETTE.headerSurface,
+                borderBottom: `1px solid ${LIGHT_PALETTE.hairline}`,
+                padding: `${SPACE.md} ${SPACE.lg}`,
+              }}
+            >
+              <table
+                border={0}
+                cellPadding="0"
+                cellSpacing="0"
+                role="presentation"
+                width="100%"
+              >
+                <tbody>
+                  <tr>
+                    <td valign="middle">
+                      <img
+                        alt="Sokosumi"
+                        height="20"
+                        src={EMAIL_WORDMARK_URL}
+                        style={{ display: "block", border: 0 }}
+                        width="156"
+                      />
+                    </td>
+                    <td align="right" valign="middle">
+                      <img
+                        alt="Sokosumi kanji"
+                        height="28"
+                        src={EMAIL_KANJI_URL}
+                        style={{ display: "block", border: 0 }}
+                        width="14"
+                      />
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </Section>
+            <Section
+              className="sk-pad"
+              style={{ padding: `${SPACE.xl} ${SPACE.lg}` }}
+            >
+              <Heading
+                className={`${DARK_CLASS.heading} sk-heading`}
+                style={{
+                  ...TEXT.heading,
+                  color: LIGHT_PALETTE.textPrimary,
+                  margin: `0 0 ${SPACE.sm} 0`,
+                  padding: 0,
+                  textAlign: "left",
+                }}
+              >
+                {title}
+              </Heading>
+              <Hr
+                style={{
+                  border: 0,
+                  borderTop: `3px solid ${LIGHT_PALETTE.accent}`,
+                  margin: `0 0 ${SPACE.lg} 0`,
+                  width: "56px",
+                }}
+              />
+              {children}
+            </Section>
+            <Section
+              className={`${DARK_CLASS.footer} sk-pad`}
+              style={{
+                backgroundColor: LIGHT_PALETTE.footerSurface,
+                borderTop: `1px solid ${LIGHT_PALETTE.hairline}`,
+                padding: `${SPACE.lg}`,
+              }}
+            >
+              <Text
+                className={DARK_CLASS.textMuted}
+                style={{
+                  ...TEXT.micro,
+                  color: LIGHT_PALETTE.textMuted,
+                  margin: 0,
+                }}
+              >
+                {footer}
+              </Text>
+            </Section>
+          </Container>
+        </Section>
+      </Body>
     </Html>
   );
 }

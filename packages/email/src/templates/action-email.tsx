@@ -2,6 +2,13 @@ import { render } from "@react-email/render";
 import { Button, Container, Link, Section, Text } from "react-email";
 
 import { EmailShell } from "../components/email-shell.js";
+import {
+  DARK_CLASS,
+  LIGHT_PALETTE,
+  RADIUS,
+  SPACE,
+  TEXT,
+} from "../theme/index.js";
 import type { RenderedEmail } from "../types.js";
 
 const DEFAULT_LINK_INSTRUCTIONS =
@@ -39,48 +46,124 @@ export function ActionEmailTemplate({
 }: ActionEmailTemplateProps) {
   return (
     <EmailShell footer={footer} preview={preview} title={title}>
-      <Text className="m-0 mb-[14px] text-[16px] leading-[28px] text-[#17111f]">
+      <Text
+        className={DARK_CLASS.text}
+        style={{
+          ...TEXT.body,
+          color: LIGHT_PALETTE.textPrimary,
+          margin: `0 0 ${SPACE.sm} 0`,
+        }}
+      >
         {greeting}
       </Text>
-      <Text className="m-0 mb-[28px] text-[16px] leading-[28px] text-[#30263f]">
+      <Text
+        className={DARK_CLASS.text}
+        style={{
+          ...TEXT.body,
+          color: LIGHT_PALETTE.textPrimary,
+          margin: `0 0 ${SPACE.lg} 0`,
+        }}
+      >
         {body}
       </Text>
       {quote ? (
-        <Container className="mb-[28px] rounded-[12px] border-0 border-l-[3px] border-solid border-[#c9b6ff] bg-[#f8f5ff] px-[18px] py-[14px]">
-          <Text className="m-0 text-[15px] leading-[26px] text-[#30263f] italic">
+        <Container
+          className={DARK_CLASS.quote}
+          style={{
+            backgroundColor: LIGHT_PALETTE.surfaceSubtle,
+            borderLeft: `3px solid ${LIGHT_PALETTE.quoteBar}`,
+            borderRadius: `0 ${RADIUS.panel} ${RADIUS.panel} 0`,
+            margin: `0 0 ${SPACE.lg} 0`,
+            padding: `${SPACE.md}`,
+          }}
+        >
+          <Text
+            className={DARK_CLASS.text}
+            style={{
+              ...TEXT.small,
+              color: LIGHT_PALETTE.textPrimary,
+              fontStyle: "italic",
+              margin: 0,
+            }}
+          >
             {quote}
           </Text>
         </Container>
       ) : null}
       {facts && facts.length > 0 ? (
-        <Section className="mb-[28px]">
+        <Section style={{ margin: `0 0 ${SPACE.lg} 0` }}>
           {facts.map((fact) => (
             <Text
+              className={DARK_CLASS.textMuted}
               key={fact.label}
-              className="m-0 mb-[6px] text-[14px] leading-[22px] text-[#4d4260]"
+              style={{
+                ...TEXT.small,
+                color: LIGHT_PALETTE.textMuted,
+                margin: `0 0 ${SPACE.xs} 0`,
+              }}
             >
-              <span className="font-semibold text-[#30263f]">{fact.label}</span>
+              <span
+                className={DARK_CLASS.text}
+                style={{
+                  color: LIGHT_PALETTE.textPrimary,
+                  fontWeight: 600,
+                }}
+              >
+                {fact.label}
+              </span>
               {": "}
               {fact.value}
             </Text>
           ))}
         </Section>
       ) : null}
-      <Section className="mb-[28px] mt-0 text-left">
+      <Section style={{ margin: `0 0 ${SPACE.lg} 0`, textAlign: "left" }}>
         <Button
-          className="rounded-[12px] bg-[#6a36ff] px-[20px] py-[14px] text-[14px] font-semibold text-white no-underline"
+          className={DARK_CLASS.solid}
           href={actionUrl}
+          style={{
+            ...TEXT.small,
+            backgroundColor: LIGHT_PALETTE.accentSolid,
+            borderRadius: RADIUS.control,
+            color: LIGHT_PALETTE.accentForeground,
+            display: "inline-block",
+            fontWeight: 600,
+            padding: `14px ${SPACE.lg}`,
+            textDecoration: "none",
+          }}
         >
           {actionLabel}
         </Button>
       </Section>
-      <Container className="mb-[24px] rounded-[16px] border border-solid border-[#ece6f7] bg-[#f8f5ff] px-[18px] py-[16px]">
-        <Text className="m-0 mb-[8px] text-[13px] leading-[20px] font-medium text-[#4d4260]">
+      <Container
+        className={DARK_CLASS.panel}
+        style={{
+          backgroundColor: LIGHT_PALETTE.surfaceSubtle,
+          border: `1px solid ${LIGHT_PALETTE.hairline}`,
+          borderRadius: RADIUS.panel,
+          margin: 0,
+          padding: `${SPACE.md}`,
+        }}
+      >
+        <Text
+          className={DARK_CLASS.textMuted}
+          style={{
+            ...TEXT.micro,
+            color: LIGHT_PALETTE.textMuted,
+            margin: `0 0 ${SPACE.xs} 0`,
+          }}
+        >
           {linkInstructions}
         </Text>
         <Link
+          className={DARK_CLASS.link}
           href={actionUrl}
-          className="break-all text-[14px] leading-[24px] text-[#5f35d8] no-underline"
+          style={{
+            ...TEXT.small,
+            color: LIGHT_PALETTE.link,
+            textDecoration: "none",
+            wordBreak: "break-all",
+          }}
         >
           {actionUrl}
         </Link>
