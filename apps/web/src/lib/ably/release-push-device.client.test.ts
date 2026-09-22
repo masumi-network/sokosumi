@@ -11,6 +11,7 @@ import {
 } from "./push-work-queue.client";
 import {
   dropBrowserPushSubscriptionOnAccountDeletion,
+  hasAblyPushDeviceId,
   hasUnfinishedPushTeardown,
   notePushTeardownStarted,
   releasePushDeviceOnSignOut,
@@ -528,4 +529,43 @@ it("forgets durable consent when the account is deleted", async () => {
   await dropBrowserPushSubscriptionOnAccountDeletion();
   expect(hasPushPreference()).toBe(false);
   expect(revokeRenewalMock).toHaveBeenCalledTimes(1);
+});
+
+describe("hasAblyPushDeviceId", () => {
+  // The describe above leaves a storage spy of its own behind.
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    localStorage.clear();
+  });
+
+  /**
+   * The SDK wraps what it stores, so the value is an envelope rather than the
+   * id. Only its presence is read, which is what makes the wrapping harmless.
+   */
+  it("reads an id whatever the stored value looks like", () => {
+    vi.spyOn(localStorage, "getItem").mockReturnValue(
+      JSON.stringify({ value: "01K000000000000000000000" }),
+    );
+
+    expect(hasAblyPushDeviceId()).toBe(true);
+  });
+
+  /**
+   * A browser that blocks site data throws on the read. Answering "there is a
+   * device here" would make every activation replace one, and the name that
+   * would settle it cannot be written on such a browser either, so it would
+   * replace on every run for as long as the reader used it.
+   */
+  it("reports no device where the browser blocks site data", () => {
+    vi.spyOn(localStorage, "getItem").mockImplementation(() => {
+      throw new Error("SecurityError");
+    });
+
+    expect(hasAblyPushDeviceId()).toBe(false);
+  });
 });

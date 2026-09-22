@@ -580,6 +580,21 @@ describe("activatePush", () => {
   });
 
   /**
+   * SOK-1152, the reader this change is for: their own device, named as
+   * theirs. Replacing it would be the original defect in another form, a
+   * teardown and re-registration on every activation and every repair.
+   */
+  it("keeps a device this browser already holds for this reader", async () => {
+    localStorage.setItem("ably.push.deviceId", "my-device");
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_1");
+    hasWebPushSubscriptionMock.mockResolvedValue(true);
+
+    await expect(activatePush("user_1")).resolves.toBe(true);
+
+    expect(calls).toEqual(["activate", "subscribeDevice"]);
+  });
+
+  /**
    * The SDK mints a device id for a browser that never had one, so an
    * ownership answer read after that point would call every first activation
    * a device taken from someone else and reset it for nothing.

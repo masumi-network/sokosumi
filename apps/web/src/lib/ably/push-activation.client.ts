@@ -125,6 +125,13 @@ async function runActivation(
   // either way: the health check reads the device as itself, and such a read
   // carries no clientId (SOK-1152).
   //
+  // So every browser already registered pays one replacement, and a reader
+  // whose Ably deregistration fails during it is left without a subscription
+  // until one answers: the replacement drops the browser subscription before
+  // Ably is asked, and the id it would retire stays. That reader is quieter
+  // for the length of such a failure than this change found them. It is the
+  // price of naming a device that Ably will not name, and it is paid once.
+  //
   // The id rather than the identity token, because the id is what a channel
   // subscription is keyed on (`build/push.js:74-77`) and the id is what
   // survives a release the sign-out cap cut short.
