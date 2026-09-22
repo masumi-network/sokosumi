@@ -16,7 +16,7 @@ Before working in an app or package, read its `AGENTS.md` and any deeper instruc
 | Creating branches, committing, pushing, opening/updating PRs, or modifying CI checks | [Delivery rules](docs/agents/delivery.md) |
 | Choosing an engineering flow; maintaining skills; working on Next.js, evlog, SwiftUI, Linear, translations, domain docs, coworker access, or Soko Bot | The matching section of [Skill and domain routing](docs/agents/skill-routing.md), then its referenced skill/docs |
 
-Existing scope entry points: [Web](apps/web/AGENTS.md), [Core](apps/core/AGENTS.md), [Apple](apps/apple/AGENTS.md), [CLI](apps/cli/AGENTS.md), [Database](packages/database/AGENTS.md), [Masumi](packages/masumi/AGENTS.md), [Email](packages/email/AGENTS.md). Check for deeper instructions even when the directory is not listed here.
+Existing scope entry points: [Web](apps/web/AGENTS.md), [Core](apps/core/AGENTS.md), [Apple](apps/apple/AGENTS.md), [CLI](apps/cli/AGENTS.md), [Database](packages/database/AGENTS.md), [Masumi](packages/masumi/AGENTS.md), [Email](packages/email/AGENTS.md). Packages without a scoped AGENTS.md (`ai-provider`, `net`, `soko-bot`, `utils`) use this contract. Check for deeper instructions even when the directory is not listed here.
 
 ## Always apply
 

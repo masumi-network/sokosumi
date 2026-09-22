@@ -12,7 +12,7 @@ sokosumi/
 │   ├── apple/       # Native macOS + iOS — Xcode (outside turbo and Biome)
 │   └── cli/         # Developer CLI — Ink TUI and headless commands (SPEC + VISION)
 ├── packages/
-│   ├── database/    # @sokosumi/database — Prisma client, helpers, repositories
+│   ├── database/    # @sokosumi/database — Prisma schema, client, helpers
 │   ├── masumi/      # @sokosumi/masumi — protocol clients, hash, schemas
 │   ├── utils/       # @sokosumi/utils — client-safe helpers
 │   ├── net/         # @sokosumi/net — SSRF-safe fetch

@@ -120,8 +120,8 @@ struct SidebarRoomsTests {
       makeRoom(id: "e1", name: "partner", discoverability: .external),
       makeRoom(id: "m1", name: "matched", discoverability: .matched),
       makeRoom(id: "g1", name: "guest-room", myAccess: .guest),
-      // Guest access always reads as External (checked before kind,
-      // mirroring web), even for a Direct.
+      // Guest access always reads as External (checked before kind),
+      // even for a Direct.
       makeRoom(id: "d2", name: "Guest Peer", kind: .direct, myAccess: .guest)
     ]
     let partitioned = partitionRoomsForSidebar(rooms)
@@ -307,7 +307,7 @@ struct SidebarRoomsTests {
   @Test func unreadTextCountIsOptInAndObeysMute() {
     #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 1).unreadTextCount == 0)
     #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 1, showUnreadCount: true) == .init(bold: true, badgeCount: 1, unreadTextCount: 3))
-    // Forced unread without messages stays bold with no number, like web.
+    // Forced unread without messages stays bold with no number.
     #expect(resolveRoomAttention(unreadCount: 0, unreadMentionCount: 0, markedUnread: true, showUnreadCount: true) == .init(bold: true, badgeCount: 0))
     #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 1, isMuted: true, showUnreadCount: true).unreadTextCount == 0)
   }

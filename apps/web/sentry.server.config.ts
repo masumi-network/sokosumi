@@ -4,12 +4,12 @@
 
 import * as Sentry from "@sentry/nextjs";
 
+import { getEnvPublicConfig } from "@/config/env.public";
 import { beforeSendServerEvent } from "@/lib/sentry/expected-request-errors";
 import { redactResetPasswordToken } from "@/lib/sentry/reset-password-token-redaction";
 
 Sentry.init({
-  // eslint-disable-next-line no-restricted-properties
-  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  dsn: getEnvPublicConfig().NEXT_PUBLIC_SENTRY_DSN,
 
   // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
   tracesSampleRate: 0.005,

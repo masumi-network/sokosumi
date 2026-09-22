@@ -34,8 +34,7 @@ apps/web
 - **Core API client**: Generated OpenAPI client for type-safe reads and writes (no direct Postgres access from web)
 - **TailwindCSS**: Utility-first CSS framework
 - **Vitest**: Testing framework
-- **ESLint**: Code linting
-- **Docker**: Containerization support
+- **Biome**: Linting and formatting
 - **Conventional Commits**: Standardized commit messages
 
 ## Prerequisites
@@ -104,7 +103,3 @@ pnpm test
 The web app does not connect to Postgres directly. Bootstrap the database from the repo root (`pnpm prisma:migrate:dev`, `pnpm prisma:generate`) and configure `apps/core/.env` — see the root `AGENTS.md` setup section.
 
 Domain types come from the generated Core client (`src/lib/clients/generated/core`); see `src/lib/types/core-dto.ts` and `apps/web/AGENTS.md` (Database Access). After changing Core API schemas, regenerate the web client with `pnpm --filter web generate:core:snapshot`.
-
-## Related Packages
-
-- See `../sync-function/README.md` for information about backend sync/worker functions.
