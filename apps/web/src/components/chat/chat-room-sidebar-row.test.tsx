@@ -816,6 +816,40 @@ describe("ChatRoomSidebarRow rail thread flyout", () => {
 
     expect(screen.queryByTestId("rail-flyout")).toBeNull();
   });
+
+  // The phone sheet is never the rail. Its "collapsed" state is the sheet
+  // being closed, and a hover card cannot open by touch anyway.
+  it("offers no flyout on the phone sheet", () => {
+    sidebarMock.state = "collapsed";
+    sidebarMock.isMobile = true;
+    renderRoom(withUnreadThread);
+
+    expect(screen.queryByTestId("rail-flyout")).toBeNull();
+    expect(screen.getByTestId("sidebar-menu-button")).toHaveAttribute(
+      "data-tooltip",
+      "general",
+    );
+  });
+
+  // Reorder mode hides the inset rows so rows keep one height under the
+  // pointer. The rail keeps that decision: reorder can start expanded and the
+  // sidebar be collapsed with it still on.
+  it("offers no flyout while the rows are being reordered", () => {
+    sidebarMock.state = "collapsed";
+    render(
+      <ChatRoomSidebarRow
+        room={makeRoom(withUnreadThread)}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+        reorderHandle={<button type="button">Move</button>}
+      />,
+    );
+
+    expect(screen.queryByTestId("rail-flyout")).toBeNull();
+  });
 });
 
 describe("ChatRoomSidebarRow rail selection bar", () => {
