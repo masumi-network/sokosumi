@@ -158,6 +158,18 @@ type RoomQuoteAttachment = Exclude<ChatRoomMessageQuoteAttachment, null>;
 /** Collapsed preview height for primary message bodies (taller than quotes). */
 const MESSAGE_BODY_CLAMP_CLASS = "line-clamp-[16]";
 
+/**
+ * Keeps the last line of a body clear of the Seen by faces in the row's
+ * bottom-right corner. Inline, so it shortens that one line instead of
+ * every line — a phone body column is ~310px, and reserving on the column
+ * cost a quarter of it on the newest message in the room.
+ *
+ * Wide enough for what the corner occupies, which is more than the faces:
+ * three plus the `+N` is 52px, and below md the touch target reaches 14px
+ * further left again.
+ */
+const SEEN_BY_INLINE_RESERVE_CLASS = "inline-block h-1 w-[66px] align-baseline";
+
 interface MessageEditedLabelProps {
   editedAt: Date | string;
   className?: string;
@@ -2395,6 +2407,25 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   const showEdited = !isDeleted && editedAt != null;
   const showPinned = !isDeleted && isPinned;
   const quote = message.quote;
+  // The faces are pinned to the row's bottom-right corner, so only whatever
+  // renders last in the column can run under them. When anything follows the
+  // body — reactions, a thread link, an unfurl, the failed-outbound row — the
+  // text is already clear and needs no reserve at all. Keep this in step with
+  // what the column actually renders below `ChannelMessageBody`.
+  const hasReactionRow =
+    !isDeleted && !isOutboundLocal && message.reactions.length > 0;
+  const hasThreadLink =
+    showThreadButton &&
+    !isOutboundLocal &&
+    message.threadReplyCount > 0 &&
+    onOpenThread != null;
+  const bodyEndsTheRow =
+    seenBy != null &&
+    !isEditing &&
+    !hasReactionRow &&
+    !hasThreadLink &&
+    (message.unfurls ?? []).length === 0 &&
+    outboundStatus !== "failed";
   const [sheetOpen, setSheetOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   // Neither overlay is mounted until first opened. A closed Radix dialog
@@ -2581,15 +2612,9 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         className={cn(
           "min-w-0 max-w-full flex-1 overflow-x-clip",
           isContinuation ? "space-y-1" : "space-y-1.5",
-          // The one reservation left, and only on the row that needs it: the
-          // faces sit in this corner, and with the text now running full
-          // width a long last line would otherwise run under them.
-          //
-          // Wide enough for what the corner actually occupies, which is more
-          // than the faces: three of them plus the `+N` is 52px, and below
-          // md the touch target reaches 14px further left again. 66px of
-          // reach, so 80px of reserve.
-          seenBy && "pe-20",
+          // No reserve here: padding on the column shortens every line to
+          // protect the one that can collide. The reserve is inline, on the
+          // last line only — see SEEN_BY_INLINE_RESERVE_CLASS.
         )}
       >
         {isContinuation ? (
@@ -2731,11 +2756,25 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                       onOpenDirectMessage={onOpenDirectMessage}
                       openingDirectParticipantKey={openingDirectParticipantKey}
                       trailing={
-                        isContinuation && showEdited && editedAt != null ? (
-                          <MessageEditedLabel
-                            editedAt={editedAt}
-                            className="ms-1.5 inline-flex h-6 items-center"
-                          />
+                        (isContinuation && showEdited && editedAt != null) ||
+                        bodyEndsTheRow ? (
+                          <>
+                            {isContinuation &&
+                            showEdited &&
+                            editedAt != null ? (
+                              <MessageEditedLabel
+                                editedAt={editedAt}
+                                className="ms-1.5 inline-flex h-6 items-center"
+                              />
+                            ) : null}
+                            {bodyEndsTheRow ? (
+                              <span
+                                aria-hidden="true"
+                                data-testid="seen-by-inline-reserve"
+                                className={SEEN_BY_INLINE_RESERVE_CLASS}
+                              />
+                            ) : null}
+                          </>
                         ) : null
                       }
                     />
