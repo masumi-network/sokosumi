@@ -16,12 +16,18 @@ public final class ThreadSession: ObservableObject {
   @Published public private(set) var jumpTarget: JumpTarget?
   @Published public private(set) var parent: Message?
   public let timeline = RoomTimeline()
-  public let outbox = RoomOutbox()
+  public let outbox: RoomOutbox
   public let recovery = ChatRefreshScheduler()
   public private(set) var loadTask: Task<Void, Never>?
   private let service = ChatService()
+  private let now: () -> Date
+  private let makeId: () -> String
 
-  public init() {}
+  public init(now: @escaping () -> Date = Date.init, makeId: @escaping () -> String = { UUID().uuidString }) {
+    self.now = now
+    self.makeId = makeId
+    outbox = RoomOutbox(now: now)
+  }
 
   public var displayedReplies: [Message] {
     displayedTranscript(messages: timeline.messages, shells: outbox.shells)
@@ -113,9 +119,11 @@ public final class ThreadSession: ObservableObject {
   ) -> Bool {
     let draft = ComposerContent(content)
     guard let parent, draft.canSend(quoted: quote != nil) else { return false }
-    let id = UUID().uuidString
-    let shell = OutboundShell(clientTurnId: id, roomId: parent.roomId, parentMessageId: parent.id,
-                              content: draft.text, quote: quote, sender: sender)
+    let id = makeId()
+    let shell = OutboundShell(
+      clientTurnId: id, roomId: parent.roomId, parentMessageId: parent.id,
+      content: draft.text, quote: quote, createdAt: now(), sender: sender
+    )
     outbox.enqueue(shell, send: { [service] in
       try await service.createMessage(
         client: client, roomId: parent.roomId, content: draft.text, clientMessageId: id,
@@ -170,14 +178,14 @@ public final class ThreadSession: ObservableObject {
     guard let parent, envelope.roomId == parent.roomId else { return false }
     if envelope.messageId == parent.id, envelope.parentMessageId == nil {
       if envelope.eventType == .delete {
-        self.parent = tombstoneTranscriptMessage(parent)
+        self.parent = tombstoneTranscriptMessage(parent, now: now())
         return false
       }
       return true
     }
     switch resolveRealtimeEnvelope(envelope, focusedRoomId: parent.roomId, parentMessageId: parent.id) {
     case let .tombstone(id):
-      timeline.messages = applyRealtimeTombstone(messages: timeline.messages, messageId: id)
+      timeline.messages = applyRealtimeTombstone(messages: timeline.messages, messageId: id, now: now())
     case .needsRefetch:
       recovery.requestRefresh()
     case .ignore: break

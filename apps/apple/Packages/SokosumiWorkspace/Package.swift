@@ -10,11 +10,12 @@ let package = Package(
     .package(path: "../SokosumiAuth"),
     .package(path: "../SokosumiChat"),
     .package(path: "../SokosumiRealtime"),
+    // Tests import OpenAPIRuntime for fake transports; the library does not.
     .package(url: "https://github.com/apple/swift-openapi-runtime", from: "1.8.2"),
     .package(url: "https://github.com/apple/swift-http-types", from: "1.8.0")
   ],
   targets: [
-    .target(name: "SokosumiWorkspace", dependencies: ["CoreAPI", "SokosumiAuth", "SokosumiChat", "SokosumiRealtime", .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime")]),
+    .target(name: "SokosumiWorkspace", dependencies: ["CoreAPI", "SokosumiAuth", "SokosumiChat", "SokosumiRealtime"]),
     .testTarget(name: "SokosumiWorkspaceTests", dependencies: [
       "SokosumiWorkspace", "CoreAPI", "SokosumiAuth", "SokosumiChat", "SokosumiRealtime",
       .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),

@@ -33,7 +33,6 @@ import { NewTaskWizardProvider } from "./new-task-wizard-provider";
 import { NoticeDialogProvider } from "./notice-dialog-context";
 import { NotificationToaster } from "./notification-toaster.client";
 import PrivateCachedAppSidebar from "./private-cached-app-sidebar";
-import { RetiredOnboardingStorageHydrator } from "./shell-hydrators.client";
 
 const EMPTY_NOTICES: Notice[] = [];
 
@@ -102,7 +101,6 @@ export default async function AuthenticatedAppFrame({
               >
                 <NotificationToaster />
                 <AccountNoticeToast />
-                <RetiredOnboardingStorageHydrator />
                 <HistorySearchDialogProvider
                   activeOrganizationId={activeOrganizationId}
                 >

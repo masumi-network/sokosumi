@@ -18,7 +18,7 @@ const LINEAR_TEAM = "SOK";
 const LINEAR_PROJECT = "sokosumi-6357694ddd23"; // display name: Sōkosumi
 const LINEAR_PROJECT_ID = "a51c9d61-b1a4-457e-a382-1277e1f7be4a";
 const LINEAR_STATE = "Triage";
-const LINEAR_PRIORITY = 3; // Medium — 0=None, 1=Urgent, 2=High, 3=Medium, 4=Low
+const LINEAR_PRIORITY = 3; // Medium — 0=No priority, 1=Urgent, 2=High, 3=Medium, 4=Low
 const LINEAR_ASSIGNEE = null; // omit on create unless user overrides
 const LINEAR_LABELS = ["Feature", "Bug", "Improvement"] as const;
 ```

@@ -24,7 +24,6 @@
       "!**/src/lib/clients/generated/**",
       "!**/src/clients/openapi/generated/**",
       "!apps/web/src/components/ui/**",
-      "!apps/web/public/js/**/*.js",
       "!apps/web/public/**/*.svg",
       "!apps/web/next-env.d.ts",
       "!apps/apple/**"

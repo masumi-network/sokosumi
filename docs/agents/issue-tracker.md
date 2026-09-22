@@ -26,7 +26,7 @@ Pass `--team SOK` and `--project sokosumi-6357694ddd23`. Do not pass `Sokosumi` 
 
 `Triage` → `Backlog` → `Todo` → `In Progress` → `In Review` → `Done`, plus `Canceled` and `Duplicate`. Triage-role mapping lives in `docs/agents/triage-labels.md`.
 
-Priority: `1` Urgent, `2` High, `3` Medium, `4` Low.
+Priority: `0` No priority, `1` Urgent, `2` High, `3` Medium, `4` Low. Create default is `3` Medium. CLI `--priority` is `1`–`4`; MCP also accepts `0`.
 
 ## Branch naming (repo rule)
 

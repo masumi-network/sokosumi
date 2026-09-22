@@ -1,6 +1,7 @@
 ---
 description: "Whole pixels in apps/web: no fractional px on a layout or border length"
-alwaysApply: true
+globs: apps/web/**
+alwaysApply: false
 ---
 
 ## Whole pixels

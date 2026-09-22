@@ -1,6 +1,6 @@
 ---
 description: When to use (or avoid) useEffect — React 'You Might Not Need an Effect'
-globs: **/*.tsx
+globs: apps/web/**/*.tsx
 alwaysApply: false
 ---
 
