@@ -1119,6 +1119,36 @@ describe("POST /tasks", () => {
     );
   });
 
+  it("creates the task when name generation throws trailing bytes", async () => {
+    generateTaskNameMock.mockRejectedValue(new Error("479 trailing bytes"));
+    const app = createApp();
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    try {
+      const response = await app.request("http://localhost/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          description: "Build landing page",
+          assigneeId: null,
+          status: TaskStatus.DRAFT,
+          channel: Channel.SOKOSUMI,
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(taskCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ name: "Build landing page" }),
+        }),
+      );
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
   it("generates a name from the description when name is omitted", async () => {
     const app = createApp();
 
