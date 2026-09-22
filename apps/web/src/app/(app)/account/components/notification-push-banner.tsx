@@ -37,6 +37,22 @@ const BODY_KEY: Record<PushBlock, string> = {
   unsubscribed: "pushBannerUnsubscribedBody",
 };
 
+/**
+ * The mark over the words.
+ *
+ * Three of them are something gone wrong and take the warning's. The iPhone
+ * is not: its words are instructions, and its mark is the button the reader
+ * is being sent to tap. The tint stays a warning's on all four, because a
+ * push the rows asked for is not arriving on any of them, and that is what
+ * this page's warning tint means.
+ */
+const ICON: Record<PushBlock, LucideIcon> = {
+  unsupported: AlertTriangle,
+  installable: Share,
+  denied: AlertTriangle,
+  unsubscribed: AlertTriangle,
+};
+
 /** The press a notice offers, where it has one to offer. */
 interface NoticeAction {
   labelKey: string;
@@ -219,10 +235,6 @@ function BrowserNotice({
  * a browser without the feature has nothing to offer; and no API can put this
  * app on a Home Screen, so the iPhone case names the taps and leaves them to
  * the reader. Those three explain themselves and take no press.
- *
- * The iPhone case carries the share mark rather than the warning one. The
- * words under it are instructions, and the mark is the one the reader is being
- * sent to tap.
  */
 export function PushBanner({
   block,
@@ -237,7 +249,7 @@ export function PushBanner({
   return (
     <BrowserNotice
       warning={true}
-      icon={block === "installable" ? Share : AlertTriangle}
+      icon={ICON[block]}
       titleKey={TITLE_KEY[block]}
       bodyKey={BODY_KEY[block]}
       action={

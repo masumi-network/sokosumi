@@ -92,11 +92,10 @@ export interface PushPreference {
   /**
    * Whether installing this app is what stands between this browser and push.
    *
-   * Only ever true while `isSupported` is false, and it is the difference
+   * Only ever read while `isSupported` is false, and it is the difference
    * between a browser that will never push and an iPhone one tap from it.
-   * False until the mount read lands, which is the safe way round: it costs
-   * an iPhone reader one paint of the generic message, where the other way
-   * round would tell a desktop reader to install an app they cannot.
+   * Both reads land in the same mount effect, and `isSupported` is null until
+   * they do, so no reader meets this before it has an answer.
    */
   isInstallable: boolean;
   /**

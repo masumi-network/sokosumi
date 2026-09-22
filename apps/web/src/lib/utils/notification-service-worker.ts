@@ -256,30 +256,39 @@ export function isPushSupported(): boolean {
  * cannot do this: they are one Add to Home Screen away from it, and the
  * generic "this browser cannot" is the wrong thing to tell them.
  *
- * The touch count is the signal, not the user agent. iPadOS sends Safari's
- * macOS string, and a reader who taps Request Desktop Website gets it on an
- * iPhone too, so anything read off that string answers false for exactly the
- * devices this is for. `maxTouchPoints` is 5 on both and 0 on a desktop.
+ * `navigator.standalone` answers all of it, and answers nothing else. WebKit
+ * on iOS and iPadOS is the only engine that defines it, so its absence is the
+ * whole of "not an Apple handheld": an Android in-app web view and a
+ * touchscreen laptop both have touch and neither has this. Its value then
+ * separates the two Apple cases, a tab from an installed app, which is the
+ * line this is drawn on.
  *
- * Standalone display mode is the last gate, and it only does anything below
- * iOS 16.4: above it, an installed app has push and never reaches here. Below
- * it, an installed app still has none, and naming a step the reader has
- * already taken would read as the app not knowing where it was running.
+ * Nothing here reads the user agent. iPadOS sends Safari's macOS string, and
+ * a reader who taps Request Desktop Website gives an iPhone the same, so
+ * anything read off that string answers false for exactly the devices this is
+ * for.
+ *
+ * The one case it cannot see is iOS below 16.4, where the app is installed and
+ * push still does not exist. `standalone` is true there, so the reader is left
+ * on the generic message, which is the truthful answer for them.
  */
 export function isPushInstallable(): boolean {
   if (isPushSupported() || !isServiceWorkerSupported()) {
     return false;
   }
 
-  return navigator.maxTouchPoints > 0 && !isStandaloneDisplay();
+  // Undefined is every other platform, true is the installed app, and false is
+  // the one reader this is for.
+  return readAppleStandalone() === false;
 }
 
-/** Whether this page is the installed app rather than a browser tab. */
-function isStandaloneDisplay(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    window.matchMedia("(display-mode: standalone)").matches
-  );
+/**
+ * `navigator.standalone`, which is not in the DOM library because no standard
+ * defines it. Read through one narrowing rather than a global declaration, so
+ * the non-standard property stays visible at the only place that wants it.
+ */
+function readAppleStandalone(): boolean | undefined {
+  return (navigator as Navigator & { standalone?: boolean }).standalone;
 }
 
 async function register(): Promise<ServiceWorkerRegistration | null> {

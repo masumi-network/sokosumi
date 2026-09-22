@@ -86,14 +86,20 @@ function setServiceWorkerSupported(supported: boolean): void {
 }
 
 /**
- * What iOS answers whatever its user agent says, and what a desktop answers.
- * The install read asks this rather than the user agent, because iPadOS sends
+ * `navigator.standalone`, which WebKit for iOS and iPadOS alone defines:
+ * absent off those platforms, false in a tab, true in the installed app. The
+ * install read asks this rather than the user agent, because iPadOS sends
  * Safari's macOS string and Request Desktop Website gives an iPhone the same.
  */
-function setTouchPoints(count: number): void {
-  Object.defineProperty(window.navigator, "maxTouchPoints", {
+function setAppleStandalone(standalone: boolean | undefined): void {
+  if (standalone === undefined) {
+    Reflect.deleteProperty(window.navigator, "standalone");
+    return;
+  }
+
+  Object.defineProperty(window.navigator, "standalone", {
     configurable: true,
-    value: count,
+    value: standalone,
   });
 }
 
@@ -105,7 +111,7 @@ describe("NotificationBrowserPermissionPrimer", () => {
   beforeEach(() => {
     setPushSupported(true);
     setServiceWorkerSupported(true);
-    setTouchPoints(0);
+    setAppleStandalone(undefined);
     repairOutcome = "pending";
     preferences = {
       data: {
@@ -195,7 +201,7 @@ describe("NotificationBrowserPermissionPrimer", () => {
   it("tells an iPhone outside the installed app how to install it", () => {
     setPushSupported(false);
     setServiceWorkerSupported(true);
-    setTouchPoints(5);
+    setAppleStandalone(false);
     vi.stubGlobal("Notification", undefined);
     render(<NotificationBrowserPermissionPrimer />);
 
@@ -212,13 +218,13 @@ describe("NotificationBrowserPermissionPrimer", () => {
   });
 
   /**
-   * A desktop browser with no push reads the same three properties and must
-   * not take the install branch: it has no Home Screen to be sent to.
+   * A desktop browser with no push reads the same properties and must not take
+   * the install branch: it has no Home Screen to be sent to.
    */
   it("keeps offering the permission on a desktop browser with no push", () => {
     setPushSupported(false);
     setServiceWorkerSupported(true);
-    setTouchPoints(0);
+    setAppleStandalone(undefined);
     setNotificationPermission("default");
     render(<NotificationBrowserPermissionPrimer />);
 

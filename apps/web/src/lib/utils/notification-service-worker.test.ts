@@ -900,29 +900,24 @@ describe("isPushInstallable", () => {
     window,
     "PushManager",
   );
-  const originalMaxTouchPoints = Object.getOwnPropertyDescriptor(
-    Navigator.prototype,
-    "maxTouchPoints",
-  );
-  const originalMatchMedia = Object.getOwnPropertyDescriptor(
-    window,
-    "matchMedia",
+  const originalUserAgent = Object.getOwnPropertyDescriptor(
+    navigator,
+    "userAgent",
   );
 
   /**
-   * A browser shaped like the one the read is about, described by what it has
-   * rather than by what it calls itself. Every case below starts from an
-   * iPhone and changes the one property under test, so a case that passes
-   * names the property that carried it.
+   * A browser described by what it has, which is how the read describes one.
+   *
+   * `standalone` takes the three values the property really has: absent on
+   * every engine but WebKit for iOS and iPadOS, false in a tab there, true in
+   * the installed app.
    */
   function stubBrowser({
     push,
-    touchPoints,
     standalone,
   }: {
     push: boolean;
-    touchPoints: number;
-    standalone: boolean;
+    standalone: boolean | undefined;
   }) {
     stubServiceWorker({});
     stubPermission("default");
@@ -934,17 +929,14 @@ describe("isPushInstallable", () => {
     } else {
       Reflect.deleteProperty(window, "PushManager");
     }
-    Object.defineProperty(Navigator.prototype, "maxTouchPoints", {
-      configurable: true,
-      get: () => touchPoints,
-    });
-    Object.defineProperty(window, "matchMedia", {
-      configurable: true,
-      value: (query: string) => ({
-        matches: query === "(display-mode: standalone)" && standalone,
-        media: query,
-      }),
-    });
+    if (standalone === undefined) {
+      Reflect.deleteProperty(navigator, "standalone");
+    } else {
+      Object.defineProperty(navigator, "standalone", {
+        configurable: true,
+        value: standalone,
+      });
+    }
   }
 
   afterEach(() => {
@@ -953,29 +945,26 @@ describe("isPushInstallable", () => {
     } else {
       Reflect.deleteProperty(window, "PushManager");
     }
-    if (originalMaxTouchPoints) {
-      Object.defineProperty(
-        Navigator.prototype,
-        "maxTouchPoints",
-        originalMaxTouchPoints,
-      );
-    }
-    if (originalMatchMedia) {
-      Object.defineProperty(window, "matchMedia", originalMatchMedia);
+    Reflect.deleteProperty(navigator, "standalone");
+    if (originalUserAgent) {
+      Object.defineProperty(navigator, "userAgent", originalUserAgent);
     }
   });
 
   it("offers the install to an iPhone tab outside the installed app", () => {
-    stubBrowser({ push: false, touchPoints: 5, standalone: false });
+    stubBrowser({ push: false, standalone: false });
 
     expect(isPushInstallable()).toBe(true);
   });
 
+  /**
+   * The read has to survive the user agent, because on an iPad it is Safari's
+   * macOS one and on an iPhone it is whatever Request Desktop Website makes
+   * it. This case is the previous one wearing a desktop string, so it fails
+   * the day anyone puts a user-agent test in front of the property.
+   */
   it("offers it to an iPad asking for the desktop site", () => {
-    stubBrowser({ push: false, touchPoints: 5, standalone: false });
-    // iPadOS sends Safari's macOS string here, and the read still answers
-    // true. A user-agent test would answer false and leave every iPad on the
-    // dead end this ticket is about.
+    stubBrowser({ push: false, standalone: false });
     Object.defineProperty(navigator, "userAgent", {
       configurable: true,
       value:
@@ -985,8 +974,15 @@ describe("isPushInstallable", () => {
     expect(isPushInstallable()).toBe(true);
   });
 
-  it("stays quiet on a desktop browser that has no push", () => {
-    stubBrowser({ push: false, touchPoints: 0, standalone: false });
+  /**
+   * Every engine that is not WebKit for iOS, which is one case because the
+   * property is missing on all of them: an Android in-app web view, a
+   * touchscreen laptop on a browser too old for push, a plain desktop. The
+   * first two have a service worker, no push and five touch points, and are
+   * the reason this asks for the Apple property rather than for touch.
+   */
+  it("stays quiet wherever the property is not defined at all", () => {
+    stubBrowser({ push: false, standalone: undefined });
 
     expect(isPushInstallable()).toBe(false);
   });
@@ -994,13 +990,21 @@ describe("isPushInstallable", () => {
   it("stays quiet inside an installed app that still has no push", () => {
     // iOS below 16.4. The app is on the Home Screen already, so telling the
     // reader to put it there would name a step they have taken.
-    stubBrowser({ push: false, touchPoints: 5, standalone: true });
+    stubBrowser({ push: false, standalone: true });
 
     expect(isPushInstallable()).toBe(false);
   });
 
   it("stays quiet where push already works", () => {
-    stubBrowser({ push: true, touchPoints: 5, standalone: false });
+    stubBrowser({ push: true, standalone: false });
+
+    expect(isPushInstallable()).toBe(false);
+  });
+
+  it("stays quiet with no service worker to receive through", () => {
+    stubBrowser({ push: false, standalone: false });
+    stubServiceWorker(undefined);
+    Reflect.deleteProperty(navigator, "serviceWorker");
 
     expect(isPushInstallable()).toBe(false);
   });
