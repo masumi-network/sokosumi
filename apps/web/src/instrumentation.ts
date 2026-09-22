@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-properties */
 import * as Sentry from "@sentry/nextjs";
 
 import {
