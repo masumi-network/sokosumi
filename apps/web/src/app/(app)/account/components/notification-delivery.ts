@@ -76,16 +76,26 @@ const STORED_CHANNELS: readonly StoredChannel[] = [
  * wakes the devices that can push. Only the words change: the cell says why
  * nothing will arrive here, and that the reader's other devices still hear it.
  *
- * The third one is the browser's own doing rather than a refusal: signing out
+ * The second is an iPhone or iPad outside the installed app. It is not a
+ * browser that cannot: WebKit ships Web Push to Home Screen web apps alone, so
+ * the reader is one Add to Home Screen away, and it takes the instruction the
+ * first one has nothing to offer.
+ *
+ * The last one is the browser's own doing rather than a refusal: signing out
  * drops this browser's subscription, and clearing site data drops it without
  * asking anyone. The account consent stands through both, so the cells stay on
  * and this browser hears nothing until something subscribes it again.
  */
-export type PushBlock = "unsupported" | "denied" | "unsubscribed";
+export type PushBlock =
+  | "unsupported"
+  | "installable"
+  | "denied"
+  | "unsubscribed";
 
 /** Why nothing arrives here, in the reader's terms. */
 export const PUSH_BLOCK_HINT_KEY: Record<PushBlock, string> = {
   unsupported: "pushUnsupported",
+  installable: "pushInstallableHint",
   denied: "pushBlockedHint",
   unsubscribed: "pushUnsubscribedHint",
 };

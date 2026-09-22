@@ -13,6 +13,7 @@ import {
 } from "@/lib/utils/browser-notification";
 import {
   hasWebPushSubscription,
+  isPushInstallable,
   isPushSupported,
 } from "@/lib/utils/notification-service-worker";
 import {
@@ -89,6 +90,16 @@ export interface PushPreference {
    */
   isSupported: boolean | null;
   /**
+   * Whether installing this app is what stands between this browser and push.
+   *
+   * Only ever true while `isSupported` is false, and it is the difference
+   * between a browser that will never push and an iPhone one tap from it.
+   * False until the mount read lands, which is the safe way round: it costs
+   * an iPhone reader one paint of the generic message, where the other way
+   * round would tell a desktop reader to install an app they cannot.
+   */
+  isInstallable: boolean;
+  /**
    * Whether the browser blocks notifications for this site. Subscribing can
    * only fail while it does, so the view says so rather than leaving the reader
    * with the generic failure toast.
@@ -135,6 +146,7 @@ export function usePushPreference(userId: string | undefined): PushPreference {
     boolean | null
   >(null);
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
+  const [isInstallable, setIsInstallable] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [permission, setPermission] =
     useState<BrowserNotificationPermission | null>(null);
@@ -227,6 +239,10 @@ export function usePushPreference(userId: string | undefined): PushPreference {
   // Browser-only reads, so they cannot run during render.
   useMountEffect(() => {
     setIsSupported(isPushSupported());
+    // Read once beside the support read, and never again: both answer from
+    // APIs this browser either has or does not, and neither appears while the
+    // page is open. The permission subscription below re-reads what can change.
+    setIsInstallable(isPushInstallable());
     refreshSubscriptionRow();
     setPermission(getBrowserNotificationPermission());
 
@@ -433,6 +449,7 @@ export function usePushPreference(userId: string | undefined): PushPreference {
     isDeviceEnabled: hasPushSubscription === true,
     isDeviceKnown: hasPushSubscription !== null,
     isSupported,
+    isInstallable,
     isBlocked,
     canToggleAccount: hasSession && accountOptIn !== null,
     // Consent is the master switch: with it withdrawn, no device receives

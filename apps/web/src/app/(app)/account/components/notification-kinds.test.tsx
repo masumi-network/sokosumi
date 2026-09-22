@@ -27,6 +27,8 @@ let isDeviceEnabled = true;
 let isDeviceKnown = true;
 /** Null until the capability read lands, which is not an answer. */
 let isSupported: boolean | null = true;
+/** Only ever read while `isSupported` is false: an iPhone outside the app. */
+let isInstallable = false;
 let isBlocked = false;
 /** A push write of any kind is already running. */
 let isSaving = false;
@@ -69,6 +71,7 @@ vi.mock("@/lib/ably/use-push-preference", () => ({
     isDeviceEnabled,
     isDeviceKnown,
     isSupported,
+    isInstallable,
     isBlocked,
     canToggleAccount: true,
     // The real hook's rule: a session, a browser that can subscribe, and
@@ -378,6 +381,7 @@ describe("NotificationKinds", () => {
     isDeviceEnabled = true;
     isDeviceKnown = true;
     isSupported = true;
+    isInstallable = false;
     isBlocked = false;
     isSaving = false;
     marketing = false;
@@ -2732,6 +2736,38 @@ describe("NotificationKinds", () => {
       expect(
         screen.getByText("pushBannerUnsupportedTitle"),
       ).toBeInTheDocument();
+    });
+
+    /**
+     * The same missing push, and the opposite thing to say about it. This
+     * reader is one Add to Home Screen from a working push, so the banner that
+     * tells a desktop browser it will never happen is the wrong one here.
+     */
+    it("sends an iPhone outside the installed app to the Home Screen", () => {
+      isSupported = false;
+      isInstallable = true;
+      renderKinds();
+
+      expect(
+        screen.getByText("pushBannerInstallableTitle"),
+      ).toBeInTheDocument();
+      expect(screen.getByText("pushBannerInstallableBody")).toBeInTheDocument();
+      expect(screen.queryByText("pushBannerUnsupportedTitle")).toBeNull();
+    });
+
+    /**
+     * The cell under the banner answers with it. A row that still read
+     * "this browser does not support push notifications" would contradict the
+     * banner above it, which says the reader can have them in two taps.
+     */
+    it("gives the push cells the install hint too", () => {
+      isSupported = false;
+      isInstallable = true;
+      renderKinds();
+
+      expect(describedBy(cellFor("kindSystem", "channelPush"))).toBe(
+        "channelPushHint pushInstallableHint pushOtherDevicesHint",
+      );
     });
 
     it("says nothing on a browser that refused the permission", () => {

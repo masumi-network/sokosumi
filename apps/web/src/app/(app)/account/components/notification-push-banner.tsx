@@ -1,6 +1,11 @@
 "use client";
 
-import { AlertTriangle, type LucideIcon, Smartphone } from "lucide-react";
+import {
+  AlertTriangle,
+  type LucideIcon,
+  Share,
+  Smartphone,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId } from "react";
 
@@ -11,6 +16,7 @@ import type { PushBlock } from "./notification-delivery";
 /** What is wrong, in a line the reader can act on or dismiss in their head. */
 const TITLE_KEY: Record<PushBlock, string> = {
   unsupported: "pushBannerUnsupportedTitle",
+  installable: "pushBannerInstallableTitle",
   denied: "pushBannerDeniedTitle",
   unsubscribed: "pushBannerUnsubscribedTitle",
 };
@@ -26,6 +32,7 @@ const TITLE_KEY: Record<PushBlock, string> = {
  */
 const BODY_KEY: Record<PushBlock, string> = {
   unsupported: "pushBannerUnsupportedBody",
+  installable: "pushBannerInstallableBody",
   denied: "pushBannerDeniedBody",
   unsubscribed: "pushBannerUnsubscribedBody",
 };
@@ -207,10 +214,15 @@ function BrowserNotice({
  * row under it. The cells stay exactly as the reader set them: they write the
  * account rather than this browser, so what is missing is this browser alone.
  *
- * Only one of the three can be fixed from here. A refusal has to be taken back
- * in the browser's own settings, since a site that has been refused cannot ask
- * again, and a browser without the feature has nothing to offer. Those two
- * explain themselves and take no press.
+ * Only one of the four takes a press. A refusal has to be taken back in the
+ * browser's own settings, since a site that has been refused cannot ask again;
+ * a browser without the feature has nothing to offer; and no API can put this
+ * app on a Home Screen, so the iPhone case names the taps and leaves them to
+ * the reader. Those three explain themselves and take no press.
+ *
+ * The iPhone case carries the share mark rather than the warning one. The
+ * words under it are instructions, and the mark is the one the reader is being
+ * sent to tap.
  */
 export function PushBanner({
   block,
@@ -225,7 +237,7 @@ export function PushBanner({
   return (
     <BrowserNotice
       warning={true}
-      icon={AlertTriangle}
+      icon={block === "installable" ? Share : AlertTriangle}
       titleKey={TITLE_KEY[block]}
       bodyKey={BODY_KEY[block]}
       action={
