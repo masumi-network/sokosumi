@@ -4,7 +4,12 @@
 
   /// SwiftUI mounting and layout are asynchronous even after a window is ordered front.
   @MainActor
-  func waitForView<V: NSView>(in host: NSView, _ readyView: () -> V?) async throws -> V {
+  func waitForView<V: NSView>(
+    in host: NSView,
+    timeoutMessage: @autoclosure () -> String,
+    sourceLocation: SourceLocation = #_sourceLocation,
+    _ readyView: () -> V?
+  ) async throws -> V {
     let clock = ContinuousClock()
     let deadline = clock.now.advanced(by: .seconds(10))
     repeat {
@@ -16,6 +21,6 @@
     } while clock.now < deadline
 
     host.layoutSubtreeIfNeeded()
-    return try #require(readyView(), "Expected view did not become ready within 10 seconds")
+    return try #require(readyView(), "Timed out after 10 seconds: \(timeoutMessage())", sourceLocation: sourceLocation)
   }
 #endif

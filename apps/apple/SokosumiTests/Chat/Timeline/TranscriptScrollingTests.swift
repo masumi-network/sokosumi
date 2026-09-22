@@ -30,7 +30,7 @@
         defer { window.orderOut(nil) }
         let scroll = try await loadedTranscriptScrollView(in: host)
         // Having a scroll view does not mean its initial bottom anchor has landed.
-        _ = try await waitForView(in: host) {
+        _ = try await waitForView(in: host, timeoutMessage: "Expected bottom distance within 1 pt and offset above 600 pt; got distance \(distanceFromBottom(scroll)) pt and offset \(scroll.contentView.bounds.minY) pt") {
           abs(distanceFromBottom(scroll)) <= 1 && scroll.contentView.bounds.minY > 600 ? scroll : nil
         }
         let initialOffset = scroll.contentView.bounds.minY

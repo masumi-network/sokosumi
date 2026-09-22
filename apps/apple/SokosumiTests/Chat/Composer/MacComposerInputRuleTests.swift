@@ -312,7 +312,7 @@
         #expect(window.makeFirstResponder(input))
         let typed = "so **bold** _italic_ ~~strike~~ `code` done"
         try await Self.runAsEvents(Self.keystrokes(typed, in: window))
-        _ = try await waitForView(in: host) {
+        _ = try await waitForView(in: host, timeoutMessage: "Expected editor \(String(reflecting: "so bold italic strike code done")) and draft \(String(reflecting: typed + "\n")); got editor \(String(reflecting: input.string)) and draft \(String(reflecting: text))") {
           input.string == "so bold italic strike code done" && text == typed + "\n" ? input : nil
         }
         // What the picture claims: no delimiter is on screen, each run carries its format,
@@ -363,7 +363,7 @@
         }
         steps += try Self.keystrokes(" x", in: window)
         await Self.runAsEvents(steps)
-        _ = try await waitForView(in: host) {
+        _ = try await waitForView(in: host, timeoutMessage: "Expected editor \(String(reflecting: "so hi x")) and draft \(String(reflecting: "so **hi** x\n")); got editor \(String(reflecting: input.string)) and draft \(String(reflecting: text))") {
           input.string == "so hi x" && text == "so **hi** x\n" ? input : nil
         }
         #expect(seen == ["so hi", "", "so hi"])
@@ -389,7 +389,7 @@
       }
 
       private static func loadedInput(in host: NSView) async throws -> MacComposerTextInput.InputView {
-        try await waitForView(in: host) {
+        try await waitForView(in: host, timeoutMessage: "Composer editor did not appear in the hosting view") {
           textView(in: host) as? MacComposerTextInput.InputView
         }
       }

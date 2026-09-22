@@ -349,7 +349,7 @@
         window.contentView = host
         window.orderFront(nil)
         defer { window.orderOut(nil) }
-        let input = try await waitForView(in: host) {
+        let input = try await waitForView(in: host, timeoutMessage: "Composer editor did not appear in the hosting view") {
           Self.textView(in: host) as? MacComposerTextInput.InputView
         }
         let scroll = try #require(input.enclosingScrollView)
@@ -374,7 +374,7 @@
           window.sendEvent(event)
         }
         let coordinator = try #require(input.delegate as? MacComposerTextInput.Coordinator)
-        _ = try await waitForView(in: host) {
+        _ = try await waitForView(in: host, timeoutMessage: "Expected mention IDs \(mentions.map(\.id)); got \(String(describing: coordinator.parent.commands?.mentionOptions.map(\.id)))") {
           coordinator.parent.commands?.mentionOptions.map(\.id) == mentions.map(\.id) ? input : nil
         }
         // The click neither took focus from the editor nor ended editing.
