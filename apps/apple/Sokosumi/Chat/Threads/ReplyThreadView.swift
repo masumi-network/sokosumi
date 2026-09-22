@@ -290,13 +290,11 @@ import SwiftUI
         let shell = outbox.shells.first { $0.id == message.id }
         VStack(alignment: .leading, spacing: 0) {
           if hasGap {
-            Button("Load messages in this gap") {
+            // Web's thread panel has no gap row (a reply jump is Apple's), so this stays a
+            // tap; the row and its failure follow the room's gap row.
+            TranscriptBoundaryRow(isGap: true, status: workspaces.thread.timeline.boundaryLoads.status(of: message.id)) {
               workspaces.loadThreadPage(.boundary(message.id), auth: auth)
             }
-            .buttonStyle(.link)
-            .disabled(workspaces.thread.timeline.isRefreshing)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
           }
           if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt) {
             DaySeparatorRow(label: label)
