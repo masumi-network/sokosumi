@@ -73,6 +73,22 @@ struct MessageMarkdownTests {
     let row = try #require(table.children.last)
     // Empty cells remain explicit nodes; their column indexes must not shift.
     #expect(row.children.map(\.kind) == [.tableCell(columnIndex: 0), .tableCell(columnIndex: 1)])
+    #expect(Set(table.children.flatMap(\.children).map(\.id)).count == 4)
+  }
+
+  @Test func shortTableRowsKeepACellPerColumn() throws {
+    let result = MessageMarkdown("| A | B | C |\n| --- | ---: | :---: |\n| only |")
+    let table = try #require(result.blocks.first)
+    #expect(table.kind == .table(columns: [
+      .init(alignment: .left), .init(alignment: .right), .init(alignment: .center)
+    ]))
+    for row in table.children {
+      #expect(row.children.map(\.kind) == [
+        .tableCell(columnIndex: 0), .tableCell(columnIndex: 1), .tableCell(columnIndex: 2)
+      ])
+    }
+    let ids = table.children.flatMap(\.children).map(\.id)
+    #expect(Set(ids).count == ids.count)
   }
 
   @Test func preservesEmptyBlocksInRenderedModel() throws {

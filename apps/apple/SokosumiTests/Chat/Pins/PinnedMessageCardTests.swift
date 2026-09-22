@@ -50,10 +50,6 @@
       #expect(measurements[0].height < 100)
       #expect(measurements[1].height <= 175)
       #expect(measurements[2].height < 100)
-      let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
-      host.cacheDisplay(in: host.bounds, to: bitmap)
-      let png = try #require(bitmap.representation(using: .png, properties: [:]))
-      try png.write(to: URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("pinned-cards-\(dark ? "dark" : "light").png"))
     }
 
     /// Row 21a at the inspector's minimum width: a written pin, a quote-only pin, a quote-only pin whose
@@ -66,8 +62,8 @@
         messageId: "long", authorName: String(repeating: "Bartholomew Featherstonehaugh ", count: 4),
         snippet: String(repeating: "A long quoted paragraph that has to clamp inside the pin. ", count: 30)
       )
-      let (measurements, png) = try await render([("A short **pinned message**.", nil), (" \n", ada), ("", longQuote), ("", nil),
-                                                  ("Written over a quote.", ada)], width: width, dark: dark)
+      let measurements = try await render([("A short **pinned message**.", nil), (" \n", ada), ("", longQuote), ("", nil),
+                                           ("Written over a quote.", ada)], width: width, dark: dark)
       let written = measurements[0].height, quoted = measurements[1].height, blank = measurements[3].height
       // The quote adds its author line and the block's inset to what a one-line body takes.
       #expect(quoted > written + 20)
@@ -82,11 +78,10 @@
       for measurement in measurements {
         #expect(abs(measurement.width - (width - 24)) < 1)
       }
-      Attachment.record(png, named: "pinned-quote-only-\(dark ? "dark" : "light").png")
     }
 
     private func render(_ sources: [(content: String, quote: Components.Schemas.ChatRoomMessageQuote?)], width: CGFloat,
-                        dark: Bool) async throws -> ([HeightMeasurement], Data) {
+                        dark: Bool) async throws -> [HeightMeasurement] {
       let room = Components.Schemas.ChatRoom(id: "fixture", name: "General", kind: .channel, isSelfDirect: false,
                                              createdByUserId: "person", createdAt: .now, updatedAt: .now, unreadCount: 0,
                                              unreadMentionCount: 0, markedUnread: false, myAccess: .member,
@@ -120,9 +115,7 @@
         host.layoutSubtreeIfNeeded()
         try await Task.sleep(for: .milliseconds(30))
       }
-      let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
-      host.cacheDisplay(in: host.bounds, to: bitmap)
-      return try (measurements, #require(bitmap.representation(using: .png, properties: [:])))
+      return measurements
     }
 
     private final class HeightMeasurement {

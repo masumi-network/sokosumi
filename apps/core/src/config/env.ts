@@ -25,6 +25,10 @@ const baseEnvSchema = z.object({
   // Database
   DATABASE_URL: z.url(),
 
+  // Redis / Vercel KV (optional; resumable UI streams, coworker stream locks)
+  REDIS_URL: z.string().optional(),
+  KV_URL: z.string().optional(),
+
   WEB_APP_BASE_URL: z.url().default("http://localhost:3000"),
 
   // Vercel (optional; Better Auth base URL on Preview)

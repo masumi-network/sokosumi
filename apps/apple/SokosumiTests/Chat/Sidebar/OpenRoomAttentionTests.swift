@@ -55,8 +55,8 @@
       /// The real sidebar in a window. `emphasized` asks for the key window with the list as first
       /// responder, which is what draws the accent selection. A test host that is not the active
       /// app is refused that, so the selected row view is then told to draw emphasized, which is
-      /// the same AppKit drawing path; the result says which of the two happened.
-      private func render(_ state: WorkspaceState, dark: Bool, emphasized: Bool) async throws -> (bitmap: NSBitmapImageRep, selection: String) {
+      /// the same AppKit drawing path.
+      private func render(_ state: WorkspaceState, dark: Bool, emphasized: Bool) async throws -> NSBitmapImageRep {
         let content = ConversationSidebarView()
           .environmentObject(state).environmentObject(AuthState())
           .frame(width: 260, height: 300)
@@ -76,14 +76,12 @@
         host.layoutSubtreeIfNeeded()
         let selectedRows = Self.views(NSTableRowView.self, in: host).filter(\.isSelected)
         try #require(selectedRows.count == 1)
-        var selection = "unfocused"
         if emphasized {
           let table = try #require(Self.views(NSTableView.self, in: host).first)
           let focused = window.makeFirstResponder(table) && window.isKeyWindow
           if !focused {
             selectedRows.forEach { $0.isEmphasized = true }
           }
-          selection = focused ? "focused" : "emphasized"
           try await Task.sleep(for: .milliseconds(200))
           let drawnEmphasized = selectedRows.filter(\.isEmphasized).count
           #expect(drawnEmphasized == 1)
@@ -100,7 +98,7 @@
         host.layoutSubtreeIfNeeded()
         let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
         host.cacheDisplay(in: host.bounds, to: bitmap)
-        return (bitmap, selection)
+        return bitmap
       }
 
       private static func views<V: NSView>(_ type: V.Type, in view: NSView) -> [V] {
@@ -134,19 +132,16 @@
         #expect(!state.sidebar.canPerform(.markUnread, roomId: Self.openRoomId))
         #expect(!state.sidebar.canPerform(.markUnread, roomId: "d-muted"))
         #expect(state.sidebar.canPerform(.markUnread, roomId: "b-other"))
-        let rendered = try await render(state, dark: dark, emphasized: emphasized)
-        let png = try #require(rendered.bitmap.representation(using: .png, properties: [:]))
-        // Named for how the selection was drawn: "focused" only when the host really became key.
-        Attachment.record(png, named: "sidebar-open-room-attention-\(dark ? "dark" : "light")-\(rendered.selection).png")
+        _ = try await render(state, dark: dark, emphasized: emphasized)
       }
 
       /// The selected row draws its unread state: the same sidebar with the open room unread and
       /// read differs by more than two renders of the read sidebar differ from each other.
       @Test(arguments: [false, true])
       func theSelectedRowDrawsItsUnreadState(dark: Bool) async throws {
-        let unread = try await render(workspace(openUnread: 12, openMentions: 3), dark: dark, emphasized: false).bitmap
-        let read = try await render(workspace(openUnread: 0, openMentions: 0), dark: dark, emphasized: false).bitmap
-        let readAgain = try await render(workspace(openUnread: 0, openMentions: 0), dark: dark, emphasized: false).bitmap
+        let unread = try await render(workspace(openUnread: 12, openMentions: 3), dark: dark, emphasized: false)
+        let read = try await render(workspace(openUnread: 0, openMentions: 0), dark: dark, emphasized: false)
+        let readAgain = try await render(workspace(openUnread: 0, openMentions: 0), dark: dark, emphasized: false)
         let noise = try differingBytes(read, readAgain)
         #expect(try differingBytes(unread, read) > noise)
       }

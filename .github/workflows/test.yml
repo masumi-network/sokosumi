@@ -26,6 +26,7 @@ jobs:
     outputs:
       js: ${{ steps.filter.outputs.js }}
       docs: ${{ steps.filter.outputs.docs }}
+      cli: ${{ steps.filter.outputs.cli }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -50,7 +51,8 @@ jobs:
     # none of the required contexts. Test CLI, Test Local env, Test CI
     # config, and Test Cloud agent db share this matrix but are
     # advisory — not merge gates. See docs/agents/delivery.md. Test CI
-    # config still runs on markdown-only PRs (doc-script check).
+    # config still runs on markdown-only PRs (doc-script check), and
+    # Test CLI runs only on apps/cli changes (see matrix `filter`).
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -58,14 +60,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # `filter` names the path-filter output this leg gates on (see
+        # .github/js-paths-filter.yml). CLI is the one leg with no
+        # workspace dependencies, so it gates on apps/cli alone.
         target:
-          - { name: Web, command: "pnpm exec turbo run test:ci --filter=web" }
-          - { name: Core, command: "pnpm exec turbo run test:ci --filter=@sokosumi/core" }
-          - { name: CLI, command: "pnpm exec turbo run test:ci --filter=./apps/cli" }
-          - { name: Packages, command: 'pnpm exec turbo run test:ci --filter="./packages/*"' }
-          - { name: Local env, command: "pnpm local-env:test" }
-          - { name: CI config, command: "pnpm ci:test" }
-          - { name: Cloud agent db, command: "pnpm cloud-agent-db:test" }
+          - { name: Web, command: "pnpm exec turbo run test:ci --filter=web", filter: js }
+          - { name: Core, command: "pnpm exec turbo run test:ci --filter=@sokosumi/core", filter: js }
+          - { name: CLI, command: "pnpm exec turbo run test:ci --filter=./apps/cli", filter: cli }
+          - { name: Packages, command: 'pnpm exec turbo run test:ci --filter="./packages/*"', filter: js }
+          - { name: Local env, command: "pnpm local-env:test", filter: js }
+          - { name: CI config, command: "pnpm ci:test", filter: js }
+          - { name: Cloud agent db, command: "pnpm cloud-agent-db:test", filter: js }
     services:
       postgres:
         image: ${{ (matrix.target.name == 'Packages' || matrix.target.name == 'Core') && 'postgres:17' || '' }}
@@ -85,19 +90,32 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Setup
-        if: needs.changes.outputs.js == 'true' || (matrix.target.name == 'CI config' && needs.changes.outputs.docs == 'true') || github.event_name == 'workflow_dispatch'
+        if: needs.changes.outputs[matrix.target.filter] == 'true' || (matrix.target.name == 'CI config' && needs.changes.outputs.docs == 'true') || github.event_name == 'workflow_dispatch'
         uses: ./.github/actions/setup
         with:
           turbo_team: ${{ vars.TURBO_TEAM }}
 
       - name: Run Tests
-        if: needs.changes.outputs.js == 'true' || (matrix.target.name == 'CI config' && needs.changes.outputs.docs == 'true') || github.event_name == 'workflow_dispatch'
+        if: needs.changes.outputs[matrix.target.filter] == 'true' || (matrix.target.name == 'CI config' && needs.changes.outputs.docs == 'true') || github.event_name == 'workflow_dispatch'
         run: ${{ matrix.target.command }}
 
-      # Build and launch the compiled binary: the Build job builds it but never
-      # runs it, and the CLI test suite exercises source via tsx, not dist.
+      # apps/cli is excluded from the `js` filter, so Typecheck, Biome and
+      # Build all skip on a CLI-only PR. These three steps carry that
+      # coverage instead — without them the CLI would merge on `tsx --test`
+      # alone, which strips types rather than checking them.
+      - name: Typecheck the CLI
+        if: matrix.target.name == 'CLI' && (needs.changes.outputs.cli == 'true' || github.event_name == 'workflow_dispatch')
+        run: pnpm --filter ./apps/cli typecheck
+
+      - name: Lint the CLI
+        if: matrix.target.name == 'CLI' && (needs.changes.outputs.cli == 'true' || github.event_name == 'workflow_dispatch')
+        run: pnpm exec biome check apps/cli
+
+      # Build and launch the compiled binary: the Build job never runs it, and
+      # skips it outright on a CLI-only PR, while the CLI test suite exercises
+      # source via tsx rather than dist.
       - name: Smoke the built CLI
-        if: matrix.target.name == 'CLI' && (needs.changes.outputs.js == 'true' || github.event_name == 'workflow_dispatch')
+        if: matrix.target.name == 'CLI' && (needs.changes.outputs.cli == 'true' || github.event_name == 'workflow_dispatch')
         run: |
           pnpm --filter ./apps/cli build
           node apps/cli/dist/bin/sokosumi.js --version

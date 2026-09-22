@@ -40,16 +40,6 @@ const query = z.object({
       description: "Maximum number of commented reviews to return",
       example: RECENT_REVIEW_LIMIT,
     }),
-  offset: z.coerce
-    .number()
-    .int()
-    .min(0)
-    .default(0)
-    .openapi({
-      param: { name: "offset", in: "query" },
-      description: "Number of commented reviews to skip",
-      example: 0,
-    }),
 });
 
 const route = withOrganizationSlugHeaderParameter(
@@ -76,7 +66,7 @@ const route = withOrganizationSlugHeaderParameter(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
-    const { limit, offset } = c.req.valid("query");
+    const { limit } = c.req.valid("query");
 
     const creditCosts = await getCreditCostsOrThrow(prisma);
     const cardanoV2ReadySources = await getCardanoV2ReadySources(prisma);
@@ -97,7 +87,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const [distribution, ratingsWithComments] = await Promise.all([
       getAgentRatingDistribution(id, prisma),
-      getRecentAgentReviews(id, limit, prisma, offset),
+      getRecentAgentReviews(id, limit, prisma),
     ]);
 
     const reviews = {
