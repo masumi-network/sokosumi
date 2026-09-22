@@ -132,9 +132,8 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
       ...(body.pushOptIn !== undefined && {
         pushOptIn: body.pushOptIn,
       }),
-      // The wire says "show"; the column stores "hide" (ADR-0038). The old
-      // `showRoomUnreadCount` column is never written: it stays as each
-      // reader's pre-ADR value, for a rollback to find.
+      // The wire says "show"; the column stores "hide" (ADR-0038), so a
+      // reader who never chose is shown the count.
       ...(body.showRoomUnreadCount !== undefined && {
         hideRoomUnreadCount: !body.showRoomUnreadCount,
       }),

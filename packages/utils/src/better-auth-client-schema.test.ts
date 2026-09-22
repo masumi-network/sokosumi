@@ -14,17 +14,6 @@ describe("betterAuthUserAdditionalFields", () => {
       input: false,
     });
   });
-});
-
-describe("betterAuthOrganizationAdditionalFields", () => {
-  it("rejects client writes to organization stripeCustomerId", () => {
-    expect(betterAuthOrganizationAdditionalFields.stripeCustomerId).toEqual({
-      type: "string",
-      required: false,
-      defaultValue: null,
-      input: false,
-    });
-  });
 
   // ADR-0038's contract step. Declaring a field Better Auth cannot store
   // would break sign-in; forgetting to remove it would keep a dead column's
@@ -36,5 +25,16 @@ describe("betterAuthOrganizationAdditionalFields", () => {
     expect(betterAuthUserAdditionalFields).toHaveProperty(
       "hideRoomUnreadCount",
     );
+  });
+});
+
+describe("betterAuthOrganizationAdditionalFields", () => {
+  it("rejects client writes to organization stripeCustomerId", () => {
+    expect(betterAuthOrganizationAdditionalFields.stripeCustomerId).toEqual({
+      type: "string",
+      required: false,
+      defaultValue: null,
+      input: false,
+    });
   });
 });
