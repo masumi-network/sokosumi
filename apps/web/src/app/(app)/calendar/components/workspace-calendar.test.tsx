@@ -313,23 +313,7 @@ describe("WorkspaceCalendar", () => {
     expect(refreshMock).not.toHaveBeenCalled();
   });
 
-  it("places the schedule action at the right edge of the toolbar", () => {
-    render(
-      <NuqsTestingAdapter searchParams="?timezone=UTC">
-        <WorkspaceCalendar
-          items={ITEMS}
-          initialDate="2026-08-18"
-          sources={SOURCES}
-        />
-      </NuqsTestingAdapter>,
-    );
-
-    expect(screen.getByRole("button", { name: "create.title" })).toHaveClass(
-      "ml-auto",
-    );
-  });
-
-  it("shows a plus icon before the schedule action label", () => {
+  it("does not show a schedule task toolbar button", () => {
     render(
       <NuqsTestingAdapter searchParams="?timezone=UTC">
         <WorkspaceCalendar
@@ -341,8 +325,8 @@ describe("WorkspaceCalendar", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: "create.title" }).firstElementChild,
-    ).toHaveClass("lucide-plus");
+      screen.queryByRole("button", { name: "create.title" }),
+    ).not.toBeInTheDocument();
   });
 
   it("does not render a page heading", () => {

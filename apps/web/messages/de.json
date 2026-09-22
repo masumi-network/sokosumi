@@ -1533,8 +1533,6 @@
         "approvePartialError": "{approved} von {total} Vendors genehmigt. Einige Freigaben sind fehlgeschlagen — bitte aktualisieren und erneut versuchen."
       },
       "Actions": {
-        "add": "Neue Aufgabe",
-        "addTask": "Neue Aufgabe",
         "loading": "Wird geladen...",
         "loadMore": "Mehr laden",
         "showGuide": "Show guide"
@@ -6317,7 +6315,6 @@
         "moveNotAllowed": "Nur der Besitzer der Aufgabe kann sie neu planen."
       },
       "create": {
-        "title": "Task planen",
         "fab": "Task planen"
       },
       "edit": {

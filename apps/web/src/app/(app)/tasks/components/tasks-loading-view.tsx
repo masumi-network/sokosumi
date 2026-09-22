@@ -1,4 +1,4 @@
-import { Loader2, Plus, SlidersHorizontal } from "lucide-react";
+import { Loader2, SlidersHorizontal } from "lucide-react";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import {
   COLUMN_STATUS_COLORS,
@@ -17,8 +17,6 @@ export interface TasksLoadingLabels {
     jobs: string;
   };
   columns: Record<KanbanColumnId, string>;
-  add: string;
-  addTask: string;
   display: {
     button: string;
   };
@@ -42,8 +40,6 @@ export const TASKS_LOADING_DEFAULT_LABELS: TasksLoadingLabels = {
     "input-required": "Input Required",
     done: "Done",
   },
-  add: "New Task",
-  addTask: "New Task",
   display: {
     button: "Display",
   },
@@ -86,15 +82,6 @@ export function TasksLoadingView({ viewMode, labels }: TasksLoadingViewProps) {
           <Button variant="outline" size="sm" className="gap-2" disabled>
             <SlidersHorizontal className="size-4" aria-hidden />
             <span className="hidden sm:inline">{labels.display.button}</span>
-          </Button>
-          <Button
-            size="sm"
-            className="hidden gap-1.5 md:inline-flex"
-            disabled
-            data-tasks-add-task-header-anchor
-          >
-            <Plus className="size-4" aria-hidden />
-            <span className="hidden sm:inline">{labels.add}</span>
           </Button>
         </div>
       </div>
@@ -162,15 +149,6 @@ function TasksBoardLoading({ labels }: { labels: TasksLoadingLabels }) {
                 <div className="flex-1" />
               )}
             </div>
-
-            {isFirstColumn ? (
-              <div className="px-2 pb-3">
-                <Button className="w-full text-xs" variant="ghost" disabled>
-                  <Plus className="size-4" aria-hidden />
-                  <span className="hidden sm:inline">{labels.addTask}</span>
-                </Button>
-              </div>
-            ) : null}
           </section>
         );
       })}

@@ -1533,8 +1533,6 @@
         "approvePartialError": "Se aprobó el acceso de {approved} de {total} proveedores. Algunas aprobaciones fallaron; actualiza e inténtalo de nuevo."
       },
       "Actions": {
-        "add": "Nueva tarea",
-        "addTask": "Nueva tarea",
         "loading": "Cargando...",
         "loadMore": "Cargar más",
         "showGuide": "Show guide"
@@ -6317,7 +6315,6 @@
         "moveNotAllowed": "Solo el propietario de la tarea puede reprogramarla."
       },
       "create": {
-        "title": "Programar una tarea",
         "fab": "Programar una tarea"
       },
       "edit": {
