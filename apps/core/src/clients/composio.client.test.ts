@@ -9,7 +9,6 @@ const { getEnvMock, logSetMock, ssrfSafeFetchMock } = vi.hoisted(() => ({
 vi.mock("@/lib/evlog", () => ({ tryUseLogger: () => ({ set: logSetMock }) }));
 vi.mock("@sokosumi/net", () => ({ ssrfSafeFetch: ssrfSafeFetchMock }));
 
-
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
 
 const input = {
