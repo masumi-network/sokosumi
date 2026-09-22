@@ -76,7 +76,7 @@ struct ChatRootView: View {
       get: { workspaces.readAttention.errorMessage != nil },
       set: {
         if !$0 {
-          workspaces.readAttention.clearError()
+          Task { @MainActor in workspaces.readAttention.clearError() }
         }
       }
     )) {

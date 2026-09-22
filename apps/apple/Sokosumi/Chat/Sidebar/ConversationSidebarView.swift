@@ -220,7 +220,7 @@ struct ConversationSidebarView: View {
       get: { workspaces.sidebar.actionError != nil },
       set: {
         if !$0 {
-          workspaces.sidebar.clearActionError()
+          Task { @MainActor in workspaces.sidebar.clearActionError() }
         }
       }
     )) {

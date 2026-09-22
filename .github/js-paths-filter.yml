@@ -6,3 +6,9 @@ js:
   - "!apps/apple/**"
   - "!docs/**"
   - "!**/*.md"
+
+# Markdown the JS filter excludes. One positive pattern, so `every` at
+# the call site is the same as `some`. Test CI config uses this so
+# docs-only PRs still run the doc-script check.
+docs:
+  - "**/*.md"

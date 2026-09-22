@@ -1,6 +1,7 @@
 ---
 description: "Color tokens in apps/web: no raw palette, no hex literals, no opacity modifiers"
-alwaysApply: true
+globs: apps/web/**
+alwaysApply: false
 ---
 
 ## Color tokens
@@ -158,10 +159,5 @@ marks, the color picker's own swatches, two canvas painters and a canvas
 fallback that reads `--primary` first, the error page that renders when the
 stylesheet failed, an iframe `srcdoc`, and the two surfaces the OS reads
 rather than CSS. It is named file by file, and it exempts literals only. No
-file is exempt from the palette rule.
-
-The debt this rule was written against is gone. `apps/web/src` carried 820
-opacity modifiers across 242 files and 192 raw palette classes across 40 files
-when the sweep started; both are zero. The 55 literal lines that remain all sit
-in the nine allowlisted files. Nothing here is aspirational any more, so a new
-modifier is not debt to be tolerated, it is a build failure.
+file is exempt from the palette rule. A new modifier or palette class is a
+build failure.

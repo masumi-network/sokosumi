@@ -46,11 +46,11 @@ docs(readme): update setup instructions
 > | `chore(deps): pin biome version` | `Update deps` |
 
 - **Required status checks** on `main` (ruleset `Default Branch`): `Build`, `Validate PR Title`, `Biome`, `Test Core`, `Test Packages`, `Test Web`, `Typecheck`, `Swift lint and format`, `Xcode test`. Read the live list with `gh api repos/masumi-network/sokosumi/rulesets/3855070 --jq '.rules[] | select(.type=="required_status_checks") | .parameters.required_status_checks[].context'`. Deleting or renaming the job behind one of these blocks every PR on a check that never reports, so update the ruleset in the same change.
-- **Advisory status checks** in `.github/workflows/test.yml`: `Test CLI`, `Test Local env`, `Test CI config`. They share the Tests matrix with `Test Web` / `Test Core` / `Test Packages` and still run on every JS PR, but they are **not** in the ruleset. A red advisory job does not block merge.
+- **Advisory status checks** in `.github/workflows/test.yml`: `Test CLI`, `Test Local env`, `Test CI config`, `Test Cloud agent db`. They share the Tests matrix with `Test Web` / `Test Core` / `Test Packages` and still run on every JS PR, but they are **not** in the ruleset. A red advisory job does not block merge. `Test CI config` also runs on markdown-only PRs so the doc-script check still executes.
 - **Draft by default**: Open new PRs as **draft** unless the author explicitly asks for a ready-for-review PR. Mark it ready for review only once CI is green and the change is complete.
 - **Title**: Follow [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/) syntax (e.g. `feat(auth): add refresh token`)
 - **Description**: Explain user-facing impact
 - **Links**: Reference Linear or GitHub issues
 - **Verification**: List steps (e.g., `pnpm test`, `pnpm build`)
 - **Screenshots**: Attach for UI updates
-- **Schema Changes**: Flag migration filenames and mention data scripts (`pnpm data-migration:<name>`)
+- **Schema Changes**: Flag migration filenames and mention data scripts (`pnpm --filter @sokosumi/database data-migration:<name>`). Root only aliases `pnpm data-migration:org-only-personal-workspaces`.
