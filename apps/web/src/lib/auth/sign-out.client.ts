@@ -21,5 +21,6 @@ export function signOutWithPushRelease(
   userId: string | undefined,
   options?: Parameters<typeof signOut>[0],
 ): ReturnType<typeof signOut> {
+  window.dispatchEvent(new Event("chat-session-ended"));
   return releasePushDeviceOnSignOut(userId).then(() => signOut(options));
 }

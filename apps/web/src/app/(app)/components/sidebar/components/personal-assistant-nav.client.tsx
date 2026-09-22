@@ -53,16 +53,6 @@ export default function PersonalAssistantNav({
       <SidebarGroupContent>
         <SidebarMenu className="gap-0">
           <SidebarMenuItem>
-            {/*
-              An ordinary Sidebar row, not a card. It used to be a 48px
-              bordered box expanded and a 32px square on the rail, holding a
-              stack of up to three faces that shrank as the stack grew — so
-              the entry above every other row was the one that moved the list
-              furthest on a toggle, and its mark changed size with the number
-              of bots in the workspace. One face at 20px in the shared slot
-              says the same thing and lines up with the nav under it; the
-              divider below still marks it as the entry it is.
-            */}
             <SidebarMenuButton
               asChild
               isActive={isActive}

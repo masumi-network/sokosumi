@@ -1,5 +1,7 @@
+import { HTTPException } from "hono/http-exception";
 import {
   forbidden,
+  internalServerError,
   serviceUnavailable,
   tooManyRequests,
 } from "@/helpers/error";
@@ -87,6 +89,10 @@ function userMessageForCoworkerProviderError(code?: string): string {
 export function throwCoworkerRemoteConversationHttpError(
   error: unknown,
 ): never {
+  if (error instanceof HTTPException) {
+    throw error;
+  }
+
   if (error instanceof CoworkerConversationError) {
     const { upstreamStatus, upstreamCode } = error;
 
@@ -129,10 +135,10 @@ export async function createCoworkerConversation(
 ): Promise<{ id: string }> {
   const baseUrl = options.responsesApiBaseUrl?.trim();
   if (!baseUrl) {
-    throw new Error("Responses API base URL is required");
+    throw internalServerError("Responses API base URL is required");
   }
   if (!options.coworkerSlug?.trim()) {
-    throw new Error("Coworker slug is required");
+    throw internalServerError("Coworker slug is required");
   }
 
   const base = baseUrl.replace(/\/$/, "");

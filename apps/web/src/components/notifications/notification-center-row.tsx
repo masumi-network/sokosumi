@@ -10,8 +10,11 @@ import {
 import { VendorGrantNotificationActions } from "@/components/notifications/vendor-grant-notification-actions";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
-import { isPendingCoworkerAccessNotification } from "@/lib/utils/coworker-access-notification";
-import { isPendingVendorGrantNotification } from "@/lib/utils/vendor-grant-notification";
+import {
+  COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+  isPendingWorkspaceApprovalNotification,
+  VENDOR_GRANT_PENDING_MESSAGE_KEY,
+} from "@/lib/utils/workspace-approval";
 
 interface NotificationCenterRowProps {
   notification: NotificationItem;
@@ -39,9 +42,14 @@ export function NotificationCenterRow({
   timeLabel,
   onClick,
 }: NotificationCenterRowProps) {
-  const showVendorGrantActions = isPendingVendorGrantNotification(notification);
-  const showCoworkerAccessActions =
-    isPendingCoworkerAccessNotification(notification);
+  const showVendorGrantActions = isPendingWorkspaceApprovalNotification(
+    notification,
+    VENDOR_GRANT_PENDING_MESSAGE_KEY,
+  );
+  const showCoworkerAccessActions = isPendingWorkspaceApprovalNotification(
+    notification,
+    COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+  );
   const showPendingAccessActions =
     showVendorGrantActions || showCoworkerAccessActions;
   const rowClassName = cn(

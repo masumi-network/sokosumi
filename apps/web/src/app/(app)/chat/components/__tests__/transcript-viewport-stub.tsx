@@ -5,7 +5,10 @@ import {
   CHAT_MESSAGE_LIST_ATTRIBUTE,
   CHAT_MESSAGE_LIST_ROOM,
 } from "@/app/chat/chat-message-list";
-import type { TranscriptViewportHandle } from "@/app/chat/components/transcript-viewport";
+import type {
+  TranscriptPosition,
+  TranscriptViewportHandle,
+} from "@/app/chat/components/transcript-viewport";
 import { highlightListMessage } from "@/app/chat/utils/room-message-highlight";
 import type { RoomTranscriptRenderRow } from "@/app/chat/utils/room-transcript-ranges";
 import { transcriptRowKey } from "@/app/chat/utils/transcript-viewport-model";
@@ -23,6 +26,13 @@ import { transcriptRowKey } from "@/app/chat/utils/transcript-viewport-model";
  * import("./transcript-viewport-stub"))`.
  */
 export const transcriptViewportSpies = {
+  position:
+    vi.fn<
+      (props: {
+        initialPosition?: TranscriptPosition;
+        onPositionChange?: (position: TranscriptPosition) => void;
+      }) => void
+    >(),
   scrollToBottom: vi.fn(),
   pinToBottomAfterOwnSend: vi.fn(),
   suppressStickToBottom: vi.fn(),
@@ -34,15 +44,20 @@ export const transcriptViewportSpies = {
 
 export function TranscriptViewport({
   rows,
+  initialPosition,
+  onPositionChange,
   renderRow,
   list = CHAT_MESSAGE_LIST_ROOM,
   ref,
 }: {
+  initialPosition?: TranscriptPosition;
+  onPositionChange?: (position: TranscriptPosition) => void;
   rows: readonly RoomTranscriptRenderRow[];
   renderRow: (row: RoomTranscriptRenderRow) => ReactNode;
   list?: string;
   ref: Ref<TranscriptViewportHandle>;
 }) {
+  transcriptViewportSpies.position({ initialPosition, onPositionChange });
   useImperativeHandle(ref, () => ({
     ...transcriptViewportSpies,
     landOnMessage: (messageId) => highlightListMessage(list, messageId),

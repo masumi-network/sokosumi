@@ -32,15 +32,23 @@ vi.mock("@/lib/calendar-beta-access.server", () => ({
     hasCurrentUserCalendarBetaAccessMock(),
 }));
 
-vi.mock("@/lib/services/organization-assigned-seat.service", () => ({
-  hasAssignedOrganizationSeat: (...args: unknown[]) =>
-    hasAssignedOrganizationSeatMock(...args),
+vi.mock("@/lib/services/organization-seat.service", () => ({
+  organizationSeatService: {
+    hasAssignedSeat: (...args: unknown[]) =>
+      hasAssignedOrganizationSeatMock(...args),
+  },
 }));
 
 vi.mock("@/lib/services/user.service", () => ({
   userService: {
     getWorkspaceAccess: (...args: unknown[]) => getWorkspaceAccessMock(...args),
   },
+}));
+
+vi.mock("@/app/chat/components/authenticated-room-cache", () => ({
+  AuthenticatedRoomCache: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
 }));
 
 // Heavy chrome deps — not exercised by gate redirect tests.

@@ -337,8 +337,8 @@ export async function notifySubscriptionEnding(
  *
  * A user and an organization each carry their own Stripe customer id, and an
  * event names one customer. Null rather than a throw for an unknown customer:
- * the invoice-paid path throws so Stripe retries the credit grant, but a
- * notification is not worth a retry storm.
+ * invoice.paid looks the customer up on Stripe and acks a permanent miss,
+ * but a notification is not worth that extra round trip.
  */
 export async function resolveBillingWalletByStripeCustomerId(
   stripeCustomerId: string,

@@ -13,6 +13,8 @@ export interface OrganizationChatRoomsChangedDetail {
    * for the next membership-visible rooms refetch.
    */
   removedRoomId?: string;
+  /** Core confirmed a join; permits a fresh transcript after prior revocation. */
+  joinedRoomId?: string;
   /**
    * Refetch only these collections (SOK-986 control-channel invalidation or
    * a message in another room). Absent means refetch every collection.

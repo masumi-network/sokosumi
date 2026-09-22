@@ -20,7 +20,11 @@ import {
   getMyPreferencesQueryOptions,
 } from "@/queries/preferences";
 
-import { recordPushRepairOutcome } from "./push-repair-outcome.client";
+import {
+  getPushRepairOutcome,
+  recordPushRepairOutcome,
+  subscribePushRepairOutcome,
+} from "./push-repair-outcome.client";
 
 /**
  * Loads the activation module on the click that needs it. That module pulls in
@@ -49,7 +53,7 @@ async function readPushSubscription(): Promise<boolean> {
     return false;
   }
 
-  return hasWebPushSubscription();
+  return getPushRepairOutcome() !== "quiet" && (await hasWebPushSubscription());
 }
 
 /**
@@ -231,6 +235,9 @@ export function usePushPreference(userId: string | undefined): PushPreference {
     // again with it: revoking the permission takes the subscription with it,
     // and a cell still drawn on would sit there beside its own "not
     // available in this browser".
+    const unsubscribeRepair = subscribePushRepairOutcome(
+      refreshSubscriptionRow,
+    );
     const unsubscribe = subscribeBrowserNotificationPermission((next) => {
       setPermission(next);
       refreshSubscriptionRow();
@@ -241,6 +248,7 @@ export function usePushPreference(userId: string | undefined): PushPreference {
       // flag in `lazy-ably-provider.tsx`.
       latestSubscriptionRead.current += 1;
       unsubscribe();
+      unsubscribeRepair();
     };
   });
 

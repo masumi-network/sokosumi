@@ -33,17 +33,21 @@ export function TaskScheduleDisplay({
 
   const scheduleLabel = scheduleMetadata
     ? formatScheduleTitle(
-        computeScheduleTitleInfo({
-          scheduleType: scheduleMetadata.mode === "once" ? "ONE_TIME" : "CRON",
-          cron:
-            scheduleMetadata.mode === "recurring"
-              ? scheduleMetadata.expr
-              : null,
-          timezone:
-            scheduleMetadata.mode === "recurring"
-              ? scheduleMetadata.timezone
-              : "UTC",
-        }),
+        computeScheduleTitleInfo(
+          {
+            scheduleType:
+              scheduleMetadata.mode === "once" ? "ONE_TIME" : "CRON",
+            cron:
+              scheduleMetadata.mode === "recurring"
+                ? scheduleMetadata.expr
+                : null,
+            timezone:
+              scheduleMetadata.mode === "recurring"
+                ? scheduleMetadata.timezone
+                : "UTC",
+          },
+          formatter,
+        ),
         t,
       )
     : null;

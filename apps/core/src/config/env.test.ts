@@ -251,3 +251,21 @@ describe("Turnstile deployment configuration", () => {
     expect(consoleWarn).not.toHaveBeenCalled();
   });
 });
+
+describe("Redis environment", () => {
+  it("leaves Redis urls optional", () => {
+    vi.stubEnv("REDIS_URL", undefined);
+    vi.stubEnv("KV_URL", undefined);
+    const config = validateEnv();
+    expect(config.REDIS_URL).toBeUndefined();
+    expect(config.KV_URL).toBeUndefined();
+  });
+
+  it("preserves REDIS_URL and KV_URL", () => {
+    vi.stubEnv("REDIS_URL", "redis://primary");
+    vi.stubEnv("KV_URL", "redis://kv");
+    const config = validateEnv();
+    expect(config.REDIS_URL).toBe("redis://primary");
+    expect(config.KV_URL).toBe("redis://kv");
+  });
+});

@@ -89,13 +89,6 @@ describe("healPushSubscription", () => {
     expect(activatePushMock).not.toHaveBeenCalled();
   });
 
-  it("leaves a browser that is still subscribed alone", async () => {
-    hasWebPushSubscriptionMock.mockResolvedValue(true);
-
-    await expect(healPushSubscription(USER_ID)).resolves.toBe(false);
-    expect(activatePushMock).not.toHaveBeenCalled();
-  });
-
   it("does nothing where the browser cannot push at all", async () => {
     isPushSupportedMock.mockReturnValue(false);
 
@@ -199,8 +192,30 @@ it("keeps its answer when recording the outcome throws", async () => {
   const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
   hasWebPushSubscriptionMock.mockRejectedValue(new Error("storage is blocked"));
 
-  await expect(healPushSubscription(USER_ID)).resolves.toBe(false);
+  await expect(healPushSubscription(USER_ID)).resolves.toBe(true);
 
   expect(consoleError).toHaveBeenCalled();
   consoleError.mockRestore();
+});
+
+// SOK-1120: repair eligibility survives loss of SDK credentials.
+it("retries a failed repair after its registration token was removed", async () => {
+  localStorage.setItem(
+    "sokosumi.push.preference",
+    JSON.stringify({ userId: USER_ID, suspended: false }),
+  );
+  hasAblyPushRegistrationMock.mockReturnValue(false);
+  await healPushSubscription(USER_ID);
+  expect(activatePushMock).toHaveBeenCalledWith(USER_ID, {
+    readerInitiated: false,
+  });
+});
+
+// SOK-1120: a browser endpoint does not prove remote delivery health.
+it("reconciles Ably even when a browser subscription exists", async () => {
+  hasWebPushSubscriptionMock.mockResolvedValue(true);
+  await healPushSubscription(USER_ID);
+  expect(activatePushMock).toHaveBeenCalledWith(USER_ID, {
+    readerInitiated: false,
+  });
 });

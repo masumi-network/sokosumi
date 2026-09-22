@@ -33,6 +33,10 @@ vi.mock("@/services/project-close-lifecycle.service", () => ({
   retryProjectClose: retryProjectCloseMock,
 }));
 
+vi.mock("@/helpers/calendar-invalidation", () => ({
+  deliverCalendarInvalidationsNow: vi.fn(),
+}));
+
 const WORKSPACE_ID = "11111111-1111-7111-8111-111111111111";
 const PROJECT_ID = "22222222-2222-7222-8222-222222222222";
 const OPERATION_ID = "33333333-3333-7333-8333-333333333333";

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LIMITS } from "@/config/constants";
 import { encodeProjectActivityCursor } from "@/helpers/project-activity";
+import { hasGrantedWorkspaceAccess } from "@/helpers/vendor-grants";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
@@ -167,6 +168,11 @@ describe("GET /projects", () => {
     // A later cleanup that stars by requireAuthorizedUserContext().userId
     // would leak the bound user's Pins; this is what catches it.
     expect(projectStarFindManyMock).not.toHaveBeenCalled();
+    expect(hasGrantedWorkspaceAccess).toHaveBeenCalledOnce();
+    expect(hasGrantedWorkspaceAccess).toHaveBeenCalledWith({
+      vendorId: TEST_VENDOR_ID,
+      workspaceId: WORKSPACE_CONTEXT.workspaceId,
+    });
   });
 
   it("reports the reader's own Pin on each row", async () => {

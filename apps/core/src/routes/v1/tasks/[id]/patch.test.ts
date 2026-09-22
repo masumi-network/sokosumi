@@ -17,6 +17,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 const {
+  deliverCalendarInvalidationsNowMock,
   mapTaskMock,
   markTaskAssignedReadMock,
   notifyTaskHumanAssigneeMock,
@@ -30,6 +31,7 @@ const {
   resolveEffectiveDesignMdMock,
   taskUpdateMock,
 } = vi.hoisted(() => ({
+  deliverCalendarInvalidationsNowMock: vi.fn(),
   mapTaskMock: vi.fn(),
   markTaskAssignedReadMock: vi.fn(),
   notifyTaskHumanAssigneeMock: vi.fn(),
@@ -46,6 +48,10 @@ const {
 
 vi.mock("@/helpers/design-md-effective", () => ({
   resolveEffectiveDesignMd: resolveEffectiveDesignMdMock,
+}));
+
+vi.mock("@/helpers/calendar-invalidation", () => ({
+  deliverCalendarInvalidationsNow: deliverCalendarInvalidationsNowMock,
 }));
 
 vi.mock("@/helpers/access-control", () => ({
@@ -322,6 +328,9 @@ describe("PATCH /tasks/{id}", () => {
     });
 
     expect(response.status).toBe(200);
+    expect(deliverCalendarInvalidationsNowMock).toHaveBeenCalledWith(
+      WORKSPACE_ID,
+    );
     expect(projectFindFirstMock).toHaveBeenCalledWith({
       where: {
         id: PROJECT_ID,

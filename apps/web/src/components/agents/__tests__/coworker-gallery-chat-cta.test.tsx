@@ -68,7 +68,7 @@ vi.mock("@/app/chat/components/landing/use-open-coworker-room", () => ({
   }),
 }));
 
-import { OrganizationSeatProvider } from "@/contexts/organization-seat-context";
+import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 
 import { CoworkerGallerySection } from "../coworker-gallery-section";
 
@@ -109,9 +109,9 @@ describe("CoworkerGallerySection chat CTA", () => {
 
   it("shows Chat with {name} next to Start New Task when coworker can chat", () => {
     render(
-      <OrganizationSeatProvider hasAssignedSeat={true}>
+      <OrganizationSeatContext value={true}>
         <CoworkerGallerySection coworkers={[makeCoworker()]} />
-      </OrganizationSeatProvider>,
+      </OrganizationSeatContext>,
     );
 
     expect(
@@ -124,7 +124,7 @@ describe("CoworkerGallerySection chat CTA", () => {
 
   it("hides chat CTA when coworker is not chat-capable", () => {
     render(
-      <OrganizationSeatProvider hasAssignedSeat={true}>
+      <OrganizationSeatContext value={true}>
         <CoworkerGallerySection
           coworkers={[
             makeCoworker({
@@ -136,7 +136,7 @@ describe("CoworkerGallerySection chat CTA", () => {
             }),
           ]}
         />
-      </OrganizationSeatProvider>,
+      </OrganizationSeatContext>,
     );
 
     expect(
@@ -150,9 +150,9 @@ describe("CoworkerGallerySection chat CTA", () => {
   it("opens the coworker direct room when chat CTA is clicked", async () => {
     const user = userEvent.setup();
     render(
-      <OrganizationSeatProvider hasAssignedSeat={true}>
+      <OrganizationSeatContext value={true}>
         <CoworkerGallerySection coworkers={[makeCoworker()]} />
-      </OrganizationSeatProvider>,
+      </OrganizationSeatContext>,
     );
 
     await user.click(screen.getByRole("button", { name: "Chat with Elena" }));
@@ -162,9 +162,9 @@ describe("CoworkerGallerySection chat CTA", () => {
 
   it("keeps Chat and hides Start New Task when the viewer has no assigned seat", () => {
     render(
-      <OrganizationSeatProvider hasAssignedSeat={false}>
+      <OrganizationSeatContext value={false}>
         <CoworkerGallerySection coworkers={[makeCoworker()]} />
-      </OrganizationSeatProvider>,
+      </OrganizationSeatContext>,
     );
 
     expect(

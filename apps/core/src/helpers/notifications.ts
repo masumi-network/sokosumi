@@ -11,6 +11,10 @@ import {
 } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 
+import {
+  hasCalendarWorkspaceAccess,
+  lockCalendarWorkspaceMembership,
+} from "@/helpers/calendar-membership-fence";
 import type { NotificationDelivery } from "@/helpers/notification-delivery";
 import {
   resolveNotificationDelivery,
@@ -21,6 +25,10 @@ import {
   dispatchNotificationEmail,
   EMAILED_NOTIFICATION_COLUMNS,
 } from "@/helpers/notification-email-dispatch";
+import {
+  notificationPublishFields,
+  scheduleNotificationPublish,
+} from "@/helpers/notification-publish-queue";
 import { readNotificationRowJson } from "@/helpers/notification-row-json";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { publishNotificationEvent } from "@/lib/ably/publish";
@@ -28,6 +36,7 @@ import prisma from "@/lib/db/prisma";
 
 export interface CreateNotificationInput {
   userId: string;
+  workspaceId?: string;
   kind: NotificationKind;
   referenceId: string;
   eventId: string;
@@ -139,6 +148,7 @@ function arrivalsOn(row: { id: string; messageParams: string }): number {
  */
 async function chatRoomArrivals(
   notification: Notification,
+  client: Prisma.TransactionClient | typeof prisma,
 ): Promise<number | undefined> {
   if (
     notification.kind !== NotificationKind.CHAT ||
@@ -149,7 +159,7 @@ async function chatRoomArrivals(
   }
 
   try {
-    const waiting = await prisma.notification.findMany({
+    const waiting = await client.notification.findMany({
       where: {
         userId: notification.userId,
         kind: NotificationKind.CHAT,
@@ -228,7 +238,10 @@ export async function publishNotificationRow(
    * many for a row the badge already counted.
    */
   created = true,
-): Promise<void> {
+  prismaClient: Prisma.TransactionClient | typeof prisma = prisma,
+  /** Reused across retries of one stored notification revision. */
+  messageId?: string,
+): Promise<boolean> {
   try {
     // Read the same way the count reads them, rather than with a bare
     // `JSON.parse`. A damaged column threw out of here into the catch below,
@@ -259,12 +272,13 @@ export async function publishNotificationRow(
       messageParams === null ||
       (notification.metadata !== null && metadata === null)
     ) {
-      return;
+      return false;
     }
 
-    const groupCount = await chatRoomArrivals(notification);
+    const groupCount = await chatRoomArrivals(notification, prismaClient);
 
     await publishNotificationEvent({
+      ...(messageId && { messageId }),
       push: delivery.osBanner,
       userId: notification.userId,
       notification: {
@@ -285,6 +299,7 @@ export async function publishNotificationRow(
         ...(groupCount !== undefined && { groupCount }),
       },
     });
+    return true;
   } catch (error) {
     console.error("Failed to publish notification over Ably:", error);
     Sentry.captureException(error, {
@@ -293,6 +308,48 @@ export async function publishNotificationRow(
         userId: notification.userId,
         kind: notification.kind,
         errorType: "ably-publish-notification",
+      },
+    });
+    return false;
+  }
+}
+
+/**
+ * Publish a scoped row only while its recipient still has Workspace access.
+ * The membership lock is shared with deletion, so a revoke cannot commit
+ * between the access check and the user-channel publish.
+ */
+export async function publishScopedNotificationRow(
+  notificationId: string,
+  workspaceId: string,
+  userId: string,
+  delivery: NotificationDelivery,
+  created = true,
+): Promise<void> {
+  try {
+    await prisma.$transaction(async (tx) => {
+      await lockCalendarWorkspaceMembership(tx, workspaceId);
+      const hasAccess = await hasCalendarWorkspaceAccess(
+        tx,
+        workspaceId,
+        userId,
+      );
+      const notification = await tx.notification.findUnique({
+        where: { id: notificationId },
+      });
+      if (!hasAccess || !notification) {
+        return;
+      }
+
+      await publishNotificationRow(notification, delivery, created, tx);
+    });
+  } catch (error) {
+    Sentry.captureException(error, {
+      extra: {
+        notificationId,
+        userId,
+        workspaceId,
+        errorType: "scoped-notification-publish",
       },
     });
   }
@@ -335,13 +392,24 @@ export async function publishClearedNotifications(
 
     for (const notification of cleared) {
       // No banner: nothing arrived. This says one stopped waiting.
-      await publishNotificationRow(
-        notification,
-        // No email. This says an existing row again over realtime; the
-        // email, if there was one, went out when the row was written.
-        { inApp: notification.inApp, osBanner: false, email: false },
-        false,
-      );
+      // No email. This says an existing row again over realtime; the
+      // email, if there was one, went out when the row was written.
+      const delivery = {
+        inApp: notification.inApp,
+        osBanner: false,
+        email: false,
+      };
+      if (notification.workspaceId) {
+        await publishScopedNotificationRow(
+          notification.id,
+          notification.workspaceId,
+          notification.userId,
+          delivery,
+          false,
+        );
+      } else {
+        await publishNotificationRow(notification, delivery, false);
+      }
     }
   } catch (error) {
     Sentry.captureException(error, {
@@ -381,7 +449,7 @@ export async function createNotification(
   prismaClient: Prisma.TransactionClient | typeof prisma = prisma,
   deliveryOverride?: NotificationDelivery,
 ): Promise<CreateNotificationResult> {
-  const prisma = prismaClient;
+  const client = prismaClient;
   const uniqueKey = {
     userId: input.userId,
     kind: input.kind,
@@ -399,23 +467,40 @@ export async function createNotification(
       ? { ...input.metadata, osBannerEligible: delivery.osBanner }
       : input.metadata;
 
+  const callerOwnsTransaction = prismaClient !== prisma;
+
+  if (input.workspaceId && callerOwnsTransaction) {
+    await lockCalendarWorkspaceMembership(client, input.workspaceId);
+    if (
+      !(await hasCalendarWorkspaceAccess(
+        client,
+        input.workspaceId,
+        input.userId,
+      ))
+    ) {
+      throw new Error("Notification recipient no longer has Workspace access");
+    }
+  }
+
   try {
-    const notification = await prisma.notification.create({
+    const notification = await client.notification.create({
       data: {
         ...uniqueKey,
+        ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
         messageParams: JSON.stringify(input.messageParams),
         metadata:
           metadata === undefined || metadata === null
             ? null
             : JSON.stringify(metadata),
         inApp: delivery.inApp,
+        ...notificationPublishFields(delivery),
       },
     });
 
     // Nothing to render and nothing to interrupt with: the publish would be an
     // Ably message no client acts on.
     if (delivery.inApp || delivery.osBanner) {
-      await publishNotificationRow(notification, delivery);
+      scheduleNotificationPublish(notification.id);
     }
 
     // Scheduled rather than awaited: the write may be inside the caller's
@@ -430,7 +515,7 @@ export async function createNotification(
       throw error;
     }
 
-    const notification = await prisma.notification.findUnique({
+    const notification = await client.notification.findUnique({
       where: {
         userId_kind_referenceId_eventId_messageKey: uniqueKey,
       },

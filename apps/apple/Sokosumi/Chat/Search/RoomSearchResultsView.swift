@@ -5,22 +5,18 @@ import SwiftUI
 struct RoomSearchResultsView: View {
   @ObservedObject var search: RoomSearch
   let query: String
-  @Binding var selectedId: String?
   let jumpingId: String?
   let jumpError: String?
   let select: (Components.Schemas.ChatRoomMessage) -> Void
   let retry: () -> Void
   let close: () -> Void
 
-  private var isPending: Bool {
-    search.query != query.trimmingCharacters(in: .whitespacesAndNewlines)
-  }
-
-  private var results: [Components.Schemas.ChatRoomMessage] {
-    isPending ? [] : search.results
-  }
-
   var body: some View {
+    // Row 23a: the model decides; hits stay while the next query is pending, as on web.
+    let presentation = search.presentation(for: query)
+    let selectedId = search.selectedId
+    let placeholder = presentation.placeholder == .loading ? .loading
+      : jumpError.map(RoomSearchPresentation.Placeholder.failed) ?? presentation.placeholder
     VStack(spacing: 0) {
       HStack {
         Text("Search messages").font(.headline)
@@ -32,17 +28,20 @@ struct RoomSearchResultsView: View {
       ScrollViewReader { proxy in
         ScrollView {
           LazyVStack(alignment: .leading, spacing: 4) {
-            if search.isLoading || (isPending && !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) {
+            switch placeholder {
+            case .loading:
               ProgressView("Searching…").frame(maxWidth: .infinity).padding()
-            } else if let error = jumpError ?? search.errorMessage {
+            case let .failed(error):
               Text(error).foregroundStyle(.secondary)
               Button("Retry search", action: retry)
-            } else if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            case .idle:
               Text("Search this conversation").foregroundStyle(.secondary).padding()
-            } else if search.results.isEmpty {
+            case .empty:
               Text("No messages found").foregroundStyle(.secondary).padding()
+            case nil:
+              EmptyView()
             }
-            ForEach(results, id: \.id) { message in
+            ForEach(presentation.results, id: \.id) { message in
               Button { select(message) } label: {
                 VStack(alignment: .leading, spacing: 4) {
                   HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -70,17 +69,19 @@ struct RoomSearchResultsView: View {
               }
               .buttonStyle(.plain)
               .accessibilityAddTraits(selectedId == message.id ? .isSelected : [])
-              .disabled(jumpingId != nil || search.isLoading)
+              .disabled(jumpingId != nil)
               .onHover {
                 if $0 {
-                  selectedId = message.id
+                  Task { @MainActor in
+                    search.select(message.id)
+                  }
                 }
               }
               .id(message.id)
             }
           }.padding(8)
         }
-        .onChange(of: selectedId) { _, id in
+        .onChange(of: search.selectedId) { _, id in
           if let id {
             proxy.scrollTo(id)
           }

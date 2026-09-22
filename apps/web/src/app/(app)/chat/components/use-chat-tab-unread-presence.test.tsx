@@ -13,6 +13,14 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string) => {
+    if (key === "Metadata.Title.template") return "Sokosumi - %s";
+    if (key === "Channels.Metadata.title") return "Chat";
+    return key;
+  },
+}));
+
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({
     data: mockUserId
@@ -190,7 +198,7 @@ describe("useChatTabUnreadPresence", () => {
           },
         });
       });
-      expect(document.title).toBe("(2) Chats");
+      expect(document.title).toBe("(2) Sokosumi - Chat");
       expect(listRoomsMock).toHaveBeenCalledTimes(1);
       mockPathname = "/chat";
       rerender(
@@ -202,7 +210,7 @@ describe("useChatTabUnreadPresence", () => {
         "data-unread",
         "true",
       );
-      expect(document.title).toBe("(2) Chats");
+      expect(document.title).toBe("(2) Sokosumi - Chat");
       expect(listRoomsMock).toHaveBeenCalledTimes(1);
     },
   );

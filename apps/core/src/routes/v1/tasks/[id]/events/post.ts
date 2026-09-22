@@ -24,9 +24,11 @@ import {
 } from "@/helpers/agent";
 import { calculateCentsFromMasumiAmountStrings } from "@/helpers/agent-cost";
 import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
+import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import {
   conflict,
   errorResponseWithExtensionsSchema,
+  internalServerError,
   unprocessableEntity,
 } from "@/helpers/error";
 import { isV2MasumiTaskPayment } from "@/helpers/masumi-task-payment";
@@ -220,7 +222,7 @@ async function mapCreatedTaskEventForResponse(
     include: taskEventApiInclude,
   });
   if (!row) {
-    throw new Error(`Task event not found after create: ${eventId}`);
+    throw internalServerError(`Task event not found after create: ${eventId}`);
   }
   return mapTaskEvent(row);
 }
@@ -428,7 +430,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       let taskPaymentClaimId: string | null = null;
       if (chargedMasumiPayment && masumiPayment !== undefined) {
         if (!transactionId) {
-          throw new Error("Charged Masumi task payment has no transaction");
+          throw internalServerError(
+            "Charged Masumi task payment has no transaction",
+          );
         }
         taskPaymentClaimId = await createTaskPaymentClaim({
           network: getEnv().NETWORK,
@@ -506,6 +510,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
         userId: task.ownerId,
         organizationId: task.organizationId,
+        workspaceId: task.workspaceId,
         projectId: task.projectId,
         masumiPayment: payment,
         taskPaymentClaimId,
@@ -527,6 +532,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       event,
       userId,
       organizationId,
+      workspaceId,
       projectId,
       masumiPayment,
       taskPaymentClaimId,
@@ -553,6 +559,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     if (event.status) {
+      await deliverCalendarInvalidationsNow(workspaceId);
       waitUntil(notifyTaskStatusEvent(taskId, event.id, event.status));
     }
 

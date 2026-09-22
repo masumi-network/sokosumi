@@ -5,24 +5,38 @@ const {
   loadDirectRoomNamesByReaderMock,
   createNotificationMock,
   workspaceFindUniqueMock,
+  organizationMemberFindManyMock,
   membershipFindManyMock,
+  transactionMock,
+  executeRawMock,
+  queryRawMock,
+  workspaceFindFirstAccessMock,
   captureExceptionMock,
 } = vi.hoisted(() => ({
   loadDirectRoomNamesByReaderMock: vi.fn(),
   createNotificationMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
+  organizationMemberFindManyMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
+  transactionMock: vi.fn(),
+  executeRawMock: vi.fn(),
+  queryRawMock: vi.fn(),
+  workspaceFindFirstAccessMock: vi.fn(),
   captureExceptionMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/notifications", () => ({
-  createNotification: (...args: unknown[]) => createNotificationMock(...args),
+  createNotification: (input: unknown) => createNotificationMock(input),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    $transaction: transactionMock,
     workspace: {
       findUnique: workspaceFindUniqueMock,
+    },
+    member: {
+      findMany: organizationMemberFindManyMock,
     },
     chatRoomUserMember: {
       findMany: membershipFindManyMock,
@@ -57,9 +71,32 @@ const OTHER_ID = "user_bob";
 
 beforeEach(() => {
   vi.clearAllMocks();
+  executeRawMock.mockResolvedValue(0);
+  queryRawMock.mockResolvedValue([{ access: "member", mutedAt: null }]);
+  transactionMock.mockImplementation(async (callback) =>
+    callback({
+      $executeRaw: executeRawMock,
+      $queryRaw: queryRawMock,
+      workspace: { findFirst: workspaceFindFirstAccessMock },
+    }),
+  );
   createNotificationMock.mockResolvedValue({ created: true });
   workspaceFindUniqueMock.mockResolvedValue({ id: "workspace_1" });
-  membershipFindManyMock.mockResolvedValue([]);
+  workspaceFindFirstAccessMock.mockResolvedValue({ id: "workspace_1" });
+  organizationMemberFindManyMock.mockResolvedValue([
+    { userId: MENTIONED_ID },
+    { userId: OTHER_ID },
+  ]);
+  membershipFindManyMock.mockImplementation(
+    ({ where }: { where: { userId: { in: string[] } } }) =>
+      Promise.resolve(
+        where.userId.in.map((userId) => ({
+          access: "member",
+          mutedAt: null,
+          userId,
+        })),
+      ),
+  );
   loadDirectRoomNamesByReaderMock.mockResolvedValue(
     new Map([[MENTIONED_ID, "Ada, Bob"]]),
   );
@@ -83,9 +120,8 @@ describe("emitChatMentionNotifications", () => {
       where: {
         roomId: ROOM_ID,
         userId: { in: [MENTIONED_ID, OTHER_ID] },
-        mutedAt: { not: null },
       },
-      select: { userId: true },
+      select: { access: true, mutedAt: true, userId: true },
     });
     expect(workspaceFindUniqueMock).toHaveBeenCalledWith({
       where: { organizationId: "org_1" },
@@ -107,6 +143,7 @@ describe("emitChatMentionNotifications", () => {
         messageId: MESSAGE_ID,
         workspaceId: "workspace_1",
       },
+      workspaceId: "workspace_1",
     });
     expect(createNotificationMock).toHaveBeenCalledWith(
       expect.objectContaining({ userId: OTHER_ID }),
@@ -136,7 +173,10 @@ describe("emitChatMentionNotifications", () => {
   });
 
   it("skips recipients who muted the room", async () => {
-    membershipFindManyMock.mockResolvedValue([{ userId: MENTIONED_ID }]);
+    membershipFindManyMock.mockResolvedValue([
+      { access: "member", mutedAt: new Date(), userId: MENTIONED_ID },
+      { access: "member", mutedAt: null, userId: OTHER_ID },
+    ]);
 
     await emitChatMentionNotifications({
       roomId: ROOM_ID,
@@ -160,7 +200,9 @@ describe("emitChatMentionNotifications", () => {
   });
 
   it("no-ops when every remaining recipient muted the room", async () => {
-    membershipFindManyMock.mockResolvedValue([{ userId: MENTIONED_ID }]);
+    membershipFindManyMock.mockResolvedValue([
+      { access: "member", mutedAt: new Date(), userId: MENTIONED_ID },
+    ]);
 
     await emitChatMentionNotifications({
       roomId: ROOM_ID,

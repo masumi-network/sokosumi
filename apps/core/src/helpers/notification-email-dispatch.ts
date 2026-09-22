@@ -1,15 +1,25 @@
 import * as Sentry from "@sentry/node";
-import { type Notification, NotificationKind } from "@sokosumi/database";
 import {
+  type Notification,
+  NotificationKind,
+  type Prisma,
+} from "@sokosumi/database";
+import {
+  CHAT_ROOM_MESSAGE_MESSAGE_KEY,
   isFollowUpMessageKey,
   type NotificationCategory,
 } from "@sokosumi/utils";
 
 import { cancelEmail, sendEmail } from "@/clients/email.client";
+import {
+  hasCalendarWorkspaceAccess,
+  lockCalendarWorkspaceMembership,
+} from "@/helpers/calendar-membership-fence";
 import { toNotificationCategory } from "@/helpers/notification-delivery";
 import {
   buildNotificationEmail,
   notificationEmailDelayMs,
+  roomUnreadCountOf,
 } from "@/helpers/notification-email";
 import { readNotificationRowJson } from "@/helpers/notification-row-json";
 import { hasAppInFront } from "@/lib/ably/channel-occupancy";
@@ -114,15 +124,17 @@ async function committedRow(id: string): Promise<null | { isRead: boolean }> {
 /**
  * The categories one email speaks for, besides itself.
  *
- * A mention and a direct message in the same room are one email: the room is
- * read as a whole, and both rows go read together when the reader opens it.
- * A task is the opposite case. The question it asked and the finish it
- * reports are cleared by different things, and a reader who turned the
- * finished-task email on expects it whether or not they answered the
+ * Everything a room can say is one email: a mention, a direct message and
+ * the room's other messages are read as a whole when the reader opens it, so
+ * whichever arrives first mails for all of them and the rest hold back
+ * (SOK-1142). A task is the opposite case. The question it asked and the
+ * finish it reports are cleared by different things, and a reader who turned
+ * the finished-task email on expects it whether or not they answered the
  * question: an unread "schedule removed" row, which no run ends, would
  * otherwise hold every finish of that task out of the inbox for good.
  */
 const SHARED_EMAIL_CATEGORIES: readonly NotificationCategory[] = [
+  "CHAT_ROOM_MESSAGE",
   "CHAT_MENTION",
   "CHAT_DIRECT_MESSAGE",
 ];
@@ -178,11 +190,14 @@ async function alreadyEmailed(
     select: { messageKey: true },
   });
 
-  return earlier.some((row) =>
-    sameEmailScope(
-      category,
-      toNotificationCategory(notification.kind, row.messageKey),
-    ),
+  return earlier.some(
+    (row) =>
+      (notification.kind !== NotificationKind.PROJECT ||
+        row.messageKey === notification.messageKey) &&
+      sameEmailScope(
+        category,
+        toNotificationCategory(notification.kind, row.messageKey),
+      ),
   );
 }
 
@@ -210,6 +225,97 @@ async function appInFront(notification: Notification): Promise<boolean> {
 }
 
 /**
+ * When this notification's email leaves, or null to send it now.
+ *
+ * A room message always waits out its delay, whether or not the reader is
+ * looking. The wait is what lets the messages that follow join the row the
+ * email stands for, so the inbox gets one email that counts them rather than
+ * one about the first of them (SOK-1142). Everything else asks the reader:
+ * nothing in front of them means the email is wanted now.
+ */
+async function sendTimeFor(
+  notification: Notification,
+  delayMs: number,
+): Promise<Date | null> {
+  if (notification.messageKey === CHAT_ROOM_MESSAGE_MESSAGE_KEY) {
+    return new Date(Date.now() + delayMs);
+  }
+
+  return (await appInFront(notification))
+    ? new Date(Date.now() + delayMs)
+    : null;
+}
+
+export interface DispatchNotificationEmailOptions {
+  /**
+   * The send time to keep, rather than deciding one.
+   *
+   * Passed when a room's email is sent again because another message joined
+   * the row: the reader was promised the inbox in ten minutes, and deciding
+   * a fresh delay on every message would push a busy room's email away for
+   * as long as anyone kept writing.
+   */
+  scheduledAt?: Date | null;
+}
+
+/**
+ * Send this room row's email again, because it now stands for one more
+ * message.
+ *
+ * The new email is handed over before the old one is taken back, so a send
+ * that fails leaves the reader with the email they already had rather than
+ * with none. The cost of the other order would be silence; the cost of this
+ * one is a duplicate when the cancel fails, which is the cheaper failure.
+ *
+ * Does nothing for a row whose email has already left, or never had one:
+ * there is nothing left to say it differently (SOK-1142).
+ *
+ * Never throws, and meant for `waitUntil`.
+ */
+export async function resendRoomMessageEmail(
+  notificationId: string,
+): Promise<void> {
+  try {
+    const row = await prisma.notification.findUnique({
+      where: { id: notificationId },
+    });
+
+    if (
+      !row ||
+      row.isRead ||
+      row.emailId === null ||
+      row.emailScheduledAt === null ||
+      row.emailScheduledAt.getTime() <= Date.now()
+    ) {
+      return;
+    }
+
+    const stale = row.emailId;
+
+    await dispatchNotificationEmail(row, { scheduledAt: row.emailScheduledAt });
+
+    const live = await prisma.notification.findUnique({
+      where: { id: notificationId },
+      select: { emailId: true },
+    });
+
+    // Only once the row carries a different email. A dispatch that sent
+    // nothing left the old one standing, and cancelling it here would take
+    // away the reader's only email.
+    if (live?.emailId != null && live.emailId !== stale) {
+      await withResendGap(() => cancelEmail(stale));
+    }
+  } catch (error) {
+    Sentry.captureException(error, {
+      extra: {
+        notificationId,
+        notificationType: "notification-email-resend",
+      },
+    });
+  }
+}
+
+/**
  * Send, or schedule, the email for a notification that was just written.
  *
  * Never throws, and does nothing for a row that is not emailed at the event:
@@ -219,7 +325,9 @@ async function appInFront(notification: Notification): Promise<boolean> {
  */
 export async function dispatchNotificationEmail(
   notification: Notification,
+  options: DispatchNotificationEmailOptions = {},
 ): Promise<void> {
+  let unpersistedScheduledEmailId: string | null = null;
   try {
     if (isFollowUpMessageKey(notification.messageKey)) {
       return;
@@ -287,9 +395,10 @@ export async function dispatchNotificationEmail(
       return;
     }
 
-    const scheduledAt = (await appInFront(notification))
-      ? new Date(Date.now() + delayMs)
-      : null;
+    const scheduledAt =
+      options.scheduledAt !== undefined
+        ? options.scheduledAt
+        : await sendTimeFor(notification, delayMs);
 
     // The row's state, the earlier-email check, the send and the write are
     // one turn of the queue, so two notifications for one reader that arrive
@@ -297,18 +406,31 @@ export async function dispatchNotificationEmail(
     // sees the first's email on its row rather than both passing the check
     // before either has sent. Two instances can still both send; the row's
     // idempotency key does not cover that, since the rows differ.
-    const sent = await withResendGap(async () => {
+    const sendForCurrentRecipient = async (
+      client: Prisma.TransactionClient | typeof prisma,
+    ) => {
       // Read again at this row's turn rather than before it. A room of
       // thirty waits half a second a row, and in that time the reader can
       // read the notification, or the request it is about can be resolved,
       // which takes the row away. Either way the email would ask for
       // something nobody is asking any more.
-      const live = await prisma.notification.findUnique({
+      const live = await client.notification.findUnique({
         where: { id: notification.id },
         select: { isRead: true },
       });
 
       if (!live || live.isRead) {
+        return null;
+      }
+
+      if (
+        notification.workspaceId &&
+        !(await hasCalendarWorkspaceAccess(
+          client,
+          notification.workspaceId,
+          notification.userId,
+        ))
+      ) {
         return null;
       }
 
@@ -321,29 +443,59 @@ export async function dispatchNotificationEmail(
         ...(scheduledAt !== null
           ? { scheduledAt: scheduledAt.toISOString() }
           : {}),
-        // One key per row, so a second run for one row never sends a
-        // second email. A reader who is away repeats the same payload,
-        // which Resend answers with the first send's id for a day. A reader
-        // in front carries a later `scheduledAt`, which Resend refuses with
-        // a 409 that is reported rather than sent.
-        idempotencyKey: `notification-email/${notification.id}`,
+        // One key per row and per tally, so a second run for one row never
+        // sends a second email. A reader who is away repeats the same
+        // payload, which Resend answers with the first send's id for a day.
+        // A reader in front carries a later `scheduledAt`, which Resend
+        // refuses with a 409 that is reported rather than sent.
+        //
+        // The tally is in the key because a room's email is sent again when
+        // another message joins the row it stands for: that send is a
+        // different email about a different number of messages, and the
+        // first send's key would have Resend replay the old one (SOK-1142).
+        idempotencyKey: `notification-email/${notification.id}/${roomUnreadCountOf(messageParams) ?? 1}`,
       });
+
+      if (scheduledAt !== null) unpersistedScheduledEmailId = emailId;
 
       // Written only onto a row that is still unread. A row read while the
       // email was being handed over has nothing to cancel it by, so it is
       // cancelled below instead; an email already on its way is left alone.
-      const { count } = await prisma.notification.updateMany({
+      const { count } = await client.notification.updateMany({
         where: { id: notification.id, isRead: false },
         data: { emailId, emailScheduledAt: scheduledAt },
       });
 
       return { emailId, count };
+    };
+    const sent = await withResendGap(() => {
+      const workspaceId = notification.workspaceId;
+      if (!workspaceId) return sendForCurrentRecipient(prisma);
+      // Membership removal must see the provider ID before deleting the row.
+      return prisma.$transaction(async (tx) => {
+        await lockCalendarWorkspaceMembership(tx, workspaceId);
+        return sendForCurrentRecipient(tx);
+      });
     });
 
     if (sent !== null && sent.count === 0 && scheduledAt !== null) {
       await withResendGap(() => cancelEmail(sent.emailId));
     }
+    unpersistedScheduledEmailId = null;
   } catch (error) {
+    if (unpersistedScheduledEmailId) {
+      const emailId = unpersistedScheduledEmailId;
+      try {
+        await withResendGap(() => cancelEmail(emailId));
+      } catch (cancelError) {
+        Sentry.captureException(cancelError, {
+          extra: {
+            emailId,
+            notificationType: "notification-email-rollback-cancel",
+          },
+        });
+      }
+    }
     Sentry.captureException(error, {
       extra: {
         notificationId: notification.id,
@@ -381,6 +533,7 @@ export interface EmailedNotificationRow {
  */
 export async function cancelNotificationEmails(
   rows: readonly EmailedNotificationRow[],
+  options: { retryOnFailure?: boolean } = {},
 ): Promise<void> {
   for (const row of rows) {
     const emailId = row.emailId;
@@ -418,6 +571,7 @@ export async function cancelNotificationEmails(
           notificationType: "notification-email-cancel",
         },
       });
+      if (options.retryOnFailure) throw error;
     }
   }
 }

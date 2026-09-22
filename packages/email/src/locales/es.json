@@ -76,7 +76,8 @@
       "fallbackAuthorName": "Alguien",
       "fallbackRoomName": "una conversación",
       "fallbackTaskName": "Tu tarea",
-      "fallbackCoworkerName": "un coworker"
+      "fallbackCoworkerName": "un coworker",
+      "fallbackProjectName": "Tu proyecto"
     },
     "event": {
       "footer": "Recibes este correo porque esta notificación está activada en tus preferencias de notificaciones.",
@@ -90,6 +91,19 @@
         "subject": "Sokosumi - {authorName} te envió un mensaje",
         "title": "Nuevo mensaje directo",
         "body": "{authorName} te envió un mensaje directo.",
+        "button": "Abrir la conversación"
+      },
+      "roomMessage": {
+        "one": {
+          "subject": "Sokosumi - {authorName} escribió en {roomName}",
+          "title": "Un mensaje nuevo",
+          "body": "{authorName} escribió en {roomName}."
+        },
+        "many": {
+          "subject": "Sokosumi - {count} mensajes sin leer en {roomName}",
+          "title": "Mensajes sin leer",
+          "body": "Tienes {count} mensajes sin leer en {roomName}."
+        },
         "button": "Abrir la conversación"
       },
       "task": {
@@ -128,6 +142,47 @@
           "subject": "Sokosumi - {coworkerName} completó {taskName}",
           "title": "Tarea completada",
           "body": "{coworkerName} completó {taskName}."
+        },
+        "update": {
+          "title": "Actualización de tarea",
+          "reasons": {
+            "failed": {
+              "subject": "Sokosumi - {taskName} falló",
+              "body": "{taskName} falló."
+            },
+            "canceled": {
+              "subject": "Sokosumi - Se canceló {taskName}",
+              "body": "Se canceló {taskName}."
+            },
+            "scheduleRepaired": {
+              "subject": "Sokosumi - Se reparó la programación de {taskName}",
+              "body": "Se reparó la programación de {taskName}."
+            },
+            "scheduleRemovedByOperator": {
+              "subject": "Sokosumi - Se eliminó la programación de {taskName} después de revisarla",
+              "body": "Se eliminó la programación de {taskName} después de revisarla."
+            },
+            "scheduleUpdatedByMember": {
+              "subject": "Sokosumi - Un compañero actualizó la programación de {taskName}",
+              "body": "Un compañero actualizó la programación de {taskName}."
+            },
+            "scheduleRemovedByMember": {
+              "subject": "Sokosumi - Un compañero eliminó la programación de {taskName}",
+              "body": "Un compañero eliminó la programación de {taskName}."
+            },
+            "scheduleSourceChangedByMember": {
+              "subject": "Sokosumi - Un compañero movió {taskName} a otra fuente del calendario",
+              "body": "Un compañero movió {taskName} a otra fuente del calendario."
+            },
+            "scheduleOccurrenceChangedByMember": {
+              "subject": "Sokosumi - Un compañero cambió una ocurrencia de {taskName}",
+              "body": "Un compañero cambió una ocurrencia de {taskName}."
+            },
+            "updated": {
+              "subject": "Sokosumi - {taskName} cambió",
+              "body": "{taskName} cambió."
+            }
+          }
         }
       },
       "accessRequest": {
@@ -141,6 +196,19 @@
           "subject": "Sokosumi - {requesterName} solicitó acceso a tu espacio de trabajo",
           "body": "{requesterName} solicitó acceso anticipado de coworker a tu espacio de trabajo."
         }
+      },
+      "project": {
+        "button": "Abrir proyecto",
+        "closed": {
+          "title": "Proyecto cerrado",
+          "subject": "Sokosumi - {projectName} ya está cerrado",
+          "body": "Se completó el cierre de {projectName}. Abre el proyecto para consultar su historial."
+        },
+        "closeFailed": {
+          "title": "No se pudo cerrar el proyecto",
+          "subject": "Sokosumi - No se pudo completar el cierre de {projectName}",
+          "body": "No se pudo completar el cierre de {projectName} tras varios intentos. Abre el proyecto para revisar el problema y volver a intentar cerrarlo."
+        }
       }
     },
     "followUp": {
@@ -152,11 +220,25 @@
         "body": "{authorName} te mencionó en {roomName} hace un día y todavía no lo has abierto.",
         "button": "Abrir la conversación"
       },
+      "mentionMany": {
+        "subject": "Sokosumi - {count} menciones siguen esperándote en {roomName}",
+        "preview": "Te mencionaron {count} veces en {roomName} hace un día.",
+        "title": "Sigue esperándote",
+        "body": "Tienes {count} menciones sin leer en {roomName} de hace un día y todavía no las has abierto.",
+        "button": "Abrir la conversación"
+      },
       "directMessage": {
         "subject": "Sokosumi - {authorName} sigue esperando tu respuesta",
         "preview": "{authorName} te envió un mensaje hace un día.",
         "title": "Sigue esperando tu respuesta",
         "body": "{authorName} te envió un mensaje directo hace un día y todavía no lo has abierto.",
+        "button": "Abrir la conversación"
+      },
+      "directMessageMany": {
+        "subject": "Sokosumi - {count} mensajes de {authorName} siguen esperando",
+        "preview": "{authorName} te envió {count} mensajes hace un día.",
+        "title": "Sigue esperando tu respuesta",
+        "body": "Tienes {count} mensajes sin leer de {authorName} de hace un día y todavía no los has abierto.",
         "button": "Abrir la conversación"
       },
       "task": {

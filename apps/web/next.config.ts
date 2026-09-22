@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-properties */
 import { withSentryConfig } from "@sentry/nextjs";
 import { withRelatedProject } from "@vercel/related-projects";
 import type { NextConfig } from "next";
@@ -9,6 +8,7 @@ import { NEXT_IMAGE_REMOTE_PATTERNS } from "./src/config/next-image";
 import {
   PUSH_WORKER_MESSAGES_CACHE_CONTROL,
   PUSH_WORKER_MESSAGES_PATH,
+  PUSH_WORKER_RENEWAL_PATH,
 } from "./src/config/push-worker-assets";
 import {
   getCoreRelatedProjectName,
@@ -58,15 +58,17 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers: documentSecurityHeaders({ includeHsts: isVercelProduction }),
       },
-      {
-        source: PUSH_WORKER_MESSAGES_PATH,
-        headers: [
-          {
-            key: "Cache-Control",
-            value: PUSH_WORKER_MESSAGES_CACHE_CONTROL,
-          },
-        ],
-      },
+      ...[PUSH_WORKER_MESSAGES_PATH, PUSH_WORKER_RENEWAL_PATH].map(
+        (source) => ({
+          source,
+          headers: [
+            {
+              key: "Cache-Control",
+              value: PUSH_WORKER_MESSAGES_CACHE_CONTROL,
+            },
+          ],
+        }),
+      ),
     ];
   },
   env: {

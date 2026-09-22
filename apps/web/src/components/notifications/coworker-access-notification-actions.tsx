@@ -10,13 +10,14 @@ import { useNotifications } from "@/contexts/notification-provider";
 import {
   approveMyCoworkerAccess,
   approveOrganizationCoworkerAccess,
-} from "@/lib/actions/coworker-access-action";
+} from "@/lib/actions/workspace-approval-action";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import {
-  isPendingCoworkerAccessNotification,
-  resolveCoworkerAccessNotificationTarget,
-} from "@/lib/utils/coworker-access-notification";
+  COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+  isPendingWorkspaceApprovalNotification,
+  resolveWorkspaceApprovalNotificationTarget,
+} from "@/lib/utils/workspace-approval";
 
 interface CoworkerAccessNotificationActionsProps {
   notification: Pick<
@@ -35,16 +36,22 @@ export function CoworkerAccessNotificationActions({
   const [loadingAction, setLoadingAction] = useState<"accept" | null>(null);
   const [accepted, setAccepted] = useState(false);
 
-  const target = resolveCoworkerAccessNotificationTarget(notification);
+  const target = resolveWorkspaceApprovalNotificationTarget(
+    notification,
+    COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+  );
   if (
     accepted ||
-    !isPendingCoworkerAccessNotification(notification) ||
+    !isPendingWorkspaceApprovalNotification(
+      notification,
+      COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+    ) ||
     !target
   ) {
     return null;
   }
 
-  const { accessId, organizationId } = target;
+  const { requestId: accessId, organizationId } = target;
 
   async function handleAccept(
     event: MouseEvent<HTMLButtonElement>,

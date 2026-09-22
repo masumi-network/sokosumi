@@ -34,8 +34,8 @@ export function ApiKeysSection() {
 
   const handleCreateSuccess = useCallback(
     (result: CreateApiKeyResult) => {
-      if (result.success && result.data) {
-        dialogState.createDialog.setCreatedKey(result.data.key);
+      if (result.ok) {
+        dialogState.createDialog.setCreatedKey(result.value.key);
       }
     },
     [dialogState.createDialog],

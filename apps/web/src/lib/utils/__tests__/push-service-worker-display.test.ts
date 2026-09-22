@@ -727,7 +727,7 @@ describe("ably-push-sw display", () => {
     expect(worker.reported).toHaveBeenCalledTimes(1);
   });
 
-  it("skips display on Chromium while a focused app page shows it instead", async () => {
+  it("displays on Chromium even while a focused app page reports receiving", async () => {
     const worker = loadServiceWorker({
       isChromium: true,
       windows: [appPage()],
@@ -735,7 +735,7 @@ describe("ably-push-sw display", () => {
 
     await worker.dispatchPush(MENTION_PUSH);
 
-    expect(worker.shown).toEqual([]);
+    expect(worker.shown).toHaveLength(1);
   });
 
   /**
@@ -811,11 +811,58 @@ describe("ably-push-sw display", () => {
   it("stays silent when it replaces the banner for the same notification", async () => {
     const worker = loadServiceWorker({
       isChromium: false,
-      displayed: [{ data: MENTION_PUSH }],
+      displayed: [
+        { data: { ...MENTION_TARGET, metadata: { messageId: "message-1" } } },
+      ],
     });
 
-    await worker.dispatchPush(MENTION_PUSH);
+    await worker.dispatchPush({
+      ...MENTION_PUSH,
+      metadata: JSON.stringify({ messageId: "message-1" }),
+    });
 
+    expect(worker.shown[0]?.options.renotify).toBeUndefined();
+  });
+
+  it.each([
+    {
+      name: "new message",
+      previous: { messageId: "message-1" },
+      incoming: { messageId: "message-2" },
+    },
+    {
+      name: "older banner without message identity",
+      previous: null,
+      incoming: { messageId: "message-2" },
+    },
+    {
+      name: "arrival without message identity",
+      previous: { messageId: "message-1" },
+      incoming: null,
+    },
+    {
+      name: "empty message identity",
+      previous: { messageId: "" },
+      incoming: { messageId: "" },
+    },
+  ])("re-alerts a grouped row for $name", async ({ previous, incoming }) => {
+    const worker = loadServiceWorker({
+      isChromium: false,
+      displayed: [{ data: { ...MENTION_TARGET, metadata: previous } }],
+    });
+    await worker.dispatchPush({
+      ...MENTION_PUSH,
+      metadata: JSON.stringify(incoming),
+    });
+    expect(worker.shown[0]?.options.renotify).toBe(true);
+  });
+
+  it("keeps duplicate non-chat notifications silent", async () => {
+    const worker = loadServiceWorker({
+      isChromium: false,
+      displayed: [{ data: { ...MENTION_TARGET, kind: "SYSTEM" } }],
+    });
+    await worker.dispatchPush({ ...MENTION_PUSH, kind: "SYSTEM" });
     expect(worker.shown[0]?.options.renotify).toBeUndefined();
   });
 
@@ -829,10 +876,9 @@ describe("ably-push-sw display", () => {
 
   /**
    * `userVisibleOnly` means this push must still end in a banner. A lookup
-   * that throws must not cost the reader that banner, and must not guess
-   * `true`: a missed sound is recoverable, a doubled one is not.
+   * that throws must not cost the reader that banner or its alert.
    */
-  it("still displays when the lookup fails, without re-alerting", async () => {
+  it("re-alerts when the existing banner cannot be checked", async () => {
     const worker = loadServiceWorker({
       isChromium: false,
       getNotificationsThrows: true,
@@ -841,7 +887,7 @@ describe("ably-push-sw display", () => {
     await worker.dispatchPush(MENTION_PUSH);
 
     expect(worker.shown).toHaveLength(1);
-    expect(worker.shown[0]?.options.renotify).toBeUndefined();
+    expect(worker.shown[0]?.options.renotify).toBe(true);
   });
 
   it("always displays off Chromium, where skipping revokes the subscription", async () => {
@@ -859,7 +905,7 @@ describe("ably-push-sw display", () => {
    * The subscription is `userVisibleOnly`, so a handler that renders nothing
    * costs the reader a banner and invites the browser's own.
    */
-  it("still shows something when the skip check throws", async () => {
+  it("displays the full banner without querying focused pages", async () => {
     const worker = loadServiceWorker({
       isChromium: true,
       matchAllThrows: true,
@@ -867,19 +913,9 @@ describe("ably-push-sw display", () => {
 
     await worker.dispatchPush(MENTION_PUSH);
 
-    expect(worker.shown).toEqual([
-      {
-        title: "Sokosumi",
-        options: {
-          tag: "sokosumi-notification",
-          icon: "/images/app-icons/apple-icon-180.png",
-        },
-      },
-    ]);
-    // The fallback banner carries no body and no target, so on its own it
-    // looks like a push that simply said nothing. The report is the only
-    // record that a real notification was lost.
-    expect(worker.reported).toHaveBeenCalledTimes(1);
+    expect(worker.shown).toHaveLength(1);
+    expect(worker.shown[0]?.options.data).toEqual(MENTION_TARGET);
+    expect(worker.reported).not.toHaveBeenCalled();
   });
 
   it("keeps the banner when the payload names a prototype member", async () => {

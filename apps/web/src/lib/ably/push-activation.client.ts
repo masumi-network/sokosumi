@@ -8,12 +8,22 @@ import {
 } from "@/lib/utils/notification-service-worker";
 
 import { makeCurrentUserNotificationsChannelName } from "./current-notifications-channel.client";
+import { createAblyPushClient } from "./push-client.client";
+import {
+  isMissingPushDevice,
+  pushDeviceNeedsReset,
+} from "./push-device-health.client";
+import {
+  forgetPushPreference,
+  rememberPushPreference,
+} from "./push-preference.client";
+import { rememberPushRenewal, revokePushRenewal } from "./push-renewal.client";
+import { recordPushRepairOutcome } from "./push-repair-outcome.client";
 import {
   getPushTeardownVersion,
   notePushTeardown,
   queuePushWork,
 } from "./push-work-queue.client";
-import { getAblyRealtimeClient } from "./realtime-singleton.client";
 import {
   forgetAblyPushRegistration,
   forgetUnfinishedPushTeardown,
@@ -47,6 +57,7 @@ export async function activatePush(
   const readerInitiated = options?.readerInitiated !== false;
   if (readerInitiated) {
     forgetUnfinishedPushTeardown();
+    rememberPushPreference(userId);
   }
 
   // The same reader asking twice gets the run already going. A repair on open
@@ -101,39 +112,38 @@ async function runActivation(
   }
   const restorePermissionRequest = answerPermissionFromStoredValue();
   try {
-    const client = getAblyRealtimeClient();
-    if (repairOvertakenAcrossTabs(readerInitiated)) {
+    const client = await createAblyPushClient(userId);
+    if (
+      getPushTeardownVersion() !== teardownVersion ||
+      repairOvertakenAcrossTabs(readerInitiated)
+    )
       return false;
+    await client.push.activate();
+    if (await abandonedToTeardown(teardownVersion)) return false;
+    const needsReset = await pushDeviceNeedsReset(client, userId);
+    if (await abandonedToTeardown(teardownVersion)) return false;
+    if (needsReset) {
+      await recordPushRepairOutcome({
+        hadRegistration: true,
+        teardownVersion,
+        deliveryHealthy: false,
+      }).catch((error) => console.error("Failed to record push repair", error));
+      if (await abandonedToTeardown(teardownVersion)) return false;
+      // Only confirmed broken registrations are reset. Network failures leave
+      // the working endpoint intact and retry on the next wake.
+      await dropBrowserPushSubscription();
+      await resetAblyPushDevice(client);
+      if (await abandonedToTeardown(teardownVersion)) return false;
+      if (repairOvertakenAcrossTabs(readerInitiated)) return false;
+      await client.push.activate();
+      if (await abandonedToTeardown(teardownVersion)) return false;
+      if (await pushDeviceNeedsReset(client, userId)) {
+        throw new Error("The push device registration is still unhealthy");
+      }
+      if (await abandonedToTeardown(teardownVersion)) return false;
     }
-    if (!(await subscribeThisDevice(client, userId, teardownVersion))) {
-      return false;
-    }
-
-    const subscribed = await hasWebPushSubscription();
-    if (await abandonedToTeardown(teardownVersion)) {
-      return false;
-    }
-    if (subscribed) {
-      return true;
-    }
-
-    // `activate()` short-circuits when Ably's own stored state already says
-    // this browser is activated: in `ably@2.28.0` that state answers
-    // `CalledActivate` by calling the activated callback and nothing else
-    // (`build/push.js:850`). A browser whose subscription was cleared
-    // underneath it therefore reports success without ever subscribing. Clear
-    // that state and go round once, so the reader never gets a success toast
-    // over a browser that gets no pushes.
-    await client.push.deactivate();
-    if (await abandonedToTeardown(teardownVersion)) {
-      return false;
-    }
-    if (repairOvertakenAcrossTabs(readerInitiated)) {
-      return false;
-    }
-    if (!(await subscribeThisDevice(client, userId, teardownVersion))) {
-      return false;
-    }
+    await getNotificationsPushChannel(client, userId).subscribeDevice();
+    if (await abandonedToTeardown(teardownVersion)) return false;
 
     const repaired = await hasWebPushSubscription();
     if (await abandonedToTeardown(teardownVersion)) {
@@ -142,6 +152,16 @@ async function runActivation(
     if (!repaired) {
       throw new Error("The browser created no push subscription");
     }
+    await rememberPushRenewal(client, userId, teardownVersion).catch((error) =>
+      console.error("Failed to store push renewal", error),
+    );
+    if (await abandonedToTeardown(teardownVersion)) return false;
+    await recordPushRepairOutcome({
+      hadRegistration: true,
+      teardownVersion,
+      deliveryHealthy: true,
+    }).catch((error) => console.error("Failed to record push repair", error));
+    if (await abandonedToTeardown(teardownVersion)) return false;
     return true;
   } finally {
     restorePermissionRequest();
@@ -262,19 +282,6 @@ function answerPermissionFromStoredValue(): () => void {
   };
 }
 
-async function subscribeThisDevice(
-  client: Ably.Realtime,
-  userId: string,
-  teardownVersion: string,
-): Promise<boolean> {
-  await client.push.activate();
-  if (await abandonedToTeardown(teardownVersion)) {
-    return false;
-  }
-  await getNotificationsPushChannel(client, userId).subscribeDevice();
-  return !(await abandonedToTeardown(teardownVersion));
-}
-
 /**
  * Turn push off again.
  *
@@ -295,7 +302,11 @@ async function subscribeThisDevice(
  * whose endpoint is dead, which its own delivery prunes; the reverse leaves a
  * live endpoint nobody meant to keep.
  */
-export async function deactivatePush(userId: string): Promise<void> {
+export async function deactivatePush(
+  userId: string,
+  options?: { preservePreference?: boolean },
+): Promise<void> {
+  if (!options?.preservePreference) forgetPushPreference();
   // Said before anything is queued, because a repair that has decided to act
   // has not queued anything yet either. That is what it reads to find out its
   // subscription is no longer wanted.
@@ -306,6 +317,9 @@ export async function deactivatePush(userId: string): Promise<void> {
   // they leave behind then is a token beside a browser with no subscription:
   // the shape the repair reads as a subscription that died by itself.
   notePushTeardownStarted();
+  // Started before the queue, and never rejects: it reports its own failure
+  // so a revoke that could not finish still lets the deactivation below run.
+  const renewalRevoked = revokePushRenewal();
 
   // Nothing may join the activation ahead of this one, because this undoes
   // it. A reader who turns push back on afterwards is asking for a run of
@@ -317,10 +331,10 @@ export async function deactivatePush(userId: string): Promise<void> {
   // The caller can time out while the queue retains the browser lock.
   // Only settlement of the SDK work lets the next activation start.
   return new Promise<void>((resolve, reject) => {
-    void queuePushWork(() => runDeactivation(userId, reject)).then(
-      resolve,
-      reject,
-    );
+    void queuePushWork(async () => {
+      await renewalRevoked;
+      return runDeactivation(userId, reject);
+    }).then(resolve, reject);
   });
 }
 
@@ -415,7 +429,7 @@ async function withDeadline(
  * one did.
  *
  * Building the client belongs in here rather than on a line above the call.
- * `getAblyRealtimeClient` constructs on its first call and can throw there,
+ * `createAblyPushClient` authenticates each snapshot and can throw there,
  * and a bare call would both skip the browser endpoint and throw away whatever
  * the step before it had already recorded. That construction is the one throw
  * this function still hands back, and the caller's `attempt` catches it.
@@ -424,7 +438,7 @@ async function dropAblyPushDevice(
   failures: unknown[],
   userId: string,
 ): Promise<void> {
-  const client = getAblyRealtimeClient();
+  const client = await createAblyPushClient(userId);
 
   // Unsubscribing the device before deactivating keeps Ably from holding a
   // channel subscription for a device it no longer knows.
@@ -434,7 +448,22 @@ async function dropAblyPushDevice(
   // Runs even when that unsubscribe did not. This is the call that clears
   // `ably.push.deviceIdentityToken`, which is what the next sign-out reads to
   // decide whether this browser has anything left to release.
-  await attempt(failures, () => client.push.deactivate());
+  await attempt(failures, () => resetAblyPushDevice(client));
+}
+
+/** A missing credential must not leave the SDK waiting for device authentication. */
+async function resetAblyPushDevice(client: Ably.Rest): Promise<void> {
+  const device = await client.getDevice();
+  try {
+    await client.push.deactivate(
+      device.deviceIdentityToken ? undefined : (_device, done) => done(null),
+    );
+  } catch (error) {
+    if (!isMissingPushDevice(error)) throw error;
+    // The server already forgot this device. Use the SDK's public
+    // deregistration callback to reset its local state as well.
+    await client.push.deactivate((_device, done) => done(null));
+  }
 }
 
 /**
@@ -472,7 +501,7 @@ export async function dropBrowserPushSubscription(): Promise<void> {
 }
 
 function getNotificationsPushChannel(
-  client: Ably.Realtime,
+  client: Ably.Rest,
   userId: string,
 ): Ably.PushChannel {
   return client.channels.get(makeCurrentUserNotificationsChannelName(userId))

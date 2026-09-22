@@ -8,6 +8,25 @@ import {
   getCoreAuthBaseUrl,
 } from "./auth.server.client";
 
+async function throwCoreAuthResponseError(
+  response: Response,
+  fallbackMessage: string,
+): Promise<never> {
+  const body = (await response.json().catch(() => null)) as {
+    code?: string;
+    message?: string;
+  } | null;
+  const error = new Error(body?.message ?? fallbackMessage) as Error & {
+    code?: string;
+  };
+
+  if (body?.code) {
+    error.code = body.code;
+  }
+
+  throw error;
+}
+
 /**
  * Sets the current user's password through Core Better Auth when they have no
  * credential account yet (first password / link credential flow).
@@ -26,21 +45,34 @@ export async function setPasswordViaCore(newPassword: string): Promise<void> {
     return;
   }
 
-  const body = (await response.json().catch(() => null)) as {
-    code?: string;
-    message?: string;
-  } | null;
+  await throwCoreAuthResponseError(
+    response,
+    `Failed to set password via Core auth (${response.status})`,
+  );
+}
 
-  const error = new Error(
-    body?.message ??
-      `Failed to set password via Core auth (${response.status})`,
-  ) as Error & { code?: string };
+/** Resets a password through Core without exposing the token to client code. */
+export async function resetPasswordViaCore(
+  newPassword: string,
+  token: string,
+): Promise<void> {
+  const response = await fetchCoreAuth(
+    `${getCoreAuthBaseUrl()}/reset-password`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ newPassword, token }),
+    },
+  );
 
-  if (body?.code) {
-    error.code = body.code;
+  if (response.ok) {
+    return;
   }
 
-  throw error;
+  await throwCoreAuthResponseError(
+    response,
+    `Failed to reset password via Core auth (${response.status})`,
+  );
 }
 
 /**

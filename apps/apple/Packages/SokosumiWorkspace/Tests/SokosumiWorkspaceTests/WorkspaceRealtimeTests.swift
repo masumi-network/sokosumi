@@ -13,18 +13,6 @@ private let roomA = "550e8400-e29b-41d4-a716-446655440700"
 private let roomB = "550e8400-e29b-41d4-a716-446655440701"
 private let realtimeWindow = UUID()
 
-private struct RealtimeMemoryTokenStore: TokenStore {
-  var tokens: OAuthTokens?
-  func load() -> OAuthTokens? {
-    tokens
-  }
-
-  func save(_: OAuthTokens) throws {}
-  func clear() -> Bool {
-    true
-  }
-}
-
 private final class RealtimeScriptedTransport: ClientTransport, @unchecked Sendable {
   private(set) var operationIDs: [String] = []
   private(set) var requests: [HTTPRequest] = []
@@ -208,11 +196,11 @@ private func realtimeState(
   defaults.removePersistentDomain(forName: suite)
   let state = WorkspaceState(
     savedRoom: SavedRoomSelection(defaults: defaults),
-    instanceStore: MemoryAblyClientInstanceIdStore(stored: instanceId)
+    instanceStore: MemoryRealtimeClientInstanceIdStore(stored: instanceId)
   )
   state.setWindowVisible(true, window: realtimeWindow)
   state.clientResolver = { client }
-  return (state, AuthState(configuration: nil, store: RealtimeMemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false), transport)
+  return (state, AuthState(configuration: nil, store: InMemoryTokenStore(), browser: StubOAuthBrowser(), restoreSession: false), transport)
 }
 
 private func waitForRealtimeIdle(_ state: WorkspaceState) async {
@@ -813,11 +801,11 @@ struct WorkspaceRealtimeTests {
   }
 
   @Test func instanceIdIsStableAcrossStates() {
-    let store = MemoryAblyClientInstanceIdStore()
+    let store = MemoryRealtimeClientInstanceIdStore()
     let first = WorkspaceState(instanceStore: store)
     let second = WorkspaceState(instanceStore: store)
-    #expect(first.ablyClientInstanceId == second.ablyClientInstanceId)
-    #expect(isValidAblyClientInstanceId(first.ablyClientInstanceId))
+    #expect(first.realtimeClientInstanceId == second.realtimeClientInstanceId)
+    #expect(isValidRealtimeClientInstanceId(first.realtimeClientInstanceId))
   }
 
   @Test func tokenMintUsesInstanceIdAndPersonalOmitsOrgHeader() async throws {

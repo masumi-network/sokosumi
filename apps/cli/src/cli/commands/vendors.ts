@@ -66,7 +66,6 @@ export async function runVendorsCommand({
     }
     return;
   }
-  // Dispatch requires the explicit vendors me form; bare vendors is rejected.
   if (subcommand !== "me") {
     throw new Error(
       "Usage: sokosumi vendors me | vendors create --name NAME --slug SLUG",

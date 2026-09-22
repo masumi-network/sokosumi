@@ -13,18 +13,15 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const {
-  resolveMemberOrganizationByIdMock,
-  resolveActiveSubscriptionByReferenceIdMock,
-} = vi.hoisted(() => ({
-  resolveMemberOrganizationByIdMock: vi.fn(),
-  resolveActiveSubscriptionByReferenceIdMock: vi.fn(),
-}));
+const { resolveMemberOrganizationByIdMock, subscriptionFindFirstMock } =
+  vi.hoisted(() => ({
+    resolveMemberOrganizationByIdMock: vi.fn(),
+    subscriptionFindFirstMock: vi.fn(),
+  }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    $transaction: async (callback: (tx: unknown) => unknown) =>
-      await callback({}),
+    subscription: { findFirst: subscriptionFindFirstMock },
   },
 }));
 
@@ -32,19 +29,6 @@ vi.mock("@/helpers/organization", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/helpers/organization")>()),
   resolveMemberOrganizationById: resolveMemberOrganizationByIdMock,
 }));
-
-vi.mock("@sokosumi/database/repositories", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@sokosumi/database/repositories")>();
-  return {
-    ...actual,
-    subscriptionRepository: {
-      ...actual.subscriptionRepository,
-      resolveActiveSubscriptionByReferenceId:
-        resolveActiveSubscriptionByReferenceIdMock,
-    },
-  };
-});
 
 const { default: mountGetOrganizationSubscription } = await import("./get.js");
 
@@ -92,7 +76,7 @@ describe("GET /organizations/{id}/subscription", () => {
     );
 
     expect(response.status).toBe(403);
-    expect(resolveActiveSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
+    expect(subscriptionFindFirstMock).not.toHaveBeenCalled();
   });
 
   it("rejects coworker with context headers (owner session only)", async () => {
@@ -128,11 +112,11 @@ describe("GET /organizations/{id}/subscription", () => {
     );
 
     expect(response.status).toBe(403);
-    expect(resolveActiveSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
+    expect(subscriptionFindFirstMock).not.toHaveBeenCalled();
   });
 
   it("returns the active subscription for a member", async () => {
-    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue({
+    subscriptionFindFirstMock.mockResolvedValue({
       id: "sub_1",
       plan: "pro",
       status: "active",
@@ -159,14 +143,15 @@ describe("GET /organizations/{id}/subscription", () => {
         seats: 5,
       },
     });
-    expect(resolveActiveSubscriptionByReferenceIdMock).toHaveBeenCalledWith(
-      "org_1",
-      expect.anything(),
+    expect(subscriptionFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ referenceId: "org_1" }),
+      }),
     );
   });
 
   it("returns null when the organization has no active subscription", async () => {
-    resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue(null);
+    subscriptionFindFirstMock.mockResolvedValue(null);
 
     const response = await createApp().request(
       "http://localhost/org_1/subscription",

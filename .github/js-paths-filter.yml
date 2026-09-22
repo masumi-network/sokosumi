@@ -6,3 +6,20 @@ js:
   - "!apps/apple/**"
   - "!docs/**"
   - "!**/*.md"
+  - "!apps/cli/**"
+
+# Markdown the JS filter excludes. One positive pattern, so `every` at
+# the call site is the same as `some`. Test CI config uses this so
+# docs-only PRs still run the doc-script check.
+docs:
+  - "**/*.md"
+
+# apps/cli has no workspace dependencies — only external packages and its
+# own tsconfig — so nothing outside this folder can break its tests, and
+# nothing in it can break the rest of the repo. That symmetry is why it is
+# both its own filter and a `js` exclusion. Because `js` excludes it, root
+# `pnpm build`, `pnpm typecheck` and `pnpm check` never see the CLI on a
+# CLI-only PR — the Test CLI matrix leg runs those itself instead. One
+# positive pattern, so `every` at the call site is the same as `some`.
+cli:
+  - "apps/cli/**"

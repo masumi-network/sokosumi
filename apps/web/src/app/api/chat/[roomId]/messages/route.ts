@@ -16,10 +16,22 @@ export async function GET(
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
+  const cursor = request.nextUrl.searchParams.get("cursor") ?? undefined;
+  const around = request.nextUrl.searchParams.get("around") ?? undefined;
+  const rawLimit = request.nextUrl.searchParams.get("limit");
+  const limit = rawLimit == null ? undefined : Number(rawLimit);
+  if (
+    (cursor && around) ||
+    (limit !== undefined &&
+      (!Number.isInteger(limit) || limit < 1 || limit > 100))
+  ) {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
+  const options = { cursor, around, limit };
   return respondToBackgroundChatRead("Chat messages unavailable", async () => {
     const page = await (parentMessageId
-      ? chatRoomService.listThreadMessages(roomId, parentMessageId)
-      : chatRoomService.listMessages(roomId));
+      ? chatRoomService.listThreadMessages(roomId, parentMessageId, options)
+      : chatRoomService.listMessages(roomId, options));
     return {
       data: page.messages,
       pagination: {

@@ -4,7 +4,37 @@ This harness runs the real `RoomTimelineView`, `MessageRowView`, composer, rende
 
 The probes and fixtures are inlined below. They use existing dependencies and system frameworks. Source replacements assert an exact match and stop if the implementation changes. Review a failed match against the new source; do not remove the assertion. The original measured source baseline is `85524b023fc44ee13ce92d848e25c5cc23b08487`. The retry-guard follow-up compares `e7ec006938a2f0a9f419da39e236b2eb24282468` with the guard applied. For a before/after comparison, use a separate fresh harness directory for each source checkout; pass that checkout’s repository root to `setup.py`. The counter probes are identical on both sides.
 
-## Run
+## One-command regression check
+
+From the repository root on a Mac with Xcode 27 and a visible desktop:
+
+```sh
+python3 apps/apple/scripts/run-scrolling-performance.py
+```
+
+The runner extracts the five sources below, copies Apple sources, checks the workspace scheme, builds one Release app, and preserves its binary before measuring. It runs the complete **12-case short matrix** (room/thread × 50/500/2,000 messages × plain/mixed content), then the **24 live-update checks**. Mixed content includes text, markdown, code, images, unfurls and reactions. This is the stable-projection regression check; it does not run the original 21-case timing study or measure presented-frame smoothness.
+
+Allow roughly 5–10 minutes including a build on the audited host; cache and machine load affect this. Keep the window visible, avoid moving the pointer over it, and run no other build or UI benchmark concurrently. The runner serializes its own invocations and clears inherited `M6_*` filters so a prior smoke-test setting cannot shrink the matrix. A missing/duplicate case, shortened scroll phase, failed counter assertion or failed subprocess produces a nonzero exit. Interrupted/timed-out subprocess groups are terminated.
+
+Xcode resolves the original workspace's DerivedData cache by default. To select an existing cache or a new artifact directory explicitly:
+
+```sh
+python3 apps/apple/scripts/run-scrolling-performance.py \
+  --derived-data /absolute/path/to/existing/DerivedData \
+  --output /tmp/sokosumi-scrolling-run
+```
+
+`--output` must not exist; both paths must be outside `apps/apple`. Without `--output`, a fresh temporary directory is retained. The runner prints its location immediately and leaves `summary.json`, the raw `projection-*.jsonl` / `updates-*.jsonl`, checker/build logs, extracted probes, copied sources and app binary there. The report records source revision, Apple working-tree changes, probe/binary hashes, case counts and pass/fail status. A successful report explicitly records **CPU-work checks passed; smoothness unmeasured**. Failures retain their logs and a failed report; earlier results are never overwritten.
+
+The runner/checker tests take a few seconds, require no Xcode or UI, and run in the existing Apple lint job:
+
+```sh
+python3 apps/apple/scripts/test-scrolling-performance.py
+```
+
+The detailed commands below remain available for historical comparisons, the longer matrix, preparation/lookup timings and Instruments captures.
+
+## Manual measurement and historical comparisons
 
 From the repository root, extract the five files to a fresh temporary directory:
 
@@ -36,7 +66,7 @@ M6_APP="$M6_DERIVED/Build/Products/Release/Sokosumi.app/Contents/MacOS/Sokosumi"
 "$M6_APP" > "$M6_WORK/ui-results.jsonl" 2> "$M6_WORK/ui-stderr.log"
 M6_ONLY=prepare "$M6_APP" > "$M6_WORK/prepare-results.jsonl" 2> "$M6_WORK/prepare-stderr.log"
 cat "$M6_WORK/ui-results.jsonl" "$M6_WORK/prepare-results.jsonl" > "$M6_WORK/results.jsonl"
-python3 "$M6_WORK/summarize.py" "$M6_WORK/results.jsonl" --check
+python3 "$M6_WORK/summarize.py" "$M6_WORK/results.jsonl" --check --stable-projection
 M6_ONLY=lookup M6_MIXES=plain "$M6_APP" > "$M6_WORK/lookup.jsonl" 2> "$M6_WORK/lookup-stderr.log"
 python3 "$M6_WORK/summarize.py" "$M6_WORK/lookup.jsonl" --retry-guard
 ```
@@ -50,7 +80,7 @@ ditto "$M6_DERIVED/Build/Products/Release/Sokosumi.app" "$M6_WORK/Sokosumi.app"
 M6_APP="$M6_WORK/Sokosumi.app/Contents/MacOS/Sokosumi"
 ```
 
-For the projection follow-up, run both real views with plain and mixed content (12 cases, 72 phase records). `M6_VIEW=thread` keeps one parent and N−1 replies, so N remains the total prepared message count. Use identical extracted probes against separate before/after source checkouts and build each copied app as above:
+For the historical once-per-evaluation projection follow-up (#4970), run both real views with plain and mixed content (12 cases, 72 phase records). `M6_VIEW=thread` keeps one parent and N−1 replies, so N remains the total prepared message count. Use identical extracted probes against separate before/after source checkouts and build each copied app as above:
 
 ```sh
 for M6_VIEW in room thread; do
@@ -63,7 +93,7 @@ python3 "$M6_WORK/summarize.py" "$M6_WORK/projection.jsonl" --projection
 
 The `--projection` check intentionally fails before the optimization. It requires exactly one `preparedMessages` getter call per room/thread body evaluation during scroll/idle phases, with no timing threshold. `view_bodies` counts the selected view; `room_bodies` retains its original room-only meaning. `projection_ms` summarizes the selected view's getter calls. Only the room has the original geometry/input timers; empty thread geometry fields mean uninstrumented, not zero cost. The check also requires real scrolling, reaching the top, unchanged preparation counts, inactive distant rows, and zero ordinary retry-source copies. This is reuse within one view evaluation, not a persistent cache or a claim that projection cost is independent of message count.
 
-The current conditional room/thread host records **two room preparations at startup on both sides** (first parses N, second reparses zero), **one thread preparation at startup**, and one preparation after each reaction. There are none during scrolling/idle. Separate fresh-process 50-message mixed-room runs reproduce the second startup pass before and after the product change. This differs from the earlier direct-room host's single startup pass; it is not evidence of a regression introduced by projection reuse. The thread initially realizes only the final row consistently (some mixed cases skip the preceding row on both sides), so its distant-row check uses that verified final ID; the room retains both final IDs as sentinels. The checker distinguishes the historical records without a `view` field from the current host and retains strict visit/parse assertions for every pass.
+In the historical #4970 comparison, the conditional room/thread host records **two room preparations at startup on both sides** (first parses N, second reparses zero), **one thread preparation at startup**, and one preparation after each reaction. There are none during scrolling/idle. Separate fresh-process 50-message mixed-room runs reproduce the second startup pass before and after the product change. This differs from the earlier direct-room host's single startup pass; it is not evidence of a regression introduced by projection reuse. The thread initially realizes only the final row consistently (some mixed cases skip the preceding row on both sides), so its distant-row check uses that verified final ID; the room retains both final IDs as sentinels. The checker distinguishes the historical records without a `view` field from the current host and retains strict visit/parse assertions for every pass.
 
 For the isolated geometry comparison:
 
@@ -71,6 +101,31 @@ For the isolated geometry comparison:
 xcrun swiftc -O -parse-as-library "$M6_WORK/Geometry.swift" -o "$M6_WORK/M6Geometry"
 "$M6_WORK/M6Geometry" > "$M6_WORK/geometry.jsonl" 2> "$M6_WORK/geometry-stderr.log"
 ```
+
+## Stable transcript projection regression
+
+The stable-projection follow-up separates data preparation from scroll state. Compare baseline `ccc120c80` with the change, using the same extracted files on both sides. `overlay_builds` counts the actual `PreparedTranscript.overlaying` array/dictionary construction, regardless of where the caller lives. `view_bodies` counts the view owning the scroll state: the original view before the split, the content view afterward. The legacy `projection_ms` getter timer has no samples after that getter is removed; use `overlay_builds` for this regression. The input timer still records the room's preparation-input construction. These counters do not measure presented frames.
+
+After building, this short check takes about 4–6 seconds per case on the audited host:
+
+```sh
+M6_ONLY=projection M6_VIEW=room M6_COUNTS=50 M6_MIXES=plain "$M6_APP" > "$M6_WORK/stable.jsonl"
+python3 "$M6_WORK/summarize.py" "$M6_WORK/stable.jsonl" --stable-projection
+```
+
+It drives 30 native wheel events after the real transcript settles, requires actual movement and view evaluations, and fails if an unchanged transcript triggers any projection rebuild or preparation. The baseline fails this check. For the complete short matrix, run `M6_ONLY=projection M6_MIXES=plain,mixed` once for each `M6_VIEW=room` and `M6_VIEW=thread`, leaving `M6_COUNTS` unset (50/500/2000), then concatenate the two JSONL files and run the same check. Omit `M6_ONLY` to retain the longer early/traverse/late/idle/reaction phases. Use `--check --stable-projection` for the full 21-case UI/preparation dataset on the new layout; historical datasets retain `--check` alone. The new room layout prepares once at startup, instead of the prior conditional host's two preparations.
+
+Verify live updates separately, outside the scrolling measurement:
+
+```sh
+for M6_VIEW in room thread; do
+  M6_ONLY=updates M6_VIEW="$M6_VIEW" M6_COUNTS=50 M6_MIXES=plain "$M6_APP" > "$M6_WORK/updates-$M6_VIEW.jsonl"
+done
+cat "$M6_WORK/updates-room.jsonl" "$M6_WORK/updates-thread.jsonl" > "$M6_WORK/updates.jsonl"
+python3 "$M6_WORK/summarize.py" "$M6_WORK/updates.jsonl" --updates
+```
+
+In this mode only, probes inspect the actual arrays passed to the transcript rows and the message/document values received by `MessageRowView.body`. Each pane checks initial display, edits with prepared markdown, optimistic reactions before the delayed response, confirmation, optimistic removal, rollback after HTTP 500, arrivals, deletions, pending sends, removal of an outbound shell, and generation/thread-parent replacement. The failed-send check observes the outbox state; it does not assert the rendered failure indicator. The old scope must never enter the replacement's projected rows. These are live view-boundary checks; they do not call the projection directly or substitute a mock view. The observation probes return immediately in measurement mode.
 
 ## Capture and analyse Instruments
 
@@ -110,7 +165,7 @@ python3 "$M6_WORK/trace_stacks.py" "$M6_SKILL" "$M6_WORK/native-time.trace" \
   4000 9000 > "$M6_WORK/trace-stacks.json"
 ```
 
-The supplemental extractor reuses the skill's XML parser, caps stacks at 128 frames and reports inclusive sample weight. Inclusive frames overlap; do not add their shares. It caches the exported time-profile XML beside the trace. Binary traces are intentionally outside this docs-only PR; the [parsed evidence](scrolling-performance-evidence.json) retains the analysed metrics and phase boundaries.
+The supplemental extractor reuses the skill's XML parser, caps stacks at 128 frames and reports inclusive sample weight. Inclusive frames overlap; do not add their shares. It caches the exported time-profile XML beside the trace. Binary traces are intentionally outside the repository; the [parsed evidence](scrolling-performance-evidence.json) retains the analysed metrics and phase boundaries.
 
 ## Meaning of the measurements
 
@@ -149,16 +204,32 @@ patch('Packages/SokosumiChat/Sources/SokosumiChat/PreparedTranscript.swift','imp
 patch('Packages/SokosumiChat/Sources/SokosumiChat/PreparedTranscript.swift','    let task = Task.detached(priority: .userInitiated) {','    let task = Task.detached(priority: .userInitiated) {\n      let start = ProcessInfo.processInfo.systemUptime\n      var visited = 0\n      var parsed = 0\n      defer { M6Preparation.record(["ms": (ProcessInfo.processInfo.systemUptime - start) * 1000, "visited": Double(visited), "parsed": Double(parsed)]) }')
 patch('Packages/SokosumiChat/Sources/SokosumiChat/PreparedTranscript.swift','      for message in input.messages {','      for message in input.messages {\n        visited += 1')
 patch('Packages/SokosumiChat/Sources/SokosumiChat/PreparedTranscript.swift','          documents[message.id] = MessageMarkdown','          parsed += 1\n          documents[message.id] = MessageMarkdown')
-patch('Sokosumi/Chat/Timeline/RoomTimelineView.swift','    private var preparationInput: PreparedTranscript.Input {\n      .init','    private var preparationInput: PreparedTranscript.Input {\n      let start = ProcessInfo.processInfo.systemUptime\n      defer { M6Probe.scans["input", default: []].append((ProcessInfo.processInfo.systemUptime - start) * 1000) }\n      return .init')
-patch('Sokosumi/Chat/Timeline/RoomTimelineView.swift','    private var preparedMessages: [Components.Schemas.ChatRoomMessage] {','    private var preparedMessages: [Components.Schemas.ChatRoomMessage] {\n      let start = ProcessInfo.processInfo.systemUptime\n      defer { M6Probe.scans["preparedMessages", default: []].append((ProcessInfo.processInfo.systemUptime - start) * 1000) }')
+p=out/'Sokosumi/Chat/Timeline/RoomTimelineView.swift'
+if '    private var preparationInput: PreparedTranscript.Input {\n      .init' in p.read_text():
+ patch('Sokosumi/Chat/Timeline/RoomTimelineView.swift','    private var preparationInput: PreparedTranscript.Input {\n      .init','    private var preparationInput: PreparedTranscript.Input {\n      let start = ProcessInfo.processInfo.systemUptime\n      defer { M6Probe.scans["input", default: []].append((ProcessInfo.processInfo.systemUptime - start) * 1000) }\n      return .init')
+else:
+ patch('Sokosumi/Chat/Timeline/RoomTimelineView.swift','    private var preparationInput: PreparedTranscript.Input {','    private var preparationInput: PreparedTranscript.Input {\n      let start = ProcessInfo.processInfo.systemUptime\n      defer { M6Probe.scans["input", default: []].append((ProcessInfo.processInfo.systemUptime - start) * 1000) }')
+if '    private var preparedMessages:' in (out/'Sokosumi/Chat/Timeline/RoomTimelineView.swift').read_text():
+ patch('Sokosumi/Chat/Timeline/RoomTimelineView.swift','    private var preparedMessages: [Components.Schemas.ChatRoomMessage] {','    private var preparedMessages: [Components.Schemas.ChatRoomMessage] {\n      let start = ProcessInfo.processInfo.systemUptime\n      defer { M6Probe.scans["preparedMessages", default: []].append((ProcessInfo.processInfo.systemUptime - start) * 1000) }')
 shutil.copy(work/'Probe.swift',out/'Sokosumi/App/SokosumiApp.swift')
 shutil.copy(source/'SokosumiTests/Chat/Timeline/ScrollMediaProtocol.swift',out/'Sokosumi/App/ScrollMediaProtocol.swift')
 
 patch('Packages/SokosumiWorkspace/Sources/SokosumiWorkspace/WorkspaceState+Mentions.swift','struct MentionRetryRequest: Hashable {','@MainActor public enum M6MentionRetryProbe {\n  public static var sourceCollections = 0\n}\n\nstruct MentionRetryRequest: Hashable {')
 patch('Packages/SokosumiWorkspace/Sources/SokosumiWorkspace/WorkspaceState+Mentions.swift','    transcriptMessages + (thread.parent.map { [$0] } ?? []) + thread.timeline.messages','    M6MentionRetryProbe.sourceCollections += 1\n    return transcriptMessages + (thread.parent.map { [$0] } ?? []) + thread.timeline.messages')
 patch('Sokosumi/Chat/Threads/ReplyThreadView.swift','    var body: some View {\n      content','    var body: some View {\n      let _ = M6Probe.threadBody()\n      content')
-patch('Sokosumi/Chat/Threads/ReplyThreadView.swift','    private var preparedMessages: [Components.Schemas.ChatRoomMessage] {','    private var preparedMessages: [Components.Schemas.ChatRoomMessage] {\n      let start = ProcessInfo.processInfo.systemUptime\n      defer { M6Probe.scans["preparedMessages", default: []].append((ProcessInfo.processInfo.systemUptime - start) * 1000) }')
+if '    private var preparedMessages:' in (out/'Sokosumi/Chat/Threads/ReplyThreadView.swift').read_text():
+ patch('Sokosumi/Chat/Threads/ReplyThreadView.swift','    private var preparedMessages: [Components.Schemas.ChatRoomMessage] {','    private var preparedMessages: [Components.Schemas.ChatRoomMessage] {\n      let start = ProcessInfo.processInfo.systemUptime\n      defer { M6Probe.scans["preparedMessages", default: []].append((ProcessInfo.processInfo.systemUptime - start) * 1000) }')
 print(out)
+
+patch('Packages/SokosumiChat/Sources/SokosumiChat/PreparedTranscript.swift', 'public enum M6Preparation {', 'public enum M6Preparation {\n  private static let overlayBuilds = Mutex(0)\n  public static func takeOverlayBuilds() -> Int { overlayBuilds.withLock { let value = $0; $0 = 0; return value } }\n  static func overlayBuilt() { overlayBuilds.withLock { $0 += 1 } }')
+patch('Packages/SokosumiChat/Sources/SokosumiChat/PreparedTranscript.swift', '    let byId = Dictionary(live.map', '    M6Preparation.overlayBuilt()\n    let byId = Dictionary(live.map')
+
+patch('Sokosumi/Chat/Timeline/MessageRowView.swift', '      let _ = M6Probe.body(message.id)', '      let _ = M6Probe.body(message.id)\n      let _ = M6Probe.observe(message, document: preparedDocument)')
+if 'let messages = preparedMessages' in (out/'Sokosumi/Chat/Timeline/RoomTimelineView.swift').read_text():
+ patch('Sokosumi/Chat/Timeline/RoomTimelineView.swift', 'let messages = preparedMessages', 'let messages = preparedMessages\n      let _ = M6Probe.projected(messages)')
+else:
+ patch('Sokosumi/Chat/Timeline/RoomTimelineView.swift', '      if workspaces.transcriptRoomId != roomId || workspaces.transcriptLoading {', '      let _ = M6Probe.projected(messages)\n      if workspaces.transcriptRoomId != roomId || workspaces.transcriptLoading {')
+patch('Sokosumi/Chat/Threads/ReplyThreadView.swift', '      if let parent = messages.first {', '      let _ = M6Probe.projected(messages)\n      if let parent = messages.first {')
 ```
 
 ### Probe.swift
@@ -178,6 +249,21 @@ import Synchronization
 
 @MainActor enum M6Probe {
   static var bodies: [String: Int] = [:]
+  static let validatesUpdates = ProcessInfo.processInfo.environment["M6_ONLY"] == "updates"
+  static var projectedRows: [Components.Schemas.ChatRoomMessage] = []
+  static var projectedHistory: [[String]] = []
+  static var observedRows: [String: Components.Schemas.ChatRoomMessage] = [:]
+  static var observedDocuments: [String: String] = [:]
+  static func projected(_ messages: [Components.Schemas.ChatRoomMessage]) {
+    guard validatesUpdates else { return }
+    projectedRows = messages
+    projectedHistory.append(messages.map(\.id))
+  }
+  static func observe(_ message: Components.Schemas.ChatRoomMessage, document: MessageMarkdown?) {
+    guard validatesUpdates else { return }
+    observedRows[message.id] = message
+    observedDocuments[message.id] = document.map { $0.blocks.map { String($0.text.characters) }.joined(separator: "\n") }
+  }
   static var totalBodies = 0
   static var scans: [String: [Double]] = [:]
   static var roomBodies = 0
@@ -188,7 +274,7 @@ import Synchronization
   static func body(_ id: String) { bodies[id, default: 0] += 1; totalBodies += 1 }
   static func roomBody() { roomBodies += 1 }
   static func threadBody() { threadBodies += 1 }
-  static func reset() { M6MentionRetryProbe.sourceCollections = 0; bodies = [:]; totalBodies = 0; scans = [:]; roomBodies = 0; threadBodies = 0; geometryTransform = []; geometryAction = []; _ = M6Preparation.take() }
+  static func reset() { _ = M6Preparation.takeOverlayBuilds(); M6MentionRetryProbe.sourceCollections = 0; bodies = [:]; totalBodies = 0; scans = [:]; roomBodies = 0; threadBodies = 0; geometryTransform = []; geometryAction = []; _ = M6Preparation.take() }
   static func summary(_ values: [Double]) -> [String: Double] {
     let sorted = values.sorted()
     guard !sorted.isEmpty else { return ["n": 0, "total": 0, "p50": 0, "p95": 0, "max": 0] }
@@ -198,6 +284,7 @@ import Synchronization
     var value = input
     value["retry_source_collections"] = M6MentionRetryProbe.sourceCollections
     value["view"] = ProcessInfo.processInfo.environment["M6_VIEW"] ?? "room"
+    value["overlay_builds"] = M6Preparation.takeOverlayBuilds()
     value["view_bodies"] = roomBodies + threadBodies
     value["projection_ms"] = summary(scans["preparedMessages"] ?? [])
     let data = try! JSONSerialization.data(withJSONObject: value, options: [.sortedKeys])
@@ -303,9 +390,15 @@ import Synchronization
       }
       guard let scroll, (scroll.documentView?.frame.height ?? 0) > 1000 else { fatalError("Transcript not ready") }
       await pause(1500)
+      if env["M6_ONLY"] == "updates" {
+        await validateUpdates(state, auth: auth, host: host, fixture: fixture, thread: thread)
+        window.close()
+        continue
+      }
       let initialBodies = Set(M6Probe.bodies.keys)
       M6Probe.emit(["phase": "load", "count": count, "mix": mix, "ids": M6Probe.bodies, "media_completions": ScrollMediaProtocol.completedRequests, "bodies": M6Probe.totalBodies, "unique": M6Probe.bodies.count, "room_bodies": M6Probe.roomBodies, "prepare": M6Preparation.take(), "document_height": scroll.documentView!.frame.height])
-      await measure(scroll, host: host, count: count, mix: mix, phase: "early", ticks: 120, amount: 60, retired: [])
+      await measure(scroll, host: host, count: count, mix: mix, phase: "early", ticks: env["M6_ONLY"] == "projection" ? 30 : 120, amount: 60, retired: [])
+      if env["M6_ONLY"] == "projection" { window.close(); continue }
       // Walk toward the top with actual wheel events; no jump-to-id substitution.
       await measure(scroll, host: host, count: count, mix: mix, phase: "traverse", ticks: count * 3, amount: 400, retired: initialBodies)
       await measure(scroll, host: host, count: count, mix: mix, phase: "late", ticks: 120, amount: -60, retired: initialBodies)
@@ -326,6 +419,106 @@ import Synchronization
       await pause(300)
     } }
   }
+  func validateUpdates(_ state: WorkspaceState, auth: AuthState, host: NSView,
+                       fixture: [Components.Schemas.ChatRoomMessage], thread: Bool) async {
+    let timeline = thread ? state.thread.timeline : state.timeline
+    let target = fixture.last!.id
+    var passed: [String] = []
+    func check(_ label: String, _ condition: () -> Bool) async {
+      for _ in 0..<500 {
+        host.layoutSubtreeIfNeeded()
+        if condition() { passed.append(label); return }
+        await pause(20)
+      }
+      fatalError("M6 live update failed: \(label)")
+    }
+    await check("initial row") { M6Probe.observedRows[target] != nil }
+    timeline.messages[timeline.messages.count-1].content = "Edited **projection marker**"
+    await check("edit and prepared markdown") {
+      M6Probe.observedRows[target]?.content == "Edited **projection marker**"
+        && M6Probe.observedDocuments[target]?.contains("Edited projection marker") == true
+    }
+
+    var confirmed = timeline.messages.last!
+    confirmed.reactions = [.init(emoji: "🎉", count: 1, reactedByCurrentUser: true, reactors: [])]
+    let encoder = JSONEncoder()
+    encoder.dateEncodingStrategy = .custom { date, encoder in
+      var container = encoder.singleValueContainer()
+      try container.encode(date.ISO8601Format(.init(includingFractionalSeconds: true)))
+    }
+    let object = try! JSONSerialization.jsonObject(with: encoder.encode(confirmed))
+    M6ReactionProtocol.response.withLock { $0 = try! JSONSerialization.data(withJSONObject:
+      ["data":object,"meta":["timestamp":"2026-09-21T12:00:00.000Z","requestId":"m6-updates"]]) }
+    func reacted() -> Bool {
+      M6Probe.observedRows[target]?.reactions.contains { $0.emoji == "🎉" && $0.reactedByCurrentUser } == true
+    }
+    var reactionFinished = false
+    let reaction = Task {
+      do { _ = try await state.toggleReaction(confirmed, emoji: "🎉", auth: auth) }
+      catch { fatalError("M6 reaction failed: \(error)") }
+      reactionFinished = true
+    }
+    await check("optimistic reaction before response") { reacted() }
+    precondition(!reactionFinished, "Reaction was not rendered optimistically")
+    await reaction.value
+    await check("confirmed reaction") { reacted() }
+    M6ReactionProtocol.status.withLock { $0 = 500 }
+    var rollbackFinished = false
+    let rollback = Task {
+      do { _ = try await state.toggleReaction(confirmed, emoji: "🎉", auth: auth); fatalError("Expected reaction failure") }
+      catch { rollbackFinished = true }
+    }
+    await check("optimistic reaction removal") { !reacted() }
+    precondition(!rollbackFinished, "Removal was not rendered before response")
+    await rollback.value
+    await check("reaction rollback") { reacted() }
+    M6ReactionProtocol.status.withLock { $0 = 200 }
+
+    var arriving = fixture.last!
+    arriving.id = "arriving"
+    arriving.content = "Arrival projection marker"
+    arriving.createdAt = arriving.createdAt.addingTimeInterval(60)
+    timeline.messages.append(arriving)
+    await check("arrival") { M6Probe.observedRows["arriving"]?.content == arriving.content }
+    timeline.messages.removeAll { $0.id == "arriving" }
+    await check("removal") { !M6Probe.projectedRows.contains { $0.id == "arriving" } }
+
+    let outbox = thread ? state.thread.outbox : state.outbox
+    let shell = OutboundShell(clientTurnId: "projection-outbox", roomId: "fixture",
+      parentMessageId: thread ? fixture.first!.id : nil, content: "Pending projection marker",
+      sender: .init(id: "me", name: "Me", email: "me@example.com", presence: .online))
+    var releaseSend: CheckedContinuation<Components.Schemas.ChatRoomMessage, Error>?
+    outbox.enqueue(shell, send: {
+      try await withCheckedThrowingContinuation { releaseSend = $0 }
+    }, confirmed: { _ in fatalError("Expected send failure") }, failed: { _ in })
+    await check("pending send") { M6Probe.observedRows[shell.id]?.content == shell.content && releaseSend != nil }
+    releaseSend!.resume(throwing: CancellationError())
+    await check("failed send") { outbox.shells.first?.status == .failed }
+    outbox.remove(shell.clientTurnId)
+    await check("outbox removal") { !M6Probe.projectedRows.contains { $0.id == shell.id } }
+
+    M6Probe.projectedHistory = []
+    var replacement = fixture.first!
+    replacement.id = "replacement"
+    replacement.content = "Replacement projection marker"
+    replacement.parentMessageId = nil
+    if thread {
+      state.thread.open(replacement)
+      timeline.failInitialLoad(message: "", generation: timeline.generation)
+      var reply = arriving
+      reply.id = "replacement-reply"
+      reply.parentMessageId = replacement.id
+      timeline.messages = [reply]
+    } else {
+      timeline.reset(roomId: "fixture")
+      timeline.failInitialLoad(message: "", generation: timeline.generation)
+      timeline.messages = [replacement]
+    }
+    await check("scope replacement") { M6Probe.observedRows["replacement"]?.content == replacement.content }
+    precondition(M6Probe.projectedHistory.flatMap { $0 }.allSatisfy { $0.hasPrefix("replacement") }, "Old scope rows escaped into the new scope")
+    M6Probe.emit(["phase":"updates", "count":fixture.count, "mix":"plain", "passed":passed])
+  }
+
   func prepareSamples(_ fixture: [Components.Schemas.ChatRoomMessage], count: Int, mix: String) async {
   var warm: PreparedTranscript?
   for mode in ["cold", "reuse", "reaction"] {
@@ -382,12 +575,13 @@ import Synchronization
 
 final nonisolated class M6ReactionProtocol: URLProtocol, @unchecked Sendable {
   static let response = Mutex(Data())
+  static let status = Mutex(200)
   override static func canInit(with request: URLRequest) -> Bool { request.url?.host == "scroll-fixture.invalid" && request.url!.path.contains("/reactions/") }
   override static func canonicalRequest(for request: URLRequest) -> URLRequest { request }
   override func startLoading() {
     Task { @Sendable [self] in
-      try? await Task.sleep(for: .milliseconds(250))
-      let reply = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type":"application/json"])!
+      try? await Task.sleep(for: .milliseconds(ProcessInfo.processInfo.environment["M6_ONLY"] == "updates" ? 1000 : 250))
+      let reply = HTTPURLResponse(url: request.url!, statusCode: Self.status.withLock { $0 }, httpVersion: nil, headerFields: ["Content-Type":"application/json"])!
       client?.urlProtocol(self, didReceive: reply, cacheStoragePolicy: .notAllowed)
       client?.urlProtocol(self, didLoad: Self.response.withLock { $0 })
       client?.urlProtocolDidFinishLoading(self)
@@ -517,7 +711,7 @@ if '--check' in sys.argv:
   assert by_phase['late']['bodies_per_display_callback']['total']>0,(count,mix,'late phase did not exercise rows')
   for phase in ('load','reaction'):
    samples=by_phase[phase]['prepare']
-   expected=2 if phase=='load' and by_phase[phase].get('view')=='room' else 1
+   expected=2 if phase=='load' and by_phase[phase].get('view')=='room' and '--stable-projection' not in sys.argv else 1
    assert len(samples)==expected,(count,mix,phase,'unexpected preparation count')
    assert samples[0]['visited']==count and samples[0]['parsed']==(count if phase=='load' else 0),(count,mix,phase,'unexpected visit/parse count')
    assert all(sample['visited']==count and sample['parsed']==0 for sample in samples[1:]),(count,mix,phase,'unexpected startup reparsing')
@@ -563,6 +757,35 @@ if '--projection' in sys.argv:
    assert phases['late']['ids'].get(sentinel,0)==0,(view,count,mix,sentinel,'evaluated during top sweep')
   assert all(row['retry_source_collections']==0 for row in phases.values())
  print('PASS: 12 room/thread cases; one projection per view evaluation during scroll/idle; scrolling, preparation, distant-row and retry-copy checks pass')
+
+if "--stable-matrix" in sys.argv:
+ expected={(view,count,mix,phase) for view in ('room','thread') for count in (50,500,2000) for mix in ('plain','mixed') for phase in ('load','early')}
+ actual=[(row.get('view'),row.get('count'),row.get('mix'),row.get('phase')) for row in rows]
+ assert len(actual)==len(expected) and set(actual)==expected, 'Incomplete or duplicated short matrix: expected 12 room/thread cases, each with load and early records'
+ assert all(row['ticks']==30 for row in rows if row['phase']=='early'), 'Expected 30 wheel events per short case'
+ print('PASS: complete short matrix, 12 cases with 30 wheel events each')
+
+if "--stable-projection" in sys.argv:
+ scroll = [row for row in rows if row['phase'] in ('early', 'traverse', 'late', 'idle')]
+ assert scroll, 'No measured scroll phases'
+ failures = []
+ for row in scroll:
+     print(f"{row['view']} {row['count']} {row['mix']} {row['phase']}: bodies={row['view_bodies']}, overlay_builds={row['overlay_builds']}, preparations={len(row['prepare'])}")
+     assert not row['prepare'], 'Unexpected preparation during stable scroll'
+     if row['phase'] == 'early':
+         assert row['view_bodies'] > 0, 'No view updates exercised'
+         assert row['start_y'] - row['end_y'] > 100, 'No real scrolling exercised'
+     if row['overlay_builds'] != 0:
+         failures.append((row['view'], row['count'], row['mix'], row['phase'], row['overlay_builds']))
+ assert not failures, f'Stable scrolling rebuilt transcript projections: {failures}'
+ print('PASS: stable scrolling rebuilds zero transcript projections')
+
+if "--updates" in sys.argv:
+ cases=[row for row in rows if row['phase']=='updates']
+ assert len(cases)==2 and {row['view'] for row in cases}=={'room','thread'}
+ expected={'initial row','edit and prepared markdown','optimistic reaction before response','confirmed reaction','optimistic reaction removal','reaction rollback','arrival','removal','pending send','failed send','outbox removal','scope replacement'}
+ for row in cases: assert set(row['passed'])==expected,(row['view'],row['passed'])
+ print('PASS: 12 live-update checks each in real room/thread views')
 ```
 
 ### trace_stacks.py
