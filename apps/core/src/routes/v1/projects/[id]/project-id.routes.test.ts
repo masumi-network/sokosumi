@@ -468,6 +468,16 @@ describe("DELETE /projects/{id}", () => {
     expect(deliverCalendarInvalidationsNowMock).not.toHaveBeenCalled();
   });
 
+  it("rejects a non-uuid id before the handler", async () => {
+    const app = createApp();
+    mountDeleteProject(app);
+    const res = await app.request("http://localhost/not-a-uuid", {
+      method: "DELETE",
+    });
+
+    expect(res.status).toBe(422);
+  });
+
   it("rejects coworker context even with X-Context-User-Id", async () => {
     const app = createApp(COWORKER_CONTEXT_AUTH);
     mountDeleteProject(app);

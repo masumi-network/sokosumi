@@ -42,7 +42,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     requireOwnerUserContext(c.var.authContext);
     requireWorkspaceContext(c.var.workspaceContext);
-    c.req.valid("param");
 
     throw conflict(
       "Project deletion is no longer available. Close the project instead.",
