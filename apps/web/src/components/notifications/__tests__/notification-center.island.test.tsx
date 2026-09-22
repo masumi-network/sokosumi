@@ -402,7 +402,7 @@ describe("Notification Center, both frames", () => {
     });
 
     await renderPage();
-    const actions = screen.getByTestId("notifications-page-actions");
+    const actions = screen.getByTestId("notifications-page-header");
     await userEvent
       .setup()
       .click(screen.getByRole("button", { name: "markRead: mine" }));
@@ -411,7 +411,7 @@ describe("Notification Center, both frames", () => {
     // The button goes, its row stays: a row that left with it would pull the
     // whole list up under the reader's pointer.
     expect(screen.queryByRole("button", { name: "markAllRead" })).toBeNull();
-    expect(screen.getByTestId("notifications-page-actions")).toBe(actions);
+    expect(screen.getByTestId("notifications-page-header")).toBe(actions);
   });
 
   it("puts a row back and says so when marking it read fails", async () => {
@@ -997,7 +997,10 @@ describe("Notification Center view filter", () => {
     });
   });
 
-  it("gives an empty Unread page no action row to hold space for", async () => {
+  // The heading names the page whether or not there is anything to list.
+  // Mark all read is the part that has nothing to act on, so it is the part
+  // that goes.
+  it("keeps the page heading on an empty Unread page, without its button", async () => {
     getNotificationsMock.mockResolvedValue(page([]));
 
     await renderPage();
@@ -1006,7 +1009,8 @@ describe("Notification Center view filter", () => {
     await settle();
 
     expect(screen.getByText("emptyUnreadState")).toBeTruthy();
-    expect(screen.queryByTestId("notifications-page-actions")).toBeNull();
+    expect(screen.getByRole("heading", { name: "pageTitle" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "markAllRead" })).toBeNull();
   });
 
   it("drops a read row once a keyboard reader tabs off it", async () => {
@@ -1227,6 +1231,37 @@ describe("Notification Center view filter", () => {
       await settle();
       expect(screen.getByText("emptyState")).toBeTruthy();
       expect(screen.queryByText("emptyUnreadState")).toBeNull();
+    },
+  );
+
+  it.each(FRAMES)(
+    "hands focus to the view strip when Show all empties the %s",
+    async (_, mount) => {
+      getNotificationsMock.mockResolvedValue(
+        page([row("mine", { isRead: true })]),
+      );
+
+      await mount();
+      const user = userEvent.setup();
+
+      getNotificationsMock.mockResolvedValue(page([]));
+      await user.click(screen.getByRole("tab", { name: /^filterUnread/ }));
+      await settle();
+
+      getNotificationsMock.mockResolvedValue(
+        page([row("mine", { isRead: true })]),
+      );
+      // The button leaves with the empty state it sits in. Without a new
+      // home for focus it falls to <body>, and a keyboard reader loses
+      // their place in the list they just asked to see.
+      await user.click(screen.getByRole("button", { name: "showAll" }));
+      await settle();
+
+      await waitFor(() => {
+        expect(document.activeElement).toBe(
+          screen.getByRole("tab", { name: "filterAll" }),
+        );
+      });
     },
   );
 
