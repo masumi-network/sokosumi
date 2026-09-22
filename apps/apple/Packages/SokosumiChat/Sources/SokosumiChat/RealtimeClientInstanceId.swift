@@ -11,7 +11,7 @@ public protocol RealtimeClientInstanceIdStore: Sendable {
 /// survive relaunches, so this Mac stays one `{userId}:{instanceId}` device.
 /// `UserDefaults` is thread-safe; the unchecked conformance covers the
 /// missing `Sendable` annotation on `NSUserDefaults`.
-public struct UserDefaultsRealtimeClientInstanceIdStore: RealtimeClientInstanceIdStore, @unchecked Sendable {
+public struct UserDefaultsRealtimeInstanceIdStore: RealtimeClientInstanceIdStore, @unchecked Sendable {
   /// Existing installs persist under this key; renaming would mint a new device id.
   private static let key = "sokosumi.ablyClientInstanceId"
   private let defaults: UserDefaults

@@ -422,7 +422,7 @@ struct ChatRealtimeTests {
     let suite = "sokosumi-realtime-instance-id.\(UUID().uuidString)"
     let defaults = try #require(UserDefaults(suiteName: suite))
     defaults.removePersistentDomain(forName: suite)
-    let store = UserDefaultsRealtimeClientInstanceIdStore(defaults: defaults)
+    let store = UserDefaultsRealtimeInstanceIdStore(defaults: defaults)
     let id = getOrCreateRealtimeClientInstanceId(store: store) { "inst_persist000001" }
     #expect(id == "inst_persist000001")
     #expect(defaults.string(forKey: "sokosumi.ablyClientInstanceId") == "inst_persist000001")
