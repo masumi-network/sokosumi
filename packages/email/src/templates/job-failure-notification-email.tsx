@@ -5,7 +5,6 @@ import {
   DARK_CLASS,
   LIGHT_PALETTE,
   MONO_STACK,
-  nestedRadius,
   RADIUS,
   SPACE,
   TEXT,
@@ -20,6 +19,9 @@ export interface JobFailureField {
 
 export interface JobFailureNotificationEmailTemplateProps {
   description: string;
+  /** Identifiers a support reply needs, kept out of the reader's way. */
+  details: JobFailureField[];
+  /** What failed and what it said, in reading order. */
   fields: JobFailureField[];
   footer: string;
   lang: string;
@@ -29,11 +31,12 @@ export interface JobFailureNotificationEmailTemplateProps {
 
 /** The catalogues end each label with a colon; the label style carries it. */
 function withoutTrailingColon(label: string): string {
-  return label.replace(/[:\uff1a]\s*$/, "");
+  return label.replace(/[:：]\s*$/, "");
 }
 
 export function JobFailureNotificationEmailTemplate({
   description,
+  details,
   fields,
   footer,
   lang,
@@ -89,13 +92,11 @@ export function JobFailureNotificationEmailTemplate({
             </Text>
             {field.codeBlock ? (
               <Container
-                className={DARK_CLASS.code}
+                className={DARK_CLASS.rule}
                 style={{
-                  backgroundColor: LIGHT_PALETTE.codeSurface,
-                  border: `1px solid ${LIGHT_PALETTE.hairline}`,
-                  borderRadius: nestedRadius(RADIUS.panel, SPACE.md),
+                  borderLeft: `2px solid ${LIGHT_PALETTE.hairline}`,
                   margin: 0,
-                  padding: `${SPACE.sm} ${SPACE.md}`,
+                  padding: `0 0 0 ${SPACE.md}`,
                 }}
               >
                 <Text
@@ -129,6 +130,52 @@ export function JobFailureNotificationEmailTemplate({
             )}
           </Section>
         ))}
+      </Section>
+      <Section style={{ padding: `${SPACE.lg} 0 0` }}>
+        <table
+          border={0}
+          cellPadding="0"
+          cellSpacing="0"
+          role="presentation"
+          width="100%"
+        >
+          <tbody>
+            {details.map((detail) => (
+              <tr key={detail.label}>
+                <td
+                  style={{ paddingBottom: SPACE.sm, width: "38%" }}
+                  valign="top"
+                >
+                  <Text
+                    className={DARK_CLASS.textMuted}
+                    style={{
+                      ...TEXT.micro,
+                      color: LIGHT_PALETTE.textMuted,
+                      margin: 0,
+                      paddingRight: SPACE.md,
+                    }}
+                  >
+                    {withoutTrailingColon(detail.label)}
+                  </Text>
+                </td>
+                <td style={{ paddingBottom: SPACE.sm }} valign="top">
+                  <Text
+                    className={DARK_CLASS.textMuted}
+                    style={{
+                      ...TEXT.micro,
+                      color: LIGHT_PALETTE.textMuted,
+                      fontFamily: MONO_STACK,
+                      margin: 0,
+                      wordBreak: "break-all",
+                    }}
+                  >
+                    {detail.value}
+                  </Text>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </Section>
     </EmailShell>
   );

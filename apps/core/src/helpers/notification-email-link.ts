@@ -49,6 +49,11 @@ export function readString(
  * by slug and answers an id with a 404. The fix belongs to web's resolver,
  * which reads the id from metadata that now carries the slug beside it.
  */
+/** Where the footer note sends a reader who wants to change what arrives. */
+export function notificationSettingsLink(): string {
+  return `${getWebAppBaseUrl()}/account/notifications`;
+}
+
 export function notificationEmailLink(
   input: NotificationEmailLinkInput,
 ): string {

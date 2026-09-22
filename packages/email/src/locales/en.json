@@ -77,7 +77,8 @@
       "fallbackRoomName": "a conversation",
       "fallbackTaskName": "Your task",
       "fallbackCoworkerName": "a coworker",
-      "fallbackProjectName": "Your project"
+      "fallbackProjectName": "Your project",
+      "settingsLink": "Notification settings"
     },
     "event": {
       "footer": "You're receiving this email because this notification is switched on in your notification settings.",

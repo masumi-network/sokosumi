@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  renderAccessRequestEmail,
   renderChatRoomInvitationEmail,
   renderJobFailureNotificationEmail,
   renderLowBalanceEmail,
@@ -146,5 +147,31 @@ describe("email renderers", () => {
     expect(rendered.html).toContain(
       "https://app.sokosumi.com/billing?tab=credits",
     );
+  });
+
+  it("links the notification settings from the footer", async () => {
+    const rendered = await renderAccessRequestEmail({
+      actionUrl: "https://example.com/requests",
+      locale: "en",
+      recipientName: "Andreas",
+      request: "vendor",
+      settingsUrl: "https://example.com/account/notifications",
+    });
+
+    expect(rendered.html).toContain(
+      'href="https://example.com/account/notifications"',
+    );
+    expect(rendered.html).toContain("Notification settings");
+  });
+
+  it("leaves the footer link out when no settings url is known", async () => {
+    const rendered = await renderAccessRequestEmail({
+      actionUrl: "https://example.com/requests",
+      locale: "en",
+      recipientName: "Andreas",
+      request: "vendor",
+    });
+
+    expect(rendered.html).not.toContain("Notification settings");
   });
 });

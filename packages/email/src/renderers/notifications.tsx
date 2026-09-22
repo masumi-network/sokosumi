@@ -18,6 +18,7 @@ import {
   buildGreeting,
   linkInstructions,
   nameOr,
+  settingsLink,
   type TranslateFn,
 } from "./notification-shared.js";
 
@@ -26,6 +27,7 @@ const EVENT_SCOPE = "notifications.event";
 
 interface EventEmailOptions {
   actionUrl: string;
+  settingsUrl?: null | string;
   facts?: readonly ActionEmailFact[];
   lang: string;
   quote?: null | string;
@@ -41,6 +43,7 @@ interface EventEmailOptions {
 
 function renderEventEmail({
   actionUrl,
+  settingsUrl,
   facts,
   lang,
   quote,
@@ -56,6 +59,7 @@ function renderEventEmail({
     body: words.body,
     facts,
     footer: t(`${EVENT_SCOPE}.footer`),
+    footerLink: settingsLink(t, settingsUrl),
     greeting: buildGreeting(t, recipientName),
     lang,
     linkInstructions: linkInstructions(t),
@@ -75,6 +79,7 @@ export function renderChatMentionEmail({
   locale,
   messagePreview,
   recipientName,
+  settingsUrl,
   roomName,
 }: ChatMentionEmailProps): Promise<RenderedEmail> {
   const { locale: lang, t } = createEmailTranslator(locale);
@@ -86,6 +91,7 @@ export function renderChatMentionEmail({
 
   return renderEventEmail({
     lang,
+    settingsUrl,
     actionUrl,
     quote: messagePreview,
     recipientName,
@@ -106,6 +112,7 @@ export function renderChatDirectMessageEmail({
   locale,
   messagePreview,
   recipientName,
+  settingsUrl,
 }: ChatDirectMessageEmailProps): Promise<RenderedEmail> {
   const { locale: lang, t } = createEmailTranslator(locale);
   const scope = `${EVENT_SCOPE}.directMessage`;
@@ -113,6 +120,7 @@ export function renderChatDirectMessageEmail({
 
   return renderEventEmail({
     lang,
+    settingsUrl,
     actionUrl,
     quote: messagePreview,
     recipientName,
@@ -195,6 +203,7 @@ export function renderTaskAttentionEmail({
   projectName,
   reason,
   recipientName,
+  settingsUrl,
   taskName,
 }: TaskAttentionEmailProps): Promise<RenderedEmail> {
   const { locale: lang, t } = createEmailTranslator(locale);
@@ -206,6 +215,7 @@ export function renderTaskAttentionEmail({
 
   return renderEventEmail({
     lang,
+    settingsUrl,
     actionUrl,
     facts: projectFact(t, projectName),
     recipientName,
@@ -226,6 +236,7 @@ export function renderTaskCompletedEmail({
   locale,
   projectName,
   recipientName,
+  settingsUrl,
   taskName,
 }: TaskCompletedEmailProps): Promise<RenderedEmail> {
   const { locale: lang, t } = createEmailTranslator(locale);
@@ -237,6 +248,7 @@ export function renderTaskCompletedEmail({
 
   return renderEventEmail({
     lang,
+    settingsUrl,
     actionUrl,
     facts: projectFact(t, projectName),
     recipientName,
@@ -286,6 +298,7 @@ export function renderAccessRequestEmail({
   actionUrl,
   locale,
   recipientName,
+  settingsUrl,
   request,
   requesterName,
 }: AccessRequestEmailProps): Promise<RenderedEmail> {
@@ -297,6 +310,7 @@ export function renderAccessRequestEmail({
 
   return renderEventEmail({
     lang,
+    settingsUrl,
     actionUrl,
     recipientName,
     t,

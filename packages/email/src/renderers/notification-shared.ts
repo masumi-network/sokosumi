@@ -57,6 +57,18 @@ export function nameOr(
 }
 
 /** The "or paste this URL" line, the same in every notification email. */
+/** The footer link, when the caller knows where the settings live. */
+export function settingsLink(
+  t: TranslateFn,
+  settingsUrl?: null | string,
+): undefined | { label: string; url: string } {
+  const url = settingsUrl?.trim();
+
+  return url
+    ? { label: t(`${NOTIFICATION_SHARED_SCOPE}.settingsLink`), url }
+    : undefined;
+}
+
 export function linkInstructions(t: TranslateFn): string {
   return t(`${NOTIFICATION_SHARED_SCOPE}.linkInstructions`);
 }

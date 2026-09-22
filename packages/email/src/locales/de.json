@@ -77,7 +77,8 @@
       "fallbackRoomName": "einer Unterhaltung",
       "fallbackTaskName": "Deine Aufgabe",
       "fallbackCoworkerName": "ein Coworker",
-      "fallbackProjectName": "Dein Projekt"
+      "fallbackProjectName": "Dein Projekt",
+      "settingsLink": "Benachrichtigungseinstellungen"
     },
     "event": {
       "footer": "Du erhältst diese E-Mail, weil diese Benachrichtigung in deinen Benachrichtigungseinstellungen aktiviert ist.",

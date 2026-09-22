@@ -5,6 +5,7 @@ import {
   Head,
   Heading,
   Html,
+  Link,
   Preview,
   Section,
   Text,
@@ -21,9 +22,16 @@ import {
   TEXT,
 } from "../theme/index.js";
 
+/** Where the footer note sends a reader who wants to change what arrives. */
+export interface EmailFooterLink {
+  label: string;
+  url: string;
+}
+
 export interface EmailShellProps {
   children: ReactNode;
   footer: string;
+  footerLink?: EmailFooterLink;
   /** Resolved email locale, announced to screen readers. */
   lang: string;
   maxWidth?: 560 | 600;
@@ -47,6 +55,7 @@ const RESPONSIVE_CSS = `@media only screen and (max-width: 600px) {
 export function EmailShell({
   children,
   footer,
+  footerLink,
   lang,
   maxWidth = 560,
   preview,
@@ -125,10 +134,10 @@ export function EmailShell({
                       <img
                         alt="Sokosumi"
                         className={DARK_CLASS.logo}
-                        height="20"
+                        height="15"
                         src={EMAIL_WORDMARK_URL}
                         style={{ border: 0, display: "block" }}
-                        width="156"
+                        width="117"
                       />
                     </Section>
                     <Section
@@ -177,6 +186,21 @@ export function EmailShell({
                               >
                                 {footer}
                               </Text>
+                              {footerLink ? (
+                                <Link
+                                  className={DARK_CLASS.link}
+                                  href={footerLink.url}
+                                  style={{
+                                    ...TEXT.micro,
+                                    color: LIGHT_PALETTE.link,
+                                    display: "inline-block",
+                                    paddingTop: SPACE.xs,
+                                    textDecoration: "underline",
+                                  }}
+                                >
+                                  {footerLink.label}
+                                </Link>
+                              ) : null}
                             </td>
                             <td align="right" valign="middle" width="14">
                               <img

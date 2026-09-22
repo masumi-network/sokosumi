@@ -77,7 +77,8 @@
       "fallbackRoomName": "una conversación",
       "fallbackTaskName": "Tu tarea",
       "fallbackCoworkerName": "un coworker",
-      "fallbackProjectName": "Tu proyecto"
+      "fallbackProjectName": "Tu proyecto",
+      "settingsLink": "Preferencias de notificaciones"
     },
     "event": {
       "footer": "Recibes este correo porque esta notificación está activada en tus preferencias de notificaciones.",
