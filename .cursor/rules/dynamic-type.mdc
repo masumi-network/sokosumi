@@ -1,6 +1,7 @@
 ---
 description: "Apple Dynamic Type and no fixed px font sizes in apps/web"
-alwaysApply: true
+globs: apps/web/**
+alwaysApply: false
 ---
 
 ## Dynamic Type (iOS / macOS)
