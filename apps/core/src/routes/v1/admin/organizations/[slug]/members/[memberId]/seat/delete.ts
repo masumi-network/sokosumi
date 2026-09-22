@@ -6,10 +6,14 @@ import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { adminOrganizationMemberIdParamSchema } from "@/schemas/admin.schema";
 import { organizationSeatUnassignmentSchema } from "@/schemas/organization-seat.schema";
-import { mapSeatRepositoryError } from "@/services/organization-seat.service";
+import {
+  mapSeatRepositoryError,
+  SEAT_RELEASE_CONFLICT_MESSAGE,
+} from "@/services/organization-seat.service";
 
 const route = createRoute({
   method: "delete",
@@ -28,6 +32,7 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("Conflict"),
   },
 });
 
@@ -41,7 +46,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     try {
-      const result = await prisma.$transaction(async (tx) => {
+      // Serializable to match the assignment routes (SOK-1007), for the same
+      // reason as the organization-scoped release route.
+      const result = await serializableTransaction(async (tx) => {
         const member = await memberRepository.unassignSeat(
           memberId,
           organization.id,
@@ -51,7 +58,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         return {
           memberId: member.id,
         };
-      });
+      }, SEAT_RELEASE_CONFLICT_MESSAGE);
 
       return ok(c, organizationSeatUnassignmentSchema.parse(result));
     } catch (error) {

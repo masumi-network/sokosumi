@@ -10,15 +10,10 @@ import {
   CoreApiRequestError,
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
+import { SEAT_CONFLICT_RETRY_MESSAGE } from "@/lib/services/organization-seat.service";
 
 const ORGANIZATION_SUBSCRIPTION_ADMIN_REQUIRED_MESSAGE =
   "Only organization owners and admins can manage subscriptions";
-
-/** Core's `kind` for a serializable-transaction conflict (SOK-1007). */
-const CONCURRENCY_CONFLICT_KIND = "concurrency_conflict";
-
-const SEAT_CHANGE_RETRY_MESSAGE =
-  "Another seat change was in progress. Try again.";
 
 /**
  * Maps Core subscription-seat write errors onto APIError statuses the
@@ -62,9 +57,12 @@ function mapCoreSubscriptionSeatsWriteError(
   // Core lost the serialization race on the seat write (SOK-1007). The same
   // request is safe to retry unchanged, so say that instead of passing Core's
   // internal wording through as if the input were wrong.
-  if (error.kind === CONCURRENCY_CONFLICT_KIND || error.status === 409) {
+  if (
+    error.kind === CORE_API_ERROR_KINDS.CONCURRENCY_CONFLICT ||
+    error.status === 409
+  ) {
     return new APIError("BAD_REQUEST", {
-      message: SEAT_CHANGE_RETRY_MESSAGE,
+      message: SEAT_CONFLICT_RETRY_MESSAGE,
     });
   }
 

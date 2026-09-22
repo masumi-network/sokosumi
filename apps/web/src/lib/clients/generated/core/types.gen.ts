@@ -9607,6 +9607,21 @@ export type UnassignAdminOrganizationMemberSeatErrors = {
             method: string;
         };
     };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type UnassignAdminOrganizationMemberSeatError = UnassignAdminOrganizationMemberSeatErrors[keyof UnassignAdminOrganizationMemberSeatErrors];
@@ -28159,6 +28174,21 @@ export type DeleteOrganizationsByIdMembersByMemberIdSeatErrors = {
      * Not Found - Organization or member not found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;

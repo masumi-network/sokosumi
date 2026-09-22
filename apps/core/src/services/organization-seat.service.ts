@@ -7,6 +7,10 @@ import { badRequest, notFound } from "@/helpers/error";
 export const SEAT_ASSIGNMENT_CONFLICT_MESSAGE =
   "Seat assignment lost a concurrent update. Try again.";
 
+/** Shown when releasing a seat keeps losing that race (SOK-1007). */
+export const SEAT_RELEASE_CONFLICT_MESSAGE =
+  "Seat release lost a concurrent update. Try again.";
+
 /** Shown when automatic seat reconciliation keeps losing that race (SOK-1007). */
 export const SEAT_RECONCILIATION_CONFLICT_MESSAGE =
   "Seat reconciliation lost a concurrent update. Try again.";

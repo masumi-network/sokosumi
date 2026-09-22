@@ -8,8 +8,12 @@ import { APIError } from "better-auth/api";
 
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
-/** Core's `kind` for a serializable-transaction conflict (SOK-1007). */
-const CONCURRENCY_CONFLICT_KIND = "concurrency_conflict";
+/**
+ * Shown when a seat write kept losing the serialization race in Core
+ * (SOK-1007). The same request is safe to retry unchanged.
+ */
+export const SEAT_CONFLICT_RETRY_MESSAGE =
+  "Another seat change was in progress. Try again.";
 
 export interface OrganizationSeatSummary {
   assignedCount: number;
@@ -66,9 +70,12 @@ function mapCoreSeatWriteError(error: unknown): never {
     });
   }
 
-  if (error.kind === CONCURRENCY_CONFLICT_KIND || error.status === 409) {
+  if (
+    error.kind === CORE_API_ERROR_KINDS.CONCURRENCY_CONFLICT ||
+    error.status === 409
+  ) {
     throw new APIError("CONFLICT", {
-      message: "Another seat change was in progress. Try again.",
+      message: SEAT_CONFLICT_RETRY_MESSAGE,
     });
   }
 

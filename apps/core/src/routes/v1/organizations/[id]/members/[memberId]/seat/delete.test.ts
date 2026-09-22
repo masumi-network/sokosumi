@@ -221,6 +221,38 @@ describe("DELETE /organizations/{id}/members/{memberId}/seat", () => {
     expect(resolveActiveSubscriptionByReferenceIdMock).not.toHaveBeenCalled();
   });
 
+  it("releases the seat in a serializable transaction", async () => {
+    setMembership("owner");
+
+    const response = await unassignSeat("org_123", "member_456");
+
+    expect(response.status).toBe(200);
+    expect(transactionMock.mock.calls).toHaveLength(1);
+    expect(transactionMock.mock.calls[0]?.[1]).toEqual({
+      isolationLevel: "Serializable",
+    });
+  });
+
+  it("returns 409 when the release keeps losing the serialization race", async () => {
+    setMembership("owner");
+    transactionMock.mockRejectedValue(
+      Object.assign(new Error("Transaction failed"), { code: "P2034" }),
+    );
+    vi.useFakeTimers();
+    try {
+      const pending = unassignSeat("org_123", "member_456");
+      await vi.runAllTimersAsync();
+      const response = await pending;
+
+      expect(response.status).toBe(409);
+      expect(await response.text()).toContain(
+        "Seat release lost a concurrent update. Try again.",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("returns 404 when the member does not exist", async () => {
     setMembership("owner");
     unassignSeatMock.mockRejectedValue(new Error("Member not found"));
