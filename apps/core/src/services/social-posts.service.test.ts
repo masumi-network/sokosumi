@@ -150,7 +150,7 @@ describe("social posts service", () => {
         take: 21,
       }),
     );
-    expect(posts.posts).toEqual([
+    expect(posts).toEqual([
       expect.objectContaining({
         id: POST_ID,
         provider: "x",
