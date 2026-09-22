@@ -84,8 +84,6 @@
           #expect(visibleText.contains { $0.hasPrefix("Message 2:") }, "OCR read: \(visibleText)")
           #expect(!visibleText.contains { $0.hasPrefix("Message 98:") }, "OCR read: \(visibleText)")
         }
-        let png = try #require(bitmap.representation(using: .png, properties: [:]))
-        try png.write(to: FileManager.default.temporaryDirectory.appendingPathComponent("message-link-navigation-\(thread)-\(dark).png"))
       }
 
       /// The text Vision reads in the render, or nil where Vision cannot run at all. A missing image is a
