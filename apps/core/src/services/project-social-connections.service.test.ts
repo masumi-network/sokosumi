@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  deleteProjectXConnectionIntentMock,
   getConnectedXIdentityMock,
+  lockCalendarScopeMock,
   getEnvMock,
   getProjectXConnectedAccountMock,
   getWebAppBaseUrlMock,
@@ -21,7 +23,9 @@ const {
   socialConnectionUpdateMock,
   transactionMock,
 } = vi.hoisted(() => ({
+  deleteProjectXConnectionIntentMock: vi.fn(),
   getConnectedXIdentityMock: vi.fn(),
+  lockCalendarScopeMock: vi.fn(),
   getEnvMock: vi.fn(),
   getProjectXConnectedAccountMock: vi.fn(),
   getWebAppBaseUrlMock: vi.fn(),
@@ -43,6 +47,7 @@ const {
 }));
 
 vi.mock("@/clients/composio.client", () => ({
+  deleteProjectXConnectionIntent: deleteProjectXConnectionIntentMock,
   getConnectedXIdentity: getConnectedXIdentityMock,
   getProjectXConnectedAccount: getProjectXConnectedAccountMock,
   initiateProjectXConnection: initiateProjectXConnectionMock,
@@ -54,17 +59,26 @@ vi.mock("@/config/env", () => ({
   getWebAppBaseUrl: getWebAppBaseUrlMock,
 }));
 
+vi.mock("@/helpers/calendar-locks", () => ({
+  lockCalendarScope: lockCalendarScopeMock,
+}));
+
 const transactionClient = {
+  project: { findFirst: projectFindFirstMock },
   projectSocialConnection: {
     create: socialConnectionCreateMock,
     findFirst: socialConnectionFindFirstMock,
     findUnique: socialConnectionFindUniqueMock,
+    findMany: socialConnectionFindManyMock,
     update: socialConnectionUpdateMock,
   },
   projectSocialConnectionAudit: {
     create: socialConnectionAuditCreateMock,
+    findFirst: vi.fn(),
   },
   projectSocialConnectionIntent: {
+    updateMany: vi.fn(),
+    findFirst: vi.fn(),
     create: socialConnectionIntentCreateMock,
     delete: socialConnectionIntentDeleteMock,
     findUnique: socialConnectionIntentFindUniqueInTransactionMock,
@@ -83,6 +97,7 @@ vi.mock("@/lib/db/prisma", () => ({
       update: socialConnectionAuditUpdateMock,
     },
     projectSocialConnectionIntent: {
+      deleteMany: socialConnectionIntentDeleteMock,
       create: socialConnectionIntentCreateMock,
       findUnique: socialConnectionIntentFindUniqueMock,
     },
@@ -128,6 +143,7 @@ function createIntent(action: "connect" | "reconnect" | "replace") {
 describe("project social connections service", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    lockCalendarScopeMock.mockResolvedValue(true);
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-03T10:00:00.000Z"));
     getEnvMock.mockReturnValue({ COMPOSIO_X_AUTH_CONFIG_ID: "ac_x" });
@@ -155,6 +171,7 @@ describe("project social connections service", () => {
     });
     socialConnectionAuditCreateMock.mockResolvedValue({ id: "audit_123" });
     socialConnectionUpdateMock.mockResolvedValue(socialConnection);
+    socialConnectionFindUniqueMock.mockResolvedValue(socialConnection);
     socialConnectionIntentDeleteMock.mockResolvedValue({});
     socialConnectionIntentFindUniqueInTransactionMock.mockResolvedValue(
       createIntent("connect"),
@@ -164,6 +181,94 @@ describe("project social connections service", () => {
       async (callback: (tx: typeof transactionClient) => Promise<unknown>) =>
         callback(transactionClient),
     );
+  });
+
+  it.each(["closingAt", "closedAt"])(
+    "rejects initiation and finalization when %s is set",
+    async (field) => {
+      projectFindFirstMock.mockResolvedValue({
+        id: PROJECT_ID,
+        [field]: new Date(),
+      });
+      const {
+        initiateProjectSocialConnection,
+        finalizeProjectSocialConnection,
+      } = await import("./project-social-connections.service");
+      await expect(
+        initiateProjectSocialConnection({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          userId: USER_ID,
+          provider: "x",
+          action: "connect",
+        }),
+      ).rejects.toThrow("closing or closed");
+      await expect(
+        finalizeProjectSocialConnection({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          userId: USER_ID,
+          connectionId: CONNECTION_ID,
+        }),
+      ).rejects.toThrow("closing or closed");
+      expect(initiateProjectXConnectionMock).not.toHaveBeenCalled();
+      expect(socialConnectionCreateMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("revokes an unreturned link when close wins during provider initiation", async () => {
+    initiateProjectXConnectionMock.mockImplementation(async () => {
+      projectFindFirstMock.mockResolvedValue({
+        id: PROJECT_ID,
+        closingAt: new Date(),
+      });
+      return {
+        connectionId: CONNECTION_ID,
+        redirectUrl: "https://connect.composio.dev/link-token",
+      };
+    });
+    const { initiateProjectSocialConnection } = await import(
+      "./project-social-connections.service"
+    );
+    await expect(
+      initiateProjectSocialConnection({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        provider: "x",
+        action: "connect",
+      }),
+    ).rejects.toThrow("closing or closed");
+    expect(socialConnectionIntentCreateMock).not.toHaveBeenCalled();
+    expect(deleteProjectXConnectionIntentMock).toHaveBeenCalledWith({
+      connectedAccountId: CONNECTION_ID,
+    });
+  });
+
+  it("does not finalize when close wins during identity lookup", async () => {
+    socialConnectionIntentFindUniqueMock.mockResolvedValue(
+      createIntent("connect"),
+    );
+    getConnectedXIdentityMock.mockImplementation(async () => {
+      projectFindFirstMock.mockResolvedValue({
+        id: PROJECT_ID,
+        closingAt: new Date(),
+      });
+      return { id: "123", handle: "sokosumi" };
+    });
+    const { finalizeProjectSocialConnection } = await import(
+      "./project-social-connections.service"
+    );
+    await expect(
+      finalizeProjectSocialConnection({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        connectionId: CONNECTION_ID,
+      }),
+    ).rejects.toThrow("closing or closed");
+    expect(socialConnectionCreateMock).not.toHaveBeenCalled();
+    expect(socialConnectionIntentDeleteMock).not.toHaveBeenCalled();
   });
 
   it("creates one expiring intent after validating the scoped Project", async () => {
@@ -186,7 +291,7 @@ describe("project social connections service", () => {
 
     expect(projectFindFirstMock).toHaveBeenCalledWith({
       where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
-      select: { id: true },
+      select: { id: true, closingAt: true, closedAt: true },
     });
     expect(initiateProjectXConnectionMock).toHaveBeenCalledWith({
       authConfigId: "ac_x",
@@ -844,6 +949,97 @@ describe("project social connections service", () => {
         externalHandle: "sokosumi",
         providerOutcome: "expired",
       },
+    });
+  });
+  it("retires grants and expires intents atomically without contacting Composio", async () => {
+    socialConnectionFindManyMock.mockResolvedValue([socialConnection]);
+    const { default: prisma } = await import("@/lib/db/prisma");
+    const { retireProjectSocialConnectionsForClose } = await import(
+      "./project-social-connections.service"
+    );
+    await prisma.$transaction((tx) =>
+      retireProjectSocialConnectionsForClose(tx, PROJECT_ID, USER_ID),
+    );
+    expect(socialConnectionUpdateMock).toHaveBeenCalledWith({
+      where: { id: SOCIAL_CONNECTION_ID },
+      data: expect.objectContaining({
+        status: "disconnected",
+        activeExternalAccountKey: null,
+      }),
+    });
+    expect(socialConnectionAuditCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        action: "project_close",
+        providerOutcome: "local_disconnect",
+        actorId: USER_ID,
+      }),
+    });
+    expect(
+      transactionClient.projectSocialConnectionIntent.updateMany,
+    ).toHaveBeenCalledWith({
+      where: { projectId: PROJECT_ID },
+      data: { expiresAt: new Date() },
+    });
+    expect(socialConnectionFindManyMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        OR: expect.arrayContaining([
+          expect.objectContaining({ audits: expect.anything() }),
+        ]),
+      }),
+    });
+    expect(revokeProjectXConnectionMock).not.toHaveBeenCalled();
+  });
+
+  it("retries failed close revocation using its durable audit", async () => {
+    const { revokeProjectSocialConnectionForClose } = await import(
+      "./project-social-connections.service"
+    );
+    const pending = {
+      connectedAccountId: "ca_old",
+      retirement: {
+        auditId: "audit_close",
+        connectedAccountId: "ca_old",
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+      },
+    };
+    revokeProjectXConnectionMock.mockRejectedValueOnce(
+      new Error("unavailable"),
+    );
+    await expect(
+      revokeProjectSocialConnectionForClose(pending),
+    ).rejects.toThrow("could not be revoked");
+    expect(socialConnectionAuditUpdateMock).toHaveBeenLastCalledWith({
+      where: { id: "audit_close" },
+      data: { providerOutcome: "revocation_failed" },
+    });
+    await revokeProjectSocialConnectionForClose(pending);
+    expect(socialConnectionAuditUpdateMock).toHaveBeenLastCalledWith({
+      where: { id: "audit_close" },
+      data: { providerOutcome: "revoked" },
+    });
+  });
+
+  it("retains unfinished intents until permanent provider deletion succeeds", async () => {
+    const { revokeProjectSocialConnectionForClose } = await import(
+      "./project-social-connections.service"
+    );
+    deleteProjectXConnectionIntentMock.mockRejectedValueOnce(
+      new Error("unavailable"),
+    );
+    await expect(
+      revokeProjectSocialConnectionForClose({
+        connectedAccountId: CONNECTION_ID,
+      }),
+    ).rejects.toThrow("unavailable");
+    expect(socialConnectionIntentDeleteMock).not.toHaveBeenCalled();
+    await revokeProjectSocialConnectionForClose({
+      connectedAccountId: CONNECTION_ID,
+    });
+    expect(deleteProjectXConnectionIntentMock).toHaveBeenCalledWith({
+      connectedAccountId: CONNECTION_ID,
+    });
+    expect(socialConnectionIntentDeleteMock).toHaveBeenCalledWith({
+      where: { connectionId: CONNECTION_ID },
     });
   });
 });

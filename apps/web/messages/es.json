@@ -2252,7 +2252,6 @@
         "errors": {
           "inFlight": "Ya hay otra acción de cuenta de X en curso.",
           "popupBlocked": "Tu navegador bloqueó la ventana de autorización de X. Permite las ventanas emergentes e inténtalo de nuevo.",
-          "popupClosed": "La ventana de autorización de X se cerró antes de terminar la configuración. Inténtalo de nuevo.",
           "timeout": "La autorización de X tardó demasiado. Inténtalo de nuevo.",
           "providerCallback": "La autorización de X no se completó. Vuelve a la página Social del proyecto e inténtalo de nuevo.",
           "legacyCallback": "Esta devolución de OAuth no puede verificar tu cuenta de X. Actualiza la configuración de devolución de Composio e inténtalo de nuevo.",

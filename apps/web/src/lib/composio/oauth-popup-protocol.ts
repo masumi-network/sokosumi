@@ -67,19 +67,6 @@ export function isComposioOAuthAckPayload(
   );
 }
 
-/**
- * COOP may block reading `Window.closed` while the popup is on a third-party
- * origin. Treat blocked access as "unknown" (not closed) so we do not resolve
- * the flow early or spam the console during the OAuth redirect.
- */
-export function readPopupClosed(popup: Window): boolean | null {
-  try {
-    return popup.closed;
-  } catch {
-    return null;
-  }
-}
-
 export function parseComposioCallbackSearchParams(
   search: string,
 ): ComposioOAuthCallbackResult {

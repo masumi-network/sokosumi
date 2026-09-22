@@ -1,4 +1,11 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
   beforeEach,
@@ -59,8 +66,6 @@ const MESSAGES: Record<string, string> = {
   "errors.inFlight": "Another X account action is already in progress.",
   "errors.popupBlocked":
     "Your browser blocked the X authorization window. Allow popups and try again.",
-  "errors.popupClosed":
-    "The X authorization window was closed before setup finished. Try again.",
   "errors.timeout": "X authorization took too long. Try again.",
   "errors.providerCallback":
     "X authorization did not complete. Return to Project settings and try again.",
@@ -246,58 +251,67 @@ describe("ProjectSocialAccounts", () => {
     ).toBeVisible();
   });
 
-  it("verifies a matching callback and finalizes with the initiated connection id", async () => {
-    const user = userEvent.setup();
-    const calls: string[] = [];
-    vi.mocked(completeComposioAuthCallbackAction).mockImplementation(
-      async () => {
-        calls.push("complete");
-        return { ok: true, value: undefined };
-      },
-    );
-    vi.mocked(finalizeProjectSocialConnection).mockImplementation(async () => {
-      calls.push("finalize");
-      return { ok: true, value: buildConnection() };
-    });
+  it.each([null, "ca_known"])(
+    "verifies a callback with connection ID %s using the initiated connection id",
+    async (callbackConnectionId) => {
+      const user = userEvent.setup();
+      const calls: string[] = [];
+      vi.mocked(completeComposioAuthCallbackAction).mockImplementation(
+        async () => {
+          calls.push("complete");
+          return { ok: true, value: undefined };
+        },
+      );
+      vi.mocked(finalizeProjectSocialConnection).mockImplementation(
+        async () => {
+          calls.push("finalize");
+          return { ok: true, value: buildConnection() };
+        },
+      );
 
-    render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
+      render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
 
-    await user.click(screen.getByRole("button", { name: "Connect X account" }));
-    await waitFor(() => expect(MockBroadcastChannel.instances).toHaveLength(1));
-    expect(window.open).toHaveBeenCalledWith(
-      "about:blank",
-      "sokosumi:composio:oauth:project-social-nonce",
-      expect.any(String),
-    );
+      await user.click(
+        screen.getByRole("button", { name: "Connect X account" }),
+      );
+      await waitFor(() =>
+        expect(MockBroadcastChannel.instances).toHaveLength(1),
+      );
+      expect(window.open).toHaveBeenCalledWith(
+        "about:blank",
+        "sokosumi:composio:oauth:project-social-nonce",
+        expect.any(String),
+      );
 
-    await act(async () => {
-      MockBroadcastChannel.instances[0]?.onmessage?.({
-        data: {
-          type: "sokosumi:composio:result",
-          status: "success",
+      await act(async () => {
+        MockBroadcastChannel.instances[0]?.onmessage?.({
+          data: {
+            type: "sokosumi:composio:result",
+            status: "success",
+            connectionId: callbackConnectionId,
+            sessionUri: "https://backend.composio.dev/session/single-use",
+            errorMessage: null,
+            nonce: "project-social-nonce",
+          },
+        } as MessageEvent);
+      });
+
+      await waitFor(() => {
+        expect(completeComposioAuthCallbackAction).toHaveBeenCalledWith({
           connectionId: "ca_known",
           sessionUri: "https://backend.composio.dev/session/single-use",
-          errorMessage: null,
-          nonce: "project-social-nonce",
-        },
-      } as MessageEvent);
-    });
-
-    await waitFor(() => {
-      expect(completeComposioAuthCallbackAction).toHaveBeenCalledWith({
-        connectionId: "ca_known",
-        sessionUri: "https://backend.composio.dev/session/single-use",
+        });
+        expect(finalizeProjectSocialConnection).toHaveBeenCalledWith({
+          projectId: PROJECT_ID,
+          connectionId: "ca_known",
+        });
       });
-      expect(finalizeProjectSocialConnection).toHaveBeenCalledWith({
-        projectId: PROJECT_ID,
-        connectionId: "ca_known",
-      });
-    });
-    expect(calls).toEqual(["complete", "finalize"]);
-    expect(toastSuccessMock).toHaveBeenCalledWith("X account connected.");
-    expect(refreshMock).toHaveBeenCalledOnce();
-    expect(MockBroadcastChannel.instances[0]?.close).toHaveBeenCalledOnce();
-  });
+      expect(calls).toEqual(["complete", "finalize"]);
+      expect(toastSuccessMock).toHaveBeenCalledWith("X account connected.");
+      expect(refreshMock).toHaveBeenCalledOnce();
+      expect(MockBroadcastChannel.instances[0]?.close).toHaveBeenCalledOnce();
+    },
+  );
 
   it("abandons a callback for a different connection without finalizing", async () => {
     const user = userEvent.setup();
@@ -413,8 +427,8 @@ describe("ProjectSocialAccounts", () => {
     expect(finalizeProjectSocialConnection).not.toHaveBeenCalled();
   });
 
-  it("reports when the authorization popup closes before a callback", async () => {
-    const user = userEvent.setup();
+  it("accepts a callback after COOP makes the popup reference appear closed", async () => {
+    vi.useFakeTimers();
     const popup = {
       closed: false,
       close: vi.fn(),
@@ -423,21 +437,32 @@ describe("ProjectSocialAccounts", () => {
     };
     windowOpenMock.mockReturnValue(popup as unknown as Window);
     render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
-
-    await user.click(screen.getByRole("button", { name: "Connect X account" }));
-    await waitFor(() => expect(MockBroadcastChannel.instances).toHaveLength(1));
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Connect X account" }),
+      );
+    });
+    expect(MockBroadcastChannel.instances).toHaveLength(1);
     popup.closed = true;
-
-    await waitFor(
-      () => {
-        expect(toastErrorMock).toHaveBeenCalledWith(
-          "The X authorization window was closed before setup finished. Try again.",
-        );
-      },
-      { timeout: 1_000 },
-    );
-    expect(completeComposioAuthCallbackAction).not.toHaveBeenCalled();
-    expect(finalizeProjectSocialConnection).not.toHaveBeenCalled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    vi.useRealTimers();
+    expect(MockBroadcastChannel.instances[0]?.close).not.toHaveBeenCalled();
+    await act(async () => {
+      MockBroadcastChannel.instances[0]?.onmessage?.({
+        data: {
+          type: "sokosumi:composio:result",
+          status: "success",
+          connectionId: null,
+          sessionUri: "https://backend.composio.dev/session/single-use",
+          errorMessage: null,
+          nonce: "project-social-nonce",
+        },
+      } as MessageEvent);
+    });
+    expect(finalizeProjectSocialConnection).toHaveBeenCalled();
+    expect(toastErrorMock).not.toHaveBeenCalled();
   });
 
   it("does not attach a callback channel after the Settings modal unmounts", async () => {

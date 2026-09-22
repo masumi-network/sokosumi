@@ -8,7 +8,6 @@ import {
   isComposioOAuthAckPayload,
   isComposioOAuthCallbackPayload,
   parseComposioCallbackSearchParams,
-  readPopupClosed,
 } from "@/lib/composio/oauth-popup-protocol";
 
 describe("oauth-popup-protocol", () => {
@@ -42,11 +41,6 @@ describe("oauth-popup-protocol", () => {
         nonce: "nonce_123",
       }),
     ).toBe(true);
-  });
-
-  it("reads popup.closed when the browser allows it", () => {
-    const popup = { closed: false } as Window;
-    expect(readPopupClosed(popup)).toBe(false);
   });
 
   it("parses Composio callback query params", () => {
