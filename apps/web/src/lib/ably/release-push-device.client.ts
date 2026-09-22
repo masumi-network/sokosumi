@@ -100,19 +100,9 @@ export function readPushDeviceOwner(): string | null {
  * the answer.
  */
 export function rememberPushDeviceOwner(userId: string): void {
-  try {
-    localStorage.setItem(PUSH_DEVICE_OWNER_KEY, userId);
-  } catch {
-    // The activation still holds for this page. What is lost is the guard on
-    // every later one, and it is lost towards replacing rather than joining:
-    // a browser that refuses the write still answers the read, so the name
-    // stays whatever it was. Unwritten, it replaces this reader's own device
-    // on every run, which is slow and noisy but never binds two readers. The
-    // one case that does is a name left from an earlier reader on a browser
-    // that has since started refusing writes, and that reader returning. A
-    // browser refusing writes while still reading is rare enough to accept
-    // beside the alternative, which is refusing to activate at all.
-  }
+  // Abort before channel binding if storage cannot record the new owner.
+  // A stale owner could otherwise add their channel to this reader's device.
+  localStorage.setItem(PUSH_DEVICE_OWNER_KEY, userId);
 }
 
 /** A failed repair may remove Ably's token before it restores the subscription. */

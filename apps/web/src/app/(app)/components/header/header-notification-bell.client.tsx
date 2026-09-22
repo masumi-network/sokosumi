@@ -139,6 +139,7 @@ export function HeaderNotificationBell() {
           their cursor. The cap keeps that one width inside a narrow
           viewport, where 24rem is wider than the screen. */}
       <PopoverContent
+        data-notification-frame=""
         className="w-96 max-w-(--radix-popover-content-available-width) p-0"
         align="end"
         onOpenAutoFocus={(event) => {

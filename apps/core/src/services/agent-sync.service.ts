@@ -15,6 +15,7 @@ import { openrouterClient } from "@/clients/openrouter.client";
 import { getEnv } from "@/config/env";
 import { getAgentDescription, getCardanoV2ReadySources } from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
+import { getEnvSecrets, redactSecrets } from "@/lib/secret-redaction";
 
 import {
   consolidateDuplicateAgentRelations,
@@ -705,9 +706,13 @@ async function syncRegistryAgents(
       },
     );
     if (entriesResult.isErr()) {
+      // The registry client caps this string, but its content is still the
+      // far side's, and a proxy that echoes request headers would put
+      // REGISTRY_API_KEY inside it. Sentry redacts in `beforeSend`; stdout
+      // has no such hook.
       console.error(
         "[sync/agents] Error in diff sync operation:",
-        entriesResult.error,
+        redactSecrets(entriesResult.error, getEnvSecrets()),
       );
       return;
     }

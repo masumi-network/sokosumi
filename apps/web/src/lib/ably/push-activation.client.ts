@@ -190,7 +190,45 @@ async function runActivation(
     // the name would then stay with the reader this run took the device from,
     // and their next activation would read a device of their own and bind a
     // second channel to it rather than replacing it.
-    rememberPushDeviceOwner(userId);
+    try {
+      rememberPushDeviceOwner(userId);
+    } catch (error) {
+      // Binding an unnamed device is what lets a later reader join it rather
+      // than replace it, so the run stops here. What `activate()` already made
+      // goes with it: left in place, the browser subscription answers the
+      // settings switch and the repair check, so the reader would read push as
+      // on and receive nothing, with no banner and no retry that clears it.
+      // Dropped first, in the teardown's order: the unsubscribe is the step
+      // that stops delivery, and the two writes below only describe what is
+      // left. Guarded the same way, because the subscription read and the
+      // unsubscribe can both reject, and a rejection here would report itself
+      // in place of the storage failure that caused the abort.
+      await dropBrowserPushSubscription().catch((dropError) =>
+        console.error("Failed to drop the push subscription", dropError),
+      );
+      forgetPushPreference();
+      // The token `activate()` wrote is what every later run reads as a live
+      // registration. Left behind with no preference beside it, the self-heal
+      // gate falls to `hadRegistration` and repairs this browser unattended on
+      // every open, for whoever is signed in.
+      forgetAblyPushRegistration();
+      // Recorded after the two forgets, not before: `recordPushRepairOutcome`
+      // arms the unresolved-repair flag, and `forgetAblyPushRegistration`
+      // clears it. Told for itself that this browser held a registration,
+      // because the line above just took the token that would have said so.
+      //
+      // Without this the reader is the one case SOK-929 exists for: push off,
+      // no preference, no token, so every later read answers "healthy" and
+      // nothing tells them this browser stopped receiving anything.
+      await recordPushRepairOutcome({
+        hadRegistration: true,
+        teardownVersion,
+        deliveryHealthy: false,
+      }).catch((reportError) =>
+        console.error("Failed to record push repair", reportError),
+      );
+      throw error;
+    }
     await getNotificationsPushChannel(client, userId).subscribeDevice();
     if (await abandonedToTeardown(teardownVersion)) return false;
 

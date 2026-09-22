@@ -10,7 +10,6 @@ import type {
   ProjectCloseRequest,
   ProjectCloseStatus,
   ProjectContextMd,
-  ProjectDeleted,
   ProjectListItem,
   ProjectNeedsAttention,
   ProjectStar,
@@ -213,16 +212,6 @@ export const projectService = (() => {
     return result.data;
   }
 
-  async function deleteProject(projectId: string): Promise<ProjectDeleted> {
-    const result = await coreClient.deleteProjectsById(projectId);
-
-    if (!result.data) {
-      throw new Error("Failed to delete project");
-    }
-
-    return result.data;
-  }
-
   async function closeProject(
     projectId: string,
     input: ProjectCloseRequest,
@@ -360,7 +349,6 @@ export const projectService = (() => {
     listPinnedProjects,
     patchProject,
     removeProjectDesignMd,
-    deleteProject,
     closeProject,
     retryProjectClose,
     cancelProjectCloseOwedWork,

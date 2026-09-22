@@ -168,21 +168,13 @@ import SwiftUI
         ScrollView {
           LazyVStack(alignment: .leading, spacing: 0) {
             if workspaces.transcriptHasMore {
-              Button("Load older messages") {
+              TranscriptBoundaryRow(isGap: false, status: workspaces.timeline.oldestBoundaryStatus) {
                 scrollIntent.readOlder()
                 workspaces.loadOlderMessages(auth: auth)
               }
-              .disabled(workspaces.transcriptLoadingOlder || workspaces.transcriptRefreshing)
-              .buttonStyle(.link)
-              .frame(maxWidth: .infinity)
-              .padding(.vertical, 8)
             }
-            if workspaces.transcriptLoadingOlder {
-              ProgressView()
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 4)
-            }
-            if let error = workspaces.transcriptError {
+            // An older page's failure is on its row; the banner is for the latest page.
+            if let error = workspaces.transcriptError, workspaces.timeline.failedPage != .older {
               inlineError(error)
                 .padding(.horizontal, 12)
             }
@@ -199,17 +191,16 @@ import SwiftUI
               // lazy path reserve blank slots. One container per message id.
               VStack(alignment: .leading, spacing: 0) {
                 if hasGap {
-                  Button("Load missing messages") {
-                    Task {
-                      do {
-                        try await workspaces.loadHistoryGap(before: message.id, auth: auth)
-                      } catch { jumpError = friendlyMessage(for: error) }
+                  // Web's `useLoadWhenVisible`: the row loads itself once it scrolls into
+                  // view; a failure stays on it with Try again, never in the jump alert.
+                  TranscriptBoundaryRow(isGap: true, status: workspaces.timeline.boundaryLoads.status(of: message.id)) {
+                    workspaces.loadHistoryGap(before: message.id, auth: auth)
+                  }
+                  .onScrollVisibilityChange(threshold: 0.01) { visible in
+                    Task { @MainActor in
+                      workspaces.setHistoryGapVisible(before: message.id, visible, auth: auth)
                     }
                   }
-                  .buttonStyle(.link)
-                  .disabled(workspaces.transcriptRefreshing || workspaces.transcriptLoadingOlder)
-                  .frame(maxWidth: .infinity)
-                  .padding(.vertical, 8)
                 }
                 if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt) {
                   DaySeparatorRow(label: label)
@@ -420,12 +411,7 @@ import SwiftUI
     /// is illegal inside the scroll view.
     private func inlineError(_ error: String) -> some View {
       errorBanner(error) {
-        if workspaces.timeline.failedPage == .older {
-          scrollIntent.readOlder()
-          workspaces.loadOlderMessages(auth: auth)
-        } else {
-          workspaces.refreshTranscript(auth: auth)
-        }
+        workspaces.refreshTranscript(auth: auth)
       }
       .frame(maxWidth: .infinity)
     }
