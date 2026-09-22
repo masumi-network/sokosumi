@@ -1050,6 +1050,7 @@ describe("ProjectSocialPosts", () => {
       );
     });
     expect(refreshMock).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
 
   it("renders the external link and publish time on a PUBLISHED row", () => {

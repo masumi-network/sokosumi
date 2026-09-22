@@ -134,6 +134,7 @@ export function ProjectSocialPosts({
       return;
     }
     if (isRevisionConflict(error)) {
+      setPublishTarget(null);
       toast.error(t("toasts.conflict"));
       setComposer(null);
       setCancelTarget(null);
