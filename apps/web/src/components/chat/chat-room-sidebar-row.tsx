@@ -119,8 +119,10 @@ const TRAILING_CLUSTER_CLASS =
  */
 const RAIL_FLYOUT_OPEN_DELAY_MS = 150;
 /**
- * Long enough to cross the gap from the mark onto the card, short enough that
- * the card is gone before the next room's name tooltip is up.
+ * Long enough to cross the 12px gap from the mark onto the card without it
+ * closing under the pointer. The rail's name tooltips open at once, so while
+ * this runs a neighbour's tooltip and this card are both up; the card is on
+ * its way out, and any shorter and the gap could not be crossed at all.
  */
 const RAIL_FLYOUT_CLOSE_DELAY_MS = 120;
 
@@ -573,6 +575,8 @@ export function ChatRoomSidebarRow({
     sidebarState === "collapsed" &&
     !isMobileSidebar &&
     !isMuted &&
+    // Reorder mode hides the inset rows, and the flyout is those rows.
+    reorderHandle == null &&
     (room.unreadThreads?.length ?? 0) > 0;
   const roomButton = (
     <SidebarMenuButton
