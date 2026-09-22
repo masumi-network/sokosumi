@@ -3401,6 +3401,7 @@ function RoomView({
                   loadOlder: t("UnreadThreads.loadOlder"),
                   groupUnread: t("UnreadThreads.groupUnread"),
                   groupEarlier: t("UnreadThreads.groupEarlier"),
+                  groupUnreadEmpty: t("UnreadThreads.groupUnreadEmpty"),
                   startedBy: (name) => t("UnreadThreads.startedBy", { name }),
                   newReplies: (count) =>
                     t("UnreadThreads.newReplies", { count }),

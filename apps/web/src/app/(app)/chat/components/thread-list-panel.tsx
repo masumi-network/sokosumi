@@ -33,6 +33,8 @@ export interface ThreadListPanelLabels {
   groupUnread: string;
   /** Heading over the rest. */
   groupEarlier: string;
+  /** Stands under an empty Unread heading: nothing here is unread. */
+  groupUnreadEmpty: string;
   startedBy: (name: string) => string;
   /** Leads an unread row's second line: "2 new". */
   newReplies: (count: number) => string;
@@ -196,12 +198,12 @@ export function ThreadListPanel({
   const unreadItems = items.filter((item) => threadNeedsOverviewUnread(item));
   const earlierItems = items.filter((item) => !threadNeedsOverviewUnread(item));
   const showEmpty = !isLoading && !error && items.length === 0;
-  // Headings divide; with nothing unread there is nothing to divide, so a lone
-  // Earlier group goes unlabelled and the panel reads as the plain list it was
-  // before any of this. A lone Unread group keeps its heading, because there
-  // the word is the point: everything below it is new.
-  const hasGroups = unreadItems.length > 0;
-  const showMarkAll = hasGroups;
+  // Every loaded list is divided, even one with nothing unread: the reader
+  // scans for the Unread heading, so it answers them either way, with the rows
+  // or with a line saying there are none. Only a room with no Threads at all
+  // drops the headings, because there its own empty state already speaks.
+  const hasGroups = items.length > 0;
+  const showMarkAll = unreadItems.length > 0;
 
   function renderRow(item: ChatRoomThread) {
     const sender = messageSender(item.parentMessage);
@@ -337,19 +339,30 @@ export function ThreadListPanel({
             {labels.empty}
           </p>
         ) : null}
-        {unreadItems.length > 0 ? (
+        {hasGroups ? (
           <>
-            {hasGroups ? (
-              <ThreadGroupHeading>{labels.groupUnread}</ThreadGroupHeading>
-            ) : null}
-            {unreadItems.map(renderRow)}
+            <ThreadGroupHeading>{labels.groupUnread}</ThreadGroupHeading>
+            {unreadItems.length > 0 ? (
+              unreadItems.map(renderRow)
+            ) : (
+              // Centred and given room, so it reads as the group's own state
+              // rather than a row someone forgot to fill in. Still `text-xs`:
+              // it answers one heading, where the panel's own empty state
+              // answers the whole panel and takes the larger type.
+              <p
+                className="text-muted-foreground px-2 py-3 text-center text-xs"
+                data-testid="thread-list-unread-empty"
+              >
+                {labels.groupUnreadEmpty}
+              </p>
+            )}
           </>
         ) : null}
-        {earlierItems.length > 0 ? (
+        {/* Nothing read yet means no Earlier group to head; an empty one would
+            only restate what the Unread group above already showed. */}
+        {hasGroups && earlierItems.length > 0 ? (
           <>
-            {hasGroups ? (
-              <ThreadGroupHeading>{labels.groupEarlier}</ThreadGroupHeading>
-            ) : null}
+            <ThreadGroupHeading>{labels.groupEarlier}</ThreadGroupHeading>
             {earlierItems.map(renderRow)}
           </>
         ) : null}

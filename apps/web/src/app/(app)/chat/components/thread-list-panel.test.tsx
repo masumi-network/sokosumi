@@ -37,6 +37,7 @@ const labels = {
   loadOlder: "Load older threads",
   groupUnread: "Unread",
   groupEarlier: "Earlier",
+  groupUnreadEmpty: "All caught up.",
   startedBy: (name: string) => `Started by ${name}`,
   newReplies: (count: number) => `${count} new`,
   replies: (count: number) => (count === 1 ? "1 reply" : `${count} replies`),
@@ -472,7 +473,9 @@ describe("ThreadListPanel", () => {
     expect(order).toEqual([headings[0], rows[0], headings[1], rows[1]]);
   });
 
-  it("draws no heading for a group with nothing in it", async () => {
+  // An all-read room still gets the Unread heading, so the reader is told they
+  // are caught up rather than left to infer it from an undivided list.
+  it("keeps the Unread heading on an all-read room and says so", async () => {
     listThreadsActionMock.mockResolvedValue({
       ok: true,
       value: {
@@ -489,18 +492,46 @@ describe("ThreadListPanel", () => {
 
     renderPanel();
 
-    await screen.findByTestId("thread-list-item");
+    const headings = await screen.findAllByTestId("thread-list-group-heading");
+    expect(headings.map((heading) => heading.textContent)).toEqual([
+      labels.groupUnread,
+      labels.groupEarlier,
+    ]);
+    expect(screen.getByTestId("thread-list-unread-empty")).toHaveTextContent(
+      labels.groupUnreadEmpty,
+    );
+    // The caught-up line stands in for rows, it does not join them.
+    expect(screen.getAllByTestId("thread-list-item")).toHaveLength(1);
+  });
+
+  it("drops the headings entirely when the room has no threads at all", async () => {
+    listThreadsActionMock.mockResolvedValue({
+      ok: true,
+      value: { threads: [], nextCursor: null },
+    });
+
+    renderPanel();
+
+    await screen.findByTestId("thread-list-empty");
     expect(
       screen.queryByTestId("thread-list-group-heading"),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("thread-list-unread-empty"),
+    ).not.toBeInTheDocument();
   });
 
+  // Nothing is read, so there is no Earlier group to head and nothing to
+  // confirm under Unread.
   it("heads an all-unread list with Unread alone", async () => {
     renderPanel();
 
     const headings = await screen.findAllByTestId("thread-list-group-heading");
     expect(headings).toHaveLength(1);
     expect(headings[0]).toHaveTextContent(labels.groupUnread);
+    expect(
+      screen.queryByTestId("thread-list-unread-empty"),
+    ).not.toBeInTheDocument();
   });
 
   it("tints the unread row's mark and leaves the read row's bare", async () => {

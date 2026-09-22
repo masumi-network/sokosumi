@@ -5626,6 +5626,7 @@
         "loadOlder": "Cargar hilos anteriores",
         "groupUnread": "Sin leer",
         "groupEarlier": "Anteriores",
+        "groupUnreadEmpty": "Todo al día.",
         "startedBy": "Iniciado por {name}",
         "unreadThreads": "{count, plural, one {# hilo no leído} other {# hilos no leídos}}",
         "unreadThreadsCapped": "Más de {max} hilos no leídos",
