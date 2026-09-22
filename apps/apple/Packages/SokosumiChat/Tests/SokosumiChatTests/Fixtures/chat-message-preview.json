@@ -97,6 +97,24 @@
     "expected": "I see it seems to be the COMPOSIO_X_AUTH_CONFIG_ID, correct?"
   },
   {
+    "name": "keeps a doubled underscore between words",
+    "content": "use foo__bar here",
+    "names": {},
+    "expected": "use foo__bar here"
+  },
+  {
+    "name": "keeps an underscore between non-ascii letters",
+    "content": "变量_名",
+    "names": {},
+    "expected": "变量_名"
+  },
+  {
+    "name": "strips strong underscore emphasis",
+    "content": "call __init__ now",
+    "names": {},
+    "expected": "call init now"
+  },
+  {
     "name": "says the slug when a name is missing",
     "content": "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada-lovelace hi",
     "names": {},

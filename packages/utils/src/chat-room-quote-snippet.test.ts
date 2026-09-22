@@ -141,6 +141,22 @@ describe("cleanChatMessageText", () => {
   });
 
   /**
+   * A `+` gives characters back to a lookahead, so matching an underscore run
+   * from the middle deleted `foo__bar` while the room still printed both.
+   */
+  it("keeps a doubled underscore between words", () => {
+    expect(cleanChatMessageText("use foo__bar here")).toBe("use foo__bar here");
+  });
+
+  it("keeps an underscore between non-ascii letters", () => {
+    expect(cleanChatMessageText("变量_名")).toBe("变量_名");
+  });
+
+  it("still strips strong underscore emphasis", () => {
+    expect(cleanChatMessageText("call __init__ now")).toBe("call init now");
+  });
+
+  /**
    * A label stops at a bracket, so an unclosed `[` in front of a link is not
    * read as the start of that link's label. Reading it that way would put the
    * words of the broken bracket inside the label and drop the real one.

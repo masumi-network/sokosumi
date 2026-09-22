@@ -69,9 +69,10 @@ function findQuoteAttachmentMatch(content: string): {
  * A chat message body as plain text: markdown markers gone, a link reduced to
  * its label, horizontal whitespace collapsed, newlines kept.
  *
- * An underscore between two word characters opens no emphasis in CommonMark,
- * so the room prints `COMPOSIO_X_AUTH_CONFIG_ID` whole and the plain text has
- * to keep those underscores rather than read them as markers.
+ * An underscore run flanked by Unicode letters or digits opens no emphasis in
+ * CommonMark, so the room prints `COMPOSIO_X_AUTH_CONFIG_ID` and `foo__bar`
+ * whole. The run is matched from its first underscore: a `+` that gives one
+ * back to the lookahead would delete `foo__bar` from the inside.
  */
 export function cleanChatMessageText(content: string): string {
   return content
@@ -79,7 +80,7 @@ export function cleanChatMessageText(content: string): string {
     .replace(/`([^`]+)`/g, "$1")
     .replace(/\[([^\][]+)\]\([^)]+\)/g, "$1")
     .replace(/[*~>#]+/g, "")
-    .replace(/(?<![0-9A-Za-z])_+|_+(?![0-9A-Za-z])/g, "")
+    .replace(/(?<![\p{L}\p{N}_])_+(?!_)|(?<!_)_+(?![\p{L}\p{N}_])/gu, "")
     .replace(/[^\S\n]+/g, " ")
     .trim();
 }
