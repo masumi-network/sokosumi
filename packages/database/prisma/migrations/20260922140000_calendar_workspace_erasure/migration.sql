@@ -12,6 +12,9 @@ BEGIN
 END;
 $$;
 
+-- Earlier PR previews already installed this trigger under the superseded
+-- deletion-protection migration. Replace it when upgrading those databases.
+DROP TRIGGER IF EXISTS calendar_workspace_outbox_erasure ON "workspace";
 CREATE TRIGGER calendar_workspace_outbox_erasure
 AFTER DELETE ON "workspace"
 FOR EACH ROW EXECUTE FUNCTION erase_calendar_outbox_for_workspace_delete();
