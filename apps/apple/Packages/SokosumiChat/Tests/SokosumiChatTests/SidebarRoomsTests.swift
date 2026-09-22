@@ -120,8 +120,8 @@ struct SidebarRoomsTests {
       makeRoom(id: "e1", name: "partner", discoverability: .external),
       makeRoom(id: "m1", name: "matched", discoverability: .matched),
       makeRoom(id: "g1", name: "guest-room", myAccess: .guest),
-      // Guest access always reads as External (checked before kind,
-      // mirroring web), even for a Direct.
+      // Guest access always reads as External (checked before kind),
+      // even for a Direct.
       makeRoom(id: "d2", name: "Guest Peer", kind: .direct, myAccess: .guest)
     ]
     let partitioned = partitionRoomsForSidebar(rooms)
@@ -296,19 +296,20 @@ struct SidebarRoomsTests {
     #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 2) == .init(bold: true, badgeCount: 2))
     #expect(resolveRoomAttention(unreadCount: 0, unreadMentionCount: 0, markedUnread: true) == .init(bold: true, badgeCount: 0))
     #expect(resolveRoomAttention(unreadCount: 5, unreadMentionCount: 2, isMuted: true) == .init(bold: false, badgeCount: 0))
-    // Selection is not a read event (ADR 0026). List highlight must not
-    // clear leftover unread — this slice has no history-resolved mark-read.
+    // Selection is not a read event (ADR 0026) and the resolver has no selection input, so
+    // the List highlight cannot clear leftover unread.
     #expect(resolveRoomAttention(unreadCount: 5, unreadMentionCount: 2) == .init(bold: true, badgeCount: 2))
     #expect(resolveRoomAttention(unreadCount: 0, unreadMentionCount: 0) == .init(bold: false, badgeCount: 0))
   }
 
-  @Test func unreadTextCountIsOptInAndObeysMuteAndTheOpenRoom() {
+  /// Was `…ObeysMuteAndTheOpenRoom`: its last line asserted a count of zero for `isActive`.
+  /// Web's resolver has no such input, so the argument is gone and only mute silences the count.
+  @Test func unreadTextCountIsOptInAndObeysMute() {
     #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 1).unreadTextCount == 0)
     #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 1, showUnreadCount: true) == .init(bold: true, badgeCount: 1, unreadTextCount: 3))
-    // Forced unread without messages stays bold with no number, like web.
+    // Forced unread without messages stays bold with no number.
     #expect(resolveRoomAttention(unreadCount: 0, unreadMentionCount: 0, markedUnread: true, showUnreadCount: true) == .init(bold: true, badgeCount: 0))
     #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 1, isMuted: true, showUnreadCount: true).unreadTextCount == 0)
-    #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 1, isActive: true, showUnreadCount: true).unreadTextCount == 0)
   }
 
   @Test func roomCountCapsAtNinetyNine() {
@@ -332,8 +333,11 @@ struct SidebarRoomsTests {
     #expect(resolveRoomAttention(unreadCount: max(0, mentions), unreadMentionCount: mentions).badgeAccessibilityLabel == spoken)
   }
 
-  @Test func mutedAndOpenRoomsShowNoMentionBadge() {
+  /// Was `mutedAndOpenRoomsShowNoMentionBadge`: the open-room half asserted no badge for
+  /// `isActive`. The open room now resolves like any other row; a real selection is covered by
+  /// `ConversationActionsTests.openRoomKeepsItsAttention` and the app's `OpenRoomAttentionTests`.
+  @Test func mutedRoomsShowNoMentionBadge() {
     #expect(resolveRoomAttention(unreadCount: 250, unreadMentionCount: 250, isMuted: true).badgeLabel == nil)
-    #expect(resolveRoomAttention(unreadCount: 250, unreadMentionCount: 250, isActive: true).badgeAccessibilityLabel == nil)
+    #expect(resolveRoomAttention(unreadCount: 250, unreadMentionCount: 250, isMuted: true).badgeAccessibilityLabel == nil)
   }
 }

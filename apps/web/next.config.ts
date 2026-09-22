@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-properties */
 import { withSentryConfig } from "@sentry/nextjs";
 import { withRelatedProject } from "@vercel/related-projects";
 import type { NextConfig } from "next";

@@ -4,7 +4,37 @@ This harness runs the real `RoomTimelineView`, `MessageRowView`, composer, rende
 
 The probes and fixtures are inlined below. They use existing dependencies and system frameworks. Source replacements assert an exact match and stop if the implementation changes. Review a failed match against the new source; do not remove the assertion. The original measured source baseline is `85524b023fc44ee13ce92d848e25c5cc23b08487`. The retry-guard follow-up compares `e7ec006938a2f0a9f419da39e236b2eb24282468` with the guard applied. For a before/after comparison, use a separate fresh harness directory for each source checkout; pass that checkout’s repository root to `setup.py`. The counter probes are identical on both sides.
 
-## Run
+## One-command regression check
+
+From the repository root on a Mac with Xcode 27 and a visible desktop:
+
+```sh
+python3 apps/apple/scripts/run-scrolling-performance.py
+```
+
+The runner extracts the five sources below, copies Apple sources, checks the workspace scheme, builds one Release app, and preserves its binary before measuring. It runs the complete **12-case short matrix** (room/thread × 50/500/2,000 messages × plain/mixed content), then the **24 live-update checks**. Mixed content includes text, markdown, code, images, unfurls and reactions. This is the stable-projection regression check; it does not run the original 21-case timing study or measure presented-frame smoothness.
+
+Allow roughly 5–10 minutes including a build on the audited host; cache and machine load affect this. Keep the window visible, avoid moving the pointer over it, and run no other build or UI benchmark concurrently. The runner serializes its own invocations and clears inherited `M6_*` filters so a prior smoke-test setting cannot shrink the matrix. A missing/duplicate case, shortened scroll phase, failed counter assertion or failed subprocess produces a nonzero exit. Interrupted/timed-out subprocess groups are terminated.
+
+Xcode resolves the original workspace's DerivedData cache by default. To select an existing cache or a new artifact directory explicitly:
+
+```sh
+python3 apps/apple/scripts/run-scrolling-performance.py \
+  --derived-data /absolute/path/to/existing/DerivedData \
+  --output /tmp/sokosumi-scrolling-run
+```
+
+`--output` must not exist; both paths must be outside `apps/apple`. Without `--output`, a fresh temporary directory is retained. The runner prints its location immediately and leaves `summary.json`, the raw `projection-*.jsonl` / `updates-*.jsonl`, checker/build logs, extracted probes, copied sources and app binary there. The report records source revision, Apple working-tree changes, probe/binary hashes, case counts and pass/fail status. A successful report explicitly records **CPU-work checks passed; smoothness unmeasured**. Failures retain their logs and a failed report; earlier results are never overwritten.
+
+The runner/checker tests take a few seconds, require no Xcode or UI, and run in the existing Apple lint job:
+
+```sh
+python3 apps/apple/scripts/test-scrolling-performance.py
+```
+
+The detailed commands below remain available for historical comparisons, the longer matrix, preparation/lookup timings and Instruments captures.
+
+## Manual measurement and historical comparisons
 
 From the repository root, extract the five files to a fresh temporary directory:
 
@@ -727,6 +757,13 @@ if '--projection' in sys.argv:
    assert phases['late']['ids'].get(sentinel,0)==0,(view,count,mix,sentinel,'evaluated during top sweep')
   assert all(row['retry_source_collections']==0 for row in phases.values())
  print('PASS: 12 room/thread cases; one projection per view evaluation during scroll/idle; scrolling, preparation, distant-row and retry-copy checks pass')
+
+if "--stable-matrix" in sys.argv:
+ expected={(view,count,mix,phase) for view in ('room','thread') for count in (50,500,2000) for mix in ('plain','mixed') for phase in ('load','early')}
+ actual=[(row.get('view'),row.get('count'),row.get('mix'),row.get('phase')) for row in rows]
+ assert len(actual)==len(expected) and set(actual)==expected, 'Incomplete or duplicated short matrix: expected 12 room/thread cases, each with load and early records'
+ assert all(row['ticks']==30 for row in rows if row['phase']=='early'), 'Expected 30 wheel events per short case'
+ print('PASS: complete short matrix, 12 cases with 30 wheel events each')
 
 if "--stable-projection" in sys.argv:
  scroll = [row for row in rows if row['phase'] in ('early', 'traverse', 'late', 'idle')]

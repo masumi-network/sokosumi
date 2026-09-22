@@ -1,5 +1,3 @@
-import type { Prisma } from "@sokosumi/database";
-import { memberRepository } from "@sokosumi/database/repositories";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 
@@ -28,20 +26,4 @@ export function mapSeatRepositoryError(error: unknown): never {
   }
 
   throw error;
-}
-
-export async function unassignOrganizationMemberSeat(
-  organizationId: string,
-  memberId: string,
-  tx: Prisma.TransactionClient,
-): Promise<{ memberId: string }> {
-  const member = await memberRepository.unassignSeat(
-    memberId,
-    organizationId,
-    tx,
-  );
-
-  return {
-    memberId: member.id,
-  };
 }

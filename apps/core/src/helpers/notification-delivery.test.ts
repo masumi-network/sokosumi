@@ -372,18 +372,19 @@ describe("resolveNotificationDelivery", () => {
   /**
    * The row Core will never mail. A stored cell saying otherwise is somebody's
    * old preference or a write the page should not have made, and it must not
-   * turn into an email.
+   * turn into an email. Billing news is the lasting example: Stripe already
+   * mails it (see "does not email billing news" below).
    */
   it("ignores a stored email cell on a category that does not mail", () => {
     expect(
       resolveNotificationDelivery({
-        category: "CHAT_ROOM_MESSAGE",
+        category: "BILLING_UPDATE",
         preferences: [
-          { category: "CHAT_ROOM_MESSAGE", channel: "EMAIL", enabled: true },
+          { category: "BILLING_UPDATE", channel: "EMAIL", enabled: true },
         ],
         pushOptIn: true,
       }),
-    ).toEqual({ inApp: false, osBanner: false, email: false });
+    ).toEqual({ inApp: true, osBanner: false, email: false });
   });
 });
 
@@ -513,18 +514,16 @@ describe("resolveNotificationDelivery for billing", () => {
 });
 
 describe("resolveNotificationDelivery email gate", () => {
-  it("sends no email for a category that has no email to send", () => {
-    // Even with the row switched on. Nothing emails every room message, so a
-    // stored row saying otherwise decides nothing.
+  it("mails a task update to a reader who has set nothing", () => {
+    // Task updates are the quiet outcomes a reader still wants to hear about:
+    // canceled, failed, repaired. They default on, like the other task rows.
     expect(
       resolveNotificationDelivery({
-        category: "CHAT_ROOM_MESSAGE",
-        preferences: [
-          { category: "CHAT_ROOM_MESSAGE", channel: "EMAIL", enabled: true },
-        ],
+        category: "TASK_UPDATE",
+        preferences: [],
         pushOptIn: false,
       }).email,
-    ).toBe(false);
+    ).toBe(true);
   });
 });
 
@@ -558,6 +557,7 @@ describe("resolveNotificationMatrix email column", () => {
       TASK_COMPLETED: true,
       TASK_UPDATE: true,
       PROJECT_UPDATE: true,
+      CHAT_ROOM_MESSAGE: false,
       CHAT_MENTION: false,
       CHAT_DIRECT_MESSAGE: false,
       BILLING_ATTENTION: true,

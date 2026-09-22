@@ -71,7 +71,6 @@ struct ConversationSidebarView: View {
               }
             }
           }
-          // Channels section only for organization workspaces, mirroring web.
           if workspaces.selection?.workspace.organizationId != nil {
             Section {
               sectionHeader("Channels", section: .channels, closedAttention: resolveSectionAttention(partitioned.channels))
@@ -220,7 +219,7 @@ struct ConversationSidebarView: View {
       get: { workspaces.sidebar.actionError != nil },
       set: {
         if !$0 {
-          workspaces.sidebar.clearActionError()
+          Task { @MainActor in workspaces.sidebar.clearActionError() }
         }
       }
     )) {
@@ -385,7 +384,6 @@ struct ConversationSidebarView: View {
       unreadMentionCount: room.unreadMentionCount,
       markedUnread: room.markedUnread,
       isMuted: room.mutedAt != nil,
-      isActive: room.id == workspaces.selectedRoomId,
       showUnreadCount: workspaces.chatDisplay.showsRoomUnreadCount
     )
     return Label {
@@ -643,7 +641,7 @@ struct DirectRoomAvatarStack: View {
   private static let markSize: CGFloat = 8
 
   let participants: [DirectRoomAvatarParticipant]
-  /// Self Directs show no mark, like web.
+  /// Self Directs show no mark.
   var showsPresence = true
   /// Live org map (userId → online/afk); humans fall back to their snapshot.
   var livePresence: [String: Components.Schemas.ChatRoomPresence] = [:]

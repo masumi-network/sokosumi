@@ -1,3 +1,4 @@
+import { SUPPORTED_LOCALES } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import { EMAIL_LOCALES, EMAIL_MESSAGES } from "../locales/index.js";
 import { createEmailTranslator } from "./translate.js";
@@ -52,6 +53,10 @@ describe("email translator", () => {
     const { locale } = createEmailTranslator("es_MX");
 
     expect(locale).toBe("es");
+  });
+
+  it("keeps EMAIL_LOCALES in lockstep with app SUPPORTED_LOCALES", () => {
+    expect([...EMAIL_LOCALES].sort()).toEqual([...SUPPORTED_LOCALES].sort());
   });
 
   it("keeps every raw locale catalog aligned with the English key shape", () => {

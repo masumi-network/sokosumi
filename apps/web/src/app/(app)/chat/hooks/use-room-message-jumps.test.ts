@@ -8,7 +8,10 @@ import {
 import { ROOM_HISTORY_WINDOW_LIMIT } from "@/app/chat/utils/room-transcript-ranges";
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
-import { useRoomMessageJumps } from "./use-room-message-jumps";
+import {
+  TRANSCRIPT_SNAPSHOT_RETRIES,
+  useRoomMessageJumps,
+} from "./use-room-message-jumps";
 
 vi.mock("@/app/chat/actions", () => ({
   getRoomThreadAction: vi.fn(),
@@ -119,6 +122,46 @@ describe("useRoomMessageJumps", () => {
     expect(options.mergeRoomJumpWindow).toHaveBeenCalledExactlyOnceWith(page);
     expect(landOnRoomMessage).toHaveBeenCalledTimes(2);
     expect(options.releaseStickToBottomSuppress).toHaveBeenCalledOnce();
+  });
+
+  it("retries an explicit target when a transcript change made its snapshot stale", async () => {
+    const stale = { messages: [message()], nextCursor: "older" };
+    const fresh = {
+      messages: [{ ...message(), content: "edited" }],
+      nextCursor: "older",
+    };
+    vi.mocked(listRoomMessagesAction)
+      .mockResolvedValueOnce({ ok: true, value: stale })
+      .mockResolvedValueOnce({ ok: true, value: fresh });
+    landOnRoomMessage.mockReturnValueOnce(false).mockReturnValueOnce(true);
+    const options = params();
+    options.captureSnapshot = vi
+      .fn()
+      .mockReturnValueOnce(() => false)
+      .mockReturnValueOnce(() => true);
+    const { result } = renderHook(() => useRoomMessageJumps(options));
+    await expect(result.current.handleJumpToMessage("message-1")).resolves.toBe(
+      true,
+    );
+    expect(listRoomMessagesAction).toHaveBeenCalledTimes(2);
+    expect(options.mergeRoomJumpWindow).toHaveBeenCalledExactlyOnceWith(fresh);
+  });
+
+  it("stops retrying an explicit target after a bounded number of stale snapshots", async () => {
+    vi.mocked(listRoomMessagesAction).mockResolvedValue({
+      ok: true,
+      value: { messages: [message()], nextCursor: "older" },
+    });
+    const options = params();
+    options.captureSnapshot = vi.fn(() => () => false);
+    const { result } = renderHook(() => useRoomMessageJumps(options));
+    await expect(result.current.handleJumpToMessage("message-1")).resolves.toBe(
+      false,
+    );
+    expect(listRoomMessagesAction).toHaveBeenCalledTimes(
+      TRANSCRIPT_SNAPSHOT_RETRIES,
+    );
+    expect(options.mergeRoomJumpWindow).not.toHaveBeenCalled();
   });
 
   it("merges a search hit's window the same way instead of swapping the timeline", async () => {

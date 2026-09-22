@@ -34,7 +34,6 @@ export async function runVendorsCommand({
   signal,
   subcommand,
 }: VendorsCommandContext): Promise<void> {
-  // Dispatch requires the explicit vendors me form; bare vendors is rejected.
   if (subcommand !== "me") throw new Error("Usage: sokosumi vendors me");
   const { vendors } = await fetchVendorMemberships(client, signal);
   if (json) writeJson(stdout, { vendors });

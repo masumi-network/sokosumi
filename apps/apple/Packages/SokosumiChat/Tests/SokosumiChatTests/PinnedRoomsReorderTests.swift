@@ -114,6 +114,22 @@ struct PinnedRoomsReorderTests {
     #expect(state.actionError == nil)
   }
 
+  @Test func optimisticReorderKeysUseInjectedNow() async throws {
+    let state = try await sidebar()
+    let now = Date(timeIntervalSince1970: 1_700_000_000)
+    let transport = PausedReorderTransport([(200, orderBody([roomC, roomA, roomB]))])
+    let reorderClient = try client(transport)
+    let task = Task {
+      try await state.reorderPinned([roomC, roomA, roomB], client: reorderClient, organizationSlug: nil, now: now)
+    }
+    await transport.waitForRequests(1)
+    #expect(state.rooms.first { $0.id == roomC }?.starredAt == now.addingTimeInterval(-0.003))
+    #expect(state.rooms.first { $0.id == roomA }?.starredAt == now.addingTimeInterval(-0.002))
+    #expect(state.rooms.first { $0.id == roomB }?.starredAt == now.addingTimeInterval(-0.001))
+    await transport.release()
+    try await task.value
+  }
+
   @Test func latestReorderWinsOverAnEarlierAnswerAndAnEarlierFailure() async throws {
     let state = try await sidebar()
     let transport = PausedReorderTransport([(500, reorderFailureBody), (200, orderBody([roomB, roomC, roomA]))])

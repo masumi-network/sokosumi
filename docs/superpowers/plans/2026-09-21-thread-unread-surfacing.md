@@ -365,7 +365,7 @@ Expected: PASS. Any remaining type error is a call site missed in Step 4.
 - [ ] **Step 6: Regenerate the web client**
 
 Run: `pnpm --filter web generate:core:snapshot`
-Expected: `apps/web/src/lib/clients/generated/core/types.gen.ts` gains `channelUnreadCount` and `threadUnreadCount` on `ChatRoom`. If that script name does not exist, find it with `rg -n '"generate' apps/web/package.json` and use the one that writes `lib/clients/generated/core`.
+Expected: `apps/web/src/lib/clients/generated/core/types.gen.ts` gains `channelUnreadCount` and `threadUnreadCount` on `ChatRoom`.
 
 - [ ] **Step 7: Commit**
 

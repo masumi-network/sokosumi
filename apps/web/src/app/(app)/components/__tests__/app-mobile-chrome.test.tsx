@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 let mockPathname = "/chat";
@@ -15,7 +15,15 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: (namespace: string) => (key: string) => {
+    if (namespace === "App" && key === "Metadata.Title.template") {
+      return "Sokosumi - %s";
+    }
+    if (namespace === "App" && key === "Channels.Metadata.title") {
+      return "Chat";
+    }
+    return key;
+  },
 }));
 
 vi.mock("@/app/components/history-search-dialog-provider", () => ({
@@ -181,5 +189,26 @@ describe("AppMobileChrome", () => {
     );
 
     expect(screen.getByRole("navigation", { name: "ariaLabel" })).toBeTruthy();
+  });
+  it("retains the chat title across rooms and releases it on other sections", async () => {
+    mockPathname = "/chat/rooms/room-1";
+    const { rerender } = render(<AppMobileChrome>child</AppMobileChrome>);
+    expect(document.title).toBe("Sokosumi - Chat");
+
+    await act(async () => {
+      document.title = "Sokosumi - Marketplace for human-to-agent interactions";
+      await Promise.resolve();
+    });
+    mockPathname = "/chat/rooms/room-2";
+    rerender(<AppMobileChrome>child</AppMobileChrome>);
+    expect(document.title).toBe("Sokosumi - Chat");
+
+    mockPathname = "/tasks";
+    rerender(<AppMobileChrome>child</AppMobileChrome>);
+    await act(async () => {
+      document.title = "Sokosumi - Tasks";
+      await Promise.resolve();
+    });
+    expect(document.title).toBe("Sokosumi - Tasks");
   });
 });

@@ -54,6 +54,23 @@ describe("openrouter.client", () => {
     );
   });
 
+  it("returns null when generateText throws trailing bytes", async () => {
+    generateTextMock.mockRejectedValue(new Error("479 trailing bytes"));
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    try {
+      const { openrouterClient } = await import("./openrouter.client");
+
+      await expect(
+        openrouterClient.generateTaskName("Build landing page"),
+      ).resolves.toBeNull();
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
   it("returns null without calling generateText when OpenRouter is not configured", async () => {
     getEnvMock.mockReturnValue({});
 

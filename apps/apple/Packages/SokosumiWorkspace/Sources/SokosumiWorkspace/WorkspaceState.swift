@@ -214,21 +214,21 @@ public final class WorkspaceState: ObservableObject {
   private var hasLoaded = false
   private var workspaceLoadTask: Task<Void, Never>?
 
-  /// Stable per-install Ably `clientInstanceId` (ADR 0003): persisted on
+  /// Stable per-install realtime `clientInstanceId` (ADR 0003): persisted on
   /// first launch, reused after, so this Mac is one `{userId}:{instanceId}`
   /// device in every token it mints.
-  let ablyClientInstanceId: String
+  let realtimeClientInstanceId: String
 
   /// Creates a workspace coordinator. The host app must inject its authenticated
   /// client provider; the default resolves no client.
   public init(
     clientProvider: @escaping (AuthState) -> Client? = { _ in nil },
     savedRoom: SavedRoomSelection = SavedRoomSelection(),
-    instanceStore: AblyClientInstanceIdStore = UserDefaultsAblyClientInstanceIdStore()
+    instanceStore: RealtimeClientInstanceIdStore = UserDefaultsRealtimeInstanceIdStore()
   ) {
     self.clientProvider = clientProvider
     sidebar = ConversationSidebar(savedRoom: savedRoom)
-    ablyClientInstanceId = getOrCreateAblyClientInstanceId(store: instanceStore)
+    realtimeClientInstanceId = getOrCreateRealtimeClientInstanceId(store: instanceStore)
     for publisher in [archivedChannels.objectWillChange, pendingInvitations.objectWillChange, threadOverview.objectWillChange, chatDisplay.objectWillChange, pins.objectWillChange, thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange, presence.objectWillChange] {
       publisher.sink { [weak self] in self?.objectWillChange.send() }.store(in: &threadObservations)
     }
@@ -739,15 +739,14 @@ public final class WorkspaceState: ObservableObject {
     else {
       return
     }
-    let instanceId = ablyClientInstanceId
+    let instanceId = realtimeClientInstanceId
     let service = service
     let provider: RealtimeTokenProvider = { slug in
-      let token = try await service.fetchAblyToken(
+      try await service.fetchAblyToken(
         client: client,
         clientInstanceId: instanceId,
         organizationSlug: slug
       )
-      return AblyTokenFields(token)
     }
     let (stream, continuation) = AsyncStream.makeStream(of: ResolvedRealtimeDelivery.self)
     let connection = factory()

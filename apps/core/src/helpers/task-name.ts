@@ -108,9 +108,13 @@ export async function resolveTaskName(input: {
     return UNTITLED_TASK_NAME;
   }
 
-  const generated = (
-    await openrouterClient.generateTaskName(namingSource)
-  )?.trim();
+  let generated: string | undefined;
+  try {
+    generated = (await openrouterClient.generateTaskName(namingSource))?.trim();
+  } catch (error) {
+    // Best-effort naming. A parser/runtime throw must not fail task create.
+    console.error("Task name generation failed:", error);
+  }
   if (generated) {
     const cleaned = cleanAutoName(generated);
     if (!isRejectedGeneratedName(generated, cleaned)) {

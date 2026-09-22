@@ -7,7 +7,7 @@ const getSessionMock = vi.fn();
 const getActiveOrganizationMock = vi.fn();
 const getRoomMock = vi.fn();
 const loadRoomShellRosterMock = vi.fn();
-const loadRoomMessagesMock = vi.fn();
+const listMessagesMock = vi.fn();
 const redirectMock = vi.fn((url: string) => {
   throw new Error(`REDIRECT:${url}`);
 });
@@ -33,6 +33,7 @@ vi.mock("@/lib/auth/auth.server", () => ({
 vi.mock("@/lib/services/chat-room.service", () => ({
   chatRoomService: {
     getRoom: (...args: unknown[]) => getRoomMock(...args),
+    listMessages: (...args: unknown[]) => listMessagesMock(...args),
   },
 }));
 vi.mock("@/lib/services/user.service", () => ({
@@ -46,17 +47,13 @@ vi.mock("@/app/chat/load-room-shell-roster", () => ({
   loadRoomShellRoster: (...args: unknown[]) => loadRoomShellRosterMock(...args),
 }));
 
-vi.mock("@/app/chat/load-room-messages", () => ({
-  loadRoomMessages: (...args: unknown[]) => loadRoomMessagesMock(...args),
-}));
-
 vi.mock("@/app/chat/components/rooms-client", () => ({
   RoomsClient: () => <div data-testid="rooms-client" />,
 }));
 
 import type { ChatRoom } from "@/lib/clients/generated/core";
 
-import { ChatRoomPageContent } from "./page";
+import { ChatRoomPageContent, generateStaticParams } from "./page";
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const ORG_A = "org_a";
@@ -112,6 +109,7 @@ function roomsClientProps(element: ReactElement) {
     coworkers?: unknown[];
     messages?: unknown[];
     messagesPromise?: Promise<unknown>;
+    loadHistoryOnClient?: boolean;
     rosterPromise?: Promise<unknown>;
     selectedRoomId?: string;
   };
@@ -123,13 +121,21 @@ function neverResolvingPromise<T>(): Promise<T> {
   });
 }
 
+describe("ChatRoomPage generateStaticParams sentinel", () => {
+  it("returns one concrete roomId child", () => {
+    expect(generateStaticParams()).toEqual([
+      { roomId: "00000000-0000-4000-8000-000000000000" },
+    ]);
+  });
+});
+
 describe("ChatRoomPage org deep-link guard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getSessionMock.mockResolvedValue({ user: { id: USER_ID } });
     // Roster + history start but are not awaited — shell returns with promises.
     loadRoomShellRosterMock.mockReturnValue(neverResolvingPromise());
-    loadRoomMessagesMock.mockReturnValue(neverResolvingPromise());
+    listMessagesMock.mockReturnValue(neverResolvingPromise());
   });
 
   it("redirects when room belongs to a different active org", async () => {
@@ -145,7 +151,7 @@ describe("ChatRoomPage org deep-link guard", () => {
     ).rejects.toThrow(`REDIRECT:/?notice=room-unavailable`);
 
     expect(redirectMock).toHaveBeenCalledWith("/?notice=room-unavailable");
-    expect(loadRoomMessagesMock).not.toHaveBeenCalled();
+    expect(listMessagesMock).not.toHaveBeenCalled();
     expect(loadRoomShellRosterMock).not.toHaveBeenCalled();
   });
 
@@ -164,7 +170,7 @@ describe("ChatRoomPage org deep-link guard", () => {
     })) as ReactElement;
 
     expect(redirectMock).not.toHaveBeenCalled();
-    expect(loadRoomMessagesMock).toHaveBeenCalledWith(ROOM_ID);
+    expect(listMessagesMock).not.toHaveBeenCalled();
     expect(loadRoomShellRosterMock).toHaveBeenCalledWith(ORG_A);
     const props = roomsClientProps(element);
     expect(props.selectedRoomId).toBe(ROOM_ID);
@@ -194,7 +200,7 @@ describe("ChatRoomPage org deep-link guard", () => {
       ChatRoomPageContent({ params: Promise.resolve({ roomId: ROOM_ID }) }),
     ).rejects.toThrow(`REDIRECT:/?notice=room-unavailable`);
 
-    expect(loadRoomMessagesMock).not.toHaveBeenCalled();
+    expect(listMessagesMock).not.toHaveBeenCalled();
     expect(loadRoomShellRosterMock).not.toHaveBeenCalled();
   });
 
@@ -209,7 +215,7 @@ describe("ChatRoomPage org deep-link guard", () => {
     await expect(
       ChatRoomPageContent({ params: Promise.resolve({ roomId: ROOM_ID }) }),
     ).rejects.toThrow(`REDIRECT:/?notice=room-unavailable`);
-    expect(loadRoomMessagesMock).not.toHaveBeenCalled();
+    expect(listMessagesMock).not.toHaveBeenCalled();
     expect(loadRoomShellRosterMock).not.toHaveBeenCalled();
   });
 
@@ -228,7 +234,7 @@ describe("ChatRoomPage org deep-link guard", () => {
 
     expect(redirectMock).toHaveBeenCalledWith("/?notice=room-unavailable");
     expect(getRoomMock).not.toHaveBeenCalled();
-    expect(loadRoomMessagesMock).not.toHaveBeenCalled();
+    expect(listMessagesMock).not.toHaveBeenCalled();
     expect(loadRoomShellRosterMock).not.toHaveBeenCalled();
   });
 
@@ -245,14 +251,15 @@ describe("ChatRoomPage org deep-link guard", () => {
     })) as ReactElement;
 
     expect(redirectMock).not.toHaveBeenCalled();
-    expect(loadRoomMessagesMock).toHaveBeenCalledWith(ROOM_ID);
+    expect(listMessagesMock).not.toHaveBeenCalled();
     expect(loadRoomShellRosterMock).toHaveBeenCalledWith(ORG_A);
     const props = roomsClientProps(element);
     expect(props.selectedRoomId).toBe(ROOM_ID);
     expect(props.messages).toEqual([]);
     expect(props.organizationMembers).toEqual([]);
     expect(props.coworkers).toEqual([]);
-    expect(props.messagesPromise).toBeInstanceOf(Promise);
+    expect(props.messagesPromise).toBeUndefined();
+    expect(props.loadHistoryOnClient).toBe(true);
     expect(props.rosterPromise).toBeInstanceOf(Promise);
     expect(props.membersLoadFailed).toBe(false);
   });
@@ -272,7 +279,8 @@ describe("ChatRoomPage org deep-link guard", () => {
     })) as ReactElement;
 
     const props = roomsClientProps(element);
-    expect(props.messagesPromise).toBeInstanceOf(Promise);
+    expect(props.messagesPromise).toBeUndefined();
+    expect(props.loadHistoryOnClient).toBe(true);
     expect(props.rosterPromise).toBeInstanceOf(Promise);
     expect(loadRoomShellRosterMock).toHaveBeenCalledWith(ORG_B);
   });
@@ -288,7 +296,8 @@ describe("ChatRoomPage org deep-link guard", () => {
     })) as ReactElement;
 
     const props = roomsClientProps(element);
-    expect(props.messagesPromise).toBeInstanceOf(Promise);
+    expect(props.messagesPromise).toBeUndefined();
+    expect(props.loadHistoryOnClient).toBe(true);
     expect(props.rosterPromise).toBeInstanceOf(Promise);
     expect(loadRoomShellRosterMock).toHaveBeenCalledWith(null);
   });
@@ -313,7 +322,7 @@ describe("ChatRoomPage org deep-link guard", () => {
     })) as ReactElement;
 
     expect(redirectMock).not.toHaveBeenCalled();
-    expect(loadRoomMessagesMock).toHaveBeenCalledWith(ROOM_ID);
+    expect(listMessagesMock).not.toHaveBeenCalled();
     expect(loadRoomShellRosterMock).toHaveBeenCalledWith(ORG_B);
     expect(roomsClientProps(element).selectedRoomId).toBe(ROOM_ID);
   });
@@ -334,7 +343,7 @@ describe("ChatRoomPage org deep-link guard", () => {
     })) as ReactElement;
 
     expect(redirectMock).not.toHaveBeenCalled();
-    expect(loadRoomMessagesMock).toHaveBeenCalledWith(ROOM_ID);
+    expect(listMessagesMock).not.toHaveBeenCalled();
     expect(loadRoomShellRosterMock).toHaveBeenCalledWith(null);
     expect(roomsClientProps(element).selectedRoomId).toBe(ROOM_ID);
   });
@@ -362,7 +371,8 @@ describe("ChatRoomPage org deep-link guard", () => {
     expect(props.membersLoadFailed).toBe(false);
     expect(props.organizationMembers).toEqual([]);
     await expect(props.rosterPromise).resolves.toEqual(failedRoster);
-    expect(props.messagesPromise).toBeInstanceOf(Promise);
+    expect(props.messagesPromise).toBeUndefined();
+    expect(props.loadHistoryOnClient).toBe(true);
   });
 
   it("treats personal workspace progressive shell as membersLoadFailed false", async () => {
@@ -378,12 +388,13 @@ describe("ChatRoomPage org deep-link guard", () => {
     expect(loadRoomShellRosterMock).toHaveBeenCalledWith(null);
     const props = roomsClientProps(element);
     expect(props.membersLoadFailed).toBe(false);
-    expect(props.messagesPromise).toBeInstanceOf(Promise);
+    expect(props.messagesPromise).toBeUndefined();
+    expect(props.loadHistoryOnClient).toBe(true);
     expect(props.rosterPromise).toBeInstanceOf(Promise);
   });
 });
 
-describe("ChatRoomPage deferred history promise", () => {
+describe("ChatRoomPage retained history bootstrap", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getSessionMock.mockResolvedValue({ user: { id: USER_ID } });
@@ -400,20 +411,23 @@ describe("ChatRoomPage deferred history promise", () => {
     });
   });
 
-  it("propagates load failure through messagesPromise", async () => {
+  it("defers Direct history to the retained client loader", async () => {
+    getRoomMock.mockResolvedValue(
+      room({ organizationId: ORG_A, kind: "direct" }),
+    );
     const failedPage = {
       messages: [],
       nextCursor: null,
       failed: true,
     };
-    loadRoomMessagesMock.mockResolvedValue(failedPage);
+    listMessagesMock.mockResolvedValue(failedPage);
 
     const element = (await ChatRoomPageContent({
       params: Promise.resolve({ roomId: ROOM_ID }),
     })) as ReactElement;
 
-    await expect(roomsClientProps(element).messagesPromise).resolves.toEqual(
-      failedPage,
-    );
+    expect(roomsClientProps(element).messagesPromise).toBeUndefined();
+    expect(roomsClientProps(element).loadHistoryOnClient).toBe(true);
+    expect(listMessagesMock).not.toHaveBeenCalled();
   });
 });

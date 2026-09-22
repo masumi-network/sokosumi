@@ -20,10 +20,17 @@ Root [`AGENTS.md`](../AGENTS.md) is the loading table. Task-specific instruction
 - [`agents/cloud-environment.md`](./agents/cloud-environment.md) — Cursor Cloud VM, local Postgres fallback
 - [`agents/delivery.md`](./agents/delivery.md) — commits, CI, pull requests
 - [`agents/skill-routing.md`](./agents/skill-routing.md) — skills, Linear, domain docs, Soko Bot
+- [`agents/context-budget.md`](./agents/context-budget.md) — maps former root `AGENTS.md` sections to the files above
 - [`agents/issue-tracker.md`](./agents/issue-tracker.md)
 - [`agents/triage-labels.md`](./agents/triage-labels.md)
 - [`agents/domain.md`](./agents/domain.md)
 - [`agents/cloud-agent-database.md`](./agents/cloud-agent-database.md)
+
+## Superpowers plans
+
+Active implementation plans (SOK-1147 / #4992 — not spent).
+
+- [`superpowers/plans/`](./superpowers/plans/) — `2026-09-21-thread-unread-surfacing.md` and `.spec.md`
 
 ## Soko Bot
 

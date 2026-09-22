@@ -37,13 +37,14 @@ describe("Soko Bot beta gate", () => {
   it("keeps the router gate on every route by living on the router", async () => {
     // A per-handler check would be forgotten by the next endpoint added.
     const { readFileSync } = await import("node:fs");
-    const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
-    const middleware = source.slice(
-      source.indexOf('app.use("*"'),
-      source.indexOf("function mapBot"),
+    const index = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
+    const helpers = readFileSync(
+      new URL("./helpers.ts", import.meta.url),
+      "utf8",
     );
-    expect(middleware).toContain("isNmkrEmail");
-    expect(middleware).toContain("SOKO_BOT_ENABLED");
-    expect(middleware).toContain("reportToSentry");
+    expect(index).toContain('app.use("*", sokoBotRouteGate)');
+    expect(helpers).toContain("isNmkrEmail");
+    expect(helpers).toContain("SOKO_BOT_ENABLED");
+    expect(helpers).toContain("reportToSentry");
   });
 });
