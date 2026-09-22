@@ -74,6 +74,17 @@ const CELL_DEAD = "text-disabled-foreground cursor-default border-transparent";
 export const CELL_TRACK = "flex w-12 shrink-0 justify-center @xl:w-18";
 
 /**
+ * The width of all three columns at once, for the one control that answers
+ * for all three.
+ *
+ * Three tracks and the two `gap-2` between them: 3 x 48 + 16 is 160px, and
+ * from `@xl` 3 x 72 + 16 is 232px. Kept here, next to the track it is derived
+ * from, because the two cannot drift apart without the answers down the box
+ * ending at two widths.
+ */
+export const CELL_TRACK_SPAN = "w-40 @xl:w-58";
+
+/**
  * The face of each channel in the grid.
  *
  * Written out per channel rather than carried on `CHANNEL_SPECS`, which the

@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getMyPreferencesQueryKey } from "@/queries/preferences";
-
+import { CELL_TRACK, CELL_TRACK_SPAN } from "./notification-cells";
 import { NotificationKinds } from "./notification-kinds";
 
 const patchMyPreferences = vi.fn();
@@ -932,6 +932,44 @@ describe("NotificationKinds", () => {
         .queryAllByRole("button")
         .some((button) => button.dataset.slot === "collapsible-trigger"),
     ).toBe(false);
+  });
+
+  /**
+   * A preset answers for all three columns at once, so it spans all three,
+   * and every answer down the box, preset or cells, is one width at one edge.
+   * Sized to its word, the presets stood at three widths.
+   *
+   * Pinned to the shared constant rather than to its value, so a width typed
+   * straight onto the trigger fails here even when it happens to match today.
+   */
+  it("spans the preset across the three columns it answers for", () => {
+    renderKinds();
+
+    /** Every `w-` on an element, keyed by the variant it applies at. */
+    const widths = (classes: string) =>
+      Object.fromEntries(
+        classes
+          .split(" ")
+          .map((name) => /^(?:(.+):)?w-(\d+)$/.exec(name))
+          .filter((found) => found !== null)
+          .map((found) => [found[1] ?? "base", Number(found[2])]),
+      );
+
+    const track = widths(CELL_TRACK);
+    const span = widths(CELL_TRACK_SPAN);
+    const trigger = screen.getAllByRole("button", { name: /preset/i })[0];
+
+    // Three tracks and the two `gap-2` between them, in Tailwind's own units.
+    // Computed rather than compared to CELL_TRACK_SPAN's own text, so a track
+    // that widens and a span that does not is a failure here.
+    expect(Object.keys(span).sort()).toEqual(Object.keys(track).sort());
+    for (const [variant, columns] of Object.entries(track)) {
+      expect(span[variant]).toBe(columns * 3 + 2 * 2);
+    }
+    expect(widths(trigger!.className)).toEqual(span);
+    // Below `@xl` the row stacks, so the preset only stands under the three
+    // names if it is pushed to the end of the column it drops into.
+    expect(trigger!.parentElement).toHaveClass("self-end", "@xl:self-auto");
   });
 
   /**

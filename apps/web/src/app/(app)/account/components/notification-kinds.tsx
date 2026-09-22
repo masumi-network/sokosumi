@@ -44,10 +44,9 @@ import {
  * thing a browser can do. An answer that belongs to the whole row sits beside
  * the name instead, at the end of the row, where it is one line rather than a
  * second one and where it lands over the columns the fold opens on. A phone
- * has no room for both on one line, so there it drops under the name, indented
- * to the words rather than to the chevron, because the chevron's column
- * belongs to the fold. A `size-4` mark and a `gap-2` make the 24px that indent
- * is.
+ * has no room for both on one line, so there it drops under the name and
+ * keeps the trailing edge, where the cells of every row that answers on the
+ * card stand too.
  *
  * Whether it stands open is the caller's to hold. The answer under the name
  * can ask for the rows, and only the caller that draws that answer can say
@@ -97,7 +96,9 @@ function FoldRow({
             </span>
           </span>
         </CollapsibleTrigger>
-        {answer ? <div className="shrink-0 pl-6 @xl:pl-0">{answer}</div> : null}
+        {answer ? (
+          <div className="shrink-0 self-end @xl:self-auto">{answer}</div>
+        ) : null}
       </div>
       {/* The fold measures itself, so the cells slide out of the row rather
           than replacing it between two frames. `overflow-hidden` is what makes

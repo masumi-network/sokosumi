@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { CELL_TRACK_SPAN } from "./notification-cells";
 import {
   type KindSpec,
   PRESET_LABEL_KEY,
@@ -49,8 +50,15 @@ const CUSTOM_HINT_KEY = "presetCustomHint";
  * beat rather than a jump. The focus ring is left out on purpose, since a ring
  * that fades in trails a reader who is tabbing.
  */
-const TRIGGER =
-  "focus-visible:border-ring focus-visible:ring-ring-halo inline-flex h-8 shrink-0 items-center gap-2 rounded-md border pr-2 pl-2.5 text-xs font-medium whitespace-nowrap transition-[color,background-color,border-color,opacity] outline-none focus-visible:ring-[3px]";
+/*
+ * It spans the three columns it answers for, so every answer in the box, a
+ * preset or a row of cells, is one width and ends at one edge. Sized to its
+ * word instead, the three presets stood at three widths down the right side.
+ */
+const TRIGGER = cn(
+  "focus-visible:border-ring focus-visible:ring-ring-halo inline-flex h-8 shrink-0 items-center justify-between gap-2 rounded-md border pr-2 pl-2.5 text-xs font-medium whitespace-nowrap transition-[color,background-color,border-color,opacity] outline-none focus-visible:ring-[3px]",
+  CELL_TRACK_SPAN,
+);
 
 /**
  * The mark each situation carries, beside its word.
@@ -187,17 +195,23 @@ export function GroupAnswer({
             saving && "opacity-50",
           )}
         >
-          <Icon
-            className={cn(
-              // Its own colour, so its own transition: the trigger's names the
-              // properties it may animate, and a child that sets `color`
-              // itself is not one of them.
-              "size-3.5 shrink-0 transition-colors",
-              preset === "CUSTOM" ? "text-primary" : "text-muted-foreground",
-            )}
-            aria-hidden="true"
-          />
-          {t(PRESET_LABEL_KEY[preset])}
+          {/* The mark and the word travel together and truncate together, so
+              a label longer than the three columns loses its tail rather than
+              pushing the chevron off the control. The menu carries the whole
+              word either way. */}
+          <span className="flex min-w-0 items-center gap-2">
+            <Icon
+              className={cn(
+                // Its own colour, so its own transition: the trigger's names
+                // the properties it may animate, and a child that sets
+                // `color` itself is not one of them.
+                "size-3.5 shrink-0 transition-colors",
+                preset === "CUSTOM" ? "text-primary" : "text-muted-foreground",
+              )}
+              aria-hidden="true"
+            />
+            <span className="truncate">{t(PRESET_LABEL_KEY[preset])}</span>
+          </span>
           <ChevronDown
             className="text-muted-foreground size-3.5 shrink-0"
             aria-hidden="true"
