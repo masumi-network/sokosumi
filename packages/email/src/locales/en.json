@@ -77,11 +77,10 @@
       "fallbackRoomName": "a conversation",
       "fallbackTaskName": "Your task",
       "fallbackCoworkerName": "a coworker",
-      "fallbackProjectName": "Your project",
-      "settingsLink": "Notification settings"
+      "fallbackProjectName": "Your project"
     },
     "event": {
-      "footer": "You're receiving this email because this notification is switched on in your notification settings.",
+      "footer": "You're receiving this email because this notification is switched on in <settings>your notification settings</settings>.",
       "mention": {
         "subject": "Sokosumi - {authorName} mentioned you in {roomName}",
         "title": "You were mentioned",
@@ -213,7 +212,7 @@
       }
     },
     "followUp": {
-      "footer": "You're receiving this email because reminders are switched on in your notification settings.",
+      "footer": "You're receiving this email because reminders are switched on in <settings>your notification settings</settings>.",
       "mention": {
         "subject": "Sokosumi - {authorName} is still waiting for you in {roomName}",
         "preview": "{authorName} mentioned you in {roomName} a day ago.",
@@ -271,7 +270,7 @@
     },
     "billing": {
       "linkInstructions": "Or copy and paste this URL into your browser:",
-      "footer": "You're receiving this email because billing alerts are switched on in your notification settings.",
+      "footer": "You're receiving this email because billing alerts are switched on in <settings>your notification settings</settings>.",
       "greeting": "Hi {name}",
       "greetingWithoutName": "Hi",
       "lowBalance": {

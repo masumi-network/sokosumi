@@ -16,9 +16,10 @@ import type {
 } from "../types.js";
 import {
   buildGreeting,
+  footerNote,
   linkInstructions,
   nameOr,
-  settingsLink,
+  type RichFn,
   type TranslateFn,
 } from "./notification-shared.js";
 
@@ -26,6 +27,7 @@ import {
 const EVENT_SCOPE = "notifications.event";
 
 interface EventEmailOptions {
+  rich: RichFn;
   actionUrl: string;
   settingsUrl?: null | string;
   facts?: readonly ActionEmailFact[];
@@ -43,6 +45,7 @@ interface EventEmailOptions {
 
 function renderEventEmail({
   actionUrl,
+  rich,
   settingsUrl,
   facts,
   lang,
@@ -58,8 +61,7 @@ function renderEventEmail({
     actionUrl,
     body: words.body,
     facts,
-    footer: t(`${EVENT_SCOPE}.footer`),
-    footerLink: settingsLink(t, settingsUrl),
+    footer: footerNote(rich, `${EVENT_SCOPE}.footer`, settingsUrl),
     greeting: buildGreeting(t, recipientName),
     lang,
     linkInstructions: linkInstructions(t),
@@ -82,7 +84,7 @@ export function renderChatMentionEmail({
   settingsUrl,
   roomName,
 }: ChatMentionEmailProps): Promise<RenderedEmail> {
-  const { locale: lang, t } = createEmailTranslator(locale);
+  const { locale: lang, rich, t } = createEmailTranslator(locale);
   const scope = `${EVENT_SCOPE}.mention`;
   const values = {
     authorName: nameOr(t, authorName, "fallbackAuthorName"),
@@ -91,6 +93,7 @@ export function renderChatMentionEmail({
 
   return renderEventEmail({
     lang,
+    rich,
     settingsUrl,
     actionUrl,
     quote: messagePreview,
@@ -114,12 +117,13 @@ export function renderChatDirectMessageEmail({
   recipientName,
   settingsUrl,
 }: ChatDirectMessageEmailProps): Promise<RenderedEmail> {
-  const { locale: lang, t } = createEmailTranslator(locale);
+  const { locale: lang, rich, t } = createEmailTranslator(locale);
   const scope = `${EVENT_SCOPE}.directMessage`;
   const values = { authorName: nameOr(t, authorName, "fallbackAuthorName") };
 
   return renderEventEmail({
     lang,
+    rich,
     settingsUrl,
     actionUrl,
     quote: messagePreview,
@@ -206,7 +210,7 @@ export function renderTaskAttentionEmail({
   settingsUrl,
   taskName,
 }: TaskAttentionEmailProps): Promise<RenderedEmail> {
-  const { locale: lang, t } = createEmailTranslator(locale);
+  const { locale: lang, rich, t } = createEmailTranslator(locale);
   const scope = `${EVENT_SCOPE}.task.attention`;
   const values = {
     coworkerName: nameOr(t, coworkerName, "fallbackCoworkerName"),
@@ -215,6 +219,7 @@ export function renderTaskAttentionEmail({
 
   return renderEventEmail({
     lang,
+    rich,
     settingsUrl,
     actionUrl,
     facts: projectFact(t, projectName),
@@ -239,7 +244,7 @@ export function renderTaskCompletedEmail({
   settingsUrl,
   taskName,
 }: TaskCompletedEmailProps): Promise<RenderedEmail> {
-  const { locale: lang, t } = createEmailTranslator(locale);
+  const { locale: lang, rich, t } = createEmailTranslator(locale);
   const scope = `${EVENT_SCOPE}.task.completed`;
   const values = {
     coworkerName: nameOr(t, coworkerName, "fallbackCoworkerName"),
@@ -248,6 +253,7 @@ export function renderTaskCompletedEmail({
 
   return renderEventEmail({
     lang,
+    rich,
     settingsUrl,
     actionUrl,
     facts: projectFact(t, projectName),
@@ -302,7 +308,7 @@ export function renderAccessRequestEmail({
   request,
   requesterName,
 }: AccessRequestEmailProps): Promise<RenderedEmail> {
-  const { locale: lang, t } = createEmailTranslator(locale);
+  const { locale: lang, rich, t } = createEmailTranslator(locale);
   const scope = `${EVENT_SCOPE}.accessRequest`;
   const values = {
     requesterName: nameOr(t, requesterName, "fallbackAuthorName"),
@@ -310,6 +316,7 @@ export function renderAccessRequestEmail({
 
   return renderEventEmail({
     lang,
+    rich,
     settingsUrl,
     actionUrl,
     recipientName,

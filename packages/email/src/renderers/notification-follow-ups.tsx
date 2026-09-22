@@ -12,9 +12,10 @@ import type {
 } from "../types.js";
 import {
   buildGreeting,
+  footerNote,
   linkInstructions,
   nameOr,
-  settingsLink,
+  type RichFn,
   type TranslateFn,
 } from "./notification-shared.js";
 
@@ -32,6 +33,7 @@ interface FollowUpEmailOptions {
     | "mentionMany"
     | "task";
   lang: string;
+  rich: RichFn;
   settingsUrl?: null | string;
   quote?: null | string;
   /** Source-row catalog key; omitted when the catalog has no sentence for it. */
@@ -49,6 +51,7 @@ function renderFollowUpEmail({
   quote,
   reason,
   recipientName,
+  rich,
   settingsUrl,
   t,
   values,
@@ -64,8 +67,7 @@ function renderFollowUpEmail({
     actionUrl,
     body,
     facts,
-    footer: t(`${FOLLOW_UP_SCOPE}.footer`),
-    footerLink: settingsLink(t, settingsUrl),
+    footer: footerNote(rich, `${FOLLOW_UP_SCOPE}.footer`, settingsUrl),
     greeting: buildGreeting(t, recipientName),
     lang,
     linkInstructions: linkInstructions(t),
@@ -107,12 +109,13 @@ export function renderChatMentionFollowUpEmail({
   roomName,
   unreadCount,
 }: ChatMentionFollowUpEmailProps): Promise<RenderedEmail> {
-  const { locale: lang, t } = createEmailTranslator(locale);
+  const { locale: lang, rich, t } = createEmailTranslator(locale);
   const many = standsForSeveral(unreadCount);
   const room = nameOr(t, roomName, "fallbackRoomName");
 
   return renderFollowUpEmail({
     lang,
+    rich,
     settingsUrl,
     actionUrl,
     family: many ? "mentionMany" : "mention",
@@ -138,12 +141,13 @@ export function renderChatDirectMessageFollowUpEmail({
   settingsUrl,
   unreadCount,
 }: ChatDirectMessageFollowUpEmailProps): Promise<RenderedEmail> {
-  const { locale: lang, t } = createEmailTranslator(locale);
+  const { locale: lang, rich, t } = createEmailTranslator(locale);
   const many = standsForSeveral(unreadCount);
   const author = nameOr(t, authorName, "fallbackAuthorName");
 
   return renderFollowUpEmail({
     lang,
+    rich,
     settingsUrl,
     actionUrl,
     family: many ? "directMessageMany" : "directMessage",
@@ -165,11 +169,12 @@ export function renderBillingFollowUpEmail({
   recipientName,
   settingsUrl,
 }: BillingFollowUpEmailProps): Promise<RenderedEmail> {
-  const { locale: lang, t } = createEmailTranslator(locale);
+  const { locale: lang, rich, t } = createEmailTranslator(locale);
   const hasCredits = typeof credits === "number";
 
   return renderFollowUpEmail({
     lang,
+    rich,
     settingsUrl,
     actionUrl,
     family: "billing",
@@ -191,11 +196,12 @@ export function renderTaskFollowUpEmail({
   settingsUrl,
   taskName,
 }: TaskFollowUpEmailProps): Promise<RenderedEmail> {
-  const { locale: lang, t } = createEmailTranslator(locale);
+  const { locale: lang, rich, t } = createEmailTranslator(locale);
   const trimmedProjectName = projectName?.trim();
 
   return renderFollowUpEmail({
     lang,
+    rich,
     settingsUrl,
     actionUrl,
     facts: trimmedProjectName

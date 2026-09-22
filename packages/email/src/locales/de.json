@@ -77,11 +77,10 @@
       "fallbackRoomName": "einer Unterhaltung",
       "fallbackTaskName": "Deine Aufgabe",
       "fallbackCoworkerName": "ein Coworker",
-      "fallbackProjectName": "Dein Projekt",
-      "settingsLink": "Benachrichtigungseinstellungen"
+      "fallbackProjectName": "Dein Projekt"
     },
     "event": {
-      "footer": "Du erhältst diese E-Mail, weil diese Benachrichtigung in deinen Benachrichtigungseinstellungen aktiviert ist.",
+      "footer": "Du erhältst diese E-Mail, weil diese Benachrichtigung in <settings>deinen Benachrichtigungseinstellungen</settings> aktiviert ist.",
       "mention": {
         "subject": "Sokosumi - {authorName} hat dich in {roomName} erwähnt",
         "title": "Du wurdest erwähnt",
@@ -213,7 +212,7 @@
       }
     },
     "followUp": {
-      "footer": "Du erhältst diese E-Mail, weil Erinnerungen in deinen Benachrichtigungseinstellungen aktiviert sind.",
+      "footer": "Du erhältst diese E-Mail, weil Erinnerungen in <settings>deinen Benachrichtigungseinstellungen</settings> aktiviert sind.",
       "mention": {
         "subject": "Sokosumi - {authorName} wartet weiterhin auf dich in {roomName}",
         "preview": "{authorName} hat dich vor einem Tag in {roomName} erwähnt.",
@@ -271,7 +270,7 @@
     },
     "billing": {
       "linkInstructions": "Oder kopiere diese URL in deinen Browser:",
-      "footer": "Du erhältst diese E-Mail, weil Abrechnungshinweise in deinen Benachrichtigungseinstellungen aktiviert sind.",
+      "footer": "Du erhältst diese E-Mail, weil Abrechnungshinweise in <settings>deinen Benachrichtigungseinstellungen</settings> aktiviert sind.",
       "greeting": "Hallo {name}",
       "greetingWithoutName": "Hallo",
       "lowBalance": {

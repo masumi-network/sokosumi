@@ -1,10 +1,12 @@
 import { render } from "@react-email/render";
+import type { ReactNode } from "react";
 import { Button, Container, Link, Section, Text } from "react-email";
 
-import { type EmailFooterLink, EmailShell } from "../components/email-shell.js";
+import { EmailShell } from "../components/email-shell.js";
 import {
   DARK_CLASS,
   LIGHT_PALETTE,
+  MONO_STACK,
   RADIUS,
   SPACE,
   TEXT,
@@ -24,8 +26,7 @@ export interface ActionEmailTemplateProps {
   actionUrl: string;
   body: string;
   facts?: readonly ActionEmailFact[];
-  footer: string;
-  footerLink?: EmailFooterLink;
+  footer: ReactNode;
   greeting: string;
   lang: string;
   linkInstructions?: string;
@@ -40,7 +41,6 @@ export function ActionEmailTemplate({
   body,
   facts,
   footer,
-  footerLink,
   greeting,
   lang,
   linkInstructions = DEFAULT_LINK_INSTRUCTIONS,
@@ -49,13 +49,7 @@ export function ActionEmailTemplate({
   title,
 }: ActionEmailTemplateProps) {
   return (
-    <EmailShell
-      footer={footer}
-      footerLink={footerLink}
-      lang={lang}
-      preview={preview}
-      title={title}
-    >
+    <EmailShell footer={footer} lang={lang} preview={preview} title={title}>
       <Text
         className={DARK_CLASS.text}
         style={{
@@ -163,8 +157,9 @@ export function ActionEmailTemplate({
           className={DARK_CLASS.link}
           href={actionUrl}
           style={{
-            ...TEXT.small,
+            ...TEXT.micro,
             color: LIGHT_PALETTE.link,
+            fontFamily: MONO_STACK,
             textDecoration: "none",
             wordBreak: "break-all",
           }}

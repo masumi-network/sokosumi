@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Container, Section, Text } from "react-email";
 
 import { EmailShell } from "../components/email-shell.js";
@@ -23,7 +24,7 @@ export interface JobFailureNotificationEmailTemplateProps {
   details: JobFailureField[];
   /** What failed and what it said, in reading order. */
   fields: JobFailureField[];
-  footer: string;
+  footer: ReactNode;
   lang: string;
   preview: string;
   title: string;

@@ -161,7 +161,7 @@ describe("email renderers", () => {
     expect(rendered.html).toContain(
       'href="https://example.com/account/notifications"',
     );
-    expect(rendered.html).toContain("Notification settings");
+    expect(rendered.html).toContain(">your notification settings</a>.");
   });
 
   it("leaves the footer link out when no settings url is known", async () => {
@@ -172,6 +172,7 @@ describe("email renderers", () => {
       request: "vendor",
     });
 
-    expect(rendered.html).not.toContain("Notification settings");
+    expect(rendered.html).not.toContain("your notification settings</a>");
+    expect(rendered.html).toContain("your notification settings.");
   });
 });
