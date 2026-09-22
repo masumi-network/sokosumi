@@ -8520,8 +8520,69 @@ export const ChatRoomSchema = {
         unreadCount: {
             type: 'integer',
             minimum: 0,
-            description: 'Unread messages from others: top-level after room lastReadAt, plus thread replies in Threads the viewer Participates in after per-thread look baseline (thread lastReadAt, else room join createdAt). Soft-deleted excluded. ADR-0013.',
+            description: 'Total unread from others: channelUnreadCount + threadUnreadCount. Prefer the two halves; this stays the sum for existing clients. Soft-deleted excluded. ADR-0013, ADR-0037.',
+            example: 5
+        },
+        channelUnreadCount: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'Room unread: non-self top-level messages after room lastReadAt. Excludes Thread replies. Drives sidebar bold. ADR-0037.',
             example: 2
+        },
+        threadUnreadCount: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'Thread unread: non-self replies in Threads the viewer Participates in, after the per-Thread Look baseline (thread lastReadAt, else room join createdAt), less Muted threads that do not mention them. Surfaces on the Thread, never on the channel. ADR-0013, ADR-0030, ADR-0037.',
+            example: 3
+        },
+        unreadThreadCount: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'How many Threads in this room are Thread unread for the viewer. Counts Threads, where threadUnreadCount counts replies. States what `unreadThreads` leaves out past its cap. ADR-0037.',
+            example: 4
+        },
+        unreadThreads: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    parentMessageId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    firstUnreadReplyId: {
+                        type: 'string',
+                        format: 'uuid',
+                        description: 'The oldest reply still unread in this Thread: where opening it lands.'
+                    },
+                    parentContent: {
+                        type: 'string',
+                        description: 'The parent message\'s raw content, cut to 1000 characters. May hold mention tokens and may be empty; the client builds the label.'
+                    },
+                    unreadReplyCount: {
+                        type: 'integer',
+                        minimum: 1
+                    },
+                    unreadMentionCount: {
+                        type: 'integer',
+                        minimum: 0,
+                        default: 0,
+                        description: 'How many of this Thread\'s unread replies name the viewer. Counted from the replies, so a Look clears it; the room\'s unreadMentionCount is counted from notifications, which Room last-read clears.'
+                    }
+                },
+                required: [
+                    'parentMessageId',
+                    'firstUnreadReplyId',
+                    'parentContent',
+                    'unreadReplyCount'
+                ]
+            },
+            maxItems: 3,
+            default: [],
+            description: 'Up to 3 unread Threads in this room, newest unread reply first, for the sidebar\'s inset rows. Same eligibility as threadUnreadCount. `unreadThreadCount` is the true number; this list is capped. ADR-0037.'
         },
         unreadMentionCount: {
             type: 'integer',
@@ -9356,6 +9417,12 @@ export const ChatRoomPinnedMessageListItemSchema = {
                     type: 'integer',
                     minimum: 0
                 },
+                threadUnreadReplyCount: {
+                    type: 'integer',
+                    minimum: 0,
+                    description: 'Non-self replies under this parent the viewer has not cleared: Participant-gated and mute-gated, after the per-thread look baseline. 0 for lurkers and for viewers with no unread. Present only on the message list; absent from realtime events and single-message responses, which do not compute it. ADR-0013, ADR-0030, ADR-0037.',
+                    example: 2
+                },
                 threadLastReplyAt: {
                     type: [
                         'string',
@@ -10158,6 +10225,12 @@ export const ChatRoomMessageSchema = {
         threadReplyCount: {
             type: 'integer',
             minimum: 0
+        },
+        threadUnreadReplyCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Non-self replies under this parent the viewer has not cleared: Participant-gated and mute-gated, after the per-thread look baseline. 0 for lurkers and for viewers with no unread. Present only on the message list; absent from realtime events and single-message responses, which do not compute it. ADR-0013, ADR-0030, ADR-0037.',
+            example: 2
         },
         threadLastReplyAt: {
             type: [
@@ -15686,26 +15759,6 @@ export const PatchProjectRequestSchema = {
             format: 'uri'
         }
     }
-} as const;
-
-export const ProjectDeletedSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        deleted: {
-            type: 'boolean',
-            enum: [
-                true
-            ]
-        }
-    },
-    required: [
-        'id',
-        'deleted'
-    ]
 } as const;
 
 export const JobSchema = {

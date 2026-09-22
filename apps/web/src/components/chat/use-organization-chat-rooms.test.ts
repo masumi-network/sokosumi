@@ -239,6 +239,65 @@ describe("useOrganizationChatRooms", () => {
     expect(result.current.roomRows[0]?.name).toBe("renamed");
   });
 
+  // Opening a Direct, joining a channel the reader is already in, creating or
+  // restoring a room: each answers with the room, and none of them recounts
+  // what is unread, so the counts on that answer are zeros that mean "not
+  // counted", not "nothing unread".
+  it("keeps what is unread on a room it already holds", () => {
+    const unreadThread = {
+      parentMessageId: "550e8400-e29b-41d4-a716-446655440b01",
+      firstUnreadReplyId: "550e8400-e29b-41d4-a716-446655440c01",
+      parentContent: "Vendor-wide rollout",
+      unreadReplyCount: 2,
+    };
+    const room = {
+      ...channel("held"),
+      unreadCount: 5,
+      channelUnreadCount: 3,
+      threadUnreadCount: 2,
+      unreadThreadCount: 1,
+      unreadThreads: [unreadThread],
+      unreadMentionCount: 1,
+    };
+    const { result } = mount({ rooms: [room], paintOnly: true });
+
+    act(() => {
+      result.current.upsertRoomToTop({
+        ...room,
+        name: "renamed",
+        unreadCount: 0,
+        channelUnreadCount: 0,
+        threadUnreadCount: 0,
+        unreadThreadCount: 0,
+        unreadThreads: [],
+        unreadMentionCount: 0,
+      });
+    });
+
+    expect(result.current.roomRows[0]).toMatchObject({
+      name: "renamed",
+      unreadCount: 5,
+      channelUnreadCount: 3,
+      threadUnreadCount: 2,
+      unreadThreadCount: 1,
+      unreadThreads: [unreadThread],
+      unreadMentionCount: 1,
+    });
+  });
+
+  it("takes a room it did not hold as it comes", () => {
+    const { result } = mount({ rooms: [], paintOnly: true });
+
+    act(() => {
+      result.current.upsertRoomToTop({ ...channel("fresh"), unreadCount: 0 });
+    });
+
+    expect(result.current.roomRows[0]).toMatchObject({
+      id: "fresh",
+      unreadCount: 0,
+    });
+  });
+
   it("swaps one room for a newer copy without moving it", () => {
     const room = channel("edited");
     const { result } = mount({

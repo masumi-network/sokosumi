@@ -20,12 +20,14 @@ describe("getChatRoomUnreadCounts", () => {
   it("counts top-level by room lastReadAt and participant thread replies by look baseline", async () => {
     const queryRawUnsafe = vi
       .fn()
-      .mockResolvedValue([{ roomId: "room-a", unreadCount: 3 }]);
+      .mockResolvedValue([
+        { roomId: "room-a", source: "channel", unreadCount: 3 },
+      ]);
     const tx = { $queryRawUnsafe: queryRawUnsafe } as never;
 
     const counts = await getChatRoomUnreadCounts(["room-a"], "user_1", tx);
 
-    expect(counts.get("room-a")).toBe(3);
+    expect(counts.get("room-a")).toEqual({ channel: 3, thread: 0, total: 3 });
     const sql = String(queryRawUnsafe.mock.calls[0]?.[0]);
     // Top-level leg uses room lastReadAt
     expect(sql).toContain('message."parentMessageId" IS NULL');
@@ -42,6 +44,23 @@ describe("getChatRoomUnreadCounts", () => {
     );
     expect(sql).toContain('message."deletedAt" IS NULL');
     expect(sql).toContain('reply."deletedAt" IS NULL');
+  });
+});
+
+// Tripwire, not behaviour coverage (SOK-1147). Mocked Prisma supplies its own
+// rows, so nothing else would notice a refactor that dropped either gate from
+// the Thread leg. Keep this to the two gates; do not grow it.
+describe("getChatRoomUnreadCounts gating tripwire", () => {
+  it("still gates the Thread leg by mute (ADR-0030) and Participant (ADR-0013)", async () => {
+    const queryRawUnsafe = vi.fn().mockResolvedValue([]);
+
+    await getChatRoomUnreadCounts(["room-a"], "user_1", {
+      $queryRawUnsafe: queryRawUnsafe,
+    } as never);
+
+    const sql = String(queryRawUnsafe.mock.calls[0]?.[0]);
+    expect(sql).toContain('thread_read."mutedAt" IS NULL');
+    expect(sql).toContain('parent."senderUserId" = $2');
   });
 });
 

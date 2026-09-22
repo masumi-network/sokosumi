@@ -13,7 +13,7 @@ describe("TasksLoadingView", () => {
     expect(screen.getByText("Todo")).toBeInTheDocument();
   });
 
-  it("hides header create below md and pads for the mobile FAB", () => {
+  it("omits desktop create buttons and pads for the mobile FAB", () => {
     const { container } = render(
       <TasksLoadingView labels={TASKS_LOADING_DEFAULT_LABELS} />,
     );
@@ -21,8 +21,10 @@ describe("TasksLoadingView", () => {
     const headerCreate = container.querySelector(
       "[data-tasks-add-task-header-anchor]",
     );
-    expect(headerCreate?.className).toContain("hidden");
-    expect(headerCreate?.className).toContain("md:inline-flex");
+    expect(headerCreate).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "New Task" }),
+    ).not.toBeInTheDocument();
     expect(container.firstElementChild?.className).toContain(
       "pb-[calc(3.5rem+1rem)]",
     );

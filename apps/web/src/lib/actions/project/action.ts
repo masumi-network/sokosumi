@@ -52,10 +52,6 @@ interface GetProjectContextMdParameters extends AuthenticatedRequest {
   projectId: string;
 }
 
-interface DeleteProjectParameters extends AuthenticatedRequest {
-  projectId: string;
-}
-
 interface CloseProjectParameters extends AuthenticatedRequest {
   projectId: string;
   operationId: string;
@@ -285,25 +281,6 @@ export const getProjectContextMd = withSession<
   } catch (error) {
     console.error("Failed to load project memory", error);
     throwCoreActionError(error, "Failed to load project memory");
-  }
-});
-
-export const deleteProject = withSession<
-  DeleteProjectParameters,
-  { projectId: string }
->(async ({ projectId }) => {
-  const normalizedProjectId = projectId.trim();
-  if (!normalizedProjectId) {
-    throw new Error("Project required");
-  }
-
-  try {
-    await projectService.deleteProject(normalizedProjectId);
-    revalidateProjectMutationRoutes(normalizedProjectId);
-    return { projectId: normalizedProjectId };
-  } catch (error) {
-    console.error("Failed to delete project", error);
-    throwCoreActionError(error, "Failed to delete project");
   }
 });
 

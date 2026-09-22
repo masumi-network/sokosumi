@@ -26,14 +26,12 @@ vi.mock("sonner", () => ({
 
 vi.mock("@/lib/actions/project/action", () => ({
   closeProject: closeProjectMock,
-  deleteProject: vi.fn(),
 }));
 
 const LABELS = {
   moreActions: "More actions",
   edit: "Edit",
   close: "Close project",
-  delete: "Delete",
   closeDialog: {
     title: "Close project?",
     description: "Scheduled work will be resolved before closing.",
@@ -43,13 +41,6 @@ const LABELS = {
     cancel: "Keep project open",
     success: "Project close started",
     error: "Unable to close project",
-  },
-  deleteDialog: {
-    title: "Delete project?",
-    description: "This cannot be undone.",
-    confirm: "Delete",
-    cancel: "Cancel",
-    error: "Failed to delete",
   },
 };
 
@@ -80,8 +71,8 @@ describe("ProjectDetailActions", () => {
     const editLink = screen.getByRole("menuitem", { name: "Edit" });
     expect(editLink).toHaveAttribute("href", "/projects/project-1/edit");
     expect(
-      screen.getByRole("menuitem", { name: "Delete" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("menuitem", { name: "Delete" }),
+    ).not.toBeInTheDocument();
   });
 
   it("starts a revision-safe close from a destructive confirmation", async () => {

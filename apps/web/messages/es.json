@@ -771,10 +771,16 @@
       "unreadBadgeWithAccountNotice": "{count, plural, =1 {1 notificación sin leer y aviso de cuenta} other {# notificaciones sin leer y aviso de cuenta}}",
       "title": "Notificaciones",
       "pageTitle": "Notificaciones",
+      "pageDescription": "Novedades de tus tareas, agentes y espacio de trabajo.",
       "emptyState": "Aún no hay notificaciones",
+      "emptyStateDescription": "Todavía no ha llegado nada. Los resultados de tareas y las solicitudes del espacio de trabajo aparecen aquí cuando ocurren.",
       "emptyUnreadState": "Estás al día",
+      "emptyUnreadStateDescription": "Aquí no hay nada sin leer. Todo lo leído permanece en Todas.",
       "emptyNeedsYouState": "Nada está esperando por ti",
+      "emptyNeedsYouStateDescription": "Nada espera tu respuesta. Las solicitudes que te necesitan aparecen aquí.",
       "viewAll": "Ver todas las notificaciones",
+      "showAll": "Mostrar todas",
+      "showOlder": "Mostrar notificaciones anteriores",
       "justNow": "Ahora mismo",
       "loading": "Cargando...",
       "markAllRead": "Marcar todas como leídas",
@@ -1533,8 +1539,6 @@
         "approvePartialError": "Se aprobó el acceso de {approved} de {total} proveedores. Algunas aprobaciones fallaron; actualiza e inténtalo de nuevo."
       },
       "Actions": {
-        "add": "Nueva tarea",
-        "addTask": "Nueva tarea",
         "loading": "Cargando...",
         "loadMore": "Cargar más",
         "showGuide": "Show guide"
@@ -2225,7 +2229,8 @@
           "removed": "Contexto de marca eliminado",
           "removeDialog": {
             "title": "¿Quitar el contexto de marca?",
-            "description": "Esto elimina el archivo DESIGN.md del proyecto."
+            "description": "Esto elimina el archivo DESIGN.md del proyecto.",
+            "cancel": "Cancelar"
           },
           "upload": "Subir",
           "moreActions": "Acciones de marca"
@@ -2316,7 +2321,6 @@
           "viewDetails": "Ver detalles",
           "edit": "Editar",
           "close": "Cerrar proyecto",
-          "delete": "Eliminar",
           "remove": "Quitar",
           "confirmRemoveJob": "¿Quitar este job del proyecto?"
         },
@@ -2365,16 +2369,9 @@
             }
           }
         },
-        "deleteDialog": {
-          "title": "Eliminar proyecto",
-          "description": "Esto eliminará el proyecto. Las tareas y jobs vinculados seguirán disponibles fuera del proyecto.",
-          "confirm": "Eliminar",
-          "cancel": "Cancelar"
-        },
         "errors": {
           "create": "No se pudo crear el proyecto",
           "update": "No se pudo actualizar el proyecto",
-          "delete": "No se pudo eliminar el proyecto",
           "addJob": "No se pudo añadir el job",
           "removeJob": "No se pudo quitar el job",
           "addTask": "No se pudo añadir la tarea",
@@ -4240,7 +4237,7 @@
       "ChatDisplay": {
         "title": "Visualización del chat",
         "roomUnreadCountTitle": "Mostrar el número de mensajes no leídos",
-        "roomUnreadCountDescription": "Los chats silenciados y el chat que tienes abierto siguen en silencio. Tus notificaciones no cambian.",
+        "roomUnreadCountDescription": "Se muestra en cada chat con mensajes sin leer. Los chats silenciados siguen en silencio y tus notificaciones no cambian.",
         "loading": "Guardando configuración...",
         "error": "No se pudo guardar el cambio. Comprueba tu conexión e inténtalo de nuevo.",
         "roomUnreadCountEnabledSuccess": "Número de mensajes no leídos activado",
@@ -5451,6 +5448,13 @@
         "afk": "Away",
         "offline": "Offline"
       },
+      "ThreadRows": {
+        "label": "Hilos sin leer en {name}",
+        "unreadReplies": "{count, plural, one {# respuesta sin leer} other {# respuestas sin leer}}",
+        "moreThreads": "{count, plural, one {# hilo más sin leer} other {# hilos más sin leer}}",
+        "mentions": "{count, plural, one {# mención} other {# menciones}}",
+        "untitled": "Hilo"
+      },
       "Thread": {
         "title": "Thread",
         "open": "Open thread",
@@ -5460,6 +5464,7 @@
         "empty": "No replies yet",
         "replyPlaceholder": "Reply in thread",
         "replyCount": "{count, plural, one {# reply} other {# replies}}",
+        "newReplyCount": "{count, plural, one {# respuesta nueva} other {# respuestas nuevas}}",
         "mute": "Silenciar hilo",
         "unmute": "Reactivar el hilo",
         "muted": "Silenciado"
@@ -6316,7 +6321,6 @@
         "moveNotAllowed": "Solo el propietario de la tarea puede reprogramarla."
       },
       "create": {
-        "title": "Programar una tarea",
         "fab": "Programar una tarea"
       },
       "edit": {

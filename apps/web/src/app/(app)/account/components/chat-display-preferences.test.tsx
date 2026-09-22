@@ -56,7 +56,7 @@ describe("ChatDisplayPreferences", () => {
     expect(switchControl()).toBeChecked();
   });
 
-  it("is off for a reader who never chose", () => {
+  it("is off for a reader who switched the count off", () => {
     render(<ChatDisplayPreferences showRoomUnreadCount={false} />);
 
     expect(switchControl()).not.toBeChecked();
@@ -68,7 +68,8 @@ describe("ChatDisplayPreferences", () => {
     await userEvent.click(switchControl());
 
     await waitFor(() => {
-      expect(updateUser).toHaveBeenCalledWith({ showRoomUnreadCount: true });
+      // Stored as "hide" (ADR-0038), so switching the count on clears it.
+      expect(updateUser).toHaveBeenCalledWith({ hideRoomUnreadCount: false });
     });
     expect(switchControl()).toBeChecked();
     await waitFor(() => {
@@ -82,7 +83,7 @@ describe("ChatDisplayPreferences", () => {
     await userEvent.click(switchControl());
 
     await waitFor(() => {
-      expect(updateUser).toHaveBeenCalledWith({ showRoomUnreadCount: false });
+      expect(updateUser).toHaveBeenCalledWith({ hideRoomUnreadCount: true });
     });
     await waitFor(() => {
       expect(toasted).toEqual(["roomUnreadCountDisabledSuccess"]);

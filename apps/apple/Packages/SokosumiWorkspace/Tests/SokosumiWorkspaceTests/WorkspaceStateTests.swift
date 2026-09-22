@@ -13,6 +13,7 @@ private let timestamp = "2026-01-01T00:00:00.000Z"
 @MainActor
 private final class ScriptedTransport: ClientTransport {
   private(set) var operationIDs: [String] = []
+  private(set) var paths: [String] = []
   private(set) var bodies: [Data] = []
   private var responses: [(Int, String)]
   var remainingStubs: Int {
@@ -56,7 +57,7 @@ private final class ScriptedTransport: ClientTransport {
   }
 
   func send(
-    _: HTTPRequest,
+    _ request: HTTPRequest,
     body: HTTPBody?,
     baseURL _: URL,
     operationID: String
@@ -69,6 +70,7 @@ private final class ScriptedTransport: ClientTransport {
       }
     }
     operationIDs.append(operationID)
+    paths.append(request.path ?? "")
     if let body, let bytes = try? await Array(collecting: body, upTo: 1_000_000) {
       bodies.append(Data(bytes))
     } else {
@@ -3159,5 +3161,113 @@ extension WorkspaceStateTests {
     let base = try #require(URL(string: "https://app.sokosumi.com"))
     #expect(await state.messageLinkQuote(pasted: "just words", roomId: target, webBaseURL: base, auth: auth) == nil)
     #expect(!transport.operationIDs.contains("get/chats/rooms/{id}/messages/{messageId}"))
+  }
+}
+
+/// Row 04a: the history gap row loads itself once it is in view, keeps a failure on the row and reloads on Try again.
+@MainActor
+extension WorkspaceStateTests {
+  private static let latestPage = (200, transcriptPageBody(messages: [transcriptMessage(id: "z", roomId: "room", content: "Latest")], nextCursor: "z"))
+  private static let jumpWindow = (200, transcriptPageBody(messages: [transcriptMessage(id: "a", roomId: "room", content: "Pinned")], nextCursor: "a"))
+
+  /// The latest page and a jump window with the history between them missing: one gap, on `z`.
+  private func stateWithGap(_ responses: [(Int, String)]) async throws -> (WorkspaceState, AuthState, ScriptedTransport) { // swiftlint:disable:this large_tuple
+    let (state, auth, transport, _) = try ephemeralState([Self.latestPage, Self.jumpWindow] + responses, visible: false)
+    state.timeline.reset(roomId: "room")
+    let client = try #require(state.resolveClient(auth: auth))
+    try await state.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.timeline.generation)
+    #expect(try await state.jumpToMessage("a", auth: auth))
+    #expect(state.timeline.historyGapMessageIds == ["z"])
+    return (state, auth, transport)
+  }
+
+  private func gapPages(_ transport: ScriptedTransport) -> [String] {
+    transport.paths.filter { $0.contains("cursor=") }.compactMap { path in
+      path.split(separator: "?").last?.split(separator: "&").first { $0.hasPrefix("cursor=") }.map(String.init)
+    }
+  }
+
+  @Test func aVisibleHistoryGapLoadsItselfOnceAndAgainWhenItMoves() async throws {
+    let (state, auth, transport) = try await stateWithGap([
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "m", roomId: "room", content: "Between")], nextCursor: "m")),
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "a", roomId: "room", content: "Pinned"), transcriptMessage(id: "b", roomId: "room", content: "After")], nextCursor: "a"))
+    ])
+    defer { state.reset() }
+    state.setHistoryGapVisible(before: "z", true, auth: auth)
+    #expect(state.timeline.boundaryLoads.status(of: "z") == .loading)
+    state.setHistoryGapVisible(before: "z", true, auth: auth)
+    await state.historyGapTask?.value
+    #expect(gapPages(transport) == ["cursor=z"], "Once per arming, and never twice for one in-flight request.")
+    #expect(state.timeline.historyGapMessageIds == ["m"], "The page stopped short of the jump window, so the gap moved to its oldest row.")
+    #expect(state.timeline.boundaryLoads.status(of: "z") == .idle)
+    #expect(state.transcriptError == nil)
+
+    state.setHistoryGapVisible(before: "m", true, auth: auth)
+    await state.historyGapTask?.value
+    #expect(gapPages(transport) == ["cursor=z", "cursor=m"])
+    #expect(state.timeline.historyGapMessageIds.isEmpty)
+    #expect(state.timeline.boundaryLoads == TranscriptBoundaryLoads())
+    #expect(state.historyGapTask == nil)
+  }
+
+  @Test func aFailedHistoryGapWaitsForTryAgainWithoutATranscriptError() async throws {
+    let (state, auth, transport) = try await stateWithGap([
+      (500, "{}"),
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "a", roomId: "room", content: "Pinned"), transcriptMessage(id: "m", roomId: "room", content: "Between")], nextCursor: "a"))
+    ])
+    defer { state.reset() }
+    state.setHistoryGapVisible(before: "z", true, auth: auth)
+    await state.historyGapTask?.value
+    #expect(state.timeline.boundaryLoads.status(of: "z") == .failed)
+    #expect(state.transcriptError == nil, "No banner above the transcript and nothing for an alert to show.")
+    #expect(state.timeline.failedPage == nil)
+    #expect(state.timeline.historyGapMessageIds == ["z"])
+    #expect(state.transcriptMessages.map(\.id) == ["a", "z"])
+
+    state.setHistoryGapVisible(before: "z", false, auth: auth)
+    state.setHistoryGapVisible(before: "z", true, auth: auth)
+    await state.historyGapTask?.value
+    #expect(gapPages(transport) == ["cursor=z"], "A failed row does not load itself again.")
+
+    state.loadHistoryGap(before: "z", auth: auth)
+    #expect(state.timeline.boundaryLoads.status(of: "z") == .loading)
+    await state.historyGapTask?.value
+    #expect(gapPages(transport) == ["cursor=z", "cursor=z"])
+    #expect(state.timeline.historyGapMessageIds.isEmpty)
+    #expect(state.transcriptMessages.map(\.id) == ["a", "m", "z"])
+    #expect(state.timeline.boundaryLoads.status(of: "z") == .idle)
+  }
+
+  @Test func twoVisibleGapsLoadOneAfterTheOther() async throws {
+    let (state, auth, transport) = try await stateWithGap([
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "m", roomId: "room", content: "Middle")], nextCursor: "m")),
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "a", roomId: "room", content: "Pinned"), transcriptMessage(id: "b", roomId: "room", content: "After")], nextCursor: "a")),
+      (200, transcriptPageBody(messages: [transcriptMessage(id: "m", roomId: "room", content: "Middle"), transcriptMessage(id: "n", roomId: "room", content: "Later")], nextCursor: "m"))
+    ])
+    defer { state.reset() }
+    #expect(try await state.jumpToMessage("m", auth: auth))
+    #expect(state.timeline.historyGapMessageIds == ["m", "z"])
+    state.setHistoryGapVisible(before: "m", true, auth: auth)
+    state.setHistoryGapVisible(before: "z", true, auth: auth)
+    #expect(state.timeline.boundaryLoads.status(of: "m") == .loading)
+    #expect(state.timeline.boundaryLoads.status(of: "z") == .idle, "The second gap waits; the timeline admits one page at a time.")
+    await state.historyGapTask?.value
+    await state.historyGapTask?.value
+    #expect(gapPages(transport) == ["cursor=m", "cursor=z"])
+    #expect(state.timeline.historyGapMessageIds.isEmpty)
+    #expect(state.transcriptMessages.map(\.id) == ["a", "b", "m", "n", "z"])
+  }
+
+  @Test func leavingTheRoomForgetsTheGapRows() async throws {
+    let (state, auth, _) = try await stateWithGap([(500, "{}")])
+    defer { state.reset() }
+    state.setHistoryGapVisible(before: "z", true, auth: auth)
+    await state.historyGapTask?.value
+    #expect(state.timeline.boundaryLoads.status(of: "z") == .failed)
+    state.clearTranscript()
+    #expect(state.timeline.boundaryLoads == TranscriptBoundaryLoads())
+    #expect(state.historyGapTask == nil)
+    state.setHistoryGapVisible(before: "z", true, auth: auth)
+    #expect(state.timeline.boundaryLoads == TranscriptBoundaryLoads(), "No transcript, no gap rows.")
   }
 }

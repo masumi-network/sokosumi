@@ -787,10 +787,16 @@
       "unreadBadgeWithAccountNotice": "{count, plural, =1 {1 unread notification and account notice} other {# unread notifications and account notice}}",
       "title": "Notifications",
       "pageTitle": "Notifications",
+      "pageDescription": "Updates from your tasks, agents and workspace.",
       "emptyState": "No notifications yet",
+      "emptyStateDescription": "Nothing has arrived yet. Task results and workspace requests show up here as they happen.",
       "emptyUnreadState": "You're all caught up",
+      "emptyUnreadStateDescription": "Nothing here is unread. Everything you have read stays in All.",
       "emptyNeedsYouState": "Nothing is waiting on you",
+      "emptyNeedsYouStateDescription": "Nothing is waiting for your answer. Requests that need you appear here.",
       "viewAll": "View all notifications",
+      "showAll": "Show all",
+      "showOlder": "Show older notifications",
       "justNow": "Just now",
       "loading": "Loading...",
       "markAllRead": "Mark all read",
@@ -1533,8 +1539,6 @@
         "approvePartialError": "Approved {approved} of {total} vendors. Some approvals failed — refresh and try again."
       },
       "Actions": {
-        "add": "New Task",
-        "addTask": "New Task",
         "loading": "Loading...",
         "loadMore": "Load More",
         "showGuide": "Show guide"
@@ -2225,7 +2229,8 @@
           "removed": "Brand context removed",
           "removeDialog": {
             "title": "Remove brand context?",
-            "description": "This removes the project's DESIGN.md file."
+            "description": "This removes the project's DESIGN.md file.",
+            "cancel": "Cancel"
           },
           "upload": "Upload",
           "moreActions": "Brand actions"
@@ -2316,7 +2321,6 @@
           "viewDetails": "View details",
           "edit": "Edit",
           "close": "Close project",
-          "delete": "Delete",
           "remove": "Remove",
           "confirmRemoveJob": "Remove this job from the project?"
         },
@@ -2365,16 +2369,9 @@
             }
           }
         },
-        "deleteDialog": {
-          "title": "Delete project",
-          "description": "This will delete the project. Linked tasks and jobs will remain available outside the project.",
-          "confirm": "Delete",
-          "cancel": "Cancel"
-        },
         "errors": {
           "create": "Failed to create project",
           "update": "Failed to update project",
-          "delete": "Failed to delete project",
           "addJob": "Failed to add job",
           "removeJob": "Failed to remove job",
           "addTask": "Failed to add task",
@@ -4276,7 +4273,7 @@
       "ChatDisplay": {
         "title": "Chat display",
         "roomUnreadCountTitle": "Show unread message counts",
-        "roomUnreadCountDescription": "Muted chats and the chat you have open stay quiet. Your notifications do not change.",
+        "roomUnreadCountDescription": "Shown on every chat with unread messages. Muted chats stay quiet, and your notifications do not change.",
         "loading": "Saving preference...",
         "error": "Could not save that change. Check your connection and try again.",
         "roomUnreadCountEnabledSuccess": "Unread message counts enabled",
@@ -5451,6 +5448,13 @@
         "afk": "Away",
         "offline": "Offline"
       },
+      "ThreadRows": {
+        "label": "Unread threads in {name}",
+        "unreadReplies": "{count, plural, one {# unread reply} other {# unread replies}}",
+        "moreThreads": "{count, plural, one {# more unread thread} other {# more unread threads}}",
+        "mentions": "{count, plural, one {# mention} other {# mentions}}",
+        "untitled": "Thread"
+      },
       "Thread": {
         "title": "Thread",
         "open": "Open thread",
@@ -5460,6 +5464,7 @@
         "empty": "No replies yet",
         "replyPlaceholder": "Reply in thread",
         "replyCount": "{count, plural, one {# reply} other {# replies}}",
+        "newReplyCount": "{count, plural, one {# new reply} other {# new replies}}",
         "mute": "Mute thread",
         "unmute": "Unmute thread",
         "muted": "Muted"
@@ -6316,7 +6321,6 @@
         "moveNotAllowed": "Only the task owner can reschedule it."
       },
       "create": {
-        "title": "Schedule a task",
         "fab": "Schedule a task"
       },
       "edit": {

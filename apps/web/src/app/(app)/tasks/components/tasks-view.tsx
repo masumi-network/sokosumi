@@ -16,7 +16,7 @@ import {
   userTaskStatusTransitionRequiresComment,
 } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
-import { CircleHelp, Plus } from "lucide-react";
+import { CircleHelp } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -137,21 +137,6 @@ interface PendingBoardReopen {
   previousStatus: TaskStatus;
   desiredStatus: TaskStatus;
   moveVersion: number;
-}
-
-function HeaderAddButton({ label }: { label: string }) {
-  const { handleOpen } = useCreateTaskModal();
-  return (
-    <Button
-      size="sm"
-      onClick={handleOpen}
-      className="hidden gap-1.5 md:inline-flex"
-      data-tasks-add-task-header-anchor
-    >
-      <Plus className="size-4" aria-hidden />
-      <span className="hidden sm:inline">{label}</span>
-    </Button>
-  );
 }
 
 function TasksMobileCreateFabSlot() {
@@ -294,8 +279,6 @@ interface TasksViewProps {
       statusOptions: Record<TaskStatus, string>;
     };
     columns: Record<KanbanColumnId, string>;
-    add: string;
-    addTask: string;
     jobs: {
       filterButton: string;
       agentLabel: string;
@@ -1368,9 +1351,6 @@ export function TasksView({
               }}
             />
           ) : null}
-          {activeTab === "tasks" && canCreateTask ? (
-            <HeaderAddButton label={labels.add} />
-          ) : null}
         </div>
       </div>
 
@@ -1414,7 +1394,6 @@ export function TasksView({
                     }
                     labels={{
                       columns: labels.columns,
-                      addTask: labels.addTask,
                       emptyColumn: labels.listPlaceholder,
                     }}
                   />
@@ -1465,7 +1444,6 @@ export function TasksView({
                 statusLabels={labels.filters.statusOptions}
                 labels={{
                   columns: labels.columns,
-                  addTask: labels.addTask,
                   emptyColumn: labels.listPlaceholder,
                 }}
                 isDragEnabled={false}

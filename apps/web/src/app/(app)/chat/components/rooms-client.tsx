@@ -51,7 +51,6 @@ import {
   readStoredStreamParentMessageId,
   useCoworkerDirectRoomStream,
 } from "@/app/chat/hooks/use-coworker-direct-room-stream";
-import { useEditChannelParam } from "@/app/chat/hooks/use-edit-channel-param";
 import { useQuietHoverWhileScrolling } from "@/app/chat/hooks/use-quiet-hover-while-scrolling";
 import {
   TRANSCRIPT_SNAPSHOT_RETRIES,
@@ -60,6 +59,7 @@ import {
 import { useRoomNotificationDeepLink } from "@/app/chat/hooks/use-room-notification-deep-link";
 import { useRoomReadAttention } from "@/app/chat/hooks/use-room-read-attention";
 import { useRoomReadReceipts } from "@/app/chat/hooks/use-room-read-receipts";
+import { useRoomUrlAsk } from "@/app/chat/hooks/use-room-url-ask";
 import { useUnreadThreadCount } from "@/app/chat/hooks/use-unread-thread-count";
 import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
 import { getRoomMessageAction } from "@/app/chat/message-actions";
@@ -69,7 +69,10 @@ import {
   isTopLevelChatRoomMessage,
   routeRealtimeChatRoomMessage,
 } from "@/app/chat/utils/chat-room-message-scope";
-import { CHAT_EDIT_CHANNEL_PARAM } from "@/app/chat/utils/chat-route-base";
+import {
+  CHAT_EDIT_CHANNEL_PARAM,
+  CHAT_THREAD_LIST_PARAM,
+} from "@/app/chat/utils/chat-route-base";
 import {
   type ClassicOutboundJob,
   type ClassicOutboundQueueRefs,
@@ -89,6 +92,7 @@ import {
 import { formatDaySeparator } from "@/app/chat/utils/date-utils";
 import {
   applyFullChatRoomMessageEvent,
+  keepKnownThreadUnreadReplyCount,
   mergeMessagesWithStreamOverlay,
   mergeRoomMessages,
 } from "@/app/chat/utils/merge-room-messages";
@@ -116,6 +120,7 @@ import {
   pendingReactionKey,
 } from "@/app/chat/utils/pending-reactions";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
+import { roomMentionNames as buildRoomMentionNames } from "@/app/chat/utils/room-mention-names";
 import type {
   RoomTranscriptCache,
   RoomTranscriptEntry,
@@ -1548,20 +1553,10 @@ function RoomView({
    * carries. A thread row reads a message body the same way a banner does, so
    * it names the members the same way too.
    */
-  const roomMentionNames = useMemo(() => {
-    return new Map<string, string>([
-      [ROOM_MENTION_ALL_ID, t("MentionAll.label")],
-      ...(selectedRoom?.userMembers ?? []).map(
-        (user) => [user.id, user.name || user.email] as const,
-      ),
-      ...(selectedRoom?.coworkerMembers ?? []).map(
-        (coworker) => [coworker.id, coworker.name] as const,
-      ),
-      ...(selectedRoom?.sokoBotMembers ?? []).map(
-        (sokoBot) => [sokoBot.id, sokoBot.name] as const,
-      ),
-    ]);
-  }, [selectedRoom, t]);
+  const roomMentionNames = useMemo(
+    () => buildRoomMentionNames(selectedRoom, t("MentionAll.label")),
+    [selectedRoom, t],
+  );
   const usersById = useMemo(() => {
     return new Map(
       (selectedRoom?.userMembers ?? []).map((user) => [
@@ -1717,6 +1712,30 @@ function RoomView({
     selectedRoomId,
   ]);
 
+  // A Look clears the thread's unread everywhere at once: the header count
+  // re-reads Core, and the parent's reply bar drops its tint without waiting
+  // for the next page of messages. Zeroing one thread is always right after
+  // its Look.
+  const clearThreadUnreadReplies = useCallback(
+    (isCleared: (parentMessageId: string) => boolean) => {
+      setMessagesState((current) =>
+        current.map((message) =>
+          (message.threadUnreadReplyCount ?? 0) > 0 && isCleared(message.id)
+            ? { ...message, threadUnreadReplyCount: 0 }
+            : message,
+        ),
+      );
+    },
+    [setMessagesState],
+  );
+  const handleThreadLooked = useCallback(
+    (parentMessageId: string) => {
+      bumpThreadUnread();
+      clearThreadUnreadReplies((id) => id === parentMessageId);
+    },
+    [bumpThreadUnread, clearThreadUnreadReplies],
+  );
+
   const { markThreadRead, syncRoomAttentionAfterThreadLook } =
     useRoomReadAttention({
       room: selectedRoom,
@@ -1726,7 +1745,7 @@ function RoomView({
       openThreadParentId: threadParentMessage?.id ?? null,
       threadMessages: persistedThreadMessages,
       isThreadLoading,
-      onThreadLooked: bumpThreadUnread,
+      onThreadLooked: handleThreadLooked,
     });
 
   const refreshFocusedRoomMessages = useCallback(
@@ -1797,7 +1816,9 @@ function RoomView({
       }
       return filterTopLevelChatRoomMessages(
         current.map((message) =>
-          message.id === updatedMessage.id ? updatedMessage : message,
+          message.id === updatedMessage.id
+            ? keepKnownThreadUnreadReplyCount(message, updatedMessage)
+            : message,
         ),
       );
     });
@@ -2040,7 +2061,52 @@ function RoomView({
       handleOpenThreadFromMessage,
     });
 
-  useEditChannelParam({
+  /**
+   * Bring the room's thread list on screen. It shares its column with the
+   * roster, the pins and an open thread, so those step aside; an open thread
+   * is put away in full, not just hidden. `toggle` is the header button,
+   * which closes a list that is already showing.
+   */
+  function showThreadList(options: { toggle?: boolean } = {}) {
+    setRosterOpen(false);
+    setPinnedOpen(false);
+    if (threadParentMessage) {
+      threadLoadGenerationRef.current += 1;
+      setIsThreadLoading(false);
+      setThreadParentMessage(null);
+      setThreadMessages([]);
+      setThreadOlderNextCursor(null);
+      threadOlderLoadRef.current = false;
+      setThreadOlderLoadStatus("idle");
+      setPendingThreadQuote(null);
+      clearClassicOutboundQueue(classicThreadRefs);
+      setThreadOpenedFromList(false);
+      setThreadListOpen(true);
+      return;
+    }
+    setThreadListOpen((open) => (options.toggle === true ? !open : true));
+  }
+  // The URL reader below keeps `open` in its effect's dependencies, and this
+  // function is new on every render, so it reaches it through a stable one.
+  const showThreadListRef = useRef(showThreadList);
+  showThreadListRef.current = showThreadList;
+  const handleOpenThreadListFromUrl = useCallback(() => {
+    showThreadListRef.current();
+  }, []);
+
+  // The sidebar states the unread Threads its cap left out in an overflow
+  // row, which asks for this list on the room's own URL (ADR-0037).
+  useRoomUrlAsk({
+    param: CHAT_THREAD_LIST_PARAM,
+    roomId: selectedRoom?.id ?? null,
+    ready: true,
+    pathname,
+    searchParams,
+    replace: router.replace,
+    open: handleOpenThreadListFromUrl,
+  });
+
+  useRoomUrlAsk({
     // Channels only, the way the row that asks is. A direct room has no
     // dialog to open, so it has no ask to read either.
     roomId: selectedRoom?.kind === "channel" ? selectedRoom.id : null,
@@ -2904,25 +2970,7 @@ function RoomView({
         showUnreadCount={showRoomUnreadCount}
         pinnedOpen={pinnedOpen}
         onTogglePinned={handleTogglePinned}
-        onToggleThreadList={() => {
-          setRosterOpen(false);
-          setPinnedOpen(false);
-          if (threadParentMessage) {
-            threadLoadGenerationRef.current += 1;
-            setIsThreadLoading(false);
-            setThreadParentMessage(null);
-            setThreadMessages([]);
-            setThreadOlderNextCursor(null);
-            threadOlderLoadRef.current = false;
-            setThreadOlderLoadStatus("idle");
-            setPendingThreadQuote(null);
-            clearClassicOutboundQueue(classicThreadRefs);
-            setThreadOpenedFromList(false);
-            setThreadListOpen(true);
-            return;
-          }
-          setThreadListOpen((open) => !open);
-        }}
+        onToggleThreadList={() => showThreadList({ toggle: true })}
         rosterOpen={rosterOpen}
         onToggleRoster={handleToggleRoster}
         currentUserId={currentUserId}
@@ -3334,8 +3382,13 @@ function RoomView({
                 onClose={() => {
                   setThreadListOpen(false);
                 }}
-                onAllThreadsLooked={() => {
+                onAllThreadsLooked={(stillUnreadParentIds) => {
                   bumpThreadUnread();
+                  // Mark all skips muted threads, so a mention still unread
+                  // in one keeps its reply bar.
+                  clearThreadUnreadReplies(
+                    (id) => !stillUnreadParentIds.includes(id),
+                  );
                   void syncRoomAttentionAfterThreadLook(selectedRoom.id);
                 }}
                 labels={{
