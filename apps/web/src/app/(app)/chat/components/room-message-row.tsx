@@ -149,7 +149,10 @@ import {
 } from "./room-helpers";
 import { RoomMessageMarkdown } from "./room-mention-markdown";
 import { SokoBotChainBadge } from "./soko-bot-chain-badge";
-import { SokoBotMessageFooter } from "./soko-bot-message-footer";
+import {
+  hasSokoBotMessageFooter,
+  SokoBotMessageFooter,
+} from "./soko-bot-message-footer";
 
 type UserMentionLookup = Pick<ChatRoomUserParticipant, "id" | "name">;
 type RoomMessageQuoteSnapshot = Exclude<ChatRoomMessageQuote, null>;
@@ -164,11 +167,22 @@ const MESSAGE_BODY_CLAMP_CLASS = "line-clamp-[16]";
  * every line — a phone body column is ~310px, and reserving on the column
  * cost a quarter of it on the newest message in the room.
  *
- * Wide enough for what the corner occupies, which is more than the faces:
- * three plus the `+N` is 52px, and below md the touch target reaches 14px
- * further left again.
+ * Rem, not px: the faces and the touch inset scale with Dynamic Type.
+ * Three plus the `+N` is 3.25rem, and below md the target reaches another
+ * 0.875rem left (4.125rem, 66px at the default root).
  */
-const SEEN_BY_INLINE_RESERVE_CLASS = "inline-block h-1 w-[66px] align-baseline";
+const SEEN_BY_INLINE_RESERVE_CLASS =
+  "inline-block h-1 w-[4.125rem] align-baseline";
+
+function SeenByInlineReserve() {
+  return (
+    <span
+      aria-hidden="true"
+      data-testid="seen-by-inline-reserve"
+      className={SEEN_BY_INLINE_RESERVE_CLASS}
+    />
+  );
+}
 
 interface MessageEditedLabelProps {
   editedAt: Date | string;
@@ -782,7 +796,12 @@ function ChannelMessageBody({
         className={cn(
           "min-w-0 max-w-full",
           expanded || skipBodyClamp ? null : MESSAGE_BODY_CLAMP_CLASS,
-          trailing ? "[&_.prose]:contents [&_p:last-of-type]:inline" : null,
+          // Last p is inline so the reserve shares its last line. Inline
+          // boxes drop vertical margin, which would swallow [&_p+p]:mt-3
+          // (the blank line). The previous block p keeps that gap.
+          trailing
+            ? "[&_.prose]:contents [&_p:last-of-type]:inline [&_p:has(+_p:last-of-type)]:mb-3"
+            : null,
         )}
       >
         <ChannelMessageText
@@ -2407,11 +2426,10 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   const showEdited = !isDeleted && editedAt != null;
   const showPinned = !isDeleted && isPinned;
   const quote = message.quote;
-  // The faces are pinned to the row's bottom-right corner, so only whatever
-  // renders last in the column can run under them. When anything follows the
-  // body — reactions, a thread link, an unfurl, the failed-outbound row — the
-  // text is already clear and needs no reserve at all. Keep this in step with
-  // what the column actually renders below `ChannelMessageBody`.
+  // Faces sit in the row's bottom-right corner. Anything actually rendered
+  // after the text — reactions, a thread link, an unfurl, the Soko Bot
+  // footer, a failed send — already clears it, so those rows reserve
+  // nothing. Unfurls and the footer are omitted once the message is deleted.
   const hasReactionRow =
     !isDeleted && !isOutboundLocal && message.reactions.length > 0;
   const hasThreadLink =
@@ -2419,12 +2437,16 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     !isOutboundLocal &&
     message.threadReplyCount > 0 &&
     onOpenThread != null;
+  const hasUnfurlRow = !isDeleted && (message.unfurls ?? []).length > 0;
+  const hasSokoBotFooter =
+    !isDeleted && hasSokoBotMessageFooter(message.metadata);
   const bodyEndsTheRow =
     seenBy != null &&
     !isEditing &&
     !hasReactionRow &&
     !hasThreadLink &&
-    (message.unfurls ?? []).length === 0 &&
+    !hasUnfurlRow &&
+    !hasSokoBotFooter &&
     outboundStatus !== "failed";
   const [sheetOpen, setSheetOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -2659,6 +2681,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
           {isDeleted ? (
             <p className="text-muted-foreground italic">
               {tChannels("Message.deleted")}
+              {bodyEndsTheRow ? <SeenByInlineReserve /> : null}
             </p>
           ) : (
             <>
@@ -2739,8 +2762,13 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                       />
                     </div>
                   ) : null}
-                  {/* Send to yourself posts only a quote, so there is no body. */}
-                  {quote && !message.content.trim() ? null : (
+                  {/* Send to yourself posts only a quote, so there is no body.
+                      The card still ends the row, so the reserve follows it. */}
+                  {quote && !message.content.trim() ? (
+                    bodyEndsTheRow ? (
+                      <SeenByInlineReserve />
+                    ) : null
+                  ) : (
                     <ChannelMessageBody
                       messageId={message.id}
                       content={message.content}
@@ -2767,13 +2795,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                                 className="ms-1.5 inline-flex h-6 items-center"
                               />
                             ) : null}
-                            {bodyEndsTheRow ? (
-                              <span
-                                aria-hidden="true"
-                                data-testid="seen-by-inline-reserve"
-                                className={SEEN_BY_INLINE_RESERVE_CLASS}
-                              />
-                            ) : null}
+                            {bodyEndsTheRow ? <SeenByInlineReserve /> : null}
                           </>
                         ) : null
                       }

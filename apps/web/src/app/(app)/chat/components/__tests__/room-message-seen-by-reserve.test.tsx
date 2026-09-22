@@ -103,8 +103,59 @@ describe("Seen by reserve", () => {
 
   it("reserves inline on the last line when the body ends the row", () => {
     const { container } = renderRow();
+    const reserve = inlineReserve(container);
+
+    expect(reserve).not.toBeNull();
+    // Rem, so the gap tracks Dynamic Type with the faces (66px at 16px root).
+    expect(reserve?.className).toContain("w-[4.125rem]");
+    expect(reserve?.className).not.toContain("w-[66px]");
+  });
+
+  it("keeps the blank-line gap when the last paragraph is inline", () => {
+    const { container } = renderRow({
+      content: "line one\n\nline two",
+    });
+    const body = container.querySelector('[data-testid="room-message-body"]');
+
+    expect(body?.querySelectorAll("p")).toHaveLength(2);
+    expect(body?.className).toContain("[&_p:has(+_p:last-of-type)]:mb-3");
+    expect(inlineReserve(container)).not.toBeNull();
+  });
+
+  it("reserves on a deleted row when nothing else clears the corner", () => {
+    const { container } = renderRow({
+      deletedAt: new Date("2026-07-02T00:00:00.000Z"),
+    });
 
     expect(inlineReserve(container)).not.toBeNull();
+    expect(
+      container.querySelector('[data-testid="room-message-body"]'),
+    ).toBeNull();
+  });
+
+  it("reserves after a quote-only row", () => {
+    const { container } = renderRow({
+      content: " ",
+      quote: {
+        messageId: "quoted-1",
+        authorName: "Bob",
+        snippet: "Saved for later",
+      },
+    });
+
+    expect(inlineReserve(container)).not.toBeNull();
+    expect(
+      container.querySelector('[data-testid="room-message-body"]'),
+    ).toBeNull();
+  });
+
+  it("reserves nothing when the Soko Bot footer follows the body", () => {
+    const { container } = renderRow({
+      metadata: { soko_bot: { turn_id: "turn-1" } },
+    });
+
+    expect(inlineReserve(container)).toBeNull();
+    expect(container.textContent).toContain("feedbackAsk");
   });
 
   it("reserves nothing when a reaction row already clears the corner", () => {
