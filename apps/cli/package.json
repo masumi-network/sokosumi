@@ -1,5 +1,5 @@
 {
-  "name": "sokosumi",
+  "name": "@sokosumi/cli",
   "version": "2.1.4",
   "private": true,
   "description": "Developer CLI for Sokosumi Coworker builders",
