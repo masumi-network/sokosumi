@@ -64,7 +64,16 @@ export async function findPushDeviceFault(
   if (!response.success)
     throw new Error("Could not verify the push device registration");
   const remote = deviceSchema.parse(response.items[0]);
-  if (!remote.clientId?.startsWith(`${userId}:`)) return "another-reader";
+  // A clientId that names someone else is a device this reader must not take
+  // over. A clientId that is absent is not that: the read above authenticates
+  // as the device rather than with `push-admin`, and Ably answers such a read
+  // without the field. Reading absence as a foreign device made the repair
+  // permanent instead of safe. The reset re-registers, the next read is
+  // absent again, and the activation threw for a registration Ably reports as
+  // `ACTIVE` (SOK-1152). Presence is the only form of this answer that
+  // carries information, so it is the only one acted on.
+  if (remote.clientId && !remote.clientId.startsWith(`${userId}:`))
+    return "another-reader";
   if (remote.push.state === "failed") return "delivery-failed";
   if (remote.push.recipient.targetUrl !== btoa(subscription.endpoint))
     return "endpoint-moved";

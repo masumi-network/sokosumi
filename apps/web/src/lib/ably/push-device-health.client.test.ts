@@ -99,8 +99,8 @@ describe("findPushDeviceFault", () => {
     expect(await findPushDeviceFault(client, "reader")).toBe("endpoint-moved");
   });
 
-  it.each(["other:instance", "reader-other:instance", undefined])(
-    "resets a registration without confirmed ownership by this reader: %s",
+  it.each(["other:instance", "reader-other:instance"])(
+    "resets a registration another reader owns: %s",
     async (clientId) => {
       request.mockResolvedValue({
         statusCode: 200,
@@ -110,6 +110,21 @@ describe("findPushDeviceFault", () => {
       expect(await findPushDeviceFault(client, "reader")).toBe(
         "another-reader",
       );
+    },
+  );
+
+  // SOK-1152: a device-authenticated read carries no clientId, so treating
+  // absence as a foreign device left the repair resetting a healthy
+  // registration for as long as the reader kept pressing.
+  it.each([undefined, null])(
+    "keeps a registration Ably reports without a clientId: %s",
+    async (clientId) => {
+      request.mockResolvedValue({
+        statusCode: 200,
+        success: true,
+        items: [{ ...remoteDevice(), clientId }],
+      });
+      expect(await findPushDeviceFault(client, "reader")).toBeNull();
     },
   );
 
