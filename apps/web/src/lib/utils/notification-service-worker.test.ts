@@ -904,10 +904,6 @@ describe("isPushInstallable", () => {
     window,
     "PushManager",
   );
-  const originalUserAgent = Object.getOwnPropertyDescriptor(
-    navigator,
-    "userAgent",
-  );
 
   /**
    * A browser described by what it has, which is how the read describes one.
@@ -956,9 +952,10 @@ describe("isPushInstallable", () => {
       Reflect.deleteProperty(window, "PushManager");
     }
     Reflect.deleteProperty(navigator, "standalone");
-    if (originalUserAgent) {
-      Object.defineProperty(navigator, "userAgent", originalUserAgent);
-    }
+    // Deleted rather than put back. `userAgent` lives on the prototype, so
+    // there is no own descriptor to save, and a saved `undefined` restored
+    // nothing: the stub outlived the test that set it.
+    Reflect.deleteProperty(navigator, "userAgent");
   });
 
   it("offers the install to an iPhone tab outside the installed app", () => {
@@ -1033,6 +1030,22 @@ describe("isPushInstallable", () => {
     stubBrowser({ push: false, standalone: undefined, userAgent: agent });
 
     expect(isPushInstallable()).toBe(false);
+  });
+
+  /**
+   * Chrome for iOS keeps its token when the reader asks for the desktop site,
+   * and the rest of the string becomes Safari's macOS one. The reader is on
+   * the same phone either way, so the answer must not move.
+   */
+  it("offers it to Chrome for iOS asking for the desktop site", () => {
+    stubBrowser({
+      push: false,
+      standalone: undefined,
+      userAgent:
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_5) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/85 Version/11.1.1 Safari/605.1.15",
+    });
+
+    expect(isPushInstallable()).toBe(true);
   });
 
   /**

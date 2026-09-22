@@ -300,19 +300,26 @@ export function isPushInstallable(): boolean {
  * The one user-agent read here, and the last resort: it runs only where
  * `navigator.standalone` is absent, so on a browser that sets the property
  * this never runs and decides nothing. Since 16.4 a third-party browser on
- * iOS can add a web app to the Home Screen, and no feature separates one from
- * an Android web view, which has the same service worker, the same missing
- * push and the same touch. The name is what is left.
+ * iOS can add a web app to the Home Screen, so these readers have somewhere
+ * to go, and the name is what is left to find them by.
  *
- * Each token exists on iOS alone. Desktop Chrome says `Chrome`, desktop Edge
- * `Edg`, desktop Firefox `Firefox`, and none of the three says these. An
- * in-app web view on any platform says none of them either, which is why this
- * is a list of browsers rather than a test for WebKit.
+ * A feature would be narrower if one fitted. WebKit's own `GestureEvent` is
+ * proprietary and an Android web view has none, but macOS Safari has it, so
+ * it answers true for a desktop this must not speak to. The names do separate
+ * those, which is why they are what is read.
  *
- * A reader who asked for the desktop site drops the token and keeps today's
- * message. That is the same limit `navigator.standalone` has, and the same
- * direction to fail in: a reader told nothing new, rather than one told to
- * tap a button their browser does not have.
+ * Each token exists on iOS alone. Desktop Chrome says `Chrome`, Android Edge
+ * `EdgA`, desktop Edge `Edg`, desktop Firefox `Firefox`: `Edg` is a substring
+ * of `EdgiOS` and not the reverse, so none of them collides. Brave and
+ * DuckDuckGo are left out on purpose, because they send the same token on
+ * Android, where an install instruction is out of scope.
+ *
+ * Two limits, recorded rather than fixed. Firefox Focus and Klar send
+ * `FxiOS` as well, and whether their share sheet carries the action is not
+ * determined; if it does not, their reader is the one case here that meets an
+ * instruction they cannot follow. Brave, DuckDuckGo, Opera and Firefox for
+ * iOS on an iPad send no token in this list, so their readers keep today's
+ * message: a miss rather than a wrong answer.
  */
 function isAppleBrowserUserAgent(): boolean {
   return APPLE_ONLY_BROWSER_TOKENS.some((token) =>
@@ -320,7 +327,13 @@ function isAppleBrowserUserAgent(): boolean {
   );
 }
 
-/** Chrome, Firefox and Edge for iOS, which ship under names of their own. */
+/**
+ * Chrome, Firefox and Edge for iOS, which ship under names of their own.
+ *
+ * Chrome keeps `CriOS` when the reader asks for the desktop site, so that
+ * reader is found here too. The rest of its string turns into Safari's macOS
+ * one, which is why nothing below reads the platform out of it.
+ */
 const APPLE_ONLY_BROWSER_TOKENS = ["CriOS", "FxiOS", "EdgiOS"] as const;
 
 /**
