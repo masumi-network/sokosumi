@@ -30,8 +30,11 @@ vi.mock("@/lib/db/prisma", async () => {
   return { default: url ? createPrismaClient(url) : {} };
 });
 
-const MEMBER_COUNT = 4;
-const PURCHASED_SEATS = MEMBER_COUNT - 1;
+// More members than seats by a wide margin: the unserialized case needs only
+// two requests to read the same count, and the slack keeps it off a knife edge
+// if the connection pool happens to serialize some of them.
+const MEMBER_COUNT = 8;
+const PURCHASED_SEATS = 3;
 
 const organizationId = randomUUID();
 const workspaceId = randomUUID();
@@ -124,6 +127,15 @@ describeWithDb("assignSeat under concurrency with Postgres", () => {
     expect(await countAssigned()).toBe(PURCHASED_SEATS);
     expect(fulfilled).toHaveLength(PURCHASED_SEATS);
     expect(rejected).toHaveLength(MEMBER_COUNT - PURCHASED_SEATS);
+
+    // Every loser has to fail for the capacity reason. Counting rejections
+    // alone would pass just as well on "Member not found" or on an exhausted
+    // retry budget, which are different defects wearing the same shape.
+    for (const outcome of rejected) {
+      expect((outcome as PromiseRejectedResult).reason).toMatchObject({
+        message: expect.stringContaining("exceeds purchased seats"),
+      });
+    }
   });
 
   it("over-assigns without serialization, which is the defect this guards", async () => {
@@ -142,10 +154,14 @@ describeWithDb("assignSeat under concurrency with Postgres", () => {
       ),
     );
 
-    // Read Committed lets every reader see the same pre-write count, so the
-    // capacity check passes for more members than the organization bought.
-    // The race is timing-dependent, so this asserts the bound it fails to
-    // hold rather than an exact number.
+    // Read Committed lets concurrent readers see the same pre-write count, so
+    // the capacity check passes for more members than the organization bought.
+    //
+    // This case deliberately calls prisma.$transaction rather than a shipped
+    // route: it demonstrates the defect the fix removes, so it pins the shape
+    // of assignSeat, not the behaviour of a caller. If assignSeat ever becomes
+    // a single atomic conditional write, this is the case that must be
+    // deleted, and its failure says exactly that.
     expect(await countAssigned()).toBeGreaterThan(PURCHASED_SEATS);
   });
 });

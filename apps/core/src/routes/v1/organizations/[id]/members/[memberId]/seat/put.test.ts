@@ -261,7 +261,10 @@ describe("PUT /organizations/{id}/members/{memberId}/seat", () => {
     const response = await assignSeat("org_123", "member_456");
 
     expect(response.status).toBe(200);
-    expect(transactionMock).toHaveBeenCalledWith(expect.any(Function), {
+    // Not toHaveBeenCalledWith: that passes when any one call matches, so it
+    // would stay green if another write dropped back to the default level.
+    expect(transactionMock.mock.calls).toHaveLength(1);
+    expect(transactionMock.mock.calls[0]?.[1]).toEqual({
       isolationLevel: "Serializable",
     });
   });
@@ -281,6 +284,12 @@ describe("PUT /organizations/{id}/members/{memberId}/seat", () => {
       expect(await response.text()).toContain(
         "Seat assignment lost a concurrent update. Try again.",
       );
+      // The literal 8 is deliberate. Comparing against the imported
+      // SERIALIZATION_RETRY_ATTEMPTS moves both sides together, so the
+      // assertion would survive the budget dropping to 1. A serialization
+      // failure is transient, so giving up on the first one turns a retryable
+      // race into a user-visible 409.
+      expect(transactionMock.mock.calls).toHaveLength(8);
     } finally {
       vi.useRealTimers();
     }

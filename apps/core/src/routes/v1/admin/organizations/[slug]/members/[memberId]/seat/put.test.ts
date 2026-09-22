@@ -105,7 +105,9 @@ describe("PUT /v1/admin/organizations/{slug}/members/{memberId}/seat", () => {
       3,
       expect.anything(),
     );
-    expect(transactionMock).toHaveBeenCalledWith(expect.any(Function), {
+    // Not toHaveBeenCalledWith: that passes when any one call matches.
+    expect(transactionMock.mock.calls).toHaveLength(1);
+    expect(transactionMock.mock.calls[0]?.[1]).toEqual({
       isolationLevel: "Serializable",
     });
   });
