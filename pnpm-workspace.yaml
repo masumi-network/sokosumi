@@ -37,6 +37,7 @@ allowBuilds:
   "@sokosumi/ai-provider": true
   "@sokosumi/email": true
   "@sokosumi/masumi": true
+  "@sokosumi/net": true
   "@sokosumi/soko-bot": true
   "@sokosumi/utils": true
   prisma: true
