@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getMyPreferencesQueryKey } from "@/queries/preferences";
-
+import { CELL_TRACK, CELL_TRACK_SPAN } from "./notification-cells";
 import { NotificationKinds } from "./notification-kinds";
 
 const patchMyPreferences = vi.fn();
@@ -354,6 +354,22 @@ function groupTrigger(group: string) {
 }
 
 /** The expanded panel owned by one row. */
+/**
+ * The head over the rows that answer on the card, which stands whatever is
+ * open. A group that opens draws a head of its own inside its fold.
+ */
+function rowsHead() {
+  const head = screen
+    .getAllByRole("group", { name: "channelsLegendLabel" })
+    .find((group) => !group.closest('[data-slot="collapsible-content"]'));
+
+  if (!head) {
+    throw new Error("No head over the rows on the card.");
+  }
+
+  return head;
+}
+
 function fold(group: string) {
   const row = groupTrigger(group).closest('[data-slot="collapsible"]');
 
@@ -706,21 +722,42 @@ describe("NotificationKinds", () => {
   });
 
   /**
-   * The rule under the column names is what makes them a head. A group of one
-   * kind gets the same head as a group of five, so it gets the same rule: a
-   * line of loose words over the cells reads as something that fell off the
-   * row above.
+   * The rows that answer on the card have a head directly over them, ruled
+   * off like any other row of the box: a line of loose words over the cells
+   * reads as something that fell off the row above. Directly over them, so
+   * the first of them is the row under the rule, and at the top of a box of
+   * their own, so it is not read as a head over the groups that fold.
    */
-  it("rules off the column names in a group of one kind", async () => {
+  it("heads the rows that answer on the card, directly above them", () => {
     renderKinds();
 
-    await openGroup("kindSystem");
+    const band = rowsHead().parentElement;
+    const box = band?.parentElement;
 
-    const names = within(fold("kindSystem")).getByRole("group", {
-      name: "channelsLegendLabel",
-    });
+    expect(box).toHaveClass("divide-y", "rounded-lg", "border");
+    expect(
+      within(band?.nextElementSibling as HTMLElement).getByRole("group", {
+        name: "deliveryAriaLabel kindSystem",
+      }),
+    ).toBeInTheDocument();
+    // The top edge of a box of its own, so it heads nothing but the rows
+    // under it: the groups that fold stand in the box before it.
+    expect(box?.firstElementChild).toBe(band);
+    expect(box?.querySelector('[data-slot="collapsible"]')).toBeNull();
+    expect(box?.previousElementSibling).toContainElement(
+      groupTrigger("groupChat"),
+    );
+    expect(box?.previousElementSibling).toHaveClass(
+      "overflow-hidden",
+      "rounded-lg",
+      "border",
+    );
+    // And the word over the names starts where they do, not at a kind's
+    // deeper indent inside a fold.
+    const label = within(rowsHead()).getByText("channelsKindLabel");
 
-    expect(names.parentElement).toHaveClass("divide-y");
+    expect(label).toHaveClass("pl-6");
+    expect(label).not.toHaveClass("@xl:pl-10");
   });
 
   it("writes both channels of the kind the reader changed", async () => {
@@ -846,6 +883,174 @@ describe("NotificationKinds", () => {
   });
 
   /**
+   * A row's name is a title over a longer line of the same size. At one
+   * weight the two are told apart by colour alone, so the name takes the
+   * weight, and a kind inside an open group does not.
+   */
+  it("gives a group's name the weight and leaves its kinds without it", async () => {
+    renderKinds();
+
+    expect(
+      within(groupTrigger("groupChat")).getByText("groupChat"),
+    ).toHaveClass("font-medium");
+
+    await openGroup("groupChat");
+
+    expect(screen.getByText("kindChatMention")).not.toHaveClass("font-medium");
+  });
+
+  /**
+   * A group of one kind is that kind, and a fold around it hid one row of
+   * cells behind a click. So its cells stand on the row, where a reader
+   * scanning the card sees every answer without opening anything.
+   */
+  it("answers a group of one on its own row, with nothing to open", () => {
+    renderKinds();
+
+    const triggers = screen
+      .queryAllByRole("button")
+      .filter((button) => button.dataset.slot === "collapsible-trigger");
+
+    for (const kind of ["kindSystem", "kindFollowUp"]) {
+      // Found without opening anything: `getByRole` rather than `stops`,
+      // which would open every fold first and pass either way.
+      expect(
+        screen.getByRole("group", { name: `deliveryAriaLabel ${kind}` }),
+      ).toBeInTheDocument();
+      expect(
+        triggers.some((trigger) => trigger.textContent?.startsWith(kind)),
+      ).toBe(false);
+    }
+    // The groups of several kinds still fold.
+    expect(groupTrigger("groupChat")).toHaveAttribute(
+      "data-slot",
+      "collapsible-trigger",
+    );
+  });
+
+  /**
+   * Whether a row folds is decided by what the group is made of, not by how
+   * much of it Core answered. A Tasks group Core answered one kind of is still
+   * Tasks, in its place above the head, not a row among the ones under it.
+   */
+  it("keeps a group Core answered in part as a fold in its place", () => {
+    renderKinds(
+      MATRIX.filter(
+        (cell) =>
+          cell.category !== "TASK_COMPLETED" && cell.category !== "TASK_UPDATE",
+      ),
+    );
+
+    const task = groupTrigger("groupTask");
+    const band = rowsHead().parentElement!;
+
+    expect(task).toHaveAttribute("data-slot", "collapsible-trigger");
+    expect(
+      task.compareDocumentPosition(band) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // And only there: its one kind is not drawn a second time as a row on the
+    // card. Closed, the fold holds nothing.
+    expect(
+      screen.queryByRole("group", {
+        name: "deliveryAriaLabel kindTaskAttention",
+      }),
+    ).toBeNull();
+  });
+
+  /**
+   * Every row of the box starts its name at one edge and ends its answer at
+   * another, whether it folds or not, and the head over the rows on the card
+   * is drawn as a band of the box, padded like the rows under it.
+   */
+  it("lines the rows on the card up with the rows that fold", async () => {
+    renderKinds();
+
+    const flatName = screen.getByText("kindSystem");
+    const band = rowsHead().parentElement!;
+
+    expect(flatName).toHaveClass("font-medium");
+    expect(flatName.parentElement).toHaveClass("pl-6");
+    expect(
+      screen.getByRole("group", { name: "deliveryAriaLabel kindSystem" })
+        .parentElement,
+    ).toHaveClass("self-end", "@xl:self-auto");
+    expect(band).toHaveClass("bg-card-background", "px-4");
+
+    // Inside an open group the names sit a step deeper, under the group's
+    // own, and the word over them starts there too.
+    await openGroup("groupChat");
+
+    const foldHead = within(fold("groupChat")).getByRole("group", {
+      name: "channelsLegendLabel",
+    });
+
+    expect(within(foldHead).getByText("channelsKindLabel")).toHaveClass(
+      "@xl:pl-10",
+    );
+    expect(screen.getByText("kindChatMention").parentElement).toHaveClass(
+      "@xl:pl-10",
+    );
+  });
+
+  /**
+   * Before the read lands the box holds the marketing row alone. Its cells
+   * stand on the row, so the head over it names something a reader can see.
+   */
+  it("heads the marketing row before the groups arrive", () => {
+    renderPending();
+
+    const band = rowsHead().parentElement;
+
+    expect(band?.parentElement?.firstElementChild).toBe(band);
+    expect(
+      screen.getByRole("group", { name: "newsDeliveryAriaLabel" }),
+    ).toBeInTheDocument();
+    expect(
+      screen
+        .queryAllByRole("button")
+        .some((button) => button.dataset.slot === "collapsible-trigger"),
+    ).toBe(false);
+  });
+
+  /**
+   * A preset answers for all three columns at once, so it spans all three,
+   * and every answer down the box, preset or cells, is one width at one edge.
+   * Sized to its word, the presets stood at three widths.
+   *
+   * Pinned to the shared constant rather than to its value, so a width typed
+   * straight onto the trigger fails here even when it happens to match today.
+   */
+  it("spans the preset across the three columns it answers for", () => {
+    renderKinds();
+
+    /** Every `w-` on an element, keyed by the variant it applies at. */
+    const widths = (classes: string) =>
+      Object.fromEntries(
+        classes
+          .split(" ")
+          .map((name) => /^(?:(.+):)?w-(\d+)$/.exec(name))
+          .filter((found) => found !== null)
+          .map((found) => [found[1] ?? "base", Number(found[2])]),
+      );
+
+    const track = widths(CELL_TRACK);
+    const span = widths(CELL_TRACK_SPAN);
+    const trigger = screen.getAllByRole("button", { name: /preset/i })[0];
+
+    // Three tracks and the two `gap-2` between them, in Tailwind's own units.
+    // Computed rather than compared to CELL_TRACK_SPAN's own text, so a track
+    // that widens and a span that does not is a failure here.
+    expect(Object.keys(span).sort()).toEqual(Object.keys(track).sort());
+    for (const [variant, columns] of Object.entries(track)) {
+      expect(span[variant]).toBe(columns * 3 + 2 * 2);
+    }
+    expect(widths(trigger!.className)).toEqual(span);
+    // Below `@xl` the row stacks, so the preset only stands under the three
+    // names if it is pushed to the end of the column it drops into.
+    expect(trigger!.parentElement).toHaveClass("self-end", "@xl:self-auto");
+  });
+
+  /**
    * The rows have a heading of their own, under the card's. A reader moving
    * by heading passes the card's title and would otherwise land in the middle
    * of thirty cells with nothing having named them.
@@ -870,9 +1075,9 @@ describe("NotificationKinds", () => {
     const user = userEvent.setup();
     renderKinds();
 
-    await openGroup("groupTask");
-
-    await user.hover(screen.getByRole("button", { name: "channelPush" }));
+    await user.hover(
+      within(rowsHead()).getByRole("button", { name: "channelPush" }),
+    );
 
     const panel = await screen.findByText("channelPushHint");
 
@@ -891,9 +1096,9 @@ describe("NotificationKinds", () => {
     const user = userEvent.setup();
     renderKinds();
 
-    await openGroup("groupTask");
-
-    const name = screen.getByRole("button", { name: "channelPush" });
+    const name = within(rowsHead()).getByRole("button", {
+      name: "channelPush",
+    });
 
     await user.hover(name);
 
@@ -920,12 +1125,14 @@ describe("NotificationKinds", () => {
     const user = userEvent.setup();
     renderKinds();
 
-    await openGroup("groupTask");
-
-    await user.hover(screen.getByRole("button", { name: "channelPush" }));
+    await user.hover(
+      within(rowsHead()).getByRole("button", { name: "channelPush" }),
+    );
     await screen.findByText("channelPushHint");
 
-    await user.unhover(screen.getByRole("button", { name: "channelPush" }));
+    await user.unhover(
+      within(rowsHead()).getByRole("button", { name: "channelPush" }),
+    );
 
     await waitFor(() => {
       expect(screen.queryByText("channelPushHint")).toBeNull();
@@ -942,9 +1149,9 @@ describe("NotificationKinds", () => {
     const user = userEvent.setup();
     renderKinds();
 
-    await openGroup("groupTask");
-
-    const name = screen.getByRole("button", { name: "channelPush" });
+    const name = within(rowsHead()).getByRole("button", {
+      name: "channelPush",
+    });
 
     await user.hover(name);
     await screen.findByText("channelPushHint");
@@ -973,12 +1180,14 @@ describe("NotificationKinds", () => {
     const user = userEvent.setup();
     renderKinds();
 
-    await openGroup("groupTask");
-
-    await user.hover(screen.getByRole("button", { name: "channelInApp" }));
+    await user.hover(
+      within(rowsHead()).getByRole("button", { name: "channelInApp" }),
+    );
     await screen.findByText("channelInAppHint");
 
-    await user.hover(screen.getByRole("button", { name: "channelPush" }));
+    await user.hover(
+      within(rowsHead()).getByRole("button", { name: "channelPush" }),
+    );
 
     // Read at once, and not after the wait: the point is that the panel moves
     // with the pointer rather than that the old one goes away eventually.
@@ -990,10 +1199,12 @@ describe("NotificationKinds", () => {
     const user = userEvent.setup();
     renderKinds();
 
-    await openGroup("groupTask");
-
-    const inApp = screen.getByRole("button", { name: "channelInApp" });
-    const push = screen.getByRole("button", { name: "channelPush" });
+    const inApp = within(rowsHead()).getByRole("button", {
+      name: "channelInApp",
+    });
+    const push = within(rowsHead()).getByRole("button", {
+      name: "channelPush",
+    });
 
     await user.hover(inApp);
     await screen.findByText("channelInAppHint");
@@ -1016,13 +1227,13 @@ describe("NotificationKinds", () => {
     const user = userEvent.setup();
     renderKinds();
 
-    await openGroup("groupTask");
-
-    screen.getByRole("button", { name: "channelInApp" }).focus();
+    within(rowsHead()).getByRole("button", { name: "channelInApp" }).focus();
     await user.keyboard("{Enter}");
     await screen.findByText("channelInAppHint");
 
-    await user.hover(screen.getByRole("button", { name: "channelPush" }));
+    await user.hover(
+      within(rowsHead()).getByRole("button", { name: "channelPush" }),
+    );
 
     await act(async () => {
       await new Promise((settle) => setTimeout(settle, 300));
@@ -1041,9 +1252,9 @@ describe("NotificationKinds", () => {
     const user = userEvent.setup();
     renderKinds();
 
-    await openGroup("groupTask");
-
-    const name = screen.getByRole("button", { name: "channelPush" });
+    const name = within(rowsHead()).getByRole("button", {
+      name: "channelPush",
+    });
 
     await user.hover(name);
     await screen.findByText("channelPushHint");
@@ -1065,9 +1276,9 @@ describe("NotificationKinds", () => {
     const user = userEvent.setup();
     renderKinds();
 
-    await openGroup("groupTask");
-
-    const name = screen.getByRole("button", { name: "channelPush" });
+    const name = within(rowsHead()).getByRole("button", {
+      name: "channelPush",
+    });
 
     name.focus();
     await user.keyboard("{Enter}");
@@ -1091,9 +1302,9 @@ describe("NotificationKinds", () => {
     const user = userEvent.setup();
     renderKinds();
 
-    await openGroup("groupTask");
-
-    const name = screen.getByRole("button", { name: "channelPush" });
+    const name = within(rowsHead()).getByRole("button", {
+      name: "channelPush",
+    });
 
     name.focus();
     await user.keyboard("{Enter}");
@@ -1110,8 +1321,9 @@ describe("NotificationKinds", () => {
   });
 
   /**
-   * The page draws a legend per open group, so a pointer sweeping down a
-   * column crosses one group's names and then the next group's. Two panels
+   * The page draws a legend per open group and one over the rows on the card,
+   * so a pointer sweeping down a column crosses one head's names and then the
+   * next. Two panels
    * 288px wide standing over the rows they explain is what the shared state
    * exists to stop, and a group boundary is not a reason for it to stop
    * working.
@@ -1124,7 +1336,7 @@ describe("NotificationKinds", () => {
     await openGroup("groupChat");
 
     const names = screen.getAllByRole("button", { name: "channelPush" });
-    expect(names).toHaveLength(2);
+    expect(names).toHaveLength(3);
 
     await user.hover(names[0]!);
     await screen.findByText("channelPushHint");
@@ -1136,9 +1348,10 @@ describe("NotificationKinds", () => {
   it("puts the channel legend inside each expanded section", async () => {
     renderKinds();
 
+    // Closed, the only head is the one over the rows on the card.
     expect(
-      screen.queryByRole("group", { name: "channelsLegendLabel" }),
-    ).toBeNull();
+      screen.getAllByRole("group", { name: "channelsLegendLabel" }),
+    ).toEqual([rowsHead()]);
 
     for (const group of ["groupTask", "groupChat"]) {
       await openGroup(group);
@@ -1160,8 +1373,6 @@ describe("NotificationKinds", () => {
   it("names each column once and keeps the dead hints out of the tree", async () => {
     isBlocked = true;
     renderKinds();
-
-    await openGroup("groupTask");
 
     // Every column, not just the first: a head that went missing entirely
     // would leave the eye a nameless column and read as nothing at all.
@@ -1205,7 +1416,7 @@ describe("NotificationKinds", () => {
 
     const cells = screen
       .getAllByRole("button")
-      .filter((button) => button.className.includes("size-9"));
+      .filter((button) => button.className.includes("size-8"));
 
     expect(cells.length).toBeGreaterThan(0);
     for (const cell of cells) {
@@ -1228,7 +1439,7 @@ describe("NotificationKinds", () => {
 
     const cells = screen
       .getAllByRole("button")
-      .filter((button) => button.className.includes("size-9"));
+      .filter((button) => button.className.includes("size-8"));
 
     expect(cells.length).toBeGreaterThan(0);
     for (const cell of cells) {
@@ -1748,14 +1959,14 @@ describe("NotificationKinds", () => {
     const user = userEvent.setup();
     renderKinds();
 
-    // Every cell carrying the same sentence would repeat it down the section.
-    // The head over this section's column says it once.
+    // Every cell carrying the same sentence would repeat it down the rows.
+    // The head over the column says it once.
     expect(cellFor("kindSystem", "channelInApp")).not.toHaveAttribute(
       "aria-describedby",
     );
 
     await user.click(
-      within(fold("kindSystem")).getByRole("button", {
+      within(rowsHead()).getByRole("button", {
         name: "channelInApp",
       }),
     );
@@ -1782,10 +1993,10 @@ describe("NotificationKinds", () => {
       "channelPushHint pushBlockedHint pushOtherDevicesHint",
     );
 
-    // The same words a sighted reader gets, from this section's column head
+    // The same words a sighted reader gets, from the head over the column
     // rather than from every cell in the blocked column.
     await user.click(
-      within(fold("kindSystem")).getByRole("button", {
+      within(rowsHead()).getByRole("button", {
         name: "channelPush",
       }),
     );
@@ -2570,6 +2781,9 @@ describe("NotificationKinds", () => {
 
       expect(dead).toHaveAttribute("aria-disabled", "true");
       expect(dead).not.toHaveAttribute("aria-pressed");
+      // A step lighter than an off cell. Without it the two differ by the
+      // border alone, and a reader who reads the icon sees no difference.
+      expect(dead).toHaveClass("text-disabled-foreground");
       expect(describedBy(dead)).toBe("marketingEmailOnlyHint");
     }
 
@@ -2578,6 +2792,9 @@ describe("NotificationKinds", () => {
     });
 
     expect(email).toHaveAttribute("aria-pressed", "false");
+    // The off cell it is lighter than.
+    expect(email).toHaveClass("text-muted-foreground");
+    expect(email).not.toHaveClass("text-disabled-foreground");
     // Described by the row's own visible line rather than by a copy of it.
     // Undescribed, this one live control would be the only cell of the row a
     // reader meets with nothing said about it, between two dead ones that
