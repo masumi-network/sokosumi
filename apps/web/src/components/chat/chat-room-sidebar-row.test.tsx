@@ -508,12 +508,12 @@ describe("ChatRoomSidebarRow collapsed rail", () => {
     // taking no flex space at rest, so the shared label class, never `hidden`.
     // The spacer would otherwise pull the mark off centre on touch.
     const name = screen.getByText("general");
-    expect(name.parentElement?.parentElement?.className.split(/\s+/)).toContain(
+    expect(name.parentElement?.className.split(/\s+/)).toContain(
       "group-data-[collapsible=icon]:max-w-0",
     );
-    expect(
-      name.parentElement?.parentElement?.className.split(/\s+/),
-    ).not.toContain("group-data-[collapsible=icon]:sr-only");
+    expect(name.parentElement?.className.split(/\s+/)).not.toContain(
+      "group-data-[collapsible=icon]:sr-only",
+    );
     expect(
       container.querySelector('[data-slot="room-trailing-spacer"]')?.className,
     ).toContain("group-data-[collapsible=icon]:hidden");

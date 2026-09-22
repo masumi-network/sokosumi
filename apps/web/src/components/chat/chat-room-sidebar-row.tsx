@@ -150,7 +150,7 @@ export interface ChatRoomSidebarRowProps {
 /**
  * The reader's opt-in Room unread count, as the link announces it.
  *
- * The number itself is drawn by `RoomRowCount`, in the trailing cluster,
+ * The number itself is drawn by `MentionBadge`, in the trailing cluster,
  * outside the link and `aria-hidden`. This span is what carries it into the
  * link's accessible name beside the room name, the way `MentionAnnouncement`
  * carries the badge. Collapsed to icons the row is a 24px mark with space for
@@ -206,13 +206,14 @@ function MentionAnnouncement({ count }: { count: number }) {
 }
 
 /**
- * The mention count, drawn in the room menu's column.
+ * The row's one number, drawn in the room menu's column: the mention pill,
+ * or the reader's opt-in count where there is no mention.
  *
  * On a hover-capable row it crossfades with the menu: out of flow, fading as
  * the `…` arrives, exactly as the muted bell does. Sharing the menu's column
- * is what buys the name its width back, because the badge stops asking for a
- * gap and a width of its own on top of the hole. The cost is the number going
- * quiet under the cursor; the bold name and the reader's opt-in count stay, on
+ * is what buys the name its width back, because the number stops asking for
+ * a gap and a width of its own on top of the hole. The cost is the number
+ * going quiet under the cursor, pill and count alike; the bold name stays, on
  * the one row they are pointing at.
  *
  * The pill rides the bell's own box rather than being positioned by its own
@@ -504,23 +505,20 @@ export function ChatRoomSidebarRow({
         ) : null}
       </SidebarRowSlot>
       <span className={SIDEBAR_ROW_LABEL_CLASS}>
-        {/* The count rides the end of the name, not the row's right rail, so it
-            reads as belonging to this room rather than to the row's controls.
-            The name keeps `min-w-0` so it truncates first and the count stays.
-            `flex-nowrap` states that one-line rule instead of leaning on the
-            flex default, so the count cannot drop under the name (SOK-1062). */}
-        <span className="flex min-w-0 flex-nowrap items-baseline gap-1.5">
-          <span
-            className={cn(
-              "min-w-0 truncate",
-              bold && "font-semibold text-foreground",
-              isMuted && !isActive && "text-muted-foreground",
-            )}
-          >
-            {label}
-          </span>
-          <RoomUnreadCount count={unreadTextCount} />
+        {/* The count used to ride the end of the name in a flex with a gap.
+            It is drawn in the trailing cluster now, so only its announcement
+            is left here, and a counted row must not keep a hole after the
+            name for text nobody sees. */}
+        <span
+          className={cn(
+            "block min-w-0 truncate",
+            bold && "font-semibold text-foreground",
+            isMuted && !isActive && "text-muted-foreground",
+          )}
+        >
+          {label}
         </span>
+        <RoomUnreadCount count={unreadTextCount} />
         {subtitle ? (
           <span className="text-muted-foreground group-data-[collapsible=icon]:hidden block truncate text-xs leading-tight">
             {subtitle}
