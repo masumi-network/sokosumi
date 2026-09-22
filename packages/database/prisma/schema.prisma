@@ -333,7 +333,7 @@ model Vendor {
   vendorMembers VendorMember[]
   memberInvites VendorMemberInvite[]
 
-  @@index([createdByUserId])
+  @@unique([createdByUserId], map: "vendor_createdByUserId_key")
   @@map("vendor")
 }
 

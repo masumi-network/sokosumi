@@ -179,6 +179,31 @@ describe("POST /vendors", () => {
     expect(response.status).toBe(409);
   });
 
+  it("maps a self-service cap race to 409", async () => {
+    transactionMock.mockRejectedValue(
+      Object.assign(new Error("Unique constraint failed"), {
+        code: "P2002",
+        meta: { target: ["createdByUserId"] },
+      }),
+    );
+
+    const app = createApp({
+      actor: "user",
+      userId: "user_dev",
+      organizationId: null,
+      role: "user",
+    });
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Acme Labs", slug: "acme-labs" }),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body.message).toContain("at most 1 vendor");
+  });
+
   it("requires an organization workspace", async () => {
     memberCountMock.mockResolvedValue(0);
 

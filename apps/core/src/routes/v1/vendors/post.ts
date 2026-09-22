@@ -3,7 +3,10 @@ import { createRoute } from "@hono/zod-openapi";
 import { LIMITS } from "@/config/constants";
 import { conflict, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { isSlugUniqueConstraintError } from "@/helpers/prisma";
+import {
+  isCreatedByUserUniqueConstraintError,
+  isSlugUniqueConstraintError,
+} from "@/helpers/prisma";
 import { created, ok } from "@/helpers/response";
 import { mapVendor, vendorLogoCreateData } from "@/helpers/vendor";
 import prisma from "@/lib/db/prisma";
@@ -151,6 +154,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (isSlugUniqueConstraintError(error)) {
         throw conflict(
           "Vendor slug already exists. Please choose a different slug.",
+        );
+      }
+      if (isCreatedByUserUniqueConstraintError(error)) {
+        throw conflict(
+          `You can create at most ${LIMITS.SELF_SERVICE_VENDOR_LIMIT_PER_USER} vendor. Use the vendor you already administer, or ask a platform admin to create another.`,
         );
       }
 

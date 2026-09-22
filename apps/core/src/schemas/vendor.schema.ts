@@ -36,6 +36,14 @@ export const vendorSchema = z
   })
   .openapi("Vendor");
 
+export const adminVendorSchema = vendorSchema
+  .extend({
+    listed: z.boolean().openapi({
+      description: "Whether this vendor appears in GET /v1/vendors.",
+    }),
+  })
+  .openapi("AdminVendor");
+
 export const createVendorRequestSchema = z
   .object({
     name: z.string().trim().min(1).max(120).openapi({ example: "Serviceplan" }),
@@ -55,6 +63,10 @@ export const patchVendorRequestSchema = z
     name: createVendorRequestSchema.shape.name.optional(),
     slug: createVendorRequestSchema.shape.slug.optional(),
     logos: vendorLogosInputSchema.optional(),
+    listed: z.boolean().optional().openapi({
+      description:
+        "Whether this vendor appears in GET /v1/vendors. Platform admin only.",
+    }),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: "At least one vendor field is required",
