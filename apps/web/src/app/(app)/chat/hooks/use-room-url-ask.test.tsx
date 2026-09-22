@@ -2,13 +2,10 @@ import { render } from "@testing-library/react";
 import type { ReadonlyURLSearchParams } from "next/navigation";
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  type EditChannelParamParams,
-  useEditChannelParam,
-} from "./use-edit-channel-param";
+import { type RoomUrlAskParams, useRoomUrlAsk } from "./use-room-url-ask";
 
-function Harness(props: EditChannelParamParams) {
-  useEditChannelParam(props);
+function Harness(props: RoomUrlAskParams) {
+  useRoomUrlAsk(props);
   return null;
 }
 
@@ -17,8 +14,8 @@ function searchParams(search: string): ReadonlyURLSearchParams {
 }
 
 function makeProps(
-  overrides: Partial<EditChannelParamParams> = {},
-): EditChannelParamParams {
+  overrides: Partial<RoomUrlAskParams> = {},
+): RoomUrlAskParams {
   return {
     roomId: "room-1",
     ready: true,
@@ -30,7 +27,7 @@ function makeProps(
   };
 }
 
-describe("useEditChannelParam", () => {
+describe("useRoomUrlAsk", () => {
   it("opens the dialog the URL asks for", () => {
     const props = makeProps();
     render(<Harness {...props} />);
@@ -136,5 +133,31 @@ describe("useEditChannelParam", () => {
     rerender(<Harness {...props} />);
 
     expect(props.open).toHaveBeenCalledTimes(2);
+  });
+
+  // The sidebar's overflow row asks for the thread list the same way.
+  it("opens what another parameter asks for, and takes only that one back", () => {
+    const props = makeProps({
+      param: "threads",
+      searchParams: searchParams("threads=1&notice=welcome"),
+    });
+    render(<Harness {...props} />);
+
+    expect(props.open).toHaveBeenCalledTimes(1);
+    expect(props.replace).toHaveBeenCalledExactlyOnceWith(
+      "/chat/rooms/room-1?notice=welcome",
+      { scroll: false },
+    );
+  });
+
+  it("ignores the edit parameter when it is asked to read another", () => {
+    const props = makeProps({
+      param: "threads",
+      searchParams: searchParams("edit=1"),
+    });
+    render(<Harness {...props} />);
+
+    expect(props.open).not.toHaveBeenCalled();
+    expect(props.replace).not.toHaveBeenCalled();
   });
 });

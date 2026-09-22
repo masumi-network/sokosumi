@@ -1,5 +1,6 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT } from "@/components/chat/organization-chat-events";
 
 import { setAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
 import type { ChatRoom } from "@/lib/clients/generated/core";
@@ -327,6 +328,31 @@ describe("useChatTabUnreadPresence", () => {
         "yes",
       );
     });
+  });
+
+  // Opening a Direct answers with the room and zeroed counts it never counted.
+  it("keeps a room's unread when the room is opened again", async () => {
+    listRoomsMock.mockResolvedValue({
+      ok: true,
+      value: { rooms: [room({ id: "a", unreadCount: 2 })], nextCursor: null },
+    });
+    render(<Harness />);
+    await waitFor(() => {
+      expect(screen.getByTestId("presence")).toHaveAttribute(
+        "data-show",
+        "yes",
+      );
+    });
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent(ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT, {
+          detail: { room: room({ id: "a", unreadCount: 0 }) },
+        }),
+      );
+    });
+
+    expect(screen.getByTestId("presence")).toHaveAttribute("data-show", "yes");
   });
 
   it("shows unread for the active room when that room reports attention", async () => {
