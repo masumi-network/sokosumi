@@ -26,7 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { ActionError } from "@/lib/actions/errors";
+import type { ActionError } from "@/lib/actions/errors/action-error";
 import { cancelProjectSocialPost } from "@/lib/actions/project/action";
 import type {
   ProjectSocialConnection,
