@@ -6,35 +6,24 @@
 - Technical story: follow-up phase to the Masumi payment-node V2 migration
   (PR #3440), which cut the sockets this rail plugs into.
 
-> **Ratified 2026-08-11** via the x402/EVM wayfinder (MAP and PR1-SPEC now
-> archived). The refund-policy blocker below is resolved, and the
-> payment-record model is settled as a sibling of PR 1's
-> `TaskX402Payment`. The node behaviors the pinned spec did not guarantee are
-> now **confirmed** against masumi-payment-service `main` and folded into
-> the body below; nothing external gates the PR 2 build. The only node-side
-> work still outstanding is the future settlement-observation surface, called
-> out as explicitly-future below.
+PR 1 (`TaskX402Payment`) is on main. PR 2 (`Job.paymentRail` /
+`JobX402Payment`) is not. Remaining implementer spec:
+[`PR2-SPEC.md`](../wayfinder/x402-evm/PR2-SPEC.md). Nothing external gates
+that build except the future settlement-observation surface (explicitly
+future; does not gate the initial ship).
 
-> **Amended 2026-08-28 by masumi ADR 0016.** The payment node removed
-> `GET /x402/budgets` and the `x402.budget` rail check. The x402 spend cap now
-> lives on the calling API key as per-unit usage credits
-> (`eip155:<chainId>:<asset>`, gated by `usageLimited`), and wallet access is
-> an `ApiKeyX402WalletScope` grant rather than a budget row. Decision 6
-> (buy-side readiness gating) is restated below; the node-surface list in
-> Context and the error-contract wording in Decision 4 are corrected in place.
-> Every other decision here stands. Superseded sentences are named where they
-> stood rather than deleted.
+## Spent
 
-> **Amended 2026-09-13 by ADR 0024.** Web `/agents` is no longer Coworkers-only:
-> Agent catalog browse is restored. App Hire stays off (SOK-805 remainder /
-> ADR 0006). Decision 8's Web `/agents` sentences are restated below; pay stays
-> coworker + assigned task. Every other decision here stands.
->
-> **Archived 2026-09-17.** Wayfinder `MAP.md` and `PR1-SPEC.md` are spent:
-> `TaskX402Payment` is on main. Unique PR 1 facts that were not already here
-> are folded into Decision 3, Decision 8, and the refund policy. Remaining
-> implementer spec: [`PR2-SPEC.md`](../wayfinder/x402-evm/PR2-SPEC.md)
-> (`Job.paymentRail` / `JobX402Payment`).
+- **Wayfinder MAP / PR1-SPEC** (archived 2026-09-17). Unique PR 1 facts live
+  in Decision 3, Decision 8, and the refund policy. Do not restore those
+  files as the implementer surface.
+- **Masumi ADR 0016** (2026-08-28). The node removed `GET /x402/budgets` and
+  the `x402.budget` rail check. The spend cap is key usage credits
+  (`eip155:<chainId>:<asset>`, gated by `usageLimited`); wallet access is an
+  `ApiKeyX402WalletScope` grant. Decision 6 is the restated live gate.
+- **ADR 0024** (2026-09-13). Web `/agents` is a browse catalog again. App
+  Hire stays off (SOK-805 remainder / ADR 0006). Pay stays coworker +
+  assigned task.
 
 ## Context
 
@@ -198,12 +187,8 @@ default-token balance. The environment-global `x402.purchasing_wallet` rail
 check remains a coarse diagnostic, not a listing or pre-charge gate. The cache
 follows Cardano V2's last-known-value pattern.
 
-**Amended 2026-08-28 (masumi ADR 0016).** The two sentences this decision used
-to carry are superseded: "The Soko API key needs a positive budget tied to a
-purchasing wallet" and "A confirmed admin key with no binding budget can
-instead use exactly one Purchasing wallet". Both described a per-wallet budget
-row that the node no longer has, and the `x402.budget` rail check named beside
-them is gone too. What replaces them:
+**Live gate (masumi ADR 0016).** The spend cap is on the key, not a
+per-wallet budget row. The `x402.budget` rail check is gone. What stands:
 
 - The cap is on the KEY, not the wallet. `usageLimited` off means uncapped.
   On, the key needs remaining credit for unit `eip155:<chainId>:<asset>`,
@@ -227,8 +212,7 @@ them is gone too. What replaces them:
   and records the most-funded, tie-broken on wallet id so the cached set stays
   stable across syncs.
 
-Two corrections to how the proposed draft described this (both verified
-2026-08-11):
+Readiness composition (verified 2026-08-11):
 
 - The Cardano V2 pattern is **not** TTL'd. It serves the last recorded value
   and fails closed only in the never-recorded cold state
@@ -276,8 +260,7 @@ x402 agents are agents. They share the public Cardano catalog:
   scheme `exact`.
 - Web `/agents` restored Agent catalog browse (ADR-0024). App Hire stays
   off (SOK-805 remainder). x402 pay stays coworker + assigned task, not app
-  Hire. (Superseded: this bullet used to say the page is Coworkers-only and
-  does not advertise x402 or classic hire agents.)
+  Hire.
 
 A dedicated coworker-only `/v1/agents/x402` was sketched and dropped
 during implementation. This ADR records the shipped contract.
@@ -375,8 +358,7 @@ on a single job:
 - **Dedicated coworker-only `GET /v1/agents/x402`.** Rejected: callers see
   one agent catalog. A `kind` discriminator on `GET /v1/agents` is enough.
   Pay stays a separate coworker+task route. Web `/agents` is a browse
-  catalog again (ADR-0024); app Hire stays off. (Superseded: "Web `/agents`
-  is not a catalog.")
+  catalog again (ADR-0024); app Hire stays off.
 
 ## Consequences
 
