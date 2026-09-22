@@ -1,9 +1,9 @@
-# ADR 0033: Core stays on Vercel Fluid; the job queue is deferred
+# ADR 0038: Core stays on Vercel Fluid; the job queue is deferred
 
 - Status: Accepted
 - Date: 2026-09-19
 - Amended: 2026-09-20 (consumer-placement spike, then the queue deferral — see both Amendment sections)
-- Filename retains the original slug so existing links keep working.
+- Renumbered from ADR-0033 on 2026-09-22; that number belongs to Typing. Filename keeps the original slug.
 
 Core keeps its stack: **Hono + `@hono/zod-openapi`, TypeScript, Zod 4, Prisma on Postgres, Better Auth, Vitest, Biome, Turborepo, evlog, Vercel AI SDK**, deployed as a single Vercel function with Fluid compute. We are **not** moving Core to a long-lived container (Fly, Railway, ECS), and the 17 Vercel crons stay as they are. **No change is proposed.** A job queue was investigated in depth and is not justified at the current scope; see the second amendment. Everything else considered was either rejected or found to be already true; see Considered options.
 
