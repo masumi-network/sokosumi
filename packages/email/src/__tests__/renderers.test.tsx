@@ -26,7 +26,8 @@ describe("email renderers", () => {
     expect(rendered.html).toContain(
       'src="https://igcd4cnfvuav1zto.public.blob.vercel-storage.com/brand/sokosumi-logo-wordmark-black.png"',
     );
-    expect(rendered.html).toContain('alt="Sokosumi kanji"');
+    expect(rendered.html).toContain('alt=""');
+    expect(rendered.html).toContain('lang="en"');
     expect(rendered.html).toContain('alt="Sokosumi"');
     expect(rendered.html).toContain(
       `background-color:${LIGHT_PALETTE.pageBackground}`,
@@ -47,6 +48,7 @@ describe("email renderers", () => {
     });
 
     expect(rendered.subject).toBe("Sokosumi - Passwort zurücksetzen");
+    expect(rendered.html).toContain('lang="de"');
     expect(rendered.html).toContain("Hallo Andreas");
     expect(rendered.html).toContain("Dein Passwort zur\u00fccksetzen");
   });

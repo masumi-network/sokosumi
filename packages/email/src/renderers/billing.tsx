@@ -10,7 +10,7 @@ export function renderLowBalanceEmail({
   locale,
   recipientName,
 }: BillingLowBalanceEmailProps): Promise<RenderedEmail> {
-  const { t } = createEmailTranslator(locale);
+  const { locale: lang, t } = createEmailTranslator(locale);
   const trimmedName = recipientName?.trim();
   const values = { credits: String(credits) };
   const body = t(`${BILLING_SCOPE}.lowBalance.body`, values);
@@ -20,6 +20,7 @@ export function renderLowBalanceEmail({
     actionUrl,
     body,
     footer: t(`${BILLING_SCOPE}.footer`),
+    lang,
     greeting: trimmedName
       ? t(`${BILLING_SCOPE}.greeting`, { name: trimmedName })
       : t(`${BILLING_SCOPE}.greetingWithoutName`),

@@ -26,6 +26,7 @@ export interface ActionEmailTemplateProps {
   facts?: readonly ActionEmailFact[];
   footer: string;
   greeting: string;
+  lang: string;
   linkInstructions?: string;
   preview: string;
   quote?: string;
@@ -39,13 +40,14 @@ export function ActionEmailTemplate({
   facts,
   footer,
   greeting,
+  lang,
   linkInstructions = DEFAULT_LINK_INSTRUCTIONS,
   preview,
   quote,
   title,
 }: ActionEmailTemplateProps) {
   return (
-    <EmailShell footer={footer} preview={preview} title={title}>
+    <EmailShell footer={footer} lang={lang} preview={preview} title={title}>
       <Text
         className={DARK_CLASS.text}
         style={{

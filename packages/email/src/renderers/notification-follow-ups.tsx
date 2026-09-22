@@ -30,6 +30,7 @@ interface FollowUpEmailOptions {
     | "mention"
     | "mentionMany"
     | "task";
+  lang: string;
   quote?: null | string;
   /** Source-row catalog key; omitted when the catalog has no sentence for it. */
   reason?: null | string;
@@ -42,6 +43,7 @@ function renderFollowUpEmail({
   actionUrl,
   facts,
   family,
+  lang,
   quote,
   reason,
   recipientName,
@@ -61,6 +63,7 @@ function renderFollowUpEmail({
     facts,
     footer: t(`${FOLLOW_UP_SCOPE}.footer`),
     greeting: buildGreeting(t, recipientName),
+    lang,
     linkInstructions: linkInstructions(t),
     // Preheader uses the family line only when the body does; a reason
     // sentence would contradict it.
@@ -99,11 +102,12 @@ export function renderChatMentionFollowUpEmail({
   roomName,
   unreadCount,
 }: ChatMentionFollowUpEmailProps): Promise<RenderedEmail> {
-  const { t } = createEmailTranslator(locale);
+  const { locale: lang, t } = createEmailTranslator(locale);
   const many = standsForSeveral(unreadCount);
   const room = nameOr(t, roomName, "fallbackRoomName");
 
   return renderFollowUpEmail({
+    lang,
     actionUrl,
     family: many ? "mentionMany" : "mention",
     quote: many ? null : messagePreview,
@@ -127,11 +131,12 @@ export function renderChatDirectMessageFollowUpEmail({
   recipientName,
   unreadCount,
 }: ChatDirectMessageFollowUpEmailProps): Promise<RenderedEmail> {
-  const { t } = createEmailTranslator(locale);
+  const { locale: lang, t } = createEmailTranslator(locale);
   const many = standsForSeveral(unreadCount);
   const author = nameOr(t, authorName, "fallbackAuthorName");
 
   return renderFollowUpEmail({
+    lang,
     actionUrl,
     family: many ? "directMessageMany" : "directMessage",
     quote: many ? null : messagePreview,
@@ -151,10 +156,11 @@ export function renderBillingFollowUpEmail({
   reason,
   recipientName,
 }: BillingFollowUpEmailProps): Promise<RenderedEmail> {
-  const { t } = createEmailTranslator(locale);
+  const { locale: lang, t } = createEmailTranslator(locale);
   const hasCredits = typeof credits === "number";
 
   return renderFollowUpEmail({
+    lang,
     actionUrl,
     family: "billing",
     reason: reason === "lowBalance" && !hasCredits ? null : reason,
@@ -174,10 +180,11 @@ export function renderTaskFollowUpEmail({
   recipientName,
   taskName,
 }: TaskFollowUpEmailProps): Promise<RenderedEmail> {
-  const { t } = createEmailTranslator(locale);
+  const { locale: lang, t } = createEmailTranslator(locale);
   const trimmedProjectName = projectName?.trim();
 
   return renderFollowUpEmail({
+    lang,
     actionUrl,
     facts: trimmedProjectName
       ? [

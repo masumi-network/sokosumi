@@ -5,6 +5,7 @@ import {
   DARK_CLASS,
   LIGHT_PALETTE,
   MONO_STACK,
+  nestedRadius,
   RADIUS,
   SPACE,
   TEXT,
@@ -21,6 +22,7 @@ export interface JobFailureNotificationEmailTemplateProps {
   description: string;
   fields: JobFailureField[];
   footer: string;
+  lang: string;
   preview: string;
   title: string;
 }
@@ -34,11 +36,18 @@ export function JobFailureNotificationEmailTemplate({
   description,
   fields,
   footer,
+  lang,
   preview,
   title,
 }: JobFailureNotificationEmailTemplateProps) {
   return (
-    <EmailShell footer={footer} maxWidth={600} preview={preview} title={title}>
+    <EmailShell
+      footer={footer}
+      lang={lang}
+      maxWidth={600}
+      preview={preview}
+      title={title}
+    >
       <Text
         className={DARK_CLASS.text}
         style={{
@@ -84,7 +93,7 @@ export function JobFailureNotificationEmailTemplate({
                 style={{
                   backgroundColor: LIGHT_PALETTE.codeSurface,
                   border: `1px solid ${LIGHT_PALETTE.hairline}`,
-                  borderRadius: RADIUS.control,
+                  borderRadius: nestedRadius(RADIUS.panel, SPACE.md),
                   margin: 0,
                   padding: `${SPACE.sm} ${SPACE.md}`,
                 }}

@@ -21,6 +21,18 @@ export const RADIUS = {
   control: "10px",
 } as const;
 
+/**
+ * Concentric radius: an inner box repeats its parent's corner, less the inset
+ * between them. Past the parent's radius the corner is square.
+ */
+export function nestedRadius(outer: string, inset: string): string {
+  return `${Math.max(Number.parseInt(outer, 10) - Number.parseInt(inset, 10), 0)}px`;
+}
+
+/** Card depth. Clients that drop it keep the border. */
+export const CARD_SHADOW =
+  "0 1px 2px rgba(10, 10, 10, 0.04), 0 12px 32px rgba(10, 10, 10, 0.06)";
+
 /** Web-safe stacks. Custom fonts do not survive Outlook. */
 export const FONT_STACK =
   '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';

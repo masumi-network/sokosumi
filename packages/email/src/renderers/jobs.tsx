@@ -36,7 +36,7 @@ export async function renderJobFailureNotificationEmail({
   result,
   resultHash,
 }: JobFailureNotificationEmailProps): Promise<RenderedEmail> {
-  const { t } = createEmailTranslator(locale);
+  const { locale: lang, t } = createEmailTranslator(locale);
   const fields: JobFailureField[] = [
     { label: t("jobs.failureNotification.network"), value: network },
     { label: t("jobs.failureNotification.agentName"), value: agentName },
@@ -73,6 +73,7 @@ export async function renderJobFailureNotificationEmail({
   ];
   const html = await render(
     <JobFailureNotificationEmailTemplate
+      lang={lang}
       description={t("jobs.failureNotification.description")}
       fields={fields}
       footer={t("jobs.failureNotification.footer")}

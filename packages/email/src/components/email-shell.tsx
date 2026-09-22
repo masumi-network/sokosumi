@@ -12,6 +12,7 @@ import {
 } from "react-email";
 
 import {
+  CARD_SHADOW,
   DARK_CLASS,
   darkModeCss,
   FONT_STACK,
@@ -24,6 +25,8 @@ import {
 export interface EmailShellProps {
   children: ReactNode;
   footer: string;
+  /** Resolved email locale, announced to screen readers. */
+  lang: string;
   maxWidth?: 560 | 600;
   preview: string;
   title: string;
@@ -42,12 +45,13 @@ const RESPONSIVE_CSS = `@media only screen and (max-width: 600px) {
 export function EmailShell({
   children,
   footer,
+  lang,
   maxWidth = 560,
   preview,
   title,
 }: EmailShellProps) {
   return (
-    <Html lang="en">
+    <Html lang={lang}>
       <Head>
         <meta content="text/html; charset=UTF-8" httpEquiv="Content-Type" />
         <meta content="light dark" name="color-scheme" />
@@ -83,6 +87,7 @@ export function EmailShell({
               backgroundColor: LIGHT_PALETTE.surface,
               border: `1px solid ${LIGHT_PALETTE.cardBorder}`,
               borderRadius: RADIUS.card,
+              boxShadow: CARD_SHADOW,
               margin: "0 auto",
               maxWidth: `${maxWidth}px`,
               overflow: "hidden",
@@ -117,7 +122,7 @@ export function EmailShell({
                     </td>
                     <td align="right" valign="middle">
                       <img
-                        alt="Sokosumi kanji"
+                        alt=""
                         className={DARK_CLASS.logo}
                         height="28"
                         src={EMAIL_KANJI_URL}
