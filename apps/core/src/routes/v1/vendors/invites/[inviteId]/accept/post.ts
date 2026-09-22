@@ -95,7 +95,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         select: { role: true },
       });
 
-      const role = existing?.role ?? invite.role;
+      const nextRole = existing?.role === "admin" ? "admin" : invite.role;
       if (!existing) {
         await tx.vendorMember.create({
           data: {
@@ -103,6 +103,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             userId: userAuth.userId,
             role: invite.role,
           },
+        });
+      } else if (existing.role !== nextRole) {
+        await tx.vendorMember.update({
+          where: {
+            vendorId_userId: {
+              vendorId: invite.vendorId,
+              userId: userAuth.userId,
+            },
+          },
+          data: { role: nextRole },
         });
       }
 
@@ -115,7 +125,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
       });
 
-      return { vendor: invite.vendor, role };
+      return { vendor: invite.vendor, role: nextRole };
     }, "Vendor invitation changed concurrently; retry the request");
 
     return created(

@@ -25,6 +25,7 @@ const db = vi.hoisted(() => ({
   vendorMemberFindFirstMock: vi.fn(),
   vendorMemberFindUniqueMock: vi.fn(),
   vendorMemberCreateMock: vi.fn(),
+  vendorMemberUpdateMock: vi.fn(),
   inviteFindFirstMock: vi.fn(),
   inviteFindUniqueMock: vi.fn(),
   inviteFindManyMock: vi.fn(),
@@ -44,6 +45,7 @@ vi.mock("@/lib/db/prisma", () => {
       findFirst: db.vendorMemberFindFirstMock,
       findUnique: db.vendorMemberFindUniqueMock,
       create: db.vendorMemberCreateMock,
+      update: db.vendorMemberUpdateMock,
     },
     vendorMemberInvite: {
       findFirst: db.inviteFindFirstMock,
@@ -134,6 +136,7 @@ describe("vendor member invites", () => {
             findFirst: db.vendorMemberFindFirstMock,
             findUnique: db.vendorMemberFindUniqueMock,
             create: db.vendorMemberCreateMock,
+            update: db.vendorMemberUpdateMock,
           },
           vendorMemberInvite: {
             findFirst: db.inviteFindFirstMock,
@@ -297,6 +300,42 @@ describe("vendor member invites", () => {
     });
     expect(body.data.role).toBe("developer");
     expect(body.data.slug).toBe(testVendor.slug);
+  });
+
+  it("upgrades an existing developer when they accept an admin invite", async () => {
+    db.userFindUniqueMock.mockResolvedValue({ email: "dev@example.com" });
+    db.inviteFindUniqueMock.mockResolvedValue({
+      ...pendingInvite,
+      role: "admin",
+      vendor: {
+        ...testVendor,
+        logoLight: null,
+        logoDark: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+    });
+    db.vendorMemberFindUniqueMock.mockResolvedValue({ role: "developer" });
+
+    const app = createApp(inviteeAuth);
+    const response = await app.request(
+      "http://localhost/invites/inv_1/accept",
+      { method: "POST" },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(db.vendorMemberCreateMock).not.toHaveBeenCalled();
+    expect(db.vendorMemberUpdateMock).toHaveBeenCalledWith({
+      where: {
+        vendorId_userId: {
+          vendorId: testVendor.id,
+          userId: "invitee_user",
+        },
+      },
+      data: { role: "admin" },
+    });
+    expect(body.data.role).toBe("admin");
   });
 
   it("404s accept when the invitation email is not the caller's", async () => {
