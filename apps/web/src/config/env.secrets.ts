@@ -1,6 +1,5 @@
 import "server-only";
 
-/* eslint-disable no-restricted-properties */
 import * as z from "zod";
 
 /**
