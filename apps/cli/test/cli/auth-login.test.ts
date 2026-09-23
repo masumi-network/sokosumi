@@ -66,7 +66,7 @@ test("auth login stores OAuth credentials without printing the access token", as
   );
 });
 
-test("TestV55 auth login sanitizes the API URL in its JSON result", async () => {
+test("auth login sanitizes the API URL in its JSON result", async () => {
   const output: string[] = [];
   let loginRequest: BrowserLoginOptions | undefined;
   const apiUrl =
@@ -98,7 +98,7 @@ test("TestV55 auth login sanitizes the API URL in its JSON result", async () => 
   assert.doesNotMatch(output.join(""), /user|password|secret|fragment/i);
 });
 
-test("TestV52 auth login cancels before saving credentials for aborted OAuth signals", async () => {
+test("auth login cancels before saving credentials for aborted OAuth signals", async () => {
   for (const abortMode of ["before login", "during login"] as const) {
     const controller = new AbortController();
     if (abortMode === "before login") controller.abort();
@@ -268,7 +268,7 @@ test("auth login rejects target-coded keys for explicit custom targets", async (
   assert.equal(saved, false);
 });
 
-test("TestV58 auth login rejects coworker API keys before injected store writes", async () => {
+test("auth login rejects coworker API keys before injected store writes", async () => {
   let saveApiKeyCalls = 0;
   await assert.rejects(
     runAuthLogin({
