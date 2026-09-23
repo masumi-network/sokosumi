@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useId, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
   acceptChatRoomInvitationAction,
@@ -104,6 +104,12 @@ const EMPTY_PENDING_INVITATIONS: ChatRoomInvitation[] = [];
 const ARCHIVED_TRAILING_CONTROL_CLASS =
   "absolute top-1/2 right-1 z-10 flex size-8 -translate-y-1/2 items-center justify-center after:absolute after:-inset-1.5 md:size-7 md:after:hidden";
 
+/** A room read during the All unreads pass: listed in its place, dimmed. */
+const READ_INBOX_ROOM_ITEM_PROPS = {
+  "data-read": "true",
+  className: "opacity-60",
+};
+
 interface OrganizationChatListProps {
   rooms: ChatRoom[];
   archivedRooms: ChatRoom[];
@@ -167,7 +173,8 @@ export function OrganizationChatList({
   const [externalOpen, setExternalOpen] = useState(true);
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [filterPass, setFilterPass] = useState(EMPTY_UNREAD_FILTER_PASS);
-  const [justReadOpen, setJustReadOpen] = useState(true);
+  // The app sidebar and the mobile `/chat` page each mount this list.
+  const inboxReadLabelId = useId();
   const [restoringRoomId, setRestoringRoomId] = useState<string | null>(null);
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
   const [pendingDeleteRoom, setPendingDeleteRoom] = useState<ChatRoom | null>(
@@ -269,57 +276,58 @@ export function OrganizationChatList({
   }
 
   const activeRoomId = getActiveRoomIdFromPathname(pathname);
-  const { pinned, directMessages, namedChannels, externalJoined } = useMemo(
+  // All unreads (SOK-1159): the rooms a read would still change, newest
+  // activity first. One answer for what the filter lists and whether the
+  // reader is caught up, so the two cannot disagree.
+  const unreadRooms = useMemo(
     () =>
-      partitionRoomsForSidebar(
-        // All unreads (SOK-1159): the same sections, holding only the rooms
-        // a read would still change. The open room stays: it is the one being
-        // read, and dropping it would pull the row out from under the reader.
-        unreadOnly
-          ? roomRows.filter((room) => {
-              const { readRoom, lookThreads } = roomUnreadReads(room);
-              return readRoom || lookThreads || room.id === activeRoomId;
-            })
-          : roomRows,
-      ),
-    [roomRows, unreadOnly, activeRoomId],
+      roomRows
+        .filter((room) => {
+          const { readRoom, lookThreads } = roomUnreadReads(room);
+          return readRoom || lookThreads;
+        })
+        .sort(
+          (a, b) =>
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime() ||
+            a.id.localeCompare(b.id),
+        ),
+    [roomRows],
   );
-  // The filter's pass (SOK-1159): rooms read since it was switched on move to
-  // Just read rather than vanishing. Switching it off ends the pass.
+  const { pinned, directMessages, namedChannels, externalJoined } = useMemo(
+    () => partitionRoomsForSidebar(roomRows),
+    [roomRows],
+  );
+  // The filter is one flat list, not the sections: a heading over one or two
+  // rooms is noise. Each room keeps the place it first took in the pass and
+  // dims there once read, so nothing moves out from under the reader.
+  // Switching the filter off ends the pass.
   const nextFilterPass = unreadOnly
     ? advanceUnreadFilterPass(filterPass, {
-        unreadIds: roomRows
-          .filter((room) => {
-            const { readRoom, lookThreads } = roomUnreadReads(room);
-            return readRoom || lookThreads;
-          })
-          .map((room) => room.id),
-        activeRoomId,
+        unreadIds: unreadRooms.map((room) => room.id),
       })
     : EMPTY_UNREAD_FILTER_PASS;
   if (nextFilterPass !== filterPass) {
     setFilterPass(nextFilterPass);
   }
-  const justReadRooms = nextFilterPass.justRead.flatMap((id) => {
-    // The open room keeps its place in its own section while it is read.
-    const room =
-      id === activeRoomId ? undefined : roomRows.find((row) => row.id === id);
-    return room ? [room] : [];
-  });
+  const inboxRooms = unreadOnly
+    ? [
+        ...nextFilterPass.seen,
+        // The open room is listed while it is open, read or not.
+        ...(activeRoomId && !nextFilterPass.seen.includes(activeRoomId)
+          ? [activeRoomId]
+          : []),
+      ].flatMap((id) => roomRows.find((row) => row.id === id) ?? [])
+    : [];
   const pinnedRoomIds = pinned.map((room) => room.id);
   // Reordering a filtered list would move rooms relative to ones it hides.
   const canReorderPinned = pinnedOpen && pinned.length > 1 && !unreadOnly;
-  // A pending invitation stays under the filter, and keeps External open: it
-  // is addressed to the reader and waits on them, which is why a closed
-  // section already marks it as a mention (`resolveSectionAttention`).
+  // A pending invitation stays under the filter, in External, and keeps the
+  // reader from being caught up: it is addressed to them and waits on them,
+  // which is why a closed section already marks it as a mention
+  // (`resolveSectionAttention`). Caught up is about what is unread, not what
+  // is listed: rooms read in the pass stay listed, dimmed.
   const caughtUp =
-    unreadOnly &&
-    pinned.length +
-      namedChannels.length +
-      externalJoined.length +
-      directMessages.length +
-      pendingRows.length ===
-      0;
+    unreadOnly && unreadRooms.length === 0 && pendingRows.length === 0;
   // The mode ends with the toggle that leaves it (section closed, or fewer
   // than two pins). Otherwise it would come back by itself, unasked, the
   // next time a second room is pinned.
@@ -408,39 +416,54 @@ export function OrganizationChatList({
           onUnreadOnlyChange={setUnreadOnly}
         />
         {caughtUp ? (
-          // Laid out as a row, on the sidebar's own axes: the mark in the
-          // icon slot, the words on the label column, and the way back to
-          // every room where a row keeps its action.
-          <div className="group-data-[collapsible=icon]:hidden">
-            <div className={SIDEBAR_ROW_CLASS}>
-              <SidebarRowSlot>
-                <span className="bg-primary-quaternary text-primary-variant grid size-5 place-items-center rounded-full">
-                  <CheckCheck className="size-3" aria-hidden />
-                </span>
-              </SidebarRowSlot>
-              <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
-                {t("UnreadNav.caughtUp")}
-              </span>
-              <button
-                type="button"
-                aria-label={t("UnreadNav.showAllChats")}
-                onClick={() => setUnreadOnly(false)}
-                className="text-primary-variant ring-sidebar-ring shrink-0 rounded-sm px-1 text-xs font-medium underline-offset-2 outline-hidden hover:underline focus-visible:ring-2"
-              >
-                {t("UnreadNav.showAll")}
-              </button>
-            </div>
-            <p
-              className={cn(
-                SIDEBAR_ROW_LABEL_INSET_CLASS,
-                "text-muted-foreground pr-2 text-xs",
-              )}
-            >
+          // A message, not a row: nothing here opens. The way back to every
+          // room is the tinted All unreads row right above it.
+          <div
+            role="status"
+            data-slot="unread-caught-up"
+            className="group-data-[collapsible=icon]:hidden flex flex-col items-center gap-1 px-4 pt-4 pb-3 text-center"
+          >
+            <span className="bg-primary-quaternary text-primary-variant mb-1 grid size-8 place-items-center rounded-full">
+              <CheckCheck className="size-4" aria-hidden />
+            </span>
+            <p className="text-foreground text-sm font-medium">
+              {t("UnreadNav.caughtUp")}
+            </p>
+            <p className="text-muted-foreground text-xs">
               {t("UnreadNav.nothingUnread", { count: roomRows.length })}
             </p>
           </div>
         ) : null}
-        {pinned.length > 0 ? (
+        {inboxRooms.length > 0 ? (
+          <div>
+            {caughtUp ? (
+              // Everything left is read: say why it is still listed.
+              <p
+                id={inboxReadLabelId}
+                className="text-muted-foreground group-data-[collapsible=icon]:hidden px-2 pb-1 text-xs font-medium"
+              >
+                {t("UnreadNav.justRead")}
+              </p>
+            ) : null}
+            <SidebarMenu
+              data-slot="unread-inbox"
+              aria-labelledby={caughtUp ? inboxReadLabelId : undefined}
+              className="gap-0"
+            >
+              {inboxRooms.map((room) => {
+                const read = !unreadRooms.some((row) => row.id === room.id);
+                return (
+                  <ChatRoomSidebarRow
+                    key={room.id}
+                    {...roomRowProps(room)}
+                    itemProps={read ? READ_INBOX_ROOM_ITEM_PROPS : undefined}
+                  />
+                );
+              })}
+            </SidebarMenu>
+          </div>
+        ) : null}
+        {!unreadOnly && pinned.length > 0 ? (
           <Collapsible open={pinnedOpen} onOpenChange={setPinnedOpen}>
             <ChatSidebarSectionHeader
               isOpen={pinnedOpen}
@@ -514,7 +537,7 @@ export function OrganizationChatList({
           </Collapsible>
         ) : null}
 
-        {hasOrganization && (!unreadOnly || namedChannels.length > 0) ? (
+        {hasOrganization && !unreadOnly ? (
           <Collapsible
             open={channelSectionOpen}
             onOpenChange={setChannelSectionOpen}
@@ -550,7 +573,8 @@ export function OrganizationChatList({
           </Collapsible>
         ) : null}
 
-        {pendingRows.length > 0 || externalJoined.length > 0 ? (
+        {pendingRows.length > 0 ||
+        (!unreadOnly && externalJoined.length > 0) ? (
           <Collapsible open={externalOpen} onOpenChange={setExternalOpen}>
             <ChatSidebarSectionHeader
               isOpen={externalOpen}
@@ -632,9 +656,15 @@ export function OrganizationChatList({
                     </SidebarMenuItem>
                   );
                 })}
-                {externalJoined.map((room) => (
-                  <ChatRoomSidebarRow key={room.id} {...roomRowProps(room)} />
-                ))}
+                {/* Under the filter these rooms are in its flat list. */}
+                {unreadOnly
+                  ? null
+                  : externalJoined.map((room) => (
+                      <ChatRoomSidebarRow
+                        key={room.id}
+                        {...roomRowProps(room)}
+                      />
+                    ))}
               </SidebarMenu>
             </ChatSidebarSectionContent>
           </Collapsible>
@@ -819,7 +849,7 @@ export function OrganizationChatList({
           </AlertDialogContent>
         </AlertDialog>
 
-        {!unreadOnly || directMessages.length > 0 ? (
+        {!unreadOnly ? (
           <Collapsible open={directOpen} onOpenChange={setDirectOpen}>
             {/*
             Sidebar rows = messaged history only. `+` opens Start New Direct
@@ -852,26 +882,6 @@ export function OrganizationChatList({
                     </div>
                   </SidebarMenuItem>
                 ) : null}
-              </SidebarMenu>
-            </ChatSidebarSectionContent>
-          </Collapsible>
-        ) : null}
-
-        {justReadRooms.length > 0 ? (
-          // Read during this pass of the filter, newest first, dimmed: one
-          // click back, until the filter is switched off.
-          <Collapsible open={justReadOpen} onOpenChange={setJustReadOpen}>
-            <ChatSidebarSectionHeader
-              isOpen={justReadOpen}
-              railIcon={CheckCheck}
-            >
-              {t("UnreadNav.justRead")}
-            </ChatSidebarSectionHeader>
-            <ChatSidebarSectionContent>
-              <SidebarMenu data-slot="just-read" className="gap-0 opacity-60">
-                {justReadRooms.map((room) => (
-                  <ChatRoomSidebarRow key={room.id} {...roomRowProps(room)} />
-                ))}
               </SidebarMenu>
             </ChatSidebarSectionContent>
           </Collapsible>
