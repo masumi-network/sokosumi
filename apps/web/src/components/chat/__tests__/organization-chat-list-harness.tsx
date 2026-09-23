@@ -8,6 +8,11 @@ import type {
 
 import { OrganizationChatList } from "../organization-chat-list.client";
 
+/** The route the list reads, so a test can open a room. Reset per test. */
+const { harnessPathname } = vi.hoisted(() => ({
+  harnessPathname: { current: "/chat" },
+}));
+
 const {
   acceptInvitationMock,
   listRoomsMock,
@@ -24,6 +29,7 @@ const {
 
 export {
   acceptInvitationMock,
+  harnessPathname,
   listArchivedMock,
   listPendingMock,
   listRoomsMock,
@@ -36,7 +42,7 @@ vi.mock("next/navigation", () => ({
     replace: vi.fn(),
     refresh: vi.fn(),
   }),
-  usePathname: () => "/chat",
+  usePathname: () => harnessPathname.current,
 }));
 
 vi.mock("next/link", () => ({
@@ -91,11 +97,13 @@ vi.mock("../chat-room-sidebar-row", () => ({
   ChatRoomSidebarRow: ({
     label,
     reorderHandle,
+    itemProps,
   }: {
     label: string;
     reorderHandle?: ReactNode;
+    itemProps?: ComponentProps<"li">;
   }) => (
-    <li data-testid="room-row">
+    <li {...itemProps} data-testid="room-row">
       <span>{label}</span>
       {reorderHandle}
     </li>
@@ -289,6 +297,8 @@ export function makeRoom(
     name: overrides.id,
     slug: overrides.kind === "channel" ? overrides.id : null,
     isSelfDirect: false,
+    isGroupDirect: false,
+    groupName: null,
     directKey: null,
     topic: null,
     discoverability: overrides.kind === "channel" ? "public" : null,
@@ -326,6 +336,7 @@ export function makeInvitation(
 }
 
 export function resetOrganizationChatListMocks() {
+  harnessPathname.current = "/chat";
   acceptInvitationMock.mockReset();
   listRoomsMock.mockReset();
   listArchivedMock.mockReset();

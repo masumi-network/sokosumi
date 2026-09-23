@@ -854,7 +854,7 @@ export const getChatsRoomsById = <ThrowOnError extends boolean = false>(options:
 });
 
 /**
- * Update an organization chat room and its roster.
+ * Update an organization chat room and its roster. On a group Direct, only `groupName` is accepted.
  */
 export const patchChatsRoomsById = <ThrowOnError extends boolean = false>(options: Options<PatchChatsRoomsByIdData, ThrowOnError>): RequestResult<PatchChatsRoomsByIdResponses, PatchChatsRoomsByIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchChatsRoomsByIdResponses, PatchChatsRoomsByIdErrors, ThrowOnError>({
     responseTransformer: patchChatsRoomsByIdResponseTransformer,

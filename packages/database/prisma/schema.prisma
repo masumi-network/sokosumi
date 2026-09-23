@@ -3415,6 +3415,9 @@ model ChatRoom {
   slug                   String?
   kind                   String    @default("channel")
   directKey              String?
+  /// Group name of a group Direct (ADR-0040). Null means unnamed; always null
+  /// for channels (CHECK). Separate from `name`, the Direct creation snapshot.
+  groupName              String?
   /// Remote coworker Conversations API id for streaming 1:1 directs (not used for channel mention threads).
   providerConversationId String?
   topic                  String?

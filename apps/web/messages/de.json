@@ -5478,8 +5478,6 @@
         "markAllReadError": "Nicht alles konnte als gelesen markiert werden.",
         "caughtUp": "Alles gelesen",
         "allThreads": "Alle Threads",
-        "showAllChats": "Alle Chats anzeigen",
-        "showAll": "Alle anzeigen",
         "nothingUnread": "{count, plural, one {Nichts Ungelesenes in # Chat} other {Nichts Ungelesenes in # Chats}}",
         "justRead": "Gerade gelesen"
       },
@@ -5686,6 +5684,16 @@
       "MembershipStatus": {
         "joined": "{name} ist beigetreten",
         "left": "{name} hat den Channel verlassen"
+      },
+      "GroupName": {
+        "rename": "Umbenennen",
+        "dialogTitle": "Gruppe benennen",
+        "dialogDescription": "Alle in der Gruppe sehen diesen Namen statt der Mitgliederliste. Lass das Feld leer, um wieder die Mitglieder anzuzeigen.",
+        "label": "Gruppenname",
+        "save": "Speichern",
+        "saveFailed": "Die Gruppe konnte nicht benannt werden.",
+        "named": "{name} hat die Gruppe {groupName} genannt",
+        "cleared": "{name} hat den Gruppennamen entfernt"
       },
       "External": {
         "title": "Extern",

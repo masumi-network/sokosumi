@@ -16773,7 +16773,7 @@
     },
     "/chats/rooms/{id}": {
       "patch": {
-        "description": "Update an organization chat room and its roster.",
+        "description": "Update an organization chat room and its roster. On a group Direct, only `groupName` is accepted.",
         "tags": [
           "Chat Rooms"
         ],
@@ -26356,6 +26356,19 @@
             "description": "Deterministic key for direct rooms; null for normal rooms.",
             "example": "user_123:user_456"
           },
+          "isGroupDirect": {
+            "type": "boolean",
+            "description": "Whether this Direct was started for three or more humans. Only group Directs can carry a Group name; a group that later shrank stays one.",
+            "example": false
+          },
+          "groupName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Group name shared by every member of a group Direct, shown in place of the member list. Null when unnamed, and always null for Channels and other Directs.",
+            "example": "Launch crew"
+          },
           "topic": {
             "type": [
               "string",
@@ -26532,6 +26545,8 @@
           "kind",
           "isSelfDirect",
           "directKey",
+          "isGroupDirect",
+          "groupName",
           "topic",
           "discoverability",
           "createdByUserId",
@@ -26732,6 +26747,9 @@
           "membership": {
             "$ref": "#/components/schemas/ChatRoomMessageMembership"
           },
+          "groupNameChange": {
+            "$ref": "#/components/schemas/ChatRoomMessageGroupNameChange"
+          },
           "unfurls": {
             "type": [
               "array",
@@ -26761,6 +26779,7 @@
           "metadata",
           "quote",
           "membership",
+          "groupNameChange",
           "unfurls"
         ]
       },
@@ -28132,6 +28151,9 @@
               "membership": {
                 "$ref": "#/components/schemas/ChatRoomMessageMembership"
               },
+              "groupNameChange": {
+                "$ref": "#/components/schemas/ChatRoomMessageGroupNameChange"
+              },
               "unfurls": {
                 "type": [
                   "array",
@@ -28161,6 +28183,7 @@
               "metadata",
               "quote",
               "membership",
+              "groupNameChange",
               "unfurls"
             ]
           }
@@ -29337,6 +29360,15 @@
             "example": [
               "01960001-0001-7001-8001-000000000099"
             ]
+          },
+          "groupName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 80,
+            "description": "Group name of a group Direct, and the only field a Direct accepts. Any member may set it; an empty string or null clears it. Rejected for Channels and for other Directs.",
+            "example": "Launch crew"
           }
         }
       },
@@ -29806,6 +29838,49 @@
         "required": [
           "roomId",
           "starredAt"
+        ]
+      },
+      "ChatRoomMessageGroupNameChange": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "named",
+              "cleared"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The new Group name; null when it was cleared.",
+            "example": "Launch crew"
+          },
+          "actor": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name"
+            ]
+          }
+        },
+        "required": [
+          "action",
+          "name",
+          "actor"
         ]
       }
     }

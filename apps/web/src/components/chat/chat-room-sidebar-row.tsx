@@ -128,7 +128,10 @@ export interface ChatRoomSidebarRowProps {
   onRoomUpdated: (room: ChatRoom) => void;
   /** When false, render plain Link (page-mounted list outside Sheet). */
   dismissSheetOnNavigate?: boolean;
-  /** Pinned section only: the row's `<li>` is a drop slot and moves in a drag. */
+  /**
+   * Props for the row's `<li>`: a drop slot that moves in a drag in Pinned,
+   * a dimmed read room in the All unreads filter.
+   */
   itemProps?: ComponentProps<"li">;
   /**
    * Pinned section in its reorder mode: stands where the room menu does, and
@@ -412,8 +415,10 @@ export function ChatRoomSidebarRow({
   }
 
   // The dialog needs the org roster and the reader's role, which this row does
-  // not have and the room already loads. So the row asks the room to open it.
-  const editChannelItem = (
+  // not have and the room already loads. So the row asks the room to open it:
+  // a Channel's settings, or a group Direct's name, which is all it has.
+  const canEditRoom = isChannel || room.isGroupDirect;
+  const editRoomItem = (
     <DropdownMenuItem
       disabled={isPending}
       onSelect={() => {
@@ -441,7 +446,7 @@ export function ChatRoomSidebarRow({
       }}
     >
       <Pencil className="size-4" aria-hidden />
-      {tChannels("editChannel")}
+      {isChannel ? tChannels("editChannel") : tChannels("GroupName.rename")}
     </DropdownMenuItem>
   );
 
@@ -723,13 +728,13 @@ export function ChatRoomSidebarRow({
                     )}
                     {isMuted ? tActions("unmute") : tActions("mute")}
                   </DropdownMenuItem>
-                  {isChannel ? (
+                  {canEditRoom ? (
                     <>
                       <DropdownMenuSeparator />
                       {dismissSheetOnNavigate ? (
-                        <SheetClose asChild>{editChannelItem}</SheetClose>
+                        <SheetClose asChild>{editRoomItem}</SheetClose>
                       ) : (
-                        editChannelItem
+                        editRoomItem
                       )}
                     </>
                   ) : null}

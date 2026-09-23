@@ -211,6 +211,7 @@ function channelRoom(overrides: Record<string, unknown> = {}) {
     slug: "launch-room",
     kind: "channel",
     directKey: null,
+    groupName: null,
     topic: null,
     discoverability: "private",
     createdByUserId: USER_ID,
@@ -1533,5 +1534,256 @@ describe("PATCH /chats/rooms/{id}", () => {
       }),
       tx,
     );
+  });
+});
+
+describe("PATCH /chats/rooms/{id} Group name", () => {
+  const CARA_ID = "user_789";
+
+  function groupDirect(overrides: Record<string, unknown> = {}) {
+    return channelRoom({
+      name: "Bob, Cara",
+      slug: null,
+      kind: "direct",
+      directKey: `direct:v2:user:${USER_ID}:user:${OTHER_USER_ID}:user:${CARA_ID}`,
+      discoverability: null,
+      createdByUserId: OTHER_USER_ID,
+      userMembers: [
+        hostUserMember(USER_ID, "Ada", "ada@example.com"),
+        hostUserMember(OTHER_USER_ID, "Bob", "bob@example.com"),
+        hostUserMember(CARA_ID, "Cara", "cara@example.com"),
+      ],
+      ...overrides,
+    });
+  }
+
+  function patchRoom(body: Record<string, unknown>) {
+    return createApp(userAuthContext).request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  /** The room as the update and the re-read after the status row return it. */
+  function savedAs(room: ReturnType<typeof groupDirect>) {
+    roomUpdateMock.mockResolvedValue(room);
+    roomFindUniqueOrThrowMock.mockResolvedValue(room);
+  }
+
+  it("lets any member name a group Direct and records who did", async () => {
+    roomFindFirstMock.mockResolvedValueOnce(groupDirect());
+    savedAs(groupDirect({ groupName: "Launch crew" }));
+
+    const response = await patchRoom({ groupName: "  Launch crew  " });
+
+    expect(response.status).toBe(200);
+    expect(roomUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: ROOM_ID },
+        data: { groupName: "Launch crew" },
+      }),
+    );
+    expect(messageCreateMock).toHaveBeenCalledTimes(1);
+    expect(messageCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          roomId: ROOM_ID,
+          content: "Ada named the group Launch crew",
+          senderUserId: null,
+          metadata: {
+            groupNameChange: {
+              action: "named",
+              name: "Launch crew",
+              actor: { id: USER_ID, name: "Ada" },
+            },
+          },
+        }),
+      }),
+    );
+    expect(
+      publishChatRoomMembershipStatusMessagesBestEffortMock,
+    ).toHaveBeenCalledWith([
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          groupNameChange: expect.objectContaining({ action: "named" }),
+        }),
+      }),
+    ]);
+    const body = await response.json();
+    expect(body.data.groupName).toBe("Launch crew");
+    expect(body.data.isGroupDirect).toBe(true);
+    // No organization role is asked for: naming is a member right.
+    expect(memberFindUniqueMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ select: { role: true } }),
+    );
+  });
+
+  it("renames a group someone else named", async () => {
+    roomFindFirstMock.mockResolvedValueOnce(
+      groupDirect({ groupName: "Launch crew" }),
+    );
+    savedAs(groupDirect({ groupName: "Ship it" }));
+
+    const response = await patchRoom({ groupName: "Ship it" });
+
+    expect(response.status).toBe(200);
+    expect(messageCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          content: "Ada named the group Ship it",
+        }),
+      }),
+    );
+  });
+
+  it.each([
+    ["an empty string", ""],
+    ["whitespace", "   "],
+    ["null", null],
+  ])("clears the name when sent %s", async (_label, groupName) => {
+    roomFindFirstMock.mockResolvedValueOnce(
+      groupDirect({ groupName: "Launch crew" }),
+    );
+    savedAs(groupDirect());
+
+    const response = await patchRoom({ groupName });
+
+    expect(response.status).toBe(200);
+    expect(roomUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { groupName: null } }),
+    );
+    expect(messageCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          content: "Ada removed the group name",
+          metadata: {
+            groupNameChange: {
+              action: "cleared",
+              name: null,
+              actor: { id: USER_ID, name: "Ada" },
+            },
+          },
+        }),
+      }),
+    );
+    const body = await response.json();
+    expect(body.data.groupName).toBeNull();
+  });
+
+  it.each([
+    ["the current name again", "Launch crew", "Launch crew"],
+    ["a clear of an unnamed group", null, null],
+    ["a blank name for an unnamed group", null, ""],
+  ])("does nothing for %s", async (_label, current, groupName) => {
+    roomFindFirstMock.mockResolvedValueOnce(
+      groupDirect({ groupName: current }),
+    );
+
+    const response = await patchRoom({ groupName });
+
+    expect(response.status).toBe(200);
+    expect(roomUpdateMock).not.toHaveBeenCalled();
+    expect(messageCreateMock).not.toHaveBeenCalled();
+    expect(
+      publishChatRoomMembershipStatusMessagesBestEffortMock,
+    ).not.toHaveBeenCalled();
+    const body = await response.json();
+    expect(body.data.groupName).toBe(current);
+  });
+
+  it("rejects a name over 80 characters", async () => {
+    const response = await patchRoom({ groupName: "x".repeat(81) });
+
+    expect(response.status).toBe(422);
+    expect(roomUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the name nameable after the group shrank", async () => {
+    roomFindFirstMock.mockResolvedValueOnce(
+      groupDirect({
+        userMembers: [
+          hostUserMember(USER_ID, "Ada", "ada@example.com"),
+          hostUserMember(OTHER_USER_ID, "Bob", "bob@example.com"),
+        ],
+      }),
+    );
+    savedAs(groupDirect({ groupName: "Launch crew" }));
+
+    const response = await patchRoom({ groupName: "Launch crew" });
+
+    expect(response.status).toBe(200);
+    expect(messageCreateMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["a 1:1 Direct", directRoom()],
+    [
+      "a Self Direct",
+      channelRoom({
+        organizationId: null,
+        slug: null,
+        kind: "direct",
+        directKey: `direct:self:${USER_ID}`,
+        discoverability: null,
+      }),
+    ],
+    [
+      "a coworker Direct",
+      channelRoom({
+        slug: null,
+        kind: "direct",
+        directKey: `coworker:${USER_ID}:cow_1`,
+        discoverability: null,
+      }),
+    ],
+    [
+      "a Direct of two humans and a coworker",
+      channelRoom({
+        slug: null,
+        kind: "direct",
+        directKey: `direct:v2:coworker:cow_1:user:${OTHER_USER_ID}:user:${USER_ID}`,
+        discoverability: null,
+      }),
+    ],
+  ])("rejects naming %s", async (_label, room) => {
+    roomFindFirstMock.mockResolvedValueOnce(room);
+
+    const response = await patchRoom({ groupName: "Launch crew" });
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toContain("Only group Directs can be named.");
+    expect(roomUpdateMock).not.toHaveBeenCalled();
+    expect(messageCreateMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["name", { name: "Launch crew" }],
+    ["topic", { topic: "Launch" }],
+    ["members", { memberUserIds: [USER_ID, OTHER_USER_ID] }],
+    [
+      "members beside a Group name",
+      { groupName: "Launch crew", memberUserIds: [USER_ID] },
+    ],
+  ])("still rejects %s on a group Direct", async (_label, body) => {
+    roomFindFirstMock.mockResolvedValueOnce(groupDirect());
+
+    const response = await patchRoom(body);
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toContain("Direct rooms cannot be edited.");
+    expect(roomUpdateMock).not.toHaveBeenCalled();
+    expect(userMemberDeleteManyMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a Group name on a Channel", async () => {
+    roomFindFirstMock.mockResolvedValueOnce(channelRoom());
+    memberFindUniqueMock.mockResolvedValue({ role: "admin" });
+
+    const response = await patchRoom({ groupName: "Launch crew" });
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toContain("Only group Directs can be named.");
+    expect(roomUpdateMock).not.toHaveBeenCalled();
   });
 });

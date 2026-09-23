@@ -82,6 +82,8 @@ interface UpdateRoomInput {
   memberUserIds?: string[];
   coworkerIds?: string[];
   sokoBotIds?: string[];
+  /** Group Directs only; Core rejects it anywhere else. Blank clears it. */
+  groupName?: string;
 }
 
 interface CreateDirectRoomInput {
@@ -406,6 +408,9 @@ export async function updateRoomAction(
     }),
     ...(input.sokoBotIds !== undefined && {
       sokoBotIds: cleanIds(input.sokoBotIds),
+    }),
+    ...(input.groupName !== undefined && {
+      groupName: cleanString(input.groupName),
     }),
   };
 
