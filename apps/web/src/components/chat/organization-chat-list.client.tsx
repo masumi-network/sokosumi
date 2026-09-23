@@ -529,7 +529,8 @@ export function OrganizationChatList({
                     // A message, not a row: nothing here opens. The way back to
                     // every room is the tinted All unreads row right above it. Row
                     // sized, so a room arriving takes its place and nothing below
-                    // moves.
+                    // moves. Muted like a read row: the tinted circle and weight
+                    // are the unread signal, and this says there is none.
                     <motion.div
                       key="caught-up"
                       role="status"
@@ -537,13 +538,16 @@ export function OrganizationChatList({
                       className="group-data-[collapsible=icon]:hidden"
                       {...UNREAD_FILTER_PRESENCE}
                     >
-                      <div className={cn(SIDEBAR_ROW_CLASS, "text-sm")}>
+                      <div
+                        className={cn(
+                          SIDEBAR_ROW_CLASS,
+                          "text-muted-foreground text-sm",
+                        )}
+                      >
                         <SidebarRowSlot>
-                          <span className="bg-primary-quaternary text-primary-variant grid size-5 place-items-center rounded-full">
-                            <CheckCheck className="size-3" aria-hidden />
-                          </span>
+                          <CheckCheck className="size-4" aria-hidden />
                         </SidebarRowSlot>
-                        <span className="text-foreground min-w-0 truncate font-medium">
+                        <span className="min-w-0 truncate">
                           {t("UnreadNav.caughtUp")}
                         </span>
                       </div>
