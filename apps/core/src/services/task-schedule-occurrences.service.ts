@@ -4,6 +4,7 @@ import {
   type Prisma,
   type TaskSchedule,
   TaskScheduleEndsMode,
+  type TaskScheduleOccurrence,
   TaskScheduleOccurrenceState,
   TaskScheduleState,
   TaskStatus,
@@ -86,8 +87,8 @@ export function computeNextOccurrence(
  * Rule times after `from` up to the horizon, at most `limit` of them, and the
  * first one even beyond the horizon when `includeFirst`. A dense rule is
  * capped instead of refused; the plan rolls forward on every release. Times
- * in `held` already have an Occurrence (a skipped one, say) and are passed
- * over without counting against an end-after-N rule.
+ * in `occupied` already have an Occurrence (a skipped one, say) and are
+ * passed over without counting against an end-after-N rule.
  */
 function projectOccurrenceTimes(
   schedule: RuleState,
@@ -96,12 +97,12 @@ function projectOccurrenceTimes(
     horizonEnd,
     limit,
     includeFirst,
-    held,
+    occupied,
   }: {
     horizonEnd: Date;
     limit: number;
     includeFirst: boolean;
-    held: ReadonlySet<number>;
+    occupied: ReadonlySet<number>;
   },
 ): Date[] {
   const times: Date[] = [];
@@ -111,7 +112,7 @@ function projectOccurrenceTimes(
     ((includeFirst && times.length === 0) || next < horizonEnd) &&
     times.length < limit
   ) {
-    if (!held.has(next.getTime())) times.push(next);
+    if (!occupied.has(next.getTime())) times.push(next);
     next = computeNextOccurrence(
       { ...schedule, releasedCount: schedule.releasedCount + times.length },
       next,
@@ -124,10 +125,10 @@ type ProjectedSchedule = RuleState &
   Pick<TaskSchedule, "id" | "epochId" | "workspaceId" | "projectId">;
 
 /**
- * Extends the schedule's plan in its current epoch up to the horizon after
- * `now`, and returns the earliest planned Occurrence. Only the missing tail
- * is written: every insert runs the calendar invalidation trigger, even one
- * a conflict would skip.
+ * Plans the schedule's current epoch up to the horizon after `now`, and
+ * returns the earliest planned Occurrence. Only rule times without an
+ * Occurrence are written: every insert runs the calendar invalidation
+ * trigger, even one a conflict would skip.
  */
 export async function projectTaskScheduleOccurrences(
   tx: Prisma.TransactionClient,
@@ -142,36 +143,28 @@ export async function projectTaskScheduleOccurrences(
       state: TaskScheduleOccurrenceState.PLANNED,
     },
   });
-  const last = await tx.taskScheduleOccurrence.findFirst({
+  // A rule time can already hold an Occurrence: planned, moved, or skipped.
+  // It is not planned again, and a skipped one frees its place under an
+  // end-after-N rule.
+  const occupied = await tx.taskScheduleOccurrence.findMany({
     where: {
       scheduleId: schedule.id,
       epochId: schedule.epochId,
-      state: TaskScheduleOccurrenceState.PLANNED,
       originalScheduledAt: { gt: now },
     },
-    orderBy: [{ originalScheduledAt: "desc" }],
-    select: { originalScheduledAt: true },
-  });
-  const from = last?.originalScheduledAt ?? now;
-  // A skipped Occurrence keeps its rule time: it is not planned again, and it
-  // frees its place under an end-after-N rule.
-  const held = await tx.taskScheduleOccurrence.findMany({
-    where: {
-      scheduleId: schedule.id,
-      epochId: schedule.epochId,
-      originalScheduledAt: { gt: from },
-    },
-    select: { originalScheduledAt: true },
+    select: { state: true, originalScheduledAt: true },
   });
   const times = projectOccurrenceTimes(
     { ...schedule, releasedCount: schedule.releasedCount + plannedCount },
-    from,
+    now,
     {
       horizonEnd: new Date(now.getTime() + CALENDAR_OCCURRENCE_HORIZON_MS),
       limit: MAX_INDEXED_TASK_SCHEDULE_OCCURRENCES - plannedCount,
-      includeFirst: last == null,
-      held: new Set(
-        held.flatMap((row) =>
+      includeFirst: !occupied.some(
+        (row) => row.state === TaskScheduleOccurrenceState.PLANNED,
+      ),
+      occupied: new Set(
+        occupied.flatMap((row) =>
           row.originalScheduledAt ? [row.originalScheduledAt.getTime()] : [],
         ),
       ),
@@ -203,36 +196,50 @@ export async function projectTaskScheduleOccurrences(
   return next?.effectiveScheduledAt ?? null;
 }
 
-/** Drops planned Occurrences. Released ones and their Tasks stay. */
-export async function removePlannedTaskScheduleOccurrences(
-  tx: Prisma.TransactionClient,
-  scheduleId: string,
-): Promise<void> {
-  await tx.taskScheduleOccurrence.deleteMany({
-    where: { scheduleId, state: TaskScheduleOccurrenceState.PLANNED },
-  });
+/** Whether the Occurrence is still skipped, or planned at a moved time. */
+export function isOccurrenceException(
+  occurrence: Pick<
+    TaskScheduleOccurrence,
+    "state" | "originalScheduledAt" | "effectiveScheduledAt"
+  >,
+): boolean {
+  return (
+    occurrence.state === TaskScheduleOccurrenceState.SKIPPED ||
+    (occurrence.state === TaskScheduleOccurrenceState.PLANNED &&
+      occurrence.originalScheduledAt?.getTime() !==
+        occurrence.effectiveScheduledAt.getTime())
+  );
 }
 
 /**
- * A rule edit drops the old rule's Occurrences after `now`; the ones already
- * owed still release. A skipped or moved one was someone's decision, so it
- * stays in the history as canceled instead.
+ * Takes a schedule's planned Occurrences off the plan; released ones and
+ * their Tasks stay. With `keepOwed`, ones already due still release, as after
+ * a rule edit. Skipped and moved ones were someone's decision: a pause keeps
+ * them for the resume, and a rule edit or an end cancels them into the
+ * history.
  */
-export async function retireUpcomingTaskScheduleOccurrences(
+export async function stopPlannedTaskScheduleOccurrences(
   tx: Prisma.TransactionClient,
   scheduleId: string,
   now: Date,
+  {
+    keepOwed,
+    exceptions,
+  }: { keepOwed: boolean; exceptions: "keep" | "cancel" },
 ): Promise<void> {
-  const upcoming = await tx.taskScheduleOccurrence.findMany({
+  const rows = await tx.taskScheduleOccurrence.findMany({
     where: {
       scheduleId,
-      state: {
-        in: [
-          TaskScheduleOccurrenceState.PLANNED,
-          TaskScheduleOccurrenceState.SKIPPED,
-        ],
-      },
-      effectiveScheduledAt: { gt: now },
+      OR: [
+        {
+          state: TaskScheduleOccurrenceState.PLANNED,
+          ...(keepOwed ? { effectiveScheduledAt: { gt: now } } : {}),
+        },
+        {
+          state: TaskScheduleOccurrenceState.SKIPPED,
+          effectiveScheduledAt: { gt: now },
+        },
+      ],
     },
     select: {
       id: true,
@@ -241,19 +248,41 @@ export async function retireUpcomingTaskScheduleOccurrences(
       effectiveScheduledAt: true,
     },
   });
-  const isException = (row: (typeof upcoming)[number]) =>
-    row.state === TaskScheduleOccurrenceState.SKIPPED ||
-    row.originalScheduledAt?.getTime() !== row.effectiveScheduledAt.getTime();
+  const ordinaryIds = rows
+    .filter((row) => !isOccurrenceException(row))
+    .map((row) => row.id);
+  const exceptionIds = rows
+    .filter((row) => isOccurrenceException(row))
+    .map((row) => row.id);
+  if (ordinaryIds.length > 0) {
+    await tx.taskScheduleOccurrence.deleteMany({
+      where: { id: { in: ordinaryIds } },
+    });
+  }
+  if (exceptions === "cancel" && exceptionIds.length > 0) {
+    await tx.taskScheduleOccurrence.updateMany({
+      where: { id: { in: exceptionIds } },
+      data: { state: TaskScheduleOccurrenceState.CANCELED },
+    });
+  }
+}
+
+/**
+ * On resume, a move whose time passed while the schedule was Paused is
+ * missed, like the rule's own Occurrences then: it is canceled, not made up.
+ */
+export async function cancelMissedTaskScheduleOccurrences(
+  tx: Prisma.TransactionClient,
+  scheduleId: string,
+  now: Date,
+): Promise<void> {
   await tx.taskScheduleOccurrence.updateMany({
-    where: { id: { in: upcoming.filter(isException).map((row) => row.id) } },
-    data: { state: TaskScheduleOccurrenceState.CANCELED },
-  });
-  await tx.taskScheduleOccurrence.deleteMany({
     where: {
-      id: {
-        in: upcoming.filter((row) => !isException(row)).map((row) => row.id),
-      },
+      scheduleId,
+      state: TaskScheduleOccurrenceState.PLANNED,
+      effectiveScheduledAt: { lte: now },
     },
+    data: { state: TaskScheduleOccurrenceState.CANCELED },
   });
 }
 

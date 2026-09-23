@@ -132,6 +132,48 @@ describe("POST /tasks/schedules/{id}/resume", () => {
     }
   });
 
+  it("keeps an upcoming move and cancels one whose time passed while paused", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2030-01-01T00:00:00.000Z"));
+    try {
+      const schedule = seedTaskSchedule({
+        state: "PAUSED",
+        nextOccurrenceAt: null,
+      });
+      const missed = seedOccurrence(
+        schedule,
+        new Date("2030-01-14T09:00:00.000Z"),
+        { effectiveScheduledAt: new Date("2029-12-31T09:00:00.000Z") },
+      );
+      const moved = seedOccurrence(
+        schedule,
+        new Date("2030-01-21T09:00:00.000Z"),
+        { effectiveScheduledAt: new Date("2030-01-22T09:00:00.000Z") },
+      );
+
+      await send(schedule.id);
+
+      const rows = occurrencesOf(schedule.id);
+      expect(rows.find((row) => row.id === missed.id)?.state).toBe("CANCELED");
+      expect(rows.find((row) => row.id === moved.id)?.state).toBe("PLANNED");
+      expect(
+        rows
+          .filter((row) => row.state === "PLANNED")
+          .slice(0, 3)
+          .map((row) => row.effectiveScheduledAt),
+      ).toEqual([
+        new Date("2030-01-07T09:00:00.000Z"),
+        new Date("2030-01-22T09:00:00.000Z"),
+        new Date("2030-01-28T09:00:00.000Z"),
+      ]);
+      expect(stored(schedule.id)?.nextOccurrenceAt).toEqual(
+        new Date("2030-01-07T09:00:00.000Z"),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("ends a schedule whose end date passed while it was paused", async () => {
     const schedule = seedTaskSchedule({
       state: "PAUSED",

@@ -10,8 +10,8 @@ import {
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import {
+  scheduleOccurrenceListQuerySchema,
   scheduleOccurrenceSchema,
-  taskScheduleOccurrenceListQuerySchema,
   taskScheduleParamsSchema,
 } from "@/schemas/task-schedule.schema";
 import {
@@ -28,7 +28,7 @@ const route = withCoworkerContextHeaderParameters(
     tags: ["Task Schedules"],
     request: {
       params: taskScheduleParamsSchema,
-      query: taskScheduleOccurrenceListQuerySchema,
+      query: scheduleOccurrenceListQuerySchema,
     },
     responses: {
       200: jsonPaginatedSuccessResponse(

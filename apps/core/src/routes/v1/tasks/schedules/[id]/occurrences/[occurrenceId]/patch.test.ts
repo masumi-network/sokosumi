@@ -12,6 +12,7 @@ import {
   seedOccurrence,
   seedTaskSchedule,
   taskScheduleTestDb,
+  taskScheduleTestPrisma,
   userAuth,
 } from "@/test-fixtures/task-schedule";
 import {
@@ -445,6 +446,24 @@ describe("PATCH /tasks/schedules/{id}/occurrences/{occurrenceId}", () => {
       expectUnchanged(schedule);
     });
 
+    it("to restore a moved Occurrence a rule edit canceled", async () => {
+      const schedule = seedTaskSchedule({ nextOccurrenceAt: JAN_14 });
+      const occurrence = seedOccurrence(schedule, JAN_7, {
+        state: "CANCELED",
+        effectiveScheduledAt: JAN_15,
+      });
+
+      const response = await send(schedule, occurrence.id, {
+        action: "restore",
+      });
+
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({
+        kind: "schedule_occurrence_state_conflict",
+      });
+      expect(occurrencesOf(schedule.id)).toEqual([occurrence]);
+    });
+
     it("to move an Occurrence into the past", async () => {
       const schedule = seedTaskSchedule({ nextOccurrenceAt: JAN_7 });
       const occurrence = seedOccurrence(schedule, JAN_7);
@@ -545,6 +564,25 @@ describe("PATCH /tasks/schedules/{id}/occurrences/{occurrenceId}", () => {
         expect(occurrencesOf(schedule.id)).toEqual([occurrence]);
       },
     );
+
+    it("a change racing a release of the same schedule", async () => {
+      const schedule = seedTaskSchedule({ nextOccurrenceAt: JAN_7 });
+      const occurrence = seedOccurrence(schedule, JAN_14);
+      // A release commits between this request's read and its write.
+      vi.mocked(
+        taskScheduleTestPrisma.taskScheduleOccurrence.findFirst,
+      ).mockImplementationOnce(async () => {
+        taskScheduleTestDb.schedules = taskScheduleTestDb.schedules.map(
+          (row) => ({ ...row, releasedCount: row.releasedCount + 1 }),
+        );
+        return occurrence;
+      });
+
+      const response = await send(schedule, occurrence.id, { action: "skip" });
+
+      expect(response.status).toBe(409);
+      expect(occurrencesOf(schedule.id)).toEqual([occurrence]);
+    });
 
     it("an Occurrence of another schedule", async () => {
       const schedule = seedTaskSchedule({ nextOccurrenceAt: JAN_7 });

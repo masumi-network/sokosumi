@@ -379,18 +379,17 @@ export const taskScheduleParamsSchema = z.object({
     }),
 });
 
-export const taskScheduleOccurrenceParamsSchema =
-  taskScheduleParamsSchema.extend({
-    occurrenceId: z
-      .string()
-      .uuid()
-      .openapi({
-        param: { name: "occurrenceId", in: "path" },
-        example: "01960001-0001-7001-8001-000000000043",
-      }),
-  });
+export const scheduleOccurrenceParamsSchema = taskScheduleParamsSchema.extend({
+  occurrenceId: z
+    .string()
+    .uuid()
+    .openapi({
+      param: { name: "occurrenceId", in: "path" },
+      example: "01960001-0001-7001-8001-000000000043",
+    }),
+});
 
-export const taskScheduleOccurrenceListQuerySchema =
+export const scheduleOccurrenceListQuerySchema =
   cursorPaginationQuerySchema.extend({
     from: dateTimeSchema.optional().openapi({
       param: { name: "from", in: "query" },
@@ -459,10 +458,15 @@ export const updateScheduleOccurrenceRequestSchema = z
         example: "2026-10-02T09:00:00.000Z",
       }),
     }),
-    z.object({
-      ...occurrenceChangePrecondition,
-      action: z.literal("restore"),
-    }),
+    z
+      .object({
+        ...occurrenceChangePrecondition,
+        action: z.literal("restore"),
+      })
+      .openapi({
+        description:
+          "Puts a skipped or moved Occurrence back at the rule's time, which must still be ahead.",
+      }),
   ])
   .openapi("UpdateScheduleOccurrenceRequest");
 
@@ -477,8 +481,8 @@ export const scheduleOccurrenceUpdateSchema = z
   .openapi("ScheduleOccurrenceUpdate");
 
 export type TaskScheduleRule = z.infer<typeof taskScheduleRuleSchema>;
-export type TaskScheduleOccurrenceListQuery = z.infer<
-  typeof taskScheduleOccurrenceListQuerySchema
+export type ScheduleOccurrenceListQuery = z.infer<
+  typeof scheduleOccurrenceListQuerySchema
 >;
 export type UpdateScheduleOccurrenceRequest = z.infer<
   typeof updateScheduleOccurrenceRequestSchema

@@ -79,6 +79,27 @@ describe("POST /tasks/schedules/{id}/pause", () => {
     expect(occurrencesOf(schedule.id)).toEqual([released]);
   });
 
+  it("keeps skipped and moved Occurrences for the resume", async () => {
+    const schedule = seedTaskSchedule();
+    const moved = seedOccurrence(
+      schedule,
+      new Date("2030-01-07T09:00:00.000Z"),
+      {
+        effectiveScheduledAt: new Date("2030-01-08T09:00:00.000Z"),
+      },
+    );
+    const skipped = seedOccurrence(
+      schedule,
+      new Date("2030-01-14T09:00:00.000Z"),
+      { state: "SKIPPED" },
+    );
+    seedOccurrence(schedule, new Date("2030-01-21T09:00:00.000Z"));
+
+    await send(schedule.id);
+
+    expect(occurrencesOf(schedule.id)).toEqual([moved, skipped]);
+  });
+
   it.each(["PAUSED", "ENDED"] as const)(
     "rejects pausing a %s schedule",
     async (state) => {

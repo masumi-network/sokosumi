@@ -7,8 +7,8 @@ import {
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import {
+  scheduleOccurrenceParamsSchema,
   scheduleOccurrenceUpdateSchema,
-  taskScheduleOccurrenceParamsSchema,
   updateScheduleOccurrenceRequestSchema,
 } from "@/schemas/task-schedule.schema";
 import {
@@ -24,7 +24,7 @@ const route = withCoworkerContextHeaderParameters(
       "Skip, move, or restore one upcoming Occurrence without changing the rule. Only future Occurrences that have not created their Task, inside the projection horizon, of an Active schedule. Revision-checked.",
     tags: ["Task Schedules"],
     request: {
-      params: taskScheduleOccurrenceParamsSchema,
+      params: scheduleOccurrenceParamsSchema,
       body: {
         content: {
           "application/json": { schema: updateScheduleOccurrenceRequestSchema },

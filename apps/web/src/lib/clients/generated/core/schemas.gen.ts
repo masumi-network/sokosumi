@@ -20448,7 +20448,8 @@ export const UpdateScheduleOccurrenceRequestSchema = {
             required: [
                 'expectedRevision',
                 'action'
-            ]
+            ],
+            description: 'Puts a skipped or moved Occurrence back at the rule\'s time, which must still be ahead.'
         }
     ]
 } as const;

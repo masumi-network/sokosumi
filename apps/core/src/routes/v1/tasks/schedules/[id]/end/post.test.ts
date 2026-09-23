@@ -83,6 +83,32 @@ describe("POST /tasks/schedules/{id}/end", () => {
     expect(occurrencesOf(schedule.id)).toEqual([released]);
   });
 
+  it("keeps skipped and moved Occurrences in the history as canceled", async () => {
+    const schedule = seedTaskSchedule();
+    const moved = seedOccurrence(
+      schedule,
+      new Date("2030-01-07T09:00:00.000Z"),
+      {
+        effectiveScheduledAt: new Date("2030-01-08T09:00:00.000Z"),
+      },
+    );
+    const skipped = seedOccurrence(
+      schedule,
+      new Date("2030-01-14T09:00:00.000Z"),
+      { state: "SKIPPED" },
+    );
+    seedOccurrence(schedule, new Date("2030-01-21T09:00:00.000Z"));
+
+    await send(schedule.id);
+
+    expect(
+      occurrencesOf(schedule.id).map((row) => [row.id, row.state]),
+    ).toEqual([
+      [moved.id, "CANCELED"],
+      [skipped.id, "CANCELED"],
+    ]);
+  });
+
   it("rejects ending an Ended schedule", async () => {
     const schedule = seedTaskSchedule({ state: "ENDED" });
 

@@ -48,8 +48,8 @@ import {
 } from "@/middleware/workspace";
 import type {
   CreateTaskScheduleRequest,
+  ScheduleOccurrenceListQuery,
   TaskScheduleListQuery,
-  TaskScheduleOccurrenceListQuery,
   TaskScheduleRule,
   UpdateScheduleOccurrenceRequest,
   UpdateTaskScheduleRequest,
@@ -61,10 +61,11 @@ import {
   type TaskDomainActor,
 } from "@/services/task-domain.service";
 import {
+  cancelMissedTaskScheduleOccurrences,
+  isOccurrenceException,
   moveTaskScheduleOccurrencesToProject,
   projectTaskScheduleOccurrences,
-  removePlannedTaskScheduleOccurrences,
-  retireUpcomingTaskScheduleOccurrences,
+  stopPlannedTaskScheduleOccurrences,
   trimPlannedTaskScheduleOccurrences,
 } from "@/services/task-schedule-occurrences.service";
 
@@ -321,7 +322,7 @@ export async function listTaskSchedules(
 export async function listTaskScheduleOccurrences(
   vars: RouteVars,
   id: string,
-  query: TaskScheduleOccurrenceListQuery,
+  query: ScheduleOccurrenceListQuery,
 ) {
   const actor = await resolveScheduleActor(vars);
   await findReadableSchedule(actor, id);
@@ -455,12 +456,15 @@ export async function updateTaskSchedule(
     }
     const updated = await tx.taskSchedule.findUniqueOrThrow({ where: { id } });
 
-    // The old rule's future Occurrences go; ones already owed still release,
-    // and released ones and their Tasks stay. A Paused schedule plans again
-    // on resume.
+    // The old rule's future Occurrences go, its skips and moves into the
+    // history; ones already owed still release, and released ones and their
+    // Tasks stay. A Paused schedule plans again on resume.
     let schedule = updated;
     if (input.rule) {
-      await retireUpcomingTaskScheduleOccurrences(tx, id, now);
+      await stopPlannedTaskScheduleOccurrences(tx, id, now, {
+        keepOwed: true,
+        exceptions: "cancel",
+      });
       if (updated.state === TaskScheduleState.ACTIVE) {
         schedule = await tx.taskSchedule.update({
           where: { id },
@@ -513,8 +517,9 @@ const STATE_ACTIONS: Record<
 /**
  * Pause stops Occurrences without losing the schedule; resume picks up at the
  * first Occurrence after now (missed ones are not made up), or Ends the
- * schedule when its end rule passed meanwhile; end is final. Pause and end
- * drop the planned Occurrences; resume plans them again.
+ * schedule when its end rule passed meanwhile; end is final. Pause drops the
+ * planned Occurrences but keeps skips and moves; resume plans again. End
+ * cancels skips and moves into the history.
  */
 export async function changeTaskScheduleState(
   vars: RouteVars,
@@ -533,17 +538,24 @@ export async function changeTaskScheduleState(
       );
     }
 
+    const now = new Date();
+    if (to === TaskScheduleState.ACTIVE) {
+      await cancelMissedTaskScheduleOccurrences(tx, id, now);
+    }
     const nextOccurrenceAt =
       to === TaskScheduleState.ACTIVE
-        ? await projectTaskScheduleOccurrences(tx, current, new Date())
+        ? await projectTaskScheduleOccurrences(tx, current, now)
         : null;
     // Resuming past the end rule ends the schedule instead.
     const state =
       to === TaskScheduleState.ACTIVE && !nextOccurrenceAt
         ? TaskScheduleState.ENDED
         : to;
-    if (!nextOccurrenceAt) {
-      await removePlannedTaskScheduleOccurrences(tx, id);
+    if (state !== TaskScheduleState.ACTIVE) {
+      await stopPlannedTaskScheduleOccurrences(tx, id, now, {
+        keepOwed: false,
+        exceptions: state === TaskScheduleState.PAUSED ? "keep" : "cancel",
+      });
     }
 
     const { count } = await tx.taskSchedule.updateMany({
@@ -578,18 +590,14 @@ const OCCURRENCE_ACTION_LABELS: Record<
  * Occurrence back at the rule's time. The time it ends up at must be in the
  * future and inside the projection horizon.
  */
-function occurrenceChange(
+function occurrenceAfterAction(
   occurrence: TaskScheduleOccurrence,
   input: UpdateScheduleOccurrenceRequest,
   now: Date,
 ): { state: TaskScheduleOccurrenceState; effectiveScheduledAt: Date } {
-  const isMoved =
-    occurrence.originalScheduledAt?.getTime() !==
-    occurrence.effectiveScheduledAt.getTime();
   const changeable =
     input.action === "restore"
-      ? occurrence.state === TaskScheduleOccurrenceState.SKIPPED ||
-        (occurrence.state === TaskScheduleOccurrenceState.PLANNED && isMoved)
+      ? isOccurrenceException(occurrence)
       : occurrence.state === TaskScheduleOccurrenceState.PLANNED;
   if (
     !changeable ||
@@ -658,32 +666,48 @@ export async function changeTaskScheduleOccurrence(
     }
 
     const now = new Date();
-    const change = occurrenceChange(occurrence, input, now);
+    const next = occurrenceAfterAction(occurrence, input, now);
+    // Occurrence first, then schedule: the release locks them in the same
+    // order. Claiming the schedule by its release count as well makes a
+    // release that committed since the read a conflict, so the plan below
+    // never counts against a stale count.
     const { count } = await tx.taskScheduleOccurrence.updateMany({
       where: {
         id: occurrenceId,
         state: occurrence.state,
         releasedTaskId: null,
       },
-      data: { ...change, ...actorColumns(actor) },
+      data: { ...next, ...actorColumns(actor) },
     });
-    if (count !== 1) {
-      throwRevisionConflict();
+    const { count: claimed } =
+      count === 1
+        ? await tx.taskSchedule.updateMany({
+            where: {
+              id,
+              state: TaskScheduleState.ACTIVE,
+              revision: input.expectedRevision,
+              releasedCount: current.releasedCount,
+            },
+            data: { revision: { increment: 1 } },
+          })
+        : { count: 0 };
+    if (claimed !== 1) {
+      throw conflict("Task Schedule changed since it was read", {
+        kind: CORE_API_ERROR_KINDS.CONCURRENCY_CONFLICT,
+      });
     }
 
     await trimPlannedTaskScheduleOccurrences(tx, current, occurrenceId);
     // With its last Occurrence skipped, the schedule still wakes then, so the
     // release Ends it on time and the skip can be restored until then.
-    const nextOccurrenceAt =
-      (await projectTaskScheduleOccurrences(tx, current, now)) ??
-      change.effectiveScheduledAt;
-    const { count: claimed } = await tx.taskSchedule.updateMany({
-      where: { id, revision: input.expectedRevision },
-      data: { nextOccurrenceAt, revision: { increment: 1 } },
+    await tx.taskSchedule.update({
+      where: { id },
+      data: {
+        nextOccurrenceAt:
+          (await projectTaskScheduleOccurrences(tx, current, now)) ??
+          next.effectiveScheduledAt,
+      },
     });
-    if (claimed !== 1) {
-      throwRevisionConflict();
-    }
     return {
       revision: input.expectedRevision + 1,
       occurrence: await tx.taskScheduleOccurrence.findUniqueOrThrow({
