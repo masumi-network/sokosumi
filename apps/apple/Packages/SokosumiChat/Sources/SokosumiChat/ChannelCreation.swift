@@ -67,7 +67,7 @@ public final class ChannelCreation: ObservableObject {
     } catch {
       guard attempt == loadGeneration, !Task.isCancelled, !(error is CancellationError) else { return }
       roster = nil
-      errorMessage = channelErrorMessage(error)
+      errorMessage = chatErrorMessage(error)
     }
   }
 
@@ -125,15 +125,15 @@ public final class ChannelCreation: ObservableObject {
         step = .details
         availability = .taken
       } else {
-        errorMessage = channelErrorMessage(error)
+        errorMessage = chatErrorMessage(error)
       }
       return false
     }
   }
 }
 
-/// Core's channel messages are user-facing; everything else falls back to the shared network wording.
-public func channelErrorMessage(_ error: Error) -> String {
+/// Core's chat room error messages are user-facing; everything else falls back to the shared network wording.
+public func chatErrorMessage(_ error: Error) -> String {
   if case let ChatServiceError.unauthorized(message) = error {
     return message
   }

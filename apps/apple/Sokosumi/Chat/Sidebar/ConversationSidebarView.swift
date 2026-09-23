@@ -94,7 +94,7 @@ struct ConversationSidebarView: View {
                   PendingInvitationRow(
                     invitation: invitation,
                     responding: workspaces.invitationResponse?.invitationId == invitation.id ? workspaces.invitationResponse?.action : nil,
-                    busy: workspaces.channelMutationInFlight
+                    busy: workspaces.roomMutationInFlight
                   ) { respondToInvitation($0, invitation: invitation) }
                 }
                 ForEach(partitioned.external, id: \.id) { room in
@@ -111,7 +111,7 @@ struct ConversationSidebarView: View {
                   ArchivedChannelRow(
                     room: room,
                     pending: workspaces.channelLifecycle?.roomId == room.id,
-                    busy: workspaces.channelMutationInFlight,
+                    busy: workspaces.roomMutationInFlight,
                     canDelete: workspaces.archivedChannels.canDelete
                   ) { requestLifecycle($0, room: room) }
                 }
@@ -138,14 +138,14 @@ struct ConversationSidebarView: View {
           Button("New chat", systemImage: "square.and.pencil") {
             startDirect = .init(id: workspaces.compositionContext, hasOrganization: workspaces.selection?.workspace.organizationId != nil)
           }
-          .disabled(workspaces.phase != .ready || workspaces.roomsLoading || workspaces.channelMutationInFlight)
+          .disabled(workspaces.phase != .ready || workspaces.roomsLoading || workspaces.roomMutationInFlight)
           .help("New chat")
         }
         ToolbarItem {
           Button("Create channel", systemImage: "number") {
             createChannel = .init(id: workspaces.compositionContext, hasOrganization: true)
           }
-          .disabled(workspaces.phase != .ready || workspaces.selection?.workspace.organizationId == nil || workspaces.channelMutationInFlight)
+          .disabled(workspaces.phase != .ready || workspaces.selection?.workspace.organizationId == nil || workspaces.roomMutationInFlight)
           .help("Create channel")
         }
         ToolbarItem {
@@ -245,7 +245,7 @@ struct ConversationSidebarView: View {
 
   /// Web accepts or declines in place: the row leaves the list on success and Core's message surfaces on failure.
   private func respondToInvitation(_ action: InvitationAction, invitation: Components.Schemas.ChatRoomInvitation) {
-    guard !workspaces.channelMutationInFlight else { return }
+    guard !workspaces.roomMutationInFlight else { return }
     let context = workspaces.compositionContext
     Task { @MainActor in
       do {
@@ -256,7 +256,7 @@ struct ConversationSidebarView: View {
       } catch is CancellationError {
         // The workspace changed underneath the request; nothing to report.
       } catch {
-        invitationFailure = .init(action: action, message: channelErrorMessage(error))
+        invitationFailure = .init(action: action, message: chatErrorMessage(error))
       }
     }
   }
@@ -304,7 +304,7 @@ struct ConversationSidebarView: View {
         .labelStyle(.iconOnly)
         .buttonStyle(.borderless)
         .frame(width: 20)
-        .disabled(workspaces.phase != .ready || workspaces.channelMutationInFlight)
+        .disabled(workspaces.phase != .ready || workspaces.roomMutationInFlight)
         .help("Browse channels")
       }
     }
@@ -518,7 +518,7 @@ struct ConversationSidebarView: View {
       } label: {
         NameGroupLabel()
       }
-      .disabled(workspaces.channelMutationInFlight)
+      .disabled(workspaces.roomMutationInFlight)
     }
     if ChannelEditPermissions.isEditable(room) {
       Button("Channel settings…", systemImage: "gearshape") {
@@ -529,12 +529,12 @@ struct ConversationSidebarView: View {
       Button("Leave channel…", systemImage: "rectangle.portrait.and.arrow.right") {
         lifecycle = .init(context: workspaces.compositionContext, roomId: room.id, name: room.name, action: .leave)
       }
-      .disabled(workspaces.channelMutationInFlight)
+      .disabled(workspaces.roomMutationInFlight)
     }
   }
 
   private func requestLifecycle(_ action: ChannelLifecycleAction, room: Components.Schemas.ChatRoom) {
-    guard !workspaces.channelMutationInFlight else { return }
+    guard !workspaces.roomMutationInFlight else { return }
     lifecycle = .init(context: workspaces.compositionContext, roomId: room.id, name: room.name, action: action)
   }
 

@@ -41,7 +41,7 @@ struct RoomDetailsView: View {
               Button("Leave channel…") {
                 lifecycle = .init(context: workspaces.compositionContext, roomId: room.id, name: room.name, action: .leave)
               }
-              .disabled(workspaces.channelMutationInFlight)
+              .disabled(workspaces.roomMutationInFlight)
             }
           }
         }
@@ -55,7 +55,7 @@ struct RoomDetailsView: View {
             } label: {
               NameGroupLabel()
             }
-            .disabled(workspaces.channelMutationInFlight)
+            .disabled(workspaces.roomMutationInFlight)
           } header: {
             Text("Group", tableName: groupNameTable, comment: "Members inspector section for a group Direct's name.")
           }

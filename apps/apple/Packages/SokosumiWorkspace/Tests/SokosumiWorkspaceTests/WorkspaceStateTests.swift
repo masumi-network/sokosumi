@@ -293,7 +293,7 @@ struct WorkspaceStateTests {
     let permissions = ChannelEditPermissions(canEditMembers: true, canManageSettings: true)
     let context = state.compositionContext
     #expect(try await state.updateChannel(draft, roomId: edited, permissions: permissions, context: context, auth: auth))
-    #expect(!state.updatingChannel)
+    #expect(!state.updatingRoom)
     #expect(state.transcriptRoomId == opened)
     #expect(state.rooms.count == 2)
     #expect(state.rooms.first { $0.id == edited }?.name == "Design renamed")
@@ -381,7 +381,7 @@ struct WorkspaceStateTests {
     for _ in 0 ..< 1000 where !transport.operationIDs.contains("post/chats/rooms/{id}/members/me") {
       await Task.yield()
     }
-    #expect(state.channelMutationInFlight)
+    #expect(state.roomMutationInFlight)
     #expect(try await state.leaveChannel(roomId: general, context: context, auth: auth) == false)
     #expect(try await state.archiveChannel(roomId: general, context: context, auth: auth) == false)
     transport.releasePausedRequest()
@@ -2549,7 +2549,7 @@ extension WorkspaceStateTests {
     for _ in 0 ..< 1000 where !transport.operationIDs.contains("post/chats/invitations/{id}/accept") {
       await Task.yield()
     }
-    #expect(state.channelMutationInFlight)
+    #expect(state.roomMutationInFlight)
     state.selectRoom("550e8400-e29b-41d4-a716-446655440001", auth: auth)
     await waitForTranscriptIdle(state)
     transport.releasePausedRequest()
@@ -2557,7 +2557,7 @@ extension WorkspaceStateTests {
     await waitForTranscriptIdle(state)
     #expect(state.rooms.count == 3)
     #expect(state.transcriptRoomId == "550e8400-e29b-41d4-a716-446655440001")
-    #expect(!state.channelMutationInFlight)
+    #expect(!state.roomMutationInFlight)
     #expect(transport.operationIDs.suffix(3) == ["post/chats/invitations/{id}/accept", "get/chats/rooms/{id}/messages", "get/chats/rooms"])
   }
 
@@ -2677,7 +2677,7 @@ extension WorkspaceStateTests {
 
     #expect(try await state.removeGuest(roomId: partners, userId: "user_guest", context: UUID(), auth: auth) == false)
     #expect(try await state.removeGuest(roomId: partners, userId: "user_guest", context: context, auth: auth))
-    #expect(!state.updatingChannel && state.transcriptRoomId == general)
+    #expect(!state.updatingRoom && state.transcriptRoomId == general)
     #expect(state.rooms.first { $0.id == partners }?.userMembers.map(\.id) == ["user_1"])
     #expect(transport.operationIDs.suffix(7) == [
       "get/chats/rooms/{id}/invitations", "get/chats/rooms/{id}/invite-links", "post/chats/rooms/{id}/invitations",
