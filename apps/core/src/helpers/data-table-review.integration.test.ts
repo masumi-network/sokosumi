@@ -4,7 +4,8 @@ import {
   tableBatchSchema,
   tableMutationSchema,
 } from "@sokosumi/utils";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { Pool } from "pg";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   batchTableRows,
   createDataTable,
@@ -15,6 +16,7 @@ import {
   undoTableBatch,
 } from "@/helpers/data-table";
 import prisma from "@/lib/db/prisma";
+import * as transactions from "@/lib/db/transaction";
 
 const userId = randomUUID(),
   workspaceId = randomUUID();
@@ -77,6 +79,165 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
         tableBatchSchema.parse({ key: randomUUID(), insert: [{ values }] }),
       );
     }
+    // Hold the real operation lock until both SERIALIZABLE callers have
+    // acquired snapshots and queued for it. No timing-based overlap assumption.
+    async function overlap<T>(
+      key: string,
+      first: () => Promise<T>,
+      second = first,
+    ) {
+      const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+      const lock = await pool.connect();
+      const lockKey = `${workspaceId}:${actor.actorId}:${key}`;
+      const calls: Promise<T>[] = [];
+      try {
+        await lock.query("SELECT pg_advisory_lock(hashtextextended($1, 0))", [
+          lockKey,
+        ]);
+        for (const call of [first, second]) {
+          const pending = call();
+          pending.catch(() => {});
+          calls.push(pending);
+          await vi.waitFor(
+            async () => {
+              const result = await pool.query<{ count: number }>(
+                `
+              SELECT count(*)::int AS count FROM pg_locks
+              WHERE locktype = 'advisory' AND NOT granted
+                AND classid::bigint = ((hashtextextended($1, 0) >> 32) & 4294967295)
+                AND objid::bigint = (hashtextextended($1, 0) & 4294967295)
+            `,
+                [lockKey],
+              );
+              expect(result.rows[0].count).toBe(calls.length);
+            },
+            { timeout: 2000, interval: 10 },
+          );
+        }
+      } finally {
+        await lock.query("SELECT pg_advisory_unlock_all()");
+        lock.release();
+        await pool.end();
+        await Promise.allSettled(calls);
+      }
+      return Promise.all(calls);
+    }
+    it("replays overlapping creates with supplied column IDs from a fresh snapshot", async () => {
+      const body = createDataTableSchema.parse({
+        key: randomUUID(),
+        title: randomUUID(),
+        columns: [{ id: randomUUID(), name: "Company", type: "text" }],
+      });
+      const [first, retry] = await overlap(body.key, () =>
+        createDataTable(actor, body),
+      );
+      expect(retry).toEqual(first);
+      expect(
+        await prisma.dataTable.count({
+          where: { workspaceId, title: body.title },
+        }),
+      ).toBe(1);
+      expect(
+        await prisma.tableColumn.count({ where: { id: body.columns[0].id } }),
+      ).toBe(1);
+    });
+    it("replays overlapping batches with supplied row IDs from a fresh snapshot", async () => {
+      const table = await make();
+      const body = tableBatchSchema.parse({
+        key: randomUUID(),
+        insert: [{ id: randomUUID(), values: {} }],
+      });
+      const [first, retry] = await overlap(body.key, () =>
+        batchTableRows(actor, table.id, body),
+      );
+      expect(retry).toEqual(first);
+      expect(
+        await prisma.tableRow.count({ where: { tableId: table.id } }),
+      ).toBe(1);
+      expect(
+        await prisma.tableChange.count({
+          where: { tableId: table.id, rowId: body.insert[0].id },
+        }),
+      ).toBe(1);
+    });
+    it("rejects different input after an overlapping supplied-ID collision", async () => {
+      const table = await make();
+      const body = tableBatchSchema.parse({
+        key: randomUUID(),
+        insert: [{ id: randomUUID(), values: {} }],
+      });
+      const changed = tableBatchSchema.parse({
+        ...body,
+        insert: [
+          { ...body.insert[0], values: { [table.columns[0].id]: "Changed" } },
+        ],
+      });
+      await expect(
+        overlap(
+          body.key,
+          () => batchTableRows(actor, table.id, body),
+          () => batchTableRows(actor, table.id, changed),
+        ),
+      ).rejects.toMatchObject({
+        status: 409,
+        message: "Retry key was already used for different input",
+      });
+      expect(
+        await prisma.tableRow.count({ where: { tableId: table.id } }),
+      ).toBe(1);
+    });
+    it("rechecks current task authority after rollback before returning the stored result", async () => {
+      const table = await make();
+      const task = await prisma.task.create({
+        data: {
+          workspaceId,
+          ownerId: userId,
+          creatorUserId: userId,
+          name: "Retry authority",
+          status: "RUNNING",
+        },
+      });
+      const scopedActor = { ...actor, taskId: task.id };
+      const body = tableBatchSchema.parse({
+        key: randomUUID(),
+        insert: [{ id: randomUUID(), values: {} }],
+      });
+      await batchTableRows(scopedActor, table.id, body);
+      // Force a real P2002 and rollback: PostgreSQL may otherwise choose a
+      // serialization failure instead, which exercises a different retry path.
+      const recovery = vi
+        .spyOn(transactions, "serializableTransaction")
+        .mockImplementationOnce(async () => {
+          try {
+            await prisma.$transaction(async (tx) => {
+              await tx.tableRow.create({
+                data: { id: body.insert[0].id, tableId: table.id, values: {} },
+              });
+            });
+          } catch (error) {
+            await prisma.task.update({
+              where: { id: task.id },
+              data: { archivedAt: new Date() },
+            });
+            throw error;
+          }
+          throw new Error("Expected supplied-row-ID collision");
+        });
+      try {
+        await expect(
+          batchTableRows(scopedActor, table.id, body),
+        ).rejects.toMatchObject({
+          status: 403,
+          message: "Task is not assigned to this actor",
+        });
+        expect(recovery).toHaveBeenCalledOnce();
+        expect(
+          await prisma.tableRow.count({ where: { tableId: table.id } }),
+        ).toBe(1);
+      } finally {
+        recovery.mockRestore();
+      }
+    });
     it("F10: an unknown-only column can change type", async () => {
       const table = await make(),
         c = table.columns[0].id;

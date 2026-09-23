@@ -12,6 +12,8 @@ describe("unresolved table mutations", () => {
         .mockResolvedValue({ id: "committed" });
       const input = { version: 1, value: "original" };
       await expect(mutate(slot, input, send)).rejects.toThrow();
+      expect(mutate.isPending(slot)).toBe(true);
+      expect(mutate.isPending("unrelated")).toBe(false);
       await expect(
         mutate(slot, { ...input, value: "changed" }, send),
       ).rejects.toThrow("previous request");
@@ -19,6 +21,7 @@ describe("unresolved table mutations", () => {
       await expect(mutate(slot, input, send)).resolves.toEqual({
         id: "committed",
       });
+      expect(mutate.isPending(slot)).toBe(false);
       expect(send.mock.calls[0]).toEqual(send.mock.calls[1]);
       await mutate(slot, input, send);
       expect(send.mock.calls[2][0].key).not.toBe(send.mock.calls[0][0].key);

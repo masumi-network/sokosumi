@@ -94,34 +94,19 @@ function TableWorkspace({
     Record<string, { row: TableRow; columns: string[] }>
   >({});
   const hasDrafts = Object.keys(editingRows).length > 0;
-  useEffect(() => {
-    if (!hasDrafts) return;
-    function beforeUnload(event: BeforeUnloadEvent) {
-      event.preventDefault();
-      event.returnValue = "";
+  function allowNavigation(
+    ignoreCurrentMutation = false,
+    completedSlot?: string,
+  ) {
+    if (
+      (pending && !ignoreCurrentMutation) ||
+      (retryAction && retrySlot !== completedSlot) ||
+      mutate.hasPending() ||
+      (enrichmentRequest && !taskId)
+    ) {
+      setError(t("errors.unresolved"));
+      return false;
     }
-    function navigate(event: MouseEvent) {
-      const anchor =
-        event.target instanceof Element
-          ? event.target.closest("a[href]")
-          : null;
-      if (
-        anchor &&
-        anchor.getAttribute("target") !== "_blank" &&
-        !window.confirm(t("discardDrafts"))
-      ) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-    }
-    window.addEventListener("beforeunload", beforeUnload);
-    document.addEventListener("click", navigate, true);
-    return () => {
-      window.removeEventListener("beforeunload", beforeUnload);
-      document.removeEventListener("click", navigate, true);
-    };
-  }, [hasDrafts, t]);
-  function allowNavigation() {
     return !hasDrafts || window.confirm(t("discardDrafts"));
   }
   const [cursor, setCursor] = useQueryState("cursor");
@@ -137,6 +122,7 @@ function TableWorkspace({
   const [retryAction, setRetryAction] = useState<
     (() => Promise<unknown>) | null
   >(null);
+  const [retrySlot, setRetrySlot] = useState<string>();
   const [pending, setPending] = useState(false);
   const [column, setColumn] = useState<TableColumn | "new" | null>(null);
   const [dialog, setDialog] = useState<
@@ -158,6 +144,39 @@ function TableWorkspace({
   const [enrichmentRequest, setEnrichmentRequest] =
     useState<Parameters<typeof dataTableService.enrich>[1]>();
   const [taskId, setTaskId] = useState<string | null>(null);
+  useEffect(() => {
+    const unresolved =
+      pending ||
+      !!retryAction ||
+      mutate.hasPending() ||
+      (!!enrichmentRequest && !taskId);
+    if (!hasDrafts && !unresolved) return;
+    function beforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+    function navigate(event: MouseEvent) {
+      const anchor =
+        event.target instanceof Element
+          ? event.target.closest("a[href]")
+          : null;
+      if (!anchor || anchor.getAttribute("target") === "_blank") return;
+      if (unresolved) {
+        event.preventDefault();
+        event.stopPropagation();
+        setError(t("errors.unresolved"));
+      } else if (!window.confirm(t("discardDrafts"))) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    }
+    window.addEventListener("beforeunload", beforeUnload);
+    document.addEventListener("click", navigate, true);
+    return () => {
+      window.removeEventListener("beforeunload", beforeUnload);
+      document.removeEventListener("click", navigate, true);
+    };
+  }, [enrichmentRequest, hasDrafts, mutate, pending, retryAction, t, taskId]);
   const rows = useQuery({
     queryKey: ["table-rows", table.id, definition, cursor, archivedRows],
     queryFn: () =>
@@ -199,8 +218,8 @@ function TableWorkspace({
       cache.invalidateQueries({ queryKey: ["table-history", table.id] }),
     ]);
   }
-  async function run(action: () => Promise<unknown>) {
-    if (retryAction && action !== retryAction) {
+  async function run(action: () => Promise<unknown>, slot?: string) {
+    if (retryAction && action !== retryAction && slot !== retrySlot) {
       setError(t("errors.unresolved"));
       return;
     }
@@ -209,12 +228,13 @@ function TableWorkspace({
     try {
       await action();
       setRetryAction(null);
+      setRetrySlot(undefined);
       await refresh();
     } catch (error) {
       // Capture the original action and render snapshot, never rebuild from polled props.
-      setRetryAction((previous) =>
-        mutate.hasPending() ? (previous ?? action) : null,
-      );
+      const unresolved = slot ? mutate.isPending(slot) : false;
+      setRetryAction((previous) => (unresolved ? (previous ?? action) : null));
+      setRetrySlot((previous) => (unresolved ? (previous ?? slot) : undefined));
       setError(tableError(error, t));
     } finally {
       setPending(false);
@@ -302,10 +322,12 @@ function TableWorkspace({
     const destination = index + direction;
     if (destination < 0 || destination >= next.length) return;
     [next[index], next[destination]] = [next[destination], next[index]];
-    await run(() =>
-      mutate("reorder", { version: table.version, columns: next }, (body) =>
-        dataTableService.update(table.id, body),
-      ),
+    await run(
+      () =>
+        mutate("reorder", { version: table.version, columns: next }, (body) =>
+          dataTableService.update(table.id, body),
+        ),
+      "reorder",
     );
   }
   return (
@@ -393,10 +415,12 @@ function TableWorkspace({
           variant="outline"
           disabled={pending || !!table.archivedAt}
           onClick={() =>
-            void run(() =>
-              mutate("add-row", { insert: [{ values: {} }] }, (body) =>
-                dataTableService.batch(table.id, body),
-              ),
+            void run(
+              () =>
+                mutate("add-row", { insert: [{ values: {} }] }, (body) =>
+                  dataTableService.batch(table.id, body),
+                ),
+              "add-row",
             )
           }
         >
@@ -456,7 +480,7 @@ function TableWorkspace({
                     (body) => dataTableService.batch(table.id, body),
                   );
                   setSelected([]);
-                })
+                }, "archive-rows")
               }
             >
               {archivedRows ? t("restoreRows") : t("archiveRows")}
@@ -468,7 +492,10 @@ function TableWorkspace({
         <p role="alert" className="text-destructive text-sm">
           {error}
           {retryAction && (
-            <Button disabled={pending} onClick={() => void run(retryAction)}>
+            <Button
+              disabled={pending}
+              onClick={() => void run(retryAction, retrySlot)}
+            >
               {t("retry")}
             </Button>
           )}
@@ -854,17 +881,19 @@ function TableWorkspace({
                       variant="outline"
                       disabled={pending || !change.rowId}
                       onClick={() =>
-                        void run(() =>
-                          mutate(
-                            `undo:${change.batchId}`,
-                            { batchId: change.batchId },
-                            (body) =>
-                              dataTableService.undo(
-                                table.id,
-                                body.batchId,
-                                body.key,
-                              ),
-                          ),
+                        void run(
+                          () =>
+                            mutate(
+                              `undo:${change.batchId}`,
+                              { batchId: change.batchId },
+                              (body) =>
+                                dataTableService.undo(
+                                  table.id,
+                                  body.batchId,
+                                  body.key,
+                                ),
+                            ),
+                          `undo:${change.batchId}`,
                         )
                       }
                     >
@@ -1016,7 +1045,7 @@ function TableWorkspace({
               {retryAction && (
                 <Button
                   disabled={pending}
-                  onClick={() => void run(retryAction)}
+                  onClick={() => void run(retryAction, retrySlot)}
                 >
                   {t("retry")}
                 </Button>
@@ -1028,66 +1057,83 @@ function TableWorkspace({
               <Button
                 disabled={pending || (dialog === "enrich" && !!taskId)}
                 onClick={() =>
-                  void run(async () => {
-                    if (dialog === "views") {
-                      const saved = await mutate(
-                        "save-view",
-                        {
-                          id: view?.id,
-                          version: viewVersion,
-                          name: viewName,
-                          definition: filterDefinition(filterDraft),
-                        },
-                        (body) => dataTableService.view(table.id, body),
-                      );
-                      setViewVersion(saved.version);
-                      if (allowNavigation()) onViewChange(saved.id);
-                    } else if (dialog === "rename")
-                      await mutate(
-                        "rename",
-                        { version: renameVersion, title },
-                        (body) => dataTableService.update(table.id, body),
-                      );
-                    else if (dialog === "archive")
-                      await mutate(
-                        "archive",
-                        { version: table.version, archived: !table.archivedAt },
-                        (body) => dataTableService.update(table.id, body),
-                      );
-                    else if (dialog === "enrich") {
-                      const [kind, id] = agent.split(":");
-                      const request = enrichmentRequest ?? {
-                        key: enrichmentKey,
-                        prompt,
-                        rowIds: selected,
-                        columnIds: outputs,
-                        ...(kind === "bot"
-                          ? { assigneeSokoBotId: id }
-                          : { assigneeId: id }),
-                      };
-                      if (
-                        !request.prompt.trim() ||
-                        request.prompt.trim().length > 4000 ||
-                        !request.columnIds.length ||
-                        !request.rowIds.length ||
-                        !(request.assigneeId || request.assigneeSokoBotId)
-                      )
-                        throw new Error(t("enrichmentRequired"));
-                      setEnrichmentRequest(request);
-                      const result = await dataTableService
-                        .enrich(table.id, request)
-                        .catch((error: unknown) => {
+                  void run(
+                    async () => {
+                      if (dialog === "views") {
+                        const saved = await mutate(
+                          "save-view",
+                          {
+                            id: view?.id,
+                            version: viewVersion,
+                            name: viewName,
+                            definition: filterDefinition(filterDraft),
+                          },
+                          (body) => dataTableService.view(table.id, body),
+                        );
+                        setViewVersion(saved.version);
+                        if (allowNavigation(true, "save-view"))
+                          onViewChange(saved.id);
+                      } else if (dialog === "rename")
+                        await mutate(
+                          "rename",
+                          { version: renameVersion, title },
+                          (body) => dataTableService.update(table.id, body),
+                        );
+                      else if (dialog === "archive")
+                        await mutate(
+                          "archive",
+                          {
+                            version: table.version,
+                            archived: !table.archivedAt,
+                          },
+                          (body) => dataTableService.update(table.id, body),
+                        );
+                      else if (dialog === "enrich") {
+                        const [kind, id] = agent.split(":");
+                        const request = enrichmentRequest ?? {
+                          key: enrichmentKey,
+                          prompt,
+                          rowIds: selected,
+                          columnIds: outputs,
+                          ...(kind === "bot"
+                            ? { assigneeSokoBotId: id }
+                            : { assigneeId: id }),
+                        };
+                        if (
+                          !request.prompt.trim() ||
+                          request.prompt.trim().length > 4000 ||
+                          !request.columnIds.length ||
+                          !request.rowIds.length ||
+                          !(request.assigneeId || request.assigneeSokoBotId)
+                        )
+                          throw new Error(t("enrichmentRequired"));
+                        setEnrichmentRequest(request);
+                        const result = await mutate(
+                          enrichmentKey,
+                          request,
+                          (body) => dataTableService.enrich(table.id, body),
+                        ).catch((error: unknown) => {
                           if (isTableRejection(error)) {
                             setEnrichmentRequest(undefined);
                             setEnrichmentKey(crypto.randomUUID());
                           }
                           throw error;
                         });
-                      setTaskId(result.taskId);
-                      return;
-                    }
-                    setDialog(null);
-                  })
+                        setTaskId(result.taskId);
+                        return;
+                      }
+                      setDialog(null);
+                    },
+                    dialog === "views"
+                      ? "save-view"
+                      : dialog === "rename"
+                        ? "rename"
+                        : dialog === "archive"
+                          ? "archive"
+                          : dialog === "enrich"
+                            ? enrichmentKey
+                            : undefined,
+                  )
                 }
               >
                 {pending

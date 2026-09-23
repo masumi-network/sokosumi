@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { CHAT_MENTION_MESSAGE_KEY } from "@sokosumi/utils";
+import { v5 as uuidv5 } from "uuid";
 import {
   afterAll,
   afterEach,
@@ -383,6 +384,73 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
         })
       ).id;
     }
+    it.each([0, 3])(
+      "table publication bypasses and does not consume ordinary budget (%s prior replies)",
+      async (prior) => {
+        const { runtime, request, authorized } = await setup();
+        const taskId = await taskDestination();
+        const reply = (comment: string) =>
+          runtime["replyToTask"](authorized, { taskId, comment }, randomUUID());
+        for (let i = 0; i < prior; i++) await reply(`Ordinary ${i}`);
+        const call = {
+          ...request,
+          capability: "create_table" as const,
+          input: { ...createInput(), taskId },
+        };
+        const result = createdSchema.parse(await runtime.executeTool(call));
+        expect(
+          await prisma.taskEvent.count({
+            where: { taskId, comment: `[Open table](${result.url})` },
+          }),
+        ).toBe(1);
+        for (let i = prior; i < 3; i++) {
+          // Canonical-looking text with a normal event ID still consumes budget.
+          await reply(`[Open table](${result.url})`);
+        }
+        await expect(reply("Fourth ordinary reply")).rejects.toThrow(
+          "already commented 3 times",
+        );
+        expect(
+          createdSchema.parse(
+            await runtime.executeTool({ ...call, toolCallId: randomUUID() }),
+          ),
+        ).toEqual(result);
+        await prisma.task.update({
+          where: { id: taskId },
+          data: { assigneeSokoBotId: null },
+        });
+        await expect(
+          runtime.executeTool({ ...call, toolCallId: randomUUID() }),
+        ).rejects.toThrow("not assigned");
+      },
+    );
+    it("counts noncanonical text even with a deterministic publication ID", async () => {
+      const { runtime, authorized } = await setup();
+      const taskId = await taskDestination();
+      const tableId = randomUUID();
+      await prisma.taskEvent.create({
+        data: {
+          id: uuidv5(`table-created:task:${taskId}:${sokoBotId}`, tableId),
+          taskId,
+          sokoBotId,
+          channel: "SOKOSUMI",
+          comment: `[Open table](/drive/tables/${tableId})\n`,
+        },
+      });
+      for (let i = 0; i < 2; i++)
+        await runtime["replyToTask"](
+          authorized,
+          { taskId, comment: `Ordinary ${i}` },
+          randomUUID(),
+        );
+      await expect(
+        runtime["replyToTask"](
+          authorized,
+          { taskId, comment: "Fourth ordinary reply" },
+          randomUUID(),
+        ),
+      ).rejects.toThrow("already commented 3 times");
+    });
     it.each([
       { destination: "chat", separateTurns: false },
       { destination: "task", separateTurns: false },

@@ -167,8 +167,26 @@ async function operation<T>(
       return result;
     }, "Table changed concurrently. Reload and retry.");
   } catch (error) {
-    if (isPrismaUniqueViolation(error))
+    if (isPrismaUniqueViolation(error)) {
+      // The lock wait can leave a SERIALIZABLE snapshot older than the winner.
+      // The failed transaction has rolled back; read its durable result afresh.
+      const previous = await prisma.tableOperation.findUnique({
+        where: {
+          workspaceId_actorId_key: {
+            workspaceId: actor.workspaceId,
+            actorId: actor.actorId,
+            key,
+          },
+        },
+      });
+      if (previous) {
+        if (previous.requestHash !== requestHash)
+          throw conflict("Retry key was already used for different input");
+        await requireDataTable(actor, previous.tableId);
+        return previous.result as T;
+      }
       throw conflict("Table identifier already exists");
+    }
     throw error;
   }
 }

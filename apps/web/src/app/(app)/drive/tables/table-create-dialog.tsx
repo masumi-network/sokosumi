@@ -25,7 +25,9 @@ import { Textarea } from "@/components/ui/textarea";
 
 import type { TableColumn } from "@/lib/clients/generated/core";
 import { dataTableService } from "@/lib/services/data-table.client";
+import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 import { tableImportBatches } from "./table-import";
+import { isTableRejection } from "./table-mutations";
 import { parseTableInput, tableError } from "./table-value";
 
 export const TABLE_TYPES: TableColumn["type"][] = [
@@ -150,6 +152,7 @@ export function TableCreateDialog({
       setOpen(false);
       router.push(`/drive/tables/${table.id}`);
     } catch (error) {
+      if (!current.tableId && isTableRejection(error)) setAttempt(null);
       setError(tableError(error, t));
     } finally {
       setPending(false);
@@ -196,7 +199,9 @@ export function TableCreateDialog({
             <Label htmlFor="table-project">{t("projectOptional")}</Label>
             <select
               id="table-project"
-              className="bg-background rounded-md border px-3 py-2 text-sm"
+              className={withEditableTextSize(
+                "bg-background h-10 rounded-md border px-3 py-2",
+              )}
               value={projectId}
               onChange={(event) => setProjectId(event.target.value)}
               disabled={pending || !!attempt}
@@ -240,7 +245,9 @@ export function TableCreateDialog({
                     }
                   />
                   <select
-                    className="bg-background rounded-md border px-3 py-2 text-sm"
+                    className={withEditableTextSize(
+                      "bg-background h-10 rounded-md border px-3 py-2",
+                    )}
                     aria-label={t("type")}
                     value={column.type}
                     disabled={pending || !!attempt}

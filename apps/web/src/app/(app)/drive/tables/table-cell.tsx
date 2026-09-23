@@ -80,6 +80,7 @@ export function TableCell({
     },
     onBlur: () => void handleSave(),
     onKeyDown: (event: React.KeyboardEvent) => {
+      if (event.nativeEvent.isComposing || event.keyCode === 229) return;
       if (event.key === "Escape" && !uncertain) {
         setDraft(initial.current);
         setEditing(false);

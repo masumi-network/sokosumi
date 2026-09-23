@@ -3951,6 +3951,7 @@ model TableChange {
   createdAt DateTime  @default(now())
 
   @@index([tableId, createdAt, id])
+  @@index([tableId, sequence])
   @@index([tableId, batchId])
   @@index([tableId, rowId, columnId])
   @@map("table_change")

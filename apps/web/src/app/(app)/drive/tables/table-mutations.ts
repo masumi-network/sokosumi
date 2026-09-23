@@ -45,5 +45,8 @@ export function createTableMutations() {
       throw error;
     }
   }
-  return Object.assign(mutate, { hasPending: () => attempts.size > 0 });
+  return Object.assign(mutate, {
+    hasPending: () => attempts.size > 0,
+    isPending: (slot: string) => attempts.has(slot),
+  });
 }

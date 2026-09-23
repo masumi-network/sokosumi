@@ -1750,15 +1750,32 @@ export class SokoBotRuntimeService {
         });
         if (existing) return recovered(existing.id);
       }
-      if (!input.status) {
-        const recent = await tx.taskEvent.count({
+      if (!input.status && !publication) {
+        const events = await tx.taskEvent.findMany({
           where: {
             taskId: task.id,
             sokoBotId: authorized.turn.sokoBotId,
             status: null,
             createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1_000) },
           },
+          select: { id: true, comment: true },
         });
+        const recent = events.filter((event) => {
+          const match =
+            /^\[Open table\]\(\/drive\/tables\/([0-9a-f-]+)\)$/.exec(
+              event.comment ?? "",
+            );
+          const tableId = z.uuid().safeParse(match?.[1]);
+          return (
+            !tableId.success ||
+            event.comment !== `[Open table](/drive/tables/${tableId.data})` ||
+            event.id !==
+              uuidv5(
+                `table-created:task:${task.id}:${authorized.turn.sokoBotId}`,
+                tableId.data,
+              )
+          );
+        }).length;
         if (recent >= MAX_BOT_COMMENTS_PER_TASK_PER_DAY) {
           throw new SokoBotRuntimeValidationError(
             `You already commented ${recent} times on this Task today; hold further comments unless they are urgent`,

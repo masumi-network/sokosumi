@@ -10,6 +10,7 @@ import { TableCell } from "@/app/drive/tables/table-cell";
 import { TableColumnDialog } from "@/app/drive/tables/table-column-dialog";
 import { TableCreateDialog } from "@/app/drive/tables/table-create-dialog";
 import { TableEditor } from "@/app/drive/tables/table-editor";
+import type { TableView } from "@/lib/clients/generated/core";
 
 const f = vi.hoisted(() => {
   const column = {
@@ -45,6 +46,7 @@ const f = vi.hoisted(() => {
     update: vi.fn(),
     get: vi.fn(),
     push: vi.fn(),
+    views: [] as TableView[],
   };
 });
 vi.mock("next-intl", () => ({
@@ -74,7 +76,7 @@ vi.mock("@tanstack/react-query", () => ({
             description: "",
             version: f.tableVersion,
             columns: f.columns,
-            views: [],
+            views: f.views,
             archivedAt: f.tableArchived,
           }
         : queryKey[0] === "table-rows"
@@ -111,6 +113,7 @@ beforeEach(() => {
   f.columns = [f.column];
   f.tableVersion = 1;
   f.tableArchived = null;
+  f.views = [];
 });
 afterEach(cleanup);
 it("F6: invalid enrichment stays editable without sending an invalid request", async () => {
@@ -146,6 +149,63 @@ it("F4: add-row lost-ack retry preserves the exact request", async () => {
   fireEvent.click(screen.getByRole("button", { name: "retry" }));
   await waitFor(() => expect(f.batch).toHaveBeenCalledTimes(2));
   expect(f.batch.mock.calls[0][1]).toEqual(f.batch.mock.calls[1][1]);
+});
+it("F4: unresolved add-row blocks view navigation", async () => {
+  f.batch.mockRejectedValueOnce(new TypeError("network lost acknowledgement"));
+  render(<TableEditor id={f.column.tableId} />);
+  fireEvent.click(screen.getByRole("button", { name: "addRow" }));
+  await waitFor(() =>
+    expect(screen.getByRole("alert")).toHaveTextContent("network lost"),
+  );
+  fireEvent.change(screen.getByLabelText("view"), { target: { value: "" } });
+  expect(screen.getByRole("alert")).toHaveTextContent("errors.unresolved");
+  expect(f.batch).toHaveBeenCalledOnce();
+});
+it("F4: definitive cell rejection does not leave the cell retry-locked", async () => {
+  f.batch.mockRejectedValueOnce({ error: "Forbidden", message: "Rejected" });
+  render(<TableEditor id={f.column.tableId} />);
+  const cell = screen.getByRole("textbox", { name: "Company" });
+  fireEvent.focus(cell);
+  fireEvent.change(cell, { target: { value: "Rejected edit" } });
+  fireEvent.blur(cell);
+  await waitFor(() =>
+    expect(
+      screen
+        .getAllByRole("alert")
+        .map((item) => item.textContent)
+        .join(" "),
+    ).toContain("errors.forbidden"),
+  );
+  expect(cell).not.toBeDisabled();
+  expect(screen.getByRole("button", { name: "retry" })).toBeInTheDocument();
+});
+it("F4: workspace rejection does not clear an unrelated cell retry", async () => {
+  f.batch
+    .mockRejectedValueOnce(new TypeError("cell lost acknowledgement"))
+    .mockRejectedValueOnce({ error: "Forbidden", message: "Archive rejected" });
+  render(<TableEditor id={f.column.tableId} />);
+  const cell = screen.getByRole("textbox", { name: "Company" });
+  fireEvent.focus(cell);
+  fireEvent.change(cell, { target: { value: "Pending cell" } });
+  fireEvent.blur(cell);
+  await waitFor(() =>
+    expect(screen.getByRole("alert")).toHaveTextContent("cell lost"),
+  );
+  fireEvent.click(screen.getByRole("checkbox", { name: "selectRow" }));
+  fireEvent.click(screen.getByRole("button", { name: "archiveRows" }));
+  await waitFor(() =>
+    expect(
+      screen
+        .getAllByRole("alert")
+        .map((item) => item.textContent)
+        .join(" "),
+    ).toContain("errors.forbidden"),
+  );
+  f.batch.mockResolvedValueOnce({ rows: [] });
+  fireEvent.click(screen.getByRole("button", { name: "addRow" }));
+  await waitFor(() => expect(f.batch).toHaveBeenCalledTimes(3));
+  expect(f.batch.mock.calls[2][1]).toMatchObject({ insert: [{ values: {} }] });
+  expect(screen.getByRole("button", { name: "retry" })).toBeInTheDocument();
 });
 it("F2: polling row removal pins the edited row and preserves its original version", async () => {
   f.batch.mockResolvedValue({ rows: [] });
@@ -187,6 +247,25 @@ it("F11: typing after Escape starts another edit", () => {
   fireEvent.change(cell, { target: { value: "New edit" } });
   fireEvent.blur(cell);
   expect(save).toHaveBeenCalledWith(1, "New edit");
+});
+it("F11: IME composition keys do not submit or cancel the draft", () => {
+  const save = vi.fn();
+  render(
+    <TableCell
+      column={f.column}
+      row={f.row}
+      disabled={false}
+      onSave={save}
+      onHistory={() => {}}
+    />,
+  );
+  const cell = screen.getByRole("textbox", { name: "Company" });
+  fireEvent.focus(cell);
+  fireEvent.change(cell, { target: { value: "日本" } });
+  fireEvent.keyDown(cell, { key: "Enter", keyCode: 229 });
+  fireEvent.keyDown(cell, { key: "Escape", keyCode: 229 });
+  expect(cell).toHaveValue("日本");
+  expect(save).not.toHaveBeenCalled();
 });
 it("F3: legal large CSV is byte-bounded and retries the same chunk", async () => {
   f.create.mockResolvedValue({ id: f.column.tableId });
@@ -231,6 +310,38 @@ it("F3: legal large CSV is byte-bounded and retries the same chunk", async () =>
       .slice(1)
       .reduce((n, call) => n + call[1].insert.length, 0),
   ).toBe(60);
+});
+it("F3: definitive create rejection releases the create attempt", async () => {
+  f.create.mockRejectedValueOnce({ error: "Forbidden", message: "Rejected" });
+  render(<TableCreateDialog workspaceId={null} />);
+  fireEvent.click(screen.getByRole("button", { name: "newTable" }));
+  fireEvent.change(screen.getByLabelText("title"), {
+    target: { value: "Rejected table" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "create" }));
+  await waitFor(() =>
+    expect(screen.getByRole("alert")).toHaveTextContent("errors.forbidden"),
+  );
+  expect(screen.getByLabelText("title")).not.toBeDisabled();
+  expect(f.create).toHaveBeenCalledOnce();
+});
+it("F3: uncertain create keeps its key for a retry", async () => {
+  f.create
+    .mockRejectedValueOnce(new TypeError("network lost acknowledgement"))
+    .mockResolvedValueOnce({ id: f.column.tableId });
+  render(<TableCreateDialog workspaceId={null} />);
+  fireEvent.click(screen.getByRole("button", { name: "newTable" }));
+  fireEvent.change(screen.getByLabelText("title"), {
+    target: { value: "Retry table" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "create" }));
+  await waitFor(() =>
+    expect(screen.getByRole("alert")).toHaveTextContent("network lost"),
+  );
+  expect(screen.getByLabelText("title")).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "create" }));
+  await waitFor(() => expect(f.push).toHaveBeenCalled());
+  expect(f.create.mock.calls[0][0].key).toBe(f.create.mock.calls[1][0].key);
 });
 it.each([
   { type: "date", partial: "2", complete: "2026-09-18" },
@@ -329,6 +440,50 @@ it("F2: canceling deliberate view navigation keeps the draft", () => {
   expect(confirm).toHaveBeenCalled();
   expect(input).toHaveValue("Keep draft");
   vi.unstubAllGlobals();
+});
+it("F4: resolved view navigation invokes the view callback", async () => {
+  f.views = [
+    {
+      id: "00000000-0000-4000-8000-000000000006",
+      tableId: f.column.tableId,
+      name: "Research",
+      version: 1,
+      definition: { filters: [], sort: null, visibleColumnIds: [] },
+    },
+  ];
+  render(<TableEditor id={f.column.tableId} />);
+  fireEvent.change(screen.getByLabelText("view"), {
+    target: { value: f.views[0].id },
+  });
+  await waitFor(() =>
+    expect(screen.getByLabelText("view")).toHaveValue(f.views[0].id),
+  );
+});
+it("F4: unresolved view change keeps the default view and retry payload", async () => {
+  f.views = [
+    {
+      id: "00000000-0000-4000-8000-000000000006",
+      tableId: f.column.tableId,
+      name: "Research",
+      version: 1,
+      definition: { filters: [], sort: null, visibleColumnIds: [] },
+    },
+  ];
+  f.batch
+    .mockRejectedValueOnce(new TypeError("network lost acknowledgement"))
+    .mockResolvedValueOnce({ rows: [] });
+  render(<TableEditor id={f.column.tableId} />);
+  fireEvent.click(screen.getByRole("button", { name: "addRow" }));
+  await waitFor(() =>
+    expect(screen.getByRole("alert")).toHaveTextContent("network lost"),
+  );
+  fireEvent.change(screen.getByLabelText("view"), {
+    target: { value: f.views[0].id },
+  });
+  expect(screen.getByLabelText("view")).toHaveValue("");
+  fireEvent.click(screen.getByRole("button", { name: "retry" }));
+  await waitFor(() => expect(f.batch).toHaveBeenCalledTimes(2));
+  expect(f.batch.mock.calls[1]).toEqual(f.batch.mock.calls[0]);
 });
 
 it.each(["disappeared", "updated"])(

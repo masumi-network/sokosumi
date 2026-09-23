@@ -259,7 +259,7 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   create_table: createDataTableSchema.extend({
     taskId: z.string().max(200).optional(),
   }),
-  write_table_rows: tableBatchSchema.and(z.object({ tableId: z.uuid() })),
+  write_table_rows: tableBatchSchema.safeExtend({ tableId: z.uuid() }),
   update_table_columns: tableMutationSchema.extend({
     tableId: z.uuid(),
     taskId: z.string().max(200).optional(),
