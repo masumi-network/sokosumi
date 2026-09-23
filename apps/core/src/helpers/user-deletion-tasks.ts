@@ -8,12 +8,13 @@ import { APIError } from "better-auth/api";
 
 import {
   CalendarErasureBlockedError,
+  type CalendarErasureCleanup,
+  cleanupCalendarErasureResources,
   eraseWorkspaceCalendarData,
   lockWorkspaceCalendarForErasure,
 } from "@/helpers/calendar-erasure";
 import { isPrismaTransactionConflict } from "@/helpers/prisma";
 import { SWEEPABLE_X402_STATUSES } from "@/helpers/task-deletion-payments";
-import { deleteTaskFileIfOwned } from "@/lib/blob";
 
 type PrismaClient = ReturnType<typeof createPrismaClient>;
 
@@ -75,9 +76,9 @@ export async function prepareTasksForUserDeletion(
   userId: string,
   prisma: PrismaClient,
 ): Promise<void> {
-  let ownedTaskFiles: Array<{ fileUrl: string | null; taskId: string }>;
+  let cleanup: CalendarErasureCleanup;
   try {
-    ownedTaskFiles = await prisma.$transaction(
+    cleanup = await prisma.$transaction(
       async (tx) => {
         // Serialize account deletion with both halves of x402 payment creation:
         //
@@ -110,27 +111,25 @@ export async function prepareTasksForUserDeletion(
         >`
           SELECT workspace.id, workspace."userId"
           FROM "workspace" AS workspace
-          WHERE workspace."userId" = ${userId}
-            OR EXISTS (
-              SELECT 1
-              FROM "task"
-              WHERE "task"."workspaceId" = workspace.id
-                AND "task"."ownerId" = ${userId}
-            )
+          WHERE workspace.id IN (
+            SELECT id FROM "workspace" WHERE "userId" = ${userId}
+            UNION
+            SELECT "workspaceId" FROM "task" WHERE "ownerId" = ${userId}
+          )
           ORDER BY workspace.id ASC
           FOR UPDATE OF workspace
         `;
         await tx.$queryRaw`
           SELECT project.id
           FROM "project" AS project
-          JOIN "workspace" AS workspace ON workspace.id = project."workspaceId"
-          WHERE workspace."userId" = ${userId}
-            OR EXISTS (
-              SELECT 1
-              FROM "task"
-              WHERE "task"."projectId" = project.id
-                AND "task"."ownerId" = ${userId}
-            )
+          WHERE project.id IN (
+            SELECT workspace_project.id
+            FROM "project" AS workspace_project
+            JOIN "workspace" ON workspace.id = workspace_project."workspaceId"
+            WHERE workspace."userId" = ${userId}
+            UNION
+            SELECT "projectId" FROM "task" WHERE "ownerId" = ${userId}
+          )
           ORDER BY project.id ASC
           FOR UPDATE OF project
         `;
@@ -486,9 +485,27 @@ export async function prepareTasksForUserDeletion(
           select: { fileUrl: true, taskId: true },
         });
 
+        const cleanup: CalendarErasureCleanup = {
+          scheduledEmails: [],
+          taskFiles: ownedFiles,
+        };
         for (const workspace of affectedWorkspaces) {
           if (workspace.userId === userId) {
-            await eraseWorkspaceCalendarData(tx, workspace.id);
+            const workspaceCleanup = await eraseWorkspaceCalendarData(
+              tx,
+              workspace.id,
+            );
+            cleanup.scheduledEmails.push(...workspaceCleanup.scheduledEmails);
+            // Owned files were captured across all workspaces above. Also retain
+            // any other-owner files removed with the personal workspace.
+            const ownedFileKeys = new Set(
+              cleanup.taskFiles.map((file) => `${file.taskId}:${file.fileUrl}`),
+            );
+            cleanup.taskFiles.push(
+              ...workspaceCleanup.taskFiles.filter(
+                (file) => !ownedFileKeys.has(`${file.taskId}:${file.fileUrl}`),
+              ),
+            );
           }
         }
 
@@ -537,7 +554,7 @@ export async function prepareTasksForUserDeletion(
           },
         });
 
-        return ownedFiles;
+        return cleanup;
       },
       // Prisma's default interactive-transaction timeout is 5 s, and this
       // callback stopped being a handful of indexed lookups when the x402
@@ -555,6 +572,20 @@ export async function prepareTasksForUserDeletion(
     if (error instanceof CalendarErasureBlockedError) {
       if (error.blocker === "task_payment_pending") {
         throwPendingX402PaymentDeletionBlocker(userId, error.paymentId);
+      }
+      if (error.blocker === "task_payment_unresolved") {
+        Sentry.captureMessage(
+          "Account deletion blocked by an x402 task payment in an unhandled status",
+          {
+            level: "error",
+            tags: { error_type: "user_deletion_blocked_by_x402_unhandled" },
+            extra: {
+              userId,
+              taskX402PaymentId: error.paymentId,
+              status: error.paymentStatus,
+            },
+          },
+        );
       }
       throw error.blocker === "task_payment_authorization_live"
         ? new APIError("BAD_REQUEST", {
@@ -584,12 +615,5 @@ export async function prepareTasksForUserDeletion(
     throw error;
   }
 
-  await Promise.all(
-    ownedTaskFiles
-      .filter(
-        (file): file is { fileUrl: string; taskId: string } =>
-          file.fileUrl !== null,
-      )
-      .map((file) => deleteTaskFileIfOwned(file.fileUrl, file.taskId)),
-  );
+  await cleanupCalendarErasureResources(cleanup);
 }

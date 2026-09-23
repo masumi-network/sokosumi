@@ -1,6 +1,12 @@
 import { type Prisma, TaskX402PaymentStatus } from "@sokosumi/database";
 
+import {
+  cancelNotificationEmails,
+  EMAILED_NOTIFICATION_COLUMNS,
+  type EmailedNotificationRow,
+} from "@/helpers/notification-email-dispatch";
 import { SWEEPABLE_X402_STATUSES } from "@/helpers/task-deletion-payments";
+import { deleteTaskFileIfOwned } from "@/lib/blob";
 
 export type CalendarErasureBlocker =
   | "task_payment_pending"
@@ -11,6 +17,7 @@ export class CalendarErasureBlockedError extends Error {
   constructor(
     readonly blocker: CalendarErasureBlocker,
     readonly paymentId: string,
+    readonly paymentStatus?: string,
   ) {
     super(blocker);
     this.name = "CalendarErasureBlockedError";
@@ -66,23 +73,37 @@ export async function lockWorkspaceCalendarForErasure(
   await tx.$queryRaw`
     SELECT occurrence.id
     FROM "task_schedule_occurrence" AS occurrence
-    LEFT JOIN "task" AS series_task
-      ON series_task.id = occurrence."seriesTaskId"
-    LEFT JOIN "task" AS released_task
-      ON released_task.id = occurrence."releasedTaskId"
-    WHERE occurrence."sourceWorkspaceId" = ${workspaceId}::UUID
-      OR series_task."workspaceId" = ${workspaceId}::UUID
-      OR released_task."workspaceId" = ${workspaceId}::UUID
+    WHERE occurrence.id IN (
+      SELECT id FROM "task_schedule_occurrence"
+      WHERE "sourceWorkspaceId" = ${workspaceId}::UUID
+      UNION
+      SELECT series_occurrence.id
+      FROM "task_schedule_occurrence" AS series_occurrence
+      JOIN "task" AS series_task ON series_task.id = series_occurrence."seriesTaskId"
+      WHERE series_task."workspaceId" = ${workspaceId}::UUID
+      UNION
+      SELECT released_occurrence.id
+      FROM "task_schedule_occurrence" AS released_occurrence
+      JOIN "task" AS released_task ON released_task.id = released_occurrence."releasedTaskId"
+      WHERE released_task."workspaceId" = ${workspaceId}::UUID
+    )
     ORDER BY occurrence.id ASC
     FOR UPDATE OF occurrence
   `;
   await tx.$queryRaw`
     SELECT link.id
     FROM "task_link" AS link
-    JOIN "task" AS source_task ON source_task.id = link."fromTaskId"
-    JOIN "task" AS target_task ON target_task.id = link."toTaskId"
-    WHERE source_task."workspaceId" = ${workspaceId}::UUID
-      OR target_task."workspaceId" = ${workspaceId}::UUID
+    WHERE link.id IN (
+      SELECT source_link.id
+      FROM "task_link" AS source_link
+      JOIN "task" AS source_task ON source_task.id = source_link."fromTaskId"
+      WHERE source_task."workspaceId" = ${workspaceId}::UUID
+      UNION
+      SELECT target_link.id
+      FROM "task_link" AS target_link
+      JOIN "task" AS target_task ON target_task.id = target_link."toTaskId"
+      WHERE target_task."workspaceId" = ${workspaceId}::UUID
+    )
     ORDER BY link.id ASC
     FOR UPDATE OF link
   `;
@@ -108,6 +129,7 @@ export async function lockWorkspaceCalendarForErasure(
         ? "task_payment_pending"
         : "task_payment_unresolved",
       unresolvedPayment.id,
+      unresolvedPayment.status,
     );
   }
 
@@ -129,11 +151,43 @@ export async function lockWorkspaceCalendarForErasure(
   return true;
 }
 
+export interface CalendarErasureCleanup {
+  scheduledEmails: EmailedNotificationRow[];
+  taskFiles: Array<{ fileUrl: string | null; taskId: string }>;
+}
+
+/** Run only after the erasure transaction commits. */
+export async function cleanupCalendarErasureResources(
+  cleanup: CalendarErasureCleanup,
+): Promise<void> {
+  await Promise.all([
+    cancelNotificationEmails(cleanup.scheduledEmails),
+    ...cleanup.taskFiles.map((file) =>
+      deleteTaskFileIfOwned(file.fileUrl, file.taskId),
+    ),
+  ]);
+}
+
 /** Delete only after locking with lockWorkspaceCalendarForErasure in this transaction. */
 export async function eraseWorkspaceCalendarData(
   tx: Prisma.TransactionClient,
   workspaceId: string,
-): Promise<void> {
+): Promise<CalendarErasureCleanup> {
+  // Fence the dispatcher before reading: its conditional email update must
+  // either finish before this read or see a read/deleted notification.
+  await tx.notification.updateMany({
+    where: { workspaceId },
+    data: { isRead: true },
+  });
+  const scheduledEmails = await tx.notification.findMany({
+    where: { workspaceId, emailScheduledAt: { not: null } },
+    select: EMAILED_NOTIFICATION_COLUMNS,
+  });
+  const taskFiles = await tx.taskFile.findMany({
+    where: { task: { workspaceId } },
+    select: { fileUrl: true, taskId: true },
+  });
+
   await tx.taskScheduleOccurrence.deleteMany({
     where: {
       OR: [
@@ -167,4 +221,5 @@ export async function eraseWorkspaceCalendarData(
   await tx.project.deleteMany({ where: { workspaceId } });
   await tx.notification.deleteMany({ where: { workspaceId } });
   await tx.calendarInvalidationOutbox.deleteMany({ where: { workspaceId } });
+  return { scheduledEmails, taskFiles };
 }

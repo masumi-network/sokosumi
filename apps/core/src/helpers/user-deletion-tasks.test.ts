@@ -25,10 +25,12 @@ const {
   queryRawMock,
   transactionMock,
   deleteTaskFileIfOwnedMock,
+  cancelNotificationEmailsMock,
   captureMessageMock,
   eraseWorkspaceCalendarDataMock,
   lockWorkspaceCalendarForErasureMock,
 } = vi.hoisted(() => ({
+  cancelNotificationEmailsMock: vi.fn(),
   captureMessageMock: vi.fn(),
   coworkerAssignmentFindManyMock: vi.fn(),
   taskFindManyMock: vi.fn(),
@@ -57,6 +59,13 @@ vi.mock("@/helpers/calendar-erasure", async (importOriginal) => ({
   lockWorkspaceCalendarForErasure: lockWorkspaceCalendarForErasureMock,
 }));
 
+vi.mock("@/helpers/notification-email-dispatch", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/helpers/notification-email-dispatch")
+  >()),
+  cancelNotificationEmails: cancelNotificationEmailsMock,
+}));
+
 vi.mock("@/lib/blob", () => ({
   deleteTaskFileIfOwned: deleteTaskFileIfOwnedMock,
 }));
@@ -79,7 +88,10 @@ describe("prepareTasksForUserDeletion", () => {
     userDeleteManyMock.mockResolvedValue({ count: 1 });
     calendarInvalidationOutboxDeleteManyMock.mockResolvedValue({ count: 0 });
     queryRawMock.mockResolvedValue([]);
-    eraseWorkspaceCalendarDataMock.mockResolvedValue(undefined);
+    eraseWorkspaceCalendarDataMock.mockResolvedValue({
+      taskFiles: [],
+      scheduledEmails: [],
+    });
     lockWorkspaceCalendarForErasureMock.mockResolvedValue(true);
     deleteTaskFileIfOwnedMock.mockResolvedValue(undefined);
     transactionMock.mockImplementation(async (callback) =>
@@ -862,7 +874,11 @@ describe("prepareTasksForUserDeletion", () => {
             "notification",
           ].map((name) => [
             name,
-            { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
+            {
+              deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+              updateMany: vi.fn(),
+              findMany: vi.fn().mockResolvedValue([]),
+            },
           ]),
         );
         return callback({ ...tx, ...calendarModels });
@@ -900,6 +916,49 @@ describe("prepareTasksForUserDeletion", () => {
     expect(taskX402PaymentDeleteManyMock).not.toHaveBeenCalled();
     expect(taskDeleteManyMock).not.toHaveBeenCalled();
     expect(userDeleteManyMock).not.toHaveBeenCalled();
+  });
+
+  it("pages support for an unknown payment status in a personal workspace", async () => {
+    await useRealPersonalWorkspaceErasure();
+    taskX402PaymentFindFirstMock.mockResolvedValue({
+      id: "unknown-payment",
+      status: "FUTURE_STATUS",
+    });
+    await expect(
+      prepareTasksForUserDeletion("user_delete", {
+        $transaction: transactionMock,
+      } as never),
+    ).rejects.toMatchObject({ body: { code: "TASK_X402_PAYMENT_UNRESOLVED" } });
+    expect(captureMessageMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        tags: { error_type: "user_deletion_blocked_by_x402_unhandled" },
+        extra: expect.objectContaining({
+          taskX402PaymentId: "unknown-payment",
+          status: "FUTURE_STATUS",
+        }),
+      }),
+    );
+  });
+
+  it("cancels personal workspace emails after account deletion commits", async () => {
+    queryRawMock.mockResolvedValue([{ id: "personal", userId: "user_delete" }]);
+    coworkerAssignmentFindManyMock.mockResolvedValue([]);
+    taskFindManyMock.mockResolvedValue([]);
+    const scheduledEmails = [
+      { id: "notice", emailId: "queued", emailScheduledAt: new Date() },
+    ];
+    eraseWorkspaceCalendarDataMock.mockResolvedValue({
+      taskFiles: [],
+      scheduledEmails,
+    });
+    await prepareTasksForUserDeletion("user_delete", {
+      $transaction: transactionMock,
+    } as never);
+    expect(cancelNotificationEmailsMock).toHaveBeenCalledWith(scheduledEmails);
+    expect(userDeleteManyMock.mock.invocationCallOrder[0]).toBeLessThan(
+      cancelNotificationEmailsMock.mock.invocationCallOrder[0],
+    );
   });
 
   it("cleans personal task blobs after Calendar erasure cascades file records", async () => {

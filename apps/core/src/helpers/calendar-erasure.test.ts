@@ -23,6 +23,9 @@ function createTransaction() {
   const projectCloseOperationDeleteMany = vi.fn();
   const projectDeleteMany = vi.fn();
   const notificationDeleteMany = vi.fn();
+  const notificationUpdateMany = vi.fn();
+  const notificationFindMany = vi.fn().mockResolvedValue([]);
+  const taskFileFindMany = vi.fn().mockResolvedValue([]);
   const calendarInvalidationOutboxDeleteMany = vi.fn();
 
   return {
@@ -49,7 +52,12 @@ function createTransaction() {
         deleteMany: projectCloseOperationDeleteMany,
       },
       project: { deleteMany: projectDeleteMany },
-      notification: { deleteMany: notificationDeleteMany },
+      notification: {
+        deleteMany: notificationDeleteMany,
+        updateMany: notificationUpdateMany,
+        findMany: notificationFindMany,
+      },
+      taskFile: { findMany: taskFileFindMany },
       calendarInvalidationOutbox: {
         deleteMany: calendarInvalidationOutboxDeleteMany,
       },
@@ -211,5 +219,40 @@ describe("calendar erasure", () => {
     expect(tx.calendarInvalidationOutbox.deleteMany).toHaveBeenCalledWith({
       where: { workspaceId: WORKSPACE_ID },
     });
+  });
+  it("captures queued emails under lock and task files before erasure", async () => {
+    const { tx } = createTransaction();
+    const scheduledEmails = [
+      { id: "notice", emailId: "queued", emailScheduledAt: new Date() },
+    ];
+    const taskFiles = [
+      { fileUrl: "https://blob/tasks/task-1/file", taskId: "task-1" },
+    ];
+    tx.notification.findMany.mockResolvedValue(scheduledEmails);
+    tx.taskFile.findMany.mockResolvedValue(taskFiles);
+    await expect(
+      eraseWorkspaceCalendarData(tx as never, WORKSPACE_ID),
+    ).resolves.toEqual({ scheduledEmails, taskFiles });
+    expect(tx.notification.updateMany).toHaveBeenCalledWith({
+      where: { workspaceId: WORKSPACE_ID },
+      data: { isRead: true },
+    });
+    expect(tx.notification.findMany).toHaveBeenCalledWith({
+      where: { workspaceId: WORKSPACE_ID, emailScheduledAt: { not: null } },
+      select: { id: true, emailId: true, emailScheduledAt: true },
+    });
+    expect(tx.taskFile.findMany).toHaveBeenCalledWith({
+      where: { task: { workspaceId: WORKSPACE_ID } },
+      select: { fileUrl: true, taskId: true },
+    });
+    expect(tx.notification.updateMany.mock.invocationCallOrder[0]).toBeLessThan(
+      tx.notification.findMany.mock.invocationCallOrder[0],
+    );
+    expect(tx.notification.findMany.mock.invocationCallOrder[0]).toBeLessThan(
+      tx.notification.deleteMany.mock.invocationCallOrder[0],
+    );
+    expect(tx.taskFile.findMany.mock.invocationCallOrder[0]).toBeLessThan(
+      tx.task.deleteMany.mock.invocationCallOrder[0],
+    );
   });
 });
