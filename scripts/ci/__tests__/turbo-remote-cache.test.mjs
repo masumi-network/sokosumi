@@ -91,24 +91,20 @@ describe("GitHub OIDC remote cache wiring", () => {
   });
 
   it("jobs that run setup and turbo grant id-token write", async () => {
-    const build = await readRepoFile(".github", "workflows", "build.yml");
-    const lint = await readRepoFile(".github", "workflows", "lint.yml");
-    const test = await readRepoFile(".github", "workflows", "test.yml");
+    const ci = await readRepoFile(".github", "workflows", "ci.yml");
 
-    assert.match(jobBlock(build, "build"), /id-token:\s*write/);
-    assert.match(jobBlock(lint, "typecheck"), /id-token:\s*write/);
-    // test.yml anchors the permissions on the first leg and aliases the rest.
+    // ci.yml anchors the permissions on the first leg and aliases the rest.
     assert.match(
-      jobBlock(test, "web"),
+      jobBlock(ci, "web"),
       /permissions: &turbo-permissions\n\s+contents: read\n\s+id-token:\s*write/,
     );
-    for (const jobId of ["core", "packages", "cli"]) {
-      assert.match(jobBlock(test, jobId), /permissions: \*turbo-permissions/);
+    for (const jobId of ["core", "packages", "cli", "build", "typecheck"]) {
+      assert.match(jobBlock(ci, jobId), /permissions: \*turbo-permissions/);
     }
   });
 
   it("Web/Core/Packages jobs invoke turbo run test:ci", async () => {
-    const test = await readRepoFile(".github", "workflows", "test.yml");
+    const test = await readRepoFile(".github", "workflows", "ci.yml");
     assert.match(jobBlock(test, "web"), /turbo run test:ci --filter=web\n/);
     assert.match(
       jobBlock(test, "core"),
@@ -121,7 +117,7 @@ describe("GitHub OIDC remote cache wiring", () => {
   });
 
   it("advisory jobs cover local env, CI config, and cloud-agent-db", async () => {
-    const test = await readRepoFile(".github", "workflows", "test.yml");
+    const test = await readRepoFile(".github", "workflows", "ci.yml");
     assert.match(jobBlock(test, "local-env"), /run: pnpm local-env:test\n/);
     assert.match(jobBlock(test, "ci-config"), /run: pnpm ci:test\n/);
     assert.match(
@@ -131,7 +127,7 @@ describe("GitHub OIDC remote cache wiring", () => {
   });
 
   it("CI config also runs on markdown-only PRs", async () => {
-    const test = await readRepoFile(".github", "workflows", "test.yml");
+    const test = await readRepoFile(".github", "workflows", "ci.yml");
     const filter = await readRepoFile(".github", "js-paths-filter.yml");
     assert.match(filter, /^ci-config:\n  - "\{\*\.md,\*\*\/\*\.md,/m);
     assert.match(
@@ -162,45 +158,43 @@ describe("GitHub OIDC remote cache wiring", () => {
   });
 
   it("path-gated jobs skip at job level and fail open", async () => {
-    const build = await readRepoFile(".github", "workflows", "build.yml");
-    const lint = await readRepoFile(".github", "workflows", "lint.yml");
-    const test = await readRepoFile(".github", "workflows", "test.yml");
+    const ci = await readRepoFile(".github", "workflows", "ci.yml");
 
     // A job skipped by `if:` gets no runner and still reports its check
     // name, which the ruleset accepts. `!= 'false'` runs the job when
     // `changes` fails and leaves its outputs empty.
-    for (const [file, yaml, jobId, output] of [
-      ["build.yml", build, "build", "js"],
-      ["lint.yml", lint, "biome", "js"],
-      ["lint.yml", lint, "typecheck", "js"],
-      ["test.yml", test, "web", "web"],
-      ["test.yml", test, "core", "core"],
-      ["test.yml", test, "packages", "packages"],
-      ["test.yml", test, "cli", "cli"],
-      ["test.yml", test, "local-env", "local-env"],
-      ["test.yml", test, "ci-config", "ci-config"],
-      ["test.yml", test, "cloud-agent-db", "cloud-agent-db"],
+    for (const [jobId, output] of [
+      ["build", "js"],
+      ["biome", "js"],
+      ["typecheck", "js"],
+      ["web", "web"],
+      ["core", "core"],
+      ["packages", "packages"],
+      ["cli", "cli"],
+      ["local-env", "local-env"],
+      ["ci-config", "ci-config"],
+      ["cloud-agent-db", "cloud-agent-db"],
     ]) {
-      const header = jobBlock(yaml, jobId).split(/\n    steps:\n/)[0];
+      const header = jobBlock(ci, jobId).split(/\n    steps:\n/)[0];
       assert.match(
         header,
         new RegExp(
           `\\n    if: \\$\\{\\{ !cancelled\\(\\) && needs\\.changes\\.outputs\\.${output} != 'false' \\}\\}\\n`,
         ),
-        `${file} job ${jobId} must gate at job level on outputs.${output}`,
+        `job ${jobId} must gate at job level on outputs.${output}`,
       );
       assert.match(
-        jobBlock(yaml, "changes"),
+        jobBlock(ci, "changes"),
         new RegExp(
           `\\n      ${output}: \\$\\{\\{ github\\.event_name == 'workflow_dispatch' \\|\\| steps\\.filter\\.outputs\\.${output} \\}\\}\\n`,
         ),
-        `${file} changes must run ${output} on workflow_dispatch`,
+        `changes must run ${output} on workflow_dispatch`,
       );
     }
   });
 
   it("required test jobs keep their ruleset check names", async () => {
-    const test = await readRepoFile(".github", "workflows", "test.yml");
+    const test = await readRepoFile(".github", "workflows", "ci.yml");
     for (const [jobId, name] of [
       ["web", "Test Web"],
       ["core", "Test Core"],
@@ -229,7 +223,7 @@ describe("GitHub OIDC remote cache wiring", () => {
   });
 
   it("Test CLI runs only when apps/cli changes", async () => {
-    const test = await readRepoFile(".github", "workflows", "test.yml");
+    const test = await readRepoFile(".github", "workflows", "ci.yml");
     const filter = await readRepoFile(".github", "js-paths-filter.yml");
 
     // A single positive pattern, so `predicate-quantifier: every` at the
@@ -248,7 +242,7 @@ describe("GitHub OIDC remote cache wiring", () => {
   });
 
   it("Test CLI carries the checks the js-gated jobs no longer run for it", async () => {
-    const test = await readRepoFile(".github", "workflows", "test.yml");
+    const test = await readRepoFile(".github", "workflows", "ci.yml");
     const block = jobBlock(test, "cli");
 
     // apps/cli is excluded from `js`, so root `pnpm typecheck` and
@@ -267,24 +261,26 @@ describe("GitHub OIDC remote cache wiring", () => {
     }
   });
 
-  it("shares one JS path-filter file across test/build/lint", async () => {
+  it("reads the JS path filters from one shared file", async () => {
     const filter = await readRepoFile(".github", "js-paths-filter.yml");
     assert.match(filter, /^js: &js\s*$/m);
     assert.match(filter, /!\*\*\/\*\.md/);
 
-    for (const file of ["test.yml", "build.yml", "lint.yml"]) {
-      const yaml = await readRepoFile(".github", "workflows", file);
-      assert.match(
-        yaml,
-        /filters:\s*\.github\/js-paths-filter\.yml/,
-        `${file} must use the shared JS path filter`,
-      );
-      assert.doesNotMatch(
-        yaml,
-        /filters:\s*\|/,
-        `${file} must not inline a duplicate paths-filter`,
-      );
+    const ci = await readRepoFile(".github", "workflows", "ci.yml");
+    assert.match(ci, /filters:\s*\.github\/js-paths-filter\.yml/);
+    assert.doesNotMatch(ci, /filters:\s*\|/);
+  });
+
+  it("detects JS changes in one job per push", async () => {
+    // Every workflow with its own `changes` job starts one more runner per
+    // push, so Build, Biome, Typecheck and the Tests legs share ci.yml's.
+    const workflowsDir = path.join(repoRoot, ".github", "workflows");
+    const owners = [];
+    for (const file of await readdir(workflowsDir)) {
+      const text = await readFile(path.join(workflowsDir, file), "utf8");
+      if (/js-paths-filter\.yml/.test(text)) owners.push(file);
     }
+    assert.deepEqual(owners, ["ci.yml"]);
   });
 
   it("setup action reads Node from .nvmrc", async () => {
