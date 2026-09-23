@@ -1,5 +1,6 @@
-import { symmetricDecrypt } from "better-auth/crypto";
-import type { BetterAuthOptions } from "better-auth/minimal";
+import { memoryAdapter } from "better-auth/adapters/memory";
+import { signJWT, symmetricDecrypt } from "better-auth/crypto";
+import { type BetterAuthOptions, betterAuth } from "better-auth/minimal";
 import { decryptOAuthToken, setTokenUtil } from "better-auth/oauth2";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getEnv } from "@/config/env";
@@ -29,6 +30,81 @@ async function tokenContext() {
   return { options: tokenOptions, secretConfig } as Parameters<
     typeof setTokenUtil
   >[1];
+}
+
+type MemoryDb = Record<string, Record<string, unknown>[]>;
+
+const linkingSecret = "test-secret-that-is-long-enough-for-better-auth";
+
+// Better Auth's own link, token and refresh routes on an in-memory store. Only
+// the two calls that would reach Google are stubbed.
+function createLinkingAuth(
+  db: MemoryDb,
+  account: BetterAuthOptions["account"],
+) {
+  return betterAuth({
+    baseURL: "https://auth.example.com",
+    basePath: "/auth",
+    secret: linkingSecret,
+    database: memoryAdapter(db),
+    emailAndPassword: { enabled: true },
+    account,
+    socialProviders: {
+      google: {
+        ...socialProviderOptions.google,
+        verifyIdToken: async () => true,
+        refreshAccessToken: async () => ({ accessToken: "ya29.refreshed" }),
+      },
+    },
+    rateLimit: { enabled: false },
+  });
+}
+
+async function signUpAndLinkGoogle(
+  linkingAuth: ReturnType<typeof createLinkingAuth>,
+  name: string,
+) {
+  const email = `${name}@example.com`;
+  const signUp = await linkingAuth.api.signUpEmail({
+    body: { email, name, password: "Password123!" },
+    returnHeaders: true,
+  });
+  const headers = new Headers({
+    cookie: signUp.headers
+      .getSetCookie()
+      .map((cookie) => cookie.split(";")[0])
+      .join("; "),
+  });
+  await linkingAuth.api.linkSocialAccount({
+    body: {
+      provider: "google",
+      idToken: {
+        token: await signJWT(
+          { sub: name, email, email_verified: true, name },
+          linkingSecret,
+        ),
+        accessToken: `ya29.${name}`,
+        refreshToken: `1//${name}`,
+      },
+    },
+    headers,
+  });
+  return headers;
+}
+
+function storedGoogleAccount(db: MemoryDb, sub: string) {
+  const { id, accessToken, refreshToken } =
+    db.account?.find(
+      (row) => row.providerId === "google" && row.accountId === sub,
+    ) ?? {};
+  if (
+    typeof id !== "string" ||
+    typeof accessToken !== "string" ||
+    typeof refreshToken !== "string"
+  ) {
+    expect.unreachable(`no Google account stored for ${sub}`);
+  }
+  return { id, accessToken, refreshToken };
 }
 
 describe("social provider options", () => {
@@ -157,5 +233,60 @@ describe("stored OAuth provider tokens", () => {
     await expect(
       decryptOAuthToken(stored, { ...ctx, secretConfig: "replaced-secret" }),
     ).rejects.toThrow();
+  });
+
+  it("encrypts tokens on a new link and still reads rows stored before", async () => {
+    const db: MemoryDb = {
+      user: [],
+      session: [],
+      account: [],
+      verification: [],
+    };
+    // Core before this change: the same account options without the flag.
+    const beforeChange = createLinkingAuth(db, {
+      ...accountOptions,
+      encryptOAuthTokens: false,
+    });
+    const afterChange = createLinkingAuth(db, accountOptions);
+    const adaHeaders = await signUpAndLinkGoogle(beforeChange, "ada");
+    const graceHeaders = await signUpAndLinkGoogle(afterChange, "grace");
+    const ada = storedGoogleAccount(db, "ada");
+    const grace = storedGoogleAccount(db, "grace");
+
+    expect(ada).toMatchObject({
+      accessToken: "ya29.ada",
+      refreshToken: "1//ada",
+    });
+    expect(
+      await symmetricDecrypt({ key: linkingSecret, data: grace.accessToken }),
+    ).toBe("ya29.grace");
+    expect(
+      await symmetricDecrypt({ key: linkingSecret, data: grace.refreshToken }),
+    ).toBe("1//grace");
+
+    await expect(
+      afterChange.api.getAccessToken({
+        body: { accountId: ada.id },
+        headers: adaHeaders,
+      }),
+    ).resolves.toMatchObject({ accessToken: "ya29.ada" });
+    await expect(
+      afterChange.api.getAccessToken({
+        body: { accountId: grace.id },
+        headers: graceHeaders,
+      }),
+    ).resolves.toMatchObject({ accessToken: "ya29.grace" });
+    await expect(
+      afterChange.api.refreshToken({
+        body: { accountId: ada.id },
+        headers: adaHeaders,
+      }),
+    ).resolves.toMatchObject({ refreshToken: "1//ada" });
+    await expect(
+      afterChange.api.refreshToken({
+        body: { accountId: grace.id },
+        headers: graceHeaders,
+      }),
+    ).resolves.toMatchObject({ refreshToken: "1//grace" });
   });
 });
