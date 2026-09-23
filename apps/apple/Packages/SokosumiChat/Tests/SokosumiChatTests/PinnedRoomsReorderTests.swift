@@ -12,7 +12,7 @@ private let roomC = "550e8400-e29b-41d4-a716-446655440203"
 private func pinnedRoomJSON(id: String, starredAt: String?) -> String {
   let pin = starredAt.map { "\"\($0)\"" } ?? "null"
   return """
-  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(id.suffix(3))","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(testTimestamp)","updatedAt":"\(testTimestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":\(pin),"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
+  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(id.suffix(3))","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(testTimestamp)","updatedAt":"\(testTimestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":\(pin),"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
   """
 }
 

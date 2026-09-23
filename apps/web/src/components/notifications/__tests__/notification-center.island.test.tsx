@@ -222,9 +222,11 @@ async function renderPanel() {
     </NotificationProvider>,
   );
   await settle();
-  await userEvent
-    .setup()
-    .click(screen.getByRole("button", { name: /^notifications$|unreadBadge/ }));
+  await userEvent.setup().click(
+    screen.getByRole("button", {
+      name: /^notifications$|unreadBadge|accountNoticeIndicator/,
+    }),
+  );
   await settle();
 }
 
@@ -589,13 +591,14 @@ describe("Notification Center, both frames", () => {
     expect(screen.getByText("emptyState")).toBeTruthy();
   });
 
-  it("leaves the empty state out under an account notice", async () => {
+  // The notice lives on Needs you, so All says what it holds without it.
+  it("says All is empty under an account notice", async () => {
     accountNoticeMock.mockReturnValue({ notice: { tone: "warning" } });
 
     await renderPage();
 
-    expect(screen.getByText("account notice")).toBeTruthy();
-    expect(screen.queryByText("emptyState")).toBeNull();
+    expect(screen.queryByText("account notice")).toBeNull();
+    expect(screen.getByText("emptyState")).toBeTruthy();
   });
 
   it("offers a retry when the first page will not load", async () => {
@@ -1280,6 +1283,10 @@ describe("Notification Center view filter", () => {
     );
 
     await renderPage();
+    await userEvent
+      .setup()
+      .click(screen.getByRole("tab", { name: "filterNeedsYou 1" }));
+    await settle();
 
     const header = screen.getByTestId("notifications-page-header");
     const notice = screen.getByText("account notice");
@@ -1288,30 +1295,6 @@ describe("Notification Center view filter", () => {
     expect(
       header.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-  });
-
-  it("leaves both empty states out under an account notice", async () => {
-    accountNoticeMock.mockReturnValue({ notice: { tone: "warning" } });
-    getNotificationsMock.mockResolvedValue(
-      page([row("mine", { isRead: false, readAt: null })]),
-    );
-    getNotificationsCountsMock.mockResolvedValue({
-      data: { unread: 1, needsAction: 0 },
-    });
-
-    await renderPage();
-
-    getNotificationsMock.mockResolvedValue(page([]));
-    await userEvent
-      .setup()
-      .click(screen.getByRole("tab", { name: /^filterUnread/ }));
-    await settle();
-
-    expect(screen.getByText("account notice")).toBeTruthy();
-    expect(screen.queryByText("emptyUnreadState")).toBeNull();
-    expect(screen.queryByText("emptyState")).toBeNull();
-    // ...and the way back stays on screen.
-    expect(screen.getByRole("tab", { name: "filterAll" })).toBeTruthy();
   });
 
   it.each(FRAMES)(
@@ -1509,6 +1492,29 @@ describe("Notification Center Needs you view", () => {
       // Looking is not a write.
       expect(patchNotificationReadMock).not.toHaveBeenCalled();
       expect(patchNotificationsReadAllMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(FRAMES)(
+    "keeps the account notice and the push primer on Needs you, counted on its tab, in the %s",
+    async (_, mount) => {
+      accountNoticeMock.mockReturnValue({ notice: { tone: "warning" } });
+      getNotificationsMock.mockResolvedValue(page([row("done")]));
+
+      await mount();
+
+      expect(screen.queryByText("account notice")).toBeNull();
+      expect(screen.queryByTestId("notification-permission-primer")).toBeNull();
+
+      getNotificationsMock.mockResolvedValue(page([]));
+      await userEvent
+        .setup()
+        .click(screen.getByRole("tab", { name: "filterNeedsYou 1" }));
+      await settle();
+
+      expect(screen.getByText("account notice")).toBeTruthy();
+      expect(screen.getByTestId("notification-permission-primer")).toBeTruthy();
+      expect(screen.queryByText("emptyNeedsYouState")).toBeNull();
     },
   );
 

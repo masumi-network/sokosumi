@@ -251,6 +251,8 @@ function coworkerDirectRoom(): ChatRoom {
     slug: "direct",
     kind: "direct",
     isSelfDirect: false,
+    isGroupDirect: false,
+    groupName: null,
     directKey: null,
     topic: null,
     discoverability: "private",
@@ -303,6 +305,7 @@ function parentMessage(): ChatRoomMessage {
     metadata: null,
     quote: null,
     membership: null,
+    groupNameChange: null,
     unfurls: null,
     sender: {
       type: "user",

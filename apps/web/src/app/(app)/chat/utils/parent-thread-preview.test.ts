@@ -36,6 +36,7 @@ function parentMessage(
     metadata: null,
     quote: null,
     membership: null,
+    groupNameChange: null,
     unfurls: null,
     ...overrides,
   };

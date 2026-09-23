@@ -685,7 +685,8 @@ import SwiftUI
           onRetry: nil,
           onRemove: nil
         )
-        MembershipStatusRow(text: "Bob joined")
+        RoomStatusRow(text: Text(verbatim: "Bob joined"))
+        RoomStatusRow(text: groupNameChangeText(.named(actor: "Ada", name: "Launch crew")))
       }
       .padding()
     }

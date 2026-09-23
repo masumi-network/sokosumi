@@ -354,6 +354,15 @@ describe("completed reply attention", () => {
     expect(sql).not.toContain("metadata");
   });
 
+  it("leaves Group name changes out of Room unread", async () => {
+    const query = vi.fn().mockResolvedValue([]);
+    await getChatRoomUnreadCounts(["room-a"], "user-a", {
+      $queryRawUnsafe: query,
+    } as never);
+    const sql = String(query.mock.calls[0]?.[0]);
+    expect(sql).toContain(`message."metadata"->'groupNameChange' IS NULL`);
+  });
+
   it("uses completion for both room unread legs", async () => {
     const query = vi.fn().mockResolvedValue([]);
     await getChatRoomUnreadCounts(["room-a"], "user-a", {

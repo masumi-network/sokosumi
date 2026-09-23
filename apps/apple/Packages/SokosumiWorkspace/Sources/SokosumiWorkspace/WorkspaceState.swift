@@ -36,15 +36,15 @@ public final class WorkspaceState: ObservableObject {
   @Published public private(set) var openingDirect: DirectRecipient?
   @Published public private(set) var creatingChannel = false
   @Published public private(set) var joiningChannel = false
-  @Published public internal(set) var updatingChannel = false
+  @Published public internal(set) var updatingRoom = false
   @Published public private(set) var channelLifecycle: ChannelLifecycleRequest?
   @Published public internal(set) var invitationResponse: InvitationResponse?
   public let archivedChannels = ArchivedChannels()
   public let pendingInvitations = PendingInvitations()
   @Published public private(set) var compositionContext = UUID()
   /// Channel/Direct mutations are single-flight across the workspace, matching web's one open dialog at a time.
-  public var channelMutationInFlight: Bool {
-    creatingChannel || joiningChannel || updatingChannel || openingDirect != nil || channelLifecycle != nil || invitationResponse != nil
+  public var roomMutationInFlight: Bool {
+    creatingChannel || joiningChannel || updatingRoom || openingDirect != nil || channelLifecycle != nil || invitationResponse != nil
   }
 
   public var phase: Phase {
@@ -291,7 +291,7 @@ public final class WorkspaceState: ObservableObject {
     openingDirect = nil
     creatingChannel = false
     joiningChannel = false
-    updatingChannel = false
+    updatingRoom = false
     channelLifecycle = nil
     invitationResponse = nil
     pendingReactions = PendingReactions()
@@ -364,16 +364,35 @@ public final class WorkspaceState: ObservableObject {
   /// Editing reconciles the room in place and never navigates: the sidebar row and any open transcript keep their identity.
   public func updateChannel(_ draft: ChannelEditDraft, roomId: String, permissions: ChannelEditPermissions, context: UUID, auth: AuthState) async throws -> Bool {
     guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, permissions.canEditMembers, draft.isValid,
-          !channelMutationInFlight else { return false }
-    updatingChannel = true
+          !roomMutationInFlight else { return false }
+    updatingRoom = true
     defer {
       if context == compositionContext {
-        updatingChannel = false
+        updatingRoom = false
       }
     }
     let request = draft.updateRequest(permissions: permissions, currentUserId: currentUserId)
     let room = try await channelOperation(context: context, auth: auth) { client, _, slug in
-      try await ChatService().updateChannel(client: client, roomId: roomId, request: request, organizationSlug: slug)
+      try await ChatService().updateRoom(client: client, roomId: roomId, request: request, organizationSlug: slug)
+    }
+    if let index = rooms.firstIndex(where: { $0.id == room.id }) {
+      rooms[index] = room
+    }
+    return true
+  }
+
+  /// Names or clears a group Direct's Group name (ADR-0040) in any workspace, then takes Core's room in place like `updateChannel`.
+  public func nameGroup(_ draft: GroupNameDraft, roomId: String, context: UUID, auth: AuthState) async throws -> Bool {
+    guard canStartMutation(context: context) else { return false }
+    updatingRoom = true
+    defer {
+      if context == compositionContext {
+        updatingRoom = false
+      }
+    }
+    let slug = selection?.workspace.organizationSlug
+    let room = try await workspaceOperation(context: context, auth: auth) { client in
+      try await ChatService().updateRoom(client: client, roomId: roomId, request: draft.updateRequest, organizationSlug: slug)
     }
     if let index = rooms.firstIndex(where: { $0.id == room.id }) {
       rooms[index] = room
@@ -389,7 +408,7 @@ public final class WorkspaceState: ObservableObject {
 
   public func joinChannel(roomId: String, context: UUID, auth: AuthState) async throws -> Bool {
     guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching,
-          !channelMutationInFlight else { return false }
+          !roomMutationInFlight else { return false }
     let sourceRoom = transcriptRoomId
     joiningChannel = true
     defer {
@@ -413,7 +432,7 @@ public final class WorkspaceState: ObservableObject {
 
   /// Channel, Direct and invitation mutations start only for the live composition context, outside a switch, one at a time.
   func canStartMutation(context: UUID) -> Bool {
-    context == compositionContext && phase == .ready && !workspaceSession.isSwitching && !channelMutationInFlight
+    context == compositionContext && phase == .ready && !workspaceSession.isSwitching && !roomMutationInFlight
   }
 
   /// Runs an authenticated request for the current composition context; a workspace change or reset turns its result into cancellation.
@@ -869,6 +888,11 @@ public final class WorkspaceState: ObservableObject {
     if eventType == .create, roomId != transcriptRoomId {
       sidebarRecovery.requestRefresh()
     }
+    // Another member's rename retitles the open room now; other rows follow the sidebar refresh.
+    if eventType == .create, roomId == transcriptRoomId, let index = rooms.firstIndex(where: { $0.id == roomId }),
+       let renamed = rooms[index].applyingGroupNameChange(message) {
+      rooms[index] = renamed
+    }
     guard roomId == transcriptRoomId, message.roomId == transcriptRoomId, !directStream.isBusy || eventType == .delete else { return }
     let result = applyRealtimeFullEvent(
       messages: transcriptMessages,
@@ -1195,7 +1219,7 @@ public final class WorkspaceState: ObservableObject {
     openingDirect = nil
     creatingChannel = false
     joiningChannel = false
-    updatingChannel = false
+    updatingRoom = false
     channelLifecycle = nil
     invitationResponse = nil
     archivedChannels.reset()
@@ -1224,7 +1248,7 @@ public final class WorkspaceState: ObservableObject {
     openingDirect = nil
     creatingChannel = false
     joiningChannel = false
-    updatingChannel = false
+    updatingRoom = false
     channelLifecycle = nil
     invitationResponse = nil
     roomsRefreshTask?.cancel()

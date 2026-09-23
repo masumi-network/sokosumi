@@ -40,7 +40,7 @@ struct ComposerMentionTests {
   @Test func catalogExcludesSelfAndLimitsDirectSuggestions() {
     let user = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", image: nil, presence: .online)
     let peer = Components.Schemas.ChatRoomUserParticipant(id: "peer", name: "Peer", email: "peer@example.com", image: nil, presence: .online)
-    var room = Components.Schemas.ChatRoom(id: "room", name: "Room", kind: .channel, isSelfDirect: false, createdByUserId: "me",
+    var room = Components.Schemas.ChatRoom(id: "room", name: "Room", kind: .channel, isSelfDirect: false, isGroupDirect: false, createdByUserId: "me",
                                            createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member,
                                            userMembers: [user, peer], coworkerMembers: [], sokoBotMembers: [])
     #expect(ComposerMention.catalog(room: room, currentUserId: "me").map(\.id) == ["all", "peer"])
