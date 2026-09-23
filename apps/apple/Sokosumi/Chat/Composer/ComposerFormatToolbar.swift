@@ -3,47 +3,73 @@ import SwiftUI
 
 #if os(macOS)
   struct ComposerFormatToolbar: View {
+    enum Item: Hashable {
+      case inline(ComposerInlineText.Style)
+      case link
+      case block(ComposerBlockFormat)
+    }
+
+    /// Web's order: the text styles, Link, the lists and Quote, then both code buttons side by side.
+    static let items: [Item] = [
+      .inline(.bold), .inline(.italic), .inline(.underline), .inline(.strikethrough),
+      .link, .block(.orderedList), .block(.unorderedList), .block(.quote), .inline(.code), .block(.codeBlock)
+    ]
+
     @ObservedObject var commands: MacComposerCommands
 
     var body: some View {
       HStack(spacing: 4) {
-        ForEach(ComposerInlineText.Style.allCases, id: \.self) { style in
-          ComposerToolbarButton(title: label(style), symbol: symbol(style), selected: commands.activeStyles.contains(style)) {
-            commands.toggle(style)
-          }
-        }
-        ComposerToolbarButton(title: "Link (⌘K)", symbol: "link") { commands.beginLink() }
-        blockButton("Numbered list", symbol: "list.number", format: .orderedList)
-        blockButton("Bullet list", symbol: "list.bullet", format: .unorderedList)
-        blockButton("Quote", symbol: "text.quote", format: .quote)
-        blockButton("Code block", symbol: "chevron.left.slash.chevron.right", format: .codeBlock)
+        ForEach(Self.items, id: \.self, content: button)
         Spacer(minLength: 0)
       }
     }
 
-    private func blockButton(_ title: String, symbol: String, format: ComposerBlockFormat) -> some View {
-      ComposerToolbarButton(title: title, symbol: symbol, selected: commands.activeBlocks.contains(format)) {
-        commands.apply(format)
+    @ViewBuilder private func button(_ item: Item) -> some View {
+      switch item {
+      case let .inline(style):
+        ComposerToolbarButton(title: Self.title(item), symbol: Self.symbol(style), selected: commands.activeStyles.contains(style)) {
+          commands.toggle(style)
+        }
+      case .link:
+        ComposerToolbarButton(title: Self.title(item), symbol: "link") { commands.beginLink() }
+      case let .block(format):
+        ComposerToolbarButton(title: Self.title(item), symbol: Self.symbol(format), selected: commands.activeBlocks.contains(format)) {
+          commands.apply(format)
+        }
       }
     }
 
-    private func symbol(_ style: ComposerInlineText.Style) -> String {
+    static func symbol(_ style: ComposerInlineText.Style) -> String {
       switch style {
       case .bold: "bold"
       case .italic: "italic"
       case .underline: "underline"
       case .strikethrough: "strikethrough"
-      case .code: "chevron.left.forwardslash.chevron.right"
+      case .code: "chevron.left.chevron.right"
       }
     }
 
-    private func label(_ style: ComposerInlineText.Style) -> String {
-      switch style {
-      case .bold: "Bold (⌘B)"
-      case .italic: "Italic (⌘I)"
-      case .underline: "Underline (⌘U)"
-      case .strikethrough: "Strikethrough"
-      case .code: "Inline code"
+    static func symbol(_ format: ComposerBlockFormat) -> String {
+      switch format {
+      case .orderedList: "list.number"
+      case .unorderedList: "list.bullet"
+      case .quote: "text.quote"
+      case .codeBlock: "curlybraces.square"
+      }
+    }
+
+    static func title(_ item: Item) -> String {
+      switch item {
+      case .inline(.bold): "Bold (⌘B)"
+      case .inline(.italic): "Italic (⌘I)"
+      case .inline(.underline): "Underline (⌘U)"
+      case .inline(.strikethrough): "Strikethrough"
+      case .inline(.code): "Inline code"
+      case .link: "Link (⌘K)"
+      case .block(.orderedList): "Numbered list"
+      case .block(.unorderedList): "Bullet list"
+      case .block(.quote): "Quote"
+      case .block(.codeBlock): "Code block"
       }
     }
   }
