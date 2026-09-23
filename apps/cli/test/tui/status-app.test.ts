@@ -57,7 +57,7 @@ test("TUI display values derive from package, config, and OAuth sources", () => 
   );
 });
 
-test("TestV32 mainnet TUI selection overrides a preprod API URL", () => {
+test("mainnet TUI selection overrides a preprod API URL", () => {
   const config = resolveHostedTargetConfig(
     { SOKOSUMI_API_URL: "https://api.preprod.sokosumi.com" },
     "mainnet",
@@ -68,7 +68,7 @@ test("TestV32 mainnet TUI selection overrides a preprod API URL", () => {
   assert.equal(config.authBaseUrl, "https://api.sokosumi.com/auth");
 });
 
-test("TestV43 TUI explicit target rejects mismatched prefixed API keys", () => {
+test("TUI explicit target rejects mismatched prefixed API keys", () => {
   const mainnet = resolveHostedTargetConfig({}, "mainnet");
   const preprod = resolveHostedTargetConfig({}, "preprod");
 
@@ -90,7 +90,7 @@ test("TestV43 TUI explicit target rejects mismatched prefixed API keys", () => {
   );
 });
 
-test("TestV55 TUI target labels sanitize API URLs", () => {
+test("TUI target labels sanitize API URLs", () => {
   const config: CliTargetConfig = {
     target: "custom",
     apiUrl:
@@ -252,7 +252,7 @@ test("env SOKOSUMI_API_URL still validates mismatched API keys when network is u
   );
 });
 
-test("TestV47 TUI errors redact credential-shaped values", () => {
+test("TUI errors redact credential-shaped values", () => {
   assert.equal(
     redactErrorMessage(
       new Error("apiKey=soko_mainnet_secret accessToken=access-secret"),
@@ -261,7 +261,7 @@ test("TestV47 TUI errors redact credential-shaped values", () => {
   );
 });
 
-test("TestV60 Ink solely owns API-key input and Esc/arrow navigation", async () => {
+test("Ink solely owns API-key input and Esc/arrow navigation", async () => {
   const terminal = createTestTerminal();
   let output = "";
   terminal.stdout.on("data", (chunk) => {
@@ -311,14 +311,14 @@ test("TestV60 Ink solely owns API-key input and Esc/arrow navigation", async () 
   }
 });
 
-test("TestV50 API-key target Escape discards the pending key", () => {
+test("API-key target Escape discards the pending key", () => {
   assert.deepEqual(apiKeyTargetEscapeState(), {
     screen: "auth-method",
     pendingApiKey: null,
   });
 });
 
-test("TestV56 OAuth Escape returns to confirm and allows retry", async () => {
+test("OAuth Escape returns to confirm and allows retry", async () => {
   const terminal = createTestTerminal();
   let output = "";
   terminal.stdout.on("data", (chunk) => {
@@ -481,7 +481,7 @@ function createTestTerminal(): {
   return { stdin, stdout };
 }
 
-test("TestV57 explicit preprod target skips OAuth target picker", async () => {
+test("explicit preprod target skips OAuth target picker", async () => {
   const terminal = createTestTerminal();
   let output = "";
   terminal.stdout.on("data", (chunk) => {
@@ -527,7 +527,7 @@ test("TestV57 explicit preprod target skips OAuth target picker", async () => {
   }
 });
 
-test("TestV34 runCli TUI selection preserves explicit client ID", async () => {
+test("runCli TUI selection preserves explicit client ID", async () => {
   const terminal = createTestTerminal();
   let output = "";
   terminal.stdout.on("data", (chunk) => {
@@ -612,7 +612,7 @@ test("TestV34 runCli TUI selection preserves explicit client ID", async () => {
   }
 });
 
-test("TestV34 hosted TUI selection preserves an explicit client ID", () => {
+test("hosted TUI selection preserves an explicit client ID", () => {
   const config = resolveHostedTargetConfig(
     {
       SOKOSUMI_API_URL: "https://api.preprod.sokosumi.com",
