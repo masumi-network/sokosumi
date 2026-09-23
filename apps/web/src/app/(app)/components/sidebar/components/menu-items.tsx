@@ -27,7 +27,10 @@ import {
   SidebarRowSlot,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
+import {
+  SIDEBAR_ROW_FIXED_LABEL_CLASS,
+  SIDEBAR_ROW_LABEL_CLASS,
+} from "@/components/ui/sidebar-classes";
 import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
 import { cn } from "@/lib/utils";
 
@@ -195,7 +198,12 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                     <SidebarRowSlot>
                       <Icon className="size-4" aria-hidden />
                     </SidebarRowSlot>
-                    <span className={cn(SIDEBAR_ROW_LABEL_CLASS, "truncate")}>
+                    <span
+                      className={cn(
+                        SIDEBAR_ROW_LABEL_CLASS,
+                        SIDEBAR_ROW_FIXED_LABEL_CLASS,
+                      )}
+                    >
                       {label}
                     </span>
                   </>
