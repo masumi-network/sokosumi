@@ -16311,6 +16311,13 @@ export const SocialPostSchema = {
                 'null'
             ]
         },
+        scheduledByCoworkerId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Coworker that scheduled the post on behalf of scheduledByUserId, or null for a human.'
+        },
         canceledAt: {
             type: [
                 'string',

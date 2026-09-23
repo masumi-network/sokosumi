@@ -3,12 +3,12 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { requireSocialPostActor } from "@/helpers/social-post-access";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withOrganizationSlugHeaderParameter,
+  withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
-import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   projectSocialConnectionProjectParamsSchema,
@@ -18,12 +18,12 @@ import { listProjectSocialConnections } from "@/services/project-social-connecti
 
 import { mapProjectSocialConnectionServiceError } from "./route-helpers.js";
 
-const route = withOrganizationSlugHeaderParameter(
+const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "get",
     path: "/{id}/social-connections",
     description:
-      "List a Project's current X social connections. Requires an interactive user session in the Project's Workspace.",
+      "List a Project's current X social connections. Requires an interactive session or an authorized task-capable Coworker with user context and Calendar beta access. Connection management remains human-only.",
     tags: ["Projects"],
     request: { params: projectSocialConnectionProjectParamsSchema },
     responses: {
@@ -44,7 +44,7 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
-    const userContext = requireInteractiveUserAuthContext(c.var.authContext);
+    const userContext = await requireSocialPostActor(c.var.authContext);
     await requireCalendarBetaAccess(userContext.userId, prisma);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");

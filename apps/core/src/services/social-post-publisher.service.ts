@@ -1,16 +1,18 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma, SocialPostStatus } from "@sokosumi/database";
 import type { SocialPostMediaRef } from "@sokosumi/utils";
-
+import { HTTPException } from "hono/http-exception";
 import { publishXPost } from "@/clients/composio.client";
 import { CALENDAR_BETA_USER_WHERE } from "@/helpers/calendar-beta-access";
 import { badRequest, conflict, notFound } from "@/helpers/error";
+import { requireSocialPostPublishingAccess } from "@/helpers/social-post-access";
 import {
   downloadSocialPostMedia,
   requireSocialPostMedia,
 } from "@/helpers/social-post-media";
 import { classifyPublishError } from "@/helpers/social-post-publish-errors";
 import prisma from "@/lib/db/prisma";
+import type { CoworkerAuthenticationContext } from "@/middleware/auth";
 import { projectExecutorUserId } from "@/services/project-social-connections.service";
 import {
   getSocialPost,
@@ -64,6 +66,8 @@ export interface PublishSocialPostNowInput {
 }
 
 const publisherInclude = {
+  scheduledByCoworker: { select: { id: true, vendorId: true } },
+  workspace: { select: { organizationId: true } },
   socialConnection: {
     select: {
       id: true,
@@ -89,6 +93,10 @@ interface ClaimedPost {
   attemptCount: number;
   leaseToken: string;
   recoveringLease?: boolean;
+  schedulingCoworker?: {
+    authContext: CoworkerAuthenticationContext;
+    workspaceId: string;
+  };
   socialConnection: PublisherPostRecord["socialConnection"];
 }
 
@@ -156,7 +164,7 @@ async function nextAttemptNumber(postId: string): Promise<number> {
 async function recordSkippedAttempt(
   post: ClaimedPost,
   options: AttemptOptions,
-  outcome: "missed" | "connection_inactive",
+  outcome: "missed" | "connection_inactive" | "authorization_revoked",
   now: Date,
 ): Promise<void> {
   await prisma.socialPostPublishAttempt.create({
@@ -276,6 +284,28 @@ async function attemptPublish(
       lastError: `Missed: found ${minutesLate(post.scheduledAt, now)} minutes after the planned time`,
     });
     return settled ? "missed" : "skipped";
+  }
+
+  if (post.schedulingCoworker) {
+    try {
+      await requireSocialPostPublishingAccess(
+        post.schedulingCoworker.authContext,
+        post.schedulingCoworker.workspaceId,
+      );
+    } catch (error) {
+      if (
+        !(error instanceof HTTPException) ||
+        ![403, 404].includes(error.status)
+      )
+        throw error;
+      await recordSkippedAttempt(post, options, "authorization_revoked", now);
+      const settled = await settle(post, {
+        status: "FAILED",
+        lastError:
+          "Coworker scheduling access was revoked. A workspace member must reschedule this post.",
+      });
+      return settled ? "failed" : "skipped";
+    }
   }
 
   const connection = post.socialConnection;
@@ -442,6 +472,22 @@ async function claimDuePost(): Promise<ClaimResult> {
       leaseToken,
       recoveringLease: candidate.status === "PUBLISHING",
       socialConnection: candidate.socialConnection,
+      ...(candidate.scheduledByCoworker && candidate.scheduledByUserId
+        ? {
+            schedulingCoworker: {
+              workspaceId: candidate.workspaceId,
+              authContext: {
+                actor: "coworker" as const,
+                coworkerId: candidate.scheduledByCoworker.id,
+                vendorId: candidate.scheduledByCoworker.vendorId,
+                context: {
+                  userId: candidate.scheduledByUserId,
+                  organizationId: candidate.workspace.organizationId,
+                },
+              },
+            },
+          }
+        : {}),
     },
   };
 }
@@ -520,6 +566,7 @@ export async function publishSocialPostNow(
       ...leaseData(now, leaseToken),
       scheduledAt: now,
       scheduledByUserId: input.userId,
+      scheduledByCoworkerId: null,
       attemptCount: 0,
       nextAttemptAt: null,
       lastError: null,

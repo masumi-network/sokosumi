@@ -358,7 +358,9 @@ describe("social posts service", () => {
           scheduledAt: null,
           timezone: null,
           creatorUserId: USER_ID,
+          creatorCoworkerId: null,
           scheduledByUserId: null,
+          scheduledByCoworkerId: null,
         },
       }),
     );
@@ -923,6 +925,7 @@ describe("social posts service", () => {
         timezone: "Europe/Zurich",
         socialConnectionId: SOCIAL_CONNECTION_ID,
         scheduledByUserId: USER_ID,
+        scheduledByCoworkerId: null,
         lastError: null,
         attemptCount: 0,
         nextAttemptAt: null,
@@ -1046,5 +1049,74 @@ describe("social posts service", () => {
       }),
     ).rejects.toMatchObject({ status: 409 });
     expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+  });
+  it("records a coworker creator and contextual scheduling user separately", async () => {
+    const { createSocialPost } = await loadService();
+    await createSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      coworkerId: "cow_123",
+      text: "Hello",
+      socialConnectionId: SOCIAL_CONNECTION_ID,
+      scheduledAt: new Date(NOW.getTime() + 120_000),
+    });
+    expect(socialPostCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          creatorUserId: null,
+          creatorCoworkerId: "cow_123",
+          scheduledByUserId: USER_ID,
+          scheduledByCoworkerId: "cow_123",
+        }),
+      }),
+    );
+  });
+  it("clears delegated scheduler attribution when a human reschedules", async () => {
+    const { scheduleSocialPost } = await loadService();
+    await scheduleSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      postId: POST_ID,
+      revision: draftPost.revision,
+      socialConnectionId: SOCIAL_CONNECTION_ID,
+      scheduledAt: new Date(NOW.getTime() + 120_000),
+    });
+    expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          scheduledByUserId: USER_ID,
+          scheduledByCoworkerId: null,
+        }),
+      }),
+    );
+  });
+  it("updates delegation when a coworker edits scheduled content", async () => {
+    socialPostFindFirstMock.mockResolvedValue({
+      ...draftPost,
+      status: "SCHEDULED",
+      socialConnectionId: SOCIAL_CONNECTION_ID,
+    });
+    const { updateSocialPost } = await loadService();
+    await updateSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      coworkerId: "cow_123",
+      postId: POST_ID,
+      revision: draftPost.revision,
+      text: "Edited",
+    });
+    expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          scheduledByUserId: USER_ID,
+          scheduledByCoworkerId: "cow_123",
+        }),
+      }),
+    );
   });
 });
