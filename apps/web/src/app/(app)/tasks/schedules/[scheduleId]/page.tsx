@@ -85,6 +85,7 @@ async function TaskScheduleDetailContent({
     taskService.listTasks({
       scheduleId: schedule.id,
       scope: "workspace",
+      sort: "createdAt",
       limit: CREATED_TASKS_LIMIT,
     }),
     getTranslations("App.Tasks.Schedules"),

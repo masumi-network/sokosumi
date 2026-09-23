@@ -791,6 +791,19 @@ describe("GET /tasks", () => {
       }
     });
 
+    it("lists them newest created first with sort=createdAt", async () => {
+      const response = await createApp().request(
+        `http://localhost/?scheduleId=${SCHEDULE_ID}&sort=createdAt`,
+      );
+
+      expect(response.status).toBe(200);
+      expect(taskFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        }),
+      );
+    });
+
     it("rejects a scheduleId that is not a UUID", async () => {
       const response = await createApp().request(
         "http://localhost/?scheduleId=not-a-uuid",

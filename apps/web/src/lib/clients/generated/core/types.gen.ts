@@ -40522,9 +40522,9 @@ export type GetTasksData = {
          */
         projectId?: string | 'null';
         /**
-         * Sort tasks by nextRunAt ascending (nulls last)
+         * nextRunAt: next scheduled run ascending (nulls last). createdAt: newest created first. Omitted: most recently updated first.
          */
-        sort?: 'nextRunAt';
+        sort?: 'nextRunAt' | 'createdAt';
         /**
          * Filter by task visibility. Omitted applies no visibility restriction beyond the caller access predicate. Explicit PUBLIC or PRIVATE narrows the list. PRIVATE still respects the caller visibility predicate.
          */
