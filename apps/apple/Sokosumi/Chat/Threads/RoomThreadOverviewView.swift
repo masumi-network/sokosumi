@@ -46,6 +46,11 @@ struct RoomThreadOverviewView: View {
                     Text(preview(for: item.parentMessage))
                       .lineLimit(2).fontWeight(item.unreadReplyCount > 0 ? .semibold : .regular)
                     Spacer(minLength: 4)
+                    if item.mutedAt != nil {
+                      Image(systemName: "bell.slash")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .help("Muted").accessibilityLabel("Muted")
+                    }
                     Text(item.lastReplyAt, format: .relative(presentation: .numeric, unitsStyle: .abbreviated)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                   }
                   Text("Started by \(messageSenderName(item.parentMessage.sender))").font(.caption).lineLimit(1)

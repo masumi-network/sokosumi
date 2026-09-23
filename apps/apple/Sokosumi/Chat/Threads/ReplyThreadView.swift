@@ -218,7 +218,25 @@ import SwiftUI
                            onAccepted: { scrollIntent.followLatest() })
             .id(parent.id)
         }
+        .safeAreaInset(edge: .top, spacing: 0) {
+          if let failure = workspaces.thread.mute?.failure {
+            ThreadMuteFailureRow(message: failure.message) { workspaces.thread.dismissMuteFailure() }
+          }
+        }
         .navigationTitle("Thread")
+        .toolbar {
+          if let mute = workspaces.thread.mute, let isMuted = mute.isMuted {
+            ToolbarItem {
+              ThreadMuteToggle(isMuted: isMuted, isPending: mute.isPending) {
+                Task { await workspaces.toggleThreadMute(auth: auth) }
+              }
+            }
+          }
+        }
+        // Read while unknown, and again when the reply count moves: a parent's first reply makes it a thread.
+        .task(id: [parent.id, String(messages.count)]) {
+          await workspaces.readThreadMuteIfNeeded(auth: auth)
+        }
         .onChange(of: parent.id) { _, _ in pendingQuote = nil
           jumpError = nil
         }
