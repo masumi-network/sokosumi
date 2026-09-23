@@ -81,6 +81,31 @@ struct MessagePresentationTests {
     #expect(membershipStatusText(messages[3]) == nil)
   }
 
+  @Test func groupNameChangeRowsAreStatusRows() async throws {
+    let unknown = "{\"type\":\"unknown\"}"
+    let messages = try await fetchTestMessages([
+      testMessageJSON(id: ada, content: "Ada named the group Launch crew", sender: unknown,
+                      groupNameChange: "{\"action\":\"named\",\"name\":\"Launch crew\",\"actor\":{\"id\":\"user_1\",\"name\":\"Ada\"}}"),
+      testMessageJSON(id: bob, content: "Ada removed the group name", sender: unknown,
+                      groupNameChange: "{\"action\":\"cleared\",\"name\":null,\"actor\":{\"id\":\"user_1\",\"name\":\"Ada\"}}"),
+      testMessageJSON(id: "550e8400-e29b-41d4-a716-446655440208", content: "plain", sender: senderAda())
+    ])
+    #expect(GroupNameChangeStatus(messages[0]) == .named(actor: "Ada", name: "Launch crew"))
+    #expect(GroupNameChangeStatus(messages[1]) == .cleared(actor: "Ada"))
+    #expect(GroupNameChangeStatus(messages[2]) == nil)
+    for status in messages.prefix(2) {
+      #expect(isRoomStatusMessage(status))
+      #expect(membershipStatusText(status) == nil)
+      #expect(!canReactToMessage(status))
+      #expect(!canQuoteMessage(status))
+      #expect(!canModifyOwnMessage(status, userId: "user_1"))
+      #expect(shouldKeepPersistedMessage(status))
+      #expect(!isMessageContinuation(previous: messages[2], current: status, calendar: utcCalendar()))
+      #expect(!isMessageContinuation(previous: status, current: messages[2], calendar: utcCalendar()))
+    }
+    #expect(!isRoomStatusMessage(messages[2]))
+  }
+
   @Test func initialsFallback() {
     #expect(initials(for: "Ada Lovelace") == "AL")
     #expect(initials(for: "ada lovelace") == "AL")

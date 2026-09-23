@@ -26,7 +26,8 @@ public extension ChannelEditDraft {
 }
 
 public extension ChatService {
-  func updateChannel(client: Client, roomId: String, request: Components.Schemas.UpdateChatRoomRequest, organizationSlug: String) async throws -> Components.Schemas.ChatRoom {
+  /// Channel settings and roster, or a group Direct's Group name; a personal workspace Direct omits the slug.
+  func updateRoom(client: Client, roomId: String, request: Components.Schemas.UpdateChatRoomRequest, organizationSlug: String?) async throws -> Components.Schemas.ChatRoom {
     let response = try await client.patchChatsRoomsId(.init(path: .init(id: roomId), headers: .init(xOrganizationSlug: organizationSlug), body: .json(request)))
     switch response {
     case let .ok(value): return try value.body.json.data

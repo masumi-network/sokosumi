@@ -2,14 +2,11 @@
 
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { AccountNoticeRow } from "@/app/components/account-notice-row";
-import { NotificationBrowserPermissionPrimer } from "@/app/components/notification-browser-permission-primer";
+import { NotificationNeedsYouRequests } from "@/app/components/notification-needs-you-requests";
 import { NotificationCenterList } from "@/components/notifications/notification-center-list";
 import { NotificationCenterViewFilter } from "@/components/notifications/notification-center-view-filter";
 import { useMarkAllRead } from "@/components/notifications/use-mark-all-read";
 import { Button } from "@/components/ui/button";
-import { useAccountNotice } from "@/contexts/account-notice-provider";
-import { useNotifications } from "@/contexts/notification-provider";
 
 /**
  * The Notification Center at full width, and the only frame it has on a
@@ -18,8 +15,6 @@ import { useNotifications } from "@/contexts/notification-provider";
  */
 export function NotificationsPageContent() {
   const t = useTranslations("Components.NotificationCenter");
-  const { notice } = useAccountNotice();
-  const { notifications, view } = useNotifications();
   const { unreadCount, isMarkingAllRead, handleMarkAllRead } = useMarkAllRead();
 
   return (
@@ -67,21 +62,16 @@ export function NotificationsPageContent() {
           </Button>
         ) : null}
       </div>
-      {notice !== null ? <AccountNoticeRow /> : null}
-      <NotificationBrowserPermissionPrimer variant="page" />
       {/* The strip is the card's top edge, so it reads as this card's own
-          control and not as page navigation. The card stays out only when
-          the list has nothing to say under an account notice, and then
-          there is nothing to narrow either. */}
-      {notifications.length > 0 || view !== "all" || notice === null ? (
-        <div
-          data-notification-frame=""
-          className="bg-card-background border-border overflow-hidden rounded-xl border"
-        >
-          <NotificationCenterViewFilter />
-          <NotificationCenterList />
-        </div>
-      ) : null}
+          control and not as page navigation. */}
+      <div
+        data-notification-frame=""
+        className="bg-card-background border-border overflow-hidden rounded-xl border"
+      >
+        <NotificationCenterViewFilter />
+        <NotificationNeedsYouRequests variant="page" />
+        <NotificationCenterList />
+      </div>
     </div>
   );
 }

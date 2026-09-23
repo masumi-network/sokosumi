@@ -263,8 +263,12 @@ A platform user on one External channel’s room roster who is not a Member of t
 _Avoid_: External user, outsider, limited collaborator, org guest (there is no org-level guest role)
 
 **Direct**:
-A chat room whose identity is its participant set, not a Channel name. Self Direct, human 1:1, multi-human group, coworker 1:1, or personal assistant 1:1. Has no Channel slug.
+A chat room whose identity is its participant set, not a Channel name. Self Direct, human 1:1, multi-human group, coworker 1:1, or personal assistant 1:1. Has no Channel slug. A group Direct may carry a Group name; the name labels it but never identifies it.
 _Avoid_: Conversation (retired), treating a DM as a Channel
+
+**Group name**:
+An optional shared label on a group Direct, seen by every member in place of the member list. Any member may set, change, or clear it while the Direct is not archived, and each change is recorded in the room with who made it. Clearing it restores the member list. A Direct is a group Direct because it was started for three or more humans, so one that later shrinks keeps its Group name. Naming does not turn the Direct into a Channel: it stays under Direct Messages, private, slug-free, and keeps its members; starting a Direct with the same people opens the named one ([ADR-0040](docs/adr/0040-group-name-is-separate-from-stored-room-name.md)).
+_Avoid_: Channel name, nickname (a Group name is shared, not per-reader), room title
 
 **Self Direct**:
 One private Personal Direct per user for notes and to-dos, with that user as its sole human member and no AI members. Identified by a canonical self key, not by remaining member count. Shared across available workspaces without requiring a personal Workspace. Created on demand, survives Organization exit, and is removed by account deletion. Shown as “You”; sending notes triggers no self-notifications or AI work.

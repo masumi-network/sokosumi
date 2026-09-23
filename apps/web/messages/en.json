@@ -5477,10 +5477,8 @@
         "markAllReadError": "Could not mark everything as read.",
         "caughtUp": "All caught up",
         "allThreads": "All threads",
-        "showAllChats": "Show all chats",
-        "showAll": "Show all",
         "nothingUnread": "{count, plural, one {Nothing unread in # chat} other {Nothing unread in # chats}}",
-        "justRead": "Just read"
+        "justRead": "Read just now"
       },
       "ThreadsView": {
         "title": "Threads",
@@ -5685,6 +5683,16 @@
       "MembershipStatus": {
         "joined": "{name} joined",
         "left": "{name} left"
+      },
+      "GroupName": {
+        "rename": "Rename",
+        "dialogTitle": "Name this group",
+        "dialogDescription": "Everyone in the group sees this name instead of the member list. Leave it empty to show the members again.",
+        "label": "Group name",
+        "save": "Save",
+        "saveFailed": "Could not name the group.",
+        "named": "{name} named the group {groupName}",
+        "cleared": "{name} removed the group name"
       },
       "External": {
         "title": "External",

@@ -197,9 +197,10 @@ export function NotificationCenterList({
       );
     }
 
-    // An account notice above the list already gives the frame something to
-    // say, and "No notifications yet" under it would read as a contradiction.
-    if (notice !== null) {
+    // On Needs you an account notice above the list already gives the frame
+    // something to say, and "Nothing needs you" under it would read as a
+    // contradiction. The other views do not show the notice.
+    if (view === "needs-action" && notice !== null) {
       return null;
     }
 

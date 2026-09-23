@@ -80,6 +80,8 @@ function room(
     slug: "general",
     topic: null,
     isSelfDirect: false,
+    isGroupDirect: false,
+    groupName: null,
     directKey: null,
     discoverability:
       overrides.discoverability !== undefined
