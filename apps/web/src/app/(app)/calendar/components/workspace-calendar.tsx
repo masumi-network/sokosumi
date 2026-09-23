@@ -1513,63 +1513,67 @@ export function WorkspaceCalendar({
           onInvalidated={handleCalendarInvalidated}
         />
       ) : null}
-      <div className="flex items-center gap-1">
-        <Button
-          aria-label={t("previous")}
-          size="icon"
-          variant="outline"
-          onClick={() => handleNavigate(-1)}
-        >
-          <ChevronLeft aria-hidden />
-        </Button>
-        <span className="min-w-40 flex-1 text-center text-sm font-medium md:flex-none">
-          {getRangeLabel(formatDate, date, view)}
-        </span>
-        <Button
-          aria-label={t("next")}
-          disabled={!canNavigateForward}
-          size="icon"
-          variant="outline"
-          onClick={() => handleNavigate(1)}
-        >
-          <ChevronRight aria-hidden />
-        </Button>
-      </div>
+      <div className="flex flex-col gap-5 md:flex-row md:items-center md:gap-4">
+        <div className="flex items-center gap-1">
+          <Button
+            aria-label={t("previous")}
+            size="icon"
+            variant="outline"
+            onClick={() => handleNavigate(-1)}
+          >
+            <ChevronLeft aria-hidden />
+          </Button>
+          <span className="min-w-40 flex-1 text-center text-sm font-medium md:flex-none">
+            {getRangeLabel(formatDate, date, view)}
+          </span>
+          <Button
+            aria-label={t("next")}
+            disabled={!canNavigateForward}
+            size="icon"
+            variant="outline"
+            onClick={() => handleNavigate(1)}
+          >
+            <ChevronRight aria-hidden />
+          </Button>
+        </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Tabs
-          className="flex-1 md:flex-none"
-          value={view}
-          onValueChange={(value) => {
-            const nextView = CALENDAR_VIEWS.find(
-              (candidate) => candidate === value,
-            );
-            if (nextView) {
-              handleViewChange(nextView);
-            }
-          }}
-        >
-          <TabsList className="w-full md:w-fit" data-testid="calendar-views">
-            {CALENDAR_VIEWS.map((calendarView) => (
-              <TabsTrigger key={calendarView} value={calendarView}>
-                {t(`view.${calendarView}`)}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-        <FilterDropdownMenu
-          buttonLabel={tFilters("title")}
-          emptyResultsLabel={tFilters("emptyResults")}
-          searchPlaceholder={tFilters("searchPlaceholder")}
-          sections={filterSections}
-          showActiveIndicator={
-            state.scope === "owned" ||
-            state.assigneeId !== null ||
-            state.assigneeUserId !== null ||
-            state.status !== null ||
-            selectedSourceId !== null
-          }
-        />
+        <div className="flex flex-wrap items-center gap-2 md:flex-1">
+          <Tabs
+            className="flex-1 md:flex-none"
+            value={view}
+            onValueChange={(value) => {
+              const nextView = CALENDAR_VIEWS.find(
+                (candidate) => candidate === value,
+              );
+              if (nextView) {
+                handleViewChange(nextView);
+              }
+            }}
+          >
+            <TabsList className="w-full md:w-fit" data-testid="calendar-views">
+              {CALENDAR_VIEWS.map((calendarView) => (
+                <TabsTrigger key={calendarView} value={calendarView}>
+                  {t(`view.${calendarView}`)}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+          <div className="md:ml-auto">
+            <FilterDropdownMenu
+              buttonLabel={tFilters("title")}
+              emptyResultsLabel={tFilters("emptyResults")}
+              searchPlaceholder={tFilters("searchPlaceholder")}
+              sections={filterSections}
+              showActiveIndicator={
+                state.scope === "owned" ||
+                state.assigneeId !== null ||
+                state.assigneeUserId !== null ||
+                state.status !== null ||
+                selectedSourceId !== null
+              }
+            />
+          </div>
+        </div>
       </div>
       {canCreate ? (
         <ListMobileCreateFab
