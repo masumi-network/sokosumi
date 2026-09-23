@@ -21,7 +21,7 @@ import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 
 /**
- * The Occurrence ledger of Task Schedules (ADR 0040): which Occurrences are
+ * The Occurrence ledger of Task Schedules (ADR 0041): which Occurrences are
  * planned, and the release that turns each due one into a Task.
  *
  * An Active schedule keeps its planned Occurrences projected over the

@@ -1,4 +1,4 @@
--- ADR 0040 expand step: Task Schedule Occurrences live in the existing ledger
+-- ADR 0041 expand step: Task Schedule Occurrences live in the existing ledger
 -- beside the old series rows until the cutover migration re-parents them.
 
 -- The rule epoch of each schedule. Rows from before this migration get a fresh

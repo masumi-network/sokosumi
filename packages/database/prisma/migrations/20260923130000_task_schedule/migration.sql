@@ -1,4 +1,4 @@
--- ADR 0040 expand step: additive only. Existing schedule columns stay until
+-- ADR 0041 expand step: additive only. Existing schedule columns stay until
 -- the cutover migration moves series into task_schedule.
 
 -- CreateEnum

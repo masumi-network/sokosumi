@@ -172,7 +172,7 @@ export type PutTaskScheduleRequest = z.infer<
 >;
 
 /**
- * Task Schedule resource (`/tasks/schedules`, ADR 0040): a repeating rule
+ * Task Schedule resource (`/tasks/schedules`, ADR 0041): a repeating rule
  * plus the blueprint of the Task each Occurrence creates.
  */
 const taskScheduleRuleFieldsSchema = z.object({

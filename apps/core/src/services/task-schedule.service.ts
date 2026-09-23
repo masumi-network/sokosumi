@@ -62,7 +62,7 @@ import {
 } from "@/services/task-schedule-occurrences.service";
 
 /**
- * Task Schedule operations (ADR 0040). Owns who may see and change a
+ * Task Schedule operations (ADR 0041). Owns who may see and change a
  * schedule, and which state moves are legal; routes only parse and respond.
  *
  * Access: every caller passes the organization Seat gate for the member it
@@ -517,7 +517,7 @@ export async function changeTaskScheduleState(
 
 /**
  * Tasks the schedule created stay; the database sets their `scheduleId` to
- * null (ADR 0040).
+ * null (ADR 0041).
  */
 export async function deleteTaskSchedule(
   vars: RouteVars,

@@ -1,4 +1,4 @@
-# ADR 0040: Recurring rules move from Task into Task Schedule
+# ADR 0041: Recurring rules move from Task into Task Schedule
 
 - Status: Accepted
 - Date: 2026-09-23
