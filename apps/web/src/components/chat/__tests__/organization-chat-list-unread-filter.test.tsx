@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
+  createOrganizationChatList,
   emptyListResult,
   listRoomsMock,
   makeRoom,
@@ -106,5 +107,73 @@ describe("OrganizationChatList All unreads filter", () => {
     await userEvent.click(toggle);
 
     expect(rowLabels()).toEqual(["design", "general", "launch", "room"]);
+  });
+});
+
+// Rooms read while the filter is on move to Just read instead of vanishing,
+// newest first, until the filter is switched off (SOK-1159).
+describe("OrganizationChatList All unreads Just read", () => {
+  beforeEach(() => {
+    resetOrganizationChatListMocks();
+  });
+
+  function justReadLabels(container: HTMLElement) {
+    const section = container.querySelector('[data-slot="just-read"]');
+    return section
+      ? within(section as HTMLElement)
+          .queryAllByTestId("room-row")
+          .map((row) => within(row).getAllByText(/./)[0]?.textContent)
+      : [];
+  }
+
+  it("moves each room read during the pass down, newest first, and forgets them when off", async () => {
+    // A read moves the room's `updatedAt` on; the read overlay holds a room's
+    // last attention until it does.
+    let clock = Date.parse("2026-09-23T10:00:00.000Z");
+    const read = (room: typeof unreadChannel) => ({
+      ...room,
+      updatedAt: new Date((clock += 60_000)),
+      unreadCount: 0,
+      channelUnreadCount: 0,
+      threadUnreadCount: 0,
+      unreadThreadCount: 0,
+    });
+    const start = [unreadChannel, threadsOnlyChannel, readChannel];
+    listRoomsMock.mockResolvedValue(emptyListResult(start));
+    const { container, rerender } = renderOrganizationChatList({
+      organizationId: "org-1",
+      rooms: start,
+    });
+    await userEvent.click(screen.getByRole("button", { name: "All unreads" }));
+    expect(justReadLabels(container)).toEqual([]);
+
+    // #launch is read.
+    const launchRead = [read(unreadChannel), threadsOnlyChannel, readChannel];
+    listRoomsMock.mockResolvedValue(emptyListResult(launchRead));
+    rerender(
+      createOrganizationChatList({
+        organizationId: "org-1",
+        rooms: launchRead,
+      }),
+    );
+    expect(justReadLabels(container)).toEqual(["launch"]);
+
+    // #design too: caught up, both one click away, newest first.
+    const allRead = [
+      read(unreadChannel),
+      read(threadsOnlyChannel),
+      readChannel,
+    ];
+    listRoomsMock.mockResolvedValue(emptyListResult(allRead));
+    rerender(
+      createOrganizationChatList({ organizationId: "org-1", rooms: allRead }),
+    );
+    expect(justReadLabels(container)).toEqual(["design", "launch"]);
+    expect(
+      screen.getByText("App.Channels.UnreadNav.caughtUp"),
+    ).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "All unreads" }));
+    expect(justReadLabels(container)).toEqual([]);
   });
 });

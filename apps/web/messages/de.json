@@ -5470,9 +5470,12 @@
         "filterOn": "Nur ungelesene werden angezeigt",
         "markAllRead": "Alle als gelesen markieren",
         "markAllReadError": "Nicht alles konnte als gelesen markiert werden.",
-        "caughtUp": "Du bist auf dem neuesten Stand",
+        "caughtUp": "Alles gelesen",
         "allThreads": "Alle Threads",
-        "showAllChats": "Alle Chats anzeigen"
+        "showAllChats": "Alle Chats anzeigen",
+        "showAll": "Alle anzeigen",
+        "nothingUnread": "{count, plural, one {Nichts Ungelesenes in # Chat} other {Nichts Ungelesenes in # Chats}}",
+        "justRead": "Gerade gelesen"
       },
       "ThreadsView": {
         "title": "Threads",

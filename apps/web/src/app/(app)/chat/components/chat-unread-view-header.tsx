@@ -1,5 +1,4 @@
 import { CheckCheck } from "lucide-react";
-import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -15,21 +14,18 @@ export function ChatUnreadViewHeader({ title }: ChatUnreadViewHeaderProps) {
 interface ChatCaughtUpProps {
   title: string;
   description?: string;
-  /** A way onward, drawn under the words. */
-  action?: ReactNode;
-  /** `page` for the Threads view; `sidebar` for the unread filter's list. */
+  /** `page` for the Threads view; `sidebar` for the Threads flyout. */
   size?: "page" | "sidebar";
 }
 
 /**
- * What a drained unread list says: the Threads view, and the sidebar under
- * the All unreads filter (SOK-1159). Draining is the point of both, so it
+ * What a drained unread Threads list says: the Threads view and its flyout
+ * (SOK-1159). Draining is the point of both, so it
  * reads as done rather than as missing, in the same tinted mark.
  */
 export function ChatCaughtUp({
   title,
   description,
-  action,
   size = "page",
 }: ChatCaughtUpProps) {
   const sidebar = size === "sidebar";
@@ -57,7 +53,6 @@ export function ChatCaughtUp({
           {description}
         </p>
       ) : null}
-      {action}
     </div>
   );
 }

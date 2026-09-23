@@ -5470,9 +5470,12 @@
         "filterOn": "Showing unread only",
         "markAllRead": "Mark all as read",
         "markAllReadError": "Could not mark everything as read.",
-        "caughtUp": "You’re all caught up",
+        "caughtUp": "All caught up",
         "allThreads": "All threads",
-        "showAllChats": "Show all chats"
+        "showAllChats": "Show all chats",
+        "showAll": "Show all",
+        "nothingUnread": "{count, plural, one {Nothing unread in # chat} other {Nothing unread in # chats}}",
+        "justRead": "Just read"
       },
       "ThreadsView": {
         "title": "Threads",

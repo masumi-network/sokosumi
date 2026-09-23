@@ -1,5 +1,5 @@
 import { render } from "@testing-library/react";
-import type { ReactElement, ReactNode } from "react";
+import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { vi } from "vitest";
 import type {
   ChatRoom,
@@ -200,7 +200,13 @@ vi.mock("@/components/ui/sidebar", async () => ({
   SidebarGroupContent: ({ children }: { children: ReactNode }) => (
     <div>{children}</div>
   ),
-  SidebarMenu: ({ children }: { children: ReactNode }) => <ul>{children}</ul>,
+  // Props through, so a section's own marker (`data-slot`) reaches the DOM.
+  SidebarMenu: ({
+    children,
+    ...props
+  }: { children: ReactNode } & ComponentProps<"ul">) => (
+    <ul {...props}>{children}</ul>
+  ),
   SidebarMenuItem: ({ children }: { children: ReactNode }) => (
     <li>{children}</li>
   ),

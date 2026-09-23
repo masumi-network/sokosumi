@@ -5,6 +5,7 @@ import {
   ArrowUpDown,
   Building2,
   Check,
+  CheckCheck,
   Ellipsis,
   Globe2,
   Hash,
@@ -25,7 +26,6 @@ import {
 } from "@/app/chat/actions";
 import { BrowseChannelsDialog } from "@/app/chat/components/browse-channels-dialog";
 import { CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME } from "@/app/chat/components/chat-compose-dialog";
-import { ChatCaughtUp } from "@/app/chat/components/chat-unread-view-header";
 import { CreateChannelDialog } from "@/app/chat/components/create-channel-dialog";
 import { CreateDirectDialog } from "@/app/chat/components/create-direct-dialog";
 import { getRoomDisplayName } from "@/app/chat/components/room-helpers";
@@ -90,6 +90,10 @@ import {
 } from "./pinned-rooms-dnd";
 import { resolveSectionAttention, roomUnreadReads } from "./room-attention";
 import { beginRoomAttentionRefresh } from "./room-read-overlay";
+import {
+  advanceUnreadFilterPass,
+  EMPTY_UNREAD_FILTER_PASS,
+} from "./unread-filter-pass";
 import { useOrganizationChatRooms } from "./use-organization-chat-rooms";
 
 /** Stable empty default — inline `= []` is a new array every render and
@@ -162,6 +166,8 @@ export function OrganizationChatList({
   const [directOpen, setDirectOpen] = useState(true);
   const [externalOpen, setExternalOpen] = useState(true);
   const [unreadOnly, setUnreadOnly] = useState(false);
+  const [filterPass, setFilterPass] = useState(EMPTY_UNREAD_FILTER_PASS);
+  const [justReadOpen, setJustReadOpen] = useState(true);
   const [restoringRoomId, setRestoringRoomId] = useState<string | null>(null);
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
   const [pendingDeleteRoom, setPendingDeleteRoom] = useState<ChatRoom | null>(
@@ -278,6 +284,28 @@ export function OrganizationChatList({
       ),
     [roomRows, unreadOnly, activeRoomId],
   );
+  // The filter's pass (SOK-1159): rooms read since it was switched on move to
+  // Just read rather than vanishing. Switching it off ends the pass.
+  const nextFilterPass = unreadOnly
+    ? advanceUnreadFilterPass(filterPass, {
+        unreadIds: roomRows
+          .filter((room) => {
+            const { readRoom, lookThreads } = roomUnreadReads(room);
+            return readRoom || lookThreads;
+          })
+          .map((room) => room.id),
+        activeRoomId,
+      })
+    : EMPTY_UNREAD_FILTER_PASS;
+  if (nextFilterPass !== filterPass) {
+    setFilterPass(nextFilterPass);
+  }
+  const justReadRooms = nextFilterPass.justRead.flatMap((id) => {
+    // The open room keeps its place in its own section while it is read.
+    const room =
+      id === activeRoomId ? undefined : roomRows.find((row) => row.id === id);
+    return room ? [room] : [];
+  });
   const pinnedRoomIds = pinned.map((room) => room.id);
   // Reordering a filtered list would move rooms relative to ones it hides.
   const canReorderPinned = pinnedOpen && pinned.length > 1 && !unreadOnly;
@@ -380,22 +408,36 @@ export function OrganizationChatList({
           onUnreadOnlyChange={setUnreadOnly}
         />
         {caughtUp ? (
-          // Every room is hidden now, so the caught-up state carries the way
-          // back to them rather than leaving the reader to find the toggle.
+          // Laid out as a row, on the sidebar's own axes: the mark in the
+          // icon slot, the words on the label column, and the way back to
+          // every room where a row keeps its action.
           <div className="group-data-[collapsible=icon]:hidden">
-            <ChatCaughtUp
-              size="sidebar"
-              title={t("UnreadNav.caughtUp")}
-              action={
-                <button
-                  type="button"
-                  onClick={() => setUnreadOnly(false)}
-                  className="text-muted-foreground hover:text-foreground ring-sidebar-ring rounded-sm text-xs underline-offset-2 outline-hidden hover:underline focus-visible:ring-2"
-                >
-                  {t("UnreadNav.showAllChats")}
-                </button>
-              }
-            />
+            <div className={SIDEBAR_ROW_CLASS}>
+              <SidebarRowSlot>
+                <span className="bg-primary-quaternary text-primary-variant grid size-5 place-items-center rounded-full">
+                  <CheckCheck className="size-3" aria-hidden />
+                </span>
+              </SidebarRowSlot>
+              <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
+                {t("UnreadNav.caughtUp")}
+              </span>
+              <button
+                type="button"
+                aria-label={t("UnreadNav.showAllChats")}
+                onClick={() => setUnreadOnly(false)}
+                className="text-primary-variant ring-sidebar-ring shrink-0 rounded-sm px-1 text-xs font-medium underline-offset-2 outline-hidden hover:underline focus-visible:ring-2"
+              >
+                {t("UnreadNav.showAll")}
+              </button>
+            </div>
+            <p
+              className={cn(
+                SIDEBAR_ROW_LABEL_INSET_CLASS,
+                "text-muted-foreground pr-2 text-xs",
+              )}
+            >
+              {t("UnreadNav.nothingUnread", { count: roomRows.length })}
+            </p>
           </div>
         ) : null}
         {pinned.length > 0 ? (
@@ -810,6 +852,26 @@ export function OrganizationChatList({
                     </div>
                   </SidebarMenuItem>
                 ) : null}
+              </SidebarMenu>
+            </ChatSidebarSectionContent>
+          </Collapsible>
+        ) : null}
+
+        {justReadRooms.length > 0 ? (
+          // Read during this pass of the filter, newest first, dimmed: one
+          // click back, until the filter is switched off.
+          <Collapsible open={justReadOpen} onOpenChange={setJustReadOpen}>
+            <ChatSidebarSectionHeader
+              isOpen={justReadOpen}
+              railIcon={CheckCheck}
+            >
+              {t("UnreadNav.justRead")}
+            </ChatSidebarSectionHeader>
+            <ChatSidebarSectionContent>
+              <SidebarMenu data-slot="just-read" className="gap-0 opacity-60">
+                {justReadRooms.map((room) => (
+                  <ChatRoomSidebarRow key={room.id} {...roomRowProps(room)} />
+                ))}
               </SidebarMenu>
             </ChatSidebarSectionContent>
           </Collapsible>

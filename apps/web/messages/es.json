@@ -5470,9 +5470,12 @@
         "filterOn": "Mostrando solo lo no leído",
         "markAllRead": "Marcar todo como leído",
         "markAllReadError": "No se pudo marcar todo como leído.",
-        "caughtUp": "Estás al día",
+        "caughtUp": "Todo al día",
         "allThreads": "Todos los hilos",
-        "showAllChats": "Mostrar todos los chats"
+        "showAllChats": "Mostrar todos los chats",
+        "showAll": "Mostrar todo",
+        "nothingUnread": "{count, plural, one {Nada sin leer en # chat} other {Nada sin leer en # chats}}",
+        "justRead": "Recién leídos"
       },
       "ThreadsView": {
         "title": "Hilos",
