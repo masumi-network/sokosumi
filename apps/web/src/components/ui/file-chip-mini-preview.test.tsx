@@ -66,6 +66,7 @@ describe("FileChipMiniPreviewFrame", () => {
         fileName="notes.pdf"
         mediaType="application/pdf"
         size={2048}
+        onOpenImage={vi.fn()}
       />,
     );
 
@@ -74,12 +75,14 @@ describe("FileChipMiniPreviewFrame", () => {
     expect(screen.queryByTestId("tooltip-content")).not.toBeInTheDocument();
   });
 
-  it("opens an image viewer instead of navigating away for image files", () => {
+  it("hands an image click to the caller's viewer instead of navigating away", () => {
+    const onOpenImage = vi.fn();
     render(
       <FileChipMiniPreviewFrame
         url="https://blob.example.com/uploads/photo.png"
         fileName="photo.png"
         mediaType="image/png"
+        onOpenImage={onOpenImage}
       />,
     );
 
@@ -93,19 +96,41 @@ describe("FileChipMiniPreviewFrame", () => {
     expect(imageButton).toHaveClass("cursor-pointer");
     fireEvent.click(imageButton);
 
-    expect(screen.getByTestId("image-viewer")).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "Download image" }),
-    ).toHaveAttribute("href", "https://blob.example.com/uploads/photo.png");
+    expect(onOpenImage).toHaveBeenCalledOnce();
+    expect(screen.queryByTestId("image-viewer")).not.toBeInTheDocument();
+  });
+
+  it("does not activate an ancestor click when opening an image", () => {
+    const onOpenImage = vi.fn();
+    const onAncestorClick = vi.fn();
+    render(
+      <div onClick={onAncestorClick}>
+        <FileChipMiniPreviewFrame
+          url="https://blob.example.com/uploads/photo.png"
+          fileName="photo.png"
+          mediaType="image/png"
+          onOpenImage={onOpenImage}
+        />
+      </div>,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "View image photo.png" }),
+    );
+
+    expect(onOpenImage).toHaveBeenCalledOnce();
+    expect(onAncestorClick).not.toHaveBeenCalled();
   });
 
   it("renders large image variant with object-contain and still opens viewer", () => {
+    const onOpenImage = vi.fn();
     render(
       <FileChipMiniPreviewFrame
         url="https://blob.example.com/uploads/photo.png"
         fileName="photo.png"
         mediaType="image/png"
         variant="large"
+        onOpenImage={onOpenImage}
       />,
     );
 
@@ -123,7 +148,7 @@ describe("FileChipMiniPreviewFrame", () => {
     expect(previewImage).toHaveClass("max-h-80");
 
     fireEvent.click(imageButton);
-    expect(screen.getByTestId("image-viewer")).toBeInTheDocument();
+    expect(onOpenImage).toHaveBeenCalledOnce();
   });
 
   it("falls back to thumb layout when large variant is used for non-images", () => {
@@ -134,6 +159,7 @@ describe("FileChipMiniPreviewFrame", () => {
         mediaType="application/pdf"
         variant="large"
         sizeClass="size-16"
+        onOpenImage={vi.fn()}
       />,
     );
 
@@ -150,6 +176,7 @@ describe("FileChipMiniPreviewFrame", () => {
         url="https://blob.example.com/uploads/notes.pdf"
         fileName="notes.pdf"
         mediaType="application/pdf"
+        onOpenImage={vi.fn()}
       />,
     );
 
@@ -175,6 +202,7 @@ describe("FileChipMiniPreviewFrame", () => {
         url="https://blob.example.com/uploads/archive.zip"
         fileName="archive.zip"
         mediaType="application/zip"
+        onOpenImage={vi.fn()}
       />,
     );
 
@@ -194,6 +222,7 @@ describe("FileChipMiniPreviewFrame", () => {
       <FileChipMiniPreviewFrame
         url="https://blob.example.com/uploads/clip.mp4?download=1"
         fileName="clip.mp4"
+        onOpenImage={vi.fn()}
       />,
     );
 
@@ -229,6 +258,7 @@ describe("FileChipMiniPreviewFrame", () => {
         url="https://blob.example.com/uploads/track.mp3"
         fileName="track.mp3"
         mediaType="audio/mpeg"
+        onOpenImage={vi.fn()}
       />,
     );
 
