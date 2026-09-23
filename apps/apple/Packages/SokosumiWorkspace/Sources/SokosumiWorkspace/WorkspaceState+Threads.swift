@@ -71,9 +71,9 @@ public extension WorkspaceState {
     }
   }
 
-  /// A Look or a mute moved this room's thread unread: re-count the Threads trigger and let Core's room
-  /// read answer with the sidebar row's attention (web `bumpThreadUnread` + `syncRoomAttentionAfterThreadLook`).
-  private func syncRoomAttentionAfterThreadChange(client: Client) async throws {
+  /// A Look, a mute or Mark all moved this room's thread unread: re-count the Threads trigger and let Core's
+  /// room read answer with the sidebar row's attention (web `bumpThreadUnread` + `syncRoomAttentionAfterThreadLook`).
+  internal func syncRoomAttentionAfterThreadChange(client: Client) async throws {
     threadAttentionRevision += 1
     guard roomHistoryReadable, let room = rooms.first(where: { $0.id == transcriptRoomId }) else { return }
     try await readAttention.readAfterThreadLook(
