@@ -16,6 +16,20 @@ env:
   # placeholder is enough for any config that reads DATABASE_URL at import time.
   DATABASE_URL: "postgresql://user:password@localhost:5432/sokosumi"
 
+# One job per leg, each gated by a job-level `if:` on its own path filter.
+# A job skipped by `if:` never gets a runner, yet still reports its check
+# under its real name (`Test Web`, …), and the ruleset accepts a skipped
+# check — Apple's required `Xcode test` merges skipped on every JS PR. A
+# matrix could not do this: it expands after the job-level `if:`, so a
+# skipped matrix reports one `Test ${{ matrix.target.name }}` placeholder.
+#
+# Each gate is `!= 'false'` rather than `== 'true'`: when `changes` fails,
+# its outputs are empty and every leg runs instead of skipping silently.
+# `!cancelled()` stops a superseded run from starting legs.
+#
+# Test Web / Test Core / Test Packages are required. Test CLI, Test Local
+# env, Test CI config and Test Cloud agent db are advisory — not merge
+# gates. See docs/agents/delivery.md.
 jobs:
   changes:
     name: Detect JS changes
@@ -23,10 +37,16 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+    # workflow_dispatch has no PR diff, so it runs every leg.
     outputs:
-      js: ${{ steps.filter.outputs.js }}
-      docs: ${{ steps.filter.outputs.docs }}
-      cli: ${{ steps.filter.outputs.cli }}
+      web: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.web }}
+      core: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.core }}
+      packages: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.packages }}
+      cli: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.cli }}
+      local-env: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.local-env }}
+      cloud-agent-db: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.cloud-agent-db }}
+      # Markdown-only PRs still run the doc-script check.
+      ci-config: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.ci-config }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -36,44 +56,44 @@ jobs:
         uses: dorny/paths-filter@v3
         with:
           # 'every' is required: with the default 'some', the '!' exclusion
-          # patterns in js-paths-filter.yml would not exclude anything.
+          # patterns in js-paths-filter.yml would not exclude anything. The
+          # advisory filters are brace lists, one pattern each, for the
+          # same reason.
           predicate-quantifier: "every"
           filters: .github/js-paths-filter.yml
 
-  test:
-    name: Test ${{ matrix.target.name }}
+  web:
+    name: Test Web
     needs: changes
-    # No job-level `if:` here on purpose: the matrix must expand so each
-    # leg reports under its real name (Test Web / Test Core / Test
-    # Packages), which the branch ruleset requires. Gating is per-step
-    # below, so docs-only PRs report fast successes instead of one
-    # `Test ${{ matrix.target.name }}` skip placeholder that satisfies
-    # none of the required contexts. Test CLI, Test Local env, Test CI
-    # config, and Test Cloud agent db share this matrix but are
-    # advisory — not merge gates. See docs/agents/delivery.md. Test CI
-    # config still runs on markdown-only PRs (doc-script check), and
-    # Test CLI runs only on apps/cli changes (see matrix `filter`).
+    if: ${{ !cancelled() && needs.changes.outputs.web != 'false' }}
     runs-on: ubuntu-latest
-    permissions:
+    # id-token lets Setup exchange OIDC for the Turborepo remote cache.
+    permissions: &turbo-permissions
       contents: read
       id-token: write
-    strategy:
-      fail-fast: false
-      matrix:
-        # `filter` names the path-filter output this leg gates on (see
-        # .github/js-paths-filter.yml). CLI is the one leg with no
-        # workspace dependencies, so it gates on apps/cli alone.
-        target:
-          - { name: Web, command: "pnpm exec turbo run test:ci --filter=web", filter: js }
-          - { name: Core, command: "pnpm exec turbo run test:ci --filter=@sokosumi/core", filter: js }
-          - { name: CLI, command: "pnpm exec turbo run test:ci --filter=@sokosumi/cli", filter: cli }
-          - { name: Packages, command: 'pnpm exec turbo run test:ci --filter="./packages/*"', filter: js }
-          - { name: Local env, command: "pnpm local-env:test", filter: js }
-          - { name: CI config, command: "pnpm ci:test", filter: js }
-          - { name: Cloud agent db, command: "pnpm cloud-agent-db:test", filter: js }
+    steps:
+      - &checkout
+        name: Checkout repository
+        uses: actions/checkout@v7
+
+      - &setup
+        name: Setup
+        uses: ./.github/actions/setup
+        with:
+          turbo_team: ${{ vars.TURBO_TEAM }}
+
+      - name: Run Tests
+        run: pnpm exec turbo run test:ci --filter=web
+
+  core:
+    name: Test Core
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.core != 'false' }}
+    runs-on: ubuntu-latest
+    permissions: *turbo-permissions
     services:
-      postgres:
-        image: ${{ (matrix.target.name == 'Packages' || matrix.target.name == 'Core') && 'postgres:17' || '' }}
+      postgres: &postgres
+        image: postgres:17
         env:
           POSTGRES_USER: user
           POSTGRES_PASSWORD: password
@@ -86,53 +106,108 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Setup
-        if: needs.changes.outputs[matrix.target.filter] == 'true' || (matrix.target.name == 'CI config' && needs.changes.outputs.docs == 'true') || github.event_name == 'workflow_dispatch'
-        uses: ./.github/actions/setup
-        with:
-          turbo_team: ${{ vars.TURBO_TEAM }}
+      - *checkout
+      - *setup
 
       - name: Run Tests
-        if: needs.changes.outputs[matrix.target.filter] == 'true' || (matrix.target.name == 'CI config' && needs.changes.outputs.docs == 'true') || github.event_name == 'workflow_dispatch'
-        run: ${{ matrix.target.command }}
-
-      # apps/cli is excluded from the `js` filter, so Typecheck, Biome and
-      # Build all skip on a CLI-only PR. These three steps carry that
-      # coverage instead — without them the CLI would merge on `tsx --test`
-      # alone, which strips types rather than checking them.
-      - name: Typecheck the CLI
-        if: matrix.target.name == 'CLI' && (needs.changes.outputs.cli == 'true' || github.event_name == 'workflow_dispatch')
-        run: pnpm --filter @sokosumi/cli typecheck
-
-      - name: Lint the CLI
-        if: matrix.target.name == 'CLI' && (needs.changes.outputs.cli == 'true' || github.event_name == 'workflow_dispatch')
-        run: pnpm exec biome check apps/cli
-
-      # Build and launch the compiled binary: the Build job never runs it, and
-      # skips it outright on a CLI-only PR, while the CLI test suite exercises
-      # source via tsx rather than dist.
-      - name: Smoke the built CLI
-        if: matrix.target.name == 'CLI' && (needs.changes.outputs.cli == 'true' || github.event_name == 'workflow_dispatch')
-        run: |
-          pnpm --filter @sokosumi/cli build
-          node apps/cli/dist/bin/sokosumi.js --version
-
-      - name: Test job sync against PostgreSQL
-        if: matrix.target.name == 'Packages' && (needs.changes.outputs.js == 'true' || github.event_name == 'workflow_dispatch')
-        env:
-          JOB_SYNC_TEST_DATABASE_URL: "postgresql://user:password@localhost:5432/job_sync_test"
-        run: pnpm --filter @sokosumi/database exec vitest run src/helpers/job-sync.postgres.test.ts
+        run: pnpm exec turbo run test:ci --filter=@sokosumi/core
 
       # Apply migrations so Calendar erasure also exercises the actual cascade
       # and outbox triggers, which prisma db push does not install.
       - name: Test Projects API and Calendar erasure against PostgreSQL
-        if: matrix.target.name == 'Core' && (needs.changes.outputs.js == 'true' || github.event_name == 'workflow_dispatch')
         env:
           DATABASE_URL: "postgresql://user:password@localhost:5432/job_sync_test"
           DATABASE_URL_UNPOOLED: "postgresql://user:password@localhost:5432/job_sync_test"
         run: |
           pnpm --filter @sokosumi/database exec prisma migrate deploy
           RUN_DATABASE_INTEGRATION_TESTS=true pnpm --filter core test src/routes/v1/projects/get.postgres.test.ts src/helpers/project-activity.postgres.test.ts src/helpers/calendar-erasure.postgres.test.ts
+
+  packages:
+    name: Test Packages
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.packages != 'false' }}
+    runs-on: ubuntu-latest
+    permissions: *turbo-permissions
+    services:
+      postgres: *postgres
+    steps:
+      - *checkout
+      - *setup
+
+      - name: Run Tests
+        run: pnpm exec turbo run test:ci --filter="./packages/*"
+
+      - name: Test job sync against PostgreSQL
+        env:
+          JOB_SYNC_TEST_DATABASE_URL: "postgresql://user:password@localhost:5432/job_sync_test"
+        run: pnpm --filter @sokosumi/database exec vitest run src/helpers/job-sync.postgres.test.ts
+
+  cli:
+    name: Test CLI
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.cli != 'false' }}
+    runs-on: ubuntu-latest
+    permissions: *turbo-permissions
+    steps:
+      - *checkout
+      - *setup
+
+      - name: Run Tests
+        run: pnpm exec turbo run test:ci --filter=@sokosumi/cli
+
+      # apps/cli is excluded from the `js` filter, so Typecheck, Biome and
+      # Build all skip on a CLI-only PR. These three steps carry that
+      # coverage instead — without them the CLI would merge on `tsx --test`
+      # alone, which strips types rather than checking them.
+      - name: Typecheck the CLI
+        run: pnpm --filter @sokosumi/cli typecheck
+
+      - name: Lint the CLI
+        run: pnpm exec biome check apps/cli
+
+      # Build and launch the compiled binary: the Build job never runs it, and
+      # skips it outright on a CLI-only PR, while the CLI test suite exercises
+      # source via tsx rather than dist.
+      - name: Smoke the built CLI
+        run: |
+          pnpm --filter @sokosumi/cli build
+          node apps/cli/dist/bin/sokosumi.js --version
+
+  local-env:
+    name: Test Local env
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.local-env != 'false' }}
+    runs-on: ubuntu-latest
+    permissions: *turbo-permissions
+    steps:
+      - *checkout
+      - *setup
+
+      - name: Run Tests
+        run: pnpm local-env:test
+
+  ci-config:
+    name: Test CI config
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.ci-config != 'false' }}
+    runs-on: ubuntu-latest
+    permissions: *turbo-permissions
+    steps:
+      - *checkout
+      - *setup
+
+      - name: Run Tests
+        run: pnpm ci:test
+
+  cloud-agent-db:
+    name: Test Cloud agent db
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.cloud-agent-db != 'false' }}
+    runs-on: ubuntu-latest
+    permissions: *turbo-permissions
+    steps:
+      - *checkout
+      - *setup
+
+      - name: Run Tests
+        run: pnpm cloud-agent-db:test
