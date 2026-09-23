@@ -2302,7 +2302,9 @@ const socialPostSchemaResponseTransformer = (data: any) => {
     if (data.lastAttemptAt) {
         data.lastAttemptAt = new Date(data.lastAttemptAt);
     }
-    data.lastAttempt = socialPostLastAttemptSchemaResponseTransformer(data.lastAttempt);
+    if (data.lastAttempt) {
+        data.lastAttempt = socialPostLastAttemptSchemaResponseTransformer(data.lastAttempt);
+    }
     data.createdAt = new Date(data.createdAt);
     data.updatedAt = new Date(data.updatedAt);
     return data;

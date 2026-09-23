@@ -16227,7 +16227,14 @@ export const SocialPostSchema = {
             example: '2021-01-01T00:00:00.000Z'
         },
         lastAttempt: {
-            $ref: '#/components/schemas/SocialPostLastAttempt'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SocialPostLastAttempt'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         revision: {
             type: 'integer',
@@ -16373,10 +16380,7 @@ export const SocialPostCreatorSchema = {
 } as const;
 
 export const SocialPostLastAttemptSchema = {
-    type: [
-        'object',
-        'null'
-    ],
+    type: 'object',
     properties: {
         attempt: {
             type: 'integer',

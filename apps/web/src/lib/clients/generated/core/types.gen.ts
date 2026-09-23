@@ -4892,7 +4892,7 @@ export type SocialPost = {
     attemptCount: number;
     nextAttemptAt: Date | null;
     lastAttemptAt: Date | null;
-    lastAttempt: SocialPostLastAttempt;
+    lastAttempt: SocialPostLastAttempt | null;
     revision: number;
     createdAt: Date;
     updatedAt: Date;
@@ -4937,7 +4937,7 @@ export type SocialPostLastAttempt = {
     errorKind: string | null;
     providerOutcome: string | null;
     finishedAt: Date | null;
-} | null;
+};
 
 export type CreateSocialPostRequest = {
     text: string;

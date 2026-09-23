@@ -114,7 +114,8 @@ export const socialPostSchema = z
     attemptCount: z.number().int().min(0).openapi({ example: 0 }),
     nextAttemptAt: dateTimeSchema.nullable(),
     lastAttemptAt: dateTimeSchema.nullable(),
-    lastAttempt: socialPostLastAttemptSchema.nullable(),
+    // Keep the named component non-null so generated date transformers guard it.
+    lastAttempt: z.union([socialPostLastAttemptSchema, z.null()]),
     revision: z.number().int().min(0).openapi({ example: 2 }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
