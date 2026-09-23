@@ -30,6 +30,8 @@ interface UnreadThreadsListProps {
     rooms: readonly ChatRoom[];
   } | null;
   currentUserId: string;
+  /** `sidebar` for the flyout, whose caught-up state is the compact one. */
+  size?: "page" | "sidebar";
 }
 
 /**
@@ -94,11 +96,18 @@ export function UnreadThreadsList({
   roomsLive,
   initial = null,
   currentUserId,
+  size = "page",
 }: UnreadThreadsListProps) {
   const t = useTranslations("App.Channels.ThreadsView");
   const roomsById = new Map(rooms.map((room) => [room.id, room]));
   const { threadCount } = resolveUnreadThreadsAttention(rooms);
-  const query = useUnreadThreadsQuery({ rooms, initial });
+  // Live rooms at zero already answer: nothing to ask Core.
+  const roomsSayCaughtUp = roomsLive && threadCount === 0;
+  const query = useUnreadThreadsQuery({
+    rooms,
+    initial,
+    enabled: !roomsSayCaughtUp,
+  });
 
   const seen = new Set<string>();
   const fetched = (query.data?.pages ?? []).flatMap((page) => page.threads);
@@ -116,7 +125,7 @@ export function UnreadThreadsList({
   // does, without waiting on Core to agree. Before any room has loaded, only
   // Core's own empty answer says so.
   const caughtUp =
-    (roomsLive && threadCount === 0) ||
+    roomsSayCaughtUp ||
     (query.isSuccess &&
       threads.length === 0 &&
       (fetched.length === 0 || rooms.length > 0));
@@ -124,7 +133,11 @@ export function UnreadThreadsList({
   return (
     <>
       {caughtUp ? (
-        <ChatCaughtUp title={t("empty")} description={t("emptyDescription")} />
+        <ChatCaughtUp
+          title={t("empty")}
+          description={t("emptyDescription")}
+          size={size}
+        />
       ) : query.isError && threads.length === 0 ? (
         <div className="flex flex-col items-start gap-2">
           <p className="text-muted-foreground text-sm">{t("loadError")}</p>

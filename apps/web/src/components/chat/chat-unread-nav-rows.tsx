@@ -93,14 +93,16 @@ export function ChatUnreadNavRows({
   const threadsActive = pathname === CHAT_THREADS_PATH;
   const hasCount = threadCount > 0;
   const [isMarking, startMarking] = useTransition();
-  // Desktop only, and only while there is something to preview.
-  const hasPanel = !isMobile && hasCount;
+  // Every desktop row, at zero too: the panel then says the reader is caught
+  // up, so the row answers the pointer the same way whatever it holds.
+  const hasPanel = !isMobile;
   const { open, setOpen, rowProps, contentProps } = useSidebarFlyout({
     enabled: hasPanel,
   });
   const panelHeadingId = useId();
   // Read ahead of the pointer, so the panel opens onto rows, not a spinner.
-  useUnreadThreadsQuery({ rooms, enabled: hasPanel });
+  // At zero there is nothing to read: the rooms already say it.
+  useUnreadThreadsQuery({ rooms, enabled: hasPanel && hasCount });
   const markAllTargets = rooms
     .map((room) => ({ roomId: room.id, ...roomUnreadReads(room) }))
     .filter((target) => target.readRoom || target.lookThreads);
@@ -219,6 +221,7 @@ export function ChatUnreadNavRows({
                   rooms={rooms}
                   roomsLive
                   currentUserId={currentUserId}
+                  size="sidebar"
                 />
                 <div className="bg-border h-px" />
                 <Link

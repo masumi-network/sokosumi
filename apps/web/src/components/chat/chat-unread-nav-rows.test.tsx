@@ -180,18 +180,26 @@ describe("ChatUnreadNavRows", () => {
     expect(row).toHaveAttribute("aria-expanded", "true");
   });
 
-  it("offers no panel with nothing to preview", () => {
+  it("opens the panel at zero too, without reading ahead", async () => {
     renderRows([]);
 
-    expect(threadsRow()).not.toHaveAttribute("aria-expanded");
+    const row = threadsRow();
+    expect(row).toHaveAttribute("aria-expanded", "false");
     expect(prefetchMock).toHaveBeenCalledWith({ rooms: [], enabled: false });
+
+    row.focus();
+    await userEvent.keyboard("{ArrowRight}");
+
+    expect(screen.getByTestId("unread-threads-list")).toBeInTheDocument();
   });
 
   it("goes to the Threads page on the phone, which has no side to open into", () => {
     sidebarMock.isMobile = true;
-    renderRows([]);
+    renderRows([makeRoom({ unreadThreadCount: 1 })]);
 
-    expect(threadsRow()).toHaveAttribute("href", "/chat/threads");
+    const row = threadsRow();
+    expect(row).toHaveAttribute("href", "/chat/threads");
+    expect(row).not.toHaveAttribute("aria-expanded");
   });
 
   it("toggles the All unreads filter rather than navigating", async () => {

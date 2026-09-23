@@ -120,6 +120,8 @@ describe("UnreadThreadsView", () => {
 
     expect(screen.getByText("You’re all caught up")).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Unread threads" })).toBeNull();
+    // The live rooms already said so; Core is not asked.
+    expect(fetchUnreadThreadsMock).not.toHaveBeenCalled();
   });
 
   // An empty live read is an answer: the reader is in no room now, and the
