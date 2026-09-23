@@ -94,7 +94,12 @@ struct MarkdownBareDomains {
           index += 1
         }
         let closeLength = index - closeStart
-        if length >= 3 ? closeLength >= length : closeLength == length {
+        // A fence closes only on its own line: at most three spaces before the
+        // run, at least the opener's length, nothing but whitespace after it.
+        let closes = length >= 3
+          ? closeLength >= length && isClosingFenceLine(closeStart, runEnd: index)
+          : closeLength == length
+        if closes {
           return index
         }
         index = closeStart + 1
@@ -145,6 +150,121 @@ struct MarkdownBareDomains {
     }
     guard let url = URL(string: "https://" + match), url.host != nil else { return false }
     return true
+  }
+
+  /// File links grouped the way web's `segmentRoomMessageContent` groups them:
+  /// only a whitespace gap stays in the same row. Structural markers therefore
+  /// split a row even though the Markdown tree deletes them. Fenced and inline
+  /// code are skipped so a sample link is not an attachment.
+  func attachmentGroups() -> [[MessageAttachment]] {
+    let links = inlineLinks()
+    var groups: [[MessageAttachment]] = []
+    var open = false
+    var index = 0
+    var linkCursor = 0
+    while index < text.count {
+      if let end = skippableCodeEnd(at: index), end > index {
+        open = false
+        index = end
+        continue
+      }
+      while linkCursor < links.count, links[linkCursor].upperBound <= index {
+        linkCursor += 1
+      }
+      if linkCursor < links.count, links[linkCursor].lowerBound == index {
+        let range = links[linkCursor]
+        if let attachment = attachment(in: range) {
+          if open, !groups.isEmpty {
+            groups[groups.count - 1].append(attachment)
+          } else {
+            groups.append([attachment])
+            open = true
+          }
+        } else {
+          open = false
+        }
+        index = range.upperBound
+        linkCursor += 1
+        continue
+      }
+      if !text[index].isWhitespace {
+        open = false
+      }
+      index += 1
+    }
+    return groups
+  }
+
+  /// A fence (optionally indented up to three spaces) or a same-line backtick span.
+  /// `codeEnd` already knows both shapes; a `~` run is a fence only.
+  private func skippableCodeEnd(at start: Int) -> Int? {
+    let character = text[start]
+    guard character == "`" || character == "~" else { return nil }
+    var openingEnd = start
+    while openingEnd < text.count, text[openingEnd] == character {
+      openingEnd += 1
+    }
+    let length = openingEnd - start
+    if length >= 3 {
+      guard isAtFencePosition(start) else { return nil }
+      let end = codeEnd(start: start, openingEnd: openingEnd, character: character)
+      return end > start ? end : nil
+    }
+    guard character == "`" else { return nil }
+    let end = codeEnd(start: start, openingEnd: openingEnd, character: character)
+    return end > start ? end : nil
+  }
+
+  private func isClosingFenceLine(_ runStart: Int, runEnd: Int) -> Bool {
+    guard isAtFencePosition(runStart) else { return false }
+    var index = runEnd
+    while index < text.count, text[index] != "\n" {
+      guard text[index] == " " || text[index] == "\t" else { return false }
+      index += 1
+    }
+    return true
+  }
+
+  private func isAtFencePosition(_ start: Int) -> Bool {
+    var lineStart = start
+    while lineStart > 0, text[lineStart - 1] != "\n" {
+      lineStart -= 1
+    }
+    guard start - lineStart <= 3 else { return false }
+    return text[lineStart ..< start].allSatisfy { $0 == " " }
+  }
+
+  private func attachment(in link: Range<Int>) -> MessageAttachment? {
+    let open = link.lowerBound
+    guard open < text.count, text[open] == "[" else { return nil }
+    var labelEnd = open + 1
+    while labelEnd < link.upperBound, text[labelEnd] != "]" {
+      labelEnd += 1
+    }
+    guard labelEnd + 1 < link.upperBound, text[labelEnd] == "]", text[labelEnd + 1] == "(" else { return nil }
+    let label = String(text[(open + 1) ..< labelEnd])
+    let urlEnd = linkDestinationEnd(start: labelEnd + 2)
+    guard urlEnd > labelEnd + 2 else { return nil }
+    let urlText = unescapingMarkdownURL(String(text[(labelEnd + 2) ..< urlEnd]))
+    guard let url = URL(string: urlText) else { return nil }
+    let kindHint: MessageAttachment.Kind? = open > 0 && text[open - 1] == "!" ? .image : nil
+    return MessageAttachment(url: url, label: label, kindHint: kindHint)
+  }
+
+  private func unescapingMarkdownURL(_ raw: String) -> String {
+    var result = ""
+    var index = raw.startIndex
+    while index < raw.endIndex {
+      let next = raw.index(after: index)
+      if raw[index] == "\\", next < raw.endIndex, raw[next] == "\\" || raw[next] == ")" {
+        result.append(raw[next])
+        index = raw.index(after: next)
+        continue
+      }
+      result.append(raw[index])
+      index = next
+    }
+    return result
   }
 
   /// Match the web's inline-link scanner, including optional double-quoted titles.

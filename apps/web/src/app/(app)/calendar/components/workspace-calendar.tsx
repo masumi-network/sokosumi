@@ -66,7 +66,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -95,6 +94,7 @@ import {
 import { coreClient } from "@/lib/clients/core.browser.client";
 import {
   type Task,
+  type TaskListItem,
   TaskStatus,
   type TaskStatus as TaskStatusValue,
   type WorkspaceCalendarItem,
@@ -117,18 +117,18 @@ import {
   type TaskMutationErrorKind,
   taskScheduleSeriesFeedbackKey,
 } from "@/lib/utils/task-schedule-feedback";
+import { CalendarScheduleList } from "./calendar-schedule-list";
+import { SourceMarker } from "./source-marker";
 
-const CALENDAR_VIEWS = ["month", "week", "agenda"] as const;
+const CALENDAR_VIEWS = ["month", "week", "agenda", "schedules"] as const;
+type CalendarView = (typeof CALENDAR_VIEWS)[number];
+type OccurrenceCalendarView = Exclude<CalendarView, "schedules">;
 const CALENDAR_STATUSES = Object.values(TaskStatus);
+const NO_SCHEDULED_TASKS: TaskListItem[] = [];
 
 function isCalendarStatus(value: string | null): value is TaskStatusValue {
   return value !== null && CALENDAR_STATUSES.some((status) => status === value);
 }
-const SOURCE_PALETTE_CLASSES = {
-  blue: "bg-chart-1",
-  violet: "bg-chart-2",
-  amber: "bg-chart-4",
-} as const;
 
 interface CalendarCoworker {
   id: string;
@@ -186,6 +186,11 @@ interface WorkspaceCalendarProps {
   };
   coworkers?: CalendarCoworker[];
   lockedProjectId?: string;
+  scheduledTasks?: TaskListItem[];
+  scheduledTasksPagination?: {
+    limit: number;
+    nextCursor: string | null;
+  } | null;
   workspaceId?: string | null;
 }
 
@@ -266,50 +271,13 @@ export function getCalendarItemDateKey(date: Date, timeZone = "UTC"): string {
 function getRangeLabel(
   formatDate: ReturnType<typeof useFormatter>["dateTime"],
   date: Date,
-  view: (typeof CALENDAR_VIEWS)[number],
+  view: OccurrenceCalendarView,
 ) {
   if (view === "week") {
     return `${formatDate(startOfWeek(date), { month: "short", day: "numeric" })} - ${formatDate(endOfWeek(date), { month: "short", day: "numeric", year: "numeric" })}`;
   }
 
   return formatDate(date, { month: "long", year: "numeric" });
-}
-
-function SourceMarker({
-  decorative = false,
-  size = "size-4",
-  source,
-  sourceName,
-}: {
-  decorative?: boolean;
-  size?: string;
-  source: WorkspaceCalendarSource | undefined;
-  sourceName: string;
-}) {
-  if (source?.logoUrl) {
-    return (
-      <Avatar
-        className={`${size} shrink-0 rounded-sm`}
-        data-testid="calendar-source-marker"
-      >
-        <AvatarImage alt={decorative ? "" : sourceName} src={source.logoUrl} />
-        <AvatarFallback aria-hidden={decorative} className="rounded-sm text-xs">
-          {sourceName.slice(0, 1).toUpperCase()}
-        </AvatarFallback>
-      </Avatar>
-    );
-  }
-
-  return (
-    <span
-      aria-hidden={decorative}
-      aria-label={decorative ? undefined : sourceName}
-      className={`${size} shrink-0 rounded-full ${
-        source ? SOURCE_PALETTE_CLASSES[source.paletteToken] : "bg-primary"
-      }`}
-      data-testid="calendar-source-marker"
-    />
-  );
 }
 
 /**
@@ -533,7 +501,7 @@ function CalendarView({
   onOpenTask: (taskId: string) => void;
   sources: WorkspaceCalendarSource[];
   timeZone: string;
-  view: (typeof CALENDAR_VIEWS)[number];
+  view: OccurrenceCalendarView;
 }) {
   const router = useRouter();
   const formatDate = useFormatter().dateTime;
@@ -612,20 +580,18 @@ function CalendarView({
     isScrolled: false,
   });
 
-  // The agenda lists the whole month and the page is the scroller, so land
-  // on today's day header whenever the shown month contains it, then keep
-  // track of the scroll position for the jump button.
+  // The agenda lists the whole month and the page is the scroller; track the
+  // scroll position so the jump button can offer "Today" or "Back to top".
   useEffect(() => {
     if (view !== "agenda") {
       return;
     }
     const root = rootRef.current;
     const scroller = getAgendaScroller(root);
-    const todayHeader = findTodayHeader(root, timeZone);
-    todayHeader?.scrollIntoView({ block: "start" });
+    const hasToday = Boolean(findTodayHeader(root, timeZone));
     const update = () =>
       setAgendaScroll({
-        hasToday: Boolean(todayHeader),
+        hasToday,
         isScrolled: (scroller ? scroller.scrollTop : window.scrollY) > 160,
       });
     update();
@@ -1038,6 +1004,8 @@ export function WorkspaceCalendar({
   range,
   coworkers = [],
   lockedProjectId,
+  scheduledTasks = NO_SCHEDULED_TASKS,
+  scheduledTasksPagination = null,
   workspaceId = null,
 }: WorkspaceCalendarProps) {
   const t = useTranslations("App.Calendar");
@@ -1050,6 +1018,12 @@ export function WorkspaceCalendar({
   const [loadedItems, setLoadedItems] = useState(items);
   const [nextCursor, setNextCursor] = useState(pagination?.nextCursor ?? null);
   const [loadMoreError, setLoadMoreError] = useState(false);
+  const [loadedSchedules, setLoadedSchedules] = useState(scheduledTasks);
+  const [schedulesNextCursor, setSchedulesNextCursor] = useState(
+    scheduledTasksPagination?.nextCursor ?? null,
+  );
+  const [schedulesLoadMoreError, setSchedulesLoadMoreError] = useState(false);
+  const [isLoadingSchedules, setIsLoadingSchedules] = useState(false);
   // The page already requested, keyed on the server items too so a refreshed
   // server page that reuses a cursor string drains again.
   const requestedPageRef = useRef<{
@@ -1083,6 +1057,21 @@ export function WorkspaceCalendar({
     setLoadedItems(items);
     setNextCursor(pagination?.nextCursor ?? null);
     setLoadMoreError(false);
+  }
+
+  const [prevScheduledTasks, setPrevScheduledTasks] = useState(scheduledTasks);
+  const [prevScheduledNextCursor, setPrevScheduledNextCursor] = useState(
+    scheduledTasksPagination?.nextCursor ?? null,
+  );
+  if (
+    scheduledTasks !== prevScheduledTasks ||
+    (scheduledTasksPagination?.nextCursor ?? null) !== prevScheduledNextCursor
+  ) {
+    setPrevScheduledTasks(scheduledTasks);
+    setPrevScheduledNextCursor(scheduledTasksPagination?.nextCursor ?? null);
+    setLoadedSchedules(scheduledTasks);
+    setSchedulesNextCursor(scheduledTasksPagination?.nextCursor ?? null);
+    setSchedulesLoadMoreError(false);
   }
 
   useMountEffect(() => {
@@ -1184,7 +1173,7 @@ export function WorkspaceCalendar({
     void setState({ date: format(nextDate, "yyyy-MM-dd") }, { shallow: false });
   }
 
-  function handleViewChange(view: (typeof CALENDAR_VIEWS)[number]) {
+  function handleViewChange(view: CalendarView) {
     void setState({ view }, { shallow: false });
   }
 
@@ -1358,12 +1347,56 @@ export function WorkspaceCalendar({
     }
   }
 
+  async function loadNextSchedulesPage() {
+    if (!schedulesNextCursor || isLoadingSchedules) {
+      return;
+    }
+
+    const accessGeneration = calendarAccessGeneration.current;
+    setIsLoadingSchedules(true);
+    try {
+      const result = await coreClient.getTasks({
+        hasSchedule: "true",
+        sort: "nextRunAt",
+        scope: state.scope,
+        status: state.status ? [state.status] : undefined,
+        assigneeId: state.assigneeId ?? undefined,
+        assigneeUserId: state.assigneeUserId ?? undefined,
+        projectId: lockedProjectId ?? state.projectId ?? undefined,
+        cursor: schedulesNextCursor,
+        limit: scheduledTasksPagination?.limit ?? 100,
+      });
+      if (accessGeneration !== calendarAccessGeneration.current) {
+        return;
+      }
+      setLoadedSchedules((currentTasks) => [
+        ...currentTasks,
+        ...result.data.filter(
+          (task) => !currentTasks.some(({ id }) => id === task.id),
+        ),
+      ]);
+      setSchedulesNextCursor(result.meta?.pagination?.nextCursor ?? null);
+      setSchedulesLoadMoreError(false);
+    } catch {
+      if (accessGeneration === calendarAccessGeneration.current) {
+        setSchedulesLoadMoreError(true);
+      }
+    } finally {
+      if (accessGeneration === calendarAccessGeneration.current) {
+        setIsLoadingSchedules(false);
+      }
+    }
+  }
+
   function handleCalendarAccessRevoked() {
     calendarAccessGeneration.current += 1;
     eventRequestId.current += 1;
     setLoadedItems([]);
     setNextCursor(null);
     setLoadMoreError(false);
+    setLoadedSchedules([]);
+    setSchedulesNextCursor(null);
+    setSchedulesLoadMoreError(false);
     setEditState(null);
     setTimeState(null);
   }
@@ -1376,6 +1409,7 @@ export function WorkspaceCalendar({
   function handleCalendarResync() {
     handleCalendarInvalidated();
     setLoadMoreError(false);
+    setSchedulesLoadMoreError(false);
     setEditState(null);
     setTimeState(null);
   }
@@ -1415,7 +1449,7 @@ export function WorkspaceCalendar({
           },
         ]
       : []),
-    ...(!lockedProjectId
+    ...(!lockedProjectId && view !== "schedules"
       ? [
           {
             id: "source",
@@ -1513,63 +1547,69 @@ export function WorkspaceCalendar({
           onInvalidated={handleCalendarInvalidated}
         />
       ) : null}
-      <div className="flex items-center gap-1">
-        <Button
-          aria-label={t("previous")}
-          size="icon"
-          variant="outline"
-          onClick={() => handleNavigate(-1)}
-        >
-          <ChevronLeft aria-hidden />
-        </Button>
-        <span className="min-w-40 flex-1 text-center text-sm font-medium md:flex-none">
-          {getRangeLabel(formatDate, date, view)}
-        </span>
-        <Button
-          aria-label={t("next")}
-          disabled={!canNavigateForward}
-          size="icon"
-          variant="outline"
-          onClick={() => handleNavigate(1)}
-        >
-          <ChevronRight aria-hidden />
-        </Button>
-      </div>
+      <div className="flex flex-col gap-5 md:flex-row md:items-center md:gap-4">
+        {view !== "schedules" ? (
+          <div className="flex items-center gap-1">
+            <Button
+              aria-label={t("previous")}
+              size="icon"
+              variant="outline"
+              onClick={() => handleNavigate(-1)}
+            >
+              <ChevronLeft aria-hidden />
+            </Button>
+            <span className="min-w-40 flex-1 text-center text-sm font-medium md:flex-none">
+              {getRangeLabel(formatDate, date, view)}
+            </span>
+            <Button
+              aria-label={t("next")}
+              disabled={!canNavigateForward}
+              size="icon"
+              variant="outline"
+              onClick={() => handleNavigate(1)}
+            >
+              <ChevronRight aria-hidden />
+            </Button>
+          </div>
+        ) : null}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Tabs
-          className="flex-1 md:flex-none"
-          value={view}
-          onValueChange={(value) => {
-            const nextView = CALENDAR_VIEWS.find(
-              (candidate) => candidate === value,
-            );
-            if (nextView) {
-              handleViewChange(nextView);
-            }
-          }}
-        >
-          <TabsList className="w-full md:w-fit" data-testid="calendar-views">
-            {CALENDAR_VIEWS.map((calendarView) => (
-              <TabsTrigger key={calendarView} value={calendarView}>
-                {t(`view.${calendarView}`)}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-        <FilterDropdownMenu
-          buttonLabel={tFilters("title")}
-          emptyResultsLabel={tFilters("emptyResults")}
-          searchPlaceholder={tFilters("searchPlaceholder")}
-          sections={filterSections}
-          showActiveIndicator={
-            state.scope === "owned" ||
-            state.assigneeId !== null ||
-            state.assigneeUserId !== null ||
-            state.status !== null ||
-            selectedSourceId !== null
-          }
-        />
+        <div className="flex flex-wrap items-center gap-2 md:flex-1">
+          <Tabs
+            className="flex-1 md:flex-none"
+            value={view}
+            onValueChange={(value) => {
+              const nextView = CALENDAR_VIEWS.find(
+                (candidate) => candidate === value,
+              );
+              if (nextView) {
+                handleViewChange(nextView);
+              }
+            }}
+          >
+            <TabsList className="w-full md:w-fit" data-testid="calendar-views">
+              {CALENDAR_VIEWS.map((calendarView) => (
+                <TabsTrigger key={calendarView} value={calendarView}>
+                  {t(`view.${calendarView}`)}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+          <div className="md:ml-auto">
+            <FilterDropdownMenu
+              buttonLabel={tFilters("title")}
+              emptyResultsLabel={tFilters("emptyResults")}
+              searchPlaceholder={tFilters("searchPlaceholder")}
+              sections={filterSections}
+              showActiveIndicator={
+                state.scope === "owned" ||
+                state.assigneeId !== null ||
+                state.assigneeUserId !== null ||
+                state.status !== null ||
+                (view !== "schedules" && selectedSourceId !== null)
+              }
+            />
+          </div>
+        </div>
       </div>
       {canCreate ? (
         <ListMobileCreateFab
@@ -1578,27 +1618,43 @@ export function WorkspaceCalendar({
         />
       ) : null}
 
-      {visibleItems.length === 0 ? (
-        <div className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
-          {t("empty.title")}
-        </div>
-      ) : null}
-      <CalendarView
-        key={calendarRenderEpoch}
-        canCreate={canCreate}
-        coworkers={coworkers}
-        date={date}
-        items={visibleItems}
-        onDateClick={handleDateClick}
-        onEventEdit={(taskId) => void handleEventEdit(taskId)}
-        onMoveOccurrence={handleMoveOccurrence}
-        onRestoreOccurrence={handleRestoreOccurrence}
-        onSkipOccurrence={(item) => void handleSkipOccurrence(item)}
-        onOpenTask={handleOpenTask}
-        sources={sources}
-        timeZone={timeZone}
-        view={view}
-      />
+      {view === "schedules" ? (
+        <CalendarScheduleList
+          currentUserId={currentUserId}
+          hasMore={schedulesNextCursor !== null}
+          isLoading={isLoadingSchedules}
+          loadMoreError={schedulesLoadMoreError}
+          onEditSchedule={(taskId) => void handleEventEdit(taskId)}
+          onLoadMore={() => void loadNextSchedulesPage()}
+          sources={sources}
+          tasks={loadedSchedules}
+          timeZone={timeZone}
+        />
+      ) : (
+        <>
+          {visibleItems.length === 0 ? (
+            <div className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
+              {t("empty.title")}
+            </div>
+          ) : null}
+          <CalendarView
+            key={calendarRenderEpoch}
+            canCreate={canCreate}
+            coworkers={coworkers}
+            date={date}
+            items={visibleItems}
+            onDateClick={handleDateClick}
+            onEventEdit={(taskId) => void handleEventEdit(taskId)}
+            onMoveOccurrence={handleMoveOccurrence}
+            onRestoreOccurrence={handleRestoreOccurrence}
+            onSkipOccurrence={(item) => void handleSkipOccurrence(item)}
+            onOpenTask={handleOpenTask}
+            sources={sources}
+            timeZone={timeZone}
+            view={view}
+          />
+        </>
+      )}
       {eventLoadError ? (
         <p className="text-destructive text-sm" role="alert">
           {t("edit.loadError")}

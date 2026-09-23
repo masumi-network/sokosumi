@@ -68,7 +68,7 @@ private struct MessageMarkdownContent: View {
       if let count = jumboEmojiCount(source) {
         Text(source.trimmingCharacters(in: .whitespacesAndNewlines)).font(.system(size: emojiSize(count)))
       } else if let document = preparedDocument ?? document {
-        ExpandableMessageBody(source: source, clampHeight: !document.containsAttachments) {
+        ExpandableMessageBody(source: source, clampHeight: document.clampsLongBody) {
           MarkdownBlocksView(blocks: document.blocks)
         }
       } else {

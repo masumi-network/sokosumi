@@ -22,6 +22,7 @@ import {
   resolveAssigneeIdFromRequest,
 } from "@/helpers/task-assignee-alias";
 import {
+  applyTaskListScheduleWhere,
   applyTaskListStatusWhere,
   buildTaskListStatusWhere,
 } from "@/helpers/task-list-filters";
@@ -114,6 +115,17 @@ const taskVisibilityQuerySchema = z
     example: TaskVisibility.PUBLIC,
   });
 
+const hasScheduleQuerySchema = z
+  .enum(["true", "false"])
+  .optional()
+  .transform((value) => (value === undefined ? undefined : value === "true"))
+  .openapi({
+    param: { name: "hasSchedule", in: "query" },
+    description:
+      "When true, only tasks with an active schedule series (metadata or nextRunAt set). When false, only tasks without one. Omit to return all tasks.",
+    example: "true",
+  });
+
 const query = z
   .object({
     q: taskNameQuerySchema,
@@ -122,6 +134,7 @@ const query = z
     projectId: projectIdQuerySchema,
     sort: taskSortQuerySchema,
     visibility: taskVisibilityQuerySchema,
+    hasSchedule: hasScheduleQuerySchema,
     assigneeId: z
       .string()
       .optional()
@@ -172,7 +185,8 @@ const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "get",
     path: "/",
-    description: "List tasks in the active workspace (paginated)",
+    description:
+      "List tasks in the active workspace (paginated). hasSchedule=true returns only tasks with an active schedule series (metadata or nextRunAt set); hasSchedule=false returns only tasks without one. Use sort=nextRunAt to order series by their next run.",
     tags: ["Tasks"],
     request: {
       query,
@@ -194,6 +208,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       assigneeId,
       assigneeSokoBotId,
       assigneeUserId,
+      hasSchedule,
       projectId,
       q,
       scope,
@@ -315,6 +330,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         statusWhere,
       );
     }
+
+    where = applyTaskListScheduleWhere(where, hasSchedule);
 
     const takePlusOne = take + 1;
     const orderBy =
