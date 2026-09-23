@@ -2066,7 +2066,7 @@
       },
       "RunAt": {
         "title": "Hora de inicio",
-        "description": "La tarea espera hasta esta hora y luego pasa a Lista.",
+        "description": "La tarea espera hasta esta hora y luego pasa a Listo.",
         "label": "Iniciar el",
         "apply": "Aplicar",
         "clear": "Quitar",

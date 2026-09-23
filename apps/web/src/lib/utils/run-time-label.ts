@@ -38,12 +38,15 @@ export function formatRunTimeLabel(
     return t("inHours", { hours: Math.max(1, Math.ceil(diffMs / oneHour)) });
   }
 
-  const tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const isTomorrow =
-    at.getFullYear() === tomorrow.getFullYear() &&
-    at.getMonth() === tomorrow.getMonth() &&
-    at.getDate() === tomorrow.getDate();
+  // Calendar days in the formatter's time zone, so the server paint and the
+  // browser agree with the time printed beside "tomorrow".
+  const dayOf = (date: Date) =>
+    formatter.dateTime(date, {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+  const isTomorrow = dayOf(at) === dayOf(new Date(now.getTime() + oneDay));
 
   if (isTomorrow) {
     return t("tomorrowAt", { time: formatter.dateTime(at, "time") });

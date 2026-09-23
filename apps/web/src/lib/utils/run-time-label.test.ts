@@ -45,4 +45,17 @@ describe("formatRunTimeLabel", () => {
       `at${JSON.stringify({ datetime: formatter.dateTime(at, "dateTime") })}`,
     );
   });
+
+  it("decides tomorrow in the formatter's time zone, not the host's", () => {
+    const now = new Date("2030-01-02T09:30:00.000Z");
+    const at = new Date("2030-01-03T10:30:00.000Z");
+    const kiritimati = createTestFormatter({ timeZone: "Pacific/Kiritimati" });
+    const utc = createTestFormatter({ timeZone: "UTC" });
+    const keyOf = (f: typeof utc) =>
+      formatRunTimeLabel(at, f, (key) => key, now);
+
+    // 23:30 on Jan 2 to 00:30 on Jan 4 in UTC+14: not tomorrow.
+    expect(keyOf(kiritimati)).toBe("at");
+    expect(keyOf(utc)).toBe("tomorrowAt");
+  });
 });
