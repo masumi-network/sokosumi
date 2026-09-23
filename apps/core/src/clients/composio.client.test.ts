@@ -26,6 +26,62 @@ describe("initiateProjectXConnection", () => {
     });
   });
 
+  it("creates a restricted identity session using the REST toolkit allowlist", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async (request: URL, init: RequestInit) => {
+        const url = request.toString();
+        if (url.endsWith("/session")) {
+          const body = JSON.parse(String(init.body));
+          // REST requires an enable/disable object; the SDK array shorthand is invalid.
+          if (Array.isArray(body.toolkits)) {
+            return Response.json(
+              { error: "Invalid toolkits" },
+              { status: 400 },
+            );
+          }
+          expect(body).toEqual({
+            user_id: input.executorUserId,
+            toolkits: { enable: ["twitter"] },
+            connected_accounts: { twitter: ["ca_123"] },
+            manage_connections: {
+              enable: false,
+              enable_connection_removal: false,
+            },
+            tools: { twitter: { enable: ["TWITTER_USER_LOOKUP_ME"] } },
+            workbench: { enable: false, enable_proxy_execution: false },
+            search: { enable: false },
+            execute: { enable_multi_execute: false },
+          });
+          return Response.json({ session_id: "trs_123" }, { status: 201 });
+        }
+        if (url.endsWith("/trs_123/execute")) {
+          expect(JSON.parse(String(init.body))).toEqual({
+            tool_slug: "TWITTER_USER_LOOKUP_ME",
+            arguments: {},
+          });
+          return Response.json({
+            data: { data: { id: "x_123", username: "alice" } },
+            error: null,
+          });
+        }
+        expect(url).toBe(
+          "https://backend.composio.dev/api/v3.1/tool_router/session/trs_123",
+        );
+        expect(init.method).toBe("DELETE");
+        return Response.json({});
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    const { getConnectedXIdentity } = await import("./composio.client");
+    await expect(
+      getConnectedXIdentity({
+        connectedAccountId: "ca_123",
+        executorUserId: input.executorUserId,
+      }),
+    ).resolves.toEqual({ id: "x_123", handle: "alice" });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
   it("logs safe rejection labels without retaining provider secrets", async () => {
     const secrets = [
       "test-composio-key",
