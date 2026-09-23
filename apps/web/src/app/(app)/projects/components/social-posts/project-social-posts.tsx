@@ -45,6 +45,7 @@ import {
 import type {
   ProjectSocialConnection,
   SocialPost,
+  SocialPostStatus,
 } from "@/lib/clients/generated/core/types.gen";
 import { loadMoreSocialPosts } from "./actions";
 import { SECTION_ORDER, SECTION_STATUSES, type SectionKey } from "./constants";
