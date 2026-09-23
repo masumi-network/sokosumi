@@ -38,21 +38,29 @@ struct ConversationSidebarView: View {
     // Web lists pending invitations above joined external rooms, in every workspace.
     let invitations = workspaces.pendingInvitations.invitations
     VStack(spacing: 0) {
-      List(selection: Binding(
-        get: { workspaces.selectedRoomId },
+      List(selection: Binding<SidebarDestination?>(
+        get: {
+          workspaces.sidebar.showsThreadsView ? .threads : workspaces.selectedRoomId.map(SidebarDestination.room)
+        },
         set: { newValue in
           // List writes selection during its own update. Publishing
           // selectedRoomId / openRoom there trips SwiftUI's
           // "Publishing changes from within view updates" runtime issue.
           // Nil is structural (collapsed section / missing tag), not a
           // user deselect — skip it so the open transcript stays.
-          guard let newValue else { return }
-          // Reorder mode: a press moves the room, so Pinned rows stop navigating (web).
-          if workspaces.sidebar.pinnedReorderMode, partitioned.pinned.contains(where: { $0.id == newValue }) {
+          switch newValue {
+          case nil:
             return
-          }
-          Task { @MainActor in
-            workspaces.selectRoom(newValue, auth: auth)
+          case .threads:
+            Task { @MainActor in workspaces.showThreadsView() }
+          case let .room(id):
+            // Reorder mode: a press moves the room, so Pinned rows stop navigating (web).
+            if workspaces.sidebar.pinnedReorderMode, partitioned.pinned.contains(where: { $0.id == id }) {
+              return
+            }
+            Task { @MainActor in
+              await workspaces.showRoom(id, auth: auth)
+            }
           }
         }
       )) {
@@ -60,6 +68,10 @@ struct ConversationSidebarView: View {
         if workspaces.roomsLoading, workspaces.rooms.isEmpty {
           ProgressView("Loading rooms…")
         } else {
+          // Web's `ChatUnreadNavRows`: above every section, not a room, so no room menu.
+          Section {
+            threadsRow
+          }
           // Web: every pinned room of any kind, in the reader's own order; hidden when nothing is pinned.
           if !partitioned.pinned.isEmpty {
             Section {
@@ -424,7 +436,6 @@ struct ConversationSidebarView: View {
     .presenceAccessibilityValue(directPresence(room, showsDirectAvatars: showsDirectAvatars))
     .labelStyle(RoomRowLabelStyle())
     .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
-    .tag(room.id)
     .badge(mentionBadge(attention))
     .contextMenu {
       // Reorder mode: the handle stands where the status does and the row menu is not offered.
@@ -432,6 +443,46 @@ struct ConversationSidebarView: View {
         roomActions(room)
       }
     }
+    // Outermost, so the List reads it as the row's selection value.
+    .tag(SidebarDestination.room(room.id))
+  }
+
+  /// Web's Threads entry (`ChatUnreadNavRows`, SOK-1159): opens the chat-level Threads view in the detail
+  /// column. It carries the one number a room row does, from the rooms alone: the mention badge where an
+  /// unread Thread names the reader, the muted count of unread Threads otherwise, nothing at zero; bold
+  /// while any Thread is unread. VoiceOver hears web's words for both.
+  private var threadsRow: some View {
+    let attention = resolveUnreadThreadsAttention(workspaces.rooms)
+    return Label {
+      HStack(spacing: 6) {
+        Text("Threads")
+          .lineLimit(1)
+          .fontWeight(attention.threadCount > 0 ? .bold : .regular)
+        Spacer(minLength: 0)
+        if attention.mentionCount == 0, attention.threadCount > 0 {
+          Text(roomCountLabel(attention.threadCount))
+            .font(.caption.weight(.semibold)).monospacedDigit()
+            .foregroundStyle(.secondary)
+            .accessibilityHidden(true)
+        }
+      }
+    } icon: {
+      Image(systemName: "bubble.left.and.bubble.right")
+        .foregroundStyle(.secondary)
+        .frame(width: DirectRoomAvatarStack.faceSize, height: DirectRoomAvatarStack.faceSize)
+    }
+    .labelStyle(RoomRowLabelStyle())
+    .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
+    .badge(threadsMentionBadge(attention))
+    // With a badge, the badge speaks for the row; otherwise the row carries web's words for its count.
+    .accessibilityValue(attention.mentionCount > 0 ? "" : attention.accessibilityLabel)
+    .tag(SidebarDestination.threads)
+  }
+
+  /// The Threads row's mention badge, drawn like a room's, spoken as web's "N mentions, N unread threads".
+  private func threadsMentionBadge(_ attention: UnreadThreadsAttention) -> Text? {
+    guard attention.mentionCount > 0 else { return nil }
+    return Text(verbatim: roomCountLabel(attention.mentionCount)).accessibilityLabel(attention.accessibilityLabel)
   }
 
   /// The mention badge as text, so it caps at "99+" like every other chat count. `nil` draws no
@@ -577,6 +628,12 @@ struct ConversationSidebarView: View {
     .buttonStyle(.plain)
     .accessibilityValue(presenceLabel(workspaces.presence.selfPresence))
   }
+}
+
+/// What a sidebar row opens in the detail column: the chat-level Threads view or a room.
+enum SidebarDestination: Hashable {
+  case threads
+  case room(String)
 }
 
 /// The reader's opt-in Room unread count (web `RoomUnreadCount`): text, not a
