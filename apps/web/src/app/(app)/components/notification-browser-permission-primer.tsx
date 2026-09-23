@@ -6,7 +6,10 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState, useSyncExternalStore } from "react";
 
-import { NotificationRequestRow } from "@/components/notifications/notification-request-row";
+import {
+  NotificationRequestRow,
+  notificationRequestActionClassName,
+} from "@/components/notifications/notification-request-row";
 import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
@@ -240,6 +243,7 @@ export function NotificationBrowserPermissionPrimer({
           type="button"
           size="sm"
           variant="outline"
+          className={notificationRequestActionClassName}
           onPointerDown={(event) => {
             // Keep the panel open while the subscription is being restored.
             if (variant === "panel") {
@@ -290,6 +294,7 @@ export function NotificationBrowserPermissionPrimer({
           type="button"
           size="sm"
           variant="outline"
+          className={notificationRequestActionClassName}
           onPointerDown={(event) => {
             // Keep the panel open while the OS permission dialog runs.
             if (variant === "panel") {
@@ -311,7 +316,12 @@ export function NotificationBrowserPermissionPrimer({
     title: t("browserPermissionTitle"),
     description: t("browserPermissionDescription"),
     action: (
-      <Button asChild size="sm" variant="outline">
+      <Button
+        asChild
+        size="sm"
+        variant="outline"
+        className={notificationRequestActionClassName}
+      >
         <Link href={NOTIFICATION_PREFERENCES_HREF} onClick={onNavigate}>
           {t("browserPermissionOpenSettings")}
         </Link>

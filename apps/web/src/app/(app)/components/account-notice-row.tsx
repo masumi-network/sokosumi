@@ -9,9 +9,11 @@ import type { AccountNotice } from "@/app/components/account-notice-state";
 import {
   type NotificationRequestEmphasis,
   NotificationRequestRow,
+  notificationRequestActionClassName,
 } from "@/components/notifications/notification-request-row";
 import { Button } from "@/components/ui/button";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
+import { cn } from "@/lib/utils";
 
 import VerifyEmailButton from "./verify-email-button";
 
@@ -61,8 +63,10 @@ export function AccountNoticeRow({
   }
 
   const emphasis = getAccountNoticeEmphasis(notice);
-  const actionClassName =
-    emphasis === "marked" ? undefined : FILLED_ACTION_STYLES[notice.tone];
+  const actionClassName = cn(
+    notificationRequestActionClassName,
+    emphasis === "marked" ? undefined : FILLED_ACTION_STYLES[notice.tone],
+  );
 
   let title: string;
   let description: string;

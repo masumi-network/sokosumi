@@ -44,6 +44,10 @@ const EMPHASIS_STYLES = {
   { row: string; rail: string; circle: string; title: string }
 >;
 
+/** Lets a long label wrap. Pass through `cn` so it beats the sm button's `h-8` and `whitespace-nowrap`. */
+export const notificationRequestActionClassName =
+  "h-auto max-w-full whitespace-normal text-left";
+
 interface NotificationRequestRowProps {
   emphasis: NotificationRequestEmphasis;
   icon: LucideIcon;
@@ -61,7 +65,8 @@ interface NotificationRequestRowProps {
  * nothing to press (a blocked permission, an install step) is just text.
  * The action sits beside the text while the text keeps 12rem, and drops
  * under it when a long label would squeeze it thinner, which is what the
- * panel's 24rem does to most of them.
+ * panel's 24rem does to most of them. The 12rem floor yields when the
+ * column is narrower, so a phone page does not clip the row.
  */
 export function NotificationRequestRow({
   emphasis,
@@ -86,14 +91,14 @@ export function NotificationRequestRow({
           <Icon className="size-4" />
         </span>
         <div className="flex min-w-0 flex-1 flex-wrap items-start gap-x-3 gap-y-2">
-          <div className="flex min-w-48 flex-1 flex-col gap-1">
+          <div className="flex min-w-[min(12rem,100%)] flex-1 flex-col gap-1">
             <p className={cn("text-sm text-pretty", styles.title)}>{title}</p>
             <p className="text-muted-foreground text-xs text-pretty">
               {description}
             </p>
           </div>
           {action ? (
-            <div className="flex shrink-0 flex-col items-start gap-2">
+            <div className="flex max-w-full shrink-0 flex-col items-start gap-2">
               {action}
             </div>
           ) : null}
