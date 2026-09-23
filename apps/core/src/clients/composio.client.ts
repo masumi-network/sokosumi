@@ -546,7 +546,7 @@ export async function publishXPost(input: {
       method: "POST",
       jsonBody: {
         user_id: input.executorUserId,
-        toolkits: ["twitter"],
+        toolkits: { enable: ["twitter"] },
         connected_accounts: { twitter: [input.connectedAccountId] },
         manage_connections: { enable: false, enable_connection_removal: false },
         tools: { twitter: { enable: [X_CREATE_POST_TOOL_SLUG] } },

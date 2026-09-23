@@ -322,6 +322,14 @@ describe("publishXPost", () => {
       async (url: URL, init?: RequestInit): Promise<Response> => {
         const path = url.pathname;
         if (path === "/api/v3.1/tool_router/session") {
+          const body = JSON.parse(String(init?.body));
+          // REST rejects the SDK's array shorthand before any post is sent.
+          if (Array.isArray(body.toolkits)) {
+            return Response.json(
+              { error: "Invalid toolkits" },
+              { status: 400 },
+            );
+          }
           return new Response(JSON.stringify({ session_id: "sess_1" }));
         }
         if (path.endsWith("/execute")) {
@@ -378,7 +386,7 @@ describe("publishXPost", () => {
       method: "POST",
       body: {
         user_id: publishInput.executorUserId,
-        toolkits: ["twitter"],
+        toolkits: { enable: ["twitter"] },
         connected_accounts: { twitter: ["ca_123"] },
         manage_connections: { enable: false, enable_connection_removal: false },
         tools: { twitter: { enable: ["TWITTER_CREATION_OF_A_POST"] } },
