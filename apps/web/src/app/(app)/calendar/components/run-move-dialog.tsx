@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -16,24 +15,16 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  changeTaskScheduleRun,
-  type TaskScheduleActionError,
-} from "@/lib/actions/task-schedule/action";
 import type { WorkspaceCalendarItem } from "@/lib/clients/generated/core";
 import {
   utcToDateTimeLocalInTimezone,
   zonedDateTimeLocalToUtc,
 } from "@/lib/schedules/zoned-datetime";
-
-/** The `App.Calendar` message for a Run change Core refused. */
-export function runChangeErrorKey(kind: TaskScheduleActionError["kind"]) {
-  return kind === "stale"
-    ? "event.runStale"
-    : kind === "invalid_time"
-      ? "event.runInvalidTime"
-      : "event.runError";
-}
+import {
+  changeRun,
+  runChangeErrorKey,
+  useReportRunChangeFailure,
+} from "./run-change";
 
 interface RunMoveDialogProps {
   item: WorkspaceCalendarItem;
@@ -46,6 +37,7 @@ interface RunMoveDialogProps {
 export function RunMoveDialog({ item, timeZone, onClose }: RunMoveDialogProps) {
   const t = useTranslations("App.Calendar");
   const router = useRouter();
+  const reportRunChangeFailure = useReportRunChangeFailure();
   const inputId = useId();
   const [value, setValue] = useState(() =>
     utcToDateTimeLocalInTimezone(item.scheduledAt, timeZone),
@@ -67,20 +59,13 @@ export function RunMoveDialog({ item, timeZone, onClose }: RunMoveDialogProps) {
     setIsPending(true);
     setError(null);
     try {
-      const result = await changeTaskScheduleRun({
-        scheduleId: item.scheduleId,
-        runId: item.id,
-        expectedRevision: item.scheduleRevision,
-        action: "move",
-        scheduledAt,
-      });
+      const result = await changeRun(item, { action: "move", scheduledAt });
       if (!result.ok) {
         // The Run this dialog holds is out of date: start over from the
         // refreshed Calendar.
         if (result.error.kind === "stale") {
-          toast.error(t("event.runStale"), { duration: Infinity });
+          reportRunChangeFailure("stale");
           onClose();
-          router.refresh();
           return;
         }
         setError(t(runChangeErrorKey(result.error.kind)));

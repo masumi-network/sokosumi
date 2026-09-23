@@ -11,9 +11,11 @@ import { requireCoworkerCapability } from "@/helpers/access-control";
 import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { badRequest, notFound } from "@/helpers/error";
 import { CALENDAR_OCCURRENCE_HORIZON_MS } from "@/helpers/task-schedule-occurrence-index";
-import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import {
-  buildCoworkerAssigneeAccessWhere,
+  buildHumanTaskVisibilityWhere,
+  buildSokoBotOwnerTaskVisibilityWhere,
+} from "@/helpers/task-visibility";
+import {
   buildCoworkerTaskListAccessFilter,
   hasGrantedWorkspaceAccess,
 } from "@/helpers/vendor-grants";
@@ -23,6 +25,11 @@ import {
   workspaceCalendarItemSchema,
   workspaceCalendarQuerySchema,
 } from "@/schemas/workspace-calendar.schema";
+import {
+  canWriteTaskSchedule,
+  type TaskScheduleReader,
+  taskScheduleVisibilityWhere,
+} from "@/services/task-schedule.service";
 
 interface CalendarCursor {
   id: string;
@@ -42,11 +49,12 @@ export interface WorkspaceCalendarReadQuery {
 }
 
 /**
- * What the caller may read: the Task Schedules whose planned Runs it sees,
- * and the Tasks that released Runs created.
+ * What the caller may read: the Tasks that released Runs created, and, as
+ * `scheduleReader`, whose Task Schedules' planned Runs it sees and changes
+ * (by the Task Schedule rules). A null reader sees no planned Runs.
  */
 export interface CalendarAccessWhere {
-  schedule: Prisma.TaskScheduleWhereInput;
+  scheduleReader: TaskScheduleReader | null;
   task: Prisma.TaskWhereInput;
 }
 
@@ -60,27 +68,26 @@ export async function getCalendarAccessWhere(
   authContext: AuthenticationContext,
   workspaceId: string,
 ): Promise<CalendarAccessWhere | undefined> {
+  // Soko Bots do not work with Task Schedules; they see the Tasks created.
   if (authContext.actor === "sokoBot") {
-    const ownerVisibility = buildHumanTaskVisibilityWhere(authContext.userId);
     return {
-      schedule: {
-        assigneeSokoBotId: authContext.sokoBotId,
-        AND: [ownerVisibility],
-      },
+      scheduleReader: null,
       task: {
         archivedAt: null,
         workspaceId,
         assigneeSokoBotId: authContext.sokoBotId,
         status: { not: TaskStatus.DRAFT },
-        AND: [ownerVisibility],
+        AND: [buildSokoBotOwnerTaskVisibilityWhere(authContext.userId)],
       },
     };
   }
 
   if (authContext.actor !== "coworker") {
     if (authContext.actor === "user") {
-      const visibility = buildHumanTaskVisibilityWhere(authContext.userId);
-      return { schedule: visibility, task: visibility };
+      return {
+        scheduleReader: { kind: "user", userId: authContext.userId },
+        task: buildHumanTaskVisibilityWhere(authContext.userId),
+      };
     }
     return undefined;
   }
@@ -92,15 +99,26 @@ export async function getCalendarAccessWhere(
         workspaceId,
       })
     : false;
-  const params = {
-    coworkerId: authContext.coworkerId,
-    vendorId: authContext.vendorId,
-    hasWorkspaceGrant,
-  };
 
   return {
-    schedule: buildCoworkerAssigneeAccessWhere(params),
-    task: { archivedAt: null, ...buildCoworkerTaskListAccessFilter(params) },
+    // A Coworker reads Task Schedules only with a GRANTED workspace grant.
+    scheduleReader:
+      hasWorkspaceGrant && authContext.context
+        ? {
+            kind: "coworker",
+            coworkerId: authContext.coworkerId,
+            vendorId: authContext.vendorId,
+            userId: authContext.context.userId,
+          }
+        : null,
+    task: {
+      archivedAt: null,
+      ...buildCoworkerTaskListAccessFilter({
+        coworkerId: authContext.coworkerId,
+        vendorId: authContext.vendorId,
+        hasWorkspaceGrant,
+      }),
+    },
   };
 }
 
@@ -221,9 +239,10 @@ export async function readWorkspaceCalendar(
     ...(query.assigneeUserId ? { assigneeUserId: query.assigneeUserId } : {}),
   };
   const hasAssigneeFilter = Object.keys(assigneeFilter).length > 0;
+  const scheduleReader = options.access?.scheduleReader;
   const scheduleFilters: Prisma.TaskScheduleWhereInput[] = [
     { state: TaskScheduleState.ACTIVE },
-    ...(options.access ? [options.access.schedule] : []),
+    ...(scheduleReader ? [taskScheduleVisibilityWhere(scheduleReader)] : []),
     ...(hasAssigneeFilter ? [assigneeFilter] : []),
   ];
   const taskFilters: Prisma.TaskWhereInput[] = [
@@ -239,9 +258,10 @@ export async function readWorkspaceCalendar(
       : []),
   ];
   // A planned Run has no Task yet, so it has no status to match.
+  const showsPlannedRuns = !query.status && scheduleReader !== null;
   const runVisibility: Prisma.TaskScheduleOccurrenceWhereInput = {
     OR: [
-      ...(query.status
+      ...(!showsPlannedRuns
         ? []
         : [
             {
@@ -313,8 +333,10 @@ export async function readWorkspaceCalendar(
             ownerId: true,
             state: true,
             revision: true,
+            creatorCoworkerId: true,
             assigneeId: true,
             assigneeUserId: true,
+            assignee: { select: { vendorId: true } },
           },
         },
         releasedTask: {
@@ -349,8 +371,9 @@ export async function readWorkspaceCalendar(
         canChangeRun:
           run.state === TaskScheduleOccurrenceState.PLANNED &&
           schedule.state === TaskScheduleState.ACTIVE &&
-          schedule.ownerId === userId &&
-          run.effectiveScheduledAt > now,
+          run.effectiveScheduledAt > now &&
+          scheduleReader != null &&
+          canWriteTaskSchedule(scheduleReader, schedule),
         taskId: task?.id ?? null,
         taskName: blueprint.name,
         taskStatus: task?.status ?? null,

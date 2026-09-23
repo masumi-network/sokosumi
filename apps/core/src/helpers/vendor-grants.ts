@@ -609,24 +609,13 @@ export async function cancelParkedTasksForGrant(
   return canceledCount;
 }
 
-/**
- * Which Tasks or Task Schedules a Coworker reads by their assignee. Without a
- * workspace grant only its own and its vendor family's. GRANTED opens public
- * ones in the workspace, but not other members' private ones (SOK-1046):
- * private stays on the baseline vendor-family seam.
- */
-export function buildCoworkerAssigneeAccessWhere(params: {
+export function buildCoworkerTaskListAccessFilter(params: {
   coworkerId: string;
   vendorId: string;
   hasWorkspaceGrant: boolean;
-}): Prisma.TaskWhereInput & Prisma.TaskScheduleWhereInput {
-  if (params.hasWorkspaceGrant) {
-    return buildCoworkerPrivateTaskVisibilityWhere({
-      coworkerId: params.coworkerId,
-      vendorId: params.vendorId,
-    });
-  }
-  return {
+}): Prisma.TaskWhereInput {
+  const baseline: Prisma.TaskWhereInput = {
+    status: { not: TaskStatus.DRAFT },
     OR: [
       { assigneeId: params.coworkerId },
       {
@@ -635,16 +624,19 @@ export function buildCoworkerAssigneeAccessWhere(params: {
       },
     ],
   };
-}
 
-export function buildCoworkerTaskListAccessFilter(params: {
-  coworkerId: string;
-  vendorId: string;
-  hasWorkspaceGrant: boolean;
-}): Prisma.TaskWhereInput {
+  if (!params.hasWorkspaceGrant) {
+    return baseline;
+  }
+
+  // GRANTED opens public non-draft workspace Tasks, but not other members'
+  // private Tasks (SOK-1046). Private stays on the baseline vendor-family seam.
   return {
     status: { not: TaskStatus.DRAFT },
-    ...buildCoworkerAssigneeAccessWhere(params),
+    ...buildCoworkerPrivateTaskVisibilityWhere({
+      coworkerId: params.coworkerId,
+      vendorId: params.vendorId,
+    }),
   };
 }
 

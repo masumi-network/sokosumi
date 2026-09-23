@@ -69,13 +69,11 @@ import { useLoadWhenVisible } from "@/hooks/use-load-when-visible";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { CalendarRealtimeBridge } from "@/lib/ably/calendar-realtime-bridge";
-import { changeTaskScheduleRun } from "@/lib/actions/task-schedule/action";
 import { coreClient } from "@/lib/clients/core.browser.client";
 import {
   type TaskSchedule,
   TaskStatus,
   type TaskStatus as TaskStatusValue,
-  type UpdateTaskScheduleRunRequest,
   type WorkspaceCalendarItem,
   type WorkspaceCalendarSource,
 } from "@/lib/clients/generated/core";
@@ -88,7 +86,8 @@ import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import { schedulableOnceLocalIso } from "@/lib/utils/task-schedule";
 import { CalendarScheduleList } from "./calendar-schedule-list";
-import { RunMoveDialog, runChangeErrorKey } from "./run-move-dialog";
+import { changeRun, useReportRunChangeFailure } from "./run-change";
+import { RunMoveDialog } from "./run-move-dialog";
 import { SourceMarker } from "./source-marker";
 
 const CALENDAR_VIEWS = ["month", "week", "agenda", "schedules"] as const;
@@ -235,23 +234,6 @@ function isMovedRun(item: WorkspaceCalendarItem): boolean {
     item.originalScheduledAt !== null &&
     item.originalScheduledAt.getTime() !== item.scheduledAt.getTime()
   );
-}
-
-type RunChange =
-  | { action: "skip" | "restore" }
-  | { action: "move"; scheduledAt: Date };
-
-/** Sends one Run change with the schedule revision the Calendar read. */
-function changeRun(item: WorkspaceCalendarItem, change: RunChange) {
-  const request: UpdateTaskScheduleRunRequest = {
-    expectedRevision: item.scheduleRevision,
-    ...change,
-  };
-  return changeTaskScheduleRun({
-    scheduleId: item.scheduleId,
-    runId: item.id,
-    ...request,
-  });
 }
 
 interface RunHandlers {
@@ -451,6 +433,7 @@ function CalendarView({
   const router = useRouter();
   const formatDate = useFormatter().dateTime;
   const t = useTranslations("App.Calendar");
+  const reportRunChangeFailure = useReportRunChangeFailure();
   // Optimistic overlay for an in-flight drop: the event renders at the time it
   // was dropped at until Core confirms it or the rollback removes it.
   const [pendingMoves, setPendingMoves] = useState<Record<string, Date>>({});
@@ -482,13 +465,7 @@ function CalendarView({
       if (!result.ok) {
         clearPendingMove(item.id);
         info.revert();
-        // The schedule moved on under us, so the rendered events are stale too.
-        if (result.error.kind === "stale") {
-          router.refresh();
-        }
-        toast.error(t(runChangeErrorKey(result.error.kind)), {
-          duration: Infinity,
-        });
+        reportRunChangeFailure(result.error.kind);
         return;
       }
 
@@ -496,7 +473,7 @@ function CalendarView({
     } catch {
       clearPendingMove(item.id);
       info.revert();
-      toast.error(t("event.runError"), { duration: Infinity });
+      reportRunChangeFailure("failed");
     }
   }
 
@@ -873,6 +850,8 @@ export function WorkspaceCalendar({
     });
   }
 
+  const reportRunChangeFailure = useReportRunChangeFailure();
+
   async function handleRunChange(
     item: WorkspaceCalendarItem,
     change: { action: "skip" | "restore" },
@@ -880,17 +859,12 @@ export function WorkspaceCalendar({
     try {
       const result = await changeRun(item, change);
       if (!result.ok) {
-        toast.error(t(runChangeErrorKey(result.error.kind)), {
-          duration: Infinity,
-        });
-        if (result.error.kind === "stale") {
-          router.refresh();
-        }
+        reportRunChangeFailure(result.error.kind);
         return;
       }
       router.refresh();
     } catch {
-      toast.error(t("event.runError"), { duration: Infinity });
+      reportRunChangeFailure("failed");
     }
   }
 

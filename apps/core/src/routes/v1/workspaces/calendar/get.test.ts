@@ -23,11 +23,13 @@ const {
   coworkerFindFirstMock,
   memberFindFirstMock,
   projectFindFirstMock,
+  taskFindFirstMock,
   taskScheduleOccurrenceCountMock,
   taskScheduleOccurrenceFindManyMock,
   vendorGrantFindUniqueMock,
   resolveWorkspaceForContextMock,
 } = vi.hoisted(() => ({
+  taskFindFirstMock: vi.fn(),
   coworkerFindFirstMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
@@ -64,6 +66,7 @@ vi.mock("@/lib/db/prisma", () => ({
     coworker: { findFirst: coworkerFindFirstMock },
     member: { findFirst: memberFindFirstMock },
     project: { findFirst: projectFindFirstMock },
+    task: { findFirst: taskFindFirstMock },
     taskScheduleOccurrence: {
       count: taskScheduleOccurrenceCountMock,
       findMany: taskScheduleOccurrenceFindManyMock,
@@ -142,8 +145,10 @@ function createRun(overrides: Record<string, unknown> = {}) {
       ownerId: "user_123",
       state: TaskScheduleState.ACTIVE,
       revision: 4,
+      creatorCoworkerId: null,
       assigneeId: "coworker_123",
       assigneeUserId: null,
+      assignee: { vendorId: "vendor_123" },
       ...(scheduleOverride && typeof scheduleOverride === "object"
         ? scheduleOverride
         : {}),
@@ -160,6 +165,11 @@ const RELEASED_TASK = {
   status: TaskStatus.COMPLETED,
   assigneeId: "coworker_456",
   assigneeUserId: null,
+};
+
+const USER_ACCESS = {
+  scheduleReader: { kind: "user" as const, userId: "user_123" },
+  task: {},
 };
 
 const QUERY = {
@@ -201,6 +211,7 @@ describe("GET /workspaces/calendar", () => {
     resolveWorkspaceForContextMock.mockResolvedValue({ id: WORKSPACE_ID });
     taskScheduleOccurrenceCountMock.mockResolvedValue(0);
     taskScheduleOccurrenceFindManyMock.mockResolvedValue([]);
+    taskFindFirstMock.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -316,6 +327,7 @@ describe("GET /workspaces/calendar", () => {
       WORKSPACE_ID,
       "user_123",
       QUERY,
+      { access: USER_ACCESS },
     );
 
     expect(items).toEqual([
@@ -339,6 +351,7 @@ describe("GET /workspaces/calendar", () => {
       WORKSPACE_ID,
       "user_123",
       QUERY,
+      { access: USER_ACCESS },
     );
 
     expect(items).toEqual([
@@ -370,6 +383,7 @@ describe("GET /workspaces/calendar", () => {
       WORKSPACE_ID,
       "user_123",
       QUERY,
+      { access: USER_ACCESS },
     );
 
     expect(items).toEqual([expect.objectContaining({ canChangeRun: false })]);
@@ -431,7 +445,7 @@ describe("GET /workspaces/calendar", () => {
     ]);
   });
 
-  it("limits a delegated coworker to schedules and Tasks it can read", async () => {
+  it("shows a granted coworker the schedules the Task Schedule API lets it read", async () => {
     vendorGrantFindUniqueMock.mockResolvedValue({
       id: "grant_123",
       status: VendorGrantStatus.GRANTED,
@@ -459,7 +473,10 @@ describe("GET /workspaces/calendar", () => {
             state: TaskScheduleOccurrenceState.PLANNED,
             schedule: {
               is: {
-                AND: [{ state: TaskScheduleState.ACTIVE }, coworkerVisibility],
+                AND: [
+                  { state: TaskScheduleState.ACTIVE },
+                  { AND: [HUMAN_VISIBILITY, coworkerVisibility] },
+                ],
               },
             },
           },
@@ -481,6 +498,58 @@ describe("GET /workspaces/calendar", () => {
         ],
       },
     ]);
+  });
+
+  it("shows a coworker without a workspace grant no planned Runs", async () => {
+    // The Coworker is bound to the member by a Task assigned to it.
+    taskFindFirstMock.mockResolvedValue({ id: "tsk_assigned" });
+    const response = await requestCalendar(createApp(COWORKER_AUTH_CONTEXT));
+
+    expect(response.status).toBe(200);
+    expect(lastRunWhere().AND).toEqual([
+      {
+        OR: [
+          expect.objectContaining({
+            state: TaskScheduleOccurrenceState.RELEASED,
+          }),
+        ],
+      },
+    ]);
+  });
+
+  it("lets a coworker change only Runs of schedules in its vendor family", async () => {
+    const reader = {
+      kind: "coworker" as const,
+      coworkerId: "coworker_123",
+      vendorId: "vendor_123",
+      userId: "user_123",
+    };
+    taskScheduleOccurrenceFindManyMock.mockResolvedValue([
+      createRun({
+        schedule: {
+          creatorCoworkerId: null,
+          assigneeId: "coworker_999",
+          assignee: { vendorId: "vendor_other" },
+        },
+      }),
+      createRun({
+        id: "00000000-0000-7000-8000-000000000002",
+        schedule: {
+          creatorCoworkerId: null,
+          assigneeId: "coworker_456",
+          assignee: { vendorId: "vendor_123" },
+        },
+      }),
+    ]);
+
+    const { items } = await readWorkspaceCalendar(
+      WORKSPACE_ID,
+      "user_123",
+      QUERY,
+      { access: { scheduleReader: reader, task: {} } },
+    );
+
+    expect(items.map((item) => item.canChangeRun)).toEqual([false, true]);
   });
 
   it("rejects users outside the Calendar beta before reading calendar data", async () => {

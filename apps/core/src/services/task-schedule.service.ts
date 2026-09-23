@@ -82,15 +82,15 @@ import {
  * family.
  */
 
-type ScheduleActor =
-  | { kind: "user"; userId: string; workspace: WorkspaceContext }
-  | {
-      kind: "coworker";
-      coworkerId: string;
-      vendorId: string;
-      userId: string;
-      workspace: WorkspaceContext;
-    };
+/**
+ * Who reads or changes a schedule: a person, or a Coworker with a GRANTED
+ * workspace grant acting for the member `userId`.
+ */
+export type TaskScheduleReader =
+  | { kind: "user"; userId: string }
+  | { kind: "coworker"; coworkerId: string; vendorId: string; userId: string };
+
+type ScheduleActor = TaskScheduleReader & { workspace: WorkspaceContext };
 
 type RouteVars = EnvVariables["Variables"];
 
@@ -241,21 +241,27 @@ export async function createTaskSchedule(
   });
 }
 
-function readableWhere(actor: ScheduleActor): Prisma.TaskScheduleWhereInput {
-  if (actor.kind === "user") {
-    return {
-      workspaceId: actor.workspace.workspaceId,
-      ...buildHumanTaskVisibilityWhere(actor.userId),
-    };
+/** The schedules a reader sees, in any workspace it may read. */
+export function taskScheduleVisibilityWhere(
+  reader: TaskScheduleReader,
+): Prisma.TaskScheduleWhereInput {
+  if (reader.kind === "user") {
+    return buildHumanTaskVisibilityWhere(reader.userId);
   }
   // A private schedule stays with its owner: a Coworker sees one only while
   // acting for that owner, and then only on its vendor family, as for Tasks.
   return {
-    workspaceId: actor.workspace.workspaceId,
     AND: [
-      buildHumanTaskVisibilityWhere(actor.userId),
-      buildCoworkerPrivateTaskVisibilityWhere(actor),
+      buildHumanTaskVisibilityWhere(reader.userId),
+      buildCoworkerPrivateTaskVisibilityWhere(reader),
     ],
+  };
+}
+
+function readableWhere(actor: ScheduleActor): Prisma.TaskScheduleWhereInput {
+  return {
+    workspaceId: actor.workspace.workspaceId,
+    ...taskScheduleVisibilityWhere(actor),
   };
 }
 
@@ -348,35 +354,45 @@ export async function listTaskScheduleRuns(
   };
 }
 
+type WritableScheduleFields = Pick<
+  TaskSchedule,
+  "ownerId" | "creatorCoworkerId" | "assigneeId"
+> & {
+  assignee: { vendorId: string } | null;
+};
+
 /**
  * People change only the schedules they own, as they do Tasks. A Coworker
  * changes the acting member's schedules it created or whose assignee is in
  * its vendor family.
  */
+export function canWriteTaskSchedule(
+  writer: TaskScheduleReader,
+  schedule: WritableScheduleFields,
+): boolean {
+  if (schedule.ownerId !== writer.userId) {
+    return false;
+  }
+  return (
+    writer.kind === "user" ||
+    schedule.creatorCoworkerId === writer.coworkerId ||
+    schedule.assigneeId === writer.coworkerId ||
+    schedule.assignee?.vendorId === writer.vendorId
+  );
+}
+
 function requireScheduleWriteAccess(
   actor: ScheduleActor,
-  schedule: Pick<
-    TaskSchedule,
-    "ownerId" | "creatorCoworkerId" | "assigneeId"
-  > & {
-    assignee: { vendorId: string } | null;
-  },
+  schedule: WritableScheduleFields,
 ): void {
-  if (actor.kind === "user") {
-    if (schedule.ownerId !== actor.userId) {
-      throw forbidden("Only the owner can change this Task Schedule");
-    }
+  if (canWriteTaskSchedule(actor, schedule)) {
     return;
   }
-  const isVendorFamily =
-    schedule.creatorCoworkerId === actor.coworkerId ||
-    schedule.assigneeId === actor.coworkerId ||
-    schedule.assignee?.vendorId === actor.vendorId;
-  if (schedule.ownerId !== actor.userId || !isVendorFamily) {
-    throw forbidden(
-      "Coworkers can only change the acting member's Task Schedules they created or whose assignee is in their vendor family",
-    );
-  }
+  throw forbidden(
+    actor.kind === "user"
+      ? "Only the owner can change this Task Schedule"
+      : "Coworkers can only change the acting member's Task Schedules they created or whose assignee is in their vendor family",
+  );
 }
 
 function throwStateConflict(message: string): never {
