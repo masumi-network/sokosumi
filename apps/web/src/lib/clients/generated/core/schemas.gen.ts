@@ -20302,7 +20302,7 @@ export const TaskScheduleRunSchema = {
                 'CANCELED',
                 'RELEASED'
             ],
-            description: 'PLANNED (will create a Task), SKIPPED, RELEASED (created `releasedTaskId`), or CANCELED (dropped by a rule edit)',
+            description: 'PLANNED (will create a Task), SKIPPED, RELEASED (created `releasedTaskId`), or CANCELED (dropped by a rule edit or by ending the schedule, or a move whose time passed while the schedule was Paused)',
             example: 'PLANNED'
         },
         originalScheduledAt: {

@@ -5985,7 +5985,7 @@ export type TaskScheduleRuleReplacement = {
 export type TaskScheduleRun = {
     id: string;
     /**
-     * PLANNED (will create a Task), SKIPPED, RELEASED (created `releasedTaskId`), or CANCELED (dropped by a rule edit)
+     * PLANNED (will create a Task), SKIPPED, RELEASED (created `releasedTaskId`), or CANCELED (dropped by a rule edit or by ending the schedule, or a move whose time passed while the schedule was Paused)
      */
     state: 'PLANNED' | 'SKIPPED' | 'CANCELED' | 'RELEASED';
     /**

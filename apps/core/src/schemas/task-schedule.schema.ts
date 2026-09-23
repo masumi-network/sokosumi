@@ -413,7 +413,7 @@ export const taskScheduleRunSchema = z
     id: z.string().uuid(),
     state: z.enum(TaskScheduleOccurrenceState).openapi({
       description:
-        "PLANNED (will create a Task), SKIPPED, RELEASED (created `releasedTaskId`), or CANCELED (dropped by a rule edit)",
+        "PLANNED (will create a Task), SKIPPED, RELEASED (created `releasedTaskId`), or CANCELED (dropped by a rule edit or by ending the schedule, or a move whose time passed while the schedule was Paused)",
       example: TaskScheduleOccurrenceState.PLANNED,
     }),
     originalScheduledAt: dateTimeSchema.nullable().openapi({

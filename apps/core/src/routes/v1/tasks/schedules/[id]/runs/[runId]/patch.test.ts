@@ -581,6 +581,29 @@ describe("PATCH /tasks/schedules/{id}/runs/{runId}", () => {
       expect(runsOf(schedule.id)).toEqual([run]);
     });
 
+    it("a Run a release took between the read and the write", async () => {
+      const schedule = seedTaskSchedule({ nextRunAt: JAN_7 });
+      const run = seedRun(schedule, JAN_14);
+      vi.mocked(
+        taskScheduleTestPrisma.taskScheduleOccurrence.findFirst,
+      ).mockImplementationOnce(async () => {
+        taskScheduleTestDb.runs = taskScheduleTestDb.runs.map((row) =>
+          row.id === run.id
+            ? { ...row, state: "RELEASED", releasedTaskId: "task_released" }
+            : row,
+        );
+        return run;
+      });
+
+      const response = await send(schedule, run.id, { action: "skip" });
+
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({
+        kind: "schedule_run_state_conflict",
+      });
+      expect(storedSchedule(schedule.id)?.revision).toBe(0);
+    });
+
     it("a Run of another schedule", async () => {
       const schedule = seedTaskSchedule({ nextRunAt: JAN_7 });
       const other = seedTaskSchedule();

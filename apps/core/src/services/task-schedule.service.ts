@@ -671,18 +671,20 @@ export async function changeTaskScheduleRun(
       },
       data: { ...next, ...actorColumns(actor) },
     });
-    const { count: claimed } =
-      count === 1
-        ? await tx.taskSchedule.updateMany({
-            where: {
-              id,
-              state: TaskScheduleState.ACTIVE,
-              revision: input.expectedRevision,
-              releasedCount: current.releasedCount,
-            },
-            data: { revision: { increment: 1 } },
-          })
-        : { count: 0 };
+    if (count !== 1) {
+      throw conflict("This Run changed since it was read", {
+        kind: CORE_API_ERROR_KINDS.SCHEDULE_RUN_STATE_CONFLICT,
+      });
+    }
+    const { count: claimed } = await tx.taskSchedule.updateMany({
+      where: {
+        id,
+        state: TaskScheduleState.ACTIVE,
+        revision: input.expectedRevision,
+        releasedCount: current.releasedCount,
+      },
+      data: { revision: { increment: 1 } },
+    });
     if (claimed !== 1) {
       throw conflict("Task Schedule changed since it was read", {
         kind: CORE_API_ERROR_KINDS.CONCURRENCY_CONFLICT,
