@@ -99,7 +99,8 @@
       }
 
       /// Web marks a muted thread in the overview with a muted glyph labelled "Muted", between the preview
-      /// and the time. The marker is the only difference between the two renders, and it sits there.
+      /// and the time. The marker is the only difference between the two renders, and it sits there. The
+      /// muted thread is the read one, so it lists under Earlier, below the unread row (row 24d).
       @Test(arguments: [false, true])
       func theOverviewMarksOnlyTheMutedThread(dark: Bool) async throws {
         let muted = try await Self.overview(firstMuted: true, dark: dark, record: true)
@@ -109,7 +110,7 @@
         let scale = CGFloat(muted.pixelsWide) / 280
         let box = changed.reduce(CGRect.null) { $0.union(CGRect(x: $1.x, y: $1.y, width: 1, height: 1)) }
         #expect(box.minX > 140 * scale, "The marker sits on the trailing side, before the time: \(box).")
-        #expect(box.maxY < 110 * scale, "Only the first row changes: \(box).")
+        #expect(box.minY > 150 * scale, "Only the read row under Earlier changes: \(box).")
         #expect(box.width < 24 * scale && box.height < 24 * scale, "One caption-sized glyph: \(box).")
       }
 

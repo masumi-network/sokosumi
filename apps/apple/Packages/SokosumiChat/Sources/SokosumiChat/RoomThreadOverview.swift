@@ -18,6 +18,11 @@ public final class RoomThreadOverview: ObservableObject {
 
   public init() {}
 
+  /// The loaded threads under Unread and Earlier.
+  public var groups: RoomThreadOverviewGroups {
+    RoomThreadOverviewGroups(threads: items)
+  }
+
   public func reset() {
     generation += 1
     countGeneration += 1
