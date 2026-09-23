@@ -101,6 +101,37 @@ describe("POST /tasks/schedules/{id}/resume", () => {
     }
   });
 
+  it("keeps a skipped Occurrence skipped and plans the ones around it", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2030-01-01T00:00:00.000Z"));
+    try {
+      const schedule = seedTaskSchedule({
+        state: "PAUSED",
+        nextOccurrenceAt: null,
+      });
+      const skipped = seedOccurrence(
+        schedule,
+        new Date("2030-01-14T09:00:00.000Z"),
+        { state: "SKIPPED" },
+      );
+
+      await send(schedule.id);
+
+      const [first, second, third] = occurrencesOf(schedule.id);
+      expect(first).toMatchObject({
+        state: "PLANNED",
+        effectiveScheduledAt: new Date("2030-01-07T09:00:00.000Z"),
+      });
+      expect(second).toEqual(skipped);
+      expect(third).toMatchObject({
+        state: "PLANNED",
+        effectiveScheduledAt: new Date("2030-01-21T09:00:00.000Z"),
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("ends a schedule whose end date passed while it was paused", async () => {
     const schedule = seedTaskSchedule({
       state: "PAUSED",

@@ -1642,6 +1642,7 @@ model Coworker {
   createdTasks          Task[]                   @relation("TaskCreatorCoworker")
   assignedTaskSchedules TaskSchedule[]           @relation("TaskScheduleAssignee")
   createdTaskSchedules  TaskSchedule[]           @relation("TaskScheduleCreatorCoworker")
+  changedOccurrences    TaskScheduleOccurrence[] @relation("TaskScheduleOccurrenceActorCoworker")
   taskEvents            TaskEvent[]
   uploadedTaskFiles     TaskFile[]               @relation("TaskFileUploadedByCoworker")
   coworkerUsages        CoworkerUsage[]
@@ -2772,10 +2773,14 @@ model TaskScheduleOccurrence {
   sourceAccuracy    CalendarSourceAccuracy @default(EXACT)
   timeAccuracy      CalendarTimeAccuracy   @default(EXACT)
 
-  actorUserId  String?
-  actorUser    User?   @relation("TaskScheduleOccurrenceActor", fields: [actorUserId], references: [id], onDelete: SetNull)
-  timezone     String?
-  ruleSnapshot Json?
+  /// Who last skipped, moved, or restored this Occurrence: a person or a
+  /// Coworker vendor, at most one of them.
+  actorUserId     String?
+  actorUser       User?     @relation("TaskScheduleOccurrenceActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorCoworkerId String?
+  actorCoworker   Coworker? @relation("TaskScheduleOccurrenceActorCoworker", fields: [actorCoworkerId], references: [id], onDelete: SetNull)
+  timezone        String?
+  ruleSnapshot    Json?
 
   @@unique([seriesTaskId, epochId, originalScheduledAt], map: "task_schedule_occurrence_series_epoch_original_key")
   @@unique([scheduleId, epochId, originalScheduledAt], map: "task_schedule_occurrence_schedule_epoch_original_key")
@@ -2786,6 +2791,7 @@ model TaskScheduleOccurrence {
   @@index([sourceProjectId, effectiveScheduledAt, id], map: "task_schedule_occurrence_project_effective_id_idx")
   @@index([state, effectiveScheduledAt, id])
   @@index([actorUserId])
+  @@index([actorCoworkerId])
   @@map("task_schedule_occurrence")
 }
 

@@ -5982,6 +5982,67 @@ export type TaskScheduleRuleReplacement = {
     targetOccurrenceCount?: number | null;
 };
 
+export type ScheduleOccurrence = {
+    id: string;
+    /**
+     * PLANNED (will create a Task), SKIPPED, RELEASED (created `releasedTaskId`), or CANCELED (dropped by a rule edit)
+     */
+    state: 'PLANNED' | 'SKIPPED' | 'CANCELED' | 'RELEASED';
+    /**
+     * Time the rule planned
+     */
+    originalScheduledAt: Date | null;
+    /**
+     * Time the Occurrence holds; differs from the rule when moved
+     */
+    effectiveScheduledAt: Date;
+    /**
+     * Task this Occurrence created
+     */
+    releasedTaskId: string | null;
+    /**
+     * Person who last skipped, moved, or restored it
+     */
+    actorUserId: string | null;
+    /**
+     * Coworker that last skipped, moved, or restored it
+     */
+    actorCoworkerId: string | null;
+    updatedAt: Date;
+};
+
+export type ScheduleOccurrenceUpdate = {
+    /**
+     * Task Schedule revision after the change
+     */
+    revision: number;
+    occurrence: ScheduleOccurrence;
+};
+
+export type UpdateScheduleOccurrenceRequest = {
+    /**
+     * Task Schedule revision observed by the caller
+     */
+    expectedRevision: number;
+    action: 'skip';
+} | {
+    /**
+     * Task Schedule revision observed by the caller
+     */
+    expectedRevision: number;
+    action: 'move';
+    /**
+     * New time. Strictly future and inside the projection horizon.
+     */
+    scheduledAt: Date;
+} | {
+    /**
+     * Task Schedule revision observed by the caller
+     */
+    expectedRevision: number;
+    action: 'restore';
+};
+
 /**
  * Task context attachments. DESIGN.md, project briefing, and project memory are attached by default; explicit false values opt out.
  */
@@ -41558,6 +41619,247 @@ export type PostTasksSchedulesByIdEndResponses = {
 };
 
 export type PostTasksSchedulesByIdEndResponse = PostTasksSchedulesByIdEndResponses[keyof PostTasksSchedulesByIdEndResponses];
+
+export type GetTasksSchedulesByIdOccurrencesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        /**
+         * Only Occurrences at or after this time
+         */
+        from?: Date;
+        /**
+         * Only Occurrences before this time
+         */
+        to?: Date;
+    };
+    url: '/tasks/schedules/{id}/occurrences';
+};
+
+export type GetTasksSchedulesByIdOccurrencesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetTasksSchedulesByIdOccurrencesError = GetTasksSchedulesByIdOccurrencesErrors[keyof GetTasksSchedulesByIdOccurrencesErrors];
+
+export type GetTasksSchedulesByIdOccurrencesResponses = {
+    /**
+     * Occurrences
+     */
+    200: {
+        data: Array<ScheduleOccurrence>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTasksSchedulesByIdOccurrencesResponse = GetTasksSchedulesByIdOccurrencesResponses[keyof GetTasksSchedulesByIdOccurrencesResponses];
+
+export type PatchTasksSchedulesByIdOccurrencesByOccurrenceIdData = {
+    body?: UpdateScheduleOccurrenceRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+        occurrenceId: string;
+    };
+    query?: never;
+    url: '/tasks/schedules/{id}/occurrences/{occurrenceId}';
+};
+
+export type PatchTasksSchedulesByIdOccurrencesByOccurrenceIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchTasksSchedulesByIdOccurrencesByOccurrenceIdError = PatchTasksSchedulesByIdOccurrencesByOccurrenceIdErrors[keyof PatchTasksSchedulesByIdOccurrencesByOccurrenceIdErrors];
+
+export type PatchTasksSchedulesByIdOccurrencesByOccurrenceIdResponses = {
+    /**
+     * Occurrence changed
+     */
+    200: {
+        data: ScheduleOccurrenceUpdate;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchTasksSchedulesByIdOccurrencesByOccurrenceIdResponse = PatchTasksSchedulesByIdOccurrencesByOccurrenceIdResponses[keyof PatchTasksSchedulesByIdOccurrencesByOccurrenceIdResponses];
 
 export type PostTasksScheduledData = {
     body?: CreateScheduledTaskRequest;

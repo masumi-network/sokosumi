@@ -4,6 +4,7 @@ import {
   COWORKER_AUTH,
   COWORKER_ID,
   MEMBER_ID,
+  OWNER_ID,
   occurrencesOf,
   PROJECT_ID,
   resetTaskScheduleTestDb,
@@ -130,6 +131,34 @@ describe("PATCH /tasks/schedules/{id}", () => {
       expect(taskScheduleTestDb.tasks).toEqual(tasksBefore);
       expect(taskScheduleTestPrisma.task.update).not.toHaveBeenCalled();
       expect(taskScheduleTestPrisma.task.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("cancels the old rule's upcoming skipped and moved Occurrences and keeps them", async () => {
+      const { schedule } = seedRunningSchedule();
+      const skipped = seedOccurrence(
+        schedule,
+        new Date("2030-01-21T09:00:00.000Z"),
+        { state: "SKIPPED", actorUserId: OWNER_ID },
+      );
+      const moved = seedOccurrence(
+        schedule,
+        new Date("2030-01-28T09:00:00.000Z"),
+        { effectiveScheduledAt: new Date("2030-01-29T09:00:00.000Z") },
+      );
+
+      await patch(schedule.id, {
+        expectedRevision: 0,
+        rule: { expr: "0 7 * * 5", timezone: "UTC", endsMode: "NEVER" },
+      });
+
+      const rows = occurrencesOf(schedule.id);
+      expect(rows.find((row) => row.id === skipped.id)?.state).toBe("CANCELED");
+      expect(rows.find((row) => row.id === moved.id)?.state).toBe("CANCELED");
+      expect(
+        rows.filter(
+          (row) => row.state === "PLANNED" && row.epochId === schedule.epochId,
+        ),
+      ).toEqual([]);
     });
 
     it("keeps an Occurrence already owed under the old rule", async () => {

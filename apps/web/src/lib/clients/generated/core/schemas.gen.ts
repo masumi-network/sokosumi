@@ -20287,6 +20287,172 @@ export const TaskScheduleRuleReplacementSchema = {
     description: 'Replaces the whole rule; timezone and endsMode are required. Changes future Occurrences only; Tasks already created stay as they are.'
 } as const;
 
+export const ScheduleOccurrenceSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'PLANNED',
+                'SKIPPED',
+                'CANCELED',
+                'RELEASED'
+            ],
+            description: 'PLANNED (will create a Task), SKIPPED, RELEASED (created `releasedTaskId`), or CANCELED (dropped by a rule edit)',
+            example: 'PLANNED'
+        },
+        originalScheduledAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Time the rule planned'
+        },
+        effectiveScheduledAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Time the Occurrence holds; differs from the rule when moved'
+        },
+        releasedTaskId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Task this Occurrence created'
+        },
+        actorUserId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Person who last skipped, moved, or restored it'
+        },
+        actorCoworkerId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Coworker that last skipped, moved, or restored it'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'state',
+        'originalScheduledAt',
+        'effectiveScheduledAt',
+        'releasedTaskId',
+        'actorUserId',
+        'actorCoworkerId',
+        'updatedAt'
+    ]
+} as const;
+
+export const ScheduleOccurrenceUpdateSchema = {
+    type: 'object',
+    properties: {
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Task Schedule revision after the change',
+            example: 4
+        },
+        occurrence: {
+            $ref: '#/components/schemas/ScheduleOccurrence'
+        }
+    },
+    required: [
+        'revision',
+        'occurrence'
+    ]
+} as const;
+
+export const UpdateScheduleOccurrenceRequestSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                expectedRevision: {
+                    type: 'integer',
+                    minimum: 0,
+                    description: 'Task Schedule revision observed by the caller',
+                    example: 3
+                },
+                action: {
+                    type: 'string',
+                    enum: [
+                        'skip'
+                    ]
+                }
+            },
+            required: [
+                'expectedRevision',
+                'action'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                expectedRevision: {
+                    type: 'integer',
+                    minimum: 0,
+                    description: 'Task Schedule revision observed by the caller',
+                    example: 3
+                },
+                action: {
+                    type: 'string',
+                    enum: [
+                        'move'
+                    ]
+                },
+                scheduledAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2026-10-02T09:00:00.000Z',
+                    description: 'New time. Strictly future and inside the projection horizon.'
+                }
+            },
+            required: [
+                'expectedRevision',
+                'action',
+                'scheduledAt'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                expectedRevision: {
+                    type: 'integer',
+                    minimum: 0,
+                    description: 'Task Schedule revision observed by the caller',
+                    example: 3
+                },
+                action: {
+                    type: 'string',
+                    enum: [
+                        'restore'
+                    ]
+                }
+            },
+            required: [
+                'expectedRevision',
+                'action'
+            ]
+        }
+    ]
+} as const;
+
 export const CreateTaskContextSchema = {
     type: 'object',
     properties: {

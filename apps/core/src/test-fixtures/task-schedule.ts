@@ -181,6 +181,7 @@ export function seedOccurrence(
     sourceAccuracy: CalendarSourceAccuracy.EXACT,
     timeAccuracy: CalendarTimeAccuracy.EXACT,
     actorUserId: null,
+    actorCoworkerId: null,
     timezone: schedule.timezone,
     ruleSnapshot: null,
     ...overrides,
@@ -205,7 +206,11 @@ function matchesValue(actual: unknown, expected: unknown): boolean {
     return actual instanceof Date && actual.getTime() === expected.getTime();
   }
   if (expected !== null && typeof expected === "object") {
-    const filter = expected as Record<string, unknown>;
+    // Prisma ignores undefined operators; an empty filter matches any row.
+    const filter = Object.fromEntries(
+      Object.entries(expected).filter(([, value]) => value !== undefined),
+    );
+    if (Object.keys(filter).length === 0) return true;
     // SQL semantics: `col <> x` is never true for a NULL column.
     if ("not" in filter) {
       return actual != null && !matchesValue(actual, filter.not);
@@ -444,11 +449,43 @@ const taskScheduleOccurrence = {
       taskScheduleTestDb.occurrences.filter((row) => matchesRow(row, where))
         .length,
   ),
-  findMany: vi.fn(async ({ where, take }: { where: Where; take?: number }) =>
-    sortOccurrences(
-      taskScheduleTestDb.occurrences.filter((row) => matchesRow(row, where)),
-    ).slice(0, take),
+  /** Sorts by effective time, or latest rule time first when asked. */
+  findMany: vi.fn(
+    async ({
+      where,
+      take,
+      skip,
+      cursor,
+      orderBy,
+    }: {
+      where: Where;
+      take?: number;
+      skip?: number;
+      cursor?: { id: string };
+      orderBy?: Record<string, "asc" | "desc">[];
+    }) => {
+      let rows = sortOccurrences(
+        taskScheduleTestDb.occurrences.filter((row) => matchesRow(row, where)),
+      );
+      if (orderBy?.[0]?.originalScheduledAt === "desc") {
+        rows.sort(
+          (a, b) =>
+            (b.originalScheduledAt?.getTime() ?? 0) -
+            (a.originalScheduledAt?.getTime() ?? 0),
+        );
+      }
+      if (cursor) {
+        const index = rows.findIndex((row) => row.id === cursor.id);
+        rows = rows.slice(index + (skip ?? 0));
+      }
+      return rows.slice(0, take);
+    },
   ),
+  findUniqueOrThrow: vi.fn(async ({ where }: { where: { id: string } }) => {
+    const row = taskScheduleTestDb.occurrences.find((r) => r.id === where.id);
+    if (!row) throw new Error(`No TaskScheduleOccurrence ${where.id}`);
+    return row;
+  }),
   /** Sorts by effective time, or latest rule time first when asked. */
   findFirst: vi.fn(
     async ({
@@ -507,6 +544,7 @@ const taskScheduleOccurrence = {
           sourceAccuracy: CalendarSourceAccuracy.EXACT,
           timeAccuracy: CalendarTimeAccuracy.EXACT,
           actorUserId: null,
+          actorCoworkerId: null,
           timezone: null,
           ruleSnapshot: null,
           ...input,

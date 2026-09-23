@@ -85,7 +85,9 @@ export function computeNextOccurrence(
 /**
  * Rule times after `from` up to the horizon, at most `limit` of them, and the
  * first one even beyond the horizon when `includeFirst`. A dense rule is
- * capped instead of refused; the plan rolls forward on every release.
+ * capped instead of refused; the plan rolls forward on every release. Times
+ * in `held` already have an Occurrence (a skipped one, say) and are passed
+ * over without counting against an end-after-N rule.
  */
 function projectOccurrenceTimes(
   schedule: RuleState,
@@ -94,10 +96,12 @@ function projectOccurrenceTimes(
     horizonEnd,
     limit,
     includeFirst,
+    held,
   }: {
     horizonEnd: Date;
     limit: number;
     includeFirst: boolean;
+    held: ReadonlySet<number>;
   },
 ): Date[] {
   const times: Date[] = [];
@@ -107,7 +111,7 @@ function projectOccurrenceTimes(
     ((includeFirst && times.length === 0) || next < horizonEnd) &&
     times.length < limit
   ) {
-    times.push(next);
+    if (!held.has(next.getTime())) times.push(next);
     next = computeNextOccurrence(
       { ...schedule, releasedCount: schedule.releasedCount + times.length },
       next,
@@ -148,13 +152,29 @@ export async function projectTaskScheduleOccurrences(
     orderBy: [{ originalScheduledAt: "desc" }],
     select: { originalScheduledAt: true },
   });
+  const from = last?.originalScheduledAt ?? now;
+  // A skipped Occurrence keeps its rule time: it is not planned again, and it
+  // frees its place under an end-after-N rule.
+  const held = await tx.taskScheduleOccurrence.findMany({
+    where: {
+      scheduleId: schedule.id,
+      epochId: schedule.epochId,
+      originalScheduledAt: { gt: from },
+    },
+    select: { originalScheduledAt: true },
+  });
   const times = projectOccurrenceTimes(
     { ...schedule, releasedCount: schedule.releasedCount + plannedCount },
-    last?.originalScheduledAt ?? now,
+    from,
     {
       horizonEnd: new Date(now.getTime() + CALENDAR_OCCURRENCE_HORIZON_MS),
       limit: MAX_INDEXED_TASK_SCHEDULE_OCCURRENCES - plannedCount,
       includeFirst: last == null,
+      held: new Set(
+        held.flatMap((row) =>
+          row.originalScheduledAt ? [row.originalScheduledAt.getTime()] : [],
+        ),
+      ),
     },
   );
   if (times.length > 0) {
@@ -183,20 +203,98 @@ export async function projectTaskScheduleOccurrences(
   return next?.effectiveScheduledAt ?? null;
 }
 
-/**
- * Drops planned Occurrences, or only those after `after`, so a rule edit
- * still releases the ones already owed. Released ones and their Tasks stay.
- */
+/** Drops planned Occurrences. Released ones and their Tasks stay. */
 export async function removePlannedTaskScheduleOccurrences(
   tx: Prisma.TransactionClient,
   scheduleId: string,
-  after?: Date,
 ): Promise<void> {
   await tx.taskScheduleOccurrence.deleteMany({
+    where: { scheduleId, state: TaskScheduleOccurrenceState.PLANNED },
+  });
+}
+
+/**
+ * A rule edit drops the old rule's Occurrences after `now`; the ones already
+ * owed still release. A skipped or moved one was someone's decision, so it
+ * stays in the history as canceled instead.
+ */
+export async function retireUpcomingTaskScheduleOccurrences(
+  tx: Prisma.TransactionClient,
+  scheduleId: string,
+  now: Date,
+): Promise<void> {
+  const upcoming = await tx.taskScheduleOccurrence.findMany({
     where: {
       scheduleId,
+      state: {
+        in: [
+          TaskScheduleOccurrenceState.PLANNED,
+          TaskScheduleOccurrenceState.SKIPPED,
+        ],
+      },
+      effectiveScheduledAt: { gt: now },
+    },
+    select: {
+      id: true,
+      state: true,
+      originalScheduledAt: true,
+      effectiveScheduledAt: true,
+    },
+  });
+  const isException = (row: (typeof upcoming)[number]) =>
+    row.state === TaskScheduleOccurrenceState.SKIPPED ||
+    row.originalScheduledAt?.getTime() !== row.effectiveScheduledAt.getTime();
+  await tx.taskScheduleOccurrence.updateMany({
+    where: { id: { in: upcoming.filter(isException).map((row) => row.id) } },
+    data: { state: TaskScheduleOccurrenceState.CANCELED },
+  });
+  await tx.taskScheduleOccurrence.deleteMany({
+    where: {
+      id: {
+        in: upcoming.filter((row) => !isException(row)).map((row) => row.id),
+      },
+    },
+  });
+}
+
+/**
+ * Keeps an end-after-N plan at N once a restored Occurrence counts again: the
+ * Occurrences planned last, which took the skipped one's place, go. `keepId`
+ * is the restored one, which the person asked for.
+ */
+export async function trimPlannedTaskScheduleOccurrences(
+  tx: Prisma.TransactionClient,
+  schedule: Pick<
+    TaskSchedule,
+    "id" | "endsMode" | "targetOccurrenceCount" | "releasedCount"
+  >,
+  keepId: string,
+): Promise<void> {
+  if (
+    schedule.endsMode !== TaskScheduleEndsMode.AFTER ||
+    schedule.targetOccurrenceCount == null
+  ) {
+    return;
+  }
+  const planned = await tx.taskScheduleOccurrence.findMany({
+    where: {
+      scheduleId: schedule.id,
       state: TaskScheduleOccurrenceState.PLANNED,
-      ...(after ? { effectiveScheduledAt: { gt: after } } : {}),
+    },
+    orderBy: [{ originalScheduledAt: "desc" }],
+    select: { id: true },
+  });
+  const excess =
+    schedule.releasedCount + planned.length - schedule.targetOccurrenceCount;
+  if (excess <= 0) return;
+  await tx.taskScheduleOccurrence.deleteMany({
+    where: {
+      id: {
+        in: planned
+          .filter((row) => row.id !== keepId)
+          .slice(0, excess)
+          .map((row) => row.id),
+      },
     },
   });
 }

@@ -379,6 +379,66 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     });
   });
 
+  it("releases a moved Occurrence at its new time, not the rule's", async () => {
+    const TUESDAY_9 = new Date("2030-01-08T09:00:00.000Z");
+    const schedule = seedTaskSchedule({ nextOccurrenceAt: TUESDAY_9 });
+    const moved = seedOccurrence(schedule, MONDAY_9, {
+      effectiveScheduledAt: TUESDAY_9,
+    });
+
+    await release();
+    expect(taskScheduleTestDb.tasks).toHaveLength(0);
+
+    vi.setSystemTime(new Date("2030-01-08T09:30:00.000Z"));
+    await release();
+
+    expect(taskScheduleTestDb.tasks).toHaveLength(1);
+    expect(
+      occurrencesOf(schedule.id).find((row) => row.id === moved.id),
+    ).toMatchObject({
+      state: TaskScheduleOccurrenceState.RELEASED,
+      releasedTaskId: taskScheduleTestDb.tasks[0]?.id,
+    });
+  });
+
+  it("never releases a skipped Occurrence and moves on to the next one", async () => {
+    const schedule = seedTaskSchedule({ nextOccurrenceAt: MONDAY_9 });
+    const skipped = seedOccurrence(schedule, MONDAY_9, {
+      state: TaskScheduleOccurrenceState.SKIPPED,
+    });
+
+    await release();
+
+    expect(taskScheduleTestDb.tasks).toHaveLength(0);
+    expect(
+      occurrencesOf(schedule.id).find((row) => row.id === skipped.id)?.state,
+    ).toBe(TaskScheduleOccurrenceState.SKIPPED);
+    expect(taskScheduleTestDb.schedules[0]).toMatchObject({
+      state: TaskScheduleState.ACTIVE,
+      releasedCount: 0,
+      nextOccurrenceAt: NEXT_MONDAY_9,
+    });
+  });
+
+  it("Ends a schedule whose last Occurrence was skipped", async () => {
+    const schedule = seedTaskSchedule({
+      nextOccurrenceAt: MONDAY_9,
+      endsMode: TaskScheduleEndsMode.ON,
+      endsOn: new Date("2030-01-08T00:00:00.000Z"),
+    });
+    seedOccurrence(schedule, MONDAY_9, {
+      state: TaskScheduleOccurrenceState.SKIPPED,
+    });
+
+    await release();
+
+    expect(taskScheduleTestDb.tasks).toHaveLength(0);
+    expect(taskScheduleTestDb.schedules[0]).toMatchObject({
+      state: TaskScheduleState.ENDED,
+      nextOccurrenceAt: null,
+    });
+  });
+
   it("rolls back when the schedule is edited during the release", async () => {
     const schedule = seedTaskSchedule({ nextOccurrenceAt: MONDAY_9 });
     seedOccurrence(schedule, MONDAY_9);

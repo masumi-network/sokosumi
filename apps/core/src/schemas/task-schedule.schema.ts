@@ -1,5 +1,8 @@
 import { z } from "@hono/zod-openapi";
-import { TaskScheduleEndsMode } from "@sokosumi/database";
+import {
+  TaskScheduleEndsMode,
+  TaskScheduleOccurrenceState,
+} from "@sokosumi/database";
 
 import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime";
@@ -376,7 +379,110 @@ export const taskScheduleParamsSchema = z.object({
     }),
 });
 
+export const taskScheduleOccurrenceParamsSchema =
+  taskScheduleParamsSchema.extend({
+    occurrenceId: z
+      .string()
+      .uuid()
+      .openapi({
+        param: { name: "occurrenceId", in: "path" },
+        example: "01960001-0001-7001-8001-000000000043",
+      }),
+  });
+
+export const taskScheduleOccurrenceListQuerySchema =
+  cursorPaginationQuerySchema.extend({
+    from: dateTimeSchema.optional().openapi({
+      param: { name: "from", in: "query" },
+      description: "Only Occurrences at or after this time",
+      example: "2026-10-01T00:00:00.000Z",
+    }),
+    to: dateTimeSchema.optional().openapi({
+      param: { name: "to", in: "query" },
+      description: "Only Occurrences before this time",
+      example: "2026-11-01T00:00:00.000Z",
+    }),
+  });
+
+/**
+ * One Occurrence of a Task Schedule. Its exceptions live on the row itself:
+ * a skip is its state, a move is an effective time that differs from the
+ * rule's, and the actor columns say who made the latest change.
+ */
+export const scheduleOccurrenceSchema = z
+  .object({
+    id: z.string().uuid(),
+    state: z.enum(TaskScheduleOccurrenceState).openapi({
+      description:
+        "PLANNED (will create a Task), SKIPPED, RELEASED (created `releasedTaskId`), or CANCELED (dropped by a rule edit)",
+      example: TaskScheduleOccurrenceState.PLANNED,
+    }),
+    originalScheduledAt: dateTimeSchema.nullable().openapi({
+      description: "Time the rule planned",
+    }),
+    effectiveScheduledAt: dateTimeSchema.openapi({
+      description:
+        "Time the Occurrence holds; differs from the rule when moved",
+    }),
+    releasedTaskId: z.string().nullable().openapi({
+      description: "Task this Occurrence created",
+    }),
+    actorUserId: z.string().nullable().openapi({
+      description: "Person who last skipped, moved, or restored it",
+    }),
+    actorCoworkerId: z.string().nullable().openapi({
+      description: "Coworker that last skipped, moved, or restored it",
+    }),
+    updatedAt: dateTimeSchema,
+  })
+  .openapi("ScheduleOccurrence");
+
+const occurrenceChangePrecondition = {
+  expectedRevision: z.number().int().nonnegative().openapi({
+    description: "Task Schedule revision observed by the caller",
+    example: 3,
+  }),
+};
+
+export const updateScheduleOccurrenceRequestSchema = z
+  .discriminatedUnion("action", [
+    z.object({
+      ...occurrenceChangePrecondition,
+      action: z.literal("skip"),
+    }),
+    z.object({
+      ...occurrenceChangePrecondition,
+      action: z.literal("move"),
+      scheduledAt: dateTimeSchema.openapi({
+        description:
+          "New time. Strictly future and inside the projection horizon.",
+        example: "2026-10-02T09:00:00.000Z",
+      }),
+    }),
+    z.object({
+      ...occurrenceChangePrecondition,
+      action: z.literal("restore"),
+    }),
+  ])
+  .openapi("UpdateScheduleOccurrenceRequest");
+
+export const scheduleOccurrenceUpdateSchema = z
+  .object({
+    revision: z.number().int().nonnegative().openapi({
+      description: "Task Schedule revision after the change",
+      example: 4,
+    }),
+    occurrence: scheduleOccurrenceSchema,
+  })
+  .openapi("ScheduleOccurrenceUpdate");
+
 export type TaskScheduleRule = z.infer<typeof taskScheduleRuleSchema>;
+export type TaskScheduleOccurrenceListQuery = z.infer<
+  typeof taskScheduleOccurrenceListQuerySchema
+>;
+export type UpdateScheduleOccurrenceRequest = z.infer<
+  typeof updateScheduleOccurrenceRequestSchema
+>;
 export type CreateTaskScheduleRequest = z.infer<
   typeof createTaskScheduleRequestSchema
 >;
