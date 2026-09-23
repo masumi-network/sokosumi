@@ -151,7 +151,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }),
       );
     } catch (error) {
-      if (isSlugUniqueConstraintError(error)) {
+      const slugConflict = isSlugUniqueConstraintError(error);
+      const ownerLimitConflict = isCreatedByUserUniqueConstraintError(error);
+
+      if (slugConflict || ownerLimitConflict) {
         const racedSlugOwner = await prisma.vendor.findUnique({
           where: { slug: body.slug },
           include: {
@@ -170,11 +173,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             }),
           );
         }
+      }
+
+      if (slugConflict) {
         throw conflict(
           "Vendor slug already exists. Please choose a different slug.",
         );
       }
-      if (isCreatedByUserUniqueConstraintError(error)) {
+      if (ownerLimitConflict) {
         throw conflict(
           `You can create at most ${LIMITS.SELF_SERVICE_VENDOR_LIMIT_PER_USER} vendor. Use the vendor you already administer, or ask a platform admin to create another.`,
         );
