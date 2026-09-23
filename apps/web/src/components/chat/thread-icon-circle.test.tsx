@@ -23,6 +23,19 @@ describe("ThreadIconCircle", () => {
     expect(mark().className).toContain("text-muted-foreground");
   });
 
+  // The sidebar's tests read `data-mention` off the link, which a swapped icon
+  // would still pass, so the glyph itself is checked here.
+  it("draws the `@` for a mention and the thread bubble otherwise", () => {
+    const { rerender } = render(<ThreadIconCircle tone="attention" />);
+    expect(mark().querySelector("svg")).toHaveClass("lucide-message-square");
+
+    rerender(<ThreadIconCircle tone="attention" glyph="mention" />);
+    expect(mark().querySelector("svg")).toHaveClass("lucide-at-sign");
+    expect(mark().querySelector("svg")).not.toHaveClass(
+      "lucide-message-square",
+    );
+  });
+
   it("stays out of the accessibility tree, so the row's own text names it", () => {
     render(<ThreadIconCircle tone="attention" />);
     expect(mark()).toHaveAttribute("aria-hidden", "true");
