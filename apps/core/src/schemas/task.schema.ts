@@ -352,6 +352,11 @@ const taskBaseSchema = z.object({
     description: "Revision used for optimistic schedule mutations",
     example: 0,
   }),
+  runAt: dateTimeSchema.nullable().openapi({
+    description:
+      "The one time a Queued Task moves to Ready. Set only while the Task is Queued; it never repeats.",
+    example: "2026-06-24T09:00:00.000Z",
+  }),
   credits: z.number().openapi({ example: 5 }),
   events: z.array(taskEventSchema).openapi({ example: [] }),
   jobs: jobSummariesSchema.openapi({ example: [] }),

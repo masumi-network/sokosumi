@@ -1918,7 +1918,7 @@
         "removeAttachment": "Anhang entfernen",
         "createTask": "Task erstellen",
         "scheduleTask": "Task planen",
-        "openSchedule": "Zeitplan festlegen",
+        "openRunAt": "Startzeit festlegen",
         "cancel": "Abbrechen",
         "ctrl": "Strg",
         "defaultBadge": "Standard",
@@ -1971,7 +1971,7 @@
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Anhang entfernen",
         "save": "Speichern",
-        "openSchedule": "Zeitplan festlegen",
+        "openRunAt": "Startzeit festlegen",
         "cancel": "Abbrechen",
         "ctrl": "Strg",
         "unassigned": "Nicht zugewiesen",
@@ -1986,10 +1986,6 @@
           "discardDescription": "Wenn du eine neue Regel für die gesamte Serie speicherst, {count, plural, one {wird der verschobene oder übersprungene bevorstehende Lauf abgebrochen} other {werden die # verschobenen oder übersprungenen bevorstehenden Läufe abgebrochen}}. Bereits erfolgte Läufe bleiben erhalten.",
           "discardCancel": "Aktuellen Zeitplan behalten",
           "discardConfirm": "Speichern und verwerfen",
-          "removeTitle": "Diesen Zeitplan entfernen?",
-          "removeDescription": "Diese Aufgabe läuft dann nicht mehr nach einem Zeitplan. Bereits erfolgte Läufe bleiben erhalten, bevorstehende Läufe werden abgebrochen.",
-          "removeCancel": "Zeitplan behalten",
-          "removeConfirm": "Zeitplan entfernen",
           "revisionConflict": "Dieser Zeitplan wurde an anderer Stelle geändert. Lade die Aufgabe neu, öffne den Zeitplan erneut und wende deine Änderung noch einmal an.",
           "quarantined": "Dieser Zeitplan ist zur Reparatur pausiert und kann nicht geändert werden. Wende dich an den Support, um ihn wiederherzustellen.",
           "operationConflict": "Diese Speicherung wurde bereits mit anderen Angaben gesendet. Öffne den Zeitplan erneut und versuche es noch einmal.",
@@ -2051,9 +2047,6 @@
         },
         "save": "Save",
         "cancel": "Cancel",
-        "footer": {
-          "oneTimeAt": "Einmal am {datetime}"
-        },
         "card": {
           "overdue": "Überfällig",
           "dueInMinutes": "Fällig in {minutes, plural, one {# Minute} other {# Minuten}}",
@@ -2069,6 +2062,23 @@
           "selectAtLeastOneWeekday": "Select at least one weekday.",
           "endDateInPast": "End date cannot be in the past.",
           "invalidCron": "Enter a valid cron expression for the selected timezone."
+        }
+      },
+      "RunAt": {
+        "title": "Startzeit",
+        "description": "Der Task wartet bis zu diesem Zeitpunkt und wechselt dann zu Bereit.",
+        "label": "Starten am",
+        "apply": "Übernehmen",
+        "clear": "Entfernen",
+        "cancel": "Abbrechen",
+        "notInFuture": "Wähle einen Zeitpunkt in der Zukunft.",
+        "footer": "Startet {datetime}",
+        "badge": {
+          "overdue": "Startet gleich",
+          "inMinutes": "Startet in {minutes, plural, one {# Minute} other {# Minuten}}",
+          "inHours": "Startet in {hours, plural, one {# Stunde} other {# Stunden}}",
+          "tomorrowAt": "Startet morgen um {time}",
+          "at": "Startet {datetime}"
         }
       },
       "EmptyState": {

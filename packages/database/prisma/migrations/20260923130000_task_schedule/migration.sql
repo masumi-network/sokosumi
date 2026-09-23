@@ -85,6 +85,9 @@ CREATE INDEX "task_schedule_assigneeUserId_idx" ON "task_schedule"("assigneeUser
 CREATE INDEX "task_scheduleId_idx" ON "task"("scheduleId");
 
 -- CreateIndex
+CREATE INDEX "task_status_runAt_idx" ON "task"("status", "runAt");
+
+-- CreateIndex
 CREATE INDEX "task_schedule_occurrence_schedule_effective_id_idx" ON "task_schedule_occurrence"("scheduleId", "effectiveScheduledAt", "id");
 
 -- AddForeignKey

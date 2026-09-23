@@ -204,6 +204,17 @@ export function validateTaskAssigneeAssignment({
   }
 }
 
+/** A Run at must still be ahead; the release would flip a past one at once. */
+export function parseFutureRunAt(runAt: string, now = new Date()): Date {
+  const date = new Date(runAt);
+  if (date <= now) {
+    throw unprocessableEntity("Run at must be in the future", {
+      kind: CORE_API_ERROR_KINDS.RUN_AT_NOT_IN_FUTURE,
+    });
+  }
+  return date;
+}
+
 /** Queued means waiting on a schedule — reject status writes that invent Queued without one. */
 export function validateQueuedRequiresSchedule({
   status,
@@ -504,6 +515,7 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     metadata: task.metadata ?? null,
     nextRunAt: task.nextRunAt ?? null,
     scheduleRevision: task.scheduleRevision ?? 0,
+    runAt: task.runAt ?? null,
     workspace: mapWorkspaceSummary(task.workspace),
   };
 }

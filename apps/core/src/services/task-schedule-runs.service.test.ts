@@ -19,7 +19,9 @@ import {
   runsOf,
   SOKO_BOT_ID,
   seedRun,
+  seedTask,
   seedTaskSchedule,
+  seedTaskUpdate,
   taskScheduleTestDb,
   taskScheduleTestPrisma,
 } from "@/test-fixtures/task-schedule";
@@ -564,5 +566,106 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     expect(taskScheduleTestDb.tasks.map((task) => task.scheduleId)).toEqual([
       healthy.id,
     ]);
+  });
+});
+
+describe("taskScheduleReleaseService.releaseDueRunAts", () => {
+  function releaseRunAts() {
+    return taskScheduleReleaseService.releaseDueRunAts({
+      abortSignal: new AbortController().signal,
+      deadlineMs: Number.POSITIVE_INFINITY,
+      shouldContinue: () => true,
+    });
+  }
+
+  beforeEach(() => {
+    resetTaskScheduleTestDb();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(NOW);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("moves a Queued Task to Ready once its Run at has passed", async () => {
+    const task = seedTask({ status: TaskStatus.QUEUED, runAt: MONDAY_9 });
+
+    const result = await releaseRunAts();
+
+    expect(result).toMatchObject({ released: 1, failed: 0 });
+    expect(taskScheduleTestDb.tasks[0]).toMatchObject({
+      id: task.id,
+      status: TaskStatus.READY,
+      runAt: null,
+    });
+    expect(taskScheduleTestDb.tasks[0]?.events).toEqual([
+      expect.objectContaining({
+        taskId: task.id,
+        status: TaskStatus.READY,
+        userId: OWNER_ID,
+      }),
+    ]);
+    expect(taskScheduleTestDb.runs).toHaveLength(0);
+  });
+
+  it("leaves a Task whose Run at is still ahead in Queued", async () => {
+    seedTask({ status: TaskStatus.QUEUED, runAt: NEXT_MONDAY_9 });
+
+    await releaseRunAts();
+
+    expect(taskScheduleTestDb.tasks[0]).toMatchObject({
+      status: TaskStatus.QUEUED,
+      runAt: NEXT_MONDAY_9,
+      events: [],
+    });
+  });
+
+  it("does nothing when the release is retried", async () => {
+    seedTask({ status: TaskStatus.QUEUED, runAt: MONDAY_9 });
+
+    await releaseRunAts();
+    const retry = await releaseRunAts();
+
+    expect(retry).toMatchObject({ released: 0 });
+    expect(taskScheduleTestDb.tasks[0]?.events).toHaveLength(1);
+  });
+
+  it("skips archived Tasks and Tasks that left Queued", async () => {
+    seedTask({
+      status: TaskStatus.QUEUED,
+      runAt: MONDAY_9,
+      archivedAt: MONDAY_9,
+    });
+    seedTask({ status: TaskStatus.DRAFT, runAt: MONDAY_9 });
+
+    const result = await releaseRunAts();
+
+    expect(result).toMatchObject({ released: 0 });
+    expect(taskScheduleTestDb.tasks.map((task) => task.events)).toEqual([
+      [],
+      [],
+    ]);
+  });
+
+  it("does not write a Ready event when the Task changed meanwhile", async () => {
+    const task = seedTask({ status: TaskStatus.QUEUED, runAt: MONDAY_9 });
+    // Someone moves the Run at between the scan and the claim.
+    vi.mocked(taskScheduleTestPrisma.task.findMany).mockImplementationOnce(
+      async () => {
+        const rows = [{ ...task }];
+        seedTaskUpdate(task.id, { runAt: NEXT_MONDAY_9 });
+        return rows;
+      },
+    );
+
+    const result = await releaseRunAts();
+
+    expect(result).toMatchObject({ released: 0 });
+    expect(taskScheduleTestDb.tasks[0]).toMatchObject({
+      status: TaskStatus.QUEUED,
+      runAt: NEXT_MONDAY_9,
+      events: [],
+    });
   });
 });

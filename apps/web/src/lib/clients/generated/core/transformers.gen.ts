@@ -586,6 +586,9 @@ const taskSchemaResponseTransformer = (data: any) => {
     if (data.nextRunAt) {
         data.nextRunAt = new Date(data.nextRunAt);
     }
+    if (data.runAt) {
+        data.runAt = new Date(data.runAt);
+    }
     data.events = data.events.map((item: any) => taskEventSchemaResponseTransformer(item));
     data.jobs = data.jobs.map((item: any) => jobSummarySchemaResponseTransformer(item));
     if (data.share) {
@@ -2912,6 +2915,9 @@ const taskListItemSchemaResponseTransformer = (data: any) => {
     data.updatedAt = new Date(data.updatedAt);
     if (data.nextRunAt) {
         data.nextRunAt = new Date(data.nextRunAt);
+    }
+    if (data.runAt) {
+        data.runAt = new Date(data.runAt);
     }
     return data;
 };

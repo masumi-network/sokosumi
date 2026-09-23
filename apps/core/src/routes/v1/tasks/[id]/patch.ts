@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/database";
+import { Channel, TaskStatus } from "@sokosumi/database";
 import {
   CORE_API_ERROR_KINDS,
   hasActiveTaskSchedule,
@@ -17,6 +17,7 @@ import {
 } from "@/helpers/access-control";
 import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
+import { dateTimeSchema } from "@/helpers/datetime";
 import {
   conflict,
   forbidden,
@@ -26,7 +27,11 @@ import {
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { ok } from "@/helpers/response";
-import { mapTask, validateTaskAssigneeAssignment } from "@/helpers/task";
+import {
+  mapTask,
+  parseFutureRunAt,
+  validateTaskAssigneeAssignment,
+} from "@/helpers/task";
 import {
   nextAssigneeWrite,
   refineAssigneeXorConflict,
@@ -37,6 +42,7 @@ import {
   healProjectBriefingUrl,
   resolveTaskDescriptionWithContext,
 } from "@/helpers/task-create-context";
+import { resolveTaskEventActorFields } from "@/helpers/task-event-actor";
 import {
   markTaskAssignedRead,
   notifyTaskHumanAssignee,
@@ -86,6 +92,11 @@ export const patchTaskRequestSchema = z
       example: "01960001-0001-7001-8001-000000000099",
     }),
     assigneeUserId: z.string().nullish().openapi({ example: "user_123" }),
+    runAt: dateTimeSchema.nullish().openapi({
+      description:
+        "Future time the Task moves to Ready. Setting it puts the Task in QUEUED (requires a Coworker or Soko Bot assignee); null on a QUEUED Task clears it and moves the Task back to DRAFT.",
+      example: "2026-06-24T09:00:00.000Z",
+    }),
     /**
      * Required while the Task has an active Calendar schedule series: the
      * revision observed by the client, checked under the Calendar/Task locks.
@@ -110,12 +121,13 @@ export const patchTaskRequestSchema = z
       data.assigneeId === undefined &&
       data.coworkerId === undefined &&
       data.assigneeSokoBotId === undefined &&
-      data.assigneeUserId === undefined
+      data.assigneeUserId === undefined &&
+      data.runAt === undefined
     ) {
       ctx.addIssue({
         code: "custom",
         message:
-          "At least one of name, description, projectId, context, assigneeId, assigneeSokoBotId, or assigneeUserId is required",
+          "At least one of name, description, projectId, context, assigneeId, assigneeSokoBotId, assigneeUserId, or runAt is required",
         path: ["name"],
       });
     }
@@ -172,6 +184,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       assigneeId,
       assigneeSokoBotId,
       assigneeUserId,
+      runAt,
       expectedScheduleRevision,
     } = c.req.valid("json");
     const editsTaskFields =
@@ -253,6 +266,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
+      // Setting a Run at queues the Task; clearing it on a Queued Task sends
+      // it back to Draft, since Queued needs a Run at (ADR 0041).
+      let runAtWrite: Date | null | undefined;
+      let nextStatus = task.status;
+      if (runAt !== undefined) {
+        assertTaskScheduleInactive(
+          task,
+          "Remove the schedule before setting this Task's Run at",
+        );
+        runAtWrite = runAt === null ? null : parseFutureRunAt(runAt);
+        if (runAtWrite) {
+          nextStatus = TaskStatus.QUEUED;
+        } else if (task.status === TaskStatus.QUEUED) {
+          nextStatus = TaskStatus.DRAFT;
+        }
+      }
+
       const assigneeWrite = nextAssigneeWrite({
         assigneeId,
         assigneeSokoBotId,
@@ -268,7 +298,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ? assigneeWrite.assigneeUserId
         : task.assigneeUserId;
       validateTaskAssigneeAssignment({
-        status: task.status,
+        status: nextStatus,
         assigneeId: nextAssigneeId,
         assigneeSokoBotId: nextAssigneeSokoBotId,
         assigneeUserId: nextAssigneeUserId,
@@ -358,12 +388,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           description: nextDescription,
           projectId,
           ...(assigneeWrite ?? {}),
+          runAt: runAtWrite,
+          ...(nextStatus !== task.status ? { status: nextStatus } : {}),
           ...(hasActiveSeries && editsTaskFields
             ? { scheduleRevision: { increment: 1 } }
             : {}),
         },
         include: buildTaskIncludeForViewer(authContext, task.workspaceId),
       });
+      if (nextStatus !== task.status) {
+        await tx.taskEvent.create({
+          data: {
+            taskId: id,
+            status: nextStatus,
+            channel: Channel.SOKOSUMI,
+            ...resolveTaskEventActorFields(authContext),
+          },
+        });
+      }
       if (projectIdWasProvided) {
         await refreshTaskSchedulePlannedOccurrences(tx, {
           id: task.id,

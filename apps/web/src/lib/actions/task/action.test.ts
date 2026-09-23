@@ -40,10 +40,8 @@ const taskScheduleServiceMock = {
   removeCalendarSeries: vi.fn(),
   editCalendarSeries: vi.fn(),
   moveCalendarSeriesSource: vi.fn(),
-  setSchedule: vi.fn(),
   mutateOccurrence: vi.fn(),
 };
-const OPERATION_ID = "123e4567-e89b-42d3-a456-426614174000";
 const toCoreApiActionErrorMock = vi.fn();
 
 afterEach(() => {
@@ -141,7 +139,6 @@ describe("task link actions", () => {
     taskServiceMock.getTaskById.mockReset();
     taskScheduleServiceMock.removeCalendarSeries.mockReset();
     taskScheduleServiceMock.editCalendarSeries.mockReset();
-    taskScheduleServiceMock.setSchedule.mockReset();
     taskServiceMock.patchTask.mockResolvedValue({});
     taskServiceMock.createTaskEvent.mockResolvedValue({});
     toCoreApiActionErrorMock.mockReset();
@@ -670,47 +667,48 @@ describe("task link actions", () => {
     expect(taskServiceMock.deleteTask).toHaveBeenCalledWith("task-created");
   });
 
-  it("returns a client-upgrade result when related-task scheduling is gated", async () => {
+  it("creates a related Task at its Run at", async () => {
     taskServiceMock.createTask.mockResolvedValue(
-      buildTask({ status: TaskStatus.DRAFT }),
+      buildTask({ status: TaskStatus.QUEUED }),
     );
-    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
-    taskScheduleServiceMock.setSchedule.mockRejectedValue(
-      new CoreApiRequestError("Reload required", {
-        status: 426,
-        kind: "calendar_client_upgrade_required",
-      }),
-    );
+    taskServiceMock.listTaskLinks.mockResolvedValue([]);
+    taskServiceMock.createTaskLink.mockResolvedValue({ id: "link-new" });
     const { createTaskAndLink } = await import("./action");
 
     const result = await createTaskAndLink({
       taskId: "task-1",
-      description: "Related scheduled task",
-      assigneeId: null,
+      description: "Related queued task",
+      assigneeId: "coworker-1",
       assigneeSokoBotId: null,
       assigneeUserId: null,
-      status: TaskStatus.READY,
-      schedule: {
-        mode: "recurring",
-        timezone: "UTC",
-        cron: "0 9 * * *",
-      },
+      status: TaskStatus.QUEUED,
+      runAt: "2030-01-02T09:00:00.000Z",
       relation: TaskLinkRelation.RELATED,
     });
 
-    expect(result).toEqual({
-      ok: false,
-      error: { kind: "calendar_client_upgrade_required" },
-    });
-    expect(taskServiceMock.deleteTask).toHaveBeenCalledWith("task-created");
-    expect(taskServiceMock.createTaskLink).not.toHaveBeenCalled();
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        value: expect.objectContaining({ createdTaskId: "task-created" }),
+      }),
+    );
+    const createInput = taskServiceMock.createTask.mock.calls[0]?.[0];
+    expect(createInput).toEqual(
+      expect.objectContaining({
+        runAt: new Date("2030-01-02T09:00:00.000Z"),
+      }),
+    );
+    expect(createInput).not.toHaveProperty("status");
   });
 });
 
 describe("updateTask context", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    taskServiceMock.patchTask.mockResolvedValue({ id: "task-1" });
+    taskServiceMock.patchTask.mockResolvedValue({
+      id: "task-1",
+      status: TaskStatus.DRAFT,
+    });
     taskServiceMock.createTaskEvent.mockResolvedValue({});
   });
 
@@ -728,9 +726,7 @@ describe("updateTask context", () => {
         briefingEnabled: true,
         contextMdEnabled: false,
       },
-      currentStatus: TaskStatus.DRAFT,
       desiredStatus: TaskStatus.DRAFT,
-      schedule: { mode: "none", timezone: "UTC" },
     });
 
     expect(taskServiceMock.patchTask).toHaveBeenCalledWith(
@@ -759,9 +755,7 @@ describe("updateTask context", () => {
         briefingEnabled: false,
         contextMdEnabled: false,
       },
-      currentStatus: TaskStatus.DRAFT,
       desiredStatus: TaskStatus.DRAFT,
-      schedule: { mode: "none", timezone: "UTC" },
     });
 
     expect(taskServiceMock.patchTask).toHaveBeenCalledWith(
@@ -787,334 +781,118 @@ describe("updateTask context", () => {
           briefingEnabled: false,
           contextMdEnabled: false,
         },
-        currentStatus: TaskStatus.DRAFT,
         desiredStatus: TaskStatus.DRAFT,
-        schedule: { mode: "none", timezone: "UTC" },
       }),
     ).rejects.toThrow("Description required");
   });
 });
 
-describe("updateTask schedule status", () => {
-  const recurringSchedule = {
-    mode: "recurring" as const,
-    timezone: "UTC",
-    cron: "0 9 * * *",
-    oneTimeLocalIso: "2026-06-25T09:00",
+describe("updateTask Run at", () => {
+  const baseInput = {
+    taskId: "task-1",
+    name: "Task",
+    description: "Do work",
+    assigneeId: "coworker-1",
+    assigneeSokoBotId: null,
+    assigneeUserId: null,
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    taskServiceMock.patchTask.mockResolvedValue({});
     taskServiceMock.createTaskEvent.mockResolvedValue({});
-    taskScheduleServiceMock.removeCalendarSeries.mockReset();
-    taskScheduleServiceMock.editCalendarSeries.mockReset();
-    taskScheduleServiceMock.setSchedule.mockReset();
   });
 
-  it("does not re-queue after removing the series on a queued task", async () => {
+  it("queues the Task through the patch without a status event", async () => {
     taskServiceMock.patchTask.mockResolvedValue({
-      id: "task-1",
-      scheduleRevision: 5,
-    });
-    taskScheduleServiceMock.removeCalendarSeries.mockResolvedValue({
-      id: "task-1",
-      status: TaskStatus.DRAFT,
-      scheduleRevision: 6,
-    });
-
-    const { updateTask } = await import("./action");
-
-    await updateTask({
-      taskId: "task-1",
-      name: "Task",
-      description: "Do work",
-      assigneeId: "coworker-1",
-      assigneeSokoBotId: null,
-      assigneeUserId: null,
-      currentStatus: TaskStatus.QUEUED,
-      desiredStatus: TaskStatus.QUEUED,
-      hadSchedule: true,
-      expectedScheduleRevision: 4,
-      scheduleOperationId: OPERATION_ID,
-      originalSchedule: recurringSchedule,
-      schedule: { mode: "none", timezone: "UTC" },
-    });
-
-    expect(taskScheduleServiceMock.removeCalendarSeries).toHaveBeenCalledWith(
-      "task-1",
-      { operationId: OPERATION_ID, expectedScheduleRevision: 5 },
-    );
-    expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
-  });
-
-  it("sends the observed revision with an active-series field edit and the incremented one with the schedule write", async () => {
-    taskServiceMock.patchTask.mockResolvedValue({
-      id: "task-1",
-      scheduleRevision: 5,
-    });
-    taskScheduleServiceMock.editCalendarSeries.mockResolvedValue({
       id: "task-1",
       status: TaskStatus.QUEUED,
-      scheduleRevision: 6,
     });
-
     const { updateTask } = await import("./action");
 
     await updateTask({
-      taskId: "task-1",
-      name: "Renamed task",
-      description: "Do work",
-      assigneeId: "coworker-1",
-      assigneeSokoBotId: null,
-      assigneeUserId: null,
-      currentStatus: TaskStatus.QUEUED,
+      ...baseInput,
       desiredStatus: TaskStatus.QUEUED,
-      hadSchedule: true,
-      expectedScheduleRevision: 4,
-      scheduleOperationId: OPERATION_ID,
-      originalSchedule: recurringSchedule,
-      schedule: { ...recurringSchedule, cron: "0 10 * * *" },
+      runAt: "2030-01-02T09:00:00.000Z",
     });
 
     expect(taskServiceMock.patchTask).toHaveBeenCalledWith(
       "task-1",
       expect.objectContaining({
-        name: "Renamed task",
-        expectedScheduleRevision: 4,
+        runAt: new Date("2030-01-02T09:00:00.000Z"),
       }),
     );
-    expect(taskScheduleServiceMock.editCalendarSeries).toHaveBeenCalledWith(
-      "task-1",
-      { operationId: OPERATION_ID, expectedScheduleRevision: 5 },
-      expect.objectContaining({ expr: "0 10 * * *" }),
-    );
-    expect(taskScheduleServiceMock.setSchedule).not.toHaveBeenCalled();
+    expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
   });
 
-  it("refuses to invent a revision when Core reports none for a live series", async () => {
-    taskServiceMock.patchTask.mockResolvedValue({ id: "task-1" });
-
-    const { updateTask } = await import("./action");
-
-    await expect(
-      updateTask({
-        taskId: "task-1",
-        name: "Renamed task",
-        description: "Do work",
-        assigneeId: "coworker-1",
-        assigneeSokoBotId: null,
-        assigneeUserId: null,
-        currentStatus: TaskStatus.QUEUED,
-        desiredStatus: TaskStatus.QUEUED,
-        hadSchedule: true,
-        scheduleOperationId: OPERATION_ID,
-        originalSchedule: recurringSchedule,
-        schedule: { ...recurringSchedule, cron: "0 10 * * *" },
-      }),
-    ).rejects.toThrow();
-
-    expect(taskScheduleServiceMock.editCalendarSeries).not.toHaveBeenCalled();
-  });
-
-  it("maps a stale revision to an actionable conflict result instead of throwing", async () => {
-    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
-    taskServiceMock.patchTask.mockRejectedValue(
-      new CoreApiRequestError("The schedule series changed", {
-        status: 409,
-        kind: "schedule_revision_conflict",
-      }),
-    );
-
-    const { updateTask } = await import("./action");
-
-    const result = await updateTask({
-      taskId: "task-1",
-      name: "Renamed task",
-      description: "Do work",
-      assigneeId: "coworker-1",
-      assigneeSokoBotId: null,
-      assigneeUserId: null,
-      currentStatus: TaskStatus.QUEUED,
-      desiredStatus: TaskStatus.QUEUED,
-      hadSchedule: true,
-      expectedScheduleRevision: 4,
-      scheduleOperationId: OPERATION_ID,
-      originalSchedule: recurringSchedule,
-      schedule: recurringSchedule,
-    });
-
-    expect(result).toEqual({
-      ok: false,
-      error: { kind: "schedule_revision_conflict" },
-    });
-    expect(taskScheduleServiceMock.editCalendarSeries).not.toHaveBeenCalled();
-  });
-
-  it("reports a quarantined series as its own actionable kind", async () => {
+  it("sends no Run at when none is given", async () => {
     taskServiceMock.patchTask.mockResolvedValue({
       id: "task-1",
-      scheduleRevision: 5,
+      status: TaskStatus.QUEUED,
+    });
+    const { updateTask } = await import("./action");
+
+    await updateTask({ ...baseInput, desiredStatus: TaskStatus.QUEUED });
+
+    expect(taskServiceMock.patchTask.mock.calls[0]?.[1]).not.toHaveProperty(
+      "runAt",
+    );
+    expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
+  });
+
+  it("leaves Queued with a status event, which clears the Run at on Core", async () => {
+    taskServiceMock.patchTask.mockResolvedValue({
+      id: "task-1",
+      status: TaskStatus.QUEUED,
+    });
+    const { updateTask } = await import("./action");
+
+    await updateTask({ ...baseInput, desiredStatus: TaskStatus.READY });
+
+    expect(taskServiceMock.patchTask.mock.calls[0]?.[1]).not.toHaveProperty(
+      "runAt",
+    );
+    expect(taskServiceMock.createTaskEvent).toHaveBeenCalledWith("task-1", {
+      status: TaskStatus.READY,
+    });
+  });
+
+  it("applies a Draft to Ready move after the patch", async () => {
+    taskServiceMock.patchTask.mockResolvedValue({
+      id: "task-1",
+      status: TaskStatus.DRAFT,
+    });
+    const { updateTask } = await import("./action");
+
+    await updateTask({ ...baseInput, desiredStatus: TaskStatus.READY });
+
+    expect(taskServiceMock.createTaskEvent).toHaveBeenCalledWith("task-1", {
+      status: TaskStatus.READY,
+    });
+  });
+
+  it("maps a refused status move to its stable result kind", async () => {
+    taskServiceMock.patchTask.mockResolvedValue({
+      id: "task-1",
+      status: TaskStatus.DRAFT,
     });
     const { CoreApiRequestError } = await import("@/lib/clients/core.client");
-    taskScheduleServiceMock.editCalendarSeries.mockRejectedValue(
-      new CoreApiRequestError("This schedule is quarantined", {
-        status: 409,
-        kind: "schedule_quarantined",
+    taskServiceMock.createTaskEvent.mockRejectedValue(
+      new CoreApiRequestError("Status not selectable", {
+        status: 422,
+        kind: "status_not_selectable",
       }),
     );
-
     const { updateTask } = await import("./action");
 
     const result = await updateTask({
-      taskId: "task-1",
-      name: "Renamed task",
-      description: "Do work",
-      assigneeId: "coworker-1",
-      assigneeSokoBotId: null,
-      assigneeUserId: null,
-      currentStatus: TaskStatus.QUEUED,
-      desiredStatus: TaskStatus.QUEUED,
-      hadSchedule: true,
-      expectedScheduleRevision: 4,
-      scheduleOperationId: OPERATION_ID,
-      originalSchedule: recurringSchedule,
-      schedule: { ...recurringSchedule, cron: "0 10 * * *" },
-    });
-
-    expect(result).toEqual({
-      ok: false,
-      error: { kind: "schedule_quarantined" },
-    });
-  });
-
-  it("does not revert to draft after adding a schedule", async () => {
-    taskScheduleServiceMock.setSchedule.mockResolvedValue({
-      id: "task-1",
-      status: TaskStatus.QUEUED,
-    });
-
-    const { updateTask } = await import("./action");
-
-    await updateTask({
-      taskId: "task-1",
-      name: "Task",
-      description: "Do work",
-      assigneeId: "coworker-1",
-      assigneeSokoBotId: null,
-      assigneeUserId: null,
-      currentStatus: TaskStatus.DRAFT,
-      desiredStatus: TaskStatus.DRAFT,
-      hadSchedule: false,
-      originalSchedule: { mode: "none", timezone: "UTC" },
-      schedule: recurringSchedule,
-    });
-
-    expect(taskScheduleServiceMock.setSchedule).toHaveBeenCalled();
-    expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
-  });
-
-  it("does not force Queued when a human schedule lands Ready (save must succeed)", async () => {
-    taskScheduleServiceMock.setSchedule.mockResolvedValue({
-      id: "task-1",
-      status: TaskStatus.READY,
-    });
-
-    const { updateTask } = await import("./action");
-
-    await updateTask({
-      taskId: "task-1",
-      name: "Task",
-      description: "Do work",
-      assigneeId: null,
-      assigneeSokoBotId: null,
-      assigneeUserId: "user-1",
-      currentStatus: TaskStatus.READY,
-      desiredStatus: TaskStatus.QUEUED,
-      hadSchedule: false,
-      originalSchedule: { mode: "none", timezone: "UTC" },
-      schedule: recurringSchedule,
-    });
-
-    expect(taskScheduleServiceMock.setSchedule).toHaveBeenCalled();
-    expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
-  });
-
-  it("emits Queued after schedule when an agent requested Queued but schedule left Ready", async () => {
-    taskScheduleServiceMock.setSchedule.mockResolvedValue({
-      id: "task-1",
-      status: TaskStatus.READY,
-    });
-
-    const { updateTask } = await import("./action");
-
-    await updateTask({
-      taskId: "task-1",
-      name: "Task",
-      description: "Do work",
-      assigneeId: "coworker-1",
-      assigneeSokoBotId: null,
-      assigneeUserId: null,
-      currentStatus: TaskStatus.READY,
-      desiredStatus: TaskStatus.QUEUED,
-      hadSchedule: false,
-      originalSchedule: { mode: "none", timezone: "UTC" },
-      schedule: recurringSchedule,
-    });
-
-    expect(taskScheduleServiceMock.setSchedule).toHaveBeenCalled();
-    expect(taskServiceMock.createTaskEvent).toHaveBeenCalledWith("task-1", {
-      status: TaskStatus.QUEUED,
-    });
-  });
-
-  it("applies an explicit draft/ready toggle when the schedule is unchanged", async () => {
-    const { updateTask } = await import("./action");
-
-    await updateTask({
-      taskId: "task-1",
-      name: "Task",
-      description: "Do work",
-      assigneeId: "coworker-1",
-      assigneeSokoBotId: null,
-      assigneeUserId: null,
-      currentStatus: TaskStatus.DRAFT,
+      ...baseInput,
       desiredStatus: TaskStatus.READY,
-      hadSchedule: false,
-      schedule: { mode: "none", timezone: "UTC" },
     });
 
-    expect(taskServiceMock.createTaskEvent).toHaveBeenCalledWith("task-1", {
-      status: TaskStatus.READY,
+    expect(result).toEqual({
+      ok: false,
+      error: { kind: "status_not_selectable" },
     });
-  });
-
-  it("never removes an unchanged series just because the requested status differs", async () => {
-    taskServiceMock.patchTask.mockResolvedValue({
-      id: "task-1",
-      scheduleRevision: 5,
-    });
-
-    const { updateTask } = await import("./action");
-
-    await updateTask({
-      taskId: "task-1",
-      name: "Task",
-      description: "Do work",
-      assigneeId: "coworker-1",
-      assigneeSokoBotId: null,
-      assigneeUserId: null,
-      currentStatus: TaskStatus.QUEUED,
-      desiredStatus: TaskStatus.DRAFT,
-      hadSchedule: true,
-      expectedScheduleRevision: 4,
-      scheduleOperationId: OPERATION_ID,
-      originalSchedule: recurringSchedule,
-      schedule: recurringSchedule,
-    });
-
-    expect(taskScheduleServiceMock.removeCalendarSeries).not.toHaveBeenCalled();
-    expect(taskScheduleServiceMock.editCalendarSeries).not.toHaveBeenCalled();
   });
 });
 
@@ -1313,29 +1091,57 @@ describe("setTaskStatusFromDrag", () => {
   });
 });
 
-describe("createTask schedule", () => {
-  const recurringSchedule = {
-    mode: "recurring" as const,
-    timezone: "UTC",
-    cron: "0 9 * * *",
-    oneTimeLocalIso: "2026-06-25T09:00",
-  };
-
+describe("createTask Run at", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     taskServiceMock.createTask.mockReset();
     taskServiceMock.createTaskEvent.mockReset();
-    taskServiceMock.deleteTask.mockReset();
-    taskScheduleServiceMock.removeCalendarSeries.mockReset();
-    taskScheduleServiceMock.setSchedule.mockReset();
-    taskServiceMock.createTaskEvent.mockResolvedValue({});
+    taskServiceMock.createTask.mockResolvedValue(
+      buildTask({ status: TaskStatus.QUEUED }),
+    );
   });
 
-  it("does not apply a schedule when saving as draft", async () => {
-    taskServiceMock.createTask.mockResolvedValue(
-      buildTask({ status: TaskStatus.DRAFT }),
-    );
+  it("sends the Run at and lets Core queue the Task", async () => {
+    const { createTask } = await import("./action");
 
+    await createTask({
+      description: "Queued task",
+      assigneeId: "coworker-1",
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      status: TaskStatus.QUEUED,
+      runAt: "2030-01-02T09:00:00.000Z",
+    });
+
+    const createInput = taskServiceMock.createTask.mock.calls[0]?.[0];
+    expect(createInput).toEqual(
+      expect.objectContaining({
+        runAt: new Date("2030-01-02T09:00:00.000Z"),
+      }),
+    );
+    expect(createInput).not.toHaveProperty("status");
+    expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
+  });
+
+  it("creates a Queued request without a Run at as Ready", async () => {
+    const { createTask } = await import("./action");
+
+    await createTask({
+      description: "Queued task",
+      assigneeId: "coworker-1",
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      status: TaskStatus.QUEUED,
+    });
+
+    const createInput = taskServiceMock.createTask.mock.calls[0]?.[0];
+    expect(createInput).toEqual(
+      expect.objectContaining({ status: TaskStatus.READY }),
+    );
+    expect(createInput).not.toHaveProperty("runAt");
+  });
+
+  it("keeps a Draft create without a Run at", async () => {
     const { createTask } = await import("./action");
 
     await createTask({
@@ -1344,171 +1150,11 @@ describe("createTask schedule", () => {
       assigneeSokoBotId: null,
       assigneeUserId: null,
       status: TaskStatus.DRAFT,
-      schedule: recurringSchedule,
     });
 
-    expect(taskScheduleServiceMock.setSchedule).not.toHaveBeenCalled();
-    expect(taskScheduleServiceMock.removeCalendarSeries).not.toHaveBeenCalled();
-  });
-
-  it("applies a schedule when creating a ready task with a schedule", async () => {
-    taskServiceMock.createTask.mockResolvedValue(
-      buildTask({ status: TaskStatus.DRAFT }),
-    );
-    taskScheduleServiceMock.setSchedule.mockResolvedValue({
-      id: "task-created",
-      status: TaskStatus.QUEUED,
-    });
-
-    const { createTask } = await import("./action");
-
-    await createTask({
-      description: "Scheduled task",
-      assigneeId: null,
-      assigneeSokoBotId: null,
-      assigneeUserId: null,
-      status: TaskStatus.READY,
-      schedule: recurringSchedule,
-    });
-
-    expect(taskScheduleServiceMock.setSchedule).toHaveBeenCalled();
-  });
-
-  it("applies a schedule when creating a queued task with a schedule (SOK-1033)", async () => {
-    taskServiceMock.createTask.mockResolvedValue(
-      buildTask({ status: TaskStatus.DRAFT }),
-    );
-    taskScheduleServiceMock.setSchedule.mockResolvedValue({
-      id: "task-created",
-      status: TaskStatus.QUEUED,
-    });
-
-    const { createTask } = await import("./action");
-
-    await createTask({
-      description: "Queued scheduled task",
-      assigneeId: "coworker-1",
-      assigneeSokoBotId: null,
-      assigneeUserId: null,
-      status: TaskStatus.QUEUED,
-      schedule: recurringSchedule,
-    });
-
-    expect(taskServiceMock.createTask).toHaveBeenCalledWith(
+    expect(taskServiceMock.createTask.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({ status: TaskStatus.DRAFT }),
     );
-    expect(taskScheduleServiceMock.setSchedule).toHaveBeenCalled();
-    expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
-  });
-
-  it("saves a human Queued+schedule create without forcing a Queued event", async () => {
-    taskServiceMock.createTask.mockResolvedValue(
-      buildTask({ status: TaskStatus.DRAFT }),
-    );
-    taskScheduleServiceMock.setSchedule.mockResolvedValue({
-      id: "task-created",
-      status: TaskStatus.READY,
-    });
-
-    const { createTask } = await import("./action");
-
-    await createTask({
-      description: "Human scheduled queued task",
-      assigneeId: null,
-      assigneeSokoBotId: null,
-      assigneeUserId: "user-1",
-      status: TaskStatus.QUEUED,
-      schedule: recurringSchedule,
-    });
-
-    expect(taskScheduleServiceMock.setSchedule).toHaveBeenCalled();
-    expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
-    expect(taskServiceMock.deleteTask).not.toHaveBeenCalled();
-  });
-
-  it("emits Queued after create schedule when an agent requested Queued but schedule left Ready", async () => {
-    taskServiceMock.createTask.mockResolvedValue(
-      buildTask({ status: TaskStatus.DRAFT }),
-    );
-    taskScheduleServiceMock.setSchedule.mockResolvedValue({
-      id: "task-created",
-      status: TaskStatus.READY,
-    });
-
-    const { createTask } = await import("./action");
-
-    await createTask({
-      description: "Agent scheduled queued task",
-      assigneeId: "coworker-1",
-      assigneeSokoBotId: null,
-      assigneeUserId: null,
-      status: TaskStatus.QUEUED,
-      schedule: recurringSchedule,
-    });
-
-    expect(taskScheduleServiceMock.setSchedule).toHaveBeenCalled();
-    expect(taskServiceMock.createTaskEvent).toHaveBeenCalledWith(
-      "task-created",
-      { status: TaskStatus.QUEUED },
-    );
-  });
-
-  it("archives the created task when a post-schedule agent Queued event fails", async () => {
-    taskServiceMock.createTask.mockResolvedValue(
-      buildTask({ status: TaskStatus.DRAFT }),
-    );
-    taskScheduleServiceMock.setSchedule.mockResolvedValue({
-      id: "task-created",
-      status: TaskStatus.READY,
-    });
-    taskServiceMock.createTaskEvent.mockRejectedValue(
-      new Error("A schedule is required before moving a task to Queued"),
-    );
-
-    const { createTask } = await import("./action");
-
-    await expect(
-      createTask({
-        description: "Agent scheduled queued task",
-        assigneeId: "coworker-1",
-        assigneeSokoBotId: null,
-        assigneeUserId: null,
-        status: TaskStatus.QUEUED,
-        schedule: recurringSchedule,
-      }),
-    ).rejects.toThrow(/schedule is required|Failed to create/);
-
-    expect(taskServiceMock.deleteTask).toHaveBeenCalledWith("task-created");
-  });
-
-  it("returns a client-upgrade outcome for the exact Calendar 426 error", async () => {
-    taskServiceMock.createTask.mockResolvedValue(
-      buildTask({ status: TaskStatus.DRAFT }),
-    );
-    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
-    taskScheduleServiceMock.setSchedule.mockRejectedValue(
-      new CoreApiRequestError("Reload required", {
-        status: 426,
-        kind: "calendar_client_upgrade_required",
-      }),
-    );
-
-    const { createTask } = await import("./action");
-    const result = await createTask({
-      description: "Scheduled task",
-      assigneeId: null,
-      assigneeSokoBotId: null,
-      assigneeUserId: null,
-      status: TaskStatus.READY,
-      schedule: recurringSchedule,
-    });
-
-    expect(result).toEqual({
-      ok: false,
-      error: { kind: "calendar_client_upgrade_required" },
-    });
-    expect(taskServiceMock.deleteTask).toHaveBeenCalledWith("task-created");
-    expect(toCoreApiActionErrorMock).not.toHaveBeenCalled();
   });
 });
 
@@ -1525,7 +1171,6 @@ describe("Calendar schedule actions", () => {
     taskServiceMock.createScheduledTask.mockReset();
     taskScheduleServiceMock.removeCalendarSeries.mockReset();
     taskScheduleServiceMock.editCalendarSeries.mockReset();
-    taskScheduleServiceMock.setSchedule.mockReset();
   });
 
   it("creates a scheduled task with the caller operation and selected source", async () => {
@@ -1609,7 +1254,6 @@ describe("Calendar schedule actions", () => {
         endsMode: "never",
       },
     );
-    expect(taskScheduleServiceMock.setSchedule).not.toHaveBeenCalled();
     expect(result).toEqual({ ok: true, value: { taskId: "task-1" } });
     const { revalidatePath } = await import("next/cache");
     expect(revalidatePath).toHaveBeenCalledWith("/calendar");
@@ -1797,7 +1441,6 @@ describe("Calendar schedule actions", () => {
       }),
     ).rejects.toThrow("Invalid schedule");
     expect(taskServiceMock.createScheduledTask).not.toHaveBeenCalled();
-    expect(taskScheduleServiceMock.setSchedule).not.toHaveBeenCalled();
   });
 });
 

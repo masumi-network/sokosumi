@@ -170,7 +170,7 @@ returns the original Task without creating another occurrence ledger.
 | --- | --- | --- |
 | GET | `/v1/tasks` | With **GRANTED** grant, list all non-DRAFT tasks in workspace. `status=DRAFT` filter → **400**. |
 | GET | `/v1/tasks/{id}` | Baseline unchanged. Out-of-scope: upsert PENDING grant, **403** unless **GRANTED**. Same gate for task events, links, jobs list. |
-| POST | `/v1/tasks` | Delegated create flow above. |
+| POST | `/v1/tasks` | Delegated create flow above. Optional `runAt` (future time, Coworker or Soko Bot assignee required) creates the Task in `QUEUED`; Core moves it to `READY` at that time and clears `runAt`. `runAt` cannot park: while the grant is pending it answers **422**. |
 | POST | `/v1/tasks/scheduled` | Atomic v2 scheduled creation; no approval round-trip. Coworker needs an authorized user binding (**GRANTED** grant or baseline task) plus the `tasks` capability; Calendar beta / seat checks apply to that user; never parks work. |
 | POST | `/v1/tasks/{id}/events` | **`GRANT_PENDING`** → **403** `task_parked`. |
 | POST | `/v1/tasks/{id}/jobs` | Parent **`GRANT_PENDING`** → **403** `task_parked`. |

@@ -2543,6 +2543,7 @@ model Task {
   @@index([creatorSokoBotId])
   @@index([workspaceId, visibility])
   @@index([scheduleId])
+  @@index([status, runAt])
   @@map("task")
 }
 

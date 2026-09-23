@@ -170,6 +170,7 @@ export function mapTaskToTaskWithCoworker(
   const createdAt = task.createdAt.toISOString();
   const updatedAt = task.updatedAt.toISOString();
   const nextRunAt = task.nextRunAt?.toISOString() ?? null;
+  const runAt = task.runAt?.toISOString() ?? null;
 
   return {
     id: task.id,
@@ -182,6 +183,7 @@ export function mapTaskToTaskWithCoworker(
     createdAt,
     updatedAt,
     nextRunAt,
+    runAt,
     metadata: task.metadata ?? null,
     jobsCount: "jobsCount" in task ? task.jobsCount : task.jobs.length,
     assignee,

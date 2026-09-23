@@ -50,7 +50,7 @@ export async function applyGuardedTaskStatusUpdate(params: {
       ...getTaskStatusUpdateDataForEvent(params.eventStatus),
       ...(params.expectedStatus === TaskStatus.QUEUED &&
       params.eventStatus !== TaskStatus.QUEUED
-        ? { metadata: null, nextRunAt: null }
+        ? { metadata: null, nextRunAt: null, runAt: null }
         : {}),
     },
   });

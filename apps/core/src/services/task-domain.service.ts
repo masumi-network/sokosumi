@@ -69,6 +69,8 @@ export interface CreateTaskDomainInput {
     | typeof TaskStatus.DRAFT
     | typeof TaskStatus.QUEUED
     | typeof TaskStatus.READY;
+  /** Set together with QUEUED: the one time the Task moves to Ready. */
+  runAt?: Date | null;
   channel?: Channel;
   schedule?: {
     metadata: TaskScheduleMetadata;
@@ -358,6 +360,7 @@ export async function createTaskForActor(
       pendingVendorGrantId: pendingGrant?.pendingVendorGrantId ?? null,
       metadata: input.schedule ? JSON.stringify(input.schedule.metadata) : null,
       nextRunAt: input.schedule?.nextRunAt ?? null,
+      runAt: input.runAt ?? null,
       events: {
         create: {
           status,

@@ -8,7 +8,19 @@ import {
   formatScheduleTitle,
 } from "@/components/schedules/format";
 import { cn } from "@/lib/utils";
+import {
+  formatRunTimeLabel,
+  type RunTimeLabelKey,
+} from "@/lib/utils/run-time-label";
 import { getScheduleIcon } from "@/lib/utils/schedule-icon";
+
+const NEXT_RUN_LABEL_KEYS = {
+  overdue: "overdue",
+  inMinutes: "dueInMinutes",
+  inHours: "dueInHours",
+  tomorrowAt: "tomorrowAt",
+  at: "nextRunAt",
+} as const satisfies Record<RunTimeLabelKey, string>;
 
 interface TaskScheduleDisplayProps {
   metadata: string | null | undefined;
@@ -53,16 +65,8 @@ export function TaskScheduleDisplay({
     : null;
 
   const nextRunLabel = nextRunAt
-    ? formatNextRunLabel(nextRunAt, formatter, (key, values) =>
-        t(
-          key as
-            | "card.overdue"
-            | "card.dueInMinutes"
-            | "card.dueInHours"
-            | "card.tomorrowAt"
-            | "card.nextRunAt",
-          values as Record<string, string | number | Date>,
-        ),
+    ? formatRunTimeLabel(nextRunAt, formatter, (key, values) =>
+        t(`card.${NEXT_RUN_LABEL_KEYS[key]}`, values),
       )
     : null;
 
@@ -100,47 +104,4 @@ export function TaskScheduleDisplay({
       ) : null}
     </div>
   );
-}
-
-function formatNextRunLabel(
-  nextRunAt: Date,
-  formatter: ReturnType<typeof useFormatter>,
-  t: (key: string, values?: Record<string, unknown>) => string,
-): string {
-  const now = Date.now();
-  const diffMs = nextRunAt.getTime() - now;
-
-  if (diffMs <= 0) {
-    return t("card.overdue");
-  }
-
-  const oneHour = 60 * 60 * 1000;
-  const oneDay = 24 * oneHour;
-
-  if (diffMs < oneHour) {
-    const minutes = Math.max(1, Math.ceil(diffMs / (60 * 1000)));
-    return t("card.dueInMinutes", { minutes });
-  }
-
-  if (diffMs < oneDay) {
-    const hours = Math.max(1, Math.ceil(diffMs / oneHour));
-    return t("card.dueInHours", { hours });
-  }
-
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const isTomorrow =
-    nextRunAt.getFullYear() === tomorrow.getFullYear() &&
-    nextRunAt.getMonth() === tomorrow.getMonth() &&
-    nextRunAt.getDate() === tomorrow.getDate();
-
-  if (isTomorrow) {
-    return t("card.tomorrowAt", {
-      time: formatter.dateTime(nextRunAt, "time"),
-    });
-  }
-
-  return t("card.nextRunAt", {
-    datetime: formatter.dateTime(nextRunAt, "dateTime"),
-  });
 }

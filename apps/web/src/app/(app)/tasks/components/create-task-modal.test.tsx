@@ -142,6 +142,15 @@ describe("CreateTaskModal", () => {
     expect(getLatestProjectId()).toBe("project-1");
   });
 
+  it("prefills the Run at from the clicked Calendar slot", async () => {
+    await openFromCalendar({ projectId: null });
+
+    const props = taskFormPropsSpy.mock.calls.at(-1)?.[0] as {
+      initialValues: { runAt?: string | null };
+    };
+    expect(props.initialValues.runAt).toBe("2030-01-02T09:00:00.000Z");
+  });
+
   it("keeps the Workspace default when a caller omits the project", async () => {
     await openFromCalendar({});
 

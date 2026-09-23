@@ -23,10 +23,12 @@ const {
   syncProjectClosesMock,
   syncDueTaskSchedulesMock,
   releaseDueTaskSchedulesMock,
+  releaseDueRunAtsMock,
   reconcileScheduleHistoryMock,
   validateActiveSchedulesMock,
 } = vi.hoisted(() => ({
   releaseDueTaskSchedulesMock: vi.fn(),
+  releaseDueRunAtsMock: vi.fn(),
   acquireLockMock: vi.fn(),
   syncCardanoV2RailReadinessMock: vi.fn(),
   syncCalendarInvalidationsMock: vi.fn(),
@@ -162,6 +164,7 @@ vi.mock("@/services/task-schedules-sync", () => ({
 vi.mock("@/services/task-schedule-runs.service", () => ({
   taskScheduleReleaseService: {
     releaseDueSchedules: releaseDueTaskSchedulesMock,
+    releaseDueRunAts: releaseDueRunAtsMock,
   },
 }));
 
@@ -276,6 +279,7 @@ describe("sync routes", () => {
       durationMs: 0,
     });
     releaseDueTaskSchedulesMock.mockResolvedValue({ released: 0, ended: 0 });
+    releaseDueRunAtsMock.mockResolvedValue({ released: 0, failed: 0 });
     syncProjectClosesMock.mockResolvedValue({
       claimed: 0,
       processedSeries: 0,
@@ -396,6 +400,11 @@ describe("sync routes", () => {
       shouldContinue: expect.any(Function),
     });
     expect(releaseDueTaskSchedulesMock).toHaveBeenCalledWith({
+      abortSignal: expect.any(AbortSignal),
+      deadlineMs: expect.any(Number),
+      shouldContinue: expect.any(Function),
+    });
+    expect(releaseDueRunAtsMock).toHaveBeenCalledWith({
       abortSignal: expect.any(AbortSignal),
       deadlineMs: expect.any(Number),
       shouldContinue: expect.any(Function),

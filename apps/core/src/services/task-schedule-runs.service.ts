@@ -526,6 +526,41 @@ async function announceReleasedTasks(tasks: ReleasedTask[]): Promise<void> {
   );
 }
 
+export interface RunAtReleaseResult {
+  released: number;
+  failed: number;
+}
+
+/**
+ * Claims a Queued Task by its Run at, so a concurrent edit, status move, or
+ * retried release leaves it alone. No Run row is involved.
+ */
+async function releaseRunAt(
+  task: ReleasedTask & { runAt: Date | null },
+): Promise<boolean> {
+  return prisma.$transaction(async (tx) => {
+    const { count } = await tx.task.updateMany({
+      where: {
+        id: task.id,
+        status: TaskStatus.QUEUED,
+        runAt: task.runAt,
+        archivedAt: null,
+      },
+      data: { status: TaskStatus.READY, runAt: null },
+    });
+    if (count !== 1) return false;
+    await tx.taskEvent.create({
+      data: {
+        taskId: task.id,
+        status: TaskStatus.READY,
+        channel: Channel.SOKOSUMI,
+        userId: task.ownerId,
+      },
+    });
+    return true;
+  });
+}
+
 export const taskScheduleReleaseService = {
   /**
    * Behind the `/sync/task-schedules` cron: releases the due Runs of
@@ -578,5 +613,51 @@ export const taskScheduleReleaseService = {
     }
 
     return { released, ended, failed };
+  },
+
+  /**
+   * Behind the same cron: moves every Queued Task whose Run at has passed
+   * to Ready and clears its Run at (ADR 0041).
+   */
+  async releaseDueRunAts(
+    options: TaskScheduleReleaseOptions,
+  ): Promise<RunAtReleaseResult> {
+    let released = 0;
+    let failed = 0;
+    const attempted = new Set<string>();
+
+    while (canContinue(options)) {
+      const batch = await prisma.task.findMany({
+        where: {
+          status: TaskStatus.QUEUED,
+          runAt: { lte: new Date() },
+          archivedAt: null,
+          ...(attempted.size > 0 ? { id: { notIn: [...attempted] } } : {}),
+        },
+        orderBy: [{ runAt: "asc" }, { id: "asc" }],
+        take: TASK_SCHEDULE_RELEASE_BATCH_SIZE,
+        select: { id: true, runAt: true, ownerId: true, assigneeUserId: true },
+      });
+      if (batch.length === 0) break;
+
+      for (const task of batch) {
+        if (!canContinue(options)) break;
+        attempted.add(task.id);
+        try {
+          if (!(await releaseRunAt(task))) continue;
+        } catch (error) {
+          failed += 1;
+          Sentry.captureException(error, {
+            tags: { error_type: "task_run_at_release" },
+            extra: { taskId: task.id },
+          });
+          continue;
+        }
+        await announceReleasedTasks([task]);
+        released += 1;
+      }
+    }
+
+    return { released, failed };
   },
 };

@@ -42,6 +42,8 @@ export interface TaskWithCoworker {
   agents: CoreAgentDto[];
   metadata?: string | null;
   nextRunAt?: string | null;
+  /** ISO Run at of a Queued Task. */
+  runAt?: string | null;
 }
 
 export type KanbanColumnId =

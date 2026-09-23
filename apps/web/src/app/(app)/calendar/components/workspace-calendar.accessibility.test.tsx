@@ -160,6 +160,7 @@ const SCHEDULED_TASK: TaskListItem = {
     timezone: "UTC",
   }),
   nextRunAt: new Date("2030-01-03T09:00:00.000Z"),
+  runAt: null,
   workspace: {
     id: "workspace-1",
     organizationId: null,

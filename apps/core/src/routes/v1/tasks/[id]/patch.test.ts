@@ -1,4 +1,5 @@
-import { TaskStatus, TaskVisibility } from "@sokosumi/database";
+import { Channel, TaskStatus, TaskVisibility } from "@sokosumi/database";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { forbidden } from "@/helpers/error";
@@ -165,6 +166,7 @@ function createTaskApi(projectId: string | null = null) {
     share: null,
     links: [],
     files: [],
+    runAt: null,
     selectableStatuses: [],
   };
 }
@@ -266,6 +268,20 @@ describe("patchTaskRequestSchema", () => {
     expect(() => {
       patchTaskRequestSchema.parse({ expectedScheduleRevision: 3 });
     }).toThrow();
+  });
+
+  it("accepts runAt as the only patch field", () => {
+    const result = patchTaskRequestSchema.parse({
+      runAt: "2099-01-05T09:00:00.000Z",
+    });
+
+    expect(result.runAt).toBe("2099-01-05T09:00:00.000Z");
+  });
+
+  it("accepts clearing runAt as the only patch field", () => {
+    const result = patchTaskRequestSchema.parse({ runAt: null });
+
+    expect(result.runAt).toBeNull();
   });
 
   it("rejects coworker and user assignees together", () => {
@@ -1140,6 +1156,20 @@ describe("PATCH /tasks/{id} active schedule series (SOK-884)", () => {
     expect(taskLockOrder).toBeLessThan(postLockRead);
   });
 
+  it("rejects a Run at on an active series", async () => {
+    const response = await createSeriesApp().request(
+      "http://localhost/tsk_123",
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ runAt: "2099-01-05T09:00:00.000Z" }),
+      },
+    );
+
+    expect(response.status).toBe(409);
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
   it("rejects moving an active series into a project", async () => {
     const response = await createSeriesApp().request(
       "http://localhost/tsk_123",
@@ -1203,5 +1233,150 @@ describe("PATCH /tasks/{id} active schedule series (SOK-884)", () => {
         }),
       }),
     );
+  });
+});
+
+describe("PATCH /tasks/{id} Run at", () => {
+  const RUN_AT = "2099-01-05T09:00:00.000Z";
+  const LATER_RUN_AT = "2099-01-12T09:00:00.000Z";
+  const taskEventCreateMock = vi.fn();
+
+  function mockTask(overrides: Record<string, unknown> = {}) {
+    requireTaskOwnershipMock.mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.DRAFT,
+      assigneeId: "cow_123",
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      projectId: null,
+      workspaceId: WORKSPACE_ID,
+      organizationId: "org_123",
+      ownerId: "user_123",
+      description: null,
+      visibility: TaskVisibility.PUBLIC,
+      metadata: null,
+      nextRunAt: null,
+      scheduleRevision: 0,
+      runAt: null,
+      ...overrides,
+    });
+  }
+
+  function patch(body: Record<string, unknown>) {
+    const app = createApp();
+    app.onError(errorHandler);
+    return app.request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    taskUpdateMock.mockResolvedValue(createTaskApi(null));
+    mapTaskMock.mockImplementation((task) => createTaskApi(task.projectId));
+    prismaTransactionMock.mockImplementation(async (callback) => {
+      return await callback({
+        project: { findFirst: projectFindFirstMock },
+        task: { update: taskUpdateMock },
+        taskEvent: { create: taskEventCreateMock },
+      });
+    });
+    mockTask();
+  });
+
+  it("queues a Draft Task at its Run at", async () => {
+    const response = await patch({ runAt: RUN_AT });
+
+    expect(response.status).toBe(200);
+    expect(taskUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: TaskStatus.QUEUED,
+          runAt: new Date(RUN_AT),
+        }),
+      }),
+    );
+    expect(taskEventCreateMock).toHaveBeenCalledWith({
+      data: {
+        taskId: "tsk_123",
+        status: TaskStatus.QUEUED,
+        channel: Channel.SOKOSUMI,
+        userId: "user_123",
+        coworkerId: null,
+        sokoBotId: null,
+      },
+    });
+  });
+
+  it("moves the Run at of a Queued Task without a status event", async () => {
+    mockTask({ status: TaskStatus.QUEUED, runAt: new Date(RUN_AT) });
+
+    const response = await patch({ runAt: LATER_RUN_AT });
+
+    expect(response.status).toBe(200);
+    expect(taskUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ runAt: new Date(LATER_RUN_AT) }),
+      }),
+    );
+    expect(taskUpdateMock.mock.calls[0]?.[0].data.status).toBeUndefined();
+    expect(taskEventCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("moves a Queued Task back to Draft when its Run at is cleared", async () => {
+    mockTask({ status: TaskStatus.QUEUED, runAt: new Date(RUN_AT) });
+
+    const response = await patch({ runAt: null });
+
+    expect(response.status).toBe(200);
+    expect(taskUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: TaskStatus.DRAFT,
+          runAt: null,
+        }),
+      }),
+    );
+    expect(taskEventCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({ status: TaskStatus.DRAFT }),
+    });
+  });
+
+  it("treats clearing an unset Run at as a no-op", async () => {
+    const response = await patch({ runAt: null });
+
+    expect(response.status).toBe(200);
+    expect(taskUpdateMock.mock.calls[0]?.[0].data.status).toBeUndefined();
+    expect(taskEventCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a Run at that has passed", async () => {
+    const response = await patch({ runAt: "2020-01-01T09:00:00.000Z" });
+
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({
+      kind: CORE_API_ERROR_KINDS.RUN_AT_NOT_IN_FUTURE,
+    });
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a Run at on a Task without an agent assignee", async () => {
+    mockTask({ assigneeId: null, assigneeUserId: "user_456" });
+
+    const response = await patch({ runAt: RUN_AT });
+
+    expect(response.status).toBe(422);
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects unassigning the agent of a Queued Task", async () => {
+    mockTask({ status: TaskStatus.QUEUED, runAt: new Date(RUN_AT) });
+
+    const response = await patch({ assigneeId: null });
+
+    expect(response.status).toBe(422);
+    expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 });
