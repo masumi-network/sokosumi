@@ -104,9 +104,27 @@ vi.mock("../chat-room-sidebar-row", () => ({
 }));
 
 // A marker, not the rows: what they count belongs to
-// `chat-unread-nav-rows.test.tsx`. The list only decides where they stand.
+// `chat-unread-nav-rows.test.tsx`. The list decides where they stand and
+// what the All unreads filter does to the sections, so the marker keeps the
+// toggle.
 vi.mock("../chat-unread-nav-rows", () => ({
-  ChatUnreadNavRows: () => <li data-testid="chat-unread-nav-rows" />,
+  ChatUnreadNavRows: ({
+    unreadOnly,
+    onUnreadOnlyChange,
+  }: {
+    unreadOnly: boolean;
+    onUnreadOnlyChange: (unreadOnly: boolean) => void;
+  }) => (
+    <li data-testid="chat-unread-nav-rows">
+      <button
+        type="button"
+        aria-pressed={unreadOnly}
+        onClick={() => onUnreadOnlyChange(!unreadOnly)}
+      >
+        All unreads
+      </button>
+    </li>
+  ),
 }));
 
 vi.mock("../pending-invitation-rail-button", () => ({

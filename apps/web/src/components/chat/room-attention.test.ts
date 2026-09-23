@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  listAllUnreadRooms,
   resolveRoomAttention,
   resolveSectionAttention,
   resolveUnreadThreadsAttention,
   roomAttentionAfterRead,
+  roomUnreadReads,
 } from "./room-attention";
 
 describe("resolveRoomAttention", () => {
@@ -557,23 +557,35 @@ describe("resolveUnreadThreadsAttention past the listed Threads", () => {
   });
 });
 
-describe("listAllUnreadRooms", () => {
-  it("lists rooms with top-level unread first, then rooms with only Thread unread", () => {
-    const rooms = [
-      room("threads-only", { unreadThreadCount: 1, threadUnreadCount: 1 }),
-      room("read"),
-      room("channel", { channelUnreadCount: 2 }),
-      room("marked", { markedUnread: true }),
-      room("muted", {
-        channelUnreadCount: 3,
-        mutedAt: "2026-09-01T00:00:00Z",
-      }),
-    ];
+describe("roomUnreadReads", () => {
+  it("names the reads each room still needs", () => {
+    expect(roomUnreadReads(room("read"))).toEqual({
+      readRoom: false,
+      lookThreads: false,
+    });
+    expect(roomUnreadReads(room("channel", { channelUnreadCount: 2 }))).toEqual(
+      { readRoom: true, lookThreads: false },
+    );
+    expect(roomUnreadReads(room("marked", { markedUnread: true }))).toEqual({
+      readRoom: true,
+      lookThreads: false,
+    });
+    expect(
+      roomUnreadReads(
+        room("threads", { threadUnreadCount: 1, unreadThreadCount: 1 }),
+      ),
+    ).toEqual({ readRoom: false, lookThreads: true });
+  });
 
-    expect(listAllUnreadRooms(rooms).map((row) => row.id)).toEqual([
-      "channel",
-      "marked",
-      "threads-only",
-    ]);
+  it("needs nothing from a muted room", () => {
+    expect(
+      roomUnreadReads(
+        room("muted", {
+          channelUnreadCount: 3,
+          unreadThreadCount: 1,
+          mutedAt: "2026-09-01T00:00:00Z",
+        }),
+      ),
+    ).toEqual({ readRoom: false, lookThreads: false });
   });
 });

@@ -5467,7 +5467,11 @@
         "unreadThreads": "{count, plural, one {# hilo sin leer} other {# hilos sin leer}}",
         "unreadThreadsCapped": "Más de {max} hilos sin leer",
         "mentions": "{count, plural, one {# mención} other {# menciones}}",
-        "moreThreads": "{count, plural, one {# hilo sin leer más} other {# hilos sin leer más}}"
+        "moreThreads": "{count, plural, one {# hilo sin leer más} other {# hilos sin leer más}}",
+        "filterOn": "Mostrando solo lo no leído",
+        "markAllRead": "Marcar todo como leído",
+        "markAllReadError": "No se pudo marcar todo como leído.",
+        "caughtUp": "Estás al día"
       },
       "ThreadsView": {
         "title": "Hilos",
@@ -5477,13 +5481,6 @@
         "loadMore": "Mostrar más",
         "loadError": "No se pudieron cargar los hilos sin leer.",
         "retry": "Reintentar"
-      },
-      "AllUnreadsView": {
-        "title": "Todo lo no leído",
-        "markAllRead": "Marcar todo como leído",
-        "markAllReadError": "No se pudo marcar todo como leído.",
-        "empty": "Estás al día",
-        "emptyDescription": "Los mensajes y las respuestas en hilos sin leer aparecen aquí."
       },
       "Thread": {
         "title": "Thread",

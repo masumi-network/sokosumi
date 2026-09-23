@@ -4,10 +4,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 const ROW_WIDTHS = ["w-[72%]", "w-[58%]", "w-[80%]", "w-[64%]"];
 
 /**
- * Loading shell for the Threads and All unreads views (SOK-1159), in their
- * geometry: the 32px heading line, then rows of an 18px-and-up mark beside
- * a label line over a room line. Without its own shell either route would
- * paint the `/chat` segment's Chats list skeleton, which is a different page.
+ * Loading shell for the Threads view (SOK-1159), in its geometry: the 32px
+ * heading line, then rows of an 18px-and-up mark beside a label line over a
+ * room line. Without its own shell the route would paint the `/chat`
+ * segment's Chats list skeleton, which is a different page.
  * Sync only (no cookies/`connection()`/i18n).
  */
 export function ChatUnreadViewSkeleton() {

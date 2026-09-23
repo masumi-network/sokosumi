@@ -1,27 +1,12 @@
 import { CheckCheck } from "lucide-react";
-import type { ReactNode } from "react";
 
 interface ChatUnreadViewHeaderProps {
   title: string;
-  /** The view's bulk action, on the heading row. */
-  action?: ReactNode;
 }
 
-/**
- * The heading row of the Threads and All unreads views (SOK-1159), in the
- * Notification Center page's shape: title first, the bulk action on the same
- * row so it cannot collapse under the pointer when the last row drains.
- */
-export function ChatUnreadViewHeader({
-  title,
-  action,
-}: ChatUnreadViewHeaderProps) {
-  return (
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-      {action}
-    </div>
-  );
+/** The Threads view's heading (SOK-1159), in the Notification Center's size. */
+export function ChatUnreadViewHeader({ title }: ChatUnreadViewHeaderProps) {
+  return <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>;
 }
 
 interface ChatCaughtUpProps {
@@ -30,7 +15,7 @@ interface ChatCaughtUpProps {
 }
 
 /**
- * What both views say once there is nothing left: the list drained, which is
+ * What the Threads view says once there is nothing left: the list drained, which is
  * the point of them, so it reads as done rather than as missing.
  */
 export function ChatCaughtUp({ title, description }: ChatCaughtUpProps) {

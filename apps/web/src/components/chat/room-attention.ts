@@ -199,7 +199,7 @@ export function resolveSectionAttention(
   return unread ? "unread" : null;
 }
 
-/** What a room holds for the Threads and All unreads views. */
+/** What a room holds for the Threads entry and the All unreads filter. */
 interface RoomUnreadSummary extends RoomAttentionCounts {
   mutedAt?: unknown;
   unreadThreadCount?: number;
@@ -244,35 +244,31 @@ export function resolveUnreadThreadsAttention(
 }
 
 /**
- * The rooms All unreads lists (SOK-1159): every room the sidebar marks, top-
- * level unread first, then the rooms whose unread is only in Threads.
+ * What reading a room would still clear, as the room's two reads
+ * (ADR-0037): `readRoom` while its row is bold, `lookThreads` while it holds
+ * an unread Thread. A room needing neither is read.
  *
- * A room counts as top-level unread exactly when its row is bold, so the
- * view cannot list a room its row leaves quiet or the reverse. Muted rooms
- * are out, as they are everywhere attention is summed. Order within each
- * group is the order the rooms come in.
+ * The All unreads filter keeps a room while it needs either, and Mark all as
+ * read runs exactly these (SOK-1159). Bold is asked of `resolveRoomAttention`,
+ * so the filter cannot keep a room its row leaves quiet or the reverse.
+ * Muted rooms need nothing, as they carry no attention anywhere.
  */
-export function listAllUnreadRooms<T extends RoomUnreadSummary>(
-  rooms: readonly T[],
-): T[] {
-  const topLevel: T[] = [];
-  const threadsOnly: T[] = [];
-  for (const room of rooms) {
-    const { bold } = resolveRoomAttention({
-      unreadCount: room.unreadCount,
-      channelUnreadCount: room.channelUnreadCount,
-      unreadMentionCount: room.unreadMentionCount,
-      markedUnread: room.markedUnread,
-      isMuted: room.mutedAt != null,
-    });
-    if (bold) {
-      topLevel.push(room);
-    } else if (
-      room.mutedAt == null &&
-      (room.unreadThreadCount ?? room.unreadThreads?.length ?? 0) > 0
-    ) {
-      threadsOnly.push(room);
-    }
-  }
-  return [...topLevel, ...threadsOnly];
+export function roomUnreadReads(room: RoomUnreadSummary): {
+  readRoom: boolean;
+  lookThreads: boolean;
+} {
+  const isMuted = room.mutedAt != null;
+  const { bold } = resolveRoomAttention({
+    unreadCount: room.unreadCount,
+    channelUnreadCount: room.channelUnreadCount,
+    unreadMentionCount: room.unreadMentionCount,
+    markedUnread: room.markedUnread,
+    isMuted,
+  });
+  return {
+    readRoom: bold,
+    lookThreads:
+      !isMuted &&
+      (room.unreadThreadCount ?? room.unreadThreads?.length ?? 0) > 0,
+  };
 }

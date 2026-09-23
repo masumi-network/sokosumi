@@ -87,7 +87,7 @@ import {
   PinnedRoomsDndContext,
   SortablePinnedRoomRow,
 } from "./pinned-rooms-dnd";
-import { resolveSectionAttention } from "./room-attention";
+import { resolveSectionAttention, roomUnreadReads } from "./room-attention";
 import { beginRoomAttentionRefresh } from "./room-read-overlay";
 import { useOrganizationChatRooms } from "./use-organization-chat-rooms";
 
@@ -160,6 +160,7 @@ export function OrganizationChatList({
   const [archivedSectionOpen, setArchivedSectionOpen] = useState(false);
   const [directOpen, setDirectOpen] = useState(true);
   const [externalOpen, setExternalOpen] = useState(true);
+  const [unreadOnly, setUnreadOnly] = useState(false);
   const [restoringRoomId, setRestoringRoomId] = useState<string | null>(null);
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
   const [pendingDeleteRoom, setPendingDeleteRoom] = useState<ChatRoom | null>(
@@ -172,7 +173,6 @@ export function OrganizationChatList({
   const [_isRestoring, startRestoreTransition] = useTransition();
   const [_isDeleting, startDeleteTransition] = useTransition();
   const [_isRespondingInvite, startInviteResponseTransition] = useTransition();
-  const activeRoomId = getActiveRoomIdFromPathname(pathname);
   function handleRestoreRoom(room: ChatRoom) {
     if (restoringRoomId || deletingRoomId) {
       return;
@@ -261,12 +261,33 @@ export function OrganizationChatList({
     });
   }
 
+  const activeRoomId = getActiveRoomIdFromPathname(pathname);
   const { pinned, directMessages, namedChannels, externalJoined } = useMemo(
-    () => partitionRoomsForSidebar(roomRows),
-    [roomRows],
+    () =>
+      partitionRoomsForSidebar(
+        // All unreads (SOK-1159): the same sections, holding only the rooms
+        // a read would still change. The open room stays: it is the one being
+        // read, and dropping it would pull the row out from under the reader.
+        unreadOnly
+          ? roomRows.filter((room) => {
+              const { readRoom, lookThreads } = roomUnreadReads(room);
+              return readRoom || lookThreads || room.id === activeRoomId;
+            })
+          : roomRows,
+      ),
+    [roomRows, unreadOnly, activeRoomId],
   );
   const pinnedRoomIds = pinned.map((room) => room.id);
-  const canReorderPinned = pinnedOpen && pinned.length > 1;
+  // Reordering a filtered list would move rooms relative to ones it hides.
+  const canReorderPinned = pinnedOpen && pinned.length > 1 && !unreadOnly;
+  const caughtUp =
+    unreadOnly &&
+    pinned.length +
+      namedChannels.length +
+      externalJoined.length +
+      directMessages.length +
+      pendingRows.length ===
+      0;
   // The mode ends with the toggle that leaves it (section closed, or fewer
   // than two pins). Otherwise it would come back by itself, unasked, the
   // next time a second room is pinned.
@@ -351,7 +372,19 @@ export function OrganizationChatList({
           rooms={roomRows}
           currentUserId={currentUserId}
           dismissSheetOnNavigate={dismissSheetOnNavigate}
+          unreadOnly={unreadOnly}
+          onUnreadOnlyChange={setUnreadOnly}
         />
+        {caughtUp ? (
+          <p
+            className={cn(
+              SIDEBAR_ROW_LABEL_INSET_CLASS,
+              "text-muted-foreground group-data-[collapsible=icon]:hidden py-1.5 pr-2 text-xs",
+            )}
+          >
+            {t("UnreadNav.caughtUp")}
+          </p>
+        ) : null}
         {pinned.length > 0 ? (
           <Collapsible open={pinnedOpen} onOpenChange={setPinnedOpen}>
             <ChatSidebarSectionHeader
@@ -426,7 +459,7 @@ export function OrganizationChatList({
           </Collapsible>
         ) : null}
 
-        {hasOrganization ? (
+        {hasOrganization && (!unreadOnly || namedChannels.length > 0) ? (
           <Collapsible
             open={channelSectionOpen}
             onOpenChange={setChannelSectionOpen}
@@ -552,7 +585,7 @@ export function OrganizationChatList({
           </Collapsible>
         ) : null}
 
-        {hasOrganization && sortedArchivedChannels.length > 0 ? (
+        {hasOrganization && !unreadOnly && sortedArchivedChannels.length > 0 ? (
           <Collapsible
             open={archivedSectionOpen}
             onOpenChange={setArchivedSectionOpen}
@@ -731,41 +764,43 @@ export function OrganizationChatList({
           </AlertDialogContent>
         </AlertDialog>
 
-        <Collapsible open={directOpen} onOpenChange={setDirectOpen}>
-          {/*
+        {!unreadOnly || directMessages.length > 0 ? (
+          <Collapsible open={directOpen} onOpenChange={setDirectOpen}>
+            {/*
             Sidebar rows = messaged history only. `+` opens Start New Direct
             in place (org members + coworkers, 1:1 coworker / group humans).
             Personal workspace still mounts the picker with empty members
             (coworkers only).
           */}
-          <ChatSidebarSectionHeader
-            isOpen={directOpen}
-            railIcon={MessageCircle}
-            closedAttention={resolveSectionAttention(directMessages)}
-            createAction={<CreateDirectDialog />}
-          >
-            {t("directMessages")}
-          </ChatSidebarSectionHeader>
-          <ChatSidebarSectionContent>
-            <SidebarMenu className="gap-0">
-              {directMessages.map((room) => (
-                <ChatRoomSidebarRow key={room.id} {...roomRowProps(room)} />
-              ))}
-              {directMessages.length === 0 ? (
-                <SidebarMenuItem>
-                  <div
-                    className={cn(
-                      SIDEBAR_ROW_LABEL_INSET_CLASS,
-                      "text-muted-foreground group-data-[collapsible=icon]:hidden py-1.5 pr-2 text-xs",
-                    )}
-                  >
-                    {t("Empty.noDirectMessages")}
-                  </div>
-                </SidebarMenuItem>
-              ) : null}
-            </SidebarMenu>
-          </ChatSidebarSectionContent>
-        </Collapsible>
+            <ChatSidebarSectionHeader
+              isOpen={directOpen}
+              railIcon={MessageCircle}
+              closedAttention={resolveSectionAttention(directMessages)}
+              createAction={<CreateDirectDialog />}
+            >
+              {t("directMessages")}
+            </ChatSidebarSectionHeader>
+            <ChatSidebarSectionContent>
+              <SidebarMenu className="gap-0">
+                {directMessages.map((room) => (
+                  <ChatRoomSidebarRow key={room.id} {...roomRowProps(room)} />
+                ))}
+                {directMessages.length === 0 ? (
+                  <SidebarMenuItem>
+                    <div
+                      className={cn(
+                        SIDEBAR_ROW_LABEL_INSET_CLASS,
+                        "text-muted-foreground group-data-[collapsible=icon]:hidden py-1.5 pr-2 text-xs",
+                      )}
+                    >
+                      {t("Empty.noDirectMessages")}
+                    </div>
+                  </SidebarMenuItem>
+                ) : null}
+              </SidebarMenu>
+            </ChatSidebarSectionContent>
+          </Collapsible>
+        ) : null}
       </SidebarGroupContent>
     </SidebarGroup>
   );

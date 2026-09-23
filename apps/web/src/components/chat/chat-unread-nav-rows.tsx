@@ -1,22 +1,26 @@
 "use client";
 
-import { Inbox, MessagesSquare } from "lucide-react";
+import { CheckCheck, Inbox, Loader2, MessagesSquare } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import type { ReactNode } from "react";
+import { type ReactNode, useTransition } from "react";
+import { toast } from "sonner";
 
-import {
-  CHAT_THREADS_PATH,
-  CHAT_UNREADS_PATH,
-} from "@/app/chat/utils/chat-route-base";
+import { markAllChatUnreadReadAction } from "@/app/chat/actions";
+import { CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME } from "@/app/chat/components/chat-compose-dialog";
+import { CHAT_THREADS_PATH } from "@/app/chat/utils/chat-route-base";
 import { RailAttentionPill } from "@/components/chat/chat-room-sidebar-row";
 import { RowCountMark } from "@/components/chat/mention-count-pill";
+import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import {
   RAIL_FLYOUT_CLOSE_DELAY_MS,
   RAIL_FLYOUT_OPEN_DELAY_MS,
 } from "@/components/chat/rail-flyout-delays";
-import { resolveUnreadThreadsAttention } from "@/components/chat/room-attention";
+import {
+  resolveUnreadThreadsAttention,
+  roomUnreadReads,
+} from "@/components/chat/room-attention";
 import { ROOM_COUNT_CAP } from "@/components/chat/room-count-label";
 import { UnreadThreadLink } from "@/components/chat/unread-thread-link";
 import {
@@ -49,12 +53,17 @@ interface ChatUnreadNavRowsProps {
   currentUserId: string;
   /** When false, render plain links (page-mounted list outside a Sheet). */
   dismissSheetOnNavigate?: boolean;
+  /** The All unreads filter: the list below shows only rooms with unread. */
+  unreadOnly: boolean;
+  onUnreadOnlyChange: (unreadOnly: boolean) => void;
 }
 
 /**
  * The two entries above the channel list that gather every room's unread
  * (SOK-1159): Threads, the one place Thread unread drains to zero, and All
- * unreads beside it.
+ * unreads, a filter on the list below that keeps only rooms with unread.
+ * While the filter is on, Mark all as read stands on its row, in the slot a
+ * section heading keeps its `+`.
  *
  * Neither is a room, so neither has a room menu, and both stay on the
  * collapsed rail as permanent items. Threads carries the same one number a
@@ -70,6 +79,8 @@ export function ChatUnreadNavRows({
   rooms,
   currentUserId,
   dismissSheetOnNavigate = true,
+  unreadOnly,
+  onUnreadOnlyChange,
 }: ChatUnreadNavRowsProps) {
   const t = useTranslations("App.Channels.UnreadNav");
   const tChannels = useTranslations("App.Channels");
@@ -81,8 +92,22 @@ export function ChatUnreadNavRows({
     dismissSheetOnNavigate ? <SheetClose asChild>{link}</SheetClose> : link;
 
   const threadsActive = pathname === CHAT_THREADS_PATH;
-  const unreadsActive = pathname === CHAT_UNREADS_PATH;
   const hasCount = threadCount > 0;
+  const [isMarking, startMarking] = useTransition();
+  const markAllTargets = rooms
+    .map((room) => ({ roomId: room.id, ...roomUnreadReads(room) }))
+    .filter((target) => target.readRoom || target.lookThreads);
+
+  function handleMarkAllRead() {
+    startMarking(async () => {
+      const result = await markAllChatUnreadReadAction(markAllTargets);
+      if (!result.ok) {
+        toast.error(t("markAllReadError"));
+      }
+      // What Core holds now, part-read or not, is what the rooms show next.
+      notifyOrganizationChatRoomsChanged({ collections: ["active"] });
+    });
+  }
 
   const threadsLink = (
     <Link
@@ -213,27 +238,50 @@ export function ChatUnreadNavRows({
         </div>
       </SidebarMenuItem>
       <SidebarMenuItem className="relative">
-        {unreadsActive ? <SidebarRailSelectionBar /> : null}
         <SidebarMenuButton
           asChild
-          isActive={unreadsActive}
+          isActive={unreadOnly}
           tooltip={t("allUnreads")}
         >
-          {wrapLink(
-            <Link
-              href={CHAT_UNREADS_PATH}
-              aria-current={unreadsActive ? "page" : undefined}
-              className="text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-            >
-              <SidebarRowSlot>
-                <Inbox className="size-4" aria-hidden />
-              </SidebarRowSlot>
-              <span className={cn(SIDEBAR_ROW_LABEL_CLASS, "truncate")}>
-                {t("allUnreads")}
-              </span>
-            </Link>,
-          )}
+          <button
+            type="button"
+            aria-pressed={unreadOnly}
+            onClick={() => onUnreadOnlyChange(!unreadOnly)}
+            className="text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          >
+            <SidebarRowSlot>
+              <Inbox className="size-4" aria-hidden />
+            </SidebarRowSlot>
+            <span className={cn(SIDEBAR_ROW_LABEL_CLASS, "truncate")}>
+              {t("allUnreads")}
+            </span>
+            {unreadOnly ? (
+              <span className="sr-only">{t("filterOn")}</span>
+            ) : null}
+          </button>
         </SidebarMenuButton>
+        {unreadOnly && markAllTargets.length > 0 ? (
+          <div className="group-data-[collapsible=icon]:hidden absolute top-1/2 right-1 z-10 -translate-y-1/2">
+            <button
+              type="button"
+              aria-label={t("markAllRead")}
+              title={t("markAllRead")}
+              disabled={isMarking}
+              aria-busy={isMarking}
+              onClick={handleMarkAllRead}
+              className={CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME}
+            >
+              {isMarking ? (
+                <Loader2
+                  className="size-4 animate-spin motion-reduce:animate-none md:size-3.5"
+                  aria-hidden
+                />
+              ) : (
+                <CheckCheck className="size-4 md:size-3.5" aria-hidden />
+              )}
+            </button>
+          </div>
+        ) : null}
       </SidebarMenuItem>
     </SidebarMenu>
   );

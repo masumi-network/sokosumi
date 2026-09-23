@@ -5467,7 +5467,11 @@
         "unreadThreads": "{count, plural, one {# unread thread} other {# unread threads}}",
         "unreadThreadsCapped": "More than {max} unread threads",
         "mentions": "{count, plural, one {# mention} other {# mentions}}",
-        "moreThreads": "{count, plural, one {# more unread thread} other {# more unread threads}}"
+        "moreThreads": "{count, plural, one {# more unread thread} other {# more unread threads}}",
+        "filterOn": "Showing unread only",
+        "markAllRead": "Mark all as read",
+        "markAllReadError": "Could not mark everything as read.",
+        "caughtUp": "You’re all caught up"
       },
       "ThreadsView": {
         "title": "Threads",
@@ -5477,13 +5481,6 @@
         "loadMore": "Show more",
         "loadError": "Could not load unread threads.",
         "retry": "Try again"
-      },
-      "AllUnreadsView": {
-        "title": "All unreads",
-        "markAllRead": "Mark all as read",
-        "markAllReadError": "Could not mark everything as read.",
-        "empty": "You’re all caught up",
-        "emptyDescription": "Unread messages and thread replies show up here."
       },
       "Thread": {
         "title": "Thread",

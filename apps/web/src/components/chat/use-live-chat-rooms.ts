@@ -46,7 +46,7 @@ function getInitialRoomsFromSessionSnapshot(): ChatRoom[] {
 /**
  * The reader's live membership-visible rooms, for chat surfaces that need
  * what is unread without mounting the sidebar list: the Chats tab's unread
- * dot, and the Threads and All unreads views (SOK-1159).
+ * dot, and the Threads view (SOK-1159).
  *
  * While a sidebar list is mounted it already reads the active collection, so
  * this mirrors its rows. Without one (the phone, away from the Chats list) it

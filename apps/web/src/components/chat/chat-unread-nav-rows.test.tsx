@@ -1,4 +1,5 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { isValidElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -6,6 +7,23 @@ import messages from "@/../messages/en.json";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 import { makeRoom } from "./__tests__/chat-room-fixtures";
 import { ChatUnreadNavRows } from "./chat-unread-nav-rows";
+
+const { markAllActionMock, notifyMock } = vi.hoisted(() => ({
+  markAllActionMock: vi.fn(),
+  notifyMock: vi.fn(),
+}));
+
+vi.mock("@/app/chat/actions", () => ({
+  markAllChatUnreadReadAction: (...args: unknown[]) =>
+    markAllActionMock(...args),
+}));
+
+vi.mock("@/components/chat/organization-chat-events", () => ({
+  notifyOrganizationChatRoomsChanged: (...args: unknown[]) =>
+    notifyMock(...args),
+}));
+
+vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 
 const { navigation, sidebarMock } = vi.hoisted(() => ({
   navigation: { pathname: "/chat/rooms/room-1" },
@@ -86,13 +104,21 @@ function unreadThread(id: string, unreadMentionCount = 0) {
   };
 }
 
-function renderRows(rooms: ChatRoom[]) {
+function renderRows(
+  rooms: ChatRoom[],
+  filter: {
+    unreadOnly?: boolean;
+    onUnreadOnlyChange?: (unreadOnly: boolean) => void;
+  } = {},
+) {
   return render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <ChatUnreadNavRows
         rooms={rooms}
         currentUserId="user-1"
         dismissSheetOnNavigate={false}
+        unreadOnly={filter.unreadOnly ?? false}
+        onUnreadOnlyChange={filter.onUnreadOnlyChange ?? vi.fn()}
       />
     </NextIntlClientProvider>,
   );
@@ -107,19 +133,64 @@ function threadsLink() {
 }
 
 beforeEach(() => {
+  vi.clearAllMocks();
+  markAllActionMock.mockResolvedValue({ ok: true, value: null });
   navigation.pathname = "/chat/rooms/room-1";
   sidebarMock.state = "expanded";
 });
 
 describe("ChatUnreadNavRows", () => {
-  it("links to the Threads and All unreads views", () => {
+  it("links to the Threads view", () => {
     renderRows([]);
 
     expect(threadsLink()).toHaveAttribute("href", "/chat/threads");
-    expect(screen.getByRole("link", { name: "All unreads" })).toHaveAttribute(
-      "href",
-      "/chat/unreads",
+  });
+
+  it("toggles the All unreads filter rather than navigating", async () => {
+    const onUnreadOnlyChange = vi.fn();
+    renderRows([], { onUnreadOnlyChange });
+
+    const toggle = screen.getByRole("button", { name: "All unreads" });
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(toggle);
+
+    expect(onUnreadOnlyChange).toHaveBeenCalledWith(true);
+  });
+
+  it("offers Mark all as read only while the filter is on", async () => {
+    const rooms = [
+      makeRoom({ id: "channel", unreadCount: 2, channelUnreadCount: 2 }),
+      makeRoom({
+        id: "threads",
+        unreadCount: 1,
+        channelUnreadCount: 0,
+        threadUnreadCount: 1,
+        unreadThreadCount: 1,
+        unreadThreads: [unreadThread("t1")],
+      }),
+      makeRoom({ id: "read", channelUnreadCount: 0 }),
+    ];
+    const { unmount } = renderRows(rooms);
+    expect(
+      screen.queryByRole("button", { name: "Mark all as read" }),
+    ).toBeNull();
+    unmount();
+
+    renderRows(rooms, { unreadOnly: true });
+    expect(
+      screen.getByRole("button", { name: /^All unreads/ }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Mark all as read" }),
     );
+
+    await waitFor(() =>
+      expect(notifyMock).toHaveBeenCalledWith({ collections: ["active"] }),
+    );
+    expect(markAllActionMock).toHaveBeenCalledWith([
+      { roomId: "channel", readRoom: true, lookThreads: false },
+      { roomId: "threads", readRoom: false, lookThreads: true },
+    ]);
   });
 
   it("counts unread Threads across rooms, not their replies", () => {
