@@ -149,7 +149,6 @@ import {
   ROOM_QUOTE_MARKDOWN_CLASSNAME,
   type RoomMentionParticipant,
   senderProfile,
-  threadReplyFaces,
 } from "./room-helpers";
 import { RoomMessageMarkdown } from "./room-mention-markdown";
 import { SokoBotChainBadge } from "./soko-bot-chain-badge";
@@ -2229,7 +2228,7 @@ function SenderFace({
 }
 
 /**
- * The bar under a thread parent: who is in it, how many replies (or how many
+ * The bar under a thread parent: who replied, how many replies (or how many
  * are new to this reader), and how long ago the last one landed. Its name is
  * the count alone; the age is its description and the faces are decoration.
  */
@@ -2247,7 +2246,10 @@ function ThreadReplyBar({
   const ageId = useId();
   // Absent on realtime payloads, which are not addressed to one viewer.
   const unreadReplyCount = message.threadUnreadReplyCount ?? 0;
-  const faces = threadReplyFaces(message);
+  // Who replied, in the order they joined; the parent author only if they
+  // replied, since the row already shows them. Absent on messages the client
+  // built itself and on cached transcripts.
+  const faces = message.threadRepliers ?? [];
   const countLabel =
     unreadReplyCount > 0
       ? t("Thread.newReplyCount", { count: unreadReplyCount })

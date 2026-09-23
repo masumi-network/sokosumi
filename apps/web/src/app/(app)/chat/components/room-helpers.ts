@@ -457,30 +457,6 @@ export function senderKey(sender: ChatRoomMessageSender): string | null {
 export const THREAD_REPLY_FACE_CAP = 3;
 
 /**
- * The faces on a thread reply bar: the thread creator first, then repliers in
- * the order they joined. Empty when the payload carries no repliers (a cached
- * or client-built message), rather than a lone creator face that would claim
- * nobody else replied.
- */
-export function threadReplyFaces(
-  message: ChatRoomMessage,
-): ChatRoomMessageSender[] {
-  if (!message.threadRepliers) {
-    return [];
-  }
-  const creatorKey = senderKey(message.sender);
-  if (!creatorKey) {
-    return message.threadRepliers.slice(0, THREAD_REPLY_FACE_CAP);
-  }
-  return [
-    message.sender,
-    ...message.threadRepliers.filter(
-      (replier) => senderKey(replier) !== creatorKey,
-    ),
-  ].slice(0, THREAD_REPLY_FACE_CAP);
-}
-
-/**
  * True when `current` should render as a Slack-style continuation of `previous`
  * (omit avatar / name / wall-clock; group header time covers the burst).
  */

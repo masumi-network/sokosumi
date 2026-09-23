@@ -136,7 +136,7 @@ describe("thread reply bar", () => {
     );
   });
 
-  it("shows the creator plus one face per replier and keeps the count as its name", () => {
+  it("shows one face per replier and keeps the count as its name", () => {
     renderRow({
       threadReplyCount: 5,
       threadUnreadReplyCount: 2,
@@ -166,7 +166,7 @@ describe("thread reply bar", () => {
     });
 
     const bar = screen.getByRole("button", { name: "2 new replies" });
-    expect(within(bar).getAllByTestId("thread-replier-face")).toHaveLength(3);
+    expect(within(bar).getAllByTestId("thread-replier-face")).toHaveLength(2);
   });
 
   it("describes the bar with the last reply's age", () => {
@@ -177,7 +177,7 @@ describe("thread reply bar", () => {
     ).toHaveAccessibleDescription("4m ago");
   });
 
-  it("puts the thread creator first, then repliers in the order they joined", () => {
+  it("shows repliers in the order they joined, the parent author included only where they replied", () => {
     renderRow({
       threadReplyCount: 4,
       threadUnreadReplyCount: 0,
@@ -193,26 +193,23 @@ describe("thread reply bar", () => {
       within(bar)
         .getAllByTestId("thread-replier-face")
         .map((face) => face.textContent),
-    ).toEqual(["A", "G", "L"]);
+    ).toEqual(["G", "A", "L"]);
   });
 
-  it("shows the thread creator even before they reply", () => {
+  // The parent author is on the row already; the faces are who replied.
+  it("leaves the parent author out until they reply", () => {
     renderRow({
-      threadReplyCount: 3,
+      threadReplyCount: 1,
       threadUnreadReplyCount: 0,
-      threadRepliers: [
-        replier("user-2", "Grace"),
-        replier("user-3", "Linus"),
-        replier("user-4", "Margaret"),
-      ],
+      threadRepliers: [replier("user-2", "Grace")],
     });
 
-    const bar = screen.getByRole("button", { name: "3 replies" });
+    const bar = screen.getByRole("button", { name: "1 reply" });
     expect(
       within(bar)
         .getAllByTestId("thread-replier-face")
         .map((face) => face.textContent),
-    ).toEqual(["A", "G", "L"]);
+    ).toEqual(["G"]);
   });
 });
 
