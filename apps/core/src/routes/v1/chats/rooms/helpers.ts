@@ -273,7 +273,11 @@ export function mapChatRoom(
     // this half, so the other default, zero, would quietly stop a row bolding
     // while its total said otherwise.
     channelUnreadCount = Math.max(0, unreadCount - threadUnreadCount),
-    unreadThreads = { threads: [], unreadThreadCount: 0 },
+    unreadThreads = {
+      threads: [],
+      unreadThreadCount: 0,
+      unreadThreadMentionCount: 0,
+    },
     unreadMentionCount = 0,
     starredAt = null,
     pinnedMessageCount = 0,
@@ -314,6 +318,7 @@ export function mapChatRoom(
     channelUnreadCount,
     threadUnreadCount,
     unreadThreadCount: unreadThreads.unreadThreadCount,
+    unreadThreadMentionCount: unreadThreads.unreadThreadMentionCount,
     unreadThreads: unreadThreads.threads,
     unreadMentionCount,
     starredAt,
