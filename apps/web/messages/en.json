@@ -311,7 +311,8 @@
       "docs": "Documentation",
       "drive": "Files",
       "soko-bots": "Soko Bots",
-      "calendar": "Calendar"
+      "calendar": "Calendar",
+      "threads": "Threads"
     },
     "Jobs": {
       "StatusBadge": {
@@ -5463,6 +5464,32 @@
         "moreThreads": "{count, plural, one {# more unread thread} other {# more unread threads}}",
         "mentions": "{count, plural, one {# mention} other {# mentions}}",
         "untitled": "Thread"
+      },
+      "UnreadNav": {
+        "label": "Unread",
+        "threads": "Threads",
+        "allUnreads": "All unreads",
+        "unreadThreads": "{count, plural, one {# unread thread} other {# unread threads}}",
+        "unreadThreadsCapped": "More than {max} unread threads",
+        "mentions": "{count, plural, one {# mention} other {# mentions}}",
+        "filterOn": "Showing unread only",
+        "markAllRead": "Mark all as read",
+        "markAllReadError": "Could not mark everything as read.",
+        "caughtUp": "All caught up",
+        "allThreads": "All threads",
+        "showAllChats": "Show all chats",
+        "showAll": "Show all",
+        "nothingUnread": "{count, plural, one {Nothing unread in # chat} other {Nothing unread in # chats}}",
+        "justRead": "Just read"
+      },
+      "ThreadsView": {
+        "title": "Threads",
+        "listLabel": "Unread threads",
+        "empty": "You’re all caught up",
+        "emptyDescription": "New replies in threads you’re part of show up here.",
+        "loadMore": "Show more",
+        "loadError": "Could not load unread threads.",
+        "retry": "Try again"
       },
       "Thread": {
         "title": "Thread",
