@@ -1,17 +1,15 @@
 "use client";
 
-import { parseTaskScheduleMetadata } from "@sokosumi/utils";
-import { Pencil } from "lucide-react";
+import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
-import { TaskDetailLink } from "@/app/tasks/components/task-detail-link";
-import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
+import { TaskScheduleStateBadge } from "@/app/tasks/components/task-schedule-state-badge";
 import type { TaskAssigneeView } from "@/app/tasks/types/task-board";
 import {
-  computeScheduleTitleInfo,
-  formatScheduleTitle,
-  type ScheduleTitleTranslateFn,
-} from "@/components/schedules/format";
+  formatTaskScheduleRule,
+  taskScheduleAssigneeId,
+  taskSchedulePath,
+} from "@/app/tasks/utils/task-schedule-view";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -22,134 +20,77 @@ import {
 } from "@/components/ui/card";
 import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
 import type {
-  TaskListItem,
+  TaskSchedule,
   WorkspaceCalendarSource,
 } from "@/lib/clients/generated/core";
-import type { DateTimeFormatter } from "@/lib/schedules/cron";
 import { SourceMarker } from "./source-marker";
+import type { CalendarCoworker } from "./workspace-calendar";
 
 interface CalendarScheduleListProps {
-  currentUserId: string | null;
+  /** The workspace roster the assignee and owner are looked up in. */
+  coworkers: CalendarCoworker[];
   hasMore: boolean;
   isLoading: boolean;
   loadMoreError: boolean;
-  onEditSchedule: (taskId: string) => void;
   onLoadMore: () => void;
+  schedules: TaskSchedule[];
   sources: WorkspaceCalendarSource[];
-  tasks: TaskListItem[];
   timeZone: string;
 }
 
-function getRecurrenceLabel(
-  metadata: string | null,
-  t: ScheduleTitleTranslateFn,
-  formatter: DateTimeFormatter,
-): string | null {
-  const scheduleMetadata = parseTaskScheduleMetadata(metadata);
-  if (!scheduleMetadata) {
-    return null;
-  }
-
-  return formatScheduleTitle(
-    computeScheduleTitleInfo(
-      {
-        scheduleType: scheduleMetadata.mode === "once" ? "ONE_TIME" : "CRON",
-        cron:
-          scheduleMetadata.mode === "recurring" ? scheduleMetadata.expr : null,
-        timezone:
-          scheduleMetadata.mode === "recurring"
-            ? scheduleMetadata.timezone
-            : "UTC",
-      },
-      formatter,
-    ),
-    t,
-  );
-}
-
 function findSource(
-  task: TaskListItem,
+  schedule: TaskSchedule,
   sources: WorkspaceCalendarSource[],
 ): WorkspaceCalendarSource | undefined {
-  const sourceId = task.projectId
-    ? `project:${task.projectId}`
-    : `workspace:${task.workspace.id}`;
+  const sourceId = schedule.projectId
+    ? `project:${schedule.projectId}`
+    : `workspace:${schedule.workspaceId}`;
 
   return sources.find((source) => source.sourceId === sourceId);
 }
 
-function toAssigneeView(
-  assignee: TaskListItem["assignee"],
-  fallbackName: string,
+function findAssignee(
+  schedule: TaskSchedule,
+  coworkers: CalendarCoworker[],
 ): TaskAssigneeView | null {
-  if (!assignee) {
-    return null;
-  }
-
-  if (assignee.type === "sokoBot") {
-    return {
-      id: assignee.id,
-      name: assignee.sokoBot.name?.trim() || fallbackName,
-      image: assignee.sokoBot.avatarImageUrl,
-      kind: "sokoBot",
-      avatarSeed: assignee.sokoBot.avatarSeed,
-    };
-  }
-
-  if (assignee.type === "user") {
-    return {
-      id: assignee.id,
-      name: assignee.user.name,
-      image: assignee.user.image,
-      kind: "user",
-    };
-  }
-
-  return {
-    id: assignee.id,
-    name: assignee.coworker.name,
-    image: assignee.coworker.image,
-    slug: assignee.coworker.slug,
-    kind: "coworker",
-  };
+  const assigneeId = taskScheduleAssigneeId(schedule);
+  const assignee = coworkers.find(({ id }) => id === assigneeId);
+  return assignee ? { ...assignee, kind: assignee.kind ?? "coworker" } : null;
 }
 
+/** The Calendar's Schedules view: every Task Schedule, with its next Run. */
 export function CalendarScheduleList({
-  currentUserId,
+  coworkers,
   hasMore,
   isLoading,
   loadMoreError,
-  onEditSchedule,
   onLoadMore,
+  schedules,
   sources,
-  tasks,
   timeZone,
 }: CalendarScheduleListProps) {
   const t = useTranslations("App.Calendar");
   const tSchedule = useTranslations("App.Tasks.Schedule");
-  const tTasks = useTranslations("App.Tasks");
+  const tSchedules = useTranslations("App.Tasks.Schedules");
   const formatter = useFormatter();
 
   return (
     <div className="flex flex-col gap-4">
-      {tasks.length > 0 ? (
+      {schedules.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {tasks.map((task) => {
-            const recurrenceLabel = getRecurrenceLabel(
-              task.metadata,
-              tSchedule,
-              formatter,
-            );
-            const nextRunLabel = task.nextRunAt
-              ? formatter.dateTime(task.nextRunAt, "dateTime", { timeZone })
+          {schedules.map((schedule) => {
+            const nextRunLabel = schedule.nextRunAt
+              ? formatter.dateTime(schedule.nextRunAt, "dateTime", {
+                  timeZone,
+                })
               : null;
-            const source = findSource(task, sources);
+            const source = findSource(schedule, sources);
             const sourceName = source?.displayName ?? t("source.WORKSPACE");
-            const assignee = toAssigneeView(
-              task.assignee,
-              tTasks("personalAssistant"),
+            const assignee = findAssignee(schedule, coworkers);
+            const owner = coworkers.find(
+              ({ id, kind }) => kind === "user" && id === schedule.ownerId,
             );
-            const peopleNames = [assignee?.name, task.owner.name]
+            const peopleNames = [assignee?.name, owner?.name]
               .filter((name): name is string => Boolean(name?.trim()))
               .join(", ");
 
@@ -157,7 +98,7 @@ export function CalendarScheduleList({
               <Card
                 className="bg-background gap-3 py-4"
                 data-testid="calendar-schedule-row"
-                key={task.id}
+                key={schedule.id}
               >
                 <CardHeader className="flex items-start justify-between gap-3 px-4">
                   <div className="flex min-w-0 flex-col items-start gap-2">
@@ -172,12 +113,14 @@ export function CalendarScheduleList({
                           {assignee ? (
                             <AssigneeAvatar assignee={assignee} size="lg" />
                           ) : null}
-                          <UserProfileAvatar
-                            className="z-10"
-                            image={task.owner.image}
-                            name={task.owner.name}
-                            size="lg"
-                          />
+                          {owner ? (
+                            <UserProfileAvatar
+                              className="z-10"
+                              image={owner.image}
+                              name={owner.name}
+                              size="lg"
+                            />
+                          ) : null}
                         </span>
                         <span className="sr-only">{peopleNames}</span>
                       </>
@@ -193,44 +136,33 @@ export function CalendarScheduleList({
                     </span>
                     <div className="flex min-w-0 flex-col gap-1">
                       <CardTitle>
-                        <TaskDetailLink
+                        <Link
                           className="text-foreground line-clamp-2 text-sm font-medium hover:underline"
-                          href={`/tasks/${task.id}`}
-                          title={t("schedules.openTask")}
+                          href={taskSchedulePath(schedule.id)}
                         >
-                          {task.name}
-                        </TaskDetailLink>
+                          {schedule.name}
+                        </Link>
                       </CardTitle>
-                      {recurrenceLabel ? (
-                        <CardDescription className="line-clamp-1 text-xs">
-                          {recurrenceLabel}
-                        </CardDescription>
-                      ) : null}
+                      <CardDescription className="line-clamp-1 text-xs">
+                        {formatTaskScheduleRule(
+                          schedule.rule,
+                          formatter,
+                          tSchedule,
+                        )}
+                      </CardDescription>
                     </div>
                   </div>
-                  <TaskStatusBadge
-                    className="w-fit shrink-0 rounded-sm"
-                    label={t(`status.${task.status}`)}
-                    status={task.status}
+                  <TaskScheduleStateBadge
+                    schedule={schedule}
+                    label={tSchedules(`state.${schedule.state}`)}
                   />
                 </CardHeader>
-                <CardFooter className="mt-auto items-end justify-between gap-3 px-4 text-xs">
+                <CardFooter className="mt-auto px-4 text-xs">
                   <span className="text-muted-foreground tabular-nums">
                     {nextRunLabel
                       ? `${t("schedules.nextRun")}: ${nextRunLabel}`
                       : t("schedules.noNextRun")}
                   </span>
-                  {task.ownerId === currentUserId ? (
-                    <Button
-                      aria-label={t("schedules.edit")}
-                      className="-my-2 -mr-2 shrink-0"
-                      onClick={() => onEditSchedule(task.id)}
-                      size="icon"
-                      variant="ghost"
-                    >
-                      <Pencil aria-hidden />
-                    </Button>
-                  ) : null}
                 </CardFooter>
               </Card>
             );

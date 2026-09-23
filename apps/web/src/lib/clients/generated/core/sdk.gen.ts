@@ -2455,7 +2455,7 @@ export const putProjectsByIdDesignMd = <ThrowOnError extends boolean = false>(op
 });
 
 /**
- * List indexed planned and released schedule occurrences for a Project
+ * List the Task Schedule Runs of a Project: planned ones and the ones that created their Task
  */
 export const getProjectsByIdCalendar = <ThrowOnError extends boolean = false>(options: Options<GetProjectsByIdCalendarData, ThrowOnError>): RequestResult<GetProjectsByIdCalendarResponses, GetProjectsByIdCalendarErrors, ThrowOnError> => (options.client ?? client).get<GetProjectsByIdCalendarResponses, GetProjectsByIdCalendarErrors, ThrowOnError>({
     responseTransformer: getProjectsByIdCalendarResponseTransformer,
@@ -3949,7 +3949,7 @@ export const getWorkspacesDesignMd = <ThrowOnError extends boolean = false>(opti
 });
 
 /**
- * List scheduled Task projections and persisted schedule occurrences for the active workspace
+ * List the Task Schedule Runs of the active workspace: planned ones and the ones that created their Task
  */
 export const getWorkspacesCalendar = <ThrowOnError extends boolean = false>(options: Options<GetWorkspacesCalendarData, ThrowOnError>): RequestResult<GetWorkspacesCalendarResponses, GetWorkspacesCalendarErrors, ThrowOnError> => (options.client ?? client).get<GetWorkspacesCalendarResponses, GetWorkspacesCalendarErrors, ThrowOnError>({
     responseTransformer: getWorkspacesCalendarResponseTransformer,

@@ -6452,29 +6452,26 @@
       },
       "event": {
         "accessibleName": "{task}, {source}",
-        "accessibleNameSkipped": "{task}, {source}, skipped",
-        "editSchedule": "Edit schedule",
-        "moveOccurrence": "Move occurrence",
-        "skipOccurrence": "Skip occurrence",
-        "restoreOccurrence": "Restore occurrence",
-        "mutationError": "Unable to change this occurrence. Please try again.",
         "openTask": "Open task",
-        "moveNotAllowed": "Only the task owner can reschedule it."
+        "moveNotAllowed": "Only upcoming runs of your own active schedules can be moved.",
+        "moveRun": "Move run",
+        "skipRun": "Skip run",
+        "restoreRun": "Restore run",
+        "openSchedule": "Open schedule",
+        "runStale": "This schedule changed somewhere else. The calendar is reloading; try again.",
+        "runInvalidTime": "Choose a time in the future, within the next 90 days.",
+        "runError": "Couldn't change this run. Try again."
+      },
+      "runMove": {
+        "title": "Move run",
+        "description": "Choose a new time for this run of {name}. The schedule stays as it is.",
+        "label": "New time",
+        "confirm": "Move run",
+        "cancel": "Cancel",
+        "invalid": "Choose a valid date and time."
       },
       "create": {
         "fab": "Schedule a task"
-      },
-      "edit": {
-        "title": "Edit schedule",
-        "description": "Change the schedule for {name}.",
-        "loadError": "Unable to load this task. Please try again.",
-        "saveError": "Unable to save this schedule. Please try again.",
-        "clearError": "Unable to remove this schedule. Please try again.",
-        "clearPending": "Removing schedule…",
-        "clearTitle": "Remove schedule?",
-        "clearDescription": "This task will no longer run on a schedule.",
-        "clearCancel": "Cancel",
-        "clearConfirm": "Remove schedule"
       },
       "accuracy": {
         "inferred": "Inferred source",
@@ -6513,9 +6510,9 @@
       "schedules": {
         "nextRun": "Next run",
         "noNextRun": "No upcoming run",
-        "edit": "Edit schedule",
-        "openTask": "Open task",
-        "loadMore": "Load more"
+        "loadMore": "Load more",
+        "new": "New schedule",
+        "newError": "Couldn't open the schedule form. Try again."
       },
       "pagination": {
         "error": "Unable to load more events."

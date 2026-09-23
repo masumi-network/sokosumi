@@ -3,19 +3,17 @@ import {
   CalendarSourceType,
   type Prisma,
   TaskScheduleOccurrenceState,
+  TaskScheduleState,
   TaskStatus,
 } from "@sokosumi/database";
-import { parseTaskScheduleMetadata } from "@sokosumi/utils";
 
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { badRequest, notFound } from "@/helpers/error";
 import { CALENDAR_OCCURRENCE_HORIZON_MS } from "@/helpers/task-schedule-occurrence-index";
+import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import {
-  buildHumanTaskVisibilityWhere,
-  buildSokoBotOwnerTaskVisibilityWhere,
-} from "@/helpers/task-visibility";
-import {
+  buildCoworkerAssigneeAccessWhere,
   buildCoworkerTaskListAccessFilter,
   hasGrantedWorkspaceAccess,
 } from "@/helpers/vendor-grants";
@@ -43,29 +41,46 @@ export interface WorkspaceCalendarReadQuery {
   status?: TaskStatus;
 }
 
+/**
+ * What the caller may read: the Task Schedules whose planned Runs it sees,
+ * and the Tasks that released Runs created.
+ */
+export interface CalendarAccessWhere {
+  schedule: Prisma.TaskScheduleWhereInput;
+  task: Prisma.TaskWhereInput;
+}
+
 export interface WorkspaceCalendarReadOptions {
   projectId?: string;
   sourceId?: string;
-  taskWhere?: Prisma.TaskWhereInput;
+  access?: CalendarAccessWhere;
 }
 
-export async function getCalendarTaskWhere(
+export async function getCalendarAccessWhere(
   authContext: AuthenticationContext,
   workspaceId: string,
-): Promise<Prisma.TaskWhereInput | undefined> {
+): Promise<CalendarAccessWhere | undefined> {
   if (authContext.actor === "sokoBot") {
+    const ownerVisibility = buildHumanTaskVisibilityWhere(authContext.userId);
     return {
-      archivedAt: null,
-      workspaceId,
-      assigneeSokoBotId: authContext.sokoBotId,
-      status: { not: TaskStatus.DRAFT },
-      AND: [buildSokoBotOwnerTaskVisibilityWhere(authContext.userId)],
+      schedule: {
+        assigneeSokoBotId: authContext.sokoBotId,
+        AND: [ownerVisibility],
+      },
+      task: {
+        archivedAt: null,
+        workspaceId,
+        assigneeSokoBotId: authContext.sokoBotId,
+        status: { not: TaskStatus.DRAFT },
+        AND: [ownerVisibility],
+      },
     };
   }
 
   if (authContext.actor !== "coworker") {
     if (authContext.actor === "user") {
-      return buildHumanTaskVisibilityWhere(authContext.userId);
+      const visibility = buildHumanTaskVisibilityWhere(authContext.userId);
+      return { schedule: visibility, task: visibility };
     }
     return undefined;
   }
@@ -77,14 +92,15 @@ export async function getCalendarTaskWhere(
         workspaceId,
       })
     : false;
+  const params = {
+    coworkerId: authContext.coworkerId,
+    vendorId: authContext.vendorId,
+    hasWorkspaceGrant,
+  };
 
   return {
-    archivedAt: null,
-    ...buildCoworkerTaskListAccessFilter({
-      coworkerId: authContext.coworkerId,
-      vendorId: authContext.vendorId,
-      hasWorkspaceGrant,
-    }),
+    schedule: buildCoworkerAssigneeAccessWhere(params),
+    task: { archivedAt: null, ...buildCoworkerTaskListAccessFilter(params) },
   };
 }
 
@@ -180,6 +196,12 @@ function getNonProjectSourceFilter(
   throw notFound("Calendar source not found");
 }
 
+/**
+ * The Calendar shows Task Schedule Runs (ADR 0041): planned ones, at their
+ * moved time when moved, and released ones through the Task they created.
+ * Skipped Runs are left out; planned Runs of a Paused schedule too, since
+ * they do not run until it resumes.
+ */
 export async function readWorkspaceCalendar(
   workspaceId: string,
   userId: string,
@@ -193,48 +215,46 @@ export async function readWorkspaceCalendar(
   const { cursor, from, to } = query;
   const maxCandidates = query.limit + 1;
   const sourceFilter = getNonProjectSourceFilter(workspaceId, options.sourceId);
+  const assigneeFilter = {
+    ...(query.scope === "owned" ? { ownerId: userId } : {}),
+    ...(query.assigneeId ? { assigneeId: query.assigneeId } : {}),
+    ...(query.assigneeUserId ? { assigneeUserId: query.assigneeUserId } : {}),
+  };
+  const hasAssigneeFilter = Object.keys(assigneeFilter).length > 0;
+  const scheduleFilters: Prisma.TaskScheduleWhereInput[] = [
+    { state: TaskScheduleState.ACTIVE },
+    ...(options.access ? [options.access.schedule] : []),
+    ...(hasAssigneeFilter ? [assigneeFilter] : []),
+  ];
   const taskFilters: Prisma.TaskWhereInput[] = [
     { archivedAt: null },
-    ...(options.taskWhere ? [options.taskWhere] : []),
-    ...(query.scope === "owned" ||
-    query.assigneeId ||
-    query.assigneeUserId ||
-    query.status
+    ...(options.access ? [options.access.task] : []),
+    ...(hasAssigneeFilter || query.status
       ? [
           {
-            ...(query.scope === "owned" ? { ownerId: userId } : {}),
-            ...(query.assigneeId ? { assigneeId: query.assigneeId } : {}),
-            ...(query.assigneeUserId
-              ? { assigneeUserId: query.assigneeUserId }
-              : {}),
+            ...assigneeFilter,
             ...(query.status ? { status: query.status } : {}),
           },
         ]
       : []),
   ];
-  const taskVisibilityFilters: Prisma.TaskScheduleOccurrenceWhereInput[] =
-    taskFilters.map((taskWhere) => ({
-      OR: [
-        {
-          state: {
-            in: [
-              TaskScheduleOccurrenceState.PLANNED,
-              TaskScheduleOccurrenceState.SKIPPED,
-            ],
-          },
-          seriesTask: { is: taskWhere },
-        },
-        {
-          state: TaskScheduleOccurrenceState.RELEASED,
-          releasedTask: { is: taskWhere },
-        },
-        {
-          state: TaskScheduleOccurrenceState.RELEASED,
-          releasedTaskId: null,
-          seriesTask: { is: taskWhere },
-        },
-      ],
-    }));
+  // A planned Run has no Task yet, so it has no status to match.
+  const runVisibility: Prisma.TaskScheduleOccurrenceWhereInput = {
+    OR: [
+      ...(query.status
+        ? []
+        : [
+            {
+              state: TaskScheduleOccurrenceState.PLANNED,
+              schedule: { is: { AND: scheduleFilters } },
+            },
+          ]),
+      {
+        state: TaskScheduleOccurrenceState.RELEASED,
+        releasedTask: { is: { AND: taskFilters } },
+      },
+    ],
+  };
   const cursorFilter: Prisma.TaskScheduleOccurrenceWhereInput | null = cursor
     ? {
         OR: [
@@ -250,9 +270,8 @@ export async function readWorkspaceCalendar(
         ],
       }
     : null;
-  const persistedOccurrenceBaseWhere = {
-    // Task Schedule Runs are not on the calendar yet (SOK-1170).
-    seriesTaskId: { not: null },
+  const baseWhere: Prisma.TaskScheduleOccurrenceWhereInput = {
+    scheduleId: { not: null },
     sourceWorkspaceId: workspaceId,
     ...sourceFilter,
     ...(options.projectId
@@ -264,30 +283,21 @@ export async function readWorkspaceCalendar(
     state: {
       in: [
         TaskScheduleOccurrenceState.PLANNED,
-        TaskScheduleOccurrenceState.SKIPPED,
         TaskScheduleOccurrenceState.RELEASED,
       ],
     },
     effectiveScheduledAt: { gte: from, lt: to },
-    ...(taskVisibilityFilters.length > 0 ? { AND: taskVisibilityFilters } : {}),
+    AND: [runVisibility],
   };
-  const persistedOccurrenceWhere = {
-    ...persistedOccurrenceBaseWhere,
-    ...(cursorFilter
-      ? taskVisibilityFilters.length > 0
-        ? { AND: [...taskVisibilityFilters, cursorFilter] }
-        : cursorFilter
-      : {}),
-  };
-  const [occurrences, persistedOccurrenceCount] = await Promise.all([
+  const [runs, total] = await Promise.all([
     prisma.taskScheduleOccurrence.findMany({
-      where: persistedOccurrenceWhere,
+      where: cursorFilter
+        ? { ...baseWhere, AND: [runVisibility, cursorFilter] }
+        : baseWhere,
       take: maxCandidates,
       orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
       select: {
         id: true,
-        scheduleVersion: true,
-        seriesTaskId: true,
         originalScheduledAt: true,
         effectiveScheduledAt: true,
         state: true,
@@ -296,17 +306,15 @@ export async function readWorkspaceCalendar(
         sourceProjectId: true,
         sourceAccuracy: true,
         timeAccuracy: true,
-        epochId: true,
-        seriesTask: {
+        schedule: {
           select: {
             id: true,
             name: true,
             ownerId: true,
-            status: true,
+            state: true,
+            revision: true,
             assigneeId: true,
             assigneeUserId: true,
-            metadata: true,
-            scheduleRevision: true,
           },
         },
         releasedTask: {
@@ -321,63 +329,55 @@ export async function readWorkspaceCalendar(
         },
       },
     }),
-    prisma.taskScheduleOccurrence.count({
-      where: persistedOccurrenceBaseWhere,
-    }),
+    prisma.taskScheduleOccurrence.count({ where: baseWhere }),
   ]);
 
-  const persistedItems = occurrences
-    .slice(0, maxCandidates)
-    .flatMap(({ seriesTask, ...rest }) =>
-      seriesTask ? [{ ...rest, seriesTask }] : [],
-    )
-    .map((occurrence) => {
-      const task =
-        occurrence.state === TaskScheduleOccurrenceState.RELEASED &&
-        occurrence.releasedTask
-          ? occurrence.releasedTask
-          : occurrence.seriesTask;
-      const schedule = parseTaskScheduleMetadata(
-        occurrence.seriesTask.metadata,
-      );
-      const canEditSchedule =
-        occurrence.state !== TaskScheduleOccurrenceState.RELEASED &&
-        task.ownerId === userId;
-
-      return workspaceCalendarItemSchema.parse({
-        id: occurrence.id,
-        taskId: task.id,
-        canEditSchedule,
-        canMutateOccurrence:
-          canEditSchedule &&
-          (occurrence.scheduleVersion === 2 || schedule?.mode === "once"),
-        scheduleRevision: occurrence.seriesTask.scheduleRevision,
-        taskName: task.name,
-        taskStatus: task.status,
-        taskAssigneeId: task.assigneeId,
-        taskAssigneeUserId: task.assigneeUserId,
-        taskOwnerId: task.ownerId,
-        scheduledAt: occurrence.effectiveScheduledAt.toISOString(),
-        originalScheduledAt:
-          occurrence.originalScheduledAt?.toISOString() ?? null,
-        state: occurrence.state,
-        sourceId: getCalendarSourceId(occurrence),
-        sourceWorkspaceId: occurrence.sourceWorkspaceId,
-        sourceType: occurrence.sourceType,
-        sourceProjectId: occurrence.sourceProjectId,
-        sourceAccuracy: occurrence.sourceAccuracy,
-        timeAccuracy: occurrence.timeAccuracy,
-      });
-    });
-  const page = persistedItems.slice(0, query.limit);
-  const hasMore = persistedItems.length > page.length;
+  const now = new Date();
+  const items = runs.flatMap(({ schedule, releasedTask, ...run }) => {
+    if (!schedule) {
+      return [];
+    }
+    const task =
+      run.state === TaskScheduleOccurrenceState.RELEASED ? releasedTask : null;
+    const blueprint = task ?? schedule;
+    return [
+      workspaceCalendarItemSchema.parse({
+        id: run.id,
+        scheduleId: schedule.id,
+        scheduleRevision: schedule.revision,
+        // The same Runs PATCH /runs/{runId} accepts from their owner.
+        canChangeRun:
+          run.state === TaskScheduleOccurrenceState.PLANNED &&
+          schedule.state === TaskScheduleState.ACTIVE &&
+          schedule.ownerId === userId &&
+          run.effectiveScheduledAt > now,
+        taskId: task?.id ?? null,
+        taskName: blueprint.name,
+        taskStatus: task?.status ?? null,
+        taskAssigneeId: blueprint.assigneeId,
+        taskAssigneeUserId: blueprint.assigneeUserId,
+        taskOwnerId: blueprint.ownerId,
+        scheduledAt: run.effectiveScheduledAt.toISOString(),
+        originalScheduledAt: run.originalScheduledAt?.toISOString() ?? null,
+        state: run.state,
+        sourceId: getCalendarSourceId(run),
+        sourceWorkspaceId: run.sourceWorkspaceId,
+        sourceType: run.sourceType,
+        sourceProjectId: run.sourceProjectId,
+        sourceAccuracy: run.sourceAccuracy,
+        timeAccuracy: run.timeAccuracy,
+      }),
+    ];
+  });
+  const page = items.slice(0, query.limit);
+  const hasMore = items.length > page.length;
 
   return {
     items: page,
     pagination: {
       cursor: query.requestedCursor,
       limit: query.limit,
-      total: persistedOccurrenceCount,
+      total,
       nextCursor: hasMore
         ? encodeCursor({
             id: page[page.length - 1]!.id,

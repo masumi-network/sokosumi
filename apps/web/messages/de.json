@@ -6452,29 +6452,26 @@
       },
       "event": {
         "accessibleName": "{task}, {source}",
-        "accessibleNameSkipped": "{task}, {source}, übersprungen",
-        "editSchedule": "Zeitplan bearbeiten",
-        "moveOccurrence": "Vorkommen verschieben",
-        "skipOccurrence": "Vorkommen überspringen",
-        "restoreOccurrence": "Vorkommen wiederherstellen",
-        "mutationError": "Dieses Vorkommen konnte nicht geändert werden. Bitte versuche es erneut.",
         "openTask": "Task öffnen",
-        "moveNotAllowed": "Nur der Besitzer der Aufgabe kann sie neu planen."
+        "moveNotAllowed": "Nur anstehende Läufe deiner eigenen aktiven Zeitpläne lassen sich verschieben.",
+        "moveRun": "Lauf verschieben",
+        "skipRun": "Lauf überspringen",
+        "restoreRun": "Lauf wiederherstellen",
+        "openSchedule": "Zeitplan öffnen",
+        "runStale": "Dieser Zeitplan wurde an anderer Stelle geändert. Der Kalender lädt neu; versuche es erneut.",
+        "runInvalidTime": "Wähle eine Zeit in der Zukunft, innerhalb der nächsten 90 Tage.",
+        "runError": "Dieser Lauf konnte nicht geändert werden. Versuche es erneut."
+      },
+      "runMove": {
+        "title": "Lauf verschieben",
+        "description": "Wähle eine neue Zeit für diesen Lauf von {name}. Der Zeitplan bleibt, wie er ist.",
+        "label": "Neue Zeit",
+        "confirm": "Lauf verschieben",
+        "cancel": "Abbrechen",
+        "invalid": "Wähle ein gültiges Datum und eine gültige Uhrzeit."
       },
       "create": {
         "fab": "Task planen"
-      },
-      "edit": {
-        "title": "Zeitplan bearbeiten",
-        "description": "Aendere den Zeitplan fuer {name}.",
-        "loadError": "Dieser Task konnte nicht geladen werden. Bitte versuche es erneut.",
-        "saveError": "Dieser Zeitplan konnte nicht gespeichert werden. Bitte versuche es erneut.",
-        "clearError": "Dieser Zeitplan konnte nicht entfernt werden. Bitte versuche es erneut.",
-        "clearPending": "Zeitplan wird entfernt…",
-        "clearTitle": "Zeitplan entfernen?",
-        "clearDescription": "Dieser Task wird nicht mehr nach einem Zeitplan ausgeführt.",
-        "clearCancel": "Abbrechen",
-        "clearConfirm": "Zeitplan entfernen"
       },
       "accuracy": {
         "inferred": "Abgeleitete Quelle",
@@ -6513,9 +6510,9 @@
       "schedules": {
         "nextRun": "Nächster Lauf",
         "noNextRun": "Kein nächster Lauf",
-        "edit": "Zeitplan bearbeiten",
-        "openTask": "Aufgabe öffnen",
-        "loadMore": "Mehr laden"
+        "loadMore": "Mehr laden",
+        "new": "Neuer Zeitplan",
+        "newError": "Das Zeitplan-Formular konnte nicht geöffnet werden. Versuche es erneut."
       },
       "pagination": {
         "error": "Weitere Ereignisse konnten nicht geladen werden."
