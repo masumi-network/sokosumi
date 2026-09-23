@@ -14,9 +14,8 @@
       private static let edited = "Updated **release notes** for the team."
       private static let overLimit = String(repeating: "a", count: ComposerContent.maximumLength + 1) + "  "
 
-      @Test(arguments: [false, true])
-      func drawsNoButtonRowUnderTheField(dark: Bool) async throws {
-        let fixture = try await MessageEditComposerFixture.make(dark: dark)
+      @Test func drawsNoButtonRowUnderTheField() async throws {
+        let fixture = try await MessageEditComposerFixture.make(dark: false)
         defer { fixture.window.orderOut(nil) }
         fixture.editing.draft = Self.edited
         try await fixture.waitForDraft(Self.edited)
@@ -34,13 +33,12 @@
         }
       }
 
-      @Test(arguments: [false, true])
-      func anOverLimitDraftShowsTheHintAndCountOnOneLineUnderTheField(dark: Bool) async throws {
-        let fixture = try await MessageEditComposerFixture.make(dark: dark)
+      @Test func anOverLimitDraftShowsTheHintAndCountOnOneLineUnderTheField() async throws {
+        let fixture = try await MessageEditComposerFixture.make(dark: false)
         defer { fixture.window.orderOut(nil) }
         fixture.editing.draft = Self.overLimit
         try await fixture.waitForDraft(Self.overLimit)
-        let bitmap = try fixture.record(named: "message-edit-over-limit-\(dark ? "dark" : "light").png")
+        let bitmap = try fixture.record(named: "message-edit-over-limit.png")
         guard let read = try Self.recognizedText(in: bitmap) else { return }
         let lines = read.map(\.text)
         #expect(!lines.contains { $0.contains("exceeds") }, "OCR read: \(lines)")

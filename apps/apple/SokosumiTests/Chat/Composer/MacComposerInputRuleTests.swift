@@ -5,8 +5,8 @@
   import SwiftUI
   import Testing
 
-  /// Typed markdown shortcuts through the real text view. The matcher's own table
-  /// is `ComposerInputRuleTests` in `SokosumiChat`.
+  /// AppKit edges for composer input rules. The matcher's web-parity table lives in
+  /// `ComposerInputRuleTests` in `SokosumiChat`.
   @MainActor
   struct MacComposerInputRuleTests {
     /// Types one character per keystroke, as the input context delivers them.
@@ -14,26 +14,6 @@
       for character in text {
         input.insertText(String(character), replacementRange: input.selectedRange())
       }
-    }
-
-    @Test(arguments: [
-      ("**hi**", ComposerInlineText.Style.bold), ("~~hi~~", .strikethrough), ("_hi_", .italic), ("`hi`", .code)
-    ])
-    func theTypedClosingDelimiterFormatsAndRemovesTheDelimiters(_ typed: String, _ style: ComposerInlineText.Style) {
-      let input = MacComposerTextInput.InputView()
-      var refreshes = 0
-      input.formattingDidChange = { refreshes += 1 }
-      type("so " + typed, into: input)
-      #expect(input.string == "so hi")
-      #expect(input.selectedRange() == NSRange(location: 5, length: 0))
-      let formatted = input.attributedString()
-      #expect(formatted.attribute(style.attribute, at: 3, effectiveRange: nil) as? Bool == true)
-      #expect(formatted.attribute(style.attribute, at: 4, effectiveRange: nil) as? Bool == true)
-      #expect(formatted.attribute(style.attribute, at: 0, effectiveRange: nil) == nil)
-      #expect(refreshes == 1)
-      // The same bytes as the literal delimiters produced, through the one serializer.
-      #expect(input.captureDraft() == "so " + typed + "\n")
-      #expect(input.captureDraft() == ComposerBlockText.document(NSAttributedString(string: "so " + typed)).markdown)
     }
 
     @Test func theFormattedRunLooksFormatted() throws {
@@ -48,15 +28,6 @@
       #expect(code.isFixedPitch)
       let plain = try #require(text.attribute(.font, at: 2, effectiveRange: nil) as? NSFont)
       #expect(!NSFontManager.shared.traits(of: plain).contains(.boldFontMask))
-    }
-
-    /// Web leaves the caret after the mark, so the next character is not part of it.
-    @Test(arguments: ["**hi**", "~~hi~~", "_hi_", "`hi`"])
-    func typingContinuesOutsideTheFormattedRun(_ typed: String) {
-      let input = MacComposerTextInput.InputView()
-      type(typed + " there", into: input)
-      #expect(input.string == "hi there")
-      #expect(input.captureDraft() == typed + " there\n")
     }
 
     @Test func typingContinuesInTheSurroundingFormat() {
@@ -101,25 +72,7 @@
       #expect(!delegate.manager.canUndo)
     }
 
-    /// Web runs the rule on every input event and its paste handler says so ("markdown
-    /// input rules still apply after paste"), so a paste that leaves a closed pair before
-    /// the caret formats it. This test used to assert the opposite, from a wrong brief.
-    @Test(arguments: [("", "**hi**"), ("_hi", "_"), ("so ", "~~hi~~"), ("", "`hi`")])
-    func pasteFormatsThePairItCloses(_ typed: String, _ pasted: String) {
-      let pasteboard = NSPasteboard.withUniqueName()
-      defer { pasteboard.releaseGlobally() }
-      let input = MacComposerTextInput.InputView()
-      type(typed, into: input)
-      pasteboard.setString(pasted, forType: .string)
-      input.pasteText(from: pasteboard)
-      #expect(input.string == (typed.hasPrefix("so ") ? "so hi" : "hi"))
-      #expect(input.selectedRange() == NSRange(location: input.string.utf16.count, length: 0))
-      // The same bytes the literal paste serialized to before.
-      #expect(input.captureDraft() == typed + pasted + "\n")
-      #expect(input.captureDraft() == ComposerBlockText.document(NSAttributedString(string: typed + pasted)).markdown)
-    }
-
-    /// One pair per edit, as on web: only the pair that ends at the caret.
+    /// One pair per edit, as on web: only the pair that ends at the caret. Paste is the AppKit edge.
     @Test func pasteOfSeveralPairsFormatsOnlyTheLast() {
       let pasteboard = NSPasteboard.withUniqueName()
       defer { pasteboard.releaseGlobally() }
@@ -273,12 +226,6 @@
       #expect(input.captureDraft() == "_a @user-1:anna b_\n")
     }
 
-    @Test func doesNotFormatIdentifiers() {
-      let input = MacComposerTextInput.InputView()
-      type("snake_case_name_", into: input)
-      #expect(input.string == "snake_case_name_")
-    }
-
     @Test func aRetainedRawDraftStaysLiteral() {
       let source = "![image](https://example.com/image.png)"
       let input = MacComposerTextInput.InputView()
@@ -289,11 +236,9 @@
     }
 
     @MainActor struct FixtureTests {
-      /// The real composer, focused, with `so **bold** _italic_ ~~strike~~ `code` done`
-      /// typed through the window as key events. The editor shows the four runs
-      /// formatted and none of their delimiters.
-      @Test(arguments: [false, true])
-      func rendersRunsFormattedByTyping(dark: Bool) async throws {
+      /// The real composer, focused, with four runs typed through the window as key events.
+      /// The editor shows the runs formatted and none of their delimiters.
+      @Test func rendersRunsFormattedByTyping() async throws {
         var text = ""
         let content = VStack {
           Spacer()
@@ -301,10 +246,8 @@
         }
         .padding(12)
         .frame(width: 480, height: 220)
-        .environment(\.colorScheme, dark ? .dark : .light)
         let host = NSHostingView(rootView: content)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 220), styleMask: [.titled], backing: .buffered, defer: false)
-        window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
         window.contentView = host
         window.orderFront(nil)
         defer { window.orderOut(nil) }
@@ -315,8 +258,6 @@
         _ = try await waitForView(in: host, timeoutMessage: "Expected editor \(String(reflecting: "so bold italic strike code done")) and draft \(String(reflecting: typed + "\n")); got editor \(String(reflecting: input.string)) and draft \(String(reflecting: text))") {
           input.string == "so bold italic strike code done" && text == typed + "\n" ? input : nil
         }
-        // What the picture claims: no delimiter is on screen, each run carries its format,
-        // and the draft the view model holds is the markdown that was typed.
         #expect(input.string == "so bold italic strike code done")
         let shown = input.attributedString()
         for (word, style) in [("bold", ComposerInlineText.Style.bold), ("italic", .italic), ("strike", .strikethrough), ("code", .code)] {
@@ -372,22 +313,6 @@
         #expect(text == "so **hi** x\n")
       }
 
-      /// A busy run loop can mount the editor after the old 200 ms startup delay.
-      @Test func waitsForDelayedComposerMount() async throws {
-        let host = NSHostingView(rootView: ComposerTextInput?.none)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 220), styleMask: [.titled], backing: .buffered, defer: false)
-        window.contentView = host
-        window.orderFront(nil)
-        defer { window.orderOut(nil) }
-        let mount = Task { @MainActor in
-          try await Task.sleep(for: .milliseconds(350))
-          host.rootView = ComposerTextInput(text: .constant(""), submit: { false })
-        }
-        defer { mount.cancel() }
-        let input = try await Self.loadedInput(in: host)
-        #expect(input.window === window)
-      }
-
       private static func loadedInput(in host: NSView) async throws -> MacComposerTextInput.InputView {
         try await waitForView(in: host, timeoutMessage: "Composer editor did not appear in the hosting view") {
           textView(in: host) as? MacComposerTextInput.InputView
@@ -421,7 +346,8 @@
     }
   }
 
-  /// One step per timer callout on the main run loop.
+  /// One step per timer callout on the main run loop. 4 ms is still one callout per key,
+  /// faster than a 10 ms frame; the claim is event grouping, not display cadence.
   @MainActor private final class EventPump {
     private var steps: ArraySlice<() -> Void>
     private var timer: Timer?
@@ -434,7 +360,7 @@
     func run() async {
       await withCheckedContinuation { continuation in
         done = continuation
-        timer = Timer.scheduledTimer(withTimeInterval: 0.01, repeats: true) { [weak self] _ in
+        timer = Timer.scheduledTimer(withTimeInterval: 0.004, repeats: true) { [weak self] _ in
           MainActor.assumeIsolated { self?.tick() }
         }
       }

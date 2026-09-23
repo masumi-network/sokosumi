@@ -27,7 +27,7 @@ public struct RoomThreadOverviewGroups: Equatable, Sendable {
     !unread.isEmpty || !earlier.isEmpty
   }
 
-  /// "All caught up." stands under the Unread heading in place of rows.
+  /// "All caught up" stands under the Unread heading in place of rows.
   public var isCaughtUp: Bool {
     unread.isEmpty && !earlier.isEmpty
   }
