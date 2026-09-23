@@ -1,7 +1,12 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import { type ComponentProps, isValidElement, type ReactNode } from "react";
+import {
+  type ComponentProps,
+  cloneElement,
+  isValidElement,
+  type ReactNode,
+} from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import messages from "@/../messages/en.json";
 import type { ChatRoom } from "@/lib/clients/generated/core";
@@ -52,14 +57,26 @@ vi.mock("@/components/ui/sidebar", async () => ({
   ...(await vi.importActual<typeof import("@/components/ui/sidebar")>(
     "@/components/ui/sidebar",
   )),
+  // The primitive's `cn` merge, reduced to the part these rows rely on: the
+  // row's own classes land on the element it renders.
   SidebarMenuButton: ({
     children,
     asChild,
+    className,
   }: {
     children: ReactNode;
     asChild?: boolean;
+    className?: string;
   }) =>
-    asChild === true && isValidElement(children) ? children : <>{children}</>,
+    asChild === true && isValidElement<{ className?: string }>(children) ? (
+      cloneElement(children, {
+        className: [children.props.className, className]
+          .filter(Boolean)
+          .join(" "),
+      })
+    ) : (
+      <>{children}</>
+    ),
   useSidebar: () => sidebarMock,
   SidebarMenu: ({ children }: { children: ReactNode }) => <ul>{children}</ul>,
   SidebarMenuItem: ({ children }: { children: ReactNode }) => (

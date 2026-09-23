@@ -246,18 +246,30 @@ export function ChatUnreadNavRows({
       <SidebarMenuItem className="relative">
         {/* A mode, not a place: grey fill says "the page you are on", so
             the filter takes the primary tint the app uses for what is on
-            and for the reader instead. */}
-        <SidebarMenuButton asChild tooltip={t("allUnreads")}>
+            and for the reader instead. Like a selected row it holds still
+            under the pointer and the press, expanded and on the rail. The
+            classes go on the button primitive, whose merge lets them replace
+            its own hover fill; on the child they would only sit beside it,
+            and the grey would win. */}
+        <SidebarMenuButton
+          asChild
+          tooltip={t("allUnreads")}
+          className={cn(
+            unreadOnly
+              ? [
+                  "bg-primary-quaternary text-primary-variant font-medium",
+                  "hover:bg-primary-quaternary hover:text-primary-variant",
+                  "active:bg-primary-quaternary active:text-primary-variant",
+                  "group-data-[collapsible=icon]:hover:bg-primary-quaternary group-data-[collapsible=icon]:active:bg-primary-quaternary",
+                ]
+              : THREADS_ROW_CLASS,
+          )}
+        >
           <button
             type="button"
             aria-pressed={unreadOnly}
             data-filter-on={unreadOnly ? "true" : undefined}
             onClick={() => onUnreadOnlyChange(!unreadOnly)}
-            className={
-              unreadOnly
-                ? "bg-primary-quaternary text-primary-variant hover:bg-primary-quaternary hover:text-primary-variant font-medium"
-                : THREADS_ROW_CLASS
-            }
           >
             <SidebarRowSlot>
               <Inbox className="size-4" aria-hidden />
