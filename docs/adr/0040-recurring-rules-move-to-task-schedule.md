@@ -18,5 +18,6 @@ A repeating rule is a **Task Schedule**, its own model, not a Task. It holds the
 - ADR 0029's "Queued needs a schedule" becomes "Queued needs a Run at"; a Task no longer has a live series lifecycle.
 - Migration: healthy recurring series become Active schedules; quarantined series and person-assigned series that never released become Paused; one-time schedules become a Run at on the same Task; template Tasks are archived; `SCHEDULE` links become `scheduleId`, and the link type is dropped.
 - Deleting a schedule sets `scheduleId` to null on the Tasks it created. Closing or deleting a project Ends its schedules.
+- A skipped or moved Occurrence is recorded on its Occurrence row (state, moved time, and the person or Coworker who last changed it), not as a Task event or in a separate history table; a skip that was later restored leaves no trace.
 - Task Schedules are not behind the Calendar beta; only the calendar view is.
 - `SokoBotSchedule` is unrelated and stays separate.
