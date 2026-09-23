@@ -412,8 +412,10 @@ export function ChatRoomSidebarRow({
   }
 
   // The dialog needs the org roster and the reader's role, which this row does
-  // not have and the room already loads. So the row asks the room to open it.
-  const editChannelItem = (
+  // not have and the room already loads. So the row asks the room to open it:
+  // a Channel's settings, or a group Direct's name, which is all it has.
+  const canEditRoom = isChannel || room.isGroupDirect;
+  const editRoomItem = (
     <DropdownMenuItem
       disabled={isPending}
       onSelect={() => {
@@ -441,7 +443,7 @@ export function ChatRoomSidebarRow({
       }}
     >
       <Pencil className="size-4" aria-hidden />
-      {tChannels("editChannel")}
+      {isChannel ? tChannels("editChannel") : tChannels("GroupName.nameGroup")}
     </DropdownMenuItem>
   );
 
@@ -723,13 +725,13 @@ export function ChatRoomSidebarRow({
                     )}
                     {isMuted ? tActions("unmute") : tActions("mute")}
                   </DropdownMenuItem>
-                  {isChannel ? (
+                  {canEditRoom ? (
                     <>
                       <DropdownMenuSeparator />
                       {dismissSheetOnNavigate ? (
-                        <SheetClose asChild>{editChannelItem}</SheetClose>
+                        <SheetClose asChild>{editRoomItem}</SheetClose>
                       ) : (
-                        editChannelItem
+                        editRoomItem
                       )}
                     </>
                   ) : null}

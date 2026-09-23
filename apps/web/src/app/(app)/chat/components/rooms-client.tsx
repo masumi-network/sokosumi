@@ -2108,9 +2108,12 @@ function RoomView({
   });
 
   useRoomUrlAsk({
-    // Channels only, the way the row that asks is. A direct room has no
-    // dialog to open, so it has no ask to read either.
-    roomId: selectedRoom?.kind === "channel" ? selectedRoom.id : null,
+    // Channels and group Directs only, the way the row that asks is. Any
+    // other Direct has no dialog to open, so it has no ask to read either.
+    roomId:
+      selectedRoom?.kind === "channel" || selectedRoom?.isGroupDirect
+        ? selectedRoom.id
+        : null,
     ready: rosterPromise == null || deferredRoster != null,
     pathname,
     searchParams,

@@ -94,6 +94,7 @@ vi.mock("next-intl", () => ({
         cancel: "Cancel",
         markUnread: "Mark as unread",
         editChannel: "Edit channel",
+        "GroupName.nameGroup": "Name this group",
         pin: "Pin",
         unpin: "Unpin",
         mute: "Mute",
@@ -1535,6 +1536,48 @@ describe("ChatRoomSidebarRow edit menu", () => {
 
     expect(
       screen.queryByRole("menuitem", { name: "Edit channel" }),
+    ).not.toBeInTheDocument();
+  });
+
+  // A group Direct's only setting is its name; the room opens that dialog
+  // for the same ask a channel row sends.
+  it("offers Name this group on a group Direct", async () => {
+    render(
+      <ChatRoomSidebarRow
+        room={makeRoom({ kind: "direct", isGroupDirect: true })}
+        href="/chat/rooms/room-1"
+        label="Ben, Cara"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const user = await openRoomMenu("Ben, Cara");
+    expect(
+      screen.queryByRole("menuitem", { name: "Edit channel" }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("menuitem", { name: "Name this group" }));
+
+    expect(pushMock).toHaveBeenCalledWith(chatRoomEditHref("room-1"));
+  });
+
+  it("offers no group name on a 1:1 Direct", async () => {
+    render(
+      <ChatRoomSidebarRow
+        room={makeRoom({ kind: "direct" })}
+        href="/chat/rooms/room-1"
+        label="Alice"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    await openRoomMenu("Alice");
+
+    expect(
+      screen.queryByRole("menuitem", { name: "Name this group" }),
     ).not.toBeInTheDocument();
   });
 
