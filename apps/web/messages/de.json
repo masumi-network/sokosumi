@@ -6394,8 +6394,8 @@
         "retry": "Erneut versuchen"
       },
       "agenda": {
-        "backToTop": "Nach oben",
-        "today": "Heute"
+        "upcoming": "Als Nächstes",
+        "loading": "Wird geladen…"
       }
     },
     "You": {

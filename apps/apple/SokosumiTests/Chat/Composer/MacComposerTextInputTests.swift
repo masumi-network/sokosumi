@@ -495,14 +495,17 @@
         window.contentView = host
         window.orderFront(nil)
         defer { window.orderOut(nil) }
-        try await Task.sleep(for: .milliseconds(200))
-        let input = try #require(Self.textView(in: host) as? MacComposerTextInput.InputView)
+        let input = try await waitForView(in: host, timeoutMessage: "Composer editor did not appear in the hosting view") {
+          Self.textView(in: host) as? MacComposerTextInput.InputView
+        }
         let commands = try #require((input.delegate as? MacComposerTextInput.Coordinator)?.parent.commands)
         #expect(ComposerPreferences().toolbarVisible)
         #expect(window.makeFirstResponder(input))
         let block = (input.string as NSString).range(of: "let x = 1\nprint(x)\n")
         input.setSelectedRange(NSRange(location: (input.string as NSString).range(of: "print").location, length: 0))
-        try await Task.sleep(for: .milliseconds(300))
+        _ = try await waitForView(in: host, timeoutMessage: "Expected active blocks [.codeBlock]; got \(commands.activeBlocks)") {
+          commands.activeBlocks == [.codeBlock] ? input : nil
+        }
         #expect(commands.activeBlocks == [.codeBlock])
         var tinted = NSRange()
         #expect(input.attributedString().attribute(.backgroundColor, at: block.location, longestEffectiveRange: &tinted, in: NSRange(location: 0, length: input.string.utf16.count)) != nil)
@@ -511,7 +514,9 @@
         try Self.record(host, named: "composer-code-block-on-\(dark ? "dark" : "light").png")
 
         commands.apply(.codeBlock)
-        try await Task.sleep(for: .milliseconds(300))
+        _ = try await waitForView(in: host, timeoutMessage: "Expected no active blocks and draft \(String(reflecting: "Run this:\n\nlet x = 1\nprint(x)\n")); got \(commands.activeBlocks) and \(String(reflecting: text))") {
+          commands.activeBlocks.isEmpty && text == "Run this:\n\nlet x = 1\nprint(x)\n" ? input : nil
+        }
         #expect(commands.activeBlocks.isEmpty)
         #expect(text == "Run this:\n\nlet x = 1\nprint(x)\n")
         #expect(input.string == "Run this:\n\nlet x = 1\nprint(x)\n")

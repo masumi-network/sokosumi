@@ -51,17 +51,8 @@ export function makeUserChatControlChannelName(userId: string): string {
   return `chat_control:user_${userId}`;
 }
 
-const WORKSPACE_CALENDAR_CHANNEL_PATTERN =
-  /^calendar:workspace_([^:]+):user_([^:]+)$/;
-const USER_CALENDAR_CONTROL_CHANNEL_PATTERN = /^calendar_control:user_([^:]+)$/;
-
 export const CALENDAR_INVALIDATED_EVENT_NAME = "calendar_invalidated";
 export const CALENDAR_ACCESS_REVOKED_EVENT_NAME = "calendar_access_revoked";
-
-export interface WorkspaceCalendarChannelIdentity {
-  workspaceId: string;
-  userId: string;
-}
 
 export function makeWorkspaceCalendarChannelName(
   workspaceId: string,
@@ -70,25 +61,8 @@ export function makeWorkspaceCalendarChannelName(
   return `calendar:workspace_${workspaceId}:user_${userId}`;
 }
 
-export function parseWorkspaceCalendarChannelName(
-  channelName: string,
-): WorkspaceCalendarChannelIdentity | null {
-  const match = WORKSPACE_CALENDAR_CHANNEL_PATTERN.exec(channelName);
-  if (!match) {
-    return null;
-  }
-
-  return { workspaceId: match[1], userId: match[2] };
-}
-
 export function makeUserCalendarControlChannelName(userId: string): string {
   return `calendar_control:user_${userId}`;
-}
-
-export function parseUserIdFromCalendarControlChannelName(
-  channelName: string,
-): string | null {
-  return USER_CALENDAR_CONTROL_CHANNEL_PATTERN.exec(channelName)?.[1] ?? null;
 }
 
 /** Shared room-scoped channel for chat_room_message fan-out (SOK-741). */
