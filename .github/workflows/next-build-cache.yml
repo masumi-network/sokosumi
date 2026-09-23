@@ -1,34 +1,26 @@
-name: JS cache
+name: Next build cache
 permissions:
   contents: read
 
-# The only writer of the JS caches ci.yml restores. A PR's cache is scoped
-# to refs/pull/N/merge and no other PR can read it; a cache saved on main is
-# readable by every PR. So CI jobs only restore, and this job saves:
-#   js-node-modules-*  installed node_modules trees, keyed on the lockfile
-#   js-next-*          web's Turbopack build cache from the newest main commit
-# Superseded entries are deleted after each save, so the JS caches hold one
-# copy of each and cannot fill the repo's 10 GB and evict Apple's
-# macOS-mint-* entry.
+# The only writer of the js-next-* cache that ci.yml's Build restores. A
+# PR's cache is scoped to refs/pull/N/merge and no other PR can read it; a
+# cache saved on main is readable by every PR. So Build only restores, and
+# this job saves web's Turbopack build cache from the newest main commit.
+# Superseded entries are deleted after each save, so there is one ~0.5 GB
+# copy: it cannot fill the repo's 10 GB and evict Apple's macOS-mint-*.
 on:
-  # TEMP: measurement only, reverted before review.
-  pull_request:
   push:
     branches: [main]
     paths:
       - "apps/web/**"
       - "packages/**"
       - ".nvmrc"
-      - "package.json"
       - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
-      - "patches/**"
       - "turbo.json"
-      - ".github/actions/setup/**"
       - ".github/ci-build.env"
-      - ".github/workflows/js-cache.yml"
+      - ".github/workflows/next-build-cache.yml"
   # Entries nobody reads for 7 days are evicted. A restore counts as a read,
-  # so the daily run keeps both alive through a week without PRs.
+  # so the daily run keeps it alive through a week without PRs.
   schedule:
     - cron: "23 3 * * *"
   workflow_dispatch:
@@ -43,7 +35,7 @@ env:
 
 jobs:
   warm:
-    name: Warm JS caches
+    name: Warm Next build cache
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -59,7 +51,6 @@ jobs:
         uses: ./.github/actions/setup
         with:
           turbo_team: ${{ vars.TURBO_TEAM }}
-          save_cache: "true"
 
       - name: Load build env
         run: grep -v '^#' .github/ci-build.env >> "$GITHUB_ENV"
@@ -85,12 +76,11 @@ jobs:
           path: apps/web/.next/cache
           key: ${{ steps.next-cache.outputs.cache-primary-key }}
 
-      - name: Delete superseded JS caches
+      - name: Delete superseded Next build caches
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: |
-          for prefix in js-node-modules- js-next-; do
-            gh cache list --ref "$GITHUB_REF" --key "$prefix" --sort created_at --order desc --limit 100 --json id --jq '.[1:][].id' |
-              xargs -r -n1 gh cache delete
-          done
+        run: >-
+          gh cache list --ref "$GITHUB_REF" --key js-next- --sort created_at
+          --order desc --limit 100 --json id --jq '.[1:][].id'
+          | xargs -r -n1 gh cache delete

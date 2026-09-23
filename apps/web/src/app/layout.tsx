@@ -1,4 +1,3 @@
-// TEMP: warm-cache measurement edit, reverted before review.
 import "./globals.css";
 
 import { GoogleAnalytics, GoogleTagManager } from "@next/third-parties/google";

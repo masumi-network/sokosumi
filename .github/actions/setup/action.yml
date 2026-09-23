@@ -6,10 +6,6 @@ inputs:
     description: Vercel team slug for Turborepo Remote Cache (OIDC)
     required: false
     default: ""
-  save_cache:
-    description: Save node_modules on a cache miss. Only js-cache.yml sets it, on main.
-    required: false
-    default: "false"
 
 runs:
   using: composite
@@ -19,55 +15,23 @@ runs:
       with:
         install: false
 
-    # No pnpm store cache: a restored ~514 MB store made Setup slower
-    # (25.6s) than installing from the registry (20.4s), because pnpm still
-    # links 1610 packages out of it (#5160). The installed node_modules
-    # trees are cached below instead, which skips `pnpm install` entirely.
-    # `package-manager-cache: false` stops setup-node enabling the store
-    # cache from the `packageManager` field.
+    # No pnpm store cache, on purpose. Across 30 Biome/Typecheck jobs a
+    # restored ~514 MB store made Setup slower (25.6s) than installing from
+    # the registry (20.4s), and every PR-scoped miss spent another ~10s in
+    # Post Setup saving a copy no sibling PR can read — ~20 identical copies
+    # filled the repo's 10 GB cache. Caching node_modules itself does not
+    # help either: a 426 MB tree took 14.6s to restore (9.7s of it tar
+    # extraction), against 14.5–16.5s for the install (#5165).
+    # `package-manager-cache: false` stops
+    # setup-node enabling it from the `packageManager` field.
     - uses: actions/setup-node@v7
       with:
         node-version-file: .nvmrc
         package-manager-cache: false
 
-    # Exact key only, no restore-keys: a PR that changes the lockfile
-    # installs from the registry, as before, rather than patching an older
-    # tree. The `js-` prefix keeps these apart from Apple's `macOS-mint-`.
-    # Restore-only here: PR caches are scoped to refs/pull/N/merge, so a
-    # PR-saved copy is unreadable by every other PR. js-cache.yml saves the
-    # one copy on main, which every PR can read.
-    - name: Restore node_modules
-      id: node-modules
-      uses: actions/cache/restore@v6
-      with:
-        path: |
-          node_modules
-          apps/*/node_modules
-          packages/*/node_modules
-        key: js-node-modules-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.nvmrc', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'patches/**') }}
-
     - name: Install Dependencies
-      if: steps.node-modules.outputs.cache-hit != 'true'
       run: pnpm install
       shell: bash
-
-    # `pnpm install` on an up-to-date tree skips workspace lifecycle
-    # scripts, so a restored node_modules has no package dist/. Run the
-    # same `prepare` builds install would, in dependency order.
-    - name: Build workspace packages
-      if: steps.node-modules.outputs.cache-hit == 'true'
-      run: pnpm -r --if-present run prepare
-      shell: bash
-
-    - name: Save node_modules
-      if: inputs.save_cache == 'true' && steps.node-modules.outputs.cache-hit != 'true'
-      uses: actions/cache/save@v6
-      with:
-        path: |
-          node_modules
-          apps/*/node_modules
-          packages/*/node_modules
-        key: ${{ steps.node-modules.outputs.cache-primary-key }}
 
     - name: Set up Turborepo Remote Cache
       if: ${{ inputs.turbo_team != '' }}

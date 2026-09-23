@@ -238,7 +238,7 @@ jobs:
       - name: Load build env
         run: grep -v '^#' .github/ci-build.env >> "$GITHUB_ENV"
 
-      # Next 16.3 writes a Turbopack build cache to .next/cache; js-cache.yml
+      # Next 16.3 writes a Turbopack build cache to .next/cache; next-build-cache.yml
       # saves one from main and PRs restore the newest. Skipped when web is
       # unchanged, because turbo then replays web#build from the remote cache.
       - name: Restore Next.js build cache
