@@ -232,6 +232,29 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     );
   });
 
+  it("writes only the Occurrences the plan is missing", async () => {
+    // Every insert runs the calendar invalidation trigger, even one a
+    // conflict skips, so a release must not resend the whole plan.
+    const schedule = seedTaskSchedule({ nextOccurrenceAt: MONDAY_9 });
+    for (
+      let at = MONDAY_9;
+      at <= new Date("2030-03-25T09:00:00.000Z");
+      at = new Date(at.getTime() + 7 * 24 * 60 * 60 * 1000)
+    ) {
+      seedOccurrence(schedule, at);
+    }
+
+    await release();
+
+    expect(
+      vi
+        .mocked(taskScheduleTestPrisma.taskScheduleOccurrence.createMany)
+        .mock.calls.flatMap(([args]) =>
+          args.data.map((row) => row.effectiveScheduledAt),
+        ),
+    ).toEqual([new Date("2030-04-01T09:00:00.000Z")]);
+  });
+
   it("Ends a schedule after its last of N Occurrences", async () => {
     const schedule = seedTaskSchedule({
       nextOccurrenceAt: MONDAY_9,

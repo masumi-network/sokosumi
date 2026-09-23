@@ -83,18 +83,29 @@ export function computeNextOccurrence(
 }
 
 /**
- * Rule times after `from` up to the horizon, and always the first one. A
- * dense rule is capped at the index limit instead of refused; the plan rolls
- * forward on every release.
+ * Rule times after `from` up to the horizon, at most `limit` of them, and the
+ * first one even beyond the horizon when `includeFirst`. A dense rule is
+ * capped instead of refused; the plan rolls forward on every release.
  */
-function projectOccurrenceTimes(schedule: RuleState, from: Date): Date[] {
-  const horizonEnd = new Date(from.getTime() + CALENDAR_OCCURRENCE_HORIZON_MS);
+function projectOccurrenceTimes(
+  schedule: RuleState,
+  from: Date,
+  {
+    horizonEnd,
+    limit,
+    includeFirst,
+  }: {
+    horizonEnd: Date;
+    limit: number;
+    includeFirst: boolean;
+  },
+): Date[] {
   const times: Date[] = [];
   let next = computeNextOccurrence(schedule, from);
   while (
     next &&
-    (times.length === 0 || next < horizonEnd) &&
-    times.length < MAX_INDEXED_TASK_SCHEDULE_OCCURRENCES
+    ((includeFirst && times.length === 0) || next < horizonEnd) &&
+    times.length < limit
   ) {
     times.push(next);
     next = computeNextOccurrence(
@@ -109,30 +120,42 @@ type ProjectedSchedule = RuleState &
   Pick<TaskSchedule, "id" | "epochId" | "workspaceId" | "projectId">;
 
 /**
- * Plans the schedule's Occurrences after `now` in its current epoch and
- * returns the earliest planned one. Rows already in the ledger keep their
- * identity, so repeating the projection never plans an Occurrence twice.
+ * Extends the schedule's plan in its current epoch up to the horizon after
+ * `now`, and returns the earliest planned Occurrence. Only the missing tail
+ * is written: every insert runs the calendar invalidation trigger, even one
+ * a conflict would skip.
  */
 export async function projectTaskScheduleOccurrences(
   tx: Prisma.TransactionClient,
   schedule: ProjectedSchedule,
   now: Date,
 ): Promise<Date | null> {
-  // Occurrences already due still count against an end-after-N rule: a run
-  // that stopped partway, or an Occurrence owed from before a rule edit.
-  const owed =
-    schedule.endsMode === TaskScheduleEndsMode.AFTER
-      ? await tx.taskScheduleOccurrence.count({
-          where: {
-            scheduleId: schedule.id,
-            state: TaskScheduleOccurrenceState.PLANNED,
-            effectiveScheduledAt: { lte: now },
-          },
-        })
-      : 0;
+  // Every planned Occurrence counts against an end-after-N rule, including
+  // one owed from a run that stopped partway or from before a rule edit.
+  const plannedCount = await tx.taskScheduleOccurrence.count({
+    where: {
+      scheduleId: schedule.id,
+      state: TaskScheduleOccurrenceState.PLANNED,
+    },
+  });
+  const last = await tx.taskScheduleOccurrence.findFirst({
+    where: {
+      scheduleId: schedule.id,
+      epochId: schedule.epochId,
+      state: TaskScheduleOccurrenceState.PLANNED,
+      originalScheduledAt: { gt: now },
+    },
+    orderBy: [{ originalScheduledAt: "desc" }],
+    select: { originalScheduledAt: true },
+  });
   const times = projectOccurrenceTimes(
-    { ...schedule, releasedCount: schedule.releasedCount + owed },
-    now,
+    { ...schedule, releasedCount: schedule.releasedCount + plannedCount },
+    last?.originalScheduledAt ?? now,
+    {
+      horizonEnd: new Date(now.getTime() + CALENDAR_OCCURRENCE_HORIZON_MS),
+      limit: MAX_INDEXED_TASK_SCHEDULE_OCCURRENCES - plannedCount,
+      includeFirst: last == null,
+    },
   );
   if (times.length > 0) {
     await tx.taskScheduleOccurrence.createMany({

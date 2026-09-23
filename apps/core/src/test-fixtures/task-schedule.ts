@@ -449,11 +449,27 @@ const taskScheduleOccurrence = {
       taskScheduleTestDb.occurrences.filter((row) => matchesRow(row, where)),
     ).slice(0, take),
   ),
+  /** Sorts by effective time, or latest rule time first when asked. */
   findFirst: vi.fn(
-    async ({ where }: { where: Where }) =>
-      sortOccurrences(
+    async ({
+      where,
+      orderBy,
+    }: {
+      where: Where;
+      orderBy?: Record<string, "asc" | "desc">[];
+    }) => {
+      const rows = sortOccurrences(
         taskScheduleTestDb.occurrences.filter((row) => matchesRow(row, where)),
-      )[0] ?? null,
+      );
+      if (orderBy?.[0]?.originalScheduledAt === "desc") {
+        rows.sort(
+          (a, b) =>
+            (b.originalScheduledAt?.getTime() ?? 0) -
+            (a.originalScheduledAt?.getTime() ?? 0),
+        );
+      }
+      return rows[0] ?? null;
+    },
   ),
   /** Enforces the (scheduleId, epochId, originalScheduledAt) unique key. */
   createMany: vi.fn(
