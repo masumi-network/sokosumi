@@ -27,7 +27,10 @@ import {
   SidebarRowSlot,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
+import {
+  SIDEBAR_ROW_FIXED_LABEL_CLASS,
+  SIDEBAR_ROW_LABEL_CLASS,
+} from "@/components/ui/sidebar-classes";
 import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
 import { cn } from "@/lib/utils";
 
@@ -171,9 +174,12 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                   return <ProjectsMenuItem key={key} />;
                 }
                 const isActive = href ? isPathActive(href) : false;
+                // The pill wears the rail square's 4px inset and 4px padding
+                // at every width, so collapsing only narrows it: its edge
+                // and the + inside it stay where they are.
                 const newTaskClassName =
                   key === "new-task"
-                    ? "bg-secondary text-secondary-foreground hover:bg-secondary-hover hover:text-secondary-foreground active:bg-secondary-hover active:text-secondary-foreground data-[state=open]:hover:bg-secondary-hover data-[state=open]:hover:text-secondary-foreground group-data-[collapsible=icon]:hover:bg-secondary-hover group-data-[collapsible=icon]:active:bg-secondary-hover"
+                    ? "ml-1 w-[calc(100%-0.5rem)] pl-1 bg-secondary text-secondary-foreground hover:bg-secondary-hover hover:text-secondary-foreground active:bg-secondary-hover active:text-secondary-foreground data-[state=open]:hover:bg-secondary-hover data-[state=open]:hover:text-secondary-foreground group-data-[collapsible=icon]:hover:bg-secondary-hover group-data-[collapsible=icon]:active:bg-secondary-hover"
                     : undefined;
 
                 // Collapsed rail hides the label, so every item needs the hint.
@@ -195,7 +201,12 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                     <SidebarRowSlot>
                       <Icon className="size-4" aria-hidden />
                     </SidebarRowSlot>
-                    <span className={cn(SIDEBAR_ROW_LABEL_CLASS, "truncate")}>
+                    <span
+                      className={cn(
+                        SIDEBAR_ROW_LABEL_CLASS,
+                        SIDEBAR_ROW_FIXED_LABEL_CLASS,
+                      )}
+                    >
                       {label}
                     </span>
                   </>

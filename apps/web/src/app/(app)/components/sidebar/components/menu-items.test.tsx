@@ -328,6 +328,22 @@ describe("MenuItems search action", () => {
     );
   });
 
+  it("keeps the New Task pill's inset and padding across the collapse", () => {
+    renderMenu(true, true, false);
+    const pill = document.querySelector("[data-sidebar-new-task]");
+    // The rail square's own 4px inset and padding, at every width, so the
+    // collapse narrows the pill without sliding its edge.
+    expect(pill?.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["ml-1", "pl-1", "w-[calc(100%-0.5rem)]"]),
+    );
+    // And the name clips instead of re-ellipsizing on every frame.
+    expect(
+      pill
+        ?.querySelector('[data-slot="sidebar-row-slot"]')
+        ?.nextElementSibling?.className.split(/\s+/),
+    ).toContain("text-clip!");
+  });
+
   it("gives every menu item its label as a hover hint for the collapsed rail", () => {
     renderMenu(true, true, false);
 
