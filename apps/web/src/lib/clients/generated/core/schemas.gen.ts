@@ -17213,6 +17213,7 @@ export const NotificationItemSchema = {
     required: [
         'id',
         'userId',
+        'kind',
         'referenceId',
         'eventId',
         'messageKey',
@@ -17232,7 +17233,7 @@ export const NotificationKindSchema = {
         'BILLING',
         'SYSTEM',
         'CHAT',
-        null
+        'PROJECT'
     ],
     description: 'Notification source domain',
     example: 'TASK'

@@ -62,6 +62,7 @@ import { v5 as uuidv5 } from "uuid";
 import { z } from "zod";
 import { getEnv } from "@/config/env";
 import { getAgentApiBaseUrl, toMasumiAgent } from "@/helpers/agent";
+import { persistChatHumanMentions } from "@/helpers/chat-human-mentions";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import {
   batchTableRows,
@@ -73,6 +74,7 @@ import {
   resolveTableActor,
 } from "@/helpers/data-table";
 import { createAgentJobForUser } from "@/helpers/job";
+import { jsonInput } from "@/helpers/prisma-json";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
@@ -344,10 +346,6 @@ async function runScheduleTool<T>(run: () => Promise<T>): Promise<T> {
     }
     throw error;
   }
-}
-
-function jsonInput(value: unknown): Prisma.InputJsonValue {
-  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
 function truncateUtf8(value: string, maxBytes: number): string {
@@ -829,6 +827,7 @@ export class SokoBotRuntimeService {
       select: {
         id: true,
         name: true,
+        groupName: true,
         kind: true,
         updatedAt: true,
         _count: { select: { messages: true } },
@@ -837,7 +836,7 @@ export class SokoBotRuntimeService {
     return {
       rooms: rooms.map((room) => ({
         roomId: room.id,
-        name: room.name,
+        name: room.groupName ?? room.name,
         kind: room.kind,
         messages: room._count.messages,
         lastActivityAt: room.updatedAt.toISOString(),
@@ -892,6 +891,7 @@ export class SokoBotRuntimeService {
       select: {
         id: true,
         name: true,
+        groupName: true,
         kind: true,
         organizationId: true,
         sokoBotMembers: {
@@ -913,7 +913,7 @@ export class SokoBotRuntimeService {
     const bot = room.sokoBotMembers?.[0]?.sokoBot;
     return {
       id: room.id,
-      name: room.name,
+      name: room.groupName ?? room.name,
       kind: room.kind,
       sokoBotId,
       organizationId: room.organizationId ?? null,
@@ -1206,13 +1206,23 @@ export class SokoBotRuntimeService {
     // handoff the human message route performs. Without it the rows sit
     // `pending` for ever: reclaim only rescues `sent`, so nobody ever wakes.
     const mentionIds: string[] = [];
+    let mentionedUserIds: string[] = [];
+    let shouldPersistMentions = !publication;
     const message = await serializableTransaction(async (tx) => {
       if (publication) {
         const existing = await tx.chatRoomMessage.findUnique({
           where: { id: publication.id },
           select: { id: true, createdAt: true },
         });
-        if (existing) return { ...existing, replayed: true };
+        if (existing) {
+          mentionedUserIds = (
+            await tx.chatRoomUserMention.findMany({
+              where: { messageId: existing.id },
+              select: { userId: true },
+            })
+          ).map((mention) => mention.userId);
+          return { ...existing, replayed: true };
+        }
       }
       // Counted inside the transaction: read outside it, two bots posting at
       // once both see room for one more and the room takes both.
@@ -1261,8 +1271,15 @@ export class SokoBotRuntimeService {
             where: { id: publication.id },
             select: { id: true, createdAt: true },
           });
+          mentionedUserIds = (
+            await tx.chatRoomUserMention.findMany({
+              where: { messageId: existing.id },
+              select: { userId: true },
+            })
+          ).map((mention) => mention.userId);
           return { ...existing, replayed: true };
         }
+        shouldPersistMentions = true;
       }
       const created = publication
         ? await tx.chatRoomMessage.findUniqueOrThrow({
@@ -1273,6 +1290,13 @@ export class SokoBotRuntimeService {
             data,
             select: { id: true, createdAt: true },
           });
+      if (shouldPersistMentions) {
+        mentionedUserIds = await persistChatHumanMentions(tx, {
+          messageId: created.id,
+          roomId: room.id,
+          content: input.content,
+        });
+      }
       if (mentionedCoworkerIds.length > 0 || mentionedSokoBotIds.length > 0) {
         await tx.chatRoomMention.createMany({
           data: [
@@ -1317,7 +1341,7 @@ export class SokoBotRuntimeService {
         room,
         message.id,
         input.content,
-        [],
+        mentionedUserIds,
       );
     for (const mentionId of mentionIds) {
       const { dispatchChatRoomMention } = await import(

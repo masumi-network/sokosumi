@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { waitUntil } from "@vercel/functions";
+import { CHAT_MENTION_MESSAGE_KEY } from "@sokosumi/utils";
 import {
   afterAll,
   afterEach,
@@ -11,30 +11,34 @@ import {
 } from "vitest";
 import { z } from "zod";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
+import { dispatchNotificationPublish } from "@/helpers/notification-publish";
+import * as notificationsModule from "@/helpers/notifications";
 import {
   publishChatRoomsChanged,
   publishNotificationEvent,
 } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
-import { scheduleSokoBotChatMessageEffects } from "@/lib/soko-bot/chat-message-effects";
+import * as effectsModule from "@/lib/soko-bot/chat-message-effects";
 import {
   type AuthorizedSokoBotRuntime,
   SokoBotRuntimeService,
 } from "@/services/soko-bot-runtime.service";
 
-// Exercise actual publication transactions; only external delivery is replaced.
+const pending = vi.hoisted(() => [] as Promise<unknown>[]);
+
+// Exercise actual publication, effects and notification persistence.
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtimeById: vi.fn().mockResolvedValue(undefined),
-}));
-vi.mock("@/lib/soko-bot/chat-message-effects", () => ({
-  scheduleSokoBotChatMessageEffects: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("@/lib/ably/publish", () => ({
   publishTaskEventData: vi.fn().mockResolvedValue(undefined),
   publishChatRoomsChanged: vi.fn().mockResolvedValue(undefined),
   publishNotificationEvent: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock("@vercel/functions", () => ({ waitUntil: vi.fn() }));
+vi.mock("@vercel/functions", () => ({
+  attachDatabasePool: vi.fn(),
+  waitUntil: vi.fn((promise: Promise<unknown>) => pending.push(promise)),
+}));
 
 const userId = randomUUID(),
   workspaceId = randomUUID(),
@@ -44,6 +48,30 @@ const capabilities = [
   "write_table_rows",
   "update_table_columns",
 ] as const;
+
+// The first scheduled attempt can run before its writer's transaction commits.
+// Exercise the real retry dispatcher and require publication, never just removal.
+async function publishQueuedNotification(id: string) {
+  const notification = await prisma.notification.findUniqueOrThrow({
+    where: { id },
+  });
+  if (notification.publishId) {
+    expect(notification.publishNextAttemptAt).not.toBeNull();
+    expect(
+      await dispatchNotificationPublish(
+        id,
+        new Date(notification.publishNextAttemptAt!.getTime() + 61_000),
+      ),
+    ).toBe("published");
+  }
+}
+
+async function drainPending(pending: Promise<unknown>[]) {
+  while (pending.length > 0) {
+    await Promise.all(pending.splice(0));
+  }
+}
+
 describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
   "R2 durable table runtime recovery",
   () => {
@@ -69,7 +97,11 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
         data: { id: sokoBotId, userId, workspaceId },
       });
     });
-    afterEach(() => vi.restoreAllMocks());
+    afterEach(async () => {
+      await drainPending(pending);
+      vi.restoreAllMocks();
+      vi.clearAllMocks();
+    });
     afterAll(async () => {
       await prisma.chatRoom.deleteMany({ where: { createdByUserId: userId } });
       await prisma.task.deleteMany({ where: { workspaceId } });
@@ -587,18 +619,10 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
       async (receiptStatus) => {
         const { runtime, request, turn } = await setup();
         const roomId = await chatDestination(turn.id);
-        const effects = vi.mocked(scheduleSokoBotChatMessageEffects);
-        effects.mockClear();
-        const actualEffects = await vi.importActual<
-          typeof import("@/lib/soko-bot/chat-message-effects")
-        >("@/lib/soko-bot/chat-message-effects");
-        effects.mockImplementation(
-          actualEffects.scheduleSokoBotChatMessageEffects,
+        const effects = vi.spyOn(
+          effectsModule,
+          "scheduleSokoBotChatMessageEffects",
         );
-        const pending: Promise<unknown>[] = [];
-        vi.mocked(waitUntil).mockImplementation((promise) => {
-          pending.push(promise);
-        });
         vi.mocked(publishChatRoomsChanged).mockClear();
         vi.mocked(publishNotificationEvent).mockClear();
         await prisma.chatRoomUserMember.create({ data: { roomId, userId } });
@@ -620,6 +644,16 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
         });
         expect(before).toHaveLength(1);
         expect(effects).not.toHaveBeenCalled();
+        expect(
+          await prisma.sokoBotToolCall.findUniqueOrThrow({
+            where: {
+              turnId_toolCallId: {
+                turnId: request.turnId,
+                toolCallId: request.toolCallId,
+              },
+            },
+          }),
+        ).toMatchObject({ status: "FAILED" });
         if (receiptStatus === "PENDING") {
           // Termination would bypass executeTool's catch; reconstruct its stale lease.
           await prisma.sokoBotToolCall.update({
@@ -638,33 +672,38 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
             where: { roomId, senderSokoBotId: sokoBotId },
           }),
         ).toEqual(before);
-        await Promise.all(pending.splice(0));
+        await drainPending(pending);
         expect(effects).toHaveBeenCalledTimes(1);
         expect(publishChatRoomsChanged).toHaveBeenCalledTimes(1);
         const notifications = await prisma.notification.findMany({
           where: { userId, eventId: before[0].id },
         });
         expect(notifications).toHaveLength(1);
+        await publishQueuedNotification(notifications[0].id);
         expect(publishNotificationEvent).toHaveBeenCalledTimes(1);
+        const readAt = new Date();
         await prisma.notification.update({
           where: { id: notifications[0].id },
-          data: { isRead: true },
+          data: { isRead: true, readAt },
         });
         // Concurrent replays must preserve read state and never send a second banner.
         await Promise.all([
           runtime.executeTool(call),
           runtime.executeTool(call),
         ]);
-        await Promise.all(pending.splice(0));
-        expect(
-          await prisma.notification.findMany({
-            where: { userId, eventId: before[0].id },
-          }),
-        ).toEqual([{ ...notifications[0], isRead: true }]);
+        await drainPending(pending);
+        const replayedNotifications = await prisma.notification.findMany({
+          where: { userId, eventId: before[0].id },
+        });
+        expect(replayedNotifications).toHaveLength(1);
+        expect(replayedNotifications[0]).toMatchObject({
+          id: notifications[0].id,
+          isRead: true,
+          readAt,
+        });
+        expect(replayedNotifications[0].publishId).toBeNull();
         expect(publishNotificationEvent).toHaveBeenCalledTimes(1);
         expect(publishChatRoomsChanged).toHaveBeenCalledTimes(3);
-        effects.mockResolvedValue(undefined);
-        vi.mocked(waitUntil).mockImplementation(() => {});
         expect(
           await prisma.sokoBotToolCall.findUniqueOrThrow({
             where: {
@@ -682,71 +721,177 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
         );
       },
     );
-    it.each(["before", "after"] as const)(
-      "R4: notification persistence failure %s commit has bounded retry effects",
-      async (boundary) => {
+    it.each([false, true])(
+      "R4: @all table publication preserves one human mention notification across replay (interrupted: %s)",
+      async (interrupted) => {
         const { runtime, request, turn } = await setup();
         const roomId = await chatDestination(turn.id);
         await prisma.chatRoomUserMember.create({ data: { roomId, userId } });
-        const actualEffects = await vi.importActual<
-          typeof import("@/lib/soko-bot/chat-message-effects")
-        >("@/lib/soko-bot/chat-message-effects");
-        const effects = vi.mocked(scheduleSokoBotChatMessageEffects);
-        effects.mockImplementation(
-          actualEffects.scheduleSokoBotChatMessageEffects,
-        );
-        const pending: Promise<unknown>[] = [];
-        vi.mocked(waitUntil).mockImplementation((promise) => {
-          pending.push(promise);
-        });
-        const publish = vi.mocked(publishNotificationEvent);
-        publish.mockClear();
-        if (boundary === "before") {
-          vi.spyOn(prisma.notification, "create").mockRejectedValueOnce(
-            new Error("notification persistence interrupted"),
-          );
-        } else {
-          // Notification row is already committed when external delivery starts.
-          publish.mockRejectedValueOnce(
-            new Error("notification delivery failed"),
-          );
-        }
         const call = {
           ...request,
           capability: "create_table" as const,
-          input: createInput(),
+          input: { ...createInput(), title: "Recovery @all now" },
         };
-        const first = createdSchema.parse(await runtime.executeTool(call));
-        await Promise.all(pending.splice(0));
-        expect(publish).toHaveBeenCalledTimes(boundary === "after" ? 1 : 0);
-        const messages = await prisma.chatRoomMessage.findMany({
+        if (interrupted) {
+          vi.mocked(publishChatRoomMessageRealtimeById).mockRejectedValueOnce(
+            new Error("interrupted before mention effects"),
+          );
+          await expect(runtime.executeTool(call)).rejects.toThrow(
+            "interrupted before mention effects",
+          );
+        } else {
+          await runtime.executeTool(call);
+        }
+        await drainPending(pending);
+        const message = await prisma.chatRoomMessage.findFirstOrThrow({
           where: { roomId, senderSokoBotId: sokoBotId },
         });
-        expect(messages).toHaveLength(1);
         expect(
-          await prisma.notification.count({
-            where: { eventId: messages[0].id },
+          await prisma.chatRoomUserMention.findMany({
+            where: { messageId: message.id },
+            select: { userId: true },
           }),
-        ).toBe(boundary === "after" ? 1 : 0);
-        const recovered = createdSchema.parse(await runtime.executeTool(call));
-        await Promise.all(pending.splice(0));
-        expect(recovered.table.id).toBe(first.table.id);
+        ).toEqual([{ userId }]);
         expect(
-          await prisma.notification.count({
-            where: { eventId: messages[0].id },
+          await prisma.notification.count({ where: { eventId: message.id } }),
+        ).toBe(interrupted ? 0 : 1);
+        await runtime.executeTool(call);
+        await drainPending(pending);
+        const rows = await prisma.notification.findMany({
+          where: { eventId: message.id },
+        });
+        expect(rows).toHaveLength(1);
+        expect(rows[0].messageKey).toBe(CHAT_MENTION_MESSAGE_KEY);
+        await publishQueuedNotification(rows[0].id);
+        expect(publishNotificationEvent).toHaveBeenCalledTimes(1);
+        const readAt = new Date();
+        await prisma.notification.update({
+          where: { id: rows[0].id },
+          data: { isRead: true, readAt },
+        });
+        await Promise.all([
+          runtime.executeTool(call),
+          runtime.executeTool(call),
+        ]);
+        await drainPending(pending);
+        expect(
+          await prisma.notification.findMany({
+            where: { eventId: message.id },
           }),
-        ).toBe(1);
-        // A persisted notification suppresses resend: its delivery gap remains best-effort.
-        expect(publish).toHaveBeenCalledTimes(1);
+        ).toEqual([
+          expect.objectContaining({
+            id: rows[0].id,
+            messageKey: CHAT_MENTION_MESSAGE_KEY,
+            isRead: true,
+            readAt,
+            publishId: null,
+          }),
+        ]);
+        expect(publishNotificationEvent).toHaveBeenCalledTimes(1);
         expect(
           await prisma.chatRoomMessage.count({
             where: { roomId, senderSokoBotId: sokoBotId },
           }),
         ).toBe(1);
-        effects.mockResolvedValue(undefined);
-        vi.mocked(waitUntil).mockImplementation(() => {});
       },
     );
+    it("R4: notification persistence failure before commit is recovered by the next table retry", async () => {
+      const { runtime, request, turn } = await setup();
+      const roomId = await chatDestination(turn.id);
+      await prisma.chatRoomUserMember.create({ data: { roomId, userId } });
+      vi.mocked(publishNotificationEvent).mockClear();
+      const call = {
+        ...request,
+        capability: "create_table" as const,
+        input: createInput(),
+      };
+      const create = vi
+        .spyOn(notificationsModule, "createNotification")
+        .mockRejectedValueOnce(new Error("notification write interrupted"));
+      const first = createdSchema.parse(await runtime.executeTool(call));
+      await drainPending(pending);
+      const message = await prisma.chatRoomMessage.findFirstOrThrow({
+        where: { roomId, senderSokoBotId: sokoBotId },
+      });
+      expect(
+        await prisma.notification.count({ where: { eventId: message.id } }),
+      ).toBe(0);
+      expect(create).toHaveBeenCalledTimes(1);
+      expect(publishNotificationEvent).not.toHaveBeenCalled();
+      create.mockRestore();
+      const recovered = createdSchema.parse(await runtime.executeTool(call));
+      await drainPending(pending);
+      expect(recovered.table.id).toBe(first.table.id);
+      const notifications = await prisma.notification.findMany({
+        where: { eventId: message.id },
+      });
+      expect(notifications).toHaveLength(1);
+      await publishQueuedNotification(notifications[0].id);
+      expect(publishNotificationEvent).toHaveBeenCalledTimes(1);
+    });
+    it("R4: committed notification delivery retries through the bounded publisher", async () => {
+      const { runtime, request, turn } = await setup();
+      const roomId = await chatDestination(turn.id);
+      await prisma.chatRoomUserMember.create({ data: { roomId, userId } });
+      const call = {
+        ...request,
+        capability: "create_table" as const,
+        input: createInput(),
+      };
+      const publish = vi.mocked(publishNotificationEvent);
+      publish.mockRejectedValueOnce(new Error("provider unavailable"));
+      const first = createdSchema.parse(await runtime.executeTool(call));
+      await drainPending(pending);
+      const message = await prisma.chatRoomMessage.findFirstOrThrow({
+        where: { roomId, senderSokoBotId: sokoBotId },
+      });
+      const queued = await prisma.notification.findFirstOrThrow({
+        where: { eventId: message.id },
+      });
+      // A dispatch raced with commit may not yet have reached the provider.
+      if (publish.mock.calls.length === 0) {
+        expect(await dispatchNotificationPublish(queued.id, new Date())).toBe(
+          "pending",
+        );
+      }
+      expect(publish).toHaveBeenCalledTimes(1);
+      const failed = await prisma.notification.findUniqueOrThrow({
+        where: { id: queued.id },
+      });
+      expect(failed.publishId).toBe(queued.publishId);
+      expect(failed.publishId).not.toBeNull();
+      expect(failed.publishNextAttemptAt).not.toBeNull();
+      const recovered = createdSchema.parse(await runtime.executeTool(call));
+      await drainPending(pending);
+      expect(recovered.table.id).toBe(first.table.id);
+      expect(publish).toHaveBeenCalledTimes(1);
+      const secondAttempt = await dispatchNotificationPublish(
+        queued.id,
+        new Date(failed.publishNextAttemptAt!.getTime() + 1_000),
+      );
+      expect(secondAttempt).toBe("published");
+      expect(publish).toHaveBeenCalledTimes(2);
+      const delivered = await prisma.notification.findUniqueOrThrow({
+        where: { id: queued.id },
+      });
+      expect(delivered.publishId).toBeNull();
+      const readAt = new Date();
+      await prisma.notification.update({
+        where: { id: queued.id },
+        data: { isRead: true, readAt },
+      });
+      await Promise.all([runtime.executeTool(call), runtime.executeTool(call)]);
+      await drainPending(pending);
+      expect(publish).toHaveBeenCalledTimes(2);
+      expect(
+        await prisma.notification.count({ where: { eventId: message.id } }),
+      ).toBe(1);
+      expect(
+        await prisma.notification.findUniqueOrThrow({
+          where: { id: queued.id },
+        }),
+      ).toMatchObject({ isRead: true, readAt, publishId: null });
+    });
     it("never replays a failed non-table side effect", async () => {
       const { runtime, request } = await setup();
       const input = { roomId: randomUUID(), content: "Do not send twice" };

@@ -5115,7 +5115,7 @@ export type NotificationItem = {
      * User ID of the notification owner
      */
     userId: string;
-    kind?: NotificationKind;
+    kind: NotificationKind;
     /**
      * ID of the related entity (job id, task id, etc.)
      */
@@ -5162,7 +5162,8 @@ export const NotificationKind = {
     TASK: 'TASK',
     BILLING: 'BILLING',
     SYSTEM: 'SYSTEM',
-    CHAT: 'CHAT'
+    CHAT: 'CHAT',
+    PROJECT: 'PROJECT'
 } as const;
 
 /**
