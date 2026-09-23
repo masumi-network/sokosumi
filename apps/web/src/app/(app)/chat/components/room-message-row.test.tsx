@@ -2085,56 +2085,66 @@ describe("ChatMessageRow", () => {
   });
 
   it("does not cancel on blur when draft is dirty", async () => {
-    const user = userEvent.setup();
-    const onCancelEdit = vi.fn();
-
-    renderRow({
-      message: userMessage({ content: "Original" }),
-      currentUserId: "user-1",
-      onStartEdit: vi.fn(),
-      isEditing: true,
-      editDraft: "Original fixed",
-      onEditDraftChange: vi.fn(),
-      onCancelEdit,
-      onSaveEdit: vi.fn(),
-    });
-
-    const editor = screen.getByRole("textbox");
-    editor.focus();
-    await user.tab();
-    await act(async () => {
-      await new Promise((resolve) => {
-        setTimeout(resolve, 200);
+    vi.useFakeTimers();
+    try {
+      const user = userEvent.setup({
+        advanceTimers: vi.advanceTimersByTime.bind(vi),
       });
-    });
-    expect(onCancelEdit).not.toHaveBeenCalled();
+      const onCancelEdit = vi.fn();
+
+      renderRow({
+        message: userMessage({ content: "Original" }),
+        currentUserId: "user-1",
+        onStartEdit: vi.fn(),
+        isEditing: true,
+        editDraft: "Original fixed",
+        onEditDraftChange: vi.fn(),
+        onCancelEdit,
+        onSaveEdit: vi.fn(),
+      });
+
+      const editor = screen.getByRole("textbox");
+      editor.focus();
+      await user.tab();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(200);
+      });
+      expect(onCancelEdit).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("does not cancel on blur when live DOM is dirty but draft prop is stale", async () => {
-    const user = userEvent.setup();
-    const onCancelEdit = vi.fn();
-
-    renderRow({
-      message: userMessage({ content: "Original" }),
-      currentUserId: "user-1",
-      onStartEdit: vi.fn(),
-      isEditing: true,
-      editDraft: "Original",
-      onEditDraftChange: vi.fn(),
-      onCancelEdit,
-      onSaveEdit: vi.fn(),
-    });
-
-    const editor = screen.getByRole("textbox");
-    editor.focus();
-    editor.textContent = "Original fixed live";
-    await user.tab();
-    await act(async () => {
-      await new Promise((resolve) => {
-        setTimeout(resolve, 200);
+    vi.useFakeTimers();
+    try {
+      const user = userEvent.setup({
+        advanceTimers: vi.advanceTimersByTime.bind(vi),
       });
-    });
-    expect(onCancelEdit).not.toHaveBeenCalled();
+      const onCancelEdit = vi.fn();
+
+      renderRow({
+        message: userMessage({ content: "Original" }),
+        currentUserId: "user-1",
+        onStartEdit: vi.fn(),
+        isEditing: true,
+        editDraft: "Original",
+        onEditDraftChange: vi.fn(),
+        onCancelEdit,
+        onSaveEdit: vi.fn(),
+      });
+
+      const editor = screen.getByRole("textbox");
+      editor.focus();
+      editor.textContent = "Original fixed live";
+      await user.tab();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(200);
+      });
+      expect(onCancelEdit).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("cancels on Enter when draft is empty", async () => {

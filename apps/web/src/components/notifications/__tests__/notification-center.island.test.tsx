@@ -968,14 +968,21 @@ describe("Notification Center view filter", () => {
       );
       await settle();
 
-      await user.unhover(screen.getByText("mine"));
-      await act(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 300));
-      });
-      expect(screen.getByText("mine")).toBeTruthy();
-      expect(
-        screen.getByRole("button", { name: "markRead: mine" }),
-      ).toBeTruthy();
+      vi.useFakeTimers();
+      try {
+        await userEvent
+          .setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
+          .unhover(screen.getByText("mine"));
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(300);
+        });
+        expect(screen.getByText("mine")).toBeTruthy();
+        expect(
+          screen.getByRole("button", { name: "markRead: mine" }),
+        ).toBeTruthy();
+      } finally {
+        vi.useRealTimers();
+      }
     },
   );
 
