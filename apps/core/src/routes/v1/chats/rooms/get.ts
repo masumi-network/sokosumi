@@ -105,10 +105,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const takePlusOne = take + 1;
     const organizationId = userContext.organizationId;
 
-    // Avoid interactive transaction on this read-only path — chat index loads
-    // listRooms in parallel with members + coworkers; interactive txs hold a
-    // pool connection and also forbid Promise.all inside (#2559 / P2028).
-    // Membership gate + list/count/unread do not need a shared snapshot.
     let organizationRole: string | null = null;
     if (organizationId) {
       const membership = await resolveMemberOrganizationById({
