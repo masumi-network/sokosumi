@@ -11,11 +11,11 @@ import Foundation
 // offline. Coworkers and Soko Bots stay always-online (ADR 0003 v1).
 
 /// Connected + activity inside this window → online; connected otherwise → afk.
-private let chatPresenceOnlineWindow: TimeInterval = 5 * 60
+let chatPresenceOnlineWindow: TimeInterval = 5 * 60
 
 /// Activity refreshes `lastActiveAt` just inside the online window so a
 /// throttled refresh lands before teammates age this client to afk.
-private let orgPresencePublishMinInterval: TimeInterval = chatPresenceOnlineWindow - 60
+let orgPresencePublishMinInterval: TimeInterval = chatPresenceOnlineWindow - 60
 
 private let orgPresenceChannelPrefix = "presence:org_"
 

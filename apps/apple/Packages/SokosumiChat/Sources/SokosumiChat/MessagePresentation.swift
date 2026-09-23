@@ -3,7 +3,7 @@ import Foundation
 
 /// Slack-style gap before a same-sender burst starts a new full header.
 /// Mirrors web `MESSAGE_GROUP_GAP_MS`.
-private let messageGroupGapSeconds: TimeInterval = 5 * 60
+let messageGroupGapSeconds: TimeInterval = 5 * 60
 
 /// Stable sender identity for grouping; nil when identity is unknown.
 /// Mirrors web `messageSenderKey`.
