@@ -6,11 +6,19 @@ import Testing
 struct MessageLinkQuoteTests {
   private let base = URL(string: "https://app.sokosumi.com")!
 
-  private func room(_ id: String, members: [String]) -> Components.Schemas.ChatRoom {
-    Components.Schemas.ChatRoom(id: id, name: id, kind: .channel, isSelfDirect: false, createdByUserId: "me",
+  private func guest(_ id: String) throws -> Components.Schemas.ChatRoomUserParticipant {
+    try .init(id: id, name: id, email: "\(id)@example.com", image: nil, presence: .online,
+              access: .init(value1: .guest, value2: .init(unvalidatedValue: "guest")))
+  }
+
+  private func room(_ id: String, members: [String], guests: [Components.Schemas.ChatRoomUserParticipant] = [], organizationId: String? = "org",
+                    discoverability: Components.Schemas.ChatRoom.DiscoverabilityPayload? = ._private) -> Components.Schemas.ChatRoom {
+    Components.Schemas.ChatRoom(id: id, organizationId: organizationId, name: id, kind: .channel, isSelfDirect: false,
+                                discoverability: discoverability, createdByUserId: "me",
                                 createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0,
                                 markedUnread: false, myAccess: .member,
-                                userMembers: members.map { .init(id: $0, name: $0, email: "\($0)@example.com", image: nil, presence: .online) },
+                                userMembers: members.map { .init(id: $0, name: $0, email: "\($0)@example.com", image: nil, presence: .online) }
+                                  + guests,
                                 coworkerMembers: [], sokoBotMembers: [])
   }
 
@@ -32,9 +40,9 @@ struct MessageLinkQuoteTests {
   }
 
   @Test func quotesOnlyIntoRoomsEveryReaderCanFollow() {
-    #expect(canQuoteIntoRoom(targetMemberUserIds: ["me"], sourceMemberUserIds: ["me", "peer"]))
-    #expect(canQuoteIntoRoom(targetMemberUserIds: ["me", "peer"], sourceMemberUserIds: ["me", "peer"]))
-    #expect(!canQuoteIntoRoom(targetMemberUserIds: ["me", "outsider"], sourceMemberUserIds: ["me", "peer"]))
+    #expect(canQuoteIntoRoom(targetMemberUserIds: ["me"], sourceReaderUserIds: ["me", "peer"]))
+    #expect(canQuoteIntoRoom(targetMemberUserIds: ["me", "peer"], sourceReaderUserIds: ["me", "peer"]))
+    #expect(!canQuoteIntoRoom(targetMemberUserIds: ["me", "outsider"], sourceReaderUserIds: ["me", "peer"]))
   }
 
   @Test func sameRoomLinkQuotesWithoutASourceRoom() async throws {
@@ -59,6 +67,23 @@ struct MessageLinkQuoteTests {
     let quote = await messageLinkQuote(.init(roomId: "source", messageId: "m1"), targetRoom: target, rooms: [target, source],
                                        allowCrossRoom: true, loadMessage: { roomId, _ in message(in: roomId) })
     #expect(quote == nil)
+  }
+
+  @Test(arguments: [Components.Schemas.ChatRoom.DiscoverabilityPayload._public, .external])
+  func quotesFromAChannelEveryOrganizationMemberCanJoin(_ discoverability: Components.Schemas.ChatRoom.DiscoverabilityPayload) async {
+    let target = room("target", members: ["me", "outsider"])
+    let source = room("source", members: ["me"], discoverability: discoverability)
+    let quote = await messageLinkQuote(.init(roomId: "source", messageId: "m1"), targetRoom: target, rooms: [target, source],
+                                       allowCrossRoom: true, loadMessage: { roomId, _ in message(in: roomId) })
+    #expect(quote?.roomId == "source")
+  }
+
+  @Test func staysPlainWhenAReaderCannotJoinThePublicSourceChannel() async throws {
+    let source = room("source", members: ["me"], discoverability: ._public)
+    for target in try [room("target", members: ["me"], guests: [guest("guest")]), room("target", members: ["me", "peer"], organizationId: "other")] {
+      #expect(await messageLinkQuote(.init(roomId: "source", messageId: "m1"), targetRoom: target, rooms: [target, source],
+                                     allowCrossRoom: true, loadMessage: { roomId, _ in message(in: roomId) }) == nil)
+    }
   }
 
   @Test func staysPlainForAnUnlistedSourceRoomOrASameRoomOnlySendPath() async {

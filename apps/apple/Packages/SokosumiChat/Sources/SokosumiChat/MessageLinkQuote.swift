@@ -18,11 +18,23 @@ public func pastedMessageLink(_ pasted: String, webBaseURL: URL) -> ChatMessageL
 
 /// A room message may be quoted into another room only when every human reader
 /// of the target room can also read the source room, so the snippet never
-/// reaches someone who cannot follow the Message link. The sender's Self Direct
-/// passes because its only reader is the sender, who reads the source room.
-public func canQuoteIntoRoom(targetMemberUserIds: [String], sourceMemberUserIds: [String]) -> Bool {
-  let readers = Set(sourceMemberUserIds)
+/// reaches someone who cannot follow the Message link. `sourceReaderUserIds` is
+/// the source roster plus the target readers who can join it on their own. The
+/// sender's Self Direct passes because its only reader is the sender, who reads
+/// the source room.
+public func canQuoteIntoRoom(targetMemberUserIds: [String], sourceReaderUserIds: [String]) -> Bool {
+  let readers = Set(sourceReaderUserIds)
   return targetMemberUserIds.allSatisfy(readers.contains)
+}
+
+/// The source roster, plus the target readers who can join a public or external
+/// source Channel on their own. Core checks organization membership; here a
+/// non-guest member of a room in the same organization stands in for it.
+func sourceReaderUserIds(source: Components.Schemas.ChatRoom, target: Components.Schemas.ChatRoom) -> [String] {
+  let roster = source.userMembers.map(\.id)
+  guard source.kind == .channel, let organizationId = source.organizationId, organizationId == target.organizationId,
+        source.discoverability == ._public || source.discoverability == .external else { return roster }
+  return roster + target.userMembers.filter { $0.access?.value1 != .guest }.map(\.id)
 }
 
 /// The quote a pasted Message link may be sent as in `targetRoom`, or nil when
@@ -43,7 +55,7 @@ public func messageLinkQuote(
   if isCrossRoom {
     guard allowCrossRoom, let source = rooms.first(where: { $0.id == sourceRoomId }),
           canQuoteIntoRoom(targetMemberUserIds: targetRoom.userMembers.map(\.id),
-                           sourceMemberUserIds: source.userMembers.map(\.id)) else { return nil }
+                           sourceReaderUserIds: sourceReaderUserIds(source: source, target: targetRoom)) else { return nil }
   }
   guard let message = await loadMessage(sourceRoomId, link.messageId), var quote = messageQuote(from: message) else { return nil }
   if isCrossRoom {
