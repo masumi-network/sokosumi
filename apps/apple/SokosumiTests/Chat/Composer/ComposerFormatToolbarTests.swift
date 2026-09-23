@@ -7,6 +7,21 @@
   /// Every format button shows a real SF Symbol, and inline code and the code block read as different icons,
   /// as web's lucide `Code` and `SquareCode` do.
   struct ComposerFormatToolbarTests {
+    /// Web's `composer-format-toolbar.tsx` order: inline code sits beside the code block, after Quote.
+    @Test func buttonsFollowWebOrder() {
+      #expect(ComposerFormatToolbar.items.map(ComposerFormatToolbar.title) == [
+        "Bold (⌘B)", "Italic (⌘I)", "Underline (⌘U)", "Strikethrough", "Link (⌘K)",
+        "Numbered list", "Bullet list", "Quote", "Inline code", "Code block"
+      ])
+    }
+
+    @Test func everyStyleAndBlockHasExactlyOneButton() {
+      let items = ComposerFormatToolbar.items
+      #expect(Set(items).count == items.count)
+      #expect(ComposerInlineText.Style.allCases.allSatisfy { items.contains(.inline($0)) })
+      #expect(ComposerBlockFormat.allCases.allSatisfy { items.contains(.block($0)) })
+    }
+
     @Test(arguments: ComposerInlineText.Style.allCases)
     func inlineStyleSymbolResolves(_ style: ComposerInlineText.Style) {
       #expect(NSImage(systemSymbolName: ComposerFormatToolbar.symbol(style), accessibilityDescription: nil) != nil)
