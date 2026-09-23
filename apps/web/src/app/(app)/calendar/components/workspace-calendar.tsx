@@ -3,7 +3,6 @@
 import FullCalendar, { type EventDropInfo } from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/react/daygrid";
 import interactionPlugin from "@fullcalendar/react/interaction";
-import listPlugin from "@fullcalendar/react/list";
 import classicTheme from "@fullcalendar/react/themes/classic";
 import "@fullcalendar/react/skeleton.css";
 import "@fullcalendar/react/themes/classic/theme.css";
@@ -22,8 +21,6 @@ import {
   startOfWeek,
 } from "date-fns";
 import {
-  ArrowDown,
-  ArrowUp,
   Building2,
   ChevronLeft,
   ChevronRight,
@@ -45,7 +42,6 @@ import { type MouseEvent, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Temporal } from "temporal-polyfill";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
-import { mobileCreateFabBottom } from "@/app/components/mobile-create-fab-geometry";
 import { loadTaskScheduleSeriesPrecondition } from "@/app/tasks/actions";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
@@ -80,9 +76,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+  SEGMENTED_TABS_LIST_CLASS_NAME,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
-import useIsApplePlatform from "@/hooks/use-is-apple-platform";
+import { useLoadWhenVisible } from "@/hooks/use-load-when-visible";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { CalendarRealtimeBridge } from "@/lib/ably/calendar-realtime-bridge";
@@ -216,28 +218,6 @@ function parseCalendarDate(value: string, fallback: string): Date {
 
 function getCalendarDayKey(date: Date): string {
   return format(date, "yyyy-MM-dd");
-}
-
-/** The app shell's main column scrolls the page; null outside it. */
-function getAgendaScroller(root: HTMLElement | null): HTMLElement | null {
-  return root?.closest<HTMLElement>("[data-app-main]") ?? null;
-}
-
-/**
- * FullCalendar's list day header for today in the calendar zone, or the
- * first later day: the list only renders headers for days that have events.
- */
-function findTodayHeader(
-  root: HTMLElement | null,
-  timeZone: string,
-): HTMLElement | null {
-  const todayKey = Temporal.Now.plainDateISO(timeZone).toString();
-  const headers = root?.querySelectorAll<HTMLElement>("[data-date]") ?? [];
-  return (
-    Array.from(headers).find(
-      (header) => (header.dataset.date ?? "") >= todayKey,
-    ) ?? null
-  );
 }
 
 function getProjectIdFromSource(
@@ -375,7 +355,7 @@ function CalendarEvent({
             task: item.taskName,
           },
         )}
-        className="text-muted-foreground hover:bg-primary-tertiary hover:text-foreground focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring ml-auto flex size-5 shrink-0 cursor-pointer items-center justify-center rounded outline-none focus-visible:ring-2"
+        className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring ml-auto flex size-5 shrink-0 cursor-pointer items-center justify-center rounded outline-none focus-visible:ring-2"
         // Radix already toggled on pointerdown; the click must not reach the
         // card's own open handler.
         onClick={(event) => event.stopPropagation()}
@@ -396,7 +376,7 @@ function CalendarEvent({
       */}
       <div
         className={cn(
-          "bg-primary-quaternary text-foreground hover:bg-primary-tertiary flex w-full min-w-0 cursor-pointer select-none flex-col items-start gap-0.5 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out",
+          "bg-background text-foreground hover:bg-muted border border-border flex w-full min-w-0 cursor-pointer select-none flex-col items-start gap-0.5 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out",
           item.state === "SKIPPED" && "text-muted-foreground line-through",
         )}
         data-testid="calendar-event"
@@ -513,8 +493,7 @@ function CalendarView({
   const pluginView = {
     month: "dayGridMonth",
     week: "dayGridWeek",
-    agenda: "listMonth",
-  }[view];
+  }[view === "agenda" ? "week" : view];
 
   function clearPendingMove(occurrenceId: string) {
     setPendingMoves((moves) => {
@@ -572,47 +551,63 @@ function CalendarView({
   }
 
   const t = useTranslations("App.Calendar");
-  const isApple = useIsApplePlatform();
-  const rootRef = useRef<HTMLDivElement>(null);
   const dateKey = getCalendarDayKey(date);
-  const [agendaScroll, setAgendaScroll] = useState({
-    hasToday: false,
-    isScrolled: false,
-  });
 
-  // The agenda lists the whole month and the page is the scroller; track the
-  // scroll position so the jump button can offer "Today" or "Back to top".
-  useEffect(() => {
-    if (view !== "agenda") {
-      return;
-    }
-    const root = rootRef.current;
-    const scroller = getAgendaScroller(root);
-    const hasToday = Boolean(findTodayHeader(root, timeZone));
-    const update = () =>
-      setAgendaScroll({
-        hasToday,
-        isScrolled: (scroller ? scroller.scrollTop : window.scrollY) > 160,
-      });
-    update();
-    const target: EventTarget = scroller ?? window;
-    target.addEventListener("scroll", update, { passive: true });
-    return () => target.removeEventListener("scroll", update);
-  }, [view, dateKey, timeZone]);
-
-  function handleAgendaJump() {
-    const root = rootRef.current;
-    if (agendaScroll.isScrolled) {
-      (getAgendaScroller(root) ?? window).scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
-      return;
-    }
-    findTodayHeader(root, timeZone)?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
+  if (view === "agenda") {
+    const days = Map.groupBy(items, (item) =>
+      getCalendarItemDateKey(item.scheduledAt, timeZone),
+    );
+    return (
+      <div className="flex flex-col gap-4" data-testid="calendar-agenda">
+        <h2 className="text-lg font-semibold">{t("agenda.upcoming")}</h2>
+        {items.length === 0 ? (
+          <p className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
+            {t("empty.title")}
+          </p>
+        ) : null}
+        {Array.from(days, ([day, dayItems]) => (
+          <section className="overflow-hidden rounded-xl border" key={day}>
+            <h3 className="bg-muted flex items-center justify-between gap-2 border-b px-3 py-2 text-sm font-semibold">
+              <span>
+                {formatDate(dayItems[0].scheduledAt, {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                  timeZone,
+                })}
+              </span>
+              <span>
+                {formatDate(dayItems[0].scheduledAt, {
+                  weekday: "long",
+                  timeZone,
+                })}
+              </span>
+            </h3>
+            <ul className="flex flex-col gap-2 p-3">
+              {dayItems.map((item) => (
+                <li key={item.id}>
+                  <CalendarEvent
+                    item={item}
+                    people={findCalendarPeople(item, coworkers)}
+                    onEditSchedule={onEventEdit}
+                    onMoveOccurrence={onMoveOccurrence}
+                    onRestoreOccurrence={onRestoreOccurrence}
+                    onSkipOccurrence={onSkipOccurrence}
+                    onOpenTask={onOpenTask}
+                    source={sources.find(
+                      ({ sourceId }) => sourceId === item.sourceId,
+                    )}
+                    timeText={formatDate(item.scheduledAt, "time", {
+                      timeZone,
+                    })}
+                  />
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
+    );
   }
 
   return (
@@ -622,17 +617,16 @@ function CalendarView({
         data-can-create={canCreate ? "true" : undefined}
         data-view={view}
         data-testid={`calendar-${view}`}
-        ref={rootRef}
       >
         <FullCalendar
           borderless
           dayCellClass={
-            canCreate && view !== "agenda"
+            canCreate
               ? "hover:bg-primary-quaternary motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out"
               : undefined
           }
           key={`${dateKey}-${timeZone}-${view}`}
-          plugins={[classicTheme, dayGridPlugin, interactionPlugin, listPlugin]}
+          plugins={[classicTheme, dayGridPlugin, interactionPlugin]}
           initialDate={dateKey}
           initialView={pluginView}
           events={items.map((item) => ({
@@ -690,34 +684,6 @@ function CalendarView({
           dateClick={(dateInfo) => onDateClick(dateInfo.date)}
         />
       </div>
-      {/*
-        Sticky, not fixed, so it centers on the agenda's own width instead of
-        the viewport, and it lives outside the wrapper because that wrapper
-        is a scroll container which would pin the sticky box to itself.
-      */}
-      {view === "agenda" &&
-      (agendaScroll.isScrolled || agendaScroll.hasToday) ? (
-        <div
-          className={cn(
-            "pointer-events-none sticky z-40 flex h-0 items-end justify-center md:bottom-6",
-            mobileCreateFabBottom(isApple),
-          )}
-        >
-          <Button
-            className="pointer-events-auto rounded-full shadow-lg"
-            size="sm"
-            variant="outline"
-            onClick={handleAgendaJump}
-          >
-            {agendaScroll.isScrolled ? (
-              <ArrowUp aria-hidden />
-            ) : (
-              <ArrowDown aria-hidden />
-            )}
-            {t(agendaScroll.isScrolled ? "agenda.backToTop" : "agenda.today")}
-          </Button>
-        </div>
-      ) : null}
     </>
   );
 }
@@ -1018,6 +984,8 @@ export function WorkspaceCalendar({
   const [loadedItems, setLoadedItems] = useState(items);
   const [nextCursor, setNextCursor] = useState(pagination?.nextCursor ?? null);
   const [loadMoreError, setLoadMoreError] = useState(false);
+  const [isLoadingOccurrences, setIsLoadingOccurrences] = useState(false);
+  const agendaBoundaryRef = useRef<HTMLDivElement>(null);
   const [loadedSchedules, setLoadedSchedules] = useState(scheduledTasks);
   const [schedulesNextCursor, setSchedulesNextCursor] = useState(
     scheduledTasksPagination?.nextCursor ?? null,
@@ -1054,6 +1022,7 @@ export function WorkspaceCalendar({
     eventRequestId.current += 1;
     setPrevItems(items);
     setPrevServerNextCursor(pagination?.nextCursor ?? null);
+    setIsLoadingOccurrences(false);
     setLoadedItems(items);
     setNextCursor(pagination?.nextCursor ?? null);
     setLoadMoreError(false);
@@ -1136,12 +1105,22 @@ export function WorkspaceCalendar({
     }
   });
 
+  useEffect(() => {
+    if (isMobile && state.view === null) {
+      void setState({ view: "agenda" }, { shallow: false });
+    }
+  }, [isMobile, state.view, setState]);
+
   const latestCalendarDate = latestDate
     ? parseCalendarDate(latestDate, initialDate)
     : null;
   const visibleItems = loadedItems
     .filter(
       (item) =>
+        (view !== "agenda" ||
+          (item.state === "PLANNED" &&
+            getCalendarItemDateKey(item.scheduledAt, timeZone) >=
+              Temporal.Now.plainDateISO(timeZone).toString())) &&
         (state.assigneeId === null ||
           item.taskAssigneeId === state.assigneeId) &&
         (state.assigneeUserId === null ||
@@ -1306,17 +1285,19 @@ export function WorkspaceCalendar({
   }
 
   async function loadNextPage() {
-    if (!nextCursor || !range) {
+    if (!nextCursor || !range || isLoadingOccurrences) {
       return;
     }
 
     const accessGeneration = calendarAccessGeneration.current;
+    setIsLoadingOccurrences(true);
+    setLoadMoreError(false);
     try {
       const query = {
         from: range.from,
         to: range.to,
         cursor: nextCursor,
-        limit: pagination?.limit ?? 100,
+        limit: view === "agenda" ? 10 : (pagination?.limit ?? 100),
         scope: state.scope,
         assigneeId: state.assigneeId ?? undefined,
         assigneeUserId: state.assigneeUserId ?? undefined,
@@ -1343,6 +1324,10 @@ export function WorkspaceCalendar({
     } catch {
       if (accessGeneration === calendarAccessGeneration.current) {
         setLoadMoreError(true);
+      }
+    } finally {
+      if (accessGeneration === calendarAccessGeneration.current) {
+        setIsLoadingOccurrences(false);
       }
     }
   }
@@ -1414,11 +1399,12 @@ export function WorkspaceCalendar({
     setTimeState(null);
   }
 
-  // A calendar cannot show "load more": a day holding three of its five
+  // Month/week grids must show every event: a day holding three of its five
   // events looks complete. Drain the remaining pages as soon as one appears.
   useEffect(() => {
     const requested = requestedPageRef.current;
     if (
+      view === "agenda" ||
       !nextCursor ||
       loadMoreError ||
       (requested?.cursor === nextCursor && requested.items === items)
@@ -1427,7 +1413,17 @@ export function WorkspaceCalendar({
     }
     requestedPageRef.current = { cursor: nextCursor, items };
     void loadNextPage();
-  }, [items, nextCursor, loadMoreError, loadNextPage]);
+  }, [view, items, nextCursor, loadMoreError, loadNextPage]);
+
+  useLoadWhenVisible(agendaBoundaryRef, {
+    armed:
+      view === "agenda" &&
+      nextCursor !== null &&
+      !isLoadingOccurrences &&
+      !loadMoreError,
+    boundaryKey: `${nextCursor}-${visibleItems.length}`,
+    onVisible: () => void loadNextPage(),
+  });
 
   const filterSections: FilterDropdownMenuSection[] = [
     ...(activeOrganizationId
@@ -1547,8 +1543,8 @@ export function WorkspaceCalendar({
           onInvalidated={handleCalendarInvalidated}
         />
       ) : null}
-      <div className="flex flex-col gap-5 md:flex-row md:items-center md:gap-4">
-        {view !== "schedules" ? (
+      <div className="flex flex-wrap items-center gap-4">
+        {view === "month" || view === "week" ? (
           <div className="flex items-center gap-1">
             <Button
               aria-label={t("previous")}
@@ -1573,9 +1569,9 @@ export function WorkspaceCalendar({
           </div>
         ) : null}
 
-        <div className="flex flex-wrap items-center gap-2 md:flex-1">
+        <div className="ms-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2">
           <Tabs
-            className="flex-1 md:flex-none"
+            className="min-w-0 max-w-full"
             value={view}
             onValueChange={(value) => {
               const nextView = CALENDAR_VIEWS.find(
@@ -1586,15 +1582,25 @@ export function WorkspaceCalendar({
               }
             }}
           >
-            <TabsList className="w-full md:w-fit" data-testid="calendar-views">
+            <TabsList
+              className={cn(
+                SEGMENTED_TABS_LIST_CLASS_NAME,
+                "h-auto max-w-full w-fit flex-wrap",
+              )}
+              data-testid="calendar-views"
+            >
               {CALENDAR_VIEWS.map((calendarView) => (
-                <TabsTrigger key={calendarView} value={calendarView}>
+                <TabsTrigger
+                  className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
+                  key={calendarView}
+                  value={calendarView}
+                >
                   {t(`view.${calendarView}`)}
                 </TabsTrigger>
               ))}
             </TabsList>
           </Tabs>
-          <div className="md:ml-auto">
+          <div>
             <FilterDropdownMenu
               buttonLabel={tFilters("title")}
               emptyResultsLabel={tFilters("emptyResults")}
@@ -1632,7 +1638,7 @@ export function WorkspaceCalendar({
         />
       ) : (
         <>
-          {visibleItems.length === 0 ? (
+          {visibleItems.length === 0 && view !== "agenda" ? (
             <div className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
               {t("empty.title")}
             </div>
@@ -1653,6 +1659,22 @@ export function WorkspaceCalendar({
             timeZone={timeZone}
             view={view}
           />
+          {view === "agenda" && nextCursor ? (
+            <div className="flex justify-center" ref={agendaBoundaryRef}>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isLoadingOccurrences}
+                onClick={() => void loadNextPage()}
+              >
+                {t(
+                  isLoadingOccurrences
+                    ? "agenda.loading"
+                    : "schedules.loadMore",
+                )}
+              </Button>
+            </div>
+          ) : null}
         </>
       )}
       {eventLoadError ? (

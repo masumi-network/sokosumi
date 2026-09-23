@@ -93,6 +93,26 @@ describe("resolveCalendarPageQuery", () => {
     expect(result.range.to).toBeInstanceOf(Date);
   });
 
+  it("starts Agenda at today in the selected timezone and spans the supported horizon", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-23T01:00:00Z"));
+    try {
+      const result = resolveCalendarPageQuery(
+        "2025-01-01",
+        undefined,
+        "agenda",
+        "America/Los_Angeles",
+      );
+      expect(result.initialDate).toBe("2026-09-22");
+      expect(result.range.from.toISOString()).toBe("2026-09-22T07:00:00.000Z");
+      expect(result.range.to.getTime() - result.range.from.getTime()).toBe(
+        90 * 24 * 60 * 60 * 1000,
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("drops an unknown status filter", () => {
     const result = resolveCalendarPageQuery(undefined, "not-a-status");
 
@@ -183,6 +203,26 @@ describe("loadWorkspaceCalendarPage", () => {
       pagination: null,
     });
   });
+
+  it.each([undefined, PROJECT.id])(
+    "loads the first ten Agenda occurrences for project %s",
+    async (projectId) => {
+      await loadWorkspaceCalendarPage({
+        projectId,
+        searchParams: Promise.resolve({ view: "agenda", timezone: "UTC" }),
+      });
+      if (projectId) {
+        expect(getProjectCalendarMock).toHaveBeenCalledWith(
+          projectId,
+          expect.objectContaining({ limit: 10 }),
+        );
+      } else {
+        expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+          expect.objectContaining({ limit: 10 }),
+        );
+      }
+    },
+  );
 
   it("does not load Calendar data outside the Calendar beta", async () => {
     hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(false);
