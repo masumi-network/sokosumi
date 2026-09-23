@@ -15815,6 +15815,19 @@ export const SocialPostCalendarItemSchema = {
                 'null'
             ]
         },
+        projectName: {
+            type: 'string'
+        },
+        scheduledByName: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        attachmentCount: {
+            type: 'integer',
+            minimum: 0
+        },
         scheduledAt: {
             type: 'string',
             format: 'date-time',
@@ -15845,6 +15858,9 @@ export const SocialPostCalendarItemSchema = {
         'text',
         'status',
         'externalHandle',
+        'projectName',
+        'scheduledByName',
+        'attachmentCount',
         'scheduledAt',
         'sourceId',
         'sourceProjectId',

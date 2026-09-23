@@ -4796,6 +4796,9 @@ export type SocialPostCalendarItem = {
     text: string;
     status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHING' | 'PUBLISHED' | 'FAILED' | 'MISSED' | 'CANCELED';
     externalHandle: string | null;
+    projectName: string;
+    scheduledByName: string | null;
+    attachmentCount: number;
     scheduledAt: Date;
     sourceId: string;
     sourceProjectId: string;
