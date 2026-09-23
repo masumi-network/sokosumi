@@ -6,7 +6,7 @@ import Testing
 struct MessageMentionsTests {
   @Test func resolvesCurrentNamesAllAndLegacyButKeepsUnknownAndCode() throws {
     let user = Components.Schemas.ChatRoomUserParticipant(id: "peer", name: "Anna Smith", email: "anna@example.com", image: nil, presence: .online)
-    let room = Components.Schemas.ChatRoom(id: "room", name: "Room", kind: .direct, isSelfDirect: false, createdByUserId: "peer", createdAt: Date(), updatedAt: Date(),
+    let room = Components.Schemas.ChatRoom(id: "room", name: "Room", kind: .direct, isSelfDirect: false, isGroupDirect: false, createdByUserId: "peer", createdAt: Date(), updatedAt: Date(),
                                            unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member,
                                            userMembers: [user], coworkerMembers: [], sokoBotMembers: [])
     let document = MessageMarkdown("😀 @peer:old @anna-smith @all:all @missing:ghost `@peer:old`", mentions: MessageMentions(room: room))

@@ -40,6 +40,7 @@ function message(reactions: ChatRoomMessageReaction[] = []): ChatRoomMessage {
     metadata: null,
     quote: null,
     membership: null,
+    groupNameChange: null,
     unfurls: null,
     deletedAt: null,
   };

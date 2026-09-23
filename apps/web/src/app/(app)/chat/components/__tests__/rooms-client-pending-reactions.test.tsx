@@ -244,6 +244,8 @@ function channelRoom(): ChatRoom {
     mutedAt: null,
     markedUnread: false,
     isSelfDirect: false,
+    isGroupDirect: false,
+    groupName: null,
     myAccess: "member",
     userMembers: [
       {
@@ -279,6 +281,7 @@ function message(
     metadata: null,
     quote: null,
     membership: null,
+    groupNameChange: null,
     unfurls: null,
     sender: {
       type: "user",

@@ -259,6 +259,17 @@ describe("assertChatRoomContentMessage", () => {
     ).toThrow(/membership status/i);
   });
 
+  it.each([
+    { action: "named", name: "Launch crew" },
+    { action: "cleared", name: null },
+  ])("rejects $action Group name status messages", (change) => {
+    expect(() =>
+      assertChatRoomContentMessage({
+        groupNameChange: { ...change, actor: { id: "u1", name: "Ada" } },
+      }),
+    ).toThrow(/group name status/i);
+  });
+
   it("allows ordinary messages", () => {
     expect(() =>
       assertChatRoomContentMessage({ quote: { messageId: "x" } }),
