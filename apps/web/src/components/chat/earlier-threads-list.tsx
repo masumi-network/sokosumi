@@ -1,10 +1,10 @@
 "use client";
 
 import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId } from "react";
 
+import { ThreadListLoadMore } from "@/components/chat/thread-list-load-more";
 import { ThreadGroupHeading } from "@/components/chat/thread-list-row";
 import { EarlierThreadLink } from "@/components/chat/unread-thread-link";
 import { unreadThreadsFingerprint } from "@/components/chat/unread-threads-list";
@@ -97,23 +97,23 @@ export function EarlierThreadsList({
             })}
           </ul>
           {query.hasNextPage ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="self-start"
-              disabled={query.isFetchingNextPage}
-              aria-busy={query.isFetchingNextPage}
-              onClick={() => void query.fetchNextPage()}
-            >
-              {query.isFetchingNextPage ? (
-                <Loader2
-                  className="size-4 animate-spin motion-reduce:animate-none"
-                  aria-hidden
-                />
-              ) : null}
-              {t("loadOlder")}
-            </Button>
+            <ThreadListLoadMore
+              boundaryKey={threads.at(-1)?.parentMessageId ?? ""}
+              status={
+                query.isFetchingNextPage
+                  ? "loading"
+                  : query.isFetchNextPageError
+                    ? "failed"
+                    : "idle"
+              }
+              onLoad={() => void query.fetchNextPage()}
+              labels={{
+                load: t("loadOlder"),
+                loading: t("loading"),
+                error: t("error"),
+                retry: tView("retry"),
+              }}
+            />
           ) : null}
         </>
       )}

@@ -12,6 +12,7 @@ import {
   threadOverviewUnreadReplyCount,
 } from "@/app/chat/utils/thread-overview-unread";
 import { formatUnreadThreadsPreview } from "@/app/chat/utils/unread-threads-preview";
+import { ThreadListLoadMore } from "@/components/chat/thread-list-load-more";
 import {
   ThreadGroupEmpty,
   ThreadGroupHeading,
@@ -332,20 +333,25 @@ export function ThreadListPanel({
           </>
         ) : null}
         {nextCursor ? (
-          <div className="flex justify-center py-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                void handleLoadOlder();
-              }}
-              disabled={isLoadingOlder}
-              data-testid="thread-list-load-older"
-            >
-              {isLoadingOlder ? labels.loading : labels.loadOlder}
-            </Button>
-          </div>
+          <ThreadListLoadMore
+            boundaryKey={items.at(-1)?.parentMessage.id ?? ""}
+            status={
+              isLoadingOlder
+                ? "loading"
+                : error && items.length > 0
+                  ? "failed"
+                  : "idle"
+            }
+            onLoad={() => {
+              void handleLoadOlder();
+            }}
+            labels={{
+              load: labels.loadOlder,
+              loading: labels.loading,
+              error: labels.error,
+              retry: labels.loadOlder,
+            }}
+          />
         ) : null}
       </div>
     </aside>

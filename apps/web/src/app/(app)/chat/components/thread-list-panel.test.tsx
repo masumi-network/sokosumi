@@ -253,7 +253,11 @@ describe("ThreadListPanel", () => {
 
     renderPanel();
 
-    fireEvent.click(await screen.findByTestId("thread-list-load-older"));
+    fireEvent.click(
+      within(await screen.findByTestId("thread-list-load-more")).getByRole(
+        "button",
+      ),
+    );
     await waitFor(() => {
       expect(listThreadsActionMock).toHaveBeenLastCalledWith(ROOM_ID, {
         cursor: "cursor-1",
@@ -261,7 +265,7 @@ describe("ThreadListPanel", () => {
     });
     expect(await screen.findByText("Last month")).toBeInTheDocument();
     expect(
-      screen.queryByTestId("thread-list-load-older"),
+      screen.queryByTestId("thread-list-load-more"),
     ).not.toBeInTheDocument();
   });
 
@@ -388,7 +392,7 @@ describe("ThreadListPanel", () => {
     expect(after[1]).toHaveTextContent("Older unread");
     expect(after[1]).toHaveTextContent("2 replies");
     expect(after[1]).not.toHaveTextContent("unread replies");
-    expect(screen.getByTestId("thread-list-load-older")).toBeInTheDocument();
+    expect(screen.getByTestId("thread-list-load-more")).toBeInTheDocument();
   });
 
   it("shows unread chrome and Mark all for never-looked Participant threads", async () => {

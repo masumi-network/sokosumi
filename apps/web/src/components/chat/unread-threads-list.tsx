@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 
 import { ChatCaughtUp } from "@/app/chat/components/chat-unread-view-header";
 import { resolveUnreadThreadsAttention } from "@/components/chat/room-attention";
+import { ThreadListLoadMore } from "@/components/chat/thread-list-load-more";
 import { ThreadGroupEmpty } from "@/components/chat/thread-list-row";
 import { UnreadThreadLink } from "@/components/chat/unread-thread-link";
 import { Button } from "@/components/ui/button";
@@ -184,23 +185,23 @@ export function UnreadThreadsList({
             })}
           </ul>
           {query.hasNextPage ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="self-start"
-              disabled={query.isFetchingNextPage}
-              aria-busy={query.isFetchingNextPage}
-              onClick={() => void query.fetchNextPage()}
-            >
-              {query.isFetchingNextPage ? (
-                <Loader2
-                  className="size-4 animate-spin motion-reduce:animate-none"
-                  aria-hidden
-                />
-              ) : null}
-              {t("loadMore")}
-            </Button>
+            <ThreadListLoadMore
+              boundaryKey={threads.at(-1)?.parentMessageId ?? ""}
+              status={
+                query.isFetchingNextPage
+                  ? "loading"
+                  : query.isFetchNextPageError
+                    ? "failed"
+                    : "idle"
+              }
+              onLoad={() => void query.fetchNextPage()}
+              labels={{
+                load: t("loadMore"),
+                loading: tGroups("loading"),
+                error: t("loadError"),
+                retry: t("retry"),
+              }}
+            />
           ) : null}
         </>
       )}
