@@ -73,6 +73,8 @@ struct RoomThreadOverviewView: View {
   /// it goes idle again or the last row changes, and a failed page waits for the reader's click.
   private var pagingRow: some View {
     PageBoundaryRow(copy: .olderThreads, status: overview.olderPageStatus, load: older)
+      // `load` ignores a click while the first page loads or Mark all runs; do not offer one.
+      .disabled(overview.isLoading || overview.isMarkingRead)
       .onScrollVisibilityChange(threshold: 0.01) { pagingRowVisible = $0 }
       .onDisappear { pagingRowVisible = false }
       .onChange(of: OlderPageArming(visible: pagingRowVisible, armed: overview.loadsOlderAutomatically,
