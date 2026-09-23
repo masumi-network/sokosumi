@@ -120,18 +120,22 @@ const ARCHIVED_TRAILING_CONTROL_CLASS =
  * A room the All unreads filter lists with nothing unread: read during the
  * pass, or pinned. Dimmed.
  */
+/**
+ * One timing for everything the All unreads filter animates: motion's
+ * presence, and the same curve and length for its CSS dim and fade.
+ */
+const UNREAD_FILTER_TRANSITION: Transition = {
+  duration: 0.2,
+  ease: [0.2, 0, 0, 1],
+};
+const UNREAD_FILTER_CSS_TIMING =
+  "motion-safe:duration-200 motion-safe:ease-[cubic-bezier(0.2,0,0,1)]";
+
 const READ_INBOX_ROOM_ITEM_PROPS = {
   "data-read": "true",
   // Eases down when the reader moves on from a room they just read. Coming
   // back to full is instant: that is new activity, and it should be seen.
-  className:
-    "opacity-60 motion-safe:transition-opacity motion-safe:duration-200",
-};
-
-/** One timing for everything the All unreads filter animates. */
-const UNREAD_FILTER_TRANSITION: Transition = {
-  duration: 0.2,
-  ease: [0.2, 0, 0, 1],
+  className: `opacity-60 motion-safe:transition-opacity ${UNREAD_FILTER_CSS_TIMING}`,
 };
 
 /**
@@ -411,6 +415,7 @@ export function OrganizationChatList({
   // is listed: pinned rooms and rooms read in the pass stay listed, dimmed.
   const caughtUp =
     unreadOnly && unreadRooms.length === 0 && pendingRows.length === 0;
+  const showsReadLabel = caughtUp && inboxRooms.length > 0;
   // The mode ends with the toggle that leaves it (section closed, or fewer
   // than two pins). Otherwise it would come back by itself, unasked, the
   // next time a second room is pinned.
@@ -509,15 +514,16 @@ export function OrganizationChatList({
             className={cn(
               "space-y-2",
               filterSwitched &&
-                "motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200",
+                `motion-safe:animate-in motion-safe:fade-in ${UNREAD_FILTER_CSS_TIMING}`,
             )}
           >
             {unreadOnly ? (
               // Present for the whole pass, empty or not, so a room arriving in an
               // empty list animates in: `initial={false}` only spares the rows
               // already here when the filter comes on. Hidden while it holds
-              // nothing, so it adds no gap.
-              <div className="[&:not(:has(li,[role=status]))]:hidden">
+              // nothing, so it adds no gap. On the rail the caught-up row is
+              // hidden, so there only a room keeps it.
+              <div className="[&:not(:has(li,[role=status]))]:hidden group-data-[collapsible=icon]:[&:not(:has(li))]:hidden">
                 <AnimatePresence initial={false}>
                   {caughtUp ? (
                     // A message, not a row: nothing here opens. The way back to
@@ -545,7 +551,7 @@ export function OrganizationChatList({
                   ) : null}
                 </AnimatePresence>
                 <AnimatePresence initial={false}>
-                  {caughtUp && inboxRooms.length > 0 ? (
+                  {showsReadLabel ? (
                     // Everything left is read: say why it is still listed.
                     <motion.div
                       key="read-label"
@@ -563,7 +569,9 @@ export function OrganizationChatList({
                 </AnimatePresence>
                 <SidebarMenu
                   data-slot="unread-inbox"
-                  aria-labelledby={caughtUp ? inboxReadLabelId : undefined}
+                  aria-labelledby={
+                    showsReadLabel ? inboxReadLabelId : undefined
+                  }
                   className="gap-0"
                 >
                   <AnimatePresence initial={false}>
