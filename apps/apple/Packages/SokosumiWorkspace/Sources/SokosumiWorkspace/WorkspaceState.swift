@@ -311,6 +311,8 @@ public final class WorkspaceState: ObservableObject {
     selectedRoomId = nil
     stopRealtime()
     clearTranscript()
+    // Parent text from the signed-in reader. The next account must not see it.
+    crossRoomThreads.reset()
   }
 
   /// User picked a room in the sidebar: persist it and open its transcript.
@@ -1233,6 +1235,7 @@ public final class WorkspaceState: ObservableObject {
     selectedRoomId = nil
     stopRealtime()
     clearTranscript()
+    crossRoomThreads.reset()
     guard let client = resolveClient(auth: auth) else { return }
     do {
       guard let loaded = try await workspaceSession.load(client: client), generation == workspaceGeneration else { return }
@@ -1273,6 +1276,7 @@ public final class WorkspaceState: ObservableObject {
       pendingInvitations.reset()
       readAttention.reset()
       clearTranscript()
+      crossRoomThreads.reset()
       selectedRoomId = nil
       rooms = loaded
       switchError = nil

@@ -3503,4 +3503,53 @@ extension WorkspaceStateTests {
     #expect(state.crossRoomThreads.unreadState(rooms: state.rooms, roomsLive: state.roomsLive) == .caughtUp,
             "Core's empty answer agrees.")
   }
+
+  /// The lists hold parent text. Sign-out and a workspace switch drop it; a failed switch keeps it.
+  @Test func signOutAndWorkspaceSwitchDropCrossRoomThreadText() async throws {
+    let roomId = "550e8400-e29b-41d4-a716-446655440061"
+    let parent = "550e8400-e29b-41d4-a716-446655440071"
+    let page = transcriptPageBody(messages: ["""
+    {"parentMessageId":"\(parent)","firstUnreadReplyId":"\(parent)-reply","parentContent":"Secret parent","unreadReplyCount":1,"roomId":"\(roomId)","lastUnreadAt":"\(timestamp)"}
+    """], nextCursor: nil)
+    let (state, auth, _, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0)),
+      (500, """
+      {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/users/me/preferred-organization","method":"PUT"}}
+      """),
+      (200, """
+      {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
+      """),
+      (200, roomsBody(names: ["launch"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0, name: "launch"))
+    ])
+    defer { state.reset() }
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: ScriptedTransport([(200, page), (200, page)]))
+    var room = state.rooms[0]
+    room.unreadThreadCount = 1
+    state.rooms = [room]
+    try await state.crossRoomThreads.load(.unread, rooms: state.rooms, scope: state.selectionId, client: client, organizationSlug: nil)
+    #expect(state.crossRoomThreads.label(for: parent) == "Secret parent")
+    let org = try #require(state.options.first { $0.id == "org_1" })
+    await state.switchRooms(auth: auth, option: org)
+    #expect(state.selectionId == "personal")
+    #expect(state.crossRoomThreads.label(for: parent) == "Secret parent", "A failed switch keeps the open workspace's Threads.")
+    await state.switchRooms(auth: auth, option: org)
+    await waitForTranscriptIdle(state)
+    #expect(state.selectionId == "org_1")
+    #expect(state.crossRoomThreads.unread.threads.isEmpty)
+    #expect(state.crossRoomThreads.label(for: parent) == "Thread")
+    try await state.crossRoomThreads.load(.unread, rooms: state.rooms, scope: state.selectionId, client: client, organizationSlug: nil)
+    #expect(state.crossRoomThreads.label(for: parent) == "Secret parent")
+    state.reset()
+    #expect(state.crossRoomThreads.unread.threads.isEmpty)
+    #expect(!state.crossRoomThreads.unread.hasAnswered)
+    #expect(state.crossRoomThreads.label(for: parent) == "Thread")
+  }
 }
