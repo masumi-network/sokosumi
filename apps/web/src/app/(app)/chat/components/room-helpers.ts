@@ -436,16 +436,48 @@ export function senderProfile(
 
 /** Stable sender identity for grouping; null when identity is unknown. */
 export function messageSenderKey(message: ChatRoomMessage): string | null {
-  if (message.sender.type === "user") {
-    return `user:${message.sender.user.id}`;
+  return senderKey(message.sender);
+}
+
+/** Stable identity of a sender or thread replier; null when unknown. */
+export function senderKey(sender: ChatRoomMessageSender): string | null {
+  if (sender.type === "user") {
+    return `user:${sender.user.id}`;
   }
-  if (message.sender.type === "coworker") {
-    return `coworker:${message.sender.coworker.id}`;
+  if (sender.type === "coworker") {
+    return `coworker:${sender.coworker.id}`;
   }
-  if (message.sender.type === "sokoBot") {
-    return `sokoBot:${message.sender.sokoBot.id}`;
+  if (sender.type === "sokoBot") {
+    return `sokoBot:${sender.sokoBot.id}`;
   }
   return null;
+}
+
+/** Faces on a thread reply bar. Core caps `threadRepliers` at the same. */
+export const THREAD_REPLY_FACE_CAP = 3;
+
+/**
+ * The faces on a thread reply bar: the thread creator first, then repliers in
+ * the order they joined. Empty when the payload carries no repliers (a cached
+ * or client-built message), rather than a lone creator face that would claim
+ * nobody else replied.
+ */
+export function threadReplyFaces(
+  message: ChatRoomMessage,
+): ChatRoomMessageSender[] {
+  if (!message.threadRepliers) {
+    return [];
+  }
+  const creatorKey = senderKey(message.sender);
+  if (!creatorKey) {
+    return message.threadRepliers.slice(0, THREAD_REPLY_FACE_CAP);
+  }
+  return [
+    message.sender,
+    ...message.threadRepliers.filter(
+      (replier) => senderKey(replier) !== creatorKey,
+    ),
+  ].slice(0, THREAD_REPLY_FACE_CAP);
 }
 
 /**

@@ -606,7 +606,7 @@ describe("GET /chats/rooms/{id}/messages", () => {
     ]);
   });
 
-  it("lists the thread's repliers newest first", async () => {
+  it("lists the thread's repliers in the order they first replied", async () => {
     messageFindManyMock.mockResolvedValue([
       {
         ...message(),
@@ -629,7 +629,7 @@ describe("GET /chats/rooms/{id}/messages", () => {
     expect(body.data[0].threadRepliers).toEqual([
       {
         type: "user",
-        user: expect.objectContaining({ id: "user_grace", name: "Grace" }),
+        user: expect.objectContaining({ id: "user_linus", name: "Linus" }),
       },
       {
         type: "coworker",
@@ -637,7 +637,7 @@ describe("GET /chats/rooms/{id}/messages", () => {
       },
       {
         type: "user",
-        user: expect.objectContaining({ id: "user_linus", name: "Linus" }),
+        user: expect.objectContaining({ id: "user_grace", name: "Grace" }),
       },
     ]);
   });
@@ -668,7 +668,7 @@ describe("GET /chats/rooms/{id}/messages", () => {
         (replier: { user?: { id: string }; coworker?: { id: string } }) =>
           (replier.user ?? replier.coworker)?.id,
       ),
-    ).toEqual(["user_grace", "user_linus", "cow_1"]);
+    ).toEqual(["user_ada", "cow_1", "user_linus"]);
   });
 
   it("lists no repliers on a message without replies", async () => {

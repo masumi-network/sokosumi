@@ -136,7 +136,7 @@ describe("thread reply bar", () => {
     );
   });
 
-  it("shows one face per replier and keeps the count as its name", () => {
+  it("shows the creator plus one face per replier and keeps the count as its name", () => {
     renderRow({
       threadReplyCount: 5,
       threadUnreadReplyCount: 2,
@@ -166,7 +166,7 @@ describe("thread reply bar", () => {
     });
 
     const bar = screen.getByRole("button", { name: "2 new replies" });
-    expect(within(bar).getAllByTestId("thread-replier-face")).toHaveLength(2);
+    expect(within(bar).getAllByTestId("thread-replier-face")).toHaveLength(3);
   });
 
   it("describes the bar with the last reply's age", () => {
@@ -176,4 +176,58 @@ describe("thread reply bar", () => {
       screen.getByRole("button", { name: "3 replies" }),
     ).toHaveAccessibleDescription("4m ago");
   });
+
+  it("puts the thread creator first, then repliers in the order they joined", () => {
+    renderRow({
+      threadReplyCount: 4,
+      threadUnreadReplyCount: 0,
+      threadRepliers: [
+        replier("user-2", "Grace"),
+        replier("user-1", "Ada"),
+        replier("user-3", "Linus"),
+      ],
+    });
+
+    const bar = screen.getByRole("button", { name: "4 replies" });
+    expect(
+      within(bar)
+        .getAllByTestId("thread-replier-face")
+        .map((face) => face.textContent),
+    ).toEqual(["A", "G", "L"]);
+  });
+
+  it("shows the thread creator even before they reply", () => {
+    renderRow({
+      threadReplyCount: 3,
+      threadUnreadReplyCount: 0,
+      threadRepliers: [
+        replier("user-2", "Grace"),
+        replier("user-3", "Linus"),
+        replier("user-4", "Margaret"),
+      ],
+    });
+
+    const bar = screen.getByRole("button", { name: "3 replies" });
+    expect(
+      within(bar)
+        .getAllByTestId("thread-replier-face")
+        .map((face) => face.textContent),
+    ).toEqual(["A", "G", "L"]);
+  });
 });
+
+function replier(
+  id: string,
+  name: string,
+): NonNullable<ChatRoomMessage["threadRepliers"]>[number] {
+  return {
+    type: "user",
+    user: {
+      id,
+      name,
+      email: `${id}@example.com`,
+      image: null,
+      presence: "offline",
+    },
+  };
+}

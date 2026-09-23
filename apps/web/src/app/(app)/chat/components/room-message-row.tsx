@@ -149,6 +149,7 @@ import {
   ROOM_QUOTE_MARKDOWN_CLASSNAME,
   type RoomMentionParticipant,
   senderProfile,
+  threadReplyFaces,
 } from "./room-helpers";
 import { RoomMessageMarkdown } from "./room-mention-markdown";
 import { SokoBotChainBadge } from "./soko-bot-chain-badge";
@@ -2228,7 +2229,7 @@ function SenderFace({
 }
 
 /**
- * The bar under a thread parent: who replied, how many replies (or how many
+ * The bar under a thread parent: who is in it, how many replies (or how many
  * are new to this reader), and how long ago the last one landed. Its name is
  * the count alone; the age is its description and the faces are decoration.
  */
@@ -2246,8 +2247,7 @@ function ThreadReplyBar({
   const ageId = useId();
   // Absent on realtime payloads, which are not addressed to one viewer.
   const unreadReplyCount = message.threadUnreadReplyCount ?? 0;
-  // Absent on messages the client built itself and on cached transcripts.
-  const repliers = message.threadRepliers ?? [];
+  const faces = threadReplyFaces(message);
   const countLabel =
     unreadReplyCount > 0
       ? t("Thread.newReplyCount", { count: unreadReplyCount })
@@ -2277,10 +2277,10 @@ function ThreadReplyBar({
       )}
       onClick={() => onOpenThread(message)}
     >
-      {repliers.length > 0 ? (
+      {faces.length > 0 ? (
         <span aria-hidden className="flex -space-x-1">
-          {repliers.map((replier, index) => {
-            const profile = senderProfile(replier);
+          {faces.map((face, index) => {
+            const profile = senderProfile(face);
             return (
               <span
                 key={
@@ -2290,7 +2290,7 @@ function ThreadReplyBar({
                 }
                 data-testid="thread-replier-face"
                 className="relative inline-flex size-4 shrink-0"
-                style={{ zIndex: repliers.length - index }}
+                style={{ zIndex: faces.length - index }}
               >
                 <SenderFace
                   sender={profile}

@@ -61,7 +61,7 @@ function replierIds(message: ChatRoomMessage): string[] {
 }
 
 describe("applyReplyToParentThreadPreview", () => {
-  it("puts the new replier first and bumps the count and age", () => {
+  it("adds the first replier and bumps the count and age", () => {
     const parent = parentMessage({ threadReplyCount: 0, threadRepliers: [] });
     const reply = parentMessage({
       id: "reply-1",
@@ -79,7 +79,23 @@ describe("applyReplyToParentThreadPreview", () => {
     expect(replierIds(next)).toEqual(["user-2"]);
   });
 
-  it("moves a repeat replier to the front without a second face", () => {
+  it("appends a new replier after the ones who joined earlier", () => {
+    const parent = parentMessage({
+      threadReplyCount: 1,
+      threadRepliers: [userSender("user-2")],
+    });
+    const reply = parentMessage({
+      id: "reply-2",
+      sender: userSender("user-3"),
+      createdAt: new Date("2026-08-01T04:00:00.000Z"),
+    });
+
+    const next = applyReplyToParentThreadPreview(parent, reply);
+
+    expect(replierIds(next)).toEqual(["user-2", "user-3"]);
+  });
+
+  it("keeps a repeat replier in place without a second face", () => {
     const parent = parentMessage({
       threadReplyCount: 2,
       threadRepliers: [userSender("user-2"), userSender("user-3")],
@@ -93,10 +109,10 @@ describe("applyReplyToParentThreadPreview", () => {
     const next = applyReplyToParentThreadPreview(parent, reply);
 
     expect(next.threadReplyCount).toBe(3);
-    expect(replierIds(next)).toEqual(["user-3", "user-2"]);
+    expect(replierIds(next)).toEqual(["user-2", "user-3"]);
   });
 
-  it("keeps three faces, newest first", () => {
+  it("keeps the first three repliers when a fourth joins", () => {
     const parent = parentMessage({
       threadRepliers: [
         userSender("user-a"),
@@ -112,7 +128,7 @@ describe("applyReplyToParentThreadPreview", () => {
 
     const next = applyReplyToParentThreadPreview(parent, reply);
 
-    expect(replierIds(next)).toEqual(["user-d", "user-a", "user-b"]);
+    expect(replierIds(next)).toEqual(["user-a", "user-b", "user-c"]);
   });
 
   it("does not add a face for an unknown sender", () => {

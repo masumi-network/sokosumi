@@ -1,23 +1,8 @@
-import type {
-  ChatRoomMessage,
-  ChatRoomMessageSender,
-} from "@/lib/clients/generated/core";
-
-/** Same cap as Core `threadRepliers`. */
-const MAX_THREAD_REPLY_FACES = 3;
-
-function threadReplierKey(sender: ChatRoomMessageSender): string | null {
-  switch (sender.type) {
-    case "user":
-      return `user:${sender.user.id}`;
-    case "coworker":
-      return `coworker:${sender.coworker.id}`;
-    case "sokoBot":
-      return `sokoBot:${sender.sokoBot.id}`;
-    default:
-      return null;
-  }
-}
+import {
+  senderKey,
+  THREAD_REPLY_FACE_CAP,
+} from "@/app/chat/components/room-helpers";
+import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 /**
  * Local preview after this client posts a thread reply. Core does not
@@ -28,14 +13,14 @@ export function applyReplyToParentThreadPreview(
   parent: ChatRoomMessage,
   reply: ChatRoomMessage,
 ): ChatRoomMessage {
-  const key = threadReplierKey(reply.sender);
+  // Repliers are in the order they joined, so a newcomer goes last and a
+  // repeat replier keeps their place.
+  const key = senderKey(reply.sender);
   const current = parent.threadRepliers ?? [];
-  const threadRepliers = key
-    ? [
-        reply.sender,
-        ...current.filter((replier) => threadReplierKey(replier) !== key),
-      ].slice(0, MAX_THREAD_REPLY_FACES)
-    : current;
+  const threadRepliers =
+    key && !current.some((replier) => senderKey(replier) === key)
+      ? [...current, reply.sender].slice(0, THREAD_REPLY_FACE_CAP)
+      : current;
 
   return {
     ...parent,

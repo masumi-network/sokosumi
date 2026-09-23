@@ -146,9 +146,10 @@ export const chatRoomInclude = {
 /** Faces on a thread parent's reply bar. */
 const MAX_THREAD_REPLIERS = 3;
 /**
- * Newest replies scanned for distinct repliers. An approximation: a thread
- * whose newest replies all come from one person shows one face even if others
- * replied earlier. Threads are short; an exact `DISTINCT ON` is the upgrade.
+ * Newest replies scanned for distinct repliers. An approximation: in a thread
+ * longer than this, someone whose only replies are older than the scan is
+ * left out, and the order is by first reply within the scan. Threads are
+ * short; an exact `DISTINCT ON` is the upgrade.
  */
 const THREAD_REPLIER_SCAN = 12;
 
@@ -629,14 +630,18 @@ function mapChatRoomMessageSender(
   return { type: "unknown" as const };
 }
 
-/** The first distinct senders of `replies` (newest first), capped. */
+/**
+ * Distinct senders of `replies` in the order they first replied, capped.
+ * `replies` arrives newest first (it also feeds threadLastReplyAt), so walk
+ * it backwards.
+ */
 function mapThreadRepliers(
   replies: ChatRoomMessageSenderRow[],
   currentUserId?: string,
 ) {
   const seen = new Set<string>();
   const repliers: Array<ReturnType<typeof mapChatRoomMessageSender>> = [];
-  for (const reply of replies) {
+  for (const reply of replies.toReversed()) {
     const replier = mapChatRoomMessageSender(reply, currentUserId);
     const key =
       replier.type === "user"
