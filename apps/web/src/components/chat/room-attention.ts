@@ -183,3 +183,79 @@ export function resolveSectionAttention(
   if (options.hasPendingInvitation === true) return "mention";
   return unread ? "unread" : null;
 }
+
+/** What a room holds for the Threads and All unreads views. */
+type RoomUnreadSummary = RoomAttentionCounts & {
+  mutedAt?: unknown;
+  unreadThreadCount?: number;
+  unreadThreads?: ReadonlyArray<{ unreadMentionCount?: number }>;
+};
+
+/**
+ * The Threads entry's attention: every unread Thread across the reader's
+ * rooms (SOK-1159).
+ *
+ * `threadCount` counts Threads, not replies, so it agrees with a room's
+ * "4 more unread threads" row. A muted room lists no Thread in the sidebar,
+ * so it adds none here either. `mentionCount` sums what the rooms list, and
+ * each room lists at most three Threads, so a mention past that cap waits for
+ * the Threads the room lists ahead of it. The rail mark follows the same one
+ * rule as a room's: a mention outranks unread.
+ */
+export function resolveUnreadThreadsAttention(
+  rooms: readonly RoomUnreadSummary[],
+): {
+  threadCount: number;
+  mentionCount: number;
+  rail: "mention" | "unread" | null;
+} {
+  let threadCount = 0;
+  let mentionCount = 0;
+  for (const room of rooms) {
+    if (room.mutedAt != null) continue;
+    const listed = room.unreadThreads ?? [];
+    threadCount += room.unreadThreadCount ?? listed.length;
+    for (const thread of listed) {
+      mentionCount += thread.unreadMentionCount ?? 0;
+    }
+  }
+  return {
+    threadCount,
+    mentionCount,
+    rail: mentionCount > 0 ? "mention" : threadCount > 0 ? "unread" : null,
+  };
+}
+
+/**
+ * The rooms All unreads lists (SOK-1159): every room the sidebar marks, top-
+ * level unread first, then the rooms whose unread is only in Threads.
+ *
+ * A room counts as top-level unread exactly when its row is bold, so the
+ * view cannot list a room its row leaves quiet or the reverse. Muted rooms
+ * are out, as they are everywhere attention is summed. Order within each
+ * group is the order the rooms come in.
+ */
+export function listAllUnreadRooms<T extends RoomUnreadSummary>(
+  rooms: readonly T[],
+): T[] {
+  const topLevel: T[] = [];
+  const threadsOnly: T[] = [];
+  for (const room of rooms) {
+    const { bold } = resolveRoomAttention({
+      unreadCount: room.unreadCount,
+      channelUnreadCount: room.channelUnreadCount,
+      unreadMentionCount: room.unreadMentionCount,
+      markedUnread: room.markedUnread,
+      isMuted: room.mutedAt != null,
+    });
+    if (bold) {
+      topLevel.push(room);
+    } else if (
+      room.mutedAt == null &&
+      (room.unreadThreadCount ?? room.unreadThreads?.length ?? 0) > 0
+    ) {
+      threadsOnly.push(room);
+    }
+  }
+  return [...topLevel, ...threadsOnly];
+}

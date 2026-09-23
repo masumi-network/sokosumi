@@ -118,14 +118,14 @@ const TRAILING_CLUSTER_CLASS =
  * does not throw a card out of every unread room on the way. The same beat
  * the app's other hover cards take.
  */
-const RAIL_FLYOUT_OPEN_DELAY_MS = 150;
+export const RAIL_FLYOUT_OPEN_DELAY_MS = 150;
 /**
  * Long enough to cross the 12px gap from the mark onto the card without it
  * closing under the pointer. The rail's name tooltips open at once, so while
  * this runs a neighbour's tooltip and this card are both up; the card is on
  * its way out, and any shorter and the gap could not be crossed at all.
  */
-const RAIL_FLYOUT_CLOSE_DELAY_MS = 120;
+export const RAIL_FLYOUT_CLOSE_DELAY_MS = 120;
 
 export interface ChatRoomSidebarRowProps {
   room: ChatRoom;

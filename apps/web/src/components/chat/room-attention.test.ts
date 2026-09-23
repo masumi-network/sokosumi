@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  listAllUnreadRooms,
   resolveRoomAttention,
   resolveSectionAttention,
+  resolveUnreadThreadsAttention,
   roomAttentionAfterRead,
 } from "./room-attention";
 
@@ -472,5 +474,90 @@ describe("resolveSectionAttention", () => {
     expect(
       resolveSectionAttention([unread], { hasPendingInvitation: true }),
     ).toBe("mention");
+  });
+});
+
+function unreadThread(unreadMentionCount = 0) {
+  return {
+    parentMessageId: "p",
+    firstUnreadReplyId: "r",
+    parentContent: "",
+    unreadReplyCount: 2,
+    unreadMentionCount,
+  };
+}
+
+function room(
+  id: string,
+  overrides: Partial<{
+    channelUnreadCount: number;
+    threadUnreadCount: number;
+    unreadThreadCount: number;
+    unreadThreads: ReturnType<typeof unreadThread>[];
+    unreadMentionCount: number;
+    markedUnread: boolean;
+    mutedAt: string | null;
+  }> = {},
+) {
+  const channelUnreadCount = overrides.channelUnreadCount ?? 0;
+  const threadUnreadCount = overrides.threadUnreadCount ?? 0;
+  return {
+    id,
+    unreadCount: channelUnreadCount + threadUnreadCount,
+    unreadMentionCount: 0,
+    ...overrides,
+    channelUnreadCount,
+    threadUnreadCount,
+  };
+}
+
+describe("resolveUnreadThreadsAttention", () => {
+  it("counts unread Threads across rooms, not their replies", () => {
+    expect(
+      resolveUnreadThreadsAttention([
+        room("a", { threadUnreadCount: 5, unreadThreadCount: 2 }),
+        room("b", { threadUnreadCount: 1, unreadThreadCount: 1 }),
+      ]),
+    ).toEqual({ threadCount: 3, mentionCount: 0, rail: "unread" });
+  });
+
+  it("leaves out muted rooms, as the sidebar hides their Threads", () => {
+    expect(
+      resolveUnreadThreadsAttention([
+        room("a", { unreadThreadCount: 2, mutedAt: "2026-09-01T00:00:00Z" }),
+      ]),
+    ).toEqual({ threadCount: 0, mentionCount: 0, rail: null });
+  });
+
+  it("escalates to a mention when a listed Thread names the reader", () => {
+    expect(
+      resolveUnreadThreadsAttention([
+        room("a", {
+          unreadThreadCount: 4,
+          unreadThreads: [unreadThread(2), unreadThread(0), unreadThread(1)],
+        }),
+      ]),
+    ).toEqual({ threadCount: 4, mentionCount: 3, rail: "mention" });
+  });
+});
+
+describe("listAllUnreadRooms", () => {
+  it("lists rooms with top-level unread first, then rooms with only Thread unread", () => {
+    const rooms = [
+      room("threads-only", { unreadThreadCount: 1, threadUnreadCount: 1 }),
+      room("read"),
+      room("channel", { channelUnreadCount: 2 }),
+      room("marked", { markedUnread: true }),
+      room("muted", {
+        channelUnreadCount: 3,
+        mutedAt: "2026-09-01T00:00:00Z",
+      }),
+    ];
+
+    expect(listAllUnreadRooms(rooms).map((row) => row.id)).toEqual([
+      "channel",
+      "marked",
+      "threads-only",
+    ]);
   });
 });

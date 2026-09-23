@@ -5460,6 +5460,31 @@
         "mentions": "{count, plural, one {# Erwähnung} other {# Erwähnungen}}",
         "untitled": "Thread"
       },
+      "UnreadNav": {
+        "label": "Ungelesen",
+        "threads": "Threads",
+        "allUnreads": "Alle ungelesenen",
+        "unreadThreads": "{count, plural, one {# ungelesener Thread} other {# ungelesene Threads}}",
+        "unreadThreadsCapped": "Mehr als {max} ungelesene Threads",
+        "mentions": "{count, plural, one {# Erwähnung} other {# Erwähnungen}}",
+        "moreThreads": "{count, plural, one {# weiterer ungelesener Thread} other {# weitere ungelesene Threads}}"
+      },
+      "ThreadsView": {
+        "title": "Threads",
+        "listLabel": "Ungelesene Threads",
+        "empty": "Du bist auf dem neuesten Stand",
+        "emptyDescription": "Neue Antworten in Threads, an denen du beteiligt bist, erscheinen hier.",
+        "loadMore": "Mehr anzeigen",
+        "loadError": "Ungelesene Threads konnten nicht geladen werden.",
+        "retry": "Erneut versuchen"
+      },
+      "AllUnreadsView": {
+        "title": "Alle ungelesenen",
+        "markAllRead": "Alle als gelesen markieren",
+        "markAllReadError": "Nicht alles konnte als gelesen markiert werden.",
+        "empty": "Du bist auf dem neuesten Stand",
+        "emptyDescription": "Ungelesene Nachrichten und Thread-Antworten erscheinen hier."
+      },
       "Thread": {
         "title": "Thread",
         "open": "Open thread",

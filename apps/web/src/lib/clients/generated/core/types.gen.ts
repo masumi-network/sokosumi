@@ -2959,6 +2959,27 @@ export type CreateChatRoomFileUploadSessionRequest = {
     size: number;
 };
 
+export type ChatUnreadThread = {
+    parentMessageId: string;
+    /**
+     * The oldest reply still unread in this Thread: where opening it lands.
+     */
+    firstUnreadReplyId: string;
+    /**
+     * The parent message's raw content, cut to 1000 characters. May hold mention tokens and may be empty; the client builds the label.
+     */
+    parentContent: string;
+    unreadReplyCount: number;
+    /**
+     * How many of this Thread's unread replies name the viewer. Counted from the replies, so a Look clears it; the room's unreadMentionCount is counted from notifications, which Room last-read clears.
+     */
+    unreadMentionCount?: number;
+    /**
+     * The room the Thread is in.
+     */
+    roomId: string;
+};
+
 export type CreditCheckoutSession = {
     url: string;
 };
@@ -20666,6 +20687,109 @@ export type PostChatsRoomsByIdFilesResponses = {
 };
 
 export type PostChatsRoomsByIdFilesResponse = PostChatsRoomsByIdFilesResponses[keyof PostChatsRoomsByIdFilesResponses];
+
+export type GetChatsThreadsUnreadData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * The last Thread's `parentMessageId` from the previous page (`nextCursor`).
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/chats/threads/unread';
+};
+
+export type GetChatsThreadsUnreadErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsThreadsUnreadError = GetChatsThreadsUnreadErrors[keyof GetChatsThreadsUnreadErrors];
+
+export type GetChatsThreadsUnreadResponses = {
+    /**
+     * Unread Threads across rooms
+     */
+    200: {
+        data: Array<ChatUnreadThread>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsThreadsUnreadResponse = GetChatsThreadsUnreadResponses[keyof GetChatsThreadsUnreadResponses];
 
 export type CreateCreditCheckoutSessionData = {
     body?: CreateCreditCheckoutSession;

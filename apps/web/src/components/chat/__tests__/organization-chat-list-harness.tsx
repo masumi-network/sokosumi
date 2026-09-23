@@ -103,6 +103,12 @@ vi.mock("../chat-room-sidebar-row", () => ({
   RailAttentionPill: () => null,
 }));
 
+// A marker, not the rows: what they count belongs to
+// `chat-unread-nav-rows.test.tsx`. The list only decides where they stand.
+vi.mock("../chat-unread-nav-rows", () => ({
+  ChatUnreadNavRows: () => <li data-testid="chat-unread-nav-rows" />,
+}));
+
 vi.mock("../pending-invitation-rail-button", () => ({
   PendingInvitationRailButton: ({
     roomName,

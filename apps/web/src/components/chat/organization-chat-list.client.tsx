@@ -74,6 +74,7 @@ import {
   ChatSidebarSectionContent,
   ChatSidebarSectionHeader,
 } from "./chat-sidebar-section-header";
+import { ChatUnreadNavRows } from "./chat-unread-nav-rows";
 import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
 import {
   listOrganizationChatRoomsAction,
@@ -346,6 +347,11 @@ export function OrganizationChatList({
   return (
     <SidebarGroup className="w-full">
       <SidebarGroupContent className="space-y-2">
+        <ChatUnreadNavRows
+          rooms={roomRows}
+          currentUserId={currentUserId}
+          dismissSheetOnNavigate={dismissSheetOnNavigate}
+        />
         {pinned.length > 0 ? (
           <Collapsible open={pinnedOpen} onOpenChange={setPinnedOpen}>
             <ChatSidebarSectionHeader

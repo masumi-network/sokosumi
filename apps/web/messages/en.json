@@ -5460,6 +5460,31 @@
         "mentions": "{count, plural, one {# mention} other {# mentions}}",
         "untitled": "Thread"
       },
+      "UnreadNav": {
+        "label": "Unread",
+        "threads": "Threads",
+        "allUnreads": "All unreads",
+        "unreadThreads": "{count, plural, one {# unread thread} other {# unread threads}}",
+        "unreadThreadsCapped": "More than {max} unread threads",
+        "mentions": "{count, plural, one {# mention} other {# mentions}}",
+        "moreThreads": "{count, plural, one {# more unread thread} other {# more unread threads}}"
+      },
+      "ThreadsView": {
+        "title": "Threads",
+        "listLabel": "Unread threads",
+        "empty": "You’re all caught up",
+        "emptyDescription": "New replies in threads you’re part of show up here.",
+        "loadMore": "Show more",
+        "loadError": "Could not load unread threads.",
+        "retry": "Try again"
+      },
+      "AllUnreadsView": {
+        "title": "All unreads",
+        "markAllRead": "Mark all as read",
+        "markAllReadError": "Could not mark everything as read.",
+        "empty": "You’re all caught up",
+        "emptyDescription": "Unread messages and thread replies show up here."
+      },
       "Thread": {
         "title": "Thread",
         "open": "Open thread",

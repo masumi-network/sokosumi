@@ -49,6 +49,12 @@ export const CHAT_API_PATH = "/api/chat" as const;
 /** Mobile Chats list route (mounted at bare `/chat`). */
 export const CHAT_CHATS_LIST_PATH = CHAT_APP_ROUTE_PREFIX;
 
+/** Every unread Thread across the reader's rooms (SOK-1159). */
+export const CHAT_THREADS_PATH = `${CHAT_APP_ROUTE_PREFIX}/threads` as const;
+
+/** Every room with unread, its unread Threads inset (SOK-1159). */
+export const CHAT_UNREADS_PATH = `${CHAT_APP_ROUTE_PREFIX}/unreads` as const;
+
 /** Welcome home (notices land here). */
 export const CHAT_WELCOME_PATH = "/" as const;
 

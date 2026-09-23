@@ -10571,6 +10571,47 @@ export const CreateChatRoomFileUploadSessionRequestSchema = {
     ]
 } as const;
 
+export const ChatUnreadThreadSchema = {
+    type: 'object',
+    properties: {
+        parentMessageId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        firstUnreadReplyId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The oldest reply still unread in this Thread: where opening it lands.'
+        },
+        parentContent: {
+            type: 'string',
+            description: 'The parent message\'s raw content, cut to 1000 characters. May hold mention tokens and may be empty; the client builds the label.'
+        },
+        unreadReplyCount: {
+            type: 'integer',
+            minimum: 1
+        },
+        unreadMentionCount: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'How many of this Thread\'s unread replies name the viewer. Counted from the replies, so a Look clears it; the room\'s unreadMentionCount is counted from notifications, which Room last-read clears.'
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The room the Thread is in.'
+        }
+    },
+    required: [
+        'parentMessageId',
+        'firstUnreadReplyId',
+        'parentContent',
+        'unreadReplyCount',
+        'roomId'
+    ]
+} as const;
+
 export const CreditCheckoutSessionSchema = {
     type: 'object',
     properties: {

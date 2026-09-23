@@ -32,7 +32,10 @@ import type {
   Member,
 } from "@/lib/clients/generated/core";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
-import { chatRoomService } from "@/lib/services/chat-room.service";
+import {
+  chatRoomService,
+  type UnreadChatThreadsPage,
+} from "@/lib/services/chat-room.service";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { userService } from "@/lib/services/user.service";
@@ -907,6 +910,44 @@ export async function markAllUnreadThreadsReadAction(
   } catch (error) {
     return roomCatch(error, "Could not mark unread threads as read.");
   }
+}
+
+/** One page of the reader's unread Threads across rooms (SOK-1159). */
+export async function listUnreadThreadsAction(options?: {
+  cursor?: string;
+}): Promise<RoomActionResult<UnreadChatThreadsPage>> {
+  try {
+    const page = await chatRoomService.listUnreadThreads(options);
+    return roomOk(page);
+  } catch (error) {
+    return roomCatch(error, "Could not load unread threads.");
+  }
+}
+
+/**
+ * All unreads' Mark all as read (SOK-1159): each room through the same two
+ * reads the room itself offers. Room read clears its channel, mentions and
+ * notifications; Mark all threads Looks its Threads. Neither is the other
+ * (ADR-0037), so a room gets whichever of the two it has unread.
+ */
+export async function markAllChatUnreadReadAction(
+  rooms: ReadonlyArray<{
+    roomId: string;
+    readRoom: boolean;
+    lookThreads: boolean;
+  }>,
+): Promise<RoomActionResult<null>> {
+  const reads = rooms.flatMap(({ roomId, readRoom, lookThreads }) => [
+    ...(readRoom ? [chatRoomService.markRead(roomId)] : []),
+    ...(lookThreads ? [chatRoomService.markAllUnreadThreadsRead(roomId)] : []),
+  ]);
+  const failed = (await Promise.allSettled(reads)).find(
+    (read) => read.status === "rejected",
+  );
+  if (failed) {
+    return roomCatch(failed.reason, "Could not mark everything as read.");
+  }
+  return roomOk(null);
 }
 
 export async function retryRoomMentionAction(

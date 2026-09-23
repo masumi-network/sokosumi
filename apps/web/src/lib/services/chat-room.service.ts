@@ -15,6 +15,7 @@ import type {
   ChatRoomThread,
   ChatRoomThreadReadState,
   ChatRoomThreadsMarkAll,
+  ChatUnreadThread,
   CreateChatRoomGuestInviteLinkRequest,
   CreateChatRoomMessageRequest,
   CreateChatRoomRequest,
@@ -45,6 +46,11 @@ export interface ChatRoomsPage {
 
 export interface ChatRoomThreadsPage {
   threads: ChatRoomThread[];
+  nextCursor: string | null;
+}
+
+export interface UnreadChatThreadsPage {
+  threads: ChatUnreadThread[];
   nextCursor: string | null;
 }
 
@@ -473,6 +479,20 @@ export const chatRoomService = (() => {
     return response.data.count;
   });
 
+  /** One page of the reader's unread Threads across rooms (SOK-1159). */
+  async function listUnreadThreads(options?: {
+    cursor?: string;
+  }): Promise<UnreadChatThreadsPage> {
+    const response = await coreClient.getUnreadChatThreads({
+      limit: THREAD_LIST_PAGE_LIMIT,
+      cursor: options?.cursor,
+    });
+    return {
+      threads: response.data,
+      nextCursor: response.meta?.pagination?.nextCursor ?? null,
+    };
+  }
+
   async function markThreadRead(
     roomId: string,
     parentMessageId: string,
@@ -597,6 +617,7 @@ export const chatRoomService = (() => {
     listRooms,
     listThreads,
     countUnreadThreads,
+    listUnreadThreads,
     listThreadMessages,
     getMessage,
     getThread,

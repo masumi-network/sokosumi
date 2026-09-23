@@ -149,6 +149,27 @@ export const chatRoomSokoBotParticipantSchema = z
   })
   .openapi("ChatRoomSokoBotParticipant");
 
+/**
+ * One unread Thread as a list row carries it: where opening it lands, what
+ * to label it with and how much is unread. Left unnamed in OpenAPI so the
+ * room's `unreadThreads` stays the inline shape clients already hold.
+ */
+const chatRoomUnreadThreadSchema = z.object({
+  parentMessageId: z.string().uuid(),
+  firstUnreadReplyId: z.string().uuid().openapi({
+    description:
+      "The oldest reply still unread in this Thread: where opening it lands.",
+  }),
+  parentContent: z.string().openapi({
+    description: `The parent message's raw content, cut to ${CHAT_ROOM_UNREAD_THREAD_CONTENT_CHARS} characters. May hold mention tokens and may be empty; the client builds the label.`,
+  }),
+  unreadReplyCount: z.number().int().min(1),
+  unreadMentionCount: z.number().int().min(0).default(0).openapi({
+    description:
+      "How many of this Thread's unread replies name the viewer. Counted from the replies, so a Look clears it; the room's unreadMentionCount is counted from notifications, which Room last-read clears.",
+  }),
+});
+
 export const chatRoomSchema = z
   .object({
     id: z.string().uuid().openapi({
@@ -216,23 +237,7 @@ export const chatRoomSchema = z
       example: 4,
     }),
     unreadThreads: z
-      .array(
-        z.object({
-          parentMessageId: z.string().uuid(),
-          firstUnreadReplyId: z.string().uuid().openapi({
-            description:
-              "The oldest reply still unread in this Thread: where opening it lands.",
-          }),
-          parentContent: z.string().openapi({
-            description: `The parent message's raw content, cut to ${CHAT_ROOM_UNREAD_THREAD_CONTENT_CHARS} characters. May hold mention tokens and may be empty; the client builds the label.`,
-          }),
-          unreadReplyCount: z.number().int().min(1),
-          unreadMentionCount: z.number().int().min(0).default(0).openapi({
-            description:
-              "How many of this Thread's unread replies name the viewer. Counted from the replies, so a Look clears it; the room's unreadMentionCount is counted from notifications, which Room last-read clears.",
-          }),
-        }),
-      )
+      .array(chatRoomUnreadThreadSchema)
       .max(CHAT_ROOM_UNREAD_THREAD_CAP)
       .default([])
       .openapi({
@@ -832,6 +837,18 @@ export const chatRoomThreadsMarkAllSchema = z
   })
   .openapi("ChatRoomThreadsMarkAll");
 
+/**
+ * An unread Thread in any of the reader's rooms, for the Threads view
+ * (SOK-1159). The room's own unread Thread row, plus the room it is in.
+ */
+export const chatUnreadThreadSchema = chatRoomUnreadThreadSchema
+  .extend({
+    roomId: z.string().uuid().openapi({
+      description: "The room the Thread is in.",
+    }),
+  })
+  .openapi("ChatUnreadThread");
+
 /** Cheap unread-thread count. Same Participant-gated set as `unread=true`. */
 export const chatRoomThreadsUnreadCountSchema = z
   .object({
@@ -858,6 +875,7 @@ export type ChatRoomThreadReadState = z.infer<
 export type ChatRoomThreadsMarkAll = z.infer<
   typeof chatRoomThreadsMarkAllSchema
 >;
+export type ChatUnreadThread = z.infer<typeof chatUnreadThreadSchema>;
 export type ChatRoomThreadsUnreadCount = z.infer<
   typeof chatRoomThreadsUnreadCountSchema
 >;

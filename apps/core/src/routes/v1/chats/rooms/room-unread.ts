@@ -88,10 +88,11 @@ function sqlThreadReplyPagesViewer(userIdSql: string): string {
 /**
  * SQL `FROM … WHERE` for every reply that is Thread unread to the viewer.
  *
- * One fragment for the room's Thread unread number and for the sidebar's
- * list of unread Threads, so a Thread can never be listed while contributing
- * nothing to the number, or the reverse (ADR-0037). Exposes the `reply`,
- * `parent`, `thread_read` and `room_read` aliases.
+ * One fragment for the room's Thread unread number and for the lists of
+ * unread Threads, the sidebar's and the Threads view's, so a Thread can never
+ * be listed while contributing nothing to the number, or the reverse
+ * (ADR-0037). Exposes the `reply`, `parent`, `thread_read` and `room_read`
+ * aliases.
  */
 function sqlUnreadThreadReplies(
   roomIdPlaceholders: string,
@@ -263,6 +264,59 @@ export function emptyChatRoomUnreadThreads(): ChatRoomUnreadThreads {
 }
 
 /**
+ * SQL `SELECT` of one row per unread Thread in the given rooms, grouped from
+ * `sqlUnreadThreadReplies`: where opening it lands, its parent's content, how
+ * many replies are unread and how many name the viewer, and `lastUnreadAt`
+ * to rank by. The sidebar's per-room list and the cross-room list both read
+ * it, so neither can list a Thread the other leaves out.
+ */
+function sqlUnreadThreadsByParent(
+  roomIdPlaceholders: string,
+  userIdSql: string,
+): string {
+  const attentionAt = sqlMessageAttentionAt("reply");
+  return `SELECT
+        parent."roomId" AS "roomId",
+        parent.id AS "parentMessageId",
+        (ARRAY_AGG(reply.id ORDER BY ${attentionAt} ASC, reply.id ASC))[1]
+          AS "firstUnreadReplyId",
+        LEFT(parent.content, ${CHAT_ROOM_UNREAD_THREAD_CONTENT_CHARS})
+          AS "parentContent",
+        COUNT(*)::int AS "unreadReplyCount",
+        COUNT(*) FILTER (
+          WHERE EXISTS (
+            SELECT 1
+            FROM "chat_room_user_mention" named
+            WHERE named."userId" = ${userIdSql}
+              AND named."messageId" = reply.id
+          )
+        )::int AS "unreadMentionCount",
+        MAX(${attentionAt}) AS "lastUnreadAt"
+      ${sqlUnreadThreadReplies(roomIdPlaceholders, userIdSql)}
+      -- parent.id is the primary key, so its other columns ride along.
+      GROUP BY parent.id`;
+}
+
+interface UnreadThreadRow {
+  roomId: string;
+  parentMessageId: string;
+  firstUnreadReplyId: string;
+  parentContent: string;
+  unreadReplyCount: number | bigint;
+  unreadMentionCount: number | bigint | null;
+}
+
+function mapUnreadThreadRow(row: UnreadThreadRow): ChatRoomUnreadThreadPreview {
+  return {
+    parentMessageId: row.parentMessageId,
+    firstUnreadReplyId: row.firstUnreadReplyId,
+    parentContent: row.parentContent,
+    unreadReplyCount: Number(row.unreadReplyCount),
+    unreadMentionCount: Number(row.unreadMentionCount ?? 0),
+  };
+}
+
+/**
  * The top unread Threads per room, for the sidebar's inset rows.
  *
  * Ranked by newest unread reply and capped per room. Eligibility is
@@ -282,41 +336,13 @@ export async function listChatRoomUnreadThreads(
     .map((_, index) => `$${index + 1}::uuid`)
     .join(", ");
   const userIdPlaceholder = `$${uniqueRoomIds.length + 1}`;
-  const attentionAt = sqlMessageAttentionAt("reply");
 
   const rows = await tx.$queryRawUnsafe<
-    Array<{
-      roomId: string;
-      parentMessageId: string;
-      firstUnreadReplyId: string;
-      parentContent: string;
-      unreadReplyCount: number | bigint;
-      unreadMentionCount: number | bigint;
-      unreadThreadCount: number | bigint;
-    }>
+    Array<UnreadThreadRow & { unreadThreadCount: number | bigint }>
   >(
     `
     WITH unread AS (
-      SELECT
-        parent."roomId" AS "roomId",
-        parent.id AS "parentMessageId",
-        (ARRAY_AGG(reply.id ORDER BY ${attentionAt} ASC, reply.id ASC))[1]
-          AS "firstUnreadReplyId",
-        LEFT(parent.content, ${CHAT_ROOM_UNREAD_THREAD_CONTENT_CHARS})
-          AS "parentContent",
-        COUNT(*)::int AS "unreadReplyCount",
-        COUNT(*) FILTER (
-          WHERE EXISTS (
-            SELECT 1
-            FROM "chat_room_user_mention" named
-            WHERE named."userId" = ${userIdPlaceholder}
-              AND named."messageId" = reply.id
-          )
-        )::int AS "unreadMentionCount",
-        MAX(${attentionAt}) AS "lastUnreadAt"
-      ${sqlUnreadThreadReplies(roomIdPlaceholders, userIdPlaceholder)}
-      -- parent.id is the primary key, so its other columns ride along.
-      GROUP BY parent.id
+      ${sqlUnreadThreadsByParent(roomIdPlaceholders, userIdPlaceholder)}
     ),
     ranked AS (
       SELECT
@@ -349,16 +375,93 @@ export async function listChatRoomUnreadThreads(
   for (const row of rows) {
     const entry = byRoom.get(row.roomId) ?? emptyChatRoomUnreadThreads();
     entry.unreadThreadCount = Number(row.unreadThreadCount);
-    entry.threads.push({
-      parentMessageId: row.parentMessageId,
-      firstUnreadReplyId: row.firstUnreadReplyId,
-      parentContent: row.parentContent,
-      unreadReplyCount: Number(row.unreadReplyCount),
-      unreadMentionCount: Number(row.unreadMentionCount ?? 0),
-    });
+    entry.threads.push(mapUnreadThreadRow(row));
     byRoom.set(row.roomId, entry);
   }
   return byRoom;
+}
+
+export interface ChatUnreadThread extends ChatRoomUnreadThreadPreview {
+  roomId: string;
+}
+
+export interface ChatUnreadThreadsPage {
+  /** Newest unread reply first. */
+  threads: ChatUnreadThread[];
+  /** The last Thread's parent id when more follow, else null. */
+  nextCursor: string | null;
+  /** Every unread Thread across the rooms, not only this page. */
+  total: number;
+}
+
+/**
+ * The reader's unread Threads across rooms, one page, for the Threads view
+ * (SOK-1159).
+ *
+ * The same rows the sidebar lists per room, uncapped and ranked across rooms
+ * by newest unread reply. The cursor is a parent id and pages by its place in
+ * that ranking. A cursor Thread that was read since has no place left, and the
+ * page after it comes back empty; the view reads again from the top whenever
+ * the counts move, so that end is never the last word.
+ */
+export async function listUnreadThreadsAcrossRooms(
+  roomIds: readonly string[],
+  userId: string,
+  tx: Prisma.TransactionClient,
+  options: { cursor?: string; limit: number },
+): Promise<ChatUnreadThreadsPage> {
+  const uniqueRoomIds = normalizeUniqueStrings(roomIds);
+  if (uniqueRoomIds.length === 0) {
+    return { threads: [], nextCursor: null, total: 0 };
+  }
+
+  const { cursor, limit } = options;
+  const roomIdPlaceholders = uniqueRoomIds
+    .map((_, index) => `$${index + 1}::uuid`)
+    .join(", ");
+  const userIdPlaceholder = `$${uniqueRoomIds.length + 1}`;
+  const limitPlaceholder = `$${uniqueRoomIds.length + 2}`;
+  const cursorPlaceholder = `$${uniqueRoomIds.length + 3}::uuid`;
+
+  const rows = await tx.$queryRawUnsafe<
+    Array<UnreadThreadRow & { totalThreadCount: number | bigint }>
+  >(
+    `
+    WITH unread AS (
+      ${sqlUnreadThreadsByParent(roomIdPlaceholders, userIdPlaceholder)}
+    )
+    SELECT
+      unread.*,
+      (SELECT COUNT(*) FROM unread)::int AS "totalThreadCount"
+    FROM unread
+    ${
+      cursor
+        ? `WHERE ("lastUnreadAt", "parentMessageId") < (
+      SELECT cursor_thread."lastUnreadAt", cursor_thread."parentMessageId"
+      FROM unread cursor_thread
+      WHERE cursor_thread."parentMessageId" = ${cursorPlaceholder}
+    )`
+        : ""
+    }
+    ORDER BY "lastUnreadAt" DESC, "parentMessageId" DESC
+    LIMIT ${limitPlaceholder}
+  `,
+    ...uniqueRoomIds,
+    userId,
+    limit + 1,
+    ...(cursor ? [cursor] : []),
+  );
+
+  const hasMore = rows.length > limit;
+  const threads = rows.slice(0, limit).map((row) => ({
+    roomId: row.roomId,
+    ...mapUnreadThreadRow(row),
+  }));
+  return {
+    threads,
+    nextCursor: hasMore ? (threads.at(-1)?.parentMessageId ?? null) : null,
+    total: Number(rows[0]?.totalThreadCount ?? 0),
+  };
 }
 
 /**

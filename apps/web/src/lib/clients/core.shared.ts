@@ -27,6 +27,7 @@ import type {
   GetChatsRoomsChannelSlugAvailabilityData,
   GetChatsRoomsData,
   GetChatsRoomsDiscoverableData,
+  GetChatsThreadsUnreadData,
   GetCoworkersData,
   GetEnterpriseContractsData,
   GetHistoryData,
@@ -188,6 +189,7 @@ import {
   getChatsRoomsByIdThreadsUnreadCount as coreGetChatsRoomsByIdThreadsUnreadCount,
   getChatsRoomsChannelSlugAvailability as coreGetChatsRoomsChannelSlugAvailability,
   getChatsRoomsDiscoverable as coreGetChatsRoomsDiscoverable,
+  getChatsThreadsUnread as coreGetChatsThreadsUnread,
   getCheckoutSessionAnalytics as coreGetCheckoutSessionAnalytics,
   getCouponDetails as coreGetCouponDetails,
   getCoworkers as coreGetCoworkers,
@@ -1030,6 +1032,21 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch unread thread count",
+    );
+  }
+
+  async function getUnreadChatThreads(
+    query?: GetChatsThreadsUnreadData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsThreadsUnread({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch unread threads",
     );
   }
 
@@ -5201,6 +5218,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getChatRoomThreadMessages,
     getChatRoomThreads,
     getChatRoomThreadsUnreadCount,
+    getUnreadChatThreads,
     getChatRooms,
     getChannelSlugAvailability,
     getDiscoverableChatRooms,
