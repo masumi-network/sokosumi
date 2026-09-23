@@ -131,6 +131,7 @@ vi.mock("@/helpers/notifications", () => ({
 }));
 
 vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: vi.fn(),
   publishTaskEventData: publishTaskEventDataMock,
 }));
 

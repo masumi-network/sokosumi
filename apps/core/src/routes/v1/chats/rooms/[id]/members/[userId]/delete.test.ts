@@ -41,6 +41,7 @@ vi.mock("@/helpers/chat-room-message-realtime", () => ({
 }));
 
 vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: vi.fn(),
   publishChatMembershipRevoked: publishChatMembershipRevokedMock,
 }));
 
