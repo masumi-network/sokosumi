@@ -464,6 +464,41 @@ describe("updateRoomTranscriptMessages", () => {
       "pending",
     ]);
   });
+
+  it("does not let a pending shell hide the gap in front of a later page", () => {
+    const pending = createPendingRoomMessage({
+      clientTurnId: "turn-1",
+      roomId: "room-1",
+      content: "pending",
+      senderUser: {
+        id: "user-1",
+        name: "Ada",
+        email: "ada@example.com",
+        image: null,
+        presence: "offline",
+      },
+      // Later than every loaded row and the page below. A real send uses now.
+      createdAt: new Date(Date.UTC(2026, 0, 1, 0, 500)),
+    });
+    const withPending = updateRoomTranscriptMessages(openedRoom(), (rows) => [
+      ...rows,
+      pending,
+    ]);
+    const jumped = mergeRoomJumpWindow(withPending, {
+      messages: messages(120, 122),
+      nextCursor: "msg-120",
+    });
+
+    expect(picture(jumped)).toEqual([
+      "older@90",
+      ...range(90, 99),
+      "gap@120",
+      120,
+      121,
+      122,
+      "pending",
+    ]);
+  });
 });
 
 describe("withTranscriptRowNeighbors", () => {
