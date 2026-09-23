@@ -1,3 +1,4 @@
+import type { Prisma } from "@sokosumi/database";
 import { createPrismaClient } from "@sokosumi/database/client";
 import { afterAll, describe, expect, it } from "vitest";
 
@@ -6,6 +7,7 @@ import {
   lockCalendarErasureUser,
   lockWorkspaceCalendarForErasure,
 } from "./calendar-erasure";
+import { lockCalendarWorkspaceMembership } from "./calendar-membership-fence";
 import { prepareTasksForUserDeletion } from "./user-deletion-tasks";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -21,6 +23,129 @@ afterAll(async () => {
 // Run against a disposable database with all migrations applied. Roll back
 // each fixture so both successful erasure and failures leave no test records.
 describe.skipIf(!enabled)("Calendar erasure against PostgreSQL", () => {
+  it("finishes organization erasure while an email dispatcher waits", async () => {
+    if (!db) throw new Error("Missing integration database");
+    const suffix = crypto.randomUUID();
+    const user = await db.user.create({
+      data: {
+        name: "Concurrent erasure",
+        email: `concurrent-erasure-${suffix}@example.test`,
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+    const organization = await db.organization.create({
+      data: { name: "Concurrent erasure", slug: suffix },
+    });
+    const workspace = await db.workspace.create({
+      data: { organizationId: organization.id },
+    });
+    const notificationsLocked = Promise.withResolvers<void>();
+    const resumeErasure = Promise.withResolvers<void>();
+    const operations: Promise<PromiseSettledResult<unknown>[]>[] = [];
+    try {
+      await db.member.create({
+        data: {
+          userId: user.id,
+          organizationId: organization.id,
+          role: "owner",
+        },
+      });
+      const notification = await db.notification.create({
+        data: {
+          userId: user.id,
+          workspaceId: workspace.id,
+          organizationId: organization.id,
+          kind: "SYSTEM",
+          referenceId: suffix,
+          eventId: suffix,
+          messageKey: "test",
+          messageParams: "{}",
+        },
+      });
+      // Pause at the database boundary after erasure owns the notification.
+      const erasureDb = db.$extends({
+        query: {
+          notification: {
+            async updateMany({ args, query }) {
+              const result = await query(args);
+              notificationsLocked.resolve();
+              await resumeErasure.promise;
+              return result;
+            },
+          },
+        },
+      });
+      const erasure = erasureDb.$transaction(
+        async (tx) => {
+          // The query-only extension preserves the transaction's model API.
+          const erasureTx = tx as Prisma.TransactionClient;
+          await lockCalendarErasureUser(erasureTx, user.id);
+          await tx.$queryRaw`
+            SELECT id FROM "organization"
+            WHERE id = ${organization.id} FOR UPDATE
+          `;
+          await lockWorkspaceCalendarForErasure(erasureTx, workspace.id);
+          await eraseWorkspaceCalendarData(erasureTx, workspace.id);
+          await tx.organization.delete({ where: { id: organization.id } });
+        },
+        { timeout: 10_000 },
+      );
+      operations.push(Promise.allSettled([erasure]));
+      await notificationsLocked.promise;
+
+      const applicationName = `erasure-email-${suffix}`;
+      const delivery = db.$transaction(
+        async (tx) => {
+          await tx.$queryRaw`
+            SELECT set_config('application_name', ${applicationName}, true)
+          `;
+          // The dispatcher's real member/advisory locks and final email write.
+          await lockCalendarWorkspaceMembership(tx, workspace.id);
+          return tx.notification.updateMany({
+            where: { id: notification.id, isRead: false },
+            data: {
+              emailId: "concurrent-email",
+              emailScheduledAt: new Date(Date.now() + 3_600_000),
+            },
+          });
+        },
+        { timeout: 10_000 },
+      );
+      operations.push(Promise.allSettled([delivery]));
+      await expect
+        .poll(
+          async () => {
+            const rows = await db.$queryRaw<Array<{ waiting: boolean }>>`
+              SELECT EXISTS (
+                SELECT 1 FROM pg_stat_activity
+                WHERE application_name = ${applicationName}
+                  AND wait_event_type = 'Lock'
+              ) AS waiting
+            `;
+            return rows[0]?.waiting;
+          },
+          { timeout: 3_000 },
+        )
+        .toBe(true);
+      resumeErasure.resolve();
+
+      expect((await Promise.all(operations)).flat()).toEqual([
+        { status: "fulfilled", value: undefined },
+        { status: "fulfilled", value: { count: 0 } },
+      ]);
+      expect(
+        await db.organization.count({ where: { id: organization.id } }),
+      ).toBe(0);
+    } finally {
+      resumeErasure.resolve();
+      await Promise.all(operations);
+      await db.organization.deleteMany({ where: { id: organization.id } });
+      await db.user.deleteMany({ where: { id: user.id } });
+    }
+  });
+
   it.each(["user", "organization"] as const)(
     "erases %s Calendar history and outbox without touching another workspace",
     async (parent) => {

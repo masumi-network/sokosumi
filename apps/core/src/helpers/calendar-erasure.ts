@@ -173,6 +173,19 @@ export async function eraseWorkspaceCalendarData(
   tx: Prisma.TransactionClient,
   workspaceId: string,
 ): Promise<CalendarErasureCleanup> {
+  // Dispatchers lock members before notifications/outbox rows. Own the members
+  // in deletion mode now, before taking those child locks; KEY SHARE would
+  // still allow a dispatcher to block the later organization cascade.
+  await tx.$queryRaw`
+    SELECT "member".id
+    FROM "member"
+    JOIN "workspace"
+      ON "workspace"."organizationId" = "member"."organizationId"
+    WHERE "workspace".id = ${workspaceId}::UUID
+    ORDER BY "member".id ASC
+    FOR UPDATE OF "member"
+  `;
+
   // Fence the dispatcher before reading: its conditional email update must
   // either finish before this read or see a read/deleted notification.
   await tx.notification.updateMany({
