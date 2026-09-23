@@ -210,13 +210,7 @@ export async function recordGroupNameChange(
       content: groupNameChangeContent(change),
       senderUserId: null,
       senderCoworkerId: null,
-      metadata: {
-        groupNameChange: {
-          action: change.action,
-          name: change.name,
-          actor: { id: change.actor.id, name: change.actor.name },
-        },
-      },
+      metadata: { groupNameChange: change },
     },
     include: chatRoomMessageInclude,
   });

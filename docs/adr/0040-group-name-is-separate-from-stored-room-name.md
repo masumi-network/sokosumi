@@ -11,4 +11,6 @@ A group Direct's **Group name** lives in its own nullable field on the chat room
 
 **Editing a Direct.** `PATCH /v1/chats/rooms/{id}` rejected every Direct edit because a Direct's identity is its participant set. A Group name leaves `directKey` and membership untouched, so the route opens for that one field on group Directs only; members stay immutable.
 
+**Change rows.** Each change leaves one sender-less status row (`metadata.groupNameChange`). Unlike joined/left rows, which count as Room unread, these rows are left out of the unread count: with no sender, the row would otherwise mark the room unread for the member who renamed it.
+
 **Rejected:** reusing `name` with a flag saying whether it was chosen (two fields either way, and `name`'s meaning would still depend on the flag); a per-reader nickname (a Group name is shared by definition, see `CONTEXT.md`).

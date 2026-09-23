@@ -178,8 +178,6 @@ function isSavedQuoteMessage(message: ChatRoomMessage): boolean {
   return message.quote != null;
 }
 
-/** Room status rows (join/leave, Group name) must stay even if content is empty. */
-
 /**
  * Empty coworker shells for a mention stay while the Thought streams and after
  * it fails: Core keeps the failed bubble so "Failed to reply" and Retry can
