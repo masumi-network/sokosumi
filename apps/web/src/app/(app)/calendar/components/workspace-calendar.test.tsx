@@ -1184,6 +1184,7 @@ describe("WorkspaceCalendar", () => {
     expect(getWorkspaceCalendarMock).toHaveBeenCalledWith({
       from: new Date("2026-08-01T00:00:00.000Z"),
       to: new Date("2026-09-01T00:00:00.000Z"),
+      includeSocialPosts: "true",
       cursor: "cursor-2",
       limit: 100,
       scope: "workspace",
@@ -1304,6 +1305,7 @@ describe("WorkspaceCalendar", () => {
       expect(getProjectCalendarMock).toHaveBeenCalledWith("project-1", {
         from: new Date("2026-08-01T00:00:00.000Z"),
         to: new Date("2026-09-01T00:00:00.000Z"),
+        includeSocialPosts: "true",
         cursor: "cursor-2",
         limit: 100,
         scope: "owned",

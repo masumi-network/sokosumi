@@ -320,6 +320,7 @@ export function ProjectSocialPosts({
                   return (
                     <li
                       key={post.id}
+                      id={`social-post-${post.id}`}
                       className="flex flex-col gap-3 p-3 sm:flex-row sm:items-start"
                       data-testid={`social-post-${post.id}`}
                     >

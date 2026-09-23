@@ -6587,6 +6587,10 @@
       "agenda": {
         "upcoming": "A continuación",
         "loading": "Cargando…"
+      },
+      "socialPost": {
+        "label": "Publicación social",
+        "mediaOnly": "Publicación multimedia"
       }
     },
     "You": {

@@ -15579,6 +15579,42 @@ export const ProjectDesignMdWriteSchema = {
     ]
 } as const;
 
+export const WorkspaceCalendarEntrySchema = {
+    allOf: [
+        {
+            type: 'object',
+            properties: {
+                scheduledAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                originalScheduledAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                }
+            },
+            required: [
+                'scheduledAt'
+            ]
+        },
+        {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/WorkspaceCalendarItem'
+                },
+                {
+                    $ref: '#/components/schemas/SocialPostCalendarItem'
+                }
+            ]
+        }
+    ]
+} as const;
+
 export const WorkspaceCalendarItemSchema = {
     type: 'object',
     properties: {
@@ -15739,6 +15775,81 @@ export const WorkspaceCalendarItemSchema = {
         'sourceProjectId',
         'sourceAccuracy',
         'timeAccuracy'
+    ]
+} as const;
+
+export const SocialPostCalendarItemSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'socialPost'
+            ]
+        },
+        id: {
+            type: 'string'
+        },
+        postId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        text: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'DRAFT',
+                'SCHEDULED',
+                'PUBLISHING',
+                'PUBLISHED',
+                'FAILED',
+                'MISSED',
+                'CANCELED'
+            ]
+        },
+        externalHandle: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        scheduledAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        sourceId: {
+            type: 'string'
+        },
+        sourceProjectId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        sourceWorkspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        sourceType: {
+            type: 'string',
+            enum: [
+                'PROJECT'
+            ]
+        }
+    },
+    required: [
+        'kind',
+        'id',
+        'postId',
+        'text',
+        'status',
+        'externalHandle',
+        'scheduledAt',
+        'sourceId',
+        'sourceProjectId',
+        'sourceWorkspaceId',
+        'sourceType'
     ]
 } as const;
 

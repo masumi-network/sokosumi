@@ -4732,6 +4732,11 @@ export type ProjectDesignMdWrite = {
     extractionId?: string | null;
 };
 
+export type WorkspaceCalendarEntry = {
+    scheduledAt: Date;
+    originalScheduledAt?: Date | null;
+} & (WorkspaceCalendarItem | SocialPostCalendarItem);
+
 export type WorkspaceCalendarItem = {
     /**
      * Stable Calendar item identity. Version 1 projections are display-only.
@@ -4782,6 +4787,20 @@ export type WorkspaceCalendarItem = {
     sourceProjectId: string | null;
     sourceAccuracy: 'EXACT' | 'INFERRED' | 'UNKNOWN';
     timeAccuracy: 'EXACT' | 'APPROXIMATE';
+};
+
+export type SocialPostCalendarItem = {
+    kind: 'socialPost';
+    id: string;
+    postId: string;
+    text: string;
+    status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHING' | 'PUBLISHED' | 'FAILED' | 'MISSED' | 'CANCELED';
+    externalHandle: string | null;
+    scheduledAt: Date;
+    sourceId: string;
+    sourceProjectId: string;
+    sourceWorkspaceId: string;
+    sourceType: 'PROJECT';
 };
 
 export type ProjectCloseStatus = {
@@ -32655,6 +32674,10 @@ export type GetProjectsByIdCalendarData = {
          */
         to: Date;
         /**
+         * Include Social post entries. Omit for the existing task-only contract. Requires interactive beta access.
+         */
+        includeSocialPosts?: 'true' | 'false';
+        /**
          * Whether to show only the caller's tasks or the workspace
          */
         scope?: 'owned' | 'workspace';
@@ -32767,7 +32790,7 @@ export type GetProjectsByIdCalendarResponses = {
      * Project Calendar items
      */
     200: {
-        data: Array<WorkspaceCalendarItem>;
+        data: Array<WorkspaceCalendarEntry>;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -47853,6 +47876,10 @@ export type GetWorkspacesCalendarData = {
          */
         to: Date;
         /**
+         * Include Social post entries. Omit for the existing task-only contract. Requires interactive beta access.
+         */
+        includeSocialPosts?: 'true' | 'false';
+        /**
          * Whether to show only the caller's tasks or the workspace
          */
         scope?: 'owned' | 'workspace';
@@ -47973,7 +48000,7 @@ export type GetWorkspacesCalendarResponses = {
      * Active workspace Calendar items
      */
     200: {
-        data: Array<WorkspaceCalendarItem>;
+        data: Array<WorkspaceCalendarEntry>;
         meta: {
             timestamp: Date;
             requestId: string;

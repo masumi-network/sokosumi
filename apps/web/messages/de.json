@@ -6587,6 +6587,10 @@
       "agenda": {
         "upcoming": "Als Nächstes",
         "loading": "Wird geladen…"
+      },
+      "socialPost": {
+        "label": "Social-Beitrag",
+        "mediaOnly": "Medienbeitrag"
       }
     },
     "You": {

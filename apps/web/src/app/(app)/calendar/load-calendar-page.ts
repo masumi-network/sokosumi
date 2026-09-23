@@ -13,7 +13,7 @@ import { hasCurrentUserCalendarBetaAccess } from "@/lib/calendar-beta-access.ser
 import {
   type Project,
   TaskStatus,
-  type WorkspaceCalendarItem,
+  type WorkspaceCalendarEntry,
   type WorkspaceCalendarSource,
 } from "@/lib/clients/generated/core";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
@@ -49,7 +49,7 @@ export interface LoadedWorkspaceCalendarPage {
   calendarKey: string;
   coworkerOptions: CoworkerOption[];
   initialDate: string;
-  items: WorkspaceCalendarItem[];
+  items: WorkspaceCalendarEntry[];
   latestDate: string;
   pagination: WorkspaceCalendarPage["pagination"];
   project: Project | null;
@@ -158,6 +158,7 @@ export async function loadWorkspaceCalendarPage({
           ? Promise.resolve({ items: [], pagination: null })
           : projectService.getProjectCalendar(project.id, {
               ...range,
+              includeSocialPosts: "true",
               assigneeId: params.assigneeId,
               assigneeUserId: params.assigneeUserId,
               limit: params.view === "agenda" ? 10 : 100,
@@ -212,6 +213,7 @@ export async function loadWorkspaceCalendarPage({
       ? Promise.resolve({ items: [], pagination: null })
       : taskService.getWorkspaceCalendar({
           ...range,
+          includeSocialPosts: "true",
           assigneeId: params.assigneeId,
           assigneeUserId: params.assigneeUserId,
           limit: params.view === "agenda" ? 10 : 100,

@@ -3,6 +3,7 @@ import {
   CalendarSourceAccuracy,
   CalendarSourceType,
   CalendarTimeAccuracy,
+  SocialPostStatus,
   TaskScheduleOccurrenceState,
   TaskStatus,
 } from "@sokosumi/database";
@@ -21,6 +22,10 @@ const workspaceCalendarQueryObjectSchema = z.object({
     description:
       "Exclusive end of the calendar range, at most 90 days after from",
     example: "2026-07-01T00:00:00.000Z",
+  }),
+  includeSocialPosts: z.enum(["true", "false"]).optional().openapi({
+    description:
+      "Include Social post entries. Omit for the existing task-only contract. Requires interactive beta access.",
   }),
   scope: z.enum(["owned", "workspace"]).default("workspace").openapi({
     description: "Whether to show only the caller's tasks or the workspace",
@@ -180,3 +185,28 @@ export const calendarIdentityLabelSchema = z
 export const calendarIdentityLabelsSchema = z
   .array(calendarIdentityLabelSchema)
   .openapi("CalendarIdentityLabels");
+
+export const socialPostCalendarItemSchema = z
+  .object({
+    kind: z.literal("socialPost"),
+    id: z.string(),
+    postId: z.uuid(),
+    text: z.string(),
+    status: z.enum(SocialPostStatus),
+    externalHandle: z.string().nullable(),
+    scheduledAt: dateTimeSchema,
+    sourceId: z.string(),
+    sourceProjectId: z.uuid(),
+    sourceWorkspaceId: z.uuid(),
+    sourceType: z.literal("PROJECT"),
+  })
+  .openapi("SocialPostCalendarItem");
+
+// Keep dates outside the union so the generated client transforms both entry types.
+export const workspaceCalendarEntrySchema = z
+  .object({
+    scheduledAt: dateTimeSchema,
+    originalScheduledAt: dateTimeSchema.nullable().optional(),
+  })
+  .and(z.union([workspaceCalendarItemSchema, socialPostCalendarItemSchema]))
+  .openapi("WorkspaceCalendarEntry");

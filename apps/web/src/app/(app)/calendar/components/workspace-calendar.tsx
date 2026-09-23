@@ -99,6 +99,7 @@ import {
   type TaskListItem,
   TaskStatus,
   type TaskStatus as TaskStatusValue,
+  type WorkspaceCalendarEntry,
   type WorkspaceCalendarItem,
   type WorkspaceCalendarSource,
 } from "@/lib/clients/generated/core";
@@ -120,6 +121,7 @@ import {
   taskScheduleSeriesFeedbackKey,
 } from "@/lib/utils/task-schedule-feedback";
 import { CalendarScheduleList } from "./calendar-schedule-list";
+import { SocialPostCalendarEvent } from "./social-post-calendar-event";
 import { SourceMarker } from "./source-marker";
 
 const CALENDAR_VIEWS = ["month", "week", "agenda", "schedules"] as const;
@@ -175,7 +177,7 @@ interface WorkspaceCalendarProps {
   activeOrganizationId?: string | null;
   currentUserId?: string | null;
   initialDate: string;
-  items: WorkspaceCalendarItem[];
+  items: WorkspaceCalendarEntry[];
   latestDate?: string;
   sources?: WorkspaceCalendarSource[];
   pagination?: {
@@ -264,8 +266,12 @@ function getRangeLabel(
  * Only an unreleased occurrence the caller owns can be moved. A released row
  * is history, and a row the caller cannot edit must not be draggable either.
  */
-function isMovableCalendarItem(item: WorkspaceCalendarItem): boolean {
-  return item.canMutateOccurrence && item.state === "PLANNED";
+function isMovableCalendarItem(
+  item: WorkspaceCalendarEntry,
+): item is WorkspaceCalendarItem {
+  return (
+    !("kind" in item) && item.canMutateOccurrence && item.state === "PLANNED"
+  );
 }
 
 function isRestorableCalendarItem(item: WorkspaceCalendarItem): boolean {
@@ -472,7 +478,7 @@ function CalendarView({
   canCreate: boolean;
   coworkers: CalendarCoworker[];
   date: Date;
-  items: WorkspaceCalendarItem[];
+  items: WorkspaceCalendarEntry[];
   onDateClick: (date: Date) => void;
   onEventEdit: (taskId: string) => void;
   onMoveOccurrence: (item: WorkspaceCalendarItem) => void;
@@ -586,21 +592,25 @@ function CalendarView({
             <ul className="flex flex-col gap-2 p-3">
               {dayItems.map((item) => (
                 <li key={item.id}>
-                  <CalendarEvent
-                    item={item}
-                    people={findCalendarPeople(item, coworkers)}
-                    onEditSchedule={onEventEdit}
-                    onMoveOccurrence={onMoveOccurrence}
-                    onRestoreOccurrence={onRestoreOccurrence}
-                    onSkipOccurrence={onSkipOccurrence}
-                    onOpenTask={onOpenTask}
-                    source={sources.find(
-                      ({ sourceId }) => sourceId === item.sourceId,
-                    )}
-                    timeText={formatDate(item.scheduledAt, "time", {
-                      timeZone,
-                    })}
-                  />
+                  {"kind" in item ? (
+                    <SocialPostCalendarEvent item={item} timeZone={timeZone} />
+                  ) : (
+                    <CalendarEvent
+                      item={item}
+                      people={findCalendarPeople(item, coworkers)}
+                      onEditSchedule={onEventEdit}
+                      onMoveOccurrence={onMoveOccurrence}
+                      onRestoreOccurrence={onRestoreOccurrence}
+                      onSkipOccurrence={onSkipOccurrence}
+                      onOpenTask={onOpenTask}
+                      source={sources.find(
+                        ({ sourceId }) => sourceId === item.sourceId,
+                      )}
+                      timeText={formatDate(item.scheduledAt, "time", {
+                        timeZone,
+                      })}
+                    />
+                  )}
                 </li>
               ))}
             </ul>
@@ -631,7 +641,7 @@ function CalendarView({
           initialView={pluginView}
           events={items.map((item) => ({
             id: item.id,
-            title: item.taskName,
+            title: "kind" in item ? item.text : item.taskName,
             start: (pendingMoves[item.id] ?? item.scheduledAt).toISOString(),
             // Per-event: a released or unowned row is visible but not draggable.
             startEditable: isMovableCalendarItem(item),
@@ -661,6 +671,10 @@ function CalendarView({
               return eventInfo.event.title;
             }
             const start = eventInfo.event.start;
+            if ("kind" in item)
+              return (
+                <SocialPostCalendarEvent item={item} timeZone={timeZone} />
+              );
             return (
               <CalendarEvent
                 item={item}
@@ -996,7 +1010,7 @@ export function WorkspaceCalendar({
   // server page that reuses a cursor string drains again.
   const requestedPageRef = useRef<{
     cursor: string;
-    items: WorkspaceCalendarItem[];
+    items: WorkspaceCalendarEntry[];
   } | null>(null);
   const [editState, setEditState] = useState<CalendarEditState | null>(null);
   const [timeState, setTimeState] = useState<OccurrenceTimeState | null>(null);
@@ -1115,8 +1129,19 @@ export function WorkspaceCalendar({
     ? parseCalendarDate(latestDate, initialDate)
     : null;
   const visibleItems = loadedItems
-    .filter(
-      (item) =>
+    .filter((item) => {
+      if ("kind" in item)
+        return (
+          (view !== "agenda" ||
+            (["SCHEDULED", "PUBLISHING"].includes(item.status) &&
+              getCalendarItemDateKey(item.scheduledAt, timeZone) >=
+                Temporal.Now.plainDateISO(timeZone).toString())) &&
+          state.assigneeId === null &&
+          state.assigneeUserId === null &&
+          state.status === null &&
+          (selectedSourceId === null || item.sourceId === selectedSourceId)
+        );
+      return (
         (view !== "agenda" ||
           (item.state === "PLANNED" &&
             getCalendarItemDateKey(item.scheduledAt, timeZone) >=
@@ -1126,8 +1151,9 @@ export function WorkspaceCalendar({
         (state.assigneeUserId === null ||
           item.taskAssigneeUserId === state.assigneeUserId) &&
         (state.status === null || item.taskStatus === state.status) &&
-        (selectedSourceId === null || item.sourceId === selectedSourceId),
-    )
+        (selectedSourceId === null || item.sourceId === selectedSourceId)
+      );
+    })
     .sort(
       (left, right) => left.scheduledAt.getTime() - right.scheduledAt.getTime(),
     );
@@ -1296,6 +1322,7 @@ export function WorkspaceCalendar({
       const query = {
         from: range.from,
         to: range.to,
+        includeSocialPosts: "true" as const,
         cursor: nextCursor,
         limit: view === "agenda" ? 10 : (pagination?.limit ?? 100),
         scope: state.scope,
