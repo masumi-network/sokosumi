@@ -2269,8 +2269,11 @@ function ThreadReplyBar({
         // `-quaternary` and `-variant` are the sidebar mention pill's pair:
         // the `-quinary` tint sat 6% above the dark background and read as
         // a faint outline round cramped text, not as a bar.
+        // `mx-0`: the plain state's `-mx-1` only lines bare text up with the
+        // message; on a painted bar it pushes the rule and the rounded edge
+        // into the content column's `overflow-x-clip`, which cuts them off.
         unreadReplyCount > 0 &&
-          "bg-primary-quaternary text-primary-variant rounded-lg px-2.5 py-1 font-semibold shadow-[inset_2px_0_0]",
+          "bg-primary-quaternary text-primary-variant mx-0 rounded-lg px-2.5 py-1 font-semibold shadow-[inset_2px_0_0]",
       )}
       onClick={() => onOpenThread(message)}
     >
