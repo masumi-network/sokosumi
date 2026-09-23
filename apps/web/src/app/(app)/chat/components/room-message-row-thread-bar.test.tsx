@@ -4,7 +4,7 @@
  * It names the replies that are new to this reader while any are unread, and
  * falls back to the plain reply count otherwise.
  */
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
@@ -19,9 +19,12 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 
-function parentMessage(
-  counts: Pick<ChatRoomMessage, "threadReplyCount" | "threadUnreadReplyCount">,
-): ChatRoomMessage {
+type ThreadFields = Pick<
+  ChatRoomMessage,
+  "threadReplyCount" | "threadUnreadReplyCount" | "threadRepliers"
+>;
+
+function parentMessage(counts: ThreadFields): ChatRoomMessage {
   return {
     id: "message-1",
     roomId: "room-1",
@@ -53,7 +56,7 @@ function parentMessage(
 }
 
 function renderRow(
-  counts: Pick<ChatRoomMessage, "threadReplyCount" | "threadUnreadReplyCount">,
+  counts: ThreadFields,
   onOpenThread: (message: ChatRoomMessage) => void = vi.fn(),
 ) {
   render(
@@ -62,6 +65,7 @@ function renderRow(
       messages={messages}
       formats={createFormats()}
       timeZone="UTC"
+      now={new Date("2026-07-01T15:04:00.000Z")}
     >
       <ChatMessageRow
         message={parentMessage(counts)}
@@ -131,4 +135,96 @@ describe("thread reply bar", () => {
       expect.objectContaining({ id: "message-1" }),
     );
   });
+
+  it("shows one face per replier and keeps the count as its name", () => {
+    renderRow({
+      threadReplyCount: 5,
+      threadUnreadReplyCount: 2,
+      threadRepliers: [
+        {
+          type: "user",
+          user: {
+            id: "user-2",
+            name: "Grace",
+            email: "grace@example.com",
+            image: null,
+            presence: "offline",
+          },
+        },
+        {
+          type: "coworker",
+          coworker: {
+            id: "cow-1",
+            name: "Scout",
+            slug: "scout",
+            caption: null,
+            image: null,
+            presence: "online",
+          },
+        },
+      ],
+    });
+
+    const bar = screen.getByRole("button", { name: "2 new replies" });
+    expect(within(bar).getAllByTestId("thread-replier-face")).toHaveLength(2);
+  });
+
+  it("describes the bar with the last reply's age", () => {
+    renderRow({ threadReplyCount: 3, threadUnreadReplyCount: 0 });
+
+    expect(
+      screen.getByRole("button", { name: "3 replies" }),
+    ).toHaveAccessibleDescription("4m ago");
+  });
+
+  it("shows repliers in the order they joined, the parent author included only where they replied", () => {
+    renderRow({
+      threadReplyCount: 4,
+      threadUnreadReplyCount: 0,
+      threadRepliers: [
+        replier("user-2", "Grace"),
+        replier("user-1", "Ada"),
+        replier("user-3", "Linus"),
+      ],
+    });
+
+    const bar = screen.getByRole("button", { name: "4 replies" });
+    expect(
+      within(bar)
+        .getAllByTestId("thread-replier-face")
+        .map((face) => face.textContent),
+    ).toEqual(["G", "A", "L"]);
+  });
+
+  // The parent author is on the row already; the faces are who replied.
+  it("leaves the parent author out until they reply", () => {
+    renderRow({
+      threadReplyCount: 1,
+      threadUnreadReplyCount: 0,
+      threadRepliers: [replier("user-2", "Grace")],
+    });
+
+    const bar = screen.getByRole("button", { name: "1 reply" });
+    expect(
+      within(bar)
+        .getAllByTestId("thread-replier-face")
+        .map((face) => face.textContent),
+    ).toEqual(["G"]);
+  });
 });
+
+function replier(
+  id: string,
+  name: string,
+): NonNullable<ChatRoomMessage["threadRepliers"]>[number] {
+  return {
+    type: "user",
+    user: {
+      id,
+      name,
+      email: `${id}@example.com`,
+      image: null,
+      presence: "offline",
+    },
+  };
+}

@@ -14,6 +14,27 @@ const migration = readFileSync(
 );
 
 describe("Calendar collaboration migration", () => {
+  it("erases only the deleted workspace outbox after legacy parent cascades", () => {
+    const erasureMigration = readFileSync(
+      join(
+        packageRoot,
+        "prisma/migrations/20260922140000_calendar_workspace_erasure/migration.sql",
+      ),
+      "utf8",
+    );
+    expect(erasureMigration).toMatch(
+      /CREATE OR REPLACE FUNCTION erase_calendar_outbox_for_workspace_delete\(\)/,
+    );
+    expect(erasureMigration).toMatch(
+      /DELETE FROM "calendar_invalidation_outbox"\s+WHERE "workspaceId" = OLD.id;/,
+    );
+    expect(erasureMigration).toContain(
+      'DROP TRIGGER IF EXISTS calendar_workspace_outbox_erasure ON "workspace"',
+    );
+    expect(erasureMigration).toMatch(
+      /CREATE TRIGGER calendar_workspace_outbox_erasure\s+AFTER DELETE ON "workspace"\s+FOR EACH ROW EXECUTE FUNCTION erase_calendar_outbox_for_workspace_delete\(\);/,
+    );
+  });
   it("captures pending emails before the membership FK cascades notifications", () => {
     const cleanupOrderMigration = readFileSync(
       join(
