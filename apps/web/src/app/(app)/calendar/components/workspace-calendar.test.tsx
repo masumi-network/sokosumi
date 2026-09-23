@@ -12,7 +12,7 @@ import { Activity, StrictMode } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { Temporal } from "temporal-polyfill";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   TaskListItem,
   WorkspaceCalendarItem,
@@ -226,11 +226,20 @@ const SOURCES: WorkspaceCalendarSource[] = [
 ];
 
 describe("WorkspaceCalendar", () => {
+  beforeEach(() => {
+    vi.spyOn(Temporal.Now, "plainDateISO").mockReturnValue(
+      Temporal.PlainDate.from("2026-08-18"),
+    );
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
   it("clears Calendar details and pagination immediately when access is revoked", () => {
     // The next page never answers, so the drain stays in flight for the test.
     getWorkspaceCalendarMock.mockReturnValue(new Promise(() => {}));
     render(
-      <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&timezone=UTC">
+      <NuqsTestingAdapter searchParams="?view=week&date=2026-08-18&timezone=UTC">
         <WorkspaceCalendar
           currentUserId="user-1"
           initialDate="2026-08-18"
@@ -243,9 +252,7 @@ describe("WorkspaceCalendar", () => {
       </NuqsTestingAdapter>,
     );
 
-    expect(
-      screen.getAllByRole("button", { name: /Prepare release notes/ }),
-    ).toHaveLength(1);
+    expect(screen.getAllByTestId("calendar-event")).toHaveLength(1);
     expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
       expect.objectContaining({ cursor: "cursor-2" }),
     );
@@ -257,9 +264,7 @@ describe("WorkspaceCalendar", () => {
       bridgeProps.onAccessRevoked();
     });
 
-    expect(
-      screen.queryByRole("button", { name: /Prepare release notes/ }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("calendar-event")).not.toBeInTheDocument();
     // Revoking dropped the cursor, so the drain asks for nothing more.
     expect(getWorkspaceCalendarMock).toHaveBeenCalledTimes(1);
   });
@@ -919,155 +924,159 @@ describe("WorkspaceCalendar", () => {
     }
   });
 
-  it("does not scroll the agenda on its own", async () => {
-    const scrollIntoView = vi.fn();
-    const originalScrollIntoView = Element.prototype.scrollIntoView;
-    Element.prototype.scrollIntoView = scrollIntoView;
-    const today = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "UTC",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date());
-
-    try {
-      render(
-        <NuqsTestingAdapter
-          searchParams={`?view=agenda&date=${today}&timezone=UTC`}
-        >
-          <WorkspaceCalendar
-            initialDate={today}
-            items={[
-              {
-                ...ITEMS[0],
-                scheduledAt: new Date(`${today}T09:00:00.000Z`),
-                originalScheduledAt: new Date(`${today}T09:00:00.000Z`),
-              },
-            ]}
-          />
-        </NuqsTestingAdapter>,
-      );
-
-      await screen.findByRole("button", { name: "agenda.today" });
-      expect(scrollIntoView).not.toHaveBeenCalled();
-    } finally {
-      Element.prototype.scrollIntoView = originalScrollIntoView;
-    }
-  });
-
-  it("jumps to the next day header when today has no events", async () => {
-    const user = userEvent.setup();
-    const scrollIntoView = vi.fn();
-    const originalScrollIntoView = Element.prototype.scrollIntoView;
-    Element.prototype.scrollIntoView = scrollIntoView;
-    const today = Temporal.Now.plainDateISO("UTC");
-    const tomorrow = today.add({ days: 1 }).toString();
-
-    try {
-      render(
-        <NuqsTestingAdapter
-          searchParams={`?view=agenda&date=${today.toString()}&timezone=UTC`}
-        >
-          <WorkspaceCalendar
-            initialDate={today.toString()}
-            items={[
-              {
-                ...ITEMS[0],
-                scheduledAt: new Date(`${tomorrow}T09:00:00.000Z`),
-                originalScheduledAt: new Date(`${tomorrow}T09:00:00.000Z`),
-              },
-            ]}
-          />
-        </NuqsTestingAdapter>,
-      );
-
-      await user.click(
-        await screen.findByRole("button", { name: "agenda.today" }),
-      );
-      expect(scrollIntoView.mock.instances[0]).toHaveAttribute(
-        "data-date",
-        tomorrow,
-      );
-    } finally {
-      Element.prototype.scrollIntoView = originalScrollIntoView;
-    }
-  });
-
-  it("offers Today at the top of the agenda and Back to top once scrolled", async () => {
-    const user = userEvent.setup();
-    const scrollIntoView = vi.fn();
-    const originalScrollIntoView = Element.prototype.scrollIntoView;
-    Element.prototype.scrollIntoView = scrollIntoView;
-    const scrollTo = vi.fn();
-    vi.stubGlobal("scrollTo", scrollTo);
-    vi.stubGlobal("scrollY", 0);
-    const today = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "UTC",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date());
-
-    try {
-      render(
-        <NuqsTestingAdapter
-          searchParams={`?view=agenda&date=${today}&timezone=UTC`}
-        >
-          <WorkspaceCalendar
-            initialDate={today}
-            items={[
-              {
-                ...ITEMS[0],
-                scheduledAt: new Date(`${today}T09:00:00.000Z`),
-                originalScheduledAt: new Date(`${today}T09:00:00.000Z`),
-              },
-            ]}
-          />
-        </NuqsTestingAdapter>,
-      );
-
-      await user.click(
-        await screen.findByRole("button", { name: "agenda.today" }),
-      );
-      expect(scrollIntoView.mock.instances[0]).toHaveAttribute(
-        "data-date",
-        today,
-      );
-
-      vi.stubGlobal("scrollY", 400);
-      fireEvent.scroll(window);
-      await user.click(
-        await screen.findByRole("button", { name: "agenda.backToTop" }),
-      );
-      expect(scrollTo).toHaveBeenCalledWith(
-        expect.objectContaining({ top: 0 }),
-      );
-    } finally {
-      Element.prototype.scrollIntoView = originalScrollIntoView;
-      vi.unstubAllGlobals();
-    }
-  });
-
-  // globals.css hides the agenda's list-item dot with a structural selector
-  // because FullCalendar joins class-name options across theme and user
-  // layers. Pin the DOM shape that selector relies on.
-  it("keeps the agenda dot as the first child before the event card", () => {
-    const { container } = render(
-      <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&timezone=UTC">
-        <WorkspaceCalendar items={ITEMS} initialDate="2026-08-18" />
+  it("shows upcoming planned tasks from today across months, without date navigation", () => {
+    render(
+      <NuqsTestingAdapter searchParams="?view=agenda&date=2025-01-01&timezone=UTC">
+        <WorkspaceCalendar
+          initialDate="2026-08-18"
+          items={[
+            {
+              ...ITEMS[0],
+              id: "later",
+              taskName: "Next month",
+              scheduledAt: new Date("2026-09-02T09:00:00Z"),
+            },
+            {
+              ...ITEMS[0],
+              id: "past",
+              taskName: "Yesterday",
+              scheduledAt: new Date("2026-08-17T09:00:00Z"),
+            },
+            {
+              ...ITEMS[0],
+              id: "skipped",
+              state: "SKIPPED",
+              taskName: "Skipped",
+            },
+            {
+              ...ITEMS[0],
+              id: "released",
+              state: "RELEASED",
+              taskName: "Already ran",
+            },
+            ITEMS[0],
+          ]}
+        />
       </NuqsTestingAdapter>,
     );
+    expect(
+      screen.getByRole("heading", { name: "agenda.upcoming" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByTestId("calendar-event").map((card) => card.textContent),
+    ).toEqual([
+      expect.stringContaining("Prepare release notes"),
+      expect.stringContaining("Next month"),
+    ]);
+    expect(
+      screen.queryByRole("button", { name: "previous" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "next" }),
+    ).not.toBeInTheDocument();
+  });
 
-    const dots = container.querySelectorAll(
-      '[data-view="agenda"] [role="listitem"]:not([aria-label]) > :first-child:not(:only-child)',
+  it("starts on the nearest upcoming day when today is empty", () => {
+    render(
+      <NuqsTestingAdapter searchParams="?view=agenda&timezone=UTC">
+        <WorkspaceCalendar
+          initialDate="2026-08-18"
+          items={[
+            { ...ITEMS[0], scheduledAt: new Date("2026-09-02T09:00:00Z") },
+          ]}
+        />
+      </NuqsTestingAdapter>,
     );
-    expect(dots.length).toBeGreaterThan(0);
-    for (const dot of dots) {
-      expect(dot.querySelector('[data-testid="calendar-event"]')).toBeNull();
-      expect(
-        dot.nextElementSibling?.querySelector('[data-testid="calendar-event"]'),
-      ).not.toBeNull();
-    }
+    expect(screen.getByRole("heading", { level: 3 })).toHaveTextContent(
+      "September 2, 2026",
+    );
+    expect(screen.queryByText("August 18, 2026")).not.toBeInTheDocument();
+  });
+
+  it("loads ten more occurrences only when the agenda boundary becomes visible", async () => {
+    let showBoundary = () => {};
+    vi.stubGlobal(
+      "IntersectionObserver",
+      vi.fn(function (
+        callback: (entries: { isIntersecting: boolean }[]) => void,
+      ) {
+        showBoundary = () => callback([{ isIntersecting: true }]);
+        return { observe: vi.fn(), disconnect: vi.fn() };
+      }),
+    );
+    const firstPage = Array.from({ length: 10 }, (_, index) => ({
+      ...ITEMS[0],
+      id: `item-${index}`,
+      taskName: `Task ${index}`,
+    }));
+    getWorkspaceCalendarMock.mockResolvedValue({
+      data: [
+        firstPage[0],
+        {
+          ...ITEMS[0],
+          id: "later",
+          taskName: "Next month",
+          scheduledAt: new Date("2026-09-02T09:00:00Z"),
+        },
+      ],
+      meta: { pagination: { nextCursor: null } },
+    });
+    render(
+      <NuqsTestingAdapter searchParams="?view=agenda&timezone=UTC">
+        <WorkspaceCalendar
+          initialDate="2026-08-18"
+          items={firstPage}
+          {...CALENDAR_PAGE}
+        />
+      </NuqsTestingAdapter>,
+    );
+    expect(screen.getAllByTestId("calendar-event")).toHaveLength(10);
+    expect(getWorkspaceCalendarMock).not.toHaveBeenCalled();
+    await act(async () => showBoundary());
+    expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+      expect.objectContaining({ cursor: "cursor-2", limit: 10 }),
+    );
+    expect(screen.getAllByTestId("calendar-event")).toHaveLength(11);
+    expect(screen.getByText("Next month")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "schedules.loadMore" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps loaded agenda items on failure and retries with the project and filters", async () => {
+    getProjectCalendarMock
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({
+        data: [{ ...ITEMS[0], id: "later", taskName: "Later task" }],
+        meta: { pagination: { nextCursor: null } },
+      });
+    render(
+      <NuqsTestingAdapter searchParams="?view=agenda&timezone=UTC&scope=owned&status=QUEUED&assigneeId=coworker-1">
+        <WorkspaceCalendar
+          initialDate="2026-08-18"
+          items={ITEMS}
+          lockedProjectId="project-1"
+          {...CALENDAR_PAGE}
+        />
+      </NuqsTestingAdapter>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "schedules.loadMore" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "pagination.error",
+    );
+    expect(screen.getByText("Prepare release notes")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "schedules.loadMore" }));
+    await screen.findByText("Later task");
+    expect(getProjectCalendarMock).toHaveBeenLastCalledWith(
+      "project-1",
+      expect.objectContaining({
+        scope: "owned",
+        status: "QUEUED",
+        assigneeId: "coworker-1",
+        limit: 10,
+      }),
+    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("defaults to the week view and offers every view switch", () => {
@@ -1083,7 +1092,7 @@ describe("WorkspaceCalendar", () => {
   });
 
   it("uses event cards without the all-day row in the week view", () => {
-    const { container } = render(
+    render(
       <NuqsTestingAdapter searchParams="?view=week&date=2026-08-18">
         <WorkspaceCalendar items={ITEMS} initialDate="2026-08-18" />
       </NuqsTestingAdapter>,
@@ -1093,9 +1102,10 @@ describe("WorkspaceCalendar", () => {
       "data-view",
       "week",
     );
-    expect(
-      container.querySelector("[class~='bg-primary-quaternary']"),
-    ).toHaveClass("bg-primary-quaternary");
+    expect(screen.getByTestId("calendar-event")).toHaveClass(
+      "bg-background",
+      "border",
+    );
     expect(screen.queryByText("all-day")).not.toBeInTheDocument();
   });
 
@@ -1105,7 +1115,7 @@ describe("WorkspaceCalendar", () => {
       meta: { pagination: { nextCursor: null } },
     });
     const { rerender } = render(
-      <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&timezone=UTC">
+      <NuqsTestingAdapter searchParams="?view=week&date=2026-08-18&timezone=UTC">
         <WorkspaceCalendar
           items={ITEMS}
           initialDate="2026-08-18"
@@ -1122,7 +1132,7 @@ describe("WorkspaceCalendar", () => {
     // pages are now available — the render-time guard must react to this
     // even though `items` itself did not change.
     rerender(
-      <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&timezone=UTC">
+      <NuqsTestingAdapter searchParams="?view=week&date=2026-08-18&timezone=UTC">
         <WorkspaceCalendar
           items={ITEMS}
           initialDate="2026-08-18"
@@ -1161,7 +1171,7 @@ describe("WorkspaceCalendar", () => {
     });
 
     render(
-      <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&status=QUEUED&sourceId=legacy%3Acalendar-1">
+      <NuqsTestingAdapter searchParams="?view=week&date=2026-08-18&status=QUEUED&sourceId=legacy%3Acalendar-1">
         <WorkspaceCalendar
           items={ITEMS}
           initialDate="2026-08-18"
@@ -1170,9 +1180,7 @@ describe("WorkspaceCalendar", () => {
       </NuqsTestingAdapter>,
     );
 
-    expect(
-      await screen.findAllByRole("button", { name: /Publish release notes/ }),
-    ).toHaveLength(1);
+    expect(await screen.findAllByText("Publish release notes")).toHaveLength(1);
     expect(getWorkspaceCalendarMock).toHaveBeenCalledWith({
       from: new Date("2026-08-01T00:00:00.000Z"),
       to: new Date("2026-09-01T00:00:00.000Z"),
@@ -1195,7 +1203,7 @@ describe("WorkspaceCalendar", () => {
         }),
       );
       render(
-        <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&timezone=UTC">
+        <NuqsTestingAdapter searchParams="?view=week&date=2026-08-18&timezone=UTC">
           <WorkspaceCalendar
             currentUserId="user-1"
             initialDate="2026-08-18"
@@ -1248,7 +1256,7 @@ describe("WorkspaceCalendar", () => {
       nextCursor: string | null,
     ) {
       return (
-        <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&timezone=UTC">
+        <NuqsTestingAdapter searchParams="?view=week&date=2026-08-18&timezone=UTC">
           <WorkspaceCalendar
             currentUserId="user-1"
             initialDate="2026-08-18"
