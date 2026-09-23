@@ -174,7 +174,7 @@ function taskAssigner(actor: TaskDomainActor): TaskAssigner {
   }
 }
 
-async function requireTaskReferences(
+export async function requireTaskReferences(
   input: {
     projectId?: string | null;
     assigneeId?: string | null;
@@ -215,7 +215,7 @@ async function requireTaskReferences(
   }
 }
 
-function creatorFields(actor: TaskDomainActor) {
+export function creatorFields(actor: TaskDomainActor) {
   switch (actor.kind) {
     case "user":
       return {

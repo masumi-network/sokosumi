@@ -1351,6 +1351,10 @@ export const SokoBotDeletionResultSchema = {
                 uploadedTaskFiles: {
                     type: 'integer',
                     minimum: 0
+                },
+                taskSchedules: {
+                    type: 'integer',
+                    minimum: 0
                 }
             },
             required: [
@@ -1358,7 +1362,8 @@ export const SokoBotDeletionResultSchema = {
                 'taskEvents',
                 'billingRecords',
                 'chatMessages',
-                'uploadedTaskFiles'
+                'uploadedTaskFiles',
+                'taskSchedules'
             ]
         }
     },
@@ -19725,6 +19730,409 @@ export const TaskActivitySummarySchema = {
         'lastVisitAt',
         'basis',
         'workedMinutes'
+    ]
+} as const;
+
+export const TaskScheduleSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        ownerId: {
+            type: 'string'
+        },
+        creatorUserId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        creatorCoworkerId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        creatorSokoBotId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        state: {
+            $ref: '#/components/schemas/TaskScheduleState'
+        },
+        rule: {
+            type: 'object',
+            properties: {
+                expr: {
+                    type: 'string'
+                },
+                timezone: {
+                    type: 'string'
+                },
+                intervalDays: {
+                    type: [
+                        'integer',
+                        'null'
+                    ]
+                },
+                anchorAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                endsMode: {
+                    $ref: '#/components/schemas/TaskScheduleEndsMode'
+                },
+                endsOn: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                targetOccurrenceCount: {
+                    type: [
+                        'integer',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'expr',
+                'timezone',
+                'intervalDays',
+                'anchorAt',
+                'endsMode',
+                'endsOn',
+                'targetOccurrenceCount'
+            ]
+        },
+        ruleEffectiveFrom: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        releasedCount: {
+            type: 'integer'
+        },
+        nextOccurrenceAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        revision: {
+            type: 'integer'
+        },
+        name: {
+            type: 'string'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        visibility: {
+            $ref: '#/components/schemas/TaskVisibility'
+        },
+        assigneeId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        assigneeSokoBotId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        assigneeUserId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'workspaceId',
+        'organizationId',
+        'ownerId',
+        'creatorUserId',
+        'creatorCoworkerId',
+        'creatorSokoBotId',
+        'state',
+        'rule',
+        'ruleEffectiveFrom',
+        'releasedCount',
+        'nextOccurrenceAt',
+        'revision',
+        'name',
+        'description',
+        'projectId',
+        'visibility',
+        'assigneeId',
+        'assigneeSokoBotId',
+        'assigneeUserId',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const TaskScheduleStateSchema = {
+    type: 'string',
+    enum: [
+        'ACTIVE',
+        'PAUSED',
+        'ENDED'
+    ]
+} as const;
+
+export const TaskScheduleEndsModeSchema = {
+    type: 'string',
+    enum: [
+        'NEVER',
+        'ON',
+        'AFTER'
+    ]
+} as const;
+
+export const CreateTaskScheduleRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 10000,
+            example: 'Weekly report'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        visibility: {
+            allOf: [
+                {
+                    $ref: '#/components/schemas/TaskVisibility'
+                },
+                {
+                    description: 'PUBLIC (default) or PRIVATE. PRIVATE is allowed only in organization workspaces and is immutable after create.'
+                }
+            ]
+        },
+        assigneeId: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            description: 'Coworker assignee of each created Task',
+            example: 'cow_123'
+        },
+        assigneeSokoBotId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Soko Bot assignee of each created Task',
+            example: '01960001-0001-7001-8001-000000000099'
+        },
+        assigneeUserId: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            description: 'Workspace-member assignee of each created Task',
+            example: 'user_123'
+        },
+        rule: {
+            $ref: '#/components/schemas/TaskScheduleRule'
+        }
+    },
+    required: [
+        'name',
+        'rule'
+    ]
+} as const;
+
+export const TaskScheduleRuleSchema = {
+    type: 'object',
+    properties: {
+        expr: {
+            type: 'string',
+            minLength: 1,
+            description: 'Cron expression for Occurrences, read in `timezone`',
+            example: '0 9 * * 1'
+        },
+        timezone: {
+            type: 'string',
+            minLength: 1,
+            default: 'UTC',
+            description: 'IANA timezone for the rule',
+            example: 'Europe/Berlin'
+        },
+        intervalDays: {
+            type: [
+                'integer',
+                'null'
+            ],
+            exclusiveMinimum: 0,
+            description: 'When greater than 1, an Occurrence every N calendar days from anchorAt at its local time, instead of the cron day fields',
+            example: 2
+        },
+        anchorAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-10-01T07:00:00.000Z',
+            description: 'First Occurrence for intervalDays rules (required when intervalDays > 1)'
+        },
+        endsMode: {
+            $ref: '#/components/schemas/TaskScheduleEndsMode'
+        },
+        endsOn: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-12-31T23:59:59.000Z',
+            description: 'Last possible Occurrence when endsMode is ON'
+        },
+        targetOccurrenceCount: {
+            type: [
+                'integer',
+                'null'
+            ],
+            exclusiveMinimum: 0,
+            description: 'Total Occurrences when endsMode is AFTER',
+            example: 10
+        }
+    },
+    required: [
+        'expr'
+    ]
+} as const;
+
+export const UpdateTaskScheduleRequestSchema = {
+    type: 'object',
+    properties: {
+        expectedRevision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Revision observed by the caller; a newer one is a 409',
+            example: 3
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 10000,
+            example: 'Weekly report'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        assigneeId: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            description: 'Coworker assignee of each created Task',
+            example: 'cow_123'
+        },
+        assigneeSokoBotId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Soko Bot assignee of each created Task',
+            example: '01960001-0001-7001-8001-000000000099'
+        },
+        assigneeUserId: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 1,
+            description: 'Workspace-member assignee of each created Task',
+            example: 'user_123'
+        },
+        rule: {
+            allOf: [
+                {
+                    $ref: '#/components/schemas/TaskScheduleRule'
+                },
+                {
+                    description: 'Replaces the whole rule. Changes future Occurrences only; Tasks already created stay as they are.'
+                }
+            ]
+        }
+    },
+    required: [
+        'expectedRevision'
     ]
 } as const;
 

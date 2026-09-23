@@ -319,6 +319,7 @@ export type SokoBotDeletionResult = {
         billingRecords: number;
         chatMessages: number;
         uploadedTaskFiles: number;
+        taskSchedules: number;
     };
 };
 
@@ -5784,6 +5785,126 @@ export type TaskActivitySummary = {
      * Minutes tasks spent in RUNNING inside the window, summed from status-transition events and clipped to the window bounds. Wall-clock time in progress, not billed compute.
      */
     workedMinutes: number;
+};
+
+export type TaskSchedule = {
+    id: string;
+    workspaceId: string;
+    organizationId: string | null;
+    ownerId: string;
+    creatorUserId: string | null;
+    creatorCoworkerId: string | null;
+    creatorSokoBotId: string | null;
+    state: TaskScheduleState;
+    rule: {
+        expr: string;
+        timezone: string;
+        intervalDays: number | null;
+        anchorAt: Date;
+        endsMode: TaskScheduleEndsMode;
+        endsOn: Date | null;
+        targetOccurrenceCount: number | null;
+    };
+    ruleEffectiveFrom: Date;
+    releasedCount: number;
+    nextOccurrenceAt: Date | null;
+    revision: number;
+    name: string;
+    description: string | null;
+    projectId: string | null;
+    visibility: TaskVisibility;
+    assigneeId: string | null;
+    assigneeSokoBotId: string | null;
+    assigneeUserId: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export const TaskScheduleState = {
+    ACTIVE: 'ACTIVE',
+    PAUSED: 'PAUSED',
+    ENDED: 'ENDED'
+} as const;
+
+export type TaskScheduleState = typeof TaskScheduleState[keyof typeof TaskScheduleState];
+
+export const TaskScheduleEndsMode = {
+    NEVER: 'NEVER',
+    ON: 'ON',
+    AFTER: 'AFTER'
+} as const;
+
+export type TaskScheduleEndsMode = typeof TaskScheduleEndsMode[keyof typeof TaskScheduleEndsMode];
+
+export type CreateTaskScheduleRequest = {
+    name: string;
+    description?: string | null;
+    projectId?: string | null;
+    visibility?: TaskVisibility & unknown;
+    /**
+     * Coworker assignee of each created Task
+     */
+    assigneeId?: string | null;
+    /**
+     * Soko Bot assignee of each created Task
+     */
+    assigneeSokoBotId?: string | null;
+    /**
+     * Workspace-member assignee of each created Task
+     */
+    assigneeUserId?: string | null;
+    rule: TaskScheduleRule;
+};
+
+export type TaskScheduleRule = {
+    /**
+     * Cron expression for Occurrences, read in `timezone`
+     */
+    expr: string;
+    /**
+     * IANA timezone for the rule
+     */
+    timezone?: string;
+    /**
+     * When greater than 1, an Occurrence every N calendar days from anchorAt at its local time, instead of the cron day fields
+     */
+    intervalDays?: number | null;
+    /**
+     * First Occurrence for intervalDays rules (required when intervalDays > 1)
+     */
+    anchorAt?: Date | null;
+    endsMode?: TaskScheduleEndsMode;
+    /**
+     * Last possible Occurrence when endsMode is ON
+     */
+    endsOn?: Date | null;
+    /**
+     * Total Occurrences when endsMode is AFTER
+     */
+    targetOccurrenceCount?: number | null;
+};
+
+export type UpdateTaskScheduleRequest = {
+    /**
+     * Revision observed by the caller; a newer one is a 409
+     */
+    expectedRevision: number;
+    name?: string;
+    description?: string | null;
+    projectId?: string | null;
+    /**
+     * Coworker assignee of each created Task
+     */
+    assigneeId?: string | null;
+    /**
+     * Soko Bot assignee of each created Task
+     */
+    assigneeSokoBotId?: string | null;
+    /**
+     * Workspace-member assignee of each created Task
+     */
+    assigneeUserId?: string | null;
+    rule?: TaskScheduleRule & unknown;
 };
 
 /**
@@ -40339,6 +40460,823 @@ export type GetTasksSummaryResponses = {
 };
 
 export type GetTasksSummaryResponse = GetTasksSummaryResponses[keyof GetTasksSummaryResponses];
+
+export type GetTasksSchedulesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        projectId?: string;
+        state?: TaskScheduleState;
+    };
+    url: '/tasks/schedules';
+};
+
+export type GetTasksSchedulesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetTasksSchedulesError = GetTasksSchedulesErrors[keyof GetTasksSchedulesErrors];
+
+export type GetTasksSchedulesResponses = {
+    /**
+     * Task Schedules
+     */
+    200: {
+        data: Array<TaskSchedule>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTasksSchedulesResponse = GetTasksSchedulesResponses[keyof GetTasksSchedulesResponses];
+
+export type PostTasksSchedulesData = {
+    body?: CreateTaskScheduleRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/tasks/schedules';
+};
+
+export type PostTasksSchedulesErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksSchedulesError = PostTasksSchedulesErrors[keyof PostTasksSchedulesErrors];
+
+export type PostTasksSchedulesResponses = {
+    /**
+     * Task Schedule created
+     */
+    201: {
+        data: TaskSchedule;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksSchedulesResponse = PostTasksSchedulesResponses[keyof PostTasksSchedulesResponses];
+
+export type DeleteTasksSchedulesByIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/schedules/{id}';
+};
+
+export type DeleteTasksSchedulesByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteTasksSchedulesByIdError = DeleteTasksSchedulesByIdErrors[keyof DeleteTasksSchedulesByIdErrors];
+
+export type DeleteTasksSchedulesByIdResponses = {
+    /**
+     * Task Schedule deleted
+     */
+    204: void;
+};
+
+export type DeleteTasksSchedulesByIdResponse = DeleteTasksSchedulesByIdResponses[keyof DeleteTasksSchedulesByIdResponses];
+
+export type GetTasksSchedulesByIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/schedules/{id}';
+};
+
+export type GetTasksSchedulesByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetTasksSchedulesByIdError = GetTasksSchedulesByIdErrors[keyof GetTasksSchedulesByIdErrors];
+
+export type GetTasksSchedulesByIdResponses = {
+    /**
+     * Task Schedule
+     */
+    200: {
+        data: TaskSchedule;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTasksSchedulesByIdResponse = GetTasksSchedulesByIdResponses[keyof GetTasksSchedulesByIdResponses];
+
+export type PatchTasksSchedulesByIdData = {
+    body?: UpdateTaskScheduleRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/schedules/{id}';
+};
+
+export type PatchTasksSchedulesByIdErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchTasksSchedulesByIdError = PatchTasksSchedulesByIdErrors[keyof PatchTasksSchedulesByIdErrors];
+
+export type PatchTasksSchedulesByIdResponses = {
+    /**
+     * Task Schedule updated
+     */
+    200: {
+        data: TaskSchedule;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchTasksSchedulesByIdResponse = PatchTasksSchedulesByIdResponses[keyof PatchTasksSchedulesByIdResponses];
+
+export type PostTasksSchedulesByIdPauseData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/schedules/{id}/pause';
+};
+
+export type PostTasksSchedulesByIdPauseErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksSchedulesByIdPauseError = PostTasksSchedulesByIdPauseErrors[keyof PostTasksSchedulesByIdPauseErrors];
+
+export type PostTasksSchedulesByIdPauseResponses = {
+    /**
+     * Task Schedule
+     */
+    200: {
+        data: TaskSchedule;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksSchedulesByIdPauseResponse = PostTasksSchedulesByIdPauseResponses[keyof PostTasksSchedulesByIdPauseResponses];
+
+export type PostTasksSchedulesByIdResumeData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/schedules/{id}/resume';
+};
+
+export type PostTasksSchedulesByIdResumeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksSchedulesByIdResumeError = PostTasksSchedulesByIdResumeErrors[keyof PostTasksSchedulesByIdResumeErrors];
+
+export type PostTasksSchedulesByIdResumeResponses = {
+    /**
+     * Task Schedule
+     */
+    200: {
+        data: TaskSchedule;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksSchedulesByIdResumeResponse = PostTasksSchedulesByIdResumeResponses[keyof PostTasksSchedulesByIdResumeResponses];
+
+export type PostTasksSchedulesByIdEndData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/schedules/{id}/end';
+};
+
+export type PostTasksSchedulesByIdEndErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksSchedulesByIdEndError = PostTasksSchedulesByIdEndErrors[keyof PostTasksSchedulesByIdEndErrors];
+
+export type PostTasksSchedulesByIdEndResponses = {
+    /**
+     * Task Schedule
+     */
+    200: {
+        data: TaskSchedule;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksSchedulesByIdEndResponse = PostTasksSchedulesByIdEndResponses[keyof PostTasksSchedulesByIdEndResponses];
 
 export type PostTasksScheduledData = {
     body?: CreateScheduledTaskRequest;

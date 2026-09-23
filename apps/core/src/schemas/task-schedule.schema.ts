@@ -1,6 +1,15 @@
 import { z } from "@hono/zod-openapi";
+import { TaskScheduleEndsMode } from "@sokosumi/database";
 
+import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime";
+import { refineAssigneeXorConflict } from "@/helpers/task-assignee-alias";
+import {
+  taskScheduleEndsModeSchema,
+  taskScheduleStateSchema,
+  taskVisibilitySchema,
+} from "@/schemas/domain-enums.schema";
+import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
 const taskScheduleOnceInputSchema = z.object({
   mode: z.literal("once"),
@@ -161,3 +170,196 @@ export type PutCalendarTaskScheduleRequest = z.infer<
 export type PutTaskScheduleRequest = z.infer<
   typeof putTaskScheduleRequestSchema
 >;
+
+/**
+ * Task Schedule resource (`/tasks/schedules`, ADR 0040): a repeating rule
+ * plus the blueprint of the Task each Occurrence creates.
+ */
+export const taskScheduleRuleSchema = z
+  .object({
+    expr: z.string().min(1).openapi({
+      description: "Cron expression for Occurrences, read in `timezone`",
+      example: "0 9 * * 1",
+    }),
+    timezone: z.string().min(1).default("UTC").openapi({
+      description: "IANA timezone for the rule",
+      example: "Europe/Berlin",
+    }),
+    intervalDays: z.number().int().positive().nullish().openapi({
+      description:
+        "When greater than 1, an Occurrence every N calendar days from anchorAt at its local time, instead of the cron day fields",
+      example: 2,
+    }),
+    anchorAt: dateTimeSchema.nullish().openapi({
+      description:
+        "First Occurrence for intervalDays rules (required when intervalDays > 1)",
+      example: "2026-10-01T07:00:00.000Z",
+    }),
+    endsMode: taskScheduleEndsModeSchema.default(TaskScheduleEndsMode.NEVER),
+    endsOn: dateTimeSchema.nullish().openapi({
+      description: "Last possible Occurrence when endsMode is ON",
+      example: "2026-12-31T23:59:59.000Z",
+    }),
+    targetOccurrenceCount: z.number().int().positive().nullish().openapi({
+      description: "Total Occurrences when endsMode is AFTER",
+      example: 10,
+    }),
+  })
+  .superRefine((data, ctx) => {
+    if (data.endsMode === TaskScheduleEndsMode.ON && !data.endsOn) {
+      ctx.addIssue({
+        code: "custom",
+        message: "endsOn is required when endsMode is ON",
+        path: ["endsOn"],
+      });
+    }
+    if (data.endsMode !== TaskScheduleEndsMode.ON && data.endsOn) {
+      ctx.addIssue({
+        code: "custom",
+        message: "endsOn is allowed only when endsMode is ON",
+        path: ["endsOn"],
+      });
+    }
+    if (
+      data.endsMode === TaskScheduleEndsMode.AFTER &&
+      data.targetOccurrenceCount == null
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "targetOccurrenceCount is required when endsMode is AFTER",
+        path: ["targetOccurrenceCount"],
+      });
+    }
+    if (
+      data.endsMode !== TaskScheduleEndsMode.AFTER &&
+      data.targetOccurrenceCount != null
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "targetOccurrenceCount is allowed only when endsMode is AFTER",
+        path: ["targetOccurrenceCount"],
+      });
+    }
+    if (data.intervalDays != null && data.intervalDays > 1 && !data.anchorAt) {
+      ctx.addIssue({
+        code: "custom",
+        message: "anchorAt is required when intervalDays is greater than 1",
+        path: ["anchorAt"],
+      });
+    }
+  })
+  .openapi("TaskScheduleRule");
+
+const taskScheduleNameSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(LIMITS.NAME_MAX_LENGTH)
+  .openapi({ example: "Weekly report" });
+
+const taskScheduleAssigneeFields = {
+  assigneeId: z.string().min(1).nullish().openapi({
+    description: "Coworker assignee of each created Task",
+    example: "cow_123",
+  }),
+  assigneeSokoBotId: z.string().uuid().nullish().openapi({
+    description: "Soko Bot assignee of each created Task",
+    example: "01960001-0001-7001-8001-000000000099",
+  }),
+  assigneeUserId: z.string().min(1).nullish().openapi({
+    description: "Workspace-member assignee of each created Task",
+    example: "user_123",
+  }),
+};
+
+export const createTaskScheduleRequestSchema = z
+  .object({
+    name: taskScheduleNameSchema,
+    description: z.string().nullish(),
+    projectId: z.string().uuid().nullish(),
+    visibility: taskVisibilitySchema.optional().openapi({
+      description:
+        "PUBLIC (default) or PRIVATE. PRIVATE is allowed only in organization workspaces and is immutable after create.",
+    }),
+    ...taskScheduleAssigneeFields,
+    rule: taskScheduleRuleSchema,
+  })
+  .superRefine(refineAssigneeXorConflict)
+  .openapi("CreateTaskScheduleRequest");
+
+export const updateTaskScheduleRequestSchema = z
+  .object({
+    expectedRevision: z.number().int().nonnegative().openapi({
+      description: "Revision observed by the caller; a newer one is a 409",
+      example: 3,
+    }),
+    name: taskScheduleNameSchema.optional(),
+    description: z.string().nullish(),
+    projectId: z.string().uuid().nullish(),
+    ...taskScheduleAssigneeFields,
+    rule: taskScheduleRuleSchema.optional().openapi({
+      description:
+        "Replaces the whole rule. Changes future Occurrences only; Tasks already created stay as they are.",
+    }),
+  })
+  .superRefine(refineAssigneeXorConflict)
+  .openapi("UpdateTaskScheduleRequest");
+
+export const taskScheduleListQuerySchema = cursorPaginationQuerySchema.extend({
+  projectId: z.string().uuid().optional(),
+  state: taskScheduleStateSchema.optional(),
+});
+
+export const taskScheduleSchema = z
+  .object({
+    id: z.string().uuid(),
+    workspaceId: z.string().uuid(),
+    organizationId: z.string().nullable(),
+    ownerId: z.string(),
+    creatorUserId: z.string().nullable(),
+    creatorCoworkerId: z.string().nullable(),
+    creatorSokoBotId: z.string().uuid().nullable(),
+    state: taskScheduleStateSchema,
+    rule: z.object({
+      expr: z.string(),
+      timezone: z.string(),
+      intervalDays: z.number().int().nullable(),
+      anchorAt: dateTimeSchema,
+      endsMode: taskScheduleEndsModeSchema,
+      endsOn: dateTimeSchema.nullable(),
+      targetOccurrenceCount: z.number().int().nullable(),
+    }),
+    ruleEffectiveFrom: dateTimeSchema,
+    releasedCount: z.number().int(),
+    nextOccurrenceAt: dateTimeSchema.nullable(),
+    revision: z.number().int(),
+    name: z.string(),
+    description: z.string().nullable(),
+    projectId: z.string().uuid().nullable(),
+    visibility: taskVisibilitySchema,
+    assigneeId: z.string().nullable(),
+    assigneeSokoBotId: z.string().uuid().nullable(),
+    assigneeUserId: z.string().nullable(),
+    createdAt: dateTimeSchema,
+    updatedAt: dateTimeSchema,
+  })
+  .openapi("TaskSchedule");
+
+export const taskScheduleParamsSchema = z.object({
+  id: z
+    .string()
+    .uuid()
+    .openapi({
+      param: { name: "id", in: "path" },
+      example: "01960001-0001-7001-8001-000000000042",
+    }),
+});
+
+export type TaskScheduleRule = z.infer<typeof taskScheduleRuleSchema>;
+export type CreateTaskScheduleRequest = z.infer<
+  typeof createTaskScheduleRequestSchema
+>;
+export type UpdateTaskScheduleRequest = z.infer<
+  typeof updateTaskScheduleRequestSchema
+>;
+export type TaskScheduleListQuery = z.infer<typeof taskScheduleListQuerySchema>;
