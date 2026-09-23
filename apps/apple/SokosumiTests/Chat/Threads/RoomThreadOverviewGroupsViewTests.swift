@@ -48,7 +48,7 @@
           #expect(!texts.contains { $0.contains("All caught up") }, "\(texts)")
           #expect(tinted.allSatisfy { CGFloat($0.y) < earlier }, "Only the rows under Unread are tinted.")
         case .allRead:
-          let caughtUp = try #require(top("All caught up."), "\(texts)")
+          let caughtUp = try #require(top("All caught up"), "\(texts)")
           let earlier = try #require(top("Earlier"), "\(texts)")
           let release = try #require(top("Release checklist"), "\(texts)")
           #expect(unreadHeading < caughtUp && caughtUp < earlier && earlier < release, "\(texts)")
