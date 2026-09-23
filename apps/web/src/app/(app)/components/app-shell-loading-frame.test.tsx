@@ -1,6 +1,13 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+// The sidebar and mobile chrome call useSession. The real better-auth session
+// atom schedules a nanostores unmount timer that can fire after happy-dom tears
+// down `window`.
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({ data: null }),
+}));
+
 vi.mock("next/navigation", () => ({
   usePathname: () => "/notifications",
   useSearchParams: () => new URLSearchParams(),
