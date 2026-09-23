@@ -35,6 +35,7 @@ import { toast } from "sonner";
 
 import { loadTaskScheduleDialogOptions } from "@/app/tasks/actions";
 import { canArchiveParkedTaskForViewer } from "@/app/tasks/utils/task-read-only";
+import { taskSchedulePath } from "@/app/tasks/utils/task-schedule-view";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import {
@@ -1011,9 +1012,7 @@ export function TaskDetailActions({
           projectOptions={repeatOptions.projectOptions}
           canCreatePrivate={currentOrganizationId != null}
           onClose={() => setRepeatOptions(null)}
-          onSaved={(scheduleId) =>
-            router.push(`/tasks/schedules/${scheduleId}`)
-          }
+          onSaved={(scheduleId) => router.push(taskSchedulePath(scheduleId))}
         />
       ) : null}
 

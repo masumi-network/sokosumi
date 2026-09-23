@@ -1,6 +1,7 @@
 import "server-only";
 
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
+import type { TaskScheduleStateAction } from "@/lib/clients/core.shared";
 import type {
   CalendarTaskScheduleSource,
   CreateTaskScheduleRequest,
@@ -15,8 +16,6 @@ import type {
   TaskScheduleState,
   UpdateTaskScheduleRequest,
 } from "@/lib/clients/generated/core/types.gen";
-
-export type TaskScheduleStateAction = "pause" | "resume" | "end";
 
 export interface ListTaskSchedulesParams {
   projectId?: string | null;

@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import {
   AlertDialog,
@@ -23,11 +24,11 @@ import {
   deleteTaskSchedule,
   type TaskScheduleActionError,
 } from "@/lib/actions/task-schedule/action";
+import type { TaskScheduleStateAction } from "@/lib/clients/core.shared";
 import {
   type TaskSchedule,
   TaskScheduleState,
 } from "@/lib/clients/generated/core";
-import type { TaskScheduleStateAction } from "@/lib/services/task-schedule.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { TaskScheduleDialog } from "./task-schedule-dialog";
 
@@ -92,7 +93,7 @@ export function TaskScheduleActions({
         return;
       }
       toast.success(tActions("deleted"));
-      router.push("/tasks?tab=schedules");
+      router.push(TASK_SCHEDULES_PATH);
     });
   }
 

@@ -24,7 +24,6 @@ import { getSession } from "@/lib/auth/auth.server";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
 import type {
   Task,
-  TaskSchedule,
   TaskScheduleOccurrence,
   TaskScheduleOccurrenceView,
   TaskScheduleState,
@@ -36,7 +35,10 @@ import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { taskService } from "@/lib/services/task.service";
-import { taskScheduleService } from "@/lib/services/task-schedule.service";
+import {
+  type TaskSchedulesPage,
+  taskScheduleService,
+} from "@/lib/services/task-schedule.service";
 import { listTaskAssigneeMemberOptions } from "./utils/task-assignee-members";
 import { listTaskAssigneeOptions } from "./utils/task-assignee-options";
 import {
@@ -405,10 +407,7 @@ export async function loadMoreTaskSchedules({
   cursor,
   projectId,
   state,
-}: LoadMoreTaskSchedulesParams): Promise<{
-  schedules: TaskSchedule[];
-  nextCursor: string | null;
-}> {
+}: LoadMoreTaskSchedulesParams): Promise<TaskSchedulesPage> {
   return await taskScheduleService.listSchedules({
     cursor,
     projectId: sanitizeProjectIdFilterInput(projectId),

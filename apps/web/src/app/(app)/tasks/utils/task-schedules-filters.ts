@@ -1,7 +1,4 @@
-import {
-  type TaskSchedule,
-  TaskScheduleState,
-} from "@/lib/clients/generated/core";
+import { TaskScheduleState } from "@/lib/clients/generated/core";
 
 export const TASK_SCHEDULE_STATE_PARAM = "scheduleState";
 
@@ -13,20 +10,5 @@ export function parseTaskScheduleStateFilter(
   const value = Array.isArray(raw) ? raw[0] : raw;
   return (
     Object.values(TaskScheduleState).find((state) => state === value) ?? null
-  );
-}
-
-/** The id the assignee picker and option lists use, whatever the kind. */
-export function taskScheduleAssigneeId(
-  schedule: Pick<
-    TaskSchedule,
-    "assigneeId" | "assigneeSokoBotId" | "assigneeUserId"
-  >,
-): string | null {
-  return (
-    schedule.assigneeId ??
-    schedule.assigneeSokoBotId ??
-    schedule.assigneeUserId ??
-    null
   );
 }

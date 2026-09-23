@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -42,6 +42,14 @@ const COWORKER: CoworkerOption = {
     slug: "vendor",
     logos: { light: null, dark: null },
   },
+};
+
+const MEMBER: CoworkerOption = {
+  ...COWORKER,
+  id: "user_2",
+  slug: "maya",
+  name: "Maya",
+  kind: "user",
 };
 
 const SCHEDULE: TaskSchedule = {
@@ -177,6 +185,64 @@ describe("TaskScheduleDialog", () => {
     );
     expect(createTaskScheduleMock).not.toHaveBeenCalled();
     expect(onSaved).toHaveBeenCalledWith(SCHEDULE.id);
+  });
+
+  it.each([
+    ["a custom cron", { expr: "15 7 1,15 * *" }],
+    [
+      "an every-N-days rule",
+      {
+        expr: "0 9 * * *",
+        intervalDays: 3,
+        anchorAt: new Date("2030-01-07T09:00:00.000Z"),
+      },
+    ],
+  ])("keeps %s when only the blueprint changes", async (_label, rule) => {
+    const user = userEvent.setup();
+    renderDialog({
+      schedule: { ...SCHEDULE, rule: { ...SCHEDULE.rule, ...rule } },
+    });
+
+    await user.type(screen.getByLabelText("name"), " (team)");
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(updateTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(updateTaskScheduleMock.mock.calls[0]?.[0]).toMatchObject({
+      name: "Weekly report (team)",
+    });
+    expect(updateTaskScheduleMock.mock.calls[0]?.[0]).not.toHaveProperty(
+      "rule",
+    );
+  });
+
+  it("sends the new rule when the time changes", async () => {
+    const user = userEvent.setup();
+    renderDialog({ schedule: SCHEDULE });
+
+    fireEvent.change(screen.getByLabelText("pickDateTime"), {
+      target: { value: "2030-01-14T10:45" },
+    });
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(updateTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(updateTaskScheduleMock.mock.calls[0]?.[0]).toMatchObject({
+      rule: { expr: "45 10 * * MON", timezone: "Europe/Berlin" },
+    });
+  });
+
+  it("offers no workspace member as assignee of a private schedule", async () => {
+    const user = userEvent.setup();
+    renderDialog({
+      schedule: { ...SCHEDULE, visibility: "PRIVATE" },
+      coworkerOptions: [COWORKER, MEMBER],
+    });
+
+    await user.click(screen.getByRole("combobox", { name: /assignee/ }));
+
+    expect(screen.getByRole("option", { name: /Maya/ })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
   });
 
   it("asks to reload when the schedule changed meanwhile", async () => {

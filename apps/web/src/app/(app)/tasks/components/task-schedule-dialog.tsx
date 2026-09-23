@@ -7,6 +7,7 @@ import { useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { resolveTaskAssigneeFields } from "@/app/tasks/utils/coworker-options";
+import { taskScheduleAssigneeId } from "@/app/tasks/utils/task-schedule-view";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { TaskScheduleSection } from "@/components/task-schedule-section";
 import {
@@ -26,8 +27,8 @@ import {
   type TaskScheduleBlueprintInput,
   updateTaskSchedule,
 } from "@/lib/actions/task-schedule/action";
-import type {
-  TaskSchedule,
+import {
+  type TaskSchedule,
   TaskVisibility,
 } from "@/lib/clients/generated/core";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
@@ -87,13 +88,10 @@ export function TaskScheduleDialog({
     blueprint.projectId ?? null,
   );
   const [assigneeValue, setAssigneeValue] = useState(
-    blueprint.assigneeId ||
-      blueprint.assigneeSokoBotId ||
-      blueprint.assigneeUserId ||
-      "",
+    taskScheduleAssigneeId(blueprint) ?? "",
   );
   const [isPrivate, setIsPrivate] = useState(
-    blueprint.visibility === "PRIVATE",
+    blueprint.visibility === TaskVisibility.PRIVATE,
   );
   const [isSaving, setIsSaving] = useState(false);
   const initialSelection = useMemo<TaskScheduleSelection>(
@@ -114,9 +112,14 @@ export function TaskScheduleDialog({
     blueprint.assigneeSokoBotId,
     blueprint.assigneeUserId,
   );
-  // Core refuses a person on a private schedule, as it does on a private Task.
+  // Core refuses a person on a private schedule, as it does on a private Task:
+  // while private, members cannot be picked; while a member is picked, the
+  // schedule cannot be made private.
   const showPrivateControl =
     !schedule && canCreatePrivate && assignee.assigneeUserId === null;
+  const isPrivateSchedule = schedule
+    ? schedule.visibility === TaskVisibility.PRIVATE
+    : showPrivateControl && isPrivate;
 
   function reportError(error: TaskScheduleActionError) {
     if (error.kind === "stale") {
@@ -152,7 +155,9 @@ export function TaskScheduleDialog({
           })
         : await createTaskSchedule({
             ...input,
-            visibility: showPrivateControl && isPrivate ? "PRIVATE" : "PUBLIC",
+            visibility: isPrivateSchedule
+              ? TaskVisibility.PRIVATE
+              : TaskVisibility.PUBLIC,
             rule,
           });
       if (!result.ok) {
@@ -221,6 +226,11 @@ export function TaskScheduleDialog({
                   agentsGroupLabel: tNewTask("coworker"),
                 }}
                 onSelect={setAssigneeValue}
+                isOptionDisabled={(option) =>
+                  isPrivateSchedule &&
+                  option !== "unassigned" &&
+                  option.kind === "user"
+                }
               />
             </div>
             <div className="space-y-2">

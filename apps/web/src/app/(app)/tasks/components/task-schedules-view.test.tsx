@@ -7,10 +7,13 @@ import type { CoworkerOption } from "@/lib/types/coworker";
 
 import { TaskSchedulesView } from "./task-schedules-view";
 
-const { replaceMock, searchParamsRef } = vi.hoisted(() => ({
-  replaceMock: vi.fn(),
-  searchParamsRef: { current: new URLSearchParams("tab=schedules") },
-}));
+const { loadMoreTaskSchedulesMock, replaceMock, searchParamsRef } = vi.hoisted(
+  () => ({
+    loadMoreTaskSchedulesMock: vi.fn(),
+    replaceMock: vi.fn(),
+    searchParamsRef: { current: new URLSearchParams("tab=schedules") },
+  }),
+);
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
@@ -29,7 +32,7 @@ vi.mock("./task-schedule-dialog", () => ({
 }));
 
 vi.mock("@/app/tasks/actions", () => ({
-  loadMoreTaskSchedules: vi.fn(),
+  loadMoreTaskSchedules: loadMoreTaskSchedulesMock,
 }));
 
 const ELENA: CoworkerOption = {
@@ -82,11 +85,14 @@ function schedule(overrides: Partial<TaskSchedule>): TaskSchedule {
   };
 }
 
-function renderView(schedules: TaskSchedule[] | null) {
+function renderView(
+  schedules: TaskSchedule[] | null,
+  nextCursor: string | null = null,
+) {
   return render(
     <TaskSchedulesView
       schedules={schedules}
-      nextCursor={null}
+      nextCursor={nextCursor}
       coworkerOptions={[ELENA]}
       projectOptions={[]}
       canCreate
@@ -165,6 +171,36 @@ describe("TaskSchedulesView", () => {
     expect(
       screen.getByRole("dialog", { name: "schedule dialog" }),
     ).toBeInTheDocument();
+  });
+
+  it("loads more of the same project and state", async () => {
+    const user = userEvent.setup();
+    const projectId = "33333333-3333-4333-8333-333333333333";
+    searchParamsRef.current = new URLSearchParams(
+      `tab=schedules&projectId=${projectId}&scheduleState=PAUSED`,
+    );
+    loadMoreTaskSchedulesMock.mockResolvedValue({
+      schedules: [
+        schedule({
+          id: "01960001-0001-7001-8001-000000000009",
+          name: "Older schedule",
+        }),
+      ],
+      nextCursor: null,
+    });
+    renderView([schedule({})], "cursor-1");
+
+    await user.click(screen.getByRole("button", { name: "loadMore" }));
+
+    expect(loadMoreTaskSchedulesMock).toHaveBeenCalledWith({
+      cursor: "cursor-1",
+      projectId,
+      state: "PAUSED",
+    });
+    expect(
+      await screen.findByRole("link", { name: /Older schedule/ }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "loadMore" })).toBeNull();
   });
 
   it("shows a loading state until the schedules arrive", () => {

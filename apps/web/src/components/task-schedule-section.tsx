@@ -2,7 +2,7 @@
 
 import { CronExpressionParser as cronParser } from "cron-parser";
 import { useFormatter, useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
@@ -244,6 +244,7 @@ interface TaskScheduleSectionProps {
 export function TaskScheduleSection(props: TaskScheduleSectionProps) {
   const t = useTranslations("App.Tasks.Schedule");
   const formatter = useFormatter();
+  const pickDateTimeId = useId();
   const timezoneOptions = useMemo(
     () => getTimezoneOptions(props.initialSelection?.timezone),
     [props.initialSelection?.timezone],
@@ -449,11 +450,21 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
     if (sel.customCronExpr) {
       setCustomCronExpr(sel.customCronExpr);
     }
-    const derivedPreset = derivePresetFromCron(cron);
+    // An every-N-days rule keeps its day step outside the cron, so its daily
+    // cron must not read as the Daily preset, which would drop the step.
+    const derivedPreset =
+      sel.intervalDays != null && sel.intervalDays > 1
+        ? null
+        : derivePresetFromCron(cron);
     if (derivedPreset) {
       setScheduleOption(derivedPreset.option);
       setOneTimeLocalIso(derivedPreset.iso);
     } else {
+      if (sel.intervalDays != null && sel.intervalDays > 1) {
+        setRepeatEveryUnit("day");
+        setRepeatEveryCount(sel.intervalDays);
+        if (sel.oneTimeLocalIso) setOneTimeLocalIso(sel.oneTimeLocalIso);
+      }
       setScheduleOption("custom");
       if (cron) setCustomCronExpr(cron);
       const derived = deriveBuilderStateFromCron(cron);
@@ -662,8 +673,9 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
         {scheduleOption !== "custom" && (
           <div className="mb-4 space-y-3">
             <div className="flex flex-col gap-2">
-              <Label>{t("pickDateTime")}</Label>
+              <Label htmlFor={pickDateTimeId}>{t("pickDateTime")}</Label>
               <Input
+                id={pickDateTimeId}
                 type="datetime-local"
                 value={oneTimeLocalIso}
                 onChange={(e) => setOneTimeLocalIso(e.target.value)}

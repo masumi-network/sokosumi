@@ -1,4 +1,8 @@
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
+
+/** Pause, resume, and end each have their own Task Schedule route. */
+export type TaskScheduleStateAction = "pause" | "resume" | "end";
+
 import type {
   ActivateEnterpriseContractRequest,
   AdminSokoBotActionRequest,
@@ -3785,7 +3789,7 @@ export function createCoreClient(getClient: GetCoreClient) {
 
   async function changeTaskScheduleState(
     id: string,
-    action: "pause" | "resume" | "end",
+    action: TaskScheduleStateAction,
   ) {
     const operation = {
       pause: corePostTasksSchedulesByIdPause,

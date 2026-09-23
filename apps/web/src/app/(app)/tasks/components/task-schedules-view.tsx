@@ -9,25 +9,25 @@ import { toast } from "sonner";
 
 import { loadMoreTaskSchedules } from "@/app/tasks/actions";
 import {
+  formatTaskScheduleRule,
+  taskScheduleAssigneeLabel,
+  taskSchedulePath,
+} from "@/app/tasks/utils/task-schedule-view";
+import {
   parseTaskScheduleStateFilter,
   TASK_SCHEDULE_STATE_PARAM,
-  taskScheduleAssigneeId,
 } from "@/app/tasks/utils/task-schedules-filters";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
-import {
-  computeScheduleTitleInfo,
-  formatScheduleTitle,
-} from "@/components/schedules/format";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   type TaskSchedule,
   TaskScheduleState,
 } from "@/lib/clients/generated/core";
+import type { TaskSchedulesPage } from "@/lib/services/task-schedule.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
-import { TaskPrivateIndicator } from "./task-private-indicator";
 import { TaskScheduleDialog } from "./task-schedule-dialog";
+import { TaskScheduleStateBadge } from "./task-schedule-state-badge";
 
 const ALL_STATES = "all";
 
@@ -62,10 +62,10 @@ export function TaskSchedulesView({
   );
   const projectId = searchParams.get("projectId");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [more, setMore] = useState<{
-    schedules: TaskSchedule[];
-    nextCursor: string | null;
-  }>({ schedules: [], nextCursor });
+  const [more, setMore] = useState<TaskSchedulesPage>({
+    schedules: [],
+    nextCursor,
+  });
   const [isLoadingMore, startLoadingMore] = useTransition();
 
   function handleStateChange(next: string) {
@@ -182,9 +182,7 @@ export function TaskSchedulesView({
           projectOptions={projectOptions}
           canCreatePrivate={canCreatePrivate}
           onClose={() => setIsCreateOpen(false)}
-          onSaved={(scheduleId) =>
-            router.push(`/tasks/schedules/${scheduleId}`)
-          }
+          onSaved={(scheduleId) => router.push(taskSchedulePath(scheduleId))}
         />
       ) : null}
     </div>
@@ -201,27 +199,11 @@ function TaskScheduleRow({
   const t = useTranslations("App.Tasks.Schedules");
   const tSchedule = useTranslations("App.Tasks.Schedule");
   const formatter = useFormatter();
-  const assigneeId = taskScheduleAssigneeId(schedule);
-  const assignee = assigneeId
-    ? coworkerOptions.find((option) => option.id === assigneeId)
-    : null;
-  const ruleLabel = formatScheduleTitle(
-    computeScheduleTitleInfo(
-      {
-        scheduleType: "CRON",
-        cron: schedule.rule.expr,
-        timezone: schedule.rule.timezone,
-        intervalDays: schedule.rule.intervalDays,
-      },
-      formatter,
-    ),
-    tSchedule,
-  );
 
   return (
     <li>
       <Link
-        href={`/tasks/schedules/${schedule.id}`}
+        href={taskSchedulePath(schedule.id)}
         className="hover:bg-card-background-hover flex flex-col gap-2 px-4 py-3 transition-colors sm:flex-row sm:items-center sm:gap-4"
       >
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -229,7 +211,7 @@ function TaskScheduleRow({
             {schedule.name}
           </span>
           <span className="text-muted-foreground line-clamp-1 text-xs">
-            {ruleLabel}
+            {formatTaskScheduleRule(schedule.rule, formatter, tSchedule)}
           </span>
         </div>
         <div className="text-muted-foreground flex shrink-0 items-center gap-3 text-xs sm:gap-4">
@@ -244,25 +226,15 @@ function TaskScheduleRow({
               : t("noNextRun")}
           </span>
           <span className="max-w-40 truncate">
-            {assignee
-              ? assignee.name
-              : assigneeId
-                ? t("unavailableAssignee")
-                : t("unassigned")}
+            {taskScheduleAssigneeLabel(schedule, coworkerOptions, {
+              unassigned: t("unassigned"),
+              unavailable: t("unavailableAssignee"),
+            })}
           </span>
-          <span className="flex items-center gap-1.5">
-            <Badge
-              variant={
-                schedule.state === TaskScheduleState.ACTIVE
-                  ? "secondary"
-                  : "outline"
-              }
-              className="rounded-sm"
-            >
-              {t(`state.${schedule.state}`)}
-            </Badge>
-            <TaskPrivateIndicator visibility={schedule.visibility} />
-          </span>
+          <TaskScheduleStateBadge
+            schedule={schedule}
+            label={t(`state.${schedule.state}`)}
+          />
         </div>
       </Link>
     </li>

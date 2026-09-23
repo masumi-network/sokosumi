@@ -2,6 +2,7 @@ import { CalendarSync } from "lucide-react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
+import { taskSchedulePath } from "@/app/tasks/utils/task-schedule-view";
 import { taskScheduleService } from "@/lib/services/task-schedule.service";
 
 /**
@@ -25,7 +26,7 @@ export async function TaskFromSchedule({
       <CalendarSync className="size-4 shrink-0" aria-hidden />
       {schedule ? (
         <Link
-          href={`/tasks/schedules/${schedule.id}`}
+          href={taskSchedulePath(schedule.id)}
           className="text-primary hover:underline"
         >
           {t("fromSchedule", { name: schedule.name })}

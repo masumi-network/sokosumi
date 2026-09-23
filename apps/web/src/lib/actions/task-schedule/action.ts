@@ -1,7 +1,7 @@
 "use server";
 
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-import { err, ok, type Result } from "neverthrow";
+import { ResultAsync } from "neverthrow";
 import { revalidatePath } from "next/cache";
 
 import {
@@ -9,15 +9,13 @@ import {
   toActionResult,
 } from "@/lib/actions/action-result";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
+import type { TaskScheduleStateAction } from "@/lib/clients/core.shared";
 import type {
   TaskScheduleRule,
   TaskScheduleRuleReplacement,
   TaskVisibility,
 } from "@/lib/clients/generated/core";
-import {
-  type TaskScheduleStateAction,
-  taskScheduleService,
-} from "@/lib/services/task-schedule.service";
+import { taskScheduleService } from "@/lib/services/task-schedule.service";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -96,13 +94,9 @@ function revalidateTaskSchedule(scheduleId: string): void {
 async function runTaskScheduleAction<T>(
   operation: () => Promise<T>,
 ): Promise<TaskScheduleActionResult<T>> {
-  let result: Result<T, TaskScheduleActionError>;
-  try {
-    result = ok(await operation());
-  } catch (error) {
-    result = err(toTaskScheduleActionError(error));
-  }
-  return toActionResult(result);
+  return toActionResult(
+    await ResultAsync.fromPromise(operation(), toTaskScheduleActionError),
+  );
 }
 
 export const createTaskSchedule = withSession<

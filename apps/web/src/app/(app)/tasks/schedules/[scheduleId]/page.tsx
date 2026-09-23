@@ -6,9 +6,8 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
 import TaskDetailLoading from "@/app/tasks/[taskId]/loading";
-
-import { TaskPrivateIndicator } from "@/app/tasks/components/task-private-indicator";
 import { TaskScheduleActions } from "@/app/tasks/components/task-schedule-actions";
+import { TaskScheduleStateBadge } from "@/app/tasks/components/task-schedule-state-badge";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import {
   TASK_DETAIL_GRID_CLASS,
@@ -17,12 +16,12 @@ import {
   TASK_DETAIL_SIDEBAR_CLASS,
 } from "@/app/tasks/constants";
 import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options";
-import { taskScheduleAssigneeId } from "@/app/tasks/utils/task-schedules-filters";
-import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import {
-  computeScheduleTitleInfo,
-  formatScheduleTitle,
-} from "@/components/schedules/format";
+  formatTaskScheduleRule,
+  TASK_SCHEDULES_PATH,
+  taskScheduleAssigneeLabel,
+} from "@/app/tasks/utils/task-schedule-view";
+import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { Badge } from "@/components/ui/badge";
 import { getSession } from "@/lib/auth/auth.server";
 import {
@@ -92,24 +91,10 @@ async function TaskScheduleDetailContent({
     getFormatter(),
   ]);
   const statusLabels = buildTaskStatusLabels((key) => tStatus(key));
-  const assigneeId = taskScheduleAssigneeId(schedule);
-  const assignee = coworkerOptions.find((option) => option.id === assigneeId);
   const project = projectOptions.find(
     (option) => option.id === schedule.projectId,
   );
   const upcomingRuns = runs.filter((run) => run.state !== "CANCELED");
-  const ruleLabel = formatScheduleTitle(
-    computeScheduleTitleInfo(
-      {
-        scheduleType: "CRON",
-        cron: schedule.rule.expr,
-        timezone: schedule.rule.timezone,
-        intervalDays: schedule.rule.intervalDays,
-      },
-      formatter,
-    ),
-    tSchedule,
-  );
 
   return (
     <div className="min-h-full w-full">
@@ -119,7 +104,7 @@ async function TaskScheduleDetailContent({
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <Link
-                  href="/tasks?tab=schedules"
+                  href={TASK_SCHEDULES_PATH}
                   className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
                 >
                   <ArrowLeft className="size-4" aria-hidden />
@@ -236,21 +221,14 @@ async function TaskScheduleDetailContent({
               </h2>
               <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-3 text-sm">
                 <Property label={t("Detail.state")}>
-                  <span className="flex items-center gap-1.5">
-                    <Badge
-                      variant={
-                        schedule.state === TaskScheduleState.ACTIVE
-                          ? "secondary"
-                          : "outline"
-                      }
-                      className="rounded-sm"
-                    >
-                      {t(`state.${schedule.state}`)}
-                    </Badge>
-                    <TaskPrivateIndicator visibility={schedule.visibility} />
-                  </span>
+                  <TaskScheduleStateBadge
+                    schedule={schedule}
+                    label={t(`state.${schedule.state}`)}
+                  />
                 </Property>
-                <Property label={t("Detail.rule")}>{ruleLabel}</Property>
+                <Property label={t("Detail.rule")}>
+                  {formatTaskScheduleRule(schedule.rule, formatter, tSchedule)}
+                </Property>
                 <Property label={t("Detail.timezone")}>
                   {schedule.rule.timezone}
                 </Property>
@@ -265,11 +243,10 @@ async function TaskScheduleDetailContent({
                   )}
                 </Property>
                 <Property label={t("Detail.assignee")}>
-                  {assignee
-                    ? assignee.name
-                    : assigneeId
-                      ? t("unavailableAssignee")
-                      : t("unassigned")}
+                  {taskScheduleAssigneeLabel(schedule, coworkerOptions, {
+                    unassigned: t("unassigned"),
+                    unavailable: t("unavailableAssignee"),
+                  })}
                 </Property>
                 <Property label={t("Detail.project")}>
                   {project ? (
