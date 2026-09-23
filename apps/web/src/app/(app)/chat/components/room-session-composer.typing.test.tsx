@@ -16,13 +16,6 @@ import {
 const handleComposerChangeSpy = vi.fn();
 const handleStopTypingSpy = vi.fn();
 
-// RoomComposer mounts DriveFilePicker, which calls useSession. The real
-// better-auth session atom schedules a nanostores unmount timer that can fire
-// after happy-dom tears down `window`.
-vi.mock("@/lib/auth/auth.client", () => ({
-  useSession: () => ({ data: null }),
-}));
-
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
   useFormatter: () => ({ dateTime: () => "" }),
