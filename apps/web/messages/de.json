@@ -5639,7 +5639,7 @@
         "startedBy": "Gestartet von {name}",
         "unreadThreads": "{count, plural, one {# ungelesener Thread} other {# ungelesene Threads}}",
         "unreadThreadsCapped": "Mehr als {max} ungelesene Threads",
-        "newReplies": "{count, plural, one {# neu} other {# neu}}"
+        "newReplies": "{count, plural, one {# neue} other {# neue}}"
       },
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# ungelesene Nachricht} other {# ungelesene Nachrichten}}",

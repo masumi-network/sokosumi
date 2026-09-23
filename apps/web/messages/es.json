@@ -5639,7 +5639,7 @@
         "startedBy": "Iniciado por {name}",
         "unreadThreads": "{count, plural, one {# hilo no leído} other {# hilos no leídos}}",
         "unreadThreadsCapped": "Más de {max} hilos no leídos",
-        "newReplies": "{count, plural, one {# nuevo} other {# nuevos}}"
+        "newReplies": "{count, plural, one {# nueva} other {# nuevas}}"
       },
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# mensaje no leído} other {# mensajes no leídos}}",
