@@ -7,7 +7,7 @@ import { taskSchedulesSyncService } from "@/services/task-schedules-sync";
 
 import { handleSyncRequest } from "../handler.js";
 
-export const TASK_SCHEDULES_SYNC_LOCK_KEY = "task-schedules-sync";
+const TASK_SCHEDULES_SYNC_LOCK_KEY = "task-schedules-sync";
 
 export default function mount(app: Hono) {
   app.get("/task-schedules", async (c) => {

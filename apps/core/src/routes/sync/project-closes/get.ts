@@ -4,7 +4,7 @@ import { projectCloseSyncService } from "@/services/project-close-sync.service";
 
 import { handleSyncRequest } from "../handler.js";
 
-export const PROJECT_CLOSES_SYNC_LOCK_KEY = "project-closes-sync";
+const PROJECT_CLOSES_SYNC_LOCK_KEY = "project-closes-sync";
 
 export default function mount(app: Hono) {
   app.get("/project-closes", async (c) => {
