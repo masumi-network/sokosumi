@@ -6305,7 +6305,8 @@
       "view": {
         "month": "Month",
         "week": "Week",
-        "agenda": "Agenda"
+        "agenda": "Agenda",
+        "schedules": "Schedules"
       },
       "source": {
         "label": "Source",
@@ -6371,7 +6372,15 @@
         "label": "Time zone"
       },
       "empty": {
-        "title": "No scheduled releases match these filters."
+        "title": "No scheduled releases match these filters.",
+        "schedulesTitle": "No schedules match these filters."
+      },
+      "schedules": {
+        "nextRun": "Next run",
+        "noNextRun": "No upcoming run",
+        "edit": "Edit schedule",
+        "openTask": "Open task",
+        "loadMore": "Load more"
       },
       "pagination": {
         "error": "Unable to load more events."
