@@ -150,4 +150,42 @@ describe("hydrateChatRoomMessageFromRealtime", () => {
 
     expect(hydrated.metadata).toEqual({ client_message_id: "turn-1" });
   });
+
+  it("preserves thread repliers from realtime payloads", () => {
+    const threadRepliers = [
+      {
+        type: "user",
+        user: {
+          id: "user_2",
+          name: "Grace",
+          email: "grace@example.com",
+          image: null,
+          presence: "offline",
+        },
+      },
+    ];
+
+    const hydrated = hydrateChatRoomMessageFromRealtime({
+      id: "550e8400-e29b-41d4-a716-446655440003",
+      roomId: "660e8400-e29b-41d4-a716-446655440000",
+      parentMessageId: null,
+      content: "Thread parent",
+      createdAt: "2026-08-03T12:00:00.000Z",
+      deletedAt: null,
+      editedAt: "2026-08-03T12:05:00.000Z",
+      pinnedAt: null,
+      sender: { type: "unknown" },
+      mentions: [],
+      reactions: [],
+      threadReplyCount: 1,
+      threadLastReplyAt: "2026-08-03T12:04:00.000Z",
+      threadRepliers,
+      metadata: null,
+      quote: null,
+      membership: null,
+      unfurls: null,
+    });
+
+    expect(hydrated.threadRepliers).toEqual(threadRepliers);
+  });
 });
