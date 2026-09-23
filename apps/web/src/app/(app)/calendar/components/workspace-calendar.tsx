@@ -1545,7 +1545,7 @@ export function WorkspaceCalendar({
       ) : null}
       <div className="flex flex-wrap items-center gap-4">
         {view === "month" || view === "week" ? (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 max-sm:w-full">
             <Button
               aria-label={t("previous")}
               size="icon"
@@ -1569,9 +1569,9 @@ export function WorkspaceCalendar({
           </div>
         ) : null}
 
-        <div className="ms-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2">
+        <div className="ms-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2 max-sm:w-full max-sm:flex-nowrap">
           <Tabs
-            className="min-w-0 max-w-full"
+            className="min-w-0 max-w-full max-sm:flex-1"
             value={view}
             onValueChange={(value) => {
               const nextView = CALENDAR_VIEWS.find(
@@ -1585,13 +1585,16 @@ export function WorkspaceCalendar({
             <TabsList
               className={cn(
                 SEGMENTED_TABS_LIST_CLASS_NAME,
-                "h-auto max-w-full w-fit flex-wrap",
+                "h-auto max-w-full w-fit flex-wrap max-sm:w-full max-sm:flex-nowrap max-sm:justify-start max-sm:gap-0 max-sm:overflow-x-auto",
               )}
               data-testid="calendar-views"
             >
               {CALENDAR_VIEWS.map((calendarView) => (
                 <TabsTrigger
-                  className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
+                  className={cn(
+                    SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+                    "max-sm:px-1.5 max-sm:text-xs",
+                  )}
                   key={calendarView}
                   value={calendarView}
                 >
