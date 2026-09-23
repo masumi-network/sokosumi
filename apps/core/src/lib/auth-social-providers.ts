@@ -28,6 +28,14 @@ export const accountOptions = {
     trustedProviders: ["google", "microsoft"],
     // requireLocalEmailVerified omitted so the 1.7 default (true) applies.
   },
+  // The key derives from BETTER_AUTH_SECRET, or from the first entry of
+  // BETTER_AUTH_SECRETS when that is set. To rotate, set BETTER_AUTH_SECRETS
+  // and keep BETTER_AUTH_SECRET as the legacy key: replacing it in place makes
+  // the encrypted tokens unreadable. Turning this off needs a decrypt backfill
+  // first, or Better Auth returns the stored ciphertext as the token. Tokens
+  // stored before this stay plaintext until the provider sends new ones, and
+  // Better Auth still reads them. idToken is never encrypted (SOK-1178).
+  encryptOAuthTokens: true,
 } satisfies BetterAuthOptions["account"];
 
 interface MappedProfileNameImage {

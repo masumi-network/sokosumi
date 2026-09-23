@@ -56,3 +56,7 @@ for (const [key, value] of Object.entries(envDefaults)) {
   }
   process.env[key] = value;
 }
+
+// Tests use BETTER_AUTH_SECRET alone. A BETTER_AUTH_SECRETS value from the
+// shell would switch Better Auth to versioned keys.
+delete process.env.BETTER_AUTH_SECRETS;
