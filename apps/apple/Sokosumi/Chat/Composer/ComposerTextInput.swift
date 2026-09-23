@@ -63,15 +63,10 @@ import SwiftUI
         }
         Spacer(minLength: 8)
         if content.showsCounter {
-          Text("\(content.count)/\(ComposerContent.maximumLength)")
-            .font(.caption)
-            .foregroundStyle(content.isTooLong ? .red : .secondary)
-            .accessibilityLabel("Message length: \(content.count) of \(ComposerContent.maximumLength)")
+          ComposerCharacterCount(content: content)
         }
-        if let cancelEdit {
-          Button("Cancel", action: cancelEdit)
-          Button("Save") { _ = submit() }.buttonStyle(.borderedProminent).disabled(!canSend)
-        } else {
+        // Like web, the edit composer has no buttons: Return saves, Escape cancels (row 18b).
+        if cancelEdit == nil {
           Button("Send", systemImage: "arrow.up") { _ = submit() }
             .labelStyle(.iconOnly)
             .buttonStyle(.borderedProminent)
