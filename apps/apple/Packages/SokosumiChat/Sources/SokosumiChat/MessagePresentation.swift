@@ -1,10 +1,6 @@
 import CoreAPI
 import Foundation
 
-/// Slack-style gap before a same-sender burst starts a new full header.
-/// Mirrors web `MESSAGE_GROUP_GAP_MS`.
-let messageGroupGapSeconds: TimeInterval = 5 * 60
-
 /// Stable sender identity for grouping; nil when identity is unknown.
 /// Mirrors web `messageSenderKey`.
 private func messageSenderKey(_ message: Components.Schemas.ChatRoomMessage) -> String? {
@@ -27,7 +23,7 @@ private func messageSenderKey(_ message: Components.Schemas.ChatRoomMessage) -> 
 public func isMessageContinuation(
   previous: Components.Schemas.ChatRoomMessage?,
   current: Components.Schemas.ChatRoomMessage,
-  gapSeconds: TimeInterval = messageGroupGapSeconds,
+  gapSeconds: TimeInterval = 5 * 60,
   calendar: Calendar = .current
 ) -> Bool {
   guard let previous else { return false }
