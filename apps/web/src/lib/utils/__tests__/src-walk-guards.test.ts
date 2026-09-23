@@ -321,6 +321,14 @@ const STYLE_OBJECT_FRACTIONAL =
 const TAILWIND_FRACTIONAL =
   /(?:^|[\s"'`:])-?(?:w|h|size|min-w|max-w|min-h|max-h|p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|gap|gap-x|gap-y|top|right|bottom|left|inset|inset-x|inset-y|border|border-x|border-y|border-t|border-r|border-b|border-l|outline|outline-offset|ring|ring-offset)-\[\d*\.\d+px\]/;
 
+/*
+ * There is deliberately no line-level exemption list. The three patterns above
+ * name the properties and utilities they cover, and none of them is a blur, a
+ * shadow, a filter or a transform, so a continuous value is already out of
+ * scope. An exemption keyed on the whole line would instead disarm the check
+ * for any line that happens to also carry `shadow-lg`, which is most of them.
+ */
+
 describe("whole pixels", () => {
   it("puts no fractional px on a layout or border length", () => {
     const violations: string[] = [];
