@@ -5470,7 +5470,8 @@
         "filterOn": "Mostrando solo lo no leído",
         "markAllRead": "Marcar todo como leído",
         "markAllReadError": "No se pudo marcar todo como leído.",
-        "caughtUp": "Estás al día"
+        "caughtUp": "Estás al día",
+        "allThreads": "Todos los hilos"
       },
       "ThreadsView": {
         "title": "Hilos",

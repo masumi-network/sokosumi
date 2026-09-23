@@ -5470,7 +5470,8 @@
         "filterOn": "Showing unread only",
         "markAllRead": "Mark all as read",
         "markAllReadError": "Could not mark everything as read.",
-        "caughtUp": "You’re all caught up"
+        "caughtUp": "You’re all caught up",
+        "allThreads": "All threads"
       },
       "ThreadsView": {
         "title": "Threads",

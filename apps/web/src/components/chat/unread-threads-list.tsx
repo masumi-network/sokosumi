@@ -45,10 +45,47 @@ function unreadThreadsFingerprint(rooms: readonly ChatRoom[]): string {
     .join(",");
 }
 
+type UnreadThreadsInitial = UnreadThreadsListProps["initial"];
+
+/**
+ * The unread Threads read, keyed by the rooms' fingerprint. The list reads
+ * it, and the sidebar's Threads row reads it too, ahead of the pointer, so
+ * the flyout opens onto rows rather than a spinner.
+ */
+export function useUnreadThreadsQuery({
+  rooms,
+  initial = null,
+  enabled = true,
+}: {
+  rooms: readonly ChatRoom[];
+  initial?: UnreadThreadsInitial;
+  enabled?: boolean;
+}) {
+  const fingerprint = unreadThreadsFingerprint(rooms);
+  // initialData is fresh for the app query client's 60s staleTime. Only the
+  // rooms the server page was rendered with may claim it; a live fingerprint
+  // that has already moved must read Core, or the stale page sticks.
+  const serverFingerprint = initial
+    ? unreadThreadsFingerprint(initial.rooms)
+    : null;
+  return useInfiniteQuery({
+    queryKey: ["chat", "unread-threads", fingerprint],
+    queryFn: ({ pageParam }) => fetchChatUnreadThreads(pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    initialData:
+      initial && fingerprint === serverFingerprint
+        ? { pages: [initial.page], pageParams: [undefined] }
+        : undefined,
+    placeholderData: keepPreviousData,
+    enabled,
+  });
+}
+
 /**
  * Every unread Thread across the reader's rooms (SOK-1159), newest unread
- * reply first, each naming its room: the Threads popover on the desktop
- * sidebar and the `/chat/threads` page on the phone. Opening one opens the
+ * reply first, each naming its room: the Threads flyout on the desktop
+ * sidebar and the `/chat/threads` page. Opening one opens the
  * Thread in its room; reading it removes it on the next read of the rooms,
  * and at zero the list says the reader is caught up.
  */
@@ -60,26 +97,8 @@ export function UnreadThreadsList({
 }: UnreadThreadsListProps) {
   const t = useTranslations("App.Channels.ThreadsView");
   const roomsById = new Map(rooms.map((room) => [room.id, room]));
-  const fingerprint = unreadThreadsFingerprint(rooms);
-  // initialData is fresh for the app query client's 60s staleTime. Only the
-  // rooms the server page was rendered with may claim it; a live fingerprint
-  // that has already moved must read Core, or the stale page sticks.
-  const serverFingerprint = initial
-    ? unreadThreadsFingerprint(initial.rooms)
-    : null;
   const { threadCount } = resolveUnreadThreadsAttention(rooms);
-
-  const query = useInfiniteQuery({
-    queryKey: ["chat", "unread-threads", fingerprint],
-    queryFn: ({ pageParam }) => fetchChatUnreadThreads(pageParam),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
-    initialData:
-      initial && fingerprint === serverFingerprint
-        ? { pages: [initial.page], pageParams: [undefined] }
-        : undefined,
-    placeholderData: keepPreviousData,
-  });
+  const query = useUnreadThreadsQuery({ rooms, initial });
 
   const seen = new Set<string>();
   const fetched = (query.data?.pages ?? []).flatMap((page) => page.threads);

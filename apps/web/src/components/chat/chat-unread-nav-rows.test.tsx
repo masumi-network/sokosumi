@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
-import { isValidElement, type ReactNode } from "react";
+import { type ComponentProps, isValidElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import messages from "@/../messages/en.json";
 import type { ChatRoom } from "@/lib/clients/generated/core";
@@ -37,19 +37,14 @@ vi.mock("next/navigation", () => ({
   usePathname: () => navigation.pathname,
 }));
 
+// Every prop through, as the real link does: the row's flyout handlers,
+// `aria-expanded` and its ref ride on it.
 vi.mock("next/link", () => ({
   default: ({
     children,
-    href,
-    "aria-current": ariaCurrent,
-  }: {
-    children: ReactNode;
-    href: string;
-    "aria-current"?: "page";
-  }) => (
-    <a href={href} aria-current={ariaCurrent}>
-      {children}
-    </a>
+    ...props
+  }: { children: ReactNode } & ComponentProps<"a">) => (
+    <a {...props}>{children}</a>
   ),
 }));
 
@@ -86,10 +81,13 @@ vi.mock("@/components/ui/sheet", () => ({
 
 // A marker, not the list: what it fetches and draws belongs to
 // `unread-threads-list`. These rows decide where it opens and what it reads.
+const { prefetchMock } = vi.hoisted(() => ({ prefetchMock: vi.fn() }));
+
 vi.mock("@/components/chat/unread-threads-list", () => ({
   UnreadThreadsList: ({ rooms }: { rooms: ChatRoom[] }) => (
     <div data-testid="unread-threads-list" data-room-count={rooms.length} />
   ),
+  useUnreadThreadsQuery: (options: unknown) => prefetchMock(options),
 }));
 
 function unreadThread(id: string, unreadMentionCount = 0) {
@@ -141,20 +139,35 @@ beforeEach(() => {
 });
 
 describe("ChatUnreadNavRows", () => {
-  it("opens the unread Threads beside the row on the desktop", async () => {
+  it("stays a link to the Threads page, with the list beside it on the desktop", async () => {
     const rooms = [makeRoom({ unreadThreadCount: 1 })];
     renderRows(rooms);
 
-    const trigger = threadsRow();
-    expect(trigger.tagName).toBe("BUTTON");
-    expect(screen.queryByTestId("unread-threads-list")).toBeNull();
-    await userEvent.click(trigger);
+    const row = threadsRow();
+    expect(row).toHaveAttribute("href", "/chat/threads");
+    expect(row).toHaveAttribute("aria-expanded", "false");
+    // Read ahead, so the panel opens onto rows rather than a spinner.
+    expect(prefetchMock).toHaveBeenCalledWith({ rooms, enabled: true });
+
+    row.focus();
+    await userEvent.keyboard("{ArrowRight}");
 
     expect(screen.getByTestId("unread-threads-list")).toHaveAttribute(
       "data-room-count",
       "1",
     );
-    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("link", { name: "All threads" })).toHaveAttribute(
+      "href",
+      "/chat/threads",
+    );
+    expect(row).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("offers no panel with nothing to preview", () => {
+    renderRows([]);
+
+    expect(threadsRow()).not.toHaveAttribute("aria-expanded");
+    expect(prefetchMock).toHaveBeenCalledWith({ rooms: [], enabled: false });
   });
 
   it("goes to the Threads page on the phone, which has no side to open into", () => {
@@ -197,6 +210,9 @@ describe("ChatUnreadNavRows", () => {
     renderRows(rooms, { unreadOnly: true });
     const toggle = screen.getByRole("button", { name: /^All unreads/ });
     expect(toggle).toHaveAttribute("aria-pressed", "true");
+    // A mode, not the page the reader is on: tinted, never the grey fill.
+    expect(toggle).toHaveAttribute("data-filter-on", "true");
+    expect(toggle.className).toContain("bg-primary-quaternary");
     // The label keeps clear of the button standing over the row's end.
     expect(
       toggle.querySelector('[data-slot="mark-all-spacer"]'),

@@ -4,7 +4,7 @@ import { CheckCheck, Inbox, Loader2, MessagesSquare } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useState, useTransition } from "react";
+import { type ReactNode, useId, useTransition } from "react";
 import { toast } from "sonner";
 
 import { markAllChatUnreadReadAction } from "@/app/chat/actions";
@@ -18,11 +18,14 @@ import {
   roomUnreadReads,
 } from "@/components/chat/room-attention";
 import { ROOM_COUNT_CAP } from "@/components/chat/room-count-label";
-import { UnreadThreadsList } from "@/components/chat/unread-threads-list";
+import {
+  UnreadThreadsList,
+  useUnreadThreadsQuery,
+} from "@/components/chat/unread-threads-list";
 import {
   Popover,
+  PopoverAnchor,
   PopoverContent,
-  PopoverTrigger,
 } from "@/components/ui/popover";
 import { SheetClose } from "@/components/ui/sheet";
 import {
@@ -34,9 +37,11 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
+import { useSidebarFlyout } from "@/hooks/use-sidebar-flyout";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
+/** A row at rest, as the room rows draw theirs. */
 const THREADS_ROW_CLASS =
   "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
 
@@ -88,7 +93,14 @@ export function ChatUnreadNavRows({
   const threadsActive = pathname === CHAT_THREADS_PATH;
   const hasCount = threadCount > 0;
   const [isMarking, startMarking] = useTransition();
-  const [threadsOpen, setThreadsOpen] = useState(false);
+  // Desktop only, and only while there is something to preview.
+  const hasPanel = !isMobile && hasCount;
+  const { open, setOpen, rowProps, contentProps } = useSidebarFlyout({
+    enabled: hasPanel,
+  });
+  const panelHeadingId = useId();
+  // Read ahead of the pointer, so the panel opens onto rows, not a spinner.
+  useUnreadThreadsQuery({ rooms, enabled: hasPanel });
   const markAllTargets = rooms
     .map((room) => ({ roomId: room.id, ...roomUnreadReads(room) }))
     .filter((target) => target.readRoom || target.lookThreads);
@@ -105,8 +117,6 @@ export function ChatUnreadNavRows({
     });
   }
 
-  // What the row holds, whichever element carries it: a link on the phone,
-  // the popover's trigger on the desktop sidebar and rail.
   const threadsRowContent = (
     <>
       <SidebarRowSlot>
@@ -148,73 +158,79 @@ export function ChatUnreadNavRows({
     </>
   );
 
+  // A link to the Threads page everywhere. On the phone that is all it is:
+  // the Chats list fills the screen and leaves no side for a panel.
+  const threadsRow = (
+    <SidebarMenuButton
+      asChild
+      isActive={threadsActive}
+      // On the rail the panel names the row, so a tooltip would race it to
+      // the same spot. Without a panel the tooltip is all that names it.
+      tooltip={hasPanel ? undefined : t("threads")}
+    >
+      {wrapLink(
+        <Link
+          {...rowProps}
+          href={CHAT_THREADS_PATH}
+          aria-current={threadsActive ? "page" : undefined}
+          className={THREADS_ROW_CLASS}
+        >
+          {threadsRowContent}
+        </Link>,
+      )}
+    </SidebarMenuButton>
+  );
+
   return (
     <SidebarMenu className="gap-0" aria-label={t("label")}>
       <SidebarMenuItem className="relative">
         <div className="relative">
           {rail ? <RailAttentionPill variant={rail} /> : null}
-          {threadsActive || threadsOpen ? <SidebarRailSelectionBar /> : null}
-          {isMobile ? (
-            // The phone's list fills the screen, so there is no side for a
-            // popover to open into: the entry goes to the Threads page.
-            <SidebarMenuButton
-              asChild
-              isActive={threadsActive}
-              tooltip={t("threads")}
-            >
-              {wrapLink(
-                <Link
-                  href={CHAT_THREADS_PATH}
-                  aria-current={threadsActive ? "page" : undefined}
-                  className={THREADS_ROW_CLASS}
-                >
-                  {threadsRowContent}
-                </Link>,
-              )}
-            </SidebarMenuButton>
-          ) : (
-            // Desktop, expanded and rail alike: the list opens beside the
-            // row, so the reader checks their Threads without leaving the
-            // room they are in. A click popover, so the keyboard reaches it
-            // too, which the room rows' hover flyout does not allow.
-            <Popover open={threadsOpen} onOpenChange={setThreadsOpen}>
-              <SidebarMenuButton
-                asChild
-                isActive={threadsActive || threadsOpen}
-                tooltip={t("threads")}
-              >
-                <PopoverTrigger asChild>
-                  <button type="button" className={THREADS_ROW_CLASS}>
-                    {threadsRowContent}
-                  </button>
-                </PopoverTrigger>
-              </SidebarMenuButton>
+          {threadsActive ? <SidebarRailSelectionBar /> : null}
+          {hasPanel ? (
+            // The Projects row's flyout (`useSidebarFlyout`): a click still
+            // opens the page, the pointer or the arrow keys open the list
+            // beside the row, so the reader checks their Threads without
+            // leaving the room they are in.
+            <Popover open={open} onOpenChange={setOpen} modal={false}>
+              <PopoverAnchor asChild>{threadsRow}</PopoverAnchor>
               <PopoverContent
                 side="right"
                 align="start"
-                sideOffset={12}
-                aria-label={t("threads")}
+                sideOffset={8}
+                aria-labelledby={panelHeadingId}
                 className="flex max-h-[min(32rem,var(--radix-popover-content-available-height))] w-80 flex-col gap-2 overflow-y-auto p-2"
-                // Following a row opens its Thread in its room; the list has
+                {...contentProps}
+                // Following a row opens its Thread in its room; the panel has
                 // done its job there.
                 onClick={(event) => {
                   if ((event.target as HTMLElement).closest("a")) {
-                    setThreadsOpen(false);
+                    setOpen(false);
                   }
                 }}
               >
-                <p className="px-2 pt-1 text-sm font-semibold">
+                <p
+                  id={panelHeadingId}
+                  className="px-2 pt-1 text-sm font-semibold"
+                >
                   {t("threads")}
                 </p>
-                {threadsOpen ? (
-                  <UnreadThreadsList
-                    rooms={rooms}
-                    roomsLive
-                    currentUserId={currentUserId}
-                  />
-                ) : null}
+                <UnreadThreadsList
+                  rooms={rooms}
+                  roomsLive
+                  currentUserId={currentUserId}
+                />
+                <div className="bg-border h-px" />
+                <Link
+                  href={CHAT_THREADS_PATH}
+                  className="text-muted-foreground ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground block rounded-md px-2 py-1.5 text-sm outline-hidden focus-visible:ring-2"
+                >
+                  {t("allThreads")}
+                </Link>
               </PopoverContent>
             </Popover>
+          ) : (
+            threadsRow
           )}
           {hasCount ? (
             <span
@@ -228,16 +244,20 @@ export function ChatUnreadNavRows({
         </div>
       </SidebarMenuItem>
       <SidebarMenuItem className="relative">
-        <SidebarMenuButton
-          asChild
-          isActive={unreadOnly}
-          tooltip={t("allUnreads")}
-        >
+        {/* A mode, not a place: grey fill says "the page you are on", so
+            the filter takes the primary tint the app uses for what is on
+            and for the reader instead. */}
+        <SidebarMenuButton asChild tooltip={t("allUnreads")}>
           <button
             type="button"
             aria-pressed={unreadOnly}
+            data-filter-on={unreadOnly ? "true" : undefined}
             onClick={() => onUnreadOnlyChange(!unreadOnly)}
-            className="text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            className={
+              unreadOnly
+                ? "bg-primary-quaternary text-primary-variant hover:bg-primary-quaternary hover:text-primary-variant font-medium"
+                : THREADS_ROW_CLASS
+            }
           >
             <SidebarRowSlot>
               <Inbox className="size-4" aria-hidden />
@@ -268,7 +288,10 @@ export function ChatUnreadNavRows({
               disabled={isMarking}
               aria-busy={isMarking}
               onClick={handleMarkAllRead}
-              className={CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME}
+              className={cn(
+                CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME,
+                "text-primary-variant",
+              )}
             >
               {isMarking ? (
                 <Loader2
