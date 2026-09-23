@@ -107,12 +107,14 @@ export function UnreadThreadsList({
   const tGroups = useTranslations("App.Channels.UnreadThreads");
   const roomsById = new Map(rooms.map((room) => [room.id, room]));
   const { threadCount } = resolveUnreadThreadsAttention(rooms);
-  // Live rooms at zero already answer: nothing to ask Core.
+  // Live rooms at zero already answer: nothing to ask Core. An empty roster
+  // that is not a live answer is a gap, not caught up, so it waits.
   const roomsSayCaughtUp = roomsLive && threadCount === 0;
+  const waitingForRooms = !roomsLive && rooms.length === 0;
   const query = useUnreadThreadsQuery({
     rooms,
     initial,
-    enabled: !roomsSayCaughtUp,
+    enabled: !roomsSayCaughtUp && !waitingForRooms,
   });
 
   const seen = new Set<string>();

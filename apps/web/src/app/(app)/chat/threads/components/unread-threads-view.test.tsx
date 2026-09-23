@@ -161,6 +161,46 @@ describe("UnreadThreadsView", () => {
     expect(fetchUnreadThreadsMock).toHaveBeenCalledWith(undefined);
   });
 
+  it("drops the server page when the live rooms are cleared", () => {
+    function Probe({ live }: { live: ChatRoom[] | null }) {
+      liveRooms.current = live;
+      return (
+        <UnreadThreadsView
+          initialPage={page()}
+          initialRooms={[sokosumi, design]}
+          currentUserId="user-1"
+        />
+      );
+    }
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: 60_000 } },
+    });
+    const { rerender } = render(
+      <QueryClientProvider client={client}>
+        <NextIntlClientProvider locale="en" messages={messages}>
+          <Probe live={[sokosumi, design]} />
+        </NextIntlClientProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      screen.getByRole("link", { name: /added it into linear/ }),
+    ).toBeInTheDocument();
+
+    rerender(
+      <QueryClientProvider client={client}>
+        <NextIntlClientProvider locale="en" messages={messages}>
+          <Probe live={null} />
+        </NextIntlClientProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      screen.queryByRole("link", { name: /added it into linear/ }),
+    ).not.toBeInTheDocument();
+    expect(fetchUnreadThreadsMock).not.toHaveBeenCalled();
+  });
+
   it("reads the first page itself when the server's read failed", async () => {
     renderView(null);
 

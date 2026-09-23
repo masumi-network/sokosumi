@@ -74,6 +74,7 @@ export function ThreadListPanel({
   const [items, setItems] = useState<ChatRoomThread[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [olderFailed, setOlderFailed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
@@ -84,6 +85,7 @@ export function ThreadListPanel({
     const requestId = ++listRequestIdRef.current;
     setIsLoading(true);
     setError(null);
+    setOlderFailed(false);
     try {
       const result = await listThreadsAction(roomId);
       if (requestId !== listRequestIdRef.current) {
@@ -124,13 +126,17 @@ export function ThreadListPanel({
     }
     const requestId = ++listRequestIdRef.current;
     setIsLoadingOlder(true);
+    setOlderFailed(false);
     try {
       const result = await listThreadsAction(roomId, { cursor: nextCursor });
       if (requestId !== listRequestIdRef.current) {
         return;
       }
       if (!result.ok) {
-        setError(result.error.message || labels.error);
+        // Kept off the list's own error: that one is the first page and Mark
+        // all. A failed older page stays on this row, and a retry that lands
+        // has to leave the row idle or scroll-loading never resumes.
+        setOlderFailed(true);
         return;
       }
       setItems((current) => {
@@ -145,7 +151,7 @@ export function ThreadListPanel({
       setNextCursor(result.value.nextCursor);
     } catch {
       if (requestId === listRequestIdRef.current) {
-        setError(labels.error);
+        setOlderFailed(true);
       }
     } finally {
       setIsLoadingOlder(false);
@@ -336,11 +342,7 @@ export function ThreadListPanel({
           <ThreadListLoadMore
             boundaryKey={items.at(-1)?.parentMessage.id ?? ""}
             status={
-              isLoadingOlder
-                ? "loading"
-                : error && items.length > 0
-                  ? "failed"
-                  : "idle"
+              isLoadingOlder ? "loading" : olderFailed ? "failed" : "idle"
             }
             onLoad={() => {
               void handleLoadOlder();

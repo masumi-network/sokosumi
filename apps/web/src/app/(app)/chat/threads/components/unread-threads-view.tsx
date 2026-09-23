@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useId } from "react";
+import { useId, useRef } from "react";
 
 import { ChatUnreadViewHeader } from "@/app/chat/components/chat-unread-view-header";
 import { EarlierThreadsList } from "@/components/chat/earlier-threads-list";
@@ -35,10 +35,16 @@ export function UnreadThreadsView({
   const tGroups = useTranslations("App.Channels.UnreadThreads");
   const unreadHeadingId = useId();
   // Null until the live read lands; an empty list is an answer, not a gap.
+  // Once a live read has landed, null is that read being dropped (a workspace
+  // switch clears it, SOK-903). The page's rooms are the workspace it
+  // rendered, so they must not fill that gap.
   const liveRooms = useLiveChatRooms();
+  const sawLiveRooms = useRef(false);
+  if (liveRooms !== null) {
+    sawLiveRooms.current = true;
+  }
   const roomsLive = liveRooms !== null;
-
-  const rooms = liveRooms ?? initialRooms;
+  const rooms = liveRooms ?? (sawLiveRooms.current ? [] : initialRooms);
   const { threadCount } = resolveUnreadThreadsAttention(rooms);
 
   return (

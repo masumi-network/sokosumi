@@ -269,6 +269,89 @@ describe("ThreadListPanel", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("resumes scroll-loading after a failed older page is retried", async () => {
+    const olderId = "550e8400-e29b-41d4-a716-446655440098";
+    listThreadsActionMock
+      .mockResolvedValueOnce({
+        ok: true,
+        value: {
+          threads: [
+            threadItem({
+              unreadReplyCount: 0,
+              lastUnreadReplyAt: null,
+              hasLooked: true,
+            }),
+          ],
+          nextCursor: "cursor-1",
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        error: { message: labels.error },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        value: {
+          threads: [
+            threadItem({
+              parentMessage: parentMessage({
+                id: olderId,
+                content: "Last month",
+              }),
+              unreadReplyCount: 0,
+              lastUnreadReplyAt: null,
+              hasLooked: true,
+            }),
+          ],
+          nextCursor: "cursor-2",
+        },
+      });
+
+    renderPanel();
+
+    const loadOlder = async () => {
+      fireEvent.click(
+        within(await screen.findByTestId("thread-list-load-more")).getByRole(
+          "button",
+        ),
+      );
+    };
+    await loadOlder();
+    expect(await screen.findByRole("alert")).toHaveTextContent(labels.error);
+
+    await loadOlder();
+    expect(await screen.findByText("Last month")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByTestId("thread-list-load-more")).toHaveTextContent(
+      labels.loadOlder,
+    );
+  });
+
+  it("does not turn a failed mark-all into a failed older page", async () => {
+    listThreadsActionMock.mockResolvedValue({
+      ok: true,
+      value: {
+        threads: [threadItem()],
+        nextCursor: "cursor-1",
+      },
+    });
+    markAllUnreadThreadsReadActionMock.mockResolvedValue({
+      ok: false,
+      error: { message: labels.markAllReadError },
+    });
+
+    renderPanel();
+
+    fireEvent.click(await screen.findByTestId("thread-list-mark-all-read"));
+    expect(await screen.findByTestId("thread-list-error")).toHaveTextContent(
+      labels.markAllReadError,
+    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("thread-list-load-more")).getByRole("button"),
+    ).toHaveTextContent(labels.loadOlder);
+  });
+
   it("selects a row and marks all unread", async () => {
     const onOpenThread = vi.fn().mockResolvedValue(true);
     const onAllThreadsLooked = vi.fn();
