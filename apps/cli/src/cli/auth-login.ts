@@ -14,10 +14,7 @@ import {
   targetFromUserApiKey,
 } from "../auth/config.js";
 import { type BrowserLoginOptions, loginWithBrowser } from "../auth/oauth.js";
-
-interface TextOutput {
-  write(value: string): unknown;
-}
+import type { CommandOutput } from "./commands/command-helpers.js";
 
 export interface AuthLoginResult {
   authenticated: true;
@@ -53,12 +50,12 @@ export interface AuthLoginOptions {
   readStdin?: () => string;
   loginFn?: (options: BrowserLoginOptions) => Promise<OAuthCredentials>;
   authManager?: AuthLoginManager;
-  stdout?: TextOutput;
+  stdout?: CommandOutput;
   signal?: AbortSignal;
 }
 
 function writeResult(
-  stdout: TextOutput,
+  stdout: CommandOutput,
   result: AuthLoginResult,
   json: boolean,
 ): void {

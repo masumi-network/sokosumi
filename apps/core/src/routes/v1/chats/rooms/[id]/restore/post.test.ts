@@ -106,6 +106,7 @@ function archivedRoom(
     slug: "general",
     kind: overrides.kind ?? "channel",
     directKey: null,
+    groupName: null,
     topic: null,
     createdByUserId: overrides.createdByUserId ?? SELF_ID,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -116,6 +117,7 @@ function archivedRoom(
     ),
     coworkerMembers: [],
     sokoBotMembers: [],
+    readStates: [],
   };
 }
 

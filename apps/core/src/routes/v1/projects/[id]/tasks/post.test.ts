@@ -9,6 +9,7 @@ import type { WorkspaceVariables } from "@/middleware/workspace";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 const {
+  deliverCalendarInvalidationsNowMock,
   projectFindFirstMock,
   lockCalendarScopeMock,
   lockTaskRowsMock,
@@ -19,6 +20,7 @@ const {
   taskUpdateManyMock,
   taskUpdateMock,
 } = vi.hoisted(() => ({
+  deliverCalendarInvalidationsNowMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
   lockCalendarScopeMock: vi.fn(),
   lockTaskRowsMock: vi.fn(),
@@ -28,6 +30,10 @@ const {
   taskFindUniqueMock: vi.fn(),
   taskUpdateManyMock: vi.fn(),
   taskUpdateMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/calendar-invalidation", () => ({
+  deliverCalendarInvalidationsNow: deliverCalendarInvalidationsNowMock,
 }));
 
 vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
@@ -208,6 +214,9 @@ describe("POST /projects/{id}/tasks", () => {
     );
 
     expect(response.status).toBe(200);
+    expect(deliverCalendarInvalidationsNowMock).toHaveBeenCalledWith(
+      WORKSPACE_ID,
+    );
     expect(taskUpdateManyMock).toHaveBeenCalledWith({
       where: {
         id: TASK_ID,

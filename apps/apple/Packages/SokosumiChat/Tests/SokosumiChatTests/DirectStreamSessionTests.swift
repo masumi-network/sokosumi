@@ -25,7 +25,7 @@ struct DirectStreamSessionTests {
   """
 
   private func room() -> Components.Schemas.ChatRoom {
-    .init(id: testRoomId, name: "Coworker", kind: .direct, isSelfDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(),
+    .init(id: testRoomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(),
           unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member,
           userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
   }
@@ -95,6 +95,19 @@ struct DirectStreamSessionTests {
     #expect(!session.isBusy)
     #expect(session.overlayMessages.isEmpty == refreshed)
     #expect(session.errorMessage == nil)
+  }
+
+  @Test func sendUsesInjectedTurnIdAndNow() async throws {
+    let now = Date(timeIntervalSince1970: 1_788_868_800)
+    let session = DirectStreamSession(now: { now }, makeId: { "turn-fixed" })
+    session.reset(room: room())
+    let client = try makeTestClient(TestTransport([(200, completedStream)]))
+    #expect(session.send("Hello", client: client, organizationSlug: nil, settled: { false }, failed: { Issue.record($0) }))
+    #expect(session.overlayMessages.map(\.id) == ["stream:turn-fixed"])
+    #expect(session.overlayMessages.first?.createdAt == now)
+    await session.task?.value
+    #expect(session.overlayMessages.map(\.id) == ["stream:turn-fixed", "stream:answer"])
+    #expect(session.overlayMessages.map(\.createdAt) == [now, now])
   }
 
   @Test func threadStreamRoutesBothOverlaysAndSharesRoomSendLock() async throws {

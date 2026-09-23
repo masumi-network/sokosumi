@@ -6,7 +6,6 @@ import mountDenyOrganizationCoworkerAccess from "./[id]/coworker-access/[accessI
 import mountRevokeOrganizationCoworkerAccess from "./[id]/coworker-access/[accessId]/revoke/post.js";
 import mountGetOrganizationCoworkerAccess from "./[id]/coworker-access/get.js";
 import mountGetOrganizationDeletion from "./[id]/deletion/get.js";
-import mountGetOrganizationDesignMd from "./[id]/design-md/get.js";
 import mountPutOrganizationDesignMd from "./[id]/design-md/put.js";
 import mountGetOrganizationEnterpriseContractSummary from "./[id]/enterprise-contract-summary/get.js";
 import mountCleanupOrganizationFiles from "./[id]/files/cleanup/post.js";
@@ -64,7 +63,6 @@ mountPostOrganizationStripeCustomer(app);
 mountGetOrganizationBillingDetails(app);
 mountGetOrganizationSubscription(app);
 mountPutOrganizationSubscriptionSeats(app);
-mountGetOrganizationDesignMd(app);
 mountPutOrganizationDesignMd(app);
 // Static `/{id}/files/cleanup` before `/{id}/files` is fine; both are exact paths.
 mountCleanupOrganizationFiles(app);

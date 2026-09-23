@@ -10,7 +10,8 @@ import {
   type ActionResultDto,
   toActionResult,
 } from "@/lib/actions/action-result";
-import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
+import type { ActionError } from "@/lib/actions/errors/action-error";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import {
   CoreApiRequestError,
   coreClient,
@@ -19,6 +20,7 @@ import {
 } from "@/lib/clients/core.client";
 import type {
   Project,
+  ProjectCloseStatus,
   ProjectContextMd,
 } from "@/lib/clients/generated/core/types.gen";
 import { projectService } from "@/lib/services/project.service";
@@ -50,8 +52,18 @@ interface GetProjectContextMdParameters extends AuthenticatedRequest {
   projectId: string;
 }
 
-interface DeleteProjectParameters extends AuthenticatedRequest {
+interface CloseProjectParameters extends AuthenticatedRequest {
   projectId: string;
+  operationId: string;
+  expectedProjectRevision: number;
+  reason?: string;
+}
+
+interface RecoverProjectCloseParameters extends AuthenticatedRequest {
+  projectId: string;
+  operationId: string;
+  expectedProjectRevision: number;
+  reason: string;
 }
 
 function normalizeProjectName(name: string): string {
@@ -88,9 +100,45 @@ function revalidateProjectMutationRoutes(projectId: string) {
   revalidatePath(`/projects/${projectId}`);
 }
 
+function revalidateProjectCloseRoutes(projectId: string) {
+  revalidateProjectMutationRoutes(projectId);
+  revalidatePath(`/projects/${projectId}/calendar`);
+  revalidatePath("/calendar");
+  revalidatePath("/tasks");
+}
+
 function throwCoreActionError(error: unknown, fallbackMessage: string): never {
   const { message } = toCoreApiActionError(error);
   throw new Error(message ?? fallbackMessage);
+}
+
+const projectCloseSchema = z.object({
+  projectId: z.string().trim().min(1),
+  operationId: z.string().uuid(),
+  expectedProjectRevision: z.number().int().nonnegative(),
+  reason: z.string().trim().min(1).optional(),
+});
+
+const projectCloseRecoverySchema = projectCloseSchema.extend({
+  reason: z.string().trim().min(1),
+});
+
+function parseProjectCloseInput(input: CloseProjectParameters) {
+  const result = projectCloseSchema.safeParse(input);
+  if (!result.success) {
+    throw new Error(result.error.issues[0]?.message ?? "Invalid close request");
+  }
+  return result.data;
+}
+
+function parseProjectCloseRecoveryInput(input: RecoverProjectCloseParameters) {
+  const result = projectCloseRecoverySchema.safeParse(input);
+  if (!result.success) {
+    throw new Error(
+      result.error.issues[0]?.message ?? "Invalid recovery request",
+    );
+  }
+  return result.data;
 }
 
 export const createProject = withSession<
@@ -236,21 +284,65 @@ export const getProjectContextMd = withSession<
   }
 });
 
-export const deleteProject = withSession<
-  DeleteProjectParameters,
-  { projectId: string }
->(async ({ projectId }) => {
-  const normalizedProjectId = projectId.trim();
-  if (!normalizedProjectId) {
-    throw new Error("Project required");
-  }
+export const closeProject = withSession<
+  CloseProjectParameters,
+  ProjectCloseStatus
+>(async (input) => {
+  const parsed = parseProjectCloseInput(input);
 
   try {
-    await projectService.deleteProject(normalizedProjectId);
-    revalidateProjectMutationRoutes(normalizedProjectId);
-    return { projectId: normalizedProjectId };
+    const status = await projectService.closeProject(parsed.projectId, {
+      operationId: parsed.operationId,
+      expectedProjectRevision: parsed.expectedProjectRevision,
+      ...(parsed.reason ? { reason: parsed.reason } : {}),
+    });
+    revalidateProjectCloseRoutes(parsed.projectId);
+    return status;
   } catch (error) {
-    console.error("Failed to delete project", error);
-    throwCoreActionError(error, "Failed to delete project");
+    console.error("Failed to close project", error);
+    throwCoreActionError(error, "Failed to close project");
+  }
+});
+
+export const retryProjectClose = withSession<
+  RecoverProjectCloseParameters,
+  ProjectCloseStatus
+>(async (input) => {
+  const parsed = parseProjectCloseRecoveryInput(input);
+
+  try {
+    const status = await projectService.retryProjectClose(parsed.projectId, {
+      operationId: parsed.operationId,
+      expectedProjectRevision: parsed.expectedProjectRevision,
+      reason: parsed.reason,
+    });
+    revalidateProjectCloseRoutes(parsed.projectId);
+    return status;
+  } catch (error) {
+    console.error("Failed to retry project close", error);
+    throwCoreActionError(error, "Failed to retry project close");
+  }
+});
+
+export const cancelProjectCloseOwedWork = withSession<
+  RecoverProjectCloseParameters,
+  ProjectCloseStatus
+>(async (input) => {
+  const parsed = parseProjectCloseRecoveryInput(input);
+
+  try {
+    const status = await projectService.cancelProjectCloseOwedWork(
+      parsed.projectId,
+      {
+        operationId: parsed.operationId,
+        expectedProjectRevision: parsed.expectedProjectRevision,
+        reason: parsed.reason,
+      },
+    );
+    revalidateProjectCloseRoutes(parsed.projectId);
+    return status;
+  } catch (error) {
+    console.error("Failed to cancel owed project work", error);
+    throwCoreActionError(error, "Failed to cancel owed project work");
   }
 });

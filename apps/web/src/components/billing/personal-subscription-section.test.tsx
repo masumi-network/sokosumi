@@ -30,7 +30,7 @@ vi.mock("sonner", () => ({
   },
 }));
 
-vi.mock("@/lib/actions/subscription", () => ({
+vi.mock("@/lib/actions/subscription/action", () => ({
   upgradePersonalSubscription: (...args: unknown[]) =>
     upgradePersonalSubscriptionMock(...args),
 }));

@@ -539,29 +539,14 @@ import SwiftUI
 
     private func messageAction(_ title: String, symbol: String, focus: MessageAction, compact: Bool, action: @escaping () -> Void) -> some View {
       Button(action: action) {
-        actionLabel(title, symbol: symbol, action: focus, compact: compact)
+        MessageActionLabel(title: title, symbol: symbol, hovered: hoveredAction == focus, compact: compact,
+                           iconSize: actionIconSize, height: replyActionHeight)
       }
       .buttonStyle(.plain)
       .onHover { hoveredAction = $0 ? focus : nil }
       .focused($focusedAction, equals: focus)
       .help(title == "Reply" ? "Reply in thread" : title)
       .accessibilityLabel(title)
-    }
-
-    private func actionLabel(_ title: String, symbol: String, action: MessageAction, compact: Bool) -> some View {
-      HStack(spacing: 5) {
-        Image(systemName: symbol)
-          .font(.callout)
-          .frame(width: actionIconSize, height: actionIconSize)
-        if !compact {
-          Text(title).font(.callout).lineLimit(1)
-        }
-      }
-      .padding(.horizontal, 8)
-      .frame(height: replyActionHeight)
-      .foregroundStyle(hoveredAction == action ? .primary : .secondary)
-      .background(hoveredAction == action ? Color.primary.opacity(0.1) : .clear, in: .rect(cornerRadius: 5))
-      .contentShape(.rect)
     }
 
     private var pendingSince: Date? {
@@ -700,7 +685,8 @@ import SwiftUI
           onRetry: nil,
           onRemove: nil
         )
-        MembershipStatusRow(text: "Bob joined")
+        RoomStatusRow(text: Text(verbatim: "Bob joined"))
+        RoomStatusRow(text: groupNameChangeText(.named(actor: "Ada", name: "Launch crew")))
       }
       .padding()
     }

@@ -55,7 +55,9 @@ if (animationPrototype) {
 }
 
 afterEach(() => {
-  cleanup();
+  if (typeof document !== "undefined") {
+    cleanup();
+  }
 });
 
 // `@lobehub/icons` (ModelIcon) does ESM directory-imports of `@lobehub/fluent-emoji`

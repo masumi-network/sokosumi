@@ -32,7 +32,7 @@ function createTestAuthManager(): AuthManager {
   });
 }
 
-test("V38: no-argument source run opens the TUI directly", async () => {
+test("no-argument source run opens the TUI directly", async () => {
   let launched = false;
   const result = await main([], {
     authManager: createTestAuthManager(),
@@ -46,7 +46,7 @@ test("V38: no-argument source run opens the TUI directly", async () => {
   assert.equal(launched, true);
 });
 
-test("V42: no-argument JSON errors emit one redacted document", async () => {
+test("no-argument JSON errors emit one redacted document", async () => {
   const secret = "tui-bearer-secret";
   const output: string[] = [];
 
@@ -135,11 +135,11 @@ test("direct JSON headless errors do not add a stderr copy", () => {
   assert.equal(result.status, 1);
   assert.deepEqual(JSON.parse(result.stdout), {
     error:
-      "Usage: sokosumi discover | agents list | coworkers | tasks | jobs | auth login|status|logout",
+      "Usage: sokosumi discover | agents list | coworkers | vendors me | workspaces list | tasks | jobs | auth login|status|logout",
   });
   assert.equal(result.stderr, "");
 });
-test("TestV47 direct text errors redact credential assignments", () => {
+test("direct text errors redact credential assignments", () => {
   const secret = "redaction_probe";
   const result = spawnSync(
     process.execPath,
@@ -169,7 +169,7 @@ test("treats a PATH symlink as a direct entrypoint", () => {
   assert.equal(isDirectEntrypoint(linkPath), true);
 });
 
-test("V35: PATH symlink prints package manifest --version", () => {
+test("PATH symlink prints package manifest --version", () => {
   const dir = mkdtempSync(join(tmpdir(), "sokosumi-bin-"));
   const linkPath = join(dir, "sokosumi.ts");
   symlinkSync(binPath, linkPath);

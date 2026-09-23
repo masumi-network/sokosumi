@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  CALENDAR_ACCESS_REVOKED_EVENT_NAME,
+  CALENDAR_INVALIDATED_EVENT_NAME,
   makeAgentJobsChannelName,
   makeChatRoomChannelName,
+  makeChatTypingChannelName,
   makeOrgPresenceChannelName,
+  makeUserCalendarControlChannelName,
   makeUserChatControlChannelName,
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
+  makeWorkspaceCalendarChannelName,
   parseChatRoomIdFromChannelName,
   parseOrganizationIdFromPresenceChannelName,
 } from "./ably-channel";
@@ -76,6 +81,25 @@ describe("makeUserChatControlChannelName", () => {
   });
 });
 
+describe("calendar channel names", () => {
+  it("builds a user-scoped workspace channel", () => {
+    expect(makeWorkspaceCalendarChannelName("workspace_123", "user_123")).toBe(
+      "calendar:workspace_workspace_123:user_user_123",
+    );
+  });
+
+  it("builds the user calendar control channel", () => {
+    expect(makeUserCalendarControlChannelName("user_123")).toBe(
+      "calendar_control:user_user_123",
+    );
+  });
+
+  it("exports canonical event names", () => {
+    expect(CALENDAR_INVALIDATED_EVENT_NAME).toBe("calendar_invalidated");
+    expect(CALENDAR_ACCESS_REVOKED_EVENT_NAME).toBe("calendar_access_revoked");
+  });
+});
+
 describe("parseChatRoomIdFromChannelName", () => {
   it("round-trips makeChatRoomChannelName", () => {
     const roomId = "660e8400-e29b-41d4-a716-446655440000";
@@ -90,6 +114,21 @@ describe("parseChatRoomIdFromChannelName", () => {
     ).toBeNull();
     expect(parseChatRoomIdFromChannelName("chat_rooms:room_")).toBeNull();
     expect(parseChatRoomIdFromChannelName("chat_rooms:all:user_x")).toBeNull();
+  });
+});
+
+describe("chat typing channel names", () => {
+  it("names a room's typing channel apart from its message channel", () => {
+    expect(makeChatTypingChannelName("room_1")).toBe("chat_typing:room_room_1");
+    expect(makeChatTypingChannelName("room_1")).not.toBe(
+      makeChatRoomChannelName("room_1"),
+    );
+  });
+
+  it("is not mistaken for a room message channel", () => {
+    expect(
+      parseChatRoomIdFromChannelName(makeChatTypingChannelName("room_1")),
+    ).toBeNull();
   });
 });
 

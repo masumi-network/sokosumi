@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { persistUserName, userHasName } from "@/lib/auth/persist-user-name";
-import { type NameFormType, nameFormSchema } from "@/lib/schemas";
+import { type NameFormType, nameFormSchema } from "@/lib/schemas/account";
 
 export function useCollectUserName(initialName: string) {
   const tName = useTranslations("Library.Auth.NameField");

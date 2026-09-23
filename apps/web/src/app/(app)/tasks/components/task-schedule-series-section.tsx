@@ -123,7 +123,10 @@ export async function TaskScheduleSeriesSection({
       }}
       recurrenceLabel={
         view.rule
-          ? formatScheduleTitle(computeScheduleTitleInfo(view.rule), tSchedule)
+          ? formatScheduleTitle(
+              computeScheduleTitleInfo(view.rule, formatter),
+              tSchedule,
+            )
           : null
       }
       timezone={view.timezone}

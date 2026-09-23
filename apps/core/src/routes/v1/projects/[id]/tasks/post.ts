@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -59,7 +60,7 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    requireOwnerUserContext(c.var.authContext);
+    const userContext = requireOwnerUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");
     const body = c.req.valid("json");
@@ -96,7 +97,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     if (task.projectId !== projectId) {
       await prisma.$transaction(async (tx) => {
-        if (!(await lockCalendarScope(tx, workspaceId, [projectId]))) {
+        if (
+          !(await lockCalendarScope(
+            tx,
+            workspaceId,
+            [projectId],
+            userContext.userId,
+          ))
+        ) {
           throw notFound("Project not found");
         }
         if (!(await lockTaskRows(tx, [body.taskId]))) {
@@ -149,6 +157,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
         await refreshTaskSchedulePlannedOccurrences(tx, updatedTask);
       });
+      await deliverCalendarInvalidationsNow(workspaceId);
     }
 
     return ok(c, mapProjectForApi(project));

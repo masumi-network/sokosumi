@@ -31,6 +31,7 @@ interface ListTasksParams {
   cursor?: string | null;
   limit?: number;
   sort?: "nextRunAt";
+  hasSchedule?: boolean;
 }
 
 interface ListJobsParams {
@@ -154,6 +155,12 @@ export const taskService = (() => {
       cursor: params.cursor ?? undefined,
       limit: params.limit,
       sort: params.sort,
+      hasSchedule:
+        params.hasSchedule === undefined
+          ? undefined
+          : params.hasSchedule
+            ? "true"
+            : "false",
     });
 
     return {

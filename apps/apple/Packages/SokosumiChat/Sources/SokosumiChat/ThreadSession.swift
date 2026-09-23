@@ -15,13 +15,21 @@ public final class ThreadSession: ObservableObject {
 
   @Published public private(set) var jumpTarget: JumpTarget?
   @Published public private(set) var parent: Message?
+  /// The reader's mute on this thread; nil while no thread is open.
+  @Published public private(set) var mute: ThreadMuteState?
   public let timeline = RoomTimeline()
-  public let outbox = RoomOutbox()
+  public let outbox: RoomOutbox
   public let recovery = ChatRefreshScheduler()
   public private(set) var loadTask: Task<Void, Never>?
   private let service = ChatService()
+  private let now: () -> Date
+  private let makeId: () -> String
 
-  public init() {}
+  public init(now: @escaping () -> Date = Date.init, makeId: @escaping () -> String = { UUID().uuidString }) {
+    self.now = now
+    self.makeId = makeId
+    outbox = RoomOutbox(now: now)
+  }
 
   public var displayedReplies: [Message] {
     displayedTranscript(messages: timeline.messages, shells: outbox.shells)
@@ -36,6 +44,7 @@ public final class ThreadSession: ObservableObject {
     }
     close()
     parent = message
+    mute = ThreadMuteState(roomId: message.roomId, parentMessageId: message.id)
     timeline.reset(roomId: message.roomId, parentMessageId: message.id)
     return true
   }
@@ -46,6 +55,7 @@ public final class ThreadSession: ObservableObject {
   }
 
   public func clearJump() {
+    guard jumpTarget != nil else { return }
     jumpTarget = nil
   }
 
@@ -57,6 +67,47 @@ public final class ThreadSession: ObservableObject {
     outbox.reset()
     timeline.reset()
     parent = nil
+    mute = nil
+  }
+
+  /// Reads the mute while it is unknown. A 404 (the parent has no live reply yet) keeps it unknown, so the
+  /// caller reads again when the first reply lands.
+  public func readMute(client: Client, organizationSlug: String?) async throws {
+    guard let parent, mute?.needsRead == true else { return }
+    let generation = timeline.generation
+    let thread = try await service.getThread(
+      client: client, roomId: parent.roomId, parentMessageId: parent.id, organizationSlug: organizationSlug
+    )
+    guard generation == timeline.generation else { return }
+    mute?.read(mutedAt: thread.mutedAt)
+  }
+
+  /// Flips the mute at once and asks Core for it; returns whether Core changed it, which moves the room's
+  /// unread even after the reader left the thread. A failure reverts and keeps the failure for the view.
+  @discardableResult
+  public func toggleMute(client: Client, organizationSlug: String?) async throws -> Bool {
+    guard let parent, let muted = mute?.beginToggle() else { return false }
+    let generation = timeline.generation
+    do {
+      let thread = if muted {
+        try await service.muteThread(client: client, roomId: parent.roomId, parentMessageId: parent.id, organizationSlug: organizationSlug)
+      } else {
+        try await service.unmuteThread(client: client, roomId: parent.roomId, parentMessageId: parent.id, organizationSlug: organizationSlug)
+      }
+      if generation == timeline.generation {
+        mute?.settle(mutedAt: thread.mutedAt)
+      }
+      return true
+    } catch {
+      if generation == timeline.generation {
+        mute?.fail()
+      }
+      throw error
+    }
+  }
+
+  public func dismissMuteFailure() {
+    mute?.dismissFailure()
   }
 
   /// Serialize page reads. Initial thread attention precedes the first GET;
@@ -112,9 +163,11 @@ public final class ThreadSession: ObservableObject {
   ) -> Bool {
     let draft = ComposerContent(content)
     guard let parent, draft.canSend(quoted: quote != nil) else { return false }
-    let id = UUID().uuidString
-    let shell = OutboundShell(clientTurnId: id, roomId: parent.roomId, parentMessageId: parent.id,
-                              content: draft.text, quote: quote, sender: sender)
+    let id = makeId()
+    let shell = OutboundShell(
+      clientTurnId: id, roomId: parent.roomId, parentMessageId: parent.id,
+      content: draft.text, quote: quote, createdAt: now(), sender: sender
+    )
     outbox.enqueue(shell, send: { [service] in
       try await service.createMessage(
         client: client, roomId: parent.roomId, content: draft.text, clientMessageId: id,
@@ -169,14 +222,14 @@ public final class ThreadSession: ObservableObject {
     guard let parent, envelope.roomId == parent.roomId else { return false }
     if envelope.messageId == parent.id, envelope.parentMessageId == nil {
       if envelope.eventType == .delete {
-        self.parent = tombstoneTranscriptMessage(parent)
+        self.parent = tombstoneTranscriptMessage(parent, now: now())
         return false
       }
       return true
     }
     switch resolveRealtimeEnvelope(envelope, focusedRoomId: parent.roomId, parentMessageId: parent.id) {
     case let .tombstone(id):
-      timeline.messages = applyRealtimeTombstone(messages: timeline.messages, messageId: id)
+      timeline.messages = applyRealtimeTombstone(messages: timeline.messages, messageId: id, now: now())
     case .needsRefetch:
       recovery.requestRefresh()
     case .ignore: break

@@ -3,15 +3,15 @@ import SokosumiAuth
 import SokosumiWorkspace
 import SwiftUI
 
-/// Which channel to edit, bound to the composition context so a workspace switch closes the sheet.
-struct EditChannelPresentation: Identifiable, Equatable {
+/// Which channel or group Direct to edit, bound to the composition context so a workspace switch closes the sheet.
+struct RoomEditPresentation: Identifiable, Equatable {
   let id: UUID
   let roomId: String
 }
 
 /// One sheet wiring shared by the sidebar row menu and the Members inspector.
 struct EditChannelSheet: ViewModifier {
-  @Binding var presentation: EditChannelPresentation?
+  @Binding var presentation: RoomEditPresentation?
   @EnvironmentObject private var workspaces: WorkspaceState
   @EnvironmentObject private var auth: AuthState
   @State private var lifecycle: ChannelLifecycleRequest?

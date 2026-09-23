@@ -5,10 +5,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChannelProvider, useChannel } from "ably/react";
 import { MarkNotificationsRead } from "@/components/notifications/mark-notifications-read.client";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
-import { jobStatusDataSchema } from "@/lib/ably";
+import { jobStatusDataSchema } from "@/lib/ably/schema";
 import { useSession } from "@/lib/auth/auth.client";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
-import { getJobQueryKey, getJobQueryOptions } from "@/queries";
+import { getJobQueryKey, getJobQueryOptions } from "@/queries/jobs";
 import JobDetailsView, { type JobDetailsViewProps } from "./job-details-view";
 
 const JOB_STATUS_EVENT_NAME = "job_status_data";

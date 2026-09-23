@@ -89,7 +89,7 @@ describe("proxy", () => {
     expect(getSessionCookieMock).not.toHaveBeenCalled();
   });
 
-  it("serves the worker's message catalog without a session", async () => {
+  it("serves every worker import without a session", async () => {
     const { readFileSync } = await import("node:fs");
     const { join } = await import("node:path");
     const { NextRequest } = await import("next/server");
@@ -101,19 +101,23 @@ describe("proxy", () => {
     // catalog without updating `EXCLUDED_PATHS` fails here. This one fails
     // harder than the worker's own path: an import that redirects throws, so
     // worker evaluation fails and the reader gets no push worker at all.
-    const imported = readFileSync(
-      join(process.cwd(), "public", NOTIFICATION_SERVICE_WORKER_URL),
-      "utf8",
-    ).match(/importScripts\("([^"]*)"\);/)?.[1];
-    expect(imported).toBeTruthy();
+    const imported = [
+      ...readFileSync(
+        join(process.cwd(), "public", NOTIFICATION_SERVICE_WORKER_URL),
+        "utf8",
+      ).matchAll(/importScripts\("([^"]*)"\);/g),
+    ].map((match) => match[1]);
+    expect(imported).toHaveLength(2);
     getSessionCookieMock.mockReturnValue(null);
-    const request = new NextRequest(
-      `https://sokosumi-app-preprod-git-codex-evaluate-cookie-prefix-usage.preview.sokosumi.com${imported}`,
-    );
+    for (const path of imported) {
+      const request = new NextRequest(
+        `https://sokosumi-app-preprod-git-codex-evaluate-cookie-prefix-usage.preview.sokosumi.com${path}`,
+      );
 
-    const response = await proxy(request);
+      const response = await proxy(request);
 
-    expect(response?.status).not.toBe(307);
+      expect(response?.status).not.toBe(307);
+    }
     expect(getSessionCookieMock).not.toHaveBeenCalled();
   });
 
@@ -155,33 +159,6 @@ describe("proxy", () => {
     );
   });
 
-  it("expires the retired subscription onboarding gate cookie when present", async () => {
-    const { NextRequest } = await import("next/server");
-    const { proxy } = await import("./proxy");
-    const { RETIRED_SUBSCRIPTION_ONBOARDING_GATE_COOKIE_NAME } = await import(
-      "@/lib/retired-onboarding-storage"
-    );
-    const request = new NextRequest(
-      "https://sokosumi-app-preprod-git-codex-evaluate-cookie-prefix-usage.preview.sokosumi.com/agents",
-    );
-    request.cookies.set(
-      RETIRED_SUBSCRIPTION_ONBOARDING_GATE_COOKIE_NAME,
-      "sess-1",
-    );
-
-    const response = await proxy(request);
-    const setCookie = [
-      ...response.headers.getSetCookie(),
-      response.headers.get("set-cookie") ?? "",
-    ].join("\n");
-
-    expect(setCookie).toContain(
-      RETIRED_SUBSCRIPTION_ONBOARDING_GATE_COOKIE_NAME,
-    );
-    expect(setCookie).toMatch(/Max-Age=0/i);
-    expect(setCookie).toMatch(/Path=\//i);
-  });
-
   it("sets a session join cookie on /join/:token without requiring a session", async () => {
     const { NextRequest } = await import("next/server");
     const { proxy } = await import("./proxy");
@@ -206,25 +183,6 @@ describe("proxy", () => {
     expect(getSessionCookieMock).not.toHaveBeenCalled();
   });
 
-  it("does not emit the retired gate cookie when it is already absent", async () => {
-    const { NextRequest } = await import("next/server");
-    const { proxy } = await import("./proxy");
-    const { RETIRED_SUBSCRIPTION_ONBOARDING_GATE_COOKIE_NAME } = await import(
-      "@/lib/retired-onboarding-storage"
-    );
-    const request = new NextRequest(
-      "https://sokosumi-app-preprod-git-codex-evaluate-cookie-prefix-usage.preview.sokosumi.com/agents",
-    );
-
-    const response = await proxy(request);
-
-    expect(
-      response.cookies.get(RETIRED_SUBSCRIPTION_ONBOARDING_GATE_COOKIE_NAME),
-    ).toBeUndefined();
-    expect(response.headers.getSetCookie().join("\n")).not.toContain(
-      RETIRED_SUBSCRIPTION_ONBOARDING_GATE_COOKIE_NAME,
-    );
-  });
   it("sets every document security header on the protected-route sign-in redirect", async () => {
     const { NextRequest } = await import("next/server");
     const { proxy } = await import("./proxy");

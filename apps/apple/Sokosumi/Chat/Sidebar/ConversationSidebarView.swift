@@ -12,7 +12,8 @@ struct ConversationSidebarView: View {
   @State private var startDirect: CompositionPresentation?
   @State private var createChannel: CompositionPresentation?
   @State private var browseChannels: CompositionPresentation?
-  @State private var editChannel: EditChannelPresentation?
+  @State private var editChannel: RoomEditPresentation?
+  @State private var nameGroup: RoomEditPresentation?
   @State private var lifecycle: ChannelLifecycleRequest?
   @State private var invitationFailure: InvitationFailure?
 
@@ -71,7 +72,6 @@ struct ConversationSidebarView: View {
               }
             }
           }
-          // Channels section only for organization workspaces, mirroring web.
           if workspaces.selection?.workspace.organizationId != nil {
             Section {
               sectionHeader("Channels", section: .channels, closedAttention: resolveSectionAttention(partitioned.channels))
@@ -94,7 +94,7 @@ struct ConversationSidebarView: View {
                   PendingInvitationRow(
                     invitation: invitation,
                     responding: workspaces.invitationResponse?.invitationId == invitation.id ? workspaces.invitationResponse?.action : nil,
-                    busy: workspaces.channelMutationInFlight
+                    busy: workspaces.roomMutationInFlight
                   ) { respondToInvitation($0, invitation: invitation) }
                 }
                 ForEach(partitioned.external, id: \.id) { room in
@@ -111,7 +111,7 @@ struct ConversationSidebarView: View {
                   ArchivedChannelRow(
                     room: room,
                     pending: workspaces.channelLifecycle?.roomId == room.id,
-                    busy: workspaces.channelMutationInFlight,
+                    busy: workspaces.roomMutationInFlight,
                     canDelete: workspaces.archivedChannels.canDelete
                   ) { requestLifecycle($0, room: room) }
                 }
@@ -138,14 +138,14 @@ struct ConversationSidebarView: View {
           Button("New chat", systemImage: "square.and.pencil") {
             startDirect = .init(id: workspaces.compositionContext, hasOrganization: workspaces.selection?.workspace.organizationId != nil)
           }
-          .disabled(workspaces.phase != .ready || workspaces.roomsLoading || workspaces.channelMutationInFlight)
+          .disabled(workspaces.phase != .ready || workspaces.roomsLoading || workspaces.roomMutationInFlight)
           .help("New chat")
         }
         ToolbarItem {
           Button("Create channel", systemImage: "number") {
             createChannel = .init(id: workspaces.compositionContext, hasOrganization: true)
           }
-          .disabled(workspaces.phase != .ready || workspaces.selection?.workspace.organizationId == nil || workspaces.channelMutationInFlight)
+          .disabled(workspaces.phase != .ready || workspaces.selection?.workspace.organizationId == nil || workspaces.roomMutationInFlight)
           .help("Create channel")
         }
         ToolbarItem {
@@ -208,6 +208,7 @@ struct ConversationSidebarView: View {
       lifecycle = nil
     }
     .modifier(EditChannelSheet(presentation: $editChannel))
+    .modifier(NameGroupSheet(presentation: $nameGroup))
     .modifier(ChannelLifecycleConfirmation(request: $lifecycle))
     .task(id: SidebarCollectionsLoadKey(context: workspaces.compositionContext, ready: workspaces.phase == .ready && !workspaces.roomsLoading)) {
       guard workspaces.phase == .ready, !workspaces.roomsLoading else { return }
@@ -220,7 +221,7 @@ struct ConversationSidebarView: View {
       get: { workspaces.sidebar.actionError != nil },
       set: {
         if !$0 {
-          workspaces.sidebar.clearActionError()
+          Task { @MainActor in workspaces.sidebar.clearActionError() }
         }
       }
     )) {
@@ -244,7 +245,7 @@ struct ConversationSidebarView: View {
 
   /// Web accepts or declines in place: the row leaves the list on success and Core's message surfaces on failure.
   private func respondToInvitation(_ action: InvitationAction, invitation: Components.Schemas.ChatRoomInvitation) {
-    guard !workspaces.channelMutationInFlight else { return }
+    guard !workspaces.roomMutationInFlight else { return }
     let context = workspaces.compositionContext
     Task { @MainActor in
       do {
@@ -255,7 +256,7 @@ struct ConversationSidebarView: View {
       } catch is CancellationError {
         // The workspace changed underneath the request; nothing to report.
       } catch {
-        invitationFailure = .init(action: action, message: channelErrorMessage(error))
+        invitationFailure = .init(action: action, message: chatErrorMessage(error))
       }
     }
   }
@@ -303,7 +304,7 @@ struct ConversationSidebarView: View {
         .labelStyle(.iconOnly)
         .buttonStyle(.borderless)
         .frame(width: 20)
-        .disabled(workspaces.phase != .ready || workspaces.channelMutationInFlight)
+        .disabled(workspaces.phase != .ready || workspaces.roomMutationInFlight)
         .help("Browse channels")
       }
     }
@@ -385,7 +386,6 @@ struct ConversationSidebarView: View {
       unreadMentionCount: room.unreadMentionCount,
       markedUnread: room.markedUnread,
       isMuted: room.mutedAt != nil,
-      isActive: room.id == workspaces.selectedRoomId,
       showUnreadCount: workspaces.chatDisplay.showsRoomUnreadCount
     )
     return Label {
@@ -425,13 +425,22 @@ struct ConversationSidebarView: View {
     .labelStyle(RoomRowLabelStyle())
     .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
     .tag(room.id)
-    .badge(attention.badgeCount)
+    .badge(mentionBadge(attention))
     .contextMenu {
       // Reorder mode: the handle stands where the status does and the row menu is not offered.
       if pinned == nil {
         roomActions(room)
       }
     }
+  }
+
+  /// The mention badge as text, so it caps at "99+" like every other chat count. `nil` draws no
+  /// badge, as the zero `Int` badge did; VoiceOver hears web's spoken form, not "99 plus".
+  private func mentionBadge(_ attention: RoomAttention) -> Text? {
+    guard let label = attention.badgeLabel, let spoken = attention.badgeAccessibilityLabel else {
+      return nil
+    }
+    return Text(verbatim: label).accessibilityLabel(spoken)
   }
 
   /// Web's handle takes the drag and the Up/Down keys. `List` drags the whole row natively, so the
@@ -500,8 +509,16 @@ struct ConversationSidebarView: View {
       Task { @MainActor in await workspaces.performSidebarAction(room.mutedAt == nil ? .mute : .unmute, roomId: room.id, auth: auth) }
     }
     .disabled(!workspaces.sidebar.canPerform(room.mutedAt == nil ? .mute : .unmute, roomId: room.id))
-    if ChannelEditPermissions.isEditable(room) || ChannelEditPermissions.canLeave(room) {
+    if ChannelEditPermissions.isEditable(room) || ChannelEditPermissions.canLeave(room) || GroupNameDraft.canName(room) {
       Divider()
+    }
+    if GroupNameDraft.canName(room) {
+      Button {
+        nameGroup = .init(id: workspaces.compositionContext, roomId: room.id)
+      } label: {
+        NameGroupLabel()
+      }
+      .disabled(workspaces.roomMutationInFlight)
     }
     if ChannelEditPermissions.isEditable(room) {
       Button("Channel settings…", systemImage: "gearshape") {
@@ -512,12 +529,12 @@ struct ConversationSidebarView: View {
       Button("Leave channel…", systemImage: "rectangle.portrait.and.arrow.right") {
         lifecycle = .init(context: workspaces.compositionContext, roomId: room.id, name: room.name, action: .leave)
       }
-      .disabled(workspaces.channelMutationInFlight)
+      .disabled(workspaces.roomMutationInFlight)
     }
   }
 
   private func requestLifecycle(_ action: ChannelLifecycleAction, room: Components.Schemas.ChatRoom) {
-    guard !workspaces.channelMutationInFlight else { return }
+    guard !workspaces.roomMutationInFlight else { return }
     lifecycle = .init(context: workspaces.compositionContext, roomId: room.id, name: room.name, action: action)
   }
 
@@ -628,13 +645,13 @@ private struct RoomLeadingIcon: View {
 }
 
 struct DirectRoomAvatarStack: View {
-  /// Web `DirectRoomAvatarStack`: `size-5` faces, `-ml-2` overlap, `size-2` marks.
+  /// Web `DirectRoomAvatarStack`: `size-5` faces, `-ml-1.5` overlap, `size-2` marks.
   static let faceSize: CGFloat = 20
-  private static let overlap: CGFloat = 8
+  private static let overlap: CGFloat = 6
   private static let markSize: CGFloat = 8
 
   let participants: [DirectRoomAvatarParticipant]
-  /// Self Directs show no mark, like web.
+  /// Self Directs show no mark.
   var showsPresence = true
   /// Live org map (userId → online/afk); humans fall back to their snapshot.
   var livePresence: [String: Components.Schemas.ChatRoomPresence] = [:]

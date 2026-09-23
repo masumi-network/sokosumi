@@ -12,7 +12,7 @@ import { AuthForm } from "@/auth/components/form/auth-form";
 import { SubmitButton } from "@/auth/components/form/submit-button";
 import { signInFormData } from "@/auth/signin/data";
 import { useAuthCaptcha } from "@/components/auth-captcha";
-import { AuthErrorCode } from "@/lib/actions";
+import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { signIn } from "@/lib/auth/auth.client";
 import {
   buildOAuthConsentReturnUrlFromSearchParams,
@@ -21,7 +21,10 @@ import {
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import type { FormData } from "@/lib/form";
 import { fireGTMEvent } from "@/lib/gtm-events";
-import { type SignInFormSchemaType, signInFormSchema } from "@/lib/schemas";
+import {
+  type SignInFormSchemaType,
+  signInFormSchema,
+} from "@/lib/schemas/auth";
 
 interface SignInFormProps {
   returnUrl?: string | undefined;

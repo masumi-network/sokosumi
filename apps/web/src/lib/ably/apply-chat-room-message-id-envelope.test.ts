@@ -64,6 +64,7 @@ function baseMessage(
     metadata: { reasoning: [{ type: "reasoning", text: "secret" }] },
     quote: null,
     membership: null,
+    groupNameChange: null,
     unfurls: null,
     ...overrides,
   };

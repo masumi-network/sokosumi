@@ -13,7 +13,7 @@ import { OrganizationVendorGrants } from "@/app/organizations/[organizationSlug]
 import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
 import { BillingPortalErrorToast } from "@/components/billing/billing-portal-error-toast";
 import MembersTable from "@/components/members-table/members-table";
-import { OrganizationRoleBadge } from "@/components/organizations";
+import { OrganizationRoleBadge } from "@/components/organizations/role-badge";
 import { coreClient } from "@/lib/clients/core.client";
 import type {
   OrganizationDeletionEvaluation,
@@ -23,11 +23,9 @@ import type {
   StripeCustomerBillingDetails,
 } from "@/lib/clients/generated/core";
 import { MemberRole } from "@/lib/clients/generated/core";
-import {
-  organizationSeatService,
-  organizationService,
-  userService,
-} from "@/lib/services";
+import { organizationService } from "@/lib/services/organization.service";
+import { organizationSeatService } from "@/lib/services/organization-seat.service";
+import { userService } from "@/lib/services/user.service";
 
 interface OrganizationSettingsContentProps {
   organization: OrganizationRecord;

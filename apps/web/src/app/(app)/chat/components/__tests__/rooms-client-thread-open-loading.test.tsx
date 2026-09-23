@@ -1,3 +1,4 @@
+import "./rooms-client-harness";
 import {
   act,
   fireEvent,
@@ -8,35 +9,17 @@ import {
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type {
-  ChatRoom,
-  ChatRoomMessage,
-  Organization,
-} from "@/lib/clients/generated/core";
+import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import type { RoomComposerHandle } from "../room-composer";
 import { RoomsClient } from "../rooms-client";
-
-const actions = vi.hoisted(() => ({
-  markThreadReadAction: vi.fn(),
-  listThreadMessagesAction: vi.fn(),
-  markOrganizationChatRoomReadAction: vi.fn(),
-}));
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    push: vi.fn(),
-    replace: vi.fn(),
-    refresh: vi.fn(),
-  }),
-  usePathname: () => "/chat/rooms/room-channel",
-  useSearchParams: () => new URLSearchParams(),
-}));
-
-vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
-  useLocale: () => "en",
-}));
+import {
+  listThreadMessagesAction,
+  markOrganizationChatRoomReadAction,
+  markThreadReadAction,
+  mockSearch,
+  roomsClientBaseProps,
+} from "./rooms-client-harness";
 
 const { mockSearchHit } = vi.hoisted(() => ({
   mockSearchHit: { current: null as ChatRoomMessage | null },
@@ -63,82 +46,6 @@ vi.mock("@/app/chat/components/room-search-panel", () => ({
 
 vi.mock("@/app/chat/components/unread-threads-panel", () => ({
   UnreadThreadsPanel: () => null,
-}));
-
-vi.mock("@/app/chat/components/day-separator", () => ({
-  default: () => null,
-}));
-
-vi.mock("@/hooks/use-is-apple-platform", () => ({
-  default: () => false,
-}));
-
-vi.mock("@/hooks/use-mobile", () => ({
-  useIsMobileMedia: () => false,
-}));
-
-vi.mock("@/app/components/header/use-header-room-slot-host", () => ({
-  useHeaderRoomSlotHost: () => null,
-}));
-
-vi.mock("@/contexts/breadcrumb-override-context", () => ({
-  useRegisterBreadcrumbOverride: () => undefined,
-}));
-
-vi.mock("@/contexts/lazy-ably-provider", () => ({
-  default: ({ children }: { children: ReactNode }) => <>{children}</>,
-}));
-
-vi.mock("@/lib/ably/use-chat-room-realtime", () => ({
-  useChatRoomRealtime: () => undefined,
-}));
-
-vi.mock("@/lib/ably/use-selected-room-channel-health", () => ({
-  useSelectedRoomChannelHealth: () => undefined,
-}));
-
-vi.mock("@/app/chat/hooks/use-client-local-calendar-ready", () => ({
-  useClientLocalCalendarReady: () => true,
-}));
-
-vi.mock(
-  "@/app/chat/components/transcript-viewport",
-  () => import("./transcript-viewport-stub"),
-);
-
-vi.mock("@/app/chat/hooks/use-coworker-direct-room-stream", () => ({
-  readStoredStreamParentMessageId: () => null,
-  useCoworkerDirectRoomStream: () => ({
-    streamOverlayMessages: [],
-    isStreaming: false,
-    activeStreamParentMessageId: null,
-    sendStreamMessage: vi.fn(),
-    consumePendingStreamMessage: vi.fn(),
-  }),
-}));
-
-vi.mock("@/components/chat/use-show-room-unread-count", () => ({
-  useShowRoomUnreadCount: () => false,
-}));
-
-vi.mock("@/app/chat/actions", () => ({
-  countUnreadThreadsAction: vi.fn(async () => ({
-    ok: true as const,
-    value: 0,
-  })),
-  deleteRoomMessageAction: vi.fn(),
-  editRoomMessageAction: vi.fn(),
-  listRoomMessagesAction: vi.fn(),
-  listThreadMessagesAction: actions.listThreadMessagesAction,
-  markThreadReadAction: actions.markThreadReadAction,
-  retryRoomMentionAction: vi.fn(),
-  sendRoomMessageAction: vi.fn(),
-  setMessageReactionAction: vi.fn(),
-}));
-
-vi.mock("@/components/chat/organization-chat-list.actions", () => ({
-  markOrganizationChatRoomReadAction:
-    actions.markOrganizationChatRoomReadAction,
 }));
 
 vi.mock("../room-file-drop-zone", () => ({
@@ -168,11 +75,16 @@ vi.mock("../room-message-row", () => ({
     <button
       type="button"
       data-testid={`open-thread-${message.id}`}
+      data-unread-replies={message.threadUnreadReplyCount ?? 0}
       onClick={() => onOpenThread?.(message)}
     >
       {message.content}
     </button>
   ),
+}));
+
+vi.mock("../thread-list-panel", () => ({
+  ThreadListPanel: () => <aside data-testid="thread-list-panel" />,
 }));
 
 /** Capture loading/replies so the race is asserted at the real seam. */
@@ -214,60 +126,6 @@ vi.mock("../edit-channel-dialog", () => ({
   EditChannelDialog: () => null,
 }));
 
-vi.mock("../chat-participant-hover-card", () => ({
-  ChatParticipantHoverCard: ({ children }: { children: ReactNode }) => (
-    <>{children}</>
-  ),
-}));
-
-vi.mock("@/components/chat/channel-discoverability-icon", () => ({
-  ChannelDiscoverabilityIcon: () => null,
-}));
-
-vi.mock("@/components/chat/live-member-presence-dot", () => ({
-  LiveMemberPresenceDot: () => null,
-  LiveMemberPresenceText: () => null,
-}));
-
-vi.mock("sonner", () => ({
-  toast: { error: vi.fn(), success: vi.fn() },
-}));
-
-function channelRoom(): ChatRoom {
-  return {
-    id: "room-channel",
-    organizationId: "org-1",
-    organizationName: "Acme",
-    name: "general",
-    slug: "general",
-    kind: "channel",
-    isSelfDirect: false,
-    directKey: null,
-    topic: null,
-    discoverability: "public",
-    createdByUserId: "user-1",
-    createdAt: new Date("2026-07-01T12:00:00.000Z"),
-    updatedAt: new Date("2026-07-01T12:00:00.000Z"),
-    unreadCount: 0,
-    unreadMentionCount: 0,
-    starredAt: null,
-    mutedAt: null,
-    markedUnread: false,
-    myAccess: "member",
-    userMembers: [
-      {
-        id: "user-1",
-        name: "Ada",
-        email: "user-1@example.com",
-        image: null,
-        presence: "offline",
-      },
-    ],
-    coworkerMembers: [],
-    sokoBotMembers: [],
-  };
-}
-
 function parentMessage(): ChatRoomMessage {
   return {
     id: "parent-1",
@@ -285,6 +143,7 @@ function parentMessage(): ChatRoomMessage {
     metadata: null,
     quote: null,
     membership: null,
+    groupNameChange: null,
     unfurls: null,
     sender: {
       type: "user",
@@ -310,32 +169,16 @@ function replyMessage(id: string): ChatRoomMessage {
   };
 }
 
-const organization = {
-  id: "org-1",
-  name: "Acme",
-  slug: "acme",
-} as Organization;
-
-const baseProps = {
-  activeOrganization: organization,
-  rooms: [channelRoom()],
-  organizationMembers: [] as [],
-  currentUserId: "user-1",
-  coworkers: [] as [],
-  selectedRoomId: "room-channel",
-  messageLoadFailed: false,
-  membersLoadFailed: false,
-  messages: [parentMessage()],
-  messagesNextCursor: null as string | null,
-};
+const baseProps = roomsClientBaseProps({ messages: [parentMessage()] });
 
 describe("RoomsClient thread open loading race", () => {
   beforeEach(() => {
     mockSearchHit.current = null;
-    actions.markThreadReadAction.mockReset();
-    actions.listThreadMessagesAction.mockReset();
-    actions.markOrganizationChatRoomReadAction.mockReset();
-    actions.markOrganizationChatRoomReadAction.mockResolvedValue({
+    mockSearch.current = "";
+    markThreadReadAction.mockReset();
+    listThreadMessagesAction.mockReset();
+    markOrganizationChatRoomReadAction.mockReset();
+    markOrganizationChatRoomReadAction.mockResolvedValue({
       ok: true as const,
       value: {
         id: "room-channel",
@@ -353,13 +196,13 @@ describe("RoomsClient thread open loading race", () => {
       ok: true;
       value: { lookedAt: string };
     }) => void;
-    actions.markThreadReadAction.mockImplementation(
+    markThreadReadAction.mockImplementation(
       () =>
         new Promise((resolve) => {
           resolveMark = resolve;
         }),
     );
-    actions.listThreadMessagesAction.mockResolvedValue({
+    listThreadMessagesAction.mockResolvedValue({
       ok: true as const,
       value: {
         messages: [replyMessage("r1"), replyMessage("r2")],
@@ -378,7 +221,7 @@ describe("RoomsClient thread open loading race", () => {
     expect(screen.getByTestId("thread-reply-count").textContent).toBe("0");
     // mark-read still in flight — list must not have been called yet either
     // if sequencing kept mark first, but loading must already be true.
-    expect(actions.markThreadReadAction).toHaveBeenCalled();
+    expect(markThreadReadAction).toHaveBeenCalled();
 
     await act(async () => {
       resolveMark({
@@ -394,18 +237,65 @@ describe("RoomsClient thread open loading race", () => {
     expect(screen.getByTestId("thread-reply-count").textContent).toBe("2");
   });
 
+  it("clears the parent's unread replies once the thread has been looked at", async () => {
+    markThreadReadAction.mockResolvedValue({
+      ok: true as const,
+      value: { lookedAt: new Date().toISOString() },
+    });
+    listThreadMessagesAction.mockResolvedValue({
+      ok: true as const,
+      value: { messages: [replyMessage("r1")], nextCursor: null },
+    });
+
+    render(
+      <RoomsClient
+        {...baseProps}
+        messages={[{ ...parentMessage(), threadUnreadReplyCount: 2 }]}
+      />,
+    );
+    const row = screen.getByTestId("open-thread-parent-1");
+    expect(row.getAttribute("data-unread-replies")).toBe("2");
+
+    fireEvent.click(row);
+
+    await waitFor(() => {
+      expect(
+        screen
+          .getByTestId("open-thread-parent-1")
+          .getAttribute("data-unread-replies"),
+      ).toBe("0");
+    });
+  });
+
+  // The sidebar's overflow row asks for the thread list on the room's URL.
+  it("opens the thread list the URL asks for", async () => {
+    mockSearch.current = "threads=1";
+
+    render(<RoomsClient {...baseProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("thread-list-panel")).toBeTruthy();
+    });
+  });
+
+  it("opens no thread list when the URL asks for nothing", () => {
+    render(<RoomsClient {...baseProps} />);
+
+    expect(screen.queryByTestId("thread-list-panel")).toBeNull();
+  });
+
   it("invalidates in-flight load when the panel is closed mid-fetch", async () => {
     let resolveMark!: (value: {
       ok: true;
       value: { lookedAt: string };
     }) => void;
-    actions.markThreadReadAction.mockImplementation(
+    markThreadReadAction.mockImplementation(
       () =>
         new Promise((resolve) => {
           resolveMark = resolve;
         }),
     );
-    actions.listThreadMessagesAction.mockResolvedValue({
+    listThreadMessagesAction.mockResolvedValue({
       ok: true as const,
       value: {
         messages: [replyMessage("r1")],
@@ -435,11 +325,11 @@ describe("RoomsClient thread open loading race", () => {
   });
 
   it("marks the older-thread boundary failed after a failed page", async () => {
-    actions.markThreadReadAction.mockResolvedValue({
+    markThreadReadAction.mockResolvedValue({
       ok: true as const,
       value: { lookedAt: new Date().toISOString() },
     });
-    actions.listThreadMessagesAction
+    listThreadMessagesAction
       .mockResolvedValueOnce({
         ok: true as const,
         value: {
@@ -471,11 +361,11 @@ describe("RoomsClient thread open loading race", () => {
         "failed",
       );
     });
-    expect(actions.listThreadMessagesAction).toHaveBeenCalledTimes(2);
+    expect(listThreadMessagesAction).toHaveBeenCalledTimes(2);
   });
 
   it("drops an in-flight older page when a jump window replaces the thread", async () => {
-    actions.markThreadReadAction.mockResolvedValue({
+    markThreadReadAction.mockResolvedValue({
       ok: true as const,
       value: { lookedAt: new Date().toISOString() },
     });
@@ -486,7 +376,7 @@ describe("RoomsClient thread open loading race", () => {
     }) => void;
     let failOlder!: (value: { ok: false; error: { message: string } }) => void;
 
-    actions.listThreadMessagesAction.mockImplementation(
+    listThreadMessagesAction.mockImplementation(
       async (
         _roomId,
         _parentId,
@@ -524,7 +414,7 @@ describe("RoomsClient thread open loading race", () => {
     fireEvent.click(screen.getByTestId("search-hit"));
 
     await waitFor(() => {
-      expect(actions.listThreadMessagesAction).toHaveBeenCalledWith(
+      expect(listThreadMessagesAction).toHaveBeenCalledWith(
         "room-channel",
         "parent-1",
         { around: "r-old" },

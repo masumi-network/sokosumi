@@ -1,3 +1,4 @@
+import CoreAPI
 import Foundation
 
 /// Retains the live Core provider and rejects mints from an earlier scope.
@@ -33,14 +34,14 @@ final class RealtimeTokenSource: @unchecked Sendable {
     }
   }
 
-  func next() async throws -> AblyTokenFields {
+  func next() async throws -> Components.Schemas.AblyTokenRequest {
     let request = lock.withLock { () -> Request? in
       guard active else { return nil }
       return Request(slug: slug, generation: generation)
     }
     guard let request else { throw CancellationError() }
-    let fields = try await provider(request.slug)
+    let token = try await provider(request.slug)
     guard lock.withLock({ active && generation == request.generation }) else { throw CancellationError() }
-    return fields
+    return token
   }
 }

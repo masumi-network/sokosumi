@@ -10,6 +10,7 @@ import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create
 import { loadMoreProjects } from "@/app/projects/actions";
 import {
   PROJECTS_BROWSE_DIVIDE_CLASS,
+  PROJECTS_BROWSE_HEADER_ROW_CLASS,
   PROJECTS_BROWSE_LAYOUT_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
 } from "@/app/projects/constants";
@@ -24,6 +25,7 @@ import {
   useCreateProjectModal,
 } from "./create-project-modal";
 import { ProjectListItem } from "./project-list-item";
+import { ProjectsFilter, type ProjectsFilterLabels } from "./projects-filter";
 
 export interface ProjectsViewLabels {
   newProject: string;
@@ -39,11 +41,20 @@ export interface ProjectsViewLabels {
     tasks: string;
     jobs: string;
   };
+  lastActivity: string;
+  created: string;
+  pin: string;
+  unpin: string;
+  pinError: string;
+  filter: ProjectsFilterLabels;
+  sortedBy: string;
+  noMatches: string;
 }
 
 interface ProjectsViewProps {
   projects: ProjectListItemType[];
   nextCursor: string | null;
+  query: string;
   initialCreateProjectOpen: boolean;
   createProjectModalResetKey: string;
   labels: ProjectsViewLabels;
@@ -61,25 +72,45 @@ function ProjectsMobileCreateFabSlot() {
   );
 }
 
+function browseListKey(query: string, projects: ProjectListItemType[]) {
+  return `${query}|${projects
+    .map((project) => `${project.id}:${project.updatedAt}`)
+    .join("|")}`;
+}
+
 export function ProjectsView({
   projects,
   nextCursor,
+  query,
   initialCreateProjectOpen,
   createProjectModalResetKey,
   labels,
 }: ProjectsViewProps) {
+  const listKey = browseListKey(query, projects);
   const [items, setItems] = useState(projects);
   const [cursor, setCursor] = useState(nextCursor);
+  const [itemsKey, setItemsKey] = useState(listKey);
   const [isPending, startTransition] = useTransition();
+  // Reset appended pages when the server list changes, without remounting
+  // the filter (a `key` on this view was stealing focus after every `q`).
+  if (itemsKey !== listKey) {
+    setItemsKey(listKey);
+    setItems(projects);
+    setCursor(nextCursor);
+  }
   const hasLoadedProjects = items.length > 0;
+  const isFiltering = query.length > 0;
   const showEmptyState = !hasLoadedProjects && cursor === null;
+  // An unfiltered, empty workspace has nothing to filter, so the header row
+  // would only offer a search over zero projects.
+  const hasNothingAtAll = showEmptyState && !isFiltering;
 
   function handleLoadMore() {
     if (!cursor || isPending) return;
 
     startTransition(async () => {
       try {
-        const result = await loadMoreProjects({ cursor });
+        const result = await loadMoreProjects({ cursor, query });
         setItems((prev) => appendUniqueProjects(prev, result.projects));
         setCursor(result.nextCursor);
       } catch {
@@ -96,11 +127,9 @@ export function ProjectsView({
       <div
         className={cn("flex flex-col gap-5", LIST_MOBILE_CREATE_FAB_CLEARANCE)}
       >
-        <div className="hidden justify-end md:flex">
-          <AddProjectButton label={labels.newProject} className="self-start" />
-        </div>
-
-        {hasLoadedProjects ? (
+        {hasNothingAtAll ? (
+          <ProjectsEmptyState labels={labels.empty} />
+        ) : (
           <div
             data-testid="projects-browse"
             className={cn(
@@ -108,19 +137,47 @@ export function ProjectsView({
               PROJECTS_LIST_CARD_MIN_H_CLASS,
             )}
           >
-            <div className={PROJECTS_BROWSE_DIVIDE_CLASS}>
-              {items.map((project) => (
-                <ProjectListItem
-                  key={project.id}
-                  project={project}
-                  labels={{ counts: labels.counts }}
-                />
-              ))}
+            <div className={PROJECTS_BROWSE_HEADER_ROW_CLASS}>
+              <ProjectsFilter labels={labels.filter} />
+              {/* Plain text, not a control: the Core route has one fixed
+                  ordering, so a chip here would promise a menu that cannot
+                  exist yet. Nothing in this row wraps, so the label yields
+                  across md–lg, where the create button shares the line and a
+                  longer locale would otherwise squeeze the filter to a stub. */}
+              <span className="text-muted-foreground inline shrink-0 text-xs whitespace-nowrap md:hidden lg:inline">
+                {labels.sortedBy}
+              </span>
+              {/* Create lives on the line it acts on, so the page carries no
+                  row that exists only to hold a button. Below md the mobile
+                  FAB is the create control, so this one stays desktop-only. */}
+              <AddProjectButton
+                label={labels.newProject}
+                className="hidden md:inline-flex"
+              />
             </div>
+
+            {hasLoadedProjects ? (
+              <div className={PROJECTS_BROWSE_DIVIDE_CLASS}>
+                {items.map((project) => (
+                  <ProjectListItem
+                    key={project.id}
+                    project={project}
+                    labels={{
+                      counts: labels.counts,
+                      lastActivity: labels.lastActivity,
+                      created: labels.created,
+                      pin: labels.pin,
+                      unpin: labels.unpin,
+                      pinError: labels.pinError,
+                    }}
+                  />
+                ))}
+              </div>
+            ) : showEmptyState ? (
+              <ProjectsNoMatches message={labels.noMatches} />
+            ) : null}
           </div>
-        ) : showEmptyState ? (
-          <ProjectsEmptyState labels={labels.empty} />
-        ) : null}
+        )}
 
         {cursor ? (
           <div className="flex justify-center">
@@ -144,6 +201,18 @@ export function ProjectsView({
       <ProjectsMobileCreateFabSlot />
       <CreateProjectModal />
     </CreateProjectModalProvider>
+  );
+}
+
+/** Sits inside the list card, under its header row — so no chrome of its own. */
+function ProjectsNoMatches({ message }: { message: string }) {
+  return (
+    <div
+      data-testid="projects-no-matches"
+      className="flex flex-col items-center justify-center px-6 py-12 text-center"
+    >
+      <p className="text-muted-foreground text-sm">{message}</p>
+    </div>
   );
 }
 

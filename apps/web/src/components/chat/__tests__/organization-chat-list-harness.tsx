@@ -1,5 +1,5 @@
 import { render } from "@testing-library/react";
-import type { ReactElement, ReactNode } from "react";
+import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { vi } from "vitest";
 import type {
   ChatRoom,
@@ -7,6 +7,13 @@ import type {
 } from "@/lib/clients/generated/core";
 
 import { OrganizationChatList } from "../organization-chat-list.client";
+
+/** The route the list reads, so a test can open a room. Reset per test.
+ *  Selection is the optimistic highlight, which moves before the route. */
+const { harnessPathname, harnessSelection } = vi.hoisted(() => ({
+  harnessPathname: { current: "/chat" },
+  harnessSelection: { current: null as string | null },
+}));
 
 const {
   acceptInvitationMock,
@@ -24,11 +31,17 @@ const {
 
 export {
   acceptInvitationMock,
+  harnessPathname,
+  harnessSelection,
   listArchivedMock,
   listPendingMock,
   listRoomsMock,
   reorderPinnedMock,
 };
+
+vi.mock("@/app/chat/components/room-cache-provider", () => ({
+  useRoomSelection: () => harnessSelection.current,
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -36,7 +49,7 @@ vi.mock("next/navigation", () => ({
     replace: vi.fn(),
     refresh: vi.fn(),
   }),
-  usePathname: () => "/chat",
+  usePathname: () => harnessPathname.current,
 }));
 
 vi.mock("next/link", () => ({
@@ -91,16 +104,42 @@ vi.mock("../chat-room-sidebar-row", () => ({
   ChatRoomSidebarRow: ({
     label,
     reorderHandle,
+    itemProps,
   }: {
     label: string;
     reorderHandle?: ReactNode;
+    itemProps?: ComponentProps<"li">;
   }) => (
-    <li data-testid="room-row">
+    <li {...itemProps} data-testid="room-row">
       <span>{label}</span>
       {reorderHandle}
     </li>
   ),
   RailAttentionPill: () => null,
+}));
+
+// A marker, not the rows: what they count belongs to
+// `chat-unread-nav-rows.test.tsx`. The list decides where they stand and
+// what the All unreads filter does to the sections, so the marker keeps the
+// toggle.
+vi.mock("../chat-unread-nav-rows", () => ({
+  ChatUnreadNavRows: ({
+    unreadOnly,
+    onUnreadOnlyChange,
+  }: {
+    unreadOnly: boolean;
+    onUnreadOnlyChange: (unreadOnly: boolean) => void;
+  }) => (
+    <li data-testid="chat-unread-nav-rows">
+      <button
+        type="button"
+        aria-pressed={unreadOnly}
+        onClick={() => onUnreadOnlyChange(!unreadOnly)}
+      >
+        All unreads
+      </button>
+    </li>
+  ),
 }));
 
 vi.mock("../pending-invitation-rail-button", () => ({
@@ -176,7 +215,13 @@ vi.mock("@/components/ui/sidebar", async () => ({
   SidebarGroupContent: ({ children }: { children: ReactNode }) => (
     <div>{children}</div>
   ),
-  SidebarMenu: ({ children }: { children: ReactNode }) => <ul>{children}</ul>,
+  // Props through, so a section's own marker (`data-slot`) reaches the DOM.
+  SidebarMenu: ({
+    children,
+    ...props
+  }: { children: ReactNode } & ComponentProps<"ul">) => (
+    <ul {...props}>{children}</ul>
+  ),
   SidebarMenuItem: ({ children }: { children: ReactNode }) => (
     <li>{children}</li>
   ),
@@ -259,6 +304,8 @@ export function makeRoom(
     name: overrides.id,
     slug: overrides.kind === "channel" ? overrides.id : null,
     isSelfDirect: false,
+    isGroupDirect: false,
+    groupName: null,
     directKey: null,
     topic: null,
     discoverability: overrides.kind === "channel" ? "public" : null,
@@ -296,6 +343,8 @@ export function makeInvitation(
 }
 
 export function resetOrganizationChatListMocks() {
+  harnessPathname.current = "/chat";
+  harnessSelection.current = null;
   acceptInvitationMock.mockReset();
   listRoomsMock.mockReset();
   listArchivedMock.mockReset();

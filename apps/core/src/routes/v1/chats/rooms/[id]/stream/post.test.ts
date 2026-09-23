@@ -40,6 +40,7 @@ const {
   convertToModelMessagesMock,
   validateUIMessagesMock,
   getSokosumiProviderMock,
+  sokosumiProviderCallMock,
   persistUserMessageToChatRoomMock,
   persistAssistantToChatRoomMock,
   isUiStreamResumptionConfiguredMock,
@@ -76,6 +77,7 @@ const {
   convertToModelMessagesMock: vi.fn(),
   validateUIMessagesMock: vi.fn(),
   getSokosumiProviderMock: vi.fn(),
+  sokosumiProviderCallMock: vi.fn(),
   persistUserMessageToChatRoomMock: vi.fn(),
   persistAssistantToChatRoomMock: vi.fn(),
   isUiStreamResumptionConfiguredMock: vi.fn(),
@@ -320,29 +322,14 @@ async function postStream(
 
 beforeEach(() => {
   vi.clearAllMocks();
-  prismaTransactionMock.mockImplementation(async (callback) =>
-    callback({
-      chatRoom: {
-        findFirst: roomFindFirstMock,
-      },
-      chatRoomMessage: {
-        findFirst: chatRoomMessageFindFirstMock,
-      },
-      organization: {
-        findUnique: organizationFindUniqueMock,
-      },
-      member: {
-        findUnique: memberFindUniqueMock,
-      },
-    }),
-  );
   organizationFindUniqueMock.mockResolvedValue({ id: "org_1" });
   memberFindUniqueMock.mockResolvedValue({ role: "member" });
   convertToModelMessagesMock.mockResolvedValue([]);
   validateUIMessagesMock.mockImplementation(
     async ({ messages }: { messages: unknown[] }) => messages,
   );
-  getSokosumiProviderMock.mockReturnValue(() => ({}));
+  sokosumiProviderCallMock.mockReturnValue({});
+  getSokosumiProviderMock.mockReturnValue(sokosumiProviderCallMock);
   workspaceFindUniqueMock.mockResolvedValue({ id: "ws_org_1" });
   requireCoworkerChatCapabilityInWorkspaceMock.mockResolvedValue({
     id: COWORKER_ID,
@@ -517,6 +504,7 @@ describe("POST /chats/rooms/{id}/stream", () => {
     );
 
     expect(streamTextMock).toHaveBeenCalledOnce();
+    expect(sokosumiProviderCallMock).toHaveBeenCalledWith(null);
     const streamArgs = streamTextMock.mock.calls[0]![0] as {
       providerOptions: {
         sokosumi: {
@@ -536,7 +524,7 @@ describe("POST /chats/rooms/{id}/stream", () => {
     expect(ensureThreadProviderConversationMock).not.toHaveBeenCalled();
     expect(buildRoomStreamThreadModelMessagesMock).not.toHaveBeenCalled();
     expect(chatRoomUpdateManyMock).not.toHaveBeenCalled();
-    expect(prismaTransactionMock).toHaveBeenCalledOnce();
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
   it("persists thread replies under parentMessageId with thread-scoped conversation", async () => {

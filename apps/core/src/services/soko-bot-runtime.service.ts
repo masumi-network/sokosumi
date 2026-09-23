@@ -1313,7 +1313,12 @@ export class SokoBotRuntimeService {
     // Direct-message notifications deduplicate by recipient/message in PostgreSQL;
     // cache invalidation is safe to repeat. Do not replay mention dispatch.
     if (!message.replayed || publication)
-      await scheduleSokoBotChatMessageEffects(room, message.id, input.content);
+      await scheduleSokoBotChatMessageEffects(
+        room,
+        message.id,
+        input.content,
+        [],
+      );
     for (const mentionId of mentionIds) {
       const { dispatchChatRoomMention } = await import(
         "@/services/chat-room-coworker-dispatch.service"

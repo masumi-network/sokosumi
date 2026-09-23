@@ -27,7 +27,7 @@ describe("projects list CLS layout constants", () => {
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).toBe(
       "bg-card-background border-border -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
     );
-    expect(PROJECTS_BROWSE_DIVIDE_CLASS).toBe("divide-border divide-y px-2");
+    expect(PROJECTS_BROWSE_DIVIDE_CLASS).toBe("divide-border divide-y");
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).not.toContain("grid-cols-2");
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("rounded-none");
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("md:rounded-xl");

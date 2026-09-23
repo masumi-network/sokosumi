@@ -1,23 +1,21 @@
+import "./rooms-client-harness";
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { memo, type ReactNode, type Ref, useImperativeHandle } from "react";
+import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { RoomComposerHandle } from "@/app/chat/components/room-composer";
+import { clearMembershipVisibleRoomsSnapshot } from "@/components/chat/membership-visible-rooms-store";
+import { clearRoomReadOverlays } from "@/components/chat/room-read-overlay";
+import { chatRoomMessageEventDataSchema } from "@/lib/ably/schema";
+import type { ChatRoomMessage } from "@/lib/clients/generated/core";
+import { RoomsClient } from "../rooms-client";
 import {
   editRoomMessageAction,
   pinRoomMessageAction,
+  roomsClientBaseProps,
   setMessageReactionAction,
   unpinRoomMessageAction,
-} from "@/app/chat/actions";
-import type { RoomComposerHandle } from "@/app/chat/components/room-composer";
-import { RoomsClient } from "@/app/chat/components/rooms-client";
-import { clearMembershipVisibleRoomsSnapshot } from "@/components/chat/membership-visible-rooms-store";
-import { clearRoomReadOverlays } from "@/components/chat/room-read-overlay";
-import { chatRoomMessageEventDataSchema } from "@/lib/ably";
-import { useChatRoomRealtime } from "@/lib/ably/use-chat-room-realtime";
-import type {
-  ChatRoom,
-  ChatRoomMessage,
-  Organization,
-} from "@/lib/clients/generated/core";
+  useChatRoomRealtimeMock,
+} from "./rooms-client-harness";
 
 /**
  * A change that touches one message must re-render that row only. The row
@@ -30,24 +28,6 @@ const { rowRenders, fetchRoomMessagesMock } = vi.hoisted(() => ({
   fetchRoomMessagesMock: vi.fn(),
 }));
 
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    push: vi.fn(),
-    replace: vi.fn(),
-    refresh: vi.fn(),
-  }),
-  usePathname: () => "/chat/rooms/room-channel",
-  useSearchParams: () => new URLSearchParams(),
-}));
-
-// next-intl memoizes its translator; a fresh function per render would
-// churn every memoized input that lists `t`.
-const translate = (key: string) => key;
-vi.mock("next-intl", () => ({
-  useTranslations: () => translate,
-  useLocale: () => "en",
-}));
-
 vi.mock("@/app/chat/components/room-search-panel", () => ({
   RoomSearchPanel: () => null,
 }));
@@ -56,97 +36,9 @@ vi.mock("@/app/chat/components/unread-threads-panel", () => ({
   UnreadThreadsPanel: () => null,
 }));
 
-vi.mock("@/app/chat/components/day-separator", () => ({
-  default: () => null,
-}));
-
-vi.mock("@/hooks/use-is-apple-platform", () => ({
-  default: () => false,
-}));
-
-vi.mock("@/hooks/use-mobile", () => ({
-  useIsMobileMedia: () => false,
-}));
-
-vi.mock("@/app/components/header/use-header-room-slot-host", () => ({
-  useHeaderRoomSlotHost: () => null,
-}));
-
-vi.mock("@/contexts/breadcrumb-override-context", () => ({
-  useRegisterBreadcrumbOverride: () => undefined,
-}));
-
-vi.mock("@/contexts/lazy-ably-provider", () => ({
-  default: ({ children }: { children: ReactNode }) => <>{children}</>,
-}));
-
-vi.mock("@/lib/ably/use-chat-room-realtime", () => ({
-  useChatRoomRealtime: vi.fn(),
-}));
-
-vi.mock("@/lib/ably/use-selected-room-channel-health", () => ({
-  useSelectedRoomChannelHealth: () => undefined,
-}));
-
-vi.mock("@/app/chat/hooks/use-client-local-calendar-ready", () => ({
-  useClientLocalCalendarReady: () => true,
-}));
-
-vi.mock(
-  "@/app/chat/components/transcript-viewport",
-  () => import("./transcript-viewport-stub"),
-);
-
-vi.mock("@/app/chat/hooks/use-coworker-direct-room-stream", () => ({
-  readStoredStreamParentMessageId: () => null,
-  useCoworkerDirectRoomStream: () => ({
-    streamOverlayMessages: [],
-    isStreaming: false,
-    activeStreamParentMessageId: null,
-    sendStreamMessage: vi.fn(),
-    consumePendingStreamMessage: vi.fn(),
-  }),
-}));
-
-vi.mock("@/components/chat/use-show-room-unread-count", () => ({
-  useShowRoomUnreadCount: () => false,
-}));
-
-vi.mock("@/app/chat/actions", () => ({
-  countUnreadThreadsAction: vi.fn(async () => ({
-    ok: true as const,
-    value: 0,
-  })),
-  deleteRoomMessageAction: vi.fn(),
-  editRoomMessageAction: vi.fn(),
-  listRoomMessagesAction: vi.fn(async () => ({
-    ok: true,
-    value: { messages: [], nextCursor: null },
-  })),
-  listThreadMessagesAction: vi.fn(),
-  markThreadReadAction: vi.fn(),
-  pinRoomMessageAction: vi.fn(),
-  retryRoomMentionAction: vi.fn(),
-  sendRoomMessageAction: vi.fn(),
-  setMessageReactionAction: vi.fn(),
-  unpinRoomMessageAction: vi.fn(),
-}));
-
 // Scheduled room recovery reads go over GET; the poll is the refresh merge.
 vi.mock("@/components/chat/fetch-room-messages", () => ({
   fetchRoomMessages: fetchRoomMessagesMock,
-}));
-
-vi.mock("@/components/chat/organization-chat-list.actions", () => ({
-  markOrganizationChatRoomReadAction: vi.fn(async (roomId: string) => ({
-    ok: true as const,
-    value: {
-      id: roomId,
-      unreadCount: 0,
-      unreadMentionCount: 0,
-      markedUnread: false,
-    },
-  })),
 }));
 
 vi.mock("../room-file-drop-zone", () => ({
@@ -165,60 +57,65 @@ vi.mock("../room-session-composer", () => ({
   },
 }));
 
-vi.mock("../room-message-row", () => ({
-  ChatMessageRow: memo(function ChatMessageRowStub({
-    message,
-    isPinned,
-    isEditing,
-    editDraft,
-    onToggleReaction,
-    onPin,
-    onStartEdit,
-    onEditDraftChange,
-    onSaveEdit,
-  }: {
-    message: ChatRoomMessage;
-    isPinned?: boolean;
-    isEditing?: boolean;
-    editDraft?: string;
-    onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
-    onPin?: (message: ChatRoomMessage) => void;
-    onStartEdit?: (message: ChatRoomMessage) => void;
-    onEditDraftChange?: (value: string) => void;
-    onSaveEdit?: (content?: string) => void;
-  }) {
-    rowRenders.set(message.id, (rowRenders.get(message.id) ?? 0) + 1);
-    return (
-      <div
-        data-testid="chat-message-row"
-        data-message-id={message.id}
-        data-pinned={String(Boolean(isPinned))}
-        data-editing={String(Boolean(isEditing))}
-        data-edit-draft={editDraft ?? ""}
-      >
-        {message.content}
-        <button type="button" onClick={() => onToggleReaction(message, "👍")}>
-          {`React ${message.id}`}
-        </button>
-        <button type="button" onClick={() => onPin?.(message)}>
-          {`Pin ${message.id}`}
-        </button>
-        <button type="button" onClick={() => onStartEdit?.(message)}>
-          {`Edit ${message.id}`}
-        </button>
-        <button
-          type="button"
-          onClick={() => onEditDraftChange?.("typed draft")}
+vi.mock("../room-message-row", async () => {
+  // Factory is hoisted before this file's imports; memo must load here.
+  const { memo } = await import("react");
+  return {
+    ChannelMessageText: () => null,
+    ChatMessageRow: memo(function ChatMessageRowStub({
+      message,
+      isPinned,
+      isEditing,
+      editDraft,
+      onToggleReaction,
+      onPin,
+      onStartEdit,
+      onEditDraftChange,
+      onSaveEdit,
+    }: {
+      message: ChatRoomMessage;
+      isPinned?: boolean;
+      isEditing?: boolean;
+      editDraft?: string;
+      onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
+      onPin?: (message: ChatRoomMessage) => void;
+      onStartEdit?: (message: ChatRoomMessage) => void;
+      onEditDraftChange?: (value: string) => void;
+      onSaveEdit?: (content?: string) => void;
+    }) {
+      rowRenders.set(message.id, (rowRenders.get(message.id) ?? 0) + 1);
+      return (
+        <div
+          data-testid="chat-message-row"
+          data-message-id={message.id}
+          data-pinned={String(Boolean(isPinned))}
+          data-editing={String(Boolean(isEditing))}
+          data-edit-draft={editDraft ?? ""}
         >
-          {`Type ${message.id}`}
-        </button>
-        <button type="button" onClick={() => onSaveEdit?.()}>
-          {`Save ${message.id}`}
-        </button>
-      </div>
-    );
-  }),
-}));
+          {message.content}
+          <button type="button" onClick={() => onToggleReaction(message, "👍")}>
+            {`React ${message.id}`}
+          </button>
+          <button type="button" onClick={() => onPin?.(message)}>
+            {`Pin ${message.id}`}
+          </button>
+          <button type="button" onClick={() => onStartEdit?.(message)}>
+            {`Edit ${message.id}`}
+          </button>
+          <button
+            type="button"
+            onClick={() => onEditDraftChange?.("typed draft")}
+          >
+            {`Type ${message.id}`}
+          </button>
+          <button type="button" onClick={() => onSaveEdit?.()}>
+            {`Save ${message.id}`}
+          </button>
+        </div>
+      );
+    }),
+  };
+});
 
 vi.mock("../thread-panel", () => ({
   ThreadPanel: () => null,
@@ -229,60 +126,6 @@ vi.mock("../edit-channel-dialog", () => ({
     <>{children}</>
   ),
 }));
-
-vi.mock("../chat-participant-hover-card", () => ({
-  ChatParticipantHoverCard: ({ children }: { children: ReactNode }) => (
-    <>{children}</>
-  ),
-}));
-
-vi.mock("@/components/chat/channel-discoverability-icon", () => ({
-  ChannelDiscoverabilityIcon: () => null,
-}));
-
-vi.mock("@/components/chat/live-member-presence-dot", () => ({
-  LiveMemberPresenceDot: () => null,
-  LiveMemberPresenceText: () => null,
-}));
-
-vi.mock("sonner", () => ({
-  toast: { error: vi.fn(), success: vi.fn() },
-}));
-
-function channelRoom(): ChatRoom {
-  return {
-    id: "room-channel",
-    organizationId: "org-1",
-    organizationName: "Acme",
-    name: "general",
-    slug: "general",
-    kind: "channel",
-    isSelfDirect: false,
-    directKey: null,
-    topic: null,
-    discoverability: "public",
-    createdByUserId: "user-1",
-    createdAt: new Date("2026-07-01T12:00:00.000Z"),
-    updatedAt: new Date("2026-07-01T12:00:00.000Z"),
-    unreadCount: 0,
-    unreadMentionCount: 0,
-    starredAt: null,
-    mutedAt: null,
-    markedUnread: false,
-    myAccess: "member",
-    userMembers: [
-      {
-        id: "user-1",
-        name: "Ada",
-        email: "user-1@example.com",
-        image: null,
-        presence: "offline",
-      },
-    ],
-    coworkerMembers: [],
-    sokoBotMembers: [],
-  };
-}
 
 function message(id: string, minute: number): ChatRoomMessage {
   return {
@@ -303,6 +146,7 @@ function message(id: string, minute: number): ChatRoomMessage {
     metadata: null,
     quote: null,
     membership: null,
+    groupNameChange: null,
     unfurls: null,
     sender: {
       type: "user",
@@ -317,29 +161,12 @@ function message(id: string, minute: number): ChatRoomMessage {
   };
 }
 
-const organization = {
-  id: "org-1",
-  name: "Acme",
-  slug: "acme",
-} as Organization;
-
 const messages = [message("m1", 1), message("m2", 2), message("m3", 3)];
 
-const baseProps = {
-  activeOrganization: organization,
-  rooms: [channelRoom()],
-  organizationMembers: [] as [],
-  currentUserId: "user-1",
-  coworkers: [] as [],
-  selectedRoomId: "room-channel",
-  messageLoadFailed: false,
-  membersLoadFailed: false,
-  messages,
-  messagesNextCursor: null as string | null,
-};
+const baseProps = roomsClientBaseProps({ messages });
 
 function realtimeOptions() {
-  const options = vi.mocked(useChatRoomRealtime).mock.calls.at(-1)?.[0];
+  const options = useChatRoomRealtimeMock.mock.calls.at(-1)?.[0];
   if (!options) {
     throw new Error("useChatRoomRealtime was not called");
   }

@@ -10,6 +10,7 @@ export const notificationKindSchema = z
     NotificationKind.BILLING,
     NotificationKind.SYSTEM,
     NotificationKind.CHAT,
+    NotificationKind.PROJECT,
   ])
   .openapi("NotificationKind");
 
@@ -25,7 +26,7 @@ export const notificationItemSchema = z
     }),
     kind: notificationKindSchema.openapi({
       description: "Notification source domain",
-      example: NotificationKind.JOB,
+      example: NotificationKind.TASK,
     }),
     referenceId: z.string().openapi({
       description: "ID of the related entity (job id, task id, etc.)",
@@ -38,12 +39,12 @@ export const notificationItemSchema = z
     }),
     messageKey: z.string().openapi({
       description:
-        "i18n message key for translation (e.g. Notifications.Job.completed)",
-      example: "Notifications.Job.completed",
+        "i18n message key for translation (e.g. Notifications.Task.completed)",
+      example: "Notifications.Task.completed",
     }),
     messageParams: z.record(z.string(), z.unknown()).openapi({
       description: "ICU interpolation parameters for the message",
-      example: { agentName: "Research Agent", jobName: "Market Analysis" },
+      example: { coworkerName: "Ada", taskName: "Market Analysis" },
     }),
     metadata: z
       .record(z.string(), z.unknown())

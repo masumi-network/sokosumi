@@ -44,11 +44,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
 
-    await prisma.$transaction(async (tx) => {
-      await requireJobShareCollaboration(c.var, id, tx);
+    await requireJobShareCollaboration(c.var, id, prisma);
 
-      await publicShareRepository.deleteByJobId(id, tx);
-    });
+    await publicShareRepository.deleteByJobId(id, prisma);
 
     return ok(c, deleteJobShareResponseSchema.parse({}));
   });

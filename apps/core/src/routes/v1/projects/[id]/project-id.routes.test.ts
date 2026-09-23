@@ -21,6 +21,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 const {
+  deliverCalendarInvalidationsNowMock,
   projectFindFirstMock,
   projectUpdateManyMock,
   projectDeleteManyMock,
@@ -30,11 +31,11 @@ const {
   jobFindFirstMock,
   jobUpdateMock,
   jobUpdateManyMock,
-  deleteProjectBlobsMock,
   deleteProjectBriefingBlobMock,
   ensureProjectFilesTokenMock,
   uploadProjectBriefingFileMock,
 } = vi.hoisted(() => ({
+  deliverCalendarInvalidationsNowMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
   projectUpdateManyMock: vi.fn(),
   projectDeleteManyMock: vi.fn(),
@@ -44,14 +45,16 @@ const {
   jobFindFirstMock: vi.fn(),
   jobUpdateMock: vi.fn(),
   jobUpdateManyMock: vi.fn(),
-  deleteProjectBlobsMock: vi.fn(),
   deleteProjectBriefingBlobMock: vi.fn(),
   ensureProjectFilesTokenMock: vi.fn(),
   uploadProjectBriefingFileMock: vi.fn(),
 }));
 
+vi.mock("@/helpers/calendar-invalidation", () => ({
+  deliverCalendarInvalidationsNow: deliverCalendarInvalidationsNowMock,
+}));
+
 vi.mock("@/lib/project-files-blob", () => ({
-  deleteProjectBlobs: deleteProjectBlobsMock,
   deleteProjectBriefingBlob: deleteProjectBriefingBlobMock,
   ensureProjectFilesToken: ensureProjectFilesTokenMock,
   uploadProjectBriefingFile: uploadProjectBriefingFileMock,
@@ -257,6 +260,9 @@ describe("PATCH /projects/{id}", () => {
       body: JSON.stringify({ name: "New" }),
     });
     expect(res.status).toBe(200);
+    expect(deliverCalendarInvalidationsNowMock).toHaveBeenCalledWith(
+      WORKSPACE_ID,
+    );
     const body = (await res.json()) as { data: { name: string } };
     expect(body.data.name).toBe("New");
   });
@@ -293,6 +299,7 @@ describe("PATCH /projects/{id}", () => {
         briefing: "Updated briefing",
         briefingUrl:
           "https://blob.example/projects/project_1/secret_token/BRIEFING.md",
+        projectRevision: { increment: 1 },
       },
     });
   });
@@ -321,7 +328,11 @@ describe("PATCH /projects/{id}", () => {
     expect(uploadProjectBriefingFileMock).not.toHaveBeenCalled();
     expect(projectUpdateManyMock).toHaveBeenCalledWith({
       where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
-      data: { briefing: null, briefingUrl: null },
+      data: {
+        briefing: null,
+        briefingUrl: null,
+        projectRevision: { increment: 1 },
+      },
     });
     expect(deleteProjectBriefingBlobMock).toHaveBeenCalledWith(oldBriefingUrl);
   });
@@ -354,7 +365,11 @@ describe("PATCH /projects/{id}", () => {
     expect(res.status).toBe(200);
     expect(projectUpdateManyMock).toHaveBeenCalledWith({
       where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
-      data: { briefing: "Updated briefing", briefingUrl: null },
+      data: {
+        briefing: "Updated briefing",
+        briefingUrl: null,
+        projectRevision: { increment: 1 },
+      },
     });
     expect(deleteProjectBriefingBlobMock).toHaveBeenCalledWith(oldBriefingUrl);
   });
@@ -393,7 +408,10 @@ describe("PATCH /projects/{id}", () => {
     expect(res.status).toBe(200);
     expect(projectUpdateManyMock).toHaveBeenCalledWith({
       where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
-      data: { websiteUrl: "https://new.example.com" },
+      data: {
+        websiteUrl: "https://new.example.com",
+        projectRevision: { increment: 1 },
+      },
     });
   });
 
@@ -429,79 +447,31 @@ describe("PATCH /projects/{id}", () => {
 describe("DELETE /projects/{id}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    transactionMock.mockImplementation(async (callback) =>
-      callback({
-        $queryRaw: queryRawMock,
-        project: { deleteMany: projectDeleteManyMock },
-        taskScheduleOccurrence: {
-          findFirst: taskScheduleOccurrenceFindFirstMock,
-        },
-      }),
-    );
   });
 
-  it("distinguishes a missing Project from a guarded Project", async () => {
-    projectDeleteManyMock.mockResolvedValue({ count: 0 });
-    queryRawMock
-      .mockResolvedValueOnce([{ id: WORKSPACE_ID }])
-      .mockResolvedValueOnce([]);
+  it("rejects project deletion and leaves the project in place", async () => {
     const app = createApp();
     mountDeleteProject(app);
     const res = await app.request(`http://localhost/${PROJECT_ID}`, {
       method: "DELETE",
     });
-    expect(res.status).toBe(404);
-    expect(deleteProjectBlobsMock).not.toHaveBeenCalled();
+    const body = (await res.json()) as { kind?: string };
 
-    queryRawMock
-      .mockResolvedValueOnce([{ id: WORKSPACE_ID }])
-      .mockResolvedValueOnce([{ id: PROJECT_ID }]);
-    const guardedResponse = await app.request(
-      `http://localhost/${PROJECT_ID}`,
-      { method: "DELETE" },
-    );
-    const guardedBody = (await guardedResponse.json()) as { kind?: string };
-
-    expect(guardedResponse.status).toBe(409);
-    expect(guardedBody.kind).toBe("project_has_calendar_history");
-    expect(deleteProjectBlobsMock).not.toHaveBeenCalled();
-  });
-
-  it("returns deleted payload", async () => {
-    projectDeleteManyMock.mockResolvedValue({ count: 1 });
-    queryRawMock
-      .mockResolvedValueOnce([{ id: WORKSPACE_ID }])
-      .mockResolvedValueOnce([{ id: PROJECT_ID }]);
-    const app = createApp();
-    mountDeleteProject(app);
-    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
-      method: "DELETE",
-    });
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as { data: { deleted: boolean } };
-    expect(body.data.deleted).toBe(true);
-    expect(queryRawMock).toHaveBeenCalledTimes(2);
-    expect(transactionMock).toHaveBeenCalledOnce();
-    expect(deleteProjectBlobsMock).toHaveBeenCalledWith(PROJECT_ID);
-  });
-
-  it("returns calendar-history conflict before deleting a project with occurrences", async () => {
-    taskScheduleOccurrenceFindFirstMock.mockResolvedValue({ id: "occ_123" });
-    queryRawMock
-      .mockResolvedValueOnce([{ id: WORKSPACE_ID }])
-      .mockResolvedValueOnce([{ id: PROJECT_ID }]);
-    const app = createApp();
-    mountDeleteProject(app);
-
-    const response = await app.request(`http://localhost/${PROJECT_ID}`, {
-      method: "DELETE",
-    });
-    const body = (await response.json()) as { kind?: string };
-
-    expect(response.status).toBe(409);
-    expect(body.kind).toBe("project_has_calendar_history");
+    expect(res.status).toBe(409);
+    expect(body.kind).toBe("project_deletion_removed");
+    expect(transactionMock).not.toHaveBeenCalled();
     expect(projectDeleteManyMock).not.toHaveBeenCalled();
-    expect(deleteProjectBlobsMock).not.toHaveBeenCalled();
+    expect(deliverCalendarInvalidationsNowMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a non-uuid id before the handler", async () => {
+    const app = createApp();
+    mountDeleteProject(app);
+    const res = await app.request("http://localhost/not-a-uuid", {
+      method: "DELETE",
+    });
+
+    expect(res.status).toBe(422);
   });
 
   it("rejects coworker context even with X-Context-User-Id", async () => {

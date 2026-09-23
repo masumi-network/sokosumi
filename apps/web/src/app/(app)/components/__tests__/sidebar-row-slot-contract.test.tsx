@@ -2,6 +2,13 @@ import { render } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+// ProjectsMenuItem and the chat rows call useSession. The real better-auth
+// session atom schedules a nanostores unmount timer that can fire after
+// happy-dom tears down `window`.
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({ data: null }),
+}));
+
 vi.mock("next/navigation", () => ({
   usePathname: () => "/chat",
   useSearchParams: () => new URLSearchParams(),
@@ -74,6 +81,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import type { ChatRoomInvitation } from "@/lib/clients/generated/core";
+import { TestQueryProvider } from "@/test/query-provider";
 
 const rooms = [
   makeRoom({ id: "channel-1", name: "general" }),
@@ -111,27 +119,29 @@ const pendingInvitations: ChatRoomInvitation[] = [
  */
 function renderSidebar() {
   return render(
-    <SidebarProvider defaultOpen>
-      <Sidebar collapsible="icon">
-        <SidebarContent>
-          <PersonalAssistantNav
-            bot={{ id: "bot-1", imageUrl: null, seed: "seed" }}
-          />
-          <MenuItems calendarMenuEnabled />
-          <OrganizationChatList
-            rooms={rooms}
-            archivedRooms={archivedRooms}
-            pendingInvitations={pendingInvitations}
-            currentUserId="user-1"
-            organizationId="org-1"
-            canDeleteArchivedRooms
-            dismissSheetOnNavigate={false}
-            paintOnly
-          />
-          <SidebarChatListSkeleton />
-        </SidebarContent>
-      </Sidebar>
-    </SidebarProvider>,
+    <TestQueryProvider>
+      <SidebarProvider defaultOpen>
+        <Sidebar collapsible="icon">
+          <SidebarContent>
+            <PersonalAssistantNav
+              bot={{ id: "bot-1", imageUrl: null, seed: "seed" }}
+            />
+            <MenuItems calendarMenuEnabled />
+            <OrganizationChatList
+              rooms={rooms}
+              archivedRooms={archivedRooms}
+              pendingInvitations={pendingInvitations}
+              currentUserId="user-1"
+              organizationId="org-1"
+              canDeleteArchivedRooms
+              dismissSheetOnNavigate={false}
+              paintOnly
+            />
+            <SidebarChatListSkeleton />
+          </SidebarContent>
+        </Sidebar>
+      </SidebarProvider>
+    </TestQueryProvider>,
   );
 }
 
@@ -144,7 +154,8 @@ describe("every sidebar row uses the shared leading slot", () => {
     // Soko Bots, eight nav rows, four section headings (Pinned, Channels,
     // External, Direct Messages) twice over — the titled row and its rail
     // square — Archived's titled row, five rooms, the archived row, the
-    // invitation's card and its rail button, and six skeleton slots. Counting
+    // invitation's card and its rail button, and eight skeleton slots — two
+    // section headings and six rooms. Counting
     // by row type rather than by total, so adding a nav item does not edit a
     // number here.
     expect(container.querySelectorAll(SLOT).length).toBeGreaterThan(20);

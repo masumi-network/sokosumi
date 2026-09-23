@@ -295,7 +295,8 @@
       "docs": "Documentación",
       "drive": "Archivos",
       "soko-bots": "Soko Bots",
-      "calendar": "Calendario"
+      "calendar": "Calendario",
+      "threads": "Hilos"
     },
     "Jobs": {
       "StatusBadge": {
@@ -771,10 +772,16 @@
       "unreadBadgeWithAccountNotice": "{count, plural, =1 {1 notificación sin leer y aviso de cuenta} other {# notificaciones sin leer y aviso de cuenta}}",
       "title": "Notificaciones",
       "pageTitle": "Notificaciones",
+      "pageDescription": "Novedades de tus tareas, agentes y espacio de trabajo.",
       "emptyState": "Aún no hay notificaciones",
+      "emptyStateDescription": "Todavía no ha llegado nada. Los resultados de tareas y las solicitudes del espacio de trabajo aparecen aquí cuando ocurren.",
       "emptyUnreadState": "Estás al día",
+      "emptyUnreadStateDescription": "Aquí no hay nada sin leer. Todo lo leído permanece en Todas.",
       "emptyNeedsYouState": "Nada está esperando por ti",
+      "emptyNeedsYouStateDescription": "Nada espera tu respuesta. Las solicitudes que te necesitan aparecen aquí.",
       "viewAll": "Ver todas las notificaciones",
+      "showAll": "Mostrar todas",
+      "showOlder": "Mostrar notificaciones anteriores",
       "justNow": "Ahora mismo",
       "loading": "Cargando...",
       "markAllRead": "Marcar todas como leídas",
@@ -799,11 +806,17 @@
       "browserPermissionDescription": "En la configuración de tu cuenta, activa Push para las novedades que quieras y las recibirás aunque Sokosumi esté cerrado.",
       "browserPermissionOpenSettings": "Abrir configuración de notificaciones",
       "browserPermissionInAppTitle": "Recibe alertas cuando estés en otra pestaña",
-      "browserPermissionInAppDescription": "Permite notificaciones del navegador para trabajos, tareas, facturación, sistema y chat mientras Sokosumi esté abierto pero no enfocado.",
+      "browserPermissionInAppDescription": "Permite notificaciones del navegador para tareas, facturación, sistema y chat mientras Sokosumi esté abierto pero no enfocado.",
       "browserPermissionEnable": "Activar notificaciones del navegador",
       "browserPermissionRequesting": "Esperando permiso…",
       "browserPermissionDeniedTitle": "Las notificaciones del navegador están bloqueadas",
       "browserPermissionDeniedDescription": "Las notificaciones de este sitio están bloqueadas en tu navegador. Abre la configuración de notificaciones del navegador para Sokosumi y permítelas.",
+      "browserPermissionInstallTitle": "Añade Sokosumi a la pantalla de inicio",
+      "browserPermissionInstallDescription": "En iPhone y iPad, las alertas solo llegan en la app instalada. Toca el botón Compartir y luego «Añadir a pantalla de inicio».",
+      "pushQuietTitle": "Las notificaciones push se detuvieron en este navegador",
+      "pushQuietDescription": "Este navegador perdió su suscripción push, por eso aquí no llegan las novedades. Puede que tus otros dispositivos sigan recibiéndolas.",
+      "pushQuietRestore": "Volver a activar push",
+      "pushQuietRestoring": "Activando push de nuevo…",
       "vendorGrantAcceptSuccess": "Acceso de proveedor aprobado",
       "vendorGrantAcceptError": "No se pudo aprobar el acceso de proveedor",
       "coworkerAccessAcceptSuccess": "Acceso anticipado de coworker aprobado",
@@ -833,7 +846,11 @@
       "zoomReset": "Restablecer zoom",
       "more": "Más opciones",
       "openInNewTab": "Abrir en una pestaña nueva",
-      "copyImage": "Copiar imagen"
+      "copyImage": "Copiar imagen",
+      "previous": "Imagen anterior",
+      "next": "Imagen siguiente",
+      "position": "{current} / {total}",
+      "stepAnnouncement": "Imagen {current} de {total}, {name}"
     },
     "DocumentViewer": {
       "title": "Documento",
@@ -1421,12 +1438,16 @@
         "waitForResponses": "Por favor, espera a que terminen las otras respuestas (máx. 3 simultáneas).",
         "imageAttachment": "Un archivo de imagen adjunto",
         "fileLabel": "Archivo",
-        "modelAlt": "Modelo",
         "coworkerAlt": "Coworker",
         "userAvatarAlt": "Avatar del usuario",
         "downloadGeneratedImage": "Descargar imagen generada",
         "expandPrompt": "Mostrar mensaje completo",
         "collapsePrompt": "Mostrar menos",
+        "typing": {
+          "one": "{name} está escribiendo…",
+          "two": "{first} y {second} están escribiendo…",
+          "many": "Varias personas están escribiendo…"
+        },
         "reasoning": {
           "processing": "Procesando...",
           "thinking": "Pensando...",
@@ -1525,8 +1546,6 @@
         "approvePartialError": "Se aprobó el acceso de {approved} de {total} proveedores. Algunas aprobaciones fallaron; actualiza e inténtalo de nuevo."
       },
       "Actions": {
-        "add": "Nueva tarea",
-        "addTask": "Nueva tarea",
         "loading": "Cargando...",
         "loadMore": "Cargar más",
         "showGuide": "Show guide"
@@ -2075,6 +2094,17 @@
       "list": {
         "loadMore": "Cargar más",
         "loading": "Cargando proyectos...",
+        "filter": {
+          "placeholder": "Filtrar proyectos",
+          "clear": "Borrar filtro",
+          "noMatches": "Ningún proyecto coincide con «{query}»."
+        },
+        "sortedBy": "Ordenado por actividad reciente",
+        "lastActivity": "Última actividad",
+        "created": "Creado",
+        "pin": "Fijar proyecto",
+        "unpin": "Desfijar proyecto",
+        "pinError": "No se pudo cambiar el fijado. Inténtalo de nuevo.",
         "stats": {
           "tasks": "Tareas",
           "jobs": "Jobs",
@@ -2206,7 +2236,8 @@
           "removed": "Contexto de marca eliminado",
           "removeDialog": {
             "title": "¿Quitar el contexto de marca?",
-            "description": "Esto elimina el archivo DESIGN.md del proyecto."
+            "description": "Esto elimina el archivo DESIGN.md del proyecto.",
+            "cancel": "Cancelar"
           },
           "upload": "Subir",
           "moreActions": "Acciones de marca"
@@ -2296,20 +2327,58 @@
           "moreActions": "Más acciones",
           "viewDetails": "Ver detalles",
           "edit": "Editar",
-          "delete": "Eliminar",
+          "close": "Cerrar proyecto",
           "remove": "Quitar",
           "confirmRemoveJob": "¿Quitar este job del proyecto?"
         },
-        "deleteDialog": {
-          "title": "Eliminar proyecto",
-          "description": "Esto eliminará el proyecto. Las tareas y jobs vinculados seguirán disponibles fuera del proyecto.",
-          "confirm": "Eliminar",
-          "cancel": "Cancelar"
+        "close": {
+          "dialog": {
+            "title": "¿Cerrar el proyecto?",
+            "description": "El trabajo programado antes del límite de cierre finalizará. El trabajo previsto a partir de ese momento se cancelará y el proyecto no podrá volver a abrirse.",
+            "reasonLabel": "Motivo (opcional)",
+            "reasonPlaceholder": "¿Por qué se cierra este proyecto?",
+            "confirm": "Cerrar proyecto",
+            "cancel": "Mantener el proyecto abierto",
+            "success": "Cierre del proyecto iniciado",
+            "error": "No se pudo cerrar el proyecto. Revisa su estado actual e inténtalo de nuevo."
+          },
+          "status": {
+            "CLOSING": {
+              "title": "El proyecto se está cerrando",
+              "description": "{count, plural, =0 {No quedan ejecuciones pendientes} one {Queda # ejecución pendiente} other {Quedan # ejecuciones pendientes}} antes del límite de las {cutoff}. El trabajo previsto a partir de ese momento se está cancelando."
+            },
+            "CLOSE_FAILED": {
+              "title": "El cierre del proyecto requiere atención",
+              "descriptionWithCancel": "El trabajo programado está pausado en el límite de las {cutoff}. Reintenta el cierre o cancela solo el trabajo pendiente bloqueado.",
+              "descriptionRetryOnly": "El trabajo programado está pausado en el límite de las {cutoff}. Reintenta el cierre para continuar."
+            },
+            "CLOSED": {
+              "title": "Proyecto cerrado",
+              "description": "Cerrado el {completedAt}. Se conserva el historial del calendario."
+            }
+          },
+          "recovery": {
+            "retryAction": "Reintentar cierre",
+            "cancelOwedAction": "Cancelar trabajo pendiente",
+            "reasonLabel": "Motivo",
+            "reasonPlaceholder": "Explica por qué se necesita esta acción de recuperación",
+            "reasonRequired": "Introduce un motivo para esta acción de recuperación.",
+            "keepFailed": "Mantener el cierre pausado",
+            "success": "Cierre del proyecto reanudado",
+            "error": "No se pudo reanudar el cierre del proyecto. Revisa su estado actual e inténtalo de nuevo.",
+            "retry": {
+              "title": "¿Reintentar el cierre del proyecto?",
+              "description": "El proceso de cierre volverá a intentar el trabajo programado bloqueado desde el mismo límite."
+            },
+            "cancelOwed": {
+              "title": "¿Cancelar el trabajo pendiente?",
+              "description": "Solo se cancelará el trabajo bloqueado que debía ejecutarse antes del límite. Esta acción no se puede deshacer."
+            }
+          }
         },
         "errors": {
           "create": "No se pudo crear el proyecto",
           "update": "No se pudo actualizar el proyecto",
-          "delete": "No se pudo eliminar el proyecto",
           "addJob": "No se pudo añadir el job",
           "removeJob": "No se pudo quitar el job",
           "addTask": "No se pudo añadir la tarea",
@@ -2351,6 +2420,10 @@
           "filesAndOutputs": "Archivos y Outputs",
           "taskManager": "Tareas",
           "projects": "Proyectos",
+          "allProjects": "Todos los proyectos",
+          "projectsPanel": "Tus proyectos",
+          "pinnedProjects": "Fijados",
+          "recentProjects": "Proyectos recientes",
           "history": "Historial",
           "drive": "Archivos",
           "admin": "Administración",
@@ -2359,18 +2432,14 @@
           "chat": "Chat",
           "sokoBot": "Soko Bots",
           "calendar": "Calendario",
-          "expandProjects": "Expandir Proyectos",
-          "collapseProjects": "Contraer Proyectos",
           "projectsLoading": "Cargando proyectos…",
           "projectsError": "No se pudieron cargar los proyectos.",
-          "projectsEmpty": "Aún no hay proyectos.",
           "retryProjects": "Reintentar"
         },
         "ChatLists": {
           "title": "Chats Recientes",
           "noChats": "Aún no hay chats",
           "untitledChat": "Chat sin título",
-          "modelAlt": "Modelo",
           "coworkerAlt": "Colaborador"
         },
         "SeatRequired": {
@@ -4075,8 +4144,6 @@
       "Notifications": {
         "title": "Notificaciones",
         "description": "Elige de qué te avisa Sokosumi y dónde te llega",
-        "jobStatusEmailsEnabledSuccess": "Notificaciones de jobs por email activadas",
-        "jobStatusEmailsDisabledSuccess": "Notificaciones de jobs por email desactivadas",
         "marketingEmailsTitle": "Emails de marketing",
         "marketingEmailsDescription": "Recibe un email cuando Sokosumi tenga nuevas funciones, actualizaciones y promociones.",
         "marketingEmailOnlyHint": "Sokosumi solo envía esto por email.",
@@ -4093,6 +4160,9 @@
         "pushBannerDeniedBody": "Sokosumi no puede volver a preguntar. Permite las notificaciones para este sitio en la configuración del navegador. Puede que tus otros dispositivos sigan recibiéndolas.",
         "pushBannerUnsupportedTitle": "Este navegador no puede mostrar notificaciones push",
         "pushBannerUnsupportedBody": "Las notificaciones push no llegan aquí, digan lo que digan las filas de abajo. Tus otros dispositivos puede que sigan recibiéndolas.",
+        "pushBannerInstallableTitle": "Añade Sokosumi a la pantalla de inicio para recibir notificaciones push",
+        "pushBannerInstallableBody": "En iPhone y iPad, las notificaciones push solo llegan en la app instalada. Toca el botón Compartir, luego «Añadir a pantalla de inicio», y abre Sokosumi desde ahí. Tus otros dispositivos puede que sigan recibiéndolas.",
+        "pushInstallableHint": "Añade Sokosumi a la pantalla de inicio para recibirlas en este dispositivo.",
         "deviceBannerTitle": "Las notificaciones push están activadas en este navegador. Tus otros dispositivos no se ven afectados.",
         "deviceBannerAction": "Desactivar",
         "deviceDisabledSuccess": "Notificaciones push desactivadas en este navegador",
@@ -4107,14 +4177,6 @@
         "kindsDescription": "Ajusta un grupo entero de una vez, o ábrelo y elige para cada notificación.",
         "kindsLoading": "Cargando tus ajustes de notificaciones.",
         "kindsLoadError": "Tus ajustes de notificaciones no se cargaron. Recarga la página para intentarlo de nuevo.",
-        "groupJob": "Trabajos",
-        "groupJobDescription": "Trabajos que te esperan, y el resto.",
-        "kindJobAttention": "Trabajos que te esperan",
-        "kindJobAttentionHint": "Un trabajo necesita tu input, o su pago falló.",
-        "kindJobCompleted": "Trabajos completados",
-        "kindJobCompletedHint": "Un trabajo terminó lo que le pediste.",
-        "kindJobUpdate": "Otras novedades de trabajos",
-        "kindJobUpdateHint": "Cualquier otra cosa que informe un trabajo, por ejemplo que falló o se reembolsó. No tienes que hacer nada.",
         "groupTask": "Tareas",
         "groupTaskDescription": "Tareas que te esperan, y el resto.",
         "kindTaskAttention": "Tareas que te esperan",
@@ -4123,6 +4185,8 @@
         "kindTaskCompletedHint": "Una tarea terminó el trabajo que pediste.",
         "kindTaskUpdate": "Otras novedades de tareas",
         "kindTaskUpdateHint": "Cualquier otra cosa que informe una tarea, por ejemplo que falló o se canceló. No tienes que hacer nada.",
+        "kindProjectUpdate": "Novedades de proyectos",
+        "kindProjectUpdateHint": "Un proyecto terminó de cerrarse o necesita otro intento de cierre.",
         "kindChatRoomMessage": "Todos los mensajes de tus salas",
         "kindChatRoomMessageHint": "Cualquier publicación en una sala a la que perteneces. Desactivado de forma predeterminada.",
         "kindChatMention": "Menciones",
@@ -4137,14 +4201,20 @@
         "presetEssential": "Esencial",
         "presetAppOnly": "En la app",
         "presetOff": "Nada",
-        "presetJobMostHint": "Los trabajos que te esperan y los trabajos completados llegan en la app y como push. Las otras novedades de trabajos llegan solo en la app.",
-        "presetJobEssentialHint": "Solo los trabajos que te esperan llegan como push. Los trabajos completados y las otras novedades llegan solo en la app.",
-        "presetJobAppOnlyHint": "Todas las notificaciones de trabajos llegan en la app. Ninguna llega como push.",
-        "presetJobOffHint": "No llega ninguna notificación de trabajos, ni en la app ni como push. Los correos sobre el estado de los trabajos tienen su propio interruptor.",
         "presetTaskMostHint": "Las tareas que te esperan y las tareas completadas llegan en la app y como push. Las otras novedades de tareas llegan solo en la app.",
         "presetTaskEssentialHint": "Solo las tareas que te esperan llegan como push. Las tareas completadas y las otras novedades llegan solo en la app.",
         "presetTaskAppOnlyHint": "Todas las notificaciones de tareas llegan en la app. Ninguna llega como push.",
         "presetTaskOffHint": "No llega ninguna notificación de tareas, ni en la app ni como push. Abre el grupo para volver a activar una notificación suelta.",
+        "groupBilling": "Facturación",
+        "groupBillingDescription": "Créditos que se agotan, pagos y recargas.",
+        "kindBillingAttention": "Facturación que te espera",
+        "kindBillingAttentionHint": "Tus créditos se están agotando, o un pago no se completó. El trabajo se detiene si nada cambia.",
+        "kindBillingUpdate": "Otras novedades de facturación",
+        "kindBillingUpdateHint": "Llegó una recarga, o tu suscripción terminará al final del periodo. No tienes que hacer nada.",
+        "presetBillingMostHint": "La facturación que te espera y las otras novedades de facturación llegan en la app y como push.",
+        "presetBillingEssentialHint": "Solo la facturación que te espera llega como push. Las otras novedades de facturación llegan solo en la app.",
+        "presetBillingAppOnlyHint": "Todas las notificaciones de facturación llegan en la app. Ninguna llega como push.",
+        "presetBillingOffHint": "No llega ninguna notificación de facturación, ni en la app ni como push. Abre el grupo para volver a activar una notificación suelta.",
         "presetChatMostHint": "Todos los mensajes de tus salas llegan en la app. Las menciones y los mensajes directos llegan también como push.",
         "presetChatEssentialHint": "Las menciones y los mensajes directos llegan como push. Todos los mensajes de tus salas están desactivados.",
         "presetChatAppOnlyHint": "Las menciones y los mensajes directos llegan en la app. Todos los mensajes de tus salas están desactivados, y nada llega como push.",
@@ -4156,21 +4226,19 @@
         "presetAriaLabel": "Qué recibes de {group}",
         "presetMenuCustomLabel": "{group} · ajustado uno por uno",
         "channelInApp": "En la app",
-        "channelInAppHint": "Dentro de Sokosumi, no en tu dispositivo.",
+        "channelInAppHint": "Aparece en tus notificaciones de Sokosumi.",
         "channelPush": "Push",
-        "channelPushHint": "En tu dispositivo, aunque Sokosumi esté cerrado.",
+        "channelPushHint": "Un aviso de tu dispositivo, aunque Sokosumi esté cerrado.",
+        "channelEmailExternalLabel": "Email, siempre activada para {kind}",
+        "channelEmailExternalHint": "Stripe envía estos recibos y cancelaciones. Aquí no hay nada que configurar.",
         "channelEmail": "Email",
-        "channelEmailHint": "Dónde Sokosumi te envía emails. Los recordatorios tienen su propia celda. Todos los emails de trabajos comparten un interruptor: un email cuando un trabajo se completa, se resuelve o espera tu input.",
+        "channelEmailHint": "Se envía a tu bandeja de entrada. Solo las notificaciones sin leer reciben un email.",
         "channelsKindLabel": "Notificación",
         "channelsLegendLabel": "Qué significan las columnas",
-        "channelEmailFallbackHint": "Un email cuando un trabajo se completa, se resuelve o espera tu input.",
         "channelsAnnounce": "{kind}: {channels}",
         "channelsNone": "ninguno",
         "channelCellLabel": "{channel} para {kind}",
         "channelUnavailableLabel": "{channel}, no se usa para {kind}",
-        "channelEmailLabel": "Emails de estado de trabajos",
-        "channelEmailSoonLabel": "Email, todavía no se envía para {kind}",
-        "channelEmailSoonHint": "Sokosumi todavía no envía email para esta notificación.",
         "deliveryAriaLabel": "Entrega para {kind}",
         "newsDeliveryAriaLabel": "Entrega para los emails de marketing",
         "kindFollowUp": "Recordatorios",
@@ -4179,7 +4247,7 @@
       "ChatDisplay": {
         "title": "Visualización del chat",
         "roomUnreadCountTitle": "Mostrar el número de mensajes no leídos",
-        "roomUnreadCountDescription": "Los chats silenciados y el chat que tienes abierto siguen en silencio. Tus notificaciones no cambian.",
+        "roomUnreadCountDescription": "Se muestra en cada chat con mensajes sin leer. Los chats silenciados siguen en silencio y tus notificaciones no cambian.",
         "loading": "Guardando configuración...",
         "error": "No se pudo guardar el cambio. Comprueba tu conexión e inténtalo de nuevo.",
         "roomUnreadCountEnabledSuccess": "Número de mensajes no leídos activado",
@@ -5390,6 +5458,36 @@
         "afk": "Away",
         "offline": "Offline"
       },
+      "ThreadRows": {
+        "label": "Hilos sin leer en {name}",
+        "unreadReplies": "{count, plural, one {# respuesta sin leer} other {# respuestas sin leer}}",
+        "moreThreads": "{count, plural, one {# hilo más sin leer} other {# hilos más sin leer}}",
+        "mentions": "{count, plural, one {# mención} other {# menciones}}",
+        "untitled": "Hilo"
+      },
+      "UnreadNav": {
+        "label": "Sin leer",
+        "threads": "Hilos",
+        "allUnreads": "No leídos",
+        "unreadThreads": "{count, plural, one {# hilo sin leer} other {# hilos sin leer}}",
+        "unreadThreadsCapped": "Más de {max} hilos sin leer",
+        "mentions": "{count, plural, one {# mención} other {# menciones}}",
+        "filterOn": "Mostrando solo lo no leído",
+        "markAllRead": "Marcar todo como leído",
+        "markAllReadError": "No se pudo marcar todo como leído.",
+        "caughtUp": "Todo al día",
+        "allThreads": "Todos los hilos",
+        "justRead": "Recién leídos"
+      },
+      "ThreadsView": {
+        "title": "Hilos",
+        "listLabel": "Hilos sin leer",
+        "empty": "Estás al día",
+        "emptyDescription": "Las respuestas nuevas en hilos en los que participas aparecen aquí.",
+        "loadMore": "Mostrar más",
+        "loadError": "No se pudieron cargar los hilos sin leer.",
+        "retry": "Reintentar"
+      },
       "Thread": {
         "title": "Thread",
         "open": "Open thread",
@@ -5399,6 +5497,7 @@
         "empty": "No replies yet",
         "replyPlaceholder": "Reply in thread",
         "replyCount": "{count, plural, one {# reply} other {# replies}}",
+        "newReplyCount": "{count, plural, one {# respuesta nueva} other {# respuestas nuevas}}",
         "mute": "Silenciar hilo",
         "unmute": "Reactivar el hilo",
         "muted": "Silenciado"
@@ -5537,12 +5636,20 @@
       "RoomRoster": {
         "open": "Miembros",
         "title": "Miembros",
+        "humansTitle": "Personas",
+        "agentsTitle": "Coworkers",
         "close": "Cerrar miembros",
         "empty": "No hay miembros.",
         "message": "Mensaje a {name}",
         "copy": "Copiar {value}",
         "copySuccess": "Copiado al portapapeles",
         "copyError": "No se pudo copiar."
+      },
+      "SeenBy": {
+        "summary": "{count, plural, one {Leído por # persona} other {Leído por # personas}}",
+        "readersTitle": "Leído por",
+        "readAt": "Leído por última vez {time}",
+        "notRead": "Sin leer todavía"
       },
       "UnreadThreads": {
         "open": "Hilos",
@@ -5554,10 +5661,13 @@
         "error": "No se pudieron cargar los hilos. Inténtalo de nuevo.",
         "markAllReadError": "No se pudieron marcar los hilos no leídos como leídos. Inténtalo de nuevo.",
         "loadOlder": "Cargar hilos anteriores",
+        "groupUnread": "Sin leer",
+        "groupEarlier": "Anteriores",
+        "groupUnreadEmpty": "Todo al día",
         "startedBy": "Iniciado por {name}",
-        "unreadReplies": "{count, plural, one {# respuesta no leída} other {# respuestas no leídas}}",
         "unreadThreads": "{count, plural, one {# hilo no leído} other {# hilos no leídos}}",
-        "unreadThreadsCapped": "Más de {max} hilos no leídos"
+        "unreadThreadsCapped": "Más de {max} hilos no leídos",
+        "newReplies": "{count, plural, one {# nueva} other {# nuevas}}"
       },
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# mensaje no leído} other {# mensajes no leídos}}",
@@ -5572,6 +5682,16 @@
       "MembershipStatus": {
         "joined": "{name} se unió",
         "left": "{name} salió"
+      },
+      "GroupName": {
+        "rename": "Cambiar nombre",
+        "dialogTitle": "Poner nombre al grupo",
+        "dialogDescription": "Todos en el grupo ven este nombre en lugar de la lista de miembros. Déjalo vacío para volver a mostrar a los miembros.",
+        "label": "Nombre del grupo",
+        "save": "Guardar",
+        "saveFailed": "No se pudo poner nombre al grupo.",
+        "named": "{name} llamó al grupo {groupName}",
+        "cleared": "{name} quitó el nombre del grupo"
       },
       "External": {
         "title": "Externo",
@@ -6227,7 +6347,8 @@
       "view": {
         "month": "Mes",
         "week": "Semana",
-        "agenda": "Agenda"
+        "agenda": "Agenda",
+        "schedules": "Programaciones"
       },
       "source": {
         "label": "Origen",
@@ -6248,7 +6369,6 @@
         "moveNotAllowed": "Solo el propietario de la tarea puede reprogramarla."
       },
       "create": {
-        "title": "Programar una tarea",
         "fab": "Programar una tarea"
       },
       "edit": {
@@ -6294,7 +6414,15 @@
         "label": "Zona horaria"
       },
       "empty": {
-        "title": "Ninguna ejecución programada coincide con estos filtros."
+        "title": "Ninguna ejecución programada coincide con estos filtros.",
+        "schedulesTitle": "Ninguna programación coincide con estos filtros."
+      },
+      "schedules": {
+        "nextRun": "Próxima ejecución",
+        "noNextRun": "Sin próxima ejecución",
+        "edit": "Editar programación",
+        "openTask": "Abrir tarea",
+        "loadMore": "Cargar más"
       },
       "pagination": {
         "error": "No se pudieron cargar más eventos."
@@ -6305,8 +6433,8 @@
         "retry": "Intentar de nuevo"
       },
       "agenda": {
-        "backToTop": "Volver arriba",
-        "today": "Hoy"
+        "upcoming": "A continuación",
+        "loading": "Cargando…"
       }
     },
     "You": {
@@ -6619,8 +6747,23 @@
         "canceled": "{taskName} fue cancelado",
         "scheduleRepaired": "Se reparó la programación de {taskName}",
         "scheduleRemovedByOperator": "Se eliminó la programación de {taskName} después de revisarla",
+        "scheduleUpdatedByMember": "Un miembro del equipo actualizó la programación de {taskName}",
+        "scheduleRemovedByMember": "Un miembro del equipo eliminó la programación de {taskName}",
+        "scheduleSourceChangedByMember": "Un miembro del equipo movió {taskName} a otra fuente de calendario",
+        "scheduleOccurrenceChangedByMember": "Un miembro del equipo cambió una ocurrencia de {taskName}",
         "assigned": "Se te asignó {taskName}",
         "followUp": "{taskName} sigue esperándote"
+      },
+      "Billing": {
+        "lowBalance": "Tus créditos se están agotando: quedan {credits}",
+        "paymentFailed": "Un pago de suscripción falló",
+        "creditsAdded": "Se añadieron {credits} créditos a tu saldo",
+        "subscriptionEnding": "Tu suscripción termina al final del periodo actual",
+        "followUp": "Tu facturación sigue necesitando tu atención"
+      },
+      "Project": {
+        "closed": "{projectName} ya está cerrado",
+        "closeFailed": "{projectName} no pudo terminar de cerrarse"
       },
       "Chat": {
         "mentioned": "{authorName} te mencionó en {roomName}",

@@ -1,9 +1,23 @@
-import type { Prisma } from "@sokosumi/database";
-import { memberRepository } from "@sokosumi/database/repositories";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 
 import { badRequest, notFound } from "@/helpers/error";
+
+/** Shown when a seat write keeps losing the serialization race (SOK-1007). */
+export const SEAT_ASSIGNMENT_CONFLICT_MESSAGE =
+  "Seat assignment lost a concurrent update. Try again.";
+
+/** Shown when releasing a seat keeps losing that race (SOK-1007). */
+export const SEAT_RELEASE_CONFLICT_MESSAGE =
+  "Seat release lost a concurrent update. Try again.";
+
+/** Shown when automatic seat reconciliation keeps losing that race (SOK-1007). */
+export const SEAT_RECONCILIATION_CONFLICT_MESSAGE =
+  "Seat reconciliation lost a concurrent update. Try again.";
+
+/** Shown when a purchased-seat change keeps losing that race (SOK-1007). */
+export const SEAT_CHANGE_CONFLICT_MESSAGE =
+  "Seat update lost a concurrent update. Try again.";
 
 /**
  * Maps member-repository seat errors to HTTP exceptions; rethrows everything
@@ -28,20 +42,4 @@ export function mapSeatRepositoryError(error: unknown): never {
   }
 
   throw error;
-}
-
-export async function unassignOrganizationMemberSeat(
-  organizationId: string,
-  memberId: string,
-  tx: Prisma.TransactionClient,
-): Promise<{ memberId: string }> {
-  const member = await memberRepository.unassignSeat(
-    memberId,
-    organizationId,
-    tx,
-  );
-
-  return {
-    memberId: member.id,
-  };
 }

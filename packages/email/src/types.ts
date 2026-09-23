@@ -35,21 +35,6 @@ export interface ChatRoomInvitationEmailProps extends LocalizedEmailProps {
   channelName: string;
 }
 
-export interface JobFinalStatusEmailProps extends LocalizedEmailProps {
-  agentName: string;
-  jobLink: string;
-  jobName?: null | string;
-  jobStatus: string;
-  recipientName: string;
-}
-
-export interface JobInputRequiredEmailProps extends LocalizedEmailProps {
-  agentName: string;
-  jobLink: string;
-  jobName?: null | string;
-  recipientName: string;
-}
-
 export interface JobFailureNotificationEmailProps extends LocalizedEmailProps {
   agentBlockchainIdentifier: string;
   agentId: string;
@@ -63,52 +48,33 @@ export interface JobFailureNotificationEmailProps extends LocalizedEmailProps {
   resultHash: null | string;
 }
 
-/**
- * What every reminder email needs (SOK-916).
- *
- * `actionUrl` is the same destination the in-app reminder opens, so the two
- * surfaces cannot disagree about where the thing lives. The name is optional
- * because the account may not carry one, and each renderer greets without it
- * rather than greeting a blank.
- */
-export interface NotificationFollowUpEmailProps extends LocalizedEmailProps {
+/** Same destination the in-app notification opens. Name optional. */
+export interface NotificationEmailProps extends LocalizedEmailProps {
   actionUrl: string;
   recipientName?: null | string;
+  /** Notification settings page, linked from the footer note. */
+  settingsUrl?: null | string;
 }
 
-/**
- * The message itself, as the notification stored it.
- *
- * Core keeps a preview on the chat notification row and takes it back when the
- * message is edited or deleted, so this is what the reader's Notification
- * Center says too. Absent when there is nothing to show: a deleted message, or
- * a body that cleans to nothing once an unnamed mention is taken out of it.
- */
 interface QuotedChatMessage {
   messagePreview?: null | string;
 }
 
-export interface ChatMentionFollowUpEmailProps
-  extends NotificationFollowUpEmailProps,
+export interface ChatMentionEmailProps
+  extends NotificationEmailProps,
     QuotedChatMessage {
   authorName?: null | string;
   roomName?: null | string;
 }
 
-export interface ChatDirectMessageFollowUpEmailProps
-  extends NotificationFollowUpEmailProps,
+export interface ChatDirectMessageEmailProps
+  extends NotificationEmailProps,
     QuotedChatMessage {
   authorName?: null | string;
 }
 
-/**
- * Why a task is waiting, in the words of the notification that said so.
- *
- * The same six keys Core calls task attention. A union rather than a string,
- * because each one names a sentence in the catalogs and a key with no sentence
- * must not be able to reach them.
- */
-export type TaskFollowUpReason =
+/** Catalog keys for task attention; unknown keys must not reach the catalogs. */
+export type TaskAttentionReason =
   | "approvalRequired"
   | "assigned"
   | "authenticationRequired"
@@ -116,19 +82,102 @@ export type TaskFollowUpReason =
   | "outOfCredits"
   | "scheduleRemovedByOperator";
 
-/** Why a job is waiting. The two keys Core calls job attention. */
-export type JobFollowUpReason = "inputRequired" | "paymentFailed";
-
-export interface TaskFollowUpEmailProps extends NotificationFollowUpEmailProps {
-  /** Whoever the task is waiting on the reader for. */
+interface TaskEmailProps extends NotificationEmailProps {
+  /** Whoever the task is waiting on the reader for, or who finished it. */
   coworkerName?: null | string;
   projectName?: null | string;
-  reason?: null | TaskFollowUpReason;
   taskName?: null | string;
 }
 
-export interface JobFollowUpEmailProps extends NotificationFollowUpEmailProps {
-  agentName?: null | string;
-  jobName?: null | string;
-  reason?: null | JobFollowUpReason;
+/** A task that stopped for the reader, the moment it stopped (SOK-1090). */
+export interface TaskAttentionEmailProps extends TaskEmailProps {
+  reason: TaskAttentionReason;
+}
+
+/** Catalog keys for task updates, plus `updated` as the fallback for unknown keys. */
+export type TaskUpdateReason =
+  | "failed"
+  | "canceled"
+  | "scheduleRepaired"
+  | "scheduleRemovedByOperator"
+  | "scheduleUpdatedByMember"
+  | "scheduleRemovedByMember"
+  | "scheduleSourceChangedByMember"
+  | "scheduleOccurrenceChangedByMember"
+  | "updated";
+
+/** A task changed without asking anything of the reader (SOK-1090, SOK-1142). */
+export interface TaskUpdateEmailProps extends TaskEmailProps {
+  reason: TaskUpdateReason;
+}
+
+export interface ProjectUpdateEmailProps extends NotificationEmailProps {
+  projectName?: null | string;
+  outcome: "closed" | "closeFailed";
+}
+
+/** A task that finished (SOK-1090). */
+export type TaskCompletedEmailProps = TaskEmailProps;
+
+/**
+ * Unread messages wait in a room the reader is in (SOK-1142).
+ *
+ * One unread message is shown the way a mention is: who wrote, and what they
+ * wrote. Several are counted instead, because no one of them speaks for the
+ * rest. `unreadCount` is how many the email stands for at the moment it is
+ * handed to the sender, so an email that is rescheduled is rendered again.
+ */
+export interface ChatRoomMessageEmailProps extends NotificationEmailProps {
+  authorName?: null | string;
+  messagePreview?: null | string;
+  roomName?: null | string;
+  unreadCount?: null | number;
+}
+
+export type AccessRequestKind = "coworker" | "vendor";
+
+/** Someone asked for access to a workspace the reader manages (SOK-1090). */
+export interface AccessRequestEmailProps extends NotificationEmailProps {
+  request: AccessRequestKind;
+  requesterName?: null | string;
+}
+
+/**
+ * How many rows a chat reminder speaks for, when it speaks for more than the
+ * one it was written from.
+ *
+ * The reminder is one per room per day, so it can stand for several unread
+ * rows. One of them is shown the way the event email showed it: who wrote,
+ * and what they wrote. Several are counted instead, because no one of them
+ * speaks for the rest (SOK-1142).
+ */
+interface ChatFollowUpCount {
+  unreadCount?: null | number;
+}
+
+/** The reminders (SOK-916), a day after the emails above went unread. */
+export interface ChatMentionFollowUpEmailProps
+  extends ChatMentionEmailProps,
+    ChatFollowUpCount {}
+
+export interface ChatDirectMessageFollowUpEmailProps
+  extends ChatDirectMessageEmailProps,
+    ChatFollowUpCount {}
+
+export interface TaskFollowUpEmailProps extends TaskEmailProps {
+  reason?: null | TaskAttentionReason;
+}
+
+/** A wallet that ran low. Stripe has no email for Sokosumi credits. */
+export interface BillingLowBalanceEmailProps extends NotificationEmailProps {
+  credits: number;
+}
+
+/** Payment failures stay in-app; Stripe already mailed those. */
+export type BillingFollowUpReason = "lowBalance";
+
+export interface BillingFollowUpEmailProps extends NotificationEmailProps {
+  /** What was left when the balance ran low; only that reason reads it. */
+  credits?: null | number;
+  reason?: null | BillingFollowUpReason;
 }

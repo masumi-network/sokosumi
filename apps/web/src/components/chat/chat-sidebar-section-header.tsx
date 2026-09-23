@@ -10,12 +10,12 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 
-import { CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
-  SIDEBAR_ROW_CLASS,
-  SidebarMenuButton,
-  SidebarRowSlot,
-} from "@/components/ui/sidebar";
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { SidebarMenuButton, SidebarRowSlot } from "@/components/ui/sidebar";
+import { SIDEBAR_ROW_CLASS } from "@/components/ui/sidebar-classes";
 import { cn } from "@/lib/utils";
 import { RailAttentionPill } from "./chat-room-sidebar-row";
 import type { SectionAttention } from "./room-attention";
@@ -122,7 +122,7 @@ export function ChatSidebarSectionHeader({
             <ChevronDown
               aria-hidden
               className={cn(
-                "size-4 shrink-0 transition-transform motion-reduce:transition-none md:size-3",
+                "size-4 shrink-0 transition-transform duration-200 ease-out motion-reduce:transition-none md:size-3",
                 !isOpen && "-rotate-90",
               )}
             />
@@ -171,5 +171,51 @@ export function ChatSidebarSectionHeader({
         </SidebarMenuButton>
       </div>
     </>
+  );
+}
+
+/**
+ * The rooms under a section heading, sliding on the same motion as the
+ * Projects disclosure in the main sidebar: height travels with the rows, so
+ * every section below moves with them instead of jumping.
+ *
+ * The height animation needs `overflow-hidden`, which would otherwise clip a
+ * room's `RailAttentionPill` — it sits at `-left-2`, in the group's padding,
+ * outside the rows' box. The negative margin pushes the clip edge out by
+ * exactly that gutter and the padding puts the rows back where they were.
+ *
+ * The same pair runs vertically, for the collapsed rail's `ring-2`. The rows
+ * fill the box top to bottom, so without it the clip lands on the first and
+ * last row's own edge and cuts the ring's outer stroke there — the last room
+ * in every section came out open-bottomed on hover. The ring is a fixed 2px,
+ * not a spacing step, so this pair is in `px`: on the scale it would be
+ * `0.125rem` and come out under 2px below a 16px root, where the pressed and
+ * focused `ring-2` would lose part of its stroke again.
+ *
+ * Outer height is unchanged (−2px margin, +2px padding), so the collapse
+ * animation and the gap to the next section stay as they were. What the
+ * negative margin does change is hit testing: the 2px strip lies over the
+ * bottom of the section heading above, which paints earlier and would lose
+ * those hits. So the box itself takes no pointer events and hands them back
+ * on its rows, which start inside the padding and leave the strip to the
+ * heading.
+ */
+export function ChatSidebarSectionContent({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  /** For a section whose rows leave the box on their own — see Pinned. */
+  className?: string;
+}) {
+  return (
+    <CollapsibleContent
+      className={cn(
+        "motion-safe:data-[state=closed]:animate-collapsible-up motion-safe:data-[state=open]:animate-collapsible-down -mx-2 -my-[2px] overflow-hidden px-2 py-[2px] pointer-events-none [&>*]:pointer-events-auto",
+        className,
+      )}
+    >
+      {children}
+    </CollapsibleContent>
   );
 }

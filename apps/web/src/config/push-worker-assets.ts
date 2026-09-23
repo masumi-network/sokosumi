@@ -27,3 +27,6 @@ export const PUSH_WORKER_MESSAGES_PATH = "/ably-push-messages.js";
  * to answer for it. This header holds whichever registration wins.
  */
 export const PUSH_WORKER_MESSAGES_CACHE_CONTROL = "public, max-age=0, no-cache";
+
+/** Subscription rotation runs even after the app session expires. */
+export const PUSH_WORKER_RENEWAL_PATH = "/ably-push-renewal.js";

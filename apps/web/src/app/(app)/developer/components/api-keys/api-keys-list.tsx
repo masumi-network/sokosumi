@@ -4,7 +4,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useMemo } from "react";
 
 import { DeveloperSectionRowsSkeleton } from "@/app/developer/components/developer-loading-view";
-import { DataTable } from "@/components/data-table";
+import DataTable from "@/components/data-table/data-table";
 import { Button } from "@/components/ui/button";
 
 import { getApiKeyColumns } from "./api-keys-columns";

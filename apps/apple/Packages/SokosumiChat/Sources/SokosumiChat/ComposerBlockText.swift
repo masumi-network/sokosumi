@@ -144,7 +144,9 @@ public enum ComposerBlockText {
       case "q": return .quote(children.map { $0.block() })
       case "u": return .unorderedList(children.map { $0.children.map { $0.block() } })
       case "o": return .orderedList(children.map { $0.children.map { $0.block() } })
-      case "c": return .code(body.string, language: detail)
+      case "c":
+        ComposerReferenceText.replaceChipsWithLabels(in: body)
+        return .code(body.string, language: detail)
       case "h": return .heading(ComposerInlineText.content(body), level: Int(detail) ?? 1)
       default: return .paragraph(ComposerInlineText.content(body))
       }

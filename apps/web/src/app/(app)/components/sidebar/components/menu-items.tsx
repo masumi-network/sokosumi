@@ -27,6 +27,10 @@ import {
   SidebarRowSlot,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  SIDEBAR_ROW_FIXED_LABEL_CLASS,
+  SIDEBAR_ROW_LABEL_CLASS,
+} from "@/components/ui/sidebar-classes";
 import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
 import { cn } from "@/lib/utils";
 
@@ -170,6 +174,13 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                   return <ProjectsMenuItem key={key} />;
                 }
                 const isActive = href ? isPathActive(href) : false;
+                // The pill wears the rail square's 4px inset and 4px padding
+                // at every width, so collapsing only narrows it: its edge
+                // and the + inside it stay where they are.
+                const newTaskClassName =
+                  key === "new-task"
+                    ? "ml-1 w-[calc(100%-0.5rem)] pl-1 bg-secondary text-secondary-foreground hover:bg-secondary-hover hover:text-secondary-foreground active:bg-secondary-hover active:text-secondary-foreground data-[state=open]:hover:bg-secondary-hover data-[state=open]:hover:text-secondary-foreground group-data-[collapsible=icon]:hover:bg-secondary-hover group-data-[collapsible=icon]:active:bg-secondary-hover"
+                    : undefined;
 
                 // Collapsed rail hides the label, so every item needs the hint.
                 const tooltip = shortcutLabel
@@ -190,7 +201,12 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                     <SidebarRowSlot>
                       <Icon className="size-4" aria-hidden />
                     </SidebarRowSlot>
-                    <span className="flex-1 truncate group-data-[collapsible=icon]:sr-only">
+                    <span
+                      className={cn(
+                        SIDEBAR_ROW_LABEL_CLASS,
+                        SIDEBAR_ROW_FIXED_LABEL_CLASS,
+                      )}
+                    >
                       {label}
                     </span>
                   </>
@@ -203,6 +219,10 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                         <SidebarMenuButton
                           asChild
                           isActive={isActive}
+                          data-sidebar-new-task={
+                            key === "new-task" ? "" : undefined
+                          }
+                          className={newTaskClassName}
                           tooltip={tooltip}
                         >
                           <SheetClose asChild>
@@ -210,9 +230,11 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                               href={href}
                               aria-current={isActive ? "page" : undefined}
                               className={cn(
-                                isActive
-                                  ? "text-sidebar-accent-foreground"
-                                  : "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                                key === "new-task"
+                                  ? newTaskClassName
+                                  : isActive
+                                    ? "text-sidebar-accent-foreground"
+                                    : "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                               )}
                             >
                               {content}
@@ -223,11 +245,14 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                         <SidebarMenuButton
                           type="button"
                           onClick={onClick}
+                          data-sidebar-new-task={
+                            key === "new-task" ? "" : undefined
+                          }
                           aria-keyshortcuts={ariaKeyshortcuts}
                           tooltip={tooltip}
                           className={cn(
-                            "text-tertiary-foreground dark:text-muted-foreground",
-                            "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                            newTaskClassName ??
+                              "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                           )}
                         >
                           {content}

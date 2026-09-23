@@ -15,10 +15,16 @@ runs:
       with:
         install: false
 
+    # No pnpm store cache, on purpose. Across 30 Biome/Typecheck jobs a
+    # restored ~514 MB store made Setup slower (25.6s) than installing from
+    # the registry (20.4s), and every PR-scoped miss spent another ~10s in
+    # Post Setup saving a copy no sibling PR can read — ~20 identical copies
+    # filled the repo's 10 GB cache. `package-manager-cache: false` stops
+    # setup-node enabling it from the `packageManager` field.
     - uses: actions/setup-node@v7
       with:
-        node-version: "24"
-        cache: "pnpm"
+        node-version-file: .nvmrc
+        package-manager-cache: false
 
     - name: Install Dependencies
       run: pnpm install

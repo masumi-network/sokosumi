@@ -5,9 +5,9 @@ permissions:
 on:
   workflow_dispatch:
   pull_request:
-  # Lint and test on main after Apple merges so the Mint and SwiftPM caches
-  # are saved on the default branch. PR caches are scoped to
-  # refs/pull/N/merge and cannot be restored by sibling PRs.
+  # Lint and test on main after Apple merges so the Mint cache is saved on
+  # the default branch. PR caches are scoped to refs/pull/N/merge and cannot
+  # be restored by sibling PRs.
   push:
     branches:
       - main
@@ -45,37 +45,29 @@ jobs:
               - "apps/apple/**"
               - ".github/workflows/apple.yml"
 
-  # Shared CI signing note: the project carries a developer team for local
-  # runs, but CI holds no Apple certificates — so every xcodebuild invocation
-  # below overrides it with ad-hoc signing (`DEVELOPMENT_TEAM=`
-  # `CODE_SIGN_IDENTITY=-`, see SOK-973). `-skipPackagePluginValidation`: no
-  # interactive user to trust the OpenAPIGenerator plugin in CI.
+  # CI signing note: the project carries a developer team for local runs, but
+  # CI holds no Apple certificates, so xcodebuild overrides it with ad-hoc
+  # signing (`DEVELOPMENT_TEAM=` `CODE_SIGN_IDENTITY=-`, see SOK-973).
+  # `-skipPackagePluginValidation`: no interactive user to trust the
+  # OpenAPIGenerator plugin in CI.
   #
-  # There is no separate build job: `xcodebuild test` in the app leg builds
-  # the same scheme, configuration and destination before testing.
-  test-suite:
-    name: ${{ matrix.name }}
-    # PR (Apple paths), dispatch, or path-filtered `push` to main. Main runs
-    # save the SwiftPM build cache that PRs restore.
+  # There is no separate build job: `xcodebuild test` builds the same scheme,
+  # configuration and destination before testing.
+  test:
+    name: Xcode test
     needs: changes
+    # Same gate as `lint`: PR, dispatch, or path-filtered `push` to main.
+    #
+    # One action on the `Sokosumi` *workspace* scheme covers the app target
+    # and all five package suites -- the workspace is what makes the package
+    # tests reachable from the scheme, so do not add per-package jobs. This is
+    # the same command `apps/apple/README.md` tells a human to run.
+    #
+    # Xcode Cloud builds releases only; it never reports on a pull request, so
+    # this job is the Apple test gate. See
+    # `apps/apple/docs/xcode-cloud-required-check.md`.
     if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     runs-on: xcode-27
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Xcode app tests
-            package: ""
-          - name: Swift tests (SokosumiChat)
-            package: SokosumiChat
-          - name: Swift tests (SokosumiAuth)
-            package: SokosumiAuth
-          - name: Swift tests (CoreAPI)
-            package: CoreAPI
-          - name: Swift tests (SokosumiWorkspace)
-            package: SokosumiWorkspace
-          - name: Swift tests (SokosumiRealtime)
-            package: SokosumiRealtime
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -87,80 +79,38 @@ jobs:
         run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
       - name: Show Xcode version
-        id: toolchain
-        run: |
-          xcodebuild -version && swift --version
-          echo "swift=$(swift --version 2>&1 | shasum | cut -c1-12)" >> "$GITHUB_OUTPUT"
+        run: xcodebuild -version && swift --version
 
-      - name: Test Sokosumi app target
-        if: matrix.package == ''
+      - name: Test Sokosumi workspace scheme
+        working-directory: apps/apple
         # Coverage stays off: ably-cocoa's C target (AblyDeltaCodec) cannot
-        # link the profile runtime, so gathering coverage fails the test
-        # build (SOK-976). Nothing consumes coverage today. Restore later by
-        # excluding AblyDeltaCodec, not by re-enabling coverage on this job.
-        run: xcodebuild test -project apps/apple/Sokosumi.xcodeproj -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- -only-testing:SokosumiTests -enableCodeCoverage NO -resultBundlePath "$RUNNER_TEMP/SokosumiTests.xcresult"
+        # link the profile runtime, so gathering coverage fails the test build
+        # (SOK-976). Nothing consumes coverage today. Restore later by
+        # excluding AblyDeltaCodec, not by re-enabling coverage here.
+        run: xcodebuild -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- test -enableCodeCoverage NO -resultBundlePath "$RUNNER_TEMP/Sokosumi.xcresult"
 
-      - name: Report app test failures
-        if: failure() && matrix.package == ''
+      - name: Report test failures
+        if: failure()
         run: |
-          if [ -d "$RUNNER_TEMP/SokosumiTests.xcresult" ]; then
-            xcrun xcresulttool get test-results summary --path "$RUNNER_TEMP/SokosumiTests.xcresult"
+          if [ -d "$RUNNER_TEMP/Sokosumi.xcresult" ]; then
+            xcrun xcresulttool get test-results summary --path "$RUNNER_TEMP/Sokosumi.xcresult"
           fi
 
-      - name: Preserve failed app test results
-        if: failure() && matrix.package == ''
+      - name: Preserve failed test results
+        if: failure()
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: SokosumiTests-results
-          path: ${{ runner.temp }}/SokosumiTests.xcresult
+          name: Sokosumi-xcresult
+          path: ${{ runner.temp }}/Sokosumi.xcresult
           retention-days: 3
           if-no-files-found: ignore
-
-      # Reuse the SwiftPM build from the last main run. Third-party
-      # dependencies (ably-cocoa, swift-openapi, tree-sitter) are the bulk of
-      # the compile; checkout gives our sources fresh mtimes, so they still
-      # rebuild. The key carries the toolchain so an Xcode image bump starts
-      # clean. Main and dispatch runs save; PRs only restore, by prefix.
-      - name: Restore SwiftPM build cache
-        if: matrix.package != ''
-        uses: actions/cache/restore@v6
-        with:
-          path: apps/apple/Packages/${{ matrix.package }}/.build
-          key: ${{ runner.os }}-spm-${{ matrix.package }}-${{ steps.toolchain.outputs.swift }}-${{ hashFiles(format('apps/apple/Packages/{0}/Package.resolved', matrix.package)) }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-spm-${{ matrix.package }}-${{ steps.toolchain.outputs.swift }}-${{ hashFiles(format('apps/apple/Packages/{0}/Package.resolved', matrix.package)) }}-
-            ${{ runner.os }}-spm-${{ matrix.package }}-${{ steps.toolchain.outputs.swift }}-
-
-      - name: Test Swift package
-        if: matrix.package != ''
-        env:
-          PACKAGE: ${{ matrix.package }}
-        run: swift test --package-path "apps/apple/Packages/$PACKAGE"
-
-      - name: Save SwiftPM build cache
-        if: matrix.package != '' && github.event_name != 'pull_request'
-        uses: actions/cache/save@v6
-        with:
-          path: apps/apple/Packages/${{ matrix.package }}/.build
-          key: ${{ runner.os }}-spm-${{ matrix.package }}-${{ steps.toolchain.outputs.swift }}-${{ hashFiles(format('apps/apple/Packages/{0}/Package.resolved', matrix.package)) }}-${{ github.sha }}
-
-  # Preserve the existing check name and require every suite to pass.
-  test:
-    name: Xcode test
-    needs: test-suite
-    if: always() && needs.test-suite.result != 'skipped'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check all Apple test suites
-        env:
-          RESULT: ${{ needs.test-suite.result }}
-        run: test "$RESULT" = success
 
   lint:
     name: Swift lint and format
     needs: changes
-    # Same gate as `test-suite`: PR, dispatch, or path-filtered `push` to
-    # main so `actions/cache` saves ~/.mint on the default branch.
+    # PR, dispatch, or path-filtered `push` to main so `actions/cache` saves
+    # ~/.mint on the default branch. `Swift lint and format` is a required
+    # status check on `main`.
     if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     runs-on: xcode-27
     steps:
@@ -179,6 +129,9 @@ jobs:
       - name: Install Mint
         run: brew install mint
 
+      - name: Test scrolling performance runner
+        run: python3 apps/apple/scripts/test-scrolling-performance.py
+
       - name: Cache Mint packages
         uses: actions/cache@v6
         with:
@@ -196,3 +149,160 @@ jobs:
       - name: Lint Swift
         working-directory: apps/apple
         run: mint run swiftlint lint --strict
+
+  # The rolling download. Every Apple change that reaches main replaces the
+  # single `apple-latest` prerelease, so
+  # https://github.com/masumi-network/sokosumi/releases/download/apple-latest/Sokosumi.dmg
+  # is a permanent link to the newest build. Needs `test` green first: a
+  # rolling download that ships a broken build is worse than no download.
+  #
+  # Deliberately NOT gated on `lint`. SwiftLint and SwiftFormat are style
+  # checks and cannot make a binary broken, so withholding a working,
+  # notarized download over indentation is a false coupling. `needs: test`
+  # also covers `changes`, which `test` already depends on and which this job
+  # never reads.
+  #
+  # The app is sandboxed with the hardened runtime on, so it must be signed
+  # with a Developer ID Application certificate and notarized by Apple, or
+  # Gatekeeper refuses it on every machine that did not build it. All five
+  # secrets below are set by `apps/apple/scripts/setup-release-signing.sh`.
+  publish:
+    name: Publish macOS DMG
+    needs: test
+    # `workflow_dispatch` runs everything except the release step, so the disk
+    # image can be built, notarized and downloaded from the run's artifacts
+    # without rewriting `apple-latest`. That is the way to test a change to
+    # this job.
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: xcode-27
+    permissions:
+      # `gh release` rewrites the apple-latest tag and its assets.
+      contents: write
+    env:
+      TEAM_ID: GVWN7HXYJB
+      RELEASE_TAG: apple-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Select Xcode 27 toolchain
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Import Developer ID certificate
+        env:
+          CERT_P12: ${{ secrets.APPLE_DEVELOPER_ID_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_CERT_PASSWORD }}
+        # A throwaway keychain, unlocked for this job only. The runner is
+        # ephemeral, but an explicit keychain keeps the key out of the login
+        # keychain and lets `security set-key-partition-list` grant codesign
+        # non-interactive access -- without it codesign blocks on a UI prompt
+        # no CI machine can answer.
+        run: |
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
+          echo "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN_PATH" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" > /dev/null
+          security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain-db
+          rm -f "$RUNNER_TEMP/cert.p12"
+
+      - name: Archive Sokosumi for Developer ID
+        working-directory: apps/apple
+        # CFBundleVersion must rise for every published build. The run number
+        # is monotonic per workflow, which is exactly that guarantee.
+        run: |
+          xcodebuild -workspace Sokosumi.xcworkspace -scheme Sokosumi \
+            -configuration Release -destination 'platform=macOS,arch=arm64' \
+            -skipPackagePluginValidation -archivePath "$RUNNER_TEMP/Sokosumi.xcarchive" \
+            DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Developer ID Application" \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            archive
+
+      - name: Export a Developer ID app
+        working-directory: apps/apple
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Sokosumi.xcarchive" \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath "$RUNNER_TEMP/export"
+
+      - name: Build the disk image
+        working-directory: apps/apple
+        # dmgbuild, not a hand-rolled `diskutil image create from`. The look of
+        # a disk image lives in files inside the volume -- `.DS_Store` (window
+        # size, icon positions, view mode), `.background.tiff` and
+        # `.VolumeIcon.icns` -- and `diskutil image create from` STRIPS
+        # `.DS_Store` when it packages a folder, so a styled image is
+        # impossible that way. Verified, not assumed.
+        #
+        # dmgbuild writes `.DS_Store` through the ds_store and mac_alias
+        # modules rather than driving Finder with AppleScript, which is what
+        # makes it work on a headless runner. It does shell out to `hdiutil`
+        # internally, so expect that tool's deprecation warnings in this log;
+        # they come from dmgbuild, not from us.
+        #
+        # Layout, icon and ULFO compression are all in `dmg-settings.py`.
+        run: |
+          rm -f "$RUNNER_TEMP/Sokosumi.dmg"
+          python3 -m venv "$RUNNER_TEMP/dmgenv"
+          "$RUNNER_TEMP/dmgenv/bin/pip" install --quiet dmgbuild==1.6.7
+          "$RUNNER_TEMP/dmgenv/bin/dmgbuild" \
+            -s dmg-settings.py \
+            -D app="$RUNNER_TEMP/export/Sokosumi.app" \
+            Sokosumi "$RUNNER_TEMP/Sokosumi.dmg"
+
+      - name: Notarize and staple
+        env:
+          NOTARY_KEY_P8: ${{ secrets.APPLE_NOTARY_KEY_P8 }}
+          NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+        # Notarizing the disk image covers the app inside it. `--wait` blocks
+        # until Apple answers, so a rejection fails the job here rather than
+        # shipping a build Gatekeeper will refuse. Stapling writes the ticket
+        # into the image so it opens without a network round trip.
+        run: |
+          echo "$NOTARY_KEY_P8" | base64 --decode > "$RUNNER_TEMP/notary.p8"
+          xcrun notarytool submit "$RUNNER_TEMP/Sokosumi.dmg" \
+            --key "$RUNNER_TEMP/notary.p8" \
+            --key-id "$NOTARY_KEY_ID" \
+            --issuer "$NOTARY_ISSUER_ID" \
+            --wait
+          rm -f "$RUNNER_TEMP/notary.p8"
+          xcrun stapler staple "$RUNNER_TEMP/Sokosumi.dmg"
+          xcrun stapler validate "$RUNNER_TEMP/Sokosumi.dmg"
+
+      - name: Upload the disk image as a run artifact
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: Sokosumi-dmg
+          path: ${{ runner.temp }}/Sokosumi.dmg
+          # Short: the current build always lives at the apple-latest URL, so
+          # this exists to grab one specific run, not to archive history.
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Replace the apple-latest prerelease
+        # Never on a manual run: a test build must not rewrite the link people
+        # have already been given.
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # One tag, rewritten each time, so the download URL never changes.
+        # `--clobber` replaces the asset in place; recreating the release
+        # would hand out a new URL and break every link already shared.
+        run: |
+          if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" --target "$GITHUB_SHA" \
+              --notes "Newest macOS build from \`main\` ($GITHUB_SHA). Signed and notarized. Not a stable release."
+          else
+            gh release create "$RELEASE_TAG" --prerelease --target "$GITHUB_SHA" \
+              --title "Sokosumi for macOS (latest)" \
+              --notes "Newest macOS build from \`main\` ($GITHUB_SHA). Signed and notarized. Not a stable release."
+          fi
+          gh release upload "$RELEASE_TAG" "$RUNNER_TEMP/Sokosumi.dmg" --clobber

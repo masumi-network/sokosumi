@@ -27,7 +27,12 @@ import SwiftUI
 
     var body: some View {
       ComposerLayout {
-        MacComposerTextInput(text: $text, submitOnModifier: cancelEdit != nil, cancel: cancelEdit, onBlur: onBlur, submit: submit, placeholder: placeholder, emojiPickerRequest: emojiPickerRequest, commands: commands, channels: channels, mentions: mentions, attachFiles: attachFiles, attachImage: attachImage, onPaste: onPaste, insertion: insertion)
+        HStack(alignment: .top, spacing: 8) {
+          MacComposerTextInput(text: $text, modifierReturnSubmits: cancelEdit != nil, cancel: cancelEdit, onBlur: onBlur, submit: submit, placeholder: placeholder, emojiPickerRequest: emojiPickerRequest, commands: commands, channels: channels, mentions: mentions, attachFiles: attachFiles, attachImage: attachImage, onPaste: onPaste, insertion: insertion)
+          if let cancelEdit {
+            MessageEditControls(canSave: canSend, save: { _ = submit() }, cancel: cancelEdit)
+          }
+        }
       } formatting: {
         if toolbarVisible {
           ComposerFormatToolbar(commands: commands)
@@ -57,21 +62,16 @@ import SwiftUI
         .accessibilityIdentifier("composer.emojiPicker")
         if !mentions.isEmpty {
           ComposerToolbarButton(title: "Mention", symbol: "at") {
-            commands.beginMention()
+            commands.openMentionPicker()
           }
           .accessibilityIdentifier("composer.mentionPicker")
         }
         Spacer(minLength: 8)
         if content.showsCounter {
-          Text("\(content.count)/\(ComposerContent.maximumLength)")
-            .font(.caption)
-            .foregroundStyle(content.isTooLong ? .red : .secondary)
-            .accessibilityLabel("Message length: \(content.count) of \(ComposerContent.maximumLength)")
+          ComposerCharacterCount(content: content)
         }
-        if let cancelEdit {
-          Button("Cancel", action: cancelEdit)
-          Button("Save") { _ = submit() }.buttonStyle(.borderedProminent).disabled(!canSend)
-        } else {
+        // The edit composer has no button row; its compact controls sit beside the field (row 18b).
+        if cancelEdit == nil {
           Button("Send", systemImage: "arrow.up") { _ = submit() }
             .labelStyle(.iconOnly)
             .buttonStyle(.borderedProminent)

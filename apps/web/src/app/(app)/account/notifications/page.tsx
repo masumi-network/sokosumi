@@ -17,11 +17,10 @@ export default async function AccountNotificationsPage() {
   return (
     <div className="mx-auto w-full max-w-4xl px-4">
       <NotificationPreferences
-        notificationsOptIn={session.user.notificationsOptIn ?? true}
         marketingOptIn={session.user.marketingOptIn ?? false}
       >
         <ChatDisplayPreferences
-          showRoomUnreadCount={session.user.showRoomUnreadCount ?? false}
+          showRoomUnreadCount={session.user.hideRoomUnreadCount !== true}
         />
       </NotificationPreferences>
     </div>

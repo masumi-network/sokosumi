@@ -44,6 +44,7 @@ interface FullCalendarProps {
 }
 
 const {
+  calendarRealtimeBridgeMock,
   alertDialogActionMock,
   alertDialogMock,
   clearTaskScheduleMock,
@@ -63,6 +64,7 @@ const {
   taskScheduleSectionMock,
   toastErrorMock,
 } = vi.hoisted(() => ({
+  calendarRealtimeBridgeMock: vi.fn(),
   alertDialogActionMock: vi.fn(),
   alertDialogMock: vi.fn(),
   clearTaskScheduleMock: vi.fn(),
@@ -81,6 +83,13 @@ const {
   saveCalendarTaskScheduleMock: vi.fn(),
   taskScheduleSectionMock: vi.fn(),
   toastErrorMock: vi.fn(),
+}));
+
+vi.mock("@/lib/ably/calendar-realtime-bridge", () => ({
+  CalendarRealtimeBridge: (props: { onInvalidated: () => void }) => {
+    calendarRealtimeBridgeMock(props);
+    return null;
+  },
 }));
 
 vi.mock("@fullcalendar/react", () => ({
@@ -664,61 +673,6 @@ describe("WorkspaceCalendar editing", () => {
     });
   });
 
-  it("opens calendar scheduling for the visible calendar date", async () => {
-    const user = userEvent.setup();
-    render(
-      <NuqsTestingAdapter searchParams="?timezone=Pacific%2FKiritimati&view=agenda">
-        <WorkspaceCalendar
-          coworkers={[{ id: "coworker-1", name: "Ada" }]}
-          initialDate="2030-01-02"
-          items={[ITEM]}
-          sources={SOURCES}
-        />
-      </NuqsTestingAdapter>,
-    );
-
-    const createButton = screen.getByRole("button", {
-      name: "create.title",
-    });
-
-    await user.click(createButton);
-
-    expect(openCreateTaskModalMock).toHaveBeenCalledWith({
-      projectId: undefined,
-      schedule: {
-        mode: "once",
-        oneTimeLocalIso: "2030-01-02T12:00",
-        timezone: "Pacific/Kiritimati",
-      },
-    });
-  });
-
-  it("opens agenda create with a schedulable once-time when noon is already past", () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-09-08T16:01:43.868Z"));
-    render(
-      <NuqsTestingAdapter searchParams="?timezone=Europe%2FPrague&view=agenda">
-        <WorkspaceCalendar
-          coworkers={[{ id: "coworker-1", name: "Ada" }]}
-          initialDate="2026-09-08"
-          items={[ITEM]}
-          sources={SOURCES}
-        />
-      </NuqsTestingAdapter>,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "create.title" }));
-
-    const schedule = openCreateTaskModalMock.mock.calls.at(-1)?.[0] as {
-      schedule: TaskScheduleSelection;
-    };
-    expect(schedule.schedule.oneTimeLocalIso).toBe("2026-09-08T18:06");
-    expect(selectionToApiBody(schedule.schedule)).toEqual({
-      mode: "once",
-      runAt: new Date("2026-09-08T16:06:00.000Z"),
-    });
-  });
-
   it("prefills the active Workspace source on the workspace Calendar", async () => {
     const user = userEvent.setup();
     render(
@@ -882,6 +836,19 @@ describe("WorkspaceCalendar editing", () => {
       expect(saveCalendarTaskScheduleMock).toHaveBeenCalledWith(
         expect.objectContaining({ taskId: "task-1" }),
       ),
+    );
+  });
+
+  it("preserves an open editor when another member invalidates the calendar", async () => {
+    const user = userEvent.setup();
+    renderCalendar({ currentUserId: "user-1", workspaceId: "workspace-1" });
+    await openEditor(user);
+    const bridge = calendarRealtimeBridgeMock.mock.calls.at(-1)?.[0];
+    act(() => bridge.onInvalidated());
+    expect(screen.getByRole("dialog")).toHaveTextContent("edit.title");
+    await user.click(screen.getByRole("button", { name: "save schedule" }));
+    await waitFor(() =>
+      expect(saveCalendarTaskScheduleMock).toHaveBeenCalled(),
     );
   });
 

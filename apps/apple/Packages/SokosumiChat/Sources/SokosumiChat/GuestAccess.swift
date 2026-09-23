@@ -202,7 +202,7 @@ public final class GuestAccess: ObservableObject {
   @discardableResult
   private func record(_ error: Error) -> Bool {
     guard !Task.isCancelled, !(error is CancellationError) else { return false }
-    errorMessage = channelErrorMessage(error)
+    errorMessage = chatErrorMessage(error)
     return false
   }
 }

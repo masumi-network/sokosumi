@@ -9,13 +9,7 @@ import Foundation
 // `lastActiveAt` / `visible`. Readers aggregate every member of one user:
 // any device online → online; any device connected otherwise → afk; none →
 // offline. Coworkers and Soko Bots stay always-online (ADR 0003 v1).
-
-/// Connected + activity inside this window → online; connected otherwise → afk.
-public let chatPresenceOnlineWindow: TimeInterval = 5 * 60
-
-/// Activity refreshes `lastActiveAt` just inside the online window so a
-/// throttled refresh lands before teammates age this client to afk.
-public let orgPresencePublishMinInterval: TimeInterval = chatPresenceOnlineWindow - 60
+// Online window is 5m; publish throttle is 4m so a refresh lands before afk.
 
 private let orgPresenceChannelPrefix = "presence:org_"
 
@@ -37,7 +31,7 @@ public func parseUserId(fromAblyPresenceClientId clientId: String) -> String? {
   guard let separator = clientId.firstIndex(of: ":"), separator > clientId.startIndex else { return nil }
   let userId = String(clientId[..<separator])
   let instanceId = String(clientId[clientId.index(after: separator)...])
-  guard !userId.isEmpty, isValidAblyClientInstanceId(instanceId) else { return nil }
+  guard !userId.isEmpty, isValidRealtimeClientInstanceId(instanceId) else { return nil }
   return userId
 }
 
@@ -104,7 +98,7 @@ public struct ChatPresenceMember: Equatable, Sendable {
 public func aggregateChatPresence(
   members: [ChatPresenceMember],
   now: Date = Date(),
-  onlineWindow: TimeInterval = chatPresenceOnlineWindow
+  onlineWindow: TimeInterval = 5 * 60
 ) -> [String: Components.Schemas.ChatRoomPresence] {
   var byUser: [String: Components.Schemas.ChatRoomPresence] = [:]
   for member in members {
@@ -150,7 +144,7 @@ public struct OrgPresencePublisherState: Equatable, Sendable {
     ChatPresenceMemberData(lastActiveAt: lastActiveAt, visible: visible)
   }
 
-  public func shouldPublish(force: Bool, now: Date = Date(), minInterval: TimeInterval = orgPresencePublishMinInterval) -> Bool {
+  public func shouldPublish(force: Bool, now: Date = Date(), minInterval: TimeInterval = 4 * 60) -> Bool {
     guard !force, let lastPublished, let lastPublishedAt else { return true }
     let next = data
     if next.visible != lastPublished.visible {
@@ -176,7 +170,7 @@ public struct OrgPresencePublisherState: Equatable, Sendable {
 
   /// Local self-approximation for the account chrome, like web's
   /// `useSelfPresence`: unreachable → offline; hidden or idle → afk.
-  public func selfPresence(connected: Bool, now: Date = Date(), onlineWindow: TimeInterval = chatPresenceOnlineWindow) -> Components.Schemas.ChatRoomPresence {
+  public func selfPresence(connected: Bool, now: Date = Date(), onlineWindow: TimeInterval = 5 * 60) -> Components.Schemas.ChatRoomPresence {
     guard connected else { return .offline }
     guard visible, now.timeIntervalSince(lastActiveAt) <= onlineWindow else { return .afk }
     return .online

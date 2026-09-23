@@ -1,6 +1,13 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+// The sidebar and mobile chrome call useSession. The real better-auth session
+// atom schedules a nanostores unmount timer that can fire after happy-dom tears
+// down `window`.
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({ data: null }),
+}));
+
 vi.mock("next/navigation", () => ({
   usePathname: () => "/notifications",
   useSearchParams: () => new URLSearchParams(),
@@ -44,6 +51,7 @@ import { AppShellLoadingFrame } from "@/app/components/app-shell-loading-frame";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
 import { useNotifications } from "@/contexts/notification-provider";
+import { TestQueryProvider } from "@/test/query-provider";
 
 /**
  * Instant Nav keeps `(app)` layout sync and streams AuthenticatedAppFrame
@@ -72,11 +80,13 @@ function InstantNavPageProbe() {
 describe("AppShellLoadingFrame Instant Nav page children", () => {
   it("provides AccountNotice and Notification contexts so page children do not throw", () => {
     render(
-      <SidebarProvider defaultOpen>
-        <AppShellLoadingFrame>
-          <InstantNavPageProbe />
-        </AppShellLoadingFrame>
-      </SidebarProvider>,
+      <TestQueryProvider>
+        <SidebarProvider defaultOpen>
+          <AppShellLoadingFrame>
+            <InstantNavPageProbe />
+          </AppShellLoadingFrame>
+        </SidebarProvider>
+      </TestQueryProvider>,
     );
 
     expect(screen.getByTestId("instant-nav-page-probe")).toHaveTextContent(

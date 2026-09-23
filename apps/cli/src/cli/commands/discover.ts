@@ -4,10 +4,7 @@ import { fetchCoworkers } from "../../api/services/coworker-service.js";
 import { fetchJobs } from "../../api/services/job-service.js";
 import { type CliTargetConfig, sanitizeApiUrl } from "../../auth/config.js";
 import { redactErrorMessage } from "../../error-redaction.js";
-
-interface TextOutput {
-  write(value: string): unknown;
-}
+import type { CommandOutput } from "./command-helpers.js";
 
 export const CLI_COMMANDS = [
   "discover",
@@ -21,6 +18,8 @@ export const CLI_COMMANDS = [
   "coworkers update",
   "coworkers api-key",
   "coworkers me",
+  "vendors me",
+  "workspaces list",
   "tasks list",
   "tasks create",
   "tasks get",
@@ -35,7 +34,7 @@ export const CLI_COMMANDS = [
 export interface DiscoverCommandOptions {
   client?: CoreHttpClient;
   config: CliTargetConfig;
-  stdout: TextOutput;
+  stdout: CommandOutput;
   json?: boolean;
   signal?: AbortSignal;
 }

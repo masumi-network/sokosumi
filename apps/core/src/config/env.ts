@@ -1,5 +1,8 @@
 import { z } from "@hono/zod-openapi";
-import { resolveBetterAuthPublicBaseUrl } from "@sokosumi/utils";
+import {
+  resolveBetterAuthPublicBaseUrl,
+  TURNSTILE_ALWAYS_PASS_SECRET,
+} from "@sokosumi/utils";
 import { withRelatedProject } from "@vercel/related-projects";
 import { v4 as uuidv4 } from "uuid";
 
@@ -21,6 +24,10 @@ const baseEnvSchema = z.object({
 
   // Database
   DATABASE_URL: z.url(),
+
+  // Redis / Vercel KV (optional; resumable UI streams, coworker stream locks)
+  REDIS_URL: z.string().optional(),
+  KV_URL: z.string().optional(),
 
   WEB_APP_BASE_URL: z.url().default("http://localhost:3000"),
 
@@ -69,6 +76,15 @@ const baseEnvSchema = z.object({
   MICROSOFT_CLIENT_SECRET: z.string().min(1),
   RESEND_API_KEY: z.string().min(1),
   RESEND_FROM_EMAIL: z.email().default("noreply@sokosumi.com"),
+
+  /**
+   * Credits under which a wallet is told it is running low (SOK-932).
+   *
+   * The same number web draws its low-credit label at
+   * (`NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD`), so the feed and the sidebar
+   * agree about what low means. Zero switches the notification off.
+   */
+  LOW_CREDITS_THRESHOLD: z.coerce.number().min(0).default(100),
 
   // Sentry
   SENTRY_DSN: z.url().optional(),
@@ -246,6 +262,32 @@ function isDeployedEnvironment(value: z.infer<typeof baseEnvSchema>): boolean {
   );
 }
 
+/**
+ * A deployed environment serving real users, as opposed to a preview.
+ *
+ * Previews are throwaway and are the one deployment where Cloudflare's test
+ * keys are a reasonable choice — they let an agent drive the sign-in form
+ * without answering a human check. Production has no such excuse.
+ *
+ * On Vercel, `NODE_ENV` is "production" for every deployment, previews
+ * included, so it cannot tell the two apart and `VERCEL_ENV` is the only
+ * honest signal. Reading both with `||` made every preview a production one,
+ * which killed the very case the paragraph above describes: a preview holding
+ * the always-passes secret exited at boot, so every route answered
+ * FUNCTION_INVOCATION_FAILED instead of warning.
+ *
+ * Off Vercel there is no `VERCEL_ENV`, and `NODE_ENV` is the only signal
+ * there is.
+ */
+function isProductionEnvironment(
+  value: z.infer<typeof baseEnvSchema>,
+): boolean {
+  if (value.VERCEL_ENV) {
+    return value.VERCEL_ENV === "production";
+  }
+  return value.NODE_ENV === "production";
+}
+
 const envSchema = baseEnvSchema.superRefine((value, context) => {
   if (!value.SOKO_BOT_ENABLED) return;
   // The agent runs inside Core, so enabling it needs no runtime deployment,
@@ -343,6 +385,31 @@ export function validateEnv(): EnvConfig {
     console.warn(
       "TURNSTILE_SECRET_KEY is unset in a deployed environment; Turnstile captcha verification is disabled and auth email endpoints are unprotected from spam",
     );
+  }
+
+  // Worse than unset, and quieter about it: siteverify succeeds for ANY token,
+  // forged ones included, so the endpoints look protected while they are not.
+  // Every local checkout now carries this secret, which is exactly how it ends
+  // up pasted into a deployment.
+  //
+  // Production refuses to boot rather than warn. An unset secret is honestly
+  // off and its warning is proportionate; this one serves a captcha that
+  // passes everything, and a warning in a build log is not read by anyone.
+  // Previews keep the warning: a test key is a defensible choice there, since
+  // it lets an agent drive sign-in without answering a human check.
+  if (result.data.TURNSTILE_SECRET_KEY === TURNSTILE_ALWAYS_PASS_SECRET) {
+    if (isProductionEnvironment(result.data)) {
+      console.error(
+        "❌ TURNSTILE_SECRET_KEY is Cloudflare's published always-passes testing secret. In production this accepts every captcha token, including forged ones, while the auth endpoints appear protected. Set a real secret from the Turnstile dashboard.",
+      );
+      process.exit(1);
+    }
+
+    if (isDeployedEnvironment(result.data)) {
+      console.warn(
+        "TURNSTILE_SECRET_KEY is Cloudflare's published always-passes testing secret in a preview environment; captcha verification accepts every token, including forged ones. Intended only for driving sign-in without a human check.",
+      );
+    }
   }
 
   return result.data;

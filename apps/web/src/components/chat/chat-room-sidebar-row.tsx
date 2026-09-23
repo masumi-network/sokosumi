@@ -11,6 +11,7 @@ import {
   Pin,
   PinOff,
 } from "lucide-react";
+import { type MotionProps, motion } from "motion/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -22,6 +23,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { leaveRoomAction } from "@/app/chat/actions";
+import { useRoomSelection } from "@/app/chat/components/room-cache-provider";
 import {
   CHAT_CHATS_LIST_PATH,
   CHAT_EDIT_CHANNEL_PARAM,
@@ -29,6 +31,9 @@ import {
   chatRoomHref,
   pathWithSearch,
 } from "@/app/chat/utils/chat-route-base";
+import { getActiveRoomIdFromSelection } from "@/components/chat/active-room-id";
+import { ChatRoomThreadRows } from "@/components/chat/chat-room-thread-rows";
+import { RowCountMark } from "@/components/chat/mention-count-pill";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import {
   markOrganizationChatRoomUnreadAction,
@@ -38,11 +43,15 @@ import {
   unmuteOrganizationChatRoomAction,
   unpinOrganizationChatRoomAction,
 } from "@/components/chat/organization-chat-list.actions";
-import { resolveRoomAttention } from "@/components/chat/room-attention";
 import {
-  ROOM_COUNT_CAP,
-  roomCountLabel,
-} from "@/components/chat/room-count-label";
+  RAIL_FLYOUT_CLOSE_DELAY_MS,
+  RAIL_FLYOUT_OPEN_DELAY_MS,
+} from "@/components/chat/rail-flyout-delays";
+import {
+  resolveRoomAttention,
+  roomBadgeCountsMentions,
+} from "@/components/chat/room-attention";
+import { ROOM_COUNT_CAP } from "@/components/chat/room-count-label";
 import {
   applyRoomReadOverlays,
   beginRoomAttentionChange,
@@ -67,13 +76,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import { SheetClose } from "@/components/ui/sheet";
 import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRailSelectionBar,
   SidebarRowSlot,
+  useSidebar,
 } from "@/components/ui/sidebar";
+import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
@@ -103,6 +119,8 @@ import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
 const TRAILING_CLUSTER_CLASS =
   "group-data-[collapsible=icon]:hidden absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center";
 
+const MotionSidebarMenuItem = motion.create(SidebarMenuItem);
+
 export interface ChatRoomSidebarRowProps {
   room: ChatRoom;
   href: string;
@@ -114,8 +132,20 @@ export interface ChatRoomSidebarRowProps {
   onRoomUpdated: (room: ChatRoom) => void;
   /** When false, render plain Link (page-mounted list outside Sheet). */
   dismissSheetOnNavigate?: boolean;
-  /** Pinned section only: the row's `<li>` is a drop slot and moves in a drag. */
-  itemProps?: ComponentProps<"li">;
+  /**
+   * Props for the row's `<li>`: a drop slot that moves in a drag in Pinned,
+   * a dimmed read room in the All unreads filter. Without the handlers motion
+   * owns, so the same props fit the animated `<li>` of `itemMotion`.
+   */
+  itemProps?: Omit<
+    ComponentProps<"li">,
+    "onAnimationStart" | "onDrag" | "onDragStart" | "onDragEnd"
+  >;
+  /**
+   * Presence animation for the `<li>`, for a row inside `AnimatePresence`:
+   * one arriving in or leaving the All unreads filter.
+   */
+  itemMotion?: MotionProps;
   /**
    * Pinned section in its reorder mode: stands where the room menu does, and
    * the row stops being a link, so a press moves the room instead of opening it.
@@ -124,24 +154,17 @@ export interface ChatRoomSidebarRowProps {
 }
 
 /**
- * The reader's opt-in Room unread count.
+ * The reader's opt-in Room unread count, as the link announces it.
  *
- * Text rather than a pill, because it is not the mention badge and a reader has
- * to tell the two apart at a glance. It caps like the badge so a very loud room
- * cannot reflow the row. Collapsed to icons the row is a 24px mark with space
- * for neither number, so count and badge both hide. That is decided, not an
+ * The number itself is drawn by `MentionBadge`, in the trailing cluster,
+ * outside the link and `aria-hidden`. This span is what carries it into the
+ * link's accessible name beside the room name, the way `MentionAnnouncement`
+ * carries the badge. Collapsed to icons the row is a 24px mark with space for
+ * no number, so this hides with the drawn one. That is decided, not an
  * oversight.
  *
- * A middot opens the count, so the digits stop running on from the room name
- * they follow. Dot and digits carry the name's unread weight and colour,
- * because they are part of the same statement: this room has something for you.
- * `resolveRoomAttention` only ever reports a count above zero together with
- * `bold`, so there is no unbolded state to render and no prop to thread.
- * `room-attention.test.ts` pins that.
- *
- * `whitespace-nowrap` holds the middot and the digits together. The label is
- * one string with a space in it, so without this the two can land on separate
- * lines wherever the count stops being an unshrinkable flex item.
+ * A bare `span` is role `generic`, which prohibits an accessible name, so an
+ * `aria-label` here can be dropped. Real text carries it instead.
  */
 function RoomUnreadCount({ count }: { count: number }) {
   const t = useTranslations("App.Channels.RoomUnread");
@@ -150,16 +173,10 @@ function RoomUnreadCount({ count }: { count: number }) {
     return null;
   }
 
-  const capped = count > ROOM_COUNT_CAP;
-
-  // A bare `span` is role `generic`, which prohibits an accessible name, so an
-  // `aria-label` here can be dropped and the row announces a bare number beside
-  // the badge's bare number. Real text carries it instead.
   return (
-    <span className="text-foreground group-data-[collapsible=icon]:hidden shrink-0 leading-4 font-semibold whitespace-nowrap tabular-nums">
-      <span aria-hidden="true">{`· ${roomCountLabel(count)}`}</span>
+    <span className="group-data-[collapsible=icon]:hidden">
       <span className="sr-only">
-        {capped
+        {count > ROOM_COUNT_CAP
           ? t("unreadMessagesCapped", { max: ROOM_COUNT_CAP })
           : t("unreadMessages", { count })}
       </span>
@@ -195,13 +212,14 @@ function MentionAnnouncement({ count }: { count: number }) {
 }
 
 /**
- * The mention count, drawn in the room menu's column.
+ * The row's one number, drawn in the room menu's column: the mention pill,
+ * or the reader's opt-in count where there is no mention.
  *
  * On a hover-capable row it crossfades with the menu: out of flow, fading as
  * the `…` arrives, exactly as the muted bell does. Sharing the menu's column
- * is what buys the name its width back, because the badge stops asking for a
- * gap and a width of its own on top of the hole. The cost is the number going
- * quiet under the cursor; the bold name and the reader's opt-in count stay, on
+ * is what buys the name its width back, because the number stops asking for
+ * a gap and a width of its own on top of the hole. The cost is the number
+ * going quiet under the cursor, pill and count alike; the bold name stays, on
  * the one row they are pointing at.
  *
  * The pill rides the bell's own box rather than being positioned by its own
@@ -220,18 +238,30 @@ function MentionAnnouncement({ count }: { count: number }) {
  */
 function MentionBadge({
   count,
+  unreadTextCount,
   crossfadesWithMenu,
 }: {
+  /** Mentions to draw as the `@` pill. Zero in a Direct of two. */
   count: number;
+  /**
+   * The reader's opt-in Room unread count. A row shows one number, so
+   * `resolveRoomAttention` only reports this when there is no badge, and it
+   * takes the badge's slot: same column, same crossfade with the menu. Muted
+   * text and no pill, because it is the one number on the sidebar that is
+   * not about the reader, at the pill's own 10px and weight, so the two read
+   * as one family rather than the count looming over the mention. It caps
+   * like the badge, so a loud room cannot reflow the row.
+   */
+  unreadTextCount: number;
   crossfadesWithMenu: boolean;
 }) {
-  if (count <= 0) {
+  if (count <= 0 && unreadTextCount <= 0) {
     return null;
   }
 
   return (
     <span
-      data-slot="room-mention-badge"
+      data-slot={count > 0 ? "room-mention-badge" : "room-unread-count"}
       aria-hidden
       className={cn(
         "pointer-events-none inline-flex size-8 shrink-0 items-center justify-center md:size-7",
@@ -242,9 +272,7 @@ function MentionBadge({
         ],
       )}
     >
-      <span className="bg-primary-solid text-primary-solid-foreground inline-flex min-w-4.5 items-center justify-center rounded-full px-1 text-[0.625rem] leading-4 font-semibold tabular-nums">
-        {roomCountLabel(count)}
-      </span>
+      <RowCountMark mentionCount={count} count={unreadTextCount} />
     </span>
   );
 }
@@ -285,13 +313,19 @@ export function ChatRoomSidebarRow({
   href,
   label,
   subtitle,
-  isActive,
+  isActive: routeIsActive,
   leading,
   onRoomUpdated,
   dismissSheetOnNavigate = true,
   itemProps,
+  itemMotion,
   reorderHandle,
 }: ChatRoomSidebarRowProps) {
+  const selectedPath = useRoomSelection();
+  const isActive = selectedPath
+    ? getActiveRoomIdFromSelection(selectedPath) === room.id
+    : routeIsActive;
+
   const tActions = useTranslations("App.Channels.Actions");
   const tChannels = useTranslations("App.Channels");
   const router = useRouter();
@@ -313,14 +347,21 @@ export function ChatRoomSidebarRow({
       room.discoverability === "matched" ||
       room.userMembers.filter((member) => member.access === "member").length >
         1);
+  const badgeCountsMentions = roomBadgeCountsMentions(room);
   const showUnreadCount = useShowRoomUnreadCount();
-  const { bold, badgeCount, unreadTextCount } = resolveRoomAttention({
-    unreadCount: room.unreadCount,
-    unreadMentionCount: room.unreadMentionCount,
-    markedUnread: room.markedUnread,
-    isMuted,
-    showUnreadCount,
-  });
+  const { bold, badgeCount, mentionCount, unreadTextCount } =
+    resolveRoomAttention({
+      unreadCount: room.unreadCount,
+      channelUnreadCount: room.channelUnreadCount,
+      unreadMentionCount: room.unreadMentionCount,
+      markedUnread: room.markedUnread,
+      isMuted,
+      showUnreadCount,
+      badgeCountsMentions,
+    });
+  // The row's one number, whichever it is, stands in the badge's slot, so
+  // the hole that keeps the name clear of it has to be held open for either.
+  const hasRowCount = mentionCount > 0 || unreadTextCount > 0;
   const railVariant = badgeCount > 0 ? "mention" : bold ? "unread" : null;
 
   function runRoomAction(
@@ -388,8 +429,10 @@ export function ChatRoomSidebarRow({
   }
 
   // The dialog needs the org roster and the reader's role, which this row does
-  // not have and the room already loads. So the row asks the room to open it.
-  const editChannelItem = (
+  // not have and the room already loads. So the row asks the room to open it:
+  // a Channel's settings, or a group Direct's name, which is all it has.
+  const canEditRoom = isChannel || room.isGroupDirect;
+  const editRoomItem = (
     <DropdownMenuItem
       disabled={isPending}
       onSelect={() => {
@@ -417,17 +460,18 @@ export function ChatRoomSidebarRow({
       }}
     >
       <Pencil className="size-4" aria-hidden />
-      {tChannels("editChannel")}
+      {isChannel ? tChannels("editChannel") : tChannels("GroupName.rename")}
     </DropdownMenuItem>
   );
 
-  // Collapsed to icons the row is its leading mark, centred in the button.
-  // The name goes `sr-only` rather than `hidden` so the link keeps its
-  // accessible name (the tooltip adds none) while taking no flex space, and
-  // the spacer hides so neither can push the mark off centre. The button's
-  // `overflow-hidden` exists for name truncation, which the collapsed rail
-  // has none of, and it clipped the tile's kind corner mark, which hangs 6px
-  // below a 24px tile inside a 32px button. So the clip lifts there.
+  // Collapsed to icons the row is its leading mark. The name uses the
+  // shared label class rather than `hidden` so the link keeps its
+  // accessible name (the tooltip adds none) while taking no flex space at
+  // rest, and the spacer hides so neither can push the mark off centre. The
+  // button's `overflow-hidden` exists for name truncation, which the
+  // collapsed rail has none of, and it clipped the tile's kind corner mark,
+  // which hangs 4px below a 20px tile inside a 32px button. So the clip
+  // lifts there.
   const roomLink = (
     <Link
       aria-current={isActive ? "page" : undefined}
@@ -459,31 +503,28 @@ export function ChatRoomSidebarRow({
           </span>
         ) : null}
       </SidebarRowSlot>
-      <span className="group-data-[collapsible=icon]:sr-only min-w-0 flex-1">
-        {/* The count rides the end of the name, not the row's right rail, so it
-            reads as belonging to this room rather than to the row's controls.
-            The name keeps `min-w-0` so it truncates first and the count stays.
-            `flex-nowrap` states that one-line rule instead of leaning on the
-            flex default, so the count cannot drop under the name (SOK-1062). */}
-        <span className="flex min-w-0 flex-nowrap items-baseline gap-1.5">
-          <span
-            className={cn(
-              "min-w-0 truncate",
-              bold && "font-semibold text-foreground",
-              isMuted && !isActive && "text-muted-foreground",
-            )}
-          >
-            {label}
-          </span>
-          <RoomUnreadCount count={unreadTextCount} />
+      <span className={SIDEBAR_ROW_LABEL_CLASS}>
+        {/* The count used to ride the end of the name in a flex with a gap.
+            It is drawn in the trailing cluster now, so only its announcement
+            is left here, and a counted row must not keep a hole after the
+            name for text nobody sees. */}
+        <span
+          className={cn(
+            "block min-w-0 truncate",
+            bold && "font-semibold text-foreground",
+            isMuted && !isActive && "text-muted-foreground",
+          )}
+        >
+          {label}
         </span>
+        <RoomUnreadCount count={unreadTextCount} />
         {subtitle ? (
           <span className="text-muted-foreground group-data-[collapsible=icon]:hidden block truncate text-xs leading-tight">
             {subtitle}
           </span>
         ) : null}
       </span>
-      <MentionAnnouncement count={badgeCount} />
+      <MentionAnnouncement count={mentionCount} />
       <span
         data-slot="room-trailing-spacer"
         className={cn(
@@ -492,7 +533,7 @@ export function ChatRoomSidebarRow({
           // Touch keeps the bell or the badge in flow beside the menu, so the
           // hole holds two boxes. They are the same 32px box, and a muted room
           // carries no badge, so one width serves both.
-          (isMuted || badgeCount > 0) && "[@media(hover:none)]:w-16",
+          (isMuted || hasRowCount) && "[@media(hover:none)]:w-16",
           // A muted row shows its glyph at rest, a badged row shows its badge,
           // and the open room is the row being read, so all three hold the
           // 16px hole in every state. The name is `flex-1 min-w-0`, so a hole
@@ -509,9 +550,9 @@ export function ChatRoomSidebarRow({
           // the menu's column and crossfades with it. Reorder mode is the
           // exception: its handle never fades, so the badge stays in flow
           // beside it and the hole holds both.
-          badgeCount > 0 && reorderHandle
+          hasRowCount && reorderHandle
             ? "[@media(hover:hover)]:w-16"
-            : isMuted || isActive || reorderHandle || badgeCount > 0
+            : isMuted || isActive || reorderHandle || hasRowCount
               ? "[@media(hover:hover)]:size-4"
               : [
                   "[@media(hover:hover)]:size-0",
@@ -525,154 +566,223 @@ export function ChatRoomSidebarRow({
     </Link>
   );
 
-  return (
-    <SidebarMenuItem
-      {...itemProps}
-      className={cn("group/room-row relative", itemProps?.className)}
+  // Collapsed to icons the row is only its leading mark, so the name rides
+  // the button's tooltip, which the sidebar shows in that state alone.
+  //
+  // A room with unread Threads gets a flyout there instead (ADR-0037): the
+  // rail hides the inset rows, and these are the same rows from the same
+  // list. It stands in for the tooltip, since two floating layers on one
+  // hover would cover each other, and carries the room's name itself. It is
+  // a hover card because its rows are links a pointer has to be able to move
+  // onto, which a tooltip does not allow. Room mute outranks it, as it does
+  // the inset rows.
+  //
+  // It is a pointer surface only. Radix takes a hover card's content out of
+  // the tab order and does not open it for touch, so from the keyboard or on
+  // a touch rail the rows are reached by expanding the sidebar or opening the
+  // room, where the reply bars and the thread list hold the same Threads.
+  const { state: sidebarState, isMobile: isMobileSidebar } = useSidebar();
+  const showRailThreadFlyout =
+    sidebarState === "collapsed" &&
+    !isMobileSidebar &&
+    !isMuted &&
+    // Reorder mode hides the inset rows, and the flyout is those rows.
+    reorderHandle == null &&
+    (room.unreadThreads?.length ?? 0) > 0;
+  const roomButton = (
+    <SidebarMenuButton
+      asChild
+      isActive={isActive}
+      tooltip={showRailThreadFlyout ? undefined : label}
+      // A guest row is one of the three items allowed to differ between
+      // states (CONTEXT.md, "Sidebar row"): its host organisation line is
+      // the second line a 32px row has no room for, so this row alone grows
+      // to hold it. Its mark still sits in the shared slot.
+      className={cn(subtitle && "h-auto min-h-11 py-1 md:h-auto md:min-h-8")}
     >
-      {railVariant ? <RailAttentionPill variant={railVariant} /> : null}
-      {isActive ? <SidebarRailSelectionBar /> : null}
-      {/* Collapsed to icons the row is only its leading mark, so the name
-          rides the button's tooltip, which the sidebar shows in that state
-          alone. */}
-      <SidebarMenuButton
-        asChild
-        isActive={isActive}
-        tooltip={label}
-        // A guest row is one of the three items allowed to differ between
-        // states (CONTEXT.md, "Sidebar row"): its host organisation line is
-        // the second line a 32px row has no room for, so this row alone grows
-        // to hold it. Its mark still sits in the shared slot.
-        className={cn(subtitle && "h-auto min-h-11 py-1 md:h-auto md:min-h-8")}
-      >
-        {dismissSheetOnNavigate ? (
-          <SheetClose asChild>{roomLink}</SheetClose>
+      {dismissSheetOnNavigate ? (
+        <SheetClose asChild>{roomLink}</SheetClose>
+      ) : (
+        roomLink
+      )}
+    </SidebarMenuButton>
+  );
+
+  const itemClassName = cn("relative", itemProps?.className);
+  const content = (
+    <>
+      {/* The row proper. Its marks and trailing cluster are centred on this
+          box, and its hover reveals its own menu, so neither can drift onto
+          the inset thread rows that follow it inside the same item. */}
+      <div data-slot="room-row-main" className="group/room-row relative">
+        {railVariant ? <RailAttentionPill variant={railVariant} /> : null}
+        {isActive ? <SidebarRailSelectionBar /> : null}
+        {showRailThreadFlyout ? (
+          <HoverCard
+            openDelay={RAIL_FLYOUT_OPEN_DELAY_MS}
+            closeDelay={RAIL_FLYOUT_CLOSE_DELAY_MS}
+          >
+            <HoverCardTrigger asChild>{roomButton}</HoverCardTrigger>
+            <HoverCardContent
+              side="right"
+              align="start"
+              sideOffset={12}
+              className="w-72 p-2"
+            >
+              <p className="truncate px-2 pb-1 text-xs font-semibold">
+                {label}
+              </p>
+              <ChatRoomThreadRows
+                room={room}
+                roomLabel={label}
+                isActive={isActive}
+                variant="flyout"
+              />
+            </HoverCardContent>
+          </HoverCard>
         ) : (
-          roomLink
+          roomButton
         )}
-      </SidebarMenuButton>
-      <div data-slot="room-trailing" className={TRAILING_CLUSTER_CLASS}>
-        <MentionBadge
-          count={badgeCount}
-          crossfadesWithMenu={reorderHandle == null}
-        />
-        {reorderHandle ?? (
-          <>
-            {isMuted ? (
-              <span
-                className={cn(
-                  "text-muted-foreground pointer-events-none flex size-8 items-center justify-center md:size-7",
-                  "[@media(hover:hover)]:absolute [@media(hover:hover)]:top-1/2 [@media(hover:hover)]:right-0 [@media(hover:hover)]:-translate-y-1/2",
-                  "motion-safe:transition-opacity motion-safe:duration-150",
-                  "[@media(hover:hover)]:group-hover/room-row:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-0 group-has-[[data-state=open]]/room-row:opacity-0",
-                )}
-                aria-hidden
-              >
-                <BellOff className="size-4 md:size-3.5" />
-              </span>
-            ) : null}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  disabled={isPending}
+        <div data-slot="room-trailing" className={TRAILING_CLUSTER_CLASS}>
+          <MentionBadge
+            count={mentionCount}
+            unreadTextCount={unreadTextCount}
+            crossfadesWithMenu={reorderHandle == null}
+          />
+          {reorderHandle ?? (
+            <>
+              {isMuted ? (
+                <span
                   className={cn(
-                    // The box stays 32px so the `…` keeps its column under the section's
-                    // `+`; the pseudo-element carries the touch target out to 44px.
-                    "text-muted-foreground relative size-8 opacity-100 after:absolute after:-inset-1.5 md:size-7 md:after:hidden motion-safe:transition-opacity motion-safe:duration-150 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
+                    "text-muted-foreground pointer-events-none flex size-8 items-center justify-center md:size-7",
+                    "[@media(hover:hover)]:absolute [@media(hover:hover)]:top-1/2 [@media(hover:hover)]:right-0 [@media(hover:hover)]:-translate-y-1/2",
+                    "motion-safe:transition-opacity motion-safe:duration-150",
+                    "[@media(hover:hover)]:group-hover/room-row:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-0 group-has-[[data-state=open]]/room-row:opacity-0",
                   )}
-                  aria-label={tActions("roomMenu", { name: label })}
+                  aria-hidden
                 >
-                  <Ellipsis className="size-5 md:size-4" aria-hidden />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuItem
-                  disabled={isActive || isPending || isMuted}
-                  onSelect={() => {
-                    runRoomAction(markOrganizationChatRoomUnreadAction, {
-                      ...room,
-                      markedUnread: true,
-                    });
-                  }}
-                >
-                  <MessageSquare className="size-4" aria-hidden />
-                  {tActions("markUnread")}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  disabled={isPending || isMuted}
-                  onSelect={() => {
-                    if (isPinned) {
-                      runRoomAction(unpinOrganizationChatRoomAction, {
-                        ...room,
-                        starredAt: null,
-                      });
-                      return;
-                    }
-                    runRoomAction(pinOrganizationChatRoomAction, {
-                      ...room,
-                      starredAt: new Date(),
-                    });
-                  }}
-                >
-                  {isPinned ? (
-                    <PinOff className="size-4" aria-hidden />
-                  ) : (
-                    <Pin className="size-4" aria-hidden />
-                  )}
-                  {isPinned ? tActions("unpin") : tActions("pin")}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  disabled={isPending || isPinned}
-                  onSelect={() => {
-                    if (isMuted) {
-                      runRoomAction(unmuteOrganizationChatRoomAction, {
-                        ...room,
-                        mutedAt: null,
-                      });
-                      return;
-                    }
-                    runRoomAction(muteOrganizationChatRoomAction, {
-                      ...room,
-                      mutedAt: new Date(),
-                    });
-                  }}
-                >
-                  {isMuted ? (
-                    <Bell className="size-4" aria-hidden />
-                  ) : (
-                    <BellOff className="size-4" aria-hidden />
-                  )}
-                  {isMuted ? tActions("unmute") : tActions("mute")}
-                </DropdownMenuItem>
-                {isChannel ? (
-                  <>
-                    <DropdownMenuSeparator />
-                    {dismissSheetOnNavigate ? (
-                      <SheetClose asChild>{editChannelItem}</SheetClose>
-                    ) : (
-                      editChannelItem
+                  <BellOff className="size-4 md:size-3.5" />
+                </span>
+              ) : null}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    disabled={isPending}
+                    className={cn(
+                      // The box stays 32px so the `…` keeps its column under the section's
+                      // `+`; the pseudo-element carries the touch target out to 44px.
+                      "text-muted-foreground relative size-8 opacity-100 after:absolute after:-inset-1.5 md:size-7 md:after:hidden motion-safe:transition-opacity motion-safe:duration-150 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
                     )}
-                  </>
-                ) : null}
-                {canLeave ? (
+                    aria-label={tActions("roomMenu", { name: label })}
+                  >
+                    <Ellipsis className="size-5 md:size-4" aria-hidden />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
                   <DropdownMenuItem
-                    disabled={isPending || isLeaving}
+                    disabled={isActive || isPending || isMuted}
                     onSelect={() => {
-                      setLeaveConfirmOpen(true);
+                      runRoomAction(markOrganizationChatRoomUnreadAction, {
+                        ...room,
+                        markedUnread: true,
+                      });
                     }}
                   >
-                    <LogOut className="size-4" aria-hidden />
-                    {tActions("leave")}
+                    <MessageSquare className="size-4" aria-hidden />
+                    {tActions("markUnread")}
                   </DropdownMenuItem>
-                ) : null}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </>
-        )}
+                  <DropdownMenuItem
+                    disabled={isPending || isMuted}
+                    onSelect={() => {
+                      if (isPinned) {
+                        runRoomAction(unpinOrganizationChatRoomAction, {
+                          ...room,
+                          starredAt: null,
+                        });
+                        return;
+                      }
+                      runRoomAction(pinOrganizationChatRoomAction, {
+                        ...room,
+                        starredAt: new Date(),
+                      });
+                    }}
+                  >
+                    {isPinned ? (
+                      <PinOff className="size-4" aria-hidden />
+                    ) : (
+                      <Pin className="size-4" aria-hidden />
+                    )}
+                    {isPinned ? tActions("unpin") : tActions("pin")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={isPending || isPinned}
+                    onSelect={() => {
+                      if (isMuted) {
+                        runRoomAction(unmuteOrganizationChatRoomAction, {
+                          ...room,
+                          mutedAt: null,
+                        });
+                        return;
+                      }
+                      runRoomAction(muteOrganizationChatRoomAction, {
+                        ...room,
+                        mutedAt: new Date(),
+                      });
+                    }}
+                  >
+                    {isMuted ? (
+                      <Bell className="size-4" aria-hidden />
+                    ) : (
+                      <BellOff className="size-4" aria-hidden />
+                    )}
+                    {isMuted ? tActions("unmute") : tActions("mute")}
+                  </DropdownMenuItem>
+                  {canEditRoom ? (
+                    <>
+                      <DropdownMenuSeparator />
+                      {dismissSheetOnNavigate ? (
+                        <SheetClose asChild>{editRoomItem}</SheetClose>
+                      ) : (
+                        editRoomItem
+                      )}
+                    </>
+                  ) : null}
+                  {canLeave ? (
+                    <DropdownMenuItem
+                      disabled={isPending || isLeaving}
+                      onSelect={() => {
+                        setLeaveConfirmOpen(true);
+                      }}
+                    >
+                      <LogOut className="size-4" aria-hidden />
+                      {tActions("leave")}
+                    </DropdownMenuItem>
+                  ) : null}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          )}
+        </div>
       </div>
+
+      {/* Room mute outranks everything a room can hold, so a muted room lists
+          nothing. Reorder mode moves rows, and rows of differing height under
+          the pointer would make that harder to aim. */}
+      {isMuted || reorderHandle ? null : (
+        <ChatRoomThreadRows
+          room={room}
+          roomLabel={label}
+          isActive={isActive}
+          wrapLink={
+            dismissSheetOnNavigate
+              ? (link) => <SheetClose asChild>{link}</SheetClose>
+              : undefined
+          }
+        />
+      )}
 
       <AlertDialog
         open={leaveConfirmOpen}
@@ -708,6 +818,20 @@ export function ChatRoomSidebarRow({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </>
+  );
+
+  return itemMotion ? (
+    <MotionSidebarMenuItem
+      {...itemProps}
+      {...itemMotion}
+      className={itemClassName}
+    >
+      {content}
+    </MotionSidebarMenuItem>
+  ) : (
+    <SidebarMenuItem {...itemProps} className={itemClassName}>
+      {content}
     </SidebarMenuItem>
   );
 }

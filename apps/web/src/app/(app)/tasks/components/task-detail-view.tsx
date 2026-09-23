@@ -46,18 +46,20 @@ import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
 import { getSession } from "@/lib/auth/auth.server";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
-import { agentService } from "@/lib/services";
+import { agentService } from "@/lib/services/agent.service";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
-import { hasAssignedOrganizationSeat } from "@/lib/services/organization-assigned-seat.service";
+import { organizationSeatService } from "@/lib/services/organization-seat.service";
 import { projectService } from "@/lib/services/project.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { userService } from "@/lib/services/user.service";
+import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import {
-  buildVendorGrantReviewHref,
-  canApproveVendorGrants,
+  buildWorkspaceApprovalReviewHref,
+  canApproveWorkspaceAccess,
   resolveViewerOrganizationMembership,
-} from "@/lib/utils/vendor-grant-approval";
+  VENDOR_GRANT_REVIEW_HASH,
+} from "@/lib/utils/workspace-approval";
 
 type SessionResult = Awaited<ReturnType<typeof getSession>>;
 type AgentsResult = Awaited<
@@ -108,7 +110,9 @@ export async function TaskDetailView({
   );
   const hasAssignedSeatPromise = forceReadOnly
     ? Promise.resolve(false)
-    : hasAssignedOrganizationSeat(task.workspace.organizationId ?? null);
+    : organizationSeatService.hasAssignedSeat(
+        task.workspace.organizationId ?? null,
+      );
   const translationsPromise = getTranslations("App.Tasks.Detail");
   const projectPromise = task.projectId
     ? projectService.getProjectById(task.projectId).catch(() => null)
@@ -344,7 +348,7 @@ async function TaskVendorGrantApprovalBannerSlot({
     return null;
   }
 
-  const canApprove = canApproveVendorGrants({
+  const canApprove = canApproveWorkspaceAccess({
     organizationId: orgId,
     isAuthenticated: true,
     viewerMembership,
@@ -363,9 +367,10 @@ async function TaskVendorGrantApprovalBannerSlot({
     );
   }
 
-  const reviewHref = buildVendorGrantReviewHref({
+  const reviewHref = buildWorkspaceApprovalReviewHref({
     organizationId: orgId,
     organizationSlug: viewerMembership?.organization.slug,
+    hash: VENDOR_GRANT_REVIEW_HASH,
   });
 
   return (
@@ -488,6 +493,7 @@ async function TaskMetadataSection({
       project={project ? { id: project.id, name: project.name } : null}
       createdAtLabel={formatter.dateTime(task.createdAt, "dateTime")}
       updatedAtLabel={formatter.dateTime(task.updatedAt, "dateTime")}
+      creditsDisplay={formatter.number(formatCreditsForDisplay(task.credits))}
       labels={{
         visibility: t("visibility"),
         privateBadge: t("privateBadge"),

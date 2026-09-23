@@ -26,6 +26,8 @@ function room(id = "room-1"): ChatRoom {
     slug: "general",
     kind: "channel",
     isSelfDirect: false,
+    isGroupDirect: false,
+    groupName: null,
     directKey: null,
     topic: null,
     discoverability: "public",
@@ -530,6 +532,8 @@ describe("useRoomReadAttention", () => {
     await showTab("focus");
     expect(markThreadReadAction).toHaveBeenCalledWith("room-1", "thread-1");
     expect(onThreadLooked).toHaveBeenCalledTimes(1);
+    // Names the thread, so the transcript can clear that parent's reply bar.
+    expect(onThreadLooked).toHaveBeenCalledWith("thread-1");
 
     // An asked-for Look reports too, and a refused one never does.
     vi.mocked(markThreadReadAction).mockResolvedValueOnce({

@@ -3,10 +3,6 @@ import { err, ok, type Result } from "neverthrow";
 
 import { hashCanonicalJsonValue, hashInputSchema } from "../hash/hash.js";
 import {
-  type InputSchemaResponseSchemaType,
-  inputSchemaResponseSchema,
-} from "../schemas/agent/input_schema.schema.js";
-import {
   type ProvideInputRequestSchemaType,
   type ProvideInputResponseSchemaType,
   provideInputRequestSchema,
@@ -22,18 +18,15 @@ import {
   type JobStatusResponseSchemaType,
   jobStatusResponseSchema,
 } from "../schemas/agent/status.schema.js";
-import type { InputSchemaType } from "../schemas/input/input.schema.js";
+import {
+  type InputSchemaSchemaType,
+  type InputSchemaType,
+  inputSchemaSchema,
+} from "../schemas/input/input.schema.js";
 import type { Agent } from "../types/agent.js";
 import { safeAddPathComponent } from "../utils/url.js";
 
-/**
- * Configuration for the agent client.
- */
 export interface AgentClientConfig {
-  /**
-   * Optional error tracking function.
-   * Called when errors occur during agent API operations.
-   */
   onError?: (error: {
     type:
       | "http_error"
@@ -50,6 +43,14 @@ export interface AgentClientConfig {
 interface AgentClientRequestOptions {
   signal?: AbortSignal;
 }
+
+/**
+ * Cap on any agent API response body. Agent endpoints return JSON (job status,
+ * input schema, start/provide-input acks); a body past this is buffered no
+ * further and the request fails. Matches the 100 MB the Core import path
+ * allows for a single external file.
+ */
+const MAX_AGENT_RESPONSE_BYTES = 100 * 1024 * 1024;
 
 /**
  * Why a `start_job` call failed, and — crucially — whether the seller is now
@@ -71,9 +72,6 @@ export interface AgentJobStartFailure {
   kind: "unreachable" | "ambiguous" | "invalid-response";
   message: string;
 }
-
-/** Failure phase for `provide_input`, with same retry-safety semantics as start_job. */
-export type AgentJobInputFailure = AgentJobStartFailure;
 
 function unreachable(message: string): AgentJobStartFailure {
   return { kind: "unreachable", message };
@@ -107,37 +105,40 @@ function classifyStartJobHttpFailure(
   return ambiguous(detailedMessage);
 }
 
-/**
- * Creates an agent client with the provided configuration.
- */
 export function createAgentClient(config?: AgentClientConfig) {
   function getAgentUrlWithPathComponent(
     agent: Agent,
     pathComponent: string,
-  ): URL {
-    const baseUrl = getAgentApiBaseUrl(agent);
-    return safeAddPathComponent(baseUrl, pathComponent);
+  ): Result<URL, string> {
+    return getAgentApiBaseUrl(agent).andThen((baseUrl) =>
+      safeAddPathComponent(baseUrl, pathComponent),
+    );
   }
 
-  function getAgentApiBaseUrl(agent: Agent): URL {
+  function getAgentApiBaseUrl(agent: Agent): Result<URL, string> {
     const usedUrl = agent.metadataOverride?.apiBaseUrl ?? agent.apiBaseUrl;
-    const apiBaseUrl = new URL(usedUrl);
+    let apiBaseUrl: URL;
+    try {
+      apiBaseUrl = new URL(usedUrl);
+    } catch (error) {
+      return err(String(error));
+    }
     if (apiBaseUrl.protocol !== "https:" && apiBaseUrl.protocol !== "http:") {
-      throw new Error("Agent API base URL must be HTTP or HTTPS");
+      return err("Agent API base URL must be HTTP or HTTPS");
     }
 
     if (apiBaseUrl.search !== "") {
-      throw new Error("Agent API base URL must not have a query string");
+      return err("Agent API base URL must not have a query string");
     }
     if (apiBaseUrl.hash !== "") {
-      throw new Error("Agent API base URL must not have a hash");
+      return err("Agent API base URL must not have a hash");
     }
 
     // SSRF protection against private/loopback/link-local addresses is enforced
     // at connect time by `ssrfSafeFetch` (which resolves and filters the host),
     // so it also covers public hostnames that resolve to internal IPs.
 
-    return apiBaseUrl;
+    return ok(apiBaseUrl);
   }
 
   function logError(
@@ -171,12 +172,14 @@ export function createAgentClient(config?: AgentClientConfig) {
       identifierFromPurchaser: string,
       inputData: InputSchemaType,
     ): Promise<Result<StartPaidJobResponseSchemaType, AgentJobStartFailure>> {
-      let startJobUrl: URL;
-      try {
-        startJobUrl = getAgentUrlWithPathComponent(agent, "start_job");
-      } catch (error) {
-        return err(unreachable(String(error)));
+      const startJobUrlResult = getAgentUrlWithPathComponent(
+        agent,
+        "start_job",
+      );
+      if (startJobUrlResult.isErr()) {
+        return err(unreachable(startJobUrlResult.error));
       }
+      const startJobUrl = startJobUrlResult.value;
 
       let startJobResponse: Response;
       try {
@@ -189,6 +192,7 @@ export function createAgentClient(config?: AgentClientConfig) {
             identifier_from_purchaser: identifierFromPurchaser,
             input_data: inputData,
           }),
+          maxResponseBytes: MAX_AGENT_RESPONSE_BYTES,
         });
       } catch (error) {
         return err(ambiguous(String(error)));
@@ -231,12 +235,14 @@ export function createAgentClient(config?: AgentClientConfig) {
       agent: Agent,
       inputData: InputSchemaType,
     ): Promise<Result<StartFreeJobResponseSchemaType, AgentJobStartFailure>> {
-      let startJobUrl: URL;
-      try {
-        startJobUrl = getAgentUrlWithPathComponent(agent, "start_job");
-      } catch (error) {
-        return err(unreachable(String(error)));
+      const startJobUrlResult = getAgentUrlWithPathComponent(
+        agent,
+        "start_job",
+      );
+      if (startJobUrlResult.isErr()) {
+        return err(unreachable(startJobUrlResult.error));
       }
+      const startJobUrl = startJobUrlResult.value;
 
       let startJobResponse: Response;
       try {
@@ -248,6 +254,7 @@ export function createAgentClient(config?: AgentClientConfig) {
           body: JSON.stringify({
             input_data: inputData,
           }),
+          maxResponseBytes: MAX_AGENT_RESPONSE_BYTES,
         });
       } catch (error) {
         return err(ambiguous(String(error)));
@@ -293,12 +300,18 @@ export function createAgentClient(config?: AgentClientConfig) {
     ): Promise<
       Result<JobStatusResponseSchemaType & { statusHash: string }, string>
     > {
+      const jobStatusUrlResult = getAgentUrlWithPathComponent(agent, "status");
+      if (jobStatusUrlResult.isErr()) {
+        return err(jobStatusUrlResult.error);
+      }
+      const jobStatusUrl = jobStatusUrlResult.value;
+
       try {
-        const jobStatusUrl = getAgentUrlWithPathComponent(agent, "status");
         jobStatusUrl.searchParams.set("job_id", jobId);
         const jobStatusResponse = await ssrfSafeFetch(jobStatusUrl, {
           method: "GET",
           signal: options.signal,
+          maxResponseBytes: MAX_AGENT_RESPONSE_BYTES,
         });
 
         if (!jobStatusResponse.ok) {
@@ -329,13 +342,15 @@ export function createAgentClient(config?: AgentClientConfig) {
       jobId: string,
       inputSchema: string,
       inputData: InputSchemaType,
-    ): Promise<Result<ProvideInputResponseSchemaType, AgentJobInputFailure>> {
-      let provideInputUrl: URL;
-      try {
-        provideInputUrl = getAgentUrlWithPathComponent(agent, "provide_input");
-      } catch (error) {
-        return err(unreachable(String(error)));
+    ): Promise<Result<ProvideInputResponseSchemaType, AgentJobStartFailure>> {
+      const provideInputUrlResult = getAgentUrlWithPathComponent(
+        agent,
+        "provide_input",
+      );
+      if (provideInputUrlResult.isErr()) {
+        return err(unreachable(provideInputUrlResult.error));
       }
+      const provideInputUrl = provideInputUrlResult.value;
 
       const inputSchemaHash = hashInputSchema(inputSchema);
       if (!inputSchemaHash) {
@@ -367,6 +382,7 @@ export function createAgentClient(config?: AgentClientConfig) {
             "Content-Type": "application/json",
           },
           body,
+          maxResponseBytes: MAX_AGENT_RESPONSE_BYTES,
         });
       } catch (error) {
         return err(ambiguous(String(error)));
@@ -408,14 +424,20 @@ export function createAgentClient(config?: AgentClientConfig) {
 
     async fetchAgentInputSchema(
       agent: Agent,
-    ): Promise<Result<InputSchemaResponseSchemaType, string>> {
-      try {
-        const inputSchemaUrl = getAgentUrlWithPathComponent(
-          agent,
-          "input_schema",
-        );
+    ): Promise<Result<InputSchemaSchemaType, string>> {
+      const inputSchemaUrlResult = getAgentUrlWithPathComponent(
+        agent,
+        "input_schema",
+      );
+      if (inputSchemaUrlResult.isErr()) {
+        return err(inputSchemaUrlResult.error);
+      }
+      const inputSchemaUrl = inputSchemaUrlResult.value;
 
-        const response = await ssrfSafeFetch(inputSchemaUrl);
+      try {
+        const response = await ssrfSafeFetch(inputSchemaUrl, {
+          maxResponseBytes: MAX_AGENT_RESPONSE_BYTES,
+        });
 
         if (!response.ok) {
           // Log HTTP errors (4xx/5xx)
@@ -461,10 +483,9 @@ export function createAgentClient(config?: AgentClientConfig) {
           return err("Failed to parse JSON response");
         }
 
-        const parsedResult = inputSchemaResponseSchema.safeParse(responseData);
+        const parsedResult = inputSchemaSchema.safeParse(responseData);
 
         if (!parsedResult.success) {
-          // Log schema validation errors
           logError(
             "schema_validation_error",
             "fetchInputSchema",
@@ -472,7 +493,7 @@ export function createAgentClient(config?: AgentClientConfig) {
             "Agent returned invalid input schema format",
             {
               issues: parsedResult.error.issues,
-              // Sanitize the response data to avoid logging sensitive information
+              // Keys only: avoid logging the schema body.
               responseDataKeys:
                 responseData && typeof responseData === "object"
                   ? Object.keys(responseData)
@@ -486,7 +507,6 @@ export function createAgentClient(config?: AgentClientConfig) {
         const inputSchema = parsedResult.data;
         return ok(inputSchema);
       } catch (error) {
-        // Log network errors and other unexpected errors
         const errorMessage =
           error instanceof Error ? error.message : String(error);
         const isNetworkError =

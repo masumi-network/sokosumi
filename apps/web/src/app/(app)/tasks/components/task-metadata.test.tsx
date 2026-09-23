@@ -141,6 +141,7 @@ function renderTaskMetadata(
       project={null}
       createdAtLabel="Jul 16, 10:28 AM"
       updatedAtLabel="Jul 16, 10:29 AM"
+      creditsDisplay={String(task.credits)}
       labels={baseLabels}
       statusFieldLabels={baseStatusFieldLabels}
       {...rest}
@@ -191,6 +192,15 @@ describe("TaskMetadata", () => {
     expect(screen.getByText("Coworker")).toBeInTheDocument();
     expect(screen.getByText("Credits")).toBeInTheDocument();
     expect(screen.getByText("12")).toBeInTheDocument();
+  });
+
+  it("renders the locale-formatted credits display string", () => {
+    renderTaskMetadata({
+      task: createTask({ credits: 1500 }),
+      creditsDisplay: "1,500",
+    });
+
+    expect(screen.getByText("1,500")).toBeInTheDocument();
   });
 
   it("hides credits row when total is zero", () => {

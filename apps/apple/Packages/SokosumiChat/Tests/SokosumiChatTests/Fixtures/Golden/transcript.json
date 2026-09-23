@@ -1,0 +1,251 @@
+[
+  {
+    "name": "send displays pending shell",
+    "event": "send",
+    "shells": [],
+    "messageIds": [],
+    "parent": null,
+    "incomingParent": null,
+    "expected": {
+      "messageIds": [],
+      "shells": [
+        {
+          "id": "turn-1",
+          "status": "pending",
+          "error": null
+        }
+      ],
+      "displayIds": [
+        "pending:turn-1"
+      ]
+    },
+    "incomingSenderId": "me"
+  },
+  {
+    "name": "failure retains retry identity",
+    "event": "fail",
+    "shells": [
+      {
+        "id": "turn-1",
+        "status": "pending",
+        "error": null
+      }
+    ],
+    "messageIds": [],
+    "parent": null,
+    "incomingParent": null,
+    "expected": {
+      "messageIds": [],
+      "shells": [
+        {
+          "id": "turn-1",
+          "status": "failed",
+          "error": "Offline"
+        }
+      ],
+      "displayIds": [
+        "pending:turn-1"
+      ]
+    },
+    "incomingSenderId": "me"
+  },
+  {
+    "name": "retry clears failure",
+    "event": "retry",
+    "shells": [
+      {
+        "id": "turn-1",
+        "status": "failed",
+        "error": "Offline"
+      }
+    ],
+    "messageIds": [],
+    "parent": null,
+    "incomingParent": null,
+    "expected": {
+      "messageIds": [],
+      "shells": [
+        {
+          "id": "turn-1",
+          "status": "pending",
+          "error": null
+        }
+      ],
+      "displayIds": [
+        "pending:turn-1"
+      ]
+    },
+    "incomingSenderId": "me"
+  },
+  {
+    "name": "ack replaces pending shell",
+    "event": "ack",
+    "shells": [
+      {
+        "id": "turn-1",
+        "status": "pending",
+        "error": null
+      }
+    ],
+    "messageIds": [],
+    "parent": null,
+    "incomingParent": null,
+    "expected": {
+      "messageIds": [
+        "server-1"
+      ],
+      "shells": [],
+      "displayIds": [
+        "server-1"
+      ]
+    },
+    "incomingSenderId": "me"
+  },
+  {
+    "name": "realtime ack after HTTP is idempotent",
+    "event": "create",
+    "shells": [],
+    "messageIds": [
+      "server-1"
+    ],
+    "parent": null,
+    "incomingParent": null,
+    "expected": {
+      "messageIds": [
+        "server-1"
+      ],
+      "shells": [],
+      "displayIds": [
+        "server-1"
+      ]
+    },
+    "incomingSenderId": "me"
+  },
+  {
+    "name": "room ignores thread reply",
+    "event": "create",
+    "shells": [
+      {
+        "id": "turn-1",
+        "status": "pending",
+        "error": null
+      }
+    ],
+    "messageIds": [],
+    "parent": null,
+    "incomingParent": "root",
+    "expected": {
+      "messageIds": [],
+      "shells": [
+        {
+          "id": "turn-1",
+          "status": "pending",
+          "error": null
+        }
+      ],
+      "displayIds": [
+        "pending:turn-1"
+      ]
+    },
+    "incomingSenderId": "me"
+  },
+  {
+    "name": "thread confirms its own reply",
+    "event": "create",
+    "shells": [
+      {
+        "id": "turn-1",
+        "status": "pending",
+        "error": null
+      }
+    ],
+    "messageIds": [],
+    "parent": "root",
+    "incomingParent": "root",
+    "expected": {
+      "messageIds": [
+        "server-1"
+      ],
+      "shells": [],
+      "displayIds": [
+        "server-1"
+      ]
+    },
+    "incomingSenderId": "me"
+  },
+  {
+    "name": "thread accepts peer reply without confirming local send",
+    "event": "create",
+    "shells": [
+      {
+        "id": "turn-1",
+        "status": "pending",
+        "error": null
+      }
+    ],
+    "messageIds": [],
+    "parent": "root",
+    "incomingParent": "root",
+    "expected": {
+      "messageIds": [
+        "server-1"
+      ],
+      "shells": [
+        {
+          "id": "turn-1",
+          "status": "pending",
+          "error": null
+        }
+      ],
+      "displayIds": [
+        "server-1",
+        "pending:turn-1"
+      ]
+    },
+    "incomingSenderId": "peer"
+  },
+  {
+    "name": "room drops a deleted message from display",
+    "event": "delete",
+    "shells": [],
+    "messageIds": [
+      "kept",
+      "server-1"
+    ],
+    "parent": null,
+    "incomingParent": null,
+    "expected": {
+      "messageIds": [
+        "kept",
+        "server-1"
+      ],
+      "shells": [],
+      "displayIds": [
+        "kept"
+      ]
+    },
+    "incomingSenderId": "peer"
+  },
+  {
+    "name": "thread drops a deleted reply from display",
+    "event": "delete",
+    "shells": [],
+    "messageIds": [
+      "kept",
+      "server-1"
+    ],
+    "parent": "root",
+    "incomingParent": "root",
+    "expected": {
+      "messageIds": [
+        "kept",
+        "server-1"
+      ],
+      "shells": [],
+      "displayIds": [
+        "kept"
+      ]
+    },
+    "incomingSenderId": "peer"
+  }
+]

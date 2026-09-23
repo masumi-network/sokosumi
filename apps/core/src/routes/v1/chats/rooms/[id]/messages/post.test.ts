@@ -24,6 +24,7 @@ const {
   threadReadUpsertMock,
   organizationFindUniqueMock,
   memberFindUniqueMock,
+  memberFindManyMock,
   prismaTransactionMock,
   dispatchMock,
   emitChatMentionNotificationsMock,
@@ -45,6 +46,7 @@ const {
   threadReadUpsertMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
+  memberFindManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   dispatchMock: vi.fn(),
   emitChatMentionNotificationsMock: vi.fn(),
@@ -87,6 +89,22 @@ vi.mock("@/services/chat-room-message-unfurl.service", () => ({
 vi.mock("@/helpers/chat-mention-notifications", () => ({
   emitChatMentionNotifications: (...args: unknown[]) =>
     emitChatMentionNotificationsMock(...args),
+}));
+
+const { persistChatHumanMentionsMock, emitChatHumanMentionNotificationsMock } =
+  vi.hoisted(() => ({
+    persistChatHumanMentionsMock: vi.fn().mockResolvedValue([]),
+    emitChatHumanMentionNotificationsMock: vi.fn().mockResolvedValue(undefined),
+  }));
+
+// The human route keeps the real room-shape rule; only the assistant seams
+// are stubbed, and they have tests of their own.
+vi.mock("@/helpers/chat-human-mentions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/helpers/chat-human-mentions")>()),
+  persistChatHumanMentions: (...args: unknown[]) =>
+    persistChatHumanMentionsMock(...args),
+  emitChatHumanMentionNotifications: (...args: unknown[]) =>
+    emitChatHumanMentionNotificationsMock(...args),
 }));
 
 vi.mock(
@@ -190,6 +208,7 @@ const tx = {
   },
   member: {
     findUnique: memberFindUniqueMock,
+    findMany: memberFindManyMock,
   },
 };
 
@@ -422,6 +441,7 @@ beforeEach(() => {
   prismaTransactionMock.mockImplementation(async (callback) => callback(tx));
   organizationFindUniqueMock.mockResolvedValue({ id: "org_1" });
   memberFindUniqueMock.mockResolvedValue({ role: "member" });
+  memberFindManyMock.mockResolvedValue([]);
   roomUpdateMock.mockResolvedValue({});
   readStateUpsertMock.mockResolvedValue({});
   threadReadUpsertMock.mockResolvedValue({
@@ -687,6 +707,73 @@ describe("POST /chats/rooms/{id}/messages", () => {
       expect(waitUntilMock).toHaveBeenCalledTimes(3);
     });
 
+    it("sends a named human a mention and the other human the direct row", async () => {
+      roomFindFirstMock.mockResolvedValue({
+        id: ROOM_ID,
+        name: "Hannah",
+        kind: "direct",
+        organizationId: "org_1",
+      });
+      membershipFindManyMock.mockResolvedValue([
+        { userId: ALICE_ID },
+        { userId: BOB_ID },
+      ]);
+      persistChatHumanMentionsMock.mockResolvedValueOnce([ALICE_ID]);
+      messageCreateMock.mockResolvedValue(
+        createdMessage({
+          content: `@${ALICE_ID} please check`,
+          senderCoworkerId: COWORKER_ID,
+        }),
+      );
+
+      const app = createApp(coworkerAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ content: `@${ALICE_ID} please check` }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(persistChatHumanMentionsMock).toHaveBeenCalledWith(tx, {
+        messageId: MESSAGE_ID,
+        roomId: ROOM_ID,
+        content: `@${ALICE_ID} please check`,
+      });
+      expect(emitChatHumanMentionNotificationsMock).toHaveBeenCalledWith({
+        messageId: MESSAGE_ID,
+        mentionedUserIds: [ALICE_ID],
+      });
+      expect(emitChatDirectMessageNotificationsMock).toHaveBeenCalledWith(
+        expect.objectContaining({ recipientUserIds: [BOB_ID] }),
+      );
+      expect(emitChatRoomMessageCreatedEffectsMock).toHaveBeenCalledWith(
+        expect.objectContaining({ mentionedUserIds: [ALICE_ID] }),
+      );
+    });
+
+    it("notifies nobody of a mention when a coworker post names no member", async () => {
+      roomFindFirstMock.mockResolvedValue({
+        id: ROOM_ID,
+        name: "general",
+        kind: "channel",
+        organizationId: "org_1",
+      });
+      messageCreateMock.mockResolvedValue(
+        createdMessage({ senderCoworkerId: COWORKER_ID }),
+      );
+
+      const app = createApp(coworkerAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ content: "hello" }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(persistChatHumanMentionsMock).toHaveBeenCalledOnce();
+      expect(emitChatHumanMentionNotificationsMock).not.toHaveBeenCalled();
+    });
+
     /**
      * The direct-message row stops at two humans, so a direct room of three
      * belongs to the room-message emitter alone. Both decisions read the same
@@ -759,6 +846,8 @@ describe("POST /chats/rooms/{id}/messages", () => {
         authorUserId: null,
         authorName: "Hannah",
         parentMessageId: null,
+        memberUserIds: undefined,
+        mentionedUserIds: [],
       });
       expect(waitUntilMock).toHaveBeenCalledTimes(2);
     });
@@ -1812,7 +1901,10 @@ describe("POST /chats/rooms/{id}/messages", () => {
       }
 
       /** The sender reads the source room; `userIds` is its roster. */
-      function sourceRoom(userIds: string[]) {
+      function sourceRoom(
+        userIds: string[],
+        discoverability: string | null = "private",
+      ) {
         membershipFindManyMock.mockResolvedValue(
           userIds.map((userId) => ({ userId })),
         );
@@ -1820,6 +1912,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
           id: SOURCE_ROOM_ID,
           organizationId: "org_1",
           kind: "channel",
+          discoverability,
           userMembers: [{ access: "member" }],
         };
       }
@@ -1881,6 +1974,73 @@ describe("POST /chats/rooms/{id}/messages", () => {
             roomWithMembers({ userMembers: roomMembers([USER_ID, ALICE_ID]) }),
           )
           .mockResolvedValueOnce(sourceRoom([USER_ID, BOB_ID]));
+        messageFindFirstMock.mockResolvedValue(quotedSourceMessage());
+
+        const response = await postCrossRoomQuote();
+
+        expect(response.status).toBe(400);
+        expect(messageCreateMock).not.toHaveBeenCalled();
+      });
+
+      it.each(["public", "external"])(
+        "accepts a %s source channel when every other reader is in its organization",
+        async (discoverability) => {
+          roomFindFirstMock
+            .mockResolvedValueOnce(
+              roomWithMembers({
+                userMembers: roomMembers([USER_ID, ALICE_ID, BOB_ID]),
+              }),
+            )
+            .mockResolvedValueOnce(sourceRoom([USER_ID], discoverability));
+          memberFindManyMock.mockResolvedValue([
+            { userId: ALICE_ID },
+            { userId: BOB_ID },
+          ]);
+          messageFindFirstMock.mockResolvedValue(quotedSourceMessage());
+          messageCreateMock.mockResolvedValue(
+            createdMessage({
+              senderUserId: USER_ID,
+              metadata: { quote: crossRoomSnapshot },
+            }),
+          );
+
+          const response = await postCrossRoomQuote();
+
+          expect(response.status).toBe(201);
+          expect(memberFindManyMock).toHaveBeenCalledWith({
+            where: {
+              organizationId: "org_1",
+              userId: { in: [ALICE_ID, BOB_ID] },
+            },
+            select: { userId: true },
+          });
+        },
+      );
+
+      it("returns 400 when a reader outside the public source channel's organization cannot join it", async () => {
+        roomFindFirstMock
+          .mockResolvedValueOnce(
+            roomWithMembers({
+              userMembers: roomMembers([USER_ID, ALICE_ID, BOB_ID]),
+            }),
+          )
+          .mockResolvedValueOnce(sourceRoom([USER_ID], "public"));
+        memberFindManyMock.mockResolvedValue([{ userId: ALICE_ID }]);
+        messageFindFirstMock.mockResolvedValue(quotedSourceMessage());
+
+        const response = await postCrossRoomQuote();
+
+        expect(response.status).toBe(400);
+        expect(messageCreateMock).not.toHaveBeenCalled();
+      });
+
+      it("does not open a private source channel to its organization", async () => {
+        roomFindFirstMock
+          .mockResolvedValueOnce(
+            roomWithMembers({ userMembers: roomMembers([USER_ID, ALICE_ID]) }),
+          )
+          .mockResolvedValueOnce(sourceRoom([USER_ID], "private"));
+        memberFindManyMock.mockResolvedValue([{ userId: ALICE_ID }]);
         messageFindFirstMock.mockResolvedValue(quotedSourceMessage());
 
         const response = await postCrossRoomQuote();

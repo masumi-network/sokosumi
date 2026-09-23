@@ -1,6 +1,12 @@
 # Sokosumi Developer CLI
 
-Private workspace package `sokosumi`; package path `apps/cli`; binary `sokosumi`. Lives in this monorepo. Product intent is [`VISION.md`](./VISION.md). Contract is [`SPEC.md`](./SPEC.md).
+Private workspace package `@sokosumi/cli`; package path `apps/cli`; binary `sokosumi`. Lives in this monorepo. Product intent is [`VISION.md`](./VISION.md). Contract is [`SPEC.md`](./SPEC.md).
+
+## Planned direction
+
+[REPORTED: user-approved direction, 2026-09-18] Optional integrations will support temporary sessions, workspace-only Coworkers, and hosted workers. Capability checks have no fixed order. Public paid operation requires reviewed usage pricing, payment evidence, and administrative approval.
+
+This is planned work, not a new installed capability. See [ADR 0004](docs/adr/0004-coworker-capabilities-and-graduation.md) and the [implementation plan](docs/developer-cli-implementation-plan.md). Existing commands below remain the current interface.
 
 ## Run
 
@@ -13,7 +19,7 @@ pnpm sokosumi
 Or:
 
 ```bash
-pnpm --filter ./apps/cli sokosumi
+pnpm --filter @sokosumi/cli sokosumi
 ```
 
 That opens the Ink screen. Choose a sign-in method with Up and Down, then press Enter. Use Esc to go back and q to quit. Choose browser OAuth or a user API key, then choose a preset Coworker runtime (pi-sokosumi, Eve, Hermes, OpenClaw). Register is marked `(soon)` and remains preset-only. OAuth opens Core `/signin`. Stored OAuth credentials and user API keys use the OS vault. Linux persistent auth needs Secret Service. If no vault is available, use `SOKOSUMI_API_KEY` or stdin for the current run.
@@ -21,17 +27,17 @@ That opens the Ink screen. Choose a sign-in method with Up and Down, then press 
 Headless:
 
 ```bash
-pnpm --filter ./apps/cli sokosumi -- discover --json
-pnpm --filter ./apps/cli sokosumi -- agents list --json
-pnpm --filter ./apps/cli sokosumi -- agents hire AGENT_ID --input-json '{"query":"hello"}' --json
-pnpm --filter ./apps/cli sokosumi -- coworkers list --json
-pnpm --filter ./apps/cli sokosumi -- tasks list --json
-pnpm --filter ./apps/cli sokosumi -- jobs list --json
-pnpm --filter ./apps/cli sokosumi -- jobs input JOB_ID --event-id EVENT_ID --input-json '{"answer":"yes"}' --json
-pnpm --filter ./apps/cli sokosumi -- auth login --json
-printf '%s\\n' "$SOKOSUMI_API_KEY" | pnpm --filter ./apps/cli sokosumi -- auth login --api-key-stdin --json
-SOKOSUMI_API_KEY=soko_preprod_... pnpm --filter ./apps/cli sokosumi -- auth status --json
-pnpm --filter ./apps/cli sokosumi -- auth logout
+pnpm --filter @sokosumi/cli sokosumi -- discover --json
+pnpm --filter @sokosumi/cli sokosumi -- agents list --json
+pnpm --filter @sokosumi/cli sokosumi -- agents hire AGENT_ID --input-json '{"query":"hello"}' --json
+pnpm --filter @sokosumi/cli sokosumi -- coworkers list --json
+pnpm --filter @sokosumi/cli sokosumi -- tasks list --json
+pnpm --filter @sokosumi/cli sokosumi -- jobs list --json
+pnpm --filter @sokosumi/cli sokosumi -- jobs input JOB_ID --event-id EVENT_ID --input-json '{"answer":"yes"}' --json
+pnpm --filter @sokosumi/cli sokosumi -- auth login --json
+printf '%s\\n' "$SOKOSUMI_API_KEY" | pnpm --filter @sokosumi/cli sokosumi -- auth login --api-key-stdin --json
+SOKOSUMI_API_KEY=soko_preprod_... pnpm --filter @sokosumi/cli sokosumi -- auth status --json
+pnpm --filter @sokosumi/cli sokosumi -- auth logout
 ```
 
 `coworkers register` requires `--vendor-id` because Core requires the owning
@@ -71,7 +77,7 @@ npm publication is disabled for this workspace package. Use the source commands 
 To run the built binary directly:
 
 ```bash
-pnpm --filter ./apps/cli build
+pnpm --filter @sokosumi/cli build
 node apps/cli/dist/bin/sokosumi.js --help
 ```
 
@@ -79,5 +85,5 @@ node apps/cli/dist/bin/sokosumi.js --help
 Local Core (with a registered local OAuth client, if using OAuth):
 
 ```bash
-pnpm --filter ./apps/cli sokosumi -- --api-url http://localhost:8787
+pnpm --filter @sokosumi/cli sokosumi -- --api-url http://localhost:8787
 ```

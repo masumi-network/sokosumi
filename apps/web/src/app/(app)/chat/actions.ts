@@ -32,9 +32,13 @@ import type {
   Member,
 } from "@/lib/clients/generated/core";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
-import { chatRoomService, userService } from "@/lib/services";
+import {
+  type ChatUnreadRoomRead,
+  chatRoomService,
+} from "@/lib/services/chat-room.service";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
+import { userService } from "@/lib/services/user.service";
 
 /** Chat action wire shape — ActionResultDto (neverthrow at boundary). */
 export type RoomActionResult<T> = ActionResultDto<T, ActionError>;
@@ -78,6 +82,8 @@ interface UpdateRoomInput {
   memberUserIds?: string[];
   coworkerIds?: string[];
   sokoBotIds?: string[];
+  /** Group Directs only; Core rejects it anywhere else. Blank clears it. */
+  groupName?: string;
 }
 
 interface CreateDirectRoomInput {
@@ -402,6 +408,9 @@ export async function updateRoomAction(
     }),
     ...(input.sokoBotIds !== undefined && {
       sokoBotIds: cleanIds(input.sokoBotIds),
+    }),
+    ...(input.groupName !== undefined && {
+      groupName: cleanString(input.groupName),
     }),
   };
 
@@ -905,6 +914,18 @@ export async function markAllUnreadThreadsReadAction(
     return roomOk(result);
   } catch (error) {
     return roomCatch(error, "Could not mark unread threads as read.");
+  }
+}
+
+/** All unreads' Mark all as read (SOK-1159). */
+export async function markAllChatUnreadReadAction(
+  rooms: readonly ChatUnreadRoomRead[],
+): Promise<RoomActionResult<null>> {
+  try {
+    await chatRoomService.markAllUnreadRead(rooms);
+    return roomOk(null);
+  } catch (error) {
+    return roomCatch(error, "Could not mark everything as read.");
   }
 }
 

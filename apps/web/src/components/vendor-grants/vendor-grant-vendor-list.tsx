@@ -10,26 +10,25 @@ import { VendorMark } from "@/components/agents/vendor-mark";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useNotifications } from "@/contexts/notification-provider";
+import type { ActionResultDto } from "@/lib/actions/action-result";
+import type { ActionError } from "@/lib/actions/errors/action-error";
 import {
   approveMyVendorGrant,
-  createMyVendorGrant,
-  denyMyVendorGrant,
-  revokeMyVendorGrant,
-} from "@/lib/actions/account/vendor-grant-action";
-import type { ActionResultDto } from "@/lib/actions/action-result";
-import type { ActionError } from "@/lib/actions/errors";
-import {
   approveOrganizationVendorGrant,
+  createMyVendorGrant,
   createOrganizationVendorGrant,
+  denyMyVendorGrant,
   denyOrganizationVendorGrant,
+  revokeMyVendorGrant,
   revokeOrganizationVendorGrant,
-} from "@/lib/actions/organization";
+} from "@/lib/actions/workspace-approval-action";
 import {
-  isGrantDeniedOrRevoked,
-  isGrantGranted,
-  isGrantPending,
+  isWorkspaceApprovalDeniedOrRevoked,
+  isWorkspaceApprovalGranted,
+  isWorkspaceApprovalPending,
   type VendorGrantEntry,
-} from "@/lib/utils/vendor-grant-display";
+  workspaceApprovalStatusMessageKey,
+} from "@/lib/utils/workspace-approval";
 
 type VendorGrantsMode = "organization" | "personal";
 
@@ -91,20 +90,7 @@ function VendorCard({
     if (!status) {
       return null;
     }
-    switch (status) {
-      case "PENDING":
-        return t("statusPending");
-      case "GRANTED":
-        return t("statusGranted");
-      case "DENIED":
-        return t("statusDenied");
-      case "REVOKED":
-        return t("statusRevoked");
-      default: {
-        const _exhaustive: never = status;
-        return _exhaustive;
-      }
-    }
+    return t(workspaceApprovalStatusMessageKey(status));
   }
 
   return (
@@ -262,7 +248,7 @@ function VendorCardActions({
     }
   }
 
-  if (isGrantPending(entry) && entry.grant) {
+  if (isWorkspaceApprovalPending(entry.grant?.status) && entry.grant) {
     const grantId = entry.grant.id;
 
     return (
@@ -308,7 +294,7 @@ function VendorCardActions({
     );
   }
 
-  if (isGrantGranted(entry) && entry.grant) {
+  if (isWorkspaceApprovalGranted(entry.grant?.status) && entry.grant) {
     return (
       <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
         <Button
@@ -334,7 +320,7 @@ function VendorCardActions({
     );
   }
 
-  if (!entry.grant || isGrantDeniedOrRevoked(entry)) {
+  if (!entry.grant || isWorkspaceApprovalDeniedOrRevoked(entry.grant.status)) {
     return (
       <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
         <Button

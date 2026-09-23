@@ -1,6 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
 import { TaskPaymentClaimStatus } from "@sokosumi/database";
 import { getEnv } from "@/config/env";
+import { internalServerError } from "@/helpers/error";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -33,6 +34,7 @@ const route = createRoute({
     ),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
+    500: jsonErrorResponse("Internal Server Error"),
   },
 });
 
@@ -79,7 +81,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const hasMore = claims.length === takePlusOne;
     const items = claims.slice(0, take).map((claim) => {
       if (!claim.reviewRequiredAt) {
-        throw new Error(
+        throw internalServerError(
           `Reviewed task payment claim ${claim.id} has no review timestamp`,
         );
       }

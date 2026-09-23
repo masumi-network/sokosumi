@@ -40,6 +40,9 @@ function coworker(
 function directRoom(overrides: {
   userMembers: ChatRoomUserParticipant[];
   coworkerMembers?: ChatRoomCoworkerParticipant[];
+  isSelfDirect?: boolean;
+  isGroupDirect?: boolean;
+  groupName?: string | null;
 }): ChatRoom {
   return {
     id: "room-1",
@@ -49,6 +52,8 @@ function directRoom(overrides: {
     slug: null,
     kind: "direct",
     isSelfDirect: false,
+    isGroupDirect: false,
+    groupName: null,
     directKey: "key",
     topic: null,
     discoverability: null,
@@ -162,5 +167,49 @@ describe("direct room display order", () => {
 
     expect(idsA).toEqual(["ada", CURRENT_USER_ID, "zara", "cw-a", "cw-z"]);
     expect(idsB).toEqual(idsA);
+  });
+});
+
+describe("Group name", () => {
+  const self = human({ id: CURRENT_USER_ID, name: "Me" });
+  const ben = human({ id: "ben", name: "Ben" });
+  const cara = human({ id: "cara", name: "Cara" });
+
+  it("names a named group by its Group name", () => {
+    const room = directRoom({
+      userMembers: [self, ben, cara],
+      isGroupDirect: true,
+      groupName: "Launch crew",
+    });
+
+    expect(getRoomDisplayName(room, CURRENT_USER_ID, "You")).toBe(
+      "Launch crew",
+    );
+  });
+
+  it("names an unnamed group by its members", () => {
+    const room = directRoom({
+      userMembers: [self, ben, cara],
+      isGroupDirect: true,
+    });
+
+    expect(getRoomDisplayName(room, CURRENT_USER_ID, "You")).toBe("Ben, Cara");
+  });
+
+  it("leaves 1:1 and Self Directs as they were", () => {
+    expect(
+      getRoomDisplayName(
+        directRoom({ userMembers: [self, ben] }),
+        CURRENT_USER_ID,
+        "You",
+      ),
+    ).toBe("Ben");
+    expect(
+      getRoomDisplayName(
+        directRoom({ userMembers: [self], isSelfDirect: true }),
+        CURRENT_USER_ID,
+        "You",
+      ),
+    ).toBe("You");
   });
 });

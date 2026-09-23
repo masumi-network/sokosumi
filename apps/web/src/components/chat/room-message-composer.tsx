@@ -63,6 +63,14 @@ interface RoomMessageComposerProps {
    * Formatting strip above the editor body (after attachment chips).
    */
   aboveEditor?: ReactNode;
+  /**
+   * The Typing line (ADR-0033). Rendered before the card so it reads as a row
+   * above the composer on narrow layouts; on `md` it takes itself out of flow
+   * and sits in the bottom padding the form already has, below the card, where
+   * it costs the transcript nothing. One node either way, so there is one live
+   * region rather than two announcing the same thing.
+   */
+  typingLine?: ReactNode;
   isSending: boolean;
   sendDisabled: boolean;
   sendAriaLabel: string;
@@ -108,6 +116,7 @@ export function RoomMessageComposer({
   children,
   toolbarStart,
   aboveEditor,
+  typingLine,
   isSending,
   sendDisabled,
   sendAriaLabel,
@@ -127,13 +136,14 @@ export function RoomMessageComposer({
     <form
       ref={formRef}
       className={cn(
-        "shrink-0",
+        "relative shrink-0",
         withOuterPadding && "px-5 pt-2 md:pt-3",
         withSafeAreaPadding && chatMobileComposerSafeAreaPbClass(keyboardOpen),
         className,
       )}
       onSubmit={onSubmit}
     >
+      {typingLine}
       <div className="w-full">
         {/* scroll-margin on the shell, not the overflow:auto editor. Chromium
             uses editor scroll-margin during mouse selection and jumps long drafts. */}

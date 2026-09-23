@@ -63,7 +63,7 @@ vi.mock("@/lib/auth/auth.server", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
 }));
 
-vi.mock("@/lib/services", () => ({
+vi.mock("@/lib/services/agent.service", () => ({
   agentService: {
     getAvailableAgentsWithCreditsPrice: (...args: unknown[]) =>
       getAvailableAgentsWithCreditsPriceMock(...args),

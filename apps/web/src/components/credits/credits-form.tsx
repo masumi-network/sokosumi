@@ -31,11 +31,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  CommonErrorCode,
-  CreditsErrorCode,
-  purchaseCredits,
-} from "@/lib/actions";
+import { purchaseCredits } from "@/lib/actions/credits/action";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
+import { CreditsErrorCode } from "@/lib/actions/errors/error-codes/credits";
 import type {
   CreditTopUpPricing,
   Organization,

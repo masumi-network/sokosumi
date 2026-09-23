@@ -9,7 +9,7 @@ import {
 import { InputType, InputValidation } from "@sokosumi/masumi/types";
 import { describe, expect, it } from "vitest";
 
-import { jobInputsFormSchema } from "@/lib/job-input";
+import { jobInputsFormSchema } from "@/lib/job-input/form";
 
 describe("jobInputsFormSchema date and datetime-local validation", () => {
   describe("DATE", () => {

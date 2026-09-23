@@ -4,7 +4,7 @@ import { freeSubscriptionSyncService } from "@/services/free-subscription-sync.s
 
 import { handleSyncRequest } from "../handler.js";
 
-export const FREE_SUBSCRIPTIONS_RENEWAL_SYNC_LOCK_KEY =
+const FREE_SUBSCRIPTIONS_RENEWAL_SYNC_LOCK_KEY =
   "free-subscriptions-renewal-sync";
 
 export default function mount(app: Hono) {

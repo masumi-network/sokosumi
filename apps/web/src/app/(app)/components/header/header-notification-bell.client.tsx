@@ -4,6 +4,7 @@ import { Bell } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
+import { CornerCountBadge } from "@/components/common/corner-count-badge";
 import {
   Popover,
   PopoverContent,
@@ -61,16 +62,12 @@ export function HeaderNotificationBell() {
     <>
       <Bell className="text-foreground size-4" aria-hidden />
       {indicator?.kind === "count" ? (
-        <span
+        <CornerCountBadge
           data-testid="notification-unread-badge"
-          className={cn(
-            "absolute -top-0.5 -right-0.5 inline-flex min-w-4.5 items-center justify-center rounded-full px-0.5 text-[0.625rem] leading-4 font-semibold tabular-nums ring-2 ring-background",
-            getNotificationIndicatorClassName(indicator.tone),
-          )}
-          aria-hidden
+          className={getNotificationIndicatorClassName(indicator.tone)}
         >
           {indicator.value}
-        </span>
+        </CornerCountBadge>
       ) : null}
       {indicator?.kind === "dot" ? (
         <span
@@ -139,6 +136,7 @@ export function HeaderNotificationBell() {
           their cursor. The cap keeps that one width inside a narrow
           viewport, where 24rem is wider than the screen. */}
       <PopoverContent
+        data-notification-frame=""
         className="w-96 max-w-(--radix-popover-content-available-width) p-0"
         align="end"
         onOpenAutoFocus={(event) => {

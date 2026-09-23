@@ -8,6 +8,7 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
   useFormatter: () => ({
     dateTime: () => "Mar 27, 10:00 AM",
+    number: (value: number) => value.toLocaleString("en-US"),
   }),
 }));
 
@@ -85,6 +86,12 @@ describe("JobMetaDetails", () => {
 
     expect(screen.getByText("credits")).toBeInTheDocument();
     expect(screen.getByText("5")).toBeInTheDocument();
+  });
+
+  it("groups credit counts through the locale number formatter", () => {
+    render(<JobMetaDetails job={createJob({ credits: 1500 })} />);
+
+    expect(screen.getByText("1,500")).toBeInTheDocument();
   });
 
   it("hides the credits row when the job cost is zero", () => {

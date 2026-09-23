@@ -10,7 +10,7 @@
 
 ## App Router Structure
 
-The live tree is `src/app/`. `(app)` is protected. `(auth)` is public auth. `(flows)` is invitations and setup. Also `api/`, `share/`, `tasks/`, `maintenance`.
+The live tree is `src/app/`. `(app)` is protected. `(auth)` is public auth. `(flows)` is invitations and setup. Also `api/`, `auth/` (OAuth callbacks), `share/`, `(app)/tasks`, `maintenance`.
 
 ## App-Specific Conventions
 
@@ -19,6 +19,15 @@ The live tree is `src/app/`. `(app)` is protected. `(auth)` is public auth. `(fl
 - Default to Server Components for all new components
 - Use `'use client'` only when accessing browser APIs
 - Leverage server actions for mutations instead of client-side state
+
+**Never import a plain value (a string, array, or object constant) from a `'use client'`
+module into a Server Component.** Components cross that boundary; values do not — the
+import resolves to a client reference, not the value, and fails silently. The sidebar's
+row-shape classes lost this way: `cn(SIDEBAR_ROW_CLASS, …)` returned `""` in the shell
+skeleton, so every placeholder row rendered as a bare block with no flex, height or
+padding, while the same constants worked in the client list beside it. Shared constants
+belong in their own non-client module (`src/components/ui/sidebar-classes.ts` beside
+`sidebar.tsx`), imported by both sides.
 
 ### Server actions vs Route Handlers
 
@@ -91,7 +100,7 @@ See [.cursor/rules/effects.mdc](.cursor/rules/effects.mdc) for examples and refe
 
 ### Linting & Formatting
 
-The web app uses the shared Biome configuration from the repo root. See [root AGENTS.md](../../AGENTS.md#linting--formatting) for base rules.
+The web app uses the shared Biome configuration from the repo root. See [shared code conventions](../../docs/agents/coding-conventions.md#linting--formatting) for base rules.
 
 - `pnpm --filter web check` runs `biome check`, so it enforces linting, formatting, and import organization
 - `pnpm --filter web check:write` applies Biome fixes, including import organization
@@ -340,7 +349,7 @@ Env vars that must be set per environment (web): `STRIPE_SECRET_KEY`, `STRIPE_CR
   literals, no opacity modifiers on color utilities. Use the alpha-baked ramp step
   (`-tertiary` / `-quaternary` / `-quinary`) and add a token when none fits, in both theme
   blocks and in the `@theme inline` bridge. Guard:
-  `src/lib/utils/__tests__/color-tokens.test.ts`. See `.cursor/rules/color-tokens.mdc`.
+  `src/lib/utils/__tests__/src-walk-guards.test.ts`. See `.cursor/rules/color-tokens.mdc`.
 - Ensure dark/light mode compatibility
 - Use `size-*` utilities instead of `h-* w-*`
 - **Dynamic Type (iOS/macOS)**: Root rem may track Apple Dynamic Type (`-apple-system-body`); Inter stays the face; scale capped at **1.25×** (max 20px root). See `.cursor/rules/dynamic-type.mdc` and `apps/web/src/lib/utils/dynamic-type.ts`.
@@ -395,7 +404,7 @@ export async function createNewItem(data: FormData) {
 import { useTranslations } from 'next-intl';
 
 export function MyComponent() {
-  const t = useTranslations('common');
+  const t = useTranslations('CookieConsent');
   return <h1>{t('title')}</h1>;
 }
 ```
@@ -461,25 +470,25 @@ export AGENT_BROWSER_SESSION_NAME=sokosumi   # auto-saves/restores cookies
 
 ## Agent skills
 
-When implementing or reviewing UI in this app, load and follow these root skills. Do not invent parallel UI rules.
+When implementing or reviewing UI in this app, load and follow these app-scoped skills. Read them by path even when a root-started session does not list them. Do not invent parallel UI rules.
 
-- [`.agents/skills/better-ui/`](../../.agents/skills/better-ui/)
-- [`.agents/skills/better-typography/`](../../.agents/skills/better-typography/)
-- [`.agents/skills/better-colors/`](../../.agents/skills/better-colors/)
-- [`.agents/skills/better-accessibility/`](../../.agents/skills/better-accessibility/)
-- [`.agents/skills/better-layout/`](../../.agents/skills/better-layout/)
-- [`.agents/skills/better-writing/`](../../.agents/skills/better-writing/)
-- [`.agents/skills/better-interface/`](../../.agents/skills/better-interface/)
-- [`.agents/skills/interface-review/`](../../.agents/skills/interface-review/)
-- [`.agents/skills/explain-interface/`](../../.agents/skills/explain-interface/)
-- [`.agents/skills/variant/`](../../.agents/skills/variant/)
-- [`.agents/skills/break/`](../../.agents/skills/break/)
+- [`.agents/skills/better-ui/`](.agents/skills/better-ui/)
+- [`.agents/skills/better-typography/`](.agents/skills/better-typography/)
+- [`.agents/skills/better-colors/`](.agents/skills/better-colors/)
+- [`.agents/skills/better-accessibility/`](.agents/skills/better-accessibility/)
+- [`.agents/skills/better-layout/`](.agents/skills/better-layout/)
+- [`.agents/skills/better-writing/`](.agents/skills/better-writing/)
+- [`.agents/skills/better-interface/`](.agents/skills/better-interface/)
+- [`.agents/skills/interface-review/`](.agents/skills/interface-review/)
+- [`.agents/skills/explain-interface/`](.agents/skills/explain-interface/)
+- [`.agents/skills/variant/`](.agents/skills/variant/)
+- [`.agents/skills/break/`](.agents/skills/break/)
 
 ## Additional Rules
 
 - [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import entity types from `@/lib/clients/generated/core` or `@/lib/types/core-dto`; import Better Auth session types (`Session`, `SessionUser`, `SessionRecord`, `Account`) and other approved pure helpers from `@sokosumi/utils` directly; no passthrough files. See [Core DTO boundary](#core-dto-boundary).
 - [Utils vs database helpers](../../.cursor/rules/utils-vs-database.mdc) – import `@sokosumi/utils` from client components; web never imports `@sokosumi/database`
-- [Whole pixels](../../.cursor/rules/whole-pixels.mdc) – no fractional `px` on a layout or border length; guard `src/lib/utils/__tests__/whole-pixels.test.ts`
+- [Whole pixels](../../.cursor/rules/whole-pixels.mdc) – no fractional `px` on a layout or border length; guard `src/lib/utils/__tests__/src-walk-guards.test.ts`
 - [Effects](.cursor/rules/effects.mdc)
 - [Translations](../../.agents/skills/translations/) – next-intl cleanup and locale parity
 - [Locale-safe formatting](.cursor/rules/i18n-formatting.mdc) – `useFormatter` / `getFormatter`; avoid bare `toLocaleString()` in client components

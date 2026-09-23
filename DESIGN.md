@@ -116,14 +116,15 @@ components:
 Sokosumi is the **AI-agent marketplace** in the **Sumi (AGENTIC)** family — alongside
 **masumi** (blockchain layer) and **kodosumi** (the code). Voice: **sincere, minimal,
 consistent** — heavy contrast, ample white space, restraint. Sokosumi is the **vessel**
-where masumi and kodosumi meet, so its own surface is **deep-purple primary on a neutral-gray
+where masumi and kodosumi meet, so its own surface is **deep-blue primary on a neutral-gray
 base**; everything else is simplified to gray so the sibling palettes (and the work) stand
 out. Brand names and the first letter of any brand are always **lowercase**; UI copy is
 **sentence case**.
 
 - **Aesthetic:** intricate minimalism — Linear/Notion precision with a warm, human edge.
-- **Color discipline:** purple + neutrals carry the UI; chromatic color appears **only when it
-  communicates** (category, status, action), at most one accent role per view.
+- **Color discipline:** deep-blue primary + neutrals carry the UI; chromatic accents appear
+  **only when they communicate** (masumi/kodosumi charts, status, category), at most one
+  accent role per view.
 - **Theming:** dark mode is a `.dark` class that re-defines the same token names; reference one
   token and theming is automatic. `--radius` and the category palette are identical across modes.
 
@@ -144,24 +145,22 @@ add one in `globals.css`.
 
 ### Neutrals
 
-Black/White + the neutral ramp `#FAFAFA → #0C0C0C` plus the step ramp
-(`--secondary/-tertiary/-quaternary/-quinary/-senary`). Elevated surfaces are
-**lighter** (card `#FAFAFA` on muted `#F5F5F5`), not heavier. Default border = `--border`;
-`--input` is a separate, stronger control boundary. The base layer applies `border-border` +
-`outline-ring` to all elements.
+Black/White plus the neutral ramp (`--background` / `--card-background` through
+`--foreground`) and the step ramp (`--secondary/-tertiary/-quaternary/-quinary/-senary`).
+Values live in `globals.css`. Elevated surfaces are **lighter** (`--card-background` on
+`--muted`), not heavier. Default border = `--border`; `--input` is a separate, stronger
+control boundary. The base layer applies `border-border` + `outline-ring` to all elements.
 
 ### Category palette (ecosystem)
 
 Category accents come from the **real masumi (warm) + kodosumi (cool)** palettes, mapped to
-`--chart-1…5` — **never** stock shadcn chart defaults:
+`--chart-1…5` — **never** stock shadcn chart defaults. Hex values live only in `globals.css`.
 
-| Token | Hex | Source |
-| --- | --- | --- |
-| `--chart-1` | `#00A4FA` | kodosumi · Sky Blue |
-| `--chart-2` | `#FA008C` | masumi · Electric Pink |
-| `--chart-3` | `#0AFA14` | kodosumi · Neon Grass |
-| `--chart-4` | `#FFD300` | masumi · Golden Yellow |
-| `--chart-5` | `#FF6400` | masumi · Persimmon |
+- `--chart-1` — kodosumi · Sky Blue
+- `--chart-2` — masumi · Electric Pink
+- `--chart-3` — kodosumi · Neon Grass
+- `--chart-4` — masumi · Golden Yellow
+- `--chart-5` — masumi · Persimmon
 
 These are vivid (built for fills/ink, not small text). Use as **solid fills** (badges, mock
 accents) or **`-quinary` resting fills** (chips — `--chart-N-quinary`); keep adjacent
@@ -204,7 +203,7 @@ never hardcoded hex, never an opacity modifier on a colour utility.
   `space-y-4/6`, top-level page sections `space-y-12`; tight inline groups `gap-1/1.5`.
 - **Grid patterns:** coworker tiles `grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5`;
   offer cards `sm:grid-cols-2 lg:grid-cols-3`; forms/content `sm:grid-cols-2`.
-- **Full-bleed:** visuals/bands may break out. The marketplace hero uses `-mx-6 -mt-4` to escape
+- **Full-bleed:** visuals/bands may break out. The marketplace hero uses `-mx-4 -mt-4` to escape
   page padding; the agent-detail route opts out of shell clipping via a `data-agent-fullbleed`
   marker (`globals.css`).
 
@@ -237,7 +236,7 @@ Borders-first, then soft glow — **never** dramatic drop shadows.
   everywhere else. `main` also sets `scrollbar-gutter: stable`: it is the scroll container, so
   without that the scrollbar takes its width out of the content box on the right only and
   every rule stops further from the right edge than the left. Guard:
-  `apps/web/src/lib/utils/__tests__/full-bleed-rules.test.ts`.
+  `apps/web/src/lib/utils/__tests__/src-walk-guards.test.ts`.
   A centred column inside a `max-w-*` wrapper keeps its own padding and is out of scope: no
   rule crosses the view there.
 - Avatars are **circular** for people; square source art is shown **whole** (no crop).
@@ -271,7 +270,7 @@ Variants via `class-variance-authority` (only Button & Badge); others are prop/s
   Radix `data-[state=…]` + `focus-visible:ring-ring-halo ring-[3px]`; tabs/list `bg-muted h-9
   rounded-lg`; tooltip `bg-primary-solid text-primary-solid-foreground text-xs`.
 - **Marketplace components** (`components/agents/coworker-gallery-section.tsx`): full-bleed
-  **hero search** (black `rounded-full` pill); **company group** (header → coworker tiles →
+  **hero search** (inverted `bg-foreground` / `text-background` `rounded-full` pill); **company group** (header → coworker tiles →
   "Ready-to-run offers" sub-block, capped 2/5/3 with "Show all"); **coworker tile**
   (circular avatar + name + role + model/region tags); **offer card** (content-aware preview
   mock + category chip + output-type chip + coworker); **offer detail dialog** (`max-w-4xl`,
@@ -357,7 +356,8 @@ primary on a neutral background. Brand names are always lowercase.
 ## Do's and Don'ts
 
 **Do**
-- Keep purple + neutral gray as the base; let ecosystem color appear only with meaning.
+- Keep deep-blue primary + neutrals as the base; let chromatic accents (masumi/kodosumi
+  charts, status) appear only when they communicate.
 - Use Inter (all weights), sentence case, left/centered alignment, the Tailwind type scale.
 - Separate sections with full-bleed segmented lines; lean on borders + soft glow + blur.
 - Reuse the documented focus rings; `aria-hidden` decorative icons; `aria-label` icon-only controls.

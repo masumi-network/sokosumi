@@ -33,7 +33,7 @@ vi.mock("@/app/projects/components/project-avatar", () => ({
   ),
 }));
 
-vi.mock("@/components/design-md", () => ({
+vi.mock("@/components/design-md/design-md-adhoc-dialog", () => ({
   DesignMdAdHocDialog: ({
     open,
     onGenerated,

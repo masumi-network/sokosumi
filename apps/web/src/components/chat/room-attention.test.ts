@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   resolveRoomAttention,
   resolveSectionAttention,
+  resolveUnreadThreadsAttention,
+  roomAttentionAfterRead,
+  roomUnreadReads,
 } from "./room-attention";
 
 describe("resolveRoomAttention", () => {
@@ -12,7 +15,12 @@ describe("resolveRoomAttention", () => {
         unreadCount: 3,
         unreadMentionCount: 0,
       }),
-    ).toEqual({ bold: true, badgeCount: 0, unreadTextCount: 0 });
+    ).toEqual({
+      bold: true,
+      badgeCount: 0,
+      mentionCount: 0,
+      unreadTextCount: 0,
+    });
   });
 
   it("shows a mention badge only when unreadMentionCount > 0", () => {
@@ -21,7 +29,12 @@ describe("resolveRoomAttention", () => {
         unreadCount: 5,
         unreadMentionCount: 2,
       }),
-    ).toEqual({ bold: true, badgeCount: 2, unreadTextCount: 0 });
+    ).toEqual({
+      bold: true,
+      badgeCount: 2,
+      mentionCount: 2,
+      unreadTextCount: 0,
+    });
   });
 
   it("bolds forced-unread rooms even when unreadCount is 0", () => {
@@ -31,7 +44,12 @@ describe("resolveRoomAttention", () => {
         unreadMentionCount: 0,
         markedUnread: true,
       }),
-    ).toEqual({ bold: true, badgeCount: 0, unreadTextCount: 0 });
+    ).toEqual({
+      bold: true,
+      badgeCount: 0,
+      mentionCount: 0,
+      unreadTextCount: 0,
+    });
   });
 
   it("suppresses bold and badge when the room is muted", () => {
@@ -42,7 +60,12 @@ describe("resolveRoomAttention", () => {
         markedUnread: true,
         isMuted: true,
       }),
-    ).toEqual({ bold: false, badgeCount: 0, unreadTextCount: 0 });
+    ).toEqual({
+      bold: false,
+      badgeCount: 0,
+      mentionCount: 0,
+      unreadTextCount: 0,
+    });
   });
 
   it("reports no count when the reader has not opted in", () => {
@@ -51,7 +74,12 @@ describe("resolveRoomAttention", () => {
         unreadCount: 7,
         unreadMentionCount: 0,
       }),
-    ).toEqual({ bold: true, badgeCount: 0, unreadTextCount: 0 });
+    ).toEqual({
+      bold: true,
+      badgeCount: 0,
+      mentionCount: 0,
+      unreadTextCount: 0,
+    });
   });
 
   it("reports the unread message count when the reader opted in", () => {
@@ -61,7 +89,12 @@ describe("resolveRoomAttention", () => {
         unreadMentionCount: 0,
         showUnreadCount: true,
       }),
-    ).toEqual({ bold: true, badgeCount: 0, unreadTextCount: 7 });
+    ).toEqual({
+      bold: true,
+      badgeCount: 0,
+      mentionCount: 0,
+      unreadTextCount: 7,
+    });
   });
 
   it("reports no count for a read room the reader opted in on", () => {
@@ -71,7 +104,12 @@ describe("resolveRoomAttention", () => {
         unreadMentionCount: 0,
         showUnreadCount: true,
       }),
-    ).toEqual({ bold: false, badgeCount: 0, unreadTextCount: 0 });
+    ).toEqual({
+      bold: false,
+      badgeCount: 0,
+      mentionCount: 0,
+      unreadTextCount: 0,
+    });
   });
 
   it("suppresses the count on a muted room the reader opted in on", () => {
@@ -82,20 +120,46 @@ describe("resolveRoomAttention", () => {
         isMuted: true,
         showUnreadCount: true,
       }),
-    ).toEqual({ bold: false, badgeCount: 0, unreadTextCount: 0 });
+    ).toEqual({
+      bold: false,
+      badgeCount: 0,
+      mentionCount: 0,
+      unreadTextCount: 0,
+    });
   });
 
-  // The regression guard for the mistake this design exists to avoid: the badge
-  // keeps counting mentions and the text keeps counting messages, and turning
-  // the setting on changes neither one's meaning.
-  it("reports a mention and a message count side by side, each unchanged", () => {
+  // One number per row. A row that holds something addressed to the reader
+  // shows that and nothing else: two numbers in two colours asked the reader
+  // to work out which was which, and the badge is the one that matters. The
+  // badge still counts mentions only, and bold still says there is more.
+  it("lets the badge stand alone when the reader opted in to counts", () => {
     expect(
       resolveRoomAttention({
         unreadCount: 9,
         unreadMentionCount: 2,
         showUnreadCount: true,
       }),
-    ).toEqual({ bold: true, badgeCount: 2, unreadTextCount: 9 });
+    ).toEqual({
+      bold: true,
+      badgeCount: 2,
+      mentionCount: 2,
+      unreadTextCount: 0,
+    });
+  });
+
+  it("shows the message count when nothing is addressed to the reader", () => {
+    expect(
+      resolveRoomAttention({
+        unreadCount: 9,
+        unreadMentionCount: 0,
+        showUnreadCount: true,
+      }),
+    ).toEqual({
+      bold: true,
+      badgeCount: 0,
+      mentionCount: 0,
+      unreadTextCount: 9,
+    });
   });
 
   it("keeps a hand-marked unread room bold with no count to show", () => {
@@ -106,7 +170,12 @@ describe("resolveRoomAttention", () => {
         markedUnread: true,
         showUnreadCount: true,
       }),
-    ).toEqual({ bold: true, badgeCount: 0, unreadTextCount: 0 });
+    ).toEqual({
+      bold: true,
+      badgeCount: 0,
+      mentionCount: 0,
+      unreadTextCount: 0,
+    });
   });
 
   // The row draws the count at the name's unread weight with no unbolded
@@ -133,7 +202,245 @@ describe("resolveRoomAttention", () => {
   });
 });
 
+// ADR-0037: Thread replies stop marking the channel. Room unread is the
+// channel half alone; a User mention is the one thing in a Thread that still
+// reaches the row.
+describe("resolveRoomAttention with the channel half", () => {
+  it("does not bold a room whose unread is all thread replies", () => {
+    expect(
+      resolveRoomAttention({
+        unreadCount: 3,
+        channelUnreadCount: 0,
+        unreadMentionCount: 0,
+        showUnreadCount: true,
+      }),
+    ).toEqual({
+      bold: false,
+      badgeCount: 0,
+      mentionCount: 0,
+      unreadTextCount: 0,
+    });
+  });
+
+  // The rule that fails silently when wrong: a mention reply counts toward
+  // the thread half, so bold cannot come from the channel half alone.
+  it("bolds and badges a room when a thread reply mentions the reader", () => {
+    expect(
+      resolveRoomAttention({
+        unreadCount: 1,
+        channelUnreadCount: 0,
+        unreadMentionCount: 1,
+      }),
+    ).toEqual({
+      bold: true,
+      badgeCount: 1,
+      mentionCount: 1,
+      unreadTextCount: 0,
+    });
+  });
+
+  it("keeps the badge counting mentions only, beside a busy thread", () => {
+    expect(
+      resolveRoomAttention({
+        unreadCount: 9,
+        channelUnreadCount: 0,
+        unreadMentionCount: 1,
+      }).badgeCount,
+    ).toBe(1);
+  });
+
+  it("counts only the channel half in the reader's opt-in number", () => {
+    expect(
+      resolveRoomAttention({
+        unreadCount: 5,
+        channelUnreadCount: 2,
+        unreadMentionCount: 0,
+        showUnreadCount: true,
+      }),
+    ).toEqual({
+      bold: true,
+      badgeCount: 0,
+      mentionCount: 0,
+      unreadTextCount: 2,
+    });
+  });
+
+  it("shows no opt-in number for a row bold only by a thread mention", () => {
+    expect(
+      resolveRoomAttention({
+        unreadCount: 1,
+        channelUnreadCount: 0,
+        unreadMentionCount: 1,
+        showUnreadCount: true,
+      }).unreadTextCount,
+    ).toBe(0);
+  });
+
+  it("keeps a muted room silent, thread mention or not", () => {
+    expect(
+      resolveRoomAttention({
+        unreadCount: 4,
+        channelUnreadCount: 2,
+        unreadMentionCount: 1,
+        isMuted: true,
+        showUnreadCount: true,
+      }),
+    ).toEqual({
+      bold: false,
+      badgeCount: 0,
+      mentionCount: 0,
+      unreadTextCount: 0,
+    });
+  });
+
+  it("keeps a hand-marked unread room bold when only threads are unread", () => {
+    expect(
+      resolveRoomAttention({
+        unreadCount: 3,
+        channelUnreadCount: 0,
+        unreadMentionCount: 0,
+        markedUnread: true,
+      }).bold,
+    ).toBe(true);
+  });
+
+  it("falls back to the total when the channel half is absent", () => {
+    expect(
+      resolveRoomAttention({ unreadCount: 4, unreadMentionCount: 0 }).bold,
+    ).toBe(true);
+  });
+
+  it("never reports a count to show without also reporting bold", () => {
+    for (const channelUnreadCount of [0, 1, 99]) {
+      for (const threadUnread of [0, 3]) {
+        for (const unreadMentionCount of [0, 1]) {
+          const attention = resolveRoomAttention({
+            unreadCount: channelUnreadCount + threadUnread,
+            channelUnreadCount,
+            unreadMentionCount,
+            showUnreadCount: true,
+          });
+
+          if (attention.unreadTextCount > 0) {
+            expect(attention.bold).toBe(true);
+          }
+        }
+      }
+    }
+  });
+});
+
+// A Direct of two is written to, not named: Core counts every message there
+// toward the badge. So it draws no mention pill, and its number is the same
+// muted count a channel shows. The badge still bolds the row and marks the
+// rail, which is unchanged.
+describe("resolveRoomAttention in a Direct of two", () => {
+  it("draws no mention pill and shows the message count instead", () => {
+    expect(
+      resolveRoomAttention({
+        unreadCount: 5,
+        channelUnreadCount: 5,
+        unreadMentionCount: 5,
+        badgeCountsMentions: false,
+        showUnreadCount: true,
+      }),
+    ).toEqual({
+      bold: true,
+      badgeCount: 5,
+      mentionCount: 0,
+      unreadTextCount: 5,
+    });
+  });
+
+  it("stays bold with no number when the reader switched counts off", () => {
+    expect(
+      resolveRoomAttention({
+        unreadCount: 5,
+        channelUnreadCount: 5,
+        unreadMentionCount: 5,
+        badgeCountsMentions: false,
+      }),
+    ).toEqual({
+      bold: true,
+      badgeCount: 5,
+      mentionCount: 0,
+      unreadTextCount: 0,
+    });
+  });
+
+  it("draws the mention pill everywhere else", () => {
+    expect(
+      resolveRoomAttention({
+        unreadCount: 3,
+        channelUnreadCount: 3,
+        unreadMentionCount: 1,
+        showUnreadCount: true,
+      }),
+    ).toMatchObject({ mentionCount: 1, unreadTextCount: 0 });
+  });
+});
+
+describe("roomAttentionAfterRead", () => {
+  it("empties the channel half and everything a read clears", () => {
+    expect(
+      roomAttentionAfterRead({
+        unreadCount: 7,
+        channelUnreadCount: 4,
+        threadUnreadCount: 3,
+        unreadMentionCount: 2,
+        markedUnread: true,
+      }),
+    ).toEqual({
+      // Reading a channel does not Look its Threads, so their half stays.
+      unreadCount: 3,
+      channelUnreadCount: 0,
+      threadUnreadCount: 3,
+      unreadMentionCount: 0,
+      markedUnread: false,
+    });
+  });
+
+  it("leaves a read room quiet on its row", () => {
+    const after = roomAttentionAfterRead({
+      unreadCount: 7,
+      channelUnreadCount: 4,
+      threadUnreadCount: 3,
+      unreadMentionCount: 0,
+    });
+
+    expect(resolveRoomAttention(after).bold).toBe(false);
+  });
+
+  it("clears everything for a snapshot that predates the split", () => {
+    expect(
+      roomAttentionAfterRead({ unreadCount: 5, unreadMentionCount: 1 }),
+    ).toEqual({
+      unreadCount: 0,
+      channelUnreadCount: 0,
+      threadUnreadCount: 0,
+      unreadMentionCount: 0,
+      markedUnread: false,
+    });
+  });
+});
+
 describe("resolveSectionAttention", () => {
+  it("holds nothing for a section whose only unread is in threads", () => {
+    expect(
+      resolveSectionAttention([
+        { unreadCount: 3, channelUnreadCount: 0, unreadMentionCount: 0 },
+      ]),
+    ).toBeNull();
+  });
+
+  it("is a mention when a thread reply in the section names the reader", () => {
+    expect(
+      resolveSectionAttention([
+        { unreadCount: 1, channelUnreadCount: 0, unreadMentionCount: 1 },
+      ]),
+    ).toBe("mention");
+  });
+
   const read = { unreadCount: 0, unreadMentionCount: 0 };
   const unread = { unreadCount: 3, unreadMentionCount: 0 };
   const mentioned = { unreadCount: 1, unreadMentionCount: 1 };
@@ -167,5 +474,118 @@ describe("resolveSectionAttention", () => {
     expect(
       resolveSectionAttention([unread], { hasPendingInvitation: true }),
     ).toBe("mention");
+  });
+});
+
+function unreadThread(unreadMentionCount = 0) {
+  return {
+    parentMessageId: "p",
+    firstUnreadReplyId: "r",
+    parentContent: "",
+    unreadReplyCount: 2,
+    unreadMentionCount,
+  };
+}
+
+function room(
+  id: string,
+  overrides: Partial<{
+    channelUnreadCount: number;
+    threadUnreadCount: number;
+    unreadThreadCount: number;
+    unreadThreads: ReturnType<typeof unreadThread>[];
+    unreadMentionCount: number;
+    markedUnread: boolean;
+    mutedAt: string | null;
+  }> = {},
+) {
+  const channelUnreadCount = overrides.channelUnreadCount ?? 0;
+  const threadUnreadCount = overrides.threadUnreadCount ?? 0;
+  return {
+    id,
+    unreadCount: channelUnreadCount + threadUnreadCount,
+    unreadMentionCount: 0,
+    ...overrides,
+    channelUnreadCount,
+    threadUnreadCount,
+  };
+}
+
+describe("resolveUnreadThreadsAttention", () => {
+  it("counts unread Threads across rooms, not their replies", () => {
+    expect(
+      resolveUnreadThreadsAttention([
+        room("a", { threadUnreadCount: 5, unreadThreadCount: 2 }),
+        room("b", { threadUnreadCount: 1, unreadThreadCount: 1 }),
+      ]),
+    ).toEqual({ threadCount: 3, mentionCount: 0, rail: "unread" });
+  });
+
+  it("leaves out muted rooms, as the sidebar hides their Threads", () => {
+    expect(
+      resolveUnreadThreadsAttention([
+        room("a", { unreadThreadCount: 2, mutedAt: "2026-09-01T00:00:00Z" }),
+      ]),
+    ).toEqual({ threadCount: 0, mentionCount: 0, rail: null });
+  });
+
+  it("escalates to a mention when a listed Thread names the reader", () => {
+    expect(
+      resolveUnreadThreadsAttention([
+        room("a", {
+          unreadThreadCount: 4,
+          unreadThreads: [unreadThread(2), unreadThread(0), unreadThread(1)],
+        }),
+      ]),
+    ).toEqual({ threadCount: 4, mentionCount: 3, rail: "mention" });
+  });
+});
+
+describe("resolveUnreadThreadsAttention past the listed Threads", () => {
+  it("counts a mention in a Thread the room does not list", () => {
+    expect(
+      resolveUnreadThreadsAttention([
+        {
+          ...room("a", {
+            unreadThreadCount: 5,
+            unreadThreads: [unreadThread(), unreadThread(), unreadThread()],
+          }),
+          unreadThreadMentionCount: 1,
+        },
+      ]),
+    ).toEqual({ threadCount: 5, mentionCount: 1, rail: "mention" });
+  });
+});
+
+describe("roomUnreadReads", () => {
+  it("names the reads each room still needs", () => {
+    expect(roomUnreadReads(room("read"))).toEqual({
+      readRoom: false,
+      lookThreads: false,
+    });
+    expect(roomUnreadReads(room("channel", { channelUnreadCount: 2 }))).toEqual(
+      { readRoom: true, lookThreads: false },
+    );
+    expect(roomUnreadReads(room("marked", { markedUnread: true }))).toEqual({
+      readRoom: true,
+      lookThreads: false,
+    });
+    expect(
+      roomUnreadReads(
+        room("threads", { threadUnreadCount: 1, unreadThreadCount: 1 }),
+      ),
+    ).toEqual({ readRoom: false, lookThreads: true });
+  });
+
+  it("needs nothing from a muted room", () => {
+    expect(
+      roomUnreadReads(
+        room("muted", {
+          channelUnreadCount: 3,
+          unreadThreadCount: 1,
+          mutedAt: "2026-09-01T00:00:00Z",
+        }),
+      ),
+    ).toEqual({ readRoom: false, lookThreads: false });
   });
 });

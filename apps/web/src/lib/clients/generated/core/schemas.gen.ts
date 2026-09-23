@@ -8481,6 +8481,19 @@ export const ChatRoomSchema = {
             description: 'Deterministic key for direct rooms; null for normal rooms.',
             example: 'user_123:user_456'
         },
+        isGroupDirect: {
+            type: 'boolean',
+            description: 'Whether this Direct was started for three or more humans. Only group Directs can carry a Group name; a group that later shrank stays one.',
+            example: false
+        },
+        groupName: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Group name shared by every member of a group Direct, shown in place of the member list. Null when unnamed, and always null for Channels and other Directs.',
+            example: 'Launch crew'
+        },
         topic: {
             type: [
                 'string',
@@ -8520,8 +8533,76 @@ export const ChatRoomSchema = {
         unreadCount: {
             type: 'integer',
             minimum: 0,
-            description: 'Unread messages from others: top-level after room lastReadAt, plus thread replies in Threads the viewer Participates in after per-thread look baseline (thread lastReadAt, else room join createdAt). Soft-deleted excluded. ADR-0013.',
+            description: 'Total unread from others: channelUnreadCount + threadUnreadCount. Prefer the two halves; this stays the sum for existing clients. Soft-deleted excluded. ADR-0013, ADR-0037.',
+            example: 5
+        },
+        channelUnreadCount: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'Room unread: non-self top-level messages after room lastReadAt. Excludes Thread replies. Drives sidebar bold. ADR-0037.',
             example: 2
+        },
+        threadUnreadCount: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'Thread unread: non-self replies in Threads the viewer Participates in, after the per-Thread Look baseline (thread lastReadAt, else room join createdAt), less Muted threads that do not mention them. Surfaces on the Thread, never on the channel. ADR-0013, ADR-0030, ADR-0037.',
+            example: 3
+        },
+        unreadThreadCount: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'How many Threads in this room are Thread unread for the viewer. Counts Threads, where threadUnreadCount counts replies. States what `unreadThreads` leaves out past its cap. ADR-0037.',
+            example: 4
+        },
+        unreadThreadMentionCount: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'Unread Thread replies naming the viewer, across every unread Thread in this room, including those past the `unreadThreads` cap. Counted from the replies, so a Look clears it. SOK-1159.',
+            example: 1
+        },
+        unreadThreads: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    parentMessageId: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    firstUnreadReplyId: {
+                        type: 'string',
+                        format: 'uuid',
+                        description: 'The oldest reply still unread in this Thread: where opening it lands.'
+                    },
+                    parentContent: {
+                        type: 'string',
+                        description: 'The parent message\'s raw content, cut to 1000 characters. May hold mention tokens and may be empty; the client builds the label.'
+                    },
+                    unreadReplyCount: {
+                        type: 'integer',
+                        minimum: 1
+                    },
+                    unreadMentionCount: {
+                        type: 'integer',
+                        minimum: 0,
+                        default: 0,
+                        description: 'How many of this Thread\'s unread replies name the viewer. Counted from the replies, so a Look clears it; the room\'s unreadMentionCount is counted from notifications, which Room last-read clears.'
+                    }
+                },
+                required: [
+                    'parentMessageId',
+                    'firstUnreadReplyId',
+                    'parentContent',
+                    'unreadReplyCount'
+                ]
+            },
+            maxItems: 3,
+            default: [],
+            description: 'Up to 3 unread Threads in this room, newest unread reply first, for the sidebar\'s inset rows. Same eligibility as threadUnreadCount. `unreadThreadCount` is the true number; this list is capped. ADR-0037.'
         },
         unreadMentionCount: {
             type: 'integer',
@@ -8596,6 +8677,8 @@ export const ChatRoomSchema = {
         'kind',
         'isSelfDirect',
         'directKey',
+        'isGroupDirect',
+        'groupName',
         'topic',
         'discoverability',
         'createdByUserId',
@@ -8657,6 +8740,15 @@ export const ChatRoomUserParticipantSchema = {
                     description: 'Room membership kind: `"member"` (host-org participant) or `"guest"` (external channel only).'
                 }
             ]
+        },
+        lastReadAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Room last-read for this member (Room read receipt) on a room roster entry. Null when the member has never opened the room, and null for every member when the viewer\'s room access is `guest`. Absent on message senders.'
         }
     },
     required: [
@@ -9347,6 +9439,12 @@ export const ChatRoomPinnedMessageListItemSchema = {
                     type: 'integer',
                     minimum: 0
                 },
+                threadUnreadReplyCount: {
+                    type: 'integer',
+                    minimum: 0,
+                    description: 'Non-self replies under this parent the viewer has not cleared: Participant-gated and mute-gated, after the per-thread look baseline. 0 for lurkers and for viewers with no unread. Present only on the message list; absent from realtime events and single-message responses, which do not compute it. ADR-0013, ADR-0030, ADR-0037.',
+                    example: 2
+                },
                 threadLastReplyAt: {
                     type: [
                         'string',
@@ -9354,6 +9452,14 @@ export const ChatRoomPinnedMessageListItemSchema = {
                     ],
                     format: 'date-time',
                     example: '2021-01-01T00:00:00.000Z'
+                },
+                threadRepliers: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/ChatRoomMessageSender'
+                    },
+                    maxItems: 3,
+                    description: 'Up to three distinct reply senders, in the order they first replied. Drawn from the newest dozen replies, so in a longer thread someone who only replied earlier can be left out. Empty when the message has no replies; absent on client-built messages.'
                 },
                 metadata: {
                     type: [
@@ -9367,6 +9473,9 @@ export const ChatRoomPinnedMessageListItemSchema = {
                 },
                 membership: {
                     $ref: '#/components/schemas/ChatRoomMessageMembership'
+                },
+                groupNameChange: {
+                    $ref: '#/components/schemas/ChatRoomMessageGroupNameChange'
                 },
                 unfurls: {
                     type: [
@@ -9397,6 +9506,7 @@ export const ChatRoomPinnedMessageListItemSchema = {
                 'metadata',
                 'quote',
                 'membership',
+                'groupNameChange',
                 'unfurls'
             ]
         }
@@ -9751,6 +9861,50 @@ export const ChatRoomMessageMembershipSubjectSchema = {
     ]
 } as const;
 
+export const ChatRoomMessageGroupNameChangeSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        action: {
+            type: 'string',
+            enum: [
+                'named',
+                'cleared'
+            ]
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The new Group name; null when it was cleared.',
+            example: 'Launch crew'
+        },
+        actor: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string'
+                },
+                name: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'id',
+                'name'
+            ]
+        }
+    },
+    required: [
+        'action',
+        'name',
+        'actor'
+    ]
+} as const;
+
 export const ChatRoomMessageUnfurlSchema = {
     type: 'object',
     properties: {
@@ -9856,6 +10010,15 @@ export const UpdateChatRoomRequestSchema = {
             example: [
                 '01960001-0001-7001-8001-000000000099'
             ]
+        },
+        groupName: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 80,
+            description: 'Group name of a group Direct, and the only field a Direct accepts. Any member may set it; an empty string or null clears it. Rejected for Channels and for other Directs.',
+            example: 'Launch crew'
         }
     }
 } as const;
@@ -10150,6 +10313,12 @@ export const ChatRoomMessageSchema = {
             type: 'integer',
             minimum: 0
         },
+        threadUnreadReplyCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Non-self replies under this parent the viewer has not cleared: Participant-gated and mute-gated, after the per-thread look baseline. 0 for lurkers and for viewers with no unread. Present only on the message list; absent from realtime events and single-message responses, which do not compute it. ADR-0013, ADR-0030, ADR-0037.',
+            example: 2
+        },
         threadLastReplyAt: {
             type: [
                 'string',
@@ -10157,6 +10326,14 @@ export const ChatRoomMessageSchema = {
             ],
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        threadRepliers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatRoomMessageSender'
+            },
+            maxItems: 3,
+            description: 'Up to three distinct reply senders, in the order they first replied. Drawn from the newest dozen replies, so in a longer thread someone who only replied earlier can be left out. Empty when the message has no replies; absent on client-built messages.'
         },
         metadata: {
             type: [
@@ -10170,6 +10347,9 @@ export const ChatRoomMessageSchema = {
         },
         membership: {
             $ref: '#/components/schemas/ChatRoomMessageMembership'
+        },
+        groupNameChange: {
+            $ref: '#/components/schemas/ChatRoomMessageGroupNameChange'
         },
         unfurls: {
             type: [
@@ -10200,6 +10380,7 @@ export const ChatRoomMessageSchema = {
         'metadata',
         'quote',
         'membership',
+        'groupNameChange',
         'unfurls'
     ]
 } as const;
@@ -10486,6 +10667,94 @@ export const CreateChatRoomFileUploadSessionRequestSchema = {
         'filename',
         'contentType',
         'size'
+    ]
+} as const;
+
+export const ChatUnreadThreadSchema = {
+    type: 'object',
+    properties: {
+        parentMessageId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        firstUnreadReplyId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The oldest reply still unread in this Thread: where opening it lands.'
+        },
+        parentContent: {
+            type: 'string',
+            description: 'The parent message\'s raw content, cut to 1000 characters. May hold mention tokens and may be empty; the client builds the label.'
+        },
+        unreadReplyCount: {
+            type: 'integer',
+            minimum: 1
+        },
+        unreadMentionCount: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'How many of this Thread\'s unread replies name the viewer. Counted from the replies, so a Look clears it; the room\'s unreadMentionCount is counted from notifications, which Room last-read clears.'
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The room the Thread is in.'
+        },
+        lastUnreadAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the newest unread reply in this Thread came (a responded coworker mention\'s answer time where later). The list ranks by it.'
+        }
+    },
+    required: [
+        'parentMessageId',
+        'firstUnreadReplyId',
+        'parentContent',
+        'unreadReplyCount',
+        'roomId',
+        'lastUnreadAt'
+    ]
+} as const;
+
+export const ChatEarlierThreadSchema = {
+    type: 'object',
+    properties: {
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        parentMessageId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        parentContent: {
+            type: 'string',
+            description: 'The parent message\'s raw content, cut to 1000 characters. May hold mention tokens and may be empty; the client builds the label.'
+        },
+        replyCount: {
+            type: 'integer',
+            minimum: 1
+        },
+        lastReplyAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastReplyId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The Thread\'s newest reply: where opening it lands.'
+        }
+    },
+    required: [
+        'roomId',
+        'parentMessageId',
+        'parentContent',
+        'replyCount',
+        'lastReplyAt',
+        'lastReplyId'
     ]
 } as const;
 
@@ -13435,15 +13704,15 @@ export const NotificationPreferenceSchema = {
         category: {
             type: 'string',
             enum: [
-                'JOB_ATTENTION',
-                'JOB_COMPLETED',
-                'JOB_UPDATE',
                 'TASK_ATTENTION',
                 'TASK_COMPLETED',
                 'TASK_UPDATE',
+                'PROJECT_UPDATE',
                 'CHAT_ROOM_MESSAGE',
                 'CHAT_MENTION',
                 'CHAT_DIRECT_MESSAGE',
+                'BILLING_ATTENTION',
+                'BILLING_UPDATE',
                 'SYSTEM',
                 'FOLLOW_UP'
             ],
@@ -15190,11 +15459,28 @@ export const ProjectListItemSchema = {
                     type: 'integer',
                     minimum: 0,
                     example: 1
+                },
+                lastActivityAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z',
+                    description: 'Latest visible task/job event, ready task output or project lifecycle event. Equals createdAt when the project has no activity yet, which is also the list ordering key.'
+                },
+                starredAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z',
+                    description: 'When the reader Pinned this project, or null when they have not. Always resolved for the acting user, so null means unpinned rather than unknown; it is null for every non-user actor, since a Pin belongs to a person. Never an ordering key here — the list stays in activity order and the sidebar flyout is what puts Pins first.'
                 }
             },
             required: [
                 'taskCount',
-                'jobCount'
+                'jobCount',
+                'lastActivityAt',
+                'starredAt'
             ]
         }
     ]
@@ -15611,6 +15897,28 @@ export const ProjectJobStatusCountSchema = {
     ]
 } as const;
 
+export const StarredProjectSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/Project'
+        },
+        {
+            type: 'object',
+            properties: {
+                starredAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z',
+                    description: 'When this reader Pinned the project. Ascending is the order the sidebar flyout draws Pins in.'
+                }
+            },
+            required: [
+                'starredAt'
+            ]
+        }
+    ]
+} as const;
+
 export const AddProjectJobRequestSchema = {
     type: 'object',
     properties: {
@@ -15842,6 +16150,149 @@ export const WorkspaceCalendarItemSchema = {
     ]
 } as const;
 
+export const ProjectCloseStatusSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        projectId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'CLOSING',
+                'CLOSE_FAILED',
+                'CLOSED'
+            ]
+        },
+        cutoffAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        reason: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        attempts: {
+            type: 'integer',
+            minimum: 0
+        },
+        failure: {
+            $ref: '#/components/schemas/ProjectCloseFailure'
+        },
+        completedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        projectRevision: {
+            type: 'integer',
+            minimum: 0
+        },
+        owedOccurrenceCount: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'id',
+        'projectId',
+        'state',
+        'cutoffAt',
+        'reason',
+        'attempts',
+        'failure',
+        'completedAt',
+        'projectRevision',
+        'owedOccurrenceCount'
+    ]
+} as const;
+
+export const ProjectCloseFailureSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        seriesTaskId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        message: {
+            type: 'string'
+        }
+    },
+    required: [
+        'seriesTaskId',
+        'message'
+    ]
+} as const;
+
+export const ProjectCloseRequestSchema = {
+    type: 'object',
+    properties: {
+        operationId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Browser-minted idempotency key for this operation',
+            example: '123e4567-e89b-42d3-a456-426614174000'
+        },
+        expectedProjectRevision: {
+            type: 'integer',
+            minimum: 0
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500,
+            example: 'Campaign completed'
+        }
+    },
+    required: [
+        'operationId',
+        'expectedProjectRevision'
+    ]
+} as const;
+
+export const ProjectCloseRecoveryRequestSchema = {
+    type: 'object',
+    properties: {
+        operationId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Browser-minted idempotency key for this operation',
+            example: '123e4567-e89b-42d3-a456-426614174000'
+        },
+        expectedProjectRevision: {
+            type: 'integer',
+            minimum: 0
+        },
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500,
+            example: 'Campaign completed'
+        }
+    },
+    required: [
+        'operationId',
+        'expectedProjectRevision',
+        'reason'
+    ]
+} as const;
+
 export const ProjectNeedsAttentionSchema = {
     type: 'object',
     properties: {
@@ -15870,6 +16321,29 @@ export const ProjectNeedsAttentionSchema = {
         'taskCount',
         'jobCount',
         'items'
+    ]
+} as const;
+
+export const ProjectStarSchema = {
+    type: 'object',
+    properties: {
+        projectId: {
+            type: 'string',
+            format: 'uuid',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        starredAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'projectId',
+        'starredAt'
     ]
 } as const;
 
@@ -15913,26 +16387,6 @@ export const PatchProjectRequestSchema = {
             format: 'uri'
         }
     }
-} as const;
-
-export const ProjectDeletedSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        deleted: {
-            type: 'boolean',
-            enum: [
-                true
-            ]
-        }
-    },
-    required: [
-        'id',
-        'deleted'
-    ]
 } as const;
 
 export const JobSchema = {
@@ -16711,16 +17165,16 @@ export const NotificationItemSchema = {
         },
         messageKey: {
             type: 'string',
-            description: 'i18n message key for translation (e.g. Notifications.Job.completed)',
-            example: 'Notifications.Job.completed'
+            description: 'i18n message key for translation (e.g. Notifications.Task.completed)',
+            example: 'Notifications.Task.completed'
         },
         messageParams: {
             type: 'object',
             additionalProperties: {},
             description: 'ICU interpolation parameters for the message',
             example: {
-                agentName: 'Research Agent',
-                jobName: 'Market Analysis'
+                coworkerName: 'Ada',
+                taskName: 'Market Analysis'
             }
         },
         metadata: {
@@ -16759,7 +17213,6 @@ export const NotificationItemSchema = {
     required: [
         'id',
         'userId',
-        'kind',
         'referenceId',
         'eventId',
         'messageKey',
@@ -16778,10 +17231,11 @@ export const NotificationKindSchema = {
         'TASK',
         'BILLING',
         'SYSTEM',
-        'CHAT'
+        'CHAT',
+        null
     ],
     description: 'Notification source domain',
-    example: 'JOB'
+    example: 'TASK'
 } as const;
 
 export const NotificationCountsSchema = {
@@ -21663,6 +22117,56 @@ export const WorkspaceCalendarSourceSchema = {
         'paletteToken',
         'isSchedulable'
     ]
+} as const;
+
+export const CalendarIdentityLabelsSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/CalendarIdentityLabel'
+    }
+} as const;
+
+export const CalendarIdentityLabelSchema = {
+    type: 'object',
+    properties: {
+        ref: {
+            type: 'string'
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'current_member',
+                'former_member',
+                'unknown'
+            ]
+        },
+        label: {
+            type: 'string'
+        }
+    },
+    required: [
+        'ref',
+        'state'
+    ]
+} as const;
+
+export const CalendarIdentityLabelsRequestSchema = {
+    type: 'object',
+    properties: {
+        refs: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 255
+            },
+            maxItems: 50
+        }
+    },
+    required: [
+        'refs'
+    ],
+    additionalProperties: false
 } as const;
 
 export const WorkspaceOrganizationSchema = {

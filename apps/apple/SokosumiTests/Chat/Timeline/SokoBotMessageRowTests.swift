@@ -47,7 +47,7 @@
       #expect(SokoBotTurnMetadata(message: hop) == nil)
       // A shell without its answer never reaches the row (web drops it from the transcript).
       let shell = try botMessage(id: "shell", content: "", metadata: ["streaming": true, "mention_id": "mention_1", "soko_bot": ["turn_id": "turn_1"] as [String: String]])
-      #expect(isHiddenSokoBotMentionShell(shell))
+      #expect(!shouldKeepPersistedMessage(shell))
       #expect(displayedTranscript(messages: [shell, settled], shells: []).map(\.id) == ["settled"])
     }
 
@@ -88,10 +88,6 @@
         try await Task.sleep(for: .milliseconds(20))
       }
       #expect(host.fittingSize.height < 460)
-      let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
-      host.cacheDisplay(in: host.bounds, to: bitmap)
-      let png = try #require(bitmap.representation(using: .png, properties: [:]))
-      try png.write(to: URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("soko-bot-footer-\(dark ? "dark" : "light").png"))
     }
   }
 #endif

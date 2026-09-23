@@ -1,10 +1,39 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { AuthManager } from "../../src/auth/auth-manager.js";
 import {
+  AUTHENTICATION_REQUIRED_MESSAGE,
+  bootstrapCliSession,
+  createSessionAuthManager,
+  requireAuthenticatedSession,
   resolveInitialAuth,
   selectBootRoute,
 } from "../../src/auth/bootstrap.js";
+import { MAINNET_API_URL, PREPROD_API_URL } from "../../src/auth/config.js";
+
+function memoryAuthManager(): AuthManager {
+  return new AuthManager({
+    credentialStore: {
+      read: () => null,
+      write: () => {},
+      clear: () => {},
+    },
+    apiKeyStore: {
+      read: () => null,
+      write: () => {},
+      clear: () => {},
+    },
+  });
+}
+
+const MAINNET_CONFIG = {
+  target: "mainnet" as const,
+  apiUrl: MAINNET_API_URL,
+  authBaseUrl: `${MAINNET_API_URL}/auth`,
+  clientId: "mainnet-client",
+  clientSecret: "",
+};
 
 test("selectBootRoute waits until auth resolves", () => {
   assert.equal(
@@ -69,7 +98,7 @@ test("rejects a target-coded key for the wrong target", async () => {
   );
 });
 
-test("TestV51 rejects a hosted API key for an explicit custom target", async () => {
+test("rejects a hosted API key for an explicit custom target", async () => {
   await assert.rejects(
     resolveInitialAuth({
       authManager: {
@@ -92,7 +121,7 @@ test("TestV51 rejects a hosted API key for an explicit custom target", async () 
   );
 });
 
-test("TestV58 rejects coworker API keys before the auth manager calls Core", async () => {
+test("rejects coworker API keys before the auth manager calls Core", async () => {
   let authTokenCalls = 0;
   await assert.rejects(
     resolveInitialAuth({
@@ -120,7 +149,7 @@ test("TestV58 rejects coworker API keys before the auth manager calls Core", asy
   assert.equal(authTokenCalls, 0);
 });
 
-test("TestV44 rejects an untagged environment API key without an explicit target", async () => {
+test("rejects an untagged environment API key without an explicit target", async () => {
   await assert.rejects(
     resolveInitialAuth({
       authManager: {
@@ -142,7 +171,7 @@ test("TestV44 rejects an untagged environment API key without an explicit target
   );
 });
 
-test("TestV44 rejects an untagged stored API key without an explicit target", async () => {
+test("rejects an untagged stored API key without an explicit target", async () => {
   await assert.rejects(
     resolveInitialAuth({
       authManager: {
@@ -164,7 +193,7 @@ test("TestV44 rejects an untagged stored API key without an explicit target", as
   );
 });
 
-test("TestV44 accepts an untagged environment API key with an explicit target", async () => {
+test("accepts an untagged environment API key with an explicit target", async () => {
   const result = await resolveInitialAuth({
     authManager: {
       getApiKeyCredentials: () => null,
@@ -187,5 +216,122 @@ test("TestV44 accepts an untagged environment API key with an explicit target", 
     authenticated: true,
     authMethod: "api-key",
     expiresAt: null,
+  });
+});
+
+test("bootstrapCliSession infers preprod from a target-coded API key", () => {
+  const session = bootstrapCliSession({
+    environment: { SOKOSUMI_API_KEY: "soko_preprod_secret" },
+    loadFiles: false,
+    authManager: memoryAuthManager(),
+  });
+  assert.equal(session.config.target, "preprod");
+  assert.equal(session.config.apiUrl, PREPROD_API_URL);
+  assert.equal(session.targetExplicit, false);
+});
+
+test("bootstrapCliSession keeps an explicit API URL over API-key inference", () => {
+  const session = bootstrapCliSession({
+    environment: {
+      SOKOSUMI_API_URL: "https://api.example.test",
+      SOKOSUMI_API_KEY: "soko_preprod_secret",
+    },
+    loadFiles: false,
+    authManager: memoryAuthManager(),
+  });
+  assert.equal(session.config.target, "custom");
+  assert.equal(session.config.apiUrl, "https://api.example.test");
+  assert.equal(session.targetExplicit, true);
+});
+
+test("bootstrapCliSession applies preprod and apiUrl the same for TUI and headless", () => {
+  const preprod = bootstrapCliSession({
+    environment: {},
+    loadFiles: false,
+    preprod: true,
+    authManager: memoryAuthManager(),
+  });
+  assert.equal(preprod.config.target, "preprod");
+  assert.equal(preprod.env.SOKOSUMI_API_URL, PREPROD_API_URL);
+  assert.equal(preprod.targetExplicit, true);
+
+  const custom = bootstrapCliSession({
+    environment: {},
+    loadFiles: false,
+    preprod: true,
+    apiUrl: "https://api.example.test",
+    authManager: memoryAuthManager(),
+  });
+  assert.equal(custom.config.target, "custom");
+  assert.equal(custom.config.apiUrl, "https://api.example.test");
+  assert.equal(custom.targetExplicit, true);
+});
+
+test("createSessionAuthManager reuses an injected manager", () => {
+  const injected = memoryAuthManager();
+  let factoryCalls = 0;
+  const result = createSessionAuthManager({
+    config: MAINNET_CONFIG,
+    environment: {},
+    authManager: injected,
+    authManagerFactory: () => {
+      factoryCalls += 1;
+      return memoryAuthManager();
+    },
+  });
+  assert.equal(result, injected);
+  assert.equal(factoryCalls, 0);
+});
+
+test("createSessionAuthManager uses the factory when no manager is injected", () => {
+  const created = memoryAuthManager();
+  let factoryCalls = 0;
+  const result = createSessionAuthManager({
+    config: MAINNET_CONFIG,
+    environment: {},
+    authManagerFactory: (options) => {
+      factoryCalls += 1;
+      assert.equal(options.targetScope, "mainnet");
+      assert.equal(options.clientId, MAINNET_CONFIG.clientId);
+      return created;
+    },
+  });
+  assert.equal(result, created);
+  assert.equal(factoryCalls, 1);
+});
+
+test("requireAuthenticatedSession rejects before Core when unsigned-in", async () => {
+  await assert.rejects(
+    requireAuthenticatedSession({
+      authManager: {
+        getApiKeyCredentials: () => null,
+        getAuthTokenAsync: async () => null,
+        getAuthMethod: () => null,
+        getCredentials: () => null,
+      },
+      config: MAINNET_CONFIG,
+      env: {},
+      targetExplicit: true,
+    }),
+    new Error(AUTHENTICATION_REQUIRED_MESSAGE),
+  );
+});
+
+test("requireAuthenticatedSession returns the resolved auth state", async () => {
+  const auth = await requireAuthenticatedSession({
+    authManager: {
+      getApiKeyCredentials: () => null,
+      getAuthTokenAsync: async () => "access-token",
+      getAuthMethod: () => "oauth",
+      getCredentials: () => ({ expiresAt: "2030-01-01T00:00:00.000Z" }),
+    },
+    config: MAINNET_CONFIG,
+    env: {},
+    targetExplicit: true,
+  });
+  assert.deepEqual(auth, {
+    authenticated: true,
+    authMethod: "oauth",
+    expiresAt: "2030-01-01T00:00:00.000Z",
   });
 });

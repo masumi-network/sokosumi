@@ -51,6 +51,12 @@ export interface TaskScheduleOperationIdentity {
   requestFingerprint: string;
 }
 
+export interface TaskScheduleOperationReplay {
+  eventId: string;
+  actorUserId: string | null;
+  payload: Prisma.JsonObject;
+}
+
 /**
  * Reads the audit payload when this series operation was already applied to the
  * Task, using the `(taskId, scheduleOperationId)` uniqueness the schedule audit
@@ -62,7 +68,7 @@ export interface TaskScheduleOperationIdentity {
 export async function readTaskScheduleOperationReplay(
   tx: TaskScheduleOperationClient,
   operation: TaskScheduleOperationIdentity,
-): Promise<Prisma.JsonObject | null> {
+): Promise<TaskScheduleOperationReplay | null> {
   const existing = await tx.taskEvent.findUnique({
     where: {
       taskId_scheduleOperationId: {
@@ -70,7 +76,7 @@ export async function readTaskScheduleOperationReplay(
         scheduleOperationId: operation.operationId,
       },
     },
-    select: { schedulePayload: true },
+    select: { id: true, schedulePayload: true, userId: true },
   });
   if (!existing) {
     return null;
@@ -89,12 +95,9 @@ export async function readTaskScheduleOperationReplay(
     );
   }
 
-  return payload;
-}
-
-export async function isTaskScheduleOperationReplay(
-  tx: TaskScheduleOperationClient,
-  operation: TaskScheduleOperationIdentity,
-): Promise<boolean> {
-  return (await readTaskScheduleOperationReplay(tx, operation)) !== null;
+  return {
+    eventId: existing.id,
+    actorUserId: existing.userId,
+    payload,
+  };
 }

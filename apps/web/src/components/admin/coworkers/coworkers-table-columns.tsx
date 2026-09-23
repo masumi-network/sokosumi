@@ -3,10 +3,8 @@
 import Link from "next/link";
 import type { useFormatter, useTranslations } from "next-intl";
 
-import {
-  createAppColumnHelper,
-  DataTableColumnHeader,
-} from "@/components/data-table";
+import { createAppColumnHelper } from "@/components/data-table/create-data-table-hook";
+import DataTableColumnHeader from "@/components/data-table/data-table-column-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Coworker } from "@/lib/clients/generated/core/types.gen";

@@ -63,11 +63,46 @@ public extension WorkspaceState {
     do {
       guard try await thread.markLooked(client: client, organizationSlug: selection?.workspace.organizationSlug),
             readAttention.isVisible else { return }
-      threadAttentionRevision += 1
-      guard let room = rooms.first(where: { $0.id == transcriptRoomId }) else { return }
-      try await readAttention.readAfterThreadLook(
-        room: room, client: client, organizationSlug: selection?.workspace.organizationSlug
-      )
+      try await syncRoomAttentionAfterThreadChange(client: client)
+    } catch {
+      if let error = error as? ChatServiceError {
+        signOutIfUnauthorized(error, auth: auth)
+      }
+    }
+  }
+
+  /// A Look, a mute or Mark all moved this room's thread unread: re-count the Threads trigger and let Core's
+  /// room read answer with the sidebar row's attention (web `bumpThreadUnread` + `syncRoomAttentionAfterThreadLook`).
+  internal func syncRoomAttentionAfterThreadChange(client: Client) async throws {
+    threadAttentionRevision += 1
+    guard roomHistoryReadable, let room = rooms.first(where: { $0.id == transcriptRoomId }) else { return }
+    try await readAttention.readAfterThreadLook(
+      room: room, client: client, organizationSlug: selection?.workspace.organizationSlug
+    )
+  }
+
+  /// Web's `ThreadMuteButton` reads the open thread's mute itself, because a thread opened from a message
+  /// row has no overview behind it. Runs only while the state is unknown; the view calls it again when the
+  /// reply count changes, so a parent's first reply brings the control.
+  func readThreadMuteIfNeeded(auth: AuthState) async {
+    guard thread.mute?.needsRead == true, thread.parent?.roomId == transcriptRoomId,
+          let client = resolveClient(auth: auth) else { return }
+    do {
+      try await thread.readMute(client: client, organizationSlug: selection?.workspace.organizationSlug)
+    } catch {
+      if let error = error as? ChatServiceError {
+        signOutIfUnauthorized(error, auth: auth)
+      }
+    }
+  }
+
+  func toggleThreadMute(auth: AuthState) async {
+    guard thread.parent?.roomId == transcriptRoomId, let client = resolveClient(auth: auth) else { return }
+    let roomId = transcriptRoomId
+    do {
+      guard try await thread.toggleMute(client: client, organizationSlug: selection?.workspace.organizationSlug),
+            roomId == transcriptRoomId else { return }
+      try await syncRoomAttentionAfterThreadChange(client: client)
     } catch {
       if let error = error as? ChatServiceError {
         signOutIfUnauthorized(error, auth: auth)

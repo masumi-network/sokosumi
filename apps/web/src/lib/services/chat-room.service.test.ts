@@ -15,6 +15,7 @@ const joinChatRoomMock = vi.fn();
 const restoreChatRoomMock = vi.fn();
 const retryChatRoomMentionMock = vi.fn();
 const getChatRoomMessageMock = vi.fn();
+const markChatRoomReadMock = vi.fn();
 
 vi.mock("@/lib/clients/core.client", () => ({
   CoreApiRequestError: class CoreApiRequestError extends Error {
@@ -43,6 +44,7 @@ vi.mock("@/lib/clients/core.client", () => ({
     retryChatRoomMention: (...args: unknown[]) =>
       retryChatRoomMentionMock(...args),
     getChatRoomMessage: (...args: unknown[]) => getChatRoomMessageMock(...args),
+    markChatRoomRead: (...args: unknown[]) => markChatRoomReadMock(...args),
   },
 }));
 
@@ -581,5 +583,36 @@ describe("chatRoomService.getMessage", () => {
     await expect(chatRoomService.getMessage("room-1", "msg-1")).rejects.toThrow(
       "Boom",
     );
+  });
+});
+
+describe("chatRoomService.markAllUnreadRead", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    markChatRoomReadMock.mockResolvedValue({ data: {} });
+    markChatRoomThreadsReadMock.mockResolvedValue({ data: { markedCount: 1 } });
+  });
+
+  it("reads each room only through the reads it has unread", async () => {
+    const { chatRoomService } = await import("./chat-room.service");
+    await chatRoomService.markAllUnreadRead([
+      { roomId: "channel", readRoom: true, lookThreads: false },
+      { roomId: "threads", readRoom: false, lookThreads: true },
+    ]);
+
+    expect(markChatRoomReadMock.mock.calls).toEqual([["channel"]]);
+    expect(markChatRoomThreadsReadMock.mock.calls).toEqual([["threads"]]);
+  });
+
+  it("finishes every read before reporting the first failure", async () => {
+    markChatRoomReadMock.mockRejectedValueOnce(new Error("room read failed"));
+    const { chatRoomService } = await import("./chat-room.service");
+
+    await expect(
+      chatRoomService.markAllUnreadRead([
+        { roomId: "a", readRoom: true, lookThreads: true },
+      ]),
+    ).rejects.toThrow("room read failed");
+    expect(markChatRoomThreadsReadMock).toHaveBeenCalledWith("a");
   });
 });

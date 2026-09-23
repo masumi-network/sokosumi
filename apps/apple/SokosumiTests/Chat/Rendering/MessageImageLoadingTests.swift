@@ -41,10 +41,8 @@
         remounted.layoutSubtreeIfNeeded()
         #expect(abs(remounted.fittingSize.height - loadedHeight) <= 1, "A returning row must reserve its known image proportions before the download finishes.")
         window.setContentSize(NSSize(width: width, height: loadedHeight))
-        let bitmap = try await waitForImage(in: remounted)
+        try await waitForImage(in: remounted)
         #expect(abs(remounted.fittingSize.height - loadedHeight) <= 1)
-        let png = try #require(bitmap.representation(using: .png, properties: [:]))
-        try png.write(to: URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("chat-image-\(unfurl ? "unfurl" : "attachment")-\(Int(width)).png"))
       }
 
       @Test func unfurlPortraitImageFillsTheTextColumn() async throws {
@@ -102,7 +100,9 @@
         #expect(abs(host.fittingSize.height - 320 / 1.5) <= 1)
       }
 
-      @Test func unfurlImageCanRecoverAfterURLChanges() async throws {
+      /// Used to assert that an image-only card disappears after a failed download; web keeps the
+      /// labelled card and shows a replacement thumbnail after a later scrape (row 22a).
+      @Test func unfurlImageFailureKeepsTheTextAndCanRecoverAfterURLChanges() async throws {
         URLProtocol.registerClass(ScrollMediaProtocol.self)
         defer { URLProtocol.unregisterClass(ScrollMediaProtocol.self) }
         let oldURL = "https://scroll-fixture.invalid/\(UUID()).png?failure"
@@ -114,16 +114,15 @@
         let host = NSHostingView(rootView: content(oldURL))
         let window = imageWindow(host)
         defer { window.orderOut(nil) }
-        for _ in 0 ..< 100 {
-          try await Task.sleep(for: .milliseconds(20))
-          host.layoutSubtreeIfNeeded()
-          if host.fittingSize.height == 0 {
-            break
-          }
+        host.layoutSubtreeIfNeeded()
+        let loadingHeight = host.fittingSize.height
+        #expect(loadingHeight >= 200, "Loading reserves the image budget under the title.")
+        _ = try await waitForView(in: host, timeoutMessage: "The failed image never dropped out of the card (fitting: \(host.fittingSize)).") {
+          host.fittingSize.height < 100 ? host : nil
         }
-        #expect(host.fittingSize.height == 0, "An image-only card disappears after a failed download.")
+        #expect(host.fittingSize.height > 0, "A card whose image failed keeps its title instead of disappearing.")
         host.rootView = content(newURL)
-        // Keep a real viewport after the empty card shrinks this isolated hosting window.
+        // Keep a real viewport after the text-only card shrinks this isolated hosting window.
         window.setContentSize(NSSize(width: 320, height: 500))
         try await waitForImage(in: host)
         #expect(host.fittingSize.height > 100)
@@ -142,7 +141,7 @@
           host.layoutSubtreeIfNeeded()
           if let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
             host.cacheDisplay(in: host.bounds, to: bitmap)
-            // Saturated green is distinct from the loading chrome and the purple link accent.
+            // Saturated green is distinct from the loading chrome and the link accent.
             for row in stride(from: 0, to: bitmap.pixelsHigh, by: 20) {
               for column in stride(from: 0, to: bitmap.pixelsWide, by: 20) {
                 if let color = bitmap.colorAt(x: column, y: row),

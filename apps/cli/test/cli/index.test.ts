@@ -11,7 +11,13 @@ import {
   type OAuthCredentials,
 } from "../../src/auth/auth-manager.js";
 import type { BrowserLoginOptions } from "../../src/auth/oauth.js";
-import { parseArgv, runCli } from "../../src/cli/index.js";
+import { CLI_COMMANDS } from "../../src/cli/commands/discover.js";
+import {
+  GLOBAL_BOOLEAN_FLAG_BY_TOKEN,
+  GLOBAL_VALUE_OPTIONS,
+  parseArgv,
+  runCli,
+} from "../../src/cli/index.js";
 
 function createTestAuthManager(): AuthManager {
   return new AuthManager({
@@ -70,7 +76,7 @@ test("dispatches auth login and emits token-free JSON", async () => {
   assert.deepEqual(JSON.parse(output.join("")), result);
   assert.doesNotMatch(output.join(""), /access-token|refresh-token/);
 });
-test("TestV43 configured API URL wins over target-coded API-key inference", async () => {
+test("configured API URL wins over target-coded API-key inference", async () => {
   let selectedApiUrl: string | undefined;
   let selectedTarget: string | undefined;
   await runCli([], {
@@ -112,7 +118,7 @@ test("resource commands reject mismatched target API keys before Core requests",
   assert.equal(requested, false);
 });
 
-test("TestV42 preflight rejects unauthenticated resource commands before Core", async () => {
+test("preflight rejects unauthenticated resource commands before Core", async () => {
   let coreCalls = 0;
   const output: string[] = [];
   const errorMessage =
@@ -148,7 +154,7 @@ test("TestV42 preflight rejects unauthenticated resource commands before Core", 
   assert.deepEqual(JSON.parse(output.join("")), { error: errorMessage });
 });
 
-test("TestV24 preprod auth ignores a hosted mainnet auth URL flag", async () => {
+test("preprod auth ignores a hosted mainnet auth URL flag", async () => {
   let loginRequest: BrowserLoginOptions | undefined;
   await runCli(
     [
@@ -189,6 +195,60 @@ test("strips a lone -- so pnpm extra-args work", async () => {
   });
   assert.equal(result.help, true);
   assert.match(output.join(""), /sokosumi auth login/);
+});
+
+test("help lists CLI_COMMANDS and every parseArgv global flag", async () => {
+  const output: string[] = [];
+  const result = await runCli(["-h"], {
+    stdout: { write: (value) => output.push(value) },
+    tuiFn: async () => {
+      throw new Error("TUI should not launch");
+    },
+  });
+  assert.equal(result.help, true);
+  const help = output.join("");
+  const escape = (value: string) =>
+    value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  for (const command of CLI_COMMANDS) {
+    assert.match(help, new RegExp(`^  sokosumi ${escape(command)}`, "m"));
+  }
+  for (const token of Object.keys(GLOBAL_BOOLEAN_FLAG_BY_TOKEN)) {
+    assert.match(help, new RegExp(escape(token)));
+  }
+  for (const name of GLOBAL_VALUE_OPTIONS) {
+    assert.match(help, new RegExp(`--${escape(name)}\\b`));
+  }
+
+  const globalIndex = help.indexOf("Global options:");
+  assert.notEqual(globalIndex, -1);
+  assert.doesNotMatch(help.slice(0, globalIndex), / --/);
+
+  const parsed = parseArgv([
+    "--preprod",
+    "--api-key-stdin",
+    "--json",
+    "--api-url",
+    "https://api.example.test",
+    "--auth-url",
+    "https://auth.example.test",
+    "--client-id",
+    "client",
+    "--oauth-port",
+    "53682",
+    "--oauth-timeout-ms",
+    "180000",
+    "--create-api-key",
+  ]);
+  assert.equal(parsed.options.preprod, true);
+  assert.equal(parsed.options["api-key-stdin"], true);
+  assert.equal(parsed.options.json, true);
+  assert.equal(parsed.options["api-url"], "https://api.example.test");
+  assert.equal(parsed.options["auth-url"], "https://auth.example.test");
+  assert.equal(parsed.options["client-id"], "client");
+  assert.equal(parsed.options["oauth-port"], "53682");
+  assert.equal(parsed.options["oauth-timeout-ms"], "180000");
+  assert.equal(parsed.options["create-api-key"], true);
 });
 
 test("parses coworker registration vendor ID", () => {
@@ -245,7 +305,7 @@ test("rejects inline values for boolean options without echoing them", async () 
   assert.equal(output.join("").includes(secret), false);
 });
 
-test("TestV49 unsupported inline option values are never echoed", async () => {
+test("unsupported inline option values are never echoed", async () => {
   const secret = "soko_mainnet_secret";
   const output: string[] = [];
   await assert.rejects(
@@ -261,7 +321,7 @@ test("TestV49 unsupported inline option values are never echoed", async () => {
   assert.equal(output.join("").includes(secret), false);
 });
 
-test("TestV47 index JSON errors redact credential assignments", async () => {
+test("index JSON errors redact credential assignments", async () => {
   const apiKey = "index-api-key";
   const refreshToken = "index-refresh-token";
   const output: string[] = [];
@@ -349,7 +409,7 @@ test("auth status returns stable non-secret JSON", async () => {
   assert.deepEqual(JSON.parse(output.join("")), result);
 });
 
-test("TestV19 auth status rejected promises emit one redacted JSON error", async () => {
+test("auth status rejected promises emit one redacted JSON error", async () => {
   const secret = "status-secret-token";
   const output: string[] = [];
   const authManager = createTestAuthManager();
@@ -373,7 +433,7 @@ test("TestV19 auth status rejected promises emit one redacted JSON error", async
   assert.equal(output[0].includes(secret), false);
 });
 
-test("TestV59 malformed HOME config emits one redacted JSON error", () => {
+test("malformed HOME config emits one redacted JSON error", () => {
   const secret = "home-secret-token";
   const home = mkdtempSync(join(tmpdir(), `${secret}-`));
   const configPath = join(home, ".sokosumi", "config.json");
@@ -405,7 +465,7 @@ test("TestV59 malformed HOME config emits one redacted JSON error", () => {
   assert.equal(result.stdout.includes(secret), false);
 });
 
-test("TestV44 auth status accepts an untagged key with --preprod", async () => {
+test("auth status accepts an untagged key with --preprod", async () => {
   const output: string[] = [];
   const result = await runCli(["--preprod", "auth", "status", "--json"], {
     env: { SOKOSUMI_API_KEY: "legacy-api-key" },
@@ -420,7 +480,7 @@ test("TestV44 auth status accepts an untagged key with --preprod", async () => {
   assert.deepEqual(JSON.parse(output.join("")), result);
 });
 
-test("TestV44 auth status accepts an untagged key with --api-url", async () => {
+test("auth status accepts an untagged key with --api-url", async () => {
   const output: string[] = [];
   const result = await runCli(
     ["--api-url", "https://api.example.test", "auth", "status", "--json"],
@@ -462,6 +522,119 @@ test("dispatches discover JSON without opening a TUI", async () => {
   const parsed = JSON.parse(output.join(""));
   assert.equal(parsed.environment, "custom");
   assert.ok(parsed.commands.includes("agents list"));
+});
+
+const newCommandCases = [
+  { argv: ["vendors", "me"], path: "/v1/vendors/me", key: "vendors" },
+  {
+    argv: ["workspaces", "list"],
+    path: "/v1/users/me/organizations",
+    key: "workspaces",
+  },
+] as const;
+
+test("dispatches new read commands through their exact Core routes", async () => {
+  for (const testCase of newCommandCases) {
+    const output: string[] = [];
+    const paths: string[] = [];
+    await runCli([...testCase.argv, "--json"], {
+      env: {
+        SOKOSUMI_API_URL: "https://api.example.test",
+        SOKOSUMI_AUTH_TOKEN: "token",
+      },
+      authManager: createTestAuthManager(),
+      coreClient: {
+        get: async <T>(path: string) => {
+          paths.push(path);
+          return {
+            data: [{ id: testCase.key + "-1", role: "admin" }],
+          } as T;
+        },
+        post: async <T>() => ({ data: null }) as T,
+        patch: async <T>() => ({ data: null }) as T,
+        delete: async <T>() => ({ data: null }) as T,
+      },
+      stdout: { write: (value) => output.push(value) },
+    });
+    assert.deepEqual(paths, [testCase.path]);
+    assert.equal(output.length, 1);
+    const parsed = JSON.parse(output[0]!) as Record<string, { id: string }[]>;
+    if (testCase.key === "workspaces") {
+      assert.equal(
+        (parsed[testCase.key]?.[0] as { organizationId?: string })
+          ?.organizationId,
+        testCase.key + "-1",
+      );
+    } else {
+      assert.equal(parsed[testCase.key]?.[0]?.id, testCase.key + "-1");
+    }
+  }
+});
+
+test("new read commands reject unauthenticated calls before Core", async () => {
+  const authError = "Authentication required. Run `sokosumi auth login` first.";
+  for (const testCase of newCommandCases) {
+    const output: string[] = [];
+    let coreCalls = 0;
+    await assert.rejects(
+      runCli([...testCase.argv, "--json"], {
+        env: { SOKOSUMI_API_URL: "https://api.example.test" },
+        authManager: createTestAuthManager(),
+        coreClient: {
+          get: async <T>() => {
+            coreCalls += 1;
+            return {} as T;
+          },
+          post: async <T>() => {
+            coreCalls += 1;
+            return {} as T;
+          },
+          patch: async <T>() => {
+            coreCalls += 1;
+            return {} as T;
+          },
+          delete: async <T>() => {
+            coreCalls += 1;
+            return {} as T;
+          },
+        },
+        stdout: { write: (value) => output.push(value) },
+      }),
+      /Authentication required/,
+    );
+    assert.equal(coreCalls, 0);
+    assert.deepEqual(output, [JSON.stringify({ error: authError }) + "\n"]);
+  }
+});
+
+test("new commands require their exact subcommand and no trailing args", async () => {
+  const invalidArgs = [
+    ["vendors"],
+    ["workspaces"],
+    ["vendors", "me", "extra"],
+    ["workspaces", "list", "extra"],
+  ];
+  for (const args of invalidArgs) {
+    const output: string[] = [];
+    await assert.rejects(
+      runCli([...args, "--json"], {
+        env: {
+          SOKOSUMI_API_URL: "https://api.example.test",
+          SOKOSUMI_AUTH_TOKEN: "token",
+        },
+        authManager: createTestAuthManager(),
+        coreClient: {
+          get: async <T>() => ({}) as T,
+          post: async <T>() => ({}) as T,
+          patch: async <T>() => ({}) as T,
+          delete: async <T>() => ({}) as T,
+        },
+        stdout: { write: (value) => output.push(value) },
+      }),
+      /Usage:|Unexpected argument:/,
+    );
+    assert.equal(output.length, 1);
+  }
 });
 
 test("dispatches agents list through the injected Core client", async () => {

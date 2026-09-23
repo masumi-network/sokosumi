@@ -6,9 +6,24 @@ import {
   type ActionResultDto,
   toActionResult,
 } from "@/lib/actions/action-result";
-import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
-import { setPasswordViaCore } from "@/lib/auth/core-auth-http.server";
-import { type NewPasswordFormType, newPasswordFormSchema } from "@/lib/schemas";
+import type { ActionError } from "@/lib/actions/errors/action-error";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
+import {
+  resetPasswordViaCore,
+  setPasswordViaCore,
+} from "@/lib/auth/core-auth-http.server";
+import {
+  clearResetPasswordToken,
+  getResetPasswordToken,
+} from "@/lib/reset-password-token-cookie";
+import {
+  type NewPasswordFormType,
+  newPasswordFormSchema,
+} from "@/lib/schemas/account";
+import {
+  type ResetPasswordFormSchemaType,
+  resetPasswordFormSchema,
+} from "@/lib/schemas/auth";
 import { utmService } from "@/lib/services/utm.service";
 
 export async function createCredentialAccount(
@@ -50,6 +65,29 @@ export async function createCredentialAccount(
       );
     }
 
+    return toActionResult(err({ code: CommonErrorCode.INTERNAL_SERVER_ERROR }));
+  }
+}
+
+export async function resetPasswordWithToken(
+  data: ResetPasswordFormSchemaType,
+): Promise<ActionResultDto<void, ActionError>> {
+  const parsedResult = resetPasswordFormSchema().safeParse(data);
+  if (!parsedResult.success) {
+    return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
+  }
+
+  const token = await getResetPasswordToken();
+  if (!token) {
+    return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
+  }
+
+  try {
+    await resetPasswordViaCore(parsedResult.data.password, token);
+    await clearResetPasswordToken();
+    return toActionResult(ok());
+  } catch (error) {
+    console.error("Failed to reset password", error);
     return toActionResult(err({ code: CommonErrorCode.INTERNAL_SERVER_ERROR }));
   }
 }

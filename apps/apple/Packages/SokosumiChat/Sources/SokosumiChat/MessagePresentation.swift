@@ -1,13 +1,9 @@
 import CoreAPI
 import Foundation
 
-/// Slack-style gap before a same-sender burst starts a new full header.
-/// Mirrors web `MESSAGE_GROUP_GAP_MS`.
-public let messageGroupGapSeconds: TimeInterval = 5 * 60
-
 /// Stable sender identity for grouping; nil when identity is unknown.
 /// Mirrors web `messageSenderKey`.
-public func messageSenderKey(_ message: Components.Schemas.ChatRoomMessage) -> String? {
+private func messageSenderKey(_ message: Components.Schemas.ChatRoomMessage) -> String? {
   switch message.sender {
   case let .case1(user):
     "user:\(user.user.id)"
@@ -23,16 +19,16 @@ public func messageSenderKey(_ message: Components.Schemas.ChatRoomMessage) -> S
 /// True when `current` renders as a continuation of `previous` (no avatar /
 /// name / wall-clock; the group header time covers the burst). Mirrors web
 /// `isMessageContinuation`: same sender, same calendar day, `0 <= gap < 5m`,
-/// never across membership rows.
+/// never across status rows.
 public func isMessageContinuation(
   previous: Components.Schemas.ChatRoomMessage?,
   current: Components.Schemas.ChatRoomMessage,
-  gapSeconds: TimeInterval = messageGroupGapSeconds,
+  gapSeconds: TimeInterval = 5 * 60,
   calendar: Calendar = .current
 ) -> Bool {
   guard let previous else { return false }
-  // Membership status rows are not chat bubbles; never continue across them.
-  if previous.membership != nil || current.membership != nil {
+  // Status rows are not chat bubbles; never continue across them.
+  if isRoomStatusMessage(previous) || isRoomStatusMessage(current) {
     return false
   }
   guard let previousKey = messageSenderKey(previous),
@@ -87,8 +83,30 @@ public func daySeparatorLabel(
   return formatter.string(from: date)
 }
 
+/// A senderless status row (join/leave or Group name change): centered text, never
+/// reacted to, edited, quoted or grouped with a neighbour.
+public func isRoomStatusMessage(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
+  message.membership != nil || message.groupNameChange != nil
+}
+
+/// A Group name change row (ADR-0040): "{actor} named the group {name}" /
+/// "{actor} removed the group name". The app words it through its String Catalog.
+public enum GroupNameChangeStatus: Equatable, Sendable {
+  case named(actor: String, name: String)
+  case cleared(actor: String)
+
+  public init?(_ message: Components.Schemas.ChatRoomMessage) {
+    guard let change = message.groupNameChange else { return nil }
+    if change.action == .named, let name = change.name, !name.isEmpty {
+      self = .named(actor: change.actor.name, name: name)
+    } else {
+      self = .cleared(actor: change.actor.name)
+    }
+  }
+}
+
 /// Centered status text for join/leave rows ("{name} joined" / "{name} left").
-/// Mirrors web `MembershipStatusRow`. Nil when the message is not a
+/// Mirrors web `RoomStatusRow`. Nil when the message is not a
 /// membership row.
 public func membershipStatusText(_ message: Components.Schemas.ChatRoomMessage) -> String? {
   guard let membership = message.membership else { return nil }
@@ -106,6 +124,17 @@ public func membershipStatusText(_ message: Components.Schemas.ChatRoomMessage) 
   case .left:
     return "\(name) left"
   }
+}
+
+/// True when a link preview card renders at all: it has an image URL or a
+/// description, so a title-only card stays hidden. Decided on the persisted
+/// card, never on whether its image later loads. Mirrors web
+/// `unfurlCardHasPreviewContent`.
+public func unfurlCardHasPreviewContent(_ card: Components.Schemas.ChatRoomMessageUnfurl) -> Bool {
+  func hasText(_ value: String?) -> Bool {
+    !(value ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+  }
+  return hasText(card.imageUrl) || hasText(card.description)
 }
 
 /// Initials for avatar fallbacks: first letters of the first two words,

@@ -4,7 +4,7 @@ import { sourceImportSyncService } from "@/services/source-import-sync.service";
 
 import { handleSyncRequest } from "../handler.js";
 
-export const SOURCE_IMPORT_SYNC_LOCK_KEY = "source-import-sync";
+const SOURCE_IMPORT_SYNC_LOCK_KEY = "source-import-sync";
 
 export default function mount(app: Hono) {
   app.get("/source-import", async (c) => {

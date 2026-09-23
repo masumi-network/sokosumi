@@ -19,6 +19,7 @@ import {
 } from "@/app/chat/components/transcript-viewport";
 import { useQuietHoverWhileScrolling } from "@/app/chat/hooks/use-quiet-hover-while-scrolling";
 import { isCurrentUserMentionerOfFailedShell } from "@/app/chat/utils/coworker-thought";
+import { isRoomStatusMessage } from "@/app/chat/utils/room-status-message";
 import type { RoomTranscriptRenderRow } from "@/app/chat/utils/room-transcript-ranges";
 import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
 import { Button } from "@/components/ui/button";
@@ -31,7 +32,6 @@ import type {
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import type { ChatRoomMessageLink } from "@/lib/utils/notification-href";
-import { MembershipStatusRow } from "./membership-status-row";
 import { type RoomComposerHandle } from "./room-composer";
 import { RoomFileDropZone } from "./room-file-drop-zone";
 import {
@@ -46,6 +46,7 @@ import {
   type RoomSessionSendRequest,
   type RoomSessionSendResult,
 } from "./room-session-composer";
+import { RoomStatusRow } from "./room-status-row";
 import { ThreadMuteButton } from "./thread-mute-button";
 
 function buildThreadTranscriptRows(
@@ -273,8 +274,8 @@ export function ThreadPanel({
     const isParent = message.id === parentMessage.id;
     return (
       <div className="min-w-0 flow-root">
-        {message.membership != null ? (
-          <MembershipStatusRow message={message} />
+        {isRoomStatusMessage(message) ? (
+          <RoomStatusRow message={message} />
         ) : (
           <ChatMessageRow
             message={message}
@@ -301,7 +302,6 @@ export function ThreadPanel({
               isParent ? undefined : outboundSentTickIds?.has(message.id)
             }
             showThreadButton={false}
-            reserveHoverActionGutter={false}
             isContinuation={
               isParent ? false : isMessageContinuation(previousMessage, message)
             }

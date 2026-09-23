@@ -40,6 +40,9 @@ private func makeRoom(
   id: String,
   name: String,
   kind: Components.Schemas.ChatRoom.KindPayload = .channel,
+  isSelfDirect: Bool = false,
+  isGroupDirect: Bool = false,
+  groupName: String? = nil,
   discoverability: Components.Schemas.ChatRoom.DiscoverabilityPayload? = ._public,
   myAccess: Components.Schemas.ChatRoomAccess = .member,
   unreadCount: Int = 0,
@@ -55,7 +58,7 @@ private func makeRoom(
   .init(
     id: id,
     name: name,
-    kind: kind, isSelfDirect: false,
+    kind: kind, isSelfDirect: isSelfDirect, isGroupDirect: isGroupDirect, groupName: groupName,
     discoverability: kind == .channel ? discoverability : nil,
     createdByUserId: "user_1",
     createdAt: baseDate,
@@ -120,8 +123,8 @@ struct SidebarRoomsTests {
       makeRoom(id: "e1", name: "partner", discoverability: .external),
       makeRoom(id: "m1", name: "matched", discoverability: .matched),
       makeRoom(id: "g1", name: "guest-room", myAccess: .guest),
-      // Guest access always reads as External (checked before kind,
-      // mirroring web), even for a Direct.
+      // Guest access always reads as External (checked before kind),
+      // even for a Direct.
       makeRoom(id: "d2", name: "Guest Peer", kind: .direct, myAccess: .guest)
     ]
     let partitioned = partitionRoomsForSidebar(rooms)
@@ -214,6 +217,21 @@ struct SidebarRoomsTests {
     #expect(roomDisplayName(room, currentUserId: "me") == "Ann, Bob, Cat and 1 more")
   }
 
+  @Test func namedGroupDirectShowsItsGroupName() {
+    let members = [makePeer(id: "me", name: "Me"), makePeer(id: "a", name: "Ann"), makePeer(id: "b", name: "Bob")]
+    let named = makeRoom(id: "d1", name: "Ann, Bob", kind: .direct, isGroupDirect: true, groupName: "Launch crew", peers: members)
+    #expect(roomDisplayName(named, currentUserId: "me") == "Launch crew")
+    let unnamed = makeRoom(id: "d2", name: "Ann, Bob", kind: .direct, isGroupDirect: true, peers: members)
+    #expect(roomDisplayName(unnamed, currentUserId: "me") == "Ann, Bob")
+  }
+
+  @Test func oneToOneAndSelfDirectsKeepTheirNames() {
+    let oneToOne = makeRoom(id: "d1", name: "Ann", kind: .direct, peers: [makePeer(id: "me", name: "Me"), makePeer(id: "a", name: "Ann")])
+    #expect(roomDisplayName(oneToOne, currentUserId: "me") == "Ann")
+    let selfDirect = makeRoom(id: "d2", name: "Me", kind: .direct, isSelfDirect: true, peers: [makePeer(id: "me", name: "Me")])
+    #expect(roomDisplayName(selfDirect, currentUserId: "me") == "Me")
+  }
+
   @Test func oneToOneDirectAvatarExcludesSelfAndKeepsPeerImage() {
     let room = makeRoom(
       id: "d1", name: "Ada", kind: .direct,
@@ -296,19 +314,20 @@ struct SidebarRoomsTests {
     #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 2) == .init(bold: true, badgeCount: 2))
     #expect(resolveRoomAttention(unreadCount: 0, unreadMentionCount: 0, markedUnread: true) == .init(bold: true, badgeCount: 0))
     #expect(resolveRoomAttention(unreadCount: 5, unreadMentionCount: 2, isMuted: true) == .init(bold: false, badgeCount: 0))
-    // Selection is not a read event (ADR 0026). List highlight must not
-    // clear leftover unread — this slice has no history-resolved mark-read.
+    // Selection is not a read event (ADR 0026) and the resolver has no selection input, so
+    // the List highlight cannot clear leftover unread.
     #expect(resolveRoomAttention(unreadCount: 5, unreadMentionCount: 2) == .init(bold: true, badgeCount: 2))
     #expect(resolveRoomAttention(unreadCount: 0, unreadMentionCount: 0) == .init(bold: false, badgeCount: 0))
   }
 
-  @Test func unreadTextCountIsOptInAndObeysMuteAndTheOpenRoom() {
+  /// Was `…ObeysMuteAndTheOpenRoom`: its last line asserted a count of zero for `isActive`.
+  /// Web's resolver has no such input, so the argument is gone and only mute silences the count.
+  @Test func unreadTextCountIsOptInAndObeysMute() {
     #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 1).unreadTextCount == 0)
     #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 1, showUnreadCount: true) == .init(bold: true, badgeCount: 1, unreadTextCount: 3))
-    // Forced unread without messages stays bold with no number, like web.
+    // Forced unread without messages stays bold with no number.
     #expect(resolveRoomAttention(unreadCount: 0, unreadMentionCount: 0, markedUnread: true, showUnreadCount: true) == .init(bold: true, badgeCount: 0))
     #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 1, isMuted: true, showUnreadCount: true).unreadTextCount == 0)
-    #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 1, isActive: true, showUnreadCount: true).unreadTextCount == 0)
   }
 
   @Test func roomCountCapsAtNinetyNine() {
@@ -316,5 +335,27 @@ struct SidebarRoomsTests {
     #expect(roomUnreadAccessibilityLabel(1) == "1 unread message")
     #expect(roomUnreadAccessibilityLabel(42) == "42 unread messages")
     #expect(roomUnreadAccessibilityLabel(250) == "More than 99 unread messages")
+  }
+
+  /// Web `RoomMentionBadge` / `MentionAnnouncement`: nothing at zero, the shared cap above 99.
+  @Test(arguments: zip([-1, 0, 1, 42, 99, 100, 250], [nil, nil, "1", "42", "99", "99+", "99+"] as [String?]))
+  func mentionBadgeCapsAtNinetyNineAndHidesAtZero(mentions: Int, label: String?) {
+    #expect(resolveRoomAttention(unreadCount: max(0, mentions), unreadMentionCount: mentions).badgeLabel == label)
+  }
+
+  @Test(arguments: zip(
+    [-1, 0, 1, 42, 99, 100, 250],
+    [nil, nil, "1 mention", "42 mentions", "99 mentions", "More than 99 mentions", "More than 99 mentions"] as [String?]
+  ))
+  func mentionBadgeIsSpokenLikeWeb(mentions: Int, spoken: String?) {
+    #expect(resolveRoomAttention(unreadCount: max(0, mentions), unreadMentionCount: mentions).badgeAccessibilityLabel == spoken)
+  }
+
+  /// Was `mutedAndOpenRoomsShowNoMentionBadge`: the open-room half asserted no badge for
+  /// `isActive`. The open room now resolves like any other row; a real selection is covered by
+  /// `ConversationActionsTests.openRoomKeepsItsAttention` and the app's `OpenRoomAttentionTests`.
+  @Test func mutedRoomsShowNoMentionBadge() {
+    #expect(resolveRoomAttention(unreadCount: 250, unreadMentionCount: 250, isMuted: true).badgeLabel == nil)
+    #expect(resolveRoomAttention(unreadCount: 250, unreadMentionCount: 250, isMuted: true).badgeAccessibilityLabel == nil)
   }
 }

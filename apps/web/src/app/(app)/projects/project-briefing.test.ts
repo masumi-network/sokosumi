@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   countBriefingWords,
   insertBriefingHeading,
-  previewProjectBriefing,
 } from "@/app/projects/project-briefing";
 
 describe("countBriefingWords", () => {
@@ -14,19 +13,6 @@ describe("countBriefingWords", () => {
 
   it("counts whitespace-separated words", () => {
     expect(countBriefingWords("  Launch the  spring campaign  ")).toBe(4);
-  });
-});
-
-describe("previewProjectBriefing", () => {
-  it("returns an em dash when the briefing is empty", () => {
-    expect(previewProjectBriefing(null)).toBe("—");
-    expect(previewProjectBriefing("   ")).toBe("—");
-  });
-
-  it("strips markdown headings for the list preview", () => {
-    expect(previewProjectBriefing("## Goals\nWin the quarter")).toBe(
-      "Goals Win the quarter",
-    );
   });
 });
 

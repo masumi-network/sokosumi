@@ -8,6 +8,7 @@ import {
   PricingType,
   type Prisma,
 } from "@sokosumi/database";
+import type { PrismaRaw } from "@sokosumi/database/client";
 import { listV2RegistryPolicyIds } from "@sokosumi/masumi";
 import type { Agent as MasumiAgent } from "@sokosumi/masumi/types";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
@@ -458,7 +459,7 @@ export const calculateAverageExecutionTime = async (
   cutoffDate.setDate(cutoffDate.getDate() - TIME.AGENT_EXECUTION_METRICS_DAYS);
 
   const result = await tx.$queryRawUnsafe<
-    [{ avg_duration_seconds: typeof Prisma.Decimal | null }]
+    [{ avg_duration_seconds: PrismaRaw.Decimal | null }]
   >(
     `
     SELECT 

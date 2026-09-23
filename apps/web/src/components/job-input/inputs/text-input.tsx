@@ -1,5 +1,5 @@
 import type { InputTextSchemaType } from "@sokosumi/masumi/schemas";
-import type { InputType } from "@sokosumi/masumi/types";
+import { InputType } from "@sokosumi/masumi/types";
 
 import { Input } from "@/components/ui/input";
 
@@ -10,7 +10,7 @@ export function TextInput({
   field,
   jobInputSchema,
   controlProps,
-}: JobInputComponentProps<InputType.TEXT, InputTextSchemaType>) {
+}: JobInputComponentProps<typeof InputType.TEXT, InputTextSchemaType>) {
   const { data } = jobInputSchema;
   const defaultValue = data?.default ?? "";
 

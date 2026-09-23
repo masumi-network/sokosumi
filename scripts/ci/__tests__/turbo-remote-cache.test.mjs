@@ -124,6 +124,28 @@ describe("GitHub OIDC remote cache wiring", () => {
     assert.match(matrixCommand(test, "Packages"), /packages\/\*/);
   });
 
+  it("advisory matrix targets include local env, CI config, and cloud-agent-db", async () => {
+    const test = await readRepoFile(".github", "workflows", "test.yml");
+    assert.equal(matrixCommand(test, "Local env"), "pnpm local-env:test");
+    assert.equal(matrixCommand(test, "CI config"), "pnpm ci:test");
+    assert.equal(
+      matrixCommand(test, "Cloud agent db"),
+      "pnpm cloud-agent-db:test",
+    );
+  });
+
+  it("CI config also runs on markdown-only PRs", async () => {
+    const test = await readRepoFile(".github", "workflows", "test.yml");
+    const filter = await readRepoFile(".github", "js-paths-filter.yml");
+    assert.match(filter, /^docs:\n  - "\*\*\/\*\.md"$/m);
+    assert.match(jobBlock(test, "changes"), /steps\.filter\.outputs\.docs/);
+    const block = jobBlock(test, "test");
+    assert.match(
+      block,
+      /matrix\.target\.name == 'CI config' && needs\.changes\.outputs\.docs == 'true'/,
+    );
+  });
+
   it("pins Neon teardown to trusted default-branch checkout", async () => {
     const workflow = await readRepoFile(
       ".github",
@@ -143,6 +165,147 @@ describe("GitHub OIDC remote cache wiring", () => {
     assert.doesNotMatch(workflow, /pull_request\.head\.sha/);
     assert.doesNotMatch(workflow, /pull_request\.head\.ref/);
     assert.match(workflow, /secrets\.NEON_API_KEY/);
+  });
+
+  it("required JS jobs gate at step level so docs-only PRs still report", async () => {
+    const build = await readRepoFile(".github", "workflows", "build.yml");
+    const lint = await readRepoFile(".github", "workflows", "lint.yml");
+    const test = await readRepoFile(".github", "workflows", "test.yml");
+
+    for (const [file, yaml, jobId, gate] of [
+      [
+        "build.yml",
+        build,
+        "build",
+        /if: needs\.changes\.outputs\.js == 'true'/,
+      ],
+      ["lint.yml", lint, "biome", /if: needs\.changes\.outputs\.js == 'true'/],
+      [
+        "lint.yml",
+        lint,
+        "typecheck",
+        /if: needs\.changes\.outputs\.js == 'true'/,
+      ],
+      // test.yml indexes the filter per matrix leg so CLI can gate on its
+      // own path filter while the rest still gate on `js`.
+      [
+        "test.yml",
+        test,
+        "test",
+        /if: needs\.changes\.outputs\[matrix\.target\.filter\] == 'true'/,
+      ],
+    ]) {
+      const block = jobBlock(yaml, jobId);
+      const header = block.split(/\n    steps:\n/)[0];
+      assert.doesNotMatch(
+        header,
+        /^\s{4}if:/m,
+        `${file} job ${jobId} must not use job-level if (required checks skip)`,
+      );
+      assert.match(
+        block,
+        gate,
+        `${file} job ${jobId} must gate work steps on the path filter`,
+      );
+    }
+  });
+
+  it("Test CLI runs only when apps/cli changes", async () => {
+    const test = await readRepoFile(".github", "workflows", "test.yml");
+    const filter = await readRepoFile(".github", "js-paths-filter.yml");
+
+    // A single positive pattern, so `predicate-quantifier: every` at the
+    // call site behaves the same as the default `some`.
+    assert.match(filter, /^cli:\n  - "apps\/cli\/\*\*"$/m);
+    assert.match(jobBlock(test, "changes"), /steps\.filter\.outputs\.cli/);
+
+    const block = jobBlock(test, "test");
+    assert.match(block, /name: CLI,[^}]*filter: cli/);
+    for (const name of [
+      "Web",
+      "Core",
+      "Packages",
+      "Local env",
+      "CI config",
+      "Cloud agent db",
+    ]) {
+      assert.match(
+        block,
+        new RegExp(`name: ${name},[^}]*filter: js`),
+        `matrix target ${name} must stay on the js filter`,
+      );
+    }
+
+    // The built-binary smoke step is CLI-only, so it follows the CLI filter
+    // rather than the repo-wide js one.
+    assert.match(
+      block,
+      /Smoke the built CLI\n\s+if: matrix\.target\.name == 'CLI' && \(needs\.changes\.outputs\.cli == 'true'/,
+    );
+  });
+
+  it("CLI-only PRs skip the rest of CI", async () => {
+    const filter = await readRepoFile(".github", "js-paths-filter.yml");
+
+    // Build / Biome / Typecheck and the other test legs all gate on `js`,
+    // so excluding apps/cli here is what makes a CLI-only PR skip them.
+    assert.match(filter, /^js:\n(?:  - .*\n)*  - "!apps\/cli\/\*\*"$/m);
+  });
+
+  it("Test CLI carries the checks the js-gated jobs no longer run for it", async () => {
+    const test = await readRepoFile(".github", "workflows", "test.yml");
+    const block = jobBlock(test, "test");
+
+    // apps/cli is excluded from `js`, so root `pnpm typecheck` and
+    // `pnpm check` never see it on a CLI-only PR. tsx strips types rather
+    // than checking them, so without these the CLI loses type and lint
+    // coverage entirely. Root `pnpm build` is covered by the smoke step.
+    for (const [name, command] of [
+      ["Typecheck the CLI", /pnpm --filter @sokosumi\/cli typecheck/],
+      ["Lint the CLI", /biome check apps\/cli/],
+    ]) {
+      const step = block.match(
+        new RegExp(`- name: ${name}\\n([\\s\\S]*?)(?=\\n      - name:|$)`),
+      );
+      assert.ok(step, `missing step ${name}`);
+      assert.match(
+        step[1],
+        /if: matrix\.target\.name == 'CLI' && \(needs\.changes\.outputs\.cli == 'true'/,
+        `step ${name} must gate on the CLI filter`,
+      );
+      assert.match(step[1], command, `step ${name} runs the wrong command`);
+    }
+  });
+
+  it("shares one JS path-filter file across test/build/lint", async () => {
+    const filter = await readRepoFile(".github", "js-paths-filter.yml");
+    assert.match(filter, /^js:\s*$/m);
+    assert.match(filter, /!\*\*\/\*\.md/);
+
+    for (const file of ["test.yml", "build.yml", "lint.yml"]) {
+      const yaml = await readRepoFile(".github", "workflows", file);
+      assert.match(
+        yaml,
+        /filters:\s*\.github\/js-paths-filter\.yml/,
+        `${file} must use the shared JS path filter`,
+      );
+      assert.doesNotMatch(
+        yaml,
+        /filters:\s*\|/,
+        `${file} must not inline a duplicate paths-filter`,
+      );
+    }
+  });
+
+  it("setup action reads Node from .nvmrc", async () => {
+    const setup = await readRepoFile(
+      ".github",
+      "actions",
+      "setup",
+      "action.yml",
+    );
+    assert.match(setup, /node-version-file:\s*\.nvmrc/);
+    assert.doesNotMatch(setup, /node-version:\s*["']?\d+/);
   });
 
   it("does not use actions/cache on .turbo", async () => {
@@ -208,18 +371,16 @@ describe("Vercel web turbo build command", () => {
     const generateAt = script.indexOf(
       "pnpm --filter @sokosumi/database prisma:generate",
     );
-    const databaseBuildAt = script.indexOf(
-      "pnpm --filter @sokosumi/database run build",
-    );
     const tsupAt = script.lastIndexOf("pnpm run build");
     const migrateAt = script.indexOf("prisma:migrate:deploy");
     assert.ok(generateAt >= 0, "Core vercel-build must run prisma:generate");
-    assert.ok(
-      databaseBuildAt > generateAt,
-      "database tsc must follow prisma:generate",
-    );
-    assert.ok(tsupAt > databaseBuildAt, "Core tsup must follow database build");
+    assert.ok(tsupAt > generateAt, "Core tsup must follow prisma:generate");
     assert.ok(migrateAt > tsupAt, "migrate deploy must follow Core tsup");
+    assert.doesNotMatch(
+      script,
+      /@sokosumi\/database run build/,
+      "the database tsc step is gone (ADR 0035)",
+    );
   });
 
   it("runs turbo --filter=web and forces production only", async () => {

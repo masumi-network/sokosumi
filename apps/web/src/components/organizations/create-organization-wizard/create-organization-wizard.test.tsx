@@ -30,8 +30,7 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 
-vi.mock("@/components/design-md", () => ({
-  DESIGN_MD_TRANSLATION_NAMESPACE: "App.DesignMd",
+vi.mock("@/components/design-md/use-design-md-generation", () => ({
   useDesignMdGeneration: () => ({
     status: "idle",
     generate: vi.fn(),
@@ -39,12 +38,16 @@ vi.mock("@/components/design-md", () => ({
   }),
 }));
 
-vi.mock("@/lib/actions", () => ({
+vi.mock("@/lib/actions/organization/action", () => ({
   generateOrganizationSlug: (...args: unknown[]) =>
     generateOrganizationSlugMock(...args),
+  inviteOrganizationMembersBulk: vi.fn(),
+}));
+vi.mock("@/lib/actions/organization/invite-link-action", () => ({
   createOrganizationInviteLink: (...args: unknown[]) =>
     createOrganizationInviteLinkMock(...args),
-  inviteOrganizationMembersBulk: vi.fn(),
+}));
+vi.mock("@/lib/actions/organization/site-icon-action", () => ({
   resolveOrganizationSiteIcon: (...args: unknown[]) =>
     resolveOrganizationSiteIconMock(...args),
 }));

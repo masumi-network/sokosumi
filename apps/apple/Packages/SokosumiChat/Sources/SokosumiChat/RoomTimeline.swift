@@ -23,12 +23,29 @@ public final class RoomTimeline: ObservableObject {
   public private(set) var generation = 0
 
   @Published public private(set) var historicalAnchor: String?
+  /// Per gap row (row 04a). Visibility and taps come from the caller; the
+  /// page outcome settles it here, so the row is the only place a gap failure shows.
+  @Published public var boundaryLoads = TranscriptBoundaryLoads()
+  /// A latest refresh (realtime envelope, recovery poll) that arrived while a
+  /// gap page held the timeline. It runs through the latest-page path once the
+  /// gap settles, so a live message is not lost behind an auto-loaded gap.
+  public private(set) var pendingLatestRefresh = false
 
   private var activePage: Page?
   private var historyRanges = RoomHistoryRanges()
 
   public var historyGapMessageIds: Set<String> {
     historyRanges.gaps(in: messages)
+  }
+
+  /// The row above the oldest loaded range (web's boundary with `isGap: false`).
+  /// Its failure stays a transcript error too: that keeps the automatic older
+  /// load off until the reader asks again.
+  public var oldestBoundaryStatus: PageBoundaryStatus {
+    if isLoadingOlder {
+      return .loading
+    }
+    return failedPage == .older ? .failed : .idle
   }
 
   public func followLatest() {
@@ -42,6 +59,8 @@ public final class RoomTimeline: ObservableObject {
     activePage = nil
     historyRanges = RoomHistoryRanges()
     historicalAnchor = nil
+    boundaryLoads = TranscriptBoundaryLoads()
+    pendingLatestRefresh = false
     self.roomId = roomId
     self.parentMessageId = parentMessageId
     messages = []
@@ -79,18 +98,48 @@ public final class RoomTimeline: ObservableObject {
     organizationSlug: String?,
     generation expectedGeneration: Int
   ) async throws -> Bool {
-    guard let roomId, generation == expectedGeneration, activePage == nil else { return false }
+    guard generation == expectedGeneration else { return false }
+    if isFillingGap, kind == .latest {
+      pendingLatestRefresh = true
+      return false
+    }
+    let result: Result<Bool, Error>
+    do {
+      result = try await .success(runPage(kind, client: client, organizationSlug: organizationSlug, generation: expectedGeneration))
+    } catch {
+      result = .failure(error)
+    }
+    if case .boundary = kind, pendingLatestRefresh, generation == expectedGeneration {
+      // The gap settled either way; the refresh it held back runs now, through
+      // the same latest-page path a poll would take (its failure is that page's).
+      pendingLatestRefresh = false
+      _ = try? await loadPage(.latest, client: client, organizationSlug: organizationSlug, generation: expectedGeneration)
+    }
+    return try result.get()
+  }
+
+  /// A gap page holds the timeline; a latest refresh asked for meanwhile waits for it.
+  public var isFillingGap: Bool {
+    if case .boundary = activePage {
+      return true
+    }
+    return false
+  }
+
+  private func runPage(
+    _ kind: Page,
+    client: Client,
+    organizationSlug: String?,
+    generation expectedGeneration: Int
+  ) async throws -> Bool {
+    guard let roomId, activePage == nil else { return false }
     let requestedCursor: String? = if case let .boundary(id) = kind {
       id
     } else {
       kind == .older ? cursor : nil
     }
     guard kind != .older || requestedCursor != nil else { return false }
-    activePage = kind
-    isLoading = kind == .initial
-    isLoadingOlder = kind == .older
-    isRefreshing = kind != .initial && kind != .older
-    errorMessage = nil
+    beginPage(kind)
     defer {
       if generation == expectedGeneration {
         activePage = nil
@@ -99,23 +148,64 @@ public final class RoomTimeline: ObservableObject {
         isRefreshing = false
       }
     }
-    guard !Task.isCancelled else { return false }
+    guard !Task.isCancelled else {
+      abandonBoundary(kind)
+      return false
+    }
     do {
-      let around: String? = if case let .around(messageId) = kind {
-        messageId
-      } else {
-        nil
+      let page = try await fetchPage(kind, client: client, roomId: roomId, cursor: requestedCursor, organizationSlug: organizationSlug)
+      guard generation == expectedGeneration, !Task.isCancelled else {
+        if generation == expectedGeneration {
+          abandonBoundary(kind)
+        }
+        return false
       }
-      let page = try await fetchPage(client: client, roomId: roomId, cursor: requestedCursor, around: around, organizationSlug: organizationSlug)
-      guard generation == expectedGeneration, !Task.isCancelled else { return false }
       try applyPage(page, kind: kind, roomId: roomId, requestedCursor: requestedCursor)
+      settleBoundary(kind, succeeded: true)
       return true
     } catch {
       if generation == expectedGeneration, !Task.isCancelled {
-        failedPage = kind
-        errorMessage = friendlyMessage(for: error)
+        recordFailure(error, kind: kind)
       }
       throw error
+    }
+  }
+
+  private func beginPage(_ kind: Page) {
+    activePage = kind
+    isLoading = kind == .initial
+    isLoadingOlder = kind == .older
+    isRefreshing = kind != .initial && kind != .older
+    // A gap page must not dismiss an older or latest failure. `errorMessage`
+    // is what keeps automatic older loading off until the reader asks again.
+    if case let .boundary(cursorMessageId) = kind {
+      boundaryLoads.begin(cursorMessageId)
+    } else {
+      errorMessage = nil
+    }
+  }
+
+  /// Web keeps a gap's failure on its row (`boundaryStatus`), not in a toast;
+  /// here a transcript error would show a banner and an alert.
+  private func recordFailure(_ error: Error, kind: Page) {
+    if case .boundary = kind {
+      settleBoundary(kind, succeeded: false)
+    } else {
+      failedPage = kind
+      errorMessage = friendlyMessage(for: error)
+    }
+  }
+
+  private func settleBoundary(_ kind: Page, succeeded: Bool) {
+    if case let .boundary(cursorMessageId) = kind {
+      boundaryLoads.settle(cursorMessageId, succeeded: succeeded)
+    }
+  }
+
+  /// The request never ran (cancelled): the row goes back to a tap.
+  private func abandonBoundary(_ kind: Page) {
+    if case let .boundary(cursorMessageId) = kind {
+      boundaryLoads.release(cursorMessageId)
     }
   }
 
@@ -135,8 +225,13 @@ public final class RoomTimeline: ObservableObject {
     let nextCursor = page.nextCursor == requestedCursor ? nil : page.nextCursor
     mergeHistory(rows, kind: kind, requestedCursor: requestedCursor, nextCursor: nextCursor)
     messages = mergeRealtimePage(messages: messages, page: rows)
+    boundaryLoads.retain(historyGapMessageIds)
     hasLoadedHistory = true
     hasMore = cursor != nil
+    // A filled gap is not a retry of the older or latest page.
+    if case .boundary = kind {
+      return
+    }
     errorMessage = nil
     failedPage = nil
   }
@@ -162,8 +257,13 @@ public final class RoomTimeline: ObservableObject {
   }
 
   private func fetchPage(
-    client: Client, roomId: String, cursor: String?, around: String?, organizationSlug: String?
+    _ kind: Page, client: Client, roomId: String, cursor: String?, organizationSlug: String?
   ) async throws -> (messages: [Components.Schemas.ChatRoomMessage], nextCursor: String?) {
+    let around: String? = if case let .around(messageId) = kind {
+      messageId
+    } else {
+      nil
+    }
     if let parentMessageId {
       return try await ChatService().listThreadMessages(
         client: client, roomId: roomId, parentMessageId: parentMessageId,

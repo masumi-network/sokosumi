@@ -12,12 +12,18 @@ import {
 
 import { requireTaskScheduleWriteAccess } from "@/helpers/access-control";
 import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
-import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
+import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
+import {
+  lockCalendarScope,
+  lockTaskRows,
+  requireOpenCalendarProject,
+} from "@/helpers/calendar-locks";
 import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { resolveTaskEventActorFields } from "@/helpers/task-event-actor";
+import { notifyTaskCalendarAction } from "@/helpers/task-notifications";
 import { buildTaskScheduleMetadataV2 } from "@/helpers/task-schedule";
 import {
   CALENDAR_OCCURRENCE_HORIZON_MS,
@@ -155,9 +161,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const result = await serializableTransaction(async (tx) => {
       if (
-        !(await lockCalendarScope(tx, existingTask.workspaceId, [
-          existingTask.projectId,
-        ])) ||
+        !(await lockCalendarScope(
+          tx,
+          existingTask.workspaceId,
+          [existingTask.projectId],
+          userContext?.userId,
+        )) ||
         !(await lockTaskRows(tx, [id]))
       ) {
         throw conflict("Task changed during occurrence mutation");
@@ -186,10 +195,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
       if (replayPayload) {
         const storedResponse = taskScheduleOccurrenceMutationSchema.safeParse(
-          replayPayload.response,
+          replayPayload.payload.response,
         );
         if (storedResponse.success) {
-          return storedResponse.data;
+          return {
+            response: storedResponse.data,
+            notification: {
+              eventId: replayPayload.eventId,
+              actorUserId: replayPayload.actorUserId,
+              ownerId: currentTask.ownerId,
+              taskName: currentTask.name,
+            },
+          };
         }
 
         // Reschedule operations created before response snapshots were added
@@ -202,17 +219,31 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             },
           },
         });
-        return taskScheduleOccurrenceMutationSchema.parse({
-          scheduleRevision: currentTask.scheduleRevision,
-          occurrence: {
-            ...replayed,
-            sourceId: getCalendarSourceId(replayed),
-            isMissed:
-              replayed.state === TaskScheduleOccurrenceState.PLANNED &&
-              replayed.effectiveScheduledAt < now,
+        return {
+          response: taskScheduleOccurrenceMutationSchema.parse({
+            scheduleRevision: currentTask.scheduleRevision,
+            occurrence: {
+              ...replayed,
+              sourceId: getCalendarSourceId(replayed),
+              isMissed:
+                replayed.state === TaskScheduleOccurrenceState.PLANNED &&
+                replayed.effectiveScheduledAt < now,
+            },
+          }),
+          notification: {
+            eventId: replayPayload.eventId,
+            actorUserId: replayPayload.actorUserId,
+            ownerId: currentTask.ownerId,
+            taskName: currentTask.name,
           },
-        });
+        };
       }
+
+      await requireOpenCalendarProject(
+        tx,
+        currentTask.workspaceId,
+        currentTask.projectId,
+      );
 
       if (expectedScheduleRevision !== currentTask.scheduleRevision) {
         throw conflict(
@@ -285,7 +316,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         action === "reschedule" &&
         occurrence.effectiveScheduledAt.getTime() === target.getTime()
       ) {
-        return { scheduleRevision: currentTask.scheduleRevision, occurrence };
+        return {
+          response: {
+            scheduleRevision: currentTask.scheduleRevision,
+            occurrence,
+          },
+          notification: null,
+        };
       }
 
       const oneTimeMutation = buildOneTimeScheduleMutation(
@@ -361,7 +398,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
       });
 
-      await tx.taskEvent.create({
+      const event = await tx.taskEvent.create({
         data: {
           taskId: id,
           ...actorFields,
@@ -386,9 +423,32 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         select: { id: true },
       });
 
-      return response;
+      return {
+        response,
+        notification: {
+          eventId: event.id,
+          actorUserId: userContext?.userId ?? null,
+          ownerId: currentTask.ownerId,
+          taskName: currentTask.name,
+        },
+      };
     }, "Task schedule changed during occurrence mutation");
 
-    return ok(c, result);
+    await Promise.all([
+      result.notification
+        ? notifyTaskCalendarAction({
+            taskId: id,
+            taskName: result.notification.taskName,
+            ownerId: result.notification.ownerId,
+            actorUserId: result.notification.actorUserId,
+            eventId: result.notification.eventId,
+            messageKey: "Notifications.Task.scheduleOccurrenceChangedByMember",
+            action: `${action}_occurrence`,
+          })
+        : Promise.resolve(),
+      deliverCalendarInvalidationsNow(existingTask.workspaceId),
+    ]);
+
+    return ok(c, result.response);
   });
 }

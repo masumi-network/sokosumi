@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { runDiscoverCommand } from "../../../src/cli/commands/discover.js";
+import {
+  CLI_COMMANDS,
+  runDiscoverCommand,
+} from "../../../src/cli/commands/discover.js";
 
 const config = {
   target: "mainnet" as const,
@@ -25,11 +28,10 @@ test("discover JSON lists the current command catalog", async () => {
   };
   assert.equal(result.apiUrl, config.apiUrl);
   assert.equal(result.environment, "mainnet");
-  assert.ok(result.commands.includes("agents list"));
-  assert.ok(result.commands.includes("jobs input"));
+  assert.deepEqual(result.commands, [...CLI_COMMANDS]);
 });
 
-test("TestV55 discover sanitizes the API URL in JSON and text output", async () => {
+test("discover sanitizes the API URL in JSON and text output", async () => {
   const customConfig = {
     ...config,
     target: "custom" as const,
@@ -82,7 +84,7 @@ test("discover collects Core resources with stable JSON fields", async () => {
   assert.equal(result.jobs[0]?.id, "job-1");
 });
 
-test("TestV47 discover JSON redacts credential assignments in errors", async () => {
+test("discover JSON redacts credential assignments in errors", async () => {
   const apiKey = "discover-api-key";
   const refreshToken = "discover-refresh-token";
   const output: string[] = [];

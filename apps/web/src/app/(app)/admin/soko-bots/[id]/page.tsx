@@ -8,6 +8,8 @@ import { AdminTurnsPanel } from "@/components/admin/soko-bots/admin-turns-panel"
 import { QualityOverview } from "@/components/admin/soko-bots/quality-overview";
 import { adminSokoBotService } from "@/lib/services/admin-soko-bot.service";
 
+export const instant = false;
+
 export const metadata: Metadata = {
   title: "Soko Bot",
   description: "Soko Bot operator status",

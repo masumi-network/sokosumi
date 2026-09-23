@@ -41,7 +41,6 @@ yarn-error.log*
 
 # reports
 lint-report.json
-.cursor/sokosumi-perf*
 .cursor/cloud-agent-db.state.json
 .cursor/cloud-agent-db.env
 .cursor/cloud-agent-db.urls.json
@@ -70,3 +69,9 @@ lint-report.json
 
 # Xcode per-user state
 **/xcuserdata/
+
+# Xcode Cloud product mapping. Xcode writes this when it opens a project that
+# is onboarded to Xcode Cloud; it only maps the local targets to the App Store
+# Connect product. Xcode Cloud reads its workflows from App Store Connect, not
+# from the repository, so builds have never needed this file.
+**/xcshareddata/xcodecloud/

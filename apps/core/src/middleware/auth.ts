@@ -536,89 +536,76 @@ async function verifyOAuthToken(
   c: Context<AuthEnv>,
 ): Promise<boolean> {
   const hashedToken = await hashAccessToken(token);
-  const oauthToken = await prisma.$transaction(async (tx) => {
-    const oauthToken = await tx.oauthAccessToken.findUnique({
-      where: { token: hashedToken },
-      include: {
-        refreshToken: true,
-        user: {
-          select: BEARER_USER_SELECT,
-        },
-        client: {
-          select: {
-            disabled: true,
-            scopes: true,
-          },
+  const oauthToken = await prisma.oauthAccessToken.findUnique({
+    where: { token: hashedToken },
+    include: {
+      refreshToken: true,
+      user: {
+        select: BEARER_USER_SELECT,
+      },
+      client: {
+        select: {
+          disabled: true,
+          scopes: true,
         },
       },
-    });
-
-    if (!oauthToken) {
-      return null;
-    }
-
-    // Check if token is expired
-    if (oauthToken.expiresAt < new Date()) {
-      return null;
-    }
-
-    // This access token revoked on its own. The refresh-token check below
-    // covers a revoked grant, not a single token withdrawn from it.
-    if (oauthToken.revoked) {
-      return null;
-    }
-
-    // Verify user exists (OAuth tokens should have a userId)
-    if (!oauthToken.userId) {
-      return null;
-    }
-
-    // A ban clears sessions but leaves bearer tokens usable until they expire.
-    if (!isActiveUser(oauthToken.user)) {
-      return null;
-    }
-
-    // Identity-only tokens (openid without sokosumi:api) cannot call Core API.
-    if (!hasCoreApiOAuthScope(oauthToken.scopes)) {
-      return null;
-    }
-
-    // Check if refresh token is revoked (if token has a refreshId)
-    if (oauthToken.refreshId && oauthToken.refreshToken) {
-      if (oauthToken.refreshToken.revoked) {
-        return null;
-      }
-    }
-
-    // Client allow-list must still include Core API (e.g. after privilege reduction).
-    // Check before consent so disabled/reduced clients skip the consent query.
-    const client = oauthToken.client;
-    if (!client || client.disabled || !hasCoreApiOAuthScope(client.scopes)) {
-      return null;
-    }
-
-    // Verify that consent still exists (user hasn't revoked access)
-    // and still grants Core API scope.
-    const consent = await tx.oauthConsent.findFirst({
-      where: {
-        userId: oauthToken.userId,
-        clientId: oauthToken.clientId,
-      },
-      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-      select: {
-        id: true,
-        scopes: true,
-      },
-    });
-
-    if (!consent || !hasCoreApiOAuthScope(consent.scopes)) {
-      return null;
-    }
-
-    return oauthToken;
+    },
   });
 
-  if (!oauthToken || !oauthToken.userId) {
+  if (!oauthToken) {
+    return false;
+  }
+
+  if (oauthToken.expiresAt < new Date()) {
+    return false;
+  }
+
+  // This access token revoked on its own. The refresh-token check below
+  // covers a revoked grant, not a single token withdrawn from it.
+  if (oauthToken.revoked) {
+    return false;
+  }
+
+  if (!oauthToken.userId) {
+    return false;
+  }
+
+  // A ban clears sessions but leaves bearer tokens usable until they expire.
+  if (!isActiveUser(oauthToken.user)) {
+    return false;
+  }
+
+  // Identity-only tokens (openid without sokosumi:api) cannot call Core API.
+  if (!hasCoreApiOAuthScope(oauthToken.scopes)) {
+    return false;
+  }
+
+  if (oauthToken.refreshId && oauthToken.refreshToken) {
+    if (oauthToken.refreshToken.revoked) {
+      return false;
+    }
+  }
+
+  // Client allow-list must still include Core API (e.g. after privilege reduction).
+  // Check before consent so disabled/reduced clients skip the consent query.
+  const client = oauthToken.client;
+  if (!client || client.disabled || !hasCoreApiOAuthScope(client.scopes)) {
+    return false;
+  }
+
+  const consent = await prisma.oauthConsent.findFirst({
+    where: {
+      userId: oauthToken.userId,
+      clientId: oauthToken.clientId,
+    },
+    orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+    select: {
+      id: true,
+      scopes: true,
+    },
+  });
+
+  if (!consent || !hasCoreApiOAuthScope(consent.scopes)) {
     return false;
   }
 
@@ -628,9 +615,7 @@ async function verifyOAuthToken(
       actor: "user",
       userId: oauthToken.userId,
       organizationId: null,
-      // `isActiveUser` already proved `user` is there, but the narrowing does
-      // not cross the transaction boundary, so the fallback stays.
-      role: oauthToken.user?.role ?? DEFAULT_USER_ROLE,
+      role: oauthToken.user.role ?? DEFAULT_USER_ROLE,
       authenticationMethod: "oauth",
     },
   });
@@ -652,13 +637,11 @@ const bearerMiddleware: MiddlewareHandler<AuthEnv> = bearerAuth({
       throw unauthorized("Invalid or expired agent token");
     }
 
-    // Check 2: Better Auth API key
     const apiKeyValid = await verifyApiKey(token, c);
     if (apiKeyValid) {
       return true;
     }
 
-    // Check 3: OAuth Access Token
     const oauthTokenValid = await verifyOAuthToken(token, c);
     if (oauthTokenValid) {
       return true;

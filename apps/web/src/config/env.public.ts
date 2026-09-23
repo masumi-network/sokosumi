@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-properties */
 import * as z from "zod";
 
 const optionalVercelUrlSchema = z
@@ -13,6 +12,7 @@ const envPublicConfigSchema = z.object({
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().min(1).optional(),
   NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID: z.string().optional(),
   NEXT_PUBLIC_GOOGLE_ANALYTICS_ID: z.string().optional(),
+  NEXT_PUBLIC_SENTRY_DSN: z.string().optional(),
   NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME: z.coerce
     .number()
     .min(0)
@@ -25,9 +25,7 @@ const envPublicConfigSchema = z.object({
     .default(256),
 
   NEXT_PUBLIC_MASUMI_URL: z.url().default("https://www.masumi.network"),
-  NEXT_PUBLIC_KODOSUMI_URL: z.url().default("https://kodosumi.com"),
   NEXT_PUBLIC_SOKOSUMI_URL: z.url().default("https://app.sokosumi.com"),
-  NEXT_PUBLIC_HANNAH_URL: z.url().default("https://hannah.sumike.ai"),
   NEXT_PUBLIC_MCP_URL: z.url().default("https://mcp.sokosumi.com"),
   NEXT_PUBLIC_CORE_APP_BASE_URL: z.url().optional(),
   NEXT_PUBLIC_NETWORK: z
@@ -56,6 +54,7 @@ function validateEnv() {
       process.env.NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID,
     NEXT_PUBLIC_GOOGLE_ANALYTICS_ID:
       process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID,
+    NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
     NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME:
       process.env.NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
     NEXT_PUBLIC_PASSWORD_MIN_LENGTH:
@@ -63,9 +62,7 @@ function validateEnv() {
     NEXT_PUBLIC_PASSWORD_MAX_LENGTH:
       process.env.NEXT_PUBLIC_PASSWORD_MAX_LENGTH,
     NEXT_PUBLIC_MASUMI_URL: process.env.NEXT_PUBLIC_MASUMI_URL,
-    NEXT_PUBLIC_KODOSUMI_URL: process.env.NEXT_PUBLIC_KODOSUMI_URL,
     NEXT_PUBLIC_SOKOSUMI_URL: process.env.NEXT_PUBLIC_SOKOSUMI_URL,
-    NEXT_PUBLIC_HANNAH_URL: process.env.NEXT_PUBLIC_HANNAH_URL,
     NEXT_PUBLIC_MCP_URL: process.env.NEXT_PUBLIC_MCP_URL,
     NEXT_PUBLIC_CORE_APP_BASE_URL: process.env.NEXT_PUBLIC_CORE_APP_BASE_URL,
     NEXT_PUBLIC_NETWORK: process.env.NEXT_PUBLIC_NETWORK,

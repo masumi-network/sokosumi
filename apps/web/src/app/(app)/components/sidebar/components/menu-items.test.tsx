@@ -107,7 +107,8 @@ vi.mock("next/link", () => ({
 }));
 
 import MenuItems from "@/app/components/sidebar/components/menu-items";
-import { OrganizationSeatProvider } from "@/contexts/organization-seat-context";
+import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
+import { TestQueryProvider } from "@/test/query-provider";
 
 let sidebarIsMobile = true;
 
@@ -118,9 +119,11 @@ function renderMenu(
 ) {
   sidebarIsMobile = isMobile;
   return render(
-    <OrganizationSeatProvider hasAssignedSeat={hasAssignedSeat}>
-      <MenuItems calendarMenuEnabled={calendarMenuEnabled} />
-    </OrganizationSeatProvider>,
+    <TestQueryProvider>
+      <OrganizationSeatContext value={hasAssignedSeat}>
+        <MenuItems calendarMenuEnabled={calendarMenuEnabled} />
+      </OrganizationSeatContext>
+    </TestQueryProvider>,
   );
 }
 
@@ -209,9 +212,11 @@ describe("MenuItems search action", () => {
 
     sidebarIsMobile = true;
     rerender(
-      <OrganizationSeatProvider hasAssignedSeat>
-        <MenuItems calendarMenuEnabled />
-      </OrganizationSeatProvider>,
+      <TestQueryProvider>
+        <OrganizationSeatContext value={true}>
+          <MenuItems calendarMenuEnabled />
+        </OrganizationSeatContext>
+      </TestQueryProvider>,
     );
 
     expect(screen.getByRole("link", { name: /calendar/i })).toHaveAttribute(
@@ -276,7 +281,11 @@ describe("MenuItems search action", () => {
   });
 
   it("keeps the separator under New Task on the collapsed rail", () => {
-    const { container } = render(<MenuItems calendarMenuEnabled={false} />);
+    const { container } = render(
+      <TestQueryProvider>
+        <MenuItems calendarMenuEnabled={false} />
+      </TestQueryProvider>,
+    );
     const separator = container.querySelector('li[aria-hidden="true"]');
 
     // The one action set apart from the destinations under it. It used to be
@@ -293,7 +302,11 @@ describe("MenuItems search action", () => {
   });
 
   it("leaves only the icon in the flow on the collapsed rail, so the square centres it", () => {
-    render(<MenuItems calendarMenuEnabled={false} />);
+    render(
+      <TestQueryProvider>
+        <MenuItems calendarMenuEnabled={false} />
+      </TestQueryProvider>,
+    );
     const link = screen.getByRole("link", { name: "exploreAgents" });
     // The icon rides the shared 24px slot, so a nav mark sits on the same
     // axis a room's mark does — and the label after it on the same column.
@@ -301,12 +314,34 @@ describe("MenuItems search action", () => {
     expect(slot?.querySelector("svg")).not.toBeNull();
     const label = slot?.nextElementSibling;
     expect(label).not.toBeNull();
+    // Shared label class: still in the flow and the accessibility tree.
+    // `absolute` painted the name on the mark; `sr-only` clipped it on
+    // frame one. max-width eases to 0 instead.
     expect(label?.className.split(/\s+/)).toContain(
+      "group-data-[collapsible=icon]:max-w-0",
+    );
+    expect(label?.className.split(/\s+/)).not.toContain(
       "group-data-[collapsible=icon]:sr-only",
     );
     expect(label?.className.split(/\s+/)).not.toContain(
       "group-data-[collapsible=icon]:hidden",
     );
+  });
+
+  it("keeps the New Task pill's inset and padding across the collapse", () => {
+    renderMenu(true, true, false);
+    const pill = document.querySelector("[data-sidebar-new-task]");
+    // The rail square's own 4px inset and padding, at every width, so the
+    // collapse narrows the pill without sliding its edge.
+    expect(pill?.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["ml-1", "pl-1", "w-[calc(100%-0.5rem)]"]),
+    );
+    // And the name clips instead of re-ellipsizing on every frame.
+    expect(
+      pill
+        ?.querySelector('[data-slot="sidebar-row-slot"]')
+        ?.nextElementSibling?.className.split(/\s+/),
+    ).toContain("text-clip!");
   });
 
   it("gives every menu item its label as a hover hint for the collapsed rail", () => {
@@ -318,7 +353,10 @@ describe("MenuItems search action", () => {
       "newTask",
       "searchCtrl+K",
       "exploreAgents",
-      "projects",
+      // Projects answers hover with its flyout, so it passes no tooltip that
+      // would race the panel to the same spot; the panel's own heading names
+      // it there.
+      "",
       "taskManager",
       "calendar",
       "drive",

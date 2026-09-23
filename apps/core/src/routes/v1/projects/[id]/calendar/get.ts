@@ -17,7 +17,7 @@ import {
   getCalendarTaskWhere,
   parseWorkspaceCalendarQuery,
   readWorkspaceCalendar,
-} from "@/routes/v1/workspaces/[id]/calendar/get";
+} from "@/routes/v1/workspaces/calendar/read";
 import {
   projectCalendarQuerySchema,
   workspaceCalendarItemSchema,

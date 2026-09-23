@@ -145,7 +145,7 @@ test("ignores credentials in local dotenv while retaining explicit environment c
   }
 });
 
-test("TestV23 hosted OAuth resolves legacy web auth proxy to Core auth", () => {
+test("hosted OAuth resolves legacy web auth proxy to Core auth", () => {
   const fixture = createFixture();
   try {
     writeFileSync(
@@ -177,7 +177,7 @@ test("TestV23 hosted OAuth resolves legacy web auth proxy to Core auth", () => {
   }
 });
 
-test("TestV24 hosted OAuth derives auth base from selected target", () => {
+test("hosted OAuth derives auth base from selected target", () => {
   const fixture = createFixture();
   try {
     writeFileSync(
@@ -215,7 +215,15 @@ test("TestV24 hosted OAuth derives auth base from selected target", () => {
   }
 });
 
-test("TestV61 canonical API URL sanitizer removes standalone key credentials", () => {
+test("custom target does not fall back to sokosumi_cli client id", () => {
+  const config = resolveCliConfig({
+    env: { SOKOSUMI_API_URL: "https://api.example.test" },
+  });
+  assert.equal(config.clientId, "");
+  assert.equal(config.authBaseUrl, "https://api.example.test/auth");
+});
+
+test("canonical API URL sanitizer removes standalone key credentials", () => {
   const apiUrl =
     "https://user:password@host/api?API_KEY=secret&key=key-value&access_key=access-value&region=west&monkey=banana#fragment";
 

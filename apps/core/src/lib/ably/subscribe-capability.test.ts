@@ -14,17 +14,48 @@ describe("buildAblyClientCapability", () => {
       userId: "user_123",
       roomIds: ["room-a", "room-b"],
       organizationIds: [],
+      workspaceIds: ["workspace-personal"],
       notificationChannelEnvironment: NON_PREVIEW_ENVIRONMENT,
     });
 
     expect(capability).toEqual({
       "agent_jobs:*:user_user_123": ["subscribe"],
       "tasks:all:user_user_123": ["subscribe"],
-      "notifications:all:user_user_123": ["subscribe", "push-subscribe"],
+      "notifications:all:user_user_123": [
+        "subscribe",
+        "presence",
+        "push-subscribe",
+      ],
       "chat_control:user_user_123": ["subscribe"],
+      "calendar_control:user_user_123": ["subscribe"],
+      "calendar:workspace_workspace-personal:user_user_123": ["subscribe"],
       "chat_rooms:room_room-a": ["subscribe"],
       "chat_rooms:room_room-b": ["subscribe"],
+      "chat_typing:room_room-a": ["publish", "subscribe"],
+      "chat_typing:room_room-b": ["publish", "subscribe"],
     });
+  });
+
+  // ADR-0033: Typing is publishable by the browser, room messages are not.
+  // If `publish` ever reaches a chat_rooms channel, a room member can forge a
+  // chat_room_message that every client renders as genuine.
+  it("grants publish on typing channels and nowhere else", () => {
+    const capability = buildAblyClientCapability({
+      userId: "user_123",
+      roomIds: ["room-a", "room-b"],
+      organizationIds: ["org_a"],
+      workspaceIds: [],
+      notificationChannelEnvironment: NON_PREVIEW_ENVIRONMENT,
+    });
+
+    expect(
+      Object.entries(capability)
+        .filter(([, ops]) => ops.includes("publish"))
+        .map(([channel]) => channel)
+        .sort(),
+    ).toEqual(["chat_typing:room_room-a", "chat_typing:room_room-b"]);
+    expect(capability["chat_rooms:room_room-a"]).toEqual(["subscribe"]);
+    expect(capability["chat_rooms:room_room-b"]).toEqual(["subscribe"]);
   });
 
   // buildAblyClientCapability, not the buildAblySubscribeCapability wrapper:
@@ -35,11 +66,13 @@ describe("buildAblyClientCapability", () => {
       userId: "user_123",
       roomIds: ["room-a"],
       organizationIds: ["org_a"],
+      workspaceIds: ["workspace-personal", "workspace-org-a"],
       notificationChannelEnvironment: NON_PREVIEW_ENVIRONMENT,
     });
 
     expect(capability["notifications:all:user_user_123"]).toEqual([
       "subscribe",
+      "presence",
       "push-subscribe",
     ]);
     expect(
@@ -54,6 +87,7 @@ describe("buildAblyClientCapability", () => {
       userId: "user_123",
       roomIds: [],
       organizationIds: [],
+      workspaceIds: [],
       notificationChannelEnvironment: {
         network: "Mainnet",
         vercelEnv: "preview",
@@ -66,7 +100,7 @@ describe("buildAblyClientCapability", () => {
       capability[
         "notifications:preview:mainnet:branch_fix%2Fpush-urls:user_user_123"
       ],
-    ).toEqual(["subscribe", "push-subscribe"]);
+    ).toEqual(["subscribe", "presence", "push-subscribe"]);
   });
 
   it("grants presence on each organization channel", () => {
@@ -74,6 +108,7 @@ describe("buildAblyClientCapability", () => {
       userId: "user_123",
       roomIds: ["room-a"],
       organizationIds: ["org_a", "org_b"],
+      workspaceIds: ["workspace-org-a", "workspace-org-b"],
       notificationChannelEnvironment: NON_PREVIEW_ENVIRONMENT,
     });
 
@@ -87,6 +122,7 @@ describe("buildAblyClientCapability", () => {
       userId: "user_123",
       roomIds: [],
       organizationIds: [],
+      workspaceIds: [],
       notificationChannelEnvironment: NON_PREVIEW_ENVIRONMENT,
     });
 
@@ -96,6 +132,7 @@ describe("buildAblyClientCapability", () => {
     ).toEqual([]);
     expect(capability["tasks:all:user_user_123"]).toEqual(["subscribe"]);
     expect(capability["chat_control:user_user_123"]).toEqual(["subscribe"]);
+    expect(capability["calendar_control:user_user_123"]).toEqual(["subscribe"]);
   });
 
   it("does not grant the legacy per-user chat_rooms wildcard", () => {
@@ -103,10 +140,30 @@ describe("buildAblyClientCapability", () => {
       userId: "user_123",
       roomIds: ["room-a"],
       organizationIds: [],
+      workspaceIds: [],
       notificationChannelEnvironment: NON_PREVIEW_ENVIRONMENT,
     });
 
     expect(capability["chat_rooms:*:user_user_123"]).toBeUndefined();
     expect(capability["chat_rooms:all:user_user_123"]).toBeUndefined();
+  });
+
+  it("grants only exact user-scoped calendar workspace channels", () => {
+    const capability = buildAblyClientCapability({
+      userId: "user_123",
+      roomIds: [],
+      organizationIds: [],
+      workspaceIds: ["workspace-personal", "workspace-org-a"],
+      notificationChannelEnvironment: NON_PREVIEW_ENVIRONMENT,
+    });
+
+    expect(
+      capability["calendar:workspace_workspace-personal:user_user_123"],
+    ).toEqual(["subscribe"]);
+    expect(
+      capability["calendar:workspace_workspace-org-a:user_user_123"],
+    ).toEqual(["subscribe"]);
+    expect(capability["calendar:*"]).toBeUndefined();
+    expect(capability["calendar:workspace_*:user_user_123"]).toBeUndefined();
   });
 });

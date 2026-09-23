@@ -9,10 +9,12 @@ public struct PartitionedSidebarRooms: Sendable {
   public var external: [Components.Schemas.ChatRoom]
 }
 
-/// Attention chrome mirroring web's `resolveRoomAttention`: muted rooms
-/// and the active room suppress chrome — the active transcript has
-/// resolved and marks read via `RoomReadAttention` (ADR 0026). Bold
-/// covers any unread, including leftover thread unread (ADR 0013).
+/// Attention chrome mirroring web's `resolveRoomAttention`: only muted rooms
+/// suppress it. The resolver does not know which room is open, because
+/// opening a room does not read it — last-read moves when history resolves
+/// on screen (ADR 0026), via `RoomReadAttention` — so the selected row stays
+/// bold, badged and counted until the room is read, marked read or muted.
+/// Bold covers any unread, including leftover thread unread (ADR 0013).
 /// `unreadTextCount` is the reader's opt-in Room unread count: a third field,
 /// because the badge keeps counting mentions only.
 public struct RoomAttention: Equatable, Sendable {
@@ -25,10 +27,27 @@ public struct RoomAttention: Equatable, Sendable {
     self.badgeCount = badgeCount
     self.unreadTextCount = unreadTextCount
   }
+
+  /// What the mention badge prints (web `RoomMentionBadge`): nothing at zero
+  /// or below, otherwise the count through the shared `roomCountLabel` cap.
+  public var badgeLabel: String? {
+    badgeCount > 0 ? roomCountLabel(badgeCount) : nil
+  }
+
+  /// Spoken form of the mention badge (web `MentionAnnouncement`, `RoomMentions.mentions*`).
+  public var badgeAccessibilityLabel: String? {
+    guard badgeCount > 0 else {
+      return nil
+    }
+    if badgeCount > roomCountCap {
+      return "More than \(roomCountCap) mentions"
+    }
+    return badgeCount == 1 ? "1 mention" : "\(badgeCount) mentions"
+  }
 }
 
 /// Web `ROOM_COUNT_CAP`: a very loud room cannot reflow its row.
-public let roomCountCap = 99
+private let roomCountCap = 99
 
 /// Web `roomCountLabel`: the count, capped as "99+".
 public func roomCountLabel(_ count: Int) -> String {
@@ -112,8 +131,9 @@ private func compareParticipants(
 }
 
 /// Sidebar display name mirroring web's `getRoomDisplayName`: channels and
-/// external rooms use the stored name; Directs list the participants with
-/// yourself excluded (humans by name-or-email, then coworkers, then bots).
+/// external rooms use the stored name; a named group Direct shows its Group
+/// name (ADR-0040); other Directs list the participants with yourself
+/// excluded (humans by name-or-email, then coworkers, then bots).
 /// A self-only Direct falls back to the stored name — which is why several
 /// distinct self-note rooms can all read as your own name.
 public func roomDisplayName(
@@ -121,6 +141,9 @@ public func roomDisplayName(
   currentUserId: String
 ) -> String {
   guard room.kind == .direct else { return room.name }
+  if let groupName = room.groupName, !groupName.isEmpty {
+    return groupName
+  }
   let names = directRoomOtherParticipants(room, currentUserId: currentUserId).map(\.name)
   if names.isEmpty {
     let target = room.userMembers.first { $0.id != currentUserId }
@@ -149,10 +172,9 @@ public func resolveRoomAttention(
   unreadMentionCount: Int,
   markedUnread: Bool = false,
   isMuted: Bool = false,
-  isActive: Bool = false,
   showUnreadCount: Bool = false
 ) -> RoomAttention {
-  if isMuted || isActive {
+  if isMuted {
     return .init(bold: false, badgeCount: 0)
   }
   return .init(
@@ -247,7 +269,7 @@ public func partitionRoomsForSidebar(
 /// before private; newest activity; stable id tie-break. Pinned rooms never
 /// reach this: the sidebar lists them in their own section, ordered by
 /// `comparePinnedRooms`.
-public func compareRoomsByRecentActivity(
+private func compareRoomsByRecentActivity(
   _ lhs: Components.Schemas.ChatRoom,
   _ rhs: Components.Schemas.ChatRoom
 ) -> Bool {
@@ -268,7 +290,7 @@ public func compareRoomsByRecentActivity(
 /// Web's `comparePinnedChatRooms`, the reader's own order: oldest `starredAt`
 /// first, which a reorder rewrites (Core `PUT /chats/rooms/starred`). Activity
 /// never moves a pinned room.
-public func comparePinnedRooms(
+private func comparePinnedRooms(
   _ lhs: Components.Schemas.ChatRoom,
   _ rhs: Components.Schemas.ChatRoom
 ) -> Bool {

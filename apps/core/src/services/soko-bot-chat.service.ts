@@ -270,6 +270,11 @@ export async function deliverSokoBotTurnToDirectRoom(
     select: { id: true },
   });
   if (!room) return;
+  // Dynamic, like the realtime helper below, so this module does not pull
+  // the route helper chain in at load time. Loaded before the transaction so
+  // a first load never holds it open.
+  const { persistChatHumanMentions, emitChatHumanMentionNotifications } =
+    await import("@/helpers/chat-human-mentions");
   const message = await prisma.$transaction(async (tx) => {
     const created = await tx.chatRoomMessage.create({
       data: {
@@ -280,11 +285,16 @@ export async function deliverSokoBotTurnToDirectRoom(
       },
       select: { id: true },
     });
+    const mentionedUserIds = await persistChatHumanMentions(tx, {
+      messageId: created.id,
+      roomId: room.id,
+      content: answer,
+    });
     await tx.chatRoom.update({
       where: { id: room.id },
       data: { updatedAt: new Date() },
     });
-    return created;
+    return { id: created.id, mentionedUserIds };
   });
   const { publishChatRoomMessageRealtimeById } = await import(
     "@/helpers/chat-room-message-realtime"
@@ -295,6 +305,12 @@ export async function deliverSokoBotTurnToDirectRoom(
     }),
     publishChatRoomMessageRealtimeById(message.id, "create"),
   ]);
+  if (message.mentionedUserIds.length > 0) {
+    await emitChatHumanMentionNotifications({
+      messageId: message.id,
+      mentionedUserIds: message.mentionedUserIds,
+    });
+  }
 }
 
 export async function finalizeSokoBotChatTurn(turnId: string): Promise<void> {
@@ -332,6 +348,12 @@ export async function finalizeSokoBotChatTurn(turnId: string): Promise<void> {
   const startedAtMs = (turn.startedAt ?? turn.createdAt).getTime();
   const endedAtMs = (turn.completedAt ?? new Date()).getTime();
 
+  // Dynamic, like the realtime helper above, so this module does not pull
+  // the route helper chain in at load time. Loaded before the transaction so
+  // a first load never holds it open.
+  const { persistChatHumanMentions, emitChatHumanMentionNotifications } =
+    await import("@/helpers/chat-human-mentions");
+  let mentionedUserIds: string[] = [];
   const finalized = await prisma.$transaction(async (tx) => {
     if (succeeded) {
       const claimed = await tx.chatRoomMention.updateMany({
@@ -366,6 +388,11 @@ export async function finalizeSokoBotChatTurn(turnId: string): Promise<void> {
             },
           },
         },
+      });
+      mentionedUserIds = await persistChatHumanMentions(tx, {
+        messageId: responseMessageId,
+        roomId: mention.roomId,
+        content: answer,
       });
       await tx.chatRoom.update({
         where: { id: mention.roomId },
@@ -407,4 +434,10 @@ export async function finalizeSokoBotChatTurn(turnId: string): Promise<void> {
     publishRealtime(responseMessageId, "update"),
   ]);
   await publishRealtime(mention.messageId, "mention_status");
+  if (mentionedUserIds.length > 0) {
+    await emitChatHumanMentionNotifications({
+      messageId: responseMessageId,
+      mentionedUserIds,
+    });
+  }
 }

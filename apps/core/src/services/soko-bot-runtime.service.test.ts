@@ -338,6 +338,7 @@ vi.mock("@/helpers/task-notifications", () => ({
   notifyTaskStatusEvent: notifyTaskStatusEventMock,
 }));
 vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: vi.fn(),
   publishTaskEventData: publishTaskEventDataMock,
 }));
 vi.mock("@/helpers/chat-direct-message-notifications", () => ({
@@ -348,6 +349,15 @@ vi.mock("@/helpers/chat-direct-message-notifications", () => ({
 }));
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtimeById: publishChatRoomMessageRealtimeByIdMock,
+}));
+const { persistChatHumanMentionsMock, emitChatHumanMentionNotificationsMock } =
+  vi.hoisted(() => ({
+    persistChatHumanMentionsMock: vi.fn().mockResolvedValue([]),
+    emitChatHumanMentionNotificationsMock: vi.fn().mockResolvedValue(undefined),
+  }));
+vi.mock("@/helpers/chat-human-mentions", () => ({
+  persistChatHumanMentions: persistChatHumanMentionsMock,
+  emitChatHumanMentionNotifications: emitChatHumanMentionNotificationsMock,
 }));
 vi.mock("@/helpers/task-link", () => ({
   mapTaskLinkRelationToWriteData: vi.fn(),
@@ -2711,6 +2721,52 @@ describe("SokoBotRuntimeService chat reading", () => {
     expect(where.archivedAt).toBeNull();
   });
 
+  it("lists a named group by its Group name", async () => {
+    chatRoomFindManyMock.mockResolvedValue([
+      {
+        id: "room_1",
+        name: "Ada, Ben",
+        groupName: "Launch crew",
+        kind: "direct",
+        updatedAt: new Date("2026-09-23T10:00:00.000Z"),
+        _count: { messages: 3 },
+      },
+      {
+        id: "room_2",
+        name: "Ada, Cara",
+        groupName: null,
+        kind: "direct",
+        updatedAt: new Date("2026-09-23T09:00:00.000Z"),
+        _count: { messages: 1 },
+      },
+    ]);
+
+    const result = await new SokoBotRuntimeService()["listChats"]({
+      turn: SCOPE_TURN,
+    } as never);
+
+    expect(result.rooms.map((room) => room.name)).toEqual([
+      "Launch crew",
+      "Ada, Cara",
+    ]);
+  });
+
+  it("names a read group by its Group name", async () => {
+    chatRoomFindFirstMock.mockResolvedValue({
+      id: "room_1",
+      name: "Ada, Ben",
+      groupName: "Launch crew",
+    });
+    chatMessageFindManyMock.mockResolvedValue([]);
+
+    const result = await new SokoBotRuntimeService()["readChat"](
+      { turn: SCOPE_TURN } as never,
+      { roomId: "room_1" },
+    );
+
+    expect(result.name).toBe("Launch crew");
+  });
+
   it("refuses to read a room the bot does not belong to", async () => {
     // The model supplies the room id, so membership is re-checked per call.
     chatRoomFindFirstMock.mockResolvedValue(null);
@@ -2947,6 +3003,44 @@ describe("post_chat chain depth", () => {
     // Writing the row is not enough: reclaim only rescues `sent`, so a row
     // nobody dispatches stays `pending` for ever and the target never wakes.
     expect(dispatchChatRoomMentionMock).toHaveBeenCalledWith("mention_1");
+  });
+
+  it("writes the human mention rows with the post and notifies who it named", async () => {
+    const authorized = armPostChat(0);
+    chatRoomUserMemberFindManyMock.mockResolvedValue([
+      { userId: "user_owner" },
+    ]);
+    persistChatHumanMentionsMock.mockResolvedValueOnce(["user_owner"]);
+
+    await new SokoBotRuntimeService()["postChat"](authorized, {
+      roomId: "room_1",
+      content: "@user_owner the date is confirmed",
+    });
+
+    expect(persistChatHumanMentionsMock).toHaveBeenCalledWith(
+      expect.anything(),
+      {
+        messageId: "msg_1",
+        roomId: "room_1",
+        content: "@user_owner the date is confirmed",
+      },
+    );
+    expect(emitChatHumanMentionNotificationsMock).toHaveBeenCalledWith({
+      messageId: "msg_1",
+      mentionedUserIds: ["user_owner"],
+    });
+  });
+
+  it("notifies nobody of a mention when the post names no member", async () => {
+    const authorized = armPostChat(0);
+
+    await new SokoBotRuntimeService()["postChat"](authorized, {
+      roomId: "room_1",
+      content: "the date is confirmed",
+    });
+
+    expect(persistChatHumanMentionsMock).toHaveBeenCalledOnce();
+    expect(emitChatHumanMentionNotificationsMock).not.toHaveBeenCalled();
   });
 
   it("stops summoning once the chain reaches its ceiling", async () => {

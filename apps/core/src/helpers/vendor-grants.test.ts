@@ -19,7 +19,6 @@ import {
   requestWorkspaceGrant,
   requireTaskNotParked,
   throwGrantAccessError,
-  toApiVendorPermission,
   unparkTasksForGrant,
   VendorPermissionApi,
 } from "./vendor-grants";
@@ -79,12 +78,6 @@ describe("vendor-grants helpers", () => {
     queryRawMock.mockResolvedValue([]);
     executeRawMock.mockResolvedValue(undefined);
     deletePendingVendorGrantNotificationsMock.mockResolvedValue(0);
-  });
-
-  it("maps Prisma workspace permission to API string", () => {
-    expect(toApiVendorPermission(VendorPermission.workspace)).toBe(
-      VendorPermissionApi.WORKSPACE,
-    );
   });
 
   it("treats DENIED and REVOKED as terminal denies", () => {
@@ -394,6 +387,7 @@ describe("vendor-grants helpers", () => {
     workspaceFindUnique.mockResolvedValue({
       userId: null,
       organizationId: "org_1",
+      organization: { slug: "acme" },
     });
     createNotificationMock.mockResolvedValue({ created: true });
 
@@ -411,6 +405,12 @@ describe("vendor-grants helpers", () => {
         referenceId: "workspace-grant",
         messageParams: expect.objectContaining({
           permission: VendorPermissionApi.WORKSPACE,
+        }),
+        // The review page the notification links to resolves by slug, in
+        // the app and in the email alike, so the id alone is a 404.
+        metadata: expect.objectContaining({
+          organizationId: "org_1",
+          organizationSlug: "acme",
         }),
       }),
       expect.anything(),
@@ -706,6 +706,7 @@ describe("vendor-grants helpers", () => {
     workspaceFindUnique.mockResolvedValue({
       userId: null,
       organizationId: "org_1",
+      organization: { slug: "acme" },
     });
     createNotificationMock.mockResolvedValue({ created: true });
 

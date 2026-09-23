@@ -386,6 +386,8 @@ describe("chat room user auth guards", () => {
               _count: { replies: 0 },
             }),
           },
+          // The human mention rows are written in the same transaction.
+          chatRoomUserMember: { findMany: vi.fn().mockResolvedValue([]) },
         }),
     );
 
@@ -410,6 +412,7 @@ describe("chat room user auth guards", () => {
       slug: "general",
       kind: "channel",
       directKey: null,
+      groupName: null,
       topic: null,
       createdByUserId: USER_ID,
       createdAt: new Date("2025-01-01T00:00:00.000Z"),
@@ -428,6 +431,7 @@ describe("chat room user auth guards", () => {
       ],
       coworkerMembers: [],
       sokoBotMembers: [],
+      readStates: [],
     });
     organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
     memberFindUniqueMock.mockResolvedValue({ role: "member" });

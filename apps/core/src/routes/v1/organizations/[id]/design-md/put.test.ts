@@ -15,26 +15,22 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 const {
   organizationFindUniqueMock,
   memberFindUniqueMock,
-  updateOrganizationByIdMock,
+  organizationUpdateMock,
   uploadDesignMdContentMock,
 } = vi.hoisted(() => ({
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
-  updateOrganizationByIdMock: vi.fn(),
+  organizationUpdateMock: vi.fn(),
   uploadDesignMdContentMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    organization: { findUnique: organizationFindUniqueMock },
+    organization: {
+      findUnique: organizationFindUniqueMock,
+      update: organizationUpdateMock,
+    },
     member: { findUnique: memberFindUniqueMock },
-  },
-}));
-
-vi.mock("@sokosumi/database/repositories", () => ({
-  organizationRepository: {
-    updateOrganizationById: (...args: unknown[]) =>
-      updateOrganizationByIdMock(...args),
   },
 }));
 
@@ -106,7 +102,7 @@ describe("PUT /organizations/{id}/design-md", () => {
     });
     expect(response.status).toBe(404);
     expect(uploadDesignMdContentMock).not.toHaveBeenCalled();
-    expect(updateOrganizationByIdMock).not.toHaveBeenCalled();
+    expect(organizationUpdateMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 when the user is not a member", async () => {
@@ -117,7 +113,7 @@ describe("PUT /organizations/{id}/design-md", () => {
     });
     expect(response.status).toBe(403);
     expect(uploadDesignMdContentMock).not.toHaveBeenCalled();
-    expect(updateOrganizationByIdMock).not.toHaveBeenCalled();
+    expect(organizationUpdateMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 for a member who is not an owner or admin", async () => {
@@ -127,7 +123,7 @@ describe("PUT /organizations/{id}/design-md", () => {
       extractionId: null,
     });
     expect(response.status).toBe(403);
-    expect(updateOrganizationByIdMock).not.toHaveBeenCalled();
+    expect(organizationUpdateMock).not.toHaveBeenCalled();
   });
 
   it("uploads the content and persists the URL for an owner", async () => {
@@ -147,11 +143,12 @@ describe("PUT /organizations/{id}/design-md", () => {
       owner: { kind: "organization", id: "org_123" },
       extractionId: "55",
     });
-    expect(updateOrganizationByIdMock).toHaveBeenCalledWith(
-      "org_123",
-      { metadata: expect.stringContaining("https://blob.example/org.md") },
-      expect.anything(),
-    );
+    expect(organizationUpdateMock).toHaveBeenCalledWith({
+      where: { id: "org_123" },
+      data: {
+        metadata: expect.stringContaining("https://blob.example/org.md"),
+      },
+    });
     expect(body.data.designMd).toEqual({
       url: "https://blob.example/org.md",
       extractionId: "55",
@@ -171,7 +168,7 @@ describe("PUT /organizations/{id}/design-md", () => {
 
     expect(response.status).toBe(200);
     expect(uploadDesignMdContentMock).not.toHaveBeenCalled();
-    expect(updateOrganizationByIdMock).toHaveBeenCalled();
+    expect(organizationUpdateMock).toHaveBeenCalled();
     expect(body.data.designMd).toBeNull();
   });
 
@@ -184,7 +181,7 @@ describe("PUT /organizations/{id}/design-md", () => {
     });
 
     expect(response.status).toBe(503);
-    expect(updateOrganizationByIdMock).not.toHaveBeenCalled();
+    expect(organizationUpdateMock).not.toHaveBeenCalled();
   });
 
   it("rejects coworker context even with X-Context-User-Id", async () => {
@@ -204,6 +201,6 @@ describe("PUT /organizations/{id}/design-md", () => {
     expect(response.status).toBe(403);
     expect(organizationFindUniqueMock).not.toHaveBeenCalled();
     expect(uploadDesignMdContentMock).not.toHaveBeenCalled();
-    expect(updateOrganizationByIdMock).not.toHaveBeenCalled();
+    expect(organizationUpdateMock).not.toHaveBeenCalled();
   });
 });

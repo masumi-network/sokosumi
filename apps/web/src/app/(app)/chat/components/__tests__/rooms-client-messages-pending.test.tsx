@@ -1,8 +1,15 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import "./rooms-client-harness";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
-import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
+import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import {
   clearRoomReadOverlays,
   forgetRoomRead,
@@ -16,28 +23,24 @@ import type {
   Organization,
 } from "@/lib/clients/generated/core";
 import { MemberRole } from "@/lib/clients/generated/core";
+import { TestQueryProvider } from "@/test/query-provider";
+import {
+  PersistentRoomView,
+  RoomRouteBootstrap,
+} from "../persistent-room-view";
+import { RoomCacheProvider } from "../room-cache-provider";
 import type { RoomComposerHandle } from "../room-composer";
 import { RoomsClient } from "../rooms-client";
-
-const { mockIsMobileMedia, mockHeaderRoomSlotHost } = vi.hoisted(() => ({
-  mockIsMobileMedia: vi.fn((): boolean | undefined => false),
-  mockHeaderRoomSlotHost: vi.fn((): HTMLElement | null => null),
-}));
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    push: vi.fn(),
-    replace: vi.fn(),
-    refresh: vi.fn(),
-  }),
-  usePathname: () => "/chat/rooms/room-1",
-  useSearchParams: () => new URLSearchParams(),
-}));
-
-vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
-  useLocale: () => "en",
-}));
+import {
+  listRoomMessagesAction,
+  markOrganizationChatRoomReadAction,
+  mockHeaderRoomSlotHost,
+  mockIsMobileMedia,
+  mockReplace,
+  sendRoomMessageAction,
+  useChatRoomRealtimeMock,
+} from "./rooms-client-harness";
+import { transcriptViewportSpies } from "./transcript-viewport-stub";
 
 vi.mock("@/app/chat/components/room-search-panel", () => ({
   RoomSearchPanel: () => null,
@@ -45,89 +48,6 @@ vi.mock("@/app/chat/components/room-search-panel", () => ({
 
 vi.mock("@/app/chat/components/unread-threads-panel", () => ({
   UnreadThreadsPanel: () => null,
-}));
-
-vi.mock("@/app/chat/components/day-separator", () => ({
-  default: () => null,
-}));
-
-vi.mock("@/hooks/use-is-apple-platform", () => ({
-  default: () => false,
-}));
-
-vi.mock("@/hooks/use-mobile", () => ({
-  useIsMobileMedia: () => mockIsMobileMedia(),
-}));
-
-vi.mock("@/app/components/header/use-header-room-slot-host", () => ({
-  useHeaderRoomSlotHost: () => mockHeaderRoomSlotHost(),
-}));
-
-vi.mock("@/contexts/breadcrumb-override-context", () => ({
-  useRegisterBreadcrumbOverride: () => undefined,
-}));
-
-vi.mock("@/contexts/lazy-ably-provider", () => ({
-  default: ({ children }: { children: ReactNode }) => <>{children}</>,
-}));
-
-vi.mock("@/lib/ably/use-chat-room-realtime", () => ({
-  useChatRoomRealtime: () => undefined,
-}));
-
-vi.mock("@/lib/ably/use-selected-room-channel-health", () => ({
-  useSelectedRoomChannelHealth: () => undefined,
-}));
-
-vi.mock("@/app/chat/hooks/use-client-local-calendar-ready", () => ({
-  useClientLocalCalendarReady: () => true,
-}));
-
-vi.mock(
-  "@/app/chat/components/transcript-viewport",
-  () => import("./transcript-viewport-stub"),
-);
-
-vi.mock("@/app/chat/hooks/use-coworker-direct-room-stream", () => ({
-  readStoredStreamParentMessageId: () => null,
-  useCoworkerDirectRoomStream: () => ({
-    streamOverlayMessages: [],
-    isStreaming: false,
-    activeStreamParentMessageId: null,
-    sendStreamMessage: vi.fn(),
-    consumePendingStreamMessage: vi.fn(),
-  }),
-}));
-
-vi.mock("@/components/chat/use-show-room-unread-count", () => ({
-  useShowRoomUnreadCount: () => false,
-}));
-
-vi.mock("@/app/chat/actions", () => ({
-  countUnreadThreadsAction: vi.fn(async () => ({
-    ok: true as const,
-    value: 0,
-  })),
-  deleteRoomMessageAction: vi.fn(),
-  editRoomMessageAction: vi.fn(),
-  listRoomMessagesAction: vi.fn(),
-  listThreadMessagesAction: vi.fn(),
-  markThreadReadAction: vi.fn(),
-  retryRoomMentionAction: vi.fn(),
-  sendRoomMessageAction: vi.fn(),
-  setMessageReactionAction: vi.fn(),
-}));
-
-vi.mock("@/components/chat/organization-chat-list.actions", () => ({
-  markOrganizationChatRoomReadAction: vi.fn(async (roomId: string) => ({
-    ok: true as const,
-    value: {
-      id: roomId,
-      unreadCount: 0,
-      unreadMentionCount: 0,
-      markedUnread: false,
-    },
-  })),
 }));
 
 vi.mock("@/components/chat/room-read-overlay", async (importOriginal) => {
@@ -170,9 +90,16 @@ vi.mock("../room-session-composer", () => ({
   RoomSessionComposer: ({
     ref,
     focusOnMount,
+    onSend,
   }: {
     ref?: Ref<RoomComposerHandle>;
     focusOnMount?: boolean;
+    onSend: (request: {
+      content: string;
+      attachments: [];
+      mentionedIds: [];
+      clientMessageId: string;
+    }) => Promise<unknown>;
   }) => {
     useImperativeHandle(ref, () => ({
       attachFiles: () => undefined,
@@ -182,7 +109,20 @@ vi.mock("../room-session-composer", () => ({
       <div
         data-testid="room-session-composer"
         data-focus-on-mount={String(Boolean(focusOnMount))}
-      />
+      >
+        <button
+          onClick={() =>
+            void onSend({
+              content: "local outbound",
+              attachments: [],
+              mentionedIds: [],
+              clientMessageId: crypto.randomUUID(),
+            })
+          }
+        >
+          Send fixture
+        </button>
+      </div>
     );
   },
 }));
@@ -221,25 +161,6 @@ vi.mock("../edit-channel-dialog", () => ({
   ),
 }));
 
-vi.mock("../chat-participant-hover-card", () => ({
-  ChatParticipantHoverCard: ({ children }: { children: ReactNode }) => (
-    <>{children}</>
-  ),
-}));
-
-vi.mock("@/components/chat/channel-discoverability-icon", () => ({
-  ChannelDiscoverabilityIcon: () => null,
-}));
-
-vi.mock("@/components/chat/live-member-presence-dot", () => ({
-  LiveMemberPresenceDot: () => null,
-  LiveMemberPresenceText: () => null,
-}));
-
-vi.mock("sonner", () => ({
-  toast: { error: vi.fn(), success: vi.fn() },
-}));
-
 function channelRoom(): ChatRoom {
   return {
     id: "room-channel",
@@ -249,6 +170,8 @@ function channelRoom(): ChatRoom {
     slug: "general",
     kind: "channel",
     isSelfDirect: false,
+    isGroupDirect: false,
+    groupName: null,
     directKey: null,
     topic: null,
     discoverability: "public",
@@ -292,6 +215,7 @@ function sampleMessage(content = "history body"): ChatRoomMessage {
     metadata: null,
     quote: null,
     membership: null,
+    groupNameChange: null,
     unfurls: null,
     sender: {
       type: "user",
@@ -1045,5 +969,643 @@ describe("RoomsClient progressive roster (header + composer without members)", (
     expect(probe).toHaveAttribute("data-coworkers-count", "1");
     expect(screen.getByTestId("room-session-composer")).toBe(composer);
     expect(screen.getByText("general")).toBeTruthy();
+  });
+});
+
+function CacheWrapper({ children }: { children: ReactNode }) {
+  return (
+    <TestQueryProvider>
+      <RoomCacheProvider currentUserId="user-1" workspaceId="org-1">
+        {children}
+      </RoomCacheProvider>
+    </TestQueryProvider>
+  );
+}
+function backgroundPage(
+  messages: ChatRoomMessage[],
+  nextCursor: string | null = null,
+) {
+  return new Response(
+    JSON.stringify({ data: messages, meta: { pagination: { nextCursor } } }),
+    { status: 200 },
+  );
+}
+const roomBProps = {
+  ...baseProps,
+  selectedRoomId: "room-b",
+  rooms: [{ ...channelRoom(), id: "room-b", name: "Channel B" }],
+};
+
+describe("retained channel history", () => {
+  beforeEach(() => {
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise<Response>(() => {})),
+    );
+    useChatRoomRealtimeMock.mockClear();
+    mockReplace.mockClear();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+  it("shows retained history immediately while the returning server history is unresolved", async () => {
+    function Wrapper({ children }: { children: ReactNode }) {
+      return (
+        <TestQueryProvider>
+          <RoomCacheProvider currentUserId="user-1" workspaceId="org-1">
+            {children}
+          </RoomCacheProvider>
+        </TestQueryProvider>
+      );
+    }
+    const view = render(
+      <RoomsClient {...baseProps} messages={[sampleMessage("retained A")]} />,
+      { wrapper: Wrapper },
+    );
+    expect(await screen.findByText("retained A")).toBeTruthy();
+    view.rerender(
+      <RoomsClient
+        {...baseProps}
+        selectedRoomId="room-b"
+        rooms={[{ ...channelRoom(), id: "room-b", name: "Channel B" }]}
+        messages={[
+          { ...sampleMessage("history B"), id: "b", roomId: "room-b" },
+        ]}
+      />,
+    );
+    expect(await screen.findByText("history B")).toBeTruthy();
+    view.rerender(
+      <RoomsClient {...baseProps} messagesPromise={new Promise(() => {})} />,
+    );
+    expect(screen.getByText("retained A")).toBeTruthy();
+    expect(screen.queryByText("history B")).toBeNull();
+    expect(screen.queryByTestId("room-message-list-skeleton")).toBeNull();
+  });
+});
+
+describe("channel cache access and navigation", () => {
+  beforeEach(() => {
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise<Response>(() => {})),
+    );
+    useChatRoomRealtimeMock.mockClear();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  it("drops queued sends and pending shells when leaving their composer", async () => {
+    const sent =
+      Promise.withResolvers<
+        Awaited<ReturnType<typeof sendRoomMessageAction>>
+      >();
+    vi.mocked(sendRoomMessageAction).mockReset().mockReturnValue(sent.promise);
+    const view = render(
+      <RoomsClient {...baseProps} messages={[sampleMessage("confirmed")]} />,
+      { wrapper: CacheWrapper },
+    );
+    fireEvent.click(screen.getByText("Send fixture"));
+    fireEvent.click(screen.getByText("Send fixture"));
+    expect(sendRoomMessageAction).toHaveBeenCalledTimes(1);
+    view.rerender(<RoomsClient {...roomBProps} />);
+    await act(async () =>
+      sent.resolve({ ok: true, value: sampleMessage("confirmed send") }),
+    );
+    expect(sendRoomMessageAction).toHaveBeenCalledTimes(1);
+    view.rerender(
+      <RoomsClient {...baseProps} messagesPromise={new Promise(() => {})} />,
+    );
+    expect(screen.getByText("confirmed")).toBeTruthy();
+    expect(screen.queryByText("local outbound")).toBeNull();
+  });
+
+  it("shows retained sends as pending rows before the server confirms", async () => {
+    const sent =
+      Promise.withResolvers<
+        Awaited<ReturnType<typeof sendRoomMessageAction>>
+      >();
+    vi.mocked(sendRoomMessageAction)
+      .mockReset()
+      .mockReturnValueOnce(sent.promise)
+      .mockReturnValue(new Promise(() => {}));
+    render(
+      <RoomsClient {...baseProps} messages={[sampleMessage("confirmed")]} />,
+      { wrapper: CacheWrapper },
+    );
+    fireEvent.click(screen.getByText("Send fixture"));
+    expect(screen.getAllByText("local outbound")).toHaveLength(1);
+    fireEvent.click(screen.getByText("Send fixture"));
+    expect(screen.getAllByText("local outbound")).toHaveLength(2);
+    await act(async () =>
+      sent.resolve({
+        ok: true,
+        value: { ...sampleMessage("confirmed send"), id: "msg-sent" },
+      }),
+    );
+    expect(screen.getByText("confirmed send")).toBeTruthy();
+    expect(screen.getAllByText("local outbound")).toHaveLength(1);
+  });
+
+  it.each(["channel", "direct"] as const)(
+    "switches cached %s rooms before server navigation finishes",
+    async (kind) => {
+      function Page({ bootstrap }: { bootstrap: typeof baseProps }) {
+        return (
+          <>
+            <a
+              href="/chat/rooms/room-channel"
+              onClick={(event) => event.preventDefault()}
+            >
+              Open A
+            </a>
+            <a
+              href="/chat/rooms/room-b"
+              onClick={(event) => event.preventDefault()}
+            >
+              Open B
+            </a>
+            <PersistentRoomView>
+              <RoomRouteBootstrap {...bootstrap} />
+            </PersistentRoomView>
+          </>
+        );
+      }
+      const view = render(
+        <Page
+          bootstrap={{
+            ...baseProps,
+            rooms: baseProps.rooms.map((room) => ({ ...room, kind })),
+            messages: [sampleMessage("A retained")],
+          }}
+        />,
+        { wrapper: CacheWrapper },
+      );
+      fireEvent.click(screen.getByText("Open A"));
+      expect(await screen.findByText("A retained")).toBeTruthy();
+      view.rerender(
+        <Page
+          bootstrap={{
+            ...roomBProps,
+            rooms: roomBProps.rooms.map((room) => ({ ...room, kind })),
+            messages: [
+              { ...sampleMessage("B retained"), id: "b", roomId: "room-b" },
+            ],
+          }}
+        />,
+      );
+      fireEvent.click(screen.getByText("Open B"));
+      expect(await screen.findByText("B retained")).toBeTruthy();
+      fireEvent.click(screen.getByText("Open A"));
+      expect(screen.getByText("A retained")).toBeTruthy();
+      expect(screen.queryByText("B retained")).toBeNull();
+      expect(screen.queryByTestId("room-message-list-skeleton")).toBeNull();
+    },
+  );
+
+  it("keeps the open room on screen until an uncached room can paint", async () => {
+    render(
+      <>
+        <a
+          href="/chat/rooms/room-channel"
+          onClick={(event) => event.preventDefault()}
+        >
+          Open A
+        </a>
+        <a
+          href="/chat/rooms/room-direct"
+          onClick={(event) => event.preventDefault()}
+        >
+          Open direct
+        </a>
+        <PersistentRoomView>
+          <RoomRouteBootstrap
+            {...baseProps}
+            messages={[sampleMessage("stay visible")]}
+          />
+        </PersistentRoomView>
+      </>,
+      { wrapper: CacheWrapper },
+    );
+    fireEvent.click(screen.getByText("Open A"));
+    expect(await screen.findByText("stay visible")).toBeTruthy();
+    fireEvent.click(screen.getByText("Open direct"));
+    expect(screen.getByText("stay visible")).toBeTruthy();
+    expect(screen.getByTestId("room-session-composer")).toBeTruthy();
+  });
+
+  it("does not spend a message link until the route commits", async () => {
+    function Page({ bootstrap }: { bootstrap: typeof baseProps }) {
+      return (
+        <>
+          <a
+            href="/chat/rooms/room-channel"
+            onClick={(event) => event.preventDefault()}
+          >
+            Open A
+          </a>
+          <a
+            href="/chat/rooms/room-b?message=msg-b"
+            onClick={(event) => event.preventDefault()}
+          >
+            Open B message
+          </a>
+          <PersistentRoomView>
+            <RoomRouteBootstrap {...bootstrap} />
+          </PersistentRoomView>
+        </>
+      );
+    }
+    const view = render(
+      <Page
+        bootstrap={{ ...baseProps, messages: [sampleMessage("A retained")] }}
+      />,
+      { wrapper: CacheWrapper },
+    );
+    fireEvent.click(screen.getByText("Open A"));
+    expect(await screen.findByText("A retained")).toBeTruthy();
+    view.rerender(
+      <Page
+        bootstrap={{
+          ...roomBProps,
+          messages: [
+            {
+              ...sampleMessage("B retained"),
+              id: "msg-b",
+              roomId: "room-b",
+            },
+          ],
+        }}
+      />,
+    );
+    fireEvent.click(screen.getByText("Open B message"));
+    expect(await screen.findByText("B retained")).toBeTruthy();
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it.each(["channel", "direct"] as const)(
+    "restores each %s room's reading position on return",
+    (kind) => {
+      const propsA = {
+        ...baseProps,
+        rooms: baseProps.rooms.map((room) => ({ ...room, kind })),
+      };
+      const propsB = {
+        ...roomBProps,
+        rooms: roomBProps.rooms.map((room) => ({ ...room, kind })),
+      };
+      const view = render(
+        <RoomsClient {...propsA} messages={[sampleMessage("history A")]} />,
+        { wrapper: CacheWrapper },
+      );
+      const position = {
+        anchorId: "msg-real",
+        anchorCreatedAt: 1234,
+        offset: -42,
+        atLiveEdge: false,
+        visibleMessageIds: ["msg-real"],
+      };
+      const bindingA = transcriptViewportSpies.position.mock.calls.at(-1)![0];
+      expect(bindingA.onPositionChange).toBeTypeOf("function");
+      act(() => bindingA.onPositionChange?.(position));
+      view.rerender(
+        <RoomsClient
+          {...propsB}
+          messages={[{ ...sampleMessage("history B"), roomId: "room-b" }]}
+        />,
+      );
+      expect(
+        transcriptViewportSpies.position.mock.calls.at(-1)![0].initialPosition,
+      ).toBeUndefined();
+      view.rerender(
+        <RoomsClient {...propsA} messagesPromise={new Promise(() => {})} />,
+      );
+      expect(
+        transcriptViewportSpies.position.mock.calls.at(-1)![0].initialPosition,
+      ).toEqual(position);
+    },
+  );
+
+  it("treats confirmed empty history as a hit", async () => {
+    const view = render(<RoomsClient {...baseProps} />, {
+      wrapper: CacheWrapper,
+    });
+    expect(screen.getByText("Empty.noMessagesTitle")).toBeTruthy();
+    view.rerender(<RoomsClient {...roomBProps} />);
+    view.rerender(
+      <RoomsClient {...baseProps} messagesPromise={new Promise(() => {})} />,
+    );
+    expect(screen.getByText("Empty.noMessagesTitle")).toBeTruthy();
+    expect(screen.queryByTestId("room-message-list-skeleton")).toBeNull();
+  });
+
+  it("keeps cached messages after a failed background read", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(null, { status: 500 }));
+    render(
+      <RoomsClient
+        {...baseProps}
+        messages={[sampleMessage("survives failure")]}
+      />,
+      { wrapper: CacheWrapper },
+    );
+    await act(async () => {});
+    expect(screen.getByText("survives failure")).toBeTruthy();
+    expect(screen.queryByText("Empty.messagesLoadFailedTitle")).toBeNull();
+  });
+
+  it("shows an inert room shell while revoked access redirects", async () => {
+    render(
+      <>
+        <a
+          href="/chat/rooms/room-channel"
+          onClick={(event) => event.preventDefault()}
+        >
+          Open room
+        </a>
+        <PersistentRoomView>
+          <RoomRouteBootstrap
+            {...baseProps}
+            messages={[sampleMessage("private history")]}
+          />
+        </PersistentRoomView>
+      </>,
+      { wrapper: CacheWrapper },
+    );
+    fireEvent.click(screen.getByText("Open room"));
+    expect(await screen.findByText("private history")).toBeTruthy();
+    act(() =>
+      notifyOrganizationChatRoomsChanged({ removedRoomId: "room-channel" }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByText("private history")).toBeNull(),
+    );
+    expect(screen.getByTestId("chat-room-loading")).toBeVisible();
+    expect(screen.queryByTestId("room-session-composer")).toBeNull();
+  });
+
+  it("removes revoked history immediately and refuses a late response", async () => {
+    let finish!: (response: Response) => void;
+    vi.mocked(fetch).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    render(
+      <RoomsClient
+        {...baseProps}
+        messages={[sampleMessage("private history")]}
+      />,
+      { wrapper: CacheWrapper },
+    );
+    expect(screen.getByText("private history")).toBeTruthy();
+    act(() =>
+      notifyOrganizationChatRoomsChanged({ removedRoomId: "room-channel" }),
+    );
+    expect(screen.queryByText("private history")).toBeNull();
+    await act(async () =>
+      finish(backgroundPage([sampleMessage("late private history")])),
+    );
+    expect(screen.queryByText("late private history")).toBeNull();
+  });
+
+  it("discards a snapshot taken before a realtime edit", async () => {
+    let finish!: (response: Response) => void;
+    vi.mocked(fetch).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    render(
+      <RoomsClient {...baseProps} messages={[sampleMessage("before edit")]} />,
+      { wrapper: CacheWrapper },
+    );
+    act(() =>
+      useChatRoomRealtimeMock.mock.calls.at(-1)![0].onMessage({
+        eventType: "update",
+        message: sampleMessage("newer realtime edit"),
+      }),
+    );
+    expect(screen.getByText("newer realtime edit")).toBeTruthy();
+    await act(async () =>
+      finish(backgroundPage([sampleMessage("before edit")])),
+    );
+    expect(screen.getByText("newer realtime edit")).toBeTruthy();
+    expect(screen.queryByText("before edit")).toBeNull();
+  });
+
+  it("expires inactive history after thirty minutes", async () => {
+    vi.useFakeTimers();
+    const view = render(
+      <RoomsClient
+        {...baseProps}
+        messages={[sampleMessage("expired history")]}
+      />,
+      { wrapper: CacheWrapper },
+    );
+    view.rerender(<RoomsClient {...roomBProps} />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30 * 60 * 1000 + 1);
+    });
+    view.rerender(<RoomsClient {...baseProps} loadHistoryOnClient />);
+    expect(screen.queryByText("expired history")).toBeNull();
+    expect(screen.getByTestId("room-message-list-skeleton")).toBeTruthy();
+  });
+
+  it("retains older pages loaded through the transcript boundary", async () => {
+    vi.mocked(listRoomMessagesAction).mockResolvedValue({
+      ok: true,
+      value: {
+        messages: [
+          {
+            ...sampleMessage("older retained"),
+            id: "older",
+            createdAt: new Date("2026-06-01"),
+          },
+        ],
+        nextCursor: null,
+      },
+    });
+    const view = render(
+      <RoomsClient
+        {...baseProps}
+        messages={[sampleMessage("newest")]}
+        messagesNextCursor="msg-real"
+      />,
+      { wrapper: CacheWrapper },
+    );
+    fireEvent.click(screen.getByText("loadOlder"));
+    expect(await screen.findByText("older retained")).toBeTruthy();
+    view.rerender(<RoomsClient {...roomBProps} />);
+    view.rerender(<RoomsClient {...baseProps} loadHistoryOnClient />);
+    expect(screen.getByText("older retained")).toBeTruthy();
+    expect(screen.getByText("newest")).toBeTruthy();
+  });
+
+  it("rejects an older page captured before a realtime edit", async () => {
+    let finish!: (
+      value: Awaited<ReturnType<typeof listRoomMessagesAction>>,
+    ) => void;
+    vi.mocked(listRoomMessagesAction)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      )
+      .mockResolvedValueOnce({
+        ok: true,
+        value: {
+          messages: [
+            {
+              ...sampleMessage("older after retry"),
+              id: "older-fresh",
+              createdAt: new Date("2026-06-01"),
+            },
+            sampleMessage("newer edit"),
+          ],
+          nextCursor: null,
+        },
+      });
+    render(
+      <RoomsClient
+        {...baseProps}
+        messages={[sampleMessage("before edit")]}
+        messagesNextCursor="msg-real"
+      />,
+      { wrapper: CacheWrapper },
+    );
+    fireEvent.click(screen.getByText("loadOlder"));
+    act(() =>
+      useChatRoomRealtimeMock.mock.calls.at(-1)![0].onMessage({
+        eventType: "update",
+        message: sampleMessage("newer edit"),
+      }),
+    );
+    await act(async () =>
+      finish({
+        ok: true,
+        value: {
+          messages: [
+            {
+              ...sampleMessage("poisoned older"),
+              id: "older-stale",
+              createdAt: new Date("2026-06-01"),
+            },
+            sampleMessage("before edit"),
+          ],
+          nextCursor: null,
+        },
+      }),
+    );
+    expect(await screen.findByText("older after retry")).toBeTruthy();
+    expect(screen.getByText("newer edit")).toBeTruthy();
+    expect(screen.queryByText("poisoned older")).toBeNull();
+    expect(screen.queryByText("before edit")).toBeNull();
+    expect(screen.queryByText("Boundary.retry")).toBeNull();
+  });
+
+  it("isolates out-of-order responses during A/B/A switches", async () => {
+    const finishes: Array<(response: Response) => void> = [];
+    vi.mocked(fetch).mockImplementation(
+      () => new Promise((resolve) => finishes.push(resolve)),
+    );
+    const view = render(<RoomsClient {...baseProps} loadHistoryOnClient />, {
+      wrapper: CacheWrapper,
+    });
+    view.rerender(<RoomsClient {...roomBProps} loadHistoryOnClient />);
+    view.rerender(<RoomsClient {...baseProps} loadHistoryOnClient />);
+    await act(async () =>
+      finishes[1](
+        backgroundPage([{ ...sampleMessage("late B"), roomId: "room-b" }]),
+      ),
+    );
+    expect(screen.queryByText("late B")).toBeNull();
+    await act(async () =>
+      finishes[0](backgroundPage([sampleMessage("selected A")])),
+    );
+    expect(await screen.findByText("selected A")).toBeTruthy();
+  });
+
+  it.each(["workspace", "identity"])(
+    "clears retained history after a %s change",
+    async (change) => {
+      let finish!: (response: Response) => void;
+      vi.mocked(fetch).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      );
+      function Session({ changed }: { changed: boolean }) {
+        const currentUserId =
+          changed && change === "identity" ? "new-user" : "user-1";
+        const workspaceId =
+          changed && change === "workspace" ? "new-workspace" : "org-1";
+        return (
+          <RoomCacheProvider
+            currentUserId={currentUserId}
+            workspaceId={workspaceId}
+          >
+            <RoomsClient
+              {...baseProps}
+              currentUserId={currentUserId}
+              activeOrganization={{ ...organization, id: workspaceId }}
+              messages={changed ? [] : [sampleMessage("old context")]}
+              loadHistoryOnClient={changed}
+            />
+          </RoomCacheProvider>
+        );
+      }
+      const view = render(<Session changed={false} />, {
+        wrapper: TestQueryProvider,
+      });
+      view.rerender(<Session changed />);
+      expect(screen.queryByText("old context")).toBeNull();
+      await act(async () =>
+        finish(backgroundPage([sampleMessage("late old context")])),
+      );
+      expect(screen.queryByText("late old context")).toBeNull();
+      expect(screen.getByTestId("room-message-list-skeleton")).toBeTruthy();
+    },
+  );
+
+  it("allows confirmed rejoin without reviving the old transcript", async () => {
+    const view = render(
+      <RoomsClient
+        {...baseProps}
+        messages={[sampleMessage("before leaving")]}
+      />,
+      { wrapper: CacheWrapper },
+    );
+    act(() =>
+      notifyOrganizationChatRoomsChanged({ removedRoomId: "room-channel" }),
+    );
+    view.rerender(<RoomsClient {...baseProps} loadHistoryOnClient />);
+    act(() =>
+      notifyOrganizationChatRoomsChanged({
+        room: channelRoom(),
+        joinedRoomId: "room-channel",
+      }),
+    );
+    expect(screen.queryByText("before leaving")).toBeNull();
+    expect(screen.getByTestId("room-message-list-skeleton")).toBeTruthy();
+  });
+
+  it("clears history on logout", async () => {
+    render(
+      <RoomsClient
+        {...baseProps}
+        messages={[sampleMessage("signed out history")]}
+      />,
+      { wrapper: CacheWrapper },
+    );
+    act(() => window.dispatchEvent(new Event("chat-session-ended")));
+    expect(screen.queryByText("signed out history")).toBeNull();
   });
 });

@@ -7,6 +7,9 @@ const getSessionResultMock = vi.fn();
 
 const projectServiceMock = {
   listProjects: vi.fn(),
+  pinProject: vi.fn(),
+  unpinProject: vi.fn(),
+  listPinnedProjects: vi.fn(),
 };
 
 // Mock only the session source and exercise the real `withSession` wrapper so
@@ -130,5 +133,83 @@ describe("loadMoreProjects", () => {
       cursor: null,
       limit: 20,
     });
+  });
+});
+
+describe("project Pin actions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getSessionResultMock.mockResolvedValue(
+      ok({
+        user: { id: "user-1" },
+        session: { activeOrganizationId: "org-1" },
+      }),
+    );
+  });
+
+  it("Pins a project for the signed-in reader", async () => {
+    const starredAt = "2026-09-21T10:00:00.000Z";
+    projectServiceMock.pinProject.mockResolvedValue({
+      projectId: "project-1",
+      starredAt,
+    });
+
+    const { pinProjectAction } = await import("./actions");
+
+    await expect(pinProjectAction({ projectId: "project-1" })).resolves.toEqual(
+      { projectId: "project-1", starredAt },
+    );
+    expect(projectServiceMock.pinProject).toHaveBeenCalledWith("project-1");
+  });
+
+  it("Unpins a project for the signed-in reader", async () => {
+    projectServiceMock.unpinProject.mockResolvedValue({
+      projectId: "project-1",
+      starredAt: null,
+    });
+
+    const { unpinProjectAction } = await import("./actions");
+
+    await expect(
+      unpinProjectAction({ projectId: "project-1" }),
+    ).resolves.toEqual({ projectId: "project-1", starredAt: null });
+    expect(projectServiceMock.unpinProject).toHaveBeenCalledWith("project-1");
+  });
+
+  it("rejects unauthenticated callers before touching a Pin", async () => {
+    const { err } = await import("neverthrow");
+    getSessionResultMock.mockResolvedValue(err(new UnAuthenticatedError()));
+
+    const { pinProjectAction } = await import("./actions");
+
+    await expect(
+      pinProjectAction({ projectId: "project-1" }),
+    ).rejects.toThrow();
+    expect(projectServiceMock.pinProject).not.toHaveBeenCalled();
+  });
+
+  it("lists the reader's Pins", async () => {
+    projectServiceMock.listPinnedProjects.mockResolvedValue([buildProject()]);
+
+    const { loadPinnedProjects } = await import("./actions");
+
+    await expect(
+      loadPinnedProjects({
+        expectedScope: { userId: "user-1", organizationId: "org-1" },
+      }),
+    ).resolves.toHaveLength(1);
+  });
+
+  it("refuses a Pin list belonging to a workspace the reader has left", async () => {
+    const { loadPinnedProjects } = await import("./actions");
+
+    // The guard exists so a Pin list cannot outlive an org switch: the rows
+    // would be another workspace's projects rendered as this one's.
+    await expect(
+      loadPinnedProjects({
+        expectedScope: { userId: "user-1", organizationId: "org-2" },
+      }),
+    ).rejects.toThrow("Project workspace changed");
+    expect(projectServiceMock.listPinnedProjects).not.toHaveBeenCalled();
   });
 });

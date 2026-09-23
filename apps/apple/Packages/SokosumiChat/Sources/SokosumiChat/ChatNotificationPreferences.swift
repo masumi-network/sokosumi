@@ -121,10 +121,10 @@ public final class ChatNotificationPreferences: ObservableObject {
   public func refresh(client: Client) async throws {
     refreshGeneration += 1
     let request = refreshGeneration
-    let value = try await ChatService().notificationPreferences(client: client)
+    let snapshot = try await ChatService().userPreferences(client: client)
     guard request == refreshGeneration, !isSaving, !Task.isCancelled else { return }
-    cells = value.cells
-    pushOptIn = value.pushOptIn
+    cells = snapshot.cells
+    pushOptIn = snapshot.pushOptIn
     isLoaded = true
   }
 
@@ -169,7 +169,11 @@ public final class ChatNotificationPreferences: ObservableObject {
     }
     pushOptIn = consent ?? pushOptIn
     do {
-      let stored = try await ChatService().updateNotificationPreferences(client: client, pushOptIn: consent, cells: written)
+      let stored = try await ChatService().updateUserPreferences(
+        client: client,
+        pushOptIn: consent,
+        notificationPreferences: written
+      )
       guard request == generation else { return }
       cells = stored.cells
       pushOptIn = stored.pushOptIn

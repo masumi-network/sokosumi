@@ -4,11 +4,13 @@ const listRoomsMock = vi.fn();
 const listArchivedRoomsMock = vi.fn();
 const getMyMembersWithOrganizationsMock = vi.fn();
 
-vi.mock("@/lib/services", () => ({
+vi.mock("@/lib/services/chat-room.service", () => ({
   chatRoomService: {
     listRooms: (...args: unknown[]) => listRoomsMock(...args),
     listArchivedRooms: (...args: unknown[]) => listArchivedRoomsMock(...args),
   },
+}));
+vi.mock("@/lib/services/user.service", () => ({
   userService: {
     getMyMembersWithOrganizations: (...args: unknown[]) =>
       getMyMembersWithOrganizationsMock(...args),

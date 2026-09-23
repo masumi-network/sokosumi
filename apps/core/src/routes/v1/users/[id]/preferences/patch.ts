@@ -34,10 +34,6 @@ const requestBodySchema = z
       description: "Whether the user wants to receive marketing emails",
       example: true,
     }),
-    notificationsOptIn: z.boolean().optional().openapi({
-      description: "Whether the user wants to receive job status notifications",
-      example: true,
-    }),
     pushOptIn: z.boolean().optional().openapi({
       description:
         "Whether the user wants OS banners while Sokosumi is closed (push)",
@@ -45,8 +41,8 @@ const requestBodySchema = z
     }),
     showRoomUnreadCount: z.boolean().optional().openapi({
       description:
-        "Whether chat sidebar rows show a room's unread message count. Display only: it changes no notification delivery",
-      example: false,
+        "Whether chat sidebar rows show a room's unread message count. On unless the reader switched it off (ADR-0038). Display only: it changes no notification delivery",
+      example: true,
     }),
     notificationPreferences: z
       .array(notificationPreferenceSchema)
@@ -63,7 +59,6 @@ const requestBodySchema = z
     (data) => {
       return (
         data.marketingOptIn !== undefined ||
-        data.notificationsOptIn !== undefined ||
         data.pushOptIn !== undefined ||
         data.showRoomUnreadCount !== undefined ||
         (data.notificationPreferences !== undefined &&
@@ -74,7 +69,6 @@ const requestBodySchema = z
       message: "At least one field must be provided",
       path: [
         "marketingOptIn",
-        "notificationsOptIn",
         "pushOptIn",
         "showRoomUnreadCount",
         "notificationPreferences",
@@ -108,7 +102,7 @@ const route = createRoute({
           notificationsOptIn: true,
           pushOptIn: false,
           notificationPreferences: [
-            { category: "JOB_ATTENTION", channel: "IN_APP", enabled: true },
+            { category: "TASK_ATTENTION", channel: "IN_APP", enabled: true },
             { category: "CHAT_MENTION", channel: "OS_BANNER", enabled: false },
           ],
         },
@@ -135,14 +129,13 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
       ...(body.marketingOptIn !== undefined && {
         marketingOptIn: body.marketingOptIn,
       }),
-      ...(body.notificationsOptIn !== undefined && {
-        notificationsOptIn: body.notificationsOptIn,
-      }),
       ...(body.pushOptIn !== undefined && {
         pushOptIn: body.pushOptIn,
       }),
+      // The wire says "show"; the column stores "hide" (ADR-0038), so a
+      // reader who never chose is shown the count.
       ...(body.showRoomUnreadCount !== undefined && {
-        showRoomUnreadCount: body.showRoomUnreadCount,
+        hideRoomUnreadCount: !body.showRoomUnreadCount,
       }),
     };
 
