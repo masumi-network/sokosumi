@@ -301,13 +301,19 @@ export function OrganizationChatList({
     () => partitionRoomsForSidebar(roomRows),
     [roomRows],
   );
-  // The filter is one flat list, not the sections: a heading over one or two
-  // rooms is noise. Each room keeps the place it first took in the pass and
-  // dims there once read, so nothing moves out from under the reader.
-  // Switching the filter off ends the pass.
+  // The filter is Pinned over one flat list, not the sections: a heading
+  // over one or two rooms is noise. Pinned holds every pinned room, fixed, in
+  // the reader's own order, so reaching one never means switching the filter
+  // off; the flat list never takes a pinned room, so none shows twice or
+  // moves out of Pinned when it is opened or turns unread. In the flat list
+  // each room keeps the place it first took in the pass and dims there once
+  // read. Switching the filter off ends the pass.
+  const pinnedIds = new Set(pinned.map((room) => room.id));
   const nextFilterPass = unreadOnly
     ? advanceUnreadFilterPass(filterPass, {
-        unreadIds: unreadRooms.map((room) => room.id),
+        unreadIds: unreadRooms
+          .filter((room) => !pinnedIds.has(room.id))
+          .map((room) => room.id),
       })
     : EMPTY_UNREAD_FILTER_PASS;
   if (nextFilterPass !== filterPass) {
@@ -317,17 +323,16 @@ export function OrganizationChatList({
     ? [
         ...nextFilterPass.seen,
         // The open room is listed while it is open, read or not.
-        ...(activeRoomId && !nextFilterPass.seen.includes(activeRoomId)
+        ...(activeRoomId &&
+        !pinnedIds.has(activeRoomId) &&
+        !nextFilterPass.seen.includes(activeRoomId)
           ? [activeRoomId]
           : []),
       ].flatMap((id) => roomRows.find((row) => row.id === id) ?? [])
     : [];
-  // Pinned rooms stay one click away under the filter, so reaching one never
-  // means switching it off. Only those the list above does not already hold,
-  // in the reader's own pin order.
-  const inboxPinnedRooms = unreadOnly
-    ? pinned.filter((room) => !inboxRooms.some((row) => row.id === room.id))
-    : [];
+  const inboxPinnedRooms = unreadOnly ? pinned : [];
+  const isUnreadRoom = (room: ChatRoom) =>
+    unreadRooms.some((row) => row.id === room.id);
   const pinnedRoomIds = pinned.map((room) => room.id);
   // Reordering a filtered list would move rooms relative to ones it hides.
   const canReorderPinned = pinnedOpen && pinned.length > 1 && !unreadOnly;
@@ -335,7 +340,7 @@ export function OrganizationChatList({
   // reader from being caught up: it is addressed to them and waits on them,
   // which is why a closed section already marks it as a mention
   // (`resolveSectionAttention`). Caught up is about what is unread, not what
-  // is listed: rooms read in the pass and pinned rooms stay listed, dimmed.
+  // is listed: pinned rooms and rooms read in the pass stay listed, dimmed.
   const caughtUp =
     unreadOnly && unreadRooms.length === 0 && pendingRows.length === 0;
   // The mode ends with the toggle that leaves it (section closed, or fewer
@@ -425,6 +430,31 @@ export function OrganizationChatList({
           unreadOnly={unreadOnly}
           onUnreadOnlyChange={setUnreadOnly}
         />
+        {inboxPinnedRooms.length > 0 ? (
+          <div>
+            <p
+              id={inboxPinnedLabelId}
+              className="text-muted-foreground group-data-[collapsible=icon]:hidden px-2 pb-1 text-xs font-medium"
+            >
+              {t("pinned")}
+            </p>
+            <SidebarMenu
+              data-slot="unread-inbox-pinned"
+              aria-labelledby={inboxPinnedLabelId}
+              className="gap-0"
+            >
+              {inboxPinnedRooms.map((room) => (
+                <ChatRoomSidebarRow
+                  key={room.id}
+                  {...roomRowProps(room)}
+                  itemProps={
+                    isUnreadRoom(room) ? undefined : READ_INBOX_ROOM_ITEM_PROPS
+                  }
+                />
+              ))}
+            </SidebarMenu>
+          </div>
+        ) : null}
         {caughtUp ? (
           // A message, not a row: nothing here opens. The way back to every
           // room is the tinted All unreads row right above it.
@@ -461,7 +491,7 @@ export function OrganizationChatList({
               className="gap-0"
             >
               {inboxRooms.map((room) => {
-                const read = !unreadRooms.some((row) => row.id === room.id);
+                const read = !isUnreadRoom(room);
                 return (
                   <ChatRoomSidebarRow
                     key={room.id}
@@ -470,29 +500,6 @@ export function OrganizationChatList({
                   />
                 );
               })}
-            </SidebarMenu>
-          </div>
-        ) : null}
-        {inboxPinnedRooms.length > 0 ? (
-          <div>
-            <p
-              id={inboxPinnedLabelId}
-              className="text-muted-foreground group-data-[collapsible=icon]:hidden px-2 pb-1 text-xs font-medium"
-            >
-              {t("pinned")}
-            </p>
-            <SidebarMenu
-              data-slot="unread-inbox-pinned"
-              aria-labelledby={inboxPinnedLabelId}
-              className="gap-0"
-            >
-              {inboxPinnedRooms.map((room) => (
-                <ChatRoomSidebarRow
-                  key={room.id}
-                  {...roomRowProps(room)}
-                  itemProps={READ_INBOX_ROOM_ITEM_PROPS}
-                />
-              ))}
             </SidebarMenu>
           </div>
         ) : null}
