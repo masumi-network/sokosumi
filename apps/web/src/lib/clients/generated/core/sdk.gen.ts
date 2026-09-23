@@ -3720,7 +3720,7 @@ export const listMyVendorMemberships = <ThrowOnError extends boolean = false>(op
 });
 
 /**
- * List live pending vendor member invitations matched to the authenticated user's verified account email.
+ * List live pending vendor member invitations matched to the authenticated user's verified account email with cursor pagination.
  */
 export const listMyVendorInvites = <ThrowOnError extends boolean = false>(options?: Options<ListMyVendorInvitesData, ThrowOnError>): RequestResult<ListMyVendorInvitesResponses, ListMyVendorInvitesErrors, ThrowOnError> => (options?.client ?? client).get<ListMyVendorInvitesResponses, ListMyVendorInvitesErrors, ThrowOnError>({
     responseTransformer: listMyVendorInvitesResponseTransformer,
@@ -3765,7 +3765,7 @@ export const listVendorMembers = <ThrowOnError extends boolean = false>(options:
 });
 
 /**
- * List a vendor's live pending member invitations (vendor admin only).
+ * List a vendor's live pending member invitations with cursor pagination (vendor admin only).
  */
 export const listVendorMemberInvites = <ThrowOnError extends boolean = false>(options: Options<ListVendorMemberInvitesData, ThrowOnError>): RequestResult<ListVendorMemberInvitesResponses, ListVendorMemberInvitesErrors, ThrowOnError> => (options.client ?? client).get<ListVendorMemberInvitesResponses, ListVendorMemberInvitesErrors, ThrowOnError>({
     responseTransformer: listVendorMemberInvitesResponseTransformer,

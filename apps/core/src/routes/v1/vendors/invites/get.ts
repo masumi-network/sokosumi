@@ -1,12 +1,20 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { normalizeInvitationEmail } from "@/helpers/chat-room-invitation";
-import { notFound } from "@/helpers/error";
-import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { badRequest, notFound } from "@/helpers/error";
+import {
+  jsonErrorResponse,
+  jsonPaginatedSuccessResponse,
+} from "@/helpers/openapi";
+import {
+  createPaginationMeta,
+  parseCursorPagination,
+} from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
 import { mapVendor } from "@/helpers/vendor";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
+import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { myVendorInviteSchema } from "@/schemas/vendor.schema";
 
 const myVendorInviteListSchema = z
@@ -18,10 +26,11 @@ const route = createRoute({
   path: "/invites",
   operationId: "listMyVendorInvites",
   description:
-    "List live pending vendor member invitations matched to the authenticated user's verified account email.",
+    "List live pending vendor member invitations matched to the authenticated user's verified account email with cursor pagination.",
   tags: ["Vendors"],
+  request: { query: cursorPaginationQuerySchema },
   responses: {
-    200: jsonSuccessResponse(
+    200: jsonPaginatedSuccessResponse(
       myVendorInviteListSchema,
       "Pending vendor invitations for the current user",
       {
@@ -45,9 +54,16 @@ const route = createRoute({
         meta: {
           timestamp: "2025-01-01T00:00:00.000Z",
           requestId: "550e8400-e29b-41d4-a716-446655440000",
+          pagination: {
+            cursor: null,
+            limit: 20,
+            total: 1,
+            nextCursor: null,
+          },
         },
       },
     ),
+    400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
@@ -56,6 +72,8 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
+    const queryParams = c.req.valid("query");
+    const { cursor, take, skip } = parseCursorPagination(queryParams);
     const userAuth = requireUserAuthContext(c.var.authContext);
 
     const user = await prisma.user.findUnique({
@@ -66,32 +84,65 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("User not found");
     }
     if (!user.emailVerified) {
-      return ok(c, myVendorInviteListSchema.parse([]));
+      const emptyInvites = myVendorInviteListSchema.parse([]);
+      return ok(
+        c,
+        emptyInvites,
+        createPaginationMeta(emptyInvites, 0, take, false, cursor),
+      );
     }
     const email = normalizeInvitationEmail(user.email);
     const now = new Date();
-    const invites = await prisma.vendorMemberInvite.findMany({
-      where: {
-        email,
-        status: "PENDING",
-        expiresAt: { gt: now },
-      },
-      include: { vendor: true },
-      orderBy: { createdAt: "desc" },
-    });
+    const where = {
+      email,
+      status: "PENDING" as const,
+      expiresAt: { gt: now },
+    };
 
-    return ok(
-      c,
-      myVendorInviteListSchema.parse(
-        invites.map((invite) => ({
-          id: invite.id,
-          role: invite.role,
-          status: invite.status,
-          expiresAt: invite.expiresAt,
-          createdAt: invite.createdAt,
-          vendor: mapVendor(invite.vendor),
-        })),
-      ),
+    const cursorInvite = cursor
+      ? await prisma.vendorMemberInvite.findFirst({
+          where: { AND: [where, { id: cursor }] },
+          select: { id: true },
+        })
+      : undefined;
+
+    if (cursor && !cursorInvite) {
+      throw badRequest("Invalid pagination cursor");
+    }
+
+    const takePlusOne = take + 1;
+    const [invites, count] = await prisma.$transaction([
+      prisma.vendorMemberInvite.findMany({
+        where,
+        take: takePlusOne,
+        skip: cursorInvite ? 1 : skip,
+        cursor: cursorInvite ? { id: cursorInvite.id } : undefined,
+        include: { vendor: true },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      }),
+      prisma.vendorMemberInvite.count({ where }),
+    ]);
+
+    const hasMore = invites.length === takePlusOne;
+    const pagedInvites = invites.slice(0, take);
+    const inviteItems = myVendorInviteListSchema.parse(
+      pagedInvites.map((invite) => ({
+        id: invite.id,
+        role: invite.role,
+        status: invite.status,
+        expiresAt: invite.expiresAt,
+        createdAt: invite.createdAt,
+        vendor: mapVendor(invite.vendor),
+      })),
     );
+    const paginationMeta = createPaginationMeta(
+      inviteItems,
+      count,
+      take,
+      hasMore,
+      cursor,
+    );
+
+    return ok(c, inviteItems, paginationMeta);
   });
 }

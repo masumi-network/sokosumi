@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
 import { LIMITS } from "@/config/constants";
+import { dateTimeSchema } from "@/helpers/datetime";
 
 const vendorLogoSchema = z.string().nullable();
 const vendorLogoInputSchema = z
@@ -123,8 +124,8 @@ export const vendorMemberInviteSchema = z
     email: z.string().email().openapi({ example: "dev@example.com" }),
     role: vendorMemberRoleSchema,
     status: vendorMemberInviteStatusSchema,
-    expiresAt: z.date(),
-    createdAt: z.date(),
+    expiresAt: dateTimeSchema,
+    createdAt: dateTimeSchema,
   })
   .openapi("VendorMemberInvite");
 
@@ -133,8 +134,8 @@ export const myVendorInviteSchema = z
     id: z.string().openapi({ example: "01960001-0001-7001-8001-000000000001" }),
     role: vendorMemberRoleSchema,
     status: vendorMemberInviteStatusSchema,
-    expiresAt: z.date(),
-    createdAt: z.date(),
+    expiresAt: dateTimeSchema,
+    createdAt: dateTimeSchema,
     vendor: vendorSchema,
   })
   .openapi("MyVendorInvite");

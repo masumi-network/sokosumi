@@ -21184,11 +21184,13 @@ export const MyVendorInviteSchema = {
         },
         expiresAt: {
             type: 'string',
-            format: 'date-time'
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
         },
         createdAt: {
             type: 'string',
-            format: 'date-time'
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
         },
         vendor: {
             $ref: '#/components/schemas/Vendor'
@@ -21292,11 +21294,13 @@ export const VendorMemberInviteSchema = {
         },
         expiresAt: {
             type: 'string',
-            format: 'date-time'
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
         },
         createdAt: {
             type: 'string',
-            format: 'date-time'
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
         }
     },
     required: [

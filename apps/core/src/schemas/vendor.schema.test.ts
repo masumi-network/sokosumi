@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { LIMITS } from "@/config/constants";
 
-import { createVendorRequestSchema, vendorSchema } from "./vendor.schema";
+import {
+  createVendorRequestSchema,
+  myVendorInviteSchema,
+  vendorMemberInviteSchema,
+  vendorSchema,
+} from "./vendor.schema";
 
 describe("vendor logo schemas", () => {
   it("caps input logos but accepts longer stored logos in responses", () => {
@@ -26,5 +31,42 @@ describe("vendor logo schemas", () => {
         logos: { light: longLogo, dark: null },
       }).logos.light,
     ).toBe(longLogo);
+  });
+});
+
+describe("vendor invite schemas", () => {
+  it("converts invite timestamps to ISO strings", () => {
+    const expiresAt = new Date("2026-01-08T00:00:00.000Z");
+    const createdAt = new Date("2026-01-01T00:00:00.000Z");
+
+    const invite = vendorMemberInviteSchema.parse({
+      id: "invite-1",
+      vendorId: "vendor-1",
+      email: "dev@example.com",
+      role: "developer",
+      status: "PENDING",
+      expiresAt,
+      createdAt,
+    });
+    const myInvite = myVendorInviteSchema.parse({
+      id: invite.id,
+      role: invite.role,
+      status: invite.status,
+      expiresAt,
+      createdAt,
+      vendor: {
+        id: "vendor-1",
+        createdAt,
+        updatedAt: createdAt,
+        name: "Acme",
+        slug: "acme",
+        logos: { light: null, dark: null },
+      },
+    });
+
+    expect(invite.expiresAt).toBe(expiresAt.toISOString());
+    expect(invite.createdAt).toBe(createdAt.toISOString());
+    expect(myInvite.expiresAt).toBe(expiresAt.toISOString());
+    expect(myInvite.createdAt).toBe(createdAt.toISOString());
   });
 });

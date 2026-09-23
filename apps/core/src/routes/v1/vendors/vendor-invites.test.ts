@@ -120,35 +120,40 @@ describe("vendor member invites", () => {
     db.inviteFindFirstMock.mockResolvedValue(null);
     db.inviteUpdateManyMock.mockResolvedValue({ count: 1 });
     db.inviteCountMock.mockResolvedValue(0);
+    db.inviteFindManyMock.mockResolvedValue([]);
     db.inviteCreateMock.mockResolvedValue(pendingInvite);
     db.inviteUpdateMock.mockResolvedValue({
       ...pendingInvite,
       status: "ACCEPTED",
     });
     // The tx double shares the same spies as the top-level client.
-    db.transactionMock.mockImplementation(
-      async (callback: (tx: unknown) => Promise<unknown>) =>
-        callback({
-          vendor: { findUnique: db.vendorFindUniqueMock },
-          vendorMember: {
-            findFirst: db.vendorMemberFindFirstMock,
-            findUnique: db.vendorMemberFindUniqueMock,
-            create: db.vendorMemberCreateMock,
-          },
-          vendorMemberInvite: {
-            findFirst: db.inviteFindFirstMock,
-            findUnique: db.inviteFindUniqueMock,
-            create: db.inviteCreateMock,
-            update: db.inviteUpdateMock,
-            updateMany: db.inviteUpdateManyMock,
-            count: db.inviteCountMock,
-          },
-          user: {
-            findUnique: db.userFindUniqueMock,
-            findFirst: db.userFindFirstMock,
-          },
-        }),
-    );
+    db.transactionMock.mockImplementation(async (operation: unknown) => {
+      if (Array.isArray(operation)) {
+        return Promise.all(operation);
+      }
+      const callback = operation as (tx: unknown) => Promise<unknown>;
+      return callback({
+        vendor: { findUnique: db.vendorFindUniqueMock },
+        vendorMember: {
+          findFirst: db.vendorMemberFindFirstMock,
+          findUnique: db.vendorMemberFindUniqueMock,
+          create: db.vendorMemberCreateMock,
+        },
+        vendorMemberInvite: {
+          findFirst: db.inviteFindFirstMock,
+          findUnique: db.inviteFindUniqueMock,
+          findMany: db.inviteFindManyMock,
+          create: db.inviteCreateMock,
+          update: db.inviteUpdateMock,
+          updateMany: db.inviteUpdateManyMock,
+          count: db.inviteCountMock,
+        },
+        user: {
+          findUnique: db.userFindUniqueMock,
+          findFirst: db.userFindFirstMock,
+        },
+      });
+    });
   });
 
   it("invites an unregistered email without revealing that it is unregistered", async () => {
@@ -510,11 +515,12 @@ describe("vendor member invites", () => {
     expect(db.vendorMemberCreateMock).not.toHaveBeenCalled();
   });
 
-  it("lists the caller's pending invitations with vendor info", async () => {
+  it("lists the caller's pending invitations with vendor info and pagination", async () => {
     db.userFindUniqueMock.mockResolvedValue({
       email: "dev@example.com",
       emailVerified: true,
     });
+    db.inviteCountMock.mockResolvedValue(2);
     db.inviteFindManyMock.mockResolvedValue([
       {
         ...pendingInvite,
@@ -526,15 +532,80 @@ describe("vendor member invites", () => {
           updatedAt: new Date("2026-01-01T00:00:00.000Z"),
         },
       },
+      {
+        ...pendingInvite,
+        id: "inv_2",
+        createdAt: new Date("2025-12-01T00:00:00.000Z"),
+        vendor: {
+          ...testVendor,
+          logoLight: null,
+          logoDark: null,
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+        },
+      },
     ]);
 
     const app = createApp(inviteeAuth);
-    const response = await app.request("http://localhost/invites");
+    const response = await app.request("http://localhost/invites?limit=1");
     const body = await response.json();
 
     expect(response.status).toBe(200);
     expect(body.data[0].vendor.slug).toBe(testVendor.slug);
     expect(body.data[0].role).toBe("developer");
+    expect(body.meta.pagination).toEqual({
+      cursor: null,
+      limit: 1,
+      total: 2,
+      nextCursor: "inv_1",
+    });
+    expect(db.inviteFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        take: 2,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      }),
+    );
+  });
+
+  it("paginates live invitations for vendor admins", async () => {
+    db.inviteCountMock.mockResolvedValue(1);
+    db.inviteFindManyMock.mockResolvedValue([pendingInvite]);
+
+    const app = createApp(adminAuth);
+    const response = await app.request(
+      `http://localhost/${testVendor.id}/invites`,
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data[0].id).toBe(pendingInvite.id);
+    expect(body.meta.pagination).toEqual({
+      cursor: null,
+      limit: 20,
+      total: 1,
+      nextCursor: null,
+    });
+    expect(db.inviteFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        take: 21,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      }),
+    );
+  });
+
+  it("rejects an invalid cursor for the caller's invitations", async () => {
+    db.userFindUniqueMock.mockResolvedValue({
+      email: "dev@example.com",
+      emailVerified: true,
+    });
+
+    const app = createApp(inviteeAuth);
+    const response = await app.request(
+      "http://localhost/invites?cursor=missing",
+    );
+
+    expect(response.status).toBe(400);
+    expect(db.inviteFindManyMock).not.toHaveBeenCalled();
   });
 
   it("returns no pending invitations to an unverified email", async () => {
@@ -549,6 +620,12 @@ describe("vendor member invites", () => {
 
     expect(response.status).toBe(200);
     expect(body.data).toEqual([]);
+    expect(body.meta.pagination).toEqual({
+      cursor: null,
+      limit: 20,
+      total: 0,
+      nextCursor: null,
+    });
     expect(db.inviteFindManyMock).not.toHaveBeenCalled();
   });
 
