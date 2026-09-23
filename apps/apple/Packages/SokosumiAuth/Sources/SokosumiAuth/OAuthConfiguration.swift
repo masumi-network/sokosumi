@@ -43,7 +43,7 @@ public struct OAuthConfiguration: Sendable {
     return components.url!
   }
 
-  public var authorizeEndpoint: URL {
+  private var authorizeEndpoint: URL {
     issuerBaseURL.appendingPathComponent("oauth2/authorize")
   }
 

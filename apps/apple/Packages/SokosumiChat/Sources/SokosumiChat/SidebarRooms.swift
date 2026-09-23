@@ -47,7 +47,7 @@ public struct RoomAttention: Equatable, Sendable {
 }
 
 /// Web `ROOM_COUNT_CAP`: a very loud room cannot reflow its row.
-public let roomCountCap = 99
+private let roomCountCap = 99
 
 /// Web `roomCountLabel`: the count, capped as "99+".
 public func roomCountLabel(_ count: Int) -> String {
@@ -265,7 +265,7 @@ public func partitionRoomsForSidebar(
 /// before private; newest activity; stable id tie-break. Pinned rooms never
 /// reach this: the sidebar lists them in their own section, ordered by
 /// `comparePinnedRooms`.
-public func compareRoomsByRecentActivity(
+private func compareRoomsByRecentActivity(
   _ lhs: Components.Schemas.ChatRoom,
   _ rhs: Components.Schemas.ChatRoom
 ) -> Bool {
@@ -286,7 +286,7 @@ public func compareRoomsByRecentActivity(
 /// Web's `comparePinnedChatRooms`, the reader's own order: oldest `starredAt`
 /// first, which a reorder rewrites (Core `PUT /chats/rooms/starred`). Activity
 /// never moves a pinned room.
-public func comparePinnedRooms(
+private func comparePinnedRooms(
   _ lhs: Components.Schemas.ChatRoom,
   _ rhs: Components.Schemas.ChatRoom
 ) -> Bool {
