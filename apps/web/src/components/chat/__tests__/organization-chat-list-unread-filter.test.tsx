@@ -109,7 +109,7 @@ describe("OrganizationChatList All unreads filter", () => {
 
   it("says the reader is caught up when nothing is left", async () => {
     listRoomsMock.mockResolvedValue(emptyListResult([readChannel, readDirect]));
-    renderOrganizationChatList({
+    const { container } = renderOrganizationChatList({
       organizationId: "org-1",
       rooms: [readChannel, readDirect],
     });
@@ -123,6 +123,11 @@ describe("OrganizationChatList All unreads filter", () => {
     expect(
       screen.queryByText("App.Channels.UnreadNav.justRead"),
     ).not.toBeInTheDocument();
+    // The empty list stays mounted for the pass, and must not name the
+    // label that is not there.
+    expect(
+      container.querySelector('[data-slot="unread-inbox"]'),
+    ).not.toHaveAttribute("aria-labelledby");
   });
 
   // The open room stays listed so reading it never pulls it away, but it is

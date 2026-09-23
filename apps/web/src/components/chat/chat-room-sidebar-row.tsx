@@ -11,6 +11,7 @@ import {
   Pin,
   PinOff,
 } from "lucide-react";
+import { type MotionProps, motion } from "motion/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -118,6 +119,8 @@ import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
 const TRAILING_CLUSTER_CLASS =
   "group-data-[collapsible=icon]:hidden absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center";
 
+const MotionSidebarMenuItem = motion.create(SidebarMenuItem);
+
 export interface ChatRoomSidebarRowProps {
   room: ChatRoom;
   href: string;
@@ -131,9 +134,18 @@ export interface ChatRoomSidebarRowProps {
   dismissSheetOnNavigate?: boolean;
   /**
    * Props for the row's `<li>`: a drop slot that moves in a drag in Pinned,
-   * a dimmed read room in the All unreads filter.
+   * a dimmed read room in the All unreads filter. Without the handlers motion
+   * owns, so the same props fit the animated `<li>` of `itemMotion`.
    */
-  itemProps?: ComponentProps<"li">;
+  itemProps?: Omit<
+    ComponentProps<"li">,
+    "onAnimationStart" | "onDrag" | "onDragStart" | "onDragEnd"
+  >;
+  /**
+   * Presence animation for the `<li>`, for a row inside `AnimatePresence`:
+   * one arriving in or leaving the All unreads filter.
+   */
+  itemMotion?: MotionProps;
   /**
    * Pinned section in its reorder mode: stands where the room menu does, and
    * the row stops being a link, so a press moves the room instead of opening it.
@@ -306,6 +318,7 @@ export function ChatRoomSidebarRow({
   onRoomUpdated,
   dismissSheetOnNavigate = true,
   itemProps,
+  itemMotion,
   reorderHandle,
 }: ChatRoomSidebarRowProps) {
   const selectedPath = useRoomSelection();
@@ -595,11 +608,9 @@ export function ChatRoomSidebarRow({
     </SidebarMenuButton>
   );
 
-  return (
-    <SidebarMenuItem
-      {...itemProps}
-      className={cn("relative", itemProps?.className)}
-    >
+  const itemClassName = cn("relative", itemProps?.className);
+  const content = (
+    <>
       {/* The row proper. Its marks and trailing cluster are centred on this
           box, and its hover reveals its own menu, so neither can drift onto
           the inset thread rows that follow it inside the same item. */}
@@ -807,6 +818,20 @@ export function ChatRoomSidebarRow({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </>
+  );
+
+  return itemMotion ? (
+    <MotionSidebarMenuItem
+      {...itemProps}
+      {...itemMotion}
+      className={itemClassName}
+    >
+      {content}
+    </MotionSidebarMenuItem>
+  ) : (
+    <SidebarMenuItem {...itemProps} className={itemClassName}>
+      {content}
     </SidebarMenuItem>
   );
 }

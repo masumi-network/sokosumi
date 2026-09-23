@@ -37,7 +37,7 @@ const labels = {
   loadOlder: "Load older threads",
   groupUnread: "Unread",
   groupEarlier: "Earlier",
-  groupUnreadEmpty: "All caught up.",
+  groupUnreadEmpty: "All caught up",
   startedBy: (name: string) => `Started by ${name}`,
   newReplies: (count: number) => `${count} new`,
   replies: (count: number) => (count === 1 ? "1 reply" : `${count} replies`),

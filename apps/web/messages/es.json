@@ -5468,7 +5468,7 @@
       "UnreadNav": {
         "label": "Sin leer",
         "threads": "Hilos",
-        "allUnreads": "Todo lo no leído",
+        "allUnreads": "No leídos",
         "unreadThreads": "{count, plural, one {# hilo sin leer} other {# hilos sin leer}}",
         "unreadThreadsCapped": "Más de {max} hilos sin leer",
         "mentions": "{count, plural, one {# mención} other {# menciones}}",
@@ -5477,7 +5477,6 @@
         "markAllReadError": "No se pudo marcar todo como leído.",
         "caughtUp": "Todo al día",
         "allThreads": "Todos los hilos",
-        "nothingUnread": "{count, plural, one {Nada sin leer en # chat} other {Nada sin leer en # chats}}",
         "justRead": "Recién leídos"
       },
       "ThreadsView": {
@@ -5664,7 +5663,7 @@
         "loadOlder": "Cargar hilos anteriores",
         "groupUnread": "Sin leer",
         "groupEarlier": "Anteriores",
-        "groupUnreadEmpty": "Todo al día.",
+        "groupUnreadEmpty": "Todo al día",
         "startedBy": "Iniciado por {name}",
         "unreadThreads": "{count, plural, one {# hilo no leído} other {# hilos no leídos}}",
         "unreadThreadsCapped": "Más de {max} hilos no leídos",
