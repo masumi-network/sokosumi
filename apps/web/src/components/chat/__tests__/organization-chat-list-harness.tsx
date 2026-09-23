@@ -5,7 +5,10 @@ import type {
   ChatRoom,
   ChatRoomInvitation,
 } from "@/lib/clients/generated/core";
-import { serializeChatUnreadsFilterCookie } from "@/lib/ui-preferences/chat-unreads-filter";
+import {
+  CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE,
+  serializeChatUnreadsFilterCookie,
+} from "@/lib/ui-preferences/chat-unreads-filter";
 
 import { OrganizationChatList } from "../organization-chat-list.client";
 
@@ -347,6 +350,7 @@ export function resetOrganizationChatListMocks() {
   // The Unreads filter is remembered in a cookie; one test's choice must not
   // open the next test's list.
   document.cookie = serializeChatUnreadsFilterCookie(false);
+  document.documentElement.removeAttribute(CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE);
   harnessPathname.current = "/chat";
   harnessSelection.current = null;
   acceptInvitationMock.mockReset();

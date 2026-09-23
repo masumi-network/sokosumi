@@ -39,15 +39,19 @@ function setChatUnreadsFilter(on: boolean) {
  */
 export function useChatUnreadsFilter(): [boolean, (on: boolean) => void] {
   const on = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-  // The boot mark stands in for the cookie only until React renders it: the
-  // hydration pass still renders the server's All, so it waits for the render
-  // that agrees with the cookie. Left behind, it would hide All for good.
+  // Drop the mark only once the cookie is off. Dropping it when this list
+  // agrees unhides every other All list still on the page: the sidebar and
+  // the phone's Chats page both mount, and one can hydrate before the other
+  // streams in. While the cookie is on, the mark keeps those All lists
+  // hidden. Switching off clears it before paint, including a mark this page
+  // set before another tab turned the filter off.
   useLayoutEffect(() => {
-    if (on === getSnapshot()) {
-      document.documentElement.removeAttribute(
-        CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE,
-      );
+    if (on || getSnapshot()) {
+      return;
     }
+    document.documentElement.removeAttribute(
+      CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE,
+    );
   }, [on]);
   return [on, setChatUnreadsFilter];
 }

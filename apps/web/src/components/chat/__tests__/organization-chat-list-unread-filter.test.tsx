@@ -211,10 +211,23 @@ describe("OrganizationChatList remembered Unreads filter", () => {
     expect(inboxRows(container)).toEqual(["launch", "design"]);
   });
 
-  // The boot mark only covers the prerendered All list until React reads the
-  // cookie; left behind, it would hide All if the filter later goes off.
-  it("drops the page's boot mark once the list shows the remembered filter", () => {
+  // The mark hides every All list still on the page. Clearing it when this
+  // list agrees would show All on the other one (sidebar and /chat).
+  it("keeps the boot mark while the remembered filter is on", () => {
     document.cookie = serializeChatUnreadsFilterCookie(true);
+    document.documentElement.setAttribute(
+      CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE,
+      "",
+    );
+
+    renderOrganizationChatList({ organizationId: "org-1", rooms });
+
+    expect(
+      document.documentElement.hasAttribute(CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE),
+    ).toBe(true);
+  });
+
+  it("drops a boot mark when the filter is already off", () => {
     document.documentElement.setAttribute(
       CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE,
       "",
@@ -234,8 +247,15 @@ describe("OrganizationChatList remembered Unreads filter", () => {
     await userEvent.click(toggle);
     expect(parseChatUnreadsFilterCookieHeader(document.cookie)).toBe(true);
 
+    document.documentElement.setAttribute(
+      CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE,
+      "",
+    );
     await userEvent.click(toggle);
     expect(parseChatUnreadsFilterCookieHeader(document.cookie)).toBe(false);
+    expect(
+      document.documentElement.hasAttribute(CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE),
+    ).toBe(false);
   });
 });
 
