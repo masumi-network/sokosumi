@@ -97,11 +97,13 @@ vi.mock("../chat-room-sidebar-row", () => ({
   ChatRoomSidebarRow: ({
     label,
     reorderHandle,
+    itemProps,
   }: {
     label: string;
     reorderHandle?: ReactNode;
+    itemProps?: ComponentProps<"li">;
   }) => (
-    <li data-testid="room-row">
+    <li {...itemProps} data-testid="room-row">
       <span>{label}</span>
       {reorderHandle}
     </li>
