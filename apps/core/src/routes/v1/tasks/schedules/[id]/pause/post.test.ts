@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   MEMBER_ID,
+  occurrencesOf,
   resetTaskScheduleTestDb,
+  seedOccurrence,
   seedTaskSchedule,
   taskScheduleTestDb,
   userAuth,
@@ -61,6 +63,20 @@ describe("POST /tasks/schedules/{id}/pause", () => {
     expect(await response.json()).toMatchObject({
       data: { state: "PAUSED", nextOccurrenceAt: null, revision: 1 },
     });
+  });
+
+  it("drops the planned Occurrences and keeps the released ones", async () => {
+    const schedule = seedTaskSchedule({ releasedCount: 1 });
+    const released = seedOccurrence(
+      schedule,
+      new Date("2029-12-31T09:00:00.000Z"),
+      { state: "RELEASED", releasedTaskId: "task_released" },
+    );
+    seedOccurrence(schedule, new Date("2030-01-07T09:00:00.000Z"));
+
+    await send(schedule.id);
+
+    expect(occurrencesOf(schedule.id)).toEqual([released]);
   });
 
   it.each(["PAUSED", "ENDED"] as const)(

@@ -251,6 +251,8 @@ export async function readWorkspaceCalendar(
       }
     : null;
   const persistedOccurrenceBaseWhere = {
+    // Task Schedule Occurrences are not on the calendar yet (SOK-1170).
+    seriesTaskId: { not: null },
     sourceWorkspaceId: workspaceId,
     ...sourceFilter,
     ...(options.projectId
@@ -326,6 +328,9 @@ export async function readWorkspaceCalendar(
 
   const persistedItems = occurrences
     .slice(0, maxCandidates)
+    .flatMap(({ seriesTask, ...rest }) =>
+      seriesTask ? [{ ...rest, seriesTask }] : [],
+    )
     .map((occurrence) => {
       const task =
         occurrence.state === TaskScheduleOccurrenceState.RELEASED &&

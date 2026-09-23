@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import {
   type Prisma,
   type TaskSchedule,
@@ -11,7 +13,6 @@ import {
   requireCoworkerCapability,
   requireGrantedWorkspaceAccessOrRequest,
 } from "@/helpers/access-control";
-import { computeNextRun } from "@/helpers/cron";
 import {
   badRequest,
   conflict,
@@ -25,10 +26,7 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { nextAssigneeWrite } from "@/helpers/task-assignee-alias";
-import {
-  computeIntervalNextRun,
-  validateScheduleInput,
-} from "@/helpers/task-schedule";
+import { validateScheduleInput } from "@/helpers/task-schedule";
 import {
   buildCoworkerPrivateTaskVisibilityWhere,
   buildHumanTaskVisibilityWhere,
@@ -57,6 +55,11 @@ import {
   requireTaskReferences,
   type TaskDomainActor,
 } from "@/services/task-domain.service";
+import {
+  moveTaskScheduleOccurrencesToProject,
+  projectTaskScheduleOccurrences,
+  removePlannedTaskScheduleOccurrences,
+} from "@/services/task-schedule-occurrences.service";
 
 /**
  * Task Schedule operations (ADR 0040). Owns who may see and change a
@@ -152,6 +155,7 @@ function validateRule(rule: TaskScheduleRule): void {
   });
 }
 
+/** Every new rule starts a new epoch of Occurrences. */
 function ruleColumns(rule: TaskScheduleRule, now: Date) {
   return {
     expr: rule.expr,
@@ -159,55 +163,11 @@ function ruleColumns(rule: TaskScheduleRule, now: Date) {
     intervalDays: rule.intervalDays ?? null,
     anchorAt: rule.anchorAt ? new Date(rule.anchorAt) : now,
     ruleEffectiveFrom: now,
+    epochId: randomUUID(),
     endsMode: rule.endsMode,
     endsOn: rule.endsOn ? new Date(rule.endsOn) : null,
     targetOccurrenceCount: rule.targetOccurrenceCount ?? null,
   };
-}
-
-type RuleState = Pick<
-  TaskSchedule,
-  | "expr"
-  | "timezone"
-  | "intervalDays"
-  | "anchorAt"
-  | "endsMode"
-  | "endsOn"
-  | "targetOccurrenceCount"
-  | "releasedCount"
->;
-
-/** First Occurrence after `from`, or null once the end rule is reached. */
-function computeNextOccurrence(schedule: RuleState, from: Date): Date | null {
-  if (
-    schedule.endsMode === TaskScheduleEndsMode.AFTER &&
-    schedule.targetOccurrenceCount != null &&
-    schedule.releasedCount >= schedule.targetOccurrenceCount
-  ) {
-    return null;
-  }
-  const next =
-    schedule.intervalDays != null && schedule.intervalDays > 1
-      ? computeIntervalNextRun(
-          schedule.anchorAt,
-          schedule.intervalDays,
-          from,
-          schedule.timezone,
-        )
-      : computeNextRun({
-          cron: schedule.expr,
-          timezone: schedule.timezone,
-          from,
-        });
-  if (
-    next &&
-    schedule.endsMode === TaskScheduleEndsMode.ON &&
-    schedule.endsOn &&
-    next > schedule.endsOn
-  ) {
-    return null;
-  }
-  return next;
 }
 
 function resolveVisibility(
@@ -251,21 +211,27 @@ export async function createTaskSchedule(
       },
       tx,
     );
-    return await tx.taskSchedule.create({
+    const schedule = await tx.taskSchedule.create({
       data: {
         workspaceId: actor.workspace.workspaceId,
         organizationId: actor.workspace.organizationId,
         ownerId: actor.userId,
         ...creatorFields(domainActor),
         ...rule,
-        nextOccurrenceAt: computeNextOccurrence(
-          { ...rule, releasedCount: 0 },
-          now,
-        ),
         name: input.name,
         description: input.description ?? null,
         visibility,
         ...blueprint,
+      },
+    });
+    return await tx.taskSchedule.update({
+      where: { id: schedule.id },
+      data: {
+        nextOccurrenceAt: await projectTaskScheduleOccurrences(
+          tx,
+          schedule,
+          now,
+        ),
       },
     });
   });
@@ -402,27 +368,14 @@ export async function updateTaskSchedule(
     }
 
     const now = new Date();
-    let ruleUpdate = {};
-    if (input.rule) {
-      const rule = ruleColumns(input.rule, now);
-      if (
-        rule.targetOccurrenceCount != null &&
-        rule.targetOccurrenceCount <= current.releasedCount
-      ) {
-        throw unprocessableEntity(
-          "targetOccurrenceCount must be greater than the Occurrences already released",
-        );
-      }
-      ruleUpdate = {
-        ...rule,
-        nextOccurrenceAt:
-          current.state === TaskScheduleState.ACTIVE
-            ? computeNextOccurrence(
-                { ...rule, releasedCount: current.releasedCount },
-                now,
-              )
-            : null,
-      };
+    const rule = input.rule ? ruleColumns(input.rule, now) : undefined;
+    if (
+      rule?.targetOccurrenceCount != null &&
+      rule.targetOccurrenceCount <= current.releasedCount
+    ) {
+      throw unprocessableEntity(
+        "targetOccurrenceCount must be greater than the Occurrences already released",
+      );
     }
 
     const assignees = nextAssigneeWrite(input);
@@ -447,7 +400,7 @@ export async function updateTaskSchedule(
         description: input.description,
         projectId: input.projectId,
         ...assignees,
-        ...ruleUpdate,
+        ...rule,
         revision: { increment: 1 },
       },
     });
@@ -456,7 +409,33 @@ export async function updateTaskSchedule(
         kind: CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT,
       });
     }
-    return await tx.taskSchedule.findUniqueOrThrow({ where: { id } });
+    const updated = await tx.taskSchedule.findUniqueOrThrow({ where: { id } });
+
+    // The old rule's future Occurrences go; ones already owed still release,
+    // and released ones and their Tasks stay. A Paused schedule plans again
+    // on resume.
+    let schedule = updated;
+    if (input.rule) {
+      await removePlannedTaskScheduleOccurrences(tx, id, now);
+      if (updated.state === TaskScheduleState.ACTIVE) {
+        schedule = await tx.taskSchedule.update({
+          where: { id },
+          data: {
+            nextOccurrenceAt: await projectTaskScheduleOccurrences(
+              tx,
+              updated,
+              now,
+            ),
+          },
+        });
+      }
+    }
+    // Owed rows survive a rule edit, so a project change in the same request
+    // still has to move them. New rows already use the updated project.
+    if (input.projectId !== undefined) {
+      await moveTaskScheduleOccurrencesToProject(tx, schedule);
+    }
+    return schedule;
   });
 }
 
@@ -490,7 +469,8 @@ const STATE_ACTIONS: Record<
 /**
  * Pause stops Occurrences without losing the schedule; resume picks up at the
  * first Occurrence after now (missed ones are not made up), or Ends the
- * schedule when its end rule passed meanwhile; end is final.
+ * schedule when its end rule passed meanwhile; end is final. Pause and end
+ * drop the planned Occurrences; resume plans them again.
  */
 export async function changeTaskScheduleState(
   vars: RouteVars,
@@ -511,13 +491,16 @@ export async function changeTaskScheduleState(
 
     const nextOccurrenceAt =
       to === TaskScheduleState.ACTIVE
-        ? computeNextOccurrence(current, new Date())
+        ? await projectTaskScheduleOccurrences(tx, current, new Date())
         : null;
     // Resuming past the end rule ends the schedule instead.
     const state =
       to === TaskScheduleState.ACTIVE && !nextOccurrenceAt
         ? TaskScheduleState.ENDED
         : to;
+    if (!nextOccurrenceAt) {
+      await removePlannedTaskScheduleOccurrences(tx, id);
+    }
 
     const { count } = await tx.taskSchedule.updateMany({
       where: { id, state: current.state },

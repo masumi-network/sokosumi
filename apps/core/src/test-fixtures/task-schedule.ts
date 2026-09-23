@@ -1,8 +1,15 @@
 import { randomUUID } from "node:crypto";
 
 import {
+  CalendarSourceAccuracy,
+  CalendarSourceType,
+  CalendarTimeAccuracy,
+  type Task,
+  type TaskEvent,
   type TaskSchedule,
   TaskScheduleEndsMode,
+  type TaskScheduleOccurrence,
+  TaskScheduleOccurrenceState,
   TaskScheduleState,
   TaskVisibility,
   type VendorGrantStatus,
@@ -61,12 +68,23 @@ export const SOKO_BOT_AUTH: AuthenticationContext = {
   workspaceId: ORG_WORKSPACE_ID,
 };
 
+type StoredTask = Partial<Task> & { id: string; events: Partial<TaskEvent>[] };
+
+interface StoredProject {
+  workspaceId: string;
+  closingAt?: Date | null;
+  closedAt?: Date | null;
+}
+
 interface Store {
   schedules: TaskSchedule[];
+  occurrences: TaskScheduleOccurrence[];
+  /** Tasks the release created, with their nested events. */
+  tasks: StoredTask[];
   /** Coworkers that exist, keyed by id, with their vendor. */
   coworkers: Map<string, { vendorId: string }>;
   sokoBots: Map<string, { userId: string; workspaceId: string }>;
-  projects: Map<string, { workspaceId: string }>;
+  projects: Map<string, StoredProject>;
   /** Organization members, as `${organizationId}:${userId}`. */
   members: Set<string>;
   vendorGrantStatus: VendorGrantStatus | null;
@@ -76,6 +94,8 @@ interface Store {
 function emptyStore(): Store {
   return {
     schedules: [],
+    occurrences: [],
+    tasks: [],
     coworkers: new Map([[COWORKER_ID, { vendorId: VENDOR_ID }]]),
     sokoBots: new Map([
       [SOKO_BOT_ID, { userId: OWNER_ID, workspaceId: ORG_WORKSPACE_ID }],
@@ -114,6 +134,7 @@ export function seedTaskSchedule(
     intervalDays: null,
     anchorAt: now,
     ruleEffectiveFrom: now,
+    epochId: randomUUID(),
     endsMode: TaskScheduleEndsMode.NEVER,
     endsOn: null,
     targetOccurrenceCount: null,
@@ -133,6 +154,50 @@ export function seedTaskSchedule(
   return row;
 }
 
+/** A ledger row of `schedule` in its current epoch, planned at `at`. */
+export function seedOccurrence(
+  schedule: TaskSchedule,
+  at: Date,
+  overrides: Partial<TaskScheduleOccurrence> = {},
+): TaskScheduleOccurrence {
+  const row: TaskScheduleOccurrence = {
+    id: randomUUID(),
+    createdAt: at,
+    updatedAt: at,
+    seriesTaskId: null,
+    scheduleId: schedule.id,
+    releasedTaskId: null,
+    epochId: schedule.epochId,
+    originalScheduledAt: at,
+    effectiveScheduledAt: at,
+    legacyLinkId: null,
+    scheduleVersion: 2,
+    state: TaskScheduleOccurrenceState.PLANNED,
+    sourceWorkspaceId: schedule.workspaceId,
+    sourceType: schedule.projectId
+      ? CalendarSourceType.PROJECT
+      : CalendarSourceType.WORKSPACE,
+    sourceProjectId: schedule.projectId,
+    sourceAccuracy: CalendarSourceAccuracy.EXACT,
+    timeAccuracy: CalendarTimeAccuracy.EXACT,
+    actorUserId: null,
+    timezone: schedule.timezone,
+    ruleSnapshot: null,
+    ...overrides,
+  };
+  taskScheduleTestDb.occurrences.push(row);
+  return row;
+}
+
+/** Ledger rows of a schedule, oldest first. */
+export function occurrencesOf(scheduleId: string): TaskScheduleOccurrence[] {
+  return sortOccurrences(
+    taskScheduleTestDb.occurrences.filter(
+      (row) => row.scheduleId === scheduleId,
+    ),
+  );
+}
+
 type Where = Record<string, unknown>;
 
 function matchesValue(actual: unknown, expected: unknown): boolean {
@@ -146,9 +211,51 @@ function matchesValue(actual: unknown, expected: unknown): boolean {
       return actual != null && !matchesValue(actual, filter.not);
     }
     if ("in" in filter) return (filter.in as unknown[]).includes(actual);
+    if ("notIn" in filter) {
+      return actual != null && !(filter.notIn as unknown[]).includes(actual);
+    }
+    if (
+      "lte" in filter ||
+      "lt" in filter ||
+      "gte" in filter ||
+      "gt" in filter
+    ) {
+      if (!(actual instanceof Date)) return false;
+      const time = actual.getTime();
+      const bound = (key: string) => (filter[key] as Date).getTime();
+      return (
+        (!("lte" in filter) || time <= bound("lte")) &&
+        (!("lt" in filter) || time < bound("lt")) &&
+        (!("gte" in filter) || time >= bound("gte")) &&
+        (!("gt" in filter) || time > bound("gt"))
+      );
+    }
     throw new Error(`Unsupported filter ${JSON.stringify(expected)}`);
   }
   return actual === expected;
+}
+
+function matchesRow<Row extends object>(row: Row, where: Where = {}): boolean {
+  return Object.entries(where).every(([key, expected]) => {
+    if (expected === undefined) return true;
+    if (key === "OR") {
+      return (expected as Where[]).some((branch) => matchesRow(row, branch));
+    }
+    if (key === "AND") {
+      return (expected as Where[]).every((branch) => matchesRow(row, branch));
+    }
+    return matchesValue(row[key as keyof Row], expected);
+  });
+}
+
+function sortOccurrences(
+  rows: TaskScheduleOccurrence[],
+): TaskScheduleOccurrence[] {
+  return [...rows].sort(
+    (a, b) =>
+      a.effectiveScheduledAt.getTime() - b.effectiveScheduledAt.getTime() ||
+      a.id.localeCompare(b.id),
+  );
 }
 
 function matchesSchedule(row: TaskSchedule, where: Where = {}): boolean {
@@ -171,6 +278,16 @@ function matchesSchedule(row: TaskSchedule, where: Where = {}): boolean {
       if (!assignee) return false;
       return Object.entries(expected as Where).every(([field, value]) =>
         matchesValue(assignee[field as keyof typeof assignee], value),
+      );
+    }
+    if (key === "project") {
+      const project = row.projectId
+        ? taskScheduleTestDb.projects.get(row.projectId)
+        : undefined;
+      if (!project) return false;
+      return matchesRow(
+        { closingAt: null, closedAt: null, ...project },
+        expected as Where,
       );
     }
     return matchesValue(row[key as keyof TaskSchedule], expected);
@@ -287,6 +404,17 @@ const taskSchedule = {
       taskScheduleTestDb.schedules.filter((row) => matchesSchedule(row, where))
         .length,
   ),
+  update: vi.fn(
+    async ({ where, data }: { where: { id: string }; data: Data }) => {
+      const row = taskScheduleTestDb.schedules.find((r) => r.id === where.id);
+      if (!row) throw new Error(`No TaskSchedule ${where.id}`);
+      const updated = applyData(row, data);
+      taskScheduleTestDb.schedules = taskScheduleTestDb.schedules.map((r) =>
+        r.id === where.id ? updated : r,
+      );
+      return updated;
+    },
+  ),
   updateMany: vi.fn(async ({ where, data }: { where: Where; data: Data }) => {
     let count = 0;
     taskScheduleTestDb.schedules = taskScheduleTestDb.schedules.map((row) => {
@@ -306,10 +434,128 @@ const taskSchedule = {
   }),
 };
 
+function occurrenceKey(row: Partial<TaskScheduleOccurrence>): string {
+  return `${row.scheduleId}:${row.epochId}:${row.originalScheduledAt?.toISOString()}`;
+}
+
+const taskScheduleOccurrence = {
+  count: vi.fn(
+    async ({ where }: { where: Where }) =>
+      taskScheduleTestDb.occurrences.filter((row) => matchesRow(row, where))
+        .length,
+  ),
+  findMany: vi.fn(async ({ where, take }: { where: Where; take?: number }) =>
+    sortOccurrences(
+      taskScheduleTestDb.occurrences.filter((row) => matchesRow(row, where)),
+    ).slice(0, take),
+  ),
+  /** Sorts by effective time, or latest rule time first when asked. */
+  findFirst: vi.fn(
+    async ({
+      where,
+      orderBy,
+    }: {
+      where: Where;
+      orderBy?: Record<string, "asc" | "desc">[];
+    }) => {
+      const rows = sortOccurrences(
+        taskScheduleTestDb.occurrences.filter((row) => matchesRow(row, where)),
+      );
+      if (orderBy?.[0]?.originalScheduledAt === "desc") {
+        rows.sort(
+          (a, b) =>
+            (b.originalScheduledAt?.getTime() ?? 0) -
+            (a.originalScheduledAt?.getTime() ?? 0),
+        );
+      }
+      return rows[0] ?? null;
+    },
+  ),
+  /** Enforces the (scheduleId, epochId, originalScheduledAt) unique key. */
+  createMany: vi.fn(
+    async ({
+      data,
+      skipDuplicates,
+    }: {
+      data: Partial<TaskScheduleOccurrence>[];
+      skipDuplicates?: boolean;
+    }) => {
+      let count = 0;
+      for (const input of data) {
+        const key = occurrenceKey(input);
+        if (
+          taskScheduleTestDb.occurrences.some(
+            (row) => occurrenceKey(row) === key,
+          )
+        ) {
+          if (skipDuplicates) continue;
+          throw new Error(`Duplicate Occurrence ${key}`);
+        }
+        const now = new Date();
+        taskScheduleTestDb.occurrences.push({
+          id: randomUUID(),
+          createdAt: now,
+          updatedAt: now,
+          seriesTaskId: null,
+          scheduleId: null,
+          releasedTaskId: null,
+          epochId: null,
+          originalScheduledAt: null,
+          legacyLinkId: null,
+          scheduleVersion: 2,
+          sourceProjectId: null,
+          sourceAccuracy: CalendarSourceAccuracy.EXACT,
+          timeAccuracy: CalendarTimeAccuracy.EXACT,
+          actorUserId: null,
+          timezone: null,
+          ruleSnapshot: null,
+          ...input,
+        } as TaskScheduleOccurrence);
+        count += 1;
+      }
+      return { count };
+    },
+  ),
+  updateMany: vi.fn(async ({ where, data }: { where: Where; data: Data }) => {
+    let count = 0;
+    taskScheduleTestDb.occurrences = taskScheduleTestDb.occurrences.map(
+      (row) => {
+        if (!matchesRow(row, where)) return row;
+        count += 1;
+        return { ...row, ...data, updatedAt: new Date() };
+      },
+    );
+    return { count };
+  }),
+  deleteMany: vi.fn(async ({ where }: { where: Where }) => {
+    const before = taskScheduleTestDb.occurrences.length;
+    taskScheduleTestDb.occurrences = taskScheduleTestDb.occurrences.filter(
+      (row) => !matchesRow(row, where),
+    );
+    return { count: before - taskScheduleTestDb.occurrences.length };
+  }),
+};
+
 export const taskScheduleTestPrisma = {
   taskSchedule,
-  /** Task Schedule routes must never write Tasks. */
+  taskScheduleOccurrence,
+  /** Only the release creates Tasks; routes must never write them. */
   task: {
+    create: vi.fn(
+      async ({
+        data: { events, ...data },
+      }: {
+        data: Partial<Task> & { events?: { create: Partial<TaskEvent> } };
+      }) => {
+        const row: StoredTask = {
+          id: randomUUID(),
+          ...data,
+          events: events ? [events.create] : [],
+        };
+        taskScheduleTestDb.tasks.push(row);
+        return row;
+      },
+    ),
     update: vi.fn(),
     updateMany: vi.fn(),
     delete: vi.fn(),
@@ -377,9 +623,20 @@ export const taskScheduleTestPrisma = {
         : null,
     ),
   },
+  /** Rolls the rows back when the callback throws, as Postgres would. */
   $transaction: vi.fn(
-    async (fn: (tx: typeof taskScheduleTestPrisma) => Promise<unknown>) =>
-      fn(taskScheduleTestPrisma),
+    async (fn: (tx: typeof taskScheduleTestPrisma) => Promise<unknown>) => {
+      // Rows are replaced, never mutated, so copying the arrays is a snapshot.
+      const schedules = [...taskScheduleTestDb.schedules];
+      const occurrences = [...taskScheduleTestDb.occurrences];
+      const tasks = [...taskScheduleTestDb.tasks];
+      try {
+        return await fn(taskScheduleTestPrisma);
+      } catch (error) {
+        Object.assign(taskScheduleTestDb, { schedules, occurrences, tasks });
+        throw error;
+      }
+    },
   ),
 };
 

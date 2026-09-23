@@ -1,6 +1,7 @@
 import type { Hono } from "hono";
 
 import { calendarInvalidationOutboxService } from "@/services/calendar-invalidation-outbox.service";
+import { taskScheduleReleaseService } from "@/services/task-schedule-occurrences.service";
 import { taskScheduleReconciliationService } from "@/services/task-schedule-reconciliation.service";
 import { taskScheduleValidationService } from "@/services/task-schedule-validation.service";
 import { taskSchedulesSyncService } from "@/services/task-schedules-sync";
@@ -21,6 +22,14 @@ export default function mount(app: Hono) {
           shouldContinue: context.shouldContinue,
         });
 
+        const scheduleRelease = context.shouldContinue()
+          ? await taskScheduleReleaseService.releaseDueSchedules({
+              abortSignal: context.abortSignal,
+              deadlineMs: context.deadlineMs,
+              shouldContinue: context.shouldContinue,
+            })
+          : null;
+
         const validation = context.shouldContinue()
           ? await taskScheduleValidationService.validateActiveSchedules({
               shouldContinue: context.shouldContinue,
@@ -40,6 +49,7 @@ export default function mount(app: Hono) {
 
         console.info("[sync/task-schedules] Completed sync", {
           ...result,
+          scheduleRelease,
           invalidations,
           validation,
           reconciliation,

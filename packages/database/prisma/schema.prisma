@@ -2593,6 +2593,9 @@ model TaskSchedule {
   intervalDays      Int?
   anchorAt          DateTime
   ruleEffectiveFrom DateTime
+  /// Identity of the current rule. A rule edit starts a new epoch, so its
+  /// Occurrences never collide with those of the rule it replaced.
+  epochId           String   @db.Uuid
 
   endsMode              TaskScheduleEndsMode @default(NEVER)
   endsOn                DateTime?
@@ -2735,8 +2738,10 @@ model TaskScheduleOccurrence {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  seriesTaskId String
-  seriesTask   Task   @relation("ScheduleOccurrenceSeries", fields: [seriesTaskId], references: [id], onDelete: Cascade)
+  /// Exactly one parent is set (DB check): the old series Task or the Task
+  /// Schedule.
+  seriesTaskId String?
+  seriesTask   Task?   @relation("ScheduleOccurrenceSeries", fields: [seriesTaskId], references: [id], onDelete: Cascade)
 
   /// Task Schedule this Occurrence belongs to; replaces seriesTaskId (ADR 0040).
   scheduleId String?       @db.Uuid
@@ -2773,6 +2778,7 @@ model TaskScheduleOccurrence {
   ruleSnapshot Json?
 
   @@unique([seriesTaskId, epochId, originalScheduledAt], map: "task_schedule_occurrence_series_epoch_original_key")
+  @@unique([scheduleId, epochId, originalScheduledAt], map: "task_schedule_occurrence_schedule_epoch_original_key")
   @@index([seriesTaskId, effectiveScheduledAt, id], map: "task_schedule_occurrence_series_effective_id_idx")
   @@index([scheduleId, effectiveScheduledAt, id], map: "task_schedule_occurrence_schedule_effective_id_idx")
   @@index([seriesTaskId, originalScheduledAt, id], map: "task_schedule_occurrence_series_original_id_idx")

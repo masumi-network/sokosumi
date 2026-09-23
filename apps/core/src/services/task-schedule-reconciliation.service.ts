@@ -84,7 +84,7 @@ interface BatchResult {
 
 function assertCompatibleOccurrence(
   occurrence: {
-    seriesTaskId: string;
+    seriesTaskId: string | null;
     releasedTaskId: string | null;
     legacyLinkId: string | null;
   },

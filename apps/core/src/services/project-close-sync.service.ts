@@ -450,7 +450,8 @@ async function finalizeProjectClose(
     orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
     select: { seriesTaskId: true },
   });
-  if (owed) {
+  // The series filter above only matches rows with a series Task.
+  if (owed?.seriesTaskId) {
     throw new ProjectCloseSeriesError(
       owed.seriesTaskId,
       new Error("Project still has owed Calendar work"),
