@@ -1,4 +1,4 @@
-# Shared by test.yml, build.yml, and lint.yml (dorny/paths-filter).
+# Read by the `changes` job in ci.yml (dorny/paths-filter).
 # Pair with `predicate-quantifier: every` at the call site so the `!`
 # exclusions actually exclude (default `some` would ignore them).
 js: &js
@@ -38,7 +38,7 @@ packages:
 # Advisory legs: the files their `node --test` suites import or read.
 # These are positive lists, so `every` needs one pattern each — a file
 # matches the filter when it matches any of the patterns. See the
-# `predicate-quantifier` note in test.yml.
+# `predicate-quantifier` note in ci.yml.
 local-env:
   - "{scripts/local-env/**,apps/web/.env.example,apps/core/.env.example,package.json}"
 

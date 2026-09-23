@@ -1,4 +1,4 @@
-name: Tests
+name: CI
 permissions:
   contents: read
 
@@ -16,6 +16,9 @@ env:
   # placeholder is enough for any config that reads DATABASE_URL at import time.
   DATABASE_URL: "postgresql://user:password@localhost:5432/sokosumi"
 
+# Build, Biome, Typecheck and the Tests legs share one workflow so a push
+# pays for one `Detect JS changes` runner instead of three.
+#
 # One job per leg, each gated by a job-level `if:` on its own path filter.
 # A job skipped by `if:` never gets a runner, yet still reports its check
 # under its real name (`Test Web`, …), and the ruleset accepts a skipped
@@ -27,9 +30,9 @@ env:
 # its outputs are empty and every leg runs instead of skipping silently.
 # `!cancelled()` stops a superseded run from starting legs.
 #
-# Test Web / Test Core / Test Packages are required. Test CLI, Test Local
-# env, Test CI config and Test Cloud agent db are advisory — not merge
-# gates. See docs/agents/delivery.md.
+# Build, Biome, Typecheck, Test Web, Test Core and Test Packages are
+# required. Test CLI, Test Local env, Test CI config and Test Cloud agent
+# db are advisory — not merge gates. See docs/agents/delivery.md.
 jobs:
   changes:
     name: Detect JS changes
@@ -39,6 +42,7 @@ jobs:
       pull-requests: read
     # workflow_dispatch has no PR diff, so it runs every leg.
     outputs:
+      js: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.js }}
       web: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.web }}
       core: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.core }}
       packages: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.packages }}
@@ -211,3 +215,84 @@ jobs:
 
       - name: Run Tests
         run: pnpm cloud-agent-db:test
+
+  build:
+    name: Build
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.js != 'false' }}
+    runs-on: ubuntu-latest
+    permissions: *turbo-permissions
+    # Build-only placeholders, scoped to this job so the test legs keep
+    # the env they had in their own workflow.
+    env:
+      BETTER_AUTH_SECRET: "ci-build-better-auth-secret"
+      APP_SIGNING_SECRET: "ci-build-better-auth-secret"
+      RESEND_API_KEY: "ci-resend-api-key"
+      RESEND_FROM_EMAIL: "noreply@sokosumi.com"
+      NEXT_PUBLIC_NETWORK: "Preprod"
+      PAYMENT_API_KEY: "ci-payment-api-key"
+      REGISTRY_API_KEY: "ci-registry-api-key"
+      STRIPE_SECRET_KEY: "sk_test_ci_build_placeholder"
+      STRIPE_WEBHOOK_SECRET: "whsec_ci_build_placeholder"
+      SIGNUP_BONUS_CREDITS: "3000"
+      SIGNUP_BONUS_TTL_DAYS: "30"
+      STRIPE_CREDIT_PRODUCT_ID: "ci-stripe-credit-product-id"
+      STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID: "ci-stripe-starter-subscription-product-id"
+      STRIPE_STANDARD_SUBSCRIPTION_PRODUCT_ID: "ci-stripe-standard-subscription-product-id"
+      STRIPE_PRO_SUBSCRIPTION_PRODUCT_ID: "ci-stripe-pro-subscription-product-id"
+      ABLY_SUBSCRIBE_ONLY_KEY: "ci-ably-subscribe-only-key"
+      ABLY_PUBLISH_ONLY_KEY: "ci-ably-publish-only-key"
+      GOOGLE_CLIENT_ID: "ci-google-client-id"
+      GOOGLE_CLIENT_SECRET: "ci-google-client-secret"
+      MICROSOFT_CLIENT_ID: "ci-microsoft-client-id"
+      MICROSOFT_CLIENT_SECRET: "ci-microsoft-client-secret"
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: sokosumi
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - *checkout
+      - *setup
+
+      - name: Run Prisma Migrate
+        run: pnpm prisma:migrate:dev
+
+      - name: Run Build
+        run: pnpm build
+
+  biome:
+    name: Biome
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.js != 'false' }}
+    runs-on: ubuntu-latest
+    steps:
+      - *checkout
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Run Biome checks
+        run: pnpm check
+
+  typecheck:
+    name: Typecheck
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.js != 'false' }}
+    runs-on: ubuntu-latest
+    permissions: *turbo-permissions
+    steps:
+      - *checkout
+      - *setup
+
+      - name: Run TypeScript typecheck
+        run: pnpm typecheck
