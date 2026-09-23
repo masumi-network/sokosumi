@@ -464,6 +464,17 @@ export function ImageViewer({
         )}
         {images.length > 1 ? (
           <>
+            {/* Outside the per-image chrome, so the live region persists and
+                a step is read out; the dialog description is not live. */}
+            <p role="status" className="sr-only">
+              {activeImage
+                ? t("stepAnnouncement", {
+                    current: activeIndex + 1,
+                    total: images.length,
+                    name: activeImage.downloadFilename ?? activeImage.alt,
+                  })
+                : null}
+            </p>
             <Button
               type="button"
               aria-label={t("previous")}

@@ -11,6 +11,9 @@ vi.mock("next-intl", () => ({
       if (key === "position") {
         return `${values?.current} / ${values?.total}`;
       }
+      if (key === "stepAnnouncement") {
+        return `Image ${values?.current} of ${values?.total}, ${values?.name}`;
+      }
       const labels: Record<string, string> = {
         title: "Image",
         download: "Download image",
@@ -293,6 +296,17 @@ describe("ImageViewer", () => {
 
       await user.click(previous);
       expect(shownImageName()).toBe("panel.jpg");
+    });
+
+    it("announces the image it steps to", async () => {
+      const user = userEvent.setup();
+      render(<GalleryHarness initialSrc="https://example.com/stage.jpg" />);
+
+      await user.click(screen.getByRole("button", { name: "Next image" }));
+
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Image 2 of 3, panel.jpg",
+      );
     });
 
     it("steps with the arrow keys", async () => {

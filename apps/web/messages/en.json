@@ -856,7 +856,8 @@
       "copyImage": "Copy image",
       "previous": "Previous image",
       "next": "Next image",
-      "position": "{current} / {total}"
+      "position": "{current} / {total}",
+      "stepAnnouncement": "Image {current} of {total}, {name}"
     },
     "DocumentViewer": {
       "title": "Document",
