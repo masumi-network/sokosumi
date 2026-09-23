@@ -3843,7 +3843,7 @@
     },
     "/realtime/ably-token": {
       "post": {
-        "description": "Mint an Ably TokenRequest for Realtime. Grants per-membership chat room subscribe, always-on chat control, user task/notification/job wildcards, and org presence (ADR-0003). Pass clientInstanceId as a query param (Ably authParams) for multi-device clientId. Call after join/leave or on revoke so capabilities refresh.",
+        "description": "Mint an Ably TokenRequest for Realtime. Grants per-membership chat room subscribe, exact per-user Calendar workspace subscribe, always-on chat and Calendar control, user task/notification/job wildcards, and org presence (ADR-0003). Pass clientInstanceId as a query param (Ably authParams) for multi-device clientId. Call after join/leave or on revoke so capabilities refresh.",
         "tags": [
           "Realtime"
         ],
@@ -11703,8 +11703,8 @@
                         },
                         "showRoomUnreadCount": {
                           "type": "boolean",
-                          "description": "Whether chat sidebar rows show a room's unread message count. Display only: it changes no notification delivery",
-                          "example": false
+                          "description": "Whether chat sidebar rows show a room's unread message count. On unless the reader switched it off (ADR-0038). Display only: it changes no notification delivery",
+                          "example": true
                         },
                         "notificationPreferences": {
                           "type": "array",
@@ -12038,15 +12038,15 @@
                   },
                   "showRoomUnreadCount": {
                     "type": "boolean",
-                    "description": "Whether chat sidebar rows show a room's unread message count. Display only: it changes no notification delivery",
-                    "example": false
+                    "description": "Whether chat sidebar rows show a room's unread message count. On unless the reader switched it off (ADR-0038). Display only: it changes no notification delivery",
+                    "example": true
                   },
                   "notificationPreferences": {
                     "type": "array",
                     "items": {
                       "$ref": "#/components/schemas/NotificationPreference"
                     },
-                    "maxItems": 24,
+                    "maxItems": 33,
                     "description": "The matrix cells the reader changed. A cell left out keeps its current answer."
                   }
                 }
@@ -12106,8 +12106,8 @@
                         },
                         "showRoomUnreadCount": {
                           "type": "boolean",
-                          "description": "Whether chat sidebar rows show a room's unread message count. Display only: it changes no notification delivery",
-                          "example": false
+                          "description": "Whether chat sidebar rows show a room's unread message count. On unless the reader switched it off (ADR-0038). Display only: it changes no notification delivery",
+                          "example": true
                         },
                         "notificationPreferences": {
                           "type": "array",
@@ -25578,6 +25578,650 @@
           }
         }
       }
+    },
+    "/chats/rooms/{id}/threads/{parentMessageId}/mute": {
+      "post": {
+        "description": "Mute one thread for the current user. Its replies stop counting toward room unread, stop making it an unread thread, and stop writing CHAT notifications; replies that name the user still do. Also looks the thread, so replies already waiting go quiet. Does not change whether the user Participates.",
+        "tags": [
+          "Chat Rooms"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationSlug"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "550e8400-e29b-41d4-a716-446655440000"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "550e8400-e29b-41d4-a716-446655440001"
+            },
+            "required": true,
+            "name": "parentMessageId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thread muted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ChatRoomThread"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "pagination": {
+                          "$ref": "#/components/schemas/PaginationMetadata"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Thread not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "description": "Unmute one thread for the current user. Later replies page them again by the normal Participant rule. Looks the thread when it was muted, so the silenced stretch stays read rather than arriving all at once. Two cases keep the look instead: a thread that was not muted, and a thread that named the user while it was muted, because that reply was never silenced.",
+        "tags": [
+          "Chat Rooms"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OrganizationSlug"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "550e8400-e29b-41d4-a716-446655440000"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "550e8400-e29b-41d4-a716-446655440001"
+            },
+            "required": true,
+            "name": "parentMessageId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thread unmuted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ChatRoomThread"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "pagination": {
+                          "$ref": "#/components/schemas/PaginationMetadata"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Thread not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -25751,8 +26395,69 @@
           "unreadCount": {
             "type": "integer",
             "minimum": 0,
-            "description": "Unread messages from others: top-level after room lastReadAt, plus thread replies in Threads the viewer Participates in after per-thread look baseline (thread lastReadAt, else room join createdAt). Soft-deleted excluded. ADR-0013.",
+            "description": "Total unread from others: channelUnreadCount + threadUnreadCount. Prefer the two halves; this stays the sum for existing clients. Soft-deleted excluded. ADR-0013, ADR-0037.",
+            "example": 5
+          },
+          "channelUnreadCount": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "description": "Room unread: non-self top-level messages after room lastReadAt. Excludes Thread replies. Drives sidebar bold. ADR-0037.",
             "example": 2
+          },
+          "threadUnreadCount": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "description": "Thread unread: non-self replies in Threads the viewer Participates in, after the per-Thread Look baseline (thread lastReadAt, else room join createdAt), less Muted threads that do not mention them. Surfaces on the Thread, never on the channel. ADR-0013, ADR-0030, ADR-0037.",
+            "example": 3
+          },
+          "unreadThreadCount": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "description": "How many Threads in this room are Thread unread for the viewer. Counts Threads, where threadUnreadCount counts replies. States what `unreadThreads` leaves out past its cap. ADR-0037.",
+            "example": 4
+          },
+          "unreadThreads": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "parentMessageId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "firstUnreadReplyId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "description": "The oldest reply still unread in this Thread: where opening it lands."
+                },
+                "parentContent": {
+                  "type": "string",
+                  "description": "The parent message's raw content, cut to 1000 characters. May hold mention tokens and may be empty; the client builds the label."
+                },
+                "unreadReplyCount": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "unreadMentionCount": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "default": 0,
+                  "description": "How many of this Thread's unread replies name the viewer. Counted from the replies, so a Look clears it; the room's unreadMentionCount is counted from notifications, which Room last-read clears."
+                }
+              },
+              "required": [
+                "parentMessageId",
+                "firstUnreadReplyId",
+                "parentContent",
+                "unreadReplyCount"
+              ]
+            },
+            "maxItems": 3,
+            "default": [],
+            "description": "Up to 3 unread Threads in this room, newest unread reply first, for the sidebar's inset rows. Same eligibility as threadUnreadCount. `unreadThreadCount` is the true number; this list is capped. ADR-0037."
           },
           "unreadMentionCount": {
             "type": "integer",
@@ -25992,6 +26697,12 @@
             "type": "integer",
             "minimum": 0
           },
+          "threadUnreadReplyCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Non-self replies under this parent the viewer has not cleared: Participant-gated and mute-gated, after the per-thread look baseline. 0 for lurkers and for viewers with no unread. Present only on the message list; absent from realtime events and single-message responses, which do not compute it. ADR-0013, ADR-0030, ADR-0037.",
+            "example": 2
+          },
           "threadLastReplyAt": {
             "type": [
               "string",
@@ -25999,6 +26710,14 @@
             ],
             "format": "date-time",
             "example": "2021-01-01T00:00:00.000Z"
+          },
+          "threadRepliers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatRoomMessageSender"
+            },
+            "maxItems": 3,
+            "description": "Up to three distinct reply senders, in the order they first replied. Drawn from the newest dozen replies, so in a longer thread someone who only replied earlier can be left out. Empty when the message has no replies; absent on client-built messages."
           },
           "metadata": {
             "type": [
@@ -26502,6 +27221,15 @@
                 "description": "Room membership kind: `\"member\"` (host-org participant) or `\"guest\"` (external channel only)."
               }
             ]
+          },
+          "lastReadAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "example": "2021-01-01T00:00:00.000Z",
+            "description": "Room last-read for this member (Room read receipt) on a room roster entry. Null when the member has never opened the room, and null for every member when the viewer's room access is `guest`. Absent on message senders."
           }
         },
         "required": [
@@ -27369,6 +28097,12 @@
                 "type": "integer",
                 "minimum": 0
               },
+              "threadUnreadReplyCount": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Non-self replies under this parent the viewer has not cleared: Participant-gated and mute-gated, after the per-thread look baseline. 0 for lurkers and for viewers with no unread. Present only on the message list; absent from realtime events and single-message responses, which do not compute it. ADR-0013, ADR-0030, ADR-0037.",
+                "example": 2
+              },
               "threadLastReplyAt": {
                 "type": [
                   "string",
@@ -27376,6 +28110,14 @@
                 ],
                 "format": "date-time",
                 "example": "2021-01-01T00:00:00.000Z"
+              },
+              "threadRepliers": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ChatRoomMessageSender"
+                },
+                "maxItems": 3,
+                "description": "Up to three distinct reply senders, in the order they first replied. Drawn from the newest dozen replies, so in a longer thread someone who only replied earlier can be left out. Empty when the message has no replies; absent on client-built messages."
               },
               "metadata": {
                 "type": [
@@ -27559,9 +28301,12 @@
               "TASK_ATTENTION",
               "TASK_COMPLETED",
               "TASK_UPDATE",
+              "PROJECT_UPDATE",
               "CHAT_ROOM_MESSAGE",
               "CHAT_MENTION",
               "CHAT_DIRECT_MESSAGE",
+              "BILLING_ATTENTION",
+              "BILLING_UPDATE",
               "SYSTEM",
               "FOLLOW_UP"
             ],
@@ -29001,7 +29746,8 @@
           "TASK",
           "BILLING",
           "SYSTEM",
-          "CHAT"
+          "CHAT",
+          "PROJECT"
         ],
         "description": "Notification source domain",
         "example": "TASK"
