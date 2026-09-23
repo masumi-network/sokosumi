@@ -38,7 +38,7 @@ packages:
 # Advisory legs: the files their `node --test` suites import or read.
 # These are positive lists, so `every` needs one pattern each — a file
 # matches the filter when it matches any of the patterns. See the
-# `predicate-quantifier` note in test.yml.
+# `predicate-quantifier` note in ci.yml.
 local-env:
   - "{scripts/local-env/**,apps/web/.env.example,apps/core/.env.example,package.json}"
 
