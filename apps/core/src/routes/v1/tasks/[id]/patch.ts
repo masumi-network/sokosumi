@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import * as Sentry from "@sentry/node";
 import { Channel, TaskStatus } from "@sokosumi/database";
 import {
   CORE_API_ERROR_KINDS,
@@ -49,6 +50,7 @@ import {
 } from "@/helpers/task-notifications";
 import { assertTaskScheduleInactive } from "@/helpers/task-schedule";
 import { refreshTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
+import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
@@ -420,9 +422,29 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         task: updatedTask,
         previousAssigneeUserId,
         workspaceId: task.workspaceId,
+        statusChanged: nextStatus !== task.status,
       };
     });
     await deliverCalendarInvalidationsNow(result.workspaceId);
+    // Same signal as POST /tasks/{id}/events: open boards refresh on it.
+    // A Run at time move stays Queued, so it does not publish.
+    if (result.statusChanged) {
+      try {
+        await publishTaskEventData({
+          userId: result.task.ownerId,
+          taskId: result.task.id,
+          eventType: "task_event",
+        });
+      } catch (error) {
+        Sentry.captureException(error, {
+          tags: { error_type: "publish_task_event" },
+          extra: {
+            taskId: result.task.id,
+            userId: result.task.ownerId,
+          },
+        });
+      }
+    }
 
     if (result.previousAssigneeUserId !== result.task.assigneeUserId) {
       if (result.previousAssigneeUserId) {

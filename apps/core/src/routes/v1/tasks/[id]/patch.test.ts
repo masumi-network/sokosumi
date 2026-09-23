@@ -28,6 +28,7 @@ const {
   requireTaskAssignableCoworkerMock,
   requireTaskAssignableSokoBotMock,
   requireTaskAssignableUserMock,
+  publishTaskEventDataMock,
   requireTaskOwnershipMock,
   resolveEffectiveDesignMdMock,
   taskUpdateMock,
@@ -42,9 +43,14 @@ const {
   requireTaskAssignableCoworkerMock: vi.fn(),
   requireTaskAssignableSokoBotMock: vi.fn(),
   requireTaskAssignableUserMock: vi.fn(),
+  publishTaskEventDataMock: vi.fn(),
   requireTaskOwnershipMock: vi.fn(),
   resolveEffectiveDesignMdMock: vi.fn().mockResolvedValue(null),
   taskUpdateMock: vi.fn(),
+}));
+
+vi.mock("@/lib/ably/publish", () => ({
+  publishTaskEventData: publishTaskEventDataMock,
 }));
 
 vi.mock("@/helpers/design-md-effective", () => ({
@@ -1308,6 +1314,11 @@ describe("PATCH /tasks/{id} Run at", () => {
         sokoBotId: null,
       },
     });
+    expect(publishTaskEventDataMock).toHaveBeenCalledWith({
+      userId: "user_123",
+      taskId: "tsk_123",
+      eventType: "task_event",
+    });
   });
 
   it("moves the Run at of a Queued Task without a status event", async () => {
@@ -1323,6 +1334,7 @@ describe("PATCH /tasks/{id} Run at", () => {
     );
     expect(taskUpdateMock.mock.calls[0]?.[0].data.status).toBeUndefined();
     expect(taskEventCreateMock).not.toHaveBeenCalled();
+    expect(publishTaskEventDataMock).not.toHaveBeenCalled();
   });
 
   it("moves a Queued Task back to Draft when its Run at is cleared", async () => {
@@ -1342,6 +1354,11 @@ describe("PATCH /tasks/{id} Run at", () => {
     expect(taskEventCreateMock).toHaveBeenCalledWith({
       data: expect.objectContaining({ status: TaskStatus.DRAFT }),
     });
+    expect(publishTaskEventDataMock).toHaveBeenCalledWith({
+      userId: "user_123",
+      taskId: "tsk_123",
+      eventType: "task_event",
+    });
   });
 
   it("treats clearing an unset Run at as a no-op", async () => {
@@ -1350,6 +1367,7 @@ describe("PATCH /tasks/{id} Run at", () => {
     expect(response.status).toBe(200);
     expect(taskUpdateMock.mock.calls[0]?.[0].data.status).toBeUndefined();
     expect(taskEventCreateMock).not.toHaveBeenCalled();
+    expect(publishTaskEventDataMock).not.toHaveBeenCalled();
   });
 
   it("rejects a Run at that has passed", async () => {
