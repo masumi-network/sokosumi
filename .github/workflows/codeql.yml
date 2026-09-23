@@ -5,14 +5,16 @@ permissions:
 # Replaces CodeQL default setup, which analyzed every PR push — docs- and
 # Apple-only ones included — and never cancelled a superseded run.
 #
-# PRs run only when they touch JS/TS source. Every push to main runs, so
-# each PR has an analyzed base to diff its alerts against; the weekly run
-# picks up new queries, as default setup did. Swift is not analyzed (default
-# setup never did; it needs a macOS build). The `actions` language lives in
-# codeql-actions.yml so a JS-only PR does not pay for it.
+# PRs run only when they touch JS/TS source, the lockfile, or this workflow.
+# Every push to main runs, so each PR has an analyzed base to diff its alerts
+# against; the weekly run picks up new queries, as default setup did. Swift is
+# not analyzed (default setup never did; it needs a macOS build). The
+# `actions` language lives in codeql-actions.yml so a JS-only PR does not pay
+# for it.
 #
-# Advanced setup cannot upload while default setup is enabled: switch the
-# repository to advanced (Settings → Code security → CodeQL) when this lands.
+# No ruleset requires a CodeQL check, so a PR this filter skips has nothing
+# to wait on. Default setup must stay off (Settings → Code security → CodeQL):
+# uploads from this workflow are rejected while it is enabled.
 on:
   push:
     branches: [main]
@@ -27,6 +29,7 @@ on:
       - "**/*.mjs"
       - "**/*.cjs"
       - "**/*.html"
+      - "pnpm-lock.yaml"
       - ".github/workflows/codeql.yml"
   schedule:
     - cron: "23 4 * * 1"
