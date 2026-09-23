@@ -30,6 +30,7 @@ import {
   chatRoomHref,
   pathWithSearch,
 } from "@/app/chat/utils/chat-route-base";
+import { getActiveRoomIdFromSelection } from "@/components/chat/active-room-id";
 import { ChatRoomThreadRows } from "@/components/chat/chat-room-thread-rows";
 import { RowCountMark } from "@/components/chat/mention-count-pill";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
@@ -309,7 +310,7 @@ export function ChatRoomSidebarRow({
 }: ChatRoomSidebarRowProps) {
   const selectedPath = useRoomSelection();
   const isActive = selectedPath
-    ? selectedPath.split("?")[0] === `/chat/rooms/${room.id}`
+    ? getActiveRoomIdFromSelection(selectedPath) === room.id
     : routeIsActive;
 
   const tActions = useTranslations("App.Channels.Actions");
