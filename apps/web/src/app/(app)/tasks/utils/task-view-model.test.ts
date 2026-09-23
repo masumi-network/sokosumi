@@ -41,6 +41,7 @@ function buildTask(
     visibility: TaskVisibility.PUBLIC,
     metadata: null,
     nextRunAt: null,
+    runAt: null,
     scheduleRevision: 0,
     commentsCount: 0,
     jobsCount: 0,
@@ -124,10 +125,12 @@ describe("mapTaskToTaskWithCoworker", () => {
     const createdAt = new Date("2026-01-01T00:00:00.000Z");
     const updatedAt = new Date("2026-01-01T01:00:00.000Z");
     const nextRunAt = new Date("2026-06-25T09:00:00.000Z");
-    const task = buildTask(TaskStatus.READY, {
+    const runAt = new Date("2026-06-26T09:00:00.000Z");
+    const task = buildTask(TaskStatus.QUEUED, {
       createdAt,
       updatedAt,
       nextRunAt,
+      runAt,
     });
 
     const mapped = map(task);
@@ -135,6 +138,7 @@ describe("mapTaskToTaskWithCoworker", () => {
     expect(mapped.createdAt).toBe("2026-01-01T00:00:00.000Z");
     expect(mapped.updatedAt).toBe("2026-01-01T01:00:00.000Z");
     expect(mapped.nextRunAt).toBe("2026-06-25T09:00:00.000Z");
+    expect(mapped.runAt).toBe("2026-06-26T09:00:00.000Z");
   });
 
   it("maps counts from the list API task", () => {

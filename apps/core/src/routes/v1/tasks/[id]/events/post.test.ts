@@ -3398,6 +3398,7 @@ describe("POST /{id}/events", () => {
           status: TaskStatus.CANCELED,
           metadata: null,
           nextRunAt: null,
+          runAt: null,
         },
       }),
     );
@@ -3407,10 +3408,11 @@ describe("POST /{id}/events", () => {
     );
   });
 
-  it("clears schedule fields when a queued task becomes ready", async () => {
-    requireTaskCollaborationMock.mockResolvedValue(
-      createTask({ status: TaskStatus.QUEUED }),
-    );
+  it("clears the Run at when a queued task becomes ready", async () => {
+    requireTaskCollaborationMock.mockResolvedValue({
+      ...createTask({ status: TaskStatus.QUEUED }),
+      runAt: new Date("2099-01-05T09:00:00.000Z"),
+    });
 
     const tx: TransactionMock = {
       taskEvent: {
@@ -3447,6 +3449,7 @@ describe("POST /{id}/events", () => {
           status: TaskStatus.READY,
           metadata: null,
           nextRunAt: null,
+          runAt: null,
         },
       }),
     );

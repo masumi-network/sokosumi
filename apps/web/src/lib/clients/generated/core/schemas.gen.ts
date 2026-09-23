@@ -4648,6 +4648,15 @@ export const TaskSchema = {
             description: 'Revision used for optimistic schedule mutations',
             example: 0
         },
+        runAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-06-24T09:00:00.000Z',
+            description: 'The one time a Queued Task moves to Ready. Set only while the Task is Queued; it never repeats.'
+        },
         credits: {
             type: 'number',
             example: 5
@@ -4737,6 +4746,7 @@ export const TaskSchema = {
         'pendingVendorGrantId',
         'metadata',
         'nextRunAt',
+        'runAt',
         'credits',
         'events',
         'jobs',
@@ -19792,6 +19802,15 @@ export const TaskListItemSchema = {
             description: 'Revision used for optimistic schedule mutations',
             example: 0
         },
+        runAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-06-24T09:00:00.000Z',
+            description: 'The one time a Queued Task moves to Ready. Set only while the Task is Queued; it never repeats.'
+        },
         workspace: {
             $ref: '#/components/schemas/WorkspaceSummary'
         },
@@ -19835,6 +19854,7 @@ export const TaskListItemSchema = {
         'pendingVendorGrantId',
         'metadata',
         'nextRunAt',
+        'runAt',
         'workspace',
         'jobsCount',
         'commentsCount'

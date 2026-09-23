@@ -154,6 +154,32 @@ export function seedTaskSchedule(
   return row;
 }
 
+/** A Task as the Run at release reads it, with no events yet. */
+export function seedTask(overrides: Partial<Task> = {}): StoredTask {
+  const row: StoredTask = {
+    id: randomUUID(),
+    ownerId: OWNER_ID,
+    workspaceId: ORG_WORKSPACE_ID,
+    organizationId: ORG_ID,
+    assigneeId: COWORKER_ID,
+    assigneeSokoBotId: null,
+    assigneeUserId: null,
+    archivedAt: null,
+    runAt: null,
+    ...overrides,
+    events: [],
+  };
+  taskScheduleTestDb.tasks.push(row);
+  return row;
+}
+
+/** Changes a stored Task the way a concurrent request would. */
+export function seedTaskUpdate(id: string, data: Partial<Task>): void {
+  taskScheduleTestDb.tasks = taskScheduleTestDb.tasks.map((row) =>
+    row.id === id ? { ...row, ...data } : row,
+  );
+}
+
 /** A ledger row of `schedule` in its current epoch, planned at `at`. */
 export function seedRun(
   schedule: TaskSchedule,
@@ -551,7 +577,7 @@ const taskScheduleOccurrence = {
 export const taskScheduleTestPrisma = {
   taskSchedule,
   taskScheduleOccurrence,
-  /** Only the release creates Tasks; routes must never write them. */
+  /** Only the releases write Tasks; routes must never write them. */
   task: {
     create: vi.fn(
       async ({
@@ -568,10 +594,33 @@ export const taskScheduleTestPrisma = {
         return row;
       },
     ),
+    findMany: vi.fn(async ({ where, take }: { where: Where; take?: number }) =>
+      taskScheduleTestDb.tasks
+        .filter((row) => matchesRow(row, where))
+        .slice(0, take),
+    ),
     update: vi.fn(),
-    updateMany: vi.fn(),
+    updateMany: vi.fn(async ({ where, data }: { where: Where; data: Data }) => {
+      let count = 0;
+      taskScheduleTestDb.tasks = taskScheduleTestDb.tasks.map((row) => {
+        if (!matchesRow(row, where)) return row;
+        count += 1;
+        return { ...row, ...data };
+      });
+      return { count };
+    }),
     delete: vi.fn(),
     deleteMany: vi.fn(),
+  },
+  taskEvent: {
+    create: vi.fn(async ({ data }: { data: Partial<TaskEvent> }) => {
+      taskScheduleTestDb.tasks = taskScheduleTestDb.tasks.map((row) =>
+        row.id === data.taskId
+          ? { ...row, events: [...row.events, data] }
+          : row,
+      );
+      return { id: randomUUID(), ...data };
+    }),
   },
   coworker: {
     findFirst: vi.fn(async ({ where }: { where: { id: string } }) =>

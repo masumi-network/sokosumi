@@ -39,6 +39,7 @@ export const CORE_API_ERROR_KINDS = {
   SCHEDULE_QUARANTINED: "schedule_quarantined",
   SCHEDULE_QUARANTINE_CONFLICT: "schedule_quarantine_conflict",
   QUEUED_REQUIRES_SCHEDULE: "queued_requires_schedule",
+  RUN_AT_NOT_IN_FUTURE: "run_at_not_in_future",
   STATUS_NOT_SELECTABLE: "status_not_selectable",
   SCHEDULE_REVISION_CONFLICT: "schedule_revision_conflict",
   SCHEDULE_STATE_CONFLICT: "schedule_state_conflict",

@@ -1918,7 +1918,7 @@
         "removeAttachment": "Eliminar adjunto",
         "createTask": "Crear Task",
         "scheduleTask": "Programar tarea",
-        "openSchedule": "Configurar programación",
+        "openRunAt": "Configurar hora de inicio",
         "cancel": "Cancelar",
         "ctrl": "Ctrl",
         "defaultBadge": "Predeterminado",
@@ -1971,7 +1971,7 @@
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Eliminar adjunto",
         "save": "Guardar",
-        "openSchedule": "Configurar programación",
+        "openRunAt": "Configurar hora de inicio",
         "cancel": "Cancelar",
         "ctrl": "Ctrl",
         "unassigned": "Sin asignar",
@@ -1986,10 +1986,6 @@
           "discardDescription": "Guardar una nueva regla para toda la serie cancela {count, plural, one {la próxima ejecución que moviste u omitiste} other {las # próximas ejecuciones que moviste u omitiste}}. Las ejecuciones ya realizadas se conservan.",
           "discardCancel": "Mantener la programación actual",
           "discardConfirm": "Guardar y descartar",
-          "removeTitle": "¿Eliminar esta programación?",
-          "removeDescription": "Esta tarea dejará de ejecutarse según una programación. Las ejecuciones ya realizadas se conservan y las próximas se cancelan.",
-          "removeCancel": "Mantener la programación",
-          "removeConfirm": "Eliminar programación",
           "revisionConflict": "Esta programación cambió en otro lugar. Recarga la tarea, vuelve a abrir la programación y aplica tu cambio de nuevo.",
           "quarantined": "Esta programación está en pausa para reparación y no se puede cambiar. Contacta con soporte para restaurarla.",
           "operationConflict": "Este guardado ya se envió con otros datos. Vuelve a abrir la programación e inténtalo de nuevo.",
@@ -2051,9 +2047,6 @@
         },
         "save": "Save",
         "cancel": "Cancel",
-        "footer": {
-          "oneTimeAt": "Una vez el {datetime}"
-        },
         "card": {
           "overdue": "Atrasada",
           "dueInMinutes": "Vence en {minutes, plural, one {# minuto} other {# minutos}}",
@@ -2069,6 +2062,23 @@
           "selectAtLeastOneWeekday": "Select at least one weekday.",
           "endDateInPast": "End date cannot be in the past.",
           "invalidCron": "Enter a valid cron expression for the selected timezone."
+        }
+      },
+      "RunAt": {
+        "title": "Hora de inicio",
+        "description": "La tarea espera hasta esta hora y luego pasa a Listo.",
+        "label": "Iniciar el",
+        "apply": "Aplicar",
+        "clear": "Quitar",
+        "cancel": "Cancelar",
+        "notInFuture": "Elige una hora en el futuro.",
+        "footer": "Empieza {datetime}",
+        "badge": {
+          "overdue": "Empieza en breve",
+          "inMinutes": "Empieza en {minutes, plural, one {# minuto} other {# minutos}}",
+          "inHours": "Empieza en {hours, plural, one {# hora} other {# horas}}",
+          "tomorrowAt": "Empieza mañana a las {time}",
+          "at": "Empieza {datetime}"
         }
       },
       "EmptyState": {

@@ -191,6 +191,7 @@ function buildScheduledTask(
     pendingVendorGrantId: null,
     metadata: DAILY_SCHEDULE_METADATA,
     nextRunAt: new Date("2026-08-19T09:00:00.000Z"),
+    runAt: null,
     workspace: { id: "workspace-1", organizationId: null, organization: null },
     jobsCount: 0,
     commentsCount: 0,

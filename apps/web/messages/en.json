@@ -1929,7 +1929,7 @@
         "removeAttachment": "Remove attachment",
         "createTask": "Create Task",
         "scheduleTask": "Schedule Task",
-        "openSchedule": "Set schedule",
+        "openRunAt": "Set start time",
         "cancel": "Cancel",
         "ctrl": "Ctrl",
         "taskCreated": "Task created",
@@ -1971,7 +1971,7 @@
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Remove attachment",
         "save": "Save",
-        "openSchedule": "Set schedule",
+        "openRunAt": "Set start time",
         "cancel": "Cancel",
         "ctrl": "Ctrl",
         "unassigned": "Unassigned",
@@ -1986,10 +1986,6 @@
           "discardDescription": "Saving a new rule for the whole series cancels {count, plural, one {the upcoming run you moved or skipped} other {the # upcoming runs you moved or skipped}}. Runs that already happened are kept.",
           "discardCancel": "Keep current schedule",
           "discardConfirm": "Save and discard",
-          "removeTitle": "Remove this schedule?",
-          "removeDescription": "This task will stop running on a schedule. Runs that already happened are kept, and upcoming runs are canceled.",
-          "removeCancel": "Keep the schedule",
-          "removeConfirm": "Remove schedule",
           "revisionConflict": "This schedule changed somewhere else. Reload the task, reopen the schedule, and apply your change again.",
           "quarantined": "This schedule is paused for repair and cannot be changed. Contact support to restore it.",
           "operationConflict": "This save was already sent with different details. Reopen the schedule and try again.",
@@ -2051,9 +2047,6 @@
         },
         "save": "Save",
         "cancel": "Cancel",
-        "footer": {
-          "oneTimeAt": "Once on {datetime}"
-        },
         "card": {
           "overdue": "Overdue",
           "dueInMinutes": "Due in {minutes, plural, one {# minute} other {# minutes}}",
@@ -2069,6 +2062,23 @@
           "selectAtLeastOneWeekday": "Select at least one weekday.",
           "endDateInPast": "End date cannot be in the past.",
           "invalidCron": "Enter a valid cron expression for the selected timezone."
+        }
+      },
+      "RunAt": {
+        "title": "Start time",
+        "description": "The task waits until this time, then moves to Ready.",
+        "label": "Start at",
+        "apply": "Apply",
+        "clear": "Clear",
+        "cancel": "Cancel",
+        "notInFuture": "Choose a time in the future.",
+        "footer": "Starts {datetime}",
+        "badge": {
+          "overdue": "Starting soon",
+          "inMinutes": "Starts in {minutes, plural, one {# minute} other {# minutes}}",
+          "inHours": "Starts in {hours, plural, one {# hour} other {# hours}}",
+          "tomorrowAt": "Starts tomorrow at {time}",
+          "at": "Starts {datetime}"
         }
       },
       "EmptyState": {

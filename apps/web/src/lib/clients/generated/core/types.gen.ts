@@ -1156,6 +1156,10 @@ export type Task = {
      * Revision used for optimistic schedule mutations
      */
     scheduleRevision?: number;
+    /**
+     * The one time a Queued Task moves to Ready. Set only while the Task is Queued; it never repeats.
+     */
+    runAt: Date | null;
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
@@ -5821,6 +5825,10 @@ export type TaskListItem = {
      * Revision used for optimistic schedule mutations
      */
     scheduleRevision?: number;
+    /**
+     * The one time a Queued Task moves to Ready. Set only while the Task is Queued; it never repeats.
+     */
+    runAt: Date | null;
     workspace: WorkspaceSummary;
     jobsCount: number;
     commentsCount: number;
@@ -40628,6 +40636,10 @@ export type PostTasksData = {
         assigneeSokoBotId?: string | null;
         assigneeUserId?: string | null;
         status?: 'DRAFT' | 'READY';
+        /**
+         * Start the Task at this future time instead of now. Puts the Task in QUEUED (status is ignored); requires a Coworker or Soko Bot assignee.
+         */
+        runAt?: Date | null;
         channel?: Channel;
         origin?: Channel & unknown;
         context?: CreateTaskContext;
@@ -42553,6 +42565,10 @@ export type PatchTasksByIdData = {
         coworkerId?: string | null;
         assigneeSokoBotId?: string | null;
         assigneeUserId?: string | null;
+        /**
+         * Future time the Task moves to Ready. Setting it puts the Task in QUEUED (requires a Coworker or Soko Bot assignee); null on a QUEUED Task clears it and moves the Task back to DRAFT.
+         */
+        runAt?: Date | null;
         expectedScheduleRevision?: number;
     };
     path: {

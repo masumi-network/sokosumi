@@ -13,6 +13,7 @@ import { toast } from "sonner";
 
 import { loadCreateTaskModalData } from "@/app/tasks/actions";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
+import { zonedDateTimeLocalToUtc } from "@/lib/schedules/zoned-datetime";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 
@@ -176,6 +177,19 @@ export function CreateTaskModalProvider({
 }
 
 // --- Modal ---
+
+/** A Calendar slot's one-time schedule prefills the form's Run at. */
+function scheduleOverrideToRunAt(
+  schedule: TaskScheduleSelection | null,
+): string | null {
+  if (schedule?.mode !== "once") return null;
+  return (
+    zonedDateTimeLocalToUtc(
+      schedule.oneTimeLocalIso,
+      schedule.timezone,
+    )?.toISOString() ?? null
+  );
+}
 
 interface LoadedCreateData {
   agentNameById: Map<string, string>;
@@ -385,7 +399,7 @@ export function CreateTaskModal({
             submit: t("createTask"),
             createTask: t("createTask"),
             scheduleTask: t("scheduleTask"),
-            openSchedule: t("openSchedule"),
+            openRunAt: t("openRunAt"),
             cancel: t("cancel"),
             ctrl: t("ctrl"),
             taskCreated: t("taskCreated"),
@@ -404,7 +418,7 @@ export function CreateTaskModal({
             ...(assigneeOverrideId ? { assigneeId: assigneeOverrideId } : {}),
             ...(promptOverride ? { description: promptOverride } : {}),
             projectId: selectedProjectId,
-            ...(scheduleOverride ? { schedule: scheduleOverride } : {}),
+            runAt: scheduleOverrideToRunAt(scheduleOverride),
           }}
           onCreateTask={onCreateTask}
           onCancel={handleDismiss}

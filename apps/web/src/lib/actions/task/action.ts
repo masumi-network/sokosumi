@@ -34,10 +34,7 @@ import {
 } from "@/lib/services/task-schedule.service";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 import { normalizeOptionalProjectId } from "@/lib/utils/project";
-import {
-  hasTaskScheduleChanged,
-  selectionToApiBody,
-} from "@/lib/utils/task-schedule";
+import { selectionToApiBody } from "@/lib/utils/task-schedule";
 import {
   TASK_MUTATION_ERROR_KINDS,
   type TaskMutationErrorKind,
@@ -58,7 +55,8 @@ interface CreateTaskParameters extends AuthenticatedRequest {
   projectId?: string | null;
   context?: TaskContextSelectionInput;
   status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
-  schedule?: TaskScheduleSelection;
+  /** ISO time to start the Task at; Core then creates it Queued. */
+  runAt?: string;
   visibility?: "PUBLIC" | "PRIVATE";
 }
 
@@ -81,15 +79,12 @@ interface UpdateTaskParameters extends AuthenticatedRequest {
   assigneeUserId?: string | null;
   projectId?: string | null;
   context?: TaskContextSelectionInput;
-  currentStatus: TaskStatus;
   desiredStatus: TaskStatus;
-  schedule?: TaskScheduleSelection;
-  hadSchedule?: boolean;
-  /** Series revision the edit form was opened against; required once live. */
-  expectedScheduleRevision?: number;
-  /** Browser-minted identity of this save attempt; reused across retries. */
-  scheduleOperationId?: string;
-  originalSchedule?: TaskScheduleSelection;
+  /**
+   * New ISO Run at. Core queues the Task (or moves its time); it is never
+   * cleared here, since leaving Queued through a status event clears it.
+   */
+  runAt?: string;
 }
 
 interface CreateScheduledTaskParameters extends AuthenticatedRequest {
@@ -249,7 +244,7 @@ interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
   projectId?: string | null;
   context?: TaskContextSelectionInput;
   status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
-  schedule?: TaskScheduleSelection;
+  runAt?: string;
   visibility?: "PUBLIC" | "PRIVATE";
   relation: UserWritableTaskLinkRelation;
   note?: string | null;
@@ -281,89 +276,13 @@ function rethrowTaskActionError(
   throw new Error(message ?? fallbackMessage);
 }
 
-/**
- * Arms a schedule on a Task that has none. There is no live series to
- * serialize against yet, so this is the one remaining legacy-contract write;
- * every change to a live series goes through the revision-safe path below.
- */
-async function armTaskSchedule(
-  taskId: string,
-  schedule: TaskScheduleSelection,
-): Promise<TaskStatus> {
-  const task = await taskScheduleService.setSchedule(
-    taskId,
-    getActiveScheduleBody(schedule),
-  );
-  return task.status;
-}
-
-/**
- * Applies a change to a live series under the revision the caller observed.
- * The removal and the replacement are the same user operation from the UI's
- * point of view, so they share one operation identity.
- */
-async function applyTaskSeriesChange(
-  taskId: string,
-  schedule: TaskScheduleSelection,
-  precondition: TaskScheduleSeriesPrecondition,
-): Promise<TaskStatus> {
-  const task =
-    schedule.mode === "none"
-      ? await taskScheduleService.removeCalendarSeries(taskId, precondition)
-      : await taskScheduleService.editCalendarSeries(
-          taskId,
-          precondition,
-          getActiveScheduleBody(schedule),
-        );
-  return task.status;
-}
-
-function resolveUpdateTargetStatus(
-  desiredStatus: TaskStatus,
-  statusAfterSchedule: TaskStatus,
-  scheduleWasMutated: boolean,
-  scheduleActiveOnServer: boolean,
-  isAgentAssignee: boolean,
-): TaskStatus {
-  if (scheduleWasMutated) {
-    if (scheduleActiveOnServer) {
-      // Schedule apply may land Ready. For agents, honor an explicit Queued
-      // choice with a follow-up event. Humans stay on the schedule result.
-      if (
-        isAgentAssignee &&
-        desiredStatus === TaskStatus.QUEUED &&
-        statusAfterSchedule !== TaskStatus.QUEUED
-      ) {
-        return desiredStatus;
-      }
-      return statusAfterSchedule;
-    }
-
-    if (desiredStatus === TaskStatus.QUEUED) {
-      return statusAfterSchedule;
-    }
-
-    return desiredStatus;
-  }
-
-  if (scheduleActiveOnServer && desiredStatus !== TaskStatus.QUEUED) {
-    return statusAfterSchedule;
-  }
-
-  return desiredStatus;
-}
-
+/** Queued needs a Run at (ADR 0041), so a Queued create without one is Ready. */
 function resolveCreateStatus(
   requestedStatus: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">,
-  schedule?: TaskScheduleSelection,
 ): Extract<TaskStatus, "DRAFT" | "READY"> {
-  if (!schedule || schedule.mode === "none") {
-    return requestedStatus === TaskStatus.QUEUED
-      ? TaskStatus.READY
-      : requestedStatus;
-  }
-
-  return TaskStatus.DRAFT;
+  return requestedStatus === TaskStatus.QUEUED
+    ? TaskStatus.READY
+    : requestedStatus;
 }
 
 function normalizeLinkNote(note?: string | null): string | null | undefined {
@@ -417,18 +336,6 @@ function requireOperationId(operationId: string | undefined): string {
     throw new Error("Operation ID must be a UUID");
   }
   return operationId;
-}
-
-/**
- * A live series is only written with a revision Core actually reported. Sending
- * an invented one would be presented to the user as "someone else changed this
- * schedule", so a missing revision fails here instead.
- */
-function requireScheduleRevision(revision: number | undefined): number {
-  if (typeof revision !== "number") {
-    throw new Error("Core returned no scheduleRevision for an active series");
-  }
-  return revision;
 }
 
 function getActiveScheduleBody(schedule: TaskScheduleSelection) {
@@ -582,7 +489,7 @@ async function createTaskFromDescription(input: {
   userId: string;
   context?: TaskContextSelectionInput;
   status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
-  schedule?: TaskScheduleSelection;
+  runAt?: string;
   visibility?: "PUBLIC" | "PRIVATE";
 }): Promise<Task> {
   const trimmedDescription = input.description.trim();
@@ -600,51 +507,22 @@ async function createTaskFromDescription(input: {
     input.assigneeSokoBotId,
     input.assigneeUserId,
   );
-  const isAgentAssignee =
-    assigneeWrite.assigneeId != null || assigneeWrite.assigneeSokoBotId != null;
-
   const trimmedName = input.name
     ? normalizeTaskNameForCoreApi(input.name)
     : undefined;
 
-  const task = await taskService.createTask({
+  return taskService.createTask({
     description: trimmedDescription,
     ...assigneeWrite,
     projectId: normalizedProjectId ?? null,
     ...(context ? { context } : {}),
-    status: resolveCreateStatus(input.status, input.schedule),
+    // Core creates a Task with a Run at in Queued and ignores its status.
+    ...(input.runAt
+      ? { runAt: new Date(input.runAt) }
+      : { status: resolveCreateStatus(input.status) }),
     ...(input.visibility ? { visibility: input.visibility } : {}),
     ...(trimmedName ? { name: trimmedName } : {}),
   });
-
-  try {
-    if (
-      input.status !== TaskStatus.DRAFT &&
-      input.schedule &&
-      input.schedule.mode !== "none"
-    ) {
-      const statusAfterSchedule = await armTaskSchedule(
-        task.id,
-        input.schedule,
-      );
-      // Create always goes Draft → schedule. Agents that asked for Queued but
-      // landed Ready need a follow-up event. Humans keep Ready and save.
-      if (
-        isAgentAssignee &&
-        input.status === TaskStatus.QUEUED &&
-        statusAfterSchedule != null &&
-        statusAfterSchedule !== TaskStatus.QUEUED
-      ) {
-        await taskService.createTaskEvent(task.id, {
-          status: TaskStatus.QUEUED,
-        });
-      }
-    }
-    return task;
-  } catch (error) {
-    await archiveCreatedTaskAfterFailure(task.id);
-    throw error;
-  }
 }
 
 async function collectParentLinksToReplace(input: {
@@ -773,7 +651,7 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
     session,
     context,
     status,
-    schedule,
+    runAt,
     visibility,
   }) => {
     try {
@@ -787,7 +665,7 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
         userId: session.user.id,
         context,
         status,
-        schedule,
+        runAt,
         visibility,
       });
 
@@ -1040,13 +918,8 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
     assigneeUserId,
     projectId,
     context,
-    currentStatus,
     desiredStatus,
-    schedule,
-    hadSchedule = false,
-    expectedScheduleRevision,
-    scheduleOperationId,
-    originalSchedule,
+    runAt,
     session,
   }) => {
     const trimmedDescription = description.trim();
@@ -1066,77 +939,29 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
     try {
       const normalizedProjectId = normalizeOptionalProjectId(projectId);
 
-      const assigneeWrite = resolveAssigneeWrite(
-        assigneeId,
-        assigneeSokoBotId,
-        assigneeUserId,
-      );
-      // While a series is live, field edits take the same revision as release,
-      // so Core rejects an edit written against a revision the release already
-      // moved past.
+      // A new Run at queues the Task inside the patch, so the status the
+      // patch returns is the one a following event must move away from.
       const patchedTask = await taskService.patchTask(taskId, {
         name: trimmedName,
         description: trimmedDescription,
-        ...assigneeWrite,
+        ...resolveAssigneeWrite(assigneeId, assigneeSokoBotId, assigneeUserId),
         ...(typeof normalizedProjectId !== "undefined"
           ? { projectId: normalizedProjectId }
           : {}),
         ...(context
           ? { context: toCoreTaskContext(context, session.user.id) }
           : {}),
-        ...(hadSchedule ? { expectedScheduleRevision } : {}),
+        ...(runAt ? { runAt: new Date(runAt) } : {}),
       });
 
-      let statusAfterSchedule = currentStatus;
-      let scheduleActiveOnServer = hadSchedule || schedule?.mode !== "none";
-      const scheduleChanged =
-        schedule &&
-        hasTaskScheduleChanged(
-          originalSchedule ?? { mode: "none", timezone: "UTC" },
-          schedule,
-          hadSchedule,
-        );
-      let scheduleWasMutated = false;
-
-      if (schedule && scheduleChanged) {
-        scheduleWasMutated = true;
-        // The field edit above incremented the revision, so the schedule write
-        // in this same user operation must send the value it returned.
-        statusAfterSchedule = hadSchedule
-          ? await applyTaskSeriesChange(taskId, schedule, {
-              operationId: requireOperationId(scheduleOperationId),
-              expectedScheduleRevision: requireScheduleRevision(
-                patchedTask.scheduleRevision ?? expectedScheduleRevision,
-              ),
-            })
-          : await armTaskSchedule(taskId, schedule);
-        scheduleActiveOnServer = schedule.mode !== "none";
-      }
-
-      const isAgentAssignee =
-        assigneeWrite.assigneeId != null ||
-        assigneeWrite.assigneeSokoBotId != null;
-      const targetStatus = resolveUpdateTargetStatus(
-        desiredStatus,
-        statusAfterSchedule,
-        scheduleWasMutated,
-        scheduleActiveOnServer,
-        isAgentAssignee,
-      );
-
-      if (targetStatus !== statusAfterSchedule) {
+      if (desiredStatus !== patchedTask.status) {
         await taskService.createTaskEvent(taskId, {
-          status: targetStatus,
+          status: desiredStatus,
         });
       }
 
-      if (scheduleWasMutated) {
-        // Already covers both Task routes, plus the Calendar ones.
-        revalidateCalendarTaskMutationRoutes(patchedTask);
-      } else {
-        revalidatePath("/tasks");
-        revalidatePath(`/tasks/${taskId}`);
-      }
+      revalidatePath("/tasks");
+      revalidatePath(`/tasks/${taskId}`);
       if (typeof normalizedProjectId !== "undefined") {
         revalidatePath("/projects");
       }
@@ -1364,7 +1189,7 @@ export const createTaskAndLink = withSession<
     session,
     status,
     context,
-    schedule,
+    runAt,
     visibility,
     relation,
     note,
@@ -1387,7 +1212,7 @@ export const createTaskAndLink = withSession<
         userId: session.user.id,
         context,
         status,
-        schedule,
+        runAt,
         visibility,
       });
 

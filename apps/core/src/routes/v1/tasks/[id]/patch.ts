@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { TaskStatus } from "@sokosumi/database";
+import * as Sentry from "@sentry/node";
+import { Channel, TaskStatus } from "@sokosumi/database";
 import {
   CORE_API_ERROR_KINDS,
   hasActiveTaskSchedule,
@@ -17,6 +18,7 @@ import {
 } from "@/helpers/access-control";
 import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
+import { dateTimeSchema } from "@/helpers/datetime";
 import {
   conflict,
   forbidden,
@@ -26,7 +28,11 @@ import {
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { ok } from "@/helpers/response";
-import { mapTask, validateTaskAssigneeAssignment } from "@/helpers/task";
+import {
+  mapTask,
+  parseFutureRunAt,
+  validateTaskAssigneeAssignment,
+} from "@/helpers/task";
 import {
   nextAssigneeWrite,
   refineAssigneeXorConflict,
@@ -37,18 +43,20 @@ import {
   healProjectBriefingUrl,
   resolveTaskDescriptionWithContext,
 } from "@/helpers/task-create-context";
+import { resolveTaskEventActorFields } from "@/helpers/task-event-actor";
 import {
   markTaskAssignedRead,
   notifyTaskHumanAssignee,
 } from "@/helpers/task-notifications";
 import { assertTaskScheduleInactive } from "@/helpers/task-schedule";
 import { refreshTaskSchedulePlannedOccurrences } from "@/helpers/task-schedule-occurrence-index";
+import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { createTaskContextSchema, taskSchema } from "@/schemas/task.schema";
 import { requireNoHumanAssigneeOnPrivateTask } from "@/services/task-domain.service";
-import { buildTaskIncludeForViewer } from "@/types/task";
+import { buildTaskIncludeForViewer, taskEventApiInclude } from "@/types/task";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -86,6 +94,11 @@ export const patchTaskRequestSchema = z
       example: "01960001-0001-7001-8001-000000000099",
     }),
     assigneeUserId: z.string().nullish().openapi({ example: "user_123" }),
+    runAt: dateTimeSchema.nullish().openapi({
+      description:
+        "Future time the Task moves to Ready. Setting it puts the Task in QUEUED (requires a Coworker or Soko Bot assignee); null on a QUEUED Task clears it and moves the Task back to DRAFT.",
+      example: "2026-06-24T09:00:00.000Z",
+    }),
     /**
      * Required while the Task has an active Calendar schedule series: the
      * revision observed by the client, checked under the Calendar/Task locks.
@@ -110,12 +123,13 @@ export const patchTaskRequestSchema = z
       data.assigneeId === undefined &&
       data.coworkerId === undefined &&
       data.assigneeSokoBotId === undefined &&
-      data.assigneeUserId === undefined
+      data.assigneeUserId === undefined &&
+      data.runAt === undefined
     ) {
       ctx.addIssue({
         code: "custom",
         message:
-          "At least one of name, description, projectId, context, assigneeId, assigneeSokoBotId, or assigneeUserId is required",
+          "At least one of name, description, projectId, context, assigneeId, assigneeSokoBotId, assigneeUserId, or runAt is required",
         path: ["name"],
       });
     }
@@ -172,6 +186,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       assigneeId,
       assigneeSokoBotId,
       assigneeUserId,
+      runAt,
       expectedScheduleRevision,
     } = c.req.valid("json");
     const editsTaskFields =
@@ -253,6 +268,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
+      // Setting a Run at queues the Task; clearing it on a Queued Task sends
+      // it back to Draft, since Queued needs a Run at (ADR 0041).
+      let runAtWrite: Date | null | undefined;
+      let nextStatus = task.status;
+      if (runAt !== undefined) {
+        assertTaskScheduleInactive(
+          task,
+          "Remove the schedule before setting this Task's Run at",
+        );
+        runAtWrite = runAt === null ? null : parseFutureRunAt(runAt);
+        if (runAtWrite) {
+          nextStatus = TaskStatus.QUEUED;
+        } else if (task.status === TaskStatus.QUEUED) {
+          nextStatus = TaskStatus.DRAFT;
+        }
+      }
+
       const assigneeWrite = nextAssigneeWrite({
         assigneeId,
         assigneeSokoBotId,
@@ -268,7 +300,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ? assigneeWrite.assigneeUserId
         : task.assigneeUserId;
       validateTaskAssigneeAssignment({
-        status: task.status,
+        status: nextStatus,
         assigneeId: nextAssigneeId,
         assigneeSokoBotId: nextAssigneeSokoBotId,
         assigneeUserId: nextAssigneeUserId,
@@ -344,7 +376,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
-      const updatedTask = await tx.task.update({
+      let updatedTask = await tx.task.update({
         where: {
           id,
           ownerId: userContext.userId,
@@ -358,12 +390,29 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           description: nextDescription,
           projectId,
           ...(assigneeWrite ?? {}),
+          runAt: runAtWrite,
+          ...(nextStatus !== task.status ? { status: nextStatus } : {}),
           ...(hasActiveSeries && editsTaskFields
             ? { scheduleRevision: { increment: 1 } }
             : {}),
         },
         include: buildTaskIncludeForViewer(authContext, task.workspaceId),
       });
+      if (nextStatus !== task.status) {
+        const statusEvent = await tx.taskEvent.create({
+          data: {
+            taskId: id,
+            status: nextStatus,
+            channel: Channel.SOKOSUMI,
+            ...resolveTaskEventActorFields(authContext),
+          },
+          include: taskEventApiInclude,
+        });
+        updatedTask = {
+          ...updatedTask,
+          events: [...updatedTask.events, statusEvent],
+        };
+      }
       if (projectIdWasProvided) {
         await refreshTaskSchedulePlannedOccurrences(tx, {
           id: task.id,
@@ -378,9 +427,29 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         task: updatedTask,
         previousAssigneeUserId,
         workspaceId: task.workspaceId,
+        statusChanged: nextStatus !== task.status,
       };
     });
     await deliverCalendarInvalidationsNow(result.workspaceId);
+    // Same signal as POST /tasks/{id}/events: open boards refresh on it.
+    // A Run at time move stays Queued, so it does not publish.
+    if (result.statusChanged) {
+      try {
+        await publishTaskEventData({
+          userId: result.task.ownerId,
+          taskId: result.task.id,
+          eventType: "task_event",
+        });
+      } catch (error) {
+        Sentry.captureException(error, {
+          tags: { error_type: "publish_task_event" },
+          extra: {
+            taskId: result.task.id,
+            userId: result.task.ownerId,
+          },
+        });
+      }
+    }
 
     if (result.previousAssigneeUserId !== result.task.assigneeUserId) {
       if (result.previousAssigneeUserId) {

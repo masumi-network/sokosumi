@@ -52,6 +52,8 @@ interface CreateTaskInput {
   projectId?: string | null;
   context?: CreateTaskContext;
   status?: Extract<TaskStatus, "DRAFT" | "READY">;
+  /** Start at this future time: Core creates the Task Queued. */
+  runAt?: Date;
   visibility?: "PUBLIC" | "PRIVATE";
 }
 
@@ -63,6 +65,8 @@ interface PatchTaskInput {
   assigneeUserId?: string | null;
   projectId?: string | null;
   context?: CreateTaskContext;
+  /** A future time queues the Task, or moves the time of a Queued one. */
+  runAt?: Date;
   /**
    * Required by Core while the Task has an active schedule series: field edits
    * serialize against release under the same revision, and the returned Task
