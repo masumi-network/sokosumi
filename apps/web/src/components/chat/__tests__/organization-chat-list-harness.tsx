@@ -8,9 +8,11 @@ import type {
 
 import { OrganizationChatList } from "../organization-chat-list.client";
 
-/** The route the list reads, so a test can open a room. Reset per test. */
-const { harnessPathname } = vi.hoisted(() => ({
+/** The route the list reads, so a test can open a room. Reset per test.
+ *  Selection is the optimistic highlight, which moves before the route. */
+const { harnessPathname, harnessSelection } = vi.hoisted(() => ({
   harnessPathname: { current: "/chat" },
+  harnessSelection: { current: null as string | null },
 }));
 
 const {
@@ -30,11 +32,16 @@ const {
 export {
   acceptInvitationMock,
   harnessPathname,
+  harnessSelection,
   listArchivedMock,
   listPendingMock,
   listRoomsMock,
   reorderPinnedMock,
 };
+
+vi.mock("@/app/chat/components/room-cache-provider", () => ({
+  useRoomSelection: () => harnessSelection.current,
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -337,6 +344,7 @@ export function makeInvitation(
 
 export function resetOrganizationChatListMocks() {
   harnessPathname.current = "/chat";
+  harnessSelection.current = null;
   acceptInvitationMock.mockReset();
   listRoomsMock.mockReset();
   listArchivedMock.mockReset();
