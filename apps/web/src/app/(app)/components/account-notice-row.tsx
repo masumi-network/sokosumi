@@ -31,7 +31,7 @@ const FILLED_ACTION_STYLES = {
  * it is marked. The colour stays the notice's tone, the same one the bell's
  * dot takes.
  */
-function getAccountNoticeEmphasis(
+export function getAccountNoticeEmphasis(
   notice: AccountNotice,
 ): NotificationRequestEmphasis {
   if (notice.type === "lowCredits") {
