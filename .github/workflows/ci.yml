@@ -222,47 +222,37 @@ jobs:
     if: ${{ !cancelled() && needs.changes.outputs.js != 'false' }}
     runs-on: ubuntu-latest
     permissions: *turbo-permissions
-    # Build-only placeholders, scoped to this job so the test legs keep
-    # the env they had in their own workflow.
-    env:
-      BETTER_AUTH_SECRET: "ci-build-better-auth-secret"
-      APP_SIGNING_SECRET: "ci-build-better-auth-secret"
-      RESEND_API_KEY: "ci-resend-api-key"
-      RESEND_FROM_EMAIL: "noreply@sokosumi.com"
-      NEXT_PUBLIC_NETWORK: "Preprod"
-      PAYMENT_API_KEY: "ci-payment-api-key"
-      REGISTRY_API_KEY: "ci-registry-api-key"
-      STRIPE_SECRET_KEY: "sk_test_ci_build_placeholder"
-      STRIPE_WEBHOOK_SECRET: "whsec_ci_build_placeholder"
-      SIGNUP_BONUS_CREDITS: "3000"
-      SIGNUP_BONUS_TTL_DAYS: "30"
-      STRIPE_CREDIT_PRODUCT_ID: "ci-stripe-credit-product-id"
-      STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID: "ci-stripe-starter-subscription-product-id"
-      STRIPE_STANDARD_SUBSCRIPTION_PRODUCT_ID: "ci-stripe-standard-subscription-product-id"
-      STRIPE_PRO_SUBSCRIPTION_PRODUCT_ID: "ci-stripe-pro-subscription-product-id"
-      ABLY_SUBSCRIBE_ONLY_KEY: "ci-ably-subscribe-only-key"
-      ABLY_PUBLISH_ONLY_KEY: "ci-ably-publish-only-key"
-      GOOGLE_CLIENT_ID: "ci-google-client-id"
-      GOOGLE_CLIENT_SECRET: "ci-google-client-secret"
-      MICROSOFT_CLIENT_ID: "ci-microsoft-client-id"
-      MICROSOFT_CLIENT_SECRET: "ci-microsoft-client-secret"
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: user
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: sokosumi
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     steps:
+      # A plain background container, not a `services:` entry: services
+      # block the first step for ~23s (image pull plus health checks),
+      # while this boots during checkout and Setup.
+      - name: Start PostgreSQL
+        run: >-
+          nohup docker run --name postgres --publish 5432:5432
+          --env POSTGRES_USER=user --env POSTGRES_PASSWORD=password
+          --env POSTGRES_DB=sokosumi postgres:17 > /tmp/postgres.log 2>&1 &
+
       - *checkout
       - *setup
+
+      - name: Load build env
+        run: grep -v '^#' .github/ci-build.env >> "$GITHUB_ENV"
+
+      # Next 16.3 writes a Turbopack build cache to .next/cache; js-cache.yml
+      # saves one from main and PRs restore the newest. Skipped when web is
+      # unchanged, because turbo then replays web#build from the remote cache.
+      - name: Restore Next.js build cache
+        if: needs.changes.outputs.web != 'false'
+        uses: actions/cache/restore@v6
+        with:
+          path: apps/web/.next/cache
+          key: js-next-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
+          restore-keys: js-next-${{ runner.os }}-${{ runner.arch }}-
+
+      # TCP, not the socket: the image's init server listens on the socket
+      # only and restarts before the real server comes up.
+      - name: Wait for PostgreSQL
+        run: timeout 60 bash -c 'until docker exec postgres pg_isready --host 127.0.0.1 --username user; do sleep 1; done' || { cat /tmp/postgres.log; exit 1; }
 
       - name: Run Prisma Migrate
         run: pnpm prisma:migrate:dev
@@ -278,11 +268,15 @@ jobs:
     steps:
       - *checkout
 
-      - name: Setup
-        uses: ./.github/actions/setup
+      # Biome is one binary with no workspace dependencies: nested
+      # biome.json files extend the root and the Grit plugin is a repo
+      # file. So no Setup and no install. setup-biome reads the version
+      # pinned in pnpm-lock.yaml.
+      - name: Install Biome
+        uses: biomejs/setup-biome@v2
 
       - name: Run Biome checks
-        run: pnpm check
+        run: biome check .
 
   typecheck:
     name: Typecheck

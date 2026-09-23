@@ -1,0 +1,94 @@
+name: JS cache
+permissions:
+  contents: read
+
+# The only writer of the JS caches ci.yml restores. A PR's cache is scoped
+# to refs/pull/N/merge and no other PR can read it; a cache saved on main is
+# readable by every PR. So CI jobs only restore, and this job saves:
+#   js-node-modules-*  installed node_modules trees, keyed on the lockfile
+#   js-next-*          web's Turbopack build cache from the newest main commit
+# Superseded entries are deleted after each save, so the JS caches hold one
+# copy of each and cannot fill the repo's 10 GB and evict Apple's
+# macOS-mint-* entry.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/web/**"
+      - "packages/**"
+      - ".nvmrc"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "patches/**"
+      - "turbo.json"
+      - ".github/actions/setup/**"
+      - ".github/ci-build.env"
+      - ".github/workflows/js-cache.yml"
+  # Entries nobody reads for 7 days are evicted. A restore counts as a read,
+  # so the daily run keeps both alive through a week without PRs.
+  schedule:
+    - cron: "23 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Same placeholder as ci.yml, so turbo hashes and Next compiles alike.
+  DATABASE_URL: "postgresql://user:password@localhost:5432/sokosumi"
+
+jobs:
+  warm:
+    name: Warm JS caches
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Turborepo remote cache (OIDC).
+      id-token: write
+      # Delete superseded cache entries.
+      actions: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          turbo_team: ${{ vars.TURBO_TEAM }}
+          save_cache: "true"
+
+      - name: Load build env
+        run: grep -v '^#' .github/ci-build.env >> "$GITHUB_ENV"
+
+      - name: Restore Next.js build cache
+        id: next-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: apps/web/.next/cache
+          key: js-next-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
+          restore-keys: js-next-${{ runner.os }}-${{ runner.arch }}-
+
+      # --force: a remote-cache hit replays web#build without running
+      # `next build`, which would save the restored cache unchanged.
+      - name: Build web
+        if: steps.next-cache.outputs.cache-hit != 'true'
+        run: pnpm exec turbo run build --filter=web --force
+
+      - name: Save Next.js build cache
+        if: steps.next-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: apps/web/.next/cache
+          key: ${{ steps.next-cache.outputs.cache-primary-key }}
+
+      - name: Delete superseded JS caches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          for prefix in js-node-modules- js-next-; do
+            gh cache list --ref "$GITHUB_REF" --key "$prefix" --sort created_at --order desc --limit 100 --json id --jq '.[1:][].id' |
+              xargs -r -n1 gh cache delete
+          done
