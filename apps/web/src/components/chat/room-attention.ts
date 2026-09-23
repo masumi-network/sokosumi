@@ -16,6 +16,19 @@ export interface RoomAttentionCounts {
 }
 
 /**
+ * Whether a room's badge counts mentions. Core writes a notification for
+ * every message only in a Direct of two humans or fewer
+ * (`shouldEmitChatDirectMessageNotifications`); everywhere else, a group
+ * Direct included, the badge counts mentions alone.
+ */
+export function roomBadgeCountsMentions(room: {
+  kind: string;
+  userMembers: readonly unknown[];
+}): boolean {
+  return !(room.kind === "direct" && room.userMembers.length <= 2);
+}
+
+/**
  * Sidebar attention chrome for a room row.
  * Bold = unread top-level activity, an unread mention, or forced unread;
  * badge = unread @mentions only. Thread replies do not bold a row (ADR-0037):
@@ -102,6 +115,7 @@ export function resolveRoomAttention(options: {
 /** Everything a room row holds about what is unread in it. */
 type RoomUnreadState = RoomAttentionCounts & {
   unreadThreadCount?: number;
+  unreadThreadMentionCount?: number;
   unreadThreads?: unknown;
 };
 
@@ -127,6 +141,7 @@ export function keepRoomUnreadState<T extends RoomUnreadState>(
     channelUnreadCount: held.channelUnreadCount,
     threadUnreadCount: held.threadUnreadCount,
     unreadThreadCount: held.unreadThreadCount,
+    unreadThreadMentionCount: held.unreadThreadMentionCount,
     unreadThreads: held.unreadThreads,
     unreadMentionCount: held.unreadMentionCount,
     markedUnread: held.markedUnread,
@@ -182,4 +197,78 @@ export function resolveSectionAttention(
   }
   if (options.hasPendingInvitation === true) return "mention";
   return unread ? "unread" : null;
+}
+
+/** What a room holds for the Threads entry and the All unreads filter. */
+interface RoomUnreadSummary extends RoomAttentionCounts {
+  mutedAt?: unknown;
+  unreadThreadCount?: number;
+  unreadThreadMentionCount?: number;
+  unreadThreads?: ReadonlyArray<{ unreadMentionCount?: number }>;
+}
+
+/**
+ * The Threads entry's attention: every unread Thread across the reader's
+ * rooms (SOK-1159).
+ *
+ * `threadCount` counts Threads, not replies, so it agrees with a room's
+ * "4 more unread threads" row. A muted room lists no Thread in the sidebar,
+ * so it adds none here either. `mentionCount` is every unread reply naming
+ * the reader across those Threads, past each room's three listed ones too.
+ * The rail mark follows the same one rule as a room's: a mention outranks
+ * unread.
+ */
+export function resolveUnreadThreadsAttention(
+  rooms: readonly RoomUnreadSummary[],
+): {
+  threadCount: number;
+  mentionCount: number;
+  rail: "mention" | "unread" | null;
+} {
+  let threadCount = 0;
+  let mentionCount = 0;
+  for (const room of rooms) {
+    if (room.mutedAt != null) continue;
+    const listed = room.unreadThreads ?? [];
+    threadCount += room.unreadThreadCount ?? listed.length;
+    // A snapshot from before Core counted past the cap has only the list.
+    mentionCount +=
+      room.unreadThreadMentionCount ??
+      listed.reduce((sum, thread) => sum + (thread.unreadMentionCount ?? 0), 0);
+  }
+  return {
+    threadCount,
+    mentionCount,
+    rail: mentionCount > 0 ? "mention" : threadCount > 0 ? "unread" : null,
+  };
+}
+
+/**
+ * What reading a room would still clear, as the room's two reads
+ * (ADR-0037): `readRoom` while its row is bold, `lookThreads` while it holds
+ * an unread Thread. A room needing neither is read.
+ *
+ * The All unreads filter keeps a room while it needs either, and Mark all as
+ * read runs exactly these (SOK-1159). Bold is asked of `resolveRoomAttention`,
+ * so the filter cannot keep a room its row leaves quiet or the reverse.
+ * Muted rooms need nothing, as they carry no attention anywhere.
+ */
+export function roomUnreadReads(room: RoomUnreadSummary): {
+  readRoom: boolean;
+  lookThreads: boolean;
+} {
+  const isMuted = room.mutedAt != null;
+  const { bold } = resolveRoomAttention({
+    unreadCount: room.unreadCount,
+    channelUnreadCount: room.channelUnreadCount,
+    unreadMentionCount: room.unreadMentionCount,
+    markedUnread: room.markedUnread,
+    isMuted,
+  });
+  return {
+    readRoom: bold,
+    lookThreads:
+      !isMuted &&
+      (room.unreadThreadCount ?? room.unreadThreads?.length ?? 0) > 0,
+  };
 }
