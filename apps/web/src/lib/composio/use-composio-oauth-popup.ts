@@ -5,6 +5,7 @@ import { useCallback, useRef } from "react";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   COMPOSIO_OAUTH_ACK_TYPE,
+  COMPOSIO_OAUTH_NONCE_STORAGE_KEY,
   type ComposioOAuthCallbackPayload,
   getComposioOAuthBroadcastChannelName,
   getComposioOAuthPopupName,
@@ -182,6 +183,8 @@ export function useComposioOAuthPopup() {
       inFlightRef.current = true;
 
       try {
+        // Store in the same-origin blank popup before the provider can sever its opener.
+        popup.sessionStorage.setItem(COMPOSIO_OAUTH_NONCE_STORAGE_KEY, nonce);
         const value = await action({
           nonce,
           navigate: (redirectUrl) => {

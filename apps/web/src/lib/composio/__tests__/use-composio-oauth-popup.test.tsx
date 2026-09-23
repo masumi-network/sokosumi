@@ -8,6 +8,7 @@ import {
   vi,
 } from "vitest";
 
+import { COMPOSIO_OAUTH_NONCE_STORAGE_KEY } from "@/lib/composio/oauth-popup-protocol";
 import { useComposioOAuthPopup } from "@/lib/composio/use-composio-oauth-popup";
 
 class MockBroadcastChannel {
@@ -23,6 +24,8 @@ class MockBroadcastChannel {
   }
 }
 
+const storeNonceMock = vi.fn();
+
 let windowOpenMock: MockInstance<typeof window.open>;
 
 describe("useComposioOAuthPopup", () => {
@@ -35,6 +38,7 @@ describe("useComposioOAuthPopup", () => {
     windowOpenMock.mockReset();
     windowOpenMock.mockReturnValue({
       closed: false,
+      sessionStorage: { setItem: storeNonceMock },
       close: vi.fn(),
       focus: vi.fn(),
       location: { href: "", replace: vi.fn() },
@@ -51,6 +55,10 @@ describe("useComposioOAuthPopup", () => {
         "about:blank",
         "sokosumi:composio:oauth:popup-nonce",
         expect.any(String),
+      );
+      expect(storeNonceMock).toHaveBeenCalledWith(
+        COMPOSIO_OAUTH_NONCE_STORAGE_KEY,
+        "popup-nonce",
       );
       flow.navigate("https://connect.composio.dev/link-token");
       const callback = await flow.waitForCallback();
@@ -93,6 +101,24 @@ describe("useComposioOAuthPopup", () => {
     });
     expect(callbackReceived).toBe(true);
     expect(MockBroadcastChannel.instances[0]?.close).toHaveBeenCalledOnce();
+  });
+
+  it("closes the popup and releases the flow when session storage is blocked", async () => {
+    storeNonceMock.mockImplementationOnce(() => {
+      throw new DOMException("Storage blocked", "SecurityError");
+    });
+    const action = vi.fn(async () => "started");
+    const { result } = renderHook(() => useComposioOAuthPopup());
+
+    await expect(result.current.runPopupOAuth(action)).rejects.toThrow(
+      "Storage blocked",
+    );
+    expect(action).not.toHaveBeenCalled();
+    expect(windowOpenMock.mock.results[0]?.value?.close).toHaveBeenCalledOnce();
+    await expect(result.current.runPopupOAuth(action)).resolves.toEqual({
+      kind: "completed",
+      value: "started",
+    });
   });
 
   it("rejects a parallel flow and releases the lock when an action rejects", async () => {

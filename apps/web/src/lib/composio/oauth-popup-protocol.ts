@@ -7,6 +7,8 @@
  * `window.opener`. {@link BroadcastChannel} delivers on same-origin regardless
  * of COOP, which is the reliable path for third-party OAuth.
  */
+export const COMPOSIO_OAUTH_NONCE_STORAGE_KEY = "sokosumi:composio:nonce";
+
 export const COMPOSIO_OAUTH_BROADCAST_CHANNEL = "sokosumi:composio:oauth";
 export const COMPOSIO_OAUTH_POPUP_NAME_PREFIX =
   "sokosumi:composio:oauth:" as const;
@@ -101,20 +103,29 @@ export function parseComposioCallbackSearchParams(
   return { status, connectionId, sessionUri, errorMessage };
 }
 
-/** Inline script for `/composio/callback` — runs during HTML parse, before paint. */
+/**
+ * Inline callback script. Popup session storage survives cross-site redirects
+ * that clear window.name and opener, including verifier redirects with no state.
+ * Keep the name fallback for OAuth attempts opened before rollout.
+ */
 export function buildComposioCallbackInlineScript(): string {
   const channel = COMPOSIO_OAUTH_BROADCAST_CHANNEL;
+  const storageKey = COMPOSIO_OAUTH_NONCE_STORAGE_KEY;
   const popupNamePrefix = COMPOSIO_OAUTH_POPUP_NAME_PREFIX;
   const messageType = COMPOSIO_OAUTH_MESSAGE_TYPE;
   const ackType = COMPOSIO_OAUTH_ACK_TYPE;
 
   return `(function(){
 try{
-var popupName=window.name;
-if(popupName.indexOf(${JSON.stringify(popupNamePrefix)})!==0)return;
-var nonce=popupName.slice(${JSON.stringify(popupNamePrefix)}.length);
-if(!nonce)return;
 var p=new URLSearchParams(window.location.search);
+var popupName=window.name;
+var nonce="";
+try{
+nonce=window.sessionStorage.getItem(${JSON.stringify(storageKey)})||"";
+window.sessionStorage.removeItem(${JSON.stringify(storageKey)});
+}catch(e){}
+if(!nonce&&popupName.indexOf(${JSON.stringify(popupNamePrefix)})===0)nonce=popupName.slice(${JSON.stringify(popupNamePrefix)}.length);
+if(!nonce)return;
 var rawStatus=(p.get("status")||"").toLowerCase();
 var connectionId=p.get("connectedAccountId")||p.get("connected_account_id")||p.get("connectionId")||p.get("id");
 var sessionUri=p.get("session_uri")||p.get("sessionUri");
