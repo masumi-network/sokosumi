@@ -79,26 +79,10 @@
       }
 
       private static func render(threads: [ThreadOverviewFixtureRow], dark: Bool, name: String?) async throws -> NSBitmapImageRep {
-        let sender = Components.Schemas.ChatRoomUserParticipant(id: "user", name: "Ada Lovelace", email: "ada@example.com", presence: .online)
-        let reference = Date(timeIntervalSince1970: 1_790_000_000)
-        let items = threads.map { row in
-          var parent = chatRoomMessage(from: OutboundShell(clientTurnId: row.preview, roomId: "room", content: row.preview, createdAt: reference, sender: sender))
-          parent.id = row.preview
-          return Components.Schemas.ChatRoomThread(parentMessage: parent, replyCount: row.replies, lastReplyAt: reference,
-                                                   unreadReplyCount: row.unread, hasLooked: true)
-        }
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .custom { date, encoder in
-          let formatter = ISO8601DateFormatter()
-          formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-          var value = encoder.singleValueContainer()
-          try value.encode(formatter.string(from: date))
-        }
-        let rows = try #require(String(bytes: encoder.encode(items), encoding: .utf8))
-        let transport = GroupsOverviewTransport(body: "{\"data\":\(rows),\"meta\":{\"timestamp\":\"2026-09-23T12:00:00.000Z\",\"requestId\":\"fixture\",\"pagination\":{\"cursor\":null,\"limit\":50,\"total\":\(items.count),\"nextCursor\":null}}}")
+        let transport = try GroupsOverviewTransport(body: threadOverviewPageBody(threads, nextCursor: nil))
         let overview = RoomThreadOverview()
         try await overview.load(client: Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport), roomId: "room", organizationSlug: nil)
-        try #require(overview.items.count == items.count)
+        try #require(overview.items.count == threads.count)
         let host = NSHostingView(rootView: RoomThreadOverviewView(overview: overview, open: { _ in }, older: {}, markAllRead: {}, retry: {}, close: {})
           .frame(width: width, height: 330).background(.background)
           .environment(\.colorScheme, dark ? .dark : .light))
@@ -119,7 +103,7 @@
       }
 
       /// Pixels in `columns` whose channels differ enough to be a colour (origin top left).
-      private static func coloredPixels(in bitmap: NSBitmapImageRep, columns: Range<Int>) -> [(x: Int, y: Int)] {
+      static func coloredPixels(in bitmap: NSBitmapImageRep, columns: Range<Int>) -> [(x: Int, y: Int)] {
         var result: [(x: Int, y: Int)] = []
         for row in 0 ..< bitmap.pixelsHigh {
           for column in columns.clamped(to: 0 ..< bitmap.pixelsWide) {
@@ -134,7 +118,7 @@
       }
 
       /// Vision's lines with their boxes, or nil where Vision cannot run at all (the virtualized CI runner).
-      private static func recognizedText(in bitmap: NSBitmapImageRep) throws -> [(text: String, box: CGRect)]? {
+      static func recognizedText(in bitmap: NSBitmapImageRep) throws -> [(text: String, box: CGRect)]? {
         let image = try #require(bitmap.cgImage)
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
@@ -174,6 +158,28 @@
     let preview: String
     let replies: Int
     let unread: Int
+  }
+
+  /// Core's `GET …/threads` page for `threads`, started by Ada Lovelace at a fixed time, in the given order.
+  func threadOverviewPageBody(_ threads: [ThreadOverviewFixtureRow], nextCursor: String?) throws -> String {
+    let sender = Components.Schemas.ChatRoomUserParticipant(id: "user", name: "Ada Lovelace", email: "ada@example.com", presence: .online)
+    let reference = Date(timeIntervalSince1970: 1_790_000_000)
+    let items = threads.map { row in
+      var parent = chatRoomMessage(from: OutboundShell(clientTurnId: row.preview, roomId: "room", content: row.preview, createdAt: reference, sender: sender))
+      parent.id = row.preview
+      return Components.Schemas.ChatRoomThread(parentMessage: parent, replyCount: row.replies, lastReplyAt: reference,
+                                               unreadReplyCount: row.unread, hasLooked: true)
+    }
+    let encoder = JSONEncoder()
+    encoder.dateEncodingStrategy = .custom { date, encoder in
+      let formatter = ISO8601DateFormatter()
+      formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+      var value = encoder.singleValueContainer()
+      try value.encode(formatter.string(from: date))
+    }
+    let rows = try #require(String(bytes: encoder.encode(items), encoding: .utf8))
+    let cursor = nextCursor.map { "\"\($0)\"" } ?? "null"
+    return "{\"data\":\(rows),\"meta\":{\"timestamp\":\"2026-09-23T12:00:00.000Z\",\"requestId\":\"fixture\",\"pagination\":{\"cursor\":null,\"limit\":50,\"total\":\(items.count),\"nextCursor\":\(cursor)}}}"
   }
 
   private nonisolated struct GroupsOverviewTransport: ClientTransport {
