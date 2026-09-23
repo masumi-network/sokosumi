@@ -301,8 +301,9 @@ export function OrganizationChatList({
     () => partitionRoomsForSidebar(roomRows),
     [roomRows],
   );
-  // The filter is Pinned over one flat list, not the sections: a heading
-  // over one or two rooms is noise. Pinned holds every pinned room, fixed, in
+  // The filter is one flat list with Pinned under it, not the sections: a
+  // heading over one or two rooms is noise. Pinned stays last, so the
+  // caught-up message leads and nothing moves when the reader gets there. Pinned holds every pinned room, fixed, in
   // the reader's own order, so reaching one never means switching the filter
   // off; the flat list never takes a pinned room, so none shows twice or
   // moves out of Pinned when it is opened or turns unread. In the flat list
@@ -433,31 +434,6 @@ export function OrganizationChatList({
           unreadOnly={unreadOnly}
           onUnreadOnlyChange={setUnreadOnly}
         />
-        {inboxPinnedRooms.length > 0 ? (
-          <div>
-            <p
-              id={inboxPinnedLabelId}
-              className="text-muted-foreground group-data-[collapsible=icon]:hidden px-2 pb-1 text-xs font-medium"
-            >
-              {t("pinned")}
-            </p>
-            <SidebarMenu
-              data-slot="unread-inbox-pinned"
-              aria-labelledby={inboxPinnedLabelId}
-              className="gap-0"
-            >
-              {inboxPinnedRooms.map((room) => (
-                <ChatRoomSidebarRow
-                  key={room.id}
-                  {...roomRowProps(room)}
-                  itemProps={
-                    isUnreadRoom(room) ? undefined : READ_INBOX_ROOM_ITEM_PROPS
-                  }
-                />
-              ))}
-            </SidebarMenu>
-          </div>
-        ) : null}
         {caughtUp ? (
           // A message, not a row: nothing here opens. The way back to every
           // room is the tinted All unreads row right above it.
@@ -503,6 +479,31 @@ export function OrganizationChatList({
                   />
                 );
               })}
+            </SidebarMenu>
+          </div>
+        ) : null}
+        {inboxPinnedRooms.length > 0 ? (
+          <div>
+            <p
+              id={inboxPinnedLabelId}
+              className="text-muted-foreground group-data-[collapsible=icon]:hidden px-2 pb-1 text-xs font-medium"
+            >
+              {t("pinned")}
+            </p>
+            <SidebarMenu
+              data-slot="unread-inbox-pinned"
+              aria-labelledby={inboxPinnedLabelId}
+              className="gap-0"
+            >
+              {inboxPinnedRooms.map((room) => (
+                <ChatRoomSidebarRow
+                  key={room.id}
+                  {...roomRowProps(room)}
+                  itemProps={
+                    isUnreadRoom(room) ? undefined : READ_INBOX_ROOM_ITEM_PROPS
+                  }
+                />
+              ))}
             </SidebarMenu>
           </div>
         ) : null}

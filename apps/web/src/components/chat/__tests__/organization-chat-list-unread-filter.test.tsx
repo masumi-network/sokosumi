@@ -260,7 +260,7 @@ describe("OrganizationChatList All unreads pinned rooms", () => {
     starredAt: new Date("2026-09-02T00:00:00.000Z"),
   });
 
-  it("lists every pinned room under Pinned only, unread ones undimmed, above the flat list", async () => {
+  it("lists every pinned room under Pinned only, unread ones undimmed, below the flat list", async () => {
     const start = [unreadChannel, pinnedRead, pinnedUnread, readChannel];
     listRoomsMock.mockResolvedValue(emptyListResult(start));
     const { container } = renderOrganizationChatList({
@@ -276,7 +276,7 @@ describe("OrganizationChatList All unreads pinned rooms", () => {
       '[data-slot="unread-inbox-pinned"]',
     );
     const inbox = container.querySelector('[data-slot="unread-inbox"]');
-    expect(pinnedGroup?.compareDocumentPosition(inbox as Node) ?? 0).toBe(
+    expect(inbox?.compareDocumentPosition(pinnedGroup as Node) ?? 0).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
     expect(screen.getByRole("list", { name: "App.Channels.pinned" })).toBe(
@@ -360,7 +360,7 @@ describe("OrganizationChatList All unreads pinned rooms", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
-  it("still says caught up with only pinned rooms listed", async () => {
+  it("still says caught up with only pinned rooms listed, the message first", async () => {
     listRoomsMock.mockResolvedValue(emptyListResult([pinnedRead, readChannel]));
     const { container } = renderOrganizationChatList({
       organizationId: "org-1",
@@ -374,5 +374,12 @@ describe("OrganizationChatList All unreads pinned rooms", () => {
     );
     expect(pinnedRows(container)).toEqual(["handbook (read)"]);
     expect(rowLabels()).toEqual(["handbook"]);
+    expect(
+      screen
+        .getByRole("status")
+        .compareDocumentPosition(
+          container.querySelector('[data-slot="unread-inbox-pinned"]') as Node,
+        ),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 });
