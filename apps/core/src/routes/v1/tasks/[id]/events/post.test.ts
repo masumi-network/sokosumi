@@ -2609,6 +2609,54 @@ describe("POST /{id}/events", () => {
     expect(createNotificationMock).not.toHaveBeenCalled();
   });
 
+  it("caps the retry reason written to stdout", async () => {
+    processTaskPaymentClaimMock.mockResolvedValue({
+      status: "retry_scheduled",
+      reason: "x".repeat(20_000),
+    });
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            id: "evt_retry",
+            status: TaskStatus.COMPLETED,
+            transactionId: "txn_retry",
+          }),
+        ),
+      },
+      task: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    };
+    mockTransaction(tx);
+    createTaskEventTransactionMock.mockResolvedValue("txn_retry");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const app = createApp({
+        actor: "coworker",
+        coworkerId: COWORKER_ID,
+        vendorId: TEST_VENDOR_ID,
+      });
+      const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: TaskStatus.COMPLETED,
+          masumiPayment: validMasumiPaymentBody,
+        }),
+      });
+      expect(response.status).toBe(201);
+      await Promise.all(waitUntilCapturedPromises);
+      const logged = warnSpy.mock.calls.find(
+        (call) => call[0] === "[tasks] masumi task payment: retry scheduled",
+      );
+      expect(logged).toBeDefined();
+      const payload = logged?.[1] as { reason: string };
+      expect(payload.reason.length).toBeLessThanOrEqual(2_000);
+      expect(payload.reason).toContain("[truncated]");
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
   it("returns 201 and publishes when durable processor refunds a permanent failure", async () => {
     processTaskPaymentClaimMock.mockResolvedValue({
       status: "refunded",
