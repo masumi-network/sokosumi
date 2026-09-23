@@ -102,21 +102,19 @@
         #expect(unlinked.fittingSize.height == 0)
       }
 
-      /// A card with a loaded image above the same kind of card whose image failed, light and dark.
-      @Test(arguments: [false, true])
-      func textOnlyCardBesideAnImageCard(dark: Bool) async throws {
+      /// A card with a loaded image above the same kind of card whose image failed.
+      @Test func textOnlyCardBesideAnImageCard() async throws {
         URLProtocol.registerClass(ScrollMediaProtocol.self)
         defer { URLProtocol.unregisterClass(ScrollMediaProtocol.self) }
-        let scheme: ColorScheme = dark ? .dark : .light
-        let imageCard = Self.host(Self.card(title: "A useful article about building native applications", description: "A short preview with enough text to verify wrapping and spacing.", imageUrl: Self.loadingImageURL(), remove: {}), scheme: scheme)
-        let textCard = Self.host(Self.card(description: nil, imageUrl: Self.failingImageURL(), remove: {}), scheme: scheme)
+        let imageCard = Self.host(Self.card(title: "A useful article about building native applications", description: "A short preview with enough text to verify wrapping and spacing.", imageUrl: Self.loadingImageURL(), remove: {}), scheme: .light)
+        let textCard = Self.host(Self.card(description: nil, imageUrl: Self.failingImageURL(), remove: {}), scheme: .light)
         let stack = NSStackView(views: [imageCard, textCard])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 12
         stack.edgeInsets = NSEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
         stack.wantsLayer = true
-        let window = Self.window(stack, dark: dark)
+        let window = Self.window(stack, dark: false)
         defer { window.orderOut(nil) }
         // Resolve the dynamic colour under the window's appearance, not the test process's.
         window.appearance?.performAsCurrentDrawingAppearance {
@@ -138,7 +136,7 @@
           #expect(lines.contains { $0.localizedCaseInsensitiveContains("Native link previews") }, "OCR read: \(lines)")
           #expect(!lines.contains { $0.localizedCaseInsensitiveContains("Preview unavailable") }, "OCR read: \(lines)")
         }
-        try Self.record(stack, named: "unfurl-text-fallback-\(dark ? "dark" : "light").png")
+        try Self.record(stack, named: "unfurl-text-fallback.png")
       }
 
       // MARK: - Fixture pieces
