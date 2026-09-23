@@ -121,8 +121,6 @@ export interface RoomHeaderChromeProps {
   onToggleThreadList: () => void;
   /** Unread threads in this room, counted by the shell. */
   unreadThreadCount: number;
-  /** The reader's opt-in numeric chat counts. */
-  showUnreadCount: boolean;
   pinnedOpen: boolean;
   onTogglePinned: () => void;
   rosterOpen: boolean;
@@ -154,7 +152,6 @@ export function RoomHeaderChrome({
   threadListOpen,
   onToggleThreadList,
   unreadThreadCount,
-  showUnreadCount,
   pinnedOpen,
   onTogglePinned,
   rosterOpen,
@@ -273,7 +270,6 @@ export function RoomHeaderChrome({
             isOpen={threadListOpen}
             onToggle={onToggleThreadList}
             unreadCount={unreadThreadCount}
-            showUnreadCount={showUnreadCount}
             labels={{
               open: t("UnreadThreads.open"),
               unreadThreads: (count) =>
