@@ -322,9 +322,11 @@ struct SidebarRoomsTests {
 
   /// Was `…ObeysMuteAndTheOpenRoom`: its last line asserted a count of zero for `isActive`.
   /// Web's resolver has no such input, so the argument is gone and only mute silences the count.
+  /// Its second line drew the count beside the badge; since SOK-1147 a row draws one number (row 24g1).
   @Test func unreadTextCountIsOptInAndObeysMute() {
-    #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 1).unreadTextCount == 0)
-    #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 1, showUnreadCount: true) == .init(bold: true, badgeCount: 1, unreadTextCount: 3))
+    #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 0).unreadTextCount == 0)
+    #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 0, showUnreadCount: true) == .init(bold: true, badgeCount: 0, unreadTextCount: 3))
+    #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 1, showUnreadCount: true) == .init(bold: true, badgeCount: 1))
     // Forced unread without messages stays bold with no number.
     #expect(resolveRoomAttention(unreadCount: 0, unreadMentionCount: 0, markedUnread: true, showUnreadCount: true) == .init(bold: true, badgeCount: 0))
     #expect(resolveRoomAttention(unreadCount: 3, unreadMentionCount: 1, isMuted: true, showUnreadCount: true).unreadTextCount == 0)
