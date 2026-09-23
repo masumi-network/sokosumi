@@ -3,7 +3,7 @@
 - Status: Accepted
 - Date: 2026-08-20
 
-pnpm stays the package manager. Turborepo runs `build`, `typecheck`, and `test` so the task graph is declared once (`dependsOn: ["^build"]` plus uncached `prisma:generate`) instead of in per-package build chains and Core/web fan-out scripts.
+pnpm stays the package manager. Turborepo runs `build`, `typecheck`, and `test` so the task graph is declared once (`dependsOn: ["^build"]` plus `prisma:generate`, cached on its `src/generated/**` output) instead of in per-package build chains and Core/web fan-out scripts.
 
 Vercel filtered installs still emit package `dist` via per-package `prepare`, except `@sokosumi/database`. That package has no `prepare` and, since [ADR 0035](./0035-database-consumed-from-source.md), no build either — Core bundles its source. Local and CI generate through turbo `prisma:generate`. Core Vercel `vercel-build` runs `prisma:generate`, tsup, then migrate. App-level `prebuild` / `build:workspace-deps` stay removed so turbo is the only orchestrator on the root `build`/`typecheck`/`test` path.
 
