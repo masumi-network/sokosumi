@@ -95,11 +95,7 @@ export const LIMITS = {
    */
   CHAT_ROOM_GUEST_INVITE_LINK_CREATE_PER_HOUR: 10,
 
-  /**
-   * Maximum live (pending, unexpired) member invitations per vendor. Bounds
-   * email-blast abuse now that any developer can self-create a vendor and
-   * invite members by email.
-   */
+  /** Maximum live pending member invitations stored for one vendor. */
   VENDOR_MEMBER_INVITE_PENDING_LIMIT: 100,
 
   /**

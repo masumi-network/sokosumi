@@ -1,5 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
-
+import {
+  findUserIdByEmail,
+  invitationExpiresAt,
+  normalizeInvitationEmail,
+} from "@/helpers/chat-room-invitation";
 import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
@@ -8,8 +12,6 @@ import {
   expireStaleVendorInvites,
   livePendingVendorInviteWhere,
   mapVendorMemberInvite,
-  normalizeVendorInviteEmail,
-  vendorInviteExpiresAt,
 } from "@/helpers/vendor-invite";
 import { requireVendorAdminMembership } from "@/helpers/vendor-membership";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -81,7 +83,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     await requireVendorAdminMembership(userAuth.userId, id);
 
-    const email = normalizeVendorInviteEmail(body.email);
+    const email = normalizeInvitationEmail(body.email);
 
     const invite = await serializableTransaction(async (tx) => {
       await expireStaleVendorInvites(tx, { vendorId: id });
@@ -89,14 +91,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // If the email already belongs to a member of THIS vendor, refuse. The
       // admin can already see their own member list, so this leaks nothing new
       // about who has an account; it only avoids a dangling invite.
-      const existingUser = await tx.user.findFirst({
-        where: { email: { equals: email, mode: "insensitive" } },
-        select: { id: true },
-      });
-      if (existingUser) {
+      const existingUserId = await findUserIdByEmail(email, tx);
+      if (existingUserId) {
         const membership = await tx.vendorMember.findUnique({
           where: {
-            vendorId_userId: { vendorId: id, userId: existingUser.id },
+            vendorId_userId: { vendorId: id, userId: existingUserId },
           },
           select: { id: true },
         });
@@ -110,7 +109,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const existingInvite = await tx.vendorMemberInvite.findFirst({
         where: { ...livePendingVendorInviteWhere(id), email },
       });
-      if (existingInvite) return existingInvite;
+      if (existingInvite) {
+        if (existingInvite.role === body.role) return existingInvite;
+        return tx.vendorMemberInvite.update({
+          where: { id: existingInvite.id },
+          data: { role: body.role },
+        });
+      }
 
       await assertVendorInviteRateLimits(id, userAuth.userId, tx);
 
@@ -119,7 +124,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           vendorId: id,
           email,
           role: body.role,
-          expiresAt: vendorInviteExpiresAt(),
+          expiresAt: invitationExpiresAt(),
           invitedById: userAuth.userId,
         },
       });

@@ -1,3 +1,4 @@
+import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
@@ -48,12 +49,17 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-function createApp(authContext: AuthVariables["authContext"]) {
+function createApp(authContext: AuthVariables["authContext"] | null) {
   const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_create_vendor_test");
-    c.set("isAuthenticated", authContext != null);
+
+    if (!authContext) {
+      throw new HTTPException(401, { message: "Unauthorized" });
+    }
+
+    c.set("isAuthenticated", true);
     c.set("authContext", authContext);
     await next();
   });
@@ -177,6 +183,69 @@ describe("POST /vendors", () => {
     });
 
     expect(response.status).toBe(409);
+  });
+
+  it("returns the caller's vendor when a same-slug create wins a race", async () => {
+    transactionMock.mockRejectedValue(
+      Object.assign(new Error("Unique constraint failed"), {
+        code: "P2002",
+        meta: { target: ["slug"] },
+      }),
+    );
+    vendorFindUniqueMock.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      ...testVendor,
+      slug: "acme-labs",
+      logoLight: null,
+      logoDark: null,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      vendorMembers: [{ id: "vm_admin" }],
+    });
+
+    const app = createApp({
+      actor: "user",
+      userId: "user_dev",
+      organizationId: null,
+      role: "user",
+    });
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Acme Labs", slug: "acme-labs" }),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data.role).toBe("admin");
+    expect(body.data.slug).toBe("acme-labs");
+  });
+
+  it("requires authentication", async () => {
+    const app = createApp(null);
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Acme Labs", slug: "acme-labs" }),
+    });
+
+    expect(response.status).toBe(401);
+  });
+
+  it("rejects slugs outside the lowercase kebab-case contract", async () => {
+    const app = createApp({
+      actor: "user",
+      userId: "user_dev",
+      organizationId: null,
+      role: "user",
+    });
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Acme Labs", slug: "Acme Labs" }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(vendorCreateMock).not.toHaveBeenCalled();
   });
 
   it("maps a self-service cap race to 409", async () => {

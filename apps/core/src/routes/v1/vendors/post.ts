@@ -152,6 +152,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     } catch (error) {
       if (isSlugUniqueConstraintError(error)) {
+        const racedSlugOwner = await prisma.vendor.findUnique({
+          where: { slug: body.slug },
+          include: {
+            vendorMembers: {
+              where: { userId: userAuth.userId, role: "admin" },
+              select: { id: true },
+            },
+          },
+        });
+        if (racedSlugOwner?.vendorMembers.length) {
+          return ok(
+            c,
+            vendorMembershipSchema.parse({
+              ...mapVendor(racedSlugOwner),
+              role: "admin",
+            }),
+          );
+        }
         throw conflict(
           "Vendor slug already exists. Please choose a different slug.",
         );

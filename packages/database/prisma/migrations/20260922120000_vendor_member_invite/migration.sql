@@ -25,7 +25,7 @@ CREATE TABLE "vendor_member_invite" (
     "role" "VendorMemberRole" NOT NULL,
     "status" "VendorMemberInviteStatus" NOT NULL DEFAULT 'PENDING',
     "expiresAt" TIMESTAMP(3) NOT NULL,
-    "invitedById" TEXT NOT NULL,
+    "invitedById" TEXT,
     "acceptedByUserId" TEXT,
     "resolvedAt" TIMESTAMP(3),
 
@@ -39,12 +39,16 @@ CREATE INDEX "vendor_member_invite_vendorId_status_idx" ON "vendor_member_invite
 CREATE INDEX "vendor_member_invite_email_status_idx" ON "vendor_member_invite"("email", "status");
 
 -- CreateIndex
--- At most one live PENDING invite per (vendor, email). lower(email) guards even
--- if an unnormalized email is ever inserted; the app stores it normalized.
-CREATE UNIQUE INDEX "vendor_member_invite_vendorId_email_pending_key" ON "vendor_member_invite"("vendorId", lower("email")) WHERE "status" = 'PENDING';
+-- Emails are normalized before storage, so index the stored column directly.
+CREATE UNIQUE INDEX "vendor_member_invite_vendorId_email_pending_key" ON "vendor_member_invite"("vendorId", "email") WHERE "status" = 'PENDING';
 
 -- CreateIndex
-CREATE INDEX "vendor_createdByUserId_idx" ON "vendor"("createdByUserId");
+-- One self-service vendor per user. PostgreSQL UNIQUE allows many NULLs, so
+-- platform-created vendors (createdByUserId null) are not capped.
+CREATE UNIQUE INDEX "vendor_createdByUserId_key" ON "vendor"("createdByUserId");
+
+-- CreateIndex
+CREATE INDEX "vendor_member_invite_invitedById_createdAt_idx" ON "vendor_member_invite"("invitedById", "createdAt");
 
 -- AddForeignKey
 ALTER TABLE "vendor" ADD CONSTRAINT "vendor_createdByUserId_fkey" FOREIGN KEY ("createdByUserId") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -53,7 +57,7 @@ ALTER TABLE "vendor" ADD CONSTRAINT "vendor_createdByUserId_fkey" FOREIGN KEY ("
 ALTER TABLE "vendor_member_invite" ADD CONSTRAINT "vendor_member_invite_vendorId_fkey" FOREIGN KEY ("vendorId") REFERENCES "vendor"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "vendor_member_invite" ADD CONSTRAINT "vendor_member_invite_invitedById_fkey" FOREIGN KEY ("invitedById") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "vendor_member_invite" ADD CONSTRAINT "vendor_member_invite_invitedById_fkey" FOREIGN KEY ("invitedById") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "vendor_member_invite" ADD CONSTRAINT "vendor_member_invite_acceptedByUserId_fkey" FOREIGN KEY ("acceptedByUserId") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;

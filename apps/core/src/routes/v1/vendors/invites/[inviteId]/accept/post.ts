@@ -1,11 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
-
+import { normalizeInvitationEmail } from "@/helpers/chat-room-invitation";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { mapVendor } from "@/helpers/vendor";
-import { normalizeVendorInviteEmail } from "@/helpers/vendor-invite";
-import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
@@ -24,7 +22,7 @@ const route = createRoute({
   path: "/invites/{inviteId}/accept",
   operationId: "acceptVendorMemberInvite",
   description:
-    "Accept a pending vendor member invitation addressed to the authenticated user's account email. Creates the vendor membership.",
+    "Accept a pending vendor member invitation addressed to the authenticated user's verified account email. Creates the vendor membership.",
   tags: ["Vendors"],
   request: { params },
   responses: {
@@ -59,16 +57,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { inviteId } = c.req.valid("param");
     const userAuth = requireUserAuthContext(c.var.authContext);
 
-    const user = await prisma.user.findUnique({
-      where: { id: userAuth.userId },
-      select: { email: true },
-    });
-    if (!user) {
-      throw notFound("Invitation not found");
-    }
-    const myEmail = normalizeVendorInviteEmail(user.email);
-
     const membership = await serializableTransaction(async (tx) => {
+      const user = await tx.user.findUnique({
+        where: { id: userAuth.userId },
+        select: { email: true, emailVerified: true },
+      });
+      if (!user || !user.emailVerified) {
+        throw notFound("Invitation not found");
+      }
+      const myEmail = normalizeInvitationEmail(user.email);
+
       const invite = await tx.vendorMemberInvite.findUnique({
         where: { id: inviteId },
         include: { vendor: true },
@@ -95,7 +93,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         select: { role: true },
       });
 
-      const nextRole = existing?.role === "admin" ? "admin" : invite.role;
+      const nextRole = existing?.role ?? invite.role;
       if (!existing) {
         await tx.vendorMember.create({
           data: {
@@ -103,16 +101,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             userId: userAuth.userId,
             role: invite.role,
           },
-        });
-      } else if (existing.role !== nextRole) {
-        await tx.vendorMember.update({
-          where: {
-            vendorId_userId: {
-              vendorId: invite.vendorId,
-              userId: userAuth.userId,
-            },
-          },
-          data: { role: nextRole },
         });
       }
 

@@ -4282,6 +4282,7 @@
           "runningSubscription": "Cancela tu suscripción en curso y espera a que termine el periodo pagado.",
           "billingLink": "Ir a facturación",
           "userOwnsOrganization": "Transfiere el rol de propietario o elimina todas las organizaciones que poseas antes de eliminar tu cuenta.",
+          "userIsLastVendorAdmin": "Promueve a otro miembro del Vendor a administrador antes de eliminar tu cuenta.",
           "inFlightJob": "Espera a que terminen los jobs en curso antes de eliminar tu cuenta.",
           "unsettledOnChainJob": "Espera a que se liquiden las compras on-chain de jobs antes de eliminar tu cuenta.",
           "inFlightTask": "Espera a que terminen las tareas en curso antes de eliminar tu cuenta.",

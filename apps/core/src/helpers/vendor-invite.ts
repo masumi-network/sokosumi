@@ -1,20 +1,8 @@
 import type { Prisma } from "@sokosumi/database";
 
-import { LIMITS, TIME } from "@/config/constants";
+import { LIMITS } from "@/config/constants";
 import { tooManyRequests } from "@/helpers/error";
 import { vendorMemberInviteSchema } from "@/schemas/vendor.schema";
-
-/** Vendor member invitation TTL matches org invitation expiry (7 days). */
-export const VENDOR_INVITE_TTL_MS = TIME.INVITATION_EXPIRES * 1000;
-
-/**
- * Normalize invitation emails for storage and lookup: trim + lowercase.
- * The partial unique index on live PENDING invites assumes normalized emails,
- * so member-add cannot distinguish `Dev@x.com` from `dev@x.com`.
- */
-export function normalizeVendorInviteEmail(email: string): string {
-  return email.trim().toLowerCase();
-}
 
 /**
  * Prisma `where` for pending invites that have not yet expired. Prefer this
@@ -84,10 +72,6 @@ export async function assertVendorInviteRateLimits(
       `You can create at most ${LIMITS.VENDOR_MEMBER_INVITE_CREATE_PER_HOUR} vendor invitations per hour. Try again later.`,
     );
   }
-}
-
-export function vendorInviteExpiresAt(from: Date = new Date()): Date {
-  return new Date(from.getTime() + VENDOR_INVITE_TTL_MS);
 }
 
 /**

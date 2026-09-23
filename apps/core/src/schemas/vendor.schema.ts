@@ -2,7 +2,8 @@ import { z } from "@hono/zod-openapi";
 
 import { LIMITS } from "@/config/constants";
 
-const vendorLogoSchema = z
+const vendorLogoSchema = z.string().nullable();
+const vendorLogoInputSchema = z
   .string()
   .max(LIMITS.VENDOR_LOGO_MAX_LENGTH)
   .nullable();
@@ -20,8 +21,8 @@ const vendorLogosSchema = z
 
 export const vendorLogosInputSchema = z
   .object({
-    light: vendorLogoSchema.optional(),
-    dark: vendorLogoSchema.optional(),
+    light: vendorLogoInputSchema.optional(),
+    dark: vendorLogoInputSchema.optional(),
   })
   .openapi("VendorLogosInput");
 

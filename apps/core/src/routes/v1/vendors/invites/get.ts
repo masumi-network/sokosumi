@@ -1,10 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
-
+import { normalizeInvitationEmail } from "@/helpers/chat-room-invitation";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapVendor } from "@/helpers/vendor";
-import { normalizeVendorInviteEmail } from "@/helpers/vendor-invite";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
@@ -19,7 +18,7 @@ const route = createRoute({
   path: "/invites",
   operationId: "listMyVendorInvites",
   description:
-    "List the authenticated user's live pending vendor member invitations (matched by account email).",
+    "List live pending vendor member invitations matched to the authenticated user's verified account email.",
   tags: ["Vendors"],
   responses: {
     200: jsonSuccessResponse(
@@ -61,13 +60,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const user = await prisma.user.findUnique({
       where: { id: userAuth.userId },
-      select: { email: true },
+      select: { email: true, emailVerified: true },
     });
     if (!user) {
       throw notFound("User not found");
     }
-
-    const email = normalizeVendorInviteEmail(user.email);
+    if (!user.emailVerified) {
+      return ok(c, myVendorInviteListSchema.parse([]));
+    }
+    const email = normalizeInvitationEmail(user.email);
     const now = new Date();
     const invites = await prisma.vendorMemberInvite.findMany({
       where: {

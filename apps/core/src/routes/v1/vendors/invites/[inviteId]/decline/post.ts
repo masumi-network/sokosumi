@@ -1,9 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
-
+import { normalizeInvitationEmail } from "@/helpers/chat-room-invitation";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse } from "@/helpers/openapi";
 import { empty } from "@/helpers/response";
-import { normalizeVendorInviteEmail } from "@/helpers/vendor-invite";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
@@ -21,7 +20,7 @@ const route = createRoute({
   path: "/invites/{inviteId}/decline",
   operationId: "declineVendorMemberInvite",
   description:
-    "Decline a pending vendor member invitation addressed to the authenticated user's account email.",
+    "Decline a pending vendor member invitation addressed to the authenticated user's verified account email.",
   tags: ["Vendors"],
   request: { params },
   responses: {
@@ -39,12 +38,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const user = await prisma.user.findUnique({
       where: { id: userAuth.userId },
-      select: { email: true },
+      select: { email: true, emailVerified: true },
     });
-    if (!user) {
+    if (!user || !user.emailVerified) {
       throw notFound("Invitation not found");
     }
-    const myEmail = normalizeVendorInviteEmail(user.email);
+    const myEmail = normalizeInvitationEmail(user.email);
 
     const result = await prisma.vendorMemberInvite.updateMany({
       where: {

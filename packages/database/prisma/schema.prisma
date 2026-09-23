@@ -369,8 +369,8 @@ enum VendorMemberInviteStatus {
 /// creates it by email; the row exists whether or not the email maps to a
 /// registered account, so member-add cannot enumerate the user directory. A
 /// VendorMember row is created only when the invitee accepts under their own
-/// auth. One live PENDING invite per (vendorId, lower(email)) is enforced by a
-/// partial unique index in SQL.
+/// auth. One live PENDING invite per (vendorId, email) is enforced by a
+/// partial unique index in SQL. Emails are normalized before storage.
 model VendorMemberInvite {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
@@ -386,8 +386,8 @@ model VendorMemberInvite {
   status    VendorMemberInviteStatus @default(PENDING)
   expiresAt DateTime
 
-  invitedById String
-  invitedBy   User   @relation("VendorMemberInviteInvitedBy", fields: [invitedById], references: [id], onDelete: Cascade)
+  invitedById String?
+  invitedBy   User?   @relation("VendorMemberInviteInvitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
 
   /// Set on accept: the account that accepted (email matched at accept time).
   acceptedByUserId String?
@@ -396,6 +396,7 @@ model VendorMemberInvite {
 
   @@index([vendorId, status])
   @@index([email, status])
+  @@index([invitedById, createdAt])
   @@map("vendor_member_invite")
 }
 

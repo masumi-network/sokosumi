@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { LIMITS } from "@/config/constants";
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
@@ -25,7 +25,6 @@ const db = vi.hoisted(() => ({
   vendorMemberFindFirstMock: vi.fn(),
   vendorMemberFindUniqueMock: vi.fn(),
   vendorMemberCreateMock: vi.fn(),
-  vendorMemberUpdateMock: vi.fn(),
   inviteFindFirstMock: vi.fn(),
   inviteFindUniqueMock: vi.fn(),
   inviteFindManyMock: vi.fn(),
@@ -45,7 +44,6 @@ vi.mock("@/lib/db/prisma", () => {
       findFirst: db.vendorMemberFindFirstMock,
       findUnique: db.vendorMemberFindUniqueMock,
       create: db.vendorMemberCreateMock,
-      update: db.vendorMemberUpdateMock,
     },
     vendorMemberInvite: {
       findFirst: db.inviteFindFirstMock,
@@ -136,7 +134,6 @@ describe("vendor member invites", () => {
             findFirst: db.vendorMemberFindFirstMock,
             findUnique: db.vendorMemberFindUniqueMock,
             create: db.vendorMemberCreateMock,
-            update: db.vendorMemberUpdateMock,
           },
           vendorMemberInvite: {
             findFirst: db.inviteFindFirstMock,
@@ -227,6 +224,32 @@ describe("vendor member invites", () => {
     expect(db.inviteCreateMock).not.toHaveBeenCalled();
   });
 
+  it("updates the role when a pending invite is reissued with a new role", async () => {
+    db.inviteFindFirstMock.mockResolvedValue(pendingInvite);
+    db.inviteUpdateMock.mockResolvedValue({
+      ...pendingInvite,
+      role: "admin",
+    });
+
+    const app = createApp(adminAuth);
+    const response = await app.request(
+      `http://localhost/${testVendor.id}/invites`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: "dev@example.com", role: "admin" }),
+      },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(db.inviteUpdateMock).toHaveBeenCalledWith({
+      where: { id: pendingInvite.id },
+      data: { role: "admin" },
+    });
+    expect(body.data.role).toBe("admin");
+  });
+
   it("429s when the vendor is at the pending invite cap", async () => {
     db.inviteCountMock.mockResolvedValue(100);
 
@@ -241,6 +264,50 @@ describe("vendor member invites", () => {
     );
 
     expect(response.status).toBe(429);
+    expect(db.inviteCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("429s when the inviter reaches the hourly create limit", async () => {
+    db.inviteCountMock
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(LIMITS.VENDOR_MEMBER_INVITE_CREATE_PER_HOUR);
+
+    const app = createApp(adminAuth);
+    const response = await app.request(
+      `http://localhost/${testVendor.id}/invites`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: "dev@example.com" }),
+      },
+    );
+
+    expect(response.status).toBe(429);
+    expect(db.inviteCreateMock).not.toHaveBeenCalled();
+    expect(db.inviteCountMock).toHaveBeenNthCalledWith(2, {
+      where: {
+        invitedById: "admin_user",
+        createdAt: { gte: expect.any(Date) },
+      },
+    });
+  });
+
+  it("returns 409 when invite creation hits a serialization conflict", async () => {
+    db.transactionMock.mockRejectedValue(
+      Object.assign(new Error("Serialization failure"), { code: "P2034" }),
+    );
+
+    const app = createApp(adminAuth);
+    const response = await app.request(
+      `http://localhost/${testVendor.id}/invites`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: "dev@example.com" }),
+      },
+    );
+
+    expect(response.status).toBe(409);
     expect(db.inviteCreateMock).not.toHaveBeenCalled();
   });
 
@@ -262,7 +329,10 @@ describe("vendor member invites", () => {
   });
 
   it("accepts an invitation addressed to the caller's email and creates the membership", async () => {
-    db.userFindUniqueMock.mockResolvedValue({ email: "dev@example.com" });
+    db.userFindUniqueMock.mockResolvedValue({
+      email: "dev@example.com",
+      emailVerified: true,
+    });
     db.inviteFindUniqueMock.mockResolvedValue({
       ...pendingInvite,
       vendor: {
@@ -302,8 +372,53 @@ describe("vendor member invites", () => {
     expect(body.data.slug).toBe(testVendor.slug);
   });
 
-  it("upgrades an existing developer when they accept an admin invite", async () => {
-    db.userFindUniqueMock.mockResolvedValue({ email: "dev@example.com" });
+  it("checks the verified email inside the acceptance transaction (V88)", async () => {
+    db.userFindUniqueMock.mockResolvedValue({
+      email: "dev@example.com",
+      emailVerified: true,
+    });
+    db.inviteFindUniqueMock.mockResolvedValue({
+      ...pendingInvite,
+      vendor: { ...testVendor },
+    });
+    db.vendorMemberFindUniqueMock.mockResolvedValue(null);
+    db.transactionMock.mockImplementationOnce(
+      async (callback: (tx: unknown) => Promise<unknown>) => {
+        // V88: an email change commits before the acceptance transaction starts.
+        db.userFindUniqueMock.mockResolvedValue({
+          email: "other@example.com",
+          emailVerified: true,
+        });
+        return callback({
+          vendorMember: {
+            findUnique: db.vendorMemberFindUniqueMock,
+            create: db.vendorMemberCreateMock,
+          },
+          vendorMemberInvite: {
+            findUnique: db.inviteFindUniqueMock,
+            update: db.inviteUpdateMock,
+          },
+          user: { findUnique: db.userFindUniqueMock },
+        });
+      },
+    );
+
+    const app = createApp(inviteeAuth);
+    const response = await app.request(
+      "http://localhost/invites/inv_1/accept",
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(404);
+    expect(db.vendorMemberCreateMock).not.toHaveBeenCalled();
+    expect(db.inviteUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps an existing member role when they accept an invite", async () => {
+    db.userFindUniqueMock.mockResolvedValue({
+      email: "dev@example.com",
+      emailVerified: true,
+    });
     db.inviteFindUniqueMock.mockResolvedValue({
       ...pendingInvite,
       role: "admin",
@@ -326,20 +441,14 @@ describe("vendor member invites", () => {
 
     expect(response.status).toBe(201);
     expect(db.vendorMemberCreateMock).not.toHaveBeenCalled();
-    expect(db.vendorMemberUpdateMock).toHaveBeenCalledWith({
-      where: {
-        vendorId_userId: {
-          vendorId: testVendor.id,
-          userId: "invitee_user",
-        },
-      },
-      data: { role: "admin" },
-    });
-    expect(body.data.role).toBe("admin");
+    expect(body.data.role).toBe("developer");
   });
 
   it("404s accept when the invitation email is not the caller's", async () => {
-    db.userFindUniqueMock.mockResolvedValue({ email: "other@example.com" });
+    db.userFindUniqueMock.mockResolvedValue({
+      email: "other@example.com",
+      emailVerified: true,
+    });
     db.inviteFindUniqueMock.mockResolvedValue({
       ...pendingInvite,
       vendor: { ...testVendor },
@@ -355,8 +464,57 @@ describe("vendor member invites", () => {
     expect(db.vendorMemberCreateMock).not.toHaveBeenCalled();
   });
 
+  it("404s accept when the caller's email is unverified", async () => {
+    db.userFindUniqueMock.mockResolvedValue({
+      email: "dev@example.com",
+      emailVerified: false,
+    });
+
+    const app = createApp(inviteeAuth);
+    const response = await app.request(
+      "http://localhost/invites/inv_1/accept",
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(404);
+    expect(db.inviteFindUniqueMock).not.toHaveBeenCalled();
+    expect(db.vendorMemberCreateMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      label: "expired",
+      invite: { ...pendingInvite, expiresAt: new Date("2000-01-01T00:00:00Z") },
+    },
+    {
+      label: "already accepted",
+      invite: { ...pendingInvite, status: "ACCEPTED" as const },
+    },
+  ])("404s accept for an $label invitation", async ({ invite }) => {
+    db.userFindUniqueMock.mockResolvedValue({
+      email: "dev@example.com",
+      emailVerified: true,
+    });
+    db.inviteFindUniqueMock.mockResolvedValue({
+      ...invite,
+      vendor: { ...testVendor },
+    });
+
+    const app = createApp(inviteeAuth);
+    const response = await app.request(
+      "http://localhost/invites/inv_1/accept",
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(404);
+    expect(db.vendorMemberCreateMock).not.toHaveBeenCalled();
+  });
+
   it("lists the caller's pending invitations with vendor info", async () => {
-    db.userFindUniqueMock.mockResolvedValue({ email: "dev@example.com" });
+    db.userFindUniqueMock.mockResolvedValue({
+      email: "dev@example.com",
+      emailVerified: true,
+    });
     db.inviteFindManyMock.mockResolvedValue([
       {
         ...pendingInvite,
@@ -377,6 +535,21 @@ describe("vendor member invites", () => {
     expect(response.status).toBe(200);
     expect(body.data[0].vendor.slug).toBe(testVendor.slug);
     expect(body.data[0].role).toBe("developer");
+  });
+
+  it("returns no pending invitations to an unverified email", async () => {
+    db.userFindUniqueMock.mockResolvedValue({
+      email: "dev@example.com",
+      emailVerified: false,
+    });
+
+    const app = createApp(inviteeAuth);
+    const response = await app.request("http://localhost/invites");
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual([]);
+    expect(db.inviteFindManyMock).not.toHaveBeenCalled();
   });
 
   it("revokes a pending invitation as a vendor admin", async () => {
@@ -406,7 +579,10 @@ describe("vendor member invites", () => {
   });
 
   it("declines an invitation addressed to the caller", async () => {
-    db.userFindUniqueMock.mockResolvedValue({ email: "dev@example.com" });
+    db.userFindUniqueMock.mockResolvedValue({
+      email: "dev@example.com",
+      emailVerified: true,
+    });
 
     const app = createApp(inviteeAuth);
     const response = await app.request(
@@ -424,5 +600,21 @@ describe("vendor member invites", () => {
       },
       data: { status: "DECLINED", resolvedAt: expect.any(Date) },
     });
+  });
+
+  it("404s decline when the caller's email is unverified", async () => {
+    db.userFindUniqueMock.mockResolvedValue({
+      email: "dev@example.com",
+      emailVerified: false,
+    });
+
+    const app = createApp(inviteeAuth);
+    const response = await app.request(
+      "http://localhost/invites/inv_1/decline",
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(404);
+    expect(db.inviteUpdateManyMock).not.toHaveBeenCalled();
   });
 });
