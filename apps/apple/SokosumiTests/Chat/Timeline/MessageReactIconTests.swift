@@ -7,6 +7,8 @@
   extension NativeWindowTests {
     /// `face.smiling` resolves to a filled disc in dark. The message row's React action and the reaction
     /// picker's Smileys & People tab draw it as an outline in the grey of their neighbours, as in light.
+    /// Each render adds a reference icon drawn the old way (no scheme override) as the independent grey.
+    /// Windows are non-key: no test window becomes key in the test host, so key-window rendering stays unverified.
     @MainActor struct MessageReactIconTests {
       private static let padding: CGFloat = 8
 
@@ -15,26 +17,43 @@
         let content = HStack(spacing: 0) {
           MessageActionLabel(title: "React", symbol: "face.smiling", hovered: false, compact: true, iconSize: 16, height: 28)
           MessageActionLabel(title: "Reply", symbol: "text.bubble", hovered: false, compact: true, iconSize: 16, height: 28)
+          // The reference: the label as the row drew it before the fix.
+          Image(systemName: "text.bubble")
+            .font(.callout)
+            .frame(width: 16, height: 16)
+            .padding(.horizontal, 8)
+            .frame(height: 28)
+            .foregroundStyle(.secondary)
         }
         .padding(Self.padding)
         let name = "message-react-action-\(dark ? "dark" : "light").png"
         let render = try await Self.render(content, dark: dark, named: name) { host in
-          let cell = CGRect(x: Self.padding, y: Self.padding, width: (host.bounds.width - 2 * Self.padding) / 2, height: host.bounds.height - 2 * Self.padding)
-          return [cell, cell.offsetBy(dx: cell.width, dy: 0)]
+          let cell = CGRect(x: Self.padding, y: Self.padding, width: (host.bounds.width - 2 * Self.padding) / 3, height: host.bounds.height - 2 * Self.padding)
+          return (0 ..< 3).map { cell.offsetBy(dx: CGFloat($0) * cell.width, dy: 0) }
         }
-        try Self.expectOutline(render, icon: 0, neighbour: 1)
+        try Self.expectOutline(render, icon: 0, neighbour: 1, reference: 2)
       }
 
       @Test(arguments: [false, true])
       func pickerPeopleTabIsAnOutlineInTheTabGrey(dark: Bool) async throws {
         let name = "reaction-picker-tabs-\(dark ? "dark" : "light").png"
-        let render = try await Self.render(ReactionEmojiPicker { _ in }, dark: dark, named: name) { host in
-          // Nine tabs (search, then the eight categories) share the row after 8 pt padding and 2 pt spacing.
-          let width = (host.bounds.width - 2 * Self.padding - 8 * 2) / 9
-          return (0 ..< 9).map { CGRect(x: Self.padding + CGFloat($0) * (width + 2), y: Self.padding, width: width, height: 30) }
+        // Nine tabs (search, then the eight categories) share the 360 pt row after 8 pt padding and 2 pt spacing.
+        let tabWidth = (360 - 2 * Self.padding - 8 * 2) / 9
+        let content = VStack(alignment: .leading, spacing: 0) {
+          ReactionEmojiPicker { _ in }
+          // The reference: the Animals & Nature tab icon as the picker drew it before the fix.
+          Button {} label: {
+            Image(systemName: "leaf").font(.title3).frame(width: tabWidth, height: 30)
+          }
+          .buttonStyle(.plain)
+          .padding(.leading, Self.padding)
         }
-        // Tab 1 is Smileys & People (`face.smiling`), tab 2 Animals & Nature (`leaf`).
-        try Self.expectOutline(render, icon: 1, neighbour: 2)
+        let render = try await Self.render(content, dark: dark, named: name) { _ in
+          let tabs = (0 ..< 9).map { CGRect(x: Self.padding + CGFloat($0) * (tabWidth + 2), y: Self.padding, width: tabWidth, height: 30) }
+          return tabs + [CGRect(x: Self.padding, y: 440, width: tabWidth, height: 30)]
+        }
+        // Tab 1 is Smileys & People (`face.smiling`), tab 2 Animals & Nature (`leaf`), cell 9 the reference.
+        try Self.expectOutline(render, icon: 1, neighbour: 2, reference: 9)
       }
 
       // MARK: Pixels
@@ -62,14 +81,18 @@
         return IconRender(name: name, host: host, bitmap: bitmap, cells: cells)
       }
 
-      private static func expectOutline(_ render: IconRender, icon: Int, neighbour: Int) throws {
+      /// The face is an outline, and it and its neighbour match the grey of the reference drawn the old way.
+      private static func expectOutline(_ render: IconRender, icon: Int, neighbour: Int, reference: Int) throws {
         let name = render.name
         let face = try #require(ink(in: render.bitmap, host: render.host, cell: render.cells[icon]), "The face did not draw (\(name)).")
         let other = try #require(ink(in: render.bitmap, host: render.host, cell: render.cells[neighbour]), "The neighbour did not draw (\(name)).")
+        let old = try #require(ink(in: render.bitmap, host: render.host, cell: render.cells[reference]), "The reference did not draw (\(name)).")
         // A disc inks about 78 % of its bounding box, the outlined face about a third.
         #expect(face.coverage < 0.5, "\(Int(face.coverage * 100)) % of the face's bounds is inked, so it draws as a disc (\(name)).")
-        #expect(abs(face.contrast - other.contrast) < 0.08,
-                "The face's ink (\(face.contrast)) differs from its neighbour's (\(other.contrast)) against the background (\(name)).")
+        for (label, ink) in [("face", face), ("neighbour", other)] {
+          #expect(abs(ink.contrast - old.contrast) < 0.08,
+                  "The \(label)'s ink (\(ink.contrast)) differs from the reference drawn the old way (\(old.contrast)) (\(name)).")
+        }
       }
 
       /// Measures the ink in `cell` (points, origin top left) against the cell's corner pixel, or nil when it has none.
