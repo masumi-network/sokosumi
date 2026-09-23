@@ -1,6 +1,7 @@
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import { mergeRoomMessages } from "./merge-room-messages";
+import { isOutboundLocalMessage } from "./outbound-room-message";
 
 /**
  * Rows fetched per jump window and per boundary load. Small enough that a
@@ -262,7 +263,14 @@ function mergeContiguousRange(
 
   const windowOldest = keyOf(first);
   const windowNewest = keyOf(last);
-  const existing = loadedRanges(transcript);
+  // Shells use the local clock. They are not loaded history, so they must
+  // not extend a range (a later page would look contiguous and hide the gap).
+  const existing = loadedRanges({
+    ...transcript,
+    messages: transcript.messages.filter(
+      (message) => !isOutboundLocalMessage(message),
+    ),
+  });
   const kept: MessageOrderKey[] = [];
   let newEdge = windowOldest;
   let edgeFromWindow = true;
