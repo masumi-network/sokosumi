@@ -123,7 +123,7 @@ export function FileChip(props: FileChipProps) {
     const numeric = match ? Number(match[1]) : NaN;
     return Number.isFinite(numeric) && numeric > 6;
   })();
-  const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
+  const [openImageSrc, setOpenImageSrc] = useState<string | null>(null);
   const [isDocumentViewerOpen, setIsDocumentViewerOpen] = useState(false);
 
   const chipClassName = cn(
@@ -202,16 +202,14 @@ export function FileChip(props: FileChipProps) {
           type="button"
           title={title}
           className={chipClassName}
-          onClick={() => setIsImageViewerOpen(true)}
+          onClick={() => setOpenImageSrc(url)}
         >
           {content}
         </button>
         <ImageViewer
-          open={isImageViewerOpen}
-          onOpenChange={setIsImageViewerOpen}
-          src={url}
-          alt={fileName}
-          downloadFilename={fileName}
+          images={[{ src: url, alt: fileName, downloadFilename: fileName }]}
+          activeSrc={openImageSrc}
+          onActiveSrcChange={setOpenImageSrc}
         />
       </>
     );

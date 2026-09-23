@@ -854,7 +854,11 @@
       "zoomReset": "Reset zoom",
       "more": "More options",
       "openInNewTab": "Open in new tab",
-      "copyImage": "Copy image"
+      "copyImage": "Copy image",
+      "previous": "Previous image",
+      "next": "Next image",
+      "position": "{current} / {total}",
+      "stepAnnouncement": "Image {current} of {total}, {name}"
     },
     "DocumentViewer": {
       "title": "Document",
