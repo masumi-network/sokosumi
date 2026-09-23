@@ -270,6 +270,9 @@ export function ChatUnreadNavRows({
               : [
                   THREADS_ROW_CLASS,
                   "chat-unreads-boot:bg-primary-quaternary chat-unreads-boot:text-primary-variant chat-unreads-boot:font-medium",
+                  // The rail's hover and press selectors outrank the plain
+                  // boot tint, so they need their own, as the on state does.
+                  "chat-unreads-boot:group-data-[collapsible=icon]:hover:bg-primary-quaternary chat-unreads-boot:group-data-[collapsible=icon]:active:bg-primary-quaternary",
                 ],
           )}
         >
