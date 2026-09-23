@@ -6,7 +6,7 @@ import {
   changeTaskScheduleRun,
   type TaskScheduleActionError,
 } from "@/lib/actions/task-schedule/action";
-import type { WorkspaceCalendarItem } from "@/lib/clients/generated/core";
+import type { WorkspaceCalendarEntry, WorkspaceCalendarItem } from "@/lib/clients/generated/core";
 
 type RunChange =
   | { action: "skip" | "restore" }
@@ -19,9 +19,10 @@ export type ChangeableRun = WorkspaceCalendarItem & {
 };
 
 export function isChangeableRun(
-  item: WorkspaceCalendarItem,
+  item: WorkspaceCalendarEntry,
 ): item is ChangeableRun {
   return (
+    item.kind !== "socialPost" &&
     item.canChangeRun &&
     item.scheduleId !== null &&
     item.scheduleRevision !== null

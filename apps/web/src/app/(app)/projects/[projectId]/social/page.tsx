@@ -19,10 +19,12 @@ export const instant = false;
 
 interface ProjectSocialPageProps {
   params: Promise<{ projectId: string }>;
+  searchParams?: Promise<{ postId?: string }>;
 }
 
 export default async function ProjectSocialPage({
   params,
+  searchParams,
 }: ProjectSocialPageProps) {
   await connection();
   if (!(await hasCurrentUserSocialBetaAccess())) {
@@ -35,7 +37,8 @@ export default async function ProjectSocialPage({
     notFound();
   }
 
-  const [pages, connections, t, formatter] = await Promise.all([
+  const selectedPostId = (await searchParams)?.postId;
+  const [pages, connections, t, formatter, selectedPost] = await Promise.all([
     Promise.all(
       SECTION_ORDER.map((section) =>
         projectService.listSocialPosts(project.id, {
@@ -46,6 +49,9 @@ export default async function ProjectSocialPage({
     projectService.listSocialConnections(project.id),
     getTranslations("App.Projects.Detail"),
     getFormatter(),
+    selectedPostId
+      ? projectService.getSocialPost(project.id, selectedPostId)
+      : Promise.resolve(null),
   ]);
   const workspaceLabels = await getProjectWorkspaceLabels();
   const activeConnections = connections.filter(
@@ -76,7 +82,16 @@ export default async function ProjectSocialPage({
       <div className="space-y-8">
         <ProjectSocialPosts
           connections={activeConnections}
-          posts={pages.flatMap((page) => page.posts)}
+          posts={
+            selectedPost
+              ? [
+                  selectedPost,
+                  ...pages
+                    .flatMap((page) => page.posts)
+                    .filter((post) => post.id !== selectedPost.id),
+                ]
+              : pages.flatMap((page) => page.posts)
+          }
           nextCursors={Object.fromEntries(
             SECTION_ORDER.map((section, index) => [
               section,

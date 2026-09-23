@@ -6799,6 +6799,10 @@
         "upcoming": "A continuación",
         "loading": "Cargando…",
         "loadMore": "Cargar más"
+      },
+      "socialPost": {
+        "label": "Publicación social",
+        "mediaOnly": "Publicación multimedia"
       }
     },
     "You": {
