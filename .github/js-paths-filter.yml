@@ -8,12 +8,6 @@ js: &js
   - "!**/*.md"
   - "!apps/cli/**"
 
-# Markdown the JS filter excludes. One positive pattern, so `every` at
-# the call site is the same as `some`. Test CI config uses this so
-# docs-only PRs still run the doc-script check.
-docs:
-  - "**/*.md"
-
 # apps/cli has no workspace dependencies — only external packages and its
 # own tsconfig — so nothing outside this folder can break its tests, and
 # nothing in it can break the rest of the repo. That symmetry is why it is
