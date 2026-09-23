@@ -325,19 +325,39 @@ describe("OrganizationChatList All unreads pinned rooms", () => {
     expect(inboxRows(container)).toEqual(["launch"]);
   });
 
-  it("keeps an opened pinned room in Pinned, where it was", async () => {
-    harnessPathname.current = `/chat/rooms/${pinnedRead.id}`;
+  it("keeps a pinned room opened from the filter in Pinned, where it was", async () => {
     const start = [unreadChannel, pinnedRead, pinnedUnread];
     listRoomsMock.mockResolvedValue(emptyListResult(start));
-    const { container } = renderOrganizationChatList({
+    const { container, rerender } = renderOrganizationChatList({
       organizationId: "org-1",
       rooms: start,
+    });
+    await userEvent.click(screen.getByRole("button", { name: "All unreads" }));
+
+    // Opened after the filter was on, the way a click from Pinned does it.
+    harnessPathname.current = `/chat/rooms/${pinnedRead.id}`;
+    rerender(
+      createOrganizationChatList({ organizationId: "org-1", rooms: start }),
+    );
+
+    expect(pinnedRows(container)).toEqual(["handbook (read)", "ops"]);
+    expect(inboxRows(container)).toEqual(["launch"]);
+  });
+
+  it("is not caught up while a pinned room alone is unread", async () => {
+    listRoomsMock.mockResolvedValue(
+      emptyListResult([pinnedUnread, readChannel]),
+    );
+    const { container } = renderOrganizationChatList({
+      organizationId: "org-1",
+      rooms: [pinnedUnread, readChannel],
     });
 
     await userEvent.click(screen.getByRole("button", { name: "All unreads" }));
 
-    expect(pinnedRows(container)).toEqual(["handbook (read)", "ops"]);
-    expect(inboxRows(container)).toEqual(["launch"]);
+    expect(pinnedRows(container)).toEqual(["ops"]);
+    expect(inboxRows(container)).toEqual([]);
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("still says caught up with only pinned rooms listed", async () => {

@@ -336,7 +336,8 @@ export function OrganizationChatList({
   const isUnreadRoom = (room: ChatRoom) =>
     unreadRooms.some((row) => row.id === room.id);
   const pinnedRoomIds = pinned.map((room) => room.id);
-  // Reordering a filtered list would move rooms relative to ones it hides.
+  // Reordering lives on the full Pinned section's header, which the filter
+  // replaces; its Pinned group shows every pin, fixed.
   const canReorderPinned = pinnedOpen && pinned.length > 1 && !unreadOnly;
   // A pending invitation stays under the filter, in External, and keeps the
   // reader from being caught up: it is addressed to them and waits on them,
