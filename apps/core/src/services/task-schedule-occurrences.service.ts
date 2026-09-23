@@ -30,7 +30,7 @@ import prisma from "@/lib/db/prisma";
  * is due.
  */
 
-const RELEASE_BATCH_SIZE = 25;
+export const TASK_SCHEDULE_RELEASE_BATCH_SIZE = 25;
 /** Keeps one transaction well inside Prisma's interactive timeout. */
 const MAX_RELEASES_PER_TRANSACTION = 50;
 
@@ -392,17 +392,19 @@ export const taskScheduleReleaseService = {
 
     while (canContinue(options)) {
       const batch = await prisma.taskSchedule.findMany({
-        where: releasableWhere(new Date()),
+        where: {
+          ...releasableWhere(new Date()),
+          // Failures and lost claims stay due. Leaving them in the page would
+          // fill every later read and starve schedules behind them.
+          ...(attempted.size > 0 ? { id: { notIn: [...attempted] } } : {}),
+        },
         orderBy: [{ nextOccurrenceAt: "asc" }, { id: "asc" }],
-        take: RELEASE_BATCH_SIZE,
+        take: TASK_SCHEDULE_RELEASE_BATCH_SIZE,
         select: { id: true },
       });
-      // A schedule still due after its attempt ran out of budget, lost its
-      // claim, or failed; the next run picks it up.
-      const fresh = batch.filter(({ id }) => !attempted.has(id));
-      if (fresh.length === 0) break;
+      if (batch.length === 0) break;
 
-      for (const { id } of fresh) {
+      for (const { id } of batch) {
         attempted.add(id);
         // A long backlog releases over several transactions.
         let outcome: ScheduleReleaseOutcome;

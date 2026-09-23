@@ -33,9 +33,8 @@ vi.mock("@/helpers/task-notifications", () => ({
   notifyTaskHumanAssignee: vi.fn(),
 }));
 
-const { taskScheduleReleaseService } = await import(
-  "./task-schedule-occurrences.service"
-);
+const { TASK_SCHEDULE_RELEASE_BATCH_SIZE, taskScheduleReleaseService } =
+  await import("./task-schedule-occurrences.service");
 
 const NOW = new Date("2030-01-07T09:30:00.000Z");
 const MONDAY_9 = new Date("2030-01-07T09:00:00.000Z");
@@ -446,6 +445,42 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     const result = await release();
 
     expect(result).toMatchObject({ released: 1, failed: 1 });
+    expect(taskScheduleTestDb.tasks.map((task) => task.scheduleId)).toEqual([
+      healthy.id,
+    ]);
+  });
+
+  it("releases a schedule behind a full page of failures", async () => {
+    const healthy = seedTaskSchedule({
+      createdAt: new Date("2020-01-01T00:00:00.000Z"),
+      nextOccurrenceAt: MONDAY_9,
+    });
+    seedOccurrence(healthy, MONDAY_9);
+    const brokenIds = new Set<string>();
+    for (let index = 0; index < TASK_SCHEDULE_RELEASE_BATCH_SIZE; index += 1) {
+      const broken = seedTaskSchedule({
+        createdAt: new Date(Date.UTC(2026, 8, 2, 0, 0, index)),
+        nextOccurrenceAt: MONDAY_9,
+      });
+      seedOccurrence(broken, MONDAY_9);
+      brokenIds.add(broken.id);
+    }
+    const create = taskScheduleTestPrisma.task.create.getMockImplementation();
+    vi.mocked(taskScheduleTestPrisma.task.create).mockImplementation(
+      async (args) => {
+        if (brokenIds.has(args.data.scheduleId ?? "")) {
+          throw new Error("foreign key violation");
+        }
+        return create?.(args) as ReturnType<NonNullable<typeof create>>;
+      },
+    );
+
+    const result = await release();
+
+    expect(result).toMatchObject({
+      released: 1,
+      failed: TASK_SCHEDULE_RELEASE_BATCH_SIZE,
+    });
     expect(taskScheduleTestDb.tasks.map((task) => task.scheduleId)).toEqual([
       healthy.id,
     ]);

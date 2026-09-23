@@ -211,6 +211,9 @@ function matchesValue(actual: unknown, expected: unknown): boolean {
       return actual != null && !matchesValue(actual, filter.not);
     }
     if ("in" in filter) return (filter.in as unknown[]).includes(actual);
+    if ("notIn" in filter) {
+      return actual != null && !(filter.notIn as unknown[]).includes(actual);
+    }
     if (
       "lte" in filter ||
       "lt" in filter ||

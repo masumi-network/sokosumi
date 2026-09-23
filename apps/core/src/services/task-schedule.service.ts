@@ -414,24 +414,28 @@ export async function updateTaskSchedule(
     // The old rule's future Occurrences go; ones already owed still release,
     // and released ones and their Tasks stay. A Paused schedule plans again
     // on resume.
+    let schedule = updated;
     if (input.rule) {
       await removePlannedTaskScheduleOccurrences(tx, id, now);
-      if (updated.state !== TaskScheduleState.ACTIVE) return updated;
-      return await tx.taskSchedule.update({
-        where: { id },
-        data: {
-          nextOccurrenceAt: await projectTaskScheduleOccurrences(
-            tx,
-            updated,
-            now,
-          ),
-        },
-      });
+      if (updated.state === TaskScheduleState.ACTIVE) {
+        schedule = await tx.taskSchedule.update({
+          where: { id },
+          data: {
+            nextOccurrenceAt: await projectTaskScheduleOccurrences(
+              tx,
+              updated,
+              now,
+            ),
+          },
+        });
+      }
     }
+    // Owed rows survive a rule edit, so a project change in the same request
+    // still has to move them. New rows already use the updated project.
     if (input.projectId !== undefined) {
-      await moveTaskScheduleOccurrencesToProject(tx, updated);
+      await moveTaskScheduleOccurrencesToProject(tx, schedule);
     }
-    return updated;
+    return schedule;
   });
 }
 

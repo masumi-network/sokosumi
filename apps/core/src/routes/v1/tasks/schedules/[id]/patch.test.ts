@@ -187,6 +187,28 @@ describe("PATCH /tasks/schedules/{id}", () => {
       expect(stored(schedule.id)?.nextOccurrenceAt).toBeNull();
     });
 
+    it("moves an owed Occurrence when the rule and project change together", async () => {
+      const { schedule } = seedRunningSchedule();
+      const owed = seedOccurrence(
+        schedule,
+        new Date("2029-12-31T23:00:00.000Z"),
+      );
+
+      await patch(schedule.id, {
+        expectedRevision: 0,
+        projectId: PROJECT_ID,
+        rule: { expr: "0 7 * * 5", timezone: "UTC", endsMode: "NEVER" },
+      });
+
+      expect(
+        occurrencesOf(schedule.id).find((row) => row.id === owed.id),
+      ).toMatchObject({
+        state: "PLANNED",
+        sourceType: "PROJECT",
+        sourceProjectId: PROJECT_ID,
+      });
+    });
+
     it("moves the planned Occurrences to the blueprint's new project", async () => {
       const { schedule, released } = seedRunningSchedule();
 
