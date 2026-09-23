@@ -5,73 +5,46 @@ import {
   EMPTY_UNREAD_FILTER_PASS,
 } from "./unread-filter-pass";
 
-function advance(
-  steps: ReadonlyArray<{ unreadIds: string[]; activeRoomId?: string | null }>,
-) {
+function advance(steps: ReadonlyArray<string[]>) {
   return steps.reduce(
-    (pass, step) =>
-      advanceUnreadFilterPass(pass, {
-        unreadIds: step.unreadIds,
-        activeRoomId: step.activeRoomId ?? null,
-      }),
+    (pass, unreadIds) => advanceUnreadFilterPass(pass, { unreadIds }),
     EMPTY_UNREAD_FILTER_PASS,
   );
 }
 
 describe("advanceUnreadFilterPass", () => {
-  it("starts with nothing just read", () => {
-    expect(advance([{ unreadIds: ["launch", "design"] }]).justRead).toEqual([]);
+  it("lists the first unread rooms in the order they came", () => {
+    expect(advance([["launch", "design"]]).seen).toEqual(["launch", "design"]);
   });
 
-  it("keeps each room read during the pass, newest first", () => {
+  it("keeps a room in its place once it is read", () => {
+    const pass = advance([["launch", "design", "ada"], ["launch", "ada"], []]);
+
+    expect(pass.seen).toEqual(["launch", "design", "ada"]);
+  });
+
+  it("puts a room that turns unread later on top", () => {
     const pass = advance([
-      { unreadIds: ["launch", "design", "ada"] },
-      { unreadIds: ["design", "ada"] },
-      { unreadIds: ["ada"] },
-      { unreadIds: [] },
+      ["launch", "design"],
+      ["release", "design"],
     ]);
 
-    expect(pass.justRead).toEqual(["ada", "design", "launch"]);
+    expect(pass.seen).toEqual(["release", "launch", "design"]);
   });
 
   it("never lists a room that was not unread during the pass", () => {
-    const pass = advance([{ unreadIds: [] }, { unreadIds: [] }]);
-
-    expect(pass.justRead).toEqual([]);
+    expect(advance([[], []]).seen).toEqual([]);
   });
 
-  it("waits until the reader leaves the open room", () => {
-    const reading = advance([
-      { unreadIds: ["launch"], activeRoomId: "launch" },
-      { unreadIds: [], activeRoomId: "launch" },
-    ]);
-    expect(reading.justRead).toEqual([]);
+  it("does not move a room that turns unread again", () => {
+    const pass = advance([["launch", "design"], ["launch"], ["design"]]);
 
-    const left = advanceUnreadFilterPass(reading, {
-      unreadIds: [],
-      activeRoomId: null,
-    });
-    expect(left.justRead).toEqual(["launch"]);
-  });
-
-  it("takes a room back out when it turns unread again", () => {
-    const pass = advance([
-      { unreadIds: ["launch"] },
-      { unreadIds: [] },
-      { unreadIds: ["launch"] },
-    ]);
-
-    expect(pass.justRead).toEqual([]);
+    expect(pass.seen).toEqual(["launch", "design"]);
   });
 
   it("answers with the same pass when nothing moved, so a render can compare", () => {
-    const pass = advance([{ unreadIds: ["launch"] }]);
+    const pass = advance([["launch"]]);
 
-    expect(
-      advanceUnreadFilterPass(pass, {
-        unreadIds: ["launch"],
-        activeRoomId: null,
-      }),
-    ).toBe(pass);
+    expect(advanceUnreadFilterPass(pass, { unreadIds: ["launch"] })).toBe(pass);
   });
 });
