@@ -17,7 +17,7 @@ No templates, top-level navigation, formulas, relationships, attachment columns,
 - [x] Implement typed validation and Core operations: create/list/read/query, column metadata/order, row batches, archive/restore, views, history and conflict-safe undo. Every mutation uses durable idempotency and atomic history. Add security and concurrency tests.
 - [x] Integrate Soko Bot tools and coworker task scope. Publish live references immediately. Selected-row assignments persist exact allowed rows/columns. Test retries and denied access.
 - [x] Regenerate Core client. Extend existing Files surfaces with Tables filter and blank/CSV creation. Build bounded editable grid, views, CSV preview/mapping/export, cell history and batch undo using existing UI primitives.
-- [ ] Test actual local database and browser flows, light/dark/mobile and keyboard editing. Record performance limits and missing prerequisites honestly.
+- [x] Test actual local database and browser flows, light/dark/mobile and keyboard editing. Record performance limits and missing prerequisites honestly. See the 2026-09-23 recovery verification in `docs/native-tables.md`.
 - [ ] Review diff, run repository checks, commit, push and create/reuse draft PR. Report exact evidence and outstanding independent reviews through CodePat.
 
 ## Reuse decisions
@@ -37,4 +37,4 @@ The attached utxo AG DESIGN.md was read on resume. Apply its restrained hierarch
 
 ## Verification prerequisite
 
-The authenticated browser pass is blocked on an owned HTTPS stack on port 443 and test authentication. The verifier reports no owned instance; Caddy occupies 443. A worktree-local agent-browser CLI is installed. Do not use the forbidden 1355 fallback, stop shared services or invent signup accounts. Database and component/runtime checks proceed independently; the final handoff must retain this gap.
+The original HTTPS/authentication blocker was resolved on 2026-09-23 using a task-owned network namespace, HTTPS port 443 and a separate synthetic fixture database. Authenticated browser acceptance passed without changing shared Caddy. Live model/provider acceptance remains unverified; see `docs/native-tables.md` for exact coverage and limitations. The PR remains draft and must not be merged.
