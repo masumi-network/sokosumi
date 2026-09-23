@@ -755,4 +755,80 @@ describe("GET /tasks", () => {
     expect(response.status).toBe(422);
     expect(taskFindManyMock).not.toHaveBeenCalled();
   });
+
+  describe("scheduleId", () => {
+    const SCHEDULE_ID = "01960001-0001-7001-8001-000000000042";
+
+    it("lists the Tasks a Task Schedule created", async () => {
+      const response = await createApp().request(
+        `http://localhost/?scope=workspace&scheduleId=${SCHEDULE_ID}`,
+      );
+
+      expect(response.status).toBe(200);
+      expect(taskFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            archivedAt: null,
+            workspaceId: "11111111-1111-7111-8111-111111111111",
+            AND: [...HUMAN_TASK_VISIBILITY_AND],
+            scheduleId: SCHEDULE_ID,
+          },
+        }),
+      );
+    });
+
+    it("narrows coworker and Soko Bot lists the same way", async () => {
+      await createApp(COWORKER_AUTH_CONTEXT, null).request(
+        `http://localhost/?scheduleId=${SCHEDULE_ID}`,
+      );
+      await createApp(ORCHESTRATOR_AUTH_CONTEXT).request(
+        `http://localhost/?scheduleId=${SCHEDULE_ID}`,
+      );
+
+      expect(taskFindManyMock).toHaveBeenCalledTimes(2);
+      for (const [args] of taskFindManyMock.mock.calls) {
+        expect(args.where).toMatchObject({ scheduleId: SCHEDULE_ID });
+      }
+    });
+
+    it("lists them newest created first with sort=createdAt", async () => {
+      const response = await createApp().request(
+        `http://localhost/?scheduleId=${SCHEDULE_ID}&sort=createdAt`,
+      );
+
+      expect(response.status).toBe(200);
+      expect(taskFindManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        }),
+      );
+    });
+
+    it("rejects a scheduleId that is not a UUID", async () => {
+      const response = await createApp().request(
+        "http://localhost/?scheduleId=not-a-uuid",
+      );
+
+      expect(response.status).toBe(422);
+      expect(taskFindManyMock).not.toHaveBeenCalled();
+    });
+
+    it("returns the scheduleId of each Task", async () => {
+      taskFindManyMock.mockResolvedValue([
+        { ...createTask(), scheduleId: SCHEDULE_ID },
+        createTask(),
+      ]);
+      taskCountMock.mockResolvedValue(2);
+
+      const response = await createApp().request("http://localhost/");
+      const body = (await response.json()) as {
+        data: Array<{ scheduleId: string | null }>;
+      };
+
+      expect(body.data.map((task) => task.scheduleId)).toEqual([
+        SCHEDULE_ID,
+        null,
+      ]);
+    });
+  });
 });

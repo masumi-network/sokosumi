@@ -174,6 +174,7 @@ function createTaskApi(projectId: string | null = null) {
     links: [],
     files: [],
     runAt: null,
+    scheduleId: null,
     selectableStatuses: [],
   };
 }

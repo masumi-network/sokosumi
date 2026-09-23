@@ -357,6 +357,11 @@ const taskBaseSchema = z.object({
       "The one time a Queued Task moves to Ready. Set only while the Task is Queued; it never repeats.",
     example: "2026-06-24T09:00:00.000Z",
   }),
+  scheduleId: z.string().uuid().nullable().openapi({
+    description:
+      "Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.",
+    example: null,
+  }),
   credits: z.number().openapi({ example: 5 }),
   events: z.array(taskEventSchema).openapi({ example: [] }),
   jobs: jobSummariesSchema.openapi({ example: [] }),

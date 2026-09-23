@@ -150,6 +150,7 @@ function buildMapTaskResponse(task: {
     links: [],
     files: [],
     runAt: null,
+    scheduleId: null,
     selectableStatuses: [],
   };
 }

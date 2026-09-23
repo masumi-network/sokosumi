@@ -26,6 +26,7 @@ import type {
   Task,
   TaskScheduleOccurrence,
   TaskScheduleOccurrenceView,
+  TaskScheduleState,
 } from "@/lib/clients/generated/core";
 import { getAgentResolvedIcon } from "@/lib/helpers/agent";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
@@ -34,9 +35,16 @@ import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { taskService } from "@/lib/services/task.service";
-import { taskScheduleService } from "@/lib/services/task-schedule.service";
+import {
+  type TaskSchedulesPage,
+  taskScheduleService,
+} from "@/lib/services/task-schedule.service";
 import { listTaskAssigneeMemberOptions } from "./utils/task-assignee-members";
 import { listTaskAssigneeOptions } from "./utils/task-assignee-options";
+import {
+  parseTaskScheduleStateFilter,
+  TASK_SCHEDULES_PAGE_LIMIT,
+} from "./utils/task-schedules-filters";
 import { getTasksColumnPage } from "./utils/tasks-column-page";
 import { getTasksListPage } from "./utils/tasks-list-page";
 
@@ -387,4 +395,36 @@ export async function loadNewTaskWizardOptions() {
   ]);
 
   return { coworkerOptions, projectOptions, ...createData };
+}
+
+interface LoadMoreTaskSchedulesParams {
+  cursor: string;
+  projectId: string | null;
+  state: TaskScheduleState | null;
+}
+
+export async function loadMoreTaskSchedules({
+  cursor,
+  projectId,
+  state,
+}: LoadMoreTaskSchedulesParams): Promise<TaskSchedulesPage> {
+  return await taskScheduleService.listSchedules({
+    cursor,
+    projectId: sanitizeProjectIdFilterInput(projectId),
+    state: parseTaskScheduleStateFilter(state),
+    limit: TASK_SCHEDULES_PAGE_LIMIT,
+  });
+}
+
+/**
+ * Assignees and projects for the Task Schedule dialog opened from a Task's
+ * "Repeat", loaded only when someone opens it.
+ */
+export async function loadTaskScheduleDialogOptions() {
+  const session = await getSession();
+  const [coworkerOptions, projectOptions] = await Promise.all([
+    listTaskAssigneeOptions(session?.session.activeOrganizationId ?? null),
+    getProjectFilterOptions(),
+  ]);
+  return { coworkerOptions, projectOptions };
 }

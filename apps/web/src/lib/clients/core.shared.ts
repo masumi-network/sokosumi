@@ -1,4 +1,8 @@
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
+
+/** Pause, resume, and end each have their own Task Schedule route. */
+export type TaskScheduleStateAction = "pause" | "resume" | "end";
+
 import type {
   ActivateEnterpriseContractRequest,
   AdminSokoBotActionRequest,
@@ -11,6 +15,7 @@ import type {
   CreateEnterpriseContractRequest,
   CreateSokoBotRequest,
   CreateSokoBotScheduleRequest,
+  CreateTaskScheduleRequest,
   DeleteJobsByIdShareError,
   DeleteProjectsByIdJobsByJobIdData,
   DeleteProjectsByIdTasksByTaskIdData,
@@ -40,6 +45,8 @@ import type {
   GetShareByTokenError,
   GetTasksByIdScheduleOccurrencesData,
   GetTasksData,
+  GetTasksSchedulesByIdRunsData,
+  GetTasksSchedulesData,
   GetTasksSummaryData,
   GetWorkspacesCalendarData,
   JudgeSokoBotLabTurnRequest,
@@ -99,6 +106,7 @@ import type {
   SokoBotVersionWrite,
   StartSokoBotTurnRequest,
   UpdateSokoBotScheduleRequest,
+  UpdateTaskScheduleRequest,
 } from "@/lib/clients/generated/core";
 import {
   addAdminMatchedChannelParticipant as coreAddAdminMatchedChannelParticipant,
@@ -153,6 +161,7 @@ import {
   deleteTasksByIdLinksByLinkId as coreDeleteTasksByIdLinksByLinkId,
   deleteTasksByIdSchedule as coreDeleteTasksByIdSchedule,
   deleteTasksByIdShare as coreDeleteTasksByIdShare,
+  deleteTasksSchedulesById as coreDeleteTasksSchedulesById,
   deleteUsersByIdOauthConsentsByConsentId as coreDeleteUsersByIdOauthConsentsByConsentId,
   deleteUsersByIdPersonalWorkspace as coreDeleteUsersByIdPersonalWorkspace,
   disconnectMySokoBotIntegration as coreDisconnectMySokoBotIntegration,
@@ -244,6 +253,9 @@ import {
   getTasksByIdLinks as coreGetTasksByIdLinks,
   getTasksByIdScheduleOccurrences as coreGetTasksByIdScheduleOccurrences,
   getTasksByIdWorkspace as coreGetTasksByIdWorkspace,
+  getTasksSchedules as coreGetTasksSchedules,
+  getTasksSchedulesById as coreGetTasksSchedulesById,
+  getTasksSchedulesByIdRuns as coreGetTasksSchedulesByIdRuns,
   getTasksSummary as coreGetTasksSummary,
   getToolsSiteIcon as coreGetToolsSiteIcon,
   getUsersByIdBillingDetails as coreGetUsersByIdBillingDetails,
@@ -306,6 +318,7 @@ import {
   patchProjectsById as corePatchProjectsById,
   patchTasksById as corePatchTasksById,
   patchTasksByIdScheduleOccurrencesByOccurrenceId as corePatchTasksByIdScheduleOccurrencesByOccurrenceId,
+  patchTasksSchedulesById as corePatchTasksSchedulesById,
   patchVendor as corePatchVendor,
   performAdminSokoBotAction as corePerformAdminSokoBotAction,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
@@ -363,6 +376,10 @@ import {
   postTasksByIdFiles as corePostTasksByIdFiles,
   postTasksByIdLinks as corePostTasksByIdLinks,
   postTasksScheduled as corePostTasksScheduled,
+  postTasksSchedules as corePostTasksSchedules,
+  postTasksSchedulesByIdEnd as corePostTasksSchedulesByIdEnd,
+  postTasksSchedulesByIdPause as corePostTasksSchedulesByIdPause,
+  postTasksSchedulesByIdResume as corePostTasksSchedulesByIdResume,
   postUsersByIdCoworkerAccessByAccessIdApprove as corePostUsersByIdCoworkerAccessByAccessIdApprove,
   postUsersByIdCoworkerAccessByAccessIdDeny as corePostUsersByIdCoworkerAccessByAccessIdDeny,
   postUsersByIdCoworkerAccessByAccessIdRevoke as corePostUsersByIdCoworkerAccessByAccessIdRevoke,
@@ -3725,6 +3742,92 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function listTaskSchedules(query?: GetTasksSchedulesData["query"]) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetTasksSchedules({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch Task Schedules",
+    );
+  }
+
+  async function createTaskSchedule(body: CreateTaskScheduleRequest) {
+    return executeCoreOperation(
+      getClient,
+      (client) => corePostTasksSchedules({ client, body }),
+      "Failed to create Task Schedule",
+    );
+  }
+
+  async function getTaskSchedule(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetTasksSchedulesById({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch Task Schedule",
+    );
+  }
+
+  async function updateTaskSchedule(
+    id: string,
+    body: UpdateTaskScheduleRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) => corePatchTasksSchedulesById({ client, path: { id }, body }),
+      "Failed to update Task Schedule",
+    );
+  }
+
+  async function changeTaskScheduleState(
+    id: string,
+    action: TaskScheduleStateAction,
+  ) {
+    const operation = {
+      pause: corePostTasksSchedulesByIdPause,
+      resume: corePostTasksSchedulesByIdResume,
+      end: corePostTasksSchedulesByIdEnd,
+    }[action];
+    return executeCoreOperation(
+      getClient,
+      (client) => operation({ client, path: { id } }),
+      `Failed to ${action} Task Schedule`,
+    );
+  }
+
+  async function deleteTaskScheduleById(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreDeleteTasksSchedulesById({ client, path: { id } }),
+      "Failed to delete Task Schedule",
+    );
+  }
+
+  async function listTaskScheduleRuns(
+    id: string,
+    query?: GetTasksSchedulesByIdRunsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetTasksSchedulesByIdRuns({
+          client,
+          path: { id },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch Task Schedule Runs",
+    );
+  }
+
   async function getCoworkers(query?: GetCoworkersData["query"]) {
     return executeCoreOperation(
       getClient,
@@ -5449,6 +5552,13 @@ export function createCoreClient(getClient: GetCoreClient) {
     putTaskSchedule,
     putTaskShare,
     mutateTaskScheduleOccurrence,
+    listTaskSchedules,
+    createTaskSchedule,
+    getTaskSchedule,
+    updateTaskSchedule,
+    changeTaskScheduleState,
+    deleteTaskScheduleById,
+    listTaskScheduleRuns,
     unassignOrganizationSeat,
     updateOrganizationSubscriptionSeats,
     getMySokoBot,

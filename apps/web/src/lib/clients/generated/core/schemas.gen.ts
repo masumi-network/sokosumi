@@ -4657,6 +4657,15 @@ export const TaskSchema = {
             example: '2026-06-24T09:00:00.000Z',
             description: 'The one time a Queued Task moves to Ready. Set only while the Task is Queued; it never repeats.'
         },
+        scheduleId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.',
+            example: null
+        },
         credits: {
             type: 'number',
             example: 5
@@ -4747,6 +4756,7 @@ export const TaskSchema = {
         'metadata',
         'nextRunAt',
         'runAt',
+        'scheduleId',
         'credits',
         'events',
         'jobs',
@@ -19811,6 +19821,15 @@ export const TaskListItemSchema = {
             example: '2026-06-24T09:00:00.000Z',
             description: 'The one time a Queued Task moves to Ready. Set only while the Task is Queued; it never repeats.'
         },
+        scheduleId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.',
+            example: null
+        },
         workspace: {
             $ref: '#/components/schemas/WorkspaceSummary'
         },
@@ -19855,6 +19874,7 @@ export const TaskListItemSchema = {
         'metadata',
         'nextRunAt',
         'runAt',
+        'scheduleId',
         'workspace',
         'jobsCount',
         'commentsCount'

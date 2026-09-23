@@ -1160,6 +1160,10 @@ export type Task = {
      * The one time a Queued Task moves to Ready. Set only while the Task is Queued; it never repeats.
      */
     runAt: Date | null;
+    /**
+     * Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.
+     */
+    scheduleId: string | null;
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
@@ -5829,6 +5833,10 @@ export type TaskListItem = {
      * The one time a Queued Task moves to Ready. Set only while the Task is Queued; it never repeats.
      */
     runAt: Date | null;
+    /**
+     * Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.
+     */
+    scheduleId: string | null;
     workspace: WorkspaceSummary;
     jobsCount: number;
     commentsCount: number;
@@ -40514,9 +40522,9 @@ export type GetTasksData = {
          */
         projectId?: string | 'null';
         /**
-         * Sort tasks by nextRunAt ascending (nulls last)
+         * nextRunAt: next scheduled run ascending (nulls last). createdAt: newest created first. Omitted: most recently updated first.
          */
-        sort?: 'nextRunAt';
+        sort?: 'nextRunAt' | 'createdAt';
         /**
          * Filter by task visibility. Omitted applies no visibility restriction beyond the caller access predicate. Explicit PUBLIC or PRIVATE narrows the list. PRIVATE still respects the caller visibility predicate.
          */
@@ -40525,6 +40533,10 @@ export type GetTasksData = {
          * When true, only tasks with an active schedule series (metadata or nextRunAt set). When false, only tasks without one. Omit to return all tasks.
          */
         hasSchedule?: 'true' | 'false';
+        /**
+         * Only the Tasks this Task Schedule created
+         */
+        scheduleId?: string;
         /**
          * Filter tasks by assignee coworker ID
          */

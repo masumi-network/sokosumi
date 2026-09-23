@@ -97,12 +97,13 @@ const projectIdQuerySchema = z
   });
 
 const taskSortQuerySchema = z
-  .enum(["nextRunAt"])
+  .enum(["nextRunAt", "createdAt"])
   .optional()
   .openapi({
     param: { name: "sort", in: "query" },
-    description: "Sort tasks by nextRunAt ascending (nulls last)",
-    example: "nextRunAt",
+    description:
+      "nextRunAt: next scheduled run ascending (nulls last). createdAt: newest created first. Omitted: most recently updated first.",
+    example: "createdAt",
   });
 
 const taskVisibilityQuerySchema = z
@@ -113,6 +114,16 @@ const taskVisibilityQuerySchema = z
     description:
       "Filter by task visibility. Omitted applies no visibility restriction beyond the caller access predicate. Explicit PUBLIC or PRIVATE narrows the list. PRIVATE still respects the caller visibility predicate.",
     example: TaskVisibility.PUBLIC,
+  });
+
+const scheduleIdQuerySchema = z
+  .string()
+  .uuid()
+  .optional()
+  .openapi({
+    param: { name: "scheduleId", in: "query" },
+    description: "Only the Tasks this Task Schedule created",
+    example: "01960001-0001-7001-8001-000000000042",
   });
 
 const hasScheduleQuerySchema = z
@@ -135,6 +146,7 @@ const query = z
     sort: taskSortQuerySchema,
     visibility: taskVisibilityQuerySchema,
     hasSchedule: hasScheduleQuerySchema,
+    scheduleId: scheduleIdQuerySchema,
     assigneeId: z
       .string()
       .optional()
@@ -211,6 +223,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       hasSchedule,
       projectId,
       q,
+      scheduleId,
       scope,
       sort,
       status: statuses,
@@ -233,6 +246,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       projectId === undefined
         ? {}
         : { projectId: projectId === "null" ? null : projectId };
+    const scheduleFilter = scheduleId ? { scheduleId } : {};
 
     let where: Prisma.TaskWhereInput;
     if (isCoworkerAuthContext(authContext)) {
@@ -275,6 +289,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ...(assigneeSokoBotId ? { assigneeSokoBotId } : {}),
             ...(assigneeUserId ? { assigneeUserId } : {}),
             ...projectFilter,
+            ...scheduleFilter,
             ...searchFilter,
           },
           statusWhere,
@@ -286,6 +301,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ...requestedVisibility,
             AND: [listAccessFilter],
             ...projectFilter,
+            ...scheduleFilter,
             ...searchFilter,
           },
           statusWhere,
@@ -307,6 +323,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ...requestedVisibility,
           AND: [buildSokoBotOwnerTaskVisibilityWhere(authContext.userId)],
           ...projectFilter,
+          ...scheduleFilter,
           ...searchFilter,
         },
         statusWhere,
@@ -325,6 +342,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ...(assigneeSokoBotId ? { assigneeSokoBotId } : {}),
           ...(assigneeUserId ? { assigneeUserId } : {}),
           ...projectFilter,
+          ...scheduleFilter,
           ...searchFilter,
         },
         statusWhere,
@@ -340,7 +358,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             { nextRunAt: { sort: "asc" as const, nulls: "last" as const } },
             { id: "asc" as const },
           ] as const)
-        : ([{ updatedAt: "desc" as const }, { id: "desc" as const }] as const);
+        : sort === "createdAt"
+          ? ([{ createdAt: "desc" as const }, { id: "desc" as const }] as const)
+          : ([
+              { updatedAt: "desc" as const },
+              { id: "desc" as const },
+            ] as const);
     // A list view does not need list/count snapshot consistency, so run these
     // as independent queries. The list include uses relation counts instead of
     // loading each task's full event and job graphs.

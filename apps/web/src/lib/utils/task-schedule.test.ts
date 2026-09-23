@@ -7,6 +7,7 @@ import {
   metadataToSelection,
   schedulableOnceLocalIso,
   selectionToApiBody,
+  taskScheduleRuleToSelection,
 } from "@/lib/utils/task-schedule";
 
 afterEach(() => {
@@ -88,6 +89,54 @@ describe("metadataToSelection", () => {
       endsMode: "after",
       occurrences: 3,
     });
+  });
+});
+
+describe("taskScheduleRuleToSelection", () => {
+  it("keeps an every-N-days anchor instead of the next daily slot", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-23T15:00:00.000Z"));
+
+    const selection = taskScheduleRuleToSelection({
+      expr: "0 9 * * *",
+      timezone: "UTC",
+      intervalDays: 3,
+      anchorAt: new Date("2026-06-01T09:00:00.000Z"),
+      endsMode: "NEVER",
+      endsOn: null,
+      targetRunCount: null,
+    });
+
+    expect(selection).toMatchObject({
+      intervalDays: 3,
+      oneTimeLocalIso: "2026-06-01T09:00",
+      cron: "0 9 * * *",
+    });
+    expect(selectionToApiBody(selection)).toMatchObject({
+      intervalDays: 3,
+      anchorAt: new Date("2026-06-01T09:00:00.000Z"),
+      expr: "0 9 * * *",
+    });
+  });
+});
+
+describe("taskScheduleRuleToSelection with an older every-N-days rule", () => {
+  it("takes the time from the anchor, which Core runs at, not from the cron", () => {
+    const selection = taskScheduleRuleToSelection({
+      expr: "30 6 * * *",
+      timezone: "Europe/Berlin",
+      intervalDays: 2,
+      anchorAt: new Date("2026-06-01T12:45:00.000Z"),
+      endsMode: "NEVER",
+      endsOn: null,
+      targetRunCount: null,
+    });
+
+    expect(selection).toMatchObject({
+      oneTimeLocalIso: "2026-06-01T14:45",
+      cron: "45 14 * * *",
+    });
+    expect(selection.customCronExpr).toBeUndefined();
   });
 });
 

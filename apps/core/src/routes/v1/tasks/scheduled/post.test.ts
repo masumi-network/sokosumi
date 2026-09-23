@@ -179,6 +179,7 @@ function buildMappedTask() {
     links: [],
     files: [],
     runAt: null,
+    scheduleId: null,
     selectableStatuses: [],
   };
 }

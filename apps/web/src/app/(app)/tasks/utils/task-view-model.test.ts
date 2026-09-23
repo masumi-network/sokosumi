@@ -42,6 +42,7 @@ function buildTask(
     metadata: null,
     nextRunAt: null,
     runAt: null,
+    scheduleId: null,
     scheduleRevision: 0,
     commentsCount: 0,
     jobsCount: 0,

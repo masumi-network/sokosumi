@@ -2,7 +2,7 @@
 
 import { CronExpressionParser as cronParser } from "cron-parser";
 import { useFormatter, useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,8 @@ import {
 import {
   gregorianDayOfWeek,
   parseDateTimeLocalParts,
+  utcToDateTimeLocalInTimezone,
+  zonedDateTimeLocalToUtc,
 } from "@/lib/schedules/zoned-datetime";
 import {
   TaskScheduleEndsMode,
@@ -211,6 +213,13 @@ const scheduleFormSchema = z
 
 const ENDS_OPTION_LABEL_CLASS = "min-w-16 shrink-0 whitespace-nowrap";
 
+/** Calendar days from `from` to `to`, counted in `timezone`. */
+function localDaysBetween(from: Date, to: Date, timezone: string): number {
+  const day = (date: Date) =>
+    Date.parse(`${utcToDateTimeLocalInTimezone(date, timezone).slice(0, 10)}Z`);
+  return Math.round((day(to) - day(from)) / 86_400_000);
+}
+
 function getDefaultTime(): string {
   const now = new Date();
   const hh = String(now.getHours()).padStart(2, "0");
@@ -234,11 +243,18 @@ interface TaskScheduleSectionProps {
   onClearSchedule?: () => void;
   canClearSchedule?: boolean;
   hideHeader?: boolean;
+  /** Drops the one-time option: a Task Schedule always repeats. */
+  recurringOnly?: boolean;
+  saveLabel?: string;
+  /** Blocks saving for reasons outside the rule, such as a missing name. */
+  saveDisabled?: boolean;
 }
 
 export function TaskScheduleSection(props: TaskScheduleSectionProps) {
   const t = useTranslations("App.Tasks.Schedule");
   const formatter = useFormatter();
+  const pickDateTimeId = useId();
+  const timeOfDayId = useId();
   const timezoneOptions = useMemo(
     () => getTimezoneOptions(props.initialSelection?.timezone),
     [props.initialSelection?.timezone],
@@ -444,10 +460,26 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
     if (sel.customCronExpr) {
       setCustomCronExpr(sel.customCronExpr);
     }
-    const derivedPreset = derivePresetFromCron(cron);
+    // An every-N-days rule keeps its day step outside the cron, so its daily
+    // cron must not read as the Daily preset, which would drop the step.
+    const derivedPreset =
+      sel.intervalDays != null && sel.intervalDays > 1
+        ? null
+        : derivePresetFromCron(cron);
     if (derivedPreset) {
       setScheduleOption(derivedPreset.option);
       setOneTimeLocalIso(derivedPreset.iso);
+    } else if (sel.intervalDays != null && sel.intervalDays > 1) {
+      // The builder carries an every-N-days rule: its step, and the anchor's
+      // time as the time of day. A cron text would override the builder.
+      setScheduleOption("custom");
+      setCustomCronExpr("");
+      setRepeatEveryUnit("day");
+      setRepeatEveryCount(sel.intervalDays);
+      if (sel.oneTimeLocalIso) {
+        setOneTimeLocalIso(sel.oneTimeLocalIso);
+        setTimeOfDay(sel.oneTimeLocalIso.slice(11, 16));
+      }
     } else {
       setScheduleOption("custom");
       if (cron) setCustomCronExpr(cron);
@@ -531,25 +563,29 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
     getPresetCron,
   ]);
 
+  const everyNDays =
+    scheduleOption === "custom" &&
+    repeatEveryUnit === "day" &&
+    repeatEveryCount > 1
+      ? repeatEveryCount
+      : null;
+  const intervalAnchorLocalIso = `${oneTimeLocalIso.slice(0, 10)}T${timeOfDay}`;
+
   const emitSelection = useCallback((): TaskScheduleSelection => {
     if (scheduleOption === "one-time") {
       return { mode: "once", timezone, oneTimeLocalIso };
     }
     const cron = getSelectedCron() ?? undefined;
-    const intervalDays =
-      scheduleOption === "custom" &&
-      repeatEveryUnit === "day" &&
-      repeatEveryCount > 1
-        ? repeatEveryCount
-        : undefined;
 
     return {
       mode: "recurring",
       timezone,
-      oneTimeLocalIso,
+      // Core runs an every-N-days rule at its anchor's local time, so the
+      // anchor takes the builder's time of day.
+      oneTimeLocalIso: everyNDays ? intervalAnchorLocalIso : oneTimeLocalIso,
       cron,
       customCronExpr: scheduleOption === "custom" ? customCronExpr : undefined,
-      ...(intervalDays != null ? { intervalDays } : {}),
+      ...(everyNDays != null ? { intervalDays: everyNDays } : {}),
       endsMode,
       endOnLocalDate:
         endsMode === TaskScheduleEndsMode.ON && endOnDate
@@ -569,8 +605,8 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
     endsMode,
     endOnDate,
     endAfterOccurrences,
-    repeatEveryUnit,
-    repeatEveryCount,
+    everyNDays,
+    intervalAnchorLocalIso,
   ]);
 
   const nextPreview = useMemo(() => {
@@ -578,8 +614,15 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
     const cron = getSelectedCron();
     if (!cron) return [] as string[];
     try {
-      const options = { currentDate: new Date(), tz: timezone } as const;
-      const interval = cronParser.parse(cron, options);
+      const now = new Date();
+      const anchor = everyNDays
+        ? zonedDateTimeLocalToUtc(intervalAnchorLocalIso, timezone)
+        : null;
+      // An every-N-days rule starts at its anchor, then keeps every Nth of
+      // the daily cron's days.
+      const currentDate =
+        anchor && anchor > now ? new Date(anchor.getTime() - 60_000) : now;
+      const interval = cronParser.parse(cron, { currentDate, tz: timezone });
       const maxCount = Math.max(
         1,
         Math.min(
@@ -588,18 +631,25 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
         ),
       );
       const results: string[] = [];
-      let safety = 20;
+      let safety = 20 + 3 * (everyNDays ?? 0);
       while (results.length < maxCount && safety > 0) {
         const nextDate = interval.next().toDate();
+        safety--;
         if (endsMode === TaskScheduleEndsMode.ON && endOnDate) {
           if (nextDate > endOnDate) break;
+        }
+        if (
+          everyNDays &&
+          anchor &&
+          localDaysBetween(anchor, nextDate, timezone) % everyNDays !== 0
+        ) {
+          continue;
         }
         results.push(
           formatter.dateTime(nextDate, "dateTimeMedium", {
             timeZone: timezone,
           }),
         );
-        safety--;
       }
       return results;
     } catch {
@@ -613,6 +663,8 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
     endOnDate,
     endAfterOccurrences,
     getSelectedCron,
+    everyNDays,
+    intervalAnchorLocalIso,
   ]);
 
   function handleSave() {
@@ -657,8 +709,11 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
         {scheduleOption !== "custom" && (
           <div className="mb-4 space-y-3">
             <div className="flex flex-col gap-2">
-              <Label>{t("pickDateTime")}</Label>
+              <Label htmlFor={pickDateTimeId}>
+                {props.recurringOnly ? t("firstRun") : t("pickDateTime")}
+              </Label>
               <Input
+                id={pickDateTimeId}
                 type="datetime-local"
                 value={oneTimeLocalIso}
                 onChange={(e) => setOneTimeLocalIso(e.target.value)}
@@ -684,7 +739,9 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="one-time">{t("option.oneTime")}</SelectItem>
+            {props.recurringOnly ? null : (
+              <SelectItem value="one-time">{t("option.oneTime")}</SelectItem>
+            )}
             <SelectItem value="daily">{presetDisplayLabels.daily}</SelectItem>
             <SelectItem value="weekly">{presetDisplayLabels.weekly}</SelectItem>
             <SelectItem value="monthly">
@@ -755,8 +812,11 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
               </div>
             </div>
             <div className="w-full space-y-2">
-              <Label className="text-base">{t("timeOfDay")}</Label>
+              <Label htmlFor={timeOfDayId} className="text-base">
+                {t("timeOfDay")}
+              </Label>
               <Input
+                id={timeOfDayId}
                 type="time"
                 value={timeOfDay}
                 onChange={(e) => setTimeOfDay(e.target.value)}
@@ -977,10 +1037,10 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
           <Button
             type="button"
             onClick={handleSave}
-            disabled={!isValid}
+            disabled={!isValid || props.saveDisabled}
             aria-invalid={!isValid}
           >
-            {t("save")}
+            {props.saveLabel ?? t("save")}
           </Button>
         </div>
       </div>
