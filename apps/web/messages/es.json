@@ -5477,7 +5477,7 @@
         "markAllReadError": "No se pudo marcar todo como leído.",
         "caughtUp": "Todo al día",
         "allThreads": "Todos los hilos",
-        "nothingUnread": "{count, plural, one {Nada sin leer en # chat} other {Nada sin leer en # chats}}",
+        "chatCount": "{count, plural, one {# chat} other {# chats}}",
         "justRead": "Recién leídos"
       },
       "ThreadsView": {

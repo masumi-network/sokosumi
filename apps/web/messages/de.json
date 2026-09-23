@@ -5477,7 +5477,7 @@
         "markAllReadError": "Nicht alles konnte als gelesen markiert werden.",
         "caughtUp": "Alles gelesen",
         "allThreads": "Alle Threads",
-        "nothingUnread": "{count, plural, one {Nichts Ungelesenes in # Chat} other {Nichts Ungelesenes in # Chats}}",
+        "chatCount": "{count, plural, one {# Chat} other {# Chats}}",
         "justRead": "Gerade gelesen"
       },
       "ThreadsView": {
