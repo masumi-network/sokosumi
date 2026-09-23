@@ -1,3 +1,5 @@
+import { beforeEach, vi } from "vitest";
+
 const envDefaults: Record<string, string> = {
   NETWORK: "Preprod",
   NODE_ENV: "development",
@@ -56,3 +58,7 @@ for (const [key, value] of Object.entries(envDefaults)) {
   }
   process.env[key] = value;
 }
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});

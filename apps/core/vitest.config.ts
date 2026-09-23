@@ -15,6 +15,8 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.test.ts"],
     setupFiles: ["src/test/setup.ts"],
+    pool: "forks",
+    isolate: false,
     /** Same cap as web, for the same reason — see `apps/web/vitest.config.ts`. */
     maxWorkers: process.env.CI ? undefined : "50%",
   },
