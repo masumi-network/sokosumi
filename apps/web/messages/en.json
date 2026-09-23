@@ -2268,8 +2268,6 @@
         "newPost": "New post",
         "moreActions": "Post actions",
         "noAccount": "No account",
-        "connectAccountFirst": "Connect an X account to this Project before scheduling posts.",
-        "connectAccountLink": "Connect an account",
         "sections": {
           "upcoming": "Upcoming",
           "drafts": "Drafts",

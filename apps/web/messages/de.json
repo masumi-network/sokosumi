@@ -2268,8 +2268,6 @@
         "newPost": "Neuer Beitrag",
         "moreActions": "Beitragsaktionen",
         "noAccount": "Kein Konto",
-        "connectAccountFirst": "Verbinde ein X-Konto mit diesem Projekt, bevor du Beiträge planst.",
-        "connectAccountLink": "Konto verbinden",
         "sections": {
           "upcoming": "Anstehend",
           "drafts": "Entwürfe",

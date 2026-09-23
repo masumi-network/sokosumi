@@ -32,9 +32,6 @@ const MESSAGES: Record<string, string> = {
   newPost: "New post",
   moreActions: "Post actions",
   noAccount: "No account",
-  connectAccountFirst:
-    "Connect an X account to this Project before scheduling posts.",
-  connectAccountLink: "Connect an account",
   "sections.upcoming": "Upcoming",
   "sections.drafts": "Drafts",
   "sections.history": "History",
@@ -261,26 +258,6 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
 
     expect(screen.getAllByRole("list")).toHaveLength(3);
-    expect(
-      screen.queryByTestId("social-posts-connect-callout"),
-    ).not.toBeInTheDocument();
-  });
-
-  it("explains that an account must be connected and links to the accounts section", () => {
-    render(
-      <ProjectSocialPosts connections={[]} posts={[]} projectId={PROJECT_ID} />,
-    );
-
-    const callout = screen.getByTestId("social-posts-connect-callout");
-    expect(
-      within(callout).getByText(
-        "Connect an X account to this Project before scheduling posts.",
-      ),
-    ).toBeVisible();
-    expect(
-      within(callout).getByRole("link", { name: "Connect an account" }),
-    ).toHaveAttribute("href", "#social-accounts");
-    expect(screen.getByText("No drafts yet.")).toBeVisible();
   });
 
   it("opens the composer from New post and blocks over-limit text", async () => {

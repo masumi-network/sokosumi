@@ -1,7 +1,6 @@
 "use client";
 
 import { CalendarClock, MoreHorizontal, Plus } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useRef, useState } from "react";
@@ -36,7 +35,7 @@ import { loadMoreSocialPosts } from "./actions";
 import { SECTION_ORDER, SECTION_STATUSES, type SectionKey } from "./constants";
 
 interface ProjectSocialPostsProps {
-  /** Active connections only; drives the account picker and the empty state. */
+  /** Active connections only; drives the account picker. */
   connections: ProjectSocialConnection[];
   posts: SocialPost[];
   nextCursors?: Partial<Record<SectionKey, string | null>>;
@@ -94,8 +93,6 @@ export function ProjectSocialPosts({
   const [composer, setComposer] = useState<SocialPostComposerMode | null>(null);
   const [cancelTarget, setCancelTarget] = useState<SocialPost | null>(null);
   const [cancelPending, setCancelPending] = useState(false);
-
-  const hasConnections = connections.length > 0;
 
   function handleActionError(error: ActionError): void {
     if (isRevisionConflict(error)) {
@@ -167,22 +164,6 @@ export function ProjectSocialPosts({
           {t("newPost")}
         </Button>
       </div>
-
-      {hasConnections ? null : (
-        <div
-          className="bg-card-background border-border space-y-2 rounded-xl border p-4"
-          data-testid="social-posts-connect-callout"
-          role="status"
-        >
-          <p className="text-sm">{t("connectAccountFirst")}</p>
-          <Link
-            className="text-primary text-sm font-medium underline-offset-4 hover:underline"
-            href="#social-accounts"
-          >
-            {t("connectAccountLink")}
-          </Link>
-        </div>
-      )}
 
       {SECTION_ORDER.map((section) => {
         const sectionPosts = sortSection(

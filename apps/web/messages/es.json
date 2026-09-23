@@ -2268,8 +2268,6 @@
         "newPost": "Nueva publicación",
         "moreActions": "Acciones de la publicación",
         "noAccount": "Sin cuenta",
-        "connectAccountFirst": "Conecta una cuenta de X a este proyecto antes de programar publicaciones.",
-        "connectAccountLink": "Conectar una cuenta",
         "sections": {
           "upcoming": "Próximas",
           "drafts": "Borradores",
