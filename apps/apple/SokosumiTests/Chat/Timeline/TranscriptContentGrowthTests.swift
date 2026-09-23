@@ -8,6 +8,12 @@
   import SwiftUI
   import Testing
 
+  private enum TranscriptGrowthPosition {
+    case pinned
+    case scrolledUp
+    case activeScroll
+  }
+
   extension NativeWindowTests {
     @MainActor struct TranscriptContentGrowthTests {
       /// Content already filling the viewport stays pinned to the newest edge when it grows.
@@ -35,13 +41,7 @@
         try await assertGrowth(position: .pinned, thread: true, lines: 10)
       }
 
-      private enum ReadingPosition {
-        case pinned
-        case scrolledUp
-        case activeScroll
-      }
-
-      private func assertGrowth(position: ReadingPosition, thread: Bool, lines: Int) async throws {
+      private func assertGrowth(position: TranscriptGrowthPosition, thread: Bool, lines: Int) async throws {
         let readingHistory = position == .scrolledUp || position == .activeScroll
         let state = fixtureState(thread: thread)
         let host = NSHostingView(rootView: Group {
