@@ -111,7 +111,10 @@ export {
   CHAT_ROOM_PINNED_MESSAGE_EVENT_NAME,
   type ChatRoomPinnedMessageAction,
 } from "./chat-room-pinned-message-event.js";
-export { canQuoteIntoRoom } from "./chat-room-quote-audience.js";
+export {
+  canQuoteIntoRoom,
+  isSelfJoinableChannelDiscoverability,
+} from "./chat-room-quote-audience.js";
 export {
   buildRoomQuoteSnippetParts,
   type ChatRoomQuoteAttachment,
