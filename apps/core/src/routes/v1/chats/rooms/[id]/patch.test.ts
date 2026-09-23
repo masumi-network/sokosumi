@@ -114,6 +114,7 @@ vi.mock("@/helpers/chat-room-mention-status", () => ({
 }));
 
 vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: vi.fn(),
   publishChatMembershipRevokedToUsers: publishChatMembershipRevokedToUsersMock,
 }));
 
