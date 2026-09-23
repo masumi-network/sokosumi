@@ -289,6 +289,7 @@ describe("PUT /tasks/{id}/calendar-schedule", () => {
       expect.any(Object),
       WORKSPACE_ID,
       [null],
+      "user_123",
     );
     expect(taskUpdateMock).toHaveBeenCalledOnce();
     expect(taskUpdateMock.mock.calls[0][0].data.scheduleRevision).toEqual({
