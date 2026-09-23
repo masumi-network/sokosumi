@@ -845,7 +845,11 @@
       "zoomReset": "Zoom zurücksetzen",
       "more": "Weitere Optionen",
       "openInNewTab": "In neuem Tab öffnen",
-      "copyImage": "Bild kopieren"
+      "copyImage": "Bild kopieren",
+      "previous": "Vorheriges Bild",
+      "next": "Nächstes Bild",
+      "position": "{current} / {total}",
+      "stepAnnouncement": "Bild {current} von {total}, {name}"
     },
     "DocumentViewer": {
       "title": "Dokument",
