@@ -446,7 +446,7 @@ export function ChatRoomSidebarRow({
       }}
     >
       <Pencil className="size-4" aria-hidden />
-      {isChannel ? tChannels("editChannel") : tChannels("GroupName.nameGroup")}
+      {isChannel ? tChannels("editChannel") : tChannels("GroupName.rename")}
     </DropdownMenuItem>
   );
 

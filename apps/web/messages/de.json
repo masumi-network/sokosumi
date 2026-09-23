@@ -5685,7 +5685,7 @@
         "left": "{name} hat den Channel verlassen"
       },
       "GroupName": {
-        "nameGroup": "Gruppe benennen",
+        "rename": "Umbenennen",
         "dialogTitle": "Gruppe benennen",
         "dialogDescription": "Alle in der Gruppe sehen diesen Namen statt der Mitgliederliste. Lass das Feld leer, um wieder die Mitglieder anzuzeigen.",
         "label": "Gruppenname",

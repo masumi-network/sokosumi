@@ -5685,7 +5685,7 @@
         "left": "{name} left"
       },
       "GroupName": {
-        "nameGroup": "Name this group",
+        "rename": "Rename",
         "dialogTitle": "Name this group",
         "dialogDescription": "Everyone in the group sees this name instead of the member list. Leave it empty to show the members again.",
         "label": "Group name",

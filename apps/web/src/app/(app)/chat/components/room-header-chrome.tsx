@@ -202,7 +202,7 @@ export function RoomHeaderChrome({
                 <button
                   type="button"
                   className={ROOM_TITLE_BUTTON_CLASS}
-                  title={t("GroupName.nameGroup")}
+                  title={t("GroupName.rename")}
                   data-testid="room-open-title"
                 >
                   <MessageCircle className="text-muted-foreground size-4 shrink-0" />

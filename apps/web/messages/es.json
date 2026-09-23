@@ -5685,7 +5685,7 @@
         "left": "{name} salió"
       },
       "GroupName": {
-        "nameGroup": "Poner nombre al grupo",
+        "rename": "Cambiar nombre",
         "dialogTitle": "Poner nombre al grupo",
         "dialogDescription": "Todos en el grupo ven este nombre en lugar de la lista de miembros. Déjalo vacío para volver a mostrar a los miembros.",
         "label": "Nombre del grupo",
