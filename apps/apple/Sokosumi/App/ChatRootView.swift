@@ -26,18 +26,7 @@ struct ChatRootView: View {
       guard let link = ChatLink(url: url, webBaseURL: CoreSettings.webBaseURL) else { return .systemAction }
       switch link {
       case let .room(roomId, messageId):
-        linkTask?.cancel()
-        linkTask = Task { @MainActor in
-          do {
-            if try await workspaces.openRoomLink(roomId: roomId, messageId: messageId, auth: auth) == .unavailable, !Task.isCancelled {
-              linkError = "This message or conversation is no longer available in this workspace."
-            }
-          } catch {
-            if !Task.isCancelled {
-              linkError = friendlyMessage(for: error)
-            }
-          }
-        }
+        openRoomLink(roomId: roomId, messageId: messageId)
       case let .invitation(id):
         inviteLink = .init(context: workspaces.compositionContext, destination: .invitation(id: id))
       case let .guestJoin(token):
@@ -143,8 +132,21 @@ struct ChatRootView: View {
       NavigationSplitView {
         ConversationSidebarView()
       } detail: {
-        if let selectedRoomId = workspaces.selectedRoomId,
-           let selectedRoom = workspaces.rooms.first(where: { $0.id == selectedRoomId }) {
+        if workspaces.sidebar.showsThreadsView {
+          NavigationStack {
+            CrossRoomThreadsView(
+              threads: workspaces.crossRoomThreads,
+              rooms: workspaces.rooms,
+              roomsLive: workspaces.roomsLive,
+              currentUserId: workspaces.currentUserId,
+              scope: workspaces.selectionId,
+              load: { await workspaces.updateCrossRoomThreads($0, auth: auth) },
+              open: { openRoomLink(roomId: $0, messageId: $1) }
+            )
+            .navigationTitle("Threads")
+          }
+        } else if let selectedRoomId = workspaces.selectedRoomId,
+                  let selectedRoom = workspaces.rooms.first(where: { $0.id == selectedRoomId }) {
           NavigationStack {
             RoomTimelineView(roomId: selectedRoomId)
               .navigationTitle(roomDisplayName(selectedRoom, currentUserId: workspaces.currentUserId))
@@ -175,6 +177,23 @@ struct ChatRootView: View {
     if let signOutError = auth.signOutError {
       Text(signOutError)
         .foregroundStyle(.red)
+    }
+  }
+
+  /// An in-app chat link or a Threads row: open the room, and the message or reply in it; the newest request
+  /// wins, and a target that is gone says so.
+  private func openRoomLink(roomId: String, messageId: String?) {
+    linkTask?.cancel()
+    linkTask = Task { @MainActor in
+      do {
+        if try await workspaces.openRoomLink(roomId: roomId, messageId: messageId, auth: auth) == .unavailable, !Task.isCancelled {
+          linkError = "This message or conversation is no longer available in this workspace."
+        }
+      } catch {
+        if !Task.isCancelled {
+          linkError = friendlyMessage(for: error)
+        }
+      }
     }
   }
 

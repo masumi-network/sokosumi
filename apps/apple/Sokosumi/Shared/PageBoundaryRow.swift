@@ -103,4 +103,56 @@ extension PageBoundaryRow.Copy {
     retry: "Load older threads",
     accessibilityIdentifier: "thread-list-load-more"
   )
+
+  /// Web's `ThreadListLoadMore` under the Threads view's Unread group (`ThreadsView.*`).
+  static let unreadThreads = Self(
+    context: nil,
+    load: "Show more",
+    loading: "Loading threads…",
+    failure: "Could not load unread threads.",
+    retry: "Try again",
+    accessibilityIdentifier: "unread-threads-load-more"
+  )
+
+  /// Web's `ThreadListLoadMore` under the Threads view's Earlier group.
+  static let earlierThreads = Self(
+    context: nil,
+    load: "Load older threads",
+    loading: "Loading threads…",
+    failure: "Could not load threads. Try again.",
+    retry: "Try again",
+    accessibilityIdentifier: "earlier-threads-load-more"
+  )
+}
+
+extension View {
+  /// Web's `useLoadWhenVisible` on a paging row: asks for the next page as soon as any of the row is in view,
+  /// once per arming. It re-arms when the row goes idle again or the last loaded row changes, even when the
+  /// row never left the screen; a failed page stays disarmed until the reader retries.
+  func loadsWhenVisible(armed: Bool, boundaryKey: String?, load: @escaping () -> Void) -> some View {
+    modifier(LoadWhenVisible(armed: armed, boundaryKey: boundaryKey, load: load))
+  }
+}
+
+private struct LoadWhenVisible: ViewModifier {
+  private struct Arming: Equatable {
+    let visible: Bool
+    let armed: Bool
+    let boundaryKey: String?
+  }
+
+  let armed: Bool
+  let boundaryKey: String?
+  let load: () -> Void
+  @State private var visible = false
+
+  func body(content: Content) -> some View {
+    content
+      .onScrollVisibilityChange(threshold: 0.01) { visible = $0 }
+      .onDisappear { visible = false }
+      .onChange(of: Arming(visible: visible, armed: armed, boundaryKey: boundaryKey), initial: true) { _, arming in
+        guard arming.visible, arming.armed else { return }
+        Task { @MainActor in load() }
+      }
+  }
 }
