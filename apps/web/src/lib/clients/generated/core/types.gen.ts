@@ -2321,6 +2321,10 @@ export type ChatRoom = {
      */
     unreadThreadCount?: number;
     /**
+     * Unread Thread replies naming the viewer, across every unread Thread in this room, including those past the `unreadThreads` cap. Counted from the replies, so a Look clears it. SOK-1159.
+     */
+    unreadThreadMentionCount?: number;
+    /**
      * Up to 3 unread Threads in this room, newest unread reply first, for the sidebar's inset rows. Same eligibility as threadUnreadCount. `unreadThreadCount` is the true number; this list is capped. ADR-0037.
      */
     unreadThreads?: Array<{

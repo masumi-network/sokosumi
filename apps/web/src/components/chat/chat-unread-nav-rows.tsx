@@ -10,17 +10,14 @@ import {
   CHAT_THREADS_PATH,
   CHAT_UNREADS_PATH,
 } from "@/app/chat/utils/chat-route-base";
+import { RailAttentionPill } from "@/components/chat/chat-room-sidebar-row";
+import { RowCountMark } from "@/components/chat/mention-count-pill";
 import {
   RAIL_FLYOUT_CLOSE_DELAY_MS,
   RAIL_FLYOUT_OPEN_DELAY_MS,
-  RailAttentionPill,
-} from "@/components/chat/chat-room-sidebar-row";
-import { MentionCountPill } from "@/components/chat/mention-count-pill";
+} from "@/components/chat/rail-flyout-delays";
 import { resolveUnreadThreadsAttention } from "@/components/chat/room-attention";
-import {
-  ROOM_COUNT_CAP,
-  roomCountLabel,
-} from "@/components/chat/room-count-label";
+import { ROOM_COUNT_CAP } from "@/components/chat/room-count-label";
 import { UnreadThreadLink } from "@/components/chat/unread-thread-link";
 import {
   HoverCard,
@@ -210,13 +207,7 @@ export function ChatUnreadNavRows({
               data-slot="unread-threads-count"
               className="group-data-[collapsible=icon]:hidden pointer-events-none absolute top-1/2 right-1 z-10 flex size-8 -translate-y-1/2 items-center justify-center md:size-7"
             >
-              {mentionCount > 0 ? (
-                <MentionCountPill count={mentionCount} />
-              ) : (
-                <span className="text-muted-foreground text-[0.625rem] leading-4 font-semibold tabular-nums">
-                  {roomCountLabel(threadCount)}
-                </span>
-              )}
+              <RowCountMark mentionCount={mentionCount} count={threadCount} />
             </span>
           ) : null}
         </div>

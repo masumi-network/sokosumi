@@ -11,6 +11,7 @@ interface RoomReadOverlay {
   threadUnreadCount?: number;
   /** The room's unread Threads, which a Look changes as it does the counts. */
   unreadThreadCount?: number;
+  unreadThreadMentionCount?: number;
   unreadThreads?: ChatRoom["unreadThreads"];
   unreadMentionCount: number;
   markedUnread: boolean;
@@ -27,6 +28,7 @@ interface RoomAttentionFields extends RoomAttentionCounts {
   updatedAt: string | Date;
   markedUnread: boolean;
   unreadThreadCount?: number;
+  unreadThreadMentionCount?: number;
   unreadThreads?: ChatRoom["unreadThreads"];
 }
 
@@ -51,6 +53,7 @@ function storeAttention(
     channelUnreadCount: room.channelUnreadCount,
     threadUnreadCount: room.threadUnreadCount,
     unreadThreadCount: room.unreadThreadCount,
+    unreadThreadMentionCount: room.unreadThreadMentionCount,
     unreadThreads: room.unreadThreads,
     unreadMentionCount: room.unreadMentionCount,
     markedUnread: room.markedUnread,
@@ -84,6 +87,8 @@ function applyAttention<T extends RoomAttentionFields>(
     // A snapshot stored without the list says nothing about it, so the
     // room's own list stands.
     unreadThreadCount: overlay.unreadThreadCount ?? room.unreadThreadCount,
+    unreadThreadMentionCount:
+      overlay.unreadThreadMentionCount ?? room.unreadThreadMentionCount,
     unreadThreads: overlay.unreadThreads ?? room.unreadThreads,
     unreadMentionCount: overlay.unreadMentionCount,
     markedUnread: overlay.markedUnread,

@@ -4,6 +4,7 @@ import { CHAT_ROOM_BADGE_MESSAGE_KEYS } from "@/helpers/notification-delivery";
 import {
   CHAT_ROOM_UNREAD_THREAD_CAP,
   CHAT_ROOM_UNREAD_THREAD_CONTENT_CHARS,
+  type ChatUnreadThread,
 } from "@/schemas/chat-room.schema";
 
 import {
@@ -25,6 +26,14 @@ export function sqlMessageAttentionAt(alias: "message" | "reply"): string {
     WHERE response_mention."responseMessageId" = ${alias}.id
       AND response_mention.status = 'responded'
   ))`;
+}
+
+/** `$1::uuid, …, $n::uuid`: the room ids lead every multi-room query. */
+function sqlRoomIdPlaceholders(count: number): string {
+  return Array.from(
+    { length: count },
+    (_, index) => `$${index + 1}::uuid`,
+  ).join(", ");
 }
 
 /**
@@ -189,9 +198,7 @@ export async function getChatRoomUnreadCounts(
     return new Map();
   }
 
-  const roomIdPlaceholders = uniqueRoomIds
-    .map((_, index) => `$${index + 1}::uuid`)
-    .join(", ");
+  const roomIdPlaceholders = sqlRoomIdPlaceholders(uniqueRoomIds.length);
   const userIdPlaceholder = `$${uniqueRoomIds.length + 1}`;
 
   const rows = await tx.$queryRawUnsafe<
@@ -257,10 +264,16 @@ export interface ChatRoomUnreadThreads {
   threads: ChatRoomUnreadThreadPreview[];
   /** Every unread Thread in the room, so the overflow can state the rest. */
   unreadThreadCount: number;
+  /**
+   * Unread replies naming the viewer across every unread Thread in the room,
+   * past the cap too, so a mention in a Thread the list leaves out still
+   * reaches the Threads entry's pill.
+   */
+  unreadThreadMentionCount: number;
 }
 
 export function emptyChatRoomUnreadThreads(): ChatRoomUnreadThreads {
-  return { threads: [], unreadThreadCount: 0 };
+  return { threads: [], unreadThreadCount: 0, unreadThreadMentionCount: 0 };
 }
 
 /**
@@ -332,13 +345,16 @@ export async function listChatRoomUnreadThreads(
     return new Map();
   }
 
-  const roomIdPlaceholders = uniqueRoomIds
-    .map((_, index) => `$${index + 1}::uuid`)
-    .join(", ");
+  const roomIdPlaceholders = sqlRoomIdPlaceholders(uniqueRoomIds.length);
   const userIdPlaceholder = `$${uniqueRoomIds.length + 1}`;
 
   const rows = await tx.$queryRawUnsafe<
-    Array<UnreadThreadRow & { unreadThreadCount: number | bigint }>
+    Array<
+      UnreadThreadRow & {
+        unreadThreadCount: number | bigint;
+        unreadThreadMentionCount: number | bigint;
+      }
+    >
   >(
     `
     WITH unread AS (
@@ -349,6 +365,8 @@ export async function listChatRoomUnreadThreads(
         unread.*,
         COUNT(*) OVER (PARTITION BY unread."roomId")::int
           AS "unreadThreadCount",
+        SUM(unread."unreadMentionCount") OVER (PARTITION BY unread."roomId")::int
+          AS "unreadThreadMentionCount",
         ROW_NUMBER() OVER (
           PARTITION BY unread."roomId"
           ORDER BY unread."lastUnreadAt" DESC, unread."parentMessageId" DESC
@@ -362,7 +380,8 @@ export async function listChatRoomUnreadThreads(
       "parentContent",
       "unreadReplyCount",
       "unreadMentionCount",
-      "unreadThreadCount"
+      "unreadThreadCount",
+      "unreadThreadMentionCount"
     FROM ranked
     WHERE rank <= ${CHAT_ROOM_UNREAD_THREAD_CAP}
     ORDER BY "roomId", rank
@@ -375,14 +394,11 @@ export async function listChatRoomUnreadThreads(
   for (const row of rows) {
     const entry = byRoom.get(row.roomId) ?? emptyChatRoomUnreadThreads();
     entry.unreadThreadCount = Number(row.unreadThreadCount);
+    entry.unreadThreadMentionCount = Number(row.unreadThreadMentionCount ?? 0);
     entry.threads.push(mapUnreadThreadRow(row));
     byRoom.set(row.roomId, entry);
   }
   return byRoom;
-}
-
-export interface ChatUnreadThread extends ChatRoomUnreadThreadPreview {
-  roomId: string;
 }
 
 export interface ChatUnreadThreadsPage {
@@ -416,9 +432,7 @@ export async function listUnreadThreadsAcrossRooms(
   }
 
   const { cursor, limit } = options;
-  const roomIdPlaceholders = uniqueRoomIds
-    .map((_, index) => `$${index + 1}::uuid`)
-    .join(", ");
+  const roomIdPlaceholders = sqlRoomIdPlaceholders(uniqueRoomIds.length);
   const userIdPlaceholder = `$${uniqueRoomIds.length + 1}`;
   const limitPlaceholder = `$${uniqueRoomIds.length + 2}`;
   const cursorPlaceholder = `$${uniqueRoomIds.length + 3}::uuid`;

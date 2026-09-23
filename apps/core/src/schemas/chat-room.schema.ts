@@ -236,6 +236,11 @@ export const chatRoomSchema = z
         "How many Threads in this room are Thread unread for the viewer. Counts Threads, where threadUnreadCount counts replies. States what `unreadThreads` leaves out past its cap. ADR-0037.",
       example: 4,
     }),
+    unreadThreadMentionCount: z.number().int().min(0).default(0).openapi({
+      description:
+        "Unread Thread replies naming the viewer, across every unread Thread in this room, including those past the `unreadThreads` cap. Counted from the replies, so a Look clears it. SOK-1159.",
+      example: 1,
+    }),
     unreadThreads: z
       .array(chatRoomUnreadThreadSchema)
       .max(CHAT_ROOM_UNREAD_THREAD_CAP)

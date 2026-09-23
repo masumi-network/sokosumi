@@ -5,7 +5,6 @@ import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
-import { listUnreadThreadsAction } from "@/app/chat/actions";
 import {
   ChatCaughtUp,
   ChatUnreadViewHeader,
@@ -15,11 +14,13 @@ import { UnreadThreadLink } from "@/components/chat/unread-thread-link";
 import { useLiveChatRooms } from "@/components/chat/use-live-chat-rooms";
 import { Button } from "@/components/ui/button";
 import type { ChatRoom } from "@/lib/clients/generated/core";
-import type { UnreadChatThreadsPage } from "@/lib/services/chat-room.service";
+import type { ChatUnreadThreadsPage } from "@/lib/services/chat-room.service";
+
+import { fetchChatUnreadThreads } from "./fetch-chat-unread-threads";
 
 interface UnreadThreadsViewProps {
   /** Core's first page at request time, or null when that read failed. */
-  initialPage: UnreadChatThreadsPage | null;
+  initialPage: ChatUnreadThreadsPage | null;
   /** The rooms as the sidebar cache held them, until the live read lands. */
   initialRooms: readonly ChatRoom[];
   currentUserId: string;
@@ -36,16 +37,6 @@ function unreadThreadsFingerprint(rooms: readonly ChatRoom[]): string {
     .filter((room) => room.mutedAt == null)
     .map((room) => `${room.id}:${room.threadUnreadCount ?? 0}`)
     .join(",");
-}
-
-async function readUnreadThreadsPage(
-  cursor: string | undefined,
-): Promise<UnreadChatThreadsPage> {
-  const result = await listUnreadThreadsAction(cursor ? { cursor } : undefined);
-  if (!result.ok) {
-    throw new Error(result.error.message ?? "Could not load unread threads.");
-  }
-  return result.value;
 }
 
 /**
@@ -71,7 +62,7 @@ export function UnreadThreadsView({
 
   const query = useInfiniteQuery({
     queryKey: ["chat", "unread-threads", fingerprint],
-    queryFn: ({ pageParam }) => readUnreadThreadsPage(pageParam),
+    queryFn: ({ pageParam }) => fetchChatUnreadThreads(pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     initialData:

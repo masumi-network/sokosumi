@@ -11,6 +11,7 @@ import {
   getChatRoomThreadAggregates,
   getChatRoomUnreadCounts,
   getChatRoomUnreadMentionCounts,
+  listChatRoomUnreadThreads,
   listUnreadThreadsAcrossRooms,
   markAllChatRoomThreadsRead,
   setChatRoomThreadMuted,
@@ -770,5 +771,31 @@ describe("listUnreadThreadsAcrossRooms", () => {
     const sql = String(queryRawUnsafe.mock.calls[0]?.[0]);
     expect(sql).toContain('thread_read."mutedAt" IS NULL');
     expect(sql).toContain('parent."senderUserId" = $2');
+  });
+});
+
+describe("listChatRoomUnreadThreads", () => {
+  it("states a room's Thread mentions past the cap, not only the listed ones", async () => {
+    const queryRawUnsafe = vi.fn().mockResolvedValue([
+      {
+        roomId: "room-a",
+        parentMessageId: "p1",
+        firstUnreadReplyId: "r1",
+        parentContent: "",
+        unreadReplyCount: 1,
+        unreadMentionCount: 0,
+        unreadThreadCount: 4,
+        unreadThreadMentionCount: BigInt(2),
+      },
+    ]);
+
+    const byRoom = await listChatRoomUnreadThreads(["room-a"], "user_1", {
+      $queryRawUnsafe: queryRawUnsafe,
+    } as never);
+
+    expect(byRoom.get("room-a")).toMatchObject({
+      unreadThreadCount: 4,
+      unreadThreadMentionCount: 2,
+    });
   });
 });

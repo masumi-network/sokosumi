@@ -16,6 +16,19 @@ export interface RoomAttentionCounts {
 }
 
 /**
+ * Whether a room's badge counts mentions. Core writes a notification for
+ * every message only in a Direct of two humans or fewer
+ * (`shouldEmitChatDirectMessageNotifications`); everywhere else, a group
+ * Direct included, the badge counts mentions alone.
+ */
+export function roomBadgeCountsMentions(room: {
+  kind: string;
+  userMembers: readonly unknown[];
+}): boolean {
+  return !(room.kind === "direct" && room.userMembers.length <= 2);
+}
+
+/**
  * Sidebar attention chrome for a room row.
  * Bold = unread top-level activity, an unread mention, or forced unread;
  * badge = unread @mentions only. Thread replies do not bold a row (ADR-0037):
@@ -102,6 +115,7 @@ export function resolveRoomAttention(options: {
 /** Everything a room row holds about what is unread in it. */
 type RoomUnreadState = RoomAttentionCounts & {
   unreadThreadCount?: number;
+  unreadThreadMentionCount?: number;
   unreadThreads?: unknown;
 };
 
@@ -127,6 +141,7 @@ export function keepRoomUnreadState<T extends RoomUnreadState>(
     channelUnreadCount: held.channelUnreadCount,
     threadUnreadCount: held.threadUnreadCount,
     unreadThreadCount: held.unreadThreadCount,
+    unreadThreadMentionCount: held.unreadThreadMentionCount,
     unreadThreads: held.unreadThreads,
     unreadMentionCount: held.unreadMentionCount,
     markedUnread: held.markedUnread,
@@ -185,11 +200,12 @@ export function resolveSectionAttention(
 }
 
 /** What a room holds for the Threads and All unreads views. */
-type RoomUnreadSummary = RoomAttentionCounts & {
+interface RoomUnreadSummary extends RoomAttentionCounts {
   mutedAt?: unknown;
   unreadThreadCount?: number;
+  unreadThreadMentionCount?: number;
   unreadThreads?: ReadonlyArray<{ unreadMentionCount?: number }>;
-};
+}
 
 /**
  * The Threads entry's attention: every unread Thread across the reader's
@@ -197,10 +213,10 @@ type RoomUnreadSummary = RoomAttentionCounts & {
  *
  * `threadCount` counts Threads, not replies, so it agrees with a room's
  * "4 more unread threads" row. A muted room lists no Thread in the sidebar,
- * so it adds none here either. `mentionCount` sums what the rooms list, and
- * each room lists at most three Threads, so a mention past that cap waits for
- * the Threads the room lists ahead of it. The rail mark follows the same one
- * rule as a room's: a mention outranks unread.
+ * so it adds none here either. `mentionCount` is every unread reply naming
+ * the reader across those Threads, past each room's three listed ones too.
+ * The rail mark follows the same one rule as a room's: a mention outranks
+ * unread.
  */
 export function resolveUnreadThreadsAttention(
   rooms: readonly RoomUnreadSummary[],
@@ -215,9 +231,10 @@ export function resolveUnreadThreadsAttention(
     if (room.mutedAt != null) continue;
     const listed = room.unreadThreads ?? [];
     threadCount += room.unreadThreadCount ?? listed.length;
-    for (const thread of listed) {
-      mentionCount += thread.unreadMentionCount ?? 0;
-    }
+    // A snapshot from before Core counted past the cap has only the list.
+    mentionCount +=
+      room.unreadThreadMentionCount ??
+      listed.reduce((sum, thread) => sum + (thread.unreadMentionCount ?? 0), 0);
   }
   return {
     threadCount,

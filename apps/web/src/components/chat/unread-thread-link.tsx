@@ -2,13 +2,11 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import type { ReactNode } from "react";
 
 import { getRoomDisplayName } from "@/app/chat/components/room-helpers";
 import { roomMentionNames } from "@/app/chat/utils/room-mention-names";
 import { formatUnreadThreadsPreview } from "@/app/chat/utils/unread-threads-preview";
-import { MentionCountPill } from "@/components/chat/mention-count-pill";
-import { roomCountLabel } from "@/components/chat/room-count-label";
+import { RowCountMark } from "@/components/chat/mention-count-pill";
 import { ThreadIconCircle } from "@/components/chat/thread-icon-circle";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
@@ -33,8 +31,6 @@ interface UnreadThreadLinkProps {
    * in for.
    */
   size: "sm" | "md";
-  /** Wraps the link, so a mobile sheet can close when it is followed. */
-  wrapLink?: (link: ReactNode) => ReactNode;
 }
 
 /**
@@ -55,7 +51,6 @@ export function UnreadThreadLink({
   room,
   currentUserId,
   size,
-  wrapLink = (link) => link,
 }: UnreadThreadLinkProps) {
   const t = useTranslations("App.Channels.ThreadRows");
   const tChannels = useTranslations("App.Channels");
@@ -71,7 +66,7 @@ export function UnreadThreadLink({
       roomMentionNames(room, tChannels("MentionAll.label")),
     ) || t("untitled");
 
-  return wrapLink(
+  return (
     <Link
       href={chatRoomMessageHref(room.id, thread.firstUnreadReplyId)}
       data-slot="unread-thread-link"
@@ -106,19 +101,16 @@ export function UnreadThreadLink({
       </span>
       <span className="flex w-7 shrink-0 justify-center pt-px">
         <span aria-hidden>
-          {mentions > 0 ? (
-            <MentionCountPill count={mentions} />
-          ) : (
-            <span className="text-muted-foreground text-[0.625rem] leading-4 font-semibold tabular-nums">
-              {roomCountLabel(thread.unreadReplyCount)}
-            </span>
-          )}
+          <RowCountMark
+            mentionCount={mentions}
+            count={thread.unreadReplyCount}
+          />
         </span>
         <span className="sr-only">
           {mentions > 0 ? `${t("mentions", { count: mentions })}, ` : null}
           {t("unreadReplies", { count: thread.unreadReplyCount })}
         </span>
       </span>
-    </Link>,
+    </Link>
   );
 }

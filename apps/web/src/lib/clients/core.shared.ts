@@ -1035,7 +1035,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function getUnreadChatThreads(
+  async function getChatUnreadThreads(
     query?: GetChatsThreadsUnreadData["query"],
   ) {
     return executeCoreOperation(
@@ -5218,7 +5218,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getChatRoomThreadMessages,
     getChatRoomThreads,
     getChatRoomThreadsUnreadCount,
-    getUnreadChatThreads,
+    getChatUnreadThreads,
     getChatRooms,
     getChannelSlugAvailability,
     getDiscoverableChatRooms,

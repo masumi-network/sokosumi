@@ -16,16 +16,14 @@ import { chatRoomHref } from "@/app/chat/utils/chat-route-base";
 import { ChannelRoomMark } from "@/components/chat/channel-room-mark";
 import { ChatRoomThreadRows } from "@/components/chat/chat-room-thread-rows";
 import { DirectRoomAvatarStack } from "@/components/chat/direct-room-avatar-stack";
-import { MentionCountPill } from "@/components/chat/mention-count-pill";
+import { RowCountMark } from "@/components/chat/mention-count-pill";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import {
   listAllUnreadRooms,
   resolveRoomAttention,
+  roomBadgeCountsMentions,
 } from "@/components/chat/room-attention";
-import {
-  ROOM_COUNT_CAP,
-  roomCountLabel,
-} from "@/components/chat/room-count-label";
+import { ROOM_COUNT_CAP } from "@/components/chat/room-count-label";
 import { useLiveChatRooms } from "@/components/chat/use-live-chat-rooms";
 import { Button } from "@/components/ui/button";
 import { SidebarRowSlot } from "@/components/ui/sidebar";
@@ -149,13 +147,10 @@ export function AllUnreadsView({
                       muted count of top-level unread otherwise. */}
                   <span className="flex w-7 shrink-0 justify-center">
                     <span aria-hidden>
-                      {mentionCount > 0 ? (
-                        <MentionCountPill count={mentionCount} />
-                      ) : channelUnread > 0 ? (
-                        <span className="text-muted-foreground text-[0.625rem] leading-4 font-semibold tabular-nums">
-                          {roomCountLabel(channelUnread)}
-                        </span>
-                      ) : null}
+                      <RowCountMark
+                        mentionCount={mentionCount}
+                        count={channelUnread}
+                      />
                     </span>
                     <span className="sr-only">
                       {mentionCount > 0
@@ -190,10 +185,7 @@ export function AllUnreadsView({
       unreadMentionCount: room.unreadMentionCount,
       markedUnread: room.markedUnread,
       isMuted: room.mutedAt != null,
-      // Core counts every message toward the badge only in a Direct of two.
-      badgeCountsMentions: !(
-        room.kind === "direct" && room.userMembers.length <= 2
-      ),
+      badgeCountsMentions: roomBadgeCountsMentions(room),
     });
   }
 }

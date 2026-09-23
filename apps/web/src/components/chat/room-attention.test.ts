@@ -541,6 +541,22 @@ describe("resolveUnreadThreadsAttention", () => {
   });
 });
 
+describe("resolveUnreadThreadsAttention past the listed Threads", () => {
+  it("counts a mention in a Thread the room does not list", () => {
+    expect(
+      resolveUnreadThreadsAttention([
+        {
+          ...room("a", {
+            unreadThreadCount: 5,
+            unreadThreads: [unreadThread(), unreadThread(), unreadThread()],
+          }),
+          unreadThreadMentionCount: 1,
+        },
+      ]),
+    ).toEqual({ threadCount: 5, mentionCount: 1, rail: "mention" });
+  });
+});
+
 describe("listAllUnreadRooms", () => {
   it("lists rooms with top-level unread first, then rooms with only Thread unread", () => {
     const rooms = [

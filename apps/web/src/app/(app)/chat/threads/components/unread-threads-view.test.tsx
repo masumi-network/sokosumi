@@ -6,22 +6,22 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import messages from "@/../messages/en.json";
 import { makeRoom } from "@/components/chat/__tests__/chat-room-fixtures";
 import type { ChatRoom } from "@/lib/clients/generated/core";
-import type { UnreadChatThreadsPage } from "@/lib/services/chat-room.service";
+import type { ChatUnreadThreadsPage } from "@/lib/services/chat-room.service";
 
 import { UnreadThreadsView } from "./unread-threads-view";
 
-const { liveRooms, listUnreadThreadsActionMock } = vi.hoisted(() => ({
+const { liveRooms, fetchUnreadThreadsMock } = vi.hoisted(() => ({
   liveRooms: { current: [] as ChatRoom[] },
-  listUnreadThreadsActionMock: vi.fn(),
+  fetchUnreadThreadsMock: vi.fn(),
 }));
 
 vi.mock("@/components/chat/use-live-chat-rooms", () => ({
   useLiveChatRooms: () => liveRooms.current,
 }));
 
-vi.mock("@/app/chat/actions", () => ({
-  listUnreadThreadsAction: (...args: unknown[]) =>
-    listUnreadThreadsActionMock(...args),
+vi.mock("./fetch-chat-unread-threads", () => ({
+  fetchChatUnreadThreads: (...args: unknown[]) =>
+    fetchUnreadThreadsMock(...args),
 }));
 
 vi.mock("next/link", () => ({
@@ -43,7 +43,7 @@ const design = makeRoom({
   threadUnreadCount: 1,
 });
 
-function page(): UnreadChatThreadsPage {
+function page(): ChatUnreadThreadsPage {
   return {
     threads: [
       {
@@ -67,7 +67,7 @@ function page(): UnreadChatThreadsPage {
   };
 }
 
-function renderView(initialPage: UnreadChatThreadsPage | null = page()) {
+function renderView(initialPage: ChatUnreadThreadsPage | null = page()) {
   return render(
     <QueryClientProvider
       client={
@@ -88,7 +88,7 @@ function renderView(initialPage: UnreadChatThreadsPage | null = page()) {
 beforeEach(() => {
   vi.clearAllMocks();
   liveRooms.current = [];
-  listUnreadThreadsActionMock.mockResolvedValue({ ok: true, value: page() });
+  fetchUnreadThreadsMock.mockResolvedValue(page());
 });
 
 describe("UnreadThreadsView", () => {
@@ -133,6 +133,6 @@ describe("UnreadThreadsView", () => {
 
     const list = await screen.findByRole("list", { name: "Unread threads" });
     expect(within(list).getAllByRole("link")).toHaveLength(2);
-    expect(listUnreadThreadsActionMock).toHaveBeenCalledWith(undefined);
+    expect(fetchUnreadThreadsMock).toHaveBeenCalledWith(undefined);
   });
 });

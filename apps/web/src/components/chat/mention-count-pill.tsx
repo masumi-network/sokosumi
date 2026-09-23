@@ -1,5 +1,7 @@
 import { AtSign } from "lucide-react";
 
+import { roomCountLabel } from "@/components/chat/room-count-label";
+
 /**
  * The highest mention count shown as itself. The room's pill shares a 28px
  * hole with its row's menu, and the `@` takes its share of it, so past this
@@ -38,6 +40,32 @@ export function MentionCountPill({ count }: { count: number }) {
         className="size-2 shrink-0"
       />
       {count > MENTION_COUNT_CAP ? `${MENTION_COUNT_CAP}+` : count}
+    </span>
+  );
+}
+
+/**
+ * A row's one drawn number (the one-number rule, SOK-1147): the `@` pill
+ * where the reader was named, the muted count otherwise, nothing at zero.
+ * Draws only; each row states the number in words for assistive technology,
+ * because what it counts differs from row to row.
+ */
+export function RowCountMark({
+  mentionCount,
+  count,
+}: {
+  mentionCount: number;
+  count: number;
+}) {
+  if (mentionCount > 0) {
+    return <MentionCountPill count={mentionCount} />;
+  }
+  if (count <= 0) {
+    return null;
+  }
+  return (
+    <span className="text-muted-foreground text-[0.625rem] leading-4 font-semibold tabular-nums">
+      {roomCountLabel(count)}
     </span>
   );
 }

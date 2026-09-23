@@ -31,7 +31,7 @@ import {
   pathWithSearch,
 } from "@/app/chat/utils/chat-route-base";
 import { ChatRoomThreadRows } from "@/components/chat/chat-room-thread-rows";
-import { MentionCountPill } from "@/components/chat/mention-count-pill";
+import { RowCountMark } from "@/components/chat/mention-count-pill";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import {
   markOrganizationChatRoomUnreadAction,
@@ -41,11 +41,15 @@ import {
   unmuteOrganizationChatRoomAction,
   unpinOrganizationChatRoomAction,
 } from "@/components/chat/organization-chat-list.actions";
-import { resolveRoomAttention } from "@/components/chat/room-attention";
 import {
-  ROOM_COUNT_CAP,
-  roomCountLabel,
-} from "@/components/chat/room-count-label";
+  RAIL_FLYOUT_CLOSE_DELAY_MS,
+  RAIL_FLYOUT_OPEN_DELAY_MS,
+} from "@/components/chat/rail-flyout-delays";
+import {
+  resolveRoomAttention,
+  roomBadgeCountsMentions,
+} from "@/components/chat/room-attention";
+import { ROOM_COUNT_CAP } from "@/components/chat/room-count-label";
 import {
   applyRoomReadOverlays,
   beginRoomAttentionChange,
@@ -112,20 +116,6 @@ import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
  */
 const TRAILING_CLUSTER_CLASS =
   "group-data-[collapsible=icon]:hidden absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center";
-
-/**
- * A beat before the thread flyout opens, so running the pointer down the rail
- * does not throw a card out of every unread room on the way. The same beat
- * the app's other hover cards take.
- */
-export const RAIL_FLYOUT_OPEN_DELAY_MS = 150;
-/**
- * Long enough to cross the 12px gap from the mark onto the card without it
- * closing under the pointer. The rail's name tooltips open at once, so while
- * this runs a neighbour's tooltip and this card are both up; the card is on
- * its way out, and any shorter and the gap could not be crossed at all.
- */
-export const RAIL_FLYOUT_CLOSE_DELAY_MS = 120;
 
 export interface ChatRoomSidebarRowProps {
   room: ChatRoom;
@@ -266,13 +256,7 @@ function MentionBadge({
         ],
       )}
     >
-      {count > 0 ? (
-        <MentionCountPill count={count} />
-      ) : (
-        <span className="text-muted-foreground text-[0.625rem] leading-4 font-semibold tabular-nums">
-          {roomCountLabel(unreadTextCount)}
-        </span>
-      )}
+      <RowCountMark mentionCount={count} count={unreadTextCount} />
     </span>
   );
 }
@@ -346,12 +330,7 @@ export function ChatRoomSidebarRow({
       room.discoverability === "matched" ||
       room.userMembers.filter((member) => member.access === "member").length >
         1);
-  // Core writes a notification for every message only in a Direct of two
-  // humans or fewer (`shouldEmitChatDirectMessageNotifications`). Everywhere
-  // else, a group Direct included, the badge counts mentions alone.
-  const badgeCountsMentions = !(
-    room.kind === "direct" && room.userMembers.length <= 2
-  );
+  const badgeCountsMentions = roomBadgeCountsMentions(room);
   const showUnreadCount = useShowRoomUnreadCount();
   const { bold, badgeCount, mentionCount, unreadTextCount } =
     resolveRoomAttention({
