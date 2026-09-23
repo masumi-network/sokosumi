@@ -13,12 +13,18 @@ public struct MessageMarkdownBlock: Identifiable, Equatable, Sendable {
 
 public struct MessageMarkdown: Equatable, Sendable {
   public let blocks: [MessageMarkdownBlock]
+  /// True unless some whitespace-only run of file links is exactly one image.
+  public let clampsLongBody: Bool
 
   public init(_ source: String, baseURL: URL? = nil, mentions: MessageMentions? = nil, channels: [ComposerChannel] = []) {
     let normalized = source.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
-    let document = Markdown.Document(parsing: MarkdownBareDomains(MessageMarkdownNormalization.applying(to: normalized)).linkified())
+    let linkified = MarkdownBareDomains(MessageMarkdownNormalization.applying(to: normalized)).linkified()
+    let document = Markdown.Document(parsing: linkified)
     var builder = MarkdownBlockBuilder(baseURL: baseURL)
-    blocks = document.children.flatMap { builder.blocks(for: $0) }.map { $0.resolving(mentions: mentions, channels: channels) }
+    let built = document.children.flatMap { builder.blocks(for: $0) }.map { $0.resolving(mentions: mentions, channels: channels) }
+    blocks = built
+    // Source gaps, not the parsed tree: a quote marker or list marker is not whitespace, but the tree drops it.
+    clampsLongBody = Self.longBodyClamps(scanning: linkified, blocks: built)
   }
 }
 

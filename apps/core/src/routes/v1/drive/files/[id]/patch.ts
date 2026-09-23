@@ -116,7 +116,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await head(newPathname, { token });
       throw conflict("Target pathname already exists");
     } catch (error) {
-      // If it's a not-found error, target doesn't exist (expected)
       if (error instanceof BlobNotFoundError) {
       } else if (
         error &&
@@ -124,7 +123,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         "kind" in error &&
         error.kind === "conflict"
       ) {
-        // Re-throw our own conflict errors
         throw error;
       } else {
         throw error;
@@ -141,14 +139,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw conflict("A folder with that name already exists");
     }
 
-    // Rename (copy + delete atomically)
     let renamedBlob;
     try {
       renamedBlob = await rename(oldPathname, newPathname, {
         token,
         access: "public",
         addRandomSuffix: false,
-        // Preserve metadata from source
         contentType: sourceMetadata.contentType,
         cacheControlMaxAge: parseCacheControlMaxAge(
           sourceMetadata.cacheControl,
