@@ -19,7 +19,10 @@ runs:
     # restored ~514 MB store made Setup slower (25.6s) than installing from
     # the registry (20.4s), and every PR-scoped miss spent another ~10s in
     # Post Setup saving a copy no sibling PR can read — ~20 identical copies
-    # filled the repo's 10 GB cache. `package-manager-cache: false` stops
+    # filled the repo's 10 GB cache. Caching node_modules itself does not
+    # help either: a 426 MB tree took 14.6s to restore (9.7s of it tar
+    # extraction), against 14.5–16.5s for the install (#5165).
+    # `package-manager-cache: false` stops
     # setup-node enabling it from the `packageManager` field.
     - uses: actions/setup-node@v7
       with:
