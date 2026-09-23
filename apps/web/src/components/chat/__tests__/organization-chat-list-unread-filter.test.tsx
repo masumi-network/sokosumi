@@ -6,6 +6,7 @@ import {
   createOrganizationChatList,
   emptyListResult,
   harnessPathname,
+  harnessSelection,
   listPendingMock,
   listRoomsMock,
   makeInvitation,
@@ -350,6 +351,30 @@ describe("OrganizationChatList All unreads pinned rooms", () => {
       createOrganizationChatList({ organizationId: "org-1", rooms: start }),
     );
     expect(pinnedRows(container)).toEqual(["handbook (read)", "ops"]);
+  });
+
+  it("dims from the highlight, before the route catches up", async () => {
+    const start = [unreadChannel, pinnedRead];
+    listRoomsMock.mockResolvedValue(emptyListResult(start));
+    // The route still names #launch. The highlight has already moved to the
+    // read pin, query and all, the way a click does before pathname commits.
+    harnessPathname.current = `/chat/rooms/${unreadChannel.id}`;
+    harnessSelection.current = `/chat/rooms/${pinnedRead.id}?message=m-1`;
+    const { container, rerender } = renderOrganizationChatList({
+      organizationId: "org-1",
+      rooms: start,
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "All unreads" }));
+
+    expect(pinnedRows(container)).toEqual(["handbook"]);
+
+    // Left again. The route has not moved; the highlight has.
+    harnessSelection.current = `/chat/rooms/${unreadChannel.id}`;
+    rerender(
+      createOrganizationChatList({ organizationId: "org-1", rooms: start }),
+    );
+    expect(pinnedRows(container)).toEqual(["handbook (read)"]);
   });
 
   it("puts a pending invitation above Pinned, with what needs the reader", async () => {
