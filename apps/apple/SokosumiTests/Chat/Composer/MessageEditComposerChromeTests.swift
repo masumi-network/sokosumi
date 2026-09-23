@@ -7,35 +7,30 @@
   import Vision
 
   extension NativeWindowTests {
-    /// Row 18b: web's inline `MessageEditComposer` draws no Save or Cancel button (the keys from 18a save and
-    /// cancel), shows "Too long to send as text" and the `count/max` count on one line under the field, keeps
-    /// editing on Return over the limit, and dims the field while a save is in flight.
+    /// Row 18b: no Save/Cancel row under the edit field (web has none; Apple keeps compact controls beside the
+    /// field, see `MessageEditComposerControlsTests`), "Too long to send as text" and the `count/max` count on
+    /// one line under the field, editing kept on Return over the limit, and the field dimmed while saving.
     @MainActor struct MessageEditComposerChromeTests {
       private static let edited = "Updated **release notes** for the team."
       private static let overLimit = String(repeating: "a", count: ComposerContent.maximumLength + 1) + "  "
 
       @Test(arguments: [false, true])
-      func drawsNoSaveCancelOrSendButton(dark: Bool) async throws {
-        // The render doubles as PARITY's fixture image; show the formatting bar in both appearances.
-        let toolbarWasVisible = ComposerPreferences().toolbarVisible
-        ComposerPreferences().toolbarVisible = true
-        defer { ComposerPreferences().toolbarVisible = toolbarWasVisible }
+      func drawsNoButtonRowUnderTheField(dark: Bool) async throws {
         let fixture = try await MessageEditComposerFixture.make(dark: dark)
         defer { fixture.window.orderOut(nil) }
         fixture.editing.draft = Self.edited
         try await fixture.waitForDraft(Self.edited)
-        let bitmap = try Self.record(fixture, named: "message-editing-\(dark ? "dark" : "light").png")
-        // SwiftUI draws its buttons without an `NSButton`, and a window that is not key draws a prominent
-        // button grey, so the check reads ink: under the field, right of the formatting and emoji controls,
-        // where Cancel and Save (or Send) stood, the composer is blank.
-        let field = Self.pixelRect(of: fixture.input.enclosingScrollView ?? fixture.input, in: fixture.host, bitmap: bitmap)
-        let scale = CGFloat(bitmap.pixelsWide) / fixture.host.bounds.width
+        let bitmap = try fixture.bitmap()
+        // Under the field, right of the formatting and emoji controls, where Cancel and Save (or Send)
+        // stood, the composer is blank.
+        let field = fixture.fieldRect(in: bitmap)
+        let scale = fixture.scale(of: bitmap)
         let actions = CGRect(x: field.midX, y: field.maxY, width: field.maxX - field.midX, height: CGFloat(bitmap.pixelsHigh) - field.maxY - 24 * scale)
         let ink = try Self.inkPixels(in: bitmap, rect: actions)
         #expect(ink == 0, "\(ink) drawn pixels right of the formatting controls in \(actions): a button is drawn.")
         if let lines = try Self.recognizedText(in: bitmap)?.map(\.text) {
           #expect(lines.contains { $0.contains("release notes") }, "OCR read: \(lines)")
-          #expect(!lines.contains { $0 == "Save" || $0 == "Cancel" || $0.contains("Cancel Save") }, "OCR read: \(lines)")
+          #expect(!lines.contains { $0.contains("Save") || $0.contains("Cancel") }, "OCR read: \(lines)")
         }
       }
 
@@ -45,7 +40,7 @@
         defer { fixture.window.orderOut(nil) }
         fixture.editing.draft = Self.overLimit
         try await fixture.waitForDraft(Self.overLimit)
-        let bitmap = try Self.record(fixture, named: "message-edit-over-limit-\(dark ? "dark" : "light").png")
+        let bitmap = try fixture.record(named: "message-edit-over-limit-\(dark ? "dark" : "light").png")
         guard let read = try Self.recognizedText(in: bitmap) else { return }
         let lines = read.map(\.text)
         #expect(!lines.contains { $0.contains("exceeds") }, "OCR read: \(lines)")
@@ -54,8 +49,7 @@
         let count = try #require(read.first { $0.text.contains("10001/10000") }, "OCR read: \(lines)")
         #expect(abs(hint.box.midY - count.box.midY) < hint.box.height, "Hint \(hint.box) and count \(count.box) share a line.")
         #expect(count.box.minX > hint.box.maxX, "The count sits to the right of the hint.")
-        let field = Self.pixelRect(of: fixture.input.enclosingScrollView ?? fixture.input, in: fixture.host, bitmap: bitmap)
-        #expect(hint.box.minY > field.maxY, "The hint \(hint.box) sits under the field \(field).")
+        #expect(hint.box.minY > fixture.fieldRect(in: bitmap).maxY, "The hint \(hint.box) sits under the field.")
       }
 
       @Test func returnOnAnOverLimitDraftKeepsEditing() async throws {
@@ -79,10 +73,7 @@
         let idle = try Self.darkestTextLuminance(fixture)
         #expect(idle < 0.25, "The idle draft reads as dark text (\(idle)).")
 
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [HeldEditProtocol.self]
-        let client = try Client.connecting(to: #require(URL(string: "https://edit-fixture.invalid/v1")),
-                                           session: URLSession(configuration: configuration))
+        let client = try MessageEditComposerFixture.heldClient()
         let editing = fixture.editing
         let save = Task { _ = try? await editing.save(client: client, organizationSlug: nil) }
         defer { save.cancel() }
@@ -120,43 +111,16 @@
 
       /// The darkest pixel inside the text view, light appearance: black text idle, grey once dimmed.
       private static func darkestTextLuminance(_ fixture: MessageEditComposerFixture) throws -> CGFloat {
-        let bitmap = try bitmap(fixture)
-        let rect = pixelRect(of: fixture.input.enclosingScrollView ?? fixture.input, in: fixture.host, bitmap: bitmap)
+        let bitmap = try fixture.bitmap()
+        let rect = fixture.fieldRect(in: bitmap)
         var darkest: CGFloat = 1
-        for row in stride(from: Int(rect.minY), to: Int(rect.maxY), by: 1) {
-          for column in stride(from: Int(rect.minX), to: Int(rect.maxX), by: 1) {
+        for row in Int(rect.minY) ..< Int(rect.maxY) {
+          for column in Int(rect.minX) ..< Int(rect.maxX) {
             guard let color = bitmap.colorAt(x: column, y: row)?.usingColorSpace(.sRGB) else { continue }
             darkest = min(darkest, 0.2126 * color.redComponent + 0.7152 * color.greenComponent + 0.0722 * color.blueComponent)
           }
         }
         return darkest
-      }
-
-      /// A view's frame in the bitmap's pixels, origin top left.
-      private static func pixelRect(of view: NSView, in host: NSView, bitmap: NSBitmapImageRep) -> CGRect {
-        var rect = view.convert(view.bounds, to: host)
-        if !host.isFlipped {
-          rect.origin.y = host.bounds.height - rect.maxY
-        }
-        let scale = CGFloat(bitmap.pixelsWide) / host.bounds.width
-        return CGRect(x: rect.minX * scale, y: rect.minY * scale, width: rect.width * scale, height: rect.height * scale)
-          .intersection(CGRect(x: 0, y: 0, width: bitmap.pixelsWide, height: bitmap.pixelsHigh))
-      }
-
-      private static func bitmap(_ fixture: MessageEditComposerFixture) throws -> NSBitmapImageRep {
-        let host = fixture.host
-        fixture.window.setContentSize(host.fittingSize)
-        host.layoutSubtreeIfNeeded()
-        let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
-        host.cacheDisplay(in: host.bounds, to: bitmap)
-        return bitmap
-      }
-
-      /// Recorded on the result bundle, which the app sandbox cannot hide: `xcresulttool export attachments`.
-      private static func record(_ fixture: MessageEditComposerFixture, named name: String) throws -> NSBitmapImageRep {
-        let bitmap = try bitmap(fixture)
-        try Attachment.record(#require(bitmap.representation(using: .png, properties: [:])), named: name)
-        return bitmap
       }
 
       /// Vision's lines with their boxes in the bitmap's pixels (origin top left), or nil where Vision cannot
@@ -183,20 +147,5 @@
         }
       }
     }
-  }
-
-  /// Never answers, so a save stays in flight until the test cancels it.
-  private final nonisolated class HeldEditProtocol: URLProtocol, @unchecked Sendable {
-    override static func canInit(with request: URLRequest) -> Bool {
-      request.url?.host == "edit-fixture.invalid"
-    }
-
-    override static func canonicalRequest(for request: URLRequest) -> URLRequest {
-      request
-    }
-
-    override func startLoading() {}
-
-    override func stopLoading() {}
   }
 #endif

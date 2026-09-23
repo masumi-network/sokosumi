@@ -5,8 +5,9 @@
   import SokosumiWorkspace
   import SwiftUI
 
-  /// Web's inline `MessageEditComposer`: no Save or Cancel button (Return saves, Escape cancels), the field
-  /// dimmed while a save is in flight, and from 9,500 units the count under it, beside a hint once over the limit.
+  /// Web's inline `MessageEditComposer`: no button row (Return saves, Escape cancels), the field dimmed while a
+  /// save is in flight, and from 9,500 units the count under it, beside a hint once over the limit. Unlike web,
+  /// compact Cancel and Save controls beside the field keep a pointer path (`MessageEditControls`).
   struct MessageEditComposer: View {
     @EnvironmentObject private var workspaces: WorkspaceState
     @EnvironmentObject private var auth: AuthState
@@ -20,7 +21,7 @@
                             guard sourceID == editing.source?.id else { return }
                             cancelUnchanged()
                           },
-                          placeholder: "Edit message",
+                          placeholder: "Edit message", canSend: !content.isTooLong,
                           channels: workspaces.composerChannels, mentions: workspaces.composerMentions)
           .disabled(editing.isSaving)
           .opacity(editing.isSaving ? 0.5 : 1)

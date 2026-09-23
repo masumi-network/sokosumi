@@ -27,7 +27,12 @@ import SwiftUI
 
     var body: some View {
       ComposerLayout {
-        MacComposerTextInput(text: $text, modifierReturnSubmits: cancelEdit != nil, cancel: cancelEdit, onBlur: onBlur, submit: submit, placeholder: placeholder, emojiPickerRequest: emojiPickerRequest, commands: commands, channels: channels, mentions: mentions, attachFiles: attachFiles, attachImage: attachImage, onPaste: onPaste, insertion: insertion)
+        HStack(alignment: .top, spacing: 8) {
+          MacComposerTextInput(text: $text, modifierReturnSubmits: cancelEdit != nil, cancel: cancelEdit, onBlur: onBlur, submit: submit, placeholder: placeholder, emojiPickerRequest: emojiPickerRequest, commands: commands, channels: channels, mentions: mentions, attachFiles: attachFiles, attachImage: attachImage, onPaste: onPaste, insertion: insertion)
+          if let cancelEdit {
+            MessageEditControls(canSave: canSend, save: { _ = submit() }, cancel: cancelEdit)
+          }
+        }
       } formatting: {
         if toolbarVisible {
           ComposerFormatToolbar(commands: commands)
@@ -65,7 +70,7 @@ import SwiftUI
         if content.showsCounter {
           ComposerCharacterCount(content: content)
         }
-        // Like web, the edit composer has no buttons: Return saves, Escape cancels (row 18b).
+        // The edit composer has no button row; its compact controls sit beside the field (row 18b).
         if cancelEdit == nil {
           Button("Send", systemImage: "arrow.up") { _ = submit() }
             .labelStyle(.iconOnly)
