@@ -106,7 +106,7 @@ public enum GroupNameChangeStatus: Equatable, Sendable {
 }
 
 /// Centered status text for join/leave rows ("{name} joined" / "{name} left").
-/// Mirrors web `MembershipStatusRow`. Nil when the message is not a
+/// Mirrors web `RoomStatusRow`. Nil when the message is not a
 /// membership row.
 public func membershipStatusText(_ message: Components.Schemas.ChatRoomMessage) -> String? {
   guard let membership = message.membership else { return nil }
