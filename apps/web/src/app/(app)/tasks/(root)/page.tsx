@@ -402,8 +402,6 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
             },
           },
           columns: columnLabels,
-          add: t("Actions.add"),
-          addTask: t("Actions.addTask"),
           dragError: t("Errors.updateStatus"),
           scheduleActiveError: t("Errors.scheduleActive"),
           loadMoreError: t("Errors.loadMore"),

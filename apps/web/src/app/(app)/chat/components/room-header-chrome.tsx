@@ -121,8 +121,6 @@ export interface RoomHeaderChromeProps {
   onToggleThreadList: () => void;
   /** Unread threads in this room, counted by the shell. */
   unreadThreadCount: number;
-  /** The reader's opt-in numeric chat counts. */
-  showUnreadCount: boolean;
   pinnedOpen: boolean;
   onTogglePinned: () => void;
   rosterOpen: boolean;
@@ -154,7 +152,6 @@ export function RoomHeaderChrome({
   threadListOpen,
   onToggleThreadList,
   unreadThreadCount,
-  showUnreadCount,
   pinnedOpen,
   onTogglePinned,
   rosterOpen,
@@ -179,7 +176,7 @@ export function RoomHeaderChrome({
   const channelTopic = !isDirectRoom && trimmedTopic ? trimmedTopic : null;
 
   return (
-    <div className="flex min-w-0 flex-1 items-center justify-between gap-1.5 overflow-hidden md:gap-4">
+    <div className="flex min-w-0 flex-1 items-center justify-between gap-1.5 overflow-hidden py-1.5 md:gap-4">
       <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden md:gap-2">
         {isDirectRoom ? (
           <>
@@ -243,9 +240,11 @@ export function RoomHeaderChrome({
           </>
         )}
       </div>
-      {/* pe-0.5: the row above clips overflow and ends flush with this
-          group, which shaved the ring off the last face. */}
-      <div className="flex shrink-0 items-center gap-1 pe-0.5">
+      {/* The row above clips at its padding edge. The threads badge hangs
+          4px past the icon button (border, offset, and ring), and the last
+          control's focus ring does the same. py-1.5 on that row and pe-1.5
+          here keep both inside the clip. */}
+      <div className="flex shrink-0 items-center gap-1 pe-1.5">
         <div className="flex items-center">
           <RoomSearchPanel
             key={room.id}
@@ -273,7 +272,6 @@ export function RoomHeaderChrome({
             isOpen={threadListOpen}
             onToggle={onToggleThreadList}
             unreadCount={unreadThreadCount}
-            showUnreadCount={showUnreadCount}
             labels={{
               open: t("UnreadThreads.open"),
               unreadThreads: (count) =>

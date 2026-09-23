@@ -26,12 +26,6 @@ Root [`AGENTS.md`](../AGENTS.md) is the loading table. Task-specific instruction
 - [`agents/domain.md`](./agents/domain.md)
 - [`agents/cloud-agent-database.md`](./agents/cloud-agent-database.md)
 
-## Superpowers plans
-
-Active implementation plans (SOK-1147 / #4992 — not spent).
-
-- [`superpowers/plans/`](./superpowers/plans/) — `2026-09-21-thread-unread-surfacing.md` and `.spec.md`
-
 ## Soko Bot
 
 - [`soko-bot/`](./soko-bot/) — in-process Core runtime (deployment and operations)

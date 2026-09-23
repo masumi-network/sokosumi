@@ -6,6 +6,7 @@ import {
   channelNameFromSlug,
   formatParticipantNameList,
   getFirstName,
+  isSelfJoinableChannelDiscoverability,
   MAX_LISTED_CHAT_REACTION_REACTORS,
   sanitizeChannelSlug,
 } from "@sokosumi/utils";
@@ -143,6 +144,16 @@ export const chatRoomInclude = {
   readStates: { select: { userId: true, lastReadAt: true } },
 } as const satisfies Prisma.ChatRoomInclude;
 
+/** Faces on a thread parent's reply bar. */
+const MAX_THREAD_REPLIERS = 3;
+/**
+ * Newest replies scanned for distinct repliers. An approximation: in a thread
+ * longer than this, someone whose only replies are older than the scan is
+ * left out, and the order is by first reply within the scan. Threads are
+ * short; an exact `DISTINCT ON` is the upgrade.
+ */
+const THREAD_REPLIER_SCAN = 12;
+
 export const chatRoomMessageInclude = {
   senderUser: { select: chatRoomUserSelect },
   senderCoworker: { select: chatRoomCoworkerSelect },
@@ -169,13 +180,17 @@ export const chatRoomMessageInclude = {
   pins: { select: { pinnedAt: true } },
   // Soft-deleted replies stay in the DB (tombstones) but must not inflate
   // threadReplyCount / threadLastReplyAt — same rule as getChatRoomThreadAggregates.
+  // The newest few feed threadLastReplyAt and threadRepliers.
   replies: {
     where: { deletedAt: null },
     select: {
       createdAt: true,
+      senderUser: { select: chatRoomUserSelect },
+      senderCoworker: { select: chatRoomCoworkerSelect },
+      senderSokoBot: { select: chatRoomSokoBotSelect },
     },
     orderBy: { createdAt: "desc" },
-    take: 1,
+    take: THREAD_REPLIER_SCAN,
   },
   _count: {
     select: {
@@ -258,7 +273,11 @@ export function mapChatRoom(
     // this half, so the other default, zero, would quietly stop a row bolding
     // while its total said otherwise.
     channelUnreadCount = Math.max(0, unreadCount - threadUnreadCount),
-    unreadThreads = { threads: [], unreadThreadCount: 0 },
+    unreadThreads = {
+      threads: [],
+      unreadThreadCount: 0,
+      unreadThreadMentionCount: 0,
+    },
     unreadMentionCount = 0,
     starredAt = null,
     pinnedMessageCount = 0,
@@ -299,6 +318,7 @@ export function mapChatRoom(
     channelUnreadCount,
     threadUnreadCount,
     unreadThreadCount: unreadThreads.unreadThreadCount,
+    unreadThreadMentionCount: unreadThreads.unreadThreadMentionCount,
     unreadThreads: unreadThreads.threads,
     unreadMentionCount,
     starredAt,
@@ -563,6 +583,92 @@ export async function mapChatRoomWithSidebarFlags(
   });
 }
 
+type ChatRoomMessageSenderRow = Pick<
+  ChatRoomMessageWithSender,
+  "senderUser" | "senderCoworker" | "senderSokoBot"
+>;
+
+function mapChatRoomMessageSender(
+  row: ChatRoomMessageSenderRow,
+  currentUserId?: string,
+) {
+  if (row.senderUser) {
+    return {
+      type: "user" as const,
+      user: {
+        id: row.senderUser.id,
+        name: row.senderUser.name,
+        email: row.senderUser.email,
+        image: row.senderUser.image ?? null,
+        presence: resolveUserPresence(row.senderUser, currentUserId),
+      },
+    };
+  }
+
+  if (row.senderCoworker) {
+    return {
+      type: "coworker" as const,
+      coworker: {
+        id: row.senderCoworker.id,
+        name: row.senderCoworker.name,
+        slug: row.senderCoworker.slug,
+        caption: row.senderCoworker.caption ?? null,
+        image: row.senderCoworker.image ?? null,
+        presence: "online" as const,
+      },
+    };
+  }
+
+  if (row.senderSokoBot) {
+    return {
+      type: "sokoBot" as const,
+      sokoBot: {
+        id: row.senderSokoBot.id,
+        name: sokoBotDisplayName(row.senderSokoBot),
+        caption: sokoBotCaption(row.senderSokoBot),
+        image: row.senderSokoBot.avatarImageUrl ?? null,
+        avatarSeed: sokoBotAvatarSeedFor(row.senderSokoBot),
+        presence: "online" as const,
+      },
+    };
+  }
+
+  return { type: "unknown" as const };
+}
+
+/**
+ * Distinct senders of `replies` in the order they first replied, capped.
+ * `replies` arrives newest first (it also feeds threadLastReplyAt), so walk
+ * it backwards.
+ */
+function mapThreadRepliers(
+  replies: ChatRoomMessageSenderRow[],
+  currentUserId?: string,
+) {
+  const seen = new Set<string>();
+  const repliers: Array<ReturnType<typeof mapChatRoomMessageSender>> = [];
+  for (const reply of replies.toReversed()) {
+    const replier = mapChatRoomMessageSender(reply, currentUserId);
+    const key =
+      replier.type === "user"
+        ? `user:${replier.user.id}`
+        : replier.type === "coworker"
+          ? `coworker:${replier.coworker.id}`
+          : replier.type === "sokoBot"
+            ? `sokoBot:${replier.sokoBot.id}`
+            : null;
+    if (!key || seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    repliers.push(replier);
+    if (repliers.length === MAX_THREAD_REPLIERS) {
+      break;
+    }
+  }
+  return repliers;
+}
+
 export function mapChatRoomMessage(
   message: ChatRoomMessageWithSender,
   currentUserId?: string,
@@ -575,50 +681,7 @@ export function mapChatRoomMessage(
    */
   threadUnreadReplyCount?: number,
 ) {
-  const sender = (() => {
-    if (message.senderUser) {
-      return {
-        type: "user" as const,
-        user: {
-          id: message.senderUser.id,
-          name: message.senderUser.name,
-          email: message.senderUser.email,
-          image: message.senderUser.image ?? null,
-          presence: resolveUserPresence(message.senderUser, currentUserId),
-        },
-      };
-    }
-
-    if (message.senderCoworker) {
-      return {
-        type: "coworker" as const,
-        coworker: {
-          id: message.senderCoworker.id,
-          name: message.senderCoworker.name,
-          slug: message.senderCoworker.slug,
-          caption: message.senderCoworker.caption ?? null,
-          image: message.senderCoworker.image ?? null,
-          presence: "online" as const,
-        },
-      };
-    }
-
-    if (message.senderSokoBot) {
-      return {
-        type: "sokoBot" as const,
-        sokoBot: {
-          id: message.senderSokoBot.id,
-          name: sokoBotDisplayName(message.senderSokoBot),
-          caption: sokoBotCaption(message.senderSokoBot),
-          image: message.senderSokoBot.avatarImageUrl ?? null,
-          avatarSeed: sokoBotAvatarSeedFor(message.senderSokoBot),
-          presence: "online" as const,
-        },
-      };
-    }
-
-    return { type: "unknown" as const };
-  })();
+  const sender = mapChatRoomMessageSender(message, currentUserId);
 
   const reactionCounts = new Map<
     string,
@@ -679,6 +742,7 @@ export function mapChatRoomMessage(
     threadReplyCount: message._count.replies,
     ...(threadUnreadReplyCount === undefined ? {} : { threadUnreadReplyCount }),
     threadLastReplyAt: message.replies[0]?.createdAt ?? null,
+    threadRepliers: mapThreadRepliers(message.replies, currentUserId),
     metadata: isDeleted ? null : publicChatRoomMessageMetadata(metadata),
     quote: isDeleted ? null : readQuoteFromMetadata(metadata),
     membership: isDeleted ? null : readMembershipFromMetadata(metadata),
@@ -841,10 +905,12 @@ async function loadRoomQuoteSnapshot(
 
 /**
  * Resolve a quote of a message in another room. Allowed only when the sender
- * reads the source room and every human reader of the target room does too
- * (`canQuoteIntoRoom`), so the snippet never reaches someone who cannot follow
- * the Message link. Every refusal is the same 400, so the response does not
- * reveal whether a room or message exists.
+ * reads the source room and every human reader of the target room can too
+ * (`canQuoteIntoRoom`): as a member, or as a member of the organization of a
+ * public or external source Channel, which they can join on their own. The
+ * snippet never reaches someone who cannot follow the Message link. Every
+ * refusal is the same 400, so the response does not reveal whether a room or
+ * message exists.
  */
 export async function resolveCrossRoomQuoteSnapshot(
   tx: Prisma.TransactionClient,
@@ -858,8 +924,13 @@ export async function resolveCrossRoomQuoteSnapshot(
   const { sourceRoomId, quoteMessageId, senderUserId, targetMemberUserIds } =
     options;
 
+  let sourceRoom: Awaited<ReturnType<typeof requireChatRoomUserMembership>>;
   try {
-    await requireChatRoomUserMembership(sourceRoomId, senderUserId, tx);
+    sourceRoom = await requireChatRoomUserMembership(
+      sourceRoomId,
+      senderUserId,
+      tx,
+    );
   } catch (error) {
     if (error instanceof HTTPException) {
       throw quotedMessageNotFound();
@@ -871,12 +942,28 @@ export async function resolveCrossRoomQuoteSnapshot(
     where: { roomId: sourceRoomId },
     select: { userId: true },
   });
+  const sourceReaderUserIds = sourceMembers.map((member) => member.userId);
+  const joiners = targetMemberUserIds.filter(
+    (userId) => !sourceReaderUserIds.includes(userId),
+  );
   if (
-    !canQuoteIntoRoom(
-      targetMemberUserIds,
-      sourceMembers.map((member) => member.userId),
-    )
+    joiners.length > 0 &&
+    sourceRoom.kind === "channel" &&
+    sourceRoom.organizationId &&
+    isSelfJoinableChannelDiscoverability(sourceRoom.discoverability)
   ) {
+    const organizationMembers = await tx.member.findMany({
+      where: {
+        organizationId: sourceRoom.organizationId,
+        userId: { in: joiners },
+      },
+      select: { userId: true },
+    });
+    sourceReaderUserIds.push(
+      ...organizationMembers.map((member) => member.userId),
+    );
+  }
+  if (!canQuoteIntoRoom(targetMemberUserIds, sourceReaderUserIds)) {
     throw quotedMessageNotFound();
   }
 
@@ -1166,7 +1253,7 @@ export function isJoinableChannelDiscoverability(
   discoverability: string | null,
   elevated: boolean,
 ): boolean {
-  if (discoverability === "public" || discoverability === "external") {
+  if (isSelfJoinableChannelDiscoverability(discoverability)) {
     return true;
   }
   return elevated && discoverability === "private";
@@ -1374,6 +1461,7 @@ export async function requireChatRoomUserMembership(
   id: string;
   organizationId: string | null;
   kind: "channel" | "direct";
+  discoverability: string | null;
 }> {
   const room = await tx.chatRoom.findFirst({
     where: {
@@ -1387,6 +1475,7 @@ export async function requireChatRoomUserMembership(
       id: true,
       organizationId: true,
       kind: true,
+      discoverability: true,
       userMembers: {
         where: { userId },
         select: { access: true },
@@ -1410,6 +1499,7 @@ export async function requireChatRoomUserMembership(
     id: room.id,
     organizationId: room.organizationId,
     kind: room.kind === "direct" ? "direct" : "channel",
+    discoverability: room.discoverability,
   };
 }
 

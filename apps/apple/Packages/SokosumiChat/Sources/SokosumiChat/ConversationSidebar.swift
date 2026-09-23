@@ -95,7 +95,7 @@ public final class ConversationSidebar: ObservableObject {
 
   /// Workspace reset rolls back optimistic pin/mute so a stale HTTP
   /// completion cannot commit on a later workspace.
-  public func invalidateRequests() {
+  private func invalidateRequests() {
     for (id, pending) in pendingActions {
       patchDate(roomId: id, action: pending.action, date: pending.previousDate)
     }

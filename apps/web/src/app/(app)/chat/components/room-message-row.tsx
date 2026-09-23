@@ -22,7 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useNow, useTranslations } from "next-intl";
 import {
   memo,
   type MouseEvent as ReactMouseEvent,
@@ -31,6 +31,7 @@ import {
   type RefObject,
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -68,6 +69,7 @@ import { isOutboundSentTickActive } from "@/app/chat/utils/outbound-sent-tick";
 import { resolveQuickReactions } from "@/app/chat/utils/quick-reactions";
 import {
   type RoomMessageFilesSegment,
+  type RoomMessageSegment,
   segmentRoomMessageContent,
 } from "@/app/chat/utils/room-message-segments";
 import { AuroraOrb } from "@/components/aurora-orb";
@@ -97,6 +99,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { FileChipMiniPreviewFrame } from "@/components/ui/file-chip-mini-preview";
 import { FileTypeIcon } from "@/components/ui/file-icon";
+import {
+  ImageViewer,
+  type ImageViewerImage,
+} from "@/components/ui/image-viewer";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
 import {
   Sheet,
@@ -142,10 +148,12 @@ import {
   formatRoomComposerTooLongFailure,
   isRoomComposerContentCountVisible,
   isRoomComposerContentOverLimit,
+  type MessageSenderProfile,
   messageSender,
   ROOM_MESSAGE_MARKDOWN_CLASSNAME,
   ROOM_QUOTE_MARKDOWN_CLASSNAME,
   type RoomMentionParticipant,
+  senderProfile,
 } from "./room-helpers";
 import { RoomMessageMarkdown } from "./room-mention-markdown";
 import { SokoBotChainBadge } from "./soko-bot-chain-badge";
@@ -266,6 +274,34 @@ function isLargeSoloImageFilesSegment(
   }
   const soloLink = segment.links[0];
   return classifyFilePreview(soloLink.url, soloLink.fileName).isImage;
+}
+
+/**
+ * The Message image gallery: every image link across the body's attachment
+ * rows, in body order. A file linked twice is one image.
+ */
+function messageImageGallery(
+  segments: readonly RoomMessageSegment[],
+): ImageViewerImage[] {
+  const imagesBySrc = new Map<string, ImageViewerImage>();
+  for (const segment of segments) {
+    if (segment.kind !== "files") {
+      continue;
+    }
+    for (const link of segment.links) {
+      if (
+        !imagesBySrc.has(link.url) &&
+        classifyFilePreview(link.url, link.fileName).isImage
+      ) {
+        imagesBySrc.set(link.url, {
+          src: link.url,
+          alt: link.fileName,
+          downloadFilename: link.fileName,
+        });
+      }
+    }
+  }
+  return [...imagesBySrc.values()];
 }
 
 function hasLargeSoloImageAttachment(content: string): boolean {
@@ -658,7 +694,17 @@ export function ChannelMessageText({
   onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
   openingDirectParticipantKey?: string | null;
 }) {
+  const [openImageSrc, setOpenImageSrc] = useState<string | null>(null);
   const segments = segmentRoomMessageContent(content);
+  const galleryImages = messageImageGallery(segments);
+  // The open image left the message (edited out or deleted): forget it, so an
+  // edit that brings the file back does not reopen the viewer by itself.
+  if (
+    openImageSrc !== null &&
+    !galleryImages.some((image) => image.src === openImageSrc)
+  ) {
+    setOpenImageSrc(null);
+  }
 
   if (segments.length === 1 && segments[0].kind === "text") {
     return (
@@ -718,6 +764,9 @@ export function ChannelMessageText({
                     fileName={link.fileName}
                     variant={useLargeImage ? "large" : "thumb"}
                     sizeClass={useLargeImage ? undefined : "size-16"}
+                    onOpenImage={() => {
+                      setOpenImageSrc(link.url);
+                    }}
                   />
                 ))}
               </div>
@@ -729,6 +778,13 @@ export function ChannelMessageText({
           }
         }
       })}
+      {galleryImages.length > 0 ? (
+        <ImageViewer
+          images={galleryImages}
+          activeSrc={openImageSrc}
+          onActiveSrcChange={setOpenImageSrc}
+        />
+      ) : null}
     </>
   );
 }
@@ -2188,6 +2244,142 @@ function OutboundFailedActions({
   );
 }
 
+/** A sender's face: the Soko Bot orb when it has no photo, else the avatar. */
+function SenderFace({
+  sender,
+  orbSize,
+  className,
+  fallbackClassName,
+  monogram = false,
+}: {
+  sender: MessageSenderProfile;
+  /** Rendered pixels for the orb: twice the CSS size, for dense screens. */
+  orbSize: number;
+  className: string;
+  fallbackClassName: string;
+  /** One initial instead of two, for faces too small to fit both. */
+  monogram?: boolean;
+}) {
+  if (sender.kind === "sokoBot" && sender.avatarSeed && !sender.image) {
+    return (
+      <AuroraOrb
+        seed={sender.avatarSeed}
+        size={orbSize}
+        alt=""
+        className={cn("ring-border ring-1", className)}
+      />
+    );
+  }
+  return (
+    <Avatar className={className}>
+      <AvatarImage src={sender.image ?? undefined} alt="" />
+      <AvatarFallback className={fallbackClassName}>
+        {getInitials(sender.name).slice(0, monogram ? 1 : 2)}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
+
+/**
+ * The bar under a thread parent: who replied, how many replies (or how many
+ * are new to this reader), and how long ago the last one landed. Its name is
+ * the count alone; the age is its description and the faces are decoration.
+ */
+function ThreadReplyBar({
+  message,
+  onOpenThread,
+}: {
+  message: ChatRoomMessage;
+  onOpenThread: (message: ChatRoomMessage) => void;
+}) {
+  const t = useTranslations("App.Channels");
+  const format = useFormatter();
+  // Ticks, so a memoised row does not read "4m ago" for an hour.
+  const now = useNow({ updateInterval: 60_000 });
+  const ageId = useId();
+  // Absent on realtime payloads, which are not addressed to one viewer.
+  const unreadReplyCount = message.threadUnreadReplyCount ?? 0;
+  // Who replied, in the order they joined; the parent author only if they
+  // replied, since the row already shows them. Absent on messages the client
+  // built itself and on cached transcripts.
+  const faces = message.threadRepliers ?? [];
+  const countLabel =
+    unreadReplyCount > 0
+      ? t("Thread.newReplyCount", { count: unreadReplyCount })
+      : t("Thread.replyCount", { count: message.threadReplyCount });
+
+  return (
+    <button
+      type="button"
+      data-slot="thread-reply-bar"
+      data-unread={unreadReplyCount > 0 ? "true" : undefined}
+      aria-label={countLabel}
+      aria-describedby={message.threadLastReplyAt ? ageId : undefined}
+      className={cn(
+        "text-primary hover:text-primary-hover -mx-1 mt-1 inline-flex min-h-9 items-center gap-1.5 px-1 text-xs font-medium sm:mt-1 sm:min-h-0",
+        // Unread reads as a bar, not a badge: the tint plus an inset left
+        // rule gives the count an edge to sit against without adding a
+        // second mark to a row that already carries reactions. The rule
+        // has no colour of its own, so it follows the text, hover too.
+        // `-quaternary` and `-variant` are the sidebar mention pill's pair:
+        // the `-quinary` tint sat 6% above the dark background and read as
+        // a faint outline round cramped text, not as a bar.
+        // `mx-0`: the plain state's `-mx-1` only lines bare text up with the
+        // message; on a painted bar it pushes the rule and the rounded edge
+        // into the content column's `overflow-x-clip`, which cuts them off.
+        unreadReplyCount > 0 &&
+          "bg-primary-quaternary text-primary-variant mx-0 rounded-lg px-2.5 py-1 font-semibold shadow-[inset_2px_0_0]",
+      )}
+      onClick={() => onOpenThread(message)}
+    >
+      {faces.length > 0 ? (
+        <span aria-hidden className="flex -space-x-1">
+          {faces.map((face, index) => {
+            const profile = senderProfile(face);
+            return (
+              <span
+                key={
+                  profile.kind === "unknown"
+                    ? `unknown-${index}`
+                    : `${profile.kind}:${profile.id}`
+                }
+                data-testid="thread-replier-face"
+                className="relative inline-flex size-4 shrink-0"
+                style={{ zIndex: faces.length - index }}
+              >
+                <SenderFace
+                  sender={profile}
+                  orbSize={32}
+                  // A hairline in the page colour keeps overlapping faces
+                  // apart; any thicker reads as a halo on the tinted bar.
+                  className="ring-background size-4 ring-1"
+                  // Grey like the read-receipt faces, not the bar's link blue.
+                  fallbackClassName="bg-muted text-muted-foreground text-[0.5rem]"
+                  monogram
+                />
+              </span>
+            );
+          })}
+        </span>
+      ) : null}
+      <span>{countLabel}</span>
+      {message.threadLastReplyAt ? (
+        <>
+          <span aria-hidden className="text-muted-foreground font-normal">
+            ·
+          </span>
+          <span id={ageId} className="text-muted-foreground font-normal">
+            {format.relativeTime(message.threadLastReplyAt, {
+              now,
+              style: "narrow",
+            })}
+          </span>
+        </>
+      ) : null}
+    </button>
+  );
+}
+
 function MessageMetaFooter({
   message,
   onToggleReaction,
@@ -2203,8 +2395,6 @@ function MessageMetaFooter({
 }) {
   const t = useTranslations("App.Channels");
   const isOutboundLocal = isOutboundLocalMessage(message);
-  // Absent on realtime payloads, which are not addressed to one viewer.
-  const unreadReplyCount = message.threadUnreadReplyCount ?? 0;
 
   return (
     <>
@@ -2245,28 +2435,7 @@ function MessageMetaFooter({
         </div>
       ) : null}
       {showThreadButton && message.threadReplyCount > 0 && onOpenThread ? (
-        <button
-          type="button"
-          data-slot="thread-reply-bar"
-          data-unread={unreadReplyCount > 0 ? "true" : undefined}
-          className={cn(
-            "text-primary hover:text-primary-hover -mx-1 mt-1 min-h-9 px-1 text-xs font-medium sm:mt-1 sm:min-h-0",
-            // Unread reads as a bar, not a badge: the tint plus an inset left
-            // rule gives the count an edge to sit against without adding a
-            // second mark to a row that already carries reactions. The rule
-            // has no colour of its own, so it follows the text, hover too.
-            // `-quaternary` and `-variant` are the sidebar mention pill's pair:
-            // the `-quinary` tint sat 6% above the dark background and read as
-            // a faint outline round cramped text, not as a bar.
-            unreadReplyCount > 0 &&
-              "bg-primary-quaternary text-primary-variant inline-flex items-center rounded-lg px-2.5 py-1 font-semibold shadow-[inset_2px_0_0]",
-          )}
-          onClick={() => onOpenThread(message)}
-        >
-          {unreadReplyCount > 0
-            ? t("Thread.newReplyCount", { count: unreadReplyCount })
-            : t("Thread.replyCount", { count: message.threadReplyCount })}
-        </button>
+        <ThreadReplyBar message={message} onOpenThread={onOpenThread} />
       ) : null}
     </>
   );
@@ -2628,21 +2797,12 @@ export const ChatMessageRow = memo(function ChatMessageRow({
             data-testid="message-sender-avatar"
             className="relative inline-flex size-8 shrink-0"
           >
-            {sender.kind === "sokoBot" && sender.avatarSeed && !sender.image ? (
-              <AuroraOrb
-                seed={sender.avatarSeed}
-                size={64}
-                alt=""
-                className="ring-border size-8 ring-1"
-              />
-            ) : (
-              <Avatar className="size-8">
-                <AvatarImage src={sender.image ?? undefined} alt="" />
-                <AvatarFallback className="text-xs">
-                  {getInitials(sender.name)}
-                </AvatarFallback>
-              </Avatar>
-            )}
+            <SenderFace
+              sender={sender}
+              orbSize={64}
+              className="size-8"
+              fallbackClassName="text-xs"
+            />
             {sender.kind === "coworker" ? <AiCoworkerAvatarBadge /> : null}
           </span>
         </ChatParticipantHoverCard>

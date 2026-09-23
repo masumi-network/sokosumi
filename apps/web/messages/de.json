@@ -295,7 +295,8 @@
       "docs": "Dokumentation",
       "drive": "Dateien",
       "soko-bots": "Soko Bots",
-      "calendar": "Kalender"
+      "calendar": "Kalender",
+      "threads": "Threads"
     },
     "Jobs": {
       "StatusBadge": {
@@ -771,10 +772,16 @@
       "unreadBadgeWithAccountNotice": "{count, plural, =1 {1 ungelesene Benachrichtigung und Kontohinweis} other {# ungelesene Benachrichtigungen und Kontohinweis}}",
       "title": "Benachrichtigungen",
       "pageTitle": "Benachrichtigungen",
+      "pageDescription": "Updates zu deinen Aufgaben, Agenten und deinem Workspace.",
       "emptyState": "Noch keine Benachrichtigungen",
+      "emptyStateDescription": "Bisher ist nichts angekommen. Aufgabenergebnisse und Workspace-Anfragen erscheinen hier, sobald sie eintreffen.",
       "emptyUnreadState": "Du bist auf dem Laufenden",
+      "emptyUnreadStateDescription": "Hier ist nichts ungelesen. Alles Gelesene bleibt unter Alle.",
       "emptyNeedsYouState": "Nichts wartet auf dich",
+      "emptyNeedsYouStateDescription": "Nichts wartet auf deine Antwort. Anfragen, die dich brauchen, erscheinen hier.",
       "viewAll": "Alle Benachrichtigungen anzeigen",
+      "showAll": "Alle anzeigen",
+      "showOlder": "Ältere Benachrichtigungen anzeigen",
       "justNow": "Gerade eben",
       "loading": "Lädt...",
       "markAllRead": "Alle als gelesen markieren",
@@ -804,6 +811,8 @@
       "browserPermissionRequesting": "Warte auf Berechtigung…",
       "browserPermissionDeniedTitle": "Browser-Benachrichtigungen sind blockiert",
       "browserPermissionDeniedDescription": "Benachrichtigungen für diese Website sind in deinem Browser blockiert. Öffne die Browser-Benachrichtigungseinstellungen für Sokosumi, um sie zuzulassen.",
+      "browserPermissionInstallTitle": "Füge Sokosumi zum Home-Bildschirm hinzu",
+      "browserPermissionInstallDescription": "Auf iPhone und iPad kommen Benachrichtigungen nur in der installierten App an. Tippe auf „Teilen“, dann auf „Zum Home-Bildschirm“.",
       "pushQuietTitle": "Push-Benachrichtigungen kommen in diesem Browser nicht mehr an",
       "pushQuietDescription": "Dieser Browser hat sein Push-Abonnement verloren, daher kommen hier keine Updates an. Deine anderen Geräte erhalten sie möglicherweise weiterhin.",
       "pushQuietRestore": "Push wieder einschalten",
@@ -837,7 +846,11 @@
       "zoomReset": "Zoom zurücksetzen",
       "more": "Weitere Optionen",
       "openInNewTab": "In neuem Tab öffnen",
-      "copyImage": "Bild kopieren"
+      "copyImage": "Bild kopieren",
+      "previous": "Vorheriges Bild",
+      "next": "Nächstes Bild",
+      "position": "{current} / {total}",
+      "stepAnnouncement": "Bild {current} von {total}, {name}"
     },
     "DocumentViewer": {
       "title": "Dokument",
@@ -1533,8 +1546,6 @@
         "approvePartialError": "{approved} von {total} Vendors genehmigt. Einige Freigaben sind fehlgeschlagen — bitte aktualisieren und erneut versuchen."
       },
       "Actions": {
-        "add": "Neue Aufgabe",
-        "addTask": "Neue Aufgabe",
         "loading": "Wird geladen...",
         "loadMore": "Mehr laden",
         "showGuide": "Show guide"
@@ -4149,6 +4160,9 @@
         "pushBannerDeniedBody": "Sokosumi kann nicht erneut fragen. Erlaube Benachrichtigungen für diese Website in den Browser-Einstellungen. Deine anderen Geräte bekommen sie möglicherweise weiterhin.",
         "pushBannerUnsupportedTitle": "Dieser Browser kann keine Push-Benachrichtigungen anzeigen",
         "pushBannerUnsupportedBody": "Push-Benachrichtigungen kommen hier nicht an, egal was die Zeilen unten sagen. Deine anderen Geräte bekommen sie möglicherweise weiterhin.",
+        "pushBannerInstallableTitle": "Füge Sokosumi zum Home-Bildschirm hinzu, um Push-Benachrichtigungen zu bekommen",
+        "pushBannerInstallableBody": "Auf iPhone und iPad kommen Push-Benachrichtigungen nur in der installierten App an. Tippe auf „Teilen“, dann auf „Zum Home-Bildschirm“, und öffne Sokosumi von dort. Deine anderen Geräte bekommen sie möglicherweise weiterhin.",
+        "pushInstallableHint": "Füge Sokosumi zum Home-Bildschirm hinzu, um diese auf diesem Gerät zu bekommen.",
         "deviceBannerTitle": "Push-Benachrichtigungen sind in diesem Browser aktiviert. Deine anderen Geräte sind davon nicht betroffen.",
         "deviceBannerAction": "Deaktivieren",
         "deviceDisabledSuccess": "Push-Benachrichtigungen in diesem Browser aus",
@@ -5452,6 +5466,32 @@
         "mentions": "{count, plural, one {# Erwähnung} other {# Erwähnungen}}",
         "untitled": "Thread"
       },
+      "UnreadNav": {
+        "label": "Ungelesen",
+        "threads": "Threads",
+        "allUnreads": "Alle ungelesenen",
+        "unreadThreads": "{count, plural, one {# ungelesener Thread} other {# ungelesene Threads}}",
+        "unreadThreadsCapped": "Mehr als {max} ungelesene Threads",
+        "mentions": "{count, plural, one {# Erwähnung} other {# Erwähnungen}}",
+        "filterOn": "Nur ungelesene werden angezeigt",
+        "markAllRead": "Alle als gelesen markieren",
+        "markAllReadError": "Nicht alles konnte als gelesen markiert werden.",
+        "caughtUp": "Alles gelesen",
+        "allThreads": "Alle Threads",
+        "showAllChats": "Alle Chats anzeigen",
+        "showAll": "Alle anzeigen",
+        "nothingUnread": "{count, plural, one {Nichts Ungelesenes in # Chat} other {Nichts Ungelesenes in # Chats}}",
+        "justRead": "Gerade gelesen"
+      },
+      "ThreadsView": {
+        "title": "Threads",
+        "listLabel": "Ungelesene Threads",
+        "empty": "Du bist auf dem neuesten Stand",
+        "emptyDescription": "Neue Antworten in Threads, an denen du beteiligt bist, erscheinen hier.",
+        "loadMore": "Mehr anzeigen",
+        "loadError": "Ungelesene Threads konnten nicht geladen werden.",
+        "retry": "Erneut versuchen"
+      },
       "Thread": {
         "title": "Thread",
         "open": "Open thread",
@@ -5625,10 +5665,13 @@
         "error": "Threads konnten nicht geladen werden. Bitte erneut versuchen.",
         "markAllReadError": "Ungelesene Threads konnten nicht als gelesen markiert werden. Bitte erneut versuchen.",
         "loadOlder": "Ältere Threads laden",
+        "groupUnread": "Ungelesen",
+        "groupEarlier": "Früher",
+        "groupUnreadEmpty": "Alles gelesen.",
         "startedBy": "Gestartet von {name}",
-        "unreadReplies": "{count, plural, one {# ungelesene Antwort} other {# ungelesene Antworten}}",
         "unreadThreads": "{count, plural, one {# ungelesener Thread} other {# ungelesene Threads}}",
-        "unreadThreadsCapped": "Mehr als {max} ungelesene Threads"
+        "unreadThreadsCapped": "Mehr als {max} ungelesene Threads",
+        "newReplies": "{count, plural, one {# neue} other {# neue}}"
       },
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# ungelesene Nachricht} other {# ungelesene Nachrichten}}",
@@ -6297,7 +6340,8 @@
       "view": {
         "month": "Monat",
         "week": "Woche",
-        "agenda": "Agenda"
+        "agenda": "Agenda",
+        "schedules": "Zeitpläne"
       },
       "source": {
         "label": "Quelle",
@@ -6318,7 +6362,6 @@
         "moveNotAllowed": "Nur der Besitzer der Aufgabe kann sie neu planen."
       },
       "create": {
-        "title": "Task planen",
         "fab": "Task planen"
       },
       "edit": {
@@ -6364,7 +6407,15 @@
         "label": "Zeitzone"
       },
       "empty": {
-        "title": "Keine geplanten Freigaben entsprechen diesen Filtern."
+        "title": "Keine geplanten Freigaben entsprechen diesen Filtern.",
+        "schedulesTitle": "Keine Zeitpläne entsprechen diesen Filtern."
+      },
+      "schedules": {
+        "nextRun": "Nächster Lauf",
+        "noNextRun": "Kein nächster Lauf",
+        "edit": "Zeitplan bearbeiten",
+        "openTask": "Aufgabe öffnen",
+        "loadMore": "Mehr laden"
       },
       "pagination": {
         "error": "Weitere Ereignisse konnten nicht geladen werden."
@@ -6375,8 +6426,8 @@
         "retry": "Erneut versuchen"
       },
       "agenda": {
-        "backToTop": "Nach oben",
-        "today": "Heute"
+        "upcoming": "Als Nächstes",
+        "loading": "Wird geladen…"
       }
     },
     "You": {

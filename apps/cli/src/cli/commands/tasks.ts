@@ -177,7 +177,7 @@ export async function runTasksCommand({
   }
   if (command === "create") {
     const coworkerId = optionString(options, "coworker-id");
-    const description = optionString(options, "description", "desc");
+    const description = optionString(options, "description");
     if (!coworkerId)
       throw new Error("--coworker-id is required for `tasks create`");
     if (!description)
@@ -201,7 +201,7 @@ export async function runTasksCommand({
     else printTask(stdout, task, details);
     return;
   }
-  const id = positionalId || optionString(options, "id", "task-id");
+  const id = positionalId || optionString(options, "id");
   if (command === "get") {
     if (!id) throw new Error("task id is required for `tasks get`");
     const { task } = await fetchTask(client, id, signal);

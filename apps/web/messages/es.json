@@ -295,7 +295,8 @@
       "docs": "Documentación",
       "drive": "Archivos",
       "soko-bots": "Soko Bots",
-      "calendar": "Calendario"
+      "calendar": "Calendario",
+      "threads": "Hilos"
     },
     "Jobs": {
       "StatusBadge": {
@@ -771,10 +772,16 @@
       "unreadBadgeWithAccountNotice": "{count, plural, =1 {1 notificación sin leer y aviso de cuenta} other {# notificaciones sin leer y aviso de cuenta}}",
       "title": "Notificaciones",
       "pageTitle": "Notificaciones",
+      "pageDescription": "Novedades de tus tareas, agentes y espacio de trabajo.",
       "emptyState": "Aún no hay notificaciones",
+      "emptyStateDescription": "Todavía no ha llegado nada. Los resultados de tareas y las solicitudes del espacio de trabajo aparecen aquí cuando ocurren.",
       "emptyUnreadState": "Estás al día",
+      "emptyUnreadStateDescription": "Aquí no hay nada sin leer. Todo lo leído permanece en Todas.",
       "emptyNeedsYouState": "Nada está esperando por ti",
+      "emptyNeedsYouStateDescription": "Nada espera tu respuesta. Las solicitudes que te necesitan aparecen aquí.",
       "viewAll": "Ver todas las notificaciones",
+      "showAll": "Mostrar todas",
+      "showOlder": "Mostrar notificaciones anteriores",
       "justNow": "Ahora mismo",
       "loading": "Cargando...",
       "markAllRead": "Marcar todas como leídas",
@@ -804,6 +811,8 @@
       "browserPermissionRequesting": "Esperando permiso…",
       "browserPermissionDeniedTitle": "Las notificaciones del navegador están bloqueadas",
       "browserPermissionDeniedDescription": "Las notificaciones de este sitio están bloqueadas en tu navegador. Abre la configuración de notificaciones del navegador para Sokosumi y permítelas.",
+      "browserPermissionInstallTitle": "Añade Sokosumi a la pantalla de inicio",
+      "browserPermissionInstallDescription": "En iPhone y iPad, las alertas solo llegan en la app instalada. Toca el botón Compartir y luego «Añadir a pantalla de inicio».",
       "pushQuietTitle": "Las notificaciones push se detuvieron en este navegador",
       "pushQuietDescription": "Este navegador perdió su suscripción push, por eso aquí no llegan las novedades. Puede que tus otros dispositivos sigan recibiéndolas.",
       "pushQuietRestore": "Volver a activar push",
@@ -837,7 +846,11 @@
       "zoomReset": "Restablecer zoom",
       "more": "Más opciones",
       "openInNewTab": "Abrir en una pestaña nueva",
-      "copyImage": "Copiar imagen"
+      "copyImage": "Copiar imagen",
+      "previous": "Imagen anterior",
+      "next": "Imagen siguiente",
+      "position": "{current} / {total}",
+      "stepAnnouncement": "Imagen {current} de {total}, {name}"
     },
     "DocumentViewer": {
       "title": "Documento",
@@ -1533,8 +1546,6 @@
         "approvePartialError": "Se aprobó el acceso de {approved} de {total} proveedores. Algunas aprobaciones fallaron; actualiza e inténtalo de nuevo."
       },
       "Actions": {
-        "add": "Nueva tarea",
-        "addTask": "Nueva tarea",
         "loading": "Cargando...",
         "loadMore": "Cargar más",
         "showGuide": "Show guide"
@@ -4149,6 +4160,9 @@
         "pushBannerDeniedBody": "Sokosumi no puede volver a preguntar. Permite las notificaciones para este sitio en la configuración del navegador. Puede que tus otros dispositivos sigan recibiéndolas.",
         "pushBannerUnsupportedTitle": "Este navegador no puede mostrar notificaciones push",
         "pushBannerUnsupportedBody": "Las notificaciones push no llegan aquí, digan lo que digan las filas de abajo. Tus otros dispositivos puede que sigan recibiéndolas.",
+        "pushBannerInstallableTitle": "Añade Sokosumi a la pantalla de inicio para recibir notificaciones push",
+        "pushBannerInstallableBody": "En iPhone y iPad, las notificaciones push solo llegan en la app instalada. Toca el botón Compartir, luego «Añadir a pantalla de inicio», y abre Sokosumi desde ahí. Tus otros dispositivos puede que sigan recibiéndolas.",
+        "pushInstallableHint": "Añade Sokosumi a la pantalla de inicio para recibirlas en este dispositivo.",
         "deviceBannerTitle": "Las notificaciones push están activadas en este navegador. Tus otros dispositivos no se ven afectados.",
         "deviceBannerAction": "Desactivar",
         "deviceDisabledSuccess": "Notificaciones push desactivadas en este navegador",
@@ -5452,6 +5466,32 @@
         "mentions": "{count, plural, one {# mención} other {# menciones}}",
         "untitled": "Hilo"
       },
+      "UnreadNav": {
+        "label": "Sin leer",
+        "threads": "Hilos",
+        "allUnreads": "Todo lo no leído",
+        "unreadThreads": "{count, plural, one {# hilo sin leer} other {# hilos sin leer}}",
+        "unreadThreadsCapped": "Más de {max} hilos sin leer",
+        "mentions": "{count, plural, one {# mención} other {# menciones}}",
+        "filterOn": "Mostrando solo lo no leído",
+        "markAllRead": "Marcar todo como leído",
+        "markAllReadError": "No se pudo marcar todo como leído.",
+        "caughtUp": "Todo al día",
+        "allThreads": "Todos los hilos",
+        "showAllChats": "Mostrar todos los chats",
+        "showAll": "Mostrar todo",
+        "nothingUnread": "{count, plural, one {Nada sin leer en # chat} other {Nada sin leer en # chats}}",
+        "justRead": "Recién leídos"
+      },
+      "ThreadsView": {
+        "title": "Hilos",
+        "listLabel": "Hilos sin leer",
+        "empty": "Estás al día",
+        "emptyDescription": "Las respuestas nuevas en hilos en los que participas aparecen aquí.",
+        "loadMore": "Mostrar más",
+        "loadError": "No se pudieron cargar los hilos sin leer.",
+        "retry": "Reintentar"
+      },
       "Thread": {
         "title": "Thread",
         "open": "Open thread",
@@ -5625,10 +5665,13 @@
         "error": "No se pudieron cargar los hilos. Inténtalo de nuevo.",
         "markAllReadError": "No se pudieron marcar los hilos no leídos como leídos. Inténtalo de nuevo.",
         "loadOlder": "Cargar hilos anteriores",
+        "groupUnread": "Sin leer",
+        "groupEarlier": "Anteriores",
+        "groupUnreadEmpty": "Todo al día.",
         "startedBy": "Iniciado por {name}",
-        "unreadReplies": "{count, plural, one {# respuesta no leída} other {# respuestas no leídas}}",
         "unreadThreads": "{count, plural, one {# hilo no leído} other {# hilos no leídos}}",
-        "unreadThreadsCapped": "Más de {max} hilos no leídos"
+        "unreadThreadsCapped": "Más de {max} hilos no leídos",
+        "newReplies": "{count, plural, one {# nueva} other {# nuevas}}"
       },
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# mensaje no leído} other {# mensajes no leídos}}",
@@ -6297,7 +6340,8 @@
       "view": {
         "month": "Mes",
         "week": "Semana",
-        "agenda": "Agenda"
+        "agenda": "Agenda",
+        "schedules": "Programaciones"
       },
       "source": {
         "label": "Origen",
@@ -6318,7 +6362,6 @@
         "moveNotAllowed": "Solo el propietario de la tarea puede reprogramarla."
       },
       "create": {
-        "title": "Programar una tarea",
         "fab": "Programar una tarea"
       },
       "edit": {
@@ -6364,7 +6407,15 @@
         "label": "Zona horaria"
       },
       "empty": {
-        "title": "Ninguna ejecución programada coincide con estos filtros."
+        "title": "Ninguna ejecución programada coincide con estos filtros.",
+        "schedulesTitle": "Ninguna programación coincide con estos filtros."
+      },
+      "schedules": {
+        "nextRun": "Próxima ejecución",
+        "noNextRun": "Sin próxima ejecución",
+        "edit": "Editar programación",
+        "openTask": "Abrir tarea",
+        "loadMore": "Cargar más"
       },
       "pagination": {
         "error": "No se pudieron cargar más eventos."
@@ -6375,8 +6426,8 @@
         "retry": "Intentar de nuevo"
       },
       "agenda": {
-        "backToTop": "Volver arriba",
-        "today": "Hoy"
+        "upcoming": "A continuación",
+        "loading": "Cargando…"
       }
     },
     "You": {

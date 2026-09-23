@@ -12,12 +12,18 @@ import {
   threadOverviewUnreadReplyCount,
 } from "@/app/chat/utils/thread-overview-unread";
 import { formatUnreadThreadsPreview } from "@/app/chat/utils/unread-threads-preview";
+import { ThreadListLoadMore } from "@/components/chat/thread-list-load-more";
+import {
+  ThreadGroupEmpty,
+  ThreadGroupHeading,
+  ThreadListRowContent,
+  threadListRowClassName,
+} from "@/components/chat/thread-list-row";
 import { Button } from "@/components/ui/button";
 import type {
   ChatRoomMessage,
   ChatRoomThread,
 } from "@/lib/clients/generated/core";
-import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 export interface ThreadListPanelLabels {
@@ -28,8 +34,15 @@ export interface ThreadListPanelLabels {
   error: string;
   markAllReadError: string;
   loadOlder: string;
+  /** Heading over the Threads with unread replies. */
+  groupUnread: string;
+  /** Heading over the rest. */
+  groupEarlier: string;
+  /** Stands under an empty Unread heading: nothing here is unread. */
+  groupUnreadEmpty: string;
   startedBy: (name: string) => string;
-  unreadReplies: (count: number) => string;
+  /** Leads an unread row's second line: "2 new". */
+  newReplies: (count: number) => string;
   /** Read by a screen reader off the muted row's icon. */
   muted: string;
   replies: (count: number) => string;
@@ -61,6 +74,7 @@ export function ThreadListPanel({
   const [items, setItems] = useState<ChatRoomThread[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [olderFailed, setOlderFailed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
@@ -71,6 +85,7 @@ export function ThreadListPanel({
     const requestId = ++listRequestIdRef.current;
     setIsLoading(true);
     setError(null);
+    setOlderFailed(false);
     try {
       const result = await listThreadsAction(roomId);
       if (requestId !== listRequestIdRef.current) {
@@ -111,13 +126,17 @@ export function ThreadListPanel({
     }
     const requestId = ++listRequestIdRef.current;
     setIsLoadingOlder(true);
+    setOlderFailed(false);
     try {
       const result = await listThreadsAction(roomId, { cursor: nextCursor });
       if (requestId !== listRequestIdRef.current) {
         return;
       }
       if (!result.ok) {
-        setError(result.error.message || labels.error);
+        // Kept off the list's own error: that one is the first page and Mark
+        // all. A failed older page stays on this row, and a retry that lands
+        // has to leave the row idle or scroll-loading never resumes.
+        setOlderFailed(true);
         return;
       }
       setItems((current) => {
@@ -132,7 +151,7 @@ export function ThreadListPanel({
       setNextCursor(result.value.nextCursor);
     } catch {
       if (requestId === listRequestIdRef.current) {
-        setError(labels.error);
+        setOlderFailed(true);
       }
     } finally {
       setIsLoadingOlder(false);
@@ -166,11 +185,77 @@ export function ThreadListPanel({
     }
   }
 
-  const unreadThreadCount = items.filter((item) =>
-    threadNeedsOverviewUnread(item),
-  ).length;
+  // Two groups, so the eye finds where the unread stops instead of reading
+  // each row's weight. A partition of what is loaded: nothing extra is
+  // fetched, and Core returns unread first, so paging only grows Earlier.
+  const unreadItems = items.filter((item) => threadNeedsOverviewUnread(item));
+  const earlierItems = items.filter((item) => !threadNeedsOverviewUnread(item));
   const showEmpty = !isLoading && !error && items.length === 0;
-  const showMarkAll = unreadThreadCount > 0;
+  // Every loaded list is divided, even one with nothing unread: the reader
+  // scans for the Unread heading, so it answers them either way, with the rows
+  // or with a line saying there are none. Only a room with no Threads at all
+  // drops the headings, because there its own empty state already speaks.
+  const hasGroups = items.length > 0;
+  const showMarkAll = unreadItems.length > 0;
+
+  function renderRow(item: ChatRoomThread) {
+    const sender = messageSender(item.parentMessage);
+    const lastAt = item.lastReplyAt;
+    const isUnread = threadNeedsOverviewUnread(item);
+    return (
+      <button
+        key={item.parentMessage.id}
+        type="button"
+        className={threadListRowClassName(isUnread)}
+        onClick={() => {
+          void onOpenThread(item.parentMessage);
+        }}
+        data-testid="thread-list-item"
+        data-unread={isUnread ? "true" : "false"}
+      >
+        {/* The `@` waits on a per-Thread mention count from Core. An unread
+            row leads with what is new and drops the starter to a trailing
+            name; a read row says who started it and how long it runs. */}
+        <ThreadListRowContent
+          unread={isUnread}
+          label={
+            formatUnreadThreadsPreview(
+              item.parentMessage.content,
+              mentionNames,
+            ) || sender.name
+          }
+          time={formatTimeAgo(
+            lastAt instanceof Date ? lastAt : new Date(lastAt),
+          )}
+          newReplies={
+            isUnread
+              ? labels.newReplies(threadOverviewUnreadReplyCount(item))
+              : undefined
+          }
+          meta={
+            isUnread ? (
+              sender.name
+            ) : (
+              <>
+                {labels.startedBy(sender.name)}
+                <span aria-hidden="true"> · </span>
+                {labels.replies(item.replyCount)}
+              </>
+            )
+          }
+          trailing={
+            item.mutedAt ? (
+              <MegaphoneOff
+                className="text-muted-foreground mt-0.5 size-3.5 shrink-0"
+                aria-label={labels.muted}
+                data-testid="thread-list-muted"
+              />
+            ) : undefined
+          }
+        />
+      </button>
+    );
+  }
 
   return (
     <aside
@@ -231,97 +316,44 @@ export function ThreadListPanel({
             {labels.empty}
           </p>
         ) : null}
-        {items.map((item) => {
-          const sender = messageSender(item.parentMessage);
-          const lastAt = item.lastReplyAt;
-          const preview =
-            formatUnreadThreadsPreview(
-              item.parentMessage.content,
-              mentionNames,
-            ) || sender.name;
-          const isUnread = threadNeedsOverviewUnread(item);
-          const unreadReplyLabelCount = threadOverviewUnreadReplyCount(item);
-          return (
-            <button
-              key={item.parentMessage.id}
-              type="button"
-              className={cn(
-                "hover:bg-accent flex w-full flex-col gap-0.5 rounded-md px-2 py-2 text-left text-sm",
-                isUnread && "bg-card-background",
-              )}
-              onClick={() => {
-                void onOpenThread(item.parentMessage);
-              }}
-              data-testid="thread-list-item"
-              data-unread={isUnread ? "true" : "false"}
-            >
-              <div className="flex items-start gap-2">
-                {isUnread ? (
-                  <span
-                    aria-hidden="true"
-                    data-testid="thread-list-unread-dot"
-                    className="bg-primary mt-1.5 size-2 shrink-0 rounded-full"
-                  />
-                ) : (
-                  <span className="mt-1.5 size-2 shrink-0" aria-hidden />
-                )}
-                <span
-                  className={cn(
-                    "line-clamp-2 min-w-0 flex-1",
-                    isUnread
-                      ? "font-semibold text-foreground"
-                      : "text-muted-foreground font-normal",
-                  )}
-                >
-                  {preview}
-                </span>
-                {item.mutedAt ? (
-                  <MegaphoneOff
-                    className="text-muted-foreground mt-0.5 size-3.5 shrink-0"
-                    aria-label={labels.muted}
-                    data-testid="thread-list-muted"
-                  />
-                ) : null}
-                <span className="text-muted-foreground shrink-0 text-xs">
-                  {formatTimeAgo(
-                    lastAt instanceof Date ? lastAt : new Date(lastAt),
-                  )}
-                </span>
-              </div>
-              <p
-                className={cn(
-                  "truncate pl-4 text-xs",
-                  isUnread
-                    ? "text-foreground font-medium"
-                    : "text-muted-foreground",
-                )}
-              >
-                {labels.startedBy(sender.name)}
-                <span aria-hidden="true"> · </span>
-                <span>
-                  {isUnread
-                    ? labels.unreadReplies(unreadReplyLabelCount)
-                    : labels.replies(item.replyCount)}
-                </span>
-              </p>
-            </button>
-          );
-        })}
+        {hasGroups ? (
+          <>
+            <ThreadGroupHeading count={unreadItems.length}>
+              {labels.groupUnread}
+            </ThreadGroupHeading>
+            {unreadItems.length > 0 ? (
+              unreadItems.map(renderRow)
+            ) : (
+              // Centred and given room, so it reads as the group's own state
+              // rather than a row someone forgot to fill in.
+              <ThreadGroupEmpty>{labels.groupUnreadEmpty}</ThreadGroupEmpty>
+            )}
+          </>
+        ) : null}
+        {/* Nothing read yet means no Earlier group to head; an empty one would
+            only restate what the Unread group above already showed. */}
+        {hasGroups && earlierItems.length > 0 ? (
+          <>
+            <ThreadGroupHeading>{labels.groupEarlier}</ThreadGroupHeading>
+            {earlierItems.map(renderRow)}
+          </>
+        ) : null}
         {nextCursor ? (
-          <div className="flex justify-center py-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                void handleLoadOlder();
-              }}
-              disabled={isLoadingOlder}
-              data-testid="thread-list-load-older"
-            >
-              {isLoadingOlder ? labels.loading : labels.loadOlder}
-            </Button>
-          </div>
+          <ThreadListLoadMore
+            boundaryKey={items.at(-1)?.parentMessage.id ?? ""}
+            status={
+              isLoadingOlder ? "loading" : olderFailed ? "failed" : "idle"
+            }
+            onLoad={() => {
+              void handleLoadOlder();
+            }}
+            labels={{
+              load: labels.loadOlder,
+              loading: labels.loading,
+              error: labels.error,
+              retry: labels.loadOlder,
+            }}
+          />
         ) : null}
       </div>
     </aside>

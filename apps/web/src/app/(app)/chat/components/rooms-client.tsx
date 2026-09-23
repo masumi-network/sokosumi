@@ -111,7 +111,10 @@ import {
   shouldFlashOutboundSentCheck,
 } from "@/app/chat/utils/outbound-room-message";
 import { markOutboundSentTick } from "@/app/chat/utils/outbound-sent-tick";
-import { applyReplySoftDeleteToParentIfUnchanged } from "@/app/chat/utils/parent-thread-preview";
+import {
+  applyReplySoftDeleteToParentIfUnchanged,
+  applyReplyToParentThreadPreview,
+} from "@/app/chat/utils/parent-thread-preview";
 import {
   mergeConfirmedReaction,
   overlayPendingReactions,
@@ -149,7 +152,6 @@ import {
 } from "@/components/chat/membership-visible-rooms-store";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
-import { useShowRoomUnreadCount } from "@/components/chat/use-show-room-unread-count";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
@@ -431,10 +433,12 @@ function RetainedRoomsClient({
   const [pending, setPending] = useState<ChatRoomMessage[]>([]);
   const pendingRef = useRef(pending);
   pendingRef.current = pending;
+  // Shells go first: mergeRoomMessages keeps local shells only from its
+  // existing side, and confirms them from incoming server rows.
   const transcript = useMemo(
     () => ({
       ...entry.transcript,
-      messages: mergeRoomMessages(entry.transcript.messages, pending),
+      messages: mergeRoomMessages(pending, entry.transcript.messages),
     }),
     [entry.transcript, pending],
   );
@@ -445,7 +449,7 @@ function RetainedRoomsClient({
       cache.setTranscript(roomId, lifetime, (confirmed) => {
         const current = {
           ...confirmed,
-          messages: mergeRoomMessages(confirmed.messages, pendingRef.current),
+          messages: mergeRoomMessages(pendingRef.current, confirmed.messages),
         };
         const next = typeof update === "function" ? update(current) : update;
         const shells = next.messages.filter(isOutboundLocalMessage);
@@ -1897,11 +1901,7 @@ function RoomView({
   ) {
     const updateParent = (message: ChatRoomMessage): ChatRoomMessage =>
       message.id === parentMessageId
-        ? {
-            ...message,
-            threadReplyCount: message.threadReplyCount + 1,
-            threadLastReplyAt: reply.createdAt,
-          }
+        ? applyReplyToParentThreadPreview(message, reply)
         : message;
 
     setMessagesState((current) => current.map(updateParent));
@@ -2952,7 +2952,6 @@ function RoomView({
     ],
   );
 
-  const showRoomUnreadCount = useShowRoomUnreadCount();
   const unreadThreadCount = useUnreadThreadCount(
     selectedRoom?.id ?? null,
     `${threadUnreadGeneration}:${threadListOpen}`,
@@ -2967,7 +2966,6 @@ function RoomView({
         onJumpToMessage={handleSearchJump}
         threadListOpen={threadListOpen}
         unreadThreadCount={unreadThreadCount}
-        showUnreadCount={showRoomUnreadCount}
         pinnedOpen={pinnedOpen}
         onTogglePinned={handleTogglePinned}
         onToggleThreadList={() => showThreadList({ toggle: true })}
@@ -3399,9 +3397,12 @@ function RoomView({
                   error: t("UnreadThreads.error"),
                   markAllReadError: t("UnreadThreads.markAllReadError"),
                   loadOlder: t("UnreadThreads.loadOlder"),
+                  groupUnread: t("UnreadThreads.groupUnread"),
+                  groupEarlier: t("UnreadThreads.groupEarlier"),
+                  groupUnreadEmpty: t("UnreadThreads.groupUnreadEmpty"),
                   startedBy: (name) => t("UnreadThreads.startedBy", { name }),
-                  unreadReplies: (count) =>
-                    t("UnreadThreads.unreadReplies", { count }),
+                  newReplies: (count) =>
+                    t("UnreadThreads.newReplies", { count }),
                   replies: (count) => t("Thread.replyCount", { count }),
                   close: t("UnreadThreads.close"),
                   muted: t("Thread.muted"),

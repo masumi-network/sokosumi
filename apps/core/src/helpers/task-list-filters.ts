@@ -5,6 +5,10 @@ export interface TaskListStatusFilterParams {
   statuses?: TaskStatus[];
 }
 
+export interface TaskListScheduleFilterParams {
+  hasSchedule?: boolean;
+}
+
 export function buildTaskListStatusWhere(
   params: TaskListStatusFilterParams,
 ): Prisma.TaskWhereInput {
@@ -17,6 +21,26 @@ export function buildTaskListStatusWhere(
   return { status: { in: statuses } };
 }
 
+export function buildTaskListScheduleWhere(
+  params: TaskListScheduleFilterParams,
+): Prisma.TaskWhereInput {
+  const { hasSchedule } = params;
+
+  if (hasSchedule === undefined) {
+    return {};
+  }
+
+  if (hasSchedule) {
+    return {
+      OR: [{ metadata: { not: null } }, { nextRunAt: { not: null } }],
+    };
+  }
+
+  return {
+    AND: [{ metadata: null }, { nextRunAt: null }],
+  };
+}
+
 function normalizeAnd(
   and: Prisma.TaskWhereInput | Prisma.TaskWhereInput[] | undefined,
 ): Prisma.TaskWhereInput[] {
@@ -27,22 +51,36 @@ function normalizeAnd(
   return Array.isArray(and) ? and : [and];
 }
 
-export function applyTaskListStatusWhere(
+function mergeTaskListWhere(
   where: Prisma.TaskWhereInput,
-  statusWhere: Prisma.TaskWhereInput,
+  extraWhere: Prisma.TaskWhereInput,
 ): Prisma.TaskWhereInput {
-  if (Object.keys(statusWhere).length === 0) {
+  if (Object.keys(extraWhere).length === 0) {
     return where;
   }
 
   const existingAnd = normalizeAnd(where.AND);
-  const statusAnd = normalizeAnd(statusWhere.AND);
-  const { AND: _statusAnd, ...statusRest } = statusWhere;
-  const mergedAnd = [...existingAnd, ...statusAnd];
+  const extraAnd = normalizeAnd(extraWhere.AND);
+  const { AND: _extraAnd, ...extraRest } = extraWhere;
+  const mergedAnd = [...existingAnd, ...extraAnd];
 
   return {
     ...where,
-    ...statusRest,
+    ...extraRest,
     ...(mergedAnd.length > 0 ? { AND: mergedAnd } : {}),
   };
+}
+
+export function applyTaskListStatusWhere(
+  where: Prisma.TaskWhereInput,
+  statusWhere: Prisma.TaskWhereInput,
+): Prisma.TaskWhereInput {
+  return mergeTaskListWhere(where, statusWhere);
+}
+
+export function applyTaskListScheduleWhere(
+  where: Prisma.TaskWhereInput,
+  hasSchedule: boolean | undefined,
+): Prisma.TaskWhereInput {
+  return mergeTaskListWhere(where, buildTaskListScheduleWhere({ hasSchedule }));
 }

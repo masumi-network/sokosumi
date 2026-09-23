@@ -66,6 +66,7 @@ const {
   workspaceUpsertMock,
   ensurePersonalWorkspaceKeepingPreferredMock,
   isLastWorkspaceMock,
+  prepareOrganizationForDeletionMock,
 } = vi.hoisted(() => {
   const waitUntilCapturedPromises: Promise<unknown>[] = [];
   const waitUntilMock = vi.fn((promise: Promise<unknown>) => {
@@ -174,6 +175,7 @@ const {
     workspaceUpsertMock: vi.fn(),
     ensurePersonalWorkspaceKeepingPreferredMock: vi.fn(),
     isLastWorkspaceMock: vi.fn(),
+    prepareOrganizationForDeletionMock: vi.fn(),
   };
 });
 
@@ -289,6 +291,11 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
 
 vi.mock("@/helpers/workspace-access", () => ({
   isLastWorkspace: (...args: unknown[]) => isLastWorkspaceMock(...args),
+}));
+
+vi.mock("@/helpers/organization-deletion", () => ({
+  prepareOrganizationForDeletion: (...args: unknown[]) =>
+    prepareOrganizationForDeletionMock(...args),
 }));
 
 vi.mock("@sokosumi/database/repositories", () => ({
@@ -459,6 +466,7 @@ describe("core auth config", () => {
       workspace: { id: "personal_ws_123" },
     });
     isLastWorkspaceMock.mockResolvedValue(false);
+    prepareOrganizationForDeletionMock.mockResolvedValue(null);
     prismaMock.user.findUnique.mockResolvedValue({ stripeCustomerId: null });
     prismaMock.organization.findUnique.mockResolvedValue({
       stripeCustomerId: null,
@@ -851,67 +859,90 @@ describe("core auth config", () => {
     });
   });
 
-  it.each(["onSubscriptionCreated", "onSubscriptionUpdate"] as const)(
-    "reconciles local free rows from Better Auth subscription callback %s",
-    async (callbackName) => {
-      await import("./auth");
+  interface SubscriptionHookConfig {
+    subscription: {
+      onSubscriptionCreated?: unknown;
+      onSubscriptionUpdate: (params: {
+        event: { id: string; type: string };
+        subscription: {
+          id: string;
+          referenceId: string;
+          stripeSubscriptionId?: string | null;
+        };
+      }) => Promise<void>;
+    };
+  }
 
-      const [[config]] = stripePluginMock.mock.calls as Array<
-        [
-          {
-            subscription: {
-              onSubscriptionCreated: (params: {
-                event: {
-                  id: string;
-                  type: string;
-                };
-                subscription: {
-                  id: string;
-                  referenceId: string;
-                  stripeSubscriptionId?: string | null;
-                };
-              }) => Promise<void>;
-              onSubscriptionUpdate: (params: {
-                event: {
-                  id: string;
-                  type: string;
-                };
-                subscription: {
-                  id: string;
-                  referenceId: string;
-                  stripeSubscriptionId?: string | null;
-                };
-              }) => Promise<void>;
-            };
-          },
-        ]
-      >;
+  const updatedSubscription = {
+    id: "sub_local_enterprise",
+    referenceId: "org-enterprise",
+    stripeSubscriptionId: "sub_enterprise",
+  };
 
-      const subscription = {
-        id: "sub_local_enterprise",
-        referenceId: "org-enterprise",
-        stripeSubscriptionId: "sub_enterprise",
-      };
+  const updatedEvent = {
+    id: "evt_enterprise",
+    type: "customer.subscription.updated",
+  };
 
-      await config.subscription[callbackName]({
-        event: {
-          id: "evt_enterprise",
-          type:
-            callbackName === "onSubscriptionCreated"
-              ? "customer.subscription.created"
-              : "customer.subscription.updated",
+  it("leaves customer.subscription.created to onEvent, where a failure is retried", async () => {
+    await import("./auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [SubscriptionHookConfig]
+    >;
+
+    expect(config.subscription.onSubscriptionCreated).toBeUndefined();
+  });
+
+  it("reconciles on a subscription update without auto-assigning seats", async () => {
+    await import("./auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [SubscriptionHookConfig]
+    >;
+
+    await config.subscription.onSubscriptionUpdate({
+      event: updatedEvent,
+      subscription: updatedSubscription,
+    });
+
+    // The exact call, so an auto-assign option cannot slip in.
+    expect(reconcileActiveStripeBackedSubscriptionMock.mock.calls).toEqual([
+      [updatedSubscription],
+    ]);
+  });
+
+  it("reports a failed update reconciliation without throwing", async () => {
+    const failure = new Error("reconcile failed");
+    reconcileActiveStripeBackedSubscriptionMock.mockRejectedValueOnce(failure);
+    await import("./auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [SubscriptionHookConfig]
+    >;
+
+    await expect(
+      config.subscription.onSubscriptionUpdate({
+        event: updatedEvent,
+        subscription: updatedSubscription,
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(
+      failure,
+      expect.objectContaining({
+        tags: expect.objectContaining({
+          stripeEventType: "customer.subscription.updated",
+          stripeSubscriptionId: "sub_enterprise",
+        }),
+        extra: {
+          eventId: "evt_enterprise",
+          localSubscriptionId: "sub_local_enterprise",
+          referenceId: "org-enterprise",
         },
-        subscription,
-      });
-
-      expect(reconcileActiveStripeBackedSubscriptionMock).toHaveBeenCalledWith(
-        subscription,
-        {
-          autoAssignIfUnassigned: callbackName === "onSubscriptionCreated",
-        },
-      );
-    },
-  );
+      }),
+    );
+  });
 
   it("denies subscription management for non-members", async () => {
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValue(null);
@@ -2280,10 +2311,13 @@ describe("core auth config", () => {
   });
 
   it("blocks organization deletion when additional members remain", async () => {
-    getMembersByOrganizationIdMock.mockResolvedValue([
-      { userId: "user-1" },
-      { userId: "user-2" },
-    ]);
+    prepareOrganizationForDeletionMock.mockRejectedValue({
+      status: "BAD_REQUEST",
+      body: {
+        code: "ORGANIZATION_HAS_ADDITIONAL_MEMBERS",
+        message: "Remove all other members before deleting this organization.",
+      },
+    });
 
     await import("./auth");
 
@@ -2313,15 +2347,21 @@ describe("core auth config", () => {
       },
     });
 
-    expect(getMembersByOrganizationIdMock).toHaveBeenCalledWith(
+    expect(prepareOrganizationForDeletionMock).toHaveBeenCalledWith(
       "org-1",
+      "user-1",
       prismaMock,
     );
   });
 
   it("blocks organization deletion when it is the user's last workspace", async () => {
-    getMembersByOrganizationIdMock.mockResolvedValue([{ userId: "user-1" }]);
-    isLastWorkspaceMock.mockResolvedValueOnce(true);
+    prepareOrganizationForDeletionMock.mockRejectedValue({
+      status: "BAD_REQUEST",
+      body: {
+        code: "LAST_WORKSPACE",
+        message: "Cannot delete the user's last workspace.",
+      },
+    });
 
     await import("./auth");
 
@@ -2351,9 +2391,9 @@ describe("core auth config", () => {
       },
     });
 
-    expect(isLastWorkspaceMock).toHaveBeenCalledWith(
+    expect(prepareOrganizationForDeletionMock).toHaveBeenCalledWith(
+      "org-1",
       "user-1",
-      { type: "organization", organizationId: "org-1" },
       prismaMock,
     );
   });

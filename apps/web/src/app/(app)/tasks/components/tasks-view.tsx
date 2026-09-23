@@ -16,7 +16,7 @@ import {
   userTaskStatusTransitionRequiresComment,
 } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
-import { CircleHelp, Plus } from "lucide-react";
+import { CircleHelp } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -74,7 +74,14 @@ import {
 } from "@/app/tasks/utils/tasks-tab";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+  SEGMENTED_TABS_LIST_CLASS_NAME,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 
 import {
@@ -137,21 +144,6 @@ interface PendingBoardReopen {
   previousStatus: TaskStatus;
   desiredStatus: TaskStatus;
   moveVersion: number;
-}
-
-function HeaderAddButton({ label }: { label: string }) {
-  const { handleOpen } = useCreateTaskModal();
-  return (
-    <Button
-      size="sm"
-      onClick={handleOpen}
-      className="hidden gap-1.5 md:inline-flex"
-      data-tasks-add-task-header-anchor
-    >
-      <Plus className="size-4" aria-hidden />
-      <span className="hidden sm:inline">{label}</span>
-    </Button>
-  );
 }
 
 function TasksMobileCreateFabSlot() {
@@ -294,8 +286,6 @@ interface TasksViewProps {
       statusOptions: Record<TaskStatus, string>;
     };
     columns: Record<KanbanColumnId, string>;
-    add: string;
-    addTask: string;
     jobs: {
       filterButton: string;
       agentLabel: string;
@@ -1295,16 +1285,16 @@ export function TasksView({
     >
       <div className="flex flex-row items-center justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <TabsList className="bg-card-background flex items-center gap-1 self-start rounded-lg p-1">
+          <TabsList className={cn(SEGMENTED_TABS_LIST_CLASS_NAME, "w-fit")}>
             <TabsTrigger
               value="tasks"
-              className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
+              className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
             >
               {labels.tabs.tasks}
             </TabsTrigger>
             <TabsTrigger
               value="jobs"
-              className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
+              className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
             >
               {labels.tabs.jobs}
             </TabsTrigger>
@@ -1368,9 +1358,6 @@ export function TasksView({
               }}
             />
           ) : null}
-          {activeTab === "tasks" && canCreateTask ? (
-            <HeaderAddButton label={labels.add} />
-          ) : null}
         </div>
       </div>
 
@@ -1414,7 +1401,6 @@ export function TasksView({
                     }
                     labels={{
                       columns: labels.columns,
-                      addTask: labels.addTask,
                       emptyColumn: labels.listPlaceholder,
                     }}
                   />
@@ -1465,7 +1451,6 @@ export function TasksView({
                 statusLabels={labels.filters.statusOptions}
                 labels={{
                   columns: labels.columns,
-                  addTask: labels.addTask,
                   emptyColumn: labels.listPlaceholder,
                 }}
                 isDragEnabled={false}

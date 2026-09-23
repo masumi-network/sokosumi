@@ -133,10 +133,6 @@ vi.mock("@/app/chat/hooks/use-coworker-direct-room-stream", () => ({
   }),
 }));
 
-vi.mock("@/components/chat/use-show-room-unread-count", () => ({
-  useShowRoomUnreadCount: () => false,
-}));
-
 vi.mock("@/app/chat/actions", () => ({
   countUnreadThreadsAction: vi.fn(async () => ({
     ok: true as const,
@@ -1212,6 +1208,33 @@ describe("channel cache access and navigation", () => {
     );
     expect(screen.getByText("confirmed")).toBeTruthy();
     expect(screen.queryByText("local outbound")).toBeNull();
+  });
+
+  it("shows retained sends as pending rows before the server confirms", async () => {
+    const sent =
+      Promise.withResolvers<
+        Awaited<ReturnType<typeof sendRoomMessageAction>>
+      >();
+    vi.mocked(sendRoomMessageAction)
+      .mockReset()
+      .mockReturnValueOnce(sent.promise)
+      .mockReturnValue(new Promise(() => {}));
+    render(
+      <RoomsClient {...baseProps} messages={[sampleMessage("confirmed")]} />,
+      { wrapper: CacheWrapper },
+    );
+    fireEvent.click(screen.getByText("Send fixture"));
+    expect(screen.getAllByText("local outbound")).toHaveLength(1);
+    fireEvent.click(screen.getByText("Send fixture"));
+    expect(screen.getAllByText("local outbound")).toHaveLength(2);
+    await act(async () =>
+      sent.resolve({
+        ok: true,
+        value: { ...sampleMessage("confirmed send"), id: "msg-sent" },
+      }),
+    );
+    expect(screen.getByText("confirmed send")).toBeTruthy();
+    expect(screen.getAllByText("local outbound")).toHaveLength(1);
   });
 
   it.each(["channel", "direct"] as const)(

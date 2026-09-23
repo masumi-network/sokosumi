@@ -184,8 +184,6 @@ const labels = {
     "input-required": "Input required",
     done: "Done",
   } as Record<KanbanColumnId, string>,
-  add: "Add",
-  addTask: "Add task",
   jobs: {
     filterButton: "Filter",
     agentLabel: "Agent",

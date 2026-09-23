@@ -571,7 +571,7 @@ export async function runCli(
       return await runAuthLogout({
         env,
         config,
-        authManager: dependencies.authManager,
+        authManager,
         stdout,
         json: options.json,
       });
@@ -580,7 +580,7 @@ export async function runCli(
       return await runAuthStatus({
         env,
         config,
-        authManager: dependencies.authManager,
+        authManager,
         stdout,
         json: options.json,
         targetExplicit,
@@ -604,7 +604,7 @@ export async function runCli(
           : Number(options["oauth-timeout-ms"]),
       apiKeyStdin: options["api-key-stdin"],
       json: options.json,
-      authManager: dependencies.authManager,
+      authManager,
       stdout,
     });
   } catch (error) {

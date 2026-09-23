@@ -134,22 +134,25 @@ type StripeBackedLocalSubscription = NonNullable<
   Parameters<typeof reconcileActiveStripeBackedSubscription>[0]
 >;
 
-async function handleStripeBackedSubscriptionLifecycle({
+// Best-effort on purpose. The plugin logs and drops an error from this hook,
+// so it never reaches Stripe, and moving it to onEvent would not help: a
+// Stripe retry replays the plugin's update handler, which rewrites status,
+// seats and periods from the event payload with no staleness check, so a
+// retried older event can overwrite a newer state. A lost reconciliation is
+// repaired by the next update event for the subscription, which can be the
+// renewal a full billing period later; Sentry is the signal until then.
+async function reconcileAfterSubscriptionUpdate({
   event,
   subscription,
-  autoAssignIfUnassigned,
 }: {
   event: {
     id: string;
     type: string;
   };
   subscription: StripeBackedLocalSubscription;
-  autoAssignIfUnassigned: boolean;
 }): Promise<void> {
   try {
-    await reconcileActiveStripeBackedSubscription(subscription, {
-      autoAssignIfUnassigned,
-    });
+    await reconcileActiveStripeBackedSubscription(subscription);
   } catch (error) {
     Sentry.captureException(error, {
       tags: {
@@ -162,7 +165,6 @@ async function handleStripeBackedSubscriptionLifecycle({
         referenceId: subscription.referenceId,
       },
     });
-    throw error;
   }
 }
 
@@ -631,16 +633,9 @@ export const auth = betterAuth({
       subscription: {
         enabled: true,
         plans: async () => await getBetterAuthSubscriptionPlans(),
-        onSubscriptionCreated: (params) =>
-          handleStripeBackedSubscriptionLifecycle({
-            ...params,
-            autoAssignIfUnassigned: true,
-          }),
-        onSubscriptionUpdate: (params) =>
-          handleStripeBackedSubscriptionLifecycle({
-            ...params,
-            autoAssignIfUnassigned: false,
-          }),
+        // customer.subscription.created reconciles in onEvent instead, where
+        // a failure reaches Stripe and is retried.
+        onSubscriptionUpdate: reconcileAfterSubscriptionUpdate,
         getCheckoutSessionParams: async () => ({
           params: {
             automatic_tax: {

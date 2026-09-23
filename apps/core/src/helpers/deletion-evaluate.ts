@@ -7,7 +7,6 @@ import {
   TaskStatus,
   TaskX402PaymentStatus,
 } from "@sokosumi/database";
-import type { createPrismaClient } from "@sokosumi/database/client";
 import { ACTIVE_SUBSCRIPTION_STATUSES } from "@sokosumi/database/helpers";
 import { memberRepository } from "@sokosumi/database/repositories";
 import {
@@ -16,10 +15,8 @@ import {
 } from "@sokosumi/database/types/job";
 import { APIError } from "better-auth/api";
 
-import { SWEEPABLE_X402_STATUSES } from "@/helpers/user-deletion-tasks";
+import { SWEEPABLE_X402_STATUSES } from "@/helpers/task-deletion-payments";
 import { isLastWorkspace } from "@/helpers/workspace-access";
-
-type PrismaClient = ReturnType<typeof createPrismaClient>;
 
 export const USER_DELETION_BLOCKER_CODES = [
   "RUNNING_SUBSCRIPTION",
@@ -156,7 +153,7 @@ function inFlightTaskWhere(
 
 async function hasRunningPaidSubscription(
   referenceId: string,
-  prisma: PrismaClient,
+  prisma: Prisma.TransactionClient,
 ): Promise<boolean> {
   const subscription = await prisma.subscription.findFirst({
     where: {
@@ -175,7 +172,7 @@ async function hasRunningPaidSubscription(
  */
 export async function evaluateUserDeletion(
   userId: string,
-  prisma: PrismaClient,
+  prisma: Prisma.TransactionClient,
 ): Promise<UserDeletionEvaluation> {
   const blockers: UserDeletionBlocker[] = [];
   const idSelect = { id: true } as const;
@@ -361,47 +358,43 @@ export async function evaluateUserDeletion(
 export async function evaluateOrganizationDeletion(
   organizationId: string,
   actorUserId: string,
-  prisma: PrismaClient,
+  prisma: Prisma.TransactionClient,
 ): Promise<OrganizationDeletionEvaluation> {
   const blockers: OrganizationDeletionBlocker[] = [];
   const idSelect = { id: true } as const;
-  const [
-    runningSubscription,
-    activeEnterpriseContract,
-    members,
-    lastWorkspace,
-    inFlightJob,
-    unsettledOnChainJob,
-    inFlightTask,
-  ] = await Promise.all([
-    hasRunningPaidSubscription(organizationId, prisma),
-    prisma.enterpriseContract.findFirst({
-      where: {
-        organizationId,
-        status: EnterpriseContractStatus.active,
-        activatedAt: { not: null },
-      },
-      select: { id: true },
-    }),
-    memberRepository.getMembersByOrganizationId(organizationId, prisma),
-    isLastWorkspace(
-      actorUserId,
-      { type: "organization", organizationId },
-      prisma,
-    ),
-    prisma.job.findFirst({
-      where: inFlightJobWhere({ organizationId }),
-      select: idSelect,
-    }),
-    prisma.job.findFirst({
-      where: unsettledOnChainJobWhere({ organizationId }),
-      select: idSelect,
-    }),
-    prisma.task.findFirst({
-      where: inFlightTaskWhere({ organizationId }),
-      select: idSelect,
-    }),
-  ]);
+  const runningSubscription = await hasRunningPaidSubscription(
+    organizationId,
+    prisma,
+  );
+  const activeEnterpriseContract = await prisma.enterpriseContract.findFirst({
+    where: {
+      organizationId,
+      status: EnterpriseContractStatus.active,
+      activatedAt: { not: null },
+    },
+    select: { id: true },
+  });
+  const members = await memberRepository.getMembersByOrganizationId(
+    organizationId,
+    prisma,
+  );
+  const lastWorkspace = await isLastWorkspace(
+    actorUserId,
+    { type: "organization", organizationId },
+    prisma,
+  );
+  const inFlightJob = await prisma.job.findFirst({
+    where: inFlightJobWhere({ organizationId }),
+    select: idSelect,
+  });
+  const unsettledOnChainJob = await prisma.job.findFirst({
+    where: unsettledOnChainJobWhere({ organizationId }),
+    select: idSelect,
+  });
+  const inFlightTask = await prisma.task.findFirst({
+    where: inFlightTaskWhere({ organizationId }),
+    select: idSelect,
+  });
 
   if (runningSubscription) {
     blockers.push("RUNNING_SUBSCRIPTION");

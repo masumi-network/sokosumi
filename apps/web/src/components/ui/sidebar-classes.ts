@@ -71,3 +71,13 @@ export const SIDEBAR_ROW_LABEL_INSET_CLASS = "pl-10";
  * instead of covering the icon. Reduced motion jumps to the end state.
  */
 export const SIDEBAR_ROW_LABEL_CLASS = `min-w-0 flex-1 max-w-full overflow-hidden transition-[max-width] ${SIDEBAR_COLLAPSE_TRANSITION} group-data-[collapsible=icon]:max-w-0`;
+
+/**
+ * A fixed name's overflow, for rows whose names always fit at full width
+ * (New Task, the nav rows, Projects, Soko Bots). Clipped, not ellipsized:
+ * an ellipsis re-truncates the name on every frame of the collapse ("New T…", "Ne…"),
+ * so the name looked squeezed into the narrowing row instead of the row
+ * sliding over it. `!` because the menu button's own
+ * `[&>span:last-child]:truncate` would put the ellipsis back.
+ */
+export const SIDEBAR_ROW_FIXED_LABEL_CLASS = "whitespace-nowrap text-clip!";

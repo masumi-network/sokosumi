@@ -4,7 +4,7 @@ import { jobSyncService } from "@/services/job-sync.service";
 
 import { handleSyncRequest } from "../handler.js";
 
-export const JOBS_SYNC_LOCK_KEY = "jobs-sync";
+const JOBS_SYNC_LOCK_KEY = "jobs-sync";
 
 export default function mount(app: Hono) {
   app.get("/jobs", async (c) => {

@@ -247,6 +247,7 @@ describe("DELETE /tasks/{id}/schedule", () => {
       expect.any(Object),
       WORKSPACE_ID,
       [null],
+      "user_123",
     );
     expect(taskUpdateMock).not.toHaveBeenCalled();
   });
