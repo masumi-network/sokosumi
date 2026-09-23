@@ -2,13 +2,26 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vitest/config";
+import { defaultExclude, defineConfig } from "vitest/config";
 
 const rootDir = fileURLToPath(new URL(".", import.meta.url));
 
 function resolvePath(relativePath: string): string {
   return path.resolve(rootDir, relativePath);
 }
+
+/**
+ * `.test.ts` files that render or hook into a DOM. Keep these on happy-dom;
+ * every other `*.test.ts` under src runs in node.
+ */
+const DOM_TEST_TS = [
+  "src/**/use-*.test.ts",
+  "src/**/*.hook.test.ts",
+  "src/components/data-table/**/*.test.ts",
+  "src/components/chat/fetch-background-json.test.ts",
+  "src/lib/utils/notification-time.test.ts",
+  "src/app/(app)/organization/page.test.ts",
+] as const;
 
 export default defineConfig({
   plugins: [react()],
@@ -34,8 +47,6 @@ export default defineConfig({
     ],
   },
   test: {
-    environment: "happy-dom",
-    include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     passWithNoTests: true,
     setupFiles: ["src/test/setup.ts"],
     /**
@@ -47,5 +58,29 @@ export default defineConfig({
      * keep full parallelism.
      */
     maxWorkers: process.env.CI ? undefined : "50%",
+    /**
+     * Vitest 5 dropped `environmentMatchGlobs`. Two projects is the
+     * equivalent: pure `.test.ts` files stay in node; `.tsx` and DOM/hook
+     * `.test.ts` (Testing Library / window) stay on happy-dom.
+     */
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "node",
+          environment: "node",
+          include: ["src/**/*.test.ts"],
+          exclude: [...defaultExclude, ...DOM_TEST_TS],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "happy-dom",
+          environment: "happy-dom",
+          include: ["src/**/*.test.tsx", ...DOM_TEST_TS],
+        },
+      },
+    ],
   },
 });
