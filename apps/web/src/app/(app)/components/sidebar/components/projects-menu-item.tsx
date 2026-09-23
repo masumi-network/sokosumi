@@ -29,7 +29,10 @@ import {
   SidebarRowSlot,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
+import {
+  SIDEBAR_ROW_FIXED_LABEL_CLASS,
+  SIDEBAR_ROW_LABEL_CLASS,
+} from "@/components/ui/sidebar-classes";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { usePinnedProjects } from "@/hooks/use-pinned-projects";
@@ -245,7 +248,9 @@ function ProjectsNavigation({ scope }: ProjectsNavigationProps) {
         <SidebarRowSlot>
           <FolderKanban className="size-4" aria-hidden />
         </SidebarRowSlot>
-        <span className={cn(SIDEBAR_ROW_LABEL_CLASS, "truncate")}>
+        <span
+          className={cn(SIDEBAR_ROW_LABEL_CLASS, SIDEBAR_ROW_FIXED_LABEL_CLASS)}
+        >
           {t("projects")}
         </span>
         {showsChevron ? (
