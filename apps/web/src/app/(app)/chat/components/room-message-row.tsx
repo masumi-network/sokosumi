@@ -22,7 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useNow, useTranslations } from "next-intl";
 import {
   memo,
   type MouseEvent as ReactMouseEvent,
@@ -31,6 +31,7 @@ import {
   type RefObject,
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -142,10 +143,12 @@ import {
   formatRoomComposerTooLongFailure,
   isRoomComposerContentCountVisible,
   isRoomComposerContentOverLimit,
+  type MessageSenderProfile,
   messageSender,
   ROOM_MESSAGE_MARKDOWN_CLASSNAME,
   ROOM_QUOTE_MARKDOWN_CLASSNAME,
   type RoomMentionParticipant,
+  senderProfile,
 } from "./room-helpers";
 import { RoomMessageMarkdown } from "./room-mention-markdown";
 import { SokoBotChainBadge } from "./soko-bot-chain-badge";
@@ -2188,6 +2191,132 @@ function OutboundFailedActions({
   );
 }
 
+/** A sender's face: the Soko Bot orb when it has no photo, else the avatar. */
+function SenderFace({
+  sender,
+  orbSize,
+  className,
+  fallbackClassName,
+}: {
+  sender: MessageSenderProfile;
+  /** Rendered pixels for the orb: twice the CSS size, for dense screens. */
+  orbSize: number;
+  className: string;
+  fallbackClassName: string;
+}) {
+  if (sender.kind === "sokoBot" && sender.avatarSeed && !sender.image) {
+    return (
+      <AuroraOrb
+        seed={sender.avatarSeed}
+        size={orbSize}
+        alt=""
+        className={cn("ring-border ring-1", className)}
+      />
+    );
+  }
+  return (
+    <Avatar className={className}>
+      <AvatarImage src={sender.image ?? undefined} alt="" />
+      <AvatarFallback className={fallbackClassName}>
+        {getInitials(sender.name)}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
+
+/**
+ * The bar under a thread parent: who replied, how many replies (or how many
+ * are new to this reader), and how long ago the last one landed. Its name is
+ * the count alone; the age is its description and the faces are decoration.
+ */
+function ThreadReplyBar({
+  message,
+  onOpenThread,
+}: {
+  message: ChatRoomMessage;
+  onOpenThread: (message: ChatRoomMessage) => void;
+}) {
+  const t = useTranslations("App.Channels");
+  const format = useFormatter();
+  // Ticks, so a memoised row does not read "4m ago" for an hour.
+  const now = useNow({ updateInterval: 60_000 });
+  const ageId = useId();
+  // Absent on realtime payloads, which are not addressed to one viewer.
+  const unreadReplyCount = message.threadUnreadReplyCount ?? 0;
+  // Absent on messages the client built itself and on cached transcripts.
+  const repliers = message.threadRepliers ?? [];
+  const countLabel =
+    unreadReplyCount > 0
+      ? t("Thread.newReplyCount", { count: unreadReplyCount })
+      : t("Thread.replyCount", { count: message.threadReplyCount });
+
+  return (
+    <button
+      type="button"
+      data-slot="thread-reply-bar"
+      data-unread={unreadReplyCount > 0 ? "true" : undefined}
+      aria-label={countLabel}
+      aria-describedby={message.threadLastReplyAt ? ageId : undefined}
+      className={cn(
+        "text-primary hover:text-primary-hover -mx-1 mt-1 inline-flex min-h-9 items-center gap-1.5 px-1 text-xs font-medium sm:mt-1 sm:min-h-0",
+        // Unread reads as a bar, not a badge: the tint plus an inset left
+        // rule gives the count an edge to sit against without adding a
+        // second mark to a row that already carries reactions. The rule
+        // has no colour of its own, so it follows the text, hover too.
+        // `-quaternary` and `-variant` are the sidebar mention pill's pair:
+        // the `-quinary` tint sat 6% above the dark background and read as
+        // a faint outline round cramped text, not as a bar.
+        unreadReplyCount > 0 &&
+          "bg-primary-quaternary text-primary-variant rounded-lg px-2.5 py-1 font-semibold shadow-[inset_2px_0_0]",
+      )}
+      onClick={() => onOpenThread(message)}
+    >
+      {repliers.length > 0 ? (
+        <span aria-hidden className="flex -space-x-1">
+          {repliers.map((replier, index) => {
+            const profile = senderProfile(replier);
+            return (
+              <span
+                key={
+                  profile.kind === "unknown"
+                    ? `unknown-${index}`
+                    : `${profile.kind}:${profile.id}`
+                }
+                data-testid="thread-replier-face"
+                className="relative inline-flex size-4 shrink-0"
+                style={{ zIndex: repliers.length - index }}
+              >
+                <SenderFace
+                  sender={profile}
+                  orbSize={32}
+                  // The ring is the page colour, so overlapping faces stay
+                  // apart on the tinted bar as well as on the plain one.
+                  className="ring-background size-4 ring-2"
+                  fallbackClassName="text-[0.5rem]"
+                />
+              </span>
+            );
+          })}
+        </span>
+      ) : null}
+      <span>{countLabel}</span>
+      {message.threadLastReplyAt ? (
+        <>
+          <span aria-hidden className="text-muted-foreground font-normal">
+            ·
+          </span>
+          <span id={ageId} className="text-muted-foreground font-normal">
+            {format.relativeTime(message.threadLastReplyAt, {
+              now,
+              style: "narrow",
+            })}
+          </span>
+        </>
+      ) : null}
+    </button>
+  );
+}
+
 function MessageMetaFooter({
   message,
   onToggleReaction,
@@ -2203,8 +2332,6 @@ function MessageMetaFooter({
 }) {
   const t = useTranslations("App.Channels");
   const isOutboundLocal = isOutboundLocalMessage(message);
-  // Absent on realtime payloads, which are not addressed to one viewer.
-  const unreadReplyCount = message.threadUnreadReplyCount ?? 0;
 
   return (
     <>
@@ -2245,28 +2372,7 @@ function MessageMetaFooter({
         </div>
       ) : null}
       {showThreadButton && message.threadReplyCount > 0 && onOpenThread ? (
-        <button
-          type="button"
-          data-slot="thread-reply-bar"
-          data-unread={unreadReplyCount > 0 ? "true" : undefined}
-          className={cn(
-            "text-primary hover:text-primary-hover -mx-1 mt-1 min-h-9 px-1 text-xs font-medium sm:mt-1 sm:min-h-0",
-            // Unread reads as a bar, not a badge: the tint plus an inset left
-            // rule gives the count an edge to sit against without adding a
-            // second mark to a row that already carries reactions. The rule
-            // has no colour of its own, so it follows the text, hover too.
-            // `-quaternary` and `-variant` are the sidebar mention pill's pair:
-            // the `-quinary` tint sat 6% above the dark background and read as
-            // a faint outline round cramped text, not as a bar.
-            unreadReplyCount > 0 &&
-              "bg-primary-quaternary text-primary-variant inline-flex items-center rounded-lg px-2.5 py-1 font-semibold shadow-[inset_2px_0_0]",
-          )}
-          onClick={() => onOpenThread(message)}
-        >
-          {unreadReplyCount > 0
-            ? t("Thread.newReplyCount", { count: unreadReplyCount })
-            : t("Thread.replyCount", { count: message.threadReplyCount })}
-        </button>
+        <ThreadReplyBar message={message} onOpenThread={onOpenThread} />
       ) : null}
     </>
   );
@@ -2628,21 +2734,12 @@ export const ChatMessageRow = memo(function ChatMessageRow({
             data-testid="message-sender-avatar"
             className="relative inline-flex size-8 shrink-0"
           >
-            {sender.kind === "sokoBot" && sender.avatarSeed && !sender.image ? (
-              <AuroraOrb
-                seed={sender.avatarSeed}
-                size={64}
-                alt=""
-                className="ring-border size-8 ring-1"
-              />
-            ) : (
-              <Avatar className="size-8">
-                <AvatarImage src={sender.image ?? undefined} alt="" />
-                <AvatarFallback className="text-xs">
-                  {getInitials(sender.name)}
-                </AvatarFallback>
-              </Avatar>
-            )}
+            <SenderFace
+              sender={sender}
+              orbSize={64}
+              className="size-8"
+              fallbackClassName="text-xs"
+            />
             {sender.kind === "coworker" ? <AiCoworkerAvatarBadge /> : null}
           </span>
         </ChatParticipantHoverCard>

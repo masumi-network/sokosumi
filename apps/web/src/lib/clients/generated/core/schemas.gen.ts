@@ -9431,6 +9431,14 @@ export const ChatRoomPinnedMessageListItemSchema = {
                     format: 'date-time',
                     example: '2021-01-01T00:00:00.000Z'
                 },
+                threadRepliers: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/ChatRoomMessageSender'
+                    },
+                    maxItems: 3,
+                    description: 'Up to three distinct reply senders, newest first. Drawn from the newest dozen replies, so a thread dominated by one recent sender can omit an earlier one. Empty when the message has no replies; absent on client-built messages.'
+                },
                 metadata: {
                     type: [
                         'object',
@@ -10239,6 +10247,14 @@ export const ChatRoomMessageSchema = {
             ],
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        threadRepliers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatRoomMessageSender'
+            },
+            maxItems: 3,
+            description: 'Up to three distinct reply senders, newest first. Drawn from the newest dozen replies, so a thread dominated by one recent sender can omit an earlier one. Empty when the message has no replies; absent on client-built messages.'
         },
         metadata: {
             type: [

@@ -143,6 +143,15 @@ export const chatRoomInclude = {
   readStates: { select: { userId: true, lastReadAt: true } },
 } as const satisfies Prisma.ChatRoomInclude;
 
+/** Faces on a thread parent's reply bar. */
+const MAX_THREAD_REPLIERS = 3;
+/**
+ * Newest replies scanned for distinct repliers. An approximation: a thread
+ * whose newest replies all come from one person shows one face even if others
+ * replied earlier. Threads are short; an exact `DISTINCT ON` is the upgrade.
+ */
+const THREAD_REPLIER_SCAN = 12;
+
 export const chatRoomMessageInclude = {
   senderUser: { select: chatRoomUserSelect },
   senderCoworker: { select: chatRoomCoworkerSelect },
@@ -169,13 +178,17 @@ export const chatRoomMessageInclude = {
   pins: { select: { pinnedAt: true } },
   // Soft-deleted replies stay in the DB (tombstones) but must not inflate
   // threadReplyCount / threadLastReplyAt — same rule as getChatRoomThreadAggregates.
+  // The newest few feed threadLastReplyAt and threadRepliers.
   replies: {
     where: { deletedAt: null },
     select: {
       createdAt: true,
+      senderUser: { select: chatRoomUserSelect },
+      senderCoworker: { select: chatRoomCoworkerSelect },
+      senderSokoBot: { select: chatRoomSokoBotSelect },
     },
     orderBy: { createdAt: "desc" },
-    take: 1,
+    take: THREAD_REPLIER_SCAN,
   },
   _count: {
     select: {
@@ -563,6 +576,88 @@ export async function mapChatRoomWithSidebarFlags(
   });
 }
 
+type ChatRoomMessageSenderRow = Pick<
+  ChatRoomMessageWithSender,
+  "senderUser" | "senderCoworker" | "senderSokoBot"
+>;
+
+function mapChatRoomMessageSender(
+  row: ChatRoomMessageSenderRow,
+  currentUserId?: string,
+) {
+  if (row.senderUser) {
+    return {
+      type: "user" as const,
+      user: {
+        id: row.senderUser.id,
+        name: row.senderUser.name,
+        email: row.senderUser.email,
+        image: row.senderUser.image ?? null,
+        presence: resolveUserPresence(row.senderUser, currentUserId),
+      },
+    };
+  }
+
+  if (row.senderCoworker) {
+    return {
+      type: "coworker" as const,
+      coworker: {
+        id: row.senderCoworker.id,
+        name: row.senderCoworker.name,
+        slug: row.senderCoworker.slug,
+        caption: row.senderCoworker.caption ?? null,
+        image: row.senderCoworker.image ?? null,
+        presence: "online" as const,
+      },
+    };
+  }
+
+  if (row.senderSokoBot) {
+    return {
+      type: "sokoBot" as const,
+      sokoBot: {
+        id: row.senderSokoBot.id,
+        name: sokoBotDisplayName(row.senderSokoBot),
+        caption: sokoBotCaption(row.senderSokoBot),
+        image: row.senderSokoBot.avatarImageUrl ?? null,
+        avatarSeed: sokoBotAvatarSeedFor(row.senderSokoBot),
+        presence: "online" as const,
+      },
+    };
+  }
+
+  return { type: "unknown" as const };
+}
+
+/** The first distinct senders of `replies` (newest first), capped. */
+function mapThreadRepliers(
+  replies: ChatRoomMessageSenderRow[],
+  currentUserId?: string,
+) {
+  const seen = new Set<string>();
+  const repliers: Array<ReturnType<typeof mapChatRoomMessageSender>> = [];
+  for (const reply of replies) {
+    const replier = mapChatRoomMessageSender(reply, currentUserId);
+    const key =
+      replier.type === "user"
+        ? `user:${replier.user.id}`
+        : replier.type === "coworker"
+          ? `coworker:${replier.coworker.id}`
+          : replier.type === "sokoBot"
+            ? `sokoBot:${replier.sokoBot.id}`
+            : null;
+    if (!key || seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    repliers.push(replier);
+    if (repliers.length === MAX_THREAD_REPLIERS) {
+      break;
+    }
+  }
+  return repliers;
+}
+
 export function mapChatRoomMessage(
   message: ChatRoomMessageWithSender,
   currentUserId?: string,
@@ -575,50 +670,7 @@ export function mapChatRoomMessage(
    */
   threadUnreadReplyCount?: number,
 ) {
-  const sender = (() => {
-    if (message.senderUser) {
-      return {
-        type: "user" as const,
-        user: {
-          id: message.senderUser.id,
-          name: message.senderUser.name,
-          email: message.senderUser.email,
-          image: message.senderUser.image ?? null,
-          presence: resolveUserPresence(message.senderUser, currentUserId),
-        },
-      };
-    }
-
-    if (message.senderCoworker) {
-      return {
-        type: "coworker" as const,
-        coworker: {
-          id: message.senderCoworker.id,
-          name: message.senderCoworker.name,
-          slug: message.senderCoworker.slug,
-          caption: message.senderCoworker.caption ?? null,
-          image: message.senderCoworker.image ?? null,
-          presence: "online" as const,
-        },
-      };
-    }
-
-    if (message.senderSokoBot) {
-      return {
-        type: "sokoBot" as const,
-        sokoBot: {
-          id: message.senderSokoBot.id,
-          name: sokoBotDisplayName(message.senderSokoBot),
-          caption: sokoBotCaption(message.senderSokoBot),
-          image: message.senderSokoBot.avatarImageUrl ?? null,
-          avatarSeed: sokoBotAvatarSeedFor(message.senderSokoBot),
-          presence: "online" as const,
-        },
-      };
-    }
-
-    return { type: "unknown" as const };
-  })();
+  const sender = mapChatRoomMessageSender(message, currentUserId);
 
   const reactionCounts = new Map<
     string,
@@ -679,6 +731,7 @@ export function mapChatRoomMessage(
     threadReplyCount: message._count.replies,
     ...(threadUnreadReplyCount === undefined ? {} : { threadUnreadReplyCount }),
     threadLastReplyAt: message.replies[0]?.createdAt ?? null,
+    threadRepliers: mapThreadRepliers(message.replies, currentUserId),
     metadata: isDeleted ? null : publicChatRoomMessageMetadata(metadata),
     quote: isDeleted ? null : readQuoteFromMetadata(metadata),
     membership: isDeleted ? null : readMembershipFromMetadata(metadata),

@@ -632,6 +632,14 @@ export const chatRoomMessageSchema = z
       example: 2,
     }),
     threadLastReplyAt: dateTimeSchema.nullable(),
+    threadRepliers: z
+      .array(chatRoomMessageSenderSchema)
+      .max(3)
+      .optional()
+      .openapi({
+        description:
+          "Up to three distinct reply senders, newest first. Drawn from the newest dozen replies, so a thread dominated by one recent sender can omit an earlier one. Empty when the message has no replies; absent on client-built messages.",
+      }),
     metadata: z.record(z.string(), z.any()).nullable(),
     quote: chatRoomMessageQuoteSchema.nullable(),
     membership: chatRoomMessageMembershipSchema.nullable(),

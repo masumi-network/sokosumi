@@ -18,6 +18,7 @@ import type {
   ChatRoom,
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
+  ChatRoomMessageSender,
   ChatRoomPresence,
   ChatRoomSokoBotParticipant,
   ChatRoomUserParticipant,
@@ -384,8 +385,15 @@ export function pendingQuoteFromMessage(
 }
 
 export function messageSender(message: ChatRoomMessage): MessageSenderProfile {
-  if (message.sender.type === "user") {
-    const user = message.sender.user;
+  return senderProfile(message.sender);
+}
+
+/** A message sender or thread replier, resolved for an avatar and a name. */
+export function senderProfile(
+  sender: ChatRoomMessageSender,
+): MessageSenderProfile {
+  if (sender.type === "user") {
+    const user = sender.user;
     return {
       kind: "human",
       id: user.id,
@@ -395,8 +403,8 @@ export function messageSender(message: ChatRoomMessage): MessageSenderProfile {
       presence: user.presence,
     };
   }
-  if (message.sender.type === "coworker") {
-    const coworker = message.sender.coworker;
+  if (sender.type === "coworker") {
+    const coworker = sender.coworker;
     return {
       kind: "coworker",
       id: coworker.id,
@@ -407,8 +415,8 @@ export function messageSender(message: ChatRoomMessage): MessageSenderProfile {
       presence: coworker.presence,
     };
   }
-  if (message.sender.type === "sokoBot") {
-    const sokoBot = message.sender.sokoBot;
+  if (sender.type === "sokoBot") {
+    const sokoBot = sender.sokoBot;
     return {
       kind: "sokoBot",
       id: sokoBot.id,

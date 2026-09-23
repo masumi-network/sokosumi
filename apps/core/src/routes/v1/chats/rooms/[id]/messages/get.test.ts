@@ -148,6 +148,25 @@ function message() {
   };
 }
 
+/** One row of a parent's `replies` include, as the database returns it. */
+function userReply(id: string, name: string, createdAt: string) {
+  return {
+    createdAt: new Date(createdAt),
+    senderUser: { id, name, email: `${id}@example.com`, image: null },
+    senderCoworker: null,
+    senderSokoBot: null,
+  };
+}
+
+function coworkerReply(id: string, name: string, createdAt: string) {
+  return {
+    createdAt: new Date(createdAt),
+    senderUser: null,
+    senderCoworker: { id, name, slug: id, caption: null, image: null },
+    senderSokoBot: null,
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   messageFindFirstMock.mockReset();
@@ -585,6 +604,81 @@ describe("GET /chats/rooms/{id}/messages", () => {
         threadUnreadReplyCount: 3,
       }),
     ]);
+  });
+
+  it("lists the thread's repliers newest first", async () => {
+    messageFindManyMock.mockResolvedValue([
+      {
+        ...message(),
+        _count: { replies: 3 },
+        replies: [
+          userReply("user_grace", "Grace", "2026-01-03T00:00:00.000Z"),
+          coworkerReply("cow_1", "Scout", "2026-01-02T00:00:00.000Z"),
+          userReply("user_linus", "Linus", "2026-01-01T12:00:00.000Z"),
+        ],
+      },
+    ]);
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/messages`,
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data[0].threadLastReplyAt).toBe("2026-01-03T00:00:00.000Z");
+    expect(body.data[0].threadRepliers).toEqual([
+      {
+        type: "user",
+        user: expect.objectContaining({ id: "user_grace", name: "Grace" }),
+      },
+      {
+        type: "coworker",
+        coworker: expect.objectContaining({ id: "cow_1", name: "Scout" }),
+      },
+      {
+        type: "user",
+        user: expect.objectContaining({ id: "user_linus", name: "Linus" }),
+      },
+    ]);
+  });
+
+  it("caps the repliers at three and counts a repeat sender once", async () => {
+    messageFindManyMock.mockResolvedValue([
+      {
+        ...message(),
+        _count: { replies: 5 },
+        replies: [
+          userReply("user_grace", "Grace", "2026-01-05T00:00:00.000Z"),
+          userReply("user_grace", "Grace", "2026-01-04T00:00:00.000Z"),
+          userReply("user_linus", "Linus", "2026-01-03T00:00:00.000Z"),
+          coworkerReply("cow_1", "Scout", "2026-01-02T00:00:00.000Z"),
+          userReply("user_ada", "Ada", "2026-01-01T12:00:00.000Z"),
+        ],
+      },
+    ]);
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/messages`,
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(
+      body.data[0].threadRepliers.map(
+        (replier: { user?: { id: string }; coworker?: { id: string } }) =>
+          (replier.user ?? replier.coworker)?.id,
+      ),
+    ).toEqual(["user_grace", "user_linus", "cow_1"]);
+  });
+
+  it("lists no repliers on a message without replies", async () => {
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/messages`,
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data[0].threadRepliers).toEqual([]);
   });
 
   it("reclaims stale mentions on the timeline path without q", async () => {

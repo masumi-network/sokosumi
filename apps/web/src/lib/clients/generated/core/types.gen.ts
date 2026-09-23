@@ -2604,6 +2604,10 @@ export type ChatRoomPinnedMessageListItem = {
          */
         threadUnreadReplyCount?: number;
         threadLastReplyAt: Date | null;
+        /**
+         * Up to three distinct reply senders, newest first. Drawn from the newest dozen replies, so a thread dominated by one recent sender can omit an earlier one. Empty when the message has no replies; absent on client-built messages.
+         */
+        threadRepliers?: Array<ChatRoomMessageSender>;
         metadata: {
             [key: string]: unknown;
         } | null;
@@ -2824,6 +2828,10 @@ export type ChatRoomMessage = {
      */
     threadUnreadReplyCount?: number;
     threadLastReplyAt: Date | null;
+    /**
+     * Up to three distinct reply senders, newest first. Drawn from the newest dozen replies, so a thread dominated by one recent sender can omit an earlier one. Empty when the message has no replies; absent on client-built messages.
+     */
+    threadRepliers?: Array<ChatRoomMessageSender>;
     metadata: {
         [key: string]: unknown;
     } | null;
