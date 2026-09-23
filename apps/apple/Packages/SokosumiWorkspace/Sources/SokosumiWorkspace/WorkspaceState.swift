@@ -1103,7 +1103,8 @@ public final class WorkspaceState: ObservableObject {
         content: readContent,
         historyReadable: roomHistoryReadable && !thread.timeline.isLoading,
         client: client,
-        organizationSlug: selection?.workspace.organizationSlug
+        organizationSlug: selection?.workspace.organizationSlug,
+        threadLooked: { threadAttentionRevision += 1 }
       )
     } catch {
       // Background reads stay silent; only a dead session needs action.

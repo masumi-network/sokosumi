@@ -32,7 +32,10 @@ import type {
   Member,
 } from "@/lib/clients/generated/core";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
-import { chatRoomService } from "@/lib/services/chat-room.service";
+import {
+  type ChatUnreadRoomRead,
+  chatRoomService,
+} from "@/lib/services/chat-room.service";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { userService } from "@/lib/services/user.service";
@@ -911,6 +914,18 @@ export async function markAllUnreadThreadsReadAction(
     return roomOk(result);
   } catch (error) {
     return roomCatch(error, "Could not mark unread threads as read.");
+  }
+}
+
+/** All unreads' Mark all as read (SOK-1159). */
+export async function markAllChatUnreadReadAction(
+  rooms: readonly ChatUnreadRoomRead[],
+): Promise<RoomActionResult<null>> {
+  try {
+    await chatRoomService.markAllUnreadRead(rooms);
+    return roomOk(null);
+  } catch (error) {
+    return roomCatch(error, "Could not mark everything as read.");
   }
 }
 

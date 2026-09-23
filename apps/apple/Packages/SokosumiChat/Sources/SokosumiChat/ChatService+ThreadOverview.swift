@@ -1,8 +1,12 @@
 import CoreAPI
 
+/// Web's `THREAD_LIST_PAGE_LIMIT`, sent on the first page and every older one; Core's default is 20.
+private let threadListPageLimit = 50
+
 public extension ChatService {
   func listThreads(client: Client, roomId: String, cursor: String? = nil, organizationSlug: String?) async throws -> (items: [Components.Schemas.ChatRoomThread], nextCursor: String?) {
-    let response = try await client.getChatsRoomsIdThreads(.init(path: .init(id: roomId), query: .init(cursor: cursor), headers: .init(xOrganizationSlug: organizationSlug)))
+    let response = try await client.getChatsRoomsIdThreads(.init(path: .init(id: roomId), query: .init(cursor: cursor, limit: threadListPageLimit),
+                                                                 headers: .init(xOrganizationSlug: organizationSlug)))
     switch response {
     case let .ok(value):
       let payload = try value.body.json

@@ -12,13 +12,18 @@ import {
   threadOverviewUnreadReplyCount,
 } from "@/app/chat/utils/thread-overview-unread";
 import { formatUnreadThreadsPreview } from "@/app/chat/utils/unread-threads-preview";
-import { ThreadIconCircle } from "@/components/chat/thread-icon-circle";
+import { ThreadListLoadMore } from "@/components/chat/thread-list-load-more";
+import {
+  ThreadGroupEmpty,
+  ThreadGroupHeading,
+  ThreadListRowContent,
+  threadListRowClassName,
+} from "@/components/chat/thread-list-row";
 import { Button } from "@/components/ui/button";
 import type {
   ChatRoomMessage,
   ChatRoomThread,
 } from "@/lib/clients/generated/core";
-import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 export interface ThreadListPanelLabels {
@@ -58,24 +63,6 @@ interface ThreadListPanelProps {
   onAllThreadsLooked?: (stillUnreadParentIds: string[]) => void;
 }
 
-/**
- * Divides the panel's one scroller into Unread and Earlier.
- *
- * A real heading, so the panel's region has an outline to jump between rather
- * than one long run of buttons. The rule after it is decoration and hidden.
- */
-function ThreadGroupHeading({ children }: { children: string }) {
-  return (
-    <h3
-      className="text-muted-foreground mt-3 mb-1.5 flex items-center gap-2.5 px-2 text-[0.625rem] font-medium tracking-[0.08em] uppercase"
-      data-testid="thread-list-group-heading"
-    >
-      {children}
-      <span aria-hidden="true" className="bg-border h-px flex-1" />
-    </h3>
-  );
-}
-
 export function ThreadListPanel({
   roomId,
   mentionNames,
@@ -87,6 +74,7 @@ export function ThreadListPanel({
   const [items, setItems] = useState<ChatRoomThread[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [olderFailed, setOlderFailed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
@@ -97,6 +85,7 @@ export function ThreadListPanel({
     const requestId = ++listRequestIdRef.current;
     setIsLoading(true);
     setError(null);
+    setOlderFailed(false);
     try {
       const result = await listThreadsAction(roomId);
       if (requestId !== listRequestIdRef.current) {
@@ -137,13 +126,17 @@ export function ThreadListPanel({
     }
     const requestId = ++listRequestIdRef.current;
     setIsLoadingOlder(true);
+    setOlderFailed(false);
     try {
       const result = await listThreadsAction(roomId, { cursor: nextCursor });
       if (requestId !== listRequestIdRef.current) {
         return;
       }
       if (!result.ok) {
-        setError(result.error.message || labels.error);
+        // Kept off the list's own error: that one is the first page and Mark
+        // all. A failed older page stays on this row, and a retry that lands
+        // has to leave the row idle or scroll-loading never resumes.
+        setOlderFailed(true);
         return;
       }
       setItems((current) => {
@@ -158,7 +151,7 @@ export function ThreadListPanel({
       setNextCursor(result.value.nextCursor);
     } catch {
       if (requestId === listRequestIdRef.current) {
-        setError(labels.error);
+        setOlderFailed(true);
       }
     } finally {
       setIsLoadingOlder(false);
@@ -208,74 +201,58 @@ export function ThreadListPanel({
   function renderRow(item: ChatRoomThread) {
     const sender = messageSender(item.parentMessage);
     const lastAt = item.lastReplyAt;
-    const preview =
-      formatUnreadThreadsPreview(item.parentMessage.content, mentionNames) ||
-      sender.name;
     const isUnread = threadNeedsOverviewUnread(item);
-    const unreadReplyLabelCount = threadOverviewUnreadReplyCount(item);
     return (
       <button
         key={item.parentMessage.id}
         type="button"
-        className={cn(
-          "hover:bg-accent flex w-full gap-2.5 rounded-md px-2 py-2 text-left text-sm",
-          isUnread && "bg-card-background",
-        )}
+        className={threadListRowClassName(isUnread)}
         onClick={() => {
           void onOpenThread(item.parentMessage);
         }}
         data-testid="thread-list-item"
         data-unread={isUnread ? "true" : "false"}
       >
-        {/* The same mark as the inset rows under the channel. Unread carries
-            the tint; a read row keeps the glyph muted and loses the circle.
-            The `@` waits on a per-Thread mention count from Core. */}
-        <ThreadIconCircle tone={isUnread ? "attention" : "read"} size="md" />
-        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="flex items-start gap-2">
-            <span
-              className={cn(
-                "line-clamp-2 min-w-0 flex-1",
-                isUnread
-                  ? "text-foreground font-semibold"
-                  : "text-muted-foreground font-normal",
-              )}
-            >
-              {preview}
-            </span>
-            {item.mutedAt ? (
+        {/* The `@` waits on a per-Thread mention count from Core. An unread
+            row leads with what is new and drops the starter to a trailing
+            name; a read row says who started it and how long it runs. */}
+        <ThreadListRowContent
+          unread={isUnread}
+          label={
+            formatUnreadThreadsPreview(
+              item.parentMessage.content,
+              mentionNames,
+            ) || sender.name
+          }
+          time={formatTimeAgo(
+            lastAt instanceof Date ? lastAt : new Date(lastAt),
+          )}
+          newReplies={
+            isUnread
+              ? labels.newReplies(threadOverviewUnreadReplyCount(item))
+              : undefined
+          }
+          meta={
+            isUnread ? (
+              sender.name
+            ) : (
+              <>
+                {labels.startedBy(sender.name)}
+                <span aria-hidden="true"> · </span>
+                {labels.replies(item.replyCount)}
+              </>
+            )
+          }
+          trailing={
+            item.mutedAt ? (
               <MegaphoneOff
                 className="text-muted-foreground mt-0.5 size-3.5 shrink-0"
                 aria-label={labels.muted}
                 data-testid="thread-list-muted"
               />
-            ) : null}
-            <span className="text-muted-foreground shrink-0 text-xs">
-              {formatTimeAgo(
-                lastAt instanceof Date ? lastAt : new Date(lastAt),
-              )}
-            </span>
-          </span>
-          {/* An unread row leads with what is new, in primary, and drops the
-              starter to a muted trailing name. A read row is unchanged. */}
-          <span className="truncate text-xs">
-            {isUnread ? (
-              <>
-                <span className="text-primary-variant font-medium">
-                  {labels.newReplies(unreadReplyLabelCount)}
-                </span>
-                <span aria-hidden="true"> · </span>
-                <span className="text-muted-foreground">{sender.name}</span>
-              </>
-            ) : (
-              <span className="text-muted-foreground">
-                {labels.startedBy(sender.name)}
-                <span aria-hidden="true"> · </span>
-                <span>{labels.replies(item.replyCount)}</span>
-              </span>
-            )}
-          </span>
-        </span>
+            ) : undefined
+          }
+        />
       </button>
     );
   }
@@ -341,20 +318,15 @@ export function ThreadListPanel({
         ) : null}
         {hasGroups ? (
           <>
-            <ThreadGroupHeading>{labels.groupUnread}</ThreadGroupHeading>
+            <ThreadGroupHeading count={unreadItems.length}>
+              {labels.groupUnread}
+            </ThreadGroupHeading>
             {unreadItems.length > 0 ? (
               unreadItems.map(renderRow)
             ) : (
               // Centred and given room, so it reads as the group's own state
-              // rather than a row someone forgot to fill in. Still `text-xs`:
-              // it answers one heading, where the panel's own empty state
-              // answers the whole panel and takes the larger type.
-              <p
-                className="text-muted-foreground px-2 py-3 text-center text-xs"
-                data-testid="thread-list-unread-empty"
-              >
-                {labels.groupUnreadEmpty}
-              </p>
+              // rather than a row someone forgot to fill in.
+              <ThreadGroupEmpty>{labels.groupUnreadEmpty}</ThreadGroupEmpty>
             )}
           </>
         ) : null}
@@ -367,20 +339,21 @@ export function ThreadListPanel({
           </>
         ) : null}
         {nextCursor ? (
-          <div className="flex justify-center py-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                void handleLoadOlder();
-              }}
-              disabled={isLoadingOlder}
-              data-testid="thread-list-load-older"
-            >
-              {isLoadingOlder ? labels.loading : labels.loadOlder}
-            </Button>
-          </div>
+          <ThreadListLoadMore
+            boundaryKey={items.at(-1)?.parentMessage.id ?? ""}
+            status={
+              isLoadingOlder ? "loading" : olderFailed ? "failed" : "idle"
+            }
+            onLoad={() => {
+              void handleLoadOlder();
+            }}
+            labels={{
+              load: labels.loadOlder,
+              loading: labels.loading,
+              error: labels.error,
+              retry: labels.loadOlder,
+            }}
+          />
         ) : null}
       </div>
     </aside>

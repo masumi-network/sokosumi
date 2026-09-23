@@ -26,6 +26,21 @@ struct RoomThreadOverviewTests {
     #expect(transport.requests.last?.request.path?.contains("cursor=older") == true)
   }
 
+  /// Row 24c: web asks for 50 threads on every page (`THREAD_LIST_PAGE_LIMIT`); Core's default is 20.
+  @Test func everyPageAsksForFiftyThreadsLikeWeb() async throws {
+    let transport = TestTransport([
+      (200, testMessagesPageBody(messages: [threadJSON(id: "first", unread: 1)], nextCursor: "older")),
+      (200, testMessagesPageBody(messages: [threadJSON(id: "second", unread: 0)], nextCursor: nil))
+    ])
+    let overview = RoomThreadOverview()
+    let client = try makeTestClient(transport)
+    try await overview.load(client: client, roomId: testRoomId, organizationSlug: nil)
+    try await overview.load(client: client, roomId: testRoomId, organizationSlug: nil, older: true)
+    let queries = transport.requests.map { URLComponents(string: $0.request.path ?? "")?.queryItems ?? [] }
+    #expect(queries.map { $0.first { $0.name == "limit" }?.value } == ["50", "50"])
+    #expect(queries.map { $0.first { $0.name == "cursor" }?.value } == [nil, "older"])
+  }
+
   @Test func loadFailureKeepsOlderItemsAndAllowsRetry() async throws {
     let transport = TestTransport([
       (200, testMessagesPageBody(messages: [threadJSON(id: "first", unread: 0)], nextCursor: "older")),
@@ -66,19 +81,43 @@ struct RoomThreadOverviewTests {
     let transport = TestTransport([
       (200, testMessagesPageBody(messages: [threadJSON(id: "parent", unread: 2, content: "**Hello** @AbCdEfGhIjKlMnOpQrStUvWxYz012345")], nextCursor: nil)),
       (200, #"{"data":{"markedCount":1},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test"}}"#),
-      (200, testMessagesPageBody(messages: [threadJSON(id: "parent", unread: 0, content: "**Hello** @AbCdEfGhIjKlMnOpQrStUvWxYz012345")], nextCursor: nil)),
-      (200, #"{"data":{"count":0},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test"}}"#)
+      (200, testMessagesPageBody(messages: [threadJSON(id: "parent", unread: 0, content: "**Hello** @AbCdEfGhIjKlMnOpQrStUvWxYz012345")], nextCursor: nil))
     ])
     let overview = RoomThreadOverview()
     let client = try makeTestClient(transport)
     let mentions = MessageMentions(room: room)
     try await overview.load(client: client, roomId: testRoomId, organizationSlug: nil, mentions: mentions)
     #expect(overview.previews["parent"] == "Hello @Anna Smith")
-    try await overview.markAllRead(client: client, roomId: testRoomId, organizationSlug: nil, mentions: mentions)
+    try await overview.markAllRead(client: client, roomId: testRoomId, organizationSlug: nil, mentions: mentions, looked: {})
     #expect(overview.previews["parent"] == "Hello @Anna Smith")
     #expect(overview.items.first?.unreadReplyCount == 0)
-    #expect(overview.unreadCount == 0 && !overview.isMarkingRead)
-    #expect(transport.requests.map(\.request.method.rawValue) == ["GET", "POST", "GET", "GET"])
+    #expect(!overview.isMarkingRead)
+    #expect(transport.requests.map(\.request.method.rawValue) == ["GET", "POST", "GET"])
+  }
+
+  /// Row 24c: web's `handleMarkAllRead` tells the room (`onAllThreadsLooked`: re-count the Threads trigger,
+  /// post the room read) once Core accepted, then reloads the first page. The trigger's count is Core's
+  /// re-count, not a zero the overview assumes: Mark all skips a muted thread with an unread mention.
+  @Test func markAllReadReportsTheLookBeforeReloading() async throws {
+    let transport = TestTransport([
+      (200, testMessagesPageBody(messages: [threadJSON(id: "parent", unread: 2)], nextCursor: nil)),
+      (200, #"{"data":{"count":1},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test"}}"#),
+      (200, #"{"data":{"markedCount":1},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test"}}"#),
+      (200, testMessagesPageBody(messages: [threadJSON(id: "parent", unread: 0)], nextCursor: nil))
+    ])
+    let overview = RoomThreadOverview()
+    let client = try makeTestClient(transport)
+    try await overview.load(client: client, roomId: testRoomId, organizationSlug: nil)
+    try await overview.refreshCount(client: client, roomId: testRoomId, organizationSlug: nil)
+    var lookedAfter: [String] = []
+    try await overview.markAllRead(client: client, roomId: testRoomId, organizationSlug: nil, looked: {
+      lookedAfter = transport.requests.map(\.operationID)
+      #expect(overview.isMarkingRead, "The room hears of it while Mark all still holds the list.")
+    })
+    #expect(lookedAfter.suffix(1) == ["post/chats/rooms/{id}/threads/read"], "Reported once Core accepted, before the reload.")
+    #expect(transport.requests.map(\.operationID).suffix(2) == ["post/chats/rooms/{id}/threads/read", "get/chats/rooms/{id}/threads"])
+    #expect(overview.unreadCount == 1, "The count waits for the trigger's re-count.")
+    #expect(overview.items.first?.unreadReplyCount == 0 && !overview.isMarkingRead)
   }
 
   @Test func failedMarkAllReadPreservesUnreadState() async throws {
@@ -91,9 +130,11 @@ struct RoomThreadOverviewTests {
     let client = try makeTestClient(transport)
     try await overview.load(client: client, roomId: testRoomId, organizationSlug: nil)
     try await overview.refreshCount(client: client, roomId: testRoomId, organizationSlug: nil)
+    var looked = 0
     await #expect(throws: (any Error).self) {
-      try await overview.markAllRead(client: client, roomId: testRoomId, organizationSlug: nil)
+      try await overview.markAllRead(client: client, roomId: testRoomId, organizationSlug: nil, looked: { looked += 1 })
     }
+    #expect(looked == 0, "A refused Mark all tells the room nothing.")
     #expect(overview.items.first?.unreadReplyCount == 2)
     #expect(overview.unreadCount == 1)
     #expect(overview.failure != nil && !overview.isMarkingRead)
@@ -116,7 +157,9 @@ struct RoomThreadOverviewTests {
     let task = Task {
       switch operation {
       case "count": try await overview.refreshCount(client: client, roomId: testRoomId, organizationSlug: nil)
-      case "markAll": try await overview.markAllRead(client: client, roomId: testRoomId, organizationSlug: nil)
+      case "markAll": try await overview.markAllRead(client: client, roomId: testRoomId, organizationSlug: nil, looked: {
+          Issue.record("A reset overview must not report a late Mark all.")
+        })
       default: try await overview.load(client: client, roomId: testRoomId, organizationSlug: nil)
       }
     }

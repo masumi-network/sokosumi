@@ -1,5 +1,5 @@
 import { render } from "@testing-library/react";
-import type { ReactElement, ReactNode } from "react";
+import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { vi } from "vitest";
 import type {
   ChatRoom,
@@ -103,6 +103,30 @@ vi.mock("../chat-room-sidebar-row", () => ({
   RailAttentionPill: () => null,
 }));
 
+// A marker, not the rows: what they count belongs to
+// `chat-unread-nav-rows.test.tsx`. The list decides where they stand and
+// what the All unreads filter does to the sections, so the marker keeps the
+// toggle.
+vi.mock("../chat-unread-nav-rows", () => ({
+  ChatUnreadNavRows: ({
+    unreadOnly,
+    onUnreadOnlyChange,
+  }: {
+    unreadOnly: boolean;
+    onUnreadOnlyChange: (unreadOnly: boolean) => void;
+  }) => (
+    <li data-testid="chat-unread-nav-rows">
+      <button
+        type="button"
+        aria-pressed={unreadOnly}
+        onClick={() => onUnreadOnlyChange(!unreadOnly)}
+      >
+        All unreads
+      </button>
+    </li>
+  ),
+}));
+
 vi.mock("../pending-invitation-rail-button", () => ({
   PendingInvitationRailButton: ({
     roomName,
@@ -176,7 +200,13 @@ vi.mock("@/components/ui/sidebar", async () => ({
   SidebarGroupContent: ({ children }: { children: ReactNode }) => (
     <div>{children}</div>
   ),
-  SidebarMenu: ({ children }: { children: ReactNode }) => <ul>{children}</ul>,
+  // Props through, so a section's own marker (`data-slot`) reaches the DOM.
+  SidebarMenu: ({
+    children,
+    ...props
+  }: { children: ReactNode } & ComponentProps<"ul">) => (
+    <ul {...props}>{children}</ul>
+  ),
   SidebarMenuItem: ({ children }: { children: ReactNode }) => (
     <li>{children}</li>
   ),

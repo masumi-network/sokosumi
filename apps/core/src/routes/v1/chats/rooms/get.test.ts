@@ -247,6 +247,7 @@ describe("GET /chats/rooms", () => {
       [
         {
           roomId: room.id,
+          lastUnreadAt: new Date("2026-09-23T09:00:00.000Z"),
           parentMessageId: "550e8400-e29b-41d4-a716-446655440b01",
           firstUnreadReplyId: "550e8400-e29b-41d4-a716-446655440c01",
           parentContent: "Vendor-wide rollout",
@@ -255,6 +256,7 @@ describe("GET /chats/rooms", () => {
         },
         {
           roomId: room.id,
+          lastUnreadAt: new Date("2026-09-23T09:00:00.000Z"),
           parentMessageId: "550e8400-e29b-41d4-a716-446655440b02",
           firstUnreadReplyId: "550e8400-e29b-41d4-a716-446655440c02",
           parentContent: "Into Linear",
@@ -296,6 +298,7 @@ describe("GET /chats/rooms", () => {
     roomCountMock.mockResolvedValue(1);
     const preview = (n: number, unreadMentionCount: number) => ({
       roomId: room.id,
+      lastUnreadAt: new Date("2026-09-23T09:00:00.000Z"),
       parentMessageId: `550e8400-e29b-41d4-a716-446655440b0${n}`,
       firstUnreadReplyId: `550e8400-e29b-41d4-a716-446655440c0${n}`,
       parentContent: `Thread ${n}`,
@@ -331,6 +334,7 @@ describe("GET /chats/rooms", () => {
     roomCountMock.mockResolvedValue(1);
     const preview = (n: number) => ({
       roomId: room.id,
+      lastUnreadAt: new Date("2026-09-23T09:00:00.000Z"),
       parentMessageId: `550e8400-e29b-41d4-a716-446655440b0${n}`,
       firstUnreadReplyId: `550e8400-e29b-41d4-a716-446655440c0${n}`,
       parentContent: `Thread ${n}`,

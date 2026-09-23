@@ -8557,6 +8557,13 @@ export const ChatRoomSchema = {
             description: 'How many Threads in this room are Thread unread for the viewer. Counts Threads, where threadUnreadCount counts replies. States what `unreadThreads` leaves out past its cap. ADR-0037.',
             example: 4
         },
+        unreadThreadMentionCount: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'Unread Thread replies naming the viewer, across every unread Thread in this room, including those past the `unreadThreads` cap. Counted from the replies, so a Look clears it. SOK-1159.',
+            example: 1
+        },
         unreadThreads: {
             type: 'array',
             items: {
@@ -10660,6 +10667,94 @@ export const CreateChatRoomFileUploadSessionRequestSchema = {
         'filename',
         'contentType',
         'size'
+    ]
+} as const;
+
+export const ChatUnreadThreadSchema = {
+    type: 'object',
+    properties: {
+        parentMessageId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        firstUnreadReplyId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The oldest reply still unread in this Thread: where opening it lands.'
+        },
+        parentContent: {
+            type: 'string',
+            description: 'The parent message\'s raw content, cut to 1000 characters. May hold mention tokens and may be empty; the client builds the label.'
+        },
+        unreadReplyCount: {
+            type: 'integer',
+            minimum: 1
+        },
+        unreadMentionCount: {
+            type: 'integer',
+            minimum: 0,
+            default: 0,
+            description: 'How many of this Thread\'s unread replies name the viewer. Counted from the replies, so a Look clears it; the room\'s unreadMentionCount is counted from notifications, which Room last-read clears.'
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The room the Thread is in.'
+        },
+        lastUnreadAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the newest unread reply in this Thread came (a responded coworker mention\'s answer time where later). The list ranks by it.'
+        }
+    },
+    required: [
+        'parentMessageId',
+        'firstUnreadReplyId',
+        'parentContent',
+        'unreadReplyCount',
+        'roomId',
+        'lastUnreadAt'
+    ]
+} as const;
+
+export const ChatEarlierThreadSchema = {
+    type: 'object',
+    properties: {
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        parentMessageId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        parentContent: {
+            type: 'string',
+            description: 'The parent message\'s raw content, cut to 1000 characters. May hold mention tokens and may be empty; the client builds the label.'
+        },
+        replyCount: {
+            type: 'integer',
+            minimum: 1
+        },
+        lastReplyAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastReplyId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The Thread\'s newest reply: where opening it lands.'
+        }
+    },
+    required: [
+        'roomId',
+        'parentMessageId',
+        'parentContent',
+        'replyCount',
+        'lastReplyAt',
+        'lastReplyId'
     ]
 } as const;
 

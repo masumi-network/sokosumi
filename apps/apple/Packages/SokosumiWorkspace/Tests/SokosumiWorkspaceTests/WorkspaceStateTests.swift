@@ -3271,3 +3271,163 @@ extension WorkspaceStateTests {
     #expect(state.timeline.boundaryLoads == TranscriptBoundaryLoads(), "No transcript, no gap rows.")
   }
 }
+
+/// Row 24b: the open thread reads its mute, a toggle writes it, and a written mute re-counts the Threads
+/// trigger and re-reads the room's attention, as web's `onMuteChanged` does.
+extension WorkspaceStateTests {
+  private static let muteRoomId = "550e8400-e29b-41d4-a716-446655440000"
+  private static let muteRootId = "550e8400-e29b-41d4-a716-446655440034"
+
+  private static func threadBody(mutedAt: String?) -> String {
+    let parent = transcriptMessage(id: muteRootId, roomId: muteRoomId, content: "Parent")
+    let muted = mutedAt.map { "\"\($0)\"" } ?? "null"
+    return """
+    {"data":{"parentMessage":\(parent),"replyCount":1,"lastReplyAt":"\(timestamp)","unreadReplyCount":0,"lastUnreadReplyAt":null,"hasLooked":true,"mutedAt":\(muted)},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
+    """
+  }
+
+  /// A signed-in room with its thread open and looked, then `extra` for the mute calls.
+  private static func openMuteThread(_ extra: [(Int, String)]) async throws -> (WorkspaceState, AuthState, ScriptedTransport) { // swiftlint:disable:this large_tuple
+    let root = transcriptMessage(id: muteRootId, roomId: muteRoomId, content: "Parent")
+    let reply = transcriptMessage(id: "550e8400-e29b-41d4-a716-446655440035", roomId: muteRoomId, content: "Reply")
+      .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"\(muteRootId)\"")
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [root], nextCursor: nil)),
+      (200, roomReadBody(id: muteRoomId, unread: 3)),
+      (200, #"{"data":{"parentMessageId":"\#(muteRootId)","lastReadAt":"\#(timestamp)"},"meta":{"timestamp":"\#(timestamp)","requestId":"test"}}"#),
+      (200, roomReadBody(id: muteRoomId, unread: 2)),
+      (200, transcriptPageBody(messages: [reply], nextCursor: nil))
+    ] + extra)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    try state.openThread(#require(state.transcriptMessages.first), auth: auth)
+    await state.thread.loadTask?.value
+    return (state, auth, transport)
+  }
+
+  @Test(arguments: [false, true])
+  func theOpenThreadReadsItsMuteOnceAndAToggleRefreshesAttention(muted: Bool) async throws {
+    let (state, auth, transport) = try await Self.openMuteThread([
+      (200, Self.threadBody(mutedAt: muted ? timestamp : nil)),
+      (200, Self.threadBody(mutedAt: muted ? nil : timestamp)),
+      (200, roomReadBody(id: Self.muteRoomId, unread: 1))
+    ])
+    #expect(state.thread.mute?.isMuted == nil, "No control before Core answers.")
+    await state.readThreadMuteIfNeeded(auth: auth)
+    await state.readThreadMuteIfNeeded(auth: auth)
+    #expect(state.thread.mute?.isMuted == muted)
+    let revision = state.threadAttentionRevision
+    await state.toggleThreadMute(auth: auth)
+    #expect(state.thread.mute?.isMuted == !muted)
+    #expect(state.thread.mute?.isPending == false)
+    #expect(state.threadAttentionRevision == revision + 1, "The Threads trigger counts again.")
+    #expect(state.rooms.first?.unreadCount == 1, "The room row takes Core's answer to the room read.")
+    #expect(transport.operationIDs.suffix(3) == [
+      "get/chats/rooms/{id}/threads/{parentMessageId}",
+      "\(muted ? "delete" : "post")/chats/rooms/{id}/threads/{parentMessageId}/mute",
+      "post/chats/rooms/{id}/read"
+    ])
+    #expect(transport.remainingStubs == 0)
+    state.thread.close()
+  }
+
+  @Test func aFailedToggleRevertsWithoutTouchingAttention() async throws {
+    let (state, auth, transport) = try await Self.openMuteThread([
+      (200, Self.threadBody(mutedAt: nil)),
+      (500, #"{"error":"Internal Server Error","message":"boom","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/chats/rooms/x/threads/y/mute","method":"POST"}}"#)
+    ])
+    await state.readThreadMuteIfNeeded(auth: auth)
+    let revision = state.threadAttentionRevision
+    await state.toggleThreadMute(auth: auth)
+    #expect(state.thread.mute?.isMuted == false)
+    #expect(state.thread.mute?.failure == .mute)
+    #expect(state.threadAttentionRevision == revision)
+    #expect(state.rooms.first?.unreadCount == 2)
+    #expect(transport.operationIDs.last == "post/chats/rooms/{id}/threads/{parentMessageId}/mute")
+    #expect(transport.remainingStubs == 0)
+    state.thread.close()
+  }
+}
+
+/// Row 24c: every Look re-counts the Threads trigger, the automatic one included, and Mark all posts the
+/// room read and re-counts before it reloads the list, as web's `onThreadLooked` and `onAllThreadsLooked` do.
+extension WorkspaceStateTests {
+  private static let lookBody = """
+  {"data":{"parentMessageId":"\(muteRootId)","lastReadAt":"\(timestamp)"},"meta":{"timestamp":"\(timestamp)","requestId":"test"}}
+  """
+  private static let markAllBody = #"{"data":{"markedCount":1},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test"}}"#
+
+  private static func threadsPage(unread: Int) -> String {
+    let parent = transcriptMessage(id: muteRootId, roomId: muteRoomId, content: "Parent")
+    return transcriptPageBody(messages: ["""
+    {"parentMessage":\(parent),"replyCount":2,"lastReplyAt":"\(timestamp)","unreadReplyCount":\(unread),"lastUnreadReplyAt":null,"hasLooked":true,"mutedAt":null}
+    """], nextCursor: nil)
+  }
+
+  /// A signed-in room with the Threads overview loaded, then `extra` for Mark all.
+  private static func openOverview(_ extra: [(Int, String)]) async throws -> (WorkspaceState, AuthState, ScriptedTransport) { // swiftlint:disable:this large_tuple
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [transcriptMessage(id: muteRootId, roomId: muteRoomId, content: "Parent")], nextCursor: nil)),
+      (200, roomReadBody(id: muteRoomId, unread: 3)),
+      (200, threadsPage(unread: 2))
+    ] + extra)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    await state.updateThreadOverview(.load, roomId: muteRoomId, auth: auth)
+    return (state, auth, transport)
+  }
+
+  /// `ChatRootView` runs `syncReadAttention` when the window becomes active and whenever the read content
+  /// changes; with a thread open that writes a Look, which lowers the room's unread-thread count.
+  @Test func anAutomaticLookReCountsTheThreadsTrigger() async throws {
+    let (state, auth, transport) = try await Self.openMuteThread([
+      (200, Self.lookBody), (200, roomReadBody(id: Self.muteRoomId, unread: 1))
+    ])
+    let revision = state.threadAttentionRevision
+    await state.syncReadAttention(auth: auth)
+    #expect(state.threadAttentionRevision == revision + 1, "The Threads trigger counts again.")
+    #expect(transport.operationIDs.suffix(2) == ["post/chats/rooms/{id}/threads/{parentMessageId}/read", "post/chats/rooms/{id}/read"])
+    #expect(state.rooms.first?.unreadCount == 1)
+    await state.syncReadAttention(auth: auth)
+    #expect(state.threadAttentionRevision == revision + 1, "Unchanged content writes no second Look.")
+    #expect(transport.remainingStubs == 0)
+    state.thread.close()
+  }
+
+  @Test func markAllReadPostsTheRoomReadAndReCountsBeforeReloading() async throws {
+    let (state, auth, transport) = try await Self.openOverview([
+      (200, Self.markAllBody), (200, roomReadBody(id: Self.muteRoomId, unread: 0)), (200, Self.threadsPage(unread: 0))
+    ])
+    let revision = state.threadAttentionRevision
+    await state.updateThreadOverview(.markAllRead, roomId: Self.muteRoomId, auth: auth)
+    #expect(transport.operationIDs.suffix(4) == [
+      "get/chats/rooms/{id}/threads", "post/chats/rooms/{id}/threads/read",
+      "post/chats/rooms/{id}/read", "get/chats/rooms/{id}/threads"
+    ])
+    #expect(state.threadAttentionRevision == revision + 1, "The Threads trigger counts again.")
+    #expect(state.rooms.first?.unreadCount == 0, "The room row takes Core's answer to the room read.")
+    #expect(state.threadOverview.items.first?.unreadReplyCount == 0)
+    let pages = zip(transport.operationIDs, transport.paths).filter { $0.0 == "get/chats/rooms/{id}/threads" }
+    #expect(pages.count == 2 && pages.allSatisfy { $0.1.contains("limit=50") }, "Both loads ask for web's page size.")
+    #expect(transport.remainingStubs == 0)
+  }
+
+  @Test func aRefusedMarkAllTouchesNeitherTheTriggerNorTheRoom() async throws {
+    let (state, auth, transport) = try await Self.openOverview([
+      (500, #"{"error":"Internal Server Error","message":"boom","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/chats/rooms/x/threads/read","method":"POST"}}"#)
+    ])
+    let revision = state.threadAttentionRevision
+    await state.updateThreadOverview(.markAllRead, roomId: Self.muteRoomId, auth: auth)
+    #expect(transport.operationIDs.last == "post/chats/rooms/{id}/threads/read")
+    #expect(state.threadAttentionRevision == revision)
+    #expect(state.rooms.first?.unreadCount == 3)
+    #expect(state.threadOverview.items.first?.unreadReplyCount == 2 && state.threadOverview.failure != nil)
+    #expect(transport.remainingStubs == 0)
+  }
+}

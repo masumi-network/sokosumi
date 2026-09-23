@@ -1213,6 +1213,33 @@ describe("channel cache access and navigation", () => {
     expect(screen.queryByText("local outbound")).toBeNull();
   });
 
+  it("shows retained sends as pending rows before the server confirms", async () => {
+    const sent =
+      Promise.withResolvers<
+        Awaited<ReturnType<typeof sendRoomMessageAction>>
+      >();
+    vi.mocked(sendRoomMessageAction)
+      .mockReset()
+      .mockReturnValueOnce(sent.promise)
+      .mockReturnValue(new Promise(() => {}));
+    render(
+      <RoomsClient {...baseProps} messages={[sampleMessage("confirmed")]} />,
+      { wrapper: CacheWrapper },
+    );
+    fireEvent.click(screen.getByText("Send fixture"));
+    expect(screen.getAllByText("local outbound")).toHaveLength(1);
+    fireEvent.click(screen.getByText("Send fixture"));
+    expect(screen.getAllByText("local outbound")).toHaveLength(2);
+    await act(async () =>
+      sent.resolve({
+        ok: true,
+        value: { ...sampleMessage("confirmed send"), id: "msg-sent" },
+      }),
+    );
+    expect(screen.getByText("confirmed send")).toBeTruthy();
+    expect(screen.getAllByText("local outbound")).toHaveLength(1);
+  });
+
   it.each(["channel", "direct"] as const)(
     "switches cached %s rooms before server navigation finishes",
     async (kind) => {

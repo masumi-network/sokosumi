@@ -6,6 +6,7 @@ import {
   channelNameFromSlug,
   formatParticipantNameList,
   getFirstName,
+  isSelfJoinableChannelDiscoverability,
   MAX_LISTED_CHAT_REACTION_REACTORS,
   sanitizeChannelSlug,
 } from "@sokosumi/utils";
@@ -273,7 +274,11 @@ export function mapChatRoom(
     // this half, so the other default, zero, would quietly stop a row bolding
     // while its total said otherwise.
     channelUnreadCount = Math.max(0, unreadCount - threadUnreadCount),
-    unreadThreads = { threads: [], unreadThreadCount: 0 },
+    unreadThreads = {
+      threads: [],
+      unreadThreadCount: 0,
+      unreadThreadMentionCount: 0,
+    },
     unreadMentionCount = 0,
     starredAt = null,
     pinnedMessageCount = 0,
@@ -316,6 +321,7 @@ export function mapChatRoom(
     channelUnreadCount,
     threadUnreadCount,
     unreadThreadCount: unreadThreads.unreadThreadCount,
+    unreadThreadMentionCount: unreadThreads.unreadThreadMentionCount,
     unreadThreads: unreadThreads.threads,
     unreadMentionCount,
     starredAt,
@@ -905,10 +911,12 @@ async function loadRoomQuoteSnapshot(
 
 /**
  * Resolve a quote of a message in another room. Allowed only when the sender
- * reads the source room and every human reader of the target room does too
- * (`canQuoteIntoRoom`), so the snippet never reaches someone who cannot follow
- * the Message link. Every refusal is the same 400, so the response does not
- * reveal whether a room or message exists.
+ * reads the source room and every human reader of the target room can too
+ * (`canQuoteIntoRoom`): as a member, or as a member of the organization of a
+ * public or external source Channel, which they can join on their own. The
+ * snippet never reaches someone who cannot follow the Message link. Every
+ * refusal is the same 400, so the response does not reveal whether a room or
+ * message exists.
  */
 export async function resolveCrossRoomQuoteSnapshot(
   tx: Prisma.TransactionClient,
@@ -922,8 +930,13 @@ export async function resolveCrossRoomQuoteSnapshot(
   const { sourceRoomId, quoteMessageId, senderUserId, targetMemberUserIds } =
     options;
 
+  let sourceRoom: Awaited<ReturnType<typeof requireChatRoomUserMembership>>;
   try {
-    await requireChatRoomUserMembership(sourceRoomId, senderUserId, tx);
+    sourceRoom = await requireChatRoomUserMembership(
+      sourceRoomId,
+      senderUserId,
+      tx,
+    );
   } catch (error) {
     if (error instanceof HTTPException) {
       throw quotedMessageNotFound();
@@ -935,12 +948,28 @@ export async function resolveCrossRoomQuoteSnapshot(
     where: { roomId: sourceRoomId },
     select: { userId: true },
   });
+  const sourceReaderUserIds = sourceMembers.map((member) => member.userId);
+  const joiners = targetMemberUserIds.filter(
+    (userId) => !sourceReaderUserIds.includes(userId),
+  );
   if (
-    !canQuoteIntoRoom(
-      targetMemberUserIds,
-      sourceMembers.map((member) => member.userId),
-    )
+    joiners.length > 0 &&
+    sourceRoom.kind === "channel" &&
+    sourceRoom.organizationId &&
+    isSelfJoinableChannelDiscoverability(sourceRoom.discoverability)
   ) {
+    const organizationMembers = await tx.member.findMany({
+      where: {
+        organizationId: sourceRoom.organizationId,
+        userId: { in: joiners },
+      },
+      select: { userId: true },
+    });
+    sourceReaderUserIds.push(
+      ...organizationMembers.map((member) => member.userId),
+    );
+  }
+  if (!canQuoteIntoRoom(targetMemberUserIds, sourceReaderUserIds)) {
     throw quotedMessageNotFound();
   }
 
@@ -1257,7 +1286,7 @@ export function isJoinableChannelDiscoverability(
   discoverability: string | null,
   elevated: boolean,
 ): boolean {
-  if (discoverability === "public" || discoverability === "external") {
+  if (isSelfJoinableChannelDiscoverability(discoverability)) {
     return true;
   }
   return elevated && discoverability === "private";
@@ -1466,6 +1495,7 @@ export async function requireChatRoomUserMembership(
   id: string;
   organizationId: string | null;
   kind: "channel" | "direct";
+  discoverability: string | null;
 }> {
   const room = await tx.chatRoom.findFirst({
     where: {
@@ -1479,6 +1509,7 @@ export async function requireChatRoomUserMembership(
       id: true,
       organizationId: true,
       kind: true,
+      discoverability: true,
       userMembers: {
         where: { userId },
         select: { access: true },
@@ -1502,6 +1533,7 @@ export async function requireChatRoomUserMembership(
     id: room.id,
     organizationId: room.organizationId,
     kind: room.kind === "direct" ? "direct" : "channel",
+    discoverability: room.discoverability,
   };
 }
 
