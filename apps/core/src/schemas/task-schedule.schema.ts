@@ -175,80 +175,101 @@ export type PutTaskScheduleRequest = z.infer<
  * Task Schedule resource (`/tasks/schedules`, ADR 0040): a repeating rule
  * plus the blueprint of the Task each Occurrence creates.
  */
-export const taskScheduleRuleSchema = z
-  .object({
-    expr: z.string().min(1).openapi({
-      description: "Cron expression for Occurrences, read in `timezone`",
-      example: "0 9 * * 1",
-    }),
-    timezone: z.string().min(1).default("UTC").openapi({
-      description: "IANA timezone for the rule",
-      example: "Europe/Berlin",
-    }),
-    intervalDays: z.number().int().positive().nullish().openapi({
-      description:
-        "When greater than 1, an Occurrence every N calendar days from anchorAt at its local time, instead of the cron day fields",
-      example: 2,
-    }),
-    anchorAt: dateTimeSchema.nullish().openapi({
-      description:
-        "First Occurrence for intervalDays rules (required when intervalDays > 1)",
-      example: "2026-10-01T07:00:00.000Z",
-    }),
-    endsMode: taskScheduleEndsModeSchema.default(TaskScheduleEndsMode.NEVER),
-    endsOn: dateTimeSchema.nullish().openapi({
-      description: "Last possible Occurrence when endsMode is ON",
-      example: "2026-12-31T23:59:59.000Z",
-    }),
-    targetOccurrenceCount: z.number().int().positive().nullish().openapi({
-      description: "Total Occurrences when endsMode is AFTER",
-      example: 10,
-    }),
+const taskScheduleRuleFieldsSchema = z.object({
+  expr: z.string().min(1).openapi({
+    description: "Cron expression for Occurrences, read in `timezone`",
+    example: "0 9 * * 1",
+  }),
+  timezone: z.string().min(1).openapi({
+    description: "IANA timezone for the rule",
+    example: "Europe/Berlin",
+  }),
+  intervalDays: z.number().int().positive().nullish().openapi({
+    description:
+      "When greater than 1, an Occurrence every N calendar days from anchorAt at its local time, instead of the cron day fields",
+    example: 2,
+  }),
+  anchorAt: dateTimeSchema.nullish().openapi({
+    description:
+      "First Occurrence for intervalDays rules (required when intervalDays > 1)",
+    example: "2026-10-01T07:00:00.000Z",
+  }),
+  endsMode: taskScheduleEndsModeSchema,
+  endsOn: dateTimeSchema.nullish().openapi({
+    description: "Last possible Occurrence when endsMode is ON",
+    example: "2026-12-31T23:59:59.000Z",
+  }),
+  targetOccurrenceCount: z.number().int().positive().nullish().openapi({
+    description: "Total Occurrences when endsMode is AFTER",
+    example: 10,
+  }),
+});
+
+function refineTaskScheduleRule(
+  data: z.infer<typeof taskScheduleRuleFieldsSchema>,
+  ctx: z.RefinementCtx,
+): void {
+  if (data.endsMode === TaskScheduleEndsMode.ON && !data.endsOn) {
+    ctx.addIssue({
+      code: "custom",
+      message: "endsOn is required when endsMode is ON",
+      path: ["endsOn"],
+    });
+  }
+  if (data.endsMode !== TaskScheduleEndsMode.ON && data.endsOn) {
+    ctx.addIssue({
+      code: "custom",
+      message: "endsOn is allowed only when endsMode is ON",
+      path: ["endsOn"],
+    });
+  }
+  if (
+    data.endsMode === TaskScheduleEndsMode.AFTER &&
+    data.targetOccurrenceCount == null
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      message: "targetOccurrenceCount is required when endsMode is AFTER",
+      path: ["targetOccurrenceCount"],
+    });
+  }
+  if (
+    data.endsMode !== TaskScheduleEndsMode.AFTER &&
+    data.targetOccurrenceCount != null
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      message: "targetOccurrenceCount is allowed only when endsMode is AFTER",
+      path: ["targetOccurrenceCount"],
+    });
+  }
+  if (data.intervalDays != null && data.intervalDays > 1 && !data.anchorAt) {
+    ctx.addIssue({
+      code: "custom",
+      message: "anchorAt is required when intervalDays is greater than 1",
+      path: ["anchorAt"],
+    });
+  }
+}
+
+/** Create: timezone and endsMode default to UTC and NEVER. */
+export const taskScheduleRuleSchema = taskScheduleRuleFieldsSchema
+  .extend({
+    timezone: taskScheduleRuleFieldsSchema.shape.timezone.default("UTC"),
+    endsMode: taskScheduleRuleFieldsSchema.shape.endsMode.default(
+      TaskScheduleEndsMode.NEVER,
+    ),
   })
-  .superRefine((data, ctx) => {
-    if (data.endsMode === TaskScheduleEndsMode.ON && !data.endsOn) {
-      ctx.addIssue({
-        code: "custom",
-        message: "endsOn is required when endsMode is ON",
-        path: ["endsOn"],
-      });
-    }
-    if (data.endsMode !== TaskScheduleEndsMode.ON && data.endsOn) {
-      ctx.addIssue({
-        code: "custom",
-        message: "endsOn is allowed only when endsMode is ON",
-        path: ["endsOn"],
-      });
-    }
-    if (
-      data.endsMode === TaskScheduleEndsMode.AFTER &&
-      data.targetOccurrenceCount == null
-    ) {
-      ctx.addIssue({
-        code: "custom",
-        message: "targetOccurrenceCount is required when endsMode is AFTER",
-        path: ["targetOccurrenceCount"],
-      });
-    }
-    if (
-      data.endsMode !== TaskScheduleEndsMode.AFTER &&
-      data.targetOccurrenceCount != null
-    ) {
-      ctx.addIssue({
-        code: "custom",
-        message: "targetOccurrenceCount is allowed only when endsMode is AFTER",
-        path: ["targetOccurrenceCount"],
-      });
-    }
-    if (data.intervalDays != null && data.intervalDays > 1 && !data.anchorAt) {
-      ctx.addIssue({
-        code: "custom",
-        message: "anchorAt is required when intervalDays is greater than 1",
-        path: ["anchorAt"],
-      });
-    }
-  })
+  .superRefine(refineTaskScheduleRule)
   .openapi("TaskScheduleRule");
+
+/**
+ * PATCH replaces the whole rule, so nothing defaults: an omitted timezone or
+ * end mode would otherwise silently reset to UTC or NEVER.
+ */
+export const taskScheduleRuleReplacementSchema = taskScheduleRuleFieldsSchema
+  .superRefine(refineTaskScheduleRule)
+  .openapi("TaskScheduleRuleReplacement");
 
 const taskScheduleNameSchema = z
   .string()
@@ -297,9 +318,9 @@ export const updateTaskScheduleRequestSchema = z
     description: z.string().nullish(),
     projectId: z.string().uuid().nullish(),
     ...taskScheduleAssigneeFields,
-    rule: taskScheduleRuleSchema.optional().openapi({
+    rule: taskScheduleRuleReplacementSchema.optional().openapi({
       description:
-        "Replaces the whole rule. Changes future Occurrences only; Tasks already created stay as they are.",
+        "Replaces the whole rule; timezone and endsMode are required. Changes future Occurrences only; Tasks already created stay as they are.",
     }),
   })
   .superRefine(refineAssigneeXorConflict)

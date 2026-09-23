@@ -5904,7 +5904,38 @@ export type UpdateTaskScheduleRequest = {
      * Workspace-member assignee of each created Task
      */
     assigneeUserId?: string | null;
-    rule?: TaskScheduleRule & unknown;
+    rule?: TaskScheduleRuleReplacement;
+};
+
+/**
+ * Replaces the whole rule; timezone and endsMode are required. Changes future Occurrences only; Tasks already created stay as they are.
+ */
+export type TaskScheduleRuleReplacement = {
+    /**
+     * Cron expression for Occurrences, read in `timezone`
+     */
+    expr: string;
+    /**
+     * IANA timezone for the rule
+     */
+    timezone: string;
+    /**
+     * When greater than 1, an Occurrence every N calendar days from anchorAt at its local time, instead of the cron day fields
+     */
+    intervalDays?: number | null;
+    /**
+     * First Occurrence for intervalDays rules (required when intervalDays > 1)
+     */
+    anchorAt?: Date | null;
+    endsMode: TaskScheduleEndsMode;
+    /**
+     * Last possible Occurrence when endsMode is ON
+     */
+    endsOn?: Date | null;
+    /**
+     * Total Occurrences when endsMode is AFTER
+     */
+    targetOccurrenceCount?: number | null;
 };
 
 /**

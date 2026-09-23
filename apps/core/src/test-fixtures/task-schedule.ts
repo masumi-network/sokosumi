@@ -141,7 +141,10 @@ function matchesValue(actual: unknown, expected: unknown): boolean {
   }
   if (expected !== null && typeof expected === "object") {
     const filter = expected as Record<string, unknown>;
-    if ("not" in filter) return !matchesValue(actual, filter.not);
+    // SQL semantics: `col <> x` is never true for a NULL column.
+    if ("not" in filter) {
+      return actual != null && !matchesValue(actual, filter.not);
+    }
     if ("in" in filter) return (filter.in as unknown[]).includes(actual);
     throw new Error(`Unsupported filter ${JSON.stringify(expected)}`);
   }

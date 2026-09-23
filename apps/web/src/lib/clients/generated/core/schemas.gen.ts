@@ -20121,19 +20121,75 @@ export const UpdateTaskScheduleRequestSchema = {
             example: 'user_123'
         },
         rule: {
-            allOf: [
-                {
-                    $ref: '#/components/schemas/TaskScheduleRule'
-                },
-                {
-                    description: 'Replaces the whole rule. Changes future Occurrences only; Tasks already created stay as they are.'
-                }
-            ]
+            $ref: '#/components/schemas/TaskScheduleRuleReplacement'
         }
     },
     required: [
         'expectedRevision'
     ]
+} as const;
+
+export const TaskScheduleRuleReplacementSchema = {
+    type: 'object',
+    properties: {
+        expr: {
+            type: 'string',
+            minLength: 1,
+            description: 'Cron expression for Occurrences, read in `timezone`',
+            example: '0 9 * * 1'
+        },
+        timezone: {
+            type: 'string',
+            minLength: 1,
+            description: 'IANA timezone for the rule',
+            example: 'Europe/Berlin'
+        },
+        intervalDays: {
+            type: [
+                'integer',
+                'null'
+            ],
+            exclusiveMinimum: 0,
+            description: 'When greater than 1, an Occurrence every N calendar days from anchorAt at its local time, instead of the cron day fields',
+            example: 2
+        },
+        anchorAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-10-01T07:00:00.000Z',
+            description: 'First Occurrence for intervalDays rules (required when intervalDays > 1)'
+        },
+        endsMode: {
+            $ref: '#/components/schemas/TaskScheduleEndsMode'
+        },
+        endsOn: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-12-31T23:59:59.000Z',
+            description: 'Last possible Occurrence when endsMode is ON'
+        },
+        targetOccurrenceCount: {
+            type: [
+                'integer',
+                'null'
+            ],
+            exclusiveMinimum: 0,
+            description: 'Total Occurrences when endsMode is AFTER',
+            example: 10
+        }
+    },
+    required: [
+        'expr',
+        'timezone',
+        'endsMode'
+    ],
+    description: 'Replaces the whole rule; timezone and endsMode are required. Changes future Occurrences only; Tasks already created stay as they are.'
 } as const;
 
 export const CreateTaskContextSchema = {

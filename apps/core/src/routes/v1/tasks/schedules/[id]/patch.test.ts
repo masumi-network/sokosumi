@@ -86,7 +86,7 @@ describe("PATCH /tasks/schedules/{id}", () => {
 
     const response = await patch(schedule.id, {
       expectedRevision: 0,
-      rule: { expr: "0 7 * * 5", timezone: "Europe/Berlin" },
+      rule: { expr: "0 7 * * 5", timezone: "Europe/Berlin", endsMode: "NEVER" },
     });
 
     expect(response.status).toBe(200);
@@ -109,7 +109,7 @@ describe("PATCH /tasks/schedules/{id}", () => {
 
     await patch(schedule.id, {
       expectedRevision: 0,
-      rule: { expr: "0 7 * * 5" },
+      rule: { expr: "0 7 * * 5", timezone: "UTC", endsMode: "NEVER" },
     });
 
     expect(stored(schedule.id)?.nextOccurrenceAt).toBeNull();
@@ -147,12 +147,33 @@ describe("PATCH /tasks/schedules/{id}", () => {
     });
   });
 
+  it.each(["timezone", "endsMode"])(
+    "requires %s in a replacement rule instead of resetting it",
+    async (field) => {
+      const schedule = seedTaskSchedule({ timezone: "Europe/Berlin" });
+      const rule: Record<string, unknown> = {
+        expr: "0 7 * * 5",
+        timezone: "Europe/Berlin",
+        endsMode: "NEVER",
+      };
+      delete rule[field];
+
+      const response = await patch(schedule.id, {
+        expectedRevision: 0,
+        rule,
+      });
+
+      expect(response.status).toBe(422);
+      expect(stored(schedule.id)?.timezone).toBe("Europe/Berlin");
+    },
+  );
+
   it("rejects an invalid rule", async () => {
     const schedule = seedTaskSchedule();
 
     const response = await patch(schedule.id, {
       expectedRevision: 0,
-      rule: { expr: "0 9 * * 1", timezone: "Mars/Olympus" },
+      rule: { expr: "0 9 * * 1", timezone: "Mars/Olympus", endsMode: "NEVER" },
     });
 
     expect(response.status).toBe(400);
@@ -163,7 +184,12 @@ describe("PATCH /tasks/schedules/{id}", () => {
 
     const response = await patch(schedule.id, {
       expectedRevision: 0,
-      rule: { expr: "0 9 * * 1", endsMode: "AFTER", targetOccurrenceCount: 5 },
+      rule: {
+        expr: "0 9 * * 1",
+        timezone: "UTC",
+        endsMode: "AFTER",
+        targetOccurrenceCount: 5,
+      },
     });
 
     expect(response.status).toBe(422);
