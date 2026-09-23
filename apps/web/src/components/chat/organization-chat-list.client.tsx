@@ -124,7 +124,8 @@ const READ_INBOX_ROOM_ITEM_PROPS = {
   "data-read": "true",
   // Eases down when the reader moves on from a room they just read. Coming
   // back to full is instant: that is new activity, and it should be seen.
-  className: "opacity-60 motion-safe:transition-opacity duration-200",
+  className:
+    "opacity-60 motion-safe:transition-opacity motion-safe:duration-200",
 };
 
 /** One timing for everything the All unreads filter animates. */
@@ -508,7 +509,7 @@ export function OrganizationChatList({
             className={cn(
               "space-y-2",
               filterSwitched &&
-                "motion-safe:animate-in motion-safe:fade-in duration-200",
+                "motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200",
             )}
           >
             {unreadOnly ? (
