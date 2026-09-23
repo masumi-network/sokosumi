@@ -3,15 +3,24 @@ import CoreAPI
 import Foundation
 
 /// The selected room's thread list. Merely loading the overview never marks it read.
+///
+/// Paging and failures follow web's `ThreadListPanel` (row 24e): the first page is `isLoading`, an older page
+/// is the paging row's own `olderPageStatus`. A failed first page clears the list and says why in
+/// `failureMessage`; a failed Mark all keeps the rows under that message; a failed older page stays on the
+/// paging row, which stops loading by itself until the reader retries.
 @MainActor
 public final class RoomThreadOverview: ObservableObject {
   @Published public private(set) var items: [Components.Schemas.ChatRoomThread] = []
   @Published public private(set) var previews: [String: String] = [:]
   @Published public private(set) var nextCursor: String?
   @Published public private(set) var unreadCount = 0
+  /// The first page is loading: on open, after Back from a thread and after Mark all.
   @Published public private(set) var isLoading = false
   @Published public private(set) var isMarkingRead = false
-  @Published public private(set) var failure: (any Error)?
+  /// The list's own error, web's `error`: a failed first page or Mark all, never an older page.
+  @Published public private(set) var failureMessage: String?
+  /// The paging row after the last thread, web's `ThreadListLoadMore` status.
+  @Published public private(set) var olderPageStatus: PageBoundaryStatus = .idle
   private var generation = 0
   private var countGeneration = 0
   private var loadGeneration = 0
@@ -21,6 +30,13 @@ public final class RoomThreadOverview: ObservableObject {
   /// The loaded threads under Unread and Earlier.
   public var groups: RoomThreadOverviewGroups {
     RoomThreadOverviewGroups(threads: items)
+  }
+
+  /// The paging row asks for the next page by itself once it is in view (web's `useLoadWhenVisible`), armed
+  /// only while it is idle: never while a page or Mark all runs, and after a failure not until the reader
+  /// retries.
+  public var loadsOlderAutomatically: Bool {
+    nextCursor != nil && olderPageStatus == .idle && !isLoading && !isMarkingRead
   }
 
   public func reset() {
@@ -33,7 +49,8 @@ public final class RoomThreadOverview: ObservableObject {
     unreadCount = 0
     isLoading = false
     isMarkingRead = false
-    failure = nil
+    failureMessage = nil
+    olderPageStatus = .idle
   }
 
   public func refreshCount(client: Client, roomId: String, organizationSlug: String?) async throws {
@@ -50,15 +67,24 @@ public final class RoomThreadOverview: ObservableObject {
   }
 
   private func loadPage(client: Client, roomId: String, organizationSlug: String?, older: Bool = false, mentions: MessageMentions? = nil) async throws {
-    guard !older || (!isLoading && nextCursor != nil), !Task.isCancelled else { return }
+    guard !older || (!isLoading && olderPageStatus != .loading && nextCursor != nil), !Task.isCancelled else { return }
     loadGeneration += 1
     let request = loadGeneration
     let cursor = older ? nextCursor : nil
-    isLoading = true
-    failure = nil
+    if older {
+      olderPageStatus = .loading
+    } else {
+      // Web's `loadFirstPage`: supersedes an older page in flight and forgets a failed one.
+      isLoading = true
+      failureMessage = nil
+      olderPageStatus = .idle
+    }
     defer {
       if request == loadGeneration {
         isLoading = false
+        if olderPageStatus == .loading {
+          olderPageStatus = .idle
+        }
       }
     }
     do {
@@ -84,9 +110,22 @@ public final class RoomThreadOverview: ObservableObject {
       nextCursor = page.nextCursor == cursor ? nil : page.nextCursor
     } catch {
       guard request == loadGeneration, !Task.isCancelled else { return }
-      failure = error
+      pageFailed(older: older, error: error)
       throw error
     }
+  }
+
+  /// A failed older page stays on the paging row with the rows kept; a failed first page clears the list,
+  /// its headings, Mark all and the paging row, and says why.
+  private func pageFailed(older: Bool, error: any Error) {
+    if older {
+      olderPageStatus = .failed
+      return
+    }
+    items = []
+    previews = [:]
+    nextCursor = nil
+    failureMessage = Self.message(for: error, fallback: "Could not load threads. Try again.")
   }
 
   /// Once Core accepted, `looked` tells the room before the first page reloads, as web's
@@ -94,10 +133,10 @@ public final class RoomThreadOverview: ObservableObject {
   /// for that re-count, because Mark all skips a muted thread with an unread mention.
   public func markAllRead(client: Client, roomId: String, organizationSlug: String?, mentions: MessageMentions? = nil,
                           looked: () async -> Void) async throws {
-    guard !isMarkingRead, !isLoading, !Task.isCancelled else { return }
+    guard !isMarkingRead, !isLoading, olderPageStatus != .loading, !Task.isCancelled else { return }
     let request = generation
     isMarkingRead = true
-    failure = nil
+    failureMessage = nil
     defer {
       if request == generation {
         isMarkingRead = false
@@ -109,11 +148,20 @@ public final class RoomThreadOverview: ObservableObject {
       countGeneration += 1
       await looked()
       guard request == generation, !Task.isCancelled else { return }
-      try await loadPage(client: client, roomId: roomId, organizationSlug: organizationSlug, mentions: mentions)
     } catch {
       guard request == generation, !Task.isCancelled else { return }
-      failure = error
+      failureMessage = Self.message(for: error, fallback: "Could not mark unread threads as read. Try again.")
       throw error
     }
+    // A failed reload is a failed first page: it clears the list with its own message.
+    try await loadPage(client: client, roomId: roomId, organizationSlug: organizationSlug, mentions: mentions)
+  }
+
+  /// Web shows Core's message when Core sent one (`actionErrorMessage`) and its own copy otherwise.
+  private static func message(for error: any Error, fallback: String) -> String {
+    if case let .unprocessable(_, message) = error as? ChatServiceError, !message.isEmpty {
+      return message
+    }
+    return fallback
   }
 }
