@@ -1545,7 +1545,7 @@ export function WorkspaceCalendar({
       ) : null}
       <div className="flex flex-wrap items-center gap-4">
         {view === "month" || view === "week" ? (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 max-sm:w-full">
             <Button
               aria-label={t("previous")}
               size="icon"
