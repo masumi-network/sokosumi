@@ -32,6 +32,8 @@ interface ListTasksParams {
   limit?: number;
   sort?: "nextRunAt";
   hasSchedule?: boolean;
+  /** Only the Tasks this Task Schedule created. */
+  scheduleId?: string;
 }
 
 interface ListJobsParams {
@@ -153,6 +155,7 @@ export const taskService = (() => {
           ? { assigneeUserId: params.assigneeUserId }
           : { assigneeId: params.assigneeId }),
       projectId: params.projectId,
+      scheduleId: params.scheduleId,
       q: params.q,
       scope: params.scope,
       ...(params.visibility ? { visibility: params.visibility } : {}),

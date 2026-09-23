@@ -516,6 +516,7 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     nextRunAt: task.nextRunAt ?? null,
     scheduleRevision: task.scheduleRevision ?? 0,
     runAt: task.runAt ?? null,
+    scheduleId: task.scheduleId ?? null,
     workspace: mapWorkspaceSummary(task.workspace),
   };
 }

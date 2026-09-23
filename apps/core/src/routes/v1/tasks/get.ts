@@ -115,6 +115,16 @@ const taskVisibilityQuerySchema = z
     example: TaskVisibility.PUBLIC,
   });
 
+const scheduleIdQuerySchema = z
+  .string()
+  .uuid()
+  .optional()
+  .openapi({
+    param: { name: "scheduleId", in: "query" },
+    description: "Only the Tasks this Task Schedule created",
+    example: "01960001-0001-7001-8001-000000000042",
+  });
+
 const hasScheduleQuerySchema = z
   .enum(["true", "false"])
   .optional()
@@ -135,6 +145,7 @@ const query = z
     sort: taskSortQuerySchema,
     visibility: taskVisibilityQuerySchema,
     hasSchedule: hasScheduleQuerySchema,
+    scheduleId: scheduleIdQuerySchema,
     assigneeId: z
       .string()
       .optional()
@@ -211,6 +222,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       hasSchedule,
       projectId,
       q,
+      scheduleId,
       scope,
       sort,
       status: statuses,
@@ -233,6 +245,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       projectId === undefined
         ? {}
         : { projectId: projectId === "null" ? null : projectId };
+    const scheduleFilter = scheduleId ? { scheduleId } : {};
 
     let where: Prisma.TaskWhereInput;
     if (isCoworkerAuthContext(authContext)) {
@@ -275,6 +288,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ...(assigneeSokoBotId ? { assigneeSokoBotId } : {}),
             ...(assigneeUserId ? { assigneeUserId } : {}),
             ...projectFilter,
+            ...scheduleFilter,
             ...searchFilter,
           },
           statusWhere,
@@ -286,6 +300,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ...requestedVisibility,
             AND: [listAccessFilter],
             ...projectFilter,
+            ...scheduleFilter,
             ...searchFilter,
           },
           statusWhere,
@@ -307,6 +322,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ...requestedVisibility,
           AND: [buildSokoBotOwnerTaskVisibilityWhere(authContext.userId)],
           ...projectFilter,
+          ...scheduleFilter,
           ...searchFilter,
         },
         statusWhere,
@@ -325,6 +341,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ...(assigneeSokoBotId ? { assigneeSokoBotId } : {}),
           ...(assigneeUserId ? { assigneeUserId } : {}),
           ...projectFilter,
+          ...scheduleFilter,
           ...searchFilter,
         },
         statusWhere,

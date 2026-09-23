@@ -1160,6 +1160,10 @@ export type Task = {
      * The one time a Queued Task moves to Ready. Set only while the Task is Queued; it never repeats.
      */
     runAt: Date | null;
+    /**
+     * Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.
+     */
+    scheduleId: string | null;
     credits: number;
     events: Array<TaskEvent>;
     jobs: Array<JobSummary>;
@@ -5829,6 +5833,10 @@ export type TaskListItem = {
      * The one time a Queued Task moves to Ready. Set only while the Task is Queued; it never repeats.
      */
     runAt: Date | null;
+    /**
+     * Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.
+     */
+    scheduleId: string | null;
     workspace: WorkspaceSummary;
     jobsCount: number;
     commentsCount: number;
@@ -40525,6 +40533,10 @@ export type GetTasksData = {
          * When true, only tasks with an active schedule series (metadata or nextRunAt set). When false, only tasks without one. Omit to return all tasks.
          */
         hasSchedule?: 'true' | 'false';
+        /**
+         * Only the Tasks this Task Schedule created
+         */
+        scheduleId?: string;
         /**
          * Filter tasks by assignee coworker ID
          */
