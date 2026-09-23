@@ -10884,7 +10884,7 @@ export const CompleteComposioCallbackRequestSchema = {
         },
         sessionUri: {
             type: 'string',
-            format: 'uri'
+            minLength: 1
         }
     },
     required: [
