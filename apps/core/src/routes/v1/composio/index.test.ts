@@ -129,7 +129,10 @@ describe("POST /composio/callback/complete", () => {
     expect(completeComposioCallbackMock).not.toHaveBeenCalled();
   });
 
-  it("redeems a callback for an interactive session", async () => {
+  it.each([
+    "opaque-session-token",
+    "https://backend.composio.dev/session/single-use",
+  ])("redeems an opaque callback credential: %s", async (sessionUri) => {
     const response = await createApp(SESSION_AUTH).request(
       "http://localhost/callback/complete",
       {
@@ -137,7 +140,7 @@ describe("POST /composio/callback/complete", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           connectionId: "ca_123",
-          sessionUri: "https://backend.composio.dev/session/single-use",
+          sessionUri,
         }),
       },
     );
@@ -145,8 +148,23 @@ describe("POST /composio/callback/complete", () => {
     expect(response.status).toBe(200);
     expect(completeComposioCallbackMock).toHaveBeenCalledWith({
       connectionId: "ca_123",
-      sessionUri: "https://backend.composio.dev/session/single-use",
+      sessionUri,
       userId: "user_123",
     });
   });
+  it.each(["", null, 123, undefined])(
+    "rejects an invalid callback credential: %s",
+    async (sessionUri) => {
+      const response = await createApp(SESSION_AUTH).request(
+        "http://localhost/callback/complete",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ connectionId: "ca_123", sessionUri }),
+        },
+      );
+      expect(response.status).toBe(422);
+      expect(completeComposioCallbackMock).not.toHaveBeenCalled();
+    },
+  );
 });
