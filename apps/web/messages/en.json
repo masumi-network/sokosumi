@@ -6801,8 +6801,12 @@
         "loadMore": "Load more"
       },
       "socialPost": {
-        "label": "Social post",
-        "mediaOnly": "Media post"
+        "mediaOnly": "Media post",
+        "project": "Project: {name}",
+        "projectLabel": "Project: ",
+        "scheduledBy": "Scheduled by {name}",
+        "unknownScheduler": "unknown user",
+        "attachments": "{count, plural, one {# attachment} other {# attachments}}"
       }
     },
     "You": {

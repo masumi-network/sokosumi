@@ -34,6 +34,18 @@ const post = {
   projectId,
   workspaceId,
   socialConnection: { externalHandle: "team" },
+  project: { name: "Launch project" },
+  scheduledByUser: { name: "Albina" },
+  media: [
+    {
+      pathname: "drive/launch.png",
+      fileUrl: "https://example.com/launch.png",
+      name: "launch.png",
+      size: 100,
+      mimeType: "image/png",
+      kind: "image",
+    },
+  ],
 };
 const occurrence = {
   id: "00000000-0000-7000-8000-000000000001",
@@ -86,6 +98,9 @@ describe("Social posts in the calendar", () => {
       postId,
       status: "SCHEDULED",
       externalHandle: "team",
+      projectName: "Launch project",
+      scheduledByName: "Albina",
+      attachmentCount: 1,
     });
     expect(mocks.posts.mock.lastCall?.[0].where.OR[1]).toEqual({
       scheduledAt: new Date(at),
@@ -100,6 +115,17 @@ describe("Social posts in the calendar", () => {
     });
     expect(mocks.tasks.mock.lastCall?.[0].where.AND.at(-1)).toEqual({
       OR: [{ effectiveScheduledAt: { gt: new Date(at) } }],
+    });
+  });
+  it("keeps posts visible when the scheduler is deleted and there are no attachments", async () => {
+    mocks.posts.mockResolvedValue([
+      { ...post, scheduledByUser: null, media: [] },
+    ]);
+    const result = await readWorkspaceCalendar(workspaceId, "user", query);
+    expect(result.items[0]).toMatchObject({
+      scheduledByName: null,
+      attachmentCount: 0,
+      projectName: "Launch project",
     });
   });
   it("scopes posts to the workspace, project, owner, and calendar range", async () => {

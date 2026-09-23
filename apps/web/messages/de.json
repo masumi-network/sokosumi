@@ -6801,8 +6801,12 @@
         "loadMore": "Mehr laden"
       },
       "socialPost": {
-        "label": "Social-Beitrag",
-        "mediaOnly": "Medienbeitrag"
+        "mediaOnly": "Medienbeitrag",
+        "project": "Projekt: {name}",
+        "projectLabel": "Projekt: ",
+        "scheduledBy": "Geplant von {name}",
+        "unknownScheduler": "unbekanntem Nutzer",
+        "attachments": "{count, plural, one {# Anhang} other {# Anhänge}}"
       }
     },
     "You": {

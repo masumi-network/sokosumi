@@ -10,6 +10,7 @@ import {
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { badRequest, notFound } from "@/helpers/error";
+import { parseSocialPostMedia } from "@/helpers/social-post-media";
 import {
   buildHumanTaskVisibilityWhere,
   buildSokoBotOwnerTaskVisibilityWhere,
@@ -513,6 +514,9 @@ export async function readWorkspaceCalendar(
             projectId: true,
             workspaceId: true,
             socialConnection: { select: { externalHandle: true } },
+            project: { select: { name: true } },
+            scheduledByUser: { select: { name: true } },
+            media: true,
           },
         }),
         prisma.socialPost.count({ where: socialBaseWhere }),
@@ -526,6 +530,9 @@ export async function readWorkspaceCalendar(
       text: post.text,
       status: post.status,
       externalHandle: post.socialConnection?.externalHandle ?? null,
+      projectName: post.project.name,
+      scheduledByName: post.scheduledByUser?.name ?? null,
+      attachmentCount: parseSocialPostMedia(post.media, post.id).length,
       scheduledAt: post.scheduledAt?.toISOString(),
       sourceId: `project:${post.projectId}`,
       sourceProjectId: post.projectId,

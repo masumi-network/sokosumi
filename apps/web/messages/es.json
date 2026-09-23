@@ -6801,8 +6801,12 @@
         "loadMore": "Cargar más"
       },
       "socialPost": {
-        "label": "Publicación social",
-        "mediaOnly": "Publicación multimedia"
+        "mediaOnly": "Publicación multimedia",
+        "project": "Proyecto: {name}",
+        "projectLabel": "Proyecto: ",
+        "scheduledBy": "Programado por {name}",
+        "unknownScheduler": "usuario desconocido",
+        "attachments": "{count, plural, one {# archivo adjunto} other {# archivos adjuntos}}"
       }
     },
     "You": {
