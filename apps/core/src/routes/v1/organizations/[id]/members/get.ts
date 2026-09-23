@@ -67,9 +67,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireOwnerUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
-    // Avoid interactive transaction on this read-only path — pool contention
-    // under parallel room-page loads caused P2028 (SOKOSUMI-Q7). Membership
-    // gate + last-seen lookup do not need a shared snapshot.
     await resolveMemberOrganizationById({
       id,
       userId: userContext.userId,
