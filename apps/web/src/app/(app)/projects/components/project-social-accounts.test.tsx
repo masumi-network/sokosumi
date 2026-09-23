@@ -160,6 +160,7 @@ describe("ProjectSocialAccounts", () => {
     windowOpenMock.mockReset();
     windowOpenMock.mockReturnValue({
       closed: false,
+      sessionStorage: { setItem: vi.fn() },
       close: vi.fn(),
       focus: vi.fn(),
       location: { href: "", replace: vi.fn() },
@@ -345,6 +346,7 @@ describe("ProjectSocialAccounts", () => {
     const user = userEvent.setup();
     const popup = {
       closed: false,
+      sessionStorage: { setItem: vi.fn() },
       close: vi.fn(),
       focus: vi.fn(),
       location: { href: "", replace: vi.fn() },
@@ -431,6 +433,7 @@ describe("ProjectSocialAccounts", () => {
     vi.useFakeTimers();
     const popup = {
       closed: false,
+      sessionStorage: { setItem: vi.fn() },
       close: vi.fn(),
       focus: vi.fn(),
       location: { href: "", replace: vi.fn() },

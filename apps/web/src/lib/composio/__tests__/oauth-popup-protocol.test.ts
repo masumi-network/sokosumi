@@ -1,10 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { runInNewContext } from "node:vm";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   buildComposioCallbackInlineScript,
   COMPOSIO_OAUTH_ACK_TYPE,
   COMPOSIO_OAUTH_BROADCAST_CHANNEL,
   COMPOSIO_OAUTH_MESSAGE_TYPE,
+  COMPOSIO_OAUTH_NONCE_STORAGE_KEY,
   isComposioOAuthAckPayload,
   isComposioOAuthCallbackPayload,
   parseComposioCallbackSearchParams,
@@ -114,5 +116,55 @@ describe("oauth-popup-protocol", () => {
     expect(script).toContain('typeof BroadcastChannel!=="undefined"');
     // Opener delivery must run after the BroadcastChannel try/catch, not inside it.
     expect(script).toMatch(/\}catch\(e\)\{\}\s*if\(window\.opener\)/);
+  });
+});
+
+describe("callback delivery after cross-site navigation", () => {
+  it("delivers the stored nonce when the browser clears window.name and opener", () => {
+    const postMessage = vi.fn();
+    const close = vi.fn();
+    const channels: string[] = [];
+    const getItem = vi.fn(() => "attempt-123");
+    const removeItem = vi.fn();
+    class CallbackChannel {
+      constructor(name: string) {
+        channels.push(name);
+      }
+      postMessage = postMessage;
+      close = vi.fn();
+    }
+
+    runInNewContext(buildComposioCallbackInlineScript(), {
+      URLSearchParams,
+      BroadcastChannel: CallbackChannel,
+      setTimeout: vi.fn(),
+      window: {
+        sessionStorage: { getItem, removeItem },
+        name: "",
+        opener: null,
+        location: {
+          origin: "https://app.sokosumi.com",
+          search:
+            "?session_uri=https%3A%2F%2Fbackend.composio.dev%2Fsession%2Fone-use",
+        },
+        addEventListener: vi.fn(),
+        close,
+      },
+    });
+
+    expect(channels).toEqual([
+      `${COMPOSIO_OAUTH_BROADCAST_CHANNEL}:attempt-123`,
+    ]);
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nonce: "attempt-123",
+        connectionId: null,
+        sessionUri: "https://backend.composio.dev/session/one-use",
+        status: "success",
+      }),
+    );
+    expect(getItem).toHaveBeenCalledWith(COMPOSIO_OAUTH_NONCE_STORAGE_KEY);
+    expect(removeItem).toHaveBeenCalledWith(COMPOSIO_OAUTH_NONCE_STORAGE_KEY);
+    expect(close).toHaveBeenCalledOnce();
   });
 });
