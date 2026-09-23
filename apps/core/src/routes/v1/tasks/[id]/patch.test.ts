@@ -6,6 +6,7 @@ import { forbidden } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
+import { taskEventApiInclude } from "@/types/task";
 
 import mountPatchTask, { patchTaskRequestSchema } from "./patch";
 
@@ -1247,6 +1248,28 @@ describe("PATCH /tasks/{id} Run at", () => {
   const LATER_RUN_AT = "2099-01-12T09:00:00.000Z";
   const taskEventCreateMock = vi.fn();
 
+  function createdStatusEvent(status: TaskStatus) {
+    return {
+      id: "evt_run_at",
+      taskId: "tsk_123",
+      createdAt: new Date("2026-04-02T08:00:00.000Z"),
+      updatedAt: new Date("2026-04-02T08:00:00.000Z"),
+      status,
+      comment: null,
+      authenticationUrl: null,
+      channel: Channel.SOKOSUMI,
+      userId: "user_123",
+      coworkerId: null,
+      sokoBotId: null,
+      transactionId: null,
+      cents: null,
+      user: { id: "user_123", name: "Ada Lovelace", image: null },
+      coworker: null,
+      sokoBot: null,
+      transaction: null,
+    };
+  }
+
   function mockTask(overrides: Record<string, unknown> = {}) {
     requireTaskOwnershipMock.mockResolvedValue({
       id: "tsk_123",
@@ -1281,7 +1304,10 @@ describe("PATCH /tasks/{id} Run at", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     taskUpdateMock.mockResolvedValue(createTaskApi(null));
-    mapTaskMock.mockImplementation((task) => createTaskApi(task.projectId));
+    mapTaskMock.mockImplementation((task) => ({
+      ...createTaskApi(task.projectId),
+      events: task.events ?? [],
+    }));
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
         project: { findFirst: projectFindFirstMock },
@@ -1293,7 +1319,11 @@ describe("PATCH /tasks/{id} Run at", () => {
   });
 
   it("queues a Draft Task at its Run at", async () => {
+    const queuedEvent = createdStatusEvent(TaskStatus.QUEUED);
+    taskEventCreateMock.mockResolvedValue(queuedEvent);
+
     const response = await patch({ runAt: RUN_AT });
+    const body = await response.json();
 
     expect(response.status).toBe(200);
     expect(taskUpdateMock).toHaveBeenCalledWith(
@@ -1313,7 +1343,16 @@ describe("PATCH /tasks/{id} Run at", () => {
         coworkerId: null,
         sokoBotId: null,
       },
+      include: taskEventApiInclude,
     });
+    expect(body.data.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: queuedEvent.id,
+          status: TaskStatus.QUEUED,
+        }),
+      ]),
+    );
     expect(publishTaskEventDataMock).toHaveBeenCalledWith({
       userId: "user_123",
       taskId: "tsk_123",
@@ -1339,8 +1378,11 @@ describe("PATCH /tasks/{id} Run at", () => {
 
   it("moves a Queued Task back to Draft when its Run at is cleared", async () => {
     mockTask({ status: TaskStatus.QUEUED, runAt: new Date(RUN_AT) });
+    const draftEvent = createdStatusEvent(TaskStatus.DRAFT);
+    taskEventCreateMock.mockResolvedValue(draftEvent);
 
     const response = await patch({ runAt: null });
+    const body = await response.json();
 
     expect(response.status).toBe(200);
     expect(taskUpdateMock).toHaveBeenCalledWith(
@@ -1351,9 +1393,19 @@ describe("PATCH /tasks/{id} Run at", () => {
         }),
       }),
     );
-    expect(taskEventCreateMock).toHaveBeenCalledWith({
-      data: expect.objectContaining({ status: TaskStatus.DRAFT }),
-    });
+    expect(taskEventCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: TaskStatus.DRAFT }),
+      }),
+    );
+    expect(body.data.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: draftEvent.id,
+          status: TaskStatus.DRAFT,
+        }),
+      ]),
+    );
     expect(publishTaskEventDataMock).toHaveBeenCalledWith({
       userId: "user_123",
       taskId: "tsk_123",

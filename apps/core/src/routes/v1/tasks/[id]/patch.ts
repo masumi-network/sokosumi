@@ -56,7 +56,7 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { createTaskContextSchema, taskSchema } from "@/schemas/task.schema";
 import { requireNoHumanAssigneeOnPrivateTask } from "@/services/task-domain.service";
-import { buildTaskIncludeForViewer } from "@/types/task";
+import { buildTaskIncludeForViewer, taskEventApiInclude } from "@/types/task";
 
 const paramsSchema = z.object({
   id: z.string().openapi({
@@ -376,7 +376,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       }
 
-      const updatedTask = await tx.task.update({
+      let updatedTask = await tx.task.update({
         where: {
           id,
           ownerId: userContext.userId,
@@ -399,14 +399,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         include: buildTaskIncludeForViewer(authContext, task.workspaceId),
       });
       if (nextStatus !== task.status) {
-        await tx.taskEvent.create({
+        const statusEvent = await tx.taskEvent.create({
           data: {
             taskId: id,
             status: nextStatus,
             channel: Channel.SOKOSUMI,
             ...resolveTaskEventActorFields(authContext),
           },
+          include: taskEventApiInclude,
         });
+        updatedTask = {
+          ...updatedTask,
+          events: [...updatedTask.events, statusEvent],
+        };
       }
       if (projectIdWasProvided) {
         await refreshTaskSchedulePlannedOccurrences(tx, {
