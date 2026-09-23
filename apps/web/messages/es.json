@@ -6305,7 +6305,8 @@
       "view": {
         "month": "Mes",
         "week": "Semana",
-        "agenda": "Agenda"
+        "agenda": "Agenda",
+        "schedules": "Programaciones"
       },
       "source": {
         "label": "Origen",
@@ -6371,7 +6372,15 @@
         "label": "Zona horaria"
       },
       "empty": {
-        "title": "Ninguna ejecución programada coincide con estos filtros."
+        "title": "Ninguna ejecución programada coincide con estos filtros.",
+        "schedulesTitle": "Ninguna programación coincide con estos filtros."
+      },
+      "schedules": {
+        "nextRun": "Próxima ejecución",
+        "noNextRun": "Sin próxima ejecución",
+        "edit": "Editar programación",
+        "openTask": "Abrir tarea",
+        "loadMore": "Cargar más"
       },
       "pagination": {
         "error": "No se pudieron cargar más eventos."
