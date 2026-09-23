@@ -128,7 +128,10 @@ export interface ChatRoomSidebarRowProps {
   onRoomUpdated: (room: ChatRoom) => void;
   /** When false, render plain Link (page-mounted list outside Sheet). */
   dismissSheetOnNavigate?: boolean;
-  /** Pinned section only: the row's `<li>` is a drop slot and moves in a drag. */
+  /**
+   * Props for the row's `<li>`: a drop slot that moves in a drag in Pinned,
+   * a dimmed read room in the All unreads filter.
+   */
   itemProps?: ComponentProps<"li">;
   /**
    * Pinned section in its reorder mode: stands where the room menu does, and
