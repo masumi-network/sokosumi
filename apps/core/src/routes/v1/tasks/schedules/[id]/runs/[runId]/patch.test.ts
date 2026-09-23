@@ -6,10 +6,10 @@ import {
   COWORKER_ID,
   MEMBER_ID,
   OWNER_ID,
-  occurrencesOf,
   resetTaskScheduleTestDb,
+  runsOf,
   SOKO_BOT_AUTH,
-  seedOccurrence,
+  seedRun,
   seedTaskSchedule,
   taskScheduleTestDb,
   taskScheduleTestPrisma,
@@ -56,12 +56,12 @@ const BEYOND_HORIZON = new Date("2030-04-08T09:00:00.000Z");
 
 function send(
   schedule: Pick<TaskSchedule, "id">,
-  occurrenceId: string,
+  runId: string,
   body: Record<string, unknown>,
   app = createTaskScheduleTestApp(mount),
 ) {
   return app.request(
-    `http://localhost/schedules/${schedule.id}/occurrences/${occurrenceId}`,
+    `http://localhost/schedules/${schedule.id}/runs/${runId}`,
     jsonRequest("PATCH", { expectedRevision: 0, ...body }),
   );
 }
@@ -70,7 +70,7 @@ function storedSchedule(id: string) {
   return taskScheduleTestDb.schedules.find((schedule) => schedule.id === id);
 }
 
-describe("PATCH /tasks/schedules/{id}/occurrences/{occurrenceId}", () => {
+describe("PATCH /tasks/schedules/{id}/runs/{runId}", () => {
   beforeEach(() => {
     resetTaskScheduleTestDb();
     vi.useFakeTimers({ toFake: ["Date"] });
@@ -81,19 +81,19 @@ describe("PATCH /tasks/schedules/{id}/occurrences/{occurrenceId}", () => {
     vi.useRealTimers();
   });
 
-  it("skips a planned Occurrence and wakes the schedule at the next one", async () => {
-    const schedule = seedTaskSchedule({ nextOccurrenceAt: JAN_7 });
-    const occurrence = seedOccurrence(schedule, JAN_7);
-    seedOccurrence(schedule, JAN_14);
+  it("skips a planned Run and wakes the schedule at the next one", async () => {
+    const schedule = seedTaskSchedule({ nextRunAt: JAN_7 });
+    const run = seedRun(schedule, JAN_7);
+    seedRun(schedule, JAN_14);
 
-    const response = await send(schedule, occurrence.id, { action: "skip" });
+    const response = await send(schedule, run.id, { action: "skip" });
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
       data: {
         revision: 1,
-        occurrence: {
-          id: occurrence.id,
+        run: {
+          id: run.id,
           state: "SKIPPED",
           effectiveScheduledAt: JAN_7.toISOString(),
           actorUserId: OWNER_ID,
@@ -103,19 +103,19 @@ describe("PATCH /tasks/schedules/{id}/occurrences/{occurrenceId}", () => {
     });
     expect(storedSchedule(schedule.id)).toMatchObject({
       revision: 1,
-      nextOccurrenceAt: JAN_14,
+      nextRunAt: JAN_14,
     });
-    expect(
-      occurrencesOf(schedule.id).find((row) => row.id === occurrence.id)?.state,
-    ).toBe("SKIPPED");
+    expect(runsOf(schedule.id).find((row) => row.id === run.id)?.state).toBe(
+      "SKIPPED",
+    );
   });
 
-  it("moves a planned Occurrence and keeps the rule's time", async () => {
-    const schedule = seedTaskSchedule({ nextOccurrenceAt: JAN_7 });
-    const occurrence = seedOccurrence(schedule, JAN_7);
-    seedOccurrence(schedule, JAN_14);
+  it("moves a planned Run and keeps the rule's time", async () => {
+    const schedule = seedTaskSchedule({ nextRunAt: JAN_7 });
+    const run = seedRun(schedule, JAN_7);
+    seedRun(schedule, JAN_14);
 
-    const response = await send(schedule, occurrence.id, {
+    const response = await send(schedule, run.id, {
       action: "move",
       scheduledAt: JAN_15.toISOString(),
     });
@@ -124,128 +124,128 @@ describe("PATCH /tasks/schedules/{id}/occurrences/{occurrenceId}", () => {
     expect(await response.json()).toMatchObject({
       data: {
         revision: 1,
-        occurrence: {
+        run: {
           state: "PLANNED",
           originalScheduledAt: JAN_7.toISOString(),
           effectiveScheduledAt: JAN_15.toISOString(),
         },
       },
     });
-    expect(storedSchedule(schedule.id)?.nextOccurrenceAt).toEqual(JAN_14);
+    expect(storedSchedule(schedule.id)?.nextRunAt).toEqual(JAN_14);
   });
 
-  it("wakes the schedule at an Occurrence moved earlier", async () => {
-    const schedule = seedTaskSchedule({ nextOccurrenceAt: JAN_7 });
-    const occurrence = seedOccurrence(schedule, JAN_7);
+  it("wakes the schedule at a Run moved earlier", async () => {
+    const schedule = seedTaskSchedule({ nextRunAt: JAN_7 });
+    const run = seedRun(schedule, JAN_7);
 
-    await send(schedule, occurrence.id, {
+    await send(schedule, run.id, {
       action: "move",
       scheduledAt: JAN_2.toISOString(),
     });
 
-    expect(storedSchedule(schedule.id)?.nextOccurrenceAt).toEqual(JAN_2);
+    expect(storedSchedule(schedule.id)?.nextRunAt).toEqual(JAN_2);
   });
 
-  it("restores a skipped Occurrence at the rule's time", async () => {
-    const schedule = seedTaskSchedule({ nextOccurrenceAt: JAN_14 });
-    const occurrence = seedOccurrence(schedule, JAN_7, { state: "SKIPPED" });
-    seedOccurrence(schedule, JAN_14);
+  it("restores a skipped Run at the rule's time", async () => {
+    const schedule = seedTaskSchedule({ nextRunAt: JAN_14 });
+    const run = seedRun(schedule, JAN_7, { state: "SKIPPED" });
+    seedRun(schedule, JAN_14);
 
-    const response = await send(schedule, occurrence.id, {
+    const response = await send(schedule, run.id, {
       action: "restore",
     });
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
       data: {
-        occurrence: {
+        run: {
           state: "PLANNED",
           effectiveScheduledAt: JAN_7.toISOString(),
         },
       },
     });
-    expect(storedSchedule(schedule.id)?.nextOccurrenceAt).toEqual(JAN_7);
+    expect(storedSchedule(schedule.id)?.nextRunAt).toEqual(JAN_7);
   });
 
-  it("restores a moved Occurrence to the rule's time", async () => {
-    const schedule = seedTaskSchedule({ nextOccurrenceAt: JAN_7 });
-    const occurrence = seedOccurrence(schedule, JAN_7, {
+  it("restores a moved Run to the rule's time", async () => {
+    const schedule = seedTaskSchedule({ nextRunAt: JAN_7 });
+    const run = seedRun(schedule, JAN_7, {
       effectiveScheduledAt: JAN_15,
     });
-    seedOccurrence(schedule, JAN_14);
+    seedRun(schedule, JAN_14);
 
-    const response = await send(schedule, occurrence.id, {
+    const response = await send(schedule, run.id, {
       action: "restore",
     });
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
       data: {
-        occurrence: {
+        run: {
           state: "PLANNED",
           effectiveScheduledAt: JAN_7.toISOString(),
         },
       },
     });
-    expect(storedSchedule(schedule.id)?.nextOccurrenceAt).toEqual(JAN_7);
+    expect(storedSchedule(schedule.id)?.nextRunAt).toEqual(JAN_7);
   });
 
   describe("access", () => {
     function seedPlanned(overrides: Partial<TaskSchedule> = {}) {
       const schedule = seedTaskSchedule({
-        nextOccurrenceAt: JAN_7,
+        nextRunAt: JAN_7,
         ...overrides,
       });
-      return { schedule, occurrence: seedOccurrence(schedule, JAN_7) };
+      return { schedule, run: seedRun(schedule, JAN_7) };
     }
 
     it("hides a private schedule from other members", async () => {
-      const { schedule, occurrence } = seedPlanned({ visibility: "PRIVATE" });
+      const { schedule, run } = seedPlanned({ visibility: "PRIVATE" });
 
       const response = await send(
         schedule,
-        occurrence.id,
+        run.id,
         { action: "skip" },
         createTaskScheduleTestApp(mount, userAuth(MEMBER_ID)),
       );
 
       expect(response.status).toBe(404);
-      expect(occurrencesOf(schedule.id)).toEqual([occurrence]);
+      expect(runsOf(schedule.id)).toEqual([run]);
     });
 
     it("lets only the owner change a workspace-visible schedule", async () => {
-      const { schedule, occurrence } = seedPlanned();
+      const { schedule, run } = seedPlanned();
 
       const response = await send(
         schedule,
-        occurrence.id,
+        run.id,
         { action: "skip" },
         createTaskScheduleTestApp(mount, userAuth(MEMBER_ID)),
       );
 
       expect(response.status).toBe(403);
-      expect(occurrencesOf(schedule.id)).toEqual([occurrence]);
+      expect(runsOf(schedule.id)).toEqual([run]);
     });
 
     it("refuses an unseated member of a paid organization", async () => {
-      const { schedule, occurrence } = seedPlanned();
+      const { schedule, run } = seedPlanned();
       taskScheduleTestDb.seatAssigned = false;
 
-      const response = await send(schedule, occurrence.id, { action: "skip" });
+      const response = await send(schedule, run.id, { action: "skip" });
 
       expect(response.status).toBe(403);
-      expect(occurrencesOf(schedule.id)).toEqual([occurrence]);
+      expect(runsOf(schedule.id)).toEqual([run]);
     });
 
     it("lets a granted Coworker change a schedule it created and records it", async () => {
-      const { schedule, occurrence } = seedPlanned({
+      const { schedule, run } = seedPlanned({
         creatorUserId: null,
         creatorCoworkerId: COWORKER_ID,
       });
 
       const response = await send(
         schedule,
-        occurrence.id,
+        run.id,
         { action: "skip" },
         createTaskScheduleTestApp(mount, COWORKER_AUTH),
       );
@@ -253,7 +253,7 @@ describe("PATCH /tasks/schedules/{id}/occurrences/{occurrenceId}", () => {
       expect(response.status).toBe(200);
       expect(await response.json()).toMatchObject({
         data: {
-          occurrence: {
+          run: {
             state: "SKIPPED",
             actorUserId: null,
             actorCoworkerId: COWORKER_ID,
@@ -263,7 +263,7 @@ describe("PATCH /tasks/schedules/{id}/occurrences/{occurrenceId}", () => {
     });
 
     it("refuses a Coworker without a workspace grant", async () => {
-      const { schedule, occurrence } = seedPlanned({
+      const { schedule, run } = seedPlanned({
         creatorUserId: null,
         creatorCoworkerId: COWORKER_ID,
       });
@@ -271,36 +271,36 @@ describe("PATCH /tasks/schedules/{id}/occurrences/{occurrenceId}", () => {
 
       const response = await send(
         schedule,
-        occurrence.id,
+        run.id,
         { action: "skip" },
         createTaskScheduleTestApp(mount, COWORKER_AUTH),
       );
 
       expect(response.status).toBe(403);
       expect(await response.json()).toMatchObject({ kind: "grant_required" });
-      expect(occurrencesOf(schedule.id)).toEqual([occurrence]);
+      expect(runsOf(schedule.id)).toEqual([run]);
     });
 
     it("refuses a Coworker on a schedule outside its vendor family", async () => {
-      const { schedule, occurrence } = seedPlanned();
+      const { schedule, run } = seedPlanned();
 
       const response = await send(
         schedule,
-        occurrence.id,
+        run.id,
         { action: "skip" },
         createTaskScheduleTestApp(mount, COWORKER_AUTH),
       );
 
       expect(response.status).toBe(403);
-      expect(occurrencesOf(schedule.id)).toEqual([occurrence]);
+      expect(runsOf(schedule.id)).toEqual([run]);
     });
 
     it("refuses Soko Bot actors", async () => {
-      const { schedule, occurrence } = seedPlanned();
+      const { schedule, run } = seedPlanned();
 
       const response = await send(
         schedule,
-        occurrence.id,
+        run.id,
         { action: "skip" },
         createTaskScheduleTestApp(mount, SOKO_BOT_AUTH),
       );
@@ -314,24 +314,24 @@ describe("PATCH /tasks/schedules/{id}/occurrences/{occurrenceId}", () => {
     const JAN_28 = new Date("2030-01-28T09:00:00.000Z");
 
     function plannedTimes(scheduleId: string) {
-      return occurrencesOf(scheduleId)
+      return runsOf(scheduleId)
         .filter((row) => row.state === "PLANNED")
         .map((row) => row.effectiveScheduledAt);
     }
 
     function seedAfterThree() {
       const schedule = seedTaskSchedule({
-        nextOccurrenceAt: JAN_7,
+        nextRunAt: JAN_7,
         endsMode: "AFTER",
-        targetOccurrenceCount: 3,
+        targetRunCount: 3,
       });
-      seedOccurrence(schedule, JAN_7);
-      seedOccurrence(schedule, JAN_14);
-      const last = seedOccurrence(schedule, JAN_21);
+      seedRun(schedule, JAN_7);
+      seedRun(schedule, JAN_14);
+      const last = seedRun(schedule, JAN_21);
       return { schedule, last };
     }
 
-    it("plans one more Occurrence when one of N is skipped", async () => {
+    it("plans one more Run when one of N is skipped", async () => {
       const { schedule, last } = seedAfterThree();
 
       await send(schedule, last.id, { action: "skip" });
@@ -339,7 +339,7 @@ describe("PATCH /tasks/schedules/{id}/occurrences/{occurrenceId}", () => {
       expect(plannedTimes(schedule.id)).toEqual([JAN_7, JAN_14, JAN_28]);
     });
 
-    it("drops that extra Occurrence again on restore", async () => {
+    it("drops that extra Run again on restore", async () => {
       const { schedule, last } = seedAfterThree();
       await send(schedule, last.id, { action: "skip" });
 
@@ -352,19 +352,19 @@ describe("PATCH /tasks/schedules/{id}/occurrences/{occurrenceId}", () => {
       expect(plannedTimes(schedule.id)).toEqual([JAN_7, JAN_14, JAN_21]);
     });
 
-    it("keeps a schedule whose last Occurrence is skipped due at that time", async () => {
+    it("keeps a schedule whose last Run is skipped due at that time", async () => {
       const schedule = seedTaskSchedule({
-        nextOccurrenceAt: JAN_7,
+        nextRunAt: JAN_7,
         endsMode: "ON",
         endsOn: JAN_8,
       });
-      const last = seedOccurrence(schedule, JAN_7);
+      const last = seedRun(schedule, JAN_7);
 
       await send(schedule, last.id, { action: "skip" });
 
       expect(storedSchedule(schedule.id)).toMatchObject({
         state: "ACTIVE",
-        nextOccurrenceAt: JAN_7,
+        nextRunAt: JAN_7,
       });
     });
   });
@@ -373,166 +373,163 @@ describe("PATCH /tasks/schedules/{id}/occurrences/{occurrenceId}", () => {
     function expectUnchanged(schedule: TaskSchedule) {
       expect(storedSchedule(schedule.id)).toMatchObject({
         revision: schedule.revision,
-        nextOccurrenceAt: schedule.nextOccurrenceAt,
+        nextRunAt: schedule.nextRunAt,
       });
     }
 
     it.each([
       ["skip", {}],
       ["move", { scheduledAt: JAN_15.toISOString() }],
-    ])(
-      "to %s an Occurrence that already created its Task",
-      async (action, extra) => {
-        const schedule = seedTaskSchedule({
-          nextOccurrenceAt: JAN_14,
-          releasedCount: 1,
-        });
-        const occurrence = seedOccurrence(schedule, JAN_7, {
-          state: "RELEASED",
-          releasedTaskId: "task_released",
-        });
+    ])("to %s a Run that already created its Task", async (action, extra) => {
+      const schedule = seedTaskSchedule({
+        nextRunAt: JAN_14,
+        releasedCount: 1,
+      });
+      const run = seedRun(schedule, JAN_7, {
+        state: "RELEASED",
+        releasedTaskId: "task_released",
+      });
 
-        const response = await send(schedule, occurrence.id, {
-          action,
-          ...extra,
-        });
-
-        expect(response.status).toBe(409);
-        expect(await response.json()).toMatchObject({
-          kind: "schedule_occurrence_state_conflict",
-        });
-        expect(occurrencesOf(schedule.id)).toEqual([occurrence]);
-        expectUnchanged(schedule);
-      },
-    );
-
-    it("to skip an Occurrence whose time has passed", async () => {
-      const schedule = seedTaskSchedule({ nextOccurrenceAt: DEC_30 });
-      const occurrence = seedOccurrence(schedule, DEC_30);
-
-      const response = await send(schedule, occurrence.id, { action: "skip" });
+      const response = await send(schedule, run.id, {
+        action,
+        ...extra,
+      });
 
       expect(response.status).toBe(409);
       expect(await response.json()).toMatchObject({
-        kind: "schedule_occurrence_state_conflict",
+        kind: "schedule_run_state_conflict",
       });
-      expect(occurrencesOf(schedule.id)).toEqual([occurrence]);
+      expect(runsOf(schedule.id)).toEqual([run]);
+      expectUnchanged(schedule);
     });
 
-    it("to skip an Occurrence that is already skipped", async () => {
-      const schedule = seedTaskSchedule({ nextOccurrenceAt: JAN_14 });
-      const occurrence = seedOccurrence(schedule, JAN_7, { state: "SKIPPED" });
+    it("to skip a Run whose time has passed", async () => {
+      const schedule = seedTaskSchedule({ nextRunAt: DEC_30 });
+      const run = seedRun(schedule, DEC_30);
 
-      const response = await send(schedule, occurrence.id, { action: "skip" });
+      const response = await send(schedule, run.id, { action: "skip" });
 
       expect(response.status).toBe(409);
       expect(await response.json()).toMatchObject({
-        kind: "schedule_occurrence_state_conflict",
+        kind: "schedule_run_state_conflict",
+      });
+      expect(runsOf(schedule.id)).toEqual([run]);
+    });
+
+    it("to skip a Run that is already skipped", async () => {
+      const schedule = seedTaskSchedule({ nextRunAt: JAN_14 });
+      const run = seedRun(schedule, JAN_7, { state: "SKIPPED" });
+
+      const response = await send(schedule, run.id, { action: "skip" });
+
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({
+        kind: "schedule_run_state_conflict",
       });
     });
 
-    it("to restore an Occurrence that was neither skipped nor moved", async () => {
-      const schedule = seedTaskSchedule({ nextOccurrenceAt: JAN_7 });
-      const occurrence = seedOccurrence(schedule, JAN_7);
+    it("to restore a Run that was neither skipped nor moved", async () => {
+      const schedule = seedTaskSchedule({ nextRunAt: JAN_7 });
+      const run = seedRun(schedule, JAN_7);
 
-      const response = await send(schedule, occurrence.id, {
+      const response = await send(schedule, run.id, {
         action: "restore",
       });
 
       expect(response.status).toBe(409);
       expect(await response.json()).toMatchObject({
-        kind: "schedule_occurrence_state_conflict",
+        kind: "schedule_run_state_conflict",
       });
       expectUnchanged(schedule);
     });
 
-    it("to restore a moved Occurrence a rule edit canceled", async () => {
-      const schedule = seedTaskSchedule({ nextOccurrenceAt: JAN_14 });
-      const occurrence = seedOccurrence(schedule, JAN_7, {
+    it("to restore a moved Run a rule edit canceled", async () => {
+      const schedule = seedTaskSchedule({ nextRunAt: JAN_14 });
+      const run = seedRun(schedule, JAN_7, {
         state: "CANCELED",
         effectiveScheduledAt: JAN_15,
       });
 
-      const response = await send(schedule, occurrence.id, {
+      const response = await send(schedule, run.id, {
         action: "restore",
       });
 
       expect(response.status).toBe(409);
       expect(await response.json()).toMatchObject({
-        kind: "schedule_occurrence_state_conflict",
+        kind: "schedule_run_state_conflict",
       });
-      expect(occurrencesOf(schedule.id)).toEqual([occurrence]);
+      expect(runsOf(schedule.id)).toEqual([run]);
     });
 
-    it("to move an Occurrence into the past", async () => {
-      const schedule = seedTaskSchedule({ nextOccurrenceAt: JAN_7 });
-      const occurrence = seedOccurrence(schedule, JAN_7);
+    it("to move a Run into the past", async () => {
+      const schedule = seedTaskSchedule({ nextRunAt: JAN_7 });
+      const run = seedRun(schedule, JAN_7);
 
-      const response = await send(schedule, occurrence.id, {
+      const response = await send(schedule, run.id, {
         action: "move",
         scheduledAt: DEC_30.toISOString(),
       });
 
       expect(response.status).toBe(422);
       expect(await response.json()).toMatchObject({
-        kind: "schedule_occurrence_target_invalid",
+        kind: "schedule_run_target_invalid",
       });
-      expect(occurrencesOf(schedule.id)).toEqual([occurrence]);
+      expect(runsOf(schedule.id)).toEqual([run]);
     });
 
-    it("to move an Occurrence past the projection horizon", async () => {
-      const schedule = seedTaskSchedule({ nextOccurrenceAt: JAN_7 });
-      const occurrence = seedOccurrence(schedule, JAN_7);
+    it("to move a Run past the projection horizon", async () => {
+      const schedule = seedTaskSchedule({ nextRunAt: JAN_7 });
+      const run = seedRun(schedule, JAN_7);
 
-      const response = await send(schedule, occurrence.id, {
+      const response = await send(schedule, run.id, {
         action: "move",
         scheduledAt: BEYOND_HORIZON.toISOString(),
       });
 
       expect(response.status).toBe(422);
       expect(await response.json()).toMatchObject({
-        kind: "schedule_occurrence_target_invalid",
+        kind: "schedule_run_target_invalid",
       });
-      expect(occurrencesOf(schedule.id)).toEqual([occurrence]);
+      expect(runsOf(schedule.id)).toEqual([run]);
     });
 
-    it("to skip an Occurrence past the projection horizon", async () => {
-      const schedule = seedTaskSchedule({ nextOccurrenceAt: BEYOND_HORIZON });
-      const occurrence = seedOccurrence(schedule, BEYOND_HORIZON);
+    it("to skip a Run past the projection horizon", async () => {
+      const schedule = seedTaskSchedule({ nextRunAt: BEYOND_HORIZON });
+      const run = seedRun(schedule, BEYOND_HORIZON);
 
-      const response = await send(schedule, occurrence.id, { action: "skip" });
+      const response = await send(schedule, run.id, { action: "skip" });
 
       expect(response.status).toBe(422);
       expect(await response.json()).toMatchObject({
-        kind: "schedule_occurrence_target_invalid",
+        kind: "schedule_run_target_invalid",
       });
     });
 
-    it("to restore a moved Occurrence whose rule time has passed", async () => {
-      const schedule = seedTaskSchedule({ nextOccurrenceAt: JAN_7 });
-      const occurrence = seedOccurrence(schedule, DEC_30, {
+    it("to restore a moved Run whose rule time has passed", async () => {
+      const schedule = seedTaskSchedule({ nextRunAt: JAN_7 });
+      const run = seedRun(schedule, DEC_30, {
         effectiveScheduledAt: JAN_7,
       });
 
-      const response = await send(schedule, occurrence.id, {
+      const response = await send(schedule, run.id, {
         action: "restore",
       });
 
       expect(response.status).toBe(422);
       expect(await response.json()).toMatchObject({
-        kind: "schedule_occurrence_target_invalid",
+        kind: "schedule_run_target_invalid",
       });
-      expect(occurrencesOf(schedule.id)).toEqual([occurrence]);
+      expect(runsOf(schedule.id)).toEqual([run]);
     });
 
     it("a stale revision", async () => {
       const schedule = seedTaskSchedule({
-        nextOccurrenceAt: JAN_7,
+        nextRunAt: JAN_7,
         revision: 2,
       });
-      const occurrence = seedOccurrence(schedule, JAN_7);
+      const run = seedRun(schedule, JAN_7);
 
-      const response = await send(schedule, occurrence.id, {
+      const response = await send(schedule, run.id, {
         action: "skip",
         expectedRevision: 1,
       });
@@ -541,19 +538,19 @@ describe("PATCH /tasks/schedules/{id}/occurrences/{occurrenceId}", () => {
       expect(await response.json()).toMatchObject({
         kind: "schedule_revision_conflict",
       });
-      expect(occurrencesOf(schedule.id)).toEqual([occurrence]);
+      expect(runsOf(schedule.id)).toEqual([run]);
       expectUnchanged(schedule);
     });
 
     it.each(["PAUSED", "ENDED"] as const)(
-      "an Occurrence of a %s schedule",
+      "a Run of a %s schedule",
       async (state) => {
-        const schedule = seedTaskSchedule({ state, nextOccurrenceAt: null });
-        const occurrence = seedOccurrence(schedule, JAN_7, {
+        const schedule = seedTaskSchedule({ state, nextRunAt: null });
+        const run = seedRun(schedule, JAN_7, {
           state: "SKIPPED",
         });
 
-        const response = await send(schedule, occurrence.id, {
+        const response = await send(schedule, run.id, {
           action: "restore",
         });
 
@@ -561,13 +558,13 @@ describe("PATCH /tasks/schedules/{id}/occurrences/{occurrenceId}", () => {
         expect(await response.json()).toMatchObject({
           kind: "schedule_state_conflict",
         });
-        expect(occurrencesOf(schedule.id)).toEqual([occurrence]);
+        expect(runsOf(schedule.id)).toEqual([run]);
       },
     );
 
     it("a change racing a release of the same schedule", async () => {
-      const schedule = seedTaskSchedule({ nextOccurrenceAt: JAN_7 });
-      const occurrence = seedOccurrence(schedule, JAN_14);
+      const schedule = seedTaskSchedule({ nextRunAt: JAN_7 });
+      const run = seedRun(schedule, JAN_14);
       // A release commits between this request's read and its write.
       vi.mocked(
         taskScheduleTestPrisma.taskScheduleOccurrence.findFirst,
@@ -575,24 +572,24 @@ describe("PATCH /tasks/schedules/{id}/occurrences/{occurrenceId}", () => {
         taskScheduleTestDb.schedules = taskScheduleTestDb.schedules.map(
           (row) => ({ ...row, releasedCount: row.releasedCount + 1 }),
         );
-        return occurrence;
+        return run;
       });
 
-      const response = await send(schedule, occurrence.id, { action: "skip" });
+      const response = await send(schedule, run.id, { action: "skip" });
 
       expect(response.status).toBe(409);
-      expect(occurrencesOf(schedule.id)).toEqual([occurrence]);
+      expect(runsOf(schedule.id)).toEqual([run]);
     });
 
-    it("an Occurrence of another schedule", async () => {
-      const schedule = seedTaskSchedule({ nextOccurrenceAt: JAN_7 });
+    it("a Run of another schedule", async () => {
+      const schedule = seedTaskSchedule({ nextRunAt: JAN_7 });
       const other = seedTaskSchedule();
-      const occurrence = seedOccurrence(other, JAN_7);
+      const run = seedRun(other, JAN_7);
 
-      const response = await send(schedule, occurrence.id, { action: "skip" });
+      const response = await send(schedule, run.id, { action: "skip" });
 
       expect(response.status).toBe(404);
-      expect(occurrencesOf(other.id)).toEqual([occurrence]);
+      expect(runsOf(other.id)).toEqual([run]);
     });
   });
 });

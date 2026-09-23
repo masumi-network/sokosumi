@@ -21,7 +21,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "patch",
     path: "/schedules/{id}",
     description:
-      "Change a Task Schedule's rule or blueprint. Revision-checked; changes future Occurrences only.",
+      "Change a Task Schedule's rule or blueprint. Revision-checked; changes future Runs only.",
     tags: ["Task Schedules"],
     request: {
       params: taskScheduleParamsSchema,

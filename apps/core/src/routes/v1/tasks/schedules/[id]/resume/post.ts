@@ -20,7 +20,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "post",
     path: "/schedules/{id}/resume",
     description:
-      "Resume a Paused Task Schedule from the first Occurrence after now. Ends it instead when its end rule passed while paused.",
+      "Resume a Paused Task Schedule from the first Run after now. Ends it instead when its end rule passed while paused.",
     tags: ["Task Schedules"],
     request: { params: taskScheduleParamsSchema },
     responses: {

@@ -176,11 +176,11 @@ export type PutTaskScheduleRequest = z.infer<
 
 /**
  * Task Schedule resource (`/tasks/schedules`, ADR 0040): a repeating rule
- * plus the blueprint of the Task each Occurrence creates.
+ * plus the blueprint of the Task each Run creates.
  */
 const taskScheduleRuleFieldsSchema = z.object({
   expr: z.string().min(1).openapi({
-    description: "Cron expression for Occurrences, read in `timezone`",
+    description: "Cron expression for Runs, read in `timezone`",
     example: "0 9 * * 1",
   }),
   timezone: z.string().min(1).openapi({
@@ -189,21 +189,21 @@ const taskScheduleRuleFieldsSchema = z.object({
   }),
   intervalDays: z.number().int().positive().nullish().openapi({
     description:
-      "When greater than 1, an Occurrence every N calendar days from anchorAt at its local time, instead of the cron day fields",
+      "When greater than 1, a Run every N calendar days from anchorAt at its local time, instead of the cron day fields",
     example: 2,
   }),
   anchorAt: dateTimeSchema.nullish().openapi({
     description:
-      "First Occurrence for intervalDays rules (required when intervalDays > 1)",
+      "First Run for intervalDays rules (required when intervalDays > 1)",
     example: "2026-10-01T07:00:00.000Z",
   }),
   endsMode: taskScheduleEndsModeSchema,
   endsOn: dateTimeSchema.nullish().openapi({
-    description: "Last possible Occurrence when endsMode is ON",
+    description: "Last possible Run when endsMode is ON",
     example: "2026-12-31T23:59:59.000Z",
   }),
-  targetOccurrenceCount: z.number().int().positive().nullish().openapi({
-    description: "Total Occurrences when endsMode is AFTER",
+  targetRunCount: z.number().int().positive().nullish().openapi({
+    description: "Total Runs when endsMode is AFTER",
     example: 10,
   }),
 });
@@ -228,22 +228,22 @@ function refineTaskScheduleRule(
   }
   if (
     data.endsMode === TaskScheduleEndsMode.AFTER &&
-    data.targetOccurrenceCount == null
+    data.targetRunCount == null
   ) {
     ctx.addIssue({
       code: "custom",
-      message: "targetOccurrenceCount is required when endsMode is AFTER",
-      path: ["targetOccurrenceCount"],
+      message: "targetRunCount is required when endsMode is AFTER",
+      path: ["targetRunCount"],
     });
   }
   if (
     data.endsMode !== TaskScheduleEndsMode.AFTER &&
-    data.targetOccurrenceCount != null
+    data.targetRunCount != null
   ) {
     ctx.addIssue({
       code: "custom",
-      message: "targetOccurrenceCount is allowed only when endsMode is AFTER",
-      path: ["targetOccurrenceCount"],
+      message: "targetRunCount is allowed only when endsMode is AFTER",
+      path: ["targetRunCount"],
     });
   }
   if (data.intervalDays != null && data.intervalDays > 1 && !data.anchorAt) {
@@ -323,7 +323,7 @@ export const updateTaskScheduleRequestSchema = z
     ...taskScheduleAssigneeFields,
     rule: taskScheduleRuleReplacementSchema.optional().openapi({
       description:
-        "Replaces the whole rule; timezone and endsMode are required. Changes future Occurrences only; Tasks already created stay as they are.",
+        "Replaces the whole rule; timezone and endsMode are required. Changes future Runs only; Tasks already created stay as they are.",
     }),
   })
   .superRefine(refineAssigneeXorConflict)
@@ -351,11 +351,11 @@ export const taskScheduleSchema = z
       anchorAt: dateTimeSchema,
       endsMode: taskScheduleEndsModeSchema,
       endsOn: dateTimeSchema.nullable(),
-      targetOccurrenceCount: z.number().int().nullable(),
+      targetRunCount: z.number().int().nullable(),
     }),
     ruleEffectiveFrom: dateTimeSchema,
     releasedCount: z.number().int(),
-    nextOccurrenceAt: dateTimeSchema.nullable(),
+    nextRunAt: dateTimeSchema.nullable(),
     revision: z.number().int(),
     name: z.string(),
     description: z.string().nullable(),
@@ -379,36 +379,36 @@ export const taskScheduleParamsSchema = z.object({
     }),
 });
 
-export const scheduleOccurrenceParamsSchema = taskScheduleParamsSchema.extend({
-  occurrenceId: z
+export const taskScheduleRunParamsSchema = taskScheduleParamsSchema.extend({
+  runId: z
     .string()
     .uuid()
     .openapi({
-      param: { name: "occurrenceId", in: "path" },
+      param: { name: "runId", in: "path" },
       example: "01960001-0001-7001-8001-000000000043",
     }),
 });
 
-export const scheduleOccurrenceListQuerySchema =
+export const taskScheduleRunListQuerySchema =
   cursorPaginationQuerySchema.extend({
     from: dateTimeSchema.optional().openapi({
       param: { name: "from", in: "query" },
-      description: "Only Occurrences at or after this time",
+      description: "Only Runs at or after this time",
       example: "2026-10-01T00:00:00.000Z",
     }),
     to: dateTimeSchema.optional().openapi({
       param: { name: "to", in: "query" },
-      description: "Only Occurrences before this time",
+      description: "Only Runs before this time",
       example: "2026-11-01T00:00:00.000Z",
     }),
   });
 
 /**
- * One Occurrence of a Task Schedule. Its exceptions live on the row itself:
+ * One Run of a Task Schedule. Its exceptions live on the row itself:
  * a skip is its state, a move is an effective time that differs from the
  * rule's, and the actor columns say who made the latest change.
  */
-export const scheduleOccurrenceSchema = z
+export const taskScheduleRunSchema = z
   .object({
     id: z.string().uuid(),
     state: z.enum(TaskScheduleOccurrenceState).openapi({
@@ -420,11 +420,10 @@ export const scheduleOccurrenceSchema = z
       description: "Time the rule planned",
     }),
     effectiveScheduledAt: dateTimeSchema.openapi({
-      description:
-        "Time the Occurrence holds; differs from the rule when moved",
+      description: "Time the Run holds; differs from the rule when moved",
     }),
     releasedTaskId: z.string().nullable().openapi({
-      description: "Task this Occurrence created",
+      description: "Task this Run created",
     }),
     actorUserId: z.string().nullable().openapi({
       description: "Person who last skipped, moved, or restored it",
@@ -434,23 +433,23 @@ export const scheduleOccurrenceSchema = z
     }),
     updatedAt: dateTimeSchema,
   })
-  .openapi("ScheduleOccurrence");
+  .openapi("TaskScheduleRun");
 
-const occurrenceChangePrecondition = {
+const runChangePrecondition = {
   expectedRevision: z.number().int().nonnegative().openapi({
     description: "Task Schedule revision observed by the caller",
     example: 3,
   }),
 };
 
-export const updateScheduleOccurrenceRequestSchema = z
+export const updateTaskScheduleRunRequestSchema = z
   .discriminatedUnion("action", [
     z.object({
-      ...occurrenceChangePrecondition,
+      ...runChangePrecondition,
       action: z.literal("skip"),
     }),
     z.object({
-      ...occurrenceChangePrecondition,
+      ...runChangePrecondition,
       action: z.literal("move"),
       scheduledAt: dateTimeSchema.openapi({
         description:
@@ -460,32 +459,32 @@ export const updateScheduleOccurrenceRequestSchema = z
     }),
     z
       .object({
-        ...occurrenceChangePrecondition,
+        ...runChangePrecondition,
         action: z.literal("restore"),
       })
       .openapi({
         description:
-          "Puts a skipped or moved Occurrence back at the rule's time, which must still be ahead.",
+          "Puts a skipped or moved Run back at the rule's time, which must still be ahead.",
       }),
   ])
-  .openapi("UpdateScheduleOccurrenceRequest");
+  .openapi("UpdateTaskScheduleRunRequest");
 
-export const scheduleOccurrenceUpdateSchema = z
+export const taskScheduleRunUpdateSchema = z
   .object({
     revision: z.number().int().nonnegative().openapi({
       description: "Task Schedule revision after the change",
       example: 4,
     }),
-    occurrence: scheduleOccurrenceSchema,
+    run: taskScheduleRunSchema,
   })
-  .openapi("ScheduleOccurrenceUpdate");
+  .openapi("TaskScheduleRunUpdate");
 
 export type TaskScheduleRule = z.infer<typeof taskScheduleRuleSchema>;
-export type ScheduleOccurrenceListQuery = z.infer<
-  typeof scheduleOccurrenceListQuerySchema
+export type TaskScheduleRunListQuery = z.infer<
+  typeof taskScheduleRunListQuerySchema
 >;
-export type UpdateScheduleOccurrenceRequest = z.infer<
-  typeof updateScheduleOccurrenceRequestSchema
+export type UpdateTaskScheduleRunRequest = z.infer<
+  typeof updateTaskScheduleRunRequestSchema
 >;
 export type CreateTaskScheduleRequest = z.infer<
   typeof createTaskScheduleRequestSchema

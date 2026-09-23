@@ -14,11 +14,11 @@ import {
   MEMBER_ID,
   ORG_WORKSPACE_ID,
   OWNER_ID,
-  occurrencesOf,
   PROJECT_ID,
   resetTaskScheduleTestDb,
+  runsOf,
   SOKO_BOT_ID,
-  seedOccurrence,
+  seedRun,
   seedTaskSchedule,
   taskScheduleTestDb,
   taskScheduleTestPrisma,
@@ -34,7 +34,7 @@ vi.mock("@/helpers/task-notifications", () => ({
 }));
 
 const { TASK_SCHEDULE_RELEASE_BATCH_SIZE, taskScheduleReleaseService } =
-  await import("./task-schedule-occurrences.service");
+  await import("./task-schedule-runs.service");
 
 const NOW = new Date("2030-01-07T09:30:00.000Z");
 const MONDAY_9 = new Date("2030-01-07T09:00:00.000Z");
@@ -59,13 +59,13 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     vi.useRealTimers();
   });
 
-  it("creates a Ready Task from the blueprint at a due Occurrence", async () => {
+  it("creates a Ready Task from the blueprint at a due Run", async () => {
     const schedule = seedTaskSchedule({
       name: "Weekly report",
       description: "Summarise the week",
-      nextOccurrenceAt: MONDAY_9,
+      nextRunAt: MONDAY_9,
     });
-    const occurrence = seedOccurrence(schedule, MONDAY_9);
+    const run = seedRun(schedule, MONDAY_9);
 
     await release();
 
@@ -88,16 +88,14 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     expect(task?.events).toEqual([
       expect.objectContaining({ status: TaskStatus.READY, userId: OWNER_ID }),
     ]);
-    expect(
-      occurrencesOf(schedule.id).find((row) => row.id === occurrence.id),
-    ).toMatchObject({
+    expect(runsOf(schedule.id).find((row) => row.id === run.id)).toMatchObject({
       state: TaskScheduleOccurrenceState.RELEASED,
       releasedTaskId: task?.id,
     });
     expect(taskScheduleTestDb.schedules[0]).toMatchObject({
       state: TaskScheduleState.ACTIVE,
       releasedCount: 1,
-      nextOccurrenceAt: NEXT_MONDAY_9,
+      nextRunAt: NEXT_MONDAY_9,
     });
   });
 
@@ -107,10 +105,10 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     ["person", { assigneeUserId: MEMBER_ID }],
   ])("copies a %s assignee onto the Task", async (_kind, assignee) => {
     const schedule = seedTaskSchedule({
-      nextOccurrenceAt: MONDAY_9,
+      nextRunAt: MONDAY_9,
       ...assignee,
     });
-    seedOccurrence(schedule, MONDAY_9);
+    seedRun(schedule, MONDAY_9);
 
     await release();
 
@@ -124,10 +122,10 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
 
   it("tells a person assignee about the new Task", async () => {
     const schedule = seedTaskSchedule({
-      nextOccurrenceAt: MONDAY_9,
+      nextRunAt: MONDAY_9,
       assigneeUserId: MEMBER_ID,
     });
-    seedOccurrence(schedule, MONDAY_9);
+    seedRun(schedule, MONDAY_9);
 
     await release();
 
@@ -139,11 +137,11 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
 
   it("makes the schedule's Coworker creator the Task's creator", async () => {
     const schedule = seedTaskSchedule({
-      nextOccurrenceAt: MONDAY_9,
+      nextRunAt: MONDAY_9,
       creatorUserId: null,
       creatorCoworkerId: COWORKER_ID,
     });
-    seedOccurrence(schedule, MONDAY_9);
+    seedRun(schedule, MONDAY_9);
 
     await release();
 
@@ -161,10 +159,10 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
 
   it("lands the Task in the blueprint's project", async () => {
     const schedule = seedTaskSchedule({
-      nextOccurrenceAt: MONDAY_9,
+      nextRunAt: MONDAY_9,
       projectId: PROJECT_ID,
     });
-    seedOccurrence(schedule, MONDAY_9);
+    seedRun(schedule, MONDAY_9);
 
     await release();
 
@@ -173,7 +171,7 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
 
   it("creates a new Task while the previous one is still open", async () => {
     const schedule = seedTaskSchedule({
-      nextOccurrenceAt: MONDAY_9,
+      nextRunAt: MONDAY_9,
       releasedCount: 1,
     });
     taskScheduleTestDb.tasks.push({
@@ -182,7 +180,7 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
       status: TaskStatus.READY,
       events: [],
     });
-    seedOccurrence(schedule, MONDAY_9);
+    seedRun(schedule, MONDAY_9);
 
     await release();
 
@@ -194,17 +192,17 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     expect(taskScheduleTestDb.schedules[0]?.releasedCount).toBe(2);
   });
 
-  it("releases every overdue Occurrence, oldest first", async () => {
+  it("releases every overdue Run, oldest first", async () => {
     const previousMonday = new Date("2029-12-31T09:00:00.000Z");
-    const schedule = seedTaskSchedule({ nextOccurrenceAt: previousMonday });
-    seedOccurrence(schedule, MONDAY_9);
-    seedOccurrence(schedule, previousMonday);
+    const schedule = seedTaskSchedule({ nextRunAt: previousMonday });
+    seedRun(schedule, MONDAY_9);
+    seedRun(schedule, previousMonday);
 
     await release();
 
     expect(taskScheduleTestDb.tasks).toHaveLength(2);
     expect(
-      occurrencesOf(schedule.id)
+      runsOf(schedule.id)
         .slice(0, 3)
         .map((row) => [row.effectiveScheduledAt, row.state]),
     ).toEqual([
@@ -215,13 +213,13 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     expect(taskScheduleTestDb.schedules[0]?.releasedCount).toBe(2);
   });
 
-  it("keeps planning Occurrences across the calendar horizon", async () => {
-    const schedule = seedTaskSchedule({ nextOccurrenceAt: MONDAY_9 });
-    seedOccurrence(schedule, MONDAY_9);
+  it("keeps planning Runs across the calendar horizon", async () => {
+    const schedule = seedTaskSchedule({ nextRunAt: MONDAY_9 });
+    seedRun(schedule, MONDAY_9);
 
     await release();
 
-    const planned = occurrencesOf(schedule.id).filter(
+    const planned = runsOf(schedule.id).filter(
       (row) => row.state === TaskScheduleOccurrenceState.PLANNED,
     );
     // Every Monday from Jan 14 to Apr 1: the 90-day horizon ends Apr 7.
@@ -232,16 +230,16 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     );
   });
 
-  it("writes only the Occurrences the plan is missing", async () => {
+  it("writes only the Runs the plan is missing", async () => {
     // Every insert runs the calendar invalidation trigger, even one a
     // conflict skips, so a release must not resend the whole plan.
-    const schedule = seedTaskSchedule({ nextOccurrenceAt: MONDAY_9 });
+    const schedule = seedTaskSchedule({ nextRunAt: MONDAY_9 });
     for (
       let at = MONDAY_9;
       at <= new Date("2030-03-25T09:00:00.000Z");
       at = new Date(at.getTime() + 7 * 24 * 60 * 60 * 1000)
     ) {
-      seedOccurrence(schedule, at);
+      seedRun(schedule, at);
     }
 
     await release();
@@ -255,14 +253,14 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     ).toEqual([new Date("2030-04-01T09:00:00.000Z")]);
   });
 
-  it("Ends a schedule after its last of N Occurrences", async () => {
+  it("Ends a schedule after its last of N Runs", async () => {
     const schedule = seedTaskSchedule({
-      nextOccurrenceAt: MONDAY_9,
+      nextRunAt: MONDAY_9,
       endsMode: TaskScheduleEndsMode.AFTER,
-      targetOccurrenceCount: 2,
+      targetRunCount: 2,
       releasedCount: 1,
     });
-    seedOccurrence(schedule, MONDAY_9);
+    seedRun(schedule, MONDAY_9);
 
     await release();
 
@@ -270,40 +268,40 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     expect(taskScheduleTestDb.schedules[0]).toMatchObject({
       state: TaskScheduleState.ENDED,
       releasedCount: 2,
-      nextOccurrenceAt: null,
+      nextRunAt: null,
     });
-    expect(occurrencesOf(schedule.id).map((row) => row.state)).toEqual([
+    expect(runsOf(schedule.id).map((row) => row.state)).toEqual([
       TaskScheduleOccurrenceState.RELEASED,
     ]);
   });
 
-  it("Ends a schedule whose next Occurrence falls after its end date", async () => {
+  it("Ends a schedule whose next Run falls after its end date", async () => {
     const schedule = seedTaskSchedule({
-      nextOccurrenceAt: MONDAY_9,
+      nextRunAt: MONDAY_9,
       endsMode: TaskScheduleEndsMode.ON,
       endsOn: new Date("2030-01-10T00:00:00.000Z"),
     });
-    seedOccurrence(schedule, MONDAY_9);
+    seedRun(schedule, MONDAY_9);
 
     await release();
 
     expect(taskScheduleTestDb.tasks).toHaveLength(1);
     expect(taskScheduleTestDb.schedules[0]).toMatchObject({
       state: TaskScheduleState.ENDED,
-      nextOccurrenceAt: null,
+      nextRunAt: null,
     });
   });
 
   it.each([TaskScheduleState.PAUSED, TaskScheduleState.ENDED])(
     "never fires a %s schedule",
     async (state) => {
-      const schedule = seedTaskSchedule({ state, nextOccurrenceAt: MONDAY_9 });
-      seedOccurrence(schedule, MONDAY_9);
+      const schedule = seedTaskSchedule({ state, nextRunAt: MONDAY_9 });
+      seedRun(schedule, MONDAY_9);
 
       await release();
 
       expect(taskScheduleTestDb.tasks).toHaveLength(0);
-      expect(occurrencesOf(schedule.id)[0]?.state).toBe(
+      expect(runsOf(schedule.id)[0]?.state).toBe(
         TaskScheduleOccurrenceState.PLANNED,
       );
     },
@@ -318,19 +316,19 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
       ...closing,
     });
     const schedule = seedTaskSchedule({
-      nextOccurrenceAt: MONDAY_9,
+      nextRunAt: MONDAY_9,
       projectId: PROJECT_ID,
     });
-    seedOccurrence(schedule, MONDAY_9);
+    seedRun(schedule, MONDAY_9);
 
     await release();
 
     expect(taskScheduleTestDb.tasks).toHaveLength(0);
   });
 
-  it("does not create a second Task when the run is retried", async () => {
-    const schedule = seedTaskSchedule({ nextOccurrenceAt: MONDAY_9 });
-    seedOccurrence(schedule, MONDAY_9);
+  it("does not create a second Task when the release is retried", async () => {
+    const schedule = seedTaskSchedule({ nextRunAt: MONDAY_9 });
+    seedRun(schedule, MONDAY_9);
 
     await release();
     await release();
@@ -339,21 +337,20 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     expect(taskScheduleTestDb.schedules[0]?.releasedCount).toBe(1);
   });
 
-  it("does not create a Task for an Occurrence another run released meanwhile", async () => {
-    const schedule = seedTaskSchedule({ nextOccurrenceAt: MONDAY_9 });
-    const occurrence = seedOccurrence(schedule, MONDAY_9);
-    // The other run claims the Occurrence between this run's read and write.
+  it("does not create a Task for a Run another release took meanwhile", async () => {
+    const schedule = seedTaskSchedule({ nextRunAt: MONDAY_9 });
+    const run = seedRun(schedule, MONDAY_9);
+    // The other release claims the Run between this release's read and write.
     vi.mocked(taskScheduleTestPrisma.task.create).mockImplementationOnce(
       async () => {
-        taskScheduleTestDb.occurrences = taskScheduleTestDb.occurrences.map(
-          (row) =>
-            row.id === occurrence.id
-              ? {
-                  ...row,
-                  state: TaskScheduleOccurrenceState.RELEASED,
-                  releasedTaskId: "task_other_run",
-                }
-              : row,
+        taskScheduleTestDb.runs = taskScheduleTestDb.runs.map((row) =>
+          row.id === run.id
+            ? {
+                ...row,
+                state: TaskScheduleOccurrenceState.RELEASED,
+                releasedTaskId: "task_other_run",
+              }
+            : row,
         );
         taskScheduleTestDb.tasks.push({ id: "task_lost", events: [] });
         return { id: "task_lost", ownerId: OWNER_ID, assigneeUserId: null };
@@ -366,23 +363,23 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     expect(taskScheduleTestDb.schedules[0]?.releasedCount).toBe(0);
   });
 
-  it("still releases an Occurrence owed from before a rule edit", async () => {
-    const schedule = seedTaskSchedule({ nextOccurrenceAt: MONDAY_9 });
-    seedOccurrence(schedule, MONDAY_9, { epochId: randomUUID() });
+  it("still releases a Run owed from before a rule edit", async () => {
+    const schedule = seedTaskSchedule({ nextRunAt: MONDAY_9 });
+    seedRun(schedule, MONDAY_9, { epochId: randomUUID() });
 
     await release();
 
     expect(taskScheduleTestDb.tasks).toHaveLength(1);
     expect(taskScheduleTestDb.schedules[0]).toMatchObject({
       releasedCount: 1,
-      nextOccurrenceAt: NEXT_MONDAY_9,
+      nextRunAt: NEXT_MONDAY_9,
     });
   });
 
-  it("releases a moved Occurrence at its new time, not the rule's", async () => {
+  it("releases a moved Run at its new time, not the rule's", async () => {
     const TUESDAY_9 = new Date("2030-01-08T09:00:00.000Z");
-    const schedule = seedTaskSchedule({ nextOccurrenceAt: TUESDAY_9 });
-    const moved = seedOccurrence(schedule, MONDAY_9, {
+    const schedule = seedTaskSchedule({ nextRunAt: TUESDAY_9 });
+    const moved = seedRun(schedule, MONDAY_9, {
       effectiveScheduledAt: TUESDAY_9,
     });
 
@@ -394,16 +391,16 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
 
     expect(taskScheduleTestDb.tasks).toHaveLength(1);
     expect(
-      occurrencesOf(schedule.id).find((row) => row.id === moved.id),
+      runsOf(schedule.id).find((row) => row.id === moved.id),
     ).toMatchObject({
       state: TaskScheduleOccurrenceState.RELEASED,
       releasedTaskId: taskScheduleTestDb.tasks[0]?.id,
     });
   });
 
-  it("never releases a skipped Occurrence and moves on to the next one", async () => {
-    const schedule = seedTaskSchedule({ nextOccurrenceAt: MONDAY_9 });
-    const skipped = seedOccurrence(schedule, MONDAY_9, {
+  it("never releases a skipped Run and moves on to the next one", async () => {
+    const schedule = seedTaskSchedule({ nextRunAt: MONDAY_9 });
+    const skipped = seedRun(schedule, MONDAY_9, {
       state: TaskScheduleOccurrenceState.SKIPPED,
     });
 
@@ -411,22 +408,22 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
 
     expect(taskScheduleTestDb.tasks).toHaveLength(0);
     expect(
-      occurrencesOf(schedule.id).find((row) => row.id === skipped.id)?.state,
+      runsOf(schedule.id).find((row) => row.id === skipped.id)?.state,
     ).toBe(TaskScheduleOccurrenceState.SKIPPED);
     expect(taskScheduleTestDb.schedules[0]).toMatchObject({
       state: TaskScheduleState.ACTIVE,
       releasedCount: 0,
-      nextOccurrenceAt: NEXT_MONDAY_9,
+      nextRunAt: NEXT_MONDAY_9,
     });
   });
 
-  it("Ends a schedule whose last Occurrence was skipped", async () => {
+  it("Ends a schedule whose last Run was skipped", async () => {
     const schedule = seedTaskSchedule({
-      nextOccurrenceAt: MONDAY_9,
+      nextRunAt: MONDAY_9,
       endsMode: TaskScheduleEndsMode.ON,
       endsOn: new Date("2030-01-08T00:00:00.000Z"),
     });
-    seedOccurrence(schedule, MONDAY_9, {
+    seedRun(schedule, MONDAY_9, {
       state: TaskScheduleOccurrenceState.SKIPPED,
     });
 
@@ -435,14 +432,14 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     expect(taskScheduleTestDb.tasks).toHaveLength(0);
     expect(taskScheduleTestDb.schedules[0]).toMatchObject({
       state: TaskScheduleState.ENDED,
-      nextOccurrenceAt: null,
+      nextRunAt: null,
     });
   });
 
   it("rolls back when the schedule is edited during the release", async () => {
-    const schedule = seedTaskSchedule({ nextOccurrenceAt: MONDAY_9 });
-    seedOccurrence(schedule, MONDAY_9);
-    // A blueprint edit commits between this run's read and its write.
+    const schedule = seedTaskSchedule({ nextRunAt: MONDAY_9 });
+    seedRun(schedule, MONDAY_9);
+    // A blueprint edit commits between this release's read and its write.
     vi.mocked(taskScheduleTestPrisma.task.create).mockImplementationOnce(
       async () => {
         taskScheduleTestDb.schedules = taskScheduleTestDb.schedules.map(
@@ -456,20 +453,20 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     await release();
 
     expect(taskScheduleTestDb.tasks).toHaveLength(0);
-    expect(occurrencesOf(schedule.id)[0]?.state).toBe(
+    expect(runsOf(schedule.id)[0]?.state).toBe(
       TaskScheduleOccurrenceState.PLANNED,
     );
   });
 
   it("finishes a stopped backlog without passing its end after N", async () => {
     const schedule = seedTaskSchedule({
-      nextOccurrenceAt: new Date("2029-12-17T09:00:00.000Z"),
+      nextRunAt: new Date("2029-12-17T09:00:00.000Z"),
       endsMode: TaskScheduleEndsMode.AFTER,
-      targetOccurrenceCount: 3,
+      targetRunCount: 3,
     });
-    seedOccurrence(schedule, new Date("2029-12-17T09:00:00.000Z"));
-    seedOccurrence(schedule, new Date("2029-12-24T09:00:00.000Z"));
-    seedOccurrence(schedule, new Date("2029-12-31T09:00:00.000Z"));
+    seedRun(schedule, new Date("2029-12-17T09:00:00.000Z"));
+    seedRun(schedule, new Date("2029-12-24T09:00:00.000Z"));
+    seedRun(schedule, new Date("2029-12-31T09:00:00.000Z"));
 
     // The first run runs out of budget after one Task.
     await taskScheduleReleaseService.releaseDueSchedules({
@@ -478,7 +475,7 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
       shouldContinue: () => taskScheduleTestDb.tasks.length < 1,
     });
     expect(
-      occurrencesOf(schedule.id).filter(
+      runsOf(schedule.id).filter(
         (row) => row.state === TaskScheduleOccurrenceState.PLANNED,
       ),
     ).toHaveLength(2);
@@ -494,10 +491,10 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
 
   it("releases a long backlog over several transactions in one run", async () => {
     const schedule = seedTaskSchedule({
-      nextOccurrenceAt: new Date("2030-01-07T07:00:00.000Z"),
+      nextRunAt: new Date("2030-01-07T07:00:00.000Z"),
     });
     for (let minute = 0; minute < 60; minute += 1) {
-      seedOccurrence(schedule, new Date(Date.UTC(2030, 0, 7, 7, minute)));
+      seedRun(schedule, new Date(Date.UTC(2030, 0, 7, 7, minute)));
     }
 
     await release();
@@ -506,15 +503,15 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
     expect(taskScheduleTestPrisma.$transaction).toHaveBeenCalledTimes(2);
     expect(taskScheduleTestDb.schedules[0]).toMatchObject({
       releasedCount: 60,
-      nextOccurrenceAt: NEXT_MONDAY_9,
+      nextRunAt: NEXT_MONDAY_9,
     });
   });
 
   it("keeps releasing other schedules when one fails", async () => {
-    const broken = seedTaskSchedule({ nextOccurrenceAt: MONDAY_9 });
-    const healthy = seedTaskSchedule({ nextOccurrenceAt: MONDAY_9 });
-    seedOccurrence(broken, MONDAY_9);
-    seedOccurrence(healthy, MONDAY_9);
+    const broken = seedTaskSchedule({ nextRunAt: MONDAY_9 });
+    const healthy = seedTaskSchedule({ nextRunAt: MONDAY_9 });
+    seedRun(broken, MONDAY_9);
+    seedRun(healthy, MONDAY_9);
     const create = taskScheduleTestPrisma.task.create.getMockImplementation();
     vi.mocked(taskScheduleTestPrisma.task.create).mockImplementation(
       async (args) => {
@@ -536,16 +533,16 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
   it("releases a schedule behind a full page of failures", async () => {
     const healthy = seedTaskSchedule({
       createdAt: new Date("2020-01-01T00:00:00.000Z"),
-      nextOccurrenceAt: MONDAY_9,
+      nextRunAt: MONDAY_9,
     });
-    seedOccurrence(healthy, MONDAY_9);
+    seedRun(healthy, MONDAY_9);
     const brokenIds = new Set<string>();
     for (let index = 0; index < TASK_SCHEDULE_RELEASE_BATCH_SIZE; index += 1) {
       const broken = seedTaskSchedule({
         createdAt: new Date(Date.UTC(2026, 8, 2, 0, 0, index)),
-        nextOccurrenceAt: MONDAY_9,
+        nextRunAt: MONDAY_9,
       });
-      seedOccurrence(broken, MONDAY_9);
+      seedRun(broken, MONDAY_9);
       brokenIds.add(broken.id);
     }
     const create = taskScheduleTestPrisma.task.create.getMockImplementation();

@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  occurrencesOf,
   resetTaskScheduleTestDb,
-  seedOccurrence,
+  runsOf,
+  seedRun,
   seedTaskSchedule,
   taskScheduleTestDb,
 } from "@/test-fixtures/task-schedule";
@@ -52,10 +52,10 @@ describe("POST /tasks/schedules/{id}/resume", () => {
     resetTaskScheduleTestDb();
   });
 
-  it("resumes a Paused schedule from the next Occurrence after now", async () => {
+  it("resumes a Paused schedule from the next Run after now", async () => {
     const schedule = seedTaskSchedule({
       state: "PAUSED",
-      nextOccurrenceAt: null,
+      nextRunAt: null,
     });
     const before = Date.now();
 
@@ -64,28 +64,27 @@ describe("POST /tasks/schedules/{id}/resume", () => {
     expect(response.status).toBe(200);
     const row = stored(schedule.id);
     expect(row?.state).toBe("ACTIVE");
-    expect(row?.nextOccurrenceAt?.getTime()).toBeGreaterThan(before);
-    expect(row?.nextOccurrenceAt?.getUTCDay()).toBe(1);
+    expect(row?.nextRunAt?.getTime()).toBeGreaterThan(before);
+    expect(row?.nextRunAt?.getUTCDay()).toBe(1);
   });
 
-  it("plans the Occurrences from now in the schedule's epoch", async () => {
+  it("plans the Runs from now in the schedule's epoch", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2030-01-01T00:00:00.000Z"));
     try {
       const schedule = seedTaskSchedule({
         state: "PAUSED",
-        nextOccurrenceAt: null,
+        nextRunAt: null,
         releasedCount: 1,
       });
-      const released = seedOccurrence(
-        schedule,
-        new Date("2029-12-24T09:00:00.000Z"),
-        { state: "RELEASED", releasedTaskId: "task_released" },
-      );
+      const released = seedRun(schedule, new Date("2029-12-24T09:00:00.000Z"), {
+        state: "RELEASED",
+        releasedTaskId: "task_released",
+      });
 
       await send(schedule.id);
 
-      const [first, ...planned] = occurrencesOf(schedule.id);
+      const [first, ...planned] = runsOf(schedule.id);
       expect(first).toEqual(released);
       // The Monday missed while paused (Dec 31) is not made up.
       expect(planned[0]).toMatchObject({
@@ -93,7 +92,7 @@ describe("POST /tasks/schedules/{id}/resume", () => {
         epochId: schedule.epochId,
         effectiveScheduledAt: new Date("2030-01-07T09:00:00.000Z"),
       });
-      expect(stored(schedule.id)?.nextOccurrenceAt).toEqual(
+      expect(stored(schedule.id)?.nextRunAt).toEqual(
         new Date("2030-01-07T09:00:00.000Z"),
       );
     } finally {
@@ -101,23 +100,21 @@ describe("POST /tasks/schedules/{id}/resume", () => {
     }
   });
 
-  it("keeps a skipped Occurrence skipped and plans the ones around it", async () => {
+  it("keeps a skipped Run skipped and plans the ones around it", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2030-01-01T00:00:00.000Z"));
     try {
       const schedule = seedTaskSchedule({
         state: "PAUSED",
-        nextOccurrenceAt: null,
+        nextRunAt: null,
       });
-      const skipped = seedOccurrence(
-        schedule,
-        new Date("2030-01-14T09:00:00.000Z"),
-        { state: "SKIPPED" },
-      );
+      const skipped = seedRun(schedule, new Date("2030-01-14T09:00:00.000Z"), {
+        state: "SKIPPED",
+      });
 
       await send(schedule.id);
 
-      const [first, second, third] = occurrencesOf(schedule.id);
+      const [first, second, third] = runsOf(schedule.id);
       expect(first).toMatchObject({
         state: "PLANNED",
         effectiveScheduledAt: new Date("2030-01-07T09:00:00.000Z"),
@@ -138,22 +135,18 @@ describe("POST /tasks/schedules/{id}/resume", () => {
     try {
       const schedule = seedTaskSchedule({
         state: "PAUSED",
-        nextOccurrenceAt: null,
+        nextRunAt: null,
       });
-      const missed = seedOccurrence(
-        schedule,
-        new Date("2030-01-14T09:00:00.000Z"),
-        { effectiveScheduledAt: new Date("2029-12-31T09:00:00.000Z") },
-      );
-      const moved = seedOccurrence(
-        schedule,
-        new Date("2030-01-21T09:00:00.000Z"),
-        { effectiveScheduledAt: new Date("2030-01-22T09:00:00.000Z") },
-      );
+      const missed = seedRun(schedule, new Date("2030-01-14T09:00:00.000Z"), {
+        effectiveScheduledAt: new Date("2029-12-31T09:00:00.000Z"),
+      });
+      const moved = seedRun(schedule, new Date("2030-01-21T09:00:00.000Z"), {
+        effectiveScheduledAt: new Date("2030-01-22T09:00:00.000Z"),
+      });
 
       await send(schedule.id);
 
-      const rows = occurrencesOf(schedule.id);
+      const rows = runsOf(schedule.id);
       expect(rows.find((row) => row.id === missed.id)?.state).toBe("CANCELED");
       expect(rows.find((row) => row.id === moved.id)?.state).toBe("PLANNED");
       expect(
@@ -166,7 +159,7 @@ describe("POST /tasks/schedules/{id}/resume", () => {
         new Date("2030-01-22T09:00:00.000Z"),
         new Date("2030-01-28T09:00:00.000Z"),
       ]);
-      expect(stored(schedule.id)?.nextOccurrenceAt).toEqual(
+      expect(stored(schedule.id)?.nextRunAt).toEqual(
         new Date("2030-01-07T09:00:00.000Z"),
       );
     } finally {
@@ -177,7 +170,7 @@ describe("POST /tasks/schedules/{id}/resume", () => {
   it("ends a schedule whose end date passed while it was paused", async () => {
     const schedule = seedTaskSchedule({
       state: "PAUSED",
-      nextOccurrenceAt: null,
+      nextRunAt: null,
       endsMode: "ON",
       endsOn: new Date("2026-01-01T00:00:00.000Z"),
     });
@@ -187,7 +180,7 @@ describe("POST /tasks/schedules/{id}/resume", () => {
     expect(response.status).toBe(200);
     expect(stored(schedule.id)).toMatchObject({
       state: "ENDED",
-      nextOccurrenceAt: null,
+      nextRunAt: null,
     });
   });
 

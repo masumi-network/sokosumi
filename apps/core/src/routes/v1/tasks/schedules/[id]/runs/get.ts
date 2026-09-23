@@ -10,31 +10,28 @@ import {
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import {
-  scheduleOccurrenceListQuerySchema,
-  scheduleOccurrenceSchema,
   taskScheduleParamsSchema,
+  taskScheduleRunListQuerySchema,
+  taskScheduleRunSchema,
 } from "@/schemas/task-schedule.schema";
 import {
-  listTaskScheduleOccurrences,
-  mapScheduleOccurrence,
+  listTaskScheduleRuns,
+  mapTaskScheduleRun,
 } from "@/services/task-schedule.service";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "get",
-    path: "/schedules/{id}/occurrences",
+    path: "/schedules/{id}/runs",
     description:
-      "List a Task Schedule's Occurrences in time order (paginated): the ones that created Tasks, the skipped and moved ones, and the planned ones up to the projection horizon.",
+      "List a Task Schedule's Runs in time order (paginated): the ones that created Tasks, the skipped and moved ones, and the planned ones up to the projection horizon.",
     tags: ["Task Schedules"],
     request: {
       params: taskScheduleParamsSchema,
-      query: scheduleOccurrenceListQuerySchema,
+      query: taskScheduleRunListQuerySchema,
     },
     responses: {
-      200: jsonPaginatedSuccessResponse(
-        z.array(scheduleOccurrenceSchema),
-        "Occurrences",
-      ),
+      200: jsonPaginatedSuccessResponse(z.array(taskScheduleRunSchema), "Runs"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
@@ -44,16 +41,14 @@ const route = withCoworkerContextHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { occurrences, pagination } = await listTaskScheduleOccurrences(
+    const { runs, pagination } = await listTaskScheduleRuns(
       c.var,
       c.req.valid("param").id,
       c.req.valid("query"),
     );
     return ok(
       c,
-      z
-        .array(scheduleOccurrenceSchema)
-        .parse(occurrences.map(mapScheduleOccurrence)),
+      z.array(taskScheduleRunSchema).parse(runs.map(mapTaskScheduleRun)),
       pagination,
     );
   });

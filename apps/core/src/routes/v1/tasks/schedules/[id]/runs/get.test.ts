@@ -4,7 +4,7 @@ import {
   COWORKER_AUTH,
   MEMBER_ID,
   resetTaskScheduleTestDb,
-  seedOccurrence,
+  seedRun,
   seedTaskSchedule,
   taskScheduleTestDb,
   userAuth,
@@ -42,10 +42,10 @@ const JAN_16 = new Date("2030-01-16T09:00:00.000Z");
 const JAN_21 = new Date("2030-01-21T09:00:00.000Z");
 
 function list(id: string, query = "", app = createTaskScheduleTestApp(mount)) {
-  return app.request(`http://localhost/schedules/${id}/occurrences${query}`);
+  return app.request(`http://localhost/schedules/${id}/runs${query}`);
 }
 
-describe("GET /tasks/schedules/{id}/occurrences", () => {
+describe("GET /tasks/schedules/{id}/runs", () => {
   beforeEach(() => {
     resetTaskScheduleTestDb();
     vi.useFakeTimers({ toFake: ["Date"] });
@@ -56,18 +56,18 @@ describe("GET /tasks/schedules/{id}/occurrences", () => {
     vi.useRealTimers();
   });
 
-  it("lists released, skipped, moved, and planned Occurrences in time order", async () => {
+  it("lists released, skipped, moved, and planned Runs in time order", async () => {
     const schedule = seedTaskSchedule({ releasedCount: 1 });
-    const released = seedOccurrence(schedule, JAN_7, {
+    const released = seedRun(schedule, JAN_7, {
       state: "RELEASED",
       releasedTaskId: "task_released",
     });
-    const moved = seedOccurrence(schedule, JAN_14, {
+    const moved = seedRun(schedule, JAN_14, {
       effectiveScheduledAt: JAN_16,
       actorUserId: MEMBER_ID,
     });
-    const skipped = seedOccurrence(schedule, JAN_21, { state: "SKIPPED" });
-    seedOccurrence(seedTaskSchedule(), JAN_14);
+    const skipped = seedRun(schedule, JAN_21, { state: "SKIPPED" });
+    seedRun(seedTaskSchedule(), JAN_14);
 
     const response = await list(schedule.id);
 
@@ -95,9 +95,9 @@ describe("GET /tasks/schedules/{id}/occurrences", () => {
 
   it("limits the list to a time range", async () => {
     const schedule = seedTaskSchedule();
-    seedOccurrence(schedule, JAN_7, { state: "RELEASED" });
-    const inRange = seedOccurrence(schedule, JAN_14);
-    seedOccurrence(schedule, JAN_21);
+    seedRun(schedule, JAN_7, { state: "RELEASED" });
+    const inRange = seedRun(schedule, JAN_14);
+    seedRun(schedule, JAN_21);
 
     const response = await list(
       schedule.id,
@@ -113,9 +113,9 @@ describe("GET /tasks/schedules/{id}/occurrences", () => {
 
   it("pages with a cursor", async () => {
     const schedule = seedTaskSchedule();
-    const first = seedOccurrence(schedule, JAN_7);
-    const second = seedOccurrence(schedule, JAN_14);
-    const third = seedOccurrence(schedule, JAN_21);
+    const first = seedRun(schedule, JAN_7);
+    const second = seedRun(schedule, JAN_14);
+    const third = seedRun(schedule, JAN_21);
 
     const firstPage = await (await list(schedule.id, "?limit=2")).json();
     const secondPage = await (
@@ -135,9 +135,9 @@ describe("GET /tasks/schedules/{id}/occurrences", () => {
     expect(secondPage.meta.pagination.nextCursor).toBeNull();
   });
 
-  it("shows a workspace-visible schedule's Occurrences to other members", async () => {
+  it("shows a workspace-visible schedule's Runs to other members", async () => {
     const schedule = seedTaskSchedule();
-    seedOccurrence(schedule, JAN_14);
+    seedRun(schedule, JAN_14);
 
     const response = await list(
       schedule.id,
@@ -150,7 +150,7 @@ describe("GET /tasks/schedules/{id}/occurrences", () => {
 
   it("hides a private schedule from other members", async () => {
     const schedule = seedTaskSchedule({ visibility: "PRIVATE" });
-    seedOccurrence(schedule, JAN_14);
+    seedRun(schedule, JAN_14);
 
     const response = await list(
       schedule.id,
@@ -172,7 +172,7 @@ describe("GET /tasks/schedules/{id}/occurrences", () => {
 
   it("lets a Coworker with a workspace grant read them", async () => {
     const schedule = seedTaskSchedule();
-    seedOccurrence(schedule, JAN_14);
+    seedRun(schedule, JAN_14);
 
     const response = await list(
       schedule.id,

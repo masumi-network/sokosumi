@@ -7,35 +7,32 @@ import {
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import {
-  scheduleOccurrenceParamsSchema,
-  scheduleOccurrenceUpdateSchema,
-  updateScheduleOccurrenceRequestSchema,
+  taskScheduleRunParamsSchema,
+  taskScheduleRunUpdateSchema,
+  updateTaskScheduleRunRequestSchema,
 } from "@/schemas/task-schedule.schema";
 import {
-  changeTaskScheduleOccurrence,
-  mapScheduleOccurrence,
+  changeTaskScheduleRun,
+  mapTaskScheduleRun,
 } from "@/services/task-schedule.service";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "patch",
-    path: "/schedules/{id}/occurrences/{occurrenceId}",
+    path: "/schedules/{id}/runs/{runId}",
     description:
-      "Skip, move, or restore one upcoming Occurrence without changing the rule. Only future Occurrences that have not created their Task, inside the projection horizon, of an Active schedule. Revision-checked.",
+      "Skip, move, or restore one upcoming Run without changing the rule. Only future Runs that have not created their Task, inside the projection horizon, of an Active schedule. Revision-checked.",
     tags: ["Task Schedules"],
     request: {
-      params: scheduleOccurrenceParamsSchema,
+      params: taskScheduleRunParamsSchema,
       body: {
         content: {
-          "application/json": { schema: updateScheduleOccurrenceRequestSchema },
+          "application/json": { schema: updateTaskScheduleRunRequestSchema },
         },
       },
     },
     responses: {
-      200: jsonSuccessResponse(
-        scheduleOccurrenceUpdateSchema,
-        "Occurrence changed",
-      ),
+      200: jsonSuccessResponse(taskScheduleRunUpdateSchema, "Run changed"),
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -48,18 +45,18 @@ const route = withCoworkerContextHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { id, occurrenceId } = c.req.valid("param");
-    const { revision, occurrence } = await changeTaskScheduleOccurrence(
+    const { id, runId } = c.req.valid("param");
+    const { revision, run } = await changeTaskScheduleRun(
       c.var,
       id,
-      occurrenceId,
+      runId,
       c.req.valid("json"),
     );
     return ok(
       c,
-      scheduleOccurrenceUpdateSchema.parse({
+      taskScheduleRunUpdateSchema.parse({
         revision,
-        occurrence: mapScheduleOccurrence(occurrence),
+        run: mapTaskScheduleRun(run),
       }),
     );
   });

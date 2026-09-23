@@ -5847,11 +5847,11 @@ export type TaskSchedule = {
         anchorAt: Date;
         endsMode: TaskScheduleEndsMode;
         endsOn: Date | null;
-        targetOccurrenceCount: number | null;
+        targetRunCount: number | null;
     };
     ruleEffectiveFrom: Date;
     releasedCount: number;
-    nextOccurrenceAt: Date | null;
+    nextRunAt: Date | null;
     revision: number;
     name: string;
     description: string | null;
@@ -5902,7 +5902,7 @@ export type CreateTaskScheduleRequest = {
 
 export type TaskScheduleRule = {
     /**
-     * Cron expression for Occurrences, read in `timezone`
+     * Cron expression for Runs, read in `timezone`
      */
     expr: string;
     /**
@@ -5910,22 +5910,22 @@ export type TaskScheduleRule = {
      */
     timezone?: string;
     /**
-     * When greater than 1, an Occurrence every N calendar days from anchorAt at its local time, instead of the cron day fields
+     * When greater than 1, a Run every N calendar days from anchorAt at its local time, instead of the cron day fields
      */
     intervalDays?: number | null;
     /**
-     * First Occurrence for intervalDays rules (required when intervalDays > 1)
+     * First Run for intervalDays rules (required when intervalDays > 1)
      */
     anchorAt?: Date | null;
     endsMode?: TaskScheduleEndsMode;
     /**
-     * Last possible Occurrence when endsMode is ON
+     * Last possible Run when endsMode is ON
      */
     endsOn?: Date | null;
     /**
-     * Total Occurrences when endsMode is AFTER
+     * Total Runs when endsMode is AFTER
      */
-    targetOccurrenceCount?: number | null;
+    targetRunCount?: number | null;
 };
 
 export type UpdateTaskScheduleRequest = {
@@ -5952,11 +5952,11 @@ export type UpdateTaskScheduleRequest = {
 };
 
 /**
- * Replaces the whole rule; timezone and endsMode are required. Changes future Occurrences only; Tasks already created stay as they are.
+ * Replaces the whole rule; timezone and endsMode are required. Changes future Runs only; Tasks already created stay as they are.
  */
 export type TaskScheduleRuleReplacement = {
     /**
-     * Cron expression for Occurrences, read in `timezone`
+     * Cron expression for Runs, read in `timezone`
      */
     expr: string;
     /**
@@ -5964,25 +5964,25 @@ export type TaskScheduleRuleReplacement = {
      */
     timezone: string;
     /**
-     * When greater than 1, an Occurrence every N calendar days from anchorAt at its local time, instead of the cron day fields
+     * When greater than 1, a Run every N calendar days from anchorAt at its local time, instead of the cron day fields
      */
     intervalDays?: number | null;
     /**
-     * First Occurrence for intervalDays rules (required when intervalDays > 1)
+     * First Run for intervalDays rules (required when intervalDays > 1)
      */
     anchorAt?: Date | null;
     endsMode: TaskScheduleEndsMode;
     /**
-     * Last possible Occurrence when endsMode is ON
+     * Last possible Run when endsMode is ON
      */
     endsOn?: Date | null;
     /**
-     * Total Occurrences when endsMode is AFTER
+     * Total Runs when endsMode is AFTER
      */
-    targetOccurrenceCount?: number | null;
+    targetRunCount?: number | null;
 };
 
-export type ScheduleOccurrence = {
+export type TaskScheduleRun = {
     id: string;
     /**
      * PLANNED (will create a Task), SKIPPED, RELEASED (created `releasedTaskId`), or CANCELED (dropped by a rule edit)
@@ -5993,11 +5993,11 @@ export type ScheduleOccurrence = {
      */
     originalScheduledAt: Date | null;
     /**
-     * Time the Occurrence holds; differs from the rule when moved
+     * Time the Run holds; differs from the rule when moved
      */
     effectiveScheduledAt: Date;
     /**
-     * Task this Occurrence created
+     * Task this Run created
      */
     releasedTaskId: string | null;
     /**
@@ -6011,15 +6011,15 @@ export type ScheduleOccurrence = {
     updatedAt: Date;
 };
 
-export type ScheduleOccurrenceUpdate = {
+export type TaskScheduleRunUpdate = {
     /**
      * Task Schedule revision after the change
      */
     revision: number;
-    occurrence: ScheduleOccurrence;
+    run: TaskScheduleRun;
 };
 
-export type UpdateScheduleOccurrenceRequest = {
+export type UpdateTaskScheduleRunRequest = {
     /**
      * Task Schedule revision observed by the caller
      */
@@ -41620,7 +41620,7 @@ export type PostTasksSchedulesByIdEndResponses = {
 
 export type PostTasksSchedulesByIdEndResponse = PostTasksSchedulesByIdEndResponses[keyof PostTasksSchedulesByIdEndResponses];
 
-export type GetTasksSchedulesByIdOccurrencesData = {
+export type GetTasksSchedulesByIdRunsData = {
     body?: never;
     headers?: {
         /**
@@ -41649,18 +41649,18 @@ export type GetTasksSchedulesByIdOccurrencesData = {
          */
         limit?: number;
         /**
-         * Only Occurrences at or after this time
+         * Only Runs at or after this time
          */
         from?: Date;
         /**
-         * Only Occurrences before this time
+         * Only Runs before this time
          */
         to?: Date;
     };
-    url: '/tasks/schedules/{id}/occurrences';
+    url: '/tasks/schedules/{id}/runs';
 };
 
-export type GetTasksSchedulesByIdOccurrencesErrors = {
+export type GetTasksSchedulesByIdRunsErrors = {
     /**
      * Unauthorized
      */
@@ -41708,14 +41708,14 @@ export type GetTasksSchedulesByIdOccurrencesErrors = {
     };
 };
 
-export type GetTasksSchedulesByIdOccurrencesError = GetTasksSchedulesByIdOccurrencesErrors[keyof GetTasksSchedulesByIdOccurrencesErrors];
+export type GetTasksSchedulesByIdRunsError = GetTasksSchedulesByIdRunsErrors[keyof GetTasksSchedulesByIdRunsErrors];
 
-export type GetTasksSchedulesByIdOccurrencesResponses = {
+export type GetTasksSchedulesByIdRunsResponses = {
     /**
-     * Occurrences
+     * Runs
      */
     200: {
-        data: Array<ScheduleOccurrence>;
+        data: Array<TaskScheduleRun>;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41724,10 +41724,10 @@ export type GetTasksSchedulesByIdOccurrencesResponses = {
     };
 };
 
-export type GetTasksSchedulesByIdOccurrencesResponse = GetTasksSchedulesByIdOccurrencesResponses[keyof GetTasksSchedulesByIdOccurrencesResponses];
+export type GetTasksSchedulesByIdRunsResponse = GetTasksSchedulesByIdRunsResponses[keyof GetTasksSchedulesByIdRunsResponses];
 
-export type PatchTasksSchedulesByIdOccurrencesByOccurrenceIdData = {
-    body?: UpdateScheduleOccurrenceRequest;
+export type PatchTasksSchedulesByIdRunsByRunIdData = {
+    body?: UpdateTaskScheduleRunRequest;
     headers?: {
         /**
          * Optional organization slug to set the organization context.
@@ -41744,13 +41744,13 @@ export type PatchTasksSchedulesByIdOccurrencesByOccurrenceIdData = {
     };
     path: {
         id: string;
-        occurrenceId: string;
+        runId: string;
     };
     query?: never;
-    url: '/tasks/schedules/{id}/occurrences/{occurrenceId}';
+    url: '/tasks/schedules/{id}/runs/{runId}';
 };
 
-export type PatchTasksSchedulesByIdOccurrencesByOccurrenceIdErrors = {
+export type PatchTasksSchedulesByIdRunsByRunIdErrors = {
     /**
      * Bad Request
      */
@@ -41843,14 +41843,14 @@ export type PatchTasksSchedulesByIdOccurrencesByOccurrenceIdErrors = {
     };
 };
 
-export type PatchTasksSchedulesByIdOccurrencesByOccurrenceIdError = PatchTasksSchedulesByIdOccurrencesByOccurrenceIdErrors[keyof PatchTasksSchedulesByIdOccurrencesByOccurrenceIdErrors];
+export type PatchTasksSchedulesByIdRunsByRunIdError = PatchTasksSchedulesByIdRunsByRunIdErrors[keyof PatchTasksSchedulesByIdRunsByRunIdErrors];
 
-export type PatchTasksSchedulesByIdOccurrencesByOccurrenceIdResponses = {
+export type PatchTasksSchedulesByIdRunsByRunIdResponses = {
     /**
-     * Occurrence changed
+     * Run changed
      */
     200: {
-        data: ScheduleOccurrenceUpdate;
+        data: TaskScheduleRunUpdate;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -41859,7 +41859,7 @@ export type PatchTasksSchedulesByIdOccurrencesByOccurrenceIdResponses = {
     };
 };
 
-export type PatchTasksSchedulesByIdOccurrencesByOccurrenceIdResponse = PatchTasksSchedulesByIdOccurrencesByOccurrenceIdResponses[keyof PatchTasksSchedulesByIdOccurrencesByOccurrenceIdResponses];
+export type PatchTasksSchedulesByIdRunsByRunIdResponse = PatchTasksSchedulesByIdRunsByRunIdResponses[keyof PatchTasksSchedulesByIdRunsByRunIdResponses];
 
 export type PostTasksScheduledData = {
     body?: CreateScheduledTaskRequest;

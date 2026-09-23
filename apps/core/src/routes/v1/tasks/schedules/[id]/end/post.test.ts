@@ -3,9 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   COWORKER_AUTH,
   COWORKER_ID,
-  occurrencesOf,
   resetTaskScheduleTestDb,
-  seedOccurrence,
+  runsOf,
+  seedRun,
   seedTaskSchedule,
   taskScheduleTestDb,
 } from "@/test-fixtures/task-schedule";
@@ -64,46 +64,37 @@ describe("POST /tasks/schedules/{id}/end", () => {
       expect(response.status).toBe(200);
       expect(stored(schedule.id)).toMatchObject({
         state: "ENDED",
-        nextOccurrenceAt: null,
+        nextRunAt: null,
       });
     },
   );
 
-  it("drops the planned Occurrences and keeps the released ones", async () => {
+  it("drops the planned Runs and keeps the released ones", async () => {
     const schedule = seedTaskSchedule({ releasedCount: 1 });
-    const released = seedOccurrence(
-      schedule,
-      new Date("2029-12-31T09:00:00.000Z"),
-      { state: "RELEASED", releasedTaskId: "task_released" },
-    );
-    seedOccurrence(schedule, new Date("2030-01-07T09:00:00.000Z"));
+    const released = seedRun(schedule, new Date("2029-12-31T09:00:00.000Z"), {
+      state: "RELEASED",
+      releasedTaskId: "task_released",
+    });
+    seedRun(schedule, new Date("2030-01-07T09:00:00.000Z"));
 
     await send(schedule.id);
 
-    expect(occurrencesOf(schedule.id)).toEqual([released]);
+    expect(runsOf(schedule.id)).toEqual([released]);
   });
 
-  it("keeps skipped and moved Occurrences in the history as canceled", async () => {
+  it("keeps skipped and moved Runs in the history as canceled", async () => {
     const schedule = seedTaskSchedule();
-    const moved = seedOccurrence(
-      schedule,
-      new Date("2030-01-07T09:00:00.000Z"),
-      {
-        effectiveScheduledAt: new Date("2030-01-08T09:00:00.000Z"),
-      },
-    );
-    const skipped = seedOccurrence(
-      schedule,
-      new Date("2030-01-14T09:00:00.000Z"),
-      { state: "SKIPPED" },
-    );
-    seedOccurrence(schedule, new Date("2030-01-21T09:00:00.000Z"));
+    const moved = seedRun(schedule, new Date("2030-01-07T09:00:00.000Z"), {
+      effectiveScheduledAt: new Date("2030-01-08T09:00:00.000Z"),
+    });
+    const skipped = seedRun(schedule, new Date("2030-01-14T09:00:00.000Z"), {
+      state: "SKIPPED",
+    });
+    seedRun(schedule, new Date("2030-01-21T09:00:00.000Z"));
 
     await send(schedule.id);
 
-    expect(
-      occurrencesOf(schedule.id).map((row) => [row.id, row.state]),
-    ).toEqual([
+    expect(runsOf(schedule.id).map((row) => [row.id, row.state])).toEqual([
       [moved.id, "CANCELED"],
       [skipped.id, "CANCELED"],
     ]);

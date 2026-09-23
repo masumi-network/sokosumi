@@ -78,7 +78,7 @@ interface StoredProject {
 
 interface Store {
   schedules: TaskSchedule[];
-  occurrences: TaskScheduleOccurrence[];
+  runs: TaskScheduleOccurrence[];
   /** Tasks the release created, with their nested events. */
   tasks: StoredTask[];
   /** Coworkers that exist, keyed by id, with their vendor. */
@@ -94,7 +94,7 @@ interface Store {
 function emptyStore(): Store {
   return {
     schedules: [],
-    occurrences: [],
+    runs: [],
     tasks: [],
     coworkers: new Map([[COWORKER_ID, { vendorId: VENDOR_ID }]]),
     sokoBots: new Map([
@@ -137,9 +137,9 @@ export function seedTaskSchedule(
     epochId: randomUUID(),
     endsMode: TaskScheduleEndsMode.NEVER,
     endsOn: null,
-    targetOccurrenceCount: null,
+    targetRunCount: null,
     releasedCount: 0,
-    nextOccurrenceAt: new Date("2030-01-07T09:00:00.000Z"),
+    nextRunAt: new Date("2030-01-07T09:00:00.000Z"),
     revision: 0,
     name: "Weekly report",
     description: null,
@@ -155,7 +155,7 @@ export function seedTaskSchedule(
 }
 
 /** A ledger row of `schedule` in its current epoch, planned at `at`. */
-export function seedOccurrence(
+export function seedRun(
   schedule: TaskSchedule,
   at: Date,
   overrides: Partial<TaskScheduleOccurrence> = {},
@@ -186,16 +186,14 @@ export function seedOccurrence(
     ruleSnapshot: null,
     ...overrides,
   };
-  taskScheduleTestDb.occurrences.push(row);
+  taskScheduleTestDb.runs.push(row);
   return row;
 }
 
 /** Ledger rows of a schedule, oldest first. */
-export function occurrencesOf(scheduleId: string): TaskScheduleOccurrence[] {
-  return sortOccurrences(
-    taskScheduleTestDb.occurrences.filter(
-      (row) => row.scheduleId === scheduleId,
-    ),
+export function runsOf(scheduleId: string): TaskScheduleOccurrence[] {
+  return sortRuns(
+    taskScheduleTestDb.runs.filter((row) => row.scheduleId === scheduleId),
   );
 }
 
@@ -253,9 +251,7 @@ function matchesRow<Row extends object>(row: Row, where: Where = {}): boolean {
   });
 }
 
-function sortOccurrences(
-  rows: TaskScheduleOccurrence[],
-): TaskScheduleOccurrence[] {
+function sortRuns(rows: TaskScheduleOccurrence[]): TaskScheduleOccurrence[] {
   return [...rows].sort(
     (a, b) =>
       a.effectiveScheduledAt.getTime() - b.effectiveScheduledAt.getTime() ||
@@ -345,9 +341,9 @@ const taskSchedule = {
         intervalDays: null,
         endsMode: TaskScheduleEndsMode.NEVER,
         endsOn: null,
-        targetOccurrenceCount: null,
+        targetRunCount: null,
         releasedCount: 0,
-        nextOccurrenceAt: null,
+        nextRunAt: null,
         revision: 0,
         description: null,
         projectId: null,
@@ -439,15 +435,14 @@ const taskSchedule = {
   }),
 };
 
-function occurrenceKey(row: Partial<TaskScheduleOccurrence>): string {
+function runKey(row: Partial<TaskScheduleOccurrence>): string {
   return `${row.scheduleId}:${row.epochId}:${row.originalScheduledAt?.toISOString()}`;
 }
 
 const taskScheduleOccurrence = {
   count: vi.fn(
     async ({ where }: { where: Where }) =>
-      taskScheduleTestDb.occurrences.filter((row) => matchesRow(row, where))
-        .length,
+      taskScheduleTestDb.runs.filter((row) => matchesRow(row, where)).length,
   ),
   /** Sorts by effective time, or latest rule time first when asked. */
   findMany: vi.fn(
@@ -464,8 +459,8 @@ const taskScheduleOccurrence = {
       cursor?: { id: string };
       orderBy?: Record<string, "asc" | "desc">[];
     }) => {
-      let rows = sortOccurrences(
-        taskScheduleTestDb.occurrences.filter((row) => matchesRow(row, where)),
+      let rows = sortRuns(
+        taskScheduleTestDb.runs.filter((row) => matchesRow(row, where)),
       );
       if (orderBy?.[0]?.originalScheduledAt === "desc") {
         rows.sort(
@@ -482,7 +477,7 @@ const taskScheduleOccurrence = {
     },
   ),
   findUniqueOrThrow: vi.fn(async ({ where }: { where: { id: string } }) => {
-    const row = taskScheduleTestDb.occurrences.find((r) => r.id === where.id);
+    const row = taskScheduleTestDb.runs.find((r) => r.id === where.id);
     if (!row) throw new Error(`No TaskScheduleOccurrence ${where.id}`);
     return row;
   }),
@@ -504,17 +499,13 @@ const taskScheduleOccurrence = {
     }) => {
       let count = 0;
       for (const input of data) {
-        const key = occurrenceKey(input);
-        if (
-          taskScheduleTestDb.occurrences.some(
-            (row) => occurrenceKey(row) === key,
-          )
-        ) {
+        const key = runKey(input);
+        if (taskScheduleTestDb.runs.some((row) => runKey(row) === key)) {
           if (skipDuplicates) continue;
-          throw new Error(`Duplicate Occurrence ${key}`);
+          throw new Error(`Duplicate Run ${key}`);
         }
         const now = new Date();
-        taskScheduleTestDb.occurrences.push({
+        taskScheduleTestDb.runs.push({
           id: randomUUID(),
           createdAt: now,
           updatedAt: now,
@@ -541,21 +532,19 @@ const taskScheduleOccurrence = {
   ),
   updateMany: vi.fn(async ({ where, data }: { where: Where; data: Data }) => {
     let count = 0;
-    taskScheduleTestDb.occurrences = taskScheduleTestDb.occurrences.map(
-      (row) => {
-        if (!matchesRow(row, where)) return row;
-        count += 1;
-        return { ...row, ...data, updatedAt: new Date() };
-      },
-    );
+    taskScheduleTestDb.runs = taskScheduleTestDb.runs.map((row) => {
+      if (!matchesRow(row, where)) return row;
+      count += 1;
+      return { ...row, ...data, updatedAt: new Date() };
+    });
     return { count };
   }),
   deleteMany: vi.fn(async ({ where }: { where: Where }) => {
-    const before = taskScheduleTestDb.occurrences.length;
-    taskScheduleTestDb.occurrences = taskScheduleTestDb.occurrences.filter(
+    const before = taskScheduleTestDb.runs.length;
+    taskScheduleTestDb.runs = taskScheduleTestDb.runs.filter(
       (row) => !matchesRow(row, where),
     );
-    return { count: before - taskScheduleTestDb.occurrences.length };
+    return { count: before - taskScheduleTestDb.runs.length };
   }),
 };
 
@@ -651,12 +640,12 @@ export const taskScheduleTestPrisma = {
     async (fn: (tx: typeof taskScheduleTestPrisma) => Promise<unknown>) => {
       // Rows are replaced, never mutated, so copying the arrays is a snapshot.
       const schedules = [...taskScheduleTestDb.schedules];
-      const occurrences = [...taskScheduleTestDb.occurrences];
+      const runs = [...taskScheduleTestDb.runs];
       const tasks = [...taskScheduleTestDb.tasks];
       try {
         return await fn(taskScheduleTestPrisma);
       } catch (error) {
-        Object.assign(taskScheduleTestDb, { schedules, occurrences, tasks });
+        Object.assign(taskScheduleTestDb, { schedules, runs, tasks });
         throw error;
       }
     },

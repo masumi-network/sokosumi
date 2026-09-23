@@ -1,5 +1,5 @@
--- ADR 0040: Occurrence exceptions are recorded on the Occurrence row, not as
--- Task events, so the row also names a Coworker vendor that made one.
+-- ADR 0040: Run exceptions are recorded on the Run row, not as Task events,
+-- so the row also names a Coworker vendor that made one.
 
 -- AlterTable
 ALTER TABLE "task_schedule_occurrence" ADD COLUMN "actorCoworkerId" TEXT;
