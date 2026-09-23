@@ -86,7 +86,10 @@ apps/web
 
 Place `foo.test.ts(x)` next to `foo.ts(x)`. Use `__tests__/` only for tests that do not map 1:1 to a source file.
 
-Run tests using Vitest with the `happy-dom` browser-like environment:
+Vitest runs two projects:
+
+- **node:** pure `src/**/*.test.ts` files (no `window`, no Testing Library)
+- **happy-dom:** `src/**/*.test.tsx` and the `.test.ts` files that need the DOM (Testing Library / `window`)
 
 ```bash
 pnpm test
