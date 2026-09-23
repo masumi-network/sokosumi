@@ -1304,10 +1304,7 @@ describe("PATCH /tasks/{id} Run at", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     taskUpdateMock.mockResolvedValue(createTaskApi(null));
-    mapTaskMock.mockImplementation((task) => ({
-      ...createTaskApi(task.projectId),
-      events: task.events ?? [],
-    }));
+    mapTaskMock.mockImplementation((task) => createTaskApi(task.projectId));
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
         project: { findFirst: projectFindFirstMock },
@@ -1323,7 +1320,6 @@ describe("PATCH /tasks/{id} Run at", () => {
     taskEventCreateMock.mockResolvedValue(queuedEvent);
 
     const response = await patch({ runAt: RUN_AT });
-    const body = await response.json();
 
     expect(response.status).toBe(200);
     expect(taskUpdateMock).toHaveBeenCalledWith(
@@ -1345,13 +1341,17 @@ describe("PATCH /tasks/{id} Run at", () => {
       },
       include: taskEventApiInclude,
     });
-    expect(body.data.events).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: queuedEvent.id,
-          status: TaskStatus.QUEUED,
-        }),
-      ]),
+    expect(mapTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        events: expect.arrayContaining([
+          expect.objectContaining({
+            id: queuedEvent.id,
+            status: TaskStatus.QUEUED,
+            user: queuedEvent.user,
+          }),
+        ]),
+      }),
+      expect.anything(),
     );
     expect(publishTaskEventDataMock).toHaveBeenCalledWith({
       userId: "user_123",
@@ -1382,7 +1382,6 @@ describe("PATCH /tasks/{id} Run at", () => {
     taskEventCreateMock.mockResolvedValue(draftEvent);
 
     const response = await patch({ runAt: null });
-    const body = await response.json();
 
     expect(response.status).toBe(200);
     expect(taskUpdateMock).toHaveBeenCalledWith(
@@ -1396,15 +1395,20 @@ describe("PATCH /tasks/{id} Run at", () => {
     expect(taskEventCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: TaskStatus.DRAFT }),
+        include: taskEventApiInclude,
       }),
     );
-    expect(body.data.events).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: draftEvent.id,
-          status: TaskStatus.DRAFT,
-        }),
-      ]),
+    expect(mapTaskMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        events: expect.arrayContaining([
+          expect.objectContaining({
+            id: draftEvent.id,
+            status: TaskStatus.DRAFT,
+            user: draftEvent.user,
+          }),
+        ]),
+      }),
+      expect.anything(),
     );
     expect(publishTaskEventDataMock).toHaveBeenCalledWith({
       userId: "user_123",
