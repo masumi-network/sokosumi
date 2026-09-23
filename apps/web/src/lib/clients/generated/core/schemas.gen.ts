@@ -19780,11 +19780,8 @@ export const CreateScheduledTaskRequestSchema = {
             minLength: 1
         },
         assigneeUserId: {
-            type: [
-                'string',
-                'null'
-            ],
-            minLength: 1
+            type: 'null',
+            description: 'Schedules require an agent assignee. Human tasks use deadlines.'
         },
         context: {
             $ref: '#/components/schemas/CreateTaskContext'

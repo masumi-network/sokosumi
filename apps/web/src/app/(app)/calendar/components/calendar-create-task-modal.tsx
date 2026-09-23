@@ -42,7 +42,8 @@ function CalendarCreateTaskModalInstance({
       }
 
       if (
-        (!input.assigneeId && !input.assigneeUserId) ||
+        !input.assigneeId ||
+        input.assigneeUserId ||
         input.assigneeSokoBotId
       ) {
         throw new Error("An assignee is required to schedule a Calendar task");
@@ -59,9 +60,6 @@ function CalendarCreateTaskModalInstance({
           : { type: "workspace" },
         description: input.description,
         assigneeId: input.assigneeId,
-        ...(input.assigneeUserId
-          ? { assigneeUserId: input.assigneeUserId }
-          : {}),
         context: input.context,
         schedule: input.schedule,
       });

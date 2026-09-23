@@ -686,7 +686,7 @@ describe("task link actions", () => {
     const result = await createTaskAndLink({
       taskId: "task-1",
       description: "Related scheduled task",
-      assigneeId: null,
+      assigneeId: "coworker-1",
       assigneeSokoBotId: null,
       assigneeUserId: null,
       status: TaskStatus.READY,
@@ -1014,7 +1014,7 @@ describe("updateTask schedule status", () => {
     expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
   });
 
-  it("does not force Queued when a human schedule lands Ready (save must succeed)", async () => {
+  it("rejects human schedule edits before changing the task", async () => {
     taskScheduleServiceMock.setSchedule.mockResolvedValue({
       id: "task-1",
       status: TaskStatus.READY,
@@ -1022,21 +1022,23 @@ describe("updateTask schedule status", () => {
 
     const { updateTask } = await import("./action");
 
-    await updateTask({
-      taskId: "task-1",
-      name: "Task",
-      description: "Do work",
-      assigneeId: null,
-      assigneeSokoBotId: null,
-      assigneeUserId: "user-1",
-      currentStatus: TaskStatus.READY,
-      desiredStatus: TaskStatus.QUEUED,
-      hadSchedule: false,
-      originalSchedule: { mode: "none", timezone: "UTC" },
-      schedule: recurringSchedule,
-    });
+    await expect(
+      updateTask({
+        taskId: "task-1",
+        name: "Task",
+        description: "Do work",
+        assigneeId: null,
+        assigneeSokoBotId: null,
+        assigneeUserId: "user-1",
+        currentStatus: TaskStatus.READY,
+        desiredStatus: TaskStatus.QUEUED,
+        hadSchedule: false,
+        originalSchedule: { mode: "none", timezone: "UTC" },
+        schedule: recurringSchedule,
+      }),
+    ).rejects.toThrow("Schedules require an agent assignee");
 
-    expect(taskScheduleServiceMock.setSchedule).toHaveBeenCalled();
+    expect(taskScheduleServiceMock.setSchedule).not.toHaveBeenCalled();
     expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
   });
 
@@ -1364,7 +1366,7 @@ describe("createTask schedule", () => {
 
     await createTask({
       description: "Scheduled task",
-      assigneeId: null,
+      assigneeId: "coworker-1",
       assigneeSokoBotId: null,
       assigneeUserId: null,
       status: TaskStatus.READY,
@@ -1401,7 +1403,7 @@ describe("createTask schedule", () => {
     expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
   });
 
-  it("saves a human Queued+schedule create without forcing a Queued event", async () => {
+  it("rejects human schedule creates before creating the task", async () => {
     taskServiceMock.createTask.mockResolvedValue(
       buildTask({ status: TaskStatus.DRAFT }),
     );
@@ -1412,16 +1414,18 @@ describe("createTask schedule", () => {
 
     const { createTask } = await import("./action");
 
-    await createTask({
-      description: "Human scheduled queued task",
-      assigneeId: null,
-      assigneeSokoBotId: null,
-      assigneeUserId: "user-1",
-      status: TaskStatus.QUEUED,
-      schedule: recurringSchedule,
-    });
+    await expect(
+      createTask({
+        description: "Human scheduled queued task",
+        assigneeId: null,
+        assigneeSokoBotId: null,
+        assigneeUserId: "user-1",
+        status: TaskStatus.QUEUED,
+        schedule: recurringSchedule,
+      }),
+    ).rejects.toThrow("Schedules require an agent assignee");
 
-    expect(taskScheduleServiceMock.setSchedule).toHaveBeenCalled();
+    expect(taskScheduleServiceMock.setSchedule).not.toHaveBeenCalled();
     expect(taskServiceMock.createTaskEvent).not.toHaveBeenCalled();
     expect(taskServiceMock.deleteTask).not.toHaveBeenCalled();
   });
@@ -1496,7 +1500,7 @@ describe("createTask schedule", () => {
     const { createTask } = await import("./action");
     const result = await createTask({
       description: "Scheduled task",
-      assigneeId: null,
+      assigneeId: "coworker-1",
       assigneeSokoBotId: null,
       assigneeUserId: null,
       status: TaskStatus.READY,

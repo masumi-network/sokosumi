@@ -221,6 +221,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
       ownerId: "user_123",
       name: "Scheduled task",
       status: TaskStatus.QUEUED,
+      assigneeId: "coworker-1",
       workspaceId: WORKSPACE_ID,
       projectId: null,
       scheduleRevision: SCHEDULE_REVISION,
@@ -251,6 +252,23 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
   afterEach(() => {
     vi.useRealTimers();
   });
+
+  it.each(["reschedule", "restore", "skip"])(
+    "rejects %s for a human schedule",
+    async (action) => {
+      const task = await requireTaskScheduleWriteAccessMock();
+      requireTaskScheduleWriteAccessMock.mockResolvedValue({
+        ...task,
+        status: TaskStatus.READY,
+        assigneeId: null,
+        assigneeUserId: "user_123",
+      });
+      const response = await createApp().request(...request(body({ action })));
+      expect(response.status).toBe(422);
+      expect(occurrenceUpdateMock).not.toHaveBeenCalled();
+      expect(taskUpdateMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("moves the occurrence, advances the revision, and audits the change", async () => {
     const response = await createApp().request(...request(body()));
@@ -393,6 +411,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
     requireTaskScheduleWriteAccessMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.QUEUED,
+      assigneeId: "coworker-1",
       workspaceId: WORKSPACE_ID,
       projectId: null,
       scheduleRevision: SCHEDULE_REVISION,
@@ -492,6 +511,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
     requireTaskScheduleWriteAccessMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.QUEUED,
+      assigneeId: "coworker-1",
       workspaceId: WORKSPACE_ID,
       projectId: null,
       scheduleRevision: SCHEDULE_REVISION,
@@ -524,6 +544,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
     requireTaskScheduleWriteAccessMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.QUEUED,
+      assigneeId: "coworker-1",
       workspaceId: WORKSPACE_ID,
       projectId: null,
       scheduleRevision: SCHEDULE_REVISION,
@@ -568,6 +589,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
     requireTaskScheduleWriteAccessMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.QUEUED,
+      assigneeId: "coworker-1",
       workspaceId: WORKSPACE_ID,
       projectId: null,
       scheduleRevision: SCHEDULE_REVISION,
@@ -712,6 +734,7 @@ describe("PATCH /tasks/{id}/schedule/occurrences/{occurrenceId}", () => {
     requireTaskScheduleWriteAccessMock.mockResolvedValue({
       id: TASK_ID,
       status: TaskStatus.QUEUED,
+      assigneeId: "coworker-1",
       workspaceId: WORKSPACE_ID,
       projectId: null,
       scheduleRevision: SCHEDULE_REVISION,

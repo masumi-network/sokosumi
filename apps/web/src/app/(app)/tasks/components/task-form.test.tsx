@@ -762,7 +762,7 @@ describe("TaskForm", () => {
     ).toBeTruthy();
     expect(
       statusControl.compareDocumentPosition(
-        screen.getByRole("button", { name: "Set schedule" }),
+        screen.getByRole("button", { name: "Create Task" }),
       ) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
@@ -1095,9 +1095,7 @@ describe("TaskForm", () => {
     );
   });
 
-  it("keeps Ready when applying a schedule for a human assignee (SOK-1033)", async () => {
-    const user = userEvent.setup();
-
+  it("does not offer scheduling for human tasks", () => {
     render(
       <TaskForm
         mode="create"
@@ -1121,15 +1119,9 @@ describe("TaskForm", () => {
       "Draft",
     );
 
-    await user.click(screen.getByRole("button", { name: "Set schedule" }));
-    await user.click(screen.getByRole("button", { name: "save" }));
-
-    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
-      "Ready",
-    );
     expect(
-      screen.queryByRole("combobox", { name: "Status" }),
-    ).not.toHaveTextContent("Queued");
+      screen.queryByRole("button", { name: "Set schedule" }),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps a manual Draft when applying a schedule after an explicit status choice", async () => {
@@ -1210,11 +1202,8 @@ describe("TaskForm", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Set schedule" }));
-    await user.click(screen.getByRole("button", { name: "save" }));
-
     expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
-      "Ready",
+      "Draft",
     );
 
     await user.click(screen.getByRole("combobox", { name: "Status" }));
@@ -1382,7 +1371,7 @@ describe("TaskForm", () => {
     );
   });
 
-  it("clears schedule and status when unassigning a scheduled agent task (SOK-1033)", async () => {
+  it("requires removing a live schedule before unassigning its agent", async () => {
     const user = userEvent.setup();
     const updateTaskMock = vi.mocked(updateTask);
     updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
@@ -1417,27 +1406,14 @@ describe("TaskForm", () => {
     );
 
     await user.click(screen.getByRole("combobox", { name: /^Coworker/ }));
-    await user.click(screen.getByRole("option", { name: "Unassigned" }));
-
-    expect(screen.getByRole("combobox", { name: "Status" })).toHaveTextContent(
-      "Draft",
+    expect(screen.getByRole("option", { name: "Unassigned" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
     );
-
-    await user.click(screen.getByRole("button", { name: "Save" }));
-    await user.click(screen.getByRole("button", { name: "removeConfirm" }));
-
-    await waitFor(() =>
-      expect(updateTaskMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          taskId: "task-1",
-          desiredStatus: TaskStatus.DRAFT,
-          schedule: expect.objectContaining({ mode: "none" }),
-        }),
-      ),
-    );
+    expect(updateTaskMock).not.toHaveBeenCalled();
   });
 
-  it("shows a Ready celebration for a scheduled human create (SOK-1033)", async () => {
+  it("creates ordinary human tasks without a schedule", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
     createTaskMock.mockResolvedValue(
@@ -1463,10 +1439,9 @@ describe("TaskForm", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Set schedule" }));
-    await user.click(screen.getByRole("button", { name: "save" }));
+    await selectTaskStatus(user, "Ready");
     await user.type(screen.getByTestId("markdown-editor"), "Remind me");
-    await user.click(screen.getByRole("button", { name: /Schedule Task/ }));
+    await user.click(screen.getByRole("button", { name: /Create Task/ }));
 
     expect(await screen.findByText("Ready")).toBeInTheDocument();
     expect(screen.getByText("Human reminder")).toBeInTheDocument();
@@ -1625,7 +1600,7 @@ describe("TaskForm", () => {
     );
   });
 
-  it("keeps a staged schedule when switching to a human assignee (SOK-868)", async () => {
+  it("clears a staged schedule when switching to a human assignee (SOK-868)", async () => {
     const user = userEvent.setup();
     const updateTaskMock = vi.mocked(updateTask);
     updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
@@ -1661,14 +1636,17 @@ describe("TaskForm", () => {
 
     await user.click(screen.getByRole("combobox", { name: /^Coworker/ }));
     await user.click(screen.getByRole("option", { name: "Bob" }));
-    expect(screen.getByText("footer.oneTimeAt")).toBeInTheDocument();
+    expect(screen.queryByText("footer.oneTimeAt")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Set schedule" }),
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(updateTaskMock).toHaveBeenCalledWith(
       expect.objectContaining({
         assigneeUserId: "user-1",
-        schedule: expect.objectContaining({ mode: "once" }),
+        schedule: expect.objectContaining({ mode: "none" }),
       }),
     );
   });
@@ -1932,6 +1910,44 @@ describe("TaskForm", () => {
     renderActiveSeriesEdit();
 
     await user.click(screen.getByRole("button", { name: "Set schedule" }));
+    await user.click(screen.getByRole("button", { name: "clearSchedule" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    const confirmation = await screen.findByRole("alertdialog");
+    expect(confirmation).toHaveTextContent("removeTitle");
+    expect(updateTaskMock).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "removeConfirm" }));
+
+    await waitFor(() =>
+      expect(updateTaskMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          schedule: expect.objectContaining({ mode: "none" }),
+          expectedScheduleRevision: 4,
+        }),
+      ),
+    );
+  });
+
+  it("removes a legacy human schedule without exposing schedule editing", async () => {
+    const user = userEvent.setup();
+    const updateTaskMock = vi.mocked(updateTask);
+    updateTaskMock.mockResolvedValue(updateTaskSuccess("task-1"));
+    renderActiveSeriesEdit({
+      initialValues: {
+        name: "Task name",
+        description: "Initial description",
+        assigneeId: null,
+        assigneeUserId: "user-1",
+        status: TaskStatus.READY,
+        metadata: ACTIVE_SERIES_METADATA,
+        nextRunAt: "2026-06-25T09:00:00.000Z",
+      },
+    });
+
+    expect(
+      screen.queryByRole("button", { name: "Set schedule" }),
+    ).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "clearSchedule" }));
     await user.click(screen.getByRole("button", { name: "Save" }));
 

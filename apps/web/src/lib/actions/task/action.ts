@@ -602,6 +602,14 @@ async function createTaskFromDescription(input: {
   );
   const isAgentAssignee =
     assigneeWrite.assigneeId != null || assigneeWrite.assigneeSokoBotId != null;
+  if (
+    input.status !== TaskStatus.DRAFT &&
+    !isAgentAssignee &&
+    input.schedule &&
+    input.schedule.mode !== "none"
+  ) {
+    throw new Error("Schedules require an agent assignee");
+  }
 
   const trimmedName = input.name
     ? normalizeTaskNameForCoreApi(input.name)
@@ -628,7 +636,7 @@ async function createTaskFromDescription(input: {
         input.schedule,
       );
       // Create always goes Draft → schedule. Agents that asked for Queued but
-      // landed Ready need a follow-up event. Humans keep Ready and save.
+      // landed Ready need a follow-up event.
       if (
         isAgentAssignee &&
         input.status === TaskStatus.QUEUED &&
@@ -826,10 +834,7 @@ export const createScheduledTask = withSession<
     const trimmedAssigneeUserId = assigneeUserId?.trim() || null;
     const trimmedDescription = description?.trim();
     requireOperationId(operationId);
-    if (
-      (!trimmedAssigneeId && !trimmedAssigneeUserId) ||
-      (trimmedAssigneeId && trimmedAssigneeUserId)
-    ) {
+    if (!trimmedAssigneeId || trimmedAssigneeUserId) {
       throw new Error("Exactly one assignee is required");
     }
 
@@ -843,9 +848,6 @@ export const createScheduledTask = withSession<
           ? { description: trimmedDescription || null }
           : {}),
         assigneeId: trimmedAssigneeId,
-        ...(trimmedAssigneeUserId
-          ? { assigneeUserId: trimmedAssigneeUserId }
-          : {}),
         ...(context
           ? { context: toCoreTaskContext(context, session.user.id) }
           : {}),
@@ -1071,6 +1073,20 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
         assigneeSokoBotId,
         assigneeUserId,
       );
+      if (
+        !assigneeWrite.assigneeId &&
+        !assigneeWrite.assigneeSokoBotId &&
+        schedule &&
+        schedule.mode !== "none" &&
+        (!hadSchedule ||
+          hasTaskScheduleChanged(
+            originalSchedule ?? { mode: "none", timezone: "UTC" },
+            schedule,
+            hadSchedule,
+          ))
+      ) {
+        throw new Error("Schedules require an agent assignee");
+      }
       // While a series is live, field edits take the same revision as release,
       // so Core rejects an edit written against a revision the release already
       // moved past.
