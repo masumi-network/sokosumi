@@ -26,7 +26,7 @@ overrides:
   # Patched floor is 0.28.1; pin latest 0.28.x.
   "esbuild@<0.28.2": "0.28.2"
   # undici 7.x GHSAs (SOCKS5 / WebSocket / cache / header injection).
-  # @scalar/json-magic@0.13.5 (via openapi-to-markdown 0.6.0) pins 7.24.4.
+  # @scalar/json-magic@0.15.0 (via openapi-to-markdown 1.1.0) still pins 7.24.4.
   # Do not use undici@<7.29.1 — that would also rewrite @vercel/blob's 6.x.
   # Patched floor is 7.29.0; pin latest 7.x. Not 8.x.
   "undici@>=7.0.0 <7.29.1": "7.29.1"
