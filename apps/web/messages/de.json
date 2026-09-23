@@ -5633,10 +5633,13 @@
         "error": "Threads konnten nicht geladen werden. Bitte erneut versuchen.",
         "markAllReadError": "Ungelesene Threads konnten nicht als gelesen markiert werden. Bitte erneut versuchen.",
         "loadOlder": "Ältere Threads laden",
+        "groupUnread": "Ungelesen",
+        "groupEarlier": "Früher",
+        "groupUnreadEmpty": "Alles gelesen.",
         "startedBy": "Gestartet von {name}",
-        "unreadReplies": "{count, plural, one {# ungelesene Antwort} other {# ungelesene Antworten}}",
         "unreadThreads": "{count, plural, one {# ungelesener Thread} other {# ungelesene Threads}}",
-        "unreadThreadsCapped": "Mehr als {max} ungelesene Threads"
+        "unreadThreadsCapped": "Mehr als {max} ungelesene Threads",
+        "newReplies": "{count, plural, one {# neue} other {# neue}}"
       },
       "RoomUnread": {
         "unreadMessages": "{count, plural, one {# ungelesene Nachricht} other {# ungelesene Nachrichten}}",
@@ -6391,8 +6394,8 @@
         "retry": "Erneut versuchen"
       },
       "agenda": {
-        "backToTop": "Nach oben",
-        "today": "Heute"
+        "upcoming": "Als Nächstes",
+        "loading": "Wird geladen…"
       }
     },
     "You": {

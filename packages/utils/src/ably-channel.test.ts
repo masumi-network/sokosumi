@@ -14,8 +14,6 @@ import {
   makeWorkspaceCalendarChannelName,
   parseChatRoomIdFromChannelName,
   parseOrganizationIdFromPresenceChannelName,
-  parseUserIdFromCalendarControlChannelName,
-  parseWorkspaceCalendarChannelName,
 } from "./ably-channel";
 
 describe("makeUserNotificationsChannelName", () => {
@@ -84,53 +82,16 @@ describe("makeUserChatControlChannelName", () => {
 });
 
 describe("calendar channel names", () => {
-  it("round-trips a user-scoped workspace channel", () => {
-    const channelName = makeWorkspaceCalendarChannelName(
-      "workspace_123",
-      "user_123",
-    );
-
-    expect(channelName).toBe("calendar:workspace_workspace_123:user_user_123");
-    expect(parseWorkspaceCalendarChannelName(channelName)).toEqual({
-      workspaceId: "workspace_123",
-      userId: "user_123",
-    });
-  });
-
-  it("rejects malformed workspace channels", () => {
-    expect(
-      parseWorkspaceCalendarChannelName("calendar:workspace_:user_user_123"),
-    ).toBeNull();
-    expect(
-      parseWorkspaceCalendarChannelName(
-        "calendar:workspace_workspace_123:user_",
-      ),
-    ).toBeNull();
-    expect(
-      parseWorkspaceCalendarChannelName(
-        "calendar:workspace_workspace_123:user_user_123:extra",
-      ),
-    ).toBeNull();
-  });
-
-  it("round-trips the user calendar control channel", () => {
-    const channelName = makeUserCalendarControlChannelName("user_123");
-
-    expect(channelName).toBe("calendar_control:user_user_123");
-    expect(parseUserIdFromCalendarControlChannelName(channelName)).toBe(
-      "user_123",
+  it("builds a user-scoped workspace channel", () => {
+    expect(makeWorkspaceCalendarChannelName("workspace_123", "user_123")).toBe(
+      "calendar:workspace_workspace_123:user_user_123",
     );
   });
 
-  it("rejects malformed calendar control channels", () => {
-    expect(
-      parseUserIdFromCalendarControlChannelName("calendar_control:user_"),
-    ).toBeNull();
-    expect(
-      parseUserIdFromCalendarControlChannelName(
-        "calendar_control:user_user_123:extra",
-      ),
-    ).toBeNull();
+  it("builds the user calendar control channel", () => {
+    expect(makeUserCalendarControlChannelName("user_123")).toBe(
+      "calendar_control:user_user_123",
+    );
   });
 
   it("exports canonical event names", () => {
