@@ -47,7 +47,7 @@ public struct RoomAttention: Equatable, Sendable {
 }
 
 /// Web `ROOM_COUNT_CAP`: a very loud room cannot reflow its row.
-private let roomCountCap = 99
+let roomCountCap = 99
 
 /// Web `roomCountLabel`: the count, capped as "99+".
 public func roomCountLabel(_ count: Int) -> String {

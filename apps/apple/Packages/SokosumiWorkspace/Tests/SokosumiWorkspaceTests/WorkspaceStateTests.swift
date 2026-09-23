@@ -3431,3 +3431,76 @@ extension WorkspaceStateTests {
     #expect(transport.remainingStubs == 0)
   }
 }
+
+/// Row 24f1: the chat-level Threads view takes the detail column in place of the selected room (web
+/// `/chat/threads`), so the room behind it is not on screen and nothing in it is read; a row opens its
+/// Thread in its own room.
+extension WorkspaceStateTests {
+  @Test func theThreadsViewReadsNothingInTheRoomBehindIt() async throws {
+    let (state, auth, transport) = try await Self.openMuteThread([
+      (200, Self.lookBody), (200, roomReadBody(id: Self.muteRoomId, unread: 1))
+    ])
+    let written = transport.operationIDs.count
+    state.showThreadsView()
+    #expect(state.sidebar.showsThreadsView)
+    await state.syncReadAttention(auth: auth)
+    await state.syncThreadAttention(auth: auth)
+    #expect(transport.operationIDs.count == written, "Neither the room nor its open thread is on screen.")
+    await state.showRoom(Self.muteRoomId, auth: auth)
+    #expect(!state.sidebar.showsThreadsView && state.selectedRoomId == Self.muteRoomId)
+    #expect(transport.operationIDs.suffix(2) == ["post/chats/rooms/{id}/threads/{parentMessageId}/read", "post/chats/rooms/{id}/read"],
+            "Back on the room, what is on screen is read.")
+    #expect(transport.remainingStubs == 0)
+    state.thread.close()
+  }
+
+  @Test func aThreadsRowOpensItsThreadInItsRoom() async throws {
+    let first = "550e8400-e29b-41d4-a716-446655440051"
+    let second = "550e8400-e29b-41d4-a716-446655440052"
+    let parentId = "550e8400-e29b-41d4-a716-446655440053"
+    let replyId = "550e8400-e29b-41d4-a716-446655440054"
+    let reply = transcriptMessage(id: replyId, roomId: second, content: "Reply")
+      .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"\(parentId)\"")
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, transcriptPageBody(messages: [transcriptMessage(id: parentId, roomId: second, content: "Parent")], nextCursor: nil)),
+      (200, #"{"data":\#(reply),"meta":{"timestamp":"\#(timestamp)","requestId":"req-1"}}"#),
+      (200, transcriptPageBody(messages: [reply], nextCursor: nil))
+    ], visible: false)
+    defer { state.reset() }
+    var rooms = [coworkerDirect(roomId: first), coworkerDirect(roomId: second)]
+    rooms[1].kind = .channel
+    state.rooms = rooms
+    state.showThreadsView()
+    #expect(state.sidebar.showsThreadsView)
+    #expect(try await state.openRoomLink(roomId: second, messageId: replyId, auth: auth) == .opened)
+    #expect(!state.sidebar.showsThreadsView, "The room takes the detail column again.")
+    #expect(state.selectedRoomId == second && state.thread.parent?.id == parentId)
+    #expect(state.thread.jumpTarget?.messageId == replyId)
+    #expect(transport.operationIDs == [
+      "get/chats/rooms/{id}/messages", "get/chats/rooms/{id}/messages/{messageId}",
+      "get/chats/rooms/{id}/threads/{parentMessageId}/messages"
+    ])
+  }
+
+  /// Web's `UnreadThreadsList` asks Core nothing while the rooms already say zero, and reads the workspace's
+  /// unread Threads once a room counts one.
+  @Test func theUnreadGroupAsksCoreOnlyWhileTheRoomsCountAThread() async throws {
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, transcriptPageBody(messages: [], nextCursor: nil))
+    ], visible: false)
+    defer { state.reset() }
+    var room = coworkerDirect(roomId: "550e8400-e29b-41d4-a716-446655440061")
+    room.unreadThreadCount = 0
+    state.rooms = [room]
+    await state.updateCrossRoomThreads(.unread, auth: auth)
+    #expect(transport.operationIDs.isEmpty)
+    #expect(state.crossRoomThreads.unreadState(rooms: state.rooms, roomsLive: state.roomsLive) == .caughtUp)
+    room.unreadThreadCount = 1
+    state.rooms = [room]
+    await state.updateCrossRoomThreads(.unread, auth: auth)
+    #expect(transport.operationIDs == ["get/chats/threads/unread"])
+    #expect(transport.paths.first?.contains("limit=50") == true)
+    #expect(state.crossRoomThreads.unreadState(rooms: state.rooms, roomsLive: state.roomsLive) == .caughtUp,
+            "Core's empty answer agrees.")
+  }
+}

@@ -58,7 +58,7 @@ public extension WorkspaceState {
   }
 
   internal func syncThreadAttention(auth: AuthState) async {
-    guard readAttention.isVisible, roomHistoryReadable,
+    guard readAttention.isVisible, !sidebar.showsThreadsView, roomHistoryReadable,
           let client = resolveClient(auth: auth) else { return }
     do {
       guard try await thread.markLooked(client: client, organizationSlug: selection?.workspace.organizationSlug),

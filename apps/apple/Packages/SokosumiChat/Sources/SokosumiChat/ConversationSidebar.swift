@@ -42,6 +42,9 @@ public final class ConversationSidebar: ObservableObject {
   /// cannot come back by itself the next time a second room is pinned.
   @Published public private(set) var pinnedReorderMode = false
   @Published public var selectedRoomId: String?
+  /// The chat-level Threads view stands in the detail column in place of the selected room (row 24f1, web
+  /// `/chat/threads`). The selected room stays selected behind it, off screen, and is read again on return.
+  @Published public var showsThreadsView = false
   @Published public var isLoading = false
   @Published public private(set) var errorMessage: String?
   @Published public private(set) var collapsedSections = Section.initiallyCollapsed
@@ -90,6 +93,7 @@ public final class ConversationSidebar: ObservableObject {
     readAttention.reset()
     rooms = []
     selectedRoomId = nil
+    showsThreadsView = false
     collapsedSections = Section.initiallyCollapsed
   }
 
