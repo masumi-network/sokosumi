@@ -93,12 +93,45 @@ public struct MessageAttachmentSegment: Identifiable, Equatable, Sendable {
   }
 }
 
-public extension MessageMarkdown {
-  var containsAttachments: Bool {
-    func walk(_ block: MessageMarkdownBlock) -> Bool {
-      MessageAttachmentSegment.split(block.text).contains { $0.attachment != nil }
-        || block.children.contains(where: walk)
+extension MessageMarkdown {
+  /// Web's `hasLargeSoloImageAttachment` over the linkified source. File links
+  /// with only whitespace between them are one row; list markers, quote markers,
+  /// rules and table pipes are not whitespace, so they split the row. A code
+  /// fence is skipped, so a sample link stays text. When the source has no file
+  /// link, images the scan cannot see (`<img>`) still use the parsed document.
+  static func longBodyClamps(scanning source: String, blocks: [MessageMarkdownBlock]) -> Bool {
+    let groups = MarkdownBareDomains(source).attachmentGroups()
+    let rows = groups.isEmpty ? attachmentRows(in: blocks) : groups
+    return !rows.contains { $0.count == 1 && $0[0].kind == .image }
+  }
+
+  /// Attachments in document order, grouped where only whitespace separates them.
+  private static func attachmentRows(in blocks: [MessageMarkdownBlock]) -> [[MessageAttachment]] {
+    var rows: [[MessageAttachment]] = []
+    var open = false
+    func walk(_ block: MessageMarkdownBlock) {
+      guard block.children.isEmpty else {
+        block.children.forEach(walk)
+        return
+      }
+      if case .codeBlock = block.kind {
+        open = false
+        return
+      }
+      for segment in MessageAttachmentSegment.split(block.text) {
+        if let attachment = segment.attachment {
+          if open {
+            rows[rows.count - 1].append(attachment)
+          } else {
+            rows.append([attachment])
+            open = true
+          }
+        } else if !String(segment.text.characters).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+          open = false
+        }
+      }
     }
-    return blocks.contains(where: walk)
+    blocks.forEach(walk)
+    return rows
   }
 }

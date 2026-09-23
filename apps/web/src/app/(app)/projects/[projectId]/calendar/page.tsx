@@ -66,6 +66,8 @@ export default async function ProjectCalendarPage({
             range={page.range}
             sources={page.sources}
             coworkers={page.coworkerOptions}
+            scheduledTasks={page.scheduledTasks}
+            scheduledTasksPagination={page.scheduledTasksPagination}
           />
         </div>
         <CalendarCreateTaskModal

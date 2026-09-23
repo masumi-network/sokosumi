@@ -157,7 +157,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
 
       for (const blob of result.blobs) {
-        // Collect up to MAX+1 to detect over-limit
         if (allPathnames.length > MAX_FOLDER_DESCENDANTS) {
           throw unprocessableEntity(
             `Folder exceeds ${MAX_FOLDER_DESCENDANTS} descendant limit. Cannot rename.`,
