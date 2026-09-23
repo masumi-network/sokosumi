@@ -3,7 +3,6 @@
 import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
 
 import { ChatCaughtUp } from "@/app/chat/components/chat-unread-view-header";
 import { resolveUnreadThreadsAttention } from "@/components/chat/room-attention";
@@ -22,8 +21,14 @@ interface UnreadThreadsListProps {
    * their counts say the reader is caught up before Core does.
    */
   roomsLive: boolean;
-  /** Core's first page read with the page request, when there was one. */
-  initialPage?: ChatUnreadThreadsPage | null;
+  /**
+   * Core's first page read with the page request, and the rooms that request
+   * rendered with. The page answers those rooms only.
+   */
+  initial?: {
+    page: ChatUnreadThreadsPage;
+    rooms: readonly ChatRoom[];
+  } | null;
   currentUserId: string;
 }
 
@@ -50,15 +55,18 @@ function unreadThreadsFingerprint(rooms: readonly ChatRoom[]): string {
 export function UnreadThreadsList({
   rooms,
   roomsLive,
-  initialPage = null,
+  initial = null,
   currentUserId,
 }: UnreadThreadsListProps) {
   const t = useTranslations("App.Channels.ThreadsView");
   const roomsById = new Map(rooms.map((room) => [room.id, room]));
   const fingerprint = unreadThreadsFingerprint(rooms);
-  // The server's page answers the rooms as they were when it was read; once
-  // they move, it no longer does.
-  const [initialFingerprint] = useState(fingerprint);
+  // initialData is fresh for the app query client's 60s staleTime. Only the
+  // rooms the server page was rendered with may claim it; a live fingerprint
+  // that has already moved must read Core, or the stale page sticks.
+  const serverFingerprint = initial
+    ? unreadThreadsFingerprint(initial.rooms)
+    : null;
   const { threadCount } = resolveUnreadThreadsAttention(rooms);
 
   const query = useInfiniteQuery({
@@ -67,8 +75,8 @@ export function UnreadThreadsList({
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     initialData:
-      initialPage && fingerprint === initialFingerprint
-        ? { pages: [initialPage], pageParams: [undefined] }
+      initial && fingerprint === serverFingerprint
+        ? { pages: [initial.page], pageParams: [undefined] }
         : undefined,
     placeholderData: keepPreviousData,
   });

@@ -36,7 +36,9 @@ export function UnreadThreadsView({
       <UnreadThreadsList
         rooms={roomsLive ? liveRooms : initialRooms}
         roomsLive={roomsLive}
-        initialPage={initialPage}
+        initial={
+          initialPage ? { page: initialPage, rooms: initialRooms } : null
+        }
         currentUserId={currentUserId}
       />
     </div>

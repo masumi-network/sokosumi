@@ -67,11 +67,16 @@ function page(): ChatUnreadThreadsPage {
   };
 }
 
-function renderView(initialPage: ChatUnreadThreadsPage | null = page()) {
+function renderView(
+  initialPage: ChatUnreadThreadsPage | null = page(),
+  staleTime = 0,
+) {
   return render(
     <QueryClientProvider
       client={
-        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        new QueryClient({
+          defaultOptions: { queries: { retry: false, staleTime } },
+        })
       }
     >
       <NextIntlClientProvider locale="en" messages={messages}>
@@ -117,15 +122,23 @@ describe("UnreadThreadsView", () => {
     expect(screen.queryByRole("list", { name: "Unread threads" })).toBeNull();
   });
 
-  it("drops a Thread whose room the reader has muted since", () => {
+  it("drops a Thread whose room the reader has muted since", async () => {
     liveRooms.current = [
       sokosumi,
       { ...design, mutedAt: new Date("2026-09-01T00:00:00.000Z") },
     ];
     renderView();
 
-    const list = screen.getByRole("list", { name: "Unread threads" });
+    const list = await screen.findByRole("list", { name: "Unread threads" });
     expect(within(list).getAllByRole("link")).toHaveLength(1);
+  });
+
+  it("reads again when the live rooms have already moved past the server page", async () => {
+    liveRooms.current = [{ ...sokosumi, threadUnreadCount: 9 }, design];
+    renderView(page(), 60_000);
+
+    await screen.findByRole("list", { name: "Unread threads" });
+    expect(fetchUnreadThreadsMock).toHaveBeenCalledWith(undefined);
   });
 
   it("reads the first page itself when the server's read failed", async () => {
