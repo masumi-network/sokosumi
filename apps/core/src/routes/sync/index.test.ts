@@ -22,9 +22,11 @@ const {
   purgeExpiredTaskX402PaymentHeadersMock,
   syncProjectClosesMock,
   syncDueTaskSchedulesMock,
+  releaseDueTaskSchedulesMock,
   reconcileScheduleHistoryMock,
   validateActiveSchedulesMock,
 } = vi.hoisted(() => ({
+  releaseDueTaskSchedulesMock: vi.fn(),
   acquireLockMock: vi.fn(),
   syncCardanoV2RailReadinessMock: vi.fn(),
   syncCalendarInvalidationsMock: vi.fn(),
@@ -157,6 +159,12 @@ vi.mock("@/services/task-schedules-sync", () => ({
   },
 }));
 
+vi.mock("@/services/task-schedule-occurrences.service", () => ({
+  taskScheduleReleaseService: {
+    releaseDueSchedules: releaseDueTaskSchedulesMock,
+  },
+}));
+
 vi.mock("@/services/project-close-sync.service", () => ({
   projectCloseSyncService: {
     syncProjectCloses: syncProjectClosesMock,
@@ -267,6 +275,7 @@ describe("sync routes", () => {
       cloned: 0,
       durationMs: 0,
     });
+    releaseDueTaskSchedulesMock.mockResolvedValue({ released: 0, ended: 0 });
     syncProjectClosesMock.mockResolvedValue({
       claimed: 0,
       processedSeries: 0,
@@ -382,6 +391,11 @@ describe("sync routes", () => {
     await flushMicrotasks();
     expect(syncDueTaskSchedulesMock).toHaveBeenCalledTimes(1);
     expect(syncDueTaskSchedulesMock).toHaveBeenCalledWith({
+      abortSignal: expect.any(AbortSignal),
+      deadlineMs: expect.any(Number),
+      shouldContinue: expect.any(Function),
+    });
+    expect(releaseDueTaskSchedulesMock).toHaveBeenCalledWith({
       abortSignal: expect.any(AbortSignal),
       deadlineMs: expect.any(Number),
       shouldContinue: expect.any(Function),

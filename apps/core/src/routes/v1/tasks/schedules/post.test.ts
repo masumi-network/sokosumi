@@ -1,10 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   COWORKER_AUTH,
   COWORKER_ID,
   MEMBER_ID,
   OWNER_ID,
+  occurrencesOf,
   PROJECT_ID,
   resetTaskScheduleTestDb,
   SOKO_BOT_AUTH,
@@ -89,6 +90,81 @@ describe("POST /tasks/schedules", () => {
     expect(next.getTime()).toBeGreaterThan(Date.now());
     expect(next.getUTCDay()).toBe(1);
     expect(taskScheduleTestDb.schedules).toHaveLength(1);
+  });
+
+  describe("Occurrences", () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2030-01-01T00:00:00.000Z"));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("plans the Occurrences over the calendar horizon", async () => {
+      const response = await post({
+        name: "Weekly report",
+        projectId: PROJECT_ID,
+        rule: { expr: "0 9 * * 1", timezone: "UTC" },
+      });
+
+      expect(response.status).toBe(201);
+      const schedule = taskScheduleTestDb.schedules[0];
+      const occurrences = occurrencesOf(schedule?.id ?? "");
+      // Every Monday from Jan 7 to Mar 25: the 90-day horizon ends Apr 1.
+      expect(occurrences).toHaveLength(12);
+      expect(occurrences[0]).toMatchObject({
+        epochId: schedule?.epochId,
+        originalScheduledAt: new Date("2030-01-07T09:00:00.000Z"),
+        effectiveScheduledAt: new Date("2030-01-07T09:00:00.000Z"),
+        state: "PLANNED",
+        sourceType: "PROJECT",
+        sourceProjectId: PROJECT_ID,
+        timezone: "UTC",
+      });
+      expect(occurrences.at(-1)?.effectiveScheduledAt).toEqual(
+        new Date("2030-03-25T09:00:00.000Z"),
+      );
+      expect(schedule?.nextOccurrenceAt).toEqual(
+        new Date("2030-01-07T09:00:00.000Z"),
+      );
+    });
+
+    it("plans no more Occurrences than the end rule allows", async () => {
+      await post({
+        name: "Three reports",
+        rule: {
+          expr: "0 9 * * 1",
+          timezone: "UTC",
+          endsMode: "AFTER",
+          targetOccurrenceCount: 3,
+        },
+      });
+
+      expect(
+        occurrencesOf(taskScheduleTestDb.schedules[0]?.id ?? "").map(
+          (row) => row.effectiveScheduledAt,
+        ),
+      ).toEqual([
+        new Date("2030-01-07T09:00:00.000Z"),
+        new Date("2030-01-14T09:00:00.000Z"),
+        new Date("2030-01-21T09:00:00.000Z"),
+      ]);
+    });
+
+    it("plans the next Occurrence even beyond the horizon", async () => {
+      await post({
+        name: "Yearly review",
+        rule: { expr: "0 9 1 7 *", timezone: "UTC" },
+      });
+
+      expect(
+        occurrencesOf(taskScheduleTestDb.schedules[0]?.id ?? "").map(
+          (row) => row.effectiveScheduledAt,
+        ),
+      ).toEqual([new Date("2030-07-01T09:00:00.000Z")]);
+    });
   });
 
   describe("rule validation", () => {

@@ -1,0 +1,453 @@
+import { randomUUID } from "node:crypto";
+
+import {
+  TaskScheduleEndsMode,
+  TaskScheduleOccurrenceState,
+  TaskScheduleState,
+  TaskStatus,
+} from "@sokosumi/database";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
+import {
+  COWORKER_ID,
+  MEMBER_ID,
+  ORG_WORKSPACE_ID,
+  OWNER_ID,
+  occurrencesOf,
+  PROJECT_ID,
+  resetTaskScheduleTestDb,
+  SOKO_BOT_ID,
+  seedOccurrence,
+  seedTaskSchedule,
+  taskScheduleTestDb,
+  taskScheduleTestPrisma,
+} from "@/test-fixtures/task-schedule";
+
+vi.mock("@/lib/db/prisma", async () => ({
+  default: (await import("@/test-fixtures/task-schedule"))
+    .taskScheduleTestPrisma,
+}));
+vi.mock("@/lib/ably/publish", () => ({ publishTaskEventData: vi.fn() }));
+vi.mock("@/helpers/task-notifications", () => ({
+  notifyTaskHumanAssignee: vi.fn(),
+}));
+
+const { taskScheduleReleaseService } = await import(
+  "./task-schedule-occurrences.service"
+);
+
+const NOW = new Date("2030-01-07T09:30:00.000Z");
+const MONDAY_9 = new Date("2030-01-07T09:00:00.000Z");
+const NEXT_MONDAY_9 = new Date("2030-01-14T09:00:00.000Z");
+
+function release() {
+  return taskScheduleReleaseService.releaseDueSchedules({
+    abortSignal: new AbortController().signal,
+    deadlineMs: Number.POSITIVE_INFINITY,
+    shouldContinue: () => true,
+  });
+}
+
+describe("taskScheduleReleaseService.releaseDueSchedules", () => {
+  beforeEach(() => {
+    resetTaskScheduleTestDb();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(NOW);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("creates a Ready Task from the blueprint at a due Occurrence", async () => {
+    const schedule = seedTaskSchedule({
+      name: "Weekly report",
+      description: "Summarise the week",
+      nextOccurrenceAt: MONDAY_9,
+    });
+    const occurrence = seedOccurrence(schedule, MONDAY_9);
+
+    await release();
+
+    expect(taskScheduleTestDb.tasks).toHaveLength(1);
+    const task = taskScheduleTestDb.tasks[0];
+    expect(task).toMatchObject({
+      scheduleId: schedule.id,
+      status: TaskStatus.READY,
+      name: "Weekly report",
+      description: "Summarise the week",
+      ownerId: OWNER_ID,
+      workspaceId: schedule.workspaceId,
+      organizationId: schedule.organizationId,
+      projectId: null,
+      visibility: schedule.visibility,
+      creatorUserId: OWNER_ID,
+      creatorCoworkerId: null,
+      creatorSokoBotId: null,
+    });
+    expect(task?.events).toEqual([
+      expect.objectContaining({ status: TaskStatus.READY, userId: OWNER_ID }),
+    ]);
+    expect(
+      occurrencesOf(schedule.id).find((row) => row.id === occurrence.id),
+    ).toMatchObject({
+      state: TaskScheduleOccurrenceState.RELEASED,
+      releasedTaskId: task?.id,
+    });
+    expect(taskScheduleTestDb.schedules[0]).toMatchObject({
+      state: TaskScheduleState.ACTIVE,
+      releasedCount: 1,
+      nextOccurrenceAt: NEXT_MONDAY_9,
+    });
+  });
+
+  it.each([
+    ["Coworker", { assigneeId: COWORKER_ID }],
+    ["Soko Bot", { assigneeSokoBotId: SOKO_BOT_ID }],
+    ["person", { assigneeUserId: MEMBER_ID }],
+  ])("copies a %s assignee onto the Task", async (_kind, assignee) => {
+    const schedule = seedTaskSchedule({
+      nextOccurrenceAt: MONDAY_9,
+      ...assignee,
+    });
+    seedOccurrence(schedule, MONDAY_9);
+
+    await release();
+
+    expect(taskScheduleTestDb.tasks[0]).toMatchObject({
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      ...assignee,
+    });
+  });
+
+  it("tells a person assignee about the new Task", async () => {
+    const schedule = seedTaskSchedule({
+      nextOccurrenceAt: MONDAY_9,
+      assigneeUserId: MEMBER_ID,
+    });
+    seedOccurrence(schedule, MONDAY_9);
+
+    await release();
+
+    expect(notifyTaskHumanAssignee).toHaveBeenCalledWith(
+      taskScheduleTestDb.tasks[0]?.id,
+      MEMBER_ID,
+    );
+  });
+
+  it("makes the schedule's Coworker creator the Task's creator", async () => {
+    const schedule = seedTaskSchedule({
+      nextOccurrenceAt: MONDAY_9,
+      creatorUserId: null,
+      creatorCoworkerId: COWORKER_ID,
+    });
+    seedOccurrence(schedule, MONDAY_9);
+
+    await release();
+
+    const task = taskScheduleTestDb.tasks[0];
+    expect(task).toMatchObject({
+      ownerId: OWNER_ID,
+      creatorUserId: null,
+      creatorCoworkerId: COWORKER_ID,
+    });
+    expect(task?.events[0]).toMatchObject({
+      userId: null,
+      coworkerId: COWORKER_ID,
+    });
+  });
+
+  it("lands the Task in the blueprint's project", async () => {
+    const schedule = seedTaskSchedule({
+      nextOccurrenceAt: MONDAY_9,
+      projectId: PROJECT_ID,
+    });
+    seedOccurrence(schedule, MONDAY_9);
+
+    await release();
+
+    expect(taskScheduleTestDb.tasks[0]?.projectId).toBe(PROJECT_ID);
+  });
+
+  it("creates a new Task while the previous one is still open", async () => {
+    const schedule = seedTaskSchedule({
+      nextOccurrenceAt: MONDAY_9,
+      releasedCount: 1,
+    });
+    taskScheduleTestDb.tasks.push({
+      id: "task_previous",
+      scheduleId: schedule.id,
+      status: TaskStatus.READY,
+      events: [],
+    });
+    seedOccurrence(schedule, MONDAY_9);
+
+    await release();
+
+    expect(
+      taskScheduleTestDb.tasks.filter(
+        (task) => task.scheduleId === schedule.id,
+      ),
+    ).toHaveLength(2);
+    expect(taskScheduleTestDb.schedules[0]?.releasedCount).toBe(2);
+  });
+
+  it("releases every overdue Occurrence, oldest first", async () => {
+    const previousMonday = new Date("2029-12-31T09:00:00.000Z");
+    const schedule = seedTaskSchedule({ nextOccurrenceAt: previousMonday });
+    seedOccurrence(schedule, MONDAY_9);
+    seedOccurrence(schedule, previousMonday);
+
+    await release();
+
+    expect(taskScheduleTestDb.tasks).toHaveLength(2);
+    expect(
+      occurrencesOf(schedule.id)
+        .slice(0, 3)
+        .map((row) => [row.effectiveScheduledAt, row.state]),
+    ).toEqual([
+      [previousMonday, TaskScheduleOccurrenceState.RELEASED],
+      [MONDAY_9, TaskScheduleOccurrenceState.RELEASED],
+      [NEXT_MONDAY_9, TaskScheduleOccurrenceState.PLANNED],
+    ]);
+    expect(taskScheduleTestDb.schedules[0]?.releasedCount).toBe(2);
+  });
+
+  it("keeps planning Occurrences across the calendar horizon", async () => {
+    const schedule = seedTaskSchedule({ nextOccurrenceAt: MONDAY_9 });
+    seedOccurrence(schedule, MONDAY_9);
+
+    await release();
+
+    const planned = occurrencesOf(schedule.id).filter(
+      (row) => row.state === TaskScheduleOccurrenceState.PLANNED,
+    );
+    // Every Monday from Jan 14 to Apr 1: the 90-day horizon ends Apr 7.
+    expect(planned).toHaveLength(12);
+    expect(planned[0]?.effectiveScheduledAt).toEqual(NEXT_MONDAY_9);
+    expect(planned.at(-1)?.effectiveScheduledAt).toEqual(
+      new Date("2030-04-01T09:00:00.000Z"),
+    );
+  });
+
+  it("Ends a schedule after its last of N Occurrences", async () => {
+    const schedule = seedTaskSchedule({
+      nextOccurrenceAt: MONDAY_9,
+      endsMode: TaskScheduleEndsMode.AFTER,
+      targetOccurrenceCount: 2,
+      releasedCount: 1,
+    });
+    seedOccurrence(schedule, MONDAY_9);
+
+    await release();
+
+    expect(taskScheduleTestDb.tasks).toHaveLength(1);
+    expect(taskScheduleTestDb.schedules[0]).toMatchObject({
+      state: TaskScheduleState.ENDED,
+      releasedCount: 2,
+      nextOccurrenceAt: null,
+    });
+    expect(occurrencesOf(schedule.id).map((row) => row.state)).toEqual([
+      TaskScheduleOccurrenceState.RELEASED,
+    ]);
+  });
+
+  it("Ends a schedule whose next Occurrence falls after its end date", async () => {
+    const schedule = seedTaskSchedule({
+      nextOccurrenceAt: MONDAY_9,
+      endsMode: TaskScheduleEndsMode.ON,
+      endsOn: new Date("2030-01-10T00:00:00.000Z"),
+    });
+    seedOccurrence(schedule, MONDAY_9);
+
+    await release();
+
+    expect(taskScheduleTestDb.tasks).toHaveLength(1);
+    expect(taskScheduleTestDb.schedules[0]).toMatchObject({
+      state: TaskScheduleState.ENDED,
+      nextOccurrenceAt: null,
+    });
+  });
+
+  it.each([TaskScheduleState.PAUSED, TaskScheduleState.ENDED])(
+    "never fires a %s schedule",
+    async (state) => {
+      const schedule = seedTaskSchedule({ state, nextOccurrenceAt: MONDAY_9 });
+      seedOccurrence(schedule, MONDAY_9);
+
+      await release();
+
+      expect(taskScheduleTestDb.tasks).toHaveLength(0);
+      expect(occurrencesOf(schedule.id)[0]?.state).toBe(
+        TaskScheduleOccurrenceState.PLANNED,
+      );
+    },
+  );
+
+  it.each([
+    ["closing", { closingAt: new Date("2030-01-01T00:00:00.000Z") }],
+    ["closed", { closedAt: new Date("2030-01-01T00:00:00.000Z") }],
+  ])("skips a schedule whose project is %s", async (_label, closing) => {
+    taskScheduleTestDb.projects.set(PROJECT_ID, {
+      workspaceId: ORG_WORKSPACE_ID,
+      ...closing,
+    });
+    const schedule = seedTaskSchedule({
+      nextOccurrenceAt: MONDAY_9,
+      projectId: PROJECT_ID,
+    });
+    seedOccurrence(schedule, MONDAY_9);
+
+    await release();
+
+    expect(taskScheduleTestDb.tasks).toHaveLength(0);
+  });
+
+  it("does not create a second Task when the run is retried", async () => {
+    const schedule = seedTaskSchedule({ nextOccurrenceAt: MONDAY_9 });
+    seedOccurrence(schedule, MONDAY_9);
+
+    await release();
+    await release();
+
+    expect(taskScheduleTestDb.tasks).toHaveLength(1);
+    expect(taskScheduleTestDb.schedules[0]?.releasedCount).toBe(1);
+  });
+
+  it("does not create a Task for an Occurrence another run released meanwhile", async () => {
+    const schedule = seedTaskSchedule({ nextOccurrenceAt: MONDAY_9 });
+    const occurrence = seedOccurrence(schedule, MONDAY_9);
+    // The other run claims the Occurrence between this run's read and write.
+    vi.mocked(taskScheduleTestPrisma.task.create).mockImplementationOnce(
+      async () => {
+        taskScheduleTestDb.occurrences = taskScheduleTestDb.occurrences.map(
+          (row) =>
+            row.id === occurrence.id
+              ? {
+                  ...row,
+                  state: TaskScheduleOccurrenceState.RELEASED,
+                  releasedTaskId: "task_other_run",
+                }
+              : row,
+        );
+        taskScheduleTestDb.tasks.push({ id: "task_lost", events: [] });
+        return { id: "task_lost", ownerId: OWNER_ID, assigneeUserId: null };
+      },
+    );
+
+    await release();
+
+    expect(taskScheduleTestDb.tasks).toHaveLength(0);
+    expect(taskScheduleTestDb.schedules[0]?.releasedCount).toBe(0);
+  });
+
+  it("still releases an Occurrence owed from before a rule edit", async () => {
+    const schedule = seedTaskSchedule({ nextOccurrenceAt: MONDAY_9 });
+    seedOccurrence(schedule, MONDAY_9, { epochId: randomUUID() });
+
+    await release();
+
+    expect(taskScheduleTestDb.tasks).toHaveLength(1);
+    expect(taskScheduleTestDb.schedules[0]).toMatchObject({
+      releasedCount: 1,
+      nextOccurrenceAt: NEXT_MONDAY_9,
+    });
+  });
+
+  it("rolls back when the schedule is edited during the release", async () => {
+    const schedule = seedTaskSchedule({ nextOccurrenceAt: MONDAY_9 });
+    seedOccurrence(schedule, MONDAY_9);
+    // A blueprint edit commits between this run's read and its write.
+    vi.mocked(taskScheduleTestPrisma.task.create).mockImplementationOnce(
+      async () => {
+        taskScheduleTestDb.schedules = taskScheduleTestDb.schedules.map(
+          (row) => ({ ...row, name: "Renamed", revision: row.revision + 1 }),
+        );
+        taskScheduleTestDb.tasks.push({ id: "task_stale", events: [] });
+        return { id: "task_stale", ownerId: OWNER_ID, assigneeUserId: null };
+      },
+    );
+
+    await release();
+
+    expect(taskScheduleTestDb.tasks).toHaveLength(0);
+    expect(occurrencesOf(schedule.id)[0]?.state).toBe(
+      TaskScheduleOccurrenceState.PLANNED,
+    );
+  });
+
+  it("finishes a stopped backlog without passing its end after N", async () => {
+    const schedule = seedTaskSchedule({
+      nextOccurrenceAt: new Date("2029-12-17T09:00:00.000Z"),
+      endsMode: TaskScheduleEndsMode.AFTER,
+      targetOccurrenceCount: 3,
+    });
+    seedOccurrence(schedule, new Date("2029-12-17T09:00:00.000Z"));
+    seedOccurrence(schedule, new Date("2029-12-24T09:00:00.000Z"));
+    seedOccurrence(schedule, new Date("2029-12-31T09:00:00.000Z"));
+
+    // The first run runs out of budget after one Task.
+    await taskScheduleReleaseService.releaseDueSchedules({
+      abortSignal: new AbortController().signal,
+      deadlineMs: Number.POSITIVE_INFINITY,
+      shouldContinue: () => taskScheduleTestDb.tasks.length < 1,
+    });
+    expect(
+      occurrencesOf(schedule.id).filter(
+        (row) => row.state === TaskScheduleOccurrenceState.PLANNED,
+      ),
+    ).toHaveLength(2);
+
+    await release();
+
+    expect(taskScheduleTestDb.tasks).toHaveLength(3);
+    expect(taskScheduleTestDb.schedules[0]).toMatchObject({
+      state: TaskScheduleState.ENDED,
+      releasedCount: 3,
+    });
+  });
+
+  it("releases a long backlog over several transactions in one run", async () => {
+    const schedule = seedTaskSchedule({
+      nextOccurrenceAt: new Date("2030-01-07T07:00:00.000Z"),
+    });
+    for (let minute = 0; minute < 60; minute += 1) {
+      seedOccurrence(schedule, new Date(Date.UTC(2030, 0, 7, 7, minute)));
+    }
+
+    await release();
+
+    expect(taskScheduleTestDb.tasks).toHaveLength(60);
+    expect(taskScheduleTestPrisma.$transaction).toHaveBeenCalledTimes(2);
+    expect(taskScheduleTestDb.schedules[0]).toMatchObject({
+      releasedCount: 60,
+      nextOccurrenceAt: NEXT_MONDAY_9,
+    });
+  });
+
+  it("keeps releasing other schedules when one fails", async () => {
+    const broken = seedTaskSchedule({ nextOccurrenceAt: MONDAY_9 });
+    const healthy = seedTaskSchedule({ nextOccurrenceAt: MONDAY_9 });
+    seedOccurrence(broken, MONDAY_9);
+    seedOccurrence(healthy, MONDAY_9);
+    const create = taskScheduleTestPrisma.task.create.getMockImplementation();
+    vi.mocked(taskScheduleTestPrisma.task.create).mockImplementation(
+      async (args) => {
+        if (args.data.scheduleId === broken.id) {
+          throw new Error("foreign key violation");
+        }
+        return create?.(args) as ReturnType<NonNullable<typeof create>>;
+      },
+    );
+
+    const result = await release();
+
+    expect(result).toMatchObject({ released: 1, failed: 1 });
+    expect(taskScheduleTestDb.tasks.map((task) => task.scheduleId)).toEqual([
+      healthy.id,
+    ]);
+  });
+});

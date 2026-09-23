@@ -88,7 +88,11 @@ interface TaskScheduleOccurrenceRefreshClient
   >;
 }
 
-function getOccurrenceSource(task: TaskScheduleOccurrenceIndexTask) {
+/** Calendar source of the Occurrences a series or Task Schedule plans. */
+export function getOccurrenceSource(task: {
+  workspaceId: string;
+  projectId: string | null;
+}) {
   return {
     sourceWorkspaceId: task.workspaceId,
     sourceType: task.projectId
